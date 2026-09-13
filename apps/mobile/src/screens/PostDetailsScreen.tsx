@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, type TextStyle } from 'react-native';
+import { View, Text as RNText, Pressable, ScrollView, TextInput, type TextStyle } from 'react-native';
 import { Screen } from '../components/ui';
+import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -43,8 +44,9 @@ const DURATIONS = [
   { label: '7 days', days: 7 },
 ];
 
-/** Faint map grid + centre pin, standing in for the markup's CSS gradients. */
-function MapBox() {
+/** Faint map grid + centre pin, standing in for the markup's CSS gradients.
+ *  The place label is editable so the poster can retype their area. */
+function MapBox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const t = useTheme();
   const rows = [22, 44, 66, 88];
   const cols = [26, 52, 78, 104, 130, 156, 182, 208, 234, 260, 286, 312, 338, 364, 390, 416, 442];
@@ -79,9 +81,20 @@ function MapBox() {
         />
         <View style={{ width: 1.5, height: 9, backgroundColor: t.colors.accent }} />
       </View>
-      <RNText style={tx('400', 11, t.colors.muted, { position: 'absolute', bottom: 8, right: 10 })}>
-        Indiranagar · 5 km radius
-      </RNText>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        placeholder="Area · radius"
+        placeholderTextColor={t.colors.muted}
+        style={tx('400', 11, t.colors.muted, {
+          position: 'absolute',
+          bottom: 8,
+          right: 10,
+          padding: 0,
+          textAlign: 'right',
+          minWidth: 160,
+        })}
+      />
     </View>
   );
 }
@@ -96,6 +109,11 @@ export function PostDetailsScreen() {
   const pillar = typeof params.pillar === 'number' ? params.pillar : 0;
   const draft = DRAFTS[worker ? 'worker' : 'poster'][pillar] ?? DRAFTS.poster[0];
 
+  // The pillar's draft copy seeds the form; everything stays editable from here.
+  const [title, setTitle] = useState<string>(draft.title);
+  const [details, setDetails] = useState<string>(draft.details);
+  const [completeBy, setCompleteBy] = useState('9 Sep, 6:00 PM');
+  const [location, setLocation] = useState('Indiranagar · 5 km radius');
   const [price, setPrice] = useState(1200);
   const [media, setMedia] = useState(1);
   const [flag, setFlag] = useState(0);
@@ -115,9 +133,9 @@ export function PostDetailsScreen() {
       role: mode,
       bucket: 0,
       state: worker ? 'LIVE LISTING · 0 QUOTES' : 'OPEN · 0 QUOTES',
-      title: draft.title,
+      title: title.trim() || draft.title,
       price: `₹${price.toLocaleString('en-IN')}`,
-      meta: 'Posted just now · Indiranagar',
+      meta: `Posted just now · ${location.split('·')[0]?.trim() || 'Indiranagar'}`,
       tone: 'blue',
     });
     celebrate(promoteOn ? 'Published · nudge your placement' : worker ? 'Listing published' : 'Request posted');
@@ -143,29 +161,36 @@ export function PostDetailsScreen() {
         </RNText>
 
         {label('TITLE', { marginTop: 18 })}
-        <RNText
+        <TextInput
+          value={title}
+          onChangeText={setTitle}
+          placeholder="What do you need?"
+          placeholderTextColor={t.colors.muted}
           style={tx('400', 17, t.colors.ink, {
             marginTop: 9,
+            padding: 0,
             paddingBottom: 11,
             borderBottomWidth: 1,
             borderBottomColor: t.colors.line,
           })}
-        >
-          {draft.title}
-        </RNText>
+        />
 
         {label('DETAILS', { marginTop: 18 })}
-        <RNText
+        <TextInput
+          value={details}
+          onChangeText={setDetails}
+          multiline
+          placeholder="Add anything that helps someone quote accurately"
+          placeholderTextColor={t.colors.muted}
           style={tx('400', 14, t.colors.muted, {
             marginTop: 9,
+            padding: 0,
             lineHeight: 21.7,
             paddingBottom: 11,
             borderBottomWidth: 1,
             borderBottomColor: t.colors.line,
           })}
-        >
-          {draft.details}
-        </RNText>
+        />
 
         {label('PHOTOS OR VIDEO · OPTIONAL', { marginTop: 18 })}
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 11 }}>
@@ -222,9 +247,12 @@ export function PostDetailsScreen() {
               >
                 <RNText style={tx('400', 15, t.colors.ink)}>−</RNText>
               </Pressable>
-              <RNText style={tx('800', 18, t.colors.accentDeep, { flex: 1, textAlign: 'center' })}>
-                ₹{price.toLocaleString('en-IN')}
-              </RNText>
+              <AmountField
+                rupees={price}
+                onChangeRupees={setPrice}
+                min={100}
+                style={tx('800', 18, t.colors.accentDeep, { flex: 1 })}
+              />
               <Pressable
                 onPress={() => setPrice((p) => p + 100)}
                 style={{
@@ -254,7 +282,13 @@ export function PostDetailsScreen() {
               }}
             >
               {label('COMPLETE BY ·', {}, t.colors.accentDeep)}
-              <RNText style={tx('700', 15, t.colors.ink, { marginTop: 8 })}>9 Sep, 6:00 PM</RNText>
+              <TextInput
+                value={completeBy}
+                onChangeText={setCompleteBy}
+                placeholder="Pick a date and time"
+                placeholderTextColor={t.colors.muted}
+                style={tx('700', 15, t.colors.ink, { marginTop: 8, padding: 0 })}
+              />
             </View>
           )}
         </View>
@@ -266,7 +300,7 @@ export function PostDetailsScreen() {
         )}
 
         {label('LOCATION', { marginTop: 18 })}
-        <MapBox />
+        <MapBox value={location} onChange={setLocation} />
 
         {!worker && (
           <>

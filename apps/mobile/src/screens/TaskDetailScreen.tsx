@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, Animated, type TextStyle, type ViewStyle } from 'react-native';
 import { Screen, Card, Button, formatINR } from '../components/ui';
+import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -240,10 +241,15 @@ export function TaskDetailScreen() {
             <RNText style={tx('400', 10, t.colors.muted, { letterSpacing: 1.4 })}>{priceLabel}</RNText>
             <RNText style={tx('800', 20, t.colors.accentDeep, { marginTop: 4 })}>{formatINR(detail.amountMinor)}</RNText>
           </View>
-          <View style={{ flex: 1, paddingVertical: 14 }}>
-            <RNText style={tx('400', 10, t.colors.muted, { letterSpacing: 1.4 })}>COMPLETE BY</RNText>
-            <RNText style={tx('700', 20, t.colors.ink, { marginTop: 4 })}>{detailBy}</RNText>
-          </View>
+          {/* Only shown when there is a real deadline. A worker's service listing
+              has none — the poster sets it when engaging — so the column is
+              omitted rather than showing a placeholder. */}
+          {detail.by ? (
+            <View style={{ flex: 1, paddingVertical: 14 }}>
+              <RNText style={tx('400', 10, t.colors.muted, { letterSpacing: 1.4 })}>COMPLETE BY</RNText>
+              <RNText style={tx('700', 20, t.colors.ink, { marginTop: 4 })}>{detail.by}</RNText>
+            </View>
+          ) : null}
         </View>
 
         {detailRows.map((r) => (
@@ -285,8 +291,13 @@ export function TaskDetailScreen() {
               <RNText style={tx('700', 16, t.colors.ink)}>−</RNText>
             </Pressable>
 
-            <View style={{ alignItems: 'center' }}>
-              <RNText style={tx('800', 30, t.colors.ink, { letterSpacing: -0.5 })}>{formatINR(quote)}</RNText>
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <AmountField
+                rupees={Math.round(quote / 100)}
+                onChangeRupees={(r) => setQuote(r * 100)}
+                min={1}
+                style={tx('800', 30, t.colors.ink, { letterSpacing: -0.5 })}
+              />
               <RNText style={tx('500', 12, deltaColor, { marginTop: 2 })}>{deltaText}</RNText>
             </View>
 

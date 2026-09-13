@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, Animated, ScrollView, type TextStyle } from 'react-native';
 import { formatINR } from '../components/ui';
+import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -181,9 +182,12 @@ export function DetailSheetScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 12 }}>
             <StepBtn sign="−" onPress={() => setQuote((q) => Math.max(STEP, q - STEP))} />
             <View style={{ flex: 1, alignItems: 'center' }}>
-              <RNText style={tx('800', 30, t.colors.ink, { letterSpacing: -0.9 })}>
-                {formatINR(quote)}
-              </RNText>
+              <AmountField
+                rupees={Math.round(quote / 100)}
+                onChangeRupees={(r) => setQuote(r * 100)}
+                min={1}
+                style={tx('800', 30, t.colors.ink, { letterSpacing: -0.9 })}
+              />
               <RNText style={tx('400', 11, deltaInk, { marginTop: 2 })}>{deltaText}</RNText>
             </View>
             <StepBtn sign="+" onPress={() => setQuote((q) => q + STEP)} />

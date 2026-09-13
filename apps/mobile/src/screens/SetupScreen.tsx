@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, type TextStyle } from 'react-native';
+import { View, Text as RNText, Pressable, ScrollView, TextInput, type TextStyle } from 'react-native';
 import { Screen } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -30,6 +30,8 @@ export function SetupScreen() {
   const { mode, setMode } = useMode();
   const { celebrate } = useApp();
   const [skills, setSkills] = useState<number[]>([0, 1, 4]);
+  const [name, setName] = useState('Narasimha Raju');
+  const [place, setPlace] = useState('Indiranagar, Bengaluru');
 
   const worker = mode === 'worker';
 
@@ -96,7 +98,13 @@ export function SetupScreen() {
             marginTop: 10,
           }}
         >
-          <RNText style={tx('400', 15, t.colors.ink)}>Narasimha Raju</RNText>
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder="Your name"
+            placeholderTextColor={t.colors.muted}
+            style={tx('400', 15, t.colors.ink, { padding: 0 })}
+          />
         </View>
 
         {label('LOCATION', { marginTop: 20 })}
@@ -112,7 +120,13 @@ export function SetupScreen() {
             alignItems: 'center',
           }}
         >
-          <RNText style={tx('400', 15, t.colors.ink)}>Indiranagar, Bengaluru</RNText>
+          <TextInput
+            value={place}
+            onChangeText={setPlace}
+            placeholder="Where are you based?"
+            placeholderTextColor={t.colors.muted}
+            style={tx('400', 15, t.colors.ink, { flex: 1, padding: 0 })}
+          />
           <RNText style={tx('600', 13, t.colors.accentDeep)}>Change</RNText>
         </View>
 

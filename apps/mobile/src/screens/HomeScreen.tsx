@@ -528,7 +528,9 @@ export function HomeScreen() {
 
   const [liveTasks, setLiveTasks] = useState<LiveTask[] | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState(0);
+  // Pillar filters are optional: none selected means "show everything", and
+  // tapping the active chip clears it again.
+  const [filter, setFilter] = useState<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -557,7 +559,11 @@ export function HomeScreen() {
   }, [worker]);
 
   const sampleFeed = worker ? WORKER_FEED : POSTER_FEED;
-  const feed: FeedRow[] = liveTasks ? liveTasks.map((task) => liveToFeedRow(task, worker)) : sampleFeed;
+  const allRows: FeedRow[] = liveTasks ? liveTasks.map((task) => liveToFeedRow(task, worker)) : sampleFeed;
+  // Chip index -> card tag. No selection shows every pillar.
+  const FILTER_TAGS: FeedRow['tag'][] = ['SERVICES', 'PRODUCTS', 'LOCAL HELP'];
+  const feed: FeedRow[] =
+    filter === null ? allRows : allRows.filter((row) => row.tag === FILTER_TAGS[filter]);
   const urgentRow = worker ? URGENT_WORKER : URGENT_POSTER;
 
   const openRow = (row: FeedRow) => {
@@ -624,7 +630,13 @@ export function HomeScreen() {
 
         <View style={{ flexDirection: 'row', gap: 8, paddingTop: 14, paddingHorizontal: 20 }}>
           {FILTER_LABELS.map((label, i) => (
-            <FilterChip key={label} label={label} active={filter === i} onPress={() => setFilter(i)} t={t} />
+            <FilterChip
+              key={label}
+              label={label}
+              active={filter === i}
+              onPress={() => setFilter((cur) => (cur === i ? null : i))}
+              t={t}
+            />
           ))}
         </View>
 
