@@ -188,3 +188,42 @@ export const markWorkDone = (taskId: string) => rpc<Task>('mark_work_done', { p_
 /** Poster accepts: commission deducted, worker paid into clearing. */
 export const confirmRelease = (taskId: string) =>
   rpc<Task>('confirm_release', { p_task_id: taskId });
+
+// -------------------------------------------------------------- payments ---
+
+export type PaymentLink = { paymentId: string; url: string };
+
+/**
+ * Open a Razorpay payment link to fund a task's escrow or top up the wallet.
+ * Payment Links are used so the same flow works on web and in Expo Go without
+ * a native SDK. Throws a readable error if Razorpay keys aren't configured.
+ */
+export async function createPaymentLink(input: {
+  purpose: 'escrow' | 'topup';
+  amountMinor: number;
+  taskId?: string | null;
+  returnUrl?: string;
+}): Promise<PaymentLink> {
+  const { data, error } = await supabase.functions.invoke('razorpay', {
+    body: { action: 'create-link', ...input },
+  });
+  if (error) {
+    const detail = (data as { error?: string } | null)?.error;
+    throw new Error(detail ?? error.message);
+  }
+  const out = data as { paymentId?: string; url?: string; error?: string };
+  if (out.error) throw new Error(out.error);
+  if (!out.paymentId || !out.url) throw new Error('Could not start the payment');
+  return { paymentId: out.paymentId, url: out.url };
+}
+
+/** Re-check a payment with Razorpay and settle our side of it. */
+export async function syncPayment(paymentId: string): Promise<'created' | 'paid' | 'cancelled'> {
+  const { data, error } = await supabase.functions.invoke('razorpay', {
+    body: { action: 'sync', paymentId },
+  });
+  if (error) throw new Error(error.message);
+  const out = data as { status?: string; error?: string };
+  if (out.error) throw new Error(out.error);
+  return (out.status as 'created' | 'paid' | 'cancelled') ?? 'created';
+}

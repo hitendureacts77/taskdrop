@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, Animated, ScrollView, type TextStyle, type ViewStyle } from 'react-native';
+import { View, Text as RNText, Pressable, Animated, ScrollView, Linking, type TextStyle, type ViewStyle } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { getWallet, getEscrowHeld } from '../data/api';
+import { getWallet, getEscrowHeld, createPaymentLink, syncPayment } from '../data/api';
 import { fontFamilyFor } from '../theme';
 
 /**
@@ -62,7 +62,9 @@ export function WalletScreen() {
   const t = useTheme();
   const { go } = useNav();
   const { mode } = useMode();
-  const { balance, escrow, clearing } = useApp();
+  const { balance, escrow, clearing, flash, celebrate } = useApp();
+  const [busy, setBusy] = useState(false);
+  const [topUpId, setTopUpId] = useState<string | null>(null);
   const [live, setLive] = useState<{ balance: number; escrow: number; clearing: number } | null>(null);
 
   // Real wallet for the signed-in user; the in-memory figures are the fallback
@@ -79,6 +81,34 @@ export function WalletScreen() {
       alive = false;
     };
   }, []);
+
+  // Top-up: open a Razorpay link, then settle it when they come back.
+  const topUp = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (topUpId) {
+        const status = await syncPayment(topUpId);
+        if (status !== 'paid') {
+          flash('We have not seen that payment yet');
+          return;
+        }
+        const w = await getWallet();
+        if (w) setLive((p) => ({ ...(p ?? { escrow: 0, clearing: 0, balance: 0 }), balance: w.balance_minor, clearing: w.clearing_minor }));
+        setTopUpId(null);
+        celebrate('Funds added');
+        return;
+      }
+      const { paymentId, url } = await createPaymentLink({ purpose: 'topup', amountMinor: 100000 });
+      setTopUpId(paymentId);
+      await Linking.openURL(url);
+      flash('Finish the payment, then tap “I’ve paid”');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not start the payment');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const shown = live ?? { balance, escrow, clearing };
   const worker = mode === 'worker';
@@ -185,6 +215,23 @@ export function WalletScreen() {
           }}
         >
           <RNText style={tx('700', 15, t.colors.onAccent)}>Withdraw {formatINR(shown.balance)}</RNText>
+        </Pressy>
+
+        {/* Money in, via Razorpay. Opens a payment link, then settles on return. */}
+        <Pressy
+          onPress={topUp}
+          style={{
+            marginTop: 10,
+            borderRadius: 999,
+            paddingVertical: 15,
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: t.colors.line,
+          }}
+        >
+          <RNText style={tx('700', 15, t.colors.ink)}>
+            {topUpId ? 'I’ve paid — check now' : busy ? 'Working…' : 'Add funds'}
+          </RNText>
         </Pressy>
 
         <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 22 })}>

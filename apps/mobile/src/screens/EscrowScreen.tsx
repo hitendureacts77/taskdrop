@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, Animated, ScrollView, type TextStyle, type ViewStyle } from 'react-native';
+import { View, Text as RNText, Pressable, Animated, ScrollView, Linking, type TextStyle, type ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { createPaymentLink, syncPayment } from '../data/api';
 import { fontFamilyFor, type Theme } from '../theme';
 
 const FALLBACK_LOCKED_MINOR = 450000; // ₹4,500
@@ -72,8 +73,12 @@ function ShieldCheck({ color }: { color: string }) {
 export function EscrowScreen() {
   const t = useTheme();
   const { params, go, back } = useNav();
-  const { escrow, roll, celebrate } = useApp();
+  const { escrow, roll, celebrate, flash } = useApp();
   const [payPick, setPayPick] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
+
+  const taskId = typeof params.taskId === 'string' ? params.taskId : null;
 
   const title = typeof params.title === 'string' ? params.title : 'Vintage 35mm film camera';
   const who = typeof params.who === 'string' ? params.who : null;
@@ -91,10 +96,44 @@ export function EscrowScreen() {
 
   const methods = ['UPI · 8721', 'Card · 4412'];
 
-  const pay = () => {
-    roll('escrow', escrow + totalMinor);
-    celebrate(`${formatINR(totalMinor)} held in escrow · locked`);
-    go('orders');
+  // Razorpay opens in the browser as a payment link, so the same flow works on
+  // web and in Expo Go. We poll for settlement when the user comes back.
+  const pay = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const { paymentId: id, url } = await createPaymentLink({
+        purpose: 'escrow',
+        amountMinor: totalMinor,
+        taskId,
+      });
+      setPaymentId(id);
+      await Linking.openURL(url);
+      flash('Finish the payment, then tap “I’ve paid”');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not start the payment');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmPaid = async () => {
+    if (!paymentId || busy) return;
+    setBusy(true);
+    try {
+      const status = await syncPayment(paymentId);
+      if (status !== 'paid') {
+        flash('We have not seen that payment yet');
+        return;
+      }
+      roll('escrow', escrow + totalMinor);
+      celebrate(`${formatINR(totalMinor)} held in escrow · locked`);
+      go('orders');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not check the payment');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -179,7 +218,7 @@ export function EscrowScreen() {
 
       <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
         <Pressy
-          onPress={pay}
+          onPress={paymentId ? confirmPaid : pay}
           scaleTo={0.96}
           style={{
             backgroundColor: t.colors.accent,
@@ -193,7 +232,9 @@ export function EscrowScreen() {
             elevation: 6,
           }}
         >
-          <RNText style={tx('700', 16, t.colors.onAccent)}>Pay into escrow</RNText>
+          <RNText style={tx('700', 16, t.colors.onAccent)}>
+            {busy ? 'Working…' : paymentId ? 'I’ve paid — check now' : 'Pay into escrow'}
+          </RNText>
         </Pressy>
         <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10 })}>
           Contacts unmask once the task starts.

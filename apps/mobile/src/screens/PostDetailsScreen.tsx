@@ -8,6 +8,8 @@ import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { createTask } from '../data/api';
+import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
+import { LocationSheet } from '../components/LocationSheet';
 import { fontFamilyFor } from '../theme';
 
 /**
@@ -119,8 +121,12 @@ export function PostDetailsScreen() {
   // The pillar's draft copy seeds the form; everything stays editable from here.
   const [title, setTitle] = useState<string>(draft.title);
   const [details, setDetails] = useState<string>(draft.details);
-  const [completeBy, setCompleteBy] = useState('9 Sep, 6:00 PM');
+  // Deadline defaults to this time tomorrow; picked with the calendar + clock.
+  const [deadline, setDeadline] = useState<Date>(() => new Date(Date.now() + 24 * 3600 * 1000));
+  const [showDate, setShowDate] = useState(false);
   const [location, setLocation] = useState('Indiranagar · 5 km radius');
+  const [coords, setCoords] = useState<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
+  const [showLoc, setShowLoc] = useState(false);
   const [price, setPrice] = useState(1200);
   const [media, setMedia] = useState(1);
   const [flag, setFlag] = useState(0);
@@ -148,7 +154,8 @@ export function PostDetailsScreen() {
         description: details.trim(),
         // Money is stored in paise.
         benchmarkMinor: price * 100,
-        timeLimitMinutes: 240,
+        // The chosen deadline is what workers quote against.
+        timeLimitMinutes: Math.max(15, Math.round((deadline.getTime() - Date.now()) / 60000)),
         flag: FLAG_VALUES[flag] ?? 'none',
         locLabel: location.split('·')[0]?.trim() || null,
       });
@@ -272,7 +279,9 @@ export function PostDetailsScreen() {
                 rupees={price}
                 onChangeRupees={setPrice}
                 min={100}
-                style={tx('800', 18, t.colors.accentDeep, { flex: 1 })}
+                // minWidth:0 lets the field shrink inside the half-width card so
+                // the "+" stepper never gets pushed out of view.
+                style={tx('800', 18, t.colors.accentDeep, { flex: 1, minWidth: 0 })}
               />
               <Pressable
                 onPress={() => setPrice((p) => p + 100)}
@@ -303,13 +312,14 @@ export function PostDetailsScreen() {
               }}
             >
               {label('COMPLETE BY ·', {}, t.colors.accentDeep)}
-              <TextInput
-                value={completeBy}
-                onChangeText={setCompleteBy}
-                placeholder="Pick a date and time"
-                placeholderTextColor={t.colors.muted}
-                style={tx('700', 15, t.colors.ink, { marginTop: 8, padding: 0 })}
-              />
+              <Pressable onPress={() => setShowDate(true)} hitSlop={6}>
+                <RNText style={tx('700', 15, t.colors.ink, { marginTop: 8 })}>
+                  {formatDeadline(deadline)}
+                </RNText>
+                <RNText style={tx('400', 11, t.colors.accentDeep, { marginTop: 3 })}>
+                  Tap to change
+                </RNText>
+              </Pressable>
             </View>
           )}
         </View>
@@ -320,7 +330,21 @@ export function PostDetailsScreen() {
           </RNText>
         )}
 
-        {label('LOCATION', { marginTop: 18 })}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            marginTop: 18,
+          }}
+        >
+          {label('LOCATION')}
+          <Pressable onPress={() => setShowLoc(true)} hitSlop={8}>
+            <RNText style={tx('600', 13, t.colors.accentDeep)}>
+              {coords.lat != null ? 'Change' : 'Set location'}
+            </RNText>
+          </Pressable>
+        </View>
         <MapBox value={location} onChange={setLocation} />
 
         {!worker && (
@@ -468,6 +492,26 @@ export function PostDetailsScreen() {
           </RNText>
         </Pressable>
       </View>
+
+      <DateTimeSheet
+        visible={showDate}
+        initial={deadline}
+        onCancel={() => setShowDate(false)}
+        onConfirm={(d) => {
+          setDeadline(d);
+          setShowDate(false);
+        }}
+      />
+
+      <LocationSheet
+        visible={showLoc}
+        onCancel={() => setShowLoc(false)}
+        onPick={(place) => {
+          setLocation(place.label);
+          setCoords({ lat: place.lat, lng: place.lng });
+          setShowLoc(false);
+        }}
+      />
     </Screen>
   );
 }
