@@ -13,9 +13,25 @@ import {
 import { ThemeProvider } from './src/providers/ThemeProvider';
 import { ModeProvider } from './src/providers/ModeProvider';
 import { AppStateProvider } from './src/providers/AppStateProvider';
+import { AuthProvider, useAuth } from './src/providers/AuthProvider';
 import { NavProvider } from './src/providers/NavProvider';
 import { ScreenHost } from './src/navigation/ScreenHost';
 import { Overlays } from './src/components/Overlays';
+
+/** Starts on the feed when a session is restored, otherwise at the splash. */
+function Routes() {
+  const { ready, session } = useAuth();
+  if (!ready) return <View style={{ flex: 1, backgroundColor: '#0F1012' }} />;
+  return (
+    <NavProvider initial={session ? 'home' : 'splash'}>
+      <StatusBar style="auto" />
+      <View style={{ flex: 1 }}>
+        <ScreenHost />
+        <Overlays />
+      </View>
+    </NavProvider>
+  );
+}
 
 export default function App() {
   const [fontsLoaded, fontError] = useFonts({
@@ -35,17 +51,13 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <ModeProvider initial="worker">
-          <AppStateProvider>
-            <NavProvider initial="splash">
-              <StatusBar style="auto" />
-              <View style={{ flex: 1 }}>
-                <ScreenHost />
-                <Overlays />
-              </View>
-            </NavProvider>
-          </AppStateProvider>
-        </ModeProvider>
+        <AuthProvider>
+          <ModeProvider initial="worker">
+            <AppStateProvider>
+              <Routes />
+            </AppStateProvider>
+          </ModeProvider>
+        </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

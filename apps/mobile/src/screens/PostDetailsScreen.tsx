@@ -6,6 +6,8 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { useAuth } from '../providers/AuthProvider';
+import { createTask } from '../data/api';
 import { fontFamilyFor } from '../theme';
 
 /**
@@ -32,6 +34,9 @@ const DRAFTS = {
 } as const;
 
 const PILLAR_LABELS = ['SERVICES', 'PRODUCTS', 'LOCAL INTEL'];
+// Chip order -> database enums.
+const PILLARS = ['services', 'procurement', 'local_intel'] as const;
+const FLAG_VALUES = ['none', 'urgent', 'unique'] as const;
 const MEDIA = [
   { glyph: '—', label: 'None' },
   { glyph: '▤', label: 'Photo' },
@@ -103,7 +108,9 @@ export function PostDetailsScreen() {
   const t = useTheme();
   const { params, go, back } = useNav();
   const { mode } = useMode();
-  const { addBid, celebrate } = useApp();
+  const { celebrate, flash } = useApp();
+  const { userId } = useAuth();
+  const [busy, setBusy] = useState(false);
 
   const worker = mode === 'worker';
   const pillar = typeof params.pillar === 'number' ? params.pillar : 0;
@@ -128,18 +135,32 @@ export function PostDetailsScreen() {
     <RNText style={tx('400', 11, color ?? t.colors.muted, { letterSpacing: 1.54, ...extra })}>{s}</RNText>
   );
 
-  const publish = () => {
-    addBid({
-      role: mode,
-      bucket: 0,
-      state: worker ? 'LIVE LISTING · 0 QUOTES' : 'OPEN · 0 QUOTES',
-      title: title.trim() || draft.title,
-      price: `₹${price.toLocaleString('en-IN')}`,
-      meta: `Posted just now · ${location.split('·')[0]?.trim() || 'Indiranagar'}`,
-      tone: 'blue',
-    });
-    celebrate(promoteOn ? 'Published · nudge your placement' : worker ? 'Listing published' : 'Request posted');
-    go(promoteOn ? 'promote' : 'orders');
+  const publish = async () => {
+    if (busy) return;
+    const finalTitle = title.trim() || draft.title;
+    setBusy(true);
+    try {
+      if (!userId) throw new Error('Sign in to post');
+      await createTask({
+        posterId: userId,
+        pillar: PILLARS[pillar] ?? 'services',
+        title: finalTitle,
+        description: details.trim(),
+        // Money is stored in paise.
+        benchmarkMinor: price * 100,
+        timeLimitMinutes: 240,
+        flag: FLAG_VALUES[flag] ?? 'none',
+        locLabel: location.split('·')[0]?.trim() || null,
+      });
+      celebrate(
+        promoteOn ? 'Published · nudge your placement' : worker ? 'Listing published' : 'Request posted',
+      );
+      go(promoteOn ? 'promote' : 'orders');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not publish');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (

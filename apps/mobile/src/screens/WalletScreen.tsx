@@ -1,10 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, Animated, ScrollView, type TextStyle, type ViewStyle } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { getWallet, getEscrowHeld } from '../data/api';
 import { fontFamilyFor } from '../theme';
 
 /**
@@ -62,9 +63,26 @@ export function WalletScreen() {
   const { go } = useNav();
   const { mode } = useMode();
   const { balance, escrow, clearing } = useApp();
+  const [live, setLive] = useState<{ balance: number; escrow: number; clearing: number } | null>(null);
 
+  // Real wallet for the signed-in user; the in-memory figures are the fallback
+  // until it loads (or when signed out).
+  useEffect(() => {
+    let alive = true;
+    Promise.all([getWallet(), getEscrowHeld()])
+      .then(([w, held]) => {
+        if (!alive || !w) return;
+        setLive({ balance: w.balance_minor, escrow: held, clearing: w.clearing_minor });
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const shown = live ?? { balance, escrow, clearing };
   const worker = mode === 'worker';
-  const total = Math.max(1, balance + escrow + clearing);
+  const total = Math.max(1, shown.balance + shown.escrow + shown.clearing);
   const pct = (n: number) => `${((n / total) * 100).toFixed(1)}%` as `${number}%`;
 
   const ledger = [
@@ -106,7 +124,7 @@ export function WalletScreen() {
         <RNText
           style={tx('800', 44, t.colors.ink, { letterSpacing: -1.76, lineHeight: 48.4, marginTop: 4 })}
         >
-          {formatINR(balance)}
+          {formatINR(shown.balance)}
         </RNText>
 
         {/* Segmented available / escrow / clearing bar */}
@@ -120,9 +138,9 @@ export function WalletScreen() {
             marginTop: 18,
           }}
         >
-          <View style={{ width: pct(balance), backgroundColor: t.colors.accent }} />
-          <View style={{ width: pct(escrow), backgroundColor: t.colors.gold }} />
-          <View style={{ width: pct(clearing), backgroundColor: t.colors.blue }} />
+          <View style={{ width: pct(shown.balance), backgroundColor: t.colors.accent }} />
+          <View style={{ width: pct(shown.escrow), backgroundColor: t.colors.gold }} />
+          <View style={{ width: pct(shown.clearing), backgroundColor: t.colors.blue }} />
         </View>
 
         <View style={{ flexDirection: 'row', gap: 16, marginTop: 12 }}>
@@ -143,11 +161,11 @@ export function WalletScreen() {
         >
           <View style={{ flex: 1, paddingVertical: 15, borderRightWidth: 1, borderRightColor: t.colors.line }}>
             <RNText style={tx('400', 11, t.colors.gold)}>In escrow</RNText>
-            <RNText style={tx('800', 19, t.colors.ink, { marginTop: 5 })}>{formatINR(escrow)}</RNText>
+            <RNText style={tx('800', 19, t.colors.ink, { marginTop: 5 })}>{formatINR(shown.escrow)}</RNText>
           </View>
           <View style={{ flex: 1, paddingVertical: 15, paddingLeft: 16 }}>
             <RNText style={tx('400', 11, t.colors.blue)}>Clearing · 7d</RNText>
-            <RNText style={tx('800', 19, t.colors.ink, { marginTop: 5 })}>{formatINR(clearing)}</RNText>
+            <RNText style={tx('800', 19, t.colors.ink, { marginTop: 5 })}>{formatINR(shown.clearing)}</RNText>
           </View>
         </View>
 
@@ -166,7 +184,7 @@ export function WalletScreen() {
             elevation: 6,
           }}
         >
-          <RNText style={tx('700', 15, t.colors.onAccent)}>Withdraw {formatINR(balance)}</RNText>
+          <RNText style={tx('700', 15, t.colors.onAccent)}>Withdraw {formatINR(shown.balance)}</RNText>
         </Pressy>
 
         <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 22 })}>
