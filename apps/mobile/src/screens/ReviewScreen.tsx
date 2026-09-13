@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, TextInput, Pressable, Animated, ScrollView, type TextStyle } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, Text as RNText, TextInput, Pressable, Animated, ScrollView } from 'react-native';
 import { Screen } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -7,6 +7,7 @@ import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { submitReview } from '../data/api';
 import { fontFamilyFor } from '../theme';
+import { tx } from '../components/primitives';
 
 /**
  * Ratings & review — pixel parity with docs/design/_design_markup.html lines
@@ -22,10 +23,6 @@ const FALLBACK_TASK = {
   worker: { title: 'Vintage 35mm film camera', price: '₹4,200' },
   poster: { title: 'Assemble a wardrobe', price: '₹1,200' },
 } as const;
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
 
 /** Scale-up feedback on selection, ~ the markup's star transform:scale(1.06). */
 function Star({ selected, onPress, color }: { selected: boolean; onPress: () => void; color: string }) {

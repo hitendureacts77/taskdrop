@@ -1,21 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text as RNText, Pressable, ScrollView, TextInput, ActivityIndicator, type TextStyle } from 'react-native';
 import { Screen } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
-import { fontFamilyFor } from '../theme';
-
-/**
- * Sign up · OTP — pixel parity with docs/design/_design_markup.html lines
- * 529-558. Tapping a box fills the next digit and "Autofill" completes the code,
- * mirroring the design's otpBoxes/fillOtp/verifyOtp handlers.
- */
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
+import { tx } from '../components/primitives';
 
 export function SignupScreen() {
   const t = useTheme();

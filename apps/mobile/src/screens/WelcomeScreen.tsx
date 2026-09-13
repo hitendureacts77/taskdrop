@@ -1,20 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, Animated, type TextStyle } from 'react-native';
+import { View, Text as RNText, Pressable, Animated } from 'react-native';
 import { Screen } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode, type Mode } from '../providers/ModeProvider';
-import { fontFamilyFor } from '../theme';
-
-/**
- * Welcome — pixel parity with docs/design/_design_markup.html lines 511-526.
- * Bottom-anchored headline, the two mode cards (selecting one highlights it and
- * sets the app mode), then "Continue as …". Copy from _design_source.jsx 543-551.
- */
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
+import { tx } from '../components/primitives';
 
 const CARDS: { key: Mode; glyph: string; title: string; sub: string }[] = [
   { key: 'poster', glyph: '✎', title: 'Post a Request', sub: 'I need something done or found' },

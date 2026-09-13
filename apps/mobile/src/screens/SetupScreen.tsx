@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, ScrollView, TextInput, type TextStyle } from 'react-native';
 import { Screen } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
@@ -7,17 +7,7 @@ import { useMode, type Mode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { getProfile, updateProfile } from '../data/api';
-import { fontFamilyFor } from '../theme';
-
-/**
- * Profile setup — pixel parity with docs/design/_design_markup.html lines
- * 561-595. Skills only show in worker mode (the design's setupWorker gate) and
- * are capped at 5 picks, per _design_source.jsx lines 573-579.
- */
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
+import { tx } from '../components/primitives';
 
 const SKILLS = ['Sourcing', 'Local intel', 'Carpentry', 'Delivery', 'Repairs', 'Photography', 'Research', 'Errands'];
 

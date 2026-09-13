@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, Animated, type TextStyle, type ViewStyle } from 'react-native';
+import { useMemo, useState } from 'react';
+import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen, Card, Button, formatINR } from '../components/ui';
 import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
@@ -8,8 +8,9 @@ import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { placeBid } from '../data/api';
-import { fontFamilyFor, type Theme } from '../theme';
+import { type Theme } from '../theme';
 import type { FeedRow } from './HomeScreen';
+import { FadeIn, tx } from '../components/primitives';
 
 /**
  * Task detail — pixel parity with docs/design/_design_markup.html lines
@@ -78,21 +79,6 @@ function isFeedRow(v: unknown): v is FeedRow {
   return !!v && typeof v === 'object' && 'title' in v && 'amountMinor' in v;
 }
 
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
-
-/** Fades content in on mount, ~ the markup's tdFade keyframe. Cleans up on unmount. */
-function FadeIn({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const anim = Animated.timing(opacity, { toValue: 1, duration: 260, useNativeDriver: true });
-    anim.start();
-    return () => anim.stop();
-  }, [opacity]);
-  return <Animated.View style={[style, { opacity }]}>{children}</Animated.View>;
-}
-
 export function TaskDetailScreen() {
   const t = useTheme();
   const { params, back, go } = useNav();
@@ -141,7 +127,6 @@ export function TaskDetailScreen() {
     { label: 'Distance', value: distance },
   ];
 
-  const detailBy = detail.by ?? (worker ? 'set by the poster' : 'you set it on engage');
   const cta = worker ? 'Send a quote' : 'Send my quote';
 
   // Sample feed rows have ids like "w1"; only real tasks carry a uuid.

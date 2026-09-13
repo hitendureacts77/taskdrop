@@ -1,22 +1,10 @@
-import React from 'react';
-import { View, Text as RNText, Pressable, ScrollView, type TextStyle } from 'react-native';
+import { View, Text as RNText, Pressable, ScrollView } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { Screen } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { fontFamilyFor } from '../theme';
-
-/**
- * Verified Pro — pixel parity with docs/design/_design_markup.html lines
- * 1058-1094. Band header with the PRO chip, the perks list with the design's
- * circle-check svg, and the three verification steps
- * (_design_source.jsx lines 880-891).
- */
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
+import { tx } from '../components/primitives';
 
 const PERKS = [
   { title: 'Verified badge on every quote', sub: 'Posters see you passed ID and skill checks' },

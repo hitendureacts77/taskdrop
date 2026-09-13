@@ -1,11 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text as RNText,
   Pressable,
   Animated,
-  type TextStyle,
-  type ViewStyle,
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { Screen, formatINR } from '../components/ui';
@@ -22,7 +20,8 @@ import {
   type Bid,
   type Assignment,
 } from '../data/api';
-import { fontFamilyFor, type Theme } from '../theme';
+import { type Theme } from '../theme';
+import { FadeIn, Pressy, tx } from '../components/primitives';
 
 /**
  * My bids / My requests — pixel parity with docs/design/_design_markup.html
@@ -169,62 +168,6 @@ function workerAssignmentRow(a: Assignment & { tasks: Task | null }): ViewRow {
   return { ...base, bucket: 1, state: 'ACCEPTED · SWIPE TO START', tone: 'accent', meta: 'Escrow funded · first to start wins', act: 'start' };
 }
 
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
-
-/** Fades + slides content in on mount, ~ the markup's tdFade/tdIn keyframes. Cleans up on unmount. */
-function FadeIn({
-  children,
-  duration = 260,
-  delay = 0,
-  translateY = 0,
-  style,
-}: {
-  children: React.ReactNode;
-  duration?: number;
-  delay?: number;
-  translateY?: number;
-  style?: ViewStyle;
-}) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const ty = useRef(new Animated.Value(translateY)).current;
-  useEffect(() => {
-    const anim = Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration, delay, useNativeDriver: true }),
-      Animated.timing(ty, { toValue: 0, duration, delay, useNativeDriver: true }),
-    ]);
-    anim.start();
-    return () => anim.stop();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  return (
-    <Animated.View style={[style, { opacity, transform: [{ translateY: ty }] }]}>{children}</Animated.View>
-  );
-}
-
-/** Scale-down press feedback, matching the markup's style-active="{{cardPress}}". */
-function Pressy({
-  onPress,
-  scaleTo = 0.985,
-  style,
-  children,
-}: {
-  onPress?: () => void;
-  scaleTo?: number;
-  style?: ViewStyle;
-  children: React.ReactNode;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [style, { transform: [{ scale: pressed ? scaleTo : 1 }] }]}
-    >
-      {children}
-    </Pressable>
-  );
-}
-
 /** Tab row with a sliding underline, ~ markup lines 208-214 (underline calc in
  * `_design_source.jsx` lines 351-356: width (100%-40px)/n, left 20px + that*index). */
 function OrderTabs({
@@ -352,6 +295,7 @@ export function OrdersScreen() {
   // action a tap performs.
   const [rows, setRows] = useState<ViewRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!userId) {
@@ -385,6 +329,15 @@ export function OrdersScreen() {
 
   useEffect(() => {
     void load();
+  }, [load]);
+
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
   }, [load]);
 
   const allRows = rows;
@@ -421,7 +374,7 @@ export function OrdersScreen() {
   const emptyLine = worker ? 'Quotes you send show up here.' : 'Requests you post show up here.';
 
   return (
-    <Screen scroll padded={false}>
+    <Screen scroll padded={false} onRefresh={refresh} refreshing={refreshing}>
       <FadeIn duration={260}>
         <RNText
           style={tx('800', 24, t.colors.ink, {
@@ -441,7 +394,24 @@ export function OrdersScreen() {
             <OrderCard key={`${row.title}-${i}`} row={row} index={i} onOpen={() => openRow(row)} t={t} />
           ))}
 
-          {orderRows.length === 0 && (
+          {loading && orderRows.length === 0 &&
+            [0, 1, 2].map((i) => (
+              <View
+                key={i}
+                style={{
+                  backgroundColor: t.colors.surface,
+                  borderWidth: 1,
+                  borderColor: t.colors.line,
+                  borderRadius: 14,
+                  padding: 16,
+                  marginTop: 12,
+                  height: 86,
+                  opacity: 0.5,
+                }}
+              />
+            ))}
+
+          {!loading && orderRows.length === 0 && (
             <FadeIn duration={400} style={{ paddingVertical: 70, alignItems: 'center' }}>
               <EmptyBoxIcon t={t} />
               <RNText style={tx('800', 18, t.colors.ink, { marginTop: 20 })}>Nothing here yet</RNText>

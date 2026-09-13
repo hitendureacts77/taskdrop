@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   View,
   Text as RNText,
@@ -7,7 +7,6 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  type TextStyle,
   type ViewStyle,
 } from 'react-native';
 import { Screen } from '../components/ui';
@@ -16,6 +15,7 @@ import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { fontFamilyFor, type Theme } from '../theme';
+import { tx } from '../components/primitives';
 
 /**
  * Chat — pixel parity with docs/design/_design_markup.html lines 915-963
@@ -41,21 +41,6 @@ const FALLBACK_TASK = {
   worker: { title: 'Vintage 35mm film camera', escrow: '₹4,326' },
   poster: { title: 'Assemble a wardrobe', escrow: '₹1,236' },
 } as const;
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
-
-function Waveform({ color }: { color: string }) {
-  const heights = [4, 8, 12, 7, 14, 9, 5, 11, 6];
-  return (
-    <View style={{ flexDirection: 'row', gap: 2, alignItems: 'center' }}>
-      {heights.map((h, i) => (
-        <View key={i} style={{ width: 2, height: h, borderRadius: 1, backgroundColor: color }} />
-      ))}
-    </View>
-  );
-}
 
 /** Bubble shape per _design_source.jsx lines 802-808. */
 function bubbleShape(t: Theme, m: Message): { style: ViewStyle; textColor: string } {

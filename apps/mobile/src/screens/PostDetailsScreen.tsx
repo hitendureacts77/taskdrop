@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text as RNText, Pressable, ScrollView, TextInput, type TextStyle } from 'react-native';
 import { Screen } from '../components/ui';
 import { AmountField } from '../components/AmountField';
@@ -10,17 +10,7 @@ import { useAuth } from '../providers/AuthProvider';
 import { createTask } from '../data/api';
 import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
 import { LocationSheet } from '../components/LocationSheet';
-import { fontFamilyFor } from '../theme';
-
-/**
- * Post details — pixel parity with docs/design/_design_markup.html lines
- * 622-702. Copy/handlers mirror _design_source.jsx lines 252-263 (draft copy per
- * pillar+mode) and 612-667 (media, price stepper, flags, promote reveal).
- */
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
+import { tx } from '../components/primitives';
 
 const DRAFTS = {
   worker: [

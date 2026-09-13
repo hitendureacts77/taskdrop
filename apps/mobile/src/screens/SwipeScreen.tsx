@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text as RNText,
@@ -7,7 +7,6 @@ import {
   PanResponder,
   type GestureResponderEvent,
   type PanResponderGestureState,
-  type TextStyle,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Screen } from '../components/ui';
@@ -15,7 +14,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { startTask as startTaskOnServer } from '../data/api';
-import { fontFamilyFor } from '../theme';
+import { FadeIn, tx } from '../components/primitives';
 
 /**
  * Swipe to start — pixel parity with docs/design/_design_markup.html lines
@@ -39,21 +38,6 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
-}
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
-
-/** Fades content in on mount, ~ the markup's tdFade keyframe. */
-function FadeIn({ children, duration = 260 }: { children: React.ReactNode; duration?: number }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const anim = Animated.timing(opacity, { toValue: 1, duration, useNativeDriver: true });
-    anim.start();
-    return () => anim.stop();
-  }, [opacity, duration]);
-  return <Animated.View style={{ flex: 1, opacity }}>{children}</Animated.View>;
 }
 
 export function SwipeScreen() {

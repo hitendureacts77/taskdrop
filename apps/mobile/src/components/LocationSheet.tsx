@@ -7,26 +7,11 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
-  type TextStyle,
 } from 'react-native';
 import * as Location from 'expo-location';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useTheme } from '../providers/ThemeProvider';
-import { fontFamilyFor } from '../theme';
-
-/**
- * Location picker with the two routes the product needs:
- *   1. Use my current location  - device GPS, reverse geocoded to a place name.
- *   2. Choose on the map        - search for a place and pick it.
- *
- * Google Places powers (2) when EXPO_PUBLIC_GOOGLE_MAPS_API_KEY is set. Without
- * a key we fall back to the device geocoder so the option still works; on web
- * that geocoder is unavailable, so the typed text is accepted as-is.
- */
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
+import { tx } from './primitives';
 
 export type PickedPlace = { label: string; lat: number | null; lng: number | null };
 

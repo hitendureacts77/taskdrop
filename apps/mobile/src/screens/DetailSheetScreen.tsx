@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, Animated, ScrollView, type TextStyle } from 'react-native';
 import { formatINR } from '../components/ui';
 import { AmountField } from '../components/AmountField';
@@ -6,18 +6,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { fontFamilyFor } from '../theme';
-
-/**
- * Quote bottom-sheet — pixel parity with docs/design/_design_markup.html lines
- * 337-394. Scrim + slide-up sheet with the ± quote stepper, the delta against
- * what was asked, and the poster's required completion date chips
- * (_design_source.jsx lines 399-454).
- */
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
+import { tx } from '../components/primitives';
 
 const BY_CHIPS = ['Today, 8:00 PM', 'Tomorrow, 11:00 AM', '12 Sep, 2:00 PM'];
 const STEP = 5000; // ₹50 in paise

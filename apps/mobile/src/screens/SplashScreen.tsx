@@ -1,20 +1,10 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text as RNText, Pressable, Animated, type TextStyle } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { View, Text as RNText, Pressable, Animated } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Screen } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
-import { fontFamilyFor } from '../theme';
-
-/**
- * Splash — pixel parity with docs/design/_design_markup.html lines 499-508.
- * The droplet-with-checkmark mark pops in, the wordmark fades up, and tapping
- * anywhere continues to Welcome (the design's toWelcome).
- */
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
+import { tx } from '../components/primitives';
 
 export function SplashScreen() {
   const t = useTheme();

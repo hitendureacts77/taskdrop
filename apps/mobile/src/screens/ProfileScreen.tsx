@@ -1,22 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text as RNText, Pressable, Animated, ScrollView, type TextStyle } from 'react-native';
+import { View, Text as RNText, Pressable, Animated, ScrollView } from 'react-native';
 import { Screen } from '../components/ui';
 import { useTheme, useThemeControls } from '../providers/ThemeProvider';
 import { useNav, type ScreenName } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
-import { fontFamilyFor } from '../theme';
-
-/**
- * Profile — pixel parity with docs/design/_design_markup.html lines 280-334.
- * Green band header, MODE segmented slider, THEME picker, MY TASKDROP rows and
- * the role-scoped reviews list. Copy/handlers mirror _design_source.jsx lines
- * 372-397 and 907-926. The rating line is role-specific (worker vs poster), which
- * is how the design keeps the two review sets separate rather than merged.
- */
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
+import { tx } from '../components/primitives';
 
 function SlideIn({ delay, children }: { delay: number; children: React.ReactNode }) {
   const v = useRef(new Animated.Value(0)).current;

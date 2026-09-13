@@ -1,20 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text as RNText, Pressable, Animated, ScrollView, type TextStyle } from 'react-native';
+import { View, Text as RNText, Pressable, Animated, ScrollView } from 'react-native';
 import { Screen } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
-import { fontFamilyFor } from '../theme';
-
-/**
- * Create · pillar picker — pixel parity with docs/design/_design_markup.html
- * lines 598-619. Copy from _design_source.jsx lines 598-611. Choosing a pillar
- * continues to the post-details step.
- */
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
+import { tx } from '../components/primitives';
 
 function CardIn({ delay, children }: { delay: number; children: React.ReactNode }) {
   const v = useRef(new Animated.Value(0)).current;

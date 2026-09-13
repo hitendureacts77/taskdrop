@@ -1,43 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, type TextStyle, type ViewStyle } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text as RNText, Pressable, ScrollView } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
 import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { getWallet, requestWithdrawal } from '../data/api';
-import { fontFamilyFor } from '../theme';
-
-/**
- * Withdraw — pixel parity with docs/design/_design_markup.html lines 1097-1129.
- * The design sweeps the whole balance; here the amount is typeable and defaults
- * to the full available balance, because a partial withdrawal is the thing
- * people actually reach for. The wallet debit happens inside request_withdrawal
- * so the balance and the payout row can never disagree.
- */
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
-
-function Pressy({
-  onPress,
-  style,
-  children,
-}: {
-  onPress?: () => void;
-  style?: ViewStyle;
-  children: React.ReactNode;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [style, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
-    >
-      {children}
-    </Pressable>
-  );
-}
+import { Pressy, tx } from '../components/primitives';
 
 export function WithdrawScreen() {
   const t = useTheme();

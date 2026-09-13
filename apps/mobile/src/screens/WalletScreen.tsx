@@ -1,42 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, Animated, ScrollView, Linking, type TextStyle, type ViewStyle } from 'react-native';
+import { View, Text as RNText, Animated, ScrollView, Linking } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { getWallet, getEscrowHeld, createPaymentLink, syncPayment } from '../data/api';
-import { fontFamilyFor } from '../theme';
-
-/**
- * Wallet — pixel parity with docs/design/_design_markup.html lines 247-277.
- * Balance, the segmented available/escrow/clearing bar, the two-column stat
- * strip, withdraw CTA and the RECENT ledger. Amounts come from useApp (paise).
- * Ledger copy mirrors _design_source.jsx lines 366-370.
- */
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
-
-function Pressy({
-  onPress,
-  style,
-  children,
-}: {
-  onPress?: () => void;
-  style?: ViewStyle;
-  children: React.ReactNode;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [style, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
-    >
-      {children}
-    </Pressable>
-  );
-}
+import { Pressy, tx } from '../components/primitives';
 
 /** Staggered row entrance, ~ the markup's tdIn keyframe with animation-delay. */
 function SlideIn({ delay, children }: { delay: number; children: React.ReactNode }) {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { View } from 'react-native';
 import { Screen, Text, Button } from '../components/ui';
 import { useNav, type ScreenName } from '../providers/NavProvider';

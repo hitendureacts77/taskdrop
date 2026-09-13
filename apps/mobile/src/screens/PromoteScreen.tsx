@@ -1,21 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text as RNText, Pressable, ScrollView, type TextStyle } from 'react-native';
 import { Screen } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { fontFamilyFor } from '../theme';
-
-/**
- * Promote — pixel parity with docs/design/_design_markup.html lines 995-1054.
- * Budget/duration chips, optional audience narrowing and the estimated-reach
- * card, using the design's reach formula (_design_source.jsx lines 265-269).
- */
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
+import { tx } from '../components/primitives';
 
 const DURATIONS = [
   { label: '1 day', days: 1 },

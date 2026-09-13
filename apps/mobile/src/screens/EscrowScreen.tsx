@@ -1,40 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, Animated, ScrollView, Linking, type TextStyle, type ViewStyle } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, Text as RNText, Pressable, Animated, ScrollView, Linking } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { createPaymentLink, syncPayment } from '../data/api';
-import { fontFamilyFor, type Theme } from '../theme';
+import { Pressy, tx } from '../components/primitives';
 
 const FALLBACK_LOCKED_MINOR = 450000; // ₹4,500
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
-
-/** Scale-down press feedback, matching the markup's style-active="{{press}}". */
-function Pressy({
-  onPress,
-  scaleTo = 0.96,
-  style,
-  children,
-}: {
-  onPress?: () => void;
-  scaleTo?: number;
-  style?: ViewStyle;
-  children: React.ReactNode;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [style, { transform: [{ scale: pressed ? scaleTo : 1 }] }]}
-    >
-      {children}
-    </Pressable>
-  );
-}
 
 /** Shield + checkmark icon copied from the markup (lines 821-824); the checkmark
  * draws in over ~0.7s like the markup's tdDraw keyframe. Cleans up on unmount. */
@@ -151,6 +125,9 @@ export function EscrowScreen() {
         </View>
 
         <RNText style={tx('400', 13, t.colors.muted, { marginTop: 24 })}>Into escrow</RNText>
+        <RNText style={tx('700', 15, t.colors.ink, { marginTop: 6 })} numberOfLines={2}>
+          {title}
+        </RNText>
         <RNText style={tx('800', 44, t.colors.ink, { letterSpacing: -1.76, lineHeight: 46.2, marginTop: 5 })}>
           {formatINR(totalMinor)}
         </RNText>

@@ -1,19 +1,16 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text as RNText,
   Pressable,
-  Animated,
   ScrollView,
-  type TextStyle,
-  type ViewStyle,
 } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { listBidsForTask, lockBid } from '../data/api';
-import { fontFamilyFor, type Theme } from '../theme';
+import { FadeIn, Pressy, tx } from '../components/primitives';
 
 type Quote = {
   bidId?: string;
@@ -34,62 +31,6 @@ const COMPARE_DATA: Quote[] = [
 ];
 
 const FALLBACK_BENCH_MINOR = 120000; // ₹1,200 — poster fallback task price
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
-
-/** Fades + slides content in on mount, ~ the markup's tdIn keyframe. Cleans up on unmount. */
-function FadeIn({
-  children,
-  duration = 260,
-  delay = 0,
-  translateY = 0,
-  style,
-}: {
-  children: React.ReactNode;
-  duration?: number;
-  delay?: number;
-  translateY?: number;
-  style?: ViewStyle;
-}) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const ty = useRef(new Animated.Value(translateY)).current;
-  useEffect(() => {
-    const anim = Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration, delay, useNativeDriver: true }),
-      Animated.timing(ty, { toValue: 0, duration, delay, useNativeDriver: true }),
-    ]);
-    anim.start();
-    return () => anim.stop();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  return (
-    <Animated.View style={[style, { opacity, transform: [{ translateY: ty }] }]}>{children}</Animated.View>
-  );
-}
-
-/** Scale-down press feedback, matching the markup's style-active="{{press}}"/"{{cardPress}}". */
-function Pressy({
-  onPress,
-  scaleTo = 0.985,
-  style,
-  children,
-}: {
-  onPress?: () => void;
-  scaleTo?: number;
-  style?: ViewStyle;
-  children: React.ReactNode;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [style, { transform: [{ scale: pressed ? scaleTo : 1 }] }]}
-    >
-      {children}
-    </Pressable>
-  );
-}
 
 /** Poster flow: incoming bids on a posted task, sortable, each lockable into escrow.
  * Pixel parity with docs/design/_design_markup.html lines 752-801. Data/handlers

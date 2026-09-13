@@ -1,19 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, Modal, type TextStyle } from 'react-native';
+import { useMemo, useState } from 'react';
+import { View, Text as RNText, Pressable, ScrollView, Modal } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
-import { fontFamilyFor } from '../theme';
-
-/**
- * Calendar + clock picker for "Complete by".
- *
- * Hand-rolled rather than a native picker module so the same code works on
- * Android and on the web build, and so it matches the app's own styling.
- * Past days are disabled — a deadline in the past is never valid.
- */
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
+import { tx } from './primitives';
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const MONTHS = [

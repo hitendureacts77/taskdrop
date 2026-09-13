@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Pressable, Text as RNText, StyleSheet } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav, type ScreenName } from '../providers/NavProvider';

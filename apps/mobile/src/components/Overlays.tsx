@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { View, Text as RNText, Animated, Easing, StyleSheet } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useApp } from '../providers/AppStateProvider';

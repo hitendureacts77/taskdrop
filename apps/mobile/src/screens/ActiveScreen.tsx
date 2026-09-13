@@ -1,13 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text as RNText,
   Pressable,
   Animated,
   Easing,
-  type TextStyle,
-  type ViewStyle,
-  type StyleProp,
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Screen, formatINR } from '../components/ui';
@@ -17,7 +14,7 @@ import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { markWorkDone as markWorkDoneOnServer, confirmRelease as confirmReleaseOnServer } from '../data/api';
 import { workerNetPayout, posterEscrowCharge } from '@taskdrop/rules';
-import { fontFamilyFor } from '../theme';
+import { Pressy, tx } from '../components/primitives';
 
 /**
  * Active task — pixel parity with docs/design/_design_markup.html lines
@@ -65,30 +62,6 @@ function parsePaise(value: string | undefined): number {
   if (!value) return 0;
   const digits = value.replace(/[^0-9]/g, '');
   return digits ? parseInt(digits, 10) * 100 : 0;
-}
-
-function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
-  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
-}
-
-/** Scale-down press feedback, matching the markup's style-active="{{press}}". */
-function Pressy({
-  onPress,
-  style,
-  children,
-}: {
-  onPress?: () => void;
-  style?: StyleProp<ViewStyle>;
-  children: React.ReactNode;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [style, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
-    >
-      {children}
-    </Pressable>
-  );
 }
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
