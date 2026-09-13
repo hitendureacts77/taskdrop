@@ -1,0 +1,39 @@
+{
+  "name": "@taskdrop/mobile",
+  "version": "0.0.0",
+  "main": "index.ts",
+  "private": true,
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web --port 8081",
+    "web:export": "expo export -p web",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@expo-google-fonts/manrope": "^0.4.2",
+    "@expo/metro-runtime": "~57.0.15",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/supabase-js": "^2.45.4",
+    "@taskdrop/db-types": "*",
+    "@taskdrop/rules": "*",
+    "@taskdrop/schemas": "*",
+    "@taskdrop/supabase": "*",
+    "babel-preset-expo": "~57.0.0",
+    "expo": "~57.0.21",
+    "expo-asset": "~57.0.16",
+    "expo-font": "~57.0.3",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4",
+    "react-native-web": "^0.21.2"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~5.6.2"
+  }
+}

@@ -1,0 +1,1171 @@
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#DEDEDE; font-family:'Manrope',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  * { box-sizing:border-box; }
+  .tnum { font-variant-numeric:tabular-nums lining-nums; }
+  .noscroll::-webkit-scrollbar { display:none; }
+  .noscroll { scrollbar-width:none; }
+  @keyframes tdIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+  @keyframes tdUp { from { opacity:0; transform:translateY(26px); } to { opacity:1; transform:none; } }
+  @keyframes tdFade { from { opacity:0; } to { opacity:1; } }
+  @keyframes tdPop { 0% { transform:scale(0.6); opacity:0; } 60% { transform:scale(1.08); } 100% { transform:scale(1); opacity:1; } }
+  @keyframes tdDraw { from { stroke-dashoffset:60; } to { stroke-dashoffset:0; } }
+  @keyframes tdRing { from { opacity:0.5; transform:scale(0.8); } to { opacity:0; transform:scale(1.7); } }
+  @keyframes tdShim { from { background-position:-260px 0; } to { background-position:260px 0; } }
+  @media (prefers-reduced-motion: reduce) { * { animation-duration:0.01ms !important; transition-duration:0.01ms !important; } }
+</style>
+</helmet>
+
+<div style="{{ rootVars }}">
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px 16px; background:var(--canvas); overflow:hidden;">
+ <div style="{{ frameWrap }}">
+  <div style="{{ frameScale }}">
+
+    <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 20px; font-size:11px; color:var(--ink);">
+      <span class="tnum">{{ clock }}</span>
+      <span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span>
+    </div>
+
+    <!-- ══ HOME ══ -->
+    <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+      <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; animation:tdFade 0.26s ease-out both;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 20px 0;">
+          <div style="font-size:22px; font-weight:800; color:var(--ink); letter-spacing:-0.03em;">taskdrop<span style="color:var(--g);">.</span></div>
+          <div onClick="{{ goProfile }}" style="display:flex; align-items:center; gap:9px; background:var(--fill); border-radius:999px; padding:7px 13px; cursor:pointer; transition:background 0.2s ease;" style-active="{{ press }}">
+            <span style="width:6px; height:6px; border-radius:999px; background:var(--g);"></span>
+            <span style="font-size:12px; font-weight:700; color:var(--ink);">{{ modeLabel }}</span>
+          </div>
+        </div>
+
+        <div style="margin:15px 20px 0; background:var(--fill); border-radius:12px; padding:13px 15px; display:flex; align-items:center; gap:11px; transition:background 0.2s ease;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="var(--mut)" stroke-width="1.8"></circle><path d="m16.5 16.5 4 4" stroke="var(--mut)" stroke-width="1.8" stroke-linecap="round"></path></svg>
+          <span style="font-size:14px; color:var(--mut);">{{ searchHint }}</span>
+        </div>
+
+        <div class="noscroll" style="display:flex; gap:8px; padding:14px 20px 0; overflow-x:auto;">
+          <sc-for list="{{ filters }}" as="f" hint-placeholder-count="3">
+            <span onClick="{{ f.pick }}" style="font-size:12px; font-weight:600; color:{{ f.ink }}; background:{{ f.bg }}; border:1px solid {{ f.line }}; border-radius:999px; padding:8px 14px; white-space:nowrap; cursor:pointer; transition:all 0.22s cubic-bezier(0.2,0.7,0.3,1);" style-active="{{ press }}">{{ f.label }}</span>
+          </sc-for>
+        </div>
+
+        <div style="font-size:19px; font-weight:800; color:var(--ink); letter-spacing:-0.02em; padding:22px 20px 0;">{{ feedTitle }}</div>
+
+        <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:0 20px;">
+            <sc-for list="{{ skeletons }}" as="s" hint-placeholder-count="3">
+              <div style="background:var(--card); border:1px solid var(--line2); border-radius:14px; padding:15px; margin-top:12px;">
+                <div style="{{ s.bar1 }}"></div>
+                <div style="{{ s.bar2 }}"></div>
+                <div style="{{ s.bar3 }}"></div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ loaded }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:0 20px 16px;">
+            <sc-for list="{{ feed }}" as="c" hint-placeholder-count="3">
+              <div onClick="{{ c.open }}" style="background:var(--card); border:1px solid {{ c.line }}; border-radius:14px; padding:15px; margin-top:12px; cursor:pointer; animation:tdIn 0.4s cubic-bezier(0.2,0.7,0.3,1) both; animation-delay:{{ c.delay }}; transition:transform 0.18s ease, box-shadow 0.18s ease;" style-active="{{ cardPress }}">
+                <sc-if value="{{ c.sponsored }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex; align-items:center; gap:6px; margin-bottom:11px; padding-bottom:10px; border-bottom:1px solid var(--line);">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" fill="var(--gtext)"></path></svg>
+                    <span style="font-size:9px; letter-spacing:0.18em; font-weight:800; color:var(--gtext);">SPONSORED</span>
+                  </div>
+                </sc-if>
+                <div style="display:flex; align-items:center; gap:12px;">
+                  <span style="width:38px; height:38px; border-radius:999px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:15px; flex:none;">☺</span>
+                  <div style="flex:1; min-width:0;">
+                    <div style="display:flex; align-items:center; gap:7px;">
+                      <span class="tnum" style="font-size:14px; font-weight:700; color:var(--ink);">{{ c.who }}</span>
+                      <span class="tnum" style="font-size:12px; color:var(--mut);">★ {{ c.rating }}</span>
+                      <span style="font-size:9px; letter-spacing:0.14em; font-weight:700; color:{{ c.tagInk }}; margin-left:auto;">{{ c.tag }}</span>
+                    </div>
+                    <div class="tnum" style="font-size:12px; color:var(--mut); margin-top:3px;">{{ c.whoMeta }}</div>
+                  </div>
+                </div>
+                <div style="display:flex; gap:13px; margin-top:12px;">
+                  <sc-if value="{{ c.hasMedia }}" hint-placeholder-val="{{ false }}">
+                    <div style="width:62px; height:62px; flex:none; border-radius:11px; background:var(--thumb); position:relative; display:flex; align-items:center; justify-content:center; color:var(--chev); font-size:17px;">{{ c.glyph }}
+                      <sc-if value="{{ c.dur }}" hint-placeholder-val="{{ false }}">
+                        <span class="tnum" style="position:absolute; bottom:4px; right:4px; font-size:9px; color:#FFFFFF; background:rgba(0,0,0,0.6); border-radius:3px; padding:1px 4px;">{{ c.dur }}</span>
+                      </sc-if>
+                    </div>
+                  </sc-if>
+                  <div style="flex:1; min-width:0;">
+                    <div style="font-size:16px; font-weight:700; color:var(--ink); letter-spacing:-0.01em;">{{ c.title }}</div>
+                    <div style="font-size:13px; color:var(--mut); margin-top:5px; line-height:1.45;">{{ c.meta }}</div>
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px; margin-top:14px; padding-top:13px; border-top:1px solid var(--line);">
+                  <div style="flex:1;">
+                    <div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">{{ c.priceLabel }}</div>
+                    <div class="tnum" style="font-size:19px; font-weight:800; color:var(--gtext); margin-top:3px;">{{ c.price }}</div>
+                  </div>
+                  <span onClick="{{ c.quoteNow }}" style="font-size:13px; font-weight:600; color:var(--mut); border:1px solid var(--line3); border-radius:999px; padding:10px 15px;" style-active="{{ press }}">Counter</span>
+                  <span onClick="{{ c.accept }}" style="font-size:13px; font-weight:700; color:var(--onG); background:var(--g); border-radius:999px; padding:10px 16px; box-shadow:0 4px 14px var(--gshadow);" style-active="{{ press }}">Accept</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ loaded }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:8px 20px 16px;">
+            <div style="font-size:19px; font-weight:800; color:var(--ink); letter-spacing:-0.02em; margin-top:10px;">{{ urgentTitle }}</div>
+            <sc-for list="{{ urgentFeed }}" as="u" hint-placeholder-count="1">
+              <div onClick="{{ u.open }}" style="background:var(--card); border:1px solid var(--line2); border-radius:14px; padding:15px; margin-top:12px; cursor:pointer; animation:tdIn 0.4s cubic-bezier(0.2,0.7,0.3,1) both; animation-delay:{{ u.delay }};" style-active="{{ cardPress }}">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <span style="width:32px; height:32px; border-radius:999px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:13px; flex:none;">☺</span>
+                  <span class="tnum" style="font-size:13px; font-weight:700; color:var(--ink);">{{ u.who }}</span>
+                  <span class="tnum" style="font-size:12px; color:var(--mut);">★ {{ u.rating }}</span>
+                  <span style="font-size:9px; letter-spacing:0.14em; font-weight:700; color:var(--coral); margin-left:auto;">{{ u.flag }}</span>
+                </div>
+                <div style="display:flex; align-items:baseline; gap:12px; margin-top:11px;">
+                  <div style="flex:1; font-size:16px; font-weight:700; color:var(--ink);">{{ u.title }}</div>
+                  <div class="tnum" style="font-size:16px; font-weight:800; color:var(--gtext);">{{ u.price }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ══ SEARCH & FILTERS ══ -->
+    <sc-if value="{{ isSearch }}" hint-placeholder-val="{{ false }}">
+      <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:6px 20px 16px; animation:tdFade 0.26s ease-out both;">
+        <div style="font-size:24px; font-weight:800; color:var(--ink); letter-spacing:-0.03em;">Search</div>
+        <div style="margin-top:15px; background:var(--fill); border-radius:12px; padding:13px 15px; display:flex; align-items:center; gap:11px;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="var(--mut)" stroke-width="1.8"></circle><path d="m16.5 16.5 4 4" stroke="var(--mut)" stroke-width="1.8" stroke-linecap="round"></path></svg>
+          <span style="font-size:14px; color:var(--ink);">film camera</span>
+        </div>
+
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:24px;">LOCATION</div>
+        <div style="display:flex; align-items:center; gap:11px; margin-top:11px; background:var(--fill); border-radius:12px; padding:12px 15px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z" stroke="var(--mut)" stroke-width="1.7" stroke-linejoin="round"></path><circle cx="12" cy="10" r="2.6" stroke="var(--mut)" stroke-width="1.7"></circle></svg>
+          <span style="flex:1; font-size:14px; color:var(--ink);">Indiranagar, Bengaluru</span>
+          <span style="font-size:12px; font-weight:600; color:var(--gtext);">Use my location</span>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:12px; margin-top:22px;">
+          <span style="flex:1; font-size:11px; letter-spacing:0.14em; color:var(--dim);">RADIUS FROM THERE</span>
+          <span onClick="{{ toggleRadius }}" style="{{ radiusSwitch }}"><span style="{{ knobStyle }}"></span></span>
+        </div>
+        <sc-if value="{{ radiusOn }}" hint-placeholder-val="{{ true }}">
+          <div style="animation:tdIn 0.26s ease-out both;">
+            <div style="margin-top:16px; height:3px; background:var(--line3); border-radius:2px; position:relative;">
+              <div style="position:absolute; inset:0 42% 0 0; background:var(--g); border-radius:2px;"></div>
+              <div style="position:absolute; left:58%; top:-7px; width:17px; height:17px; border-radius:999px; background:var(--g); box-shadow:0 3px 10px var(--gshadow);"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:10px; font-size:12px; color:var(--mut);"><span>1 km</span><span class="tnum" style="color:var(--ink); font-weight:700;">12 km</span><span>25 km</span></div>
+          </div>
+        </sc-if>
+
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:22px;">PILLAR</div>
+        <div style="display:flex; gap:8px; margin-top:11px;">
+          <sc-for list="{{ filters }}" as="f" hint-placeholder-count="3">
+            <span onClick="{{ f.pick }}" style="font-size:12px; font-weight:600; color:{{ f.ink }}; background:{{ f.bg }}; border:1px solid {{ f.line }}; border-radius:999px; padding:8px 13px; cursor:pointer; transition:all 0.22s cubic-bezier(0.2,0.7,0.3,1);" style-active="{{ press }}">{{ f.label }}</span>
+          </sc-for>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:12px; margin-top:22px;">
+          <span style="flex:1; font-size:11px; letter-spacing:0.14em; color:var(--dim);">BUDGET</span>
+          <span onClick="{{ toggleBudget }}" style="{{ budgetSwitch }}"><span style="{{ knobStyle }}"></span></span>
+        </div>
+        <sc-if value="{{ budgetOn }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; gap:10px; margin-top:12px; animation:tdIn 0.26s ease-out both;">
+            <div style="flex:1; background:var(--fill); border-radius:12px; padding:13px 15px;"><div style="font-size:10px; color:var(--dim);">MIN</div><div class="tnum" style="font-size:15px; font-weight:700; color:var(--ink); margin-top:3px;">₹500</div></div>
+            <div style="flex:1; background:var(--fill); border-radius:12px; padding:13px 15px;"><div style="font-size:10px; color:var(--dim);">MAX</div><div class="tnum" style="font-size:15px; font-weight:700; color:var(--ink); margin-top:3px;">₹8,000</div></div>
+          </div>
+        </sc-if>
+
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:24px;">SAVED SEARCHES</div>
+        <sc-for list="{{ savedSearches }}" as="s" hint-placeholder-count="3">
+          <div onClick="{{ s.run }}" style="display:flex; align-items:center; gap:12px; padding:15px 0; border-bottom:1px solid var(--line); cursor:pointer; animation:tdIn 0.34s ease-out both; animation-delay:{{ s.delay }};" style-active="{{ cardPress }}">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="var(--mut)" stroke-width="1.9"></circle><path d="m16.5 16.5 4 4" stroke="var(--mut)" stroke-width="1.9" stroke-linecap="round"></path></svg>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:15px; color:var(--ink);">{{ s.title }}</div>
+              <div style="font-size:12px; color:var(--dim); margin-top:2px;">{{ s.meta }}</div>
+            </div>
+            <span style="font-size:12px; font-weight:600; color:var(--gtext);">Alerts on</span>
+          </div>
+        </sc-for>
+
+        <div onClick="{{ applyFilters }}" style="margin-top:22px; background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer; transition:transform 0.15s ease;" style-active="{{ press }}">Show 34 tasks</div>
+      </div>
+    </sc-if>
+
+    <!-- ══ ORDERS ══ -->
+    <sc-if value="{{ isOrders }}" hint-placeholder-val="{{ false }}">
+      <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; animation:tdFade 0.26s ease-out both;">
+        <div style="padding:6px 20px 14px; font-size:24px; font-weight:800; color:var(--ink); letter-spacing:-0.03em;">{{ ordersTitle }}</div>
+        <div style="display:flex; padding:0 20px; position:relative;">
+          <sc-for list="{{ orderTabs }}" as="t" hint-placeholder-count="3">
+            <div onClick="{{ t.pick }}" style="flex:1; text-align:center; font-size:13px; font-weight:{{ t.weight }}; color:{{ t.ink }}; padding:11px 0; cursor:pointer; transition:color 0.22s ease;">{{ t.label }}</div>
+          </sc-for>
+          <div style="position:absolute; left:20px; right:20px; bottom:0; height:2px; background:var(--line);"></div>
+          <div style="{{ underline }}"></div>
+        </div>
+        <div style="padding:4px 20px 16px;">
+          <sc-for list="{{ orderRows }}" as="o" hint-placeholder-count="3">
+            <div onClick="{{ o.open }}" style="background:var(--card); border:1px solid var(--line2); border-radius:14px; padding:15px; margin-top:12px; cursor:pointer; animation:tdIn 0.36s cubic-bezier(0.2,0.7,0.3,1) both; animation-delay:{{ o.delay }};" style-active="{{ cardPress }}">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="width:6px; height:6px; border-radius:999px; background:{{ o.dot }}; transition:background 0.3s ease;"></span>
+                <span style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:{{ o.stateInk }};">{{ o.state }}</span>
+              </div>
+              <div style="display:flex; align-items:baseline; gap:12px; margin-top:9px;">
+                <div style="flex:1; font-size:16px; font-weight:700; color:var(--ink);">{{ o.title }}</div>
+                <div class="tnum" style="font-size:16px; font-weight:800; color:var(--ink);">{{ o.price }}</div>
+              </div>
+              <div style="font-size:12px; color:var(--mut); margin-top:6px;">{{ o.meta }}</div>
+            </div>
+          </sc-for>
+          <sc-if value="{{ ordersEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:70px 20px; text-align:center; animation:tdIn 0.4s ease-out both;">
+              <svg width="120" height="96" viewBox="0 0 120 96" fill="none" style="opacity:0.75;">
+                <path d="M30 40h44v40H30z" stroke="var(--chev)" stroke-width="2.2" stroke-linejoin="round"></path>
+                <path d="M42 56h20" stroke="var(--chev)" stroke-width="2.2" stroke-linecap="round"></path>
+                <path d="M34 40 42 26h20l8 14" stroke="var(--chev)" stroke-width="2.2" stroke-linejoin="round"></path>
+                <circle cx="88" cy="66" r="8" stroke="var(--g)" stroke-width="2.2"></circle>
+                <path d="M18 80h84" stroke="var(--chev)" stroke-width="2.2" stroke-linecap="round"></path>
+              </svg>
+              <div style="font-size:18px; font-weight:800; color:var(--ink); margin-top:20px;">Nothing here yet</div>
+              <div style="font-size:14px; color:var(--mut); margin-top:8px; line-height:1.5;">{{ emptyLine }}</div>
+              <div onClick="{{ goHome }}" style="font-size:14px; font-weight:700; color:var(--ink); text-decoration:underline; margin-top:20px; cursor:pointer;">Browse the feed</div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ WALLET ══ -->
+    <sc-if value="{{ isWallet }}" hint-placeholder-val="{{ false }}">
+      <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:6px 20px 16px; animation:tdFade 0.26s ease-out both;">
+        <div style="font-size:24px; font-weight:800; color:var(--ink); letter-spacing:-0.03em;">Wallet</div>
+        <div style="font-size:13px; color:var(--mut); margin-top:22px;">{{ walletLabel }}</div>
+        <div class="tnum" style="font-size:44px; font-weight:800; color:var(--ink); letter-spacing:-0.04em; line-height:1.1; margin-top:4px;">₹{{ balance }}</div>
+        <div style="display:flex; height:7px; border-radius:999px; overflow:hidden; background:var(--thumb); margin-top:18px;">
+          <div style="{{ barAvail }}"></div>
+          <div style="{{ barEscrow }}"></div>
+          <div style="{{ barClearing }}"></div>
+        </div>
+        <div style="display:flex; gap:16px; margin-top:12px; font-size:11px; color:var(--mut);">
+          <span style="color:var(--gtext);">● Available</span><span style="color:var(--amber);">● In escrow</span><span style="color:var(--blue);">● Clearing</span>
+        </div>
+        <div style="display:flex; margin-top:20px; border-top:1px solid var(--line2); border-bottom:1px solid var(--line2);">
+          <div style="flex:1; padding:15px 0; border-right:1px solid var(--line2);"><div style="font-size:11px; color:var(--amber);">In escrow</div><div class="tnum" style="font-size:19px; font-weight:800; color:var(--ink); margin-top:5px;">₹{{ escrow }}</div></div>
+          <div style="flex:1; padding:15px 0 15px 16px;"><div style="font-size:11px; color:var(--blue);">Clearing · 7d</div><div class="tnum" style="font-size:19px; font-weight:800; color:var(--ink); margin-top:5px;">₹{{ clearingFmt }}</div></div>
+        </div>
+        <div onClick="{{ goWithdraw }}" style="margin-top:22px; background:var(--g); color:var(--onG); text-align:center; font-size:15px; font-weight:700; padding:15px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer; transition:transform 0.18s ease;" style-active="{{ press }}">Withdraw ₹{{ balance }}</div>
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:22px;">RECENT</div>
+        <sc-for list="{{ ledger }}" as="l" hint-placeholder-count="3">
+          <div style="display:flex; align-items:center; gap:12px; padding:15px 0; border-bottom:1px solid var(--line); animation:tdIn 0.34s ease-out both; animation-delay:{{ l.delay }};">
+            <span style="width:6px; height:6px; border-radius:999px; background:{{ l.dot }}; flex:none;"></span>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:15px; font-weight:600; color:var(--ink);">{{ l.title }}</div>
+              <div style="font-size:12px; color:var(--mut); margin-top:2px;">{{ l.meta }}</div>
+            </div>
+            <span class="tnum" style="font-size:15px; font-weight:700; color:{{ l.ink }};">{{ l.amt }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- ══ PROFILE ══ -->
+    <sc-if value="{{ isProfile }}" hint-placeholder-val="{{ false }}">
+      <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; animation:tdFade 0.26s ease-out both;">
+        <div style="background:var(--band); padding:14px 20px 26px; transition:background 0.3s ease;">
+          <div style="display:flex; align-items:center; gap:16px;">
+            <div style="width:64px; height:64px; border-radius:999px; background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center; font-size:23px; font-weight:800; color:#FFFFFF;">N</div>
+            <div>
+              <div style="font-size:21px; font-weight:800; color:#FFFFFF; letter-spacing:-0.02em;">Narasimha_raju</div>
+              <div class="tnum" style="font-size:13px; color:rgba(255,255,255,0.78); margin-top:4px;">{{ roleRating }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:20px 20px 0;">
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim);">MODE</div>
+          <div style="display:flex; gap:8px; margin-top:11px; background:var(--fill); border-radius:12px; padding:4px; position:relative;">
+            <div style="{{ modeSlider }}"></div>
+            <sc-for list="{{ modes }}" as="m" hint-placeholder-count="2">
+              <div onClick="{{ m.pick }}" style="flex:1; text-align:center; font-size:14px; font-weight:700; color:{{ m.ink }}; padding:11px 0; cursor:pointer; position:relative; z-index:1; transition:color 0.24s ease;">{{ m.label }}</div>
+            </sc-for>
+          </div>
+          <div style="font-size:12px; color:var(--dim); margin-top:9px; line-height:1.5;">{{ modeNote }}</div>
+
+          <div style="display:flex; align-items:baseline; justify-content:space-between; margin-top:22px;">
+            <span style="font-size:11px; letter-spacing:0.14em; color:var(--dim);">THEME</span>
+            <span style="font-size:11px; color:var(--dim);">{{ themeNote }}</span>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:11px;">
+            <sc-for list="{{ themes }}" as="t" hint-placeholder-count="3">
+              <span onClick="{{ t.pick }}" style="flex:1; text-align:center; font-size:13px; font-weight:600; color:{{ t.ink }}; background:{{ t.bg }}; border:1px solid {{ t.line }}; border-radius:10px; padding:10px 0; cursor:pointer; transition:all 0.24s cubic-bezier(0.2,0.7,0.3,1);" style-active="{{ press }}">{{ t.label }}</span>
+            </sc-for>
+          </div>
+
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:22px;">MY TASKDROP</div>
+          <sc-for list="{{ profileRows }}" as="p" hint-placeholder-count="4">
+            <div onClick="{{ p.tap }}" style="display:flex; align-items:center; gap:15px; padding:15px 0; border-bottom:1px solid var(--line); cursor:pointer;" style-active="{{ press }}">
+              <span style="width:22px; text-align:center; font-size:15px; color:var(--mut);">{{ p.glyph }}</span>
+              <span style="flex:1; font-size:16px; font-weight:600; color:{{ p.ink }};">{{ p.label }}</span>
+              <span style="font-size:16px; color:var(--chev);">›</span>
+            </div>
+          </sc-for>
+
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:22px;">{{ reviewsLabel }}</div>
+          <sc-for list="{{ reviews }}" as="r" hint-placeholder-count="2">
+            <div style="padding:14px 0; border-bottom:1px solid var(--line); animation:tdIn 0.34s ease-out both; animation-delay:{{ r.delay }};">
+              <div style="display:flex; align-items:center; gap:9px;">
+                <span class="tnum" style="font-size:13px; font-weight:700; color:var(--ink);">{{ r.who }}</span>
+                <span class="tnum" style="font-size:12px; color:var(--gtext);">★ {{ r.stars }}</span>
+                <span style="font-size:11px; color:var(--dim); margin-left:auto;">{{ r.when }}</span>
+              </div>
+              <div style="font-size:13px; color:var(--mut); margin-top:6px; line-height:1.5;">{{ r.text }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ DETAIL SHEET ══ -->
+    <sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:5; display:flex; flex-direction:column;">
+        <div onClick="{{ closeSheet }}" style="position:absolute; inset:0; background:rgba(0,0,0,0.4); animation:tdFade 0.24s ease-out both;"></div>
+        <div style="margin-top:auto; position:relative; background:var(--pg); border-radius:24px 24px 0 0; max-height:88%; display:flex; flex-direction:column; animation:tdUp 0.34s cubic-bezier(0.2,0.8,0.25,1) both; box-shadow:0 -14px 40px rgba(0,0,0,0.2);">
+          <div style="padding:12px 0 0; display:flex; justify-content:center;"><span style="width:38px; height:4px; border-radius:999px; background:var(--line3);"></span></div>
+          <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:16px 20px 0;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span style="width:40px; height:40px; border-radius:999px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:16px;">☺</span>
+              <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:7px;">
+                  <span class="tnum" style="font-size:15px; font-weight:700; color:var(--ink);">{{ sheetWho }}</span>
+                  <span class="tnum" style="font-size:12px; color:var(--mut);">★ {{ sheetRating }}</span>
+                </div>
+                <div style="font-size:12px; color:var(--mut); margin-top:3px;">{{ sheetWhoMeta }}</div>
+              </div>
+            </div>
+            <div style="font-size:23px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:16px;">{{ sheetTitle }}</div>
+            <div style="font-size:14px; color:var(--sub); line-height:1.55; margin-top:10px;">{{ sheetBody }}</div>
+            <div style="display:flex; margin-top:18px; border-top:1px solid var(--line2); border-bottom:1px solid var(--line2);">
+              <div style="flex:1; padding:14px 0;"><div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">{{ sheetPriceLabel }}</div><div class="tnum" style="font-size:20px; font-weight:800; color:var(--gtext); margin-top:4px;">{{ sheetPrice }}</div></div>
+              <div style="flex:1; padding:14px 0;"><div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">RATING</div><div class="tnum" style="font-size:20px; font-weight:700; color:var(--amber); margin-top:4px;">★ {{ sheetRating }}</div></div>
+              <!-- "Complete by" appears once below: the REQUIRED date+time chips for a poster, or the locked deadline for a worker. -->
+            </div>
+
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:20px;">YOUR QUOTE</div>
+            <div style="display:flex; align-items:center; gap:14px; margin-top:12px;">
+              <span onClick="{{ quoteDown }}" style="width:44px; height:44px; border-radius:999px; border:1px solid var(--line3); display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--ink); cursor:pointer; transition:all 0.18s ease;" style-active="{{ press }}">−</span>
+              <div style="flex:1; text-align:center;">
+                <div class="tnum" style="font-size:30px; font-weight:800; color:var(--ink); letter-spacing:-0.03em;">₹{{ quoteAmount }}</div>
+                <div class="tnum" style="font-size:11px; color:{{ deltaInk }}; margin-top:2px;">{{ deltaText }}</div>
+              </div>
+              <span onClick="{{ quoteUp }}" style="width:44px; height:44px; border-radius:999px; border:1px solid var(--line3); display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--ink); cursor:pointer; transition:all 0.18s ease;" style-active="{{ press }}">+</span>
+            </div>
+            <sc-if value="{{ sheetNeedsBy }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; align-items:baseline; justify-content:space-between; margin-top:22px;">
+                <span style="font-size:11px; letter-spacing:0.14em; color:var(--dim);">COMPLETE BY · REQUIRED</span>
+                <span style="font-size:13px; font-weight:600; color:{{ sheetByInk }};">{{ sheetByText }}</span>
+              </div>
+              <div style="display:flex; gap:8px; margin-top:11px;">
+                <sc-for list="{{ byChips }}" as="b" hint-placeholder-count="3">
+                  <span onClick="{{ b.pick }}" style="flex:1; text-align:center; font-size:12px; font-weight:600; color:{{ b.ink }}; background:{{ b.bg }}; border:1px solid {{ b.line }}; border-radius:10px; padding:11px 0; cursor:pointer; transition:all 0.22s ease;" style-active="{{ press }}">{{ b.label }}</span>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ workerSheet }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; padding-bottom:12px; border-bottom:1px solid var(--line);">
+                <span style="font-size:14px; color:var(--ink);">Complete by</span>
+                <span style="font-size:14px; font-weight:600; color:var(--mut);">{{ sheetBy }}</span>
+              </div>
+            </sc-if>
+            <div style="font-size:12px; color:var(--dim); margin-top:12px; line-height:1.5;">{{ sheetNote }}</div>
+          </div>
+          <div style="padding:14px 20px 24px;">
+            <div onClick="{{ sendQuote }}" style="{{ sheetCtaStyle }}" style-active="{{ press }}">{{ sheetCta }}</div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ SWIPE TO START ══ -->
+    <sc-if value="{{ swipeOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; padding:0 20px 28px; animation:tdFade 0.26s ease-out both;">
+        <div style="padding:44px 0 0;"><span onClick="{{ closeSwipe }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span></div>
+        <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="width:6px; height:6px; border-radius:999px; background:var(--g);"></span>
+            <span style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:var(--gtext);">QUOTE LOCKED · ESCROW FUNDED</span>
+          </div>
+          <div style="font-size:29px; font-weight:800; color:var(--ink); letter-spacing:-0.035em; margin-top:14px; line-height:1.2;">{{ swipeTitle }}</div>
+          <div class="tnum" style="font-size:15px; color:var(--mut); margin-top:10px;">{{ swipeMeta }}</div>
+          <div style="margin-top:26px; background:var(--gwash); border:1px solid var(--gline); border-radius:14px; padding:16px; display:flex; gap:12px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="flex:none;">
+              <path d="M12 3 5 6v6c0 4.2 2.9 7.6 7 9 4.1-1.4 7-4.8 7-9V6l-7-3Z" stroke="var(--g)" stroke-width="1.7" stroke-linejoin="round"></path>
+              <path d="m9 12 2.2 2.2L15.5 10" stroke="var(--g)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:60; animation:tdDraw 0.7s ease-out 0.2s both;"></path>
+            </svg>
+            <span style="font-size:13px; color:var(--gink); line-height:1.5;">Starting reveals both contacts and begins the live timer. It cannot be paused.</span>
+          </div>
+        </div>
+        <div>
+          <div onPointerDown="{{ swipeDown }}" onPointerMove="{{ swipeMove }}" onPointerUp="{{ swipeUp }}" onPointerCancel="{{ swipeUp }}" style="height:62px; border-radius:999px; background:var(--fill); border:1px solid var(--line2); display:flex; align-items:center; padding:6px; position:relative; overflow:hidden; touch-action:none; cursor:grab;">
+            <div style="{{ swipeFill }}"></div>
+            <div style="{{ swipeKnob }}">{{ swipeGlyph }}</div>
+            <div style="flex:1; text-align:center; padding-right:50px; font-size:15px; font-weight:700; color:var(--ink); position:relative; z-index:1; opacity:{{ swipeLabelOpacity }}; transition:opacity 0.2s ease;">Swipe to start</div>
+          </div>
+          <div style="text-align:center; font-size:12px; color:var(--dim); margin-top:13px;">{{ swipeHint }}</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ ACTIVE JOB ══ -->
+    <sc-if value="{{ activeOpen }}" hint-placeholder-val="{{ false }}">
+      <div class="noscroll" style="position:absolute; inset:0; z-index:6; background:var(--pg); overflow-y:auto; padding:44px 20px 28px; animation:tdFade 0.26s ease-out both;">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <span onClick="{{ closeActive }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+          <span style="font-size:17px; font-weight:700; color:var(--ink);">Active task</span>
+        </div>
+        <div style="display:flex; justify-content:center; margin-top:22px;">
+          <div style="position:relative; width:200px; height:200px;">
+            <svg width="200" height="200" viewBox="0 0 200 200" fill="none">
+              <circle cx="100" cy="100" r="88" stroke="var(--thumb)" stroke-width="10"></circle>
+              <circle cx="100" cy="100" r="88" stroke="var(--g)" stroke-width="10" stroke-linecap="round" stroke-dasharray="553" stroke-dashoffset="{{ ringOffset }}" transform="rotate(-90 100 100)" style="transition:stroke-dashoffset 0.9s cubic-bezier(0.3,0.8,0.3,1);"></circle>
+            </svg>
+            <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+              <div class="tnum" style="font-size:36px; font-weight:800; color:var(--ink); letter-spacing:-0.03em;">{{ elapsed }}</div>
+              <div style="font-size:12px; color:var(--mut); margin-top:6px;">of 4 hrs agreed</div>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:center; margin-top:20px;">
+          <div style="font-size:19px; font-weight:800; color:var(--ink); letter-spacing:-0.02em;">{{ swipeTitle }}</div>
+          <div class="tnum" style="font-size:13px; color:var(--mut); margin-top:6px;">{{ activeMeta }}</div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:18px; background:var(--card); border:1px solid var(--line2); border-radius:14px; padding:15px;">
+          <div>
+            <div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">ELAPSED</div>
+            <div class="tnum" style="font-size:24px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:4px;">{{ elapsed }}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">CAP</div>
+            <div class="tnum" style="font-size:15px; font-weight:700; color:var(--amber); margin-top:6px;">08:00:00</div>
+          </div>
+        </div>
+        <div style="margin-top:12px; background:var(--awash); border:1px solid var(--aline); border-radius:12px; padding:13px 15px; font-size:13px; color:var(--amber); line-height:1.5;">The timer runs on its own — neither side can pause it. It caps at 8 hrs, twice the agreed duration, and overrun past that is auto-refunded.</div>
+        <div style="margin-top:22px;">
+          <sc-for list="{{ steps }}" as="s" hint-placeholder-count="4">
+            <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line);">
+              <span style="width:7px; height:7px; border-radius:999px; background:{{ s.dot }}; flex:none; transition:background 0.35s ease;"></span>
+              <span style="flex:1; font-size:14px; color:{{ s.ink }}; transition:color 0.35s ease;">{{ s.label }}</span>
+              <span class="tnum" style="font-size:12px; color:var(--dim);">{{ s.when }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:22px; display:flex; align-items:center; gap:13px; padding-bottom:18px; border-bottom:1px solid var(--line2);">
+          <span style="width:40px; height:40px; border-radius:999px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:16px;">☺</span>
+          <div style="flex:1;">
+            <div style="font-size:15px; font-weight:700; color:var(--ink);">{{ revealedName }}</div>
+            <div class="tnum" style="font-size:12px; color:var(--gtext); margin-top:3px; animation:tdIn 0.4s ease-out both;">{{ revealedPhone }}</div>
+          </div>
+          <span onClick="{{ goChat }}" style="font-size:13px; font-weight:700; color:var(--gtext); cursor:pointer;" style-active="{{ press }}">Chat</span>
+        </div>
+        <sc-if value="{{ showProof }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:20px;">
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim);">PROOF OF WORK</div>
+            <div style="display:flex; gap:10px; margin-top:11px;">
+              <sc-for list="{{ proofTiles }}" as="p" hint-placeholder-count="3">
+                <div onClick="{{ p.tap }}" style="width:88px; height:88px; border-radius:12px; background:{{ p.bg }}; border:{{ p.border }}; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; color:{{ p.ink }}; cursor:{{ p.cursor }}; animation:tdIn 0.3s ease-out both;" style-active="{{ press }}">
+                  <span style="font-size:18px;">{{ p.glyph }}</span>
+                  <sc-if value="{{ p.label }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:10px;">{{ p.label }}</span>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+            <div style="font-size:12px; color:var(--dim); margin-top:10px; line-height:1.5;">{{ proofHint }}</div>
+          </div>
+        </sc-if>
+        <div onClick="{{ markDone }}" style="{{ doneBtn }}" style-active="{{ press }}">{{ doneLabel }}</div>
+        <div style="text-align:center; font-size:12px; color:var(--dim); margin-top:11px; line-height:1.5;">{{ doneNote }}</div>
+      </div>
+    </sc-if>
+
+    <!-- ══ SPLASH ══ -->
+    <sc-if value="{{ isSplash }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ toWelcome }}" style="position:absolute; inset:0; z-index:7; background:var(--pg); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; cursor:pointer; animation:tdFade 0.3s ease-out both;">
+        <svg width="72" height="72" viewBox="0 0 24 24" fill="none" style="animation:tdPop 0.5s cubic-bezier(0.2,0.9,0.3,1.2) both;">
+          <path d="M12 2.5c4.2 4.5 6.6 7.7 6.6 10.8A6.6 6.6 0 0 1 12 20a6.6 6.6 0 0 1-6.6-6.7C5.4 10.2 7.8 7 12 2.5Z" fill="var(--g)"></path>
+          <path d="M9.2 13.1l2.2 2.3 4-4.6" stroke="var(--onG)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+        <div style="font-size:38px; font-weight:800; color:var(--ink); letter-spacing:-0.04em; animation:tdIn 0.5s ease-out 0.1s both;">taskdrop<span style="color:var(--g);">.</span></div>
+        <div style="position:absolute; bottom:56px; font-size:13px; color:var(--dim);">Ask for anything. Someone can do it.</div>
+      </div>
+    </sc-if>
+
+    <!-- ══ WELCOME ══ -->
+    <sc-if value="{{ isWelcome }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:7; background:var(--pg); display:flex; flex-direction:column; justify-content:flex-end; padding:0 20px 26px; animation:tdFade 0.28s ease-out both;">
+        <div style="font-size:33px; font-weight:800; color:var(--ink); letter-spacing:-0.035em; line-height:1.15;">Real tasks.<br>Real people.<br>Nearby.</div>
+        <div style="display:flex; gap:12px; margin-top:34px;">
+          <sc-for list="{{ welcomeCards }}" as="w" hint-placeholder-count="2">
+            <div onClick="{{ w.pick }}" style="flex:1; background:var(--fill); border:1px solid {{ w.line }}; border-radius:14px; padding:20px 15px; text-align:center; cursor:pointer; transition:border-color 0.22s ease, transform 0.18s ease; animation:tdIn 0.4s ease-out both; animation-delay:{{ w.delay }};" style-active="{{ cardPress }}">
+              <div style="font-size:24px;">{{ w.glyph }}</div>
+              <div style="font-size:16px; font-weight:700; color:var(--ink); margin-top:12px;">{{ w.title }}</div>
+              <div style="font-size:12px; color:var(--mut); margin-top:6px; line-height:1.45;">{{ w.sub }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div onClick="{{ toSignup }}" style="margin-top:26px; background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">Continue as {{ welcomePick }}</div>
+        <div onClick="{{ skipAuth }}" style="text-align:center; font-size:14px; font-weight:600; color:var(--mut); margin-top:16px; cursor:pointer;">Sign in instead</div>
+      </div>
+    </sc-if>
+
+    <!-- ══ SIGN UP · OTP ══ -->
+    <sc-if value="{{ isSignup }}" hint-placeholder-val="{{ false }}">
+      <div class="noscroll" style="position:absolute; inset:0; z-index:7; background:var(--pg); overflow-y:auto; padding:44px 20px 26px; animation:tdFade 0.28s ease-out both;">
+        <span onClick="{{ toWelcome }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+        <div style="font-size:27px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:22px;">Create your account</div>
+        <div style="font-size:14px; color:var(--mut); margin-top:8px; line-height:1.5;">One account covers posting and working.</div>
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:26px;">MOBILE NUMBER</div>
+        <div style="display:flex; align-items:center; gap:12px; margin-top:11px; background:var(--fill); border-radius:12px; padding:15px 16px;">
+          <span style="font-size:15px; color:var(--mut);">+91</span>
+          <span style="width:1px; height:18px; background:var(--line3);"></span>
+          <span class="tnum" style="font-size:16px; color:var(--ink);">98765 43210</span>
+        </div>
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:24px;">6-DIGIT CODE · SENT BY SMS</div>
+        <div style="display:flex; gap:9px; margin-top:11px;">
+          <sc-for list="{{ otpBoxes }}" as="o" hint-placeholder-count="6">
+            <div onClick="{{ o.tap }}" style="flex:1; height:54px; border-radius:12px; background:var(--fill); border:1px solid {{ o.line }}; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:border-color 0.2s ease;">
+              <span class="tnum" style="font-size:20px; font-weight:700; color:var(--ink);">{{ o.v }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
+          <span style="font-size:13px; color:var(--mut);">Sent to +91 •••• ••3210</span>
+          <span onClick="{{ fillOtp }}" style="font-size:13px; font-weight:700; color:var(--gtext); cursor:pointer;">Autofill</span>
+        </div>
+        <div onClick="{{ verifyOtp }}" style="{{ otpBtn }}" style-active="{{ press }}">{{ otpBtnLabel }}</div>
+        <div style="display:flex; align-items:center; gap:14px; margin-top:22px;">
+          <span style="flex:1; height:1px; background:var(--line);"></span><span style="font-size:12px; color:var(--dim);">or</span><span style="flex:1; height:1px; background:var(--line);"></span>
+        </div>
+        <div onClick="{{ toSetup }}" style="margin-top:20px; border:1px solid var(--line3); border-radius:12px; padding:15px; text-align:center; font-size:15px; font-weight:600; color:var(--ink); cursor:pointer;" style-active="{{ press }}">Continue with Google</div>
+      </div>
+    </sc-if>
+
+    <!-- ══ PROFILE SETUP ══ -->
+    <sc-if value="{{ isSetup }}" hint-placeholder-val="{{ false }}">
+      <div class="noscroll" style="position:absolute; inset:0; z-index:7; background:var(--pg); overflow-y:auto; padding:44px 20px 26px; animation:tdFade 0.28s ease-out both;">
+        <span onClick="{{ toSignup }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+        <div style="font-size:25px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:20px;">Set up your profile</div>
+        <div style="display:flex; align-items:center; gap:14px; margin-top:20px;">
+          <div style="width:64px; height:64px; border-radius:999px; background:var(--fill); border:1px dashed var(--line3); display:flex; align-items:center; justify-content:center; color:var(--dim); font-size:20px;">+</div>
+          <div>
+            <div style="font-size:15px; font-weight:700; color:var(--ink);">Add a photo</div>
+            <div style="font-size:12px; color:var(--mut); margin-top:3px;">Profiles with photos get 3× more quotes</div>
+          </div>
+        </div>
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:22px;">DISPLAY NAME</div>
+        <div style="background:var(--fill); border-radius:12px; padding:14px 16px; margin-top:10px; font-size:15px; color:var(--ink);">Narasimha Raju</div>
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:20px;">LOCATION</div>
+        <div style="background:var(--fill); border-radius:12px; padding:14px 16px; margin-top:10px; display:flex; justify-content:space-between; font-size:15px; color:var(--ink);"><span>Indiranagar, Bengaluru</span><span style="color:var(--gtext); font-size:13px; font-weight:600;">Change</span></div>
+        <sc-if value="{{ setupWorker }}" hint-placeholder-val="{{ true }}">
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:20px;">SKILLS · PICK UP TO 5</div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:11px;">
+            <sc-for list="{{ skillChips }}" as="s" hint-placeholder-count="8">
+              <span onClick="{{ s.pick }}" style="font-size:13px; font-weight:600; color:{{ s.ink }}; background:{{ s.bg }}; border:1px solid {{ s.line }}; border-radius:999px; padding:9px 15px; cursor:pointer; transition:all 0.2s ease;" style-active="{{ press }}">{{ s.label }}</span>
+            </sc-for>
+          </div>
+        </sc-if>
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:22px;">START IN</div>
+        <div style="display:flex; gap:10px; margin-top:11px;">
+          <sc-for list="{{ setupModes }}" as="m" hint-placeholder-count="2">
+            <div onClick="{{ m.pick }}" style="flex:1; border-radius:12px; padding:15px; background:{{ m.bg }}; border:1px solid {{ m.line }}; cursor:pointer; transition:all 0.22s ease;" style-active="{{ cardPress }}">
+              <div style="font-size:15px; font-weight:700; color:{{ m.ink }};">{{ m.label }}</div>
+              <div style="font-size:12px; color:var(--mut); margin-top:5px;">{{ m.sub }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div onClick="{{ finishSetup }}" style="margin-top:24px; background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">Finish setup</div>
+      </div>
+    </sc-if>
+
+    <!-- ══ CREATE · PILLAR ══ -->
+    <sc-if value="{{ isCreate }}" hint-placeholder-val="{{ false }}">
+      <div class="noscroll" style="position:absolute; inset:0; z-index:6; background:var(--pg); overflow-y:auto; padding:44px 20px 26px; animation:tdFade 0.26s ease-out both;">
+        <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">✕</span>
+        <div style="font-size:27px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:20px;">{{ createTitle }}</div>
+        <div style="font-size:14px; color:var(--mut); margin-top:8px; line-height:1.5;">{{ createSub }}</div>
+        <div style="margin-top:24px;">
+          <sc-for list="{{ pillarCards }}" as="p" hint-placeholder-count="3">
+            <div onClick="{{ p.pick }}" style="background:{{ p.bg }}; border:1px solid {{ p.line }}; border-radius:16px; padding:18px; margin-bottom:12px; cursor:pointer; transition:all 0.22s ease; animation:tdIn 0.36s ease-out both; animation-delay:{{ p.delay }};" style-active="{{ cardPress }}">
+              <div style="display:flex; align-items:center; gap:14px;">
+                <span style="width:44px; height:44px; border-radius:12px; background:var(--gwash); display:flex; align-items:center; justify-content:center; font-size:19px; color:var(--gtext);">{{ p.glyph }}</span>
+                <div style="flex:1;">
+                  <div style="font-size:17px; font-weight:700; color:var(--ink);">{{ p.title }}</div>
+                  <div style="font-size:13px; color:var(--mut); margin-top:4px; line-height:1.4;">{{ p.sub }}</div>
+                </div>
+                <span style="font-size:16px; color:var(--chev);">›</span>
+              </div>
+              <div class="tnum" style="font-size:12px; color:var(--dim); margin-top:13px;">{{ p.stat }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ POST DETAILS ══ -->
+    <sc-if value="{{ isPostDetails }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span onClick="{{ backToCreate }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+            <span style="font-size:12px; color:var(--dim);">Draft saved</span>
+          </div>
+          <div style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:var(--gtext); margin-top:16px;">{{ pillarLabel }}</div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:18px;">TITLE</div>
+          <div style="font-size:17px; color:var(--ink); margin-top:9px; padding-bottom:11px; border-bottom:1px solid var(--line2);">{{ draftTitle }}</div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:18px;">DETAILS</div>
+          <div style="font-size:14px; color:var(--mut); margin-top:9px; line-height:1.55; padding-bottom:11px; border-bottom:1px solid var(--line2);">{{ draftDetails }}</div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:18px;">PHOTOS OR VIDEO · OPTIONAL</div>
+          <div style="display:flex; gap:10px; margin-top:11px;">
+            <sc-for list="{{ draftMedia }}" as="m" hint-placeholder-count="3">
+              <div onClick="{{ m.tap }}" style="width:68px; height:68px; border-radius:12px; background:{{ m.bg }}; border:{{ m.border }}; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:{{ m.ink }}; cursor:pointer; transition:all 0.2s ease;" style-active="{{ press }}">
+                <span style="font-size:17px;">{{ m.glyph }}</span>
+                <span style="font-size:9px;">{{ m.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex; gap:10px; margin-top:18px;">
+            <div style="flex:1; background:var(--card); border:1px solid var(--line2); border-radius:12px; padding:13px;">
+              <div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">{{ draftAmountLabel }}</div>
+              <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+                <span onClick="{{ draftDown }}" style="width:26px; height:26px; border-radius:999px; border:1px solid var(--line3); display:flex; align-items:center; justify-content:center; font-size:15px; color:var(--ink); cursor:pointer;" style-active="{{ press }}">−</span>
+                <span class="tnum" style="flex:1; text-align:center; font-size:18px; font-weight:800; color:var(--gtext);">₹{{ draftPrice }}</span>
+                <span onClick="{{ draftUp }}" style="width:26px; height:26px; border-radius:999px; border:1px solid var(--line3); display:flex; align-items:center; justify-content:center; font-size:15px; color:var(--ink); cursor:pointer;" style-active="{{ press }}">+</span>
+              </div>
+            </div>
+            <sc-if value="{{ showDeadline }}" hint-placeholder-val="{{ true }}">
+              <div style="flex:1; background:var(--card); border:1px solid var(--g); border-radius:12px; padding:13px;">
+                <div style="font-size:10px; letter-spacing:0.14em; color:var(--gtext);">COMPLETE BY ·</div>
+                <div style="font-size:15px; font-weight:700; color:var(--ink); margin-top:8px;">9 Sep, 6:00 PM</div>
+              </div>
+            </sc-if>
+          </div>
+          <sc-if value="{{ showDeadline }}" hint-placeholder-val="{{ true }}">
+            <div style="font-size:12px; color:var(--dim); margin-top:9px;">{{ deadlineHint }}</div>
+          </sc-if>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:18px;">LOCATION</div>
+          <div style="margin-top:11px; height:96px; border-radius:12px; background:var(--card); border:1px solid var(--line2); position:relative; overflow:hidden;">
+            <div style="position:absolute; inset:0; background:repeating-linear-gradient(0deg,var(--line2) 0 1px,transparent 1px 22px),repeating-linear-gradient(90deg,var(--line2) 0 1px,transparent 1px 26px);"></div>
+            <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-100%); display:flex; flex-direction:column; align-items:center;">
+              <span style="width:12px; height:12px; border-radius:999px; border:3px solid var(--g); background:var(--pg);"></span>
+              <span style="width:1.5px; height:9px; background:var(--g);"></span>
+            </div>
+            <span style="position:absolute; bottom:8px; right:10px; font-size:11px; color:var(--mut);">Indiranagar · 5 km radius</span>
+          </div>
+          <sc-if value="{{ showFlags }}" hint-placeholder-val="{{ true }}">
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:18px;">FLAG · OPTIONAL</div>
+            <div style="display:flex; gap:9px; margin-top:11px;">
+              <sc-for list="{{ draftFlags }}" as="f" hint-placeholder-count="3">
+                <span onClick="{{ f.pick }}" style="font-size:12px; font-weight:600; color:{{ f.ink }}; border:1px solid {{ f.line }}; background:{{ f.bg }}; border-radius:999px; padding:8px 14px; cursor:pointer; transition:all 0.2s ease;" style-active="{{ press }}">{{ f.label }}</span>
+              </sc-for>
+            </div>
+          </sc-if>
+          <div style="display:flex; align-items:center; gap:14px; justify-content:space-between; margin-top:18px; padding:14px; background:var(--card); border:1px solid var(--line2); border-radius:12px;">
+            <div>
+              <div style="font-size:11px; letter-spacing:0.14em; color:var(--gtext);">PROMOTE · OPTIONAL</div>
+              <div style="font-size:15px; font-weight:700; color:var(--ink); margin-top:5px;">{{ promoteLabel }}</div>
+              <div style="font-size:11px; color:var(--mut); margin-top:3px; line-height:1.45;">{{ promoteNote }}</div>
+            </div>
+            <span onClick="{{ togglePromote }}" style="{{ promoteTrack }}"><span style="{{ promoteKnob }}"></span></span>
+          </div>
+          <sc-if value="{{ promoteOn }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:10px; padding:13px; background:var(--gwash); border:1px solid var(--gline); border-radius:12px; animation:tdIn 0.28s ease-out both;">
+              <div style="font-size:11px; letter-spacing:0.14em; color:var(--gink);">DAILY BUDGET</div>
+              <div style="display:flex; gap:8px; margin-top:9px;">
+                <sc-for list="{{ budgetChips }}" as="b" hint-placeholder-count="3">
+                  <span onClick="{{ b.pick }}" class="tnum" style="flex:1; text-align:center; font-size:13px; font-weight:600; color:{{ b.ink }}; background:{{ b.bg }}; border:1px solid {{ b.line }}; border-radius:10px; padding:10px 0; cursor:pointer; transition:all 0.2s ease;" style-active="{{ press }}">{{ b.label }}</span>
+                </sc-for>
+              </div>
+              <div class="tnum" style="font-size:12px; color:var(--gink); margin-top:9px;">Will boost right after publishing · ₹{{ promoTotal }} over {{ promoDays }}</div>
+            </div>
+          </sc-if>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ publishPost }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">{{ publishLabel }}</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ TASK DETAIL ══ -->
+    <sc-if value="{{ isTaskDetail }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+            <span onClick="{{ sharePost }}" style="font-size:18px; color:var(--ink); cursor:pointer;">↗</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:13px; margin-top:16px; padding-bottom:15px; border-bottom:1px solid var(--line2);">
+            <span style="width:40px; height:40px; border-radius:999px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:16px;">☺</span>
+            <div style="flex:1;">
+              <div style="display:flex; align-items:center; gap:7px;">
+                <span class="tnum" style="font-size:15px; font-weight:700; color:var(--ink);">{{ detailWho }}</span>
+                <span class="tnum" style="font-size:12px; color:var(--mut);">★ {{ detailRating }}</span>
+              </div>
+              <div style="font-size:12px; color:var(--mut); margin-top:3px;">{{ detailWhoMeta }}</div>
+            </div>
+            <span style="font-size:16px; color:var(--chev);">›</span>
+          </div>
+          <div style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:{{ detailTagInk }}; margin-top:16px;">{{ detailTag }}</div>
+          <div style="font-size:23px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:9px;">{{ detailTitle }}</div>
+          <div style="font-size:14px; color:var(--sub); line-height:1.55; margin-top:11px;">{{ detailBody }}</div>
+          <sc-if value="{{ detailHasMedia }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; gap:10px; margin-top:16px;">
+              <div style="width:86px; height:86px; border-radius:12px; background:var(--thumb); display:flex; align-items:center; justify-content:center; color:var(--chev); font-size:18px;">{{ detailGlyph }}</div>
+              <div style="width:86px; height:86px; border-radius:12px; background:var(--thumb); display:flex; align-items:center; justify-content:center; color:var(--chev); font-size:18px;">▤</div>
+            </div>
+          </sc-if>
+          <div style="display:flex; margin-top:18px; border-top:1px solid var(--line2); border-bottom:1px solid var(--line2);">
+            <div style="flex:1; padding:14px 0;"><div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">{{ detailPriceLabel }}</div><div class="tnum" style="font-size:20px; font-weight:800; color:var(--gtext); margin-top:4px;">{{ detailPrice }}</div></div>
+            <div style="flex:1; padding:14px 0;"><div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">COMPLETE BY</div><div style="font-size:20px; font-weight:700; color:var(--ink); margin-top:4px;">{{ detailBy }}</div></div>
+          </div>
+          <sc-for list="{{ detailRows }}" as="r" hint-placeholder-count="2">
+            <div style="display:flex; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--line);">
+              <span style="font-size:14px; color:var(--mut);">{{ r.label }}</span>
+              <span class="tnum" style="font-size:14px; font-weight:700; color:var(--ink);">{{ r.value }}</span>
+            </div>
+          </sc-for>
+          <div style="font-size:12px; color:var(--dim); margin-top:13px; line-height:1.5;">Contacts stay masked until the task starts.</div>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ openQuoteSheet }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">{{ detailCta }}</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ COMPARE QUOTES ══ -->
+    <sc-if value="{{ isCompare }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+          <div style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:var(--blue); margin-top:16px;">{{ compareState }}</div>
+          <div style="font-size:23px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:9px;">{{ compareTitle }}</div>
+          <div style="display:flex; gap:22px; margin-top:16px; padding:13px 0; border-top:1px solid var(--line2); border-bottom:1px solid var(--line2);">
+            <div><div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">{{ compareBenchLabel }}</div><div class="tnum" style="font-size:19px; font-weight:800; color:var(--gtext); margin-top:4px;">{{ compareBench }}</div></div>
+            <div><div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">COMPLETE BY</div><div style="font-size:19px; font-weight:700; color:var(--ink); margin-top:4px;">{{ compareBy }}</div></div>
+          </div>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:16px;">
+            <span style="font-size:11px; letter-spacing:0.14em; color:var(--dim);">{{ compareListLabel }}</span>
+            <span onClick="{{ toggleSort }}" style="font-size:12px; font-weight:700; color:var(--gtext); cursor:pointer;">Sort: {{ sortLabel }} ▾</span>
+          </div>
+          <sc-for list="{{ compareRows }}" as="b" hint-placeholder-count="4">
+            <div onClick="{{ b.pick }}" style="background:{{ b.bg }}; border:1px solid {{ b.line }}; border-radius:14px; padding:14px; margin-top:11px; cursor:pointer; transition:all 0.22s ease; animation:tdIn 0.34s ease-out both; animation-delay:{{ b.delay }};" style-active="{{ cardPress }}">
+              <div style="display:flex; align-items:center; gap:11px;">
+                <span style="width:36px; height:36px; border-radius:999px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:14px; flex:none;">☺</span>
+                <div style="flex:1; min-width:0;">
+                  <div style="display:flex; align-items:center; gap:7px;">
+                    <span class="tnum" style="font-size:15px; font-weight:700; color:var(--ink);">{{ b.who }}</span>
+                    <span class="tnum" style="font-size:12px; color:var(--mut);">★ {{ b.rating }}</span>
+                    <sc-if value="{{ b.pro }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-size:9px; letter-spacing:0.12em; font-weight:800; color:var(--onG); background:var(--g); border-radius:4px; padding:2px 5px;">PRO</span>
+                    </sc-if>
+                  </div>
+                  <div style="font-size:12px; color:var(--mut); margin-top:3px;">{{ b.meta }}</div>
+                </div>
+                <div style="text-align:right;">
+                  <div class="tnum" style="font-size:17px; font-weight:800; color:var(--ink);">{{ b.price }}</div>
+                  <div class="tnum" style="font-size:11px; color:var(--dim); margin-top:2px;">{{ b.eta }}</div>
+                </div>
+              </div>
+              <sc-if value="{{ b.selected }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; align-items:center; gap:7px; margin-top:11px; padding-top:11px; border-top:1px solid var(--gline);">
+                  <span style="width:5px; height:5px; border-radius:999px; background:var(--g);"></span>
+                  <span style="font-size:11px; letter-spacing:0.14em; font-weight:700; color:var(--gtext);">SELECTED</span>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ toEscrow }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">{{ lockLabel }}</div>
+          <div style="text-align:center; font-size:12px; color:var(--dim); margin-top:10px; line-height:1.5;">{{ compareNote }}</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ ESCROW PAYMENT ══ -->
+    <sc-if value="{{ isEscrow }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <span onClick="{{ backToCompare }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+            <span style="font-size:17px; font-weight:700; color:var(--ink);">Confirm and pay</span>
+          </div>
+          <div style="font-size:13px; color:var(--mut); margin-top:24px;">Into escrow</div>
+          <div class="tnum" style="font-size:44px; font-weight:800; color:var(--ink); letter-spacing:-0.04em; line-height:1.05; margin-top:5px;">₹{{ escrowTotal }}</div>
+          <div style="margin-top:22px;">
+            <sc-for list="{{ escrowRows }}" as="e" hint-placeholder-count="4">
+              <div style="display:flex; justify-content:space-between; padding:13px 0; border-bottom:1px solid var(--line);">
+                <span style="font-size:14px; color:{{ e.ink }};">{{ e.label }}</span>
+                <span class="tnum" style="font-size:14px; font-weight:{{ e.weight }}; color:var(--ink);">{{ e.value }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:20px; background:var(--gwash); border:1px solid var(--gline); border-radius:12px; padding:14px 16px; display:flex; gap:12px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="flex:none;">
+              <path d="M12 3 5 6v6c0 4.2 2.9 7.6 7 9 4.1-1.4 7-4.8 7-9V6l-7-3Z" stroke="var(--g)" stroke-width="1.7" stroke-linejoin="round"></path>
+              <path d="m9 12 2.2 2.2L15.5 10" stroke="var(--g)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:60; animation:tdDraw 0.7s ease-out 0.15s both;"></path>
+            </svg>
+            <span style="font-size:13px; color:var(--gink); line-height:1.5;">Funds are held by TaskDrop and released only when you confirm the work is done.</span>
+          </div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:22px;">PAY WITH</div>
+          <div style="display:flex; gap:10px; margin-top:11px;">
+            <sc-for list="{{ payMethods }}" as="p" hint-placeholder-count="2">
+              <div onClick="{{ p.pick }}" style="flex:1; border:1px solid {{ p.line }}; background:{{ p.bg }}; border-radius:12px; padding:14px; font-size:13px; font-weight:{{ p.weight }}; color:{{ p.ink }}; cursor:pointer; transition:all 0.2s ease;" style-active="{{ press }}">{{ p.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ payEscrow }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">Pay into escrow</div>
+          <div style="text-align:center; font-size:12px; color:var(--dim); margin-top:10px;">Contacts unmask once the task starts.</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ QUOTES ON MY SERVICE · WORKER LOCKS ══ -->
+    <sc-if value="{{ isMyQuotes }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+          <div style="font-size:23px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:16px;">Quotes on my service</div>
+          <div style="font-size:14px; color:var(--mut); margin-top:8px; line-height:1.5;">Posters sent these to your carpentry listing. Lock one to take the job.</div>
+          <sc-for list="{{ myQuoteRows }}" as="q" hint-placeholder-count="3">
+            <div onClick="{{ q.pick }}" style="background:{{ q.bg }}; border:1px solid {{ q.line }}; border-radius:14px; padding:14px; margin-top:12px; cursor:pointer; transition:all 0.22s ease; animation:tdIn 0.34s ease-out both; animation-delay:{{ q.delay }};" style-active="{{ cardPress }}">
+              <div style="display:flex; align-items:center; gap:11px;">
+                <span style="width:36px; height:36px; border-radius:999px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:14px; flex:none;">☺</span>
+                <div style="flex:1; min-width:0;">
+                  <div style="display:flex; align-items:center; gap:7px;">
+                    <span class="tnum" style="font-size:15px; font-weight:700; color:var(--ink);">{{ q.who }}</span>
+                    <span class="tnum" style="font-size:12px; color:var(--mut);">★ {{ q.rating }}</span>
+                  </div>
+                  <div style="font-size:12px; color:var(--mut); margin-top:3px;">{{ q.meta }}</div>
+                </div>
+                <div class="tnum" style="font-size:17px; font-weight:800; color:var(--ink);">{{ q.price }}</div>
+              </div>
+              <div style="font-size:13px; color:var(--sub); line-height:1.45; margin-top:11px;">{{ q.task }}</div>
+              <sc-if value="{{ q.selected }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; align-items:center; gap:7px; margin-top:11px; padding-top:11px; border-top:1px solid var(--gline);">
+                  <span style="width:5px; height:5px; border-radius:999px; background:var(--g);"></span>
+                  <span style="font-size:11px; letter-spacing:0.14em; font-weight:700; color:var(--gtext);">SELECTED</span>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ lockMyQuote }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">{{ lockMyLabel }}</div>
+          <div style="text-align:center; font-size:12px; color:var(--dim); margin-top:10px; line-height:1.5;">Locking funds escrow, then you swipe to start.</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ WORK COMPLETED · CONFIRM ══ -->
+    <sc-if value="{{ isConfirm }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+            <span style="font-size:17px; font-weight:700; color:var(--ink);">Review the work</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:18px;">
+            <span style="width:5px; height:5px; border-radius:999px; background:var(--amber);"></span>
+            <span style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:var(--amber);">WORK DONE · AWAITING YOUR CONFIRMATION</span>
+          </div>
+          <div style="display:flex; gap:10px; margin-top:14px;">
+            <div style="flex:1; height:132px; border-radius:12px; background:var(--thumb); display:flex; align-items:center; justify-content:center; color:var(--chev); font-size:20px;">▤</div>
+            <div style="flex:1; height:132px; border-radius:12px; background:var(--thumb); display:flex; align-items:center; justify-content:center; color:var(--chev); font-size:20px;">▤</div>
+          </div>
+          <div style="font-size:14px; color:var(--sub); line-height:1.55; margin-top:14px;">{{ proofNote }}</div>
+          <div style="margin-top:18px;">
+            <sc-for list="{{ releaseRows }}" as="r" hint-placeholder-count="3">
+              <div style="display:flex; justify-content:space-between; padding:13px 0; border-bottom:1px solid var(--line);">
+                <span style="font-size:14px; color:var(--mut);">{{ r.label }}</span>
+                <span class="tnum" style="font-size:14px; font-weight:600; color:var(--ink);">{{ r.value }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:18px; background:var(--gwash); border:1px solid var(--gline); border-radius:12px; padding:14px 16px; font-size:13px; color:var(--gink); line-height:1.5;">Confirming releases escrow to the worker. This cannot be undone.</div>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ confirmRelease }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">Confirm and release ₹{{ releaseAmount }}</div>
+          <div style="display:flex; justify-content:center; gap:24px; font-size:13px; color:var(--mut); margin-top:14px;">
+            <span onClick="{{ requestChanges }}" style="cursor:pointer;">Request changes</span>
+            <span onClick="{{ openDispute }}" style="cursor:pointer;">Open dispute</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ CHAT ══ -->
+    <sc-if value="{{ isChat }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div style="flex:none; background:var(--bar); padding:44px 18px 14px; display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--line);">
+          <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+          <span style="width:36px; height:36px; border-radius:999px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:15px;">☺</span>
+          <div style="flex:1;">
+            <div style="display:flex; align-items:center; gap:7px;">
+              <span style="font-size:15px; font-weight:700; color:var(--ink);">{{ revealedName }}</span>
+              <span class="tnum" style="font-size:12px; color:var(--mut);">★ 4.9</span>
+            </div>
+            <div style="font-size:11px; color:var(--gtext); margin-top:2px;">Contact revealed</div>
+          </div>
+          <span style="font-size:17px; color:var(--ink);">☏</span>
+        </div>
+        <div style="flex:none; background:var(--card); border-bottom:1px solid var(--line2); padding:12px 18px; display:flex; align-items:center; gap:11px;">
+          <span style="width:32px; height:32px; border-radius:9px; background:var(--thumb); display:flex; align-items:center; justify-content:center; color:var(--chev); font-size:13px;">▤</span>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:13px; font-weight:700; color:var(--ink);">{{ swipeTitle }}</div>
+            <div class="tnum" style="font-size:11px; color:var(--mut); margin-top:2px;">{{ chatEscrow }}</div>
+          </div>
+          <span onClick="{{ openActiveFromChat }}" style="font-size:12px; font-weight:700; color:var(--gtext); cursor:pointer;">View</span>
+        </div>
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:16px 18px; display:flex; flex-direction:column; gap:11px;">
+          <div style="align-self:center; text-align:center; background:var(--gwash); border:1px solid var(--gline); border-radius:10px; padding:9px 14px; font-size:11px; color:var(--gink); line-height:1.45;">Chat opened when the task started.<br>Contacts unmasked for both sides.</div>
+          <sc-for list="{{ chatMsgs }}" as="m" hint-placeholder-count="3">
+            <div style="{{ m.bubble }}">
+              <sc-if value="{{ m.isText }}" hint-placeholder-val="{{ true }}">
+                <span>{{ m.text }}</span>
+              </sc-if>
+              <sc-if value="{{ m.isImage }}" hint-placeholder-val="{{ false }}">
+                <span>▤</span>
+              </sc-if>
+              <sc-if value="{{ m.isVoice }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:13px; color:var(--ink);">▶</span>
+                <span style="width:74px; height:3px; background:var(--line3); border-radius:999px;"></span>
+                <span class="tnum" style="font-size:12px; color:var(--mut);">0:12</span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div style="flex:none; padding:12px 18px 22px; border-top:1px solid var(--line); display:flex; align-items:center; gap:12px; background:var(--bar);">
+          <span style="font-size:20px; color:var(--mut);">+</span>
+          <div onClick="{{ sendChat }}" style="flex:1; background:var(--fill); border-radius:999px; padding:12px 16px; font-size:14px; color:var(--mut); cursor:pointer;" style-active="{{ press }}">{{ chatDraft }}</div>
+          <span onClick="{{ sendChat }}" style="font-size:15px; font-weight:700; color:var(--gtext); cursor:pointer;">Send</span>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ RATINGS & REVIEW ══ -->
+    <sc-if value="{{ isReview }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">✕</span>
+          <div style="text-align:center; margin-top:22px;">
+            <span style="width:68px; height:68px; border-radius:999px; background:var(--thumb); color:var(--chev); display:inline-flex; align-items:center; justify-content:center; font-size:24px;">☺</span>
+            <div style="font-size:23px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:14px;">How did {{ reviewWho }} do?</div>
+            <div style="font-size:14px; color:var(--mut); margin-top:8px;">{{ reviewTask }}</div>
+            <div style="display:flex; justify-content:center; gap:12px; margin-top:22px;">
+              <sc-for list="{{ starRow }}" as="s" hint-placeholder-count="5">
+                <span onClick="{{ s.pick }}" style="font-size:33px; color:{{ s.c }}; cursor:pointer; transition:transform 0.2s cubic-bezier(0.2,0.9,0.3,1.3), color 0.2s ease; transform:{{ s.scale }};">★</span>
+              </sc-for>
+            </div>
+            <div style="font-size:14px; font-weight:700; color:var(--gtext); margin-top:11px;">{{ reviewWord }}</div>
+          </div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:26px;">WHAT WENT WELL</div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:11px;">
+            <sc-for list="{{ praiseChips }}" as="p" hint-placeholder-count="5">
+              <span onClick="{{ p.pick }}" style="font-size:13px; font-weight:600; color:{{ p.ink }}; background:{{ p.bg }}; border:1px solid {{ p.line }}; border-radius:999px; padding:9px 15px; cursor:pointer; transition:all 0.2s ease;" style-active="{{ press }}">{{ p.label }}</span>
+            </sc-for>
+          </div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:22px;">WRITE A REVIEW · OPTIONAL</div>
+          <div style="background:var(--card); border:1px solid var(--line2); border-radius:12px; padding:14px; margin-top:11px; font-size:14px; color:var(--dim); line-height:1.5; min-height:88px;">Sourced exactly what I described and delivered a day early…</div>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ submitReview }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">Submit review</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ PROMOTE ══ -->
+    <sc-if value="{{ isPromote }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+            <span style="font-size:17px; font-weight:700; color:var(--ink);">{{ promoTitle }}</span>
+          </div>
+          <div style="margin-top:14px; background:var(--card); border:1px solid var(--line2); border-radius:14px; padding:13px; display:flex; gap:12px; align-items:center;">
+            <span style="width:42px; height:42px; border-radius:11px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:16px; flex:none;">▤</span>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:15px; font-weight:700; color:var(--ink);">{{ promoSubject }}</div>
+              <div class="tnum" style="font-size:12px; color:var(--mut); margin-top:3px;">{{ promoSubjectMeta }}</div>
+            </div>
+          </div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:18px;">DAILY BUDGET</div>
+          <div style="display:flex; align-items:baseline; gap:8px; margin-top:9px; padding-bottom:10px; border-bottom:1px solid var(--g);">
+            <span class="tnum" style="font-size:29px; font-weight:800; color:var(--ink);">₹{{ promoBudget }}</span>
+            <span class="tnum" style="font-size:12px; color:var(--mut); margin-left:auto;">₹{{ promoTotal }} over {{ promoDays }}</span>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:11px;">
+            <sc-for list="{{ budgetChips }}" as="b" hint-placeholder-count="3">
+              <span onClick="{{ b.pick }}" class="tnum" style="flex:1; text-align:center; font-size:13px; font-weight:600; color:{{ b.ink }}; background:{{ b.bg }}; border:1px solid {{ b.line }}; border-radius:10px; padding:10px 0; cursor:pointer; transition:all 0.2s ease;" style-active="{{ press }}">{{ b.label }}</span>
+            </sc-for>
+          </div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:18px;">RUN FOR</div>
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <sc-for list="{{ durationChips }}" as="d" hint-placeholder-count="3">
+              <span onClick="{{ d.pick }}" style="flex:1; text-align:center; font-size:13px; font-weight:600; color:{{ d.ink }}; background:{{ d.bg }}; border:1px solid {{ d.line }}; border-radius:10px; padding:10px 0; cursor:pointer; transition:all 0.2s ease;" style-active="{{ press }}">{{ d.label }}</span>
+            </sc-for>
+          </div>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:20px;">
+            <div>
+              <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim);">SHOW IT TO · OPTIONAL</div>
+              <div style="font-size:12px; color:var(--mut); margin-top:4px;">{{ audienceNote }}</div>
+            </div>
+            <span onClick="{{ toggleAudience }}" style="{{ audienceTrack }}"><span style="{{ audienceKnob }}"></span></span>
+          </div>
+          <sc-if value="{{ audienceOn }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:14px; animation:tdIn 0.28s ease-out both;">
+              <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:11px; border-bottom:1px solid var(--line);">
+                <span style="font-size:15px; color:var(--ink);">{{ audienceWho }}</span>
+                <span style="font-size:13px; font-weight:600; color:var(--gtext);">Change</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:11px 0; border-bottom:1px solid var(--line);">
+                <span style="font-size:15px; color:var(--ink);">{{ audienceNiche }}</span>
+                <span style="font-size:13px; font-weight:600; color:var(--gtext);">Change</span>
+              </div>
+            </div>
+          </sc-if>
+          <div style="margin-top:16px; background:var(--gwash); border:1px solid var(--gline); border-radius:12px; padding:13px 16px;">
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--gink);">ESTIMATED REACH</div>
+            <div class="tnum" style="font-size:22px; font-weight:800; color:var(--ink); margin-top:4px;">{{ reachText }}</div>
+            <div style="font-size:12px; color:var(--gink); margin-top:3px;">{{ reachWho }}</div>
+          </div>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ startCampaign }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">Start campaign · ₹{{ promoTotal }}</div>
+          <div style="text-align:center; font-size:12px; color:var(--dim); margin-top:10px;">Pause or stop any time. You are charged for days run.</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ VERIFIED PRO ══ -->
+    <sc-if value="{{ isPro }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div style="flex:none; background:var(--band); padding:44px 20px 22px;">
+          <span onClick="{{ closeOverlay }}" style="font-size:20px; color:#FFFFFF; cursor:pointer;">←</span>
+          <div style="display:flex; align-items:center; gap:9px; margin-top:16px;">
+            <span style="font-size:10px; letter-spacing:0.16em; font-weight:800; color:var(--onG); background:var(--g); border-radius:5px; padding:4px 8px;">PRO</span>
+            <span style="font-size:11px; letter-spacing:0.14em; color:rgba(255,255,255,0.7);">VERIFIED TASKER</span>
+          </div>
+          <div style="font-size:26px; font-weight:800; color:#FFFFFF; letter-spacing:-0.03em; margin-top:12px; line-height:1.2;">Win more work with<br>a verified badge</div>
+          <div style="font-size:14px; color:rgba(255,255,255,0.75); margin-top:8px; line-height:1.45;">Verified Pros get 2.4× more accepted quotes.</div>
+        </div>
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:18px 20px 0;">
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim);">WHAT YOU GET</div>
+          <sc-for list="{{ proPerks }}" as="p" hint-placeholder-count="4">
+            <div style="display:flex; align-items:flex-start; gap:13px; padding:11px 0; border-bottom:1px solid var(--line);">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="flex:none; margin-top:1px;"><circle cx="12" cy="12" r="10" stroke="var(--g)" stroke-width="1.7"></circle><path d="m8 12.4 2.6 2.6L16 9.6" stroke="var(--g)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <div>
+                <div style="font-size:15px; font-weight:700; color:var(--ink);">{{ p.title }}</div>
+                <div style="font-size:13px; color:var(--mut); margin-top:3px; line-height:1.45;">{{ p.sub }}</div>
+              </div>
+            </div>
+          </sc-for>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:18px;">VERIFICATION STEPS</div>
+          <sc-for list="{{ proSteps }}" as="s" hint-placeholder-count="3">
+            <div style="display:flex; align-items:center; gap:13px; padding:12px 0; border-bottom:1px solid var(--line);">
+              <span style="width:24px; height:24px; border-radius:999px; background:{{ s.bg }}; border:1px solid {{ s.line }}; color:{{ s.numInk }}; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; flex:none;">{{ s.num }}</span>
+              <span style="flex:1; font-size:15px; color:{{ s.ink }};">{{ s.label }}</span>
+              <span style="font-size:12px; font-weight:600; color:{{ s.stateInk }};">{{ s.state }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding:12px 20px 24px;">
+          <div onClick="{{ continuePro }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:15px; font-weight:700; padding:15px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">Continue verification</div>
+          <div class="tnum" style="text-align:center; font-size:12px; color:var(--dim); margin-top:10px;">₹499 one-time · refunded if rejected</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ WITHDRAW ══ -->
+    <sc-if value="{{ isWithdraw }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+            <span style="font-size:17px; font-weight:700; color:var(--ink);">Withdraw</span>
+          </div>
+          <div style="font-size:13px; color:var(--mut); margin-top:24px;">Amount</div>
+          <div class="tnum" style="font-size:44px; font-weight:800; color:var(--ink); letter-spacing:-0.04em; line-height:1.05; margin-top:4px;">₹{{ balance }}</div>
+          <div style="font-size:12px; color:var(--dim); margin-top:8px;">Full available balance. Arrives in 1 working day.</div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:24px;">TO</div>
+          <div style="display:flex; align-items:center; gap:13px; margin-top:11px; background:var(--card); border:1px solid var(--line2); border-radius:12px; padding:14px;">
+            <span style="width:38px; height:38px; border-radius:10px; background:var(--gwash); color:var(--gtext); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800;">UPI</span>
+            <div style="flex:1;">
+              <div style="font-size:15px; font-weight:700; color:var(--ink);">raju@okhdfcbank</div>
+              <div style="font-size:12px; color:var(--mut); margin-top:2px;">Default payout method</div>
+            </div>
+            <span style="font-size:13px; font-weight:600; color:var(--gtext);">Change</span>
+          </div>
+          <div style="margin-top:18px;">
+            <sc-for list="{{ withdrawRows }}" as="w" hint-placeholder-count="3">
+              <div style="display:flex; justify-content:space-between; padding:13px 0; border-bottom:1px solid var(--line);">
+                <span style="font-size:14px; color:{{ w.ink }};">{{ w.label }}</span>
+                <span class="tnum" style="font-size:14px; font-weight:{{ w.weight }}; color:var(--ink);">{{ w.value }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ doWithdraw }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">Withdraw ₹{{ balance }}</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ SUCCESS BURST ══ -->
+    <sc-if value="{{ burst }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:9; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.32); animation:tdFade 0.2s ease-out both; pointer-events:none;">
+        <div style="position:relative; width:118px; height:118px; display:flex; align-items:center; justify-content:center;">
+          <span style="position:absolute; inset:0; border-radius:999px; border:2px solid var(--g); animation:tdRing 0.9s ease-out both;"></span>
+          <div style="width:82px; height:82px; border-radius:999px; background:var(--g); display:flex; align-items:center; justify-content:center; animation:tdPop 0.42s cubic-bezier(0.2,0.9,0.3,1.2) both; box-shadow:0 10px 30px var(--gshadow);">
+            <svg width="38" height="38" viewBox="0 0 24 24" fill="none"><path d="m6 12.4 3.6 3.6L18 7.6" stroke="var(--onG)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:60; animation:tdDraw 0.45s ease-out 0.16s both;"></path></svg>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ CREATE FAB ══ -->
+    <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+      <div onClick="{{ goCreate }}" style="position:absolute; right:18px; bottom:96px; z-index:4; display:flex; align-items:center; gap:9px; background:var(--g); color:var(--onG); border-radius:999px; padding:14px 18px; font-size:14px; font-weight:700; box-shadow:0 10px 26px var(--gshadow); cursor:pointer; transition:transform 0.18s ease; animation:tdUp 0.34s cubic-bezier(0.2,0.8,0.25,1) both;" style-active="{{ press }}">
+        <span style="font-size:17px; line-height:1;">＋</span><span>{{ createLabel }}</span>
+      </div>
+    </sc-if>
+
+    <!-- ══ TOAST ══ -->
+    <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; left:16px; right:16px; bottom:96px; z-index:8; background:var(--toast); color:var(--toastInk); border-radius:14px; padding:14px 16px; font-size:14px; font-weight:600; box-shadow:0 12px 30px rgba(0,0,0,0.28); animation:tdUp 0.3s cubic-bezier(0.2,0.8,0.25,1) both;">{{ toast }}</div>
+    </sc-if>
+
+    <!-- ══ BOTTOM NAV ══ -->
+    <div style="flex:none; display:flex; align-items:center; justify-content:space-around; padding:12px 14px 20px; border-top:1px solid var(--line); background:var(--bar); transition:background 0.3s ease;">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+        <div onClick="{{ n.pick }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; padding:4px 0;" style-active="{{ press }}">
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" style="transition:transform 0.24s cubic-bezier(0.2,0.8,0.3,1); transform:{{ n.scale }};"><path d="{{ n.d }}" stroke="{{ n.c }}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="transition:stroke 0.24s ease;"></path></svg>
+          <span style="font-size:9px; font-weight:600; color:{{ n.c }}; transition:color 0.24s ease;">{{ n.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+
+  </div>
+ </div>
+</div>
+</div>
+
+</x-dc>

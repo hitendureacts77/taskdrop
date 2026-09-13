@@ -1,0 +1,581 @@
+<title>TaskDrop Build Plan</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#F4F6F5; --surface:#FFFFFF; --surface-2:#EBF0ED; --ink:#132019;
+    --text:#243029; --muted:#5E6E67; --line:#DCE4E0;
+    --accent:#0C9E6C; --accent-deep:#076B49; --accent-soft:#E1F5EC;
+    --signal:#D24E24; --signal-soft:#F9E7DF;
+    --gold:#A9770F; --gold-soft:#F5EDD8;
+    --shadow:0 1px 2px rgba(19,32,25,.06),0 8px 24px rgba(19,32,25,.05);
+    --radius:14px;
+    --maxw:1080px; --prose:720px;
+  }
+  :root:not([data-theme="light"]){
+    @media (prefers-color-scheme:dark){
+      --bg:#0D130F; --surface:#151F19; --surface-2:#1C2822; --ink:#EAF2EC;
+      --text:#CFDAD3; --muted:#889A90; --line:#28342D;
+      --accent:#33C48E; --accent-deep:#83DcB7; --accent-soft:#12271D;
+      --signal:#F0784E; --signal-soft:#33201A;
+      --gold:#D9AC4A; --gold-soft:#2C2413;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.28);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0D130F; --surface:#151F19; --surface-2:#1C2822; --ink:#EAF2EC;
+    --text:#CFDAD3; --muted:#889A90; --line:#28342D;
+    --accent:#33C48E; --accent-deep:#83DcB7; --accent-soft:#12271D;
+    --signal:#F0784E; --signal-soft:#33201A;
+    --gold:#D9AC4A; --gold-soft:#2C2413;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.28);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:"Public Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+    line-height:1.62; font-size:16px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+  h1,h2,h3,h4{font-family:"Bricolage Grotesque",system-ui,sans-serif; color:var(--ink); text-wrap:balance; line-height:1.12; margin:0}
+  p{margin:0}
+  a{color:var(--accent-deep); text-decoration:none}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+  /* ---------- Hero ---------- */
+  .hero{padding:64px 0 40px; border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:12.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--accent-deep); display:flex; gap:12px; align-items:center; flex-wrap:wrap}
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+  h1{font-size:clamp(40px,7vw,68px); font-weight:800; letter-spacing:-.02em; margin:18px 0 0}
+  .tagline{font-family:"Bricolage Grotesque",sans-serif; font-weight:500; font-style:normal; font-size:clamp(18px,2.4vw,23px); color:var(--muted); margin-top:14px; max-width:640px}
+  .lede{max-width:var(--prose); margin-top:22px; font-size:17.5px}
+  .meta{display:flex; gap:10px 26px; flex-wrap:wrap; margin-top:28px; font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:var(--muted)}
+  .meta b{color:var(--text); font-weight:600}
+  .pillars{display:flex; gap:10px; flex-wrap:wrap; margin-top:26px}
+  .pill{font-family:"IBM Plex Mono",monospace; font-size:12.5px; letter-spacing:.02em; padding:7px 13px; border-radius:999px; background:var(--accent-soft); color:var(--accent-deep); border:1px solid color-mix(in srgb,var(--accent) 25%,transparent)}
+
+  /* ---------- Layout with TOC ---------- */
+  .shell{display:grid; grid-template-columns:220px 1fr; gap:48px; align-items:start; padding:44px 0 80px}
+  nav.toc{position:sticky; top:24px; font-size:13.5px}
+  nav.toc ol{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:2px}
+  nav.toc a{display:block; padding:6px 10px; border-radius:8px; color:var(--muted); border-left:2px solid transparent}
+  nav.toc a:hover{color:var(--ink); background:var(--surface-2)}
+  nav.toc .num{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--accent); margin-right:8px}
+
+  main{min-width:0}
+  section{scroll-margin-top:24px; padding:14px 0 40px; border-bottom:1px solid var(--line)}
+  section:last-child{border-bottom:0}
+  .sec-head{display:flex; align-items:baseline; gap:14px; margin-bottom:8px}
+  .sec-head .k{font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--accent); font-weight:600}
+  h2{font-size:clamp(26px,3.4vw,34px); font-weight:700; letter-spacing:-.015em}
+  section > p{max-width:var(--prose); margin-top:10px; color:var(--text)}
+  h3{font-size:19px; font-weight:700; margin:30px 0 6px}
+  h4{font-size:14px; font-weight:700; margin:0 0 10px; letter-spacing:.02em}
+
+  /* ---------- Generic bits ---------- */
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; box-shadow:var(--shadow)}
+  .grid{display:grid; gap:14px}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  ul.clean{margin:8px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:7px}
+  ul.clean li{padding-left:20px; position:relative}
+  ul.clean li::before{content:""; position:absolute; left:2px; top:.62em; width:6px; height:6px; border-radius:2px; background:var(--accent)}
+  ul.clean li b{color:var(--ink)}
+
+  table{width:100%; border-collapse:collapse; margin-top:14px; font-size:14.5px}
+  .tbl-wrap{overflow-x:auto}
+  th,td{text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:600}
+  td b{color:var(--ink)}
+  tr td:first-child{white-space:nowrap}
+
+  /* ---------- Tech stack ---------- */
+  .stack td .why{color:var(--muted); font-size:13.5px}
+  .callout{margin-top:18px; background:var(--accent-soft); border:1px solid color-mix(in srgb,var(--accent) 22%,transparent); border-radius:var(--radius); padding:16px 20px; font-size:15px}
+  .callout .lab{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent-deep); font-weight:600; display:block; margin-bottom:4px}
+
+  /* ---------- Roles ---------- */
+  .roles{grid-template-columns:repeat(2,1fr)}
+  .role h4{color:var(--accent-deep)}
+  .role .tag{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted)}
+
+  /* ---------- Lifecycle state machine ---------- */
+  .flow{margin-top:22px; display:flex; flex-direction:column; gap:0}
+  .node{display:grid; grid-template-columns:132px 1fr; gap:18px; align-items:start}
+  .node .state{font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; letter-spacing:.02em; color:var(--accent-deep); background:var(--accent-soft); border:1px solid color-mix(in srgb,var(--accent) 28%,transparent); border-radius:8px; padding:8px 10px; text-align:center; margin-top:2px}
+  .node .body{padding-bottom:4px}
+  .node .body .n{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted)}
+  .node .body h4{margin:2px 0 3px; font-family:"Bricolage Grotesque",sans-serif; font-size:16px}
+  .node .body p{font-size:14px; color:var(--muted); max-width:560px}
+  .trans{grid-column:2; display:flex; align-items:center; gap:9px; padding:9px 0; color:var(--text); font-size:13px}
+  .trans::before{content:"↓"; font-family:"IBM Plex Mono",monospace; color:var(--accent); font-size:15px}
+  .trans .act{font-family:"IBM Plex Mono",monospace; font-size:12.5px; background:var(--surface-2); border:1px solid var(--line); border-radius:6px; padding:3px 8px}
+  .node.final .state{background:var(--accent); color:#fff; border-color:var(--accent)}
+  :root[data-theme="dark"] .node.final .state,:root:not([data-theme="light"]) .node.final .state{color:#0D130F}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .node.final .state{color:#0D130F}}
+
+  .exits{margin-top:26px}
+  .exit-grid{grid-template-columns:repeat(2,1fr); margin-top:12px}
+  .exit{background:var(--signal-soft); border:1px solid color-mix(in srgb,var(--signal) 26%,transparent); border-radius:12px; padding:15px 17px}
+  .exit .path{font-family:"IBM Plex Mono",monospace; font-size:11.5px; font-weight:600; color:var(--signal); display:flex; align-items:center; gap:7px; flex-wrap:wrap}
+  .exit p{font-size:13.5px; color:var(--text); margin-top:7px}
+
+  /* ---------- Rules ---------- */
+  .rule{border-left:3px solid var(--accent); padding:2px 0 2px 18px; margin-top:24px}
+  .rule .h{display:flex; gap:10px; align-items:baseline; flex-wrap:wrap}
+  .rule .h h4{font-family:"Bricolage Grotesque",sans-serif; font-size:16.5px; margin:0}
+  .rule .uber{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--gold); background:var(--gold-soft); padding:3px 8px; border-radius:6px; letter-spacing:.03em}
+  .rule p{margin-top:8px; font-size:14.5px}
+  .rule p .from{color:var(--muted)}
+  .defaults td:last-child b{color:var(--accent-deep)}
+
+  /* ---------- Screen inventory ---------- */
+  .screens{grid-template-columns:repeat(3,1fr); margin-top:16px}
+  .scol h4{font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--accent-deep); border-bottom:1px solid var(--line); padding-bottom:8px; margin-bottom:11px}
+  .scol ol{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; counter-reset:s}
+  .scol.cont ol{counter-reset:none}
+  .scol li{font-size:13.5px; display:flex; gap:9px; align-items:baseline; line-height:1.4}
+  .scol li::before{counter-increment:s; content:counter(s,decimal-leading-zero); font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--muted); min-width:19px}
+  .scol li b{color:var(--ink); font-weight:600}
+
+  .modewrap{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px}
+  .mode{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; box-shadow:var(--shadow)}
+  .mode.poster{border-top:none}
+  .mode .badge{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase; font-weight:600; padding:4px 10px; border-radius:999px; display:inline-block; margin-bottom:10px}
+  .mode.poster .badge{background:var(--accent-soft); color:var(--accent-deep)}
+  .mode.worker .badge{background:var(--gold-soft); color:var(--gold)}
+
+  /* ---------- Data model ---------- */
+  .entities{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px}
+  .ent{font-family:"IBM Plex Mono",monospace; font-size:12.5px; padding:6px 11px; border-radius:8px; background:var(--surface-2); border:1px solid var(--line); color:var(--text)}
+  .ent.new{background:var(--accent-soft); border-color:color-mix(in srgb,var(--accent) 25%,transparent); color:var(--accent-deep)}
+  .ent-legend{font-size:12.5px; color:var(--muted); margin-top:12px; display:flex; gap:16px; align-items:center; flex-wrap:wrap}
+  .swatch{display:inline-block; width:11px; height:11px; border-radius:3px; vertical-align:-1px; margin-right:6px}
+
+  /* ---------- Phases ---------- */
+  .phases{display:flex; flex-direction:column; gap:12px; margin-top:16px; counter-reset:p}
+  .phase{display:grid; grid-template-columns:56px 1fr; gap:16px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; box-shadow:var(--shadow)}
+  .phase .idx{font-family:"Bricolage Grotesque",sans-serif; font-weight:800; font-size:26px; color:var(--accent); line-height:1}
+  .phase h4{font-family:"Bricolage Grotesque",sans-serif; font-size:16px; margin-bottom:3px}
+  .phase p{font-size:13.5px; color:var(--muted)}
+  .phase .plat{font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--gold); letter-spacing:.04em}
+
+  /* ---------- Open decisions ---------- */
+  .decisions{grid-template-columns:repeat(2,1fr); margin-top:12px}
+  .decision{background:var(--surface); border:1px dashed color-mix(in srgb,var(--signal) 40%,var(--line)); border-radius:var(--radius); padding:16px 18px}
+  .decision h4{color:var(--signal)}
+  .decision .opt{font-size:13.5px; margin-top:6px}
+  .decision .opt b{color:var(--ink)}
+
+  footer{padding:40px 0 60px; color:var(--muted); font-size:13px; font-family:"IBM Plex Mono",monospace}
+
+  @media (max-width:880px){
+    .shell{grid-template-columns:1fr; gap:0}
+    nav.toc{display:none}
+    .g2,.g3,.roles,.screens,.exit-grid,.decisions,.modewrap{grid-template-columns:1fr}
+    .node{grid-template-columns:110px 1fr; gap:12px}
+  }
+  @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+  html{scroll-behavior:smooth}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px}
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="dot"></span> Product &amp; Build Plan · v1</div>
+    <h1>TaskDrop</h1>
+    <p class="tagline">“If you can ask for it, someone can drop it.”</p>
+    <p class="lede">A unified reverse-marketplace: a <b>Poster</b> publishes an open-ended request with a benchmark price, <b>Workers</b> pitch and negotiate quotes, and funds sit in escrow until the work is verified. One Android app for the whole flow, plus a synced web dashboard to view and monitor everything.</p>
+    <div class="pillars">
+      <span class="pill">Services</span>
+      <span class="pill">Rare Product Procurement</span>
+      <span class="pill">Local Intel</span>
+    </div>
+    <div class="meta">
+      <span>Prepared <b>Sep 5, 2026</b></span>
+      <span>Surfaces <b>Android app + Web dashboard</b></span>
+      <span>Status <b>Planning — not yet built</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap shell">
+  <nav class="toc" aria-label="Contents">
+    <ol>
+      <li><a href="#concept"><span class="num">01</span>Concept</a></li>
+      <li><a href="#stack"><span class="num">02</span>Tech &amp; sync</a></li>
+      <li><a href="#roles"><span class="num">03</span>Roles</a></li>
+      <li><a href="#lifecycle"><span class="num">04</span>Task lifecycle</a></li>
+      <li><a href="#rules"><span class="num">05</span>Deal rules</a></li>
+      <li><a href="#features"><span class="num">06</span>Feature set</a></li>
+      <li><a href="#mobile"><span class="num">07</span>Mobile screens</a></li>
+      <li><a href="#web"><span class="num">08</span>Web dashboard</a></li>
+      <li><a href="#data"><span class="num">09</span>Data model</a></li>
+      <li><a href="#phases"><span class="num">10</span>Build phases</a></li>
+      <li><a href="#open"><span class="num">11</span>Open decisions</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <!-- 01 CONCEPT -->
+    <section id="concept">
+      <div class="sec-head"><span class="k">01</span><h2>The concept</h2></div>
+      <p>Existing platforms force people into narrow buckets — food delivery, home repair, digital freelancing — with fixed pricing and no way to post an open-ended need. TaskDrop inverts the model: you post the request, the market comes to you, and price is set by conversation instead of an algorithm.</p>
+      <div class="grid g3" style="margin-top:20px">
+        <div class="card"><h4>Dual-mode app</h4><p style="color:var(--muted);font-size:14px">A seamless toggle between <b>Post a Request</b> (User mode) and <b>Find Work</b> (Worker mode) in one account.</p></div>
+        <div class="card"><h4>Dynamic quoting</h4><p style="color:var(--muted);font-size:14px">Posters set a benchmark price; workers pitch quotes and negotiate directly, in-app.</p></div>
+        <div class="card"><h4>Browse-first feed</h4><p style="color:var(--muted);font-size:14px">A Fiverr-style browse home — search, category tiles across the 3 pillars, and cards for nearby, recommended, and urgent tasks.</p></div>
+      </div>
+    </section>
+
+    <!-- 02 STACK -->
+    <section id="stack">
+      <div class="sec-head"><span class="k">02</span><h2>Tech stack &amp; how sync works</h2></div>
+      <p>The core requirement is that mobile and web stay in sync. The cleanest way for a small team is <b>one backend both clients talk to, with realtime built in</b> — so a bid placed on the phone appears on the dashboard instantly, and the reverse.</p>
+      <div class="tbl-wrap">
+      <table class="stack">
+        <thead><tr><th>Layer</th><th>Choice</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><b>Backend / DB</b></td><td>Supabase — Postgres, Realtime, Auth, Storage, Row-Level Security</td><td class="why">One source of truth with realtime push out of the box; no custom socket server to run.</td></tr>
+          <tr><td><b>Android app</b></td><td>Flutter <span class="why">(or React Native)</span></td><td class="why">Smooth, native-feeling UI; single codebase can add iOS later.</td></tr>
+          <tr><td><b>Web dashboard</b></td><td>Next.js + React</td><td class="why">Fast read-only dashboard against the same Supabase project.</td></tr>
+          <tr><td><b>Payments / Escrow</b></td><td>Razorpay Route <span class="why">(or Stripe Connect)</span></td><td class="why">Escrow-style holds, split payouts, and commission are first-class.</td></tr>
+          <tr><td><b>Media</b></td><td>Supabase Storage</td><td class="why">CDN-backed photo delivery for task media and proof uploads.</td></tr>
+          <tr><td><b>Notifications</b></td><td>Firebase Cloud Messaging</td><td class="why">Push for new bids, messages, and status changes.</td></tr>
+          <tr><td><b>Maps / radius</b></td><td>Google Maps SDK + PostGIS</td><td class="why">Distance filtering and local-intel geo features.</td></tr>
+          <tr><td><b>Masked calling</b></td><td>Exotel / Twilio number masking</td><td class="why">Poster ↔ worker calls without exposing real numbers.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="callout"><span class="lab">The sync model in one line</span> Both apps read and write the same Postgres tables through Supabase; Realtime pushes every change — new bid, new message, status transition — to whoever is watching. Sync is a property of the architecture, not a feature you build twice.</div>
+    </section>
+
+    <!-- 03 ROLES -->
+    <section id="roles">
+      <div class="sec-head"><span class="k">03</span><h2>Who uses it</h2></div>
+      <div class="grid roles" style="margin-top:16px">
+        <div class="card role"><h4>Poster <span class="tag">/ User mode</span></h4><p style="color:var(--muted);font-size:14px">Posts requests, reviews bids, locks a worker, pays into escrow, confirms completion.</p></div>
+        <div class="card role"><h4>Worker <span class="tag">/ Worker mode</span></h4><p style="color:var(--muted);font-size:14px">Browses the feed and tasks, sends quotes, does the work, uploads proof, gets paid.</p></div>
+        <div class="card role"><h4>Same account, both modes</h4><p style="color:var(--muted);font-size:14px">One profile toggles between posting and working — the deck's core "dual-mode" idea.</p></div>
+        <div class="card role"><h4>Admin <span class="tag">/ ops</span></h4><p style="color:var(--muted);font-size:14px">Moderation, verification approvals, dispute resolution, payout oversight — mostly on web.</p></div>
+      </div>
+    </section>
+
+    <!-- 04 LIFECYCLE -->
+    <section id="lifecycle">
+      <div class="sec-head"><span class="k">04</span><h2>The task lifecycle</h2></div>
+      <p>Every task moves through one main line of states. The exception paths below branch off it — cancellations, the overrun stop, and disputes.</p>
+
+      <div class="flow" role="list">
+        <div class="node" role="listitem">
+          <div class="state">OPEN</div>
+          <div class="body"><span class="n">01</span><h4>Request posted</h4><p>Poster publishes the request; workers send competing quotes, each with an estimated duration.</p></div>
+        </div>
+        <div class="trans"><span>Poster locks the quote they like</span><span class="act">poster · lock</span></div>
+
+        <div class="node" role="listitem">
+          <div class="state">LOCKED</div>
+          <div class="body"><span class="n">02</span><h4>Deal committed to one worker</h4><p>Other bids auto-close. Funds move into <b>escrow</b> now. A short free-cancel grace window opens.</p></div>
+        </div>
+        <div class="trans"><span>Worker slides the swipe-to-start bar</span><span class="act">worker · start ▸</span></div>
+
+        <div class="node" role="listitem">
+          <div class="state">TASK_STARTED</div>
+          <div class="body"><span class="n">03</span><h4>Work is underway</h4><p>In-app <b>chat</b> and <b>masked phone calls</b> unlock for both sides. A live timer runs against the agreed duration.</p></div>
+        </div>
+        <div class="trans"><span>Worker uploads proof &amp; marks done</span><span class="act">worker · work done</span></div>
+
+        <div class="node" role="listitem">
+          <div class="state">WORK_DONE</div>
+          <div class="body"><span class="n">04</span><h4>Awaiting confirmation</h4><p>Proof (photos / video / files) is submitted. <b>No payment yet.</b> A 24-hour auto-release timer starts.</p></div>
+        </div>
+        <div class="trans"><span>Poster taps Work Completed (or 24h elapses)</span><span class="act">poster · confirm</span></div>
+
+        <div class="node final" role="listitem">
+          <div class="state">COMPLETED</div>
+          <div class="body"><span class="n">05</span><h4>Escrow released</h4><p>Funds pay out to the worker minus commission. Both sides leave ratings and reviews.</p></div>
+        </div>
+      </div>
+
+      <div class="exits">
+        <h3>Exception paths</h3>
+        <div class="grid exit-grid">
+          <div class="exit"><div class="path">LOCKED → CANCELLED</div><p>Before the worker starts: free within the grace window, otherwise a small flat fee to the worker.</p></div>
+          <div class="exit"><div class="path">TASK_STARTED → CANCELLED_BY_POSTER</div><p><b>Penalty applies.</b> Poster pays a fee from escrow; the worker is compensated for committed effort.</p></div>
+          <div class="exit"><div class="path">TASK_STARTED → STOPPED_BY_POSTER</div><p>Unlocks only once elapsed time exceeds <b>2× the agreed duration</b> — the Uber/Rapido-style "this is taking too long, stop" control. No standard penalty.</p></div>
+          <div class="exit"><div class="path">WORK_DONE / TASK_STARTED → DISPUTED</div><p>Poster reports a late / undone / stalling worker. Hits the worker's rating, review, and standing; admin reviews before any refund is finalized.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 RULES -->
+    <section id="rules">
+      <div class="sec-head"><span class="k">05</span><h2>Deal rules, solved the Uber way</h2></div>
+      <p>Uber's marketplace already answers the hard money-and-timing questions. Each rule below maps what Uber does onto the TaskDrop equivalent.</p>
+
+      <div class="rule">
+        <div class="h"><h4>1 · Pre-start cancellation</h4><span class="uber">Uber: free window, then flat fee</span></div>
+        <p><span class="from">Uber lets you cancel free for a few minutes, then charges a small flat fee once a driver has committed.</span> → Free to cancel within a <b>5-minute grace window</b> after locking, or any time before the worker slides Start; after that, a <b>small flat fee</b> (₹20–50) goes to the worker.</p>
+      </div>
+      <div class="rule">
+        <div class="h"><h4>2 · Penalty after start</h4><span class="uber">Uber: flat — but rides are uniform</span></div>
+        <p><span class="from">Uber's fee is flat because every ride is similar in value; TaskDrop tasks range from ₹80 to ₹40,000, so a flat fee can't be fair.</span> → Take Uber's <b>principle</b> (compensate committed effort) as a <b>percentage with a floor: 20% of the locked quote, minimum ₹50</b>, paid to the worker from escrow.</p>
+      </div>
+      <div class="rule">
+        <div class="h"><h4>3 · Auto-release after "Work Done"</h4><span class="uber">Uber: fare auto-settles at drop-off</span></div>
+        <p><span class="from">Uber has no "confirm" step — the fare settles automatically and the rider disputes afterward.</span> → Keep the explicit Work Completed tap, but back it with a net: <b>if the poster neither confirms nor disputes within 24 hours, escrow auto-releases</b> to the worker.</p>
+      </div>
+      <div class="rule">
+        <div class="h"><h4>4 · Who sets the agreed duration</h4><span class="uber">Uber: ETA shown before you book</span></div>
+        <p><span class="from">Uber shows an ETA and you accept it by confirming the ride.</span> → The <b>worker states an estimated duration in their quote</b>; the poster sees it before locking, so <b>locking = accepting it</b>. That number drives the 2× stop threshold.</p>
+      </div>
+
+      <h3>Locked-in defaults</h3>
+      <p>Every number lives in an <b>admin-configurable settings table</b>, not hardcoded — so you can tune per city or pillar as you learn, exactly like Uber tunes fees by market.</p>
+      <div class="tbl-wrap">
+      <table class="defaults">
+        <thead><tr><th>Rule</th><th>Default</th></tr></thead>
+        <tbody>
+          <tr><td>Pre-start cancel</td><td>Free within 5-min grace or before Start; else <b>flat ₹20–50</b> to worker</td></tr>
+          <tr><td>Post-start penalty</td><td><b>20% of locked quote, min ₹50</b>, paid to worker from escrow</td></tr>
+          <tr><td>Auto-release</td><td><b>24 h</b> after Work Done → auto-release unless disputed</td></tr>
+          <tr><td>Overrun stop threshold</td><td><b>2× the agreed duration</b> (worker-set, poster-accepted)</td></tr>
+          <tr><td>Commission</td><td>8–10% from worker payout + 3% checkout fee from poster</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <!-- 06 FEATURES -->
+    <section id="features">
+      <div class="sec-head"><span class="k">06</span><h2>Feature set</h2></div>
+      <div class="grid g2" style="margin-top:16px">
+        <div class="card"><h4>Accounts &amp; trust</h4><ul class="clean"><li>Phone-OTP + email sign-in, profile with skills &amp; tags</li><li><b>Verification &amp; "Verified Pro" badge</b> (ID + skill)</li><li>Two-way ratings &amp; reviews</li></ul></div>
+        <div class="card"><h4>Posting &amp; discovery</h4><ul class="clean"><li>Post across 3 pillars with media, benchmark price, deadline, location</li><li><b>Browse home</b> — category tiles &amp; task cards for nearby, recommended &amp; urgent</li><li>Smart filters &amp; <b>radius matching</b>; saved searches</li></ul></div>
+        <div class="card"><h4>Quoting &amp; negotiation</h4><ul class="clean"><li>Worker quotes with <b>free-quote quota</b> (5/mo, then credits/subscription)</li><li>Counter-offers and in-app negotiation</li><li>Lock-to-commit → escrow</li></ul></div>
+        <div class="card"><h4>Transactions</h4><ul class="clean"><li><b>Escrow hold on lock</b>, milestone-aware, verified release</li><li>Commission split + penalties ledger</li><li>Wallet, payouts, invoices</li></ul></div>
+        <div class="card"><h4>Communication</h4><ul class="clean"><li>Per-task chat: text, media, voice notes, <b>live video</b> for ground intel</li><li><b>Masked phone calls</b> (numbers hidden)</li><li>Push notifications</li></ul></div>
+        <div class="card"><h4>Monetization &amp; safety</h4><ul class="clean"><li><b>Featured tasks</b> &amp; <b>promoted / boosted task posts</b></li><li>Reporting, disputes, admin moderation</li><li>Full audit trail on money &amp; calls</li></ul></div>
+      </div>
+    </section>
+
+    <!-- 07 MOBILE -->
+    <section id="mobile">
+      <div class="sec-head"><span class="k">07</span><h2>Android app — screen inventory</h2></div>
+      <p>The full product lives here: posting, bidding, negotiating, chat, payments, and the feed.</p>
+
+      <div class="grid screens">
+        <div class="scol">
+          <h4>Onboarding &amp; auth</h4>
+          <ol>
+            <li><b>Splash</b></li>
+            <li><b>Welcome</b> — value-prop carousel</li>
+            <li><b>Sign up</b> — phone OTP / email</li>
+            <li><b>Login</b></li>
+            <li><b>Profile setup</b> — skills, location, mode</li>
+            <li><b>Permissions</b> — location, camera, push</li>
+          </ol>
+        </div>
+        <div class="scol">
+          <h4>Home &amp; browse</h4>
+          <ol>
+            <li><b>Home</b> — search + category browse + task cards</li>
+            <li><b>Post detail</b> + CTA</li>
+            <li><b>Search &amp; filters</b></li>
+            <li><b>Map view</b> — nearby tasks</li>
+          </ol>
+        </div>
+        <div class="scol">
+          <h4>Wallet &amp; money</h4>
+          <ol>
+            <li><b>Wallet / balance</b></li>
+            <li><b>Escrow status</b></li>
+            <li><b>Payout / withdraw</b></li>
+            <li><b>Transactions &amp; invoices</b></li>
+            <li><b>Buy quote credits</b> / subscription</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="modewrap">
+        <div class="mode poster">
+          <span class="badge">Poster · User mode</span>
+          <div class="scol cont">
+            <ol style="counter-reset:s 6">
+              <li><b>Post a Request</b> — pillar picker</li>
+              <li><b>Post details</b> — media, price, deadline, location</li>
+              <li><b>My Requests</b> — open / active / done</li>
+              <li><b>Request detail</b> + incoming bids</li>
+              <li><b>Bid review &amp; compare</b></li>
+              <li><b>Negotiation</b> / counter-offer</li>
+              <li><b>Lock quote</b> → escrow payment</li>
+              <li><b>Active task</b> — live timer + Stop (2× gated)</li>
+              <li><b>Work Completed</b> confirm</li>
+              <li><b>Report worker</b> / dispute</li>
+            </ol>
+          </div>
+        </div>
+        <div class="mode worker">
+          <span class="badge">Worker · Worker mode</span>
+          <div class="scol cont">
+            <ol style="counter-reset:s 16">
+              <li><b>Available Tasks</b> — filtered</li>
+              <li><b>Task detail</b></li>
+              <li><b>Send a Quote</b> — duration + quota</li>
+              <li><b>My Bids</b> — pending / accepted</li>
+              <li><b>Swipe-to-start</b> control</li>
+              <li><b>Active job</b> + milestone tracker</li>
+              <li><b>Upload proof &amp; Mark Work Done</b></li>
+              <li><b>Earnings</b> &amp; payout</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid screens" style="margin-top:16px">
+        <div class="scol">
+          <h4>Shared task flow</h4>
+          <ol>
+            <li><b>Chat</b> — text / media / voice / live video</li>
+            <li><b>Masked call</b></li>
+            <li><b>Milestone tracker</b></li>
+            <li><b>Ratings &amp; review</b></li>
+          </ol>
+        </div>
+        <div class="scol">
+          <h4>Growth</h4>
+          <ol>
+            <li><b>Feature / promote a task</b></li>
+            <li><b>Referral / invite</b></li>
+          </ol>
+        </div>
+        <div class="scol">
+          <h4>Profile &amp; settings</h4>
+          <ol>
+            <li><b>Public profile</b></li>
+            <li><b>Edit profile &amp; portfolio</b></li>
+            <li><b>Get Verified Pro</b></li>
+            <li><b>Notifications center</b></li>
+            <li><b>Settings</b> — mode, privacy, payments</li>
+            <li><b>Help / support</b></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 08 WEB -->
+    <section id="web">
+      <div class="sec-head"><span class="k">08</span><h2>Web dashboard — pages</h2></div>
+      <p>A synced window into the same data: monitor and analyze. Mostly read-only, with a few light actions (reply to chat, accept/decline a bid, download invoices). Heavy actions — media posting, live video, payments — stay on mobile.</p>
+      <div class="grid screens">
+        <div class="scol cont">
+          <h4>Core</h4>
+          <ol>
+            <li><b>Login</b> — same account</li>
+            <li><b>Dashboard overview</b> — KPIs</li>
+            <li><b>My Requests</b> — table + drill-in</li>
+            <li><b>Request + bids</b> — compare side-by-side</li>
+            <li><b>My Bids / Jobs</b> (worker side)</li>
+            <li><b>Active jobs</b> + milestone status</li>
+            <li><b>Messages</b> — read &amp; reply</li>
+          </ol>
+        </div>
+        <div class="scol cont">
+          <h4>Money &amp; analytics</h4>
+          <ol>
+            <li><b>Wallet &amp; earnings</b> — charts</li>
+            <li><b>Transactions &amp; invoices</b> — downloadable</li>
+            <li><b>Analytics</b> — completion, acceptance, response time</li>
+            <li><b>Profile &amp; portfolio</b></li>
+            <li><b>Verification status</b></li>
+            <li><b>Notifications &amp; settings</b></li>
+          </ol>
+        </div>
+        <div class="scol cont">
+          <h4>Admin console</h4>
+          <ol>
+            <li><b>Users &amp; verification approvals</b></li>
+            <li><b>Content moderation &amp; reports</b></li>
+            <li><b>Dispute resolution queue</b></li>
+            <li><b>Payouts &amp; commission oversight</b></li>
+            <li><b>Platform analytics</b> — GMV, MAU, revenue by stream</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 09 DATA -->
+    <section id="data">
+      <div class="sec-head"><span class="k">09</span><h2>Data model</h2></div>
+      <p>All entities live in the shared Postgres DB, so both surfaces sync automatically. Highlighted entities are the ones the refined lifecycle and deal rules add.</p>
+      <div class="entities">
+        <span class="ent">users</span>
+        <span class="ent">profiles</span>
+        <span class="ent">tasks</span>
+        <span class="ent">bids / quotes</span>
+        <span class="ent">negotiations</span>
+        <span class="ent">escrow</span>
+        <span class="ent">payments</span>
+        <span class="ent">wallets</span>
+        <span class="ent">messages</span>
+        <span class="ent">feed_posts</span>
+        <span class="ent">promotions</span>
+        <span class="ent">quote_credits</span>
+        <span class="ent">reviews</span>
+        <span class="ent">notifications</span>
+        <span class="ent new">penalties</span>
+        <span class="ent new">proofs</span>
+        <span class="ent new">calls</span>
+        <span class="ent new">disputes / reports</span>
+        <span class="ent new">settings (configurable rules)</span>
+      </div>
+      <div class="ent-legend"><span><span class="swatch" style="background:var(--surface-2);border:1px solid var(--line)"></span>Base entity</span><span><span class="swatch" style="background:var(--accent)"></span>Added by lifecycle &amp; rules</span></div>
+
+      <h3>Key fields on <span class="mono" style="font-size:.85em">tasks</span></h3>
+      <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Group</th><th>Fields</th></tr></thead>
+        <tbody>
+          <tr><td><b>Status</b></td><td class="mono" style="font-size:13px">OPEN · LOCKED · TASK_STARTED · WORK_DONE · COMPLETED · CANCELLED_BY_POSTER · STOPPED_BY_POSTER · DISPUTED</td></tr>
+          <tr><td><b>Timestamps</b></td><td class="mono" style="font-size:13px">locked_at · started_at · work_done_at · completed_at</td></tr>
+          <tr><td><b>Timers</b></td><td class="mono" style="font-size:13px">agreed_duration · overrun_deadline (started_at + 2×) · auto_release_at (work_done_at + 24h)</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <!-- 10 PHASES -->
+    <section id="phases">
+      <div class="sec-head"><span class="k">10</span><h2>Build phases</h2></div>
+      <div class="phases">
+        <div class="phase"><div class="idx">1</div><div><h4>MVP — mobile <span class="plat">Flutter + Supabase</span></h4><p>Auth, post request, feed, bids + negotiation, lock → escrow, swipe-to-start, chat, proof + confirm. One city, one or two pillars.</p></div></div>
+        <div class="phase"><div class="idx">2</div><div><h4>Web dashboard <span class="plat">Next.js</span></h4><p>Read-only dashboard, analytics, and messages — synced to the same backend.</p></div></div>
+        <div class="phase"><div class="idx">3</div><div><h4>Trust &amp; money <span class="plat">Razorpay + admin</span></h4><p>Verification/badges, ratings, wallet/payouts, penalties, disputes, admin console.</p></div></div>
+        <div class="phase"><div class="idx">4</div><div><h4>Growth &amp; monetization</h4><p>Featured tasks, promoted posts, quote credits/subscription, referrals.</p></div></div>
+        <div class="phase"><div class="idx">5</div><div><h4>Scale</h4><p>More pillars, regional expansion city by city, iOS build.</p></div></div>
+      </div>
+    </section>
+
+    <!-- 11 OPEN -->
+    <section id="open">
+      <div class="sec-head"><span class="k">11</span><h2>Open decisions</h2></div>
+      <p>Two calls left before Phase 1 kicks off. Everything else above is decided.</p>
+      <div class="grid decisions">
+        <div class="decision">
+          <h4>Mobile framework</h4>
+          <p class="opt"><b>Flutter</b> — recommended; smooth, polished UI and an easy iOS path.</p>
+          <p class="opt"><b>React Native</b> — shares a language with the Next.js web build.</p>
+          <p class="opt"><b>Native Kotlin</b> — best performance, no code sharing.</p>
+        </div>
+        <div class="decision">
+          <h4>Payments provider</h4>
+          <p class="opt"><b>Razorpay Route</b> — recommended; India-first, native escrow &amp; splits.</p>
+          <p class="opt"><b>Stripe Connect</b> — global, limited India domestic support.</p>
+          <p class="opt"><b>Decide in Phase 3</b> — keep provider-agnostic for now.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>TaskDrop · Product &amp; Build Plan v1 · Request Anything. Earn Anywhere.</footer>
+  </main>
+</div>

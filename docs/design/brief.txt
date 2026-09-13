@@ -1,0 +1,566 @@
+● P R O D U C T & B U I L D P L A N · V 4
+TaskDrop
+"If you can ask for it, someone can drop it."
+A unified reverse-marketplace: a Poster publishes an open-ended request with a benchmark price,
+Workers pitch and negotiate quotes, and funds sit in escrow until the work is verified. An Android app for
+the whole flow, plus a synced web app to view and monitor everything — with iOS to follow after success.
+Services 	Rare Product Procurement 	Local Intel
+Prepared Sep 6, 2026 Initial surfaces Android app + Web app iOS later, post-success
+Status Planning — not yet built 	V4 · FIVERR-STYLE PAYMENTS
+01 The concept
+Existing platforms force people into narrow buckets — food delivery, home repair, digital freelancing —
+with fixed pricing and no way to post an open-ended need. TaskDrop inverts the model: you post the
+request, the market comes to you, and price is set by conversation instead of an algorithm. Once a
+quote is locked, the money is handled the proven Fiverr way — full escrow up front, deliver, review, then
+payout.
+Dual-mode app
+A seamless toggle between Post a Request (User mode) and Find Work (Worker mode) in one
+account.
+Dynamic quoting
+Posters set a benchmark price; workers pitch quotes and negotiate directly, in-app. The poster picks the
+quote he likes to lock the price.
+Interactive reels
+A Reels-style feed where workers showcase real skills and posters showcase the work to be done
+in a video.
+Interactive feed
+A poster can post his task flagged as "Urgent" or "Unique" so it stands out to the right workers.
+
+-- 1 of 17 --
+
+02 Tech stack & how sync works
+The initial build is Android app + Web app only; an iOS app comes later, after the product proves
+successful. As an early-stage startup, every layer is chosen to be free-tier or open-source wherever
+possible — without compromising on the smoothness/performance of the apps. Both clients talk to
+one backend with realtime built in, so a bid placed on the phone appears on the dashboard instantly.
+LAYER 	CHOICE 	COST / WHY
+Backend / DB 	Supabase — Postgres, Realtime,
+Auth, Storage, RLS
+Free tier; realtime + RLS (admin-only pages) out of
+the box, open-source.
+Android app 	Flutter (or React Native) 	Free / open-source; smooth for a video-heavy reels
+feed. iOS added later from the same codebase.
+Web app 	Next.js + React (Vercel) 	Open-source + free tier; fast dashboard on the same
+Supabase project.
+Payments /
+Escrow
+Razorpay Route (or Stripe
+Connect)
+Pay-per-transaction only; escrow, milestone splits &
+commission are first-class.
+Currency 	Dynamic localization + free FX
+API
+Free tier; auto-shows local currency ($, ₹, …) from a
+base value.
+Media feed 	Supabase Storage / Cloudflare 	Free tier; CDN-backed photo & video delivery.
+Notifications 	Firebase Cloud Messaging 	Free; push for new bids, messages, and status
+changes.
+Maps / radius 	Google Maps free tier /
+OpenStreetMap + PostGIS
+Free tier / open-source; distance filtering & local-intel
+geo.
+STARTUP COST PRINCIPLE
+Start on free tiers and open-source across the stack; adopt paid services only when scale demands it.
+Smoothness is never traded away — Flutter keeps the feed fluid, and one Supabase backend keeps
+Android and Web perfectly in sync.
+
+-- 2 of 17 --
+
+Monthly infrastructure cost breakdown
+Three realistic stages. Stage 0 (MVP / validation) runs almost entirely on free tiers. Stage 1 (early
+production) moves the core services to their entry paid tiers once we can't risk cold-starts. Stage 2
+(scaling) reflects overages and heavier compute. Payment processing is pay-per-transaction, so it's
+revenue-linked, not a fixed monthly cost. Prices are indicative 2026 list rates (USD).
+SERVICE STAGE 0 ·
+MVP
+STAGE 1 · EARLY
+PROD STAGE 2 · SCALING
+Supabase (backend/DB) 	Free — $0 	Pro — $25 	Pro + compute/egress — ~$75–
+150
+Vercel (web app) 	Hobby — $0 	Pro — $20 	Pro + bandwidth — ~$40–80
+Cloudflare (media/CDN) 	Free — $0 	Free — $0 	~$20 (higher egress)
+Firebase Cloud Messaging Free — $0 	Free — $0 	Free — $0
+Maps (Google free tier /
+OSM)
+Free — $0 	Free — $0 	~$0–30 (past free credit)
+FX rate API 	Free — $0 	Free — $0 	~$10 (paid tier)
+Play Store (one-time $25) 	~$2* 	$0 	$0
+Domain 	~$1 	~$1 	~$1
+Est. fixed total / mo 	≈ $3 	≈ $46 	≈ $175–290
+PAYMENTS (VARIABLE, NOT FIXED)
+Razorpay ≈ 2% + 18% GST per domestic transaction (0% platform fee for the first 90 days) — deducted per
+order, so it scales with GMV and is covered by our 20% worker commission + 3% poster fee, never a
+standing monthly bill.
+*Play Store is a one-time $25 developer fee, amortized here; Apple's $99/yr applies only at the post-success iOS stage.
+
+-- 3 of 17 --
+
+03 Who uses it
+Poster / User mode
+Posts requests, reviews bids, locks the worker quote he likes, pays the full amount into escrow, reviews
+the delivery, and accepts or requests revisions.
+Worker / Worker mode
+Browses the feed and tasks, sends quotes, does the work, uploads proof, gets paid after the 7-day
+clearing period.
+Same account, both modes — separate reviews
+One profile toggles between posting and working. Crucially, each account carries two separate rating/
+review sets — one for its Poster role and one for its Worker role. They are shown separately by
+role and are never merged into a single combined score.
+Admin / ops ADMIN-ONLY · RBAC
+Moderation, Resolution Center disputes, payout oversight, and cancellation monitoring. All admin pages
+are visible only to the Admin role — enforced in UI and backend (row-level security). Posters and
+Workers never see them.
+04 The task lifecycle
+Every task moves through one main line of states. Price is discovered by TaskDrop's quote-and-lock flow;
+once the quote is locked, the money is handled the Fiverr way — escrow up front, deliver, review, payout.
+OPEN 	01 · Request posted
+Poster publishes the request — with no image, a single image, or a
+video under 1 minute talking about the work. The poster must set a
+time limit for the task in the quote itself, and can edit the time limit or
+quote price anytime before lock. Workers can counter-quote with a
+different price and/or a different time limit.
+↓ Poster picks the worker quote he likes 	poster · lock
+
+-- 4 of 17 --
+
+LOCKED 	02 · Price fixed, funds escrowed
+The chosen quote becomes the fixed order amount and the poster pays the
+full amount into escrow up front (contacts stay masked). Other bids stay
+open — the poster may assign the task to multiple counter-quoting
+workers at once.
+SHOWN TO THE POSTER AT PAYMENT
+"Don't worry — your amount won't be credited to the worker unless you're
+satisfied. You hold the right to push the task to 'Completed'; until then your
+money stays safe in escrow, and it will be credited back to you if the work
+is not done."
+↓ First worker to slide swipe-to-start wins 	worker · start ▸
+TASK_STARTED 	03 · Work is underway · contacts revealed
+The first worker to move the task to "Task Started" gets to proceed; the other
+assigned workers can no longer proceed, and their escrow is auto-refunded to
+the poster. Only now do both parties see each other's real contact details and
+chat in-app. Payout mode is the poster's choice: milestones or one-time — after
+starting, the worker can also request the poster to switch to milestones.
+Default is one-time after completion.
+↓ Worker uploads proof & marks done 	worker · work done
+WORK_DONE 	04 · Delivery under review
+Proof (photos / video / files) is submitted. No payout yet. The poster gets a 3-
+day review window to Accept or Request Revisions.
+↓ Poster taps Accept (or 3 days elapse) 	poster · accept
+COMPLETED 	05 · Order accepted → clearing
+Escrow is released to the worker minus the 20% commission and enters a flat
+7-day clearing period. Both sides leave ratings and reviews, which stay public
+on their profiles (by role).
+Delivery & exception paths
+WORK_DONE → REVISION_REQUESTED
+Within the 3-day review window the poster can send the order back with notes. The worker redelivers; the
+review window resets. No payout moves until the poster accepts or the window auto-completes.
+WORK_DONE → AUTO_COMPLETED
+If the poster neither accepts nor requests revisions within 3 days, the order auto-completes and escrow is
+released to the worker — the Fiverr auto-accept safety net.
+Multi-assign → first to start wins
+
+-- 5 of 17 --
+
+When a poster assigns the task to several counter-quoting workers, the first worker to reach "Task
+Started" locks the task; the remaining assignments are released, those workers can no longer proceed,
+and any escrow paid for them is auto-refunded to the poster.
+LOCKED → CANCELLED (before Task Started)
+No grace window. The poster can cancel for free — no fee is charged to the worker in any case. The
+only consequence is that the poster can leave a bad rating / review for the worker, since the worker did
+not move the task to "Task Started" even after being assigned.
+TASK_STARTED → CANCELLED (poster-initiated, after start)
+If the poster cancels after the worker has started, the poster pays a 5% fine on the locked order value
+and the worker can leave a bad rating / review for the poster. Logged in the Admin Cancellation
+Monitor as cancelled_by = poster.
+TASK_STARTED → CANCELLED (worker-initiated, after start)
+The worker can also cancel after Task Started. Escrow is returned to the poster (Resolution Center
+settles any partial work), the poster may leave a bad review for the worker, and this cancellation is
+tracked in the Admin Cancellation Monitor as cancelled_by = worker.
+TASK_STARTED → OVERDUE → CANCELLED (past quoted time, full refund)
+When now > task_time_limit and the task isn't yet Work Done, it is flagged OVERDUE. The poster
+can cancel with a FULL escrow refund and NO 5% fine (the fine applies only when cancelling a worker
+still within time). The worker may get a bad review, and it is logged in the Admin Cancellation Monitor as
+cancelled_by = poster, reason = overdue — so admins can track workers who repeatedly miss their quoted
+time.
+Any state → DISPUTED (Resolution Center)
+Either side can open a dispute over a late, undone, or unsatisfactory delivery. Admin reviews evidence and
+decides a full or partial refund; the outcome affects the worker's rating and standing.
+05 Payments, solved the Fiverr way
+1 · Price discovery stays TaskDrop's 	TaskDrop: post → quote → lock
+The poster posts a benchmark with a required task time limit (both editable anytime); workers pitch
+competing quotes, optionally countering on price and/or time. The poster picks the quote he likes, which
+becomes the fixed order amount.
+2 · Full payment up front into escrow 	Fiverr: pay in full at order
+At lock, the poster pays the entire locked amount into escrow (plus a 3% poster service fee) before the
+worker starts.
+POSTER REASSURANCE AT ESCROW PAYMENT
+
+-- 6 of 17 --
+
+"Don't worry — your amount won't be credited to the worker unless you're satisfied. You hold the right to push
+the task to 'Completed'; until then your money stays safe in escrow, and it will be credited back to you if the
+work is not done."
+3 · Deliver → review → accept / revise 	Fiverr: 3-day accept window
+After Work Done, the poster has a 3-day review window to Accept or Request Revisions; unanswered orders
+auto-complete and release escrow.
+4 · Commission & poster fee 	Fiverr: 20% seller + buyer fee
+TaskDrop takes a flat 20% worker commission on every completed order and a 3% poster service fee on
+the locked value.
+5 · Clearing period before withdrawal 	Fiverr: cleared-funds hold
+Worker earnings clear a flat 7 days after completion for all workers, then move to a withdrawable balance.
+6 · Cancellation rules 	No grace window
+Before start: free, no worker fee; poster may leave a bad review. After start (poster): 5% fine + bad review,
+logged for admin. After start (worker): escrow back to poster, bad review, logged for admin. Overdue (past
+quoted time): poster cancels with full refund, no fine; bad review; logged as reason = overdue.
+7 · Payout mode — poster's choice 	Milestones or one-time
+Poster-set milestones, or worker-requested milestones after Task Started; otherwise a single one-time
+payment after completion (default).
+
+-- 7 of 17 --
+
+Locked-in defaults
+RULE 	DEFAULT
+Price setting 	Poster benchmark + required task time limit (both editable) → poster locks
+the quote he likes
+Counter-quote 	Free — accept posted price or counter on price and/or time limit
+Escrow charge 	Full locked amount up front at lock, with a "money safe in escrow"
+message
+Multi-assign 	Multiple allowed → first to Task Started wins; others released & escrow
+auto-refunds
+Payout mode 	Poster-set or worker-requested milestones; else one-time after completion
+(default)
+Review window 	3 days after Work Done → auto-complete unless revised/disputed
+Worker commission 	Flat 20% of the completed order
+Poster service fee 	3% of locked value (no small-order fee)
+Clearing period 	Flat 7 days for all workers before withdrawal
+Cancel — before start 	Free, no fee to worker; poster may leave a bad review
+Cancel — after start
+(poster)
+5% fine on poster; bad review; logged in admin monitor
+Cancel — after start
+(worker)
+Escrow back to poster; bad review; logged in admin monitor
+Cancel — overdue (past
+time)
+Poster cancels with full refund, NO fine; bad review; logged reason =
+overdue
+Reviews / contacts 	Reviews public anytime, separate by role; contacts unmask only at Task
+Started
+06 Feature set
+Accounts & trust
+Phone-OTP + email sign-in, profile with skills & tags	•
+
+-- 8 of 17 --
+
+Two separate rating/review sets per account — Poster-role & Worker-role, never merged
+Role-based access — admin pages hidden from Posters/Workers
+Posting, quoting & negotiation
+Post with optional media (none / image / <60s video), benchmark price, required time limit,
+location
+Flag a task as "Urgent" or "Unique"
+Free counter-quotes on price and/or time; other bids stay open; multi-assign supported
+Transactions & monetization
+Full escrow on lock with reassurance message; milestones or one-time payout
+20% worker commission + 3% poster fee; flat 7-day clearing
+Fiverr-style payment methods; dynamic local currency ($ / ₹ …)
+Wallet, withdrawals, invoices, Resolution Center & multi-assign auto-refunds
+Featured & Premium Listings — paid boosts (see section 08)
+Communication & visibility
+In-app chat (text / media / voice / live video)
+Contacts masked until Task Started, then revealed; reviews always public (by role)
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+
+-- 9 of 17 --
+
+07 Payment methods & currency
+Payment methods (Fiverr-style)
+Credit / debit card — Visa, Mastercard, American Express, Discover
+PayPal · Apple Pay (iOS) · Google Pay (Android) · In-app Balance
+Availability by country & device; no cryptocurrency. Razorpay Route / Stripe Connect underneath.
+Dynamic currency localization
+Prices auto-display in local currency by location — US sees Dollars (\$), India sees Rupees (₹).
+Derived from a base value with daily exchange rates; user can change it in settings.
+08 Featured & Premium Listings META-ADS STYLE
+What can be boosted & what it does
+Promote a task post or a Reel; pushes to top of feed / search, adds a "Featured"/"Sponsored"
+label, keeps it visible longer.
+Indicative fee ₹150–₹500 in India, scaling with budget & duration.
+Campaign controls (Meta-style)
+Budget (total/daily) · Duration · Audience (location/radius/pillar) · Objective (reach/bids/views).
+Admin oversees all active promotions.
+•
+•
+•
+•
+•
+•
+•
+•
+•
+
+-- 10 of 17 --
+
+09 Application flow — all scenarios
+The complete state machine, from posting to payout. The green spine is the happy path; the amber
+boxes are cancellation branches and the blue box is disputes. Every cancellation after start — poster,
+worker, and overdue — is logged in the Admin Cancellation Monitor.
+State 	Active /
+success
+Action 	Decision 	Cancel /
+refund
+Terminal
+Poster posts task
+↓
+workers quote · free counter-quote (price &/or time)
+OPEN
+↓
+poster picks a quote he likes
+Lock quote → pay full amount into ESCROW
+↓
+LOCKED 	contacts masked · may assign multiple workers
+BRANCH A · CANCEL BEFORE TASK STARTED
+Poster cancels 	→ 	Free · no worker fee · full escrow refund 	→ poster may leave bad review
+END
+↓
+multi-assign race — FIRST worker to start wins
+First worker swipes to start
+↓
+TASK_STARTED
+contacts revealed · milestones or one-time payout
+BRANCH B · CANCEL AFTER TASK STARTED — ALL LOGGED IN ADMIN CANCELLATION MONITOR
+Poster cancels 	→ 	5% fine on poster + bad review logged · cancelled_by=poster · reason=normal
+Worker cancels 	→ 	Escrow back to poster + bad review logged · cancelled_by=worker
+media · price · time limit · Urgent/Unique
++3% poster fee · "money safe" reassurance msg
+others released · their escrow auto-refunds to poster
+
+-- 11 of 17 --
+
+Overdue (past quoted time) → 	Poster cancels · FULL refund · NO fine
+logged · cancelled_by=poster · reason=overdue
+↓
+worker uploads proof & marks done
+WORK_DONE 	no payout yet · 3-day review window
+↓
+Poster reviews within 3 days?
+✔ Accept ↺ Request Revisions 	No response
+↓
+accept / auto-complete → release escrow − 20% commission
+COMPLETED
+↓
+CLEARING · 7 days 	→ 	PAYOUT to worker
+↓
+both leave reviews (separate by role)
+END
+BRANCH C · DISPUTE — AVAILABLE AT ANY ACTIVE STATE
+Either side disputes → 	Resolution Center (admin) 	→ 	full / partial refund → affects rating
+END
+» PARALLEL · MONETIZATION (INDEPENDENT OF TASK STATE)
+At any time the poster can Boost a post or reel — Meta-ads-style budget · duration · audience · objective
+— to raise visibility.
+redeliver → loop	AUTO_COMPLETE
+
+-- 12 of 17 --
+
+10 Android app — screen inventory
+ONBOARDING & AUTH
+Splash
+Welcome
+Sign up — phone OTP / email
+Login
+Profile setup
+Permissions
+HOME & FEED
+Home feed — reels-style
+Post detail + CTA
+Search & filters (Urgent/Unique)
+Map view
+WALLET & MONEY
+Wallet / balance
+Escrow & 7-day clearing
+Payout / withdraw
+Transactions & invoices
+Payment methods & currency
+POSTER · USER MODE
+Post a Request — Urgent/Unique
+Post details — media, price, time limit
+Boost a post / reel
+Bid review & compare
+Lock quote → escrow (+reassurance)
+Assign one/many; payout mode
+Active task — chat + contact
+Review — Accept / Revise / Cancel
+WORKER · WORKER MODE
+Available Tasks
+Accept price or Counter-quote (free)
+My Bids
+Swipe-to-start (first wins)
+Active job + request milestones + cancel
+Upload proof & Mark Work Done
+Earnings & payout
+1.
+2.
+3.
+4.
+5.
+6.
+1.
+2.
+3.
+4.
+1.
+2.
+3.
+4.
+5.
+1.
+2.
+3.
+4.
+5.
+6.
+7.
+8.
+1.
+2.
+3.
+4.
+5.
+6.
+7.
+
+-- 13 of 17 --
+
+11 Web dashboard — pages
+CORE
+Login
+Dashboard overview — KPIs
+My Requests
+Request + bids
+My Bids / Jobs
+Active jobs + milestones
+Messages
+MONEY & ANALYTICS
+Wallet & earnings
+Transactions & invoices
+Analytics
+Profile & reviews (Poster / Worker)
+ADMIN CONSOLE ADMIN-ONLY
+Users management
+Content moderation
+Resolution Center / disputes
+Payouts & clearing oversight
+Promotions management
+Cancellation monitor — poster & worker (see
+section 12)
+Platform analytics
+12 Admin cancellation monitor ADMIN-ONLY
+A dedicated admin-only page tracking all cancellations after "Task Started" across three categories:
+poster-initiated (5% fine), worker-initiated (worker abandons after starting), and overdue (poster
+cancels a worker who ran past the quoted time — full refund, no fine).
+What it shows
+Split counts for poster-cancelled, worker-cancelled, and overdue cancellations, with time-period
+filters (day / week / month).
+Table: task, poster, worker, date, locked amount, cancelled_by, reason (overdue / normal), penalty/
+refund, review left.
+Repeat-offender views for posters, workers, and — importantly — workers who frequently go
+overdue.
+Backed by a cancellation log filtering TASK_STARTED → CANCELLED, keyed on cancelled_by
+and reason.
+13 Data model
+users · profiles · roles(admin/poster/worker) · tasks(time_limit · flag: urgent|unique) · bids/quotes(price ·
+time_limit) · assignments(multi · escrow_per_assignment) · escrow · payments · milestones · wallets ·
+messages · feed_posts(media≤60s video) · promotions · reviews(poster_role|worker_role) · notifications
+· revisions · proofs · cancellations_log(cancelled_by · reason) · disputes/resolution · clearing_ledger ·
+settings
+1.
+2.
+3.
+4.
+5.
+6.
+7.
+1.
+2.
+3.
+4.
+1.
+2.
+3.
+4.
+5.
+6.
+7.
+•
+•
+•
+•
+
+-- 14 of 17 --
+
+GROUP 	FIELDS
+Status 	OPEN · LOCKED · TASK_STARTED · OVERDUE · WORK_DONE ·
+REVISION_REQUESTED · COMPLETED · AUTO_COMPLETED · CANCELLED ·
+DISPUTED
+Cancellations cancelled_by (poster / worker) · reason (overdue / normal) · phase (before / after start) ·
+penalty_or_refund · all surfaced in admin monitor
+Overdue 	flagged when now > task_time_limit & not yet Work Done → poster cancel = full
+refund, no fine
+Bids &
+assign
+assignments = multiple, each own escrow · first TASK_STARTED wins; others released &
+escrow auto-refunded
+Payout 	payout_mode (milestones / one-time) · editable poster-set or worker-requested post-start
+Money 	escrow_amount · commission_pct (20%) · poster_fee_pct (3%) ·
+post_start_cancel_penalty_pct (5%) · clear_at (+7d)
+Reviews 	poster_rating & worker_rating separate, never merged · contacts_revealed_at (= started_at)
+
+-- 15 of 17 --
+
+14 Build phases
+1 · MVP — Android (Flutter) + Supabase
+Auth & roles, post request, feed, bids + negotiation, lock → escrow with reassurance, multi-assign →
+first-to-start wins + auto-refunds, chat, proof + review/accept, cancellations (all types) logged.
+2 · Web app — Next.js
+Read-mostly dashboard, analytics, messages — synced, role-gated.
+3 · Trust & money — Razorpay + admin
+Role-separated reviews, wallet/payouts, 20%/3% fees, 7-day clearing, milestones/one-time, cancellation
+fines, Resolution Center, admin console + cancellation monitor (poster & worker).
+4 · Growth & monetization
+Featured & Premium Listings, quote credits/subscription, referrals.
+5 · Scale & post-success additions
+More pillars, regional expansion, iOS app, and a verification badge (trust signal, no perks) — after
+success.
+15 Open decisions
+Mobile framework
+Flutter — recommended; smooth reels feed, free/open-source, easy iOS path later.
+React Native — shares a language with the Next.js web build.
+Payments provider
+Razorpay Route — recommended; India-first, native escrow & milestone splits.
+Stripe Connect — global, limited India domestic support.
+Future / post-success additions
+iOS app from the same Flutter codebase after success.
+Verification badge — trust signal, no perks; not in current scope.
+•
+•
+•
+•
+•
+•
+
+-- 16 of 17 --
+
+TaskDrop · Product & Build Plan v4 · Fiverr-style payments · Request Anything. Earn Anywhere.
+
+-- 17 of 17 --
+

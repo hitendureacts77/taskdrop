@@ -1,0 +1,2130 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#DEDEDE; font-family:'Manrope',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  * { box-sizing:border-box; }
+  .tnum { font-variant-numeric:tabular-nums lining-nums; }
+  .noscroll::-webkit-scrollbar { display:none; }
+  .noscroll { scrollbar-width:none; }
+  @keyframes tdIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+  @keyframes tdUp { from { opacity:0; transform:translateY(26px); } to { opacity:1; transform:none; } }
+  @keyframes tdFade { from { opacity:0; } to { opacity:1; } }
+  @keyframes tdPop { 0% { transform:scale(0.6); opacity:0; } 60% { transform:scale(1.08); } 100% { transform:scale(1); opacity:1; } }
+  @keyframes tdDraw { from { stroke-dashoffset:60; } to { stroke-dashoffset:0; } }
+  @keyframes tdRing { from { opacity:0.5; transform:scale(0.8); } to { opacity:0; transform:scale(1.7); } }
+  @keyframes tdShim { from { background-position:-260px 0; } to { background-position:260px 0; } }
+  @media (prefers-reduced-motion: reduce) { * { animation-duration:0.01ms !important; transition-duration:0.01ms !important; } }
+</style>
+</helmet>
+
+<div style="{{ rootVars }}">
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px 16px; background:var(--canvas); overflow:hidden;">
+ <div style="{{ frameWrap }}">
+  <div style="{{ frameScale }}">
+
+    <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 20px; font-size:11px; color:var(--ink);">
+      <span class="tnum">{{ clock }}</span>
+      <span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span>
+    </div>
+
+    <!-- ══ HOME ══ -->
+    <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+      <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; animation:tdFade 0.26s ease-out both;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 20px 0;">
+          <div style="font-size:22px; font-weight:800; color:var(--ink); letter-spacing:-0.03em;">taskdrop<span style="color:var(--g);">.</span></div>
+          <div onClick="{{ goProfile }}" style="display:flex; align-items:center; gap:9px; background:var(--fill); border-radius:999px; padding:7px 13px; cursor:pointer; transition:background 0.2s ease;" style-active="{{ press }}">
+            <span style="width:6px; height:6px; border-radius:999px; background:var(--g);"></span>
+            <span style="font-size:12px; font-weight:700; color:var(--ink);">{{ modeLabel }}</span>
+          </div>
+        </div>
+
+        <div style="margin:15px 20px 0; background:var(--fill); border-radius:12px; padding:13px 15px; display:flex; align-items:center; gap:11px; transition:background 0.2s ease;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="var(--mut)" stroke-width="1.8"></circle><path d="m16.5 16.5 4 4" stroke="var(--mut)" stroke-width="1.8" stroke-linecap="round"></path></svg>
+          <span style="font-size:14px; color:var(--mut);">{{ searchHint }}</span>
+        </div>
+
+        <div class="noscroll" style="display:flex; gap:8px; padding:14px 20px 0; overflow-x:auto;">
+          <sc-for list="{{ filters }}" as="f" hint-placeholder-count="3">
+            <span onClick="{{ f.pick }}" style="font-size:12px; font-weight:600; color:{{ f.ink }}; background:{{ f.bg }}; border:1px solid {{ f.line }}; border-radius:999px; padding:8px 14px; white-space:nowrap; cursor:pointer; transition:all 0.22s cubic-bezier(0.2,0.7,0.3,1);" style-active="{{ press }}">{{ f.label }}</span>
+          </sc-for>
+        </div>
+
+        <div style="font-size:19px; font-weight:800; color:var(--ink); letter-spacing:-0.02em; padding:22px 20px 0;">{{ feedTitle }}</div>
+
+        <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:0 20px;">
+            <sc-for list="{{ skeletons }}" as="s" hint-placeholder-count="3">
+              <div style="background:var(--card); border:1px solid var(--line2); border-radius:14px; padding:15px; margin-top:12px;">
+                <div style="{{ s.bar1 }}"></div>
+                <div style="{{ s.bar2 }}"></div>
+                <div style="{{ s.bar3 }}"></div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ loaded }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:0 20px 16px;">
+            <sc-for list="{{ feed }}" as="c" hint-placeholder-count="3">
+              <div onClick="{{ c.open }}" style="background:var(--card); border:1px solid {{ c.line }}; border-radius:14px; padding:15px; margin-top:12px; cursor:pointer; animation:tdIn 0.4s cubic-bezier(0.2,0.7,0.3,1) both; animation-delay:{{ c.delay }}; transition:transform 0.18s ease, box-shadow 0.18s ease;" style-active="{{ cardPress }}">
+                <sc-if value="{{ c.sponsored }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex; align-items:center; gap:6px; margin-bottom:11px; padding-bottom:10px; border-bottom:1px solid var(--line);">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" fill="var(--gtext)"></path></svg>
+                    <span style="font-size:9px; letter-spacing:0.18em; font-weight:800; color:var(--gtext);">SPONSORED</span>
+                  </div>
+                </sc-if>
+                <div style="display:flex; align-items:center; gap:12px;">
+                  <span style="width:38px; height:38px; border-radius:999px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:15px; flex:none;">☺</span>
+                  <div style="flex:1; min-width:0;">
+                    <div style="display:flex; align-items:center; gap:7px;">
+                      <span class="tnum" style="font-size:14px; font-weight:700; color:var(--ink);">{{ c.who }}</span>
+                      <span class="tnum" style="font-size:12px; color:var(--mut);">★ {{ c.rating }}</span>
+                      <span style="font-size:9px; letter-spacing:0.14em; font-weight:700; color:{{ c.tagInk }}; margin-left:auto;">{{ c.tag }}</span>
+                    </div>
+                    <div class="tnum" style="font-size:12px; color:var(--mut); margin-top:3px;">{{ c.whoMeta }}</div>
+                  </div>
+                </div>
+                <div style="display:flex; gap:13px; margin-top:12px;">
+                  <sc-if value="{{ c.hasMedia }}" hint-placeholder-val="{{ false }}">
+                    <div style="width:62px; height:62px; flex:none; border-radius:11px; background:var(--thumb); position:relative; display:flex; align-items:center; justify-content:center; color:var(--chev); font-size:17px;">{{ c.glyph }}
+                      <sc-if value="{{ c.dur }}" hint-placeholder-val="{{ false }}">
+                        <span class="tnum" style="position:absolute; bottom:4px; right:4px; font-size:9px; color:#FFFFFF; background:rgba(0,0,0,0.6); border-radius:3px; padding:1px 4px;">{{ c.dur }}</span>
+                      </sc-if>
+                    </div>
+                  </sc-if>
+                  <div style="flex:1; min-width:0;">
+                    <div style="font-size:16px; font-weight:700; color:var(--ink); letter-spacing:-0.01em;">{{ c.title }}</div>
+                    <div style="font-size:13px; color:var(--mut); margin-top:5px; line-height:1.45;">{{ c.meta }}</div>
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px; margin-top:14px; padding-top:13px; border-top:1px solid var(--line);">
+                  <div style="flex:1;">
+                    <div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">{{ c.priceLabel }}</div>
+                    <div class="tnum" style="font-size:19px; font-weight:800; color:var(--gtext); margin-top:3px;">{{ c.price }}</div>
+                  </div>
+                  <span onClick="{{ c.quoteNow }}" style="font-size:13px; font-weight:600; color:var(--mut); border:1px solid var(--line3); border-radius:999px; padding:10px 15px;" style-active="{{ press }}">Counter</span>
+                  <span onClick="{{ c.accept }}" style="font-size:13px; font-weight:700; color:var(--onG); background:var(--g); border-radius:999px; padding:10px 16px; box-shadow:0 4px 14px var(--gshadow);" style-active="{{ press }}">Accept</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ loaded }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:8px 20px 16px;">
+            <div style="font-size:19px; font-weight:800; color:var(--ink); letter-spacing:-0.02em; margin-top:10px;">{{ urgentTitle }}</div>
+            <sc-for list="{{ urgentFeed }}" as="u" hint-placeholder-count="1">
+              <div onClick="{{ u.open }}" style="background:var(--card); border:1px solid var(--line2); border-radius:14px; padding:15px; margin-top:12px; cursor:pointer; animation:tdIn 0.4s cubic-bezier(0.2,0.7,0.3,1) both; animation-delay:{{ u.delay }};" style-active="{{ cardPress }}">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <span style="width:32px; height:32px; border-radius:999px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:13px; flex:none;">☺</span>
+                  <span class="tnum" style="font-size:13px; font-weight:700; color:var(--ink);">{{ u.who }}</span>
+                  <span class="tnum" style="font-size:12px; color:var(--mut);">★ {{ u.rating }}</span>
+                  <span style="font-size:9px; letter-spacing:0.14em; font-weight:700; color:var(--coral); margin-left:auto;">{{ u.flag }}</span>
+                </div>
+                <div style="display:flex; align-items:baseline; gap:12px; margin-top:11px;">
+                  <div style="flex:1; font-size:16px; font-weight:700; color:var(--ink);">{{ u.title }}</div>
+                  <div class="tnum" style="font-size:16px; font-weight:800; color:var(--gtext);">{{ u.price }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ══ SEARCH & FILTERS ══ -->
+    <sc-if value="{{ isSearch }}" hint-placeholder-val="{{ false }}">
+      <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:6px 20px 16px; animation:tdFade 0.26s ease-out both;">
+        <div style="font-size:24px; font-weight:800; color:var(--ink); letter-spacing:-0.03em;">Search</div>
+        <div style="margin-top:15px; background:var(--fill); border-radius:12px; padding:13px 15px; display:flex; align-items:center; gap:11px;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="var(--mut)" stroke-width="1.8"></circle><path d="m16.5 16.5 4 4" stroke="var(--mut)" stroke-width="1.8" stroke-linecap="round"></path></svg>
+          <span style="font-size:14px; color:var(--ink);">film camera</span>
+        </div>
+
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:24px;">LOCATION</div>
+        <div style="display:flex; align-items:center; gap:11px; margin-top:11px; background:var(--fill); border-radius:12px; padding:12px 15px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z" stroke="var(--mut)" stroke-width="1.7" stroke-linejoin="round"></path><circle cx="12" cy="10" r="2.6" stroke="var(--mut)" stroke-width="1.7"></circle></svg>
+          <span style="flex:1; font-size:14px; color:var(--ink);">Indiranagar, Bengaluru</span>
+          <span style="font-size:12px; font-weight:600; color:var(--gtext);">Use my location</span>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:12px; margin-top:22px;">
+          <span style="flex:1; font-size:11px; letter-spacing:0.14em; color:var(--dim);">RADIUS FROM THERE</span>
+          <span onClick="{{ toggleRadius }}" style="{{ radiusSwitch }}"><span style="{{ knobStyle }}"></span></span>
+        </div>
+        <sc-if value="{{ radiusOn }}" hint-placeholder-val="{{ true }}">
+          <div style="animation:tdIn 0.26s ease-out both;">
+            <div style="margin-top:16px; height:3px; background:var(--line3); border-radius:2px; position:relative;">
+              <div style="position:absolute; inset:0 42% 0 0; background:var(--g); border-radius:2px;"></div>
+              <div style="position:absolute; left:58%; top:-7px; width:17px; height:17px; border-radius:999px; background:var(--g); box-shadow:0 3px 10px var(--gshadow);"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:10px; font-size:12px; color:var(--mut);"><span>1 km</span><span class="tnum" style="color:var(--ink); font-weight:700;">12 km</span><span>25 km</span></div>
+          </div>
+        </sc-if>
+
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:22px;">PILLAR</div>
+        <div style="display:flex; gap:8px; margin-top:11px;">
+          <sc-for list="{{ filters }}" as="f" hint-placeholder-count="3">
+            <span onClick="{{ f.pick }}" style="font-size:12px; font-weight:600; color:{{ f.ink }}; background:{{ f.bg }}; border:1px solid {{ f.line }}; border-radius:999px; padding:8px 13px; cursor:pointer; transition:all 0.22s cubic-bezier(0.2,0.7,0.3,1);" style-active="{{ press }}">{{ f.label }}</span>
+          </sc-for>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:12px; margin-top:22px;">
+          <span style="flex:1; font-size:11px; letter-spacing:0.14em; color:var(--dim);">BUDGET</span>
+          <span onClick="{{ toggleBudget }}" style="{{ budgetSwitch }}"><span style="{{ knobStyle }}"></span></span>
+        </div>
+        <sc-if value="{{ budgetOn }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; gap:10px; margin-top:12px; animation:tdIn 0.26s ease-out both;">
+            <div style="flex:1; background:var(--fill); border-radius:12px; padding:13px 15px;"><div style="font-size:10px; color:var(--dim);">MIN</div><div class="tnum" style="font-size:15px; font-weight:700; color:var(--ink); margin-top:3px;">₹500</div></div>
+            <div style="flex:1; background:var(--fill); border-radius:12px; padding:13px 15px;"><div style="font-size:10px; color:var(--dim);">MAX</div><div class="tnum" style="font-size:15px; font-weight:700; color:var(--ink); margin-top:3px;">₹8,000</div></div>
+          </div>
+        </sc-if>
+
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:24px;">SAVED SEARCHES</div>
+        <sc-for list="{{ savedSearches }}" as="s" hint-placeholder-count="3">
+          <div onClick="{{ s.run }}" style="display:flex; align-items:center; gap:12px; padding:15px 0; border-bottom:1px solid var(--line); cursor:pointer; animation:tdIn 0.34s ease-out both; animation-delay:{{ s.delay }};" style-active="{{ cardPress }}">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="var(--mut)" stroke-width="1.9"></circle><path d="m16.5 16.5 4 4" stroke="var(--mut)" stroke-width="1.9" stroke-linecap="round"></path></svg>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:15px; color:var(--ink);">{{ s.title }}</div>
+              <div style="font-size:12px; color:var(--dim); margin-top:2px;">{{ s.meta }}</div>
+            </div>
+            <span style="font-size:12px; font-weight:600; color:var(--gtext);">Alerts on</span>
+          </div>
+        </sc-for>
+
+        <div onClick="{{ applyFilters }}" style="margin-top:22px; background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer; transition:transform 0.15s ease;" style-active="{{ press }}">Show 34 tasks</div>
+      </div>
+    </sc-if>
+
+    <!-- ══ ORDERS ══ -->
+    <sc-if value="{{ isOrders }}" hint-placeholder-val="{{ false }}">
+      <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; animation:tdFade 0.26s ease-out both;">
+        <div style="padding:6px 20px 14px; font-size:24px; font-weight:800; color:var(--ink); letter-spacing:-0.03em;">{{ ordersTitle }}</div>
+        <div style="display:flex; padding:0 20px; position:relative;">
+          <sc-for list="{{ orderTabs }}" as="t" hint-placeholder-count="3">
+            <div onClick="{{ t.pick }}" style="flex:1; text-align:center; font-size:13px; font-weight:{{ t.weight }}; color:{{ t.ink }}; padding:11px 0; cursor:pointer; transition:color 0.22s ease;">{{ t.label }}</div>
+          </sc-for>
+          <div style="position:absolute; left:20px; right:20px; bottom:0; height:2px; background:var(--line);"></div>
+          <div style="{{ underline }}"></div>
+        </div>
+        <div style="padding:4px 20px 16px;">
+          <sc-for list="{{ orderRows }}" as="o" hint-placeholder-count="3">
+            <div onClick="{{ o.open }}" style="background:var(--card); border:1px solid var(--line2); border-radius:14px; padding:15px; margin-top:12px; cursor:pointer; animation:tdIn 0.36s cubic-bezier(0.2,0.7,0.3,1) both; animation-delay:{{ o.delay }};" style-active="{{ cardPress }}">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="width:6px; height:6px; border-radius:999px; background:{{ o.dot }}; transition:background 0.3s ease;"></span>
+                <span style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:{{ o.stateInk }};">{{ o.state }}</span>
+              </div>
+              <div style="display:flex; align-items:baseline; gap:12px; margin-top:9px;">
+                <div style="flex:1; font-size:16px; font-weight:700; color:var(--ink);">{{ o.title }}</div>
+                <div class="tnum" style="font-size:16px; font-weight:800; color:var(--ink);">{{ o.price }}</div>
+              </div>
+              <div style="font-size:12px; color:var(--mut); margin-top:6px;">{{ o.meta }}</div>
+            </div>
+          </sc-for>
+          <sc-if value="{{ ordersEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:70px 20px; text-align:center; animation:tdIn 0.4s ease-out both;">
+              <svg width="120" height="96" viewBox="0 0 120 96" fill="none" style="opacity:0.75;">
+                <path d="M30 40h44v40H30z" stroke="var(--chev)" stroke-width="2.2" stroke-linejoin="round"></path>
+                <path d="M42 56h20" stroke="var(--chev)" stroke-width="2.2" stroke-linecap="round"></path>
+                <path d="M34 40 42 26h20l8 14" stroke="var(--chev)" stroke-width="2.2" stroke-linejoin="round"></path>
+                <circle cx="88" cy="66" r="8" stroke="var(--g)" stroke-width="2.2"></circle>
+                <path d="M18 80h84" stroke="var(--chev)" stroke-width="2.2" stroke-linecap="round"></path>
+              </svg>
+              <div style="font-size:18px; font-weight:800; color:var(--ink); margin-top:20px;">Nothing here yet</div>
+              <div style="font-size:14px; color:var(--mut); margin-top:8px; line-height:1.5;">{{ emptyLine }}</div>
+              <div onClick="{{ goHome }}" style="font-size:14px; font-weight:700; color:var(--ink); text-decoration:underline; margin-top:20px; cursor:pointer;">Browse the feed</div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ WALLET ══ -->
+    <sc-if value="{{ isWallet }}" hint-placeholder-val="{{ false }}">
+      <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:6px 20px 16px; animation:tdFade 0.26s ease-out both;">
+        <div style="font-size:24px; font-weight:800; color:var(--ink); letter-spacing:-0.03em;">Wallet</div>
+        <div style="font-size:13px; color:var(--mut); margin-top:22px;">{{ walletLabel }}</div>
+        <div class="tnum" style="font-size:44px; font-weight:800; color:var(--ink); letter-spacing:-0.04em; line-height:1.1; margin-top:4px;">₹{{ balance }}</div>
+        <div style="display:flex; height:7px; border-radius:999px; overflow:hidden; background:var(--thumb); margin-top:18px;">
+          <div style="{{ barAvail }}"></div>
+          <div style="{{ barEscrow }}"></div>
+          <div style="{{ barClearing }}"></div>
+        </div>
+        <div style="display:flex; gap:16px; margin-top:12px; font-size:11px; color:var(--mut);">
+          <span style="color:var(--gtext);">● Available</span><span style="color:var(--amber);">● In escrow</span><span style="color:var(--blue);">● Clearing</span>
+        </div>
+        <div style="display:flex; margin-top:20px; border-top:1px solid var(--line2); border-bottom:1px solid var(--line2);">
+          <div style="flex:1; padding:15px 0; border-right:1px solid var(--line2);"><div style="font-size:11px; color:var(--amber);">In escrow</div><div class="tnum" style="font-size:19px; font-weight:800; color:var(--ink); margin-top:5px;">₹{{ escrow }}</div></div>
+          <div style="flex:1; padding:15px 0 15px 16px;"><div style="font-size:11px; color:var(--blue);">Clearing · 7d</div><div class="tnum" style="font-size:19px; font-weight:800; color:var(--ink); margin-top:5px;">₹{{ clearingFmt }}</div></div>
+        </div>
+        <div onClick="{{ goWithdraw }}" style="margin-top:22px; background:var(--g); color:var(--onG); text-align:center; font-size:15px; font-weight:700; padding:15px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer; transition:transform 0.18s ease;" style-active="{{ press }}">Withdraw ₹{{ balance }}</div>
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:22px;">RECENT</div>
+        <sc-for list="{{ ledger }}" as="l" hint-placeholder-count="3">
+          <div style="display:flex; align-items:center; gap:12px; padding:15px 0; border-bottom:1px solid var(--line); animation:tdIn 0.34s ease-out both; animation-delay:{{ l.delay }};">
+            <span style="width:6px; height:6px; border-radius:999px; background:{{ l.dot }}; flex:none;"></span>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:15px; font-weight:600; color:var(--ink);">{{ l.title }}</div>
+              <div style="font-size:12px; color:var(--mut); margin-top:2px;">{{ l.meta }}</div>
+            </div>
+            <span class="tnum" style="font-size:15px; font-weight:700; color:{{ l.ink }};">{{ l.amt }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- ══ PROFILE ══ -->
+    <sc-if value="{{ isProfile }}" hint-placeholder-val="{{ false }}">
+      <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; animation:tdFade 0.26s ease-out both;">
+        <div style="background:var(--band); padding:14px 20px 26px; transition:background 0.3s ease;">
+          <div style="display:flex; align-items:center; gap:16px;">
+            <div style="width:64px; height:64px; border-radius:999px; background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center; font-size:23px; font-weight:800; color:#FFFFFF;">N</div>
+            <div>
+              <div style="font-size:21px; font-weight:800; color:#FFFFFF; letter-spacing:-0.02em;">Narasimha_raju</div>
+              <div class="tnum" style="font-size:13px; color:rgba(255,255,255,0.78); margin-top:4px;">{{ roleRating }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:20px 20px 0;">
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim);">MODE</div>
+          <div style="display:flex; gap:8px; margin-top:11px; background:var(--fill); border-radius:12px; padding:4px; position:relative;">
+            <div style="{{ modeSlider }}"></div>
+            <sc-for list="{{ modes }}" as="m" hint-placeholder-count="2">
+              <div onClick="{{ m.pick }}" style="flex:1; text-align:center; font-size:14px; font-weight:700; color:{{ m.ink }}; padding:11px 0; cursor:pointer; position:relative; z-index:1; transition:color 0.24s ease;">{{ m.label }}</div>
+            </sc-for>
+          </div>
+          <div style="font-size:12px; color:var(--dim); margin-top:9px; line-height:1.5;">{{ modeNote }}</div>
+
+          <div style="display:flex; align-items:baseline; justify-content:space-between; margin-top:22px;">
+            <span style="font-size:11px; letter-spacing:0.14em; color:var(--dim);">THEME</span>
+            <span style="font-size:11px; color:var(--dim);">{{ themeNote }}</span>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:11px;">
+            <sc-for list="{{ themes }}" as="t" hint-placeholder-count="3">
+              <span onClick="{{ t.pick }}" style="flex:1; text-align:center; font-size:13px; font-weight:600; color:{{ t.ink }}; background:{{ t.bg }}; border:1px solid {{ t.line }}; border-radius:10px; padding:10px 0; cursor:pointer; transition:all 0.24s cubic-bezier(0.2,0.7,0.3,1);" style-active="{{ press }}">{{ t.label }}</span>
+            </sc-for>
+          </div>
+
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:22px;">MY TASKDROP</div>
+          <sc-for list="{{ profileRows }}" as="p" hint-placeholder-count="4">
+            <div onClick="{{ p.tap }}" style="display:flex; align-items:center; gap:15px; padding:15px 0; border-bottom:1px solid var(--line); cursor:pointer;" style-active="{{ press }}">
+              <span style="width:22px; text-align:center; font-size:15px; color:var(--mut);">{{ p.glyph }}</span>
+              <span style="flex:1; font-size:16px; font-weight:600; color:{{ p.ink }};">{{ p.label }}</span>
+              <span style="font-size:16px; color:var(--chev);">›</span>
+            </div>
+          </sc-for>
+
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:22px;">{{ reviewsLabel }}</div>
+          <sc-for list="{{ reviews }}" as="r" hint-placeholder-count="2">
+            <div style="padding:14px 0; border-bottom:1px solid var(--line); animation:tdIn 0.34s ease-out both; animation-delay:{{ r.delay }};">
+              <div style="display:flex; align-items:center; gap:9px;">
+                <span class="tnum" style="font-size:13px; font-weight:700; color:var(--ink);">{{ r.who }}</span>
+                <span class="tnum" style="font-size:12px; color:var(--gtext);">★ {{ r.stars }}</span>
+                <span style="font-size:11px; color:var(--dim); margin-left:auto;">{{ r.when }}</span>
+              </div>
+              <div style="font-size:13px; color:var(--mut); margin-top:6px; line-height:1.5;">{{ r.text }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ DETAIL SHEET ══ -->
+    <sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:5; display:flex; flex-direction:column;">
+        <div onClick="{{ closeSheet }}" style="position:absolute; inset:0; background:rgba(0,0,0,0.4); animation:tdFade 0.24s ease-out both;"></div>
+        <div style="margin-top:auto; position:relative; background:var(--pg); border-radius:24px 24px 0 0; max-height:88%; display:flex; flex-direction:column; animation:tdUp 0.34s cubic-bezier(0.2,0.8,0.25,1) both; box-shadow:0 -14px 40px rgba(0,0,0,0.2);">
+          <div style="padding:12px 0 0; display:flex; justify-content:center;"><span style="width:38px; height:4px; border-radius:999px; background:var(--line3);"></span></div>
+          <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:16px 20px 0;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span style="width:40px; height:40px; border-radius:999px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:16px;">☺</span>
+              <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:7px;">
+                  <span class="tnum" style="font-size:15px; font-weight:700; color:var(--ink);">{{ sheetWho }}</span>
+                  <span class="tnum" style="font-size:12px; color:var(--mut);">★ {{ sheetRating }}</span>
+                </div>
+                <div style="font-size:12px; color:var(--mut); margin-top:3px;">{{ sheetWhoMeta }}</div>
+              </div>
+            </div>
+            <div style="font-size:23px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:16px;">{{ sheetTitle }}</div>
+            <div style="font-size:14px; color:var(--sub); line-height:1.55; margin-top:10px;">{{ sheetBody }}</div>
+            <div style="display:flex; margin-top:18px; border-top:1px solid var(--line2); border-bottom:1px solid var(--line2);">
+              <div style="flex:1; padding:14px 0;"><div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">{{ sheetPriceLabel }}</div><div class="tnum" style="font-size:20px; font-weight:800; color:var(--gtext); margin-top:4px;">{{ sheetPrice }}</div></div>
+              <div style="flex:1; padding:14px 0;"><div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">RATING</div><div class="tnum" style="font-size:20px; font-weight:700; color:var(--amber); margin-top:4px;">★ {{ sheetRating }}</div></div>
+              <!-- "Complete by" appears once below: the REQUIRED date+time chips for a poster, or the locked deadline for a worker. -->
+            </div>
+
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:20px;">YOUR QUOTE</div>
+            <div style="display:flex; align-items:center; gap:14px; margin-top:12px;">
+              <span onClick="{{ quoteDown }}" style="width:44px; height:44px; border-radius:999px; border:1px solid var(--line3); display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--ink); cursor:pointer; transition:all 0.18s ease;" style-active="{{ press }}">−</span>
+              <div style="flex:1; text-align:center;">
+                <div class="tnum" style="font-size:30px; font-weight:800; color:var(--ink); letter-spacing:-0.03em;">₹{{ quoteAmount }}</div>
+                <div class="tnum" style="font-size:11px; color:{{ deltaInk }}; margin-top:2px;">{{ deltaText }}</div>
+              </div>
+              <span onClick="{{ quoteUp }}" style="width:44px; height:44px; border-radius:999px; border:1px solid var(--line3); display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--ink); cursor:pointer; transition:all 0.18s ease;" style-active="{{ press }}">+</span>
+            </div>
+            <sc-if value="{{ sheetNeedsBy }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; align-items:baseline; justify-content:space-between; margin-top:22px;">
+                <span style="font-size:11px; letter-spacing:0.14em; color:var(--dim);">COMPLETE BY · REQUIRED</span>
+                <span style="font-size:13px; font-weight:600; color:{{ sheetByInk }};">{{ sheetByText }}</span>
+              </div>
+              <div style="display:flex; gap:8px; margin-top:11px;">
+                <sc-for list="{{ byChips }}" as="b" hint-placeholder-count="3">
+                  <span onClick="{{ b.pick }}" style="flex:1; text-align:center; font-size:12px; font-weight:600; color:{{ b.ink }}; background:{{ b.bg }}; border:1px solid {{ b.line }}; border-radius:10px; padding:11px 0; cursor:pointer; transition:all 0.22s ease;" style-active="{{ press }}">{{ b.label }}</span>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ workerSheet }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; padding-bottom:12px; border-bottom:1px solid var(--line);">
+                <span style="font-size:14px; color:var(--ink);">Complete by</span>
+                <span style="font-size:14px; font-weight:600; color:var(--mut);">{{ sheetBy }}</span>
+              </div>
+            </sc-if>
+            <div style="font-size:12px; color:var(--dim); margin-top:12px; line-height:1.5;">{{ sheetNote }}</div>
+          </div>
+          <div style="padding:14px 20px 24px;">
+            <div onClick="{{ sendQuote }}" style="{{ sheetCtaStyle }}" style-active="{{ press }}">{{ sheetCta }}</div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ SWIPE TO START ══ -->
+    <sc-if value="{{ swipeOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; padding:0 20px 28px; animation:tdFade 0.26s ease-out both;">
+        <div style="padding:44px 0 0;"><span onClick="{{ closeSwipe }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span></div>
+        <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="width:6px; height:6px; border-radius:999px; background:var(--g);"></span>
+            <span style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:var(--gtext);">QUOTE LOCKED · ESCROW FUNDED</span>
+          </div>
+          <div style="font-size:29px; font-weight:800; color:var(--ink); letter-spacing:-0.035em; margin-top:14px; line-height:1.2;">{{ swipeTitle }}</div>
+          <div class="tnum" style="font-size:15px; color:var(--mut); margin-top:10px;">{{ swipeMeta }}</div>
+          <div style="margin-top:26px; background:var(--gwash); border:1px solid var(--gline); border-radius:14px; padding:16px; display:flex; gap:12px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="flex:none;">
+              <path d="M12 3 5 6v6c0 4.2 2.9 7.6 7 9 4.1-1.4 7-4.8 7-9V6l-7-3Z" stroke="var(--g)" stroke-width="1.7" stroke-linejoin="round"></path>
+              <path d="m9 12 2.2 2.2L15.5 10" stroke="var(--g)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:60; animation:tdDraw 0.7s ease-out 0.2s both;"></path>
+            </svg>
+            <span style="font-size:13px; color:var(--gink); line-height:1.5;">Starting reveals both contacts and begins the live timer. It cannot be paused.</span>
+          </div>
+        </div>
+        <div>
+          <div onPointerDown="{{ swipeDown }}" onPointerMove="{{ swipeMove }}" onPointerUp="{{ swipeUp }}" onPointerCancel="{{ swipeUp }}" style="height:62px; border-radius:999px; background:var(--fill); border:1px solid var(--line2); display:flex; align-items:center; padding:6px; position:relative; overflow:hidden; touch-action:none; cursor:grab;">
+            <div style="{{ swipeFill }}"></div>
+            <div style="{{ swipeKnob }}">{{ swipeGlyph }}</div>
+            <div style="flex:1; text-align:center; padding-right:50px; font-size:15px; font-weight:700; color:var(--ink); position:relative; z-index:1; opacity:{{ swipeLabelOpacity }}; transition:opacity 0.2s ease;">Swipe to start</div>
+          </div>
+          <div style="text-align:center; font-size:12px; color:var(--dim); margin-top:13px;">{{ swipeHint }}</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ ACTIVE JOB ══ -->
+    <sc-if value="{{ activeOpen }}" hint-placeholder-val="{{ false }}">
+      <div class="noscroll" style="position:absolute; inset:0; z-index:6; background:var(--pg); overflow-y:auto; padding:44px 20px 28px; animation:tdFade 0.26s ease-out both;">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <span onClick="{{ closeActive }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+          <span style="font-size:17px; font-weight:700; color:var(--ink);">Active task</span>
+        </div>
+        <div style="display:flex; justify-content:center; margin-top:22px;">
+          <div style="position:relative; width:200px; height:200px;">
+            <svg width="200" height="200" viewBox="0 0 200 200" fill="none">
+              <circle cx="100" cy="100" r="88" stroke="var(--thumb)" stroke-width="10"></circle>
+              <circle cx="100" cy="100" r="88" stroke="var(--g)" stroke-width="10" stroke-linecap="round" stroke-dasharray="553" stroke-dashoffset="{{ ringOffset }}" transform="rotate(-90 100 100)" style="transition:stroke-dashoffset 0.9s cubic-bezier(0.3,0.8,0.3,1);"></circle>
+            </svg>
+            <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+              <div class="tnum" style="font-size:36px; font-weight:800; color:var(--ink); letter-spacing:-0.03em;">{{ elapsed }}</div>
+              <div style="font-size:12px; color:var(--mut); margin-top:6px;">of 4 hrs agreed</div>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:center; margin-top:20px;">
+          <div style="font-size:19px; font-weight:800; color:var(--ink); letter-spacing:-0.02em;">{{ swipeTitle }}</div>
+          <div class="tnum" style="font-size:13px; color:var(--mut); margin-top:6px;">{{ activeMeta }}</div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:18px; background:var(--card); border:1px solid var(--line2); border-radius:14px; padding:15px;">
+          <div>
+            <div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">ELAPSED</div>
+            <div class="tnum" style="font-size:24px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:4px;">{{ elapsed }}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">CAP</div>
+            <div class="tnum" style="font-size:15px; font-weight:700; color:var(--amber); margin-top:6px;">08:00:00</div>
+          </div>
+        </div>
+        <div style="margin-top:12px; background:var(--awash); border:1px solid var(--aline); border-radius:12px; padding:13px 15px; font-size:13px; color:var(--amber); line-height:1.5;">The timer runs on its own — neither side can pause it. It caps at 8 hrs, twice the agreed duration, and overrun past that is auto-refunded.</div>
+        <div style="margin-top:22px;">
+          <sc-for list="{{ steps }}" as="s" hint-placeholder-count="4">
+            <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line);">
+              <span style="width:7px; height:7px; border-radius:999px; background:{{ s.dot }}; flex:none; transition:background 0.35s ease;"></span>
+              <span style="flex:1; font-size:14px; color:{{ s.ink }}; transition:color 0.35s ease;">{{ s.label }}</span>
+              <span class="tnum" style="font-size:12px; color:var(--dim);">{{ s.when }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:22px; display:flex; align-items:center; gap:13px; padding-bottom:18px; border-bottom:1px solid var(--line2);">
+          <span style="width:40px; height:40px; border-radius:999px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:16px;">☺</span>
+          <div style="flex:1;">
+            <div style="font-size:15px; font-weight:700; color:var(--ink);">{{ revealedName }}</div>
+            <div class="tnum" style="font-size:12px; color:var(--gtext); margin-top:3px; animation:tdIn 0.4s ease-out both;">{{ revealedPhone }}</div>
+          </div>
+          <span onClick="{{ goChat }}" style="font-size:13px; font-weight:700; color:var(--gtext); cursor:pointer;" style-active="{{ press }}">Chat</span>
+        </div>
+        <sc-if value="{{ showProof }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:20px;">
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim);">PROOF OF WORK</div>
+            <div style="display:flex; gap:10px; margin-top:11px;">
+              <sc-for list="{{ proofTiles }}" as="p" hint-placeholder-count="3">
+                <div onClick="{{ p.tap }}" style="width:88px; height:88px; border-radius:12px; background:{{ p.bg }}; border:{{ p.border }}; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; color:{{ p.ink }}; cursor:{{ p.cursor }}; animation:tdIn 0.3s ease-out both;" style-active="{{ press }}">
+                  <span style="font-size:18px;">{{ p.glyph }}</span>
+                  <sc-if value="{{ p.label }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:10px;">{{ p.label }}</span>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+            <div style="font-size:12px; color:var(--dim); margin-top:10px; line-height:1.5;">{{ proofHint }}</div>
+          </div>
+        </sc-if>
+        <div onClick="{{ markDone }}" style="{{ doneBtn }}" style-active="{{ press }}">{{ doneLabel }}</div>
+        <div style="text-align:center; font-size:12px; color:var(--dim); margin-top:11px; line-height:1.5;">{{ doneNote }}</div>
+      </div>
+    </sc-if>
+
+    <!-- ══ SPLASH ══ -->
+    <sc-if value="{{ isSplash }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ toWelcome }}" style="position:absolute; inset:0; z-index:7; background:var(--pg); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; cursor:pointer; animation:tdFade 0.3s ease-out both;">
+        <svg width="72" height="72" viewBox="0 0 24 24" fill="none" style="animation:tdPop 0.5s cubic-bezier(0.2,0.9,0.3,1.2) both;">
+          <path d="M12 2.5c4.2 4.5 6.6 7.7 6.6 10.8A6.6 6.6 0 0 1 12 20a6.6 6.6 0 0 1-6.6-6.7C5.4 10.2 7.8 7 12 2.5Z" fill="var(--g)"></path>
+          <path d="M9.2 13.1l2.2 2.3 4-4.6" stroke="var(--onG)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+        <div style="font-size:38px; font-weight:800; color:var(--ink); letter-spacing:-0.04em; animation:tdIn 0.5s ease-out 0.1s both;">taskdrop<span style="color:var(--g);">.</span></div>
+        <div style="position:absolute; bottom:56px; font-size:13px; color:var(--dim);">Ask for anything. Someone can do it.</div>
+      </div>
+    </sc-if>
+
+    <!-- ══ WELCOME ══ -->
+    <sc-if value="{{ isWelcome }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:7; background:var(--pg); display:flex; flex-direction:column; justify-content:flex-end; padding:0 20px 26px; animation:tdFade 0.28s ease-out both;">
+        <div style="font-size:33px; font-weight:800; color:var(--ink); letter-spacing:-0.035em; line-height:1.15;">Real tasks.<br>Real people.<br>Nearby.</div>
+        <div style="display:flex; gap:12px; margin-top:34px;">
+          <sc-for list="{{ welcomeCards }}" as="w" hint-placeholder-count="2">
+            <div onClick="{{ w.pick }}" style="flex:1; background:var(--fill); border:1px solid {{ w.line }}; border-radius:14px; padding:20px 15px; text-align:center; cursor:pointer; transition:border-color 0.22s ease, transform 0.18s ease; animation:tdIn 0.4s ease-out both; animation-delay:{{ w.delay }};" style-active="{{ cardPress }}">
+              <div style="font-size:24px;">{{ w.glyph }}</div>
+              <div style="font-size:16px; font-weight:700; color:var(--ink); margin-top:12px;">{{ w.title }}</div>
+              <div style="font-size:12px; color:var(--mut); margin-top:6px; line-height:1.45;">{{ w.sub }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div onClick="{{ toSignup }}" style="margin-top:26px; background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">Continue as {{ welcomePick }}</div>
+        <div onClick="{{ skipAuth }}" style="text-align:center; font-size:14px; font-weight:600; color:var(--mut); margin-top:16px; cursor:pointer;">Sign in instead</div>
+      </div>
+    </sc-if>
+
+    <!-- ══ SIGN UP · OTP ══ -->
+    <sc-if value="{{ isSignup }}" hint-placeholder-val="{{ false }}">
+      <div class="noscroll" style="position:absolute; inset:0; z-index:7; background:var(--pg); overflow-y:auto; padding:44px 20px 26px; animation:tdFade 0.28s ease-out both;">
+        <span onClick="{{ toWelcome }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+        <div style="font-size:27px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:22px;">Create your account</div>
+        <div style="font-size:14px; color:var(--mut); margin-top:8px; line-height:1.5;">One account covers posting and working.</div>
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:26px;">MOBILE NUMBER</div>
+        <div style="display:flex; align-items:center; gap:12px; margin-top:11px; background:var(--fill); border-radius:12px; padding:15px 16px;">
+          <span style="font-size:15px; color:var(--mut);">+91</span>
+          <span style="width:1px; height:18px; background:var(--line3);"></span>
+          <span class="tnum" style="font-size:16px; color:var(--ink);">98765 43210</span>
+        </div>
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:24px;">6-DIGIT CODE · SENT BY SMS</div>
+        <div style="display:flex; gap:9px; margin-top:11px;">
+          <sc-for list="{{ otpBoxes }}" as="o" hint-placeholder-count="6">
+            <div onClick="{{ o.tap }}" style="flex:1; height:54px; border-radius:12px; background:var(--fill); border:1px solid {{ o.line }}; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:border-color 0.2s ease;">
+              <span class="tnum" style="font-size:20px; font-weight:700; color:var(--ink);">{{ o.v }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
+          <span style="font-size:13px; color:var(--mut);">Sent to +91 •••• ••3210</span>
+          <span onClick="{{ fillOtp }}" style="font-size:13px; font-weight:700; color:var(--gtext); cursor:pointer;">Autofill</span>
+        </div>
+        <div onClick="{{ verifyOtp }}" style="{{ otpBtn }}" style-active="{{ press }}">{{ otpBtnLabel }}</div>
+        <div style="display:flex; align-items:center; gap:14px; margin-top:22px;">
+          <span style="flex:1; height:1px; background:var(--line);"></span><span style="font-size:12px; color:var(--dim);">or</span><span style="flex:1; height:1px; background:var(--line);"></span>
+        </div>
+        <div onClick="{{ toSetup }}" style="margin-top:20px; border:1px solid var(--line3); border-radius:12px; padding:15px; text-align:center; font-size:15px; font-weight:600; color:var(--ink); cursor:pointer;" style-active="{{ press }}">Continue with Google</div>
+      </div>
+    </sc-if>
+
+    <!-- ══ PROFILE SETUP ══ -->
+    <sc-if value="{{ isSetup }}" hint-placeholder-val="{{ false }}">
+      <div class="noscroll" style="position:absolute; inset:0; z-index:7; background:var(--pg); overflow-y:auto; padding:44px 20px 26px; animation:tdFade 0.28s ease-out both;">
+        <span onClick="{{ toSignup }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+        <div style="font-size:25px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:20px;">Set up your profile</div>
+        <div style="display:flex; align-items:center; gap:14px; margin-top:20px;">
+          <div style="width:64px; height:64px; border-radius:999px; background:var(--fill); border:1px dashed var(--line3); display:flex; align-items:center; justify-content:center; color:var(--dim); font-size:20px;">+</div>
+          <div>
+            <div style="font-size:15px; font-weight:700; color:var(--ink);">Add a photo</div>
+            <div style="font-size:12px; color:var(--mut); margin-top:3px;">Profiles with photos get 3× more quotes</div>
+          </div>
+        </div>
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:22px;">DISPLAY NAME</div>
+        <div style="background:var(--fill); border-radius:12px; padding:14px 16px; margin-top:10px; font-size:15px; color:var(--ink);">Narasimha Raju</div>
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:20px;">LOCATION</div>
+        <div style="background:var(--fill); border-radius:12px; padding:14px 16px; margin-top:10px; display:flex; justify-content:space-between; font-size:15px; color:var(--ink);"><span>Indiranagar, Bengaluru</span><span style="color:var(--gtext); font-size:13px; font-weight:600;">Change</span></div>
+        <sc-if value="{{ setupWorker }}" hint-placeholder-val="{{ true }}">
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:20px;">SKILLS · PICK UP TO 5</div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:11px;">
+            <sc-for list="{{ skillChips }}" as="s" hint-placeholder-count="8">
+              <span onClick="{{ s.pick }}" style="font-size:13px; font-weight:600; color:{{ s.ink }}; background:{{ s.bg }}; border:1px solid {{ s.line }}; border-radius:999px; padding:9px 15px; cursor:pointer; transition:all 0.2s ease;" style-active="{{ press }}">{{ s.label }}</span>
+            </sc-for>
+          </div>
+        </sc-if>
+        <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:22px;">START IN</div>
+        <div style="display:flex; gap:10px; margin-top:11px;">
+          <sc-for list="{{ setupModes }}" as="m" hint-placeholder-count="2">
+            <div onClick="{{ m.pick }}" style="flex:1; border-radius:12px; padding:15px; background:{{ m.bg }}; border:1px solid {{ m.line }}; cursor:pointer; transition:all 0.22s ease;" style-active="{{ cardPress }}">
+              <div style="font-size:15px; font-weight:700; color:{{ m.ink }};">{{ m.label }}</div>
+              <div style="font-size:12px; color:var(--mut); margin-top:5px;">{{ m.sub }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div onClick="{{ finishSetup }}" style="margin-top:24px; background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">Finish setup</div>
+      </div>
+    </sc-if>
+
+    <!-- ══ CREATE · PILLAR ══ -->
+    <sc-if value="{{ isCreate }}" hint-placeholder-val="{{ false }}">
+      <div class="noscroll" style="position:absolute; inset:0; z-index:6; background:var(--pg); overflow-y:auto; padding:44px 20px 26px; animation:tdFade 0.26s ease-out both;">
+        <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">✕</span>
+        <div style="font-size:27px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:20px;">{{ createTitle }}</div>
+        <div style="font-size:14px; color:var(--mut); margin-top:8px; line-height:1.5;">{{ createSub }}</div>
+        <div style="margin-top:24px;">
+          <sc-for list="{{ pillarCards }}" as="p" hint-placeholder-count="3">
+            <div onClick="{{ p.pick }}" style="background:{{ p.bg }}; border:1px solid {{ p.line }}; border-radius:16px; padding:18px; margin-bottom:12px; cursor:pointer; transition:all 0.22s ease; animation:tdIn 0.36s ease-out both; animation-delay:{{ p.delay }};" style-active="{{ cardPress }}">
+              <div style="display:flex; align-items:center; gap:14px;">
+                <span style="width:44px; height:44px; border-radius:12px; background:var(--gwash); display:flex; align-items:center; justify-content:center; font-size:19px; color:var(--gtext);">{{ p.glyph }}</span>
+                <div style="flex:1;">
+                  <div style="font-size:17px; font-weight:700; color:var(--ink);">{{ p.title }}</div>
+                  <div style="font-size:13px; color:var(--mut); margin-top:4px; line-height:1.4;">{{ p.sub }}</div>
+                </div>
+                <span style="font-size:16px; color:var(--chev);">›</span>
+              </div>
+              <div class="tnum" style="font-size:12px; color:var(--dim); margin-top:13px;">{{ p.stat }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ POST DETAILS ══ -->
+    <sc-if value="{{ isPostDetails }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span onClick="{{ backToCreate }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+            <span style="font-size:12px; color:var(--dim);">Draft saved</span>
+          </div>
+          <div style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:var(--gtext); margin-top:16px;">{{ pillarLabel }}</div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:18px;">TITLE</div>
+          <div style="font-size:17px; color:var(--ink); margin-top:9px; padding-bottom:11px; border-bottom:1px solid var(--line2);">{{ draftTitle }}</div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:18px;">DETAILS</div>
+          <div style="font-size:14px; color:var(--mut); margin-top:9px; line-height:1.55; padding-bottom:11px; border-bottom:1px solid var(--line2);">{{ draftDetails }}</div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:18px;">PHOTOS OR VIDEO · OPTIONAL</div>
+          <div style="display:flex; gap:10px; margin-top:11px;">
+            <sc-for list="{{ draftMedia }}" as="m" hint-placeholder-count="3">
+              <div onClick="{{ m.tap }}" style="width:68px; height:68px; border-radius:12px; background:{{ m.bg }}; border:{{ m.border }}; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:{{ m.ink }}; cursor:pointer; transition:all 0.2s ease;" style-active="{{ press }}">
+                <span style="font-size:17px;">{{ m.glyph }}</span>
+                <span style="font-size:9px;">{{ m.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex; gap:10px; margin-top:18px;">
+            <div style="flex:1; background:var(--card); border:1px solid var(--line2); border-radius:12px; padding:13px;">
+              <div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">{{ draftAmountLabel }}</div>
+              <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+                <span onClick="{{ draftDown }}" style="width:26px; height:26px; border-radius:999px; border:1px solid var(--line3); display:flex; align-items:center; justify-content:center; font-size:15px; color:var(--ink); cursor:pointer;" style-active="{{ press }}">−</span>
+                <span class="tnum" style="flex:1; text-align:center; font-size:18px; font-weight:800; color:var(--gtext);">₹{{ draftPrice }}</span>
+                <span onClick="{{ draftUp }}" style="width:26px; height:26px; border-radius:999px; border:1px solid var(--line3); display:flex; align-items:center; justify-content:center; font-size:15px; color:var(--ink); cursor:pointer;" style-active="{{ press }}">+</span>
+              </div>
+            </div>
+            <sc-if value="{{ showDeadline }}" hint-placeholder-val="{{ true }}">
+              <div style="flex:1; background:var(--card); border:1px solid var(--g); border-radius:12px; padding:13px;">
+                <div style="font-size:10px; letter-spacing:0.14em; color:var(--gtext);">COMPLETE BY ·</div>
+                <div style="font-size:15px; font-weight:700; color:var(--ink); margin-top:8px;">9 Sep, 6:00 PM</div>
+              </div>
+            </sc-if>
+          </div>
+          <sc-if value="{{ showDeadline }}" hint-placeholder-val="{{ true }}">
+            <div style="font-size:12px; color:var(--dim); margin-top:9px;">{{ deadlineHint }}</div>
+          </sc-if>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:18px;">LOCATION</div>
+          <div style="margin-top:11px; height:96px; border-radius:12px; background:var(--card); border:1px solid var(--line2); position:relative; overflow:hidden;">
+            <div style="position:absolute; inset:0; background:repeating-linear-gradient(0deg,var(--line2) 0 1px,transparent 1px 22px),repeating-linear-gradient(90deg,var(--line2) 0 1px,transparent 1px 26px);"></div>
+            <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-100%); display:flex; flex-direction:column; align-items:center;">
+              <span style="width:12px; height:12px; border-radius:999px; border:3px solid var(--g); background:var(--pg);"></span>
+              <span style="width:1.5px; height:9px; background:var(--g);"></span>
+            </div>
+            <span style="position:absolute; bottom:8px; right:10px; font-size:11px; color:var(--mut);">Indiranagar · 5 km radius</span>
+          </div>
+          <sc-if value="{{ showFlags }}" hint-placeholder-val="{{ true }}">
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:18px;">FLAG · OPTIONAL</div>
+            <div style="display:flex; gap:9px; margin-top:11px;">
+              <sc-for list="{{ draftFlags }}" as="f" hint-placeholder-count="3">
+                <span onClick="{{ f.pick }}" style="font-size:12px; font-weight:600; color:{{ f.ink }}; border:1px solid {{ f.line }}; background:{{ f.bg }}; border-radius:999px; padding:8px 14px; cursor:pointer; transition:all 0.2s ease;" style-active="{{ press }}">{{ f.label }}</span>
+              </sc-for>
+            </div>
+          </sc-if>
+          <div style="display:flex; align-items:center; gap:14px; justify-content:space-between; margin-top:18px; padding:14px; background:var(--card); border:1px solid var(--line2); border-radius:12px;">
+            <div>
+              <div style="font-size:11px; letter-spacing:0.14em; color:var(--gtext);">PROMOTE · OPTIONAL</div>
+              <div style="font-size:15px; font-weight:700; color:var(--ink); margin-top:5px;">{{ promoteLabel }}</div>
+              <div style="font-size:11px; color:var(--mut); margin-top:3px; line-height:1.45;">{{ promoteNote }}</div>
+            </div>
+            <span onClick="{{ togglePromote }}" style="{{ promoteTrack }}"><span style="{{ promoteKnob }}"></span></span>
+          </div>
+          <sc-if value="{{ promoteOn }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:10px; padding:13px; background:var(--gwash); border:1px solid var(--gline); border-radius:12px; animation:tdIn 0.28s ease-out both;">
+              <div style="font-size:11px; letter-spacing:0.14em; color:var(--gink);">DAILY BUDGET</div>
+              <div style="display:flex; gap:8px; margin-top:9px;">
+                <sc-for list="{{ budgetChips }}" as="b" hint-placeholder-count="3">
+                  <span onClick="{{ b.pick }}" class="tnum" style="flex:1; text-align:center; font-size:13px; font-weight:600; color:{{ b.ink }}; background:{{ b.bg }}; border:1px solid {{ b.line }}; border-radius:10px; padding:10px 0; cursor:pointer; transition:all 0.2s ease;" style-active="{{ press }}">{{ b.label }}</span>
+                </sc-for>
+              </div>
+              <div class="tnum" style="font-size:12px; color:var(--gink); margin-top:9px;">Will boost right after publishing · ₹{{ promoTotal }} over {{ promoDays }}</div>
+            </div>
+          </sc-if>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ publishPost }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">{{ publishLabel }}</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ TASK DETAIL ══ -->
+    <sc-if value="{{ isTaskDetail }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+            <span onClick="{{ sharePost }}" style="font-size:18px; color:var(--ink); cursor:pointer;">↗</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:13px; margin-top:16px; padding-bottom:15px; border-bottom:1px solid var(--line2);">
+            <span style="width:40px; height:40px; border-radius:999px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:16px;">☺</span>
+            <div style="flex:1;">
+              <div style="display:flex; align-items:center; gap:7px;">
+                <span class="tnum" style="font-size:15px; font-weight:700; color:var(--ink);">{{ detailWho }}</span>
+                <span class="tnum" style="font-size:12px; color:var(--mut);">★ {{ detailRating }}</span>
+              </div>
+              <div style="font-size:12px; color:var(--mut); margin-top:3px;">{{ detailWhoMeta }}</div>
+            </div>
+            <span style="font-size:16px; color:var(--chev);">›</span>
+          </div>
+          <div style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:{{ detailTagInk }}; margin-top:16px;">{{ detailTag }}</div>
+          <div style="font-size:23px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:9px;">{{ detailTitle }}</div>
+          <div style="font-size:14px; color:var(--sub); line-height:1.55; margin-top:11px;">{{ detailBody }}</div>
+          <sc-if value="{{ detailHasMedia }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; gap:10px; margin-top:16px;">
+              <div style="width:86px; height:86px; border-radius:12px; background:var(--thumb); display:flex; align-items:center; justify-content:center; color:var(--chev); font-size:18px;">{{ detailGlyph }}</div>
+              <div style="width:86px; height:86px; border-radius:12px; background:var(--thumb); display:flex; align-items:center; justify-content:center; color:var(--chev); font-size:18px;">▤</div>
+            </div>
+          </sc-if>
+          <div style="display:flex; margin-top:18px; border-top:1px solid var(--line2); border-bottom:1px solid var(--line2);">
+            <div style="flex:1; padding:14px 0;"><div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">{{ detailPriceLabel }}</div><div class="tnum" style="font-size:20px; font-weight:800; color:var(--gtext); margin-top:4px;">{{ detailPrice }}</div></div>
+            <div style="flex:1; padding:14px 0;"><div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">COMPLETE BY</div><div style="font-size:20px; font-weight:700; color:var(--ink); margin-top:4px;">{{ detailBy }}</div></div>
+          </div>
+          <sc-for list="{{ detailRows }}" as="r" hint-placeholder-count="2">
+            <div style="display:flex; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--line);">
+              <span style="font-size:14px; color:var(--mut);">{{ r.label }}</span>
+              <span class="tnum" style="font-size:14px; font-weight:700; color:var(--ink);">{{ r.value }}</span>
+            </div>
+          </sc-for>
+          <div style="font-size:12px; color:var(--dim); margin-top:13px; line-height:1.5;">Contacts stay masked until the task starts.</div>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ openQuoteSheet }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">{{ detailCta }}</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ COMPARE QUOTES ══ -->
+    <sc-if value="{{ isCompare }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+          <div style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:var(--blue); margin-top:16px;">{{ compareState }}</div>
+          <div style="font-size:23px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:9px;">{{ compareTitle }}</div>
+          <div style="display:flex; gap:22px; margin-top:16px; padding:13px 0; border-top:1px solid var(--line2); border-bottom:1px solid var(--line2);">
+            <div><div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">{{ compareBenchLabel }}</div><div class="tnum" style="font-size:19px; font-weight:800; color:var(--gtext); margin-top:4px;">{{ compareBench }}</div></div>
+            <div><div style="font-size:10px; letter-spacing:0.14em; color:var(--dim);">COMPLETE BY</div><div style="font-size:19px; font-weight:700; color:var(--ink); margin-top:4px;">{{ compareBy }}</div></div>
+          </div>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:16px;">
+            <span style="font-size:11px; letter-spacing:0.14em; color:var(--dim);">{{ compareListLabel }}</span>
+            <span onClick="{{ toggleSort }}" style="font-size:12px; font-weight:700; color:var(--gtext); cursor:pointer;">Sort: {{ sortLabel }} ▾</span>
+          </div>
+          <sc-for list="{{ compareRows }}" as="b" hint-placeholder-count="4">
+            <div onClick="{{ b.pick }}" style="background:{{ b.bg }}; border:1px solid {{ b.line }}; border-radius:14px; padding:14px; margin-top:11px; cursor:pointer; transition:all 0.22s ease; animation:tdIn 0.34s ease-out both; animation-delay:{{ b.delay }};" style-active="{{ cardPress }}">
+              <div style="display:flex; align-items:center; gap:11px;">
+                <span style="width:36px; height:36px; border-radius:999px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:14px; flex:none;">☺</span>
+                <div style="flex:1; min-width:0;">
+                  <div style="display:flex; align-items:center; gap:7px;">
+                    <span class="tnum" style="font-size:15px; font-weight:700; color:var(--ink);">{{ b.who }}</span>
+                    <span class="tnum" style="font-size:12px; color:var(--mut);">★ {{ b.rating }}</span>
+                    <sc-if value="{{ b.pro }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-size:9px; letter-spacing:0.12em; font-weight:800; color:var(--onG); background:var(--g); border-radius:4px; padding:2px 5px;">PRO</span>
+                    </sc-if>
+                  </div>
+                  <div style="font-size:12px; color:var(--mut); margin-top:3px;">{{ b.meta }}</div>
+                </div>
+                <div style="text-align:right;">
+                  <div class="tnum" style="font-size:17px; font-weight:800; color:var(--ink);">{{ b.price }}</div>
+                  <div class="tnum" style="font-size:11px; color:var(--dim); margin-top:2px;">{{ b.eta }}</div>
+                </div>
+              </div>
+              <sc-if value="{{ b.selected }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; align-items:center; gap:7px; margin-top:11px; padding-top:11px; border-top:1px solid var(--gline);">
+                  <span style="width:5px; height:5px; border-radius:999px; background:var(--g);"></span>
+                  <span style="font-size:11px; letter-spacing:0.14em; font-weight:700; color:var(--gtext);">SELECTED</span>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ toEscrow }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">{{ lockLabel }}</div>
+          <div style="text-align:center; font-size:12px; color:var(--dim); margin-top:10px; line-height:1.5;">{{ compareNote }}</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ ESCROW PAYMENT ══ -->
+    <sc-if value="{{ isEscrow }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <span onClick="{{ backToCompare }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+            <span style="font-size:17px; font-weight:700; color:var(--ink);">Confirm and pay</span>
+          </div>
+          <div style="font-size:13px; color:var(--mut); margin-top:24px;">Into escrow</div>
+          <div class="tnum" style="font-size:44px; font-weight:800; color:var(--ink); letter-spacing:-0.04em; line-height:1.05; margin-top:5px;">₹{{ escrowTotal }}</div>
+          <div style="margin-top:22px;">
+            <sc-for list="{{ escrowRows }}" as="e" hint-placeholder-count="4">
+              <div style="display:flex; justify-content:space-between; padding:13px 0; border-bottom:1px solid var(--line);">
+                <span style="font-size:14px; color:{{ e.ink }};">{{ e.label }}</span>
+                <span class="tnum" style="font-size:14px; font-weight:{{ e.weight }}; color:var(--ink);">{{ e.value }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:20px; background:var(--gwash); border:1px solid var(--gline); border-radius:12px; padding:14px 16px; display:flex; gap:12px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="flex:none;">
+              <path d="M12 3 5 6v6c0 4.2 2.9 7.6 7 9 4.1-1.4 7-4.8 7-9V6l-7-3Z" stroke="var(--g)" stroke-width="1.7" stroke-linejoin="round"></path>
+              <path d="m9 12 2.2 2.2L15.5 10" stroke="var(--g)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:60; animation:tdDraw 0.7s ease-out 0.15s both;"></path>
+            </svg>
+            <span style="font-size:13px; color:var(--gink); line-height:1.5;">Funds are held by TaskDrop and released only when you confirm the work is done.</span>
+          </div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:22px;">PAY WITH</div>
+          <div style="display:flex; gap:10px; margin-top:11px;">
+            <sc-for list="{{ payMethods }}" as="p" hint-placeholder-count="2">
+              <div onClick="{{ p.pick }}" style="flex:1; border:1px solid {{ p.line }}; background:{{ p.bg }}; border-radius:12px; padding:14px; font-size:13px; font-weight:{{ p.weight }}; color:{{ p.ink }}; cursor:pointer; transition:all 0.2s ease;" style-active="{{ press }}">{{ p.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ payEscrow }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">Pay into escrow</div>
+          <div style="text-align:center; font-size:12px; color:var(--dim); margin-top:10px;">Contacts unmask once the task starts.</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ QUOTES ON MY SERVICE · WORKER LOCKS ══ -->
+    <sc-if value="{{ isMyQuotes }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+          <div style="font-size:23px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:16px;">Quotes on my service</div>
+          <div style="font-size:14px; color:var(--mut); margin-top:8px; line-height:1.5;">Posters sent these to your carpentry listing. Lock one to take the job.</div>
+          <sc-for list="{{ myQuoteRows }}" as="q" hint-placeholder-count="3">
+            <div onClick="{{ q.pick }}" style="background:{{ q.bg }}; border:1px solid {{ q.line }}; border-radius:14px; padding:14px; margin-top:12px; cursor:pointer; transition:all 0.22s ease; animation:tdIn 0.34s ease-out both; animation-delay:{{ q.delay }};" style-active="{{ cardPress }}">
+              <div style="display:flex; align-items:center; gap:11px;">
+                <span style="width:36px; height:36px; border-radius:999px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:14px; flex:none;">☺</span>
+                <div style="flex:1; min-width:0;">
+                  <div style="display:flex; align-items:center; gap:7px;">
+                    <span class="tnum" style="font-size:15px; font-weight:700; color:var(--ink);">{{ q.who }}</span>
+                    <span class="tnum" style="font-size:12px; color:var(--mut);">★ {{ q.rating }}</span>
+                  </div>
+                  <div style="font-size:12px; color:var(--mut); margin-top:3px;">{{ q.meta }}</div>
+                </div>
+                <div class="tnum" style="font-size:17px; font-weight:800; color:var(--ink);">{{ q.price }}</div>
+              </div>
+              <div style="font-size:13px; color:var(--sub); line-height:1.45; margin-top:11px;">{{ q.task }}</div>
+              <sc-if value="{{ q.selected }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; align-items:center; gap:7px; margin-top:11px; padding-top:11px; border-top:1px solid var(--gline);">
+                  <span style="width:5px; height:5px; border-radius:999px; background:var(--g);"></span>
+                  <span style="font-size:11px; letter-spacing:0.14em; font-weight:700; color:var(--gtext);">SELECTED</span>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ lockMyQuote }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">{{ lockMyLabel }}</div>
+          <div style="text-align:center; font-size:12px; color:var(--dim); margin-top:10px; line-height:1.5;">Locking funds escrow, then you swipe to start.</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ WORK COMPLETED · CONFIRM ══ -->
+    <sc-if value="{{ isConfirm }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+            <span style="font-size:17px; font-weight:700; color:var(--ink);">Review the work</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:18px;">
+            <span style="width:5px; height:5px; border-radius:999px; background:var(--amber);"></span>
+            <span style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:var(--amber);">WORK DONE · AWAITING YOUR CONFIRMATION</span>
+          </div>
+          <div style="display:flex; gap:10px; margin-top:14px;">
+            <div style="flex:1; height:132px; border-radius:12px; background:var(--thumb); display:flex; align-items:center; justify-content:center; color:var(--chev); font-size:20px;">▤</div>
+            <div style="flex:1; height:132px; border-radius:12px; background:var(--thumb); display:flex; align-items:center; justify-content:center; color:var(--chev); font-size:20px;">▤</div>
+          </div>
+          <div style="font-size:14px; color:var(--sub); line-height:1.55; margin-top:14px;">{{ proofNote }}</div>
+          <div style="margin-top:18px;">
+            <sc-for list="{{ releaseRows }}" as="r" hint-placeholder-count="3">
+              <div style="display:flex; justify-content:space-between; padding:13px 0; border-bottom:1px solid var(--line);">
+                <span style="font-size:14px; color:var(--mut);">{{ r.label }}</span>
+                <span class="tnum" style="font-size:14px; font-weight:600; color:var(--ink);">{{ r.value }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:18px; background:var(--gwash); border:1px solid var(--gline); border-radius:12px; padding:14px 16px; font-size:13px; color:var(--gink); line-height:1.5;">Confirming releases escrow to the worker. This cannot be undone.</div>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ confirmRelease }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">Confirm and release ₹{{ releaseAmount }}</div>
+          <div style="display:flex; justify-content:center; gap:24px; font-size:13px; color:var(--mut); margin-top:14px;">
+            <span onClick="{{ requestChanges }}" style="cursor:pointer;">Request changes</span>
+            <span onClick="{{ openDispute }}" style="cursor:pointer;">Open dispute</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ CHAT ══ -->
+    <sc-if value="{{ isChat }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div style="flex:none; background:var(--bar); padding:44px 18px 14px; display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--line);">
+          <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+          <span style="width:36px; height:36px; border-radius:999px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:15px;">☺</span>
+          <div style="flex:1;">
+            <div style="display:flex; align-items:center; gap:7px;">
+              <span style="font-size:15px; font-weight:700; color:var(--ink);">{{ revealedName }}</span>
+              <span class="tnum" style="font-size:12px; color:var(--mut);">★ 4.9</span>
+            </div>
+            <div style="font-size:11px; color:var(--gtext); margin-top:2px;">Contact revealed</div>
+          </div>
+          <span style="font-size:17px; color:var(--ink);">☏</span>
+        </div>
+        <div style="flex:none; background:var(--card); border-bottom:1px solid var(--line2); padding:12px 18px; display:flex; align-items:center; gap:11px;">
+          <span style="width:32px; height:32px; border-radius:9px; background:var(--thumb); display:flex; align-items:center; justify-content:center; color:var(--chev); font-size:13px;">▤</span>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:13px; font-weight:700; color:var(--ink);">{{ swipeTitle }}</div>
+            <div class="tnum" style="font-size:11px; color:var(--mut); margin-top:2px;">{{ chatEscrow }}</div>
+          </div>
+          <span onClick="{{ openActiveFromChat }}" style="font-size:12px; font-weight:700; color:var(--gtext); cursor:pointer;">View</span>
+        </div>
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:16px 18px; display:flex; flex-direction:column; gap:11px;">
+          <div style="align-self:center; text-align:center; background:var(--gwash); border:1px solid var(--gline); border-radius:10px; padding:9px 14px; font-size:11px; color:var(--gink); line-height:1.45;">Chat opened when the task started.<br>Contacts unmasked for both sides.</div>
+          <sc-for list="{{ chatMsgs }}" as="m" hint-placeholder-count="3">
+            <div style="{{ m.bubble }}">
+              <sc-if value="{{ m.isText }}" hint-placeholder-val="{{ true }}">
+                <span>{{ m.text }}</span>
+              </sc-if>
+              <sc-if value="{{ m.isImage }}" hint-placeholder-val="{{ false }}">
+                <span>▤</span>
+              </sc-if>
+              <sc-if value="{{ m.isVoice }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:13px; color:var(--ink);">▶</span>
+                <span style="width:74px; height:3px; background:var(--line3); border-radius:999px;"></span>
+                <span class="tnum" style="font-size:12px; color:var(--mut);">0:12</span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div style="flex:none; padding:12px 18px 22px; border-top:1px solid var(--line); display:flex; align-items:center; gap:12px; background:var(--bar);">
+          <span style="font-size:20px; color:var(--mut);">+</span>
+          <div onClick="{{ sendChat }}" style="flex:1; background:var(--fill); border-radius:999px; padding:12px 16px; font-size:14px; color:var(--mut); cursor:pointer;" style-active="{{ press }}">{{ chatDraft }}</div>
+          <span onClick="{{ sendChat }}" style="font-size:15px; font-weight:700; color:var(--gtext); cursor:pointer;">Send</span>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ RATINGS & REVIEW ══ -->
+    <sc-if value="{{ isReview }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">✕</span>
+          <div style="text-align:center; margin-top:22px;">
+            <span style="width:68px; height:68px; border-radius:999px; background:var(--thumb); color:var(--chev); display:inline-flex; align-items:center; justify-content:center; font-size:24px;">☺</span>
+            <div style="font-size:23px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; margin-top:14px;">How did {{ reviewWho }} do?</div>
+            <div style="font-size:14px; color:var(--mut); margin-top:8px;">{{ reviewTask }}</div>
+            <div style="display:flex; justify-content:center; gap:12px; margin-top:22px;">
+              <sc-for list="{{ starRow }}" as="s" hint-placeholder-count="5">
+                <span onClick="{{ s.pick }}" style="font-size:33px; color:{{ s.c }}; cursor:pointer; transition:transform 0.2s cubic-bezier(0.2,0.9,0.3,1.3), color 0.2s ease; transform:{{ s.scale }};">★</span>
+              </sc-for>
+            </div>
+            <div style="font-size:14px; font-weight:700; color:var(--gtext); margin-top:11px;">{{ reviewWord }}</div>
+          </div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:26px;">WHAT WENT WELL</div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:11px;">
+            <sc-for list="{{ praiseChips }}" as="p" hint-placeholder-count="5">
+              <span onClick="{{ p.pick }}" style="font-size:13px; font-weight:600; color:{{ p.ink }}; background:{{ p.bg }}; border:1px solid {{ p.line }}; border-radius:999px; padding:9px 15px; cursor:pointer; transition:all 0.2s ease;" style-active="{{ press }}">{{ p.label }}</span>
+            </sc-for>
+          </div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:22px;">WRITE A REVIEW · OPTIONAL</div>
+          <div style="background:var(--card); border:1px solid var(--line2); border-radius:12px; padding:14px; margin-top:11px; font-size:14px; color:var(--dim); line-height:1.5; min-height:88px;">Sourced exactly what I described and delivered a day early…</div>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ submitReview }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">Submit review</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ PROMOTE ══ -->
+    <sc-if value="{{ isPromote }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+            <span style="font-size:17px; font-weight:700; color:var(--ink);">{{ promoTitle }}</span>
+          </div>
+          <div style="margin-top:14px; background:var(--card); border:1px solid var(--line2); border-radius:14px; padding:13px; display:flex; gap:12px; align-items:center;">
+            <span style="width:42px; height:42px; border-radius:11px; background:var(--thumb); color:var(--chev); display:flex; align-items:center; justify-content:center; font-size:16px; flex:none;">▤</span>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:15px; font-weight:700; color:var(--ink);">{{ promoSubject }}</div>
+              <div class="tnum" style="font-size:12px; color:var(--mut); margin-top:3px;">{{ promoSubjectMeta }}</div>
+            </div>
+          </div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:18px;">DAILY BUDGET</div>
+          <div style="display:flex; align-items:baseline; gap:8px; margin-top:9px; padding-bottom:10px; border-bottom:1px solid var(--g);">
+            <span class="tnum" style="font-size:29px; font-weight:800; color:var(--ink);">₹{{ promoBudget }}</span>
+            <span class="tnum" style="font-size:12px; color:var(--mut); margin-left:auto;">₹{{ promoTotal }} over {{ promoDays }}</span>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:11px;">
+            <sc-for list="{{ budgetChips }}" as="b" hint-placeholder-count="3">
+              <span onClick="{{ b.pick }}" class="tnum" style="flex:1; text-align:center; font-size:13px; font-weight:600; color:{{ b.ink }}; background:{{ b.bg }}; border:1px solid {{ b.line }}; border-radius:10px; padding:10px 0; cursor:pointer; transition:all 0.2s ease;" style-active="{{ press }}">{{ b.label }}</span>
+            </sc-for>
+          </div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:18px;">RUN FOR</div>
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <sc-for list="{{ durationChips }}" as="d" hint-placeholder-count="3">
+              <span onClick="{{ d.pick }}" style="flex:1; text-align:center; font-size:13px; font-weight:600; color:{{ d.ink }}; background:{{ d.bg }}; border:1px solid {{ d.line }}; border-radius:10px; padding:10px 0; cursor:pointer; transition:all 0.2s ease;" style-active="{{ press }}">{{ d.label }}</span>
+            </sc-for>
+          </div>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:20px;">
+            <div>
+              <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim);">SHOW IT TO · OPTIONAL</div>
+              <div style="font-size:12px; color:var(--mut); margin-top:4px;">{{ audienceNote }}</div>
+            </div>
+            <span onClick="{{ toggleAudience }}" style="{{ audienceTrack }}"><span style="{{ audienceKnob }}"></span></span>
+          </div>
+          <sc-if value="{{ audienceOn }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:14px; animation:tdIn 0.28s ease-out both;">
+              <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:11px; border-bottom:1px solid var(--line);">
+                <span style="font-size:15px; color:var(--ink);">{{ audienceWho }}</span>
+                <span style="font-size:13px; font-weight:600; color:var(--gtext);">Change</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:11px 0; border-bottom:1px solid var(--line);">
+                <span style="font-size:15px; color:var(--ink);">{{ audienceNiche }}</span>
+                <span style="font-size:13px; font-weight:600; color:var(--gtext);">Change</span>
+              </div>
+            </div>
+          </sc-if>
+          <div style="margin-top:16px; background:var(--gwash); border:1px solid var(--gline); border-radius:12px; padding:13px 16px;">
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--gink);">ESTIMATED REACH</div>
+            <div class="tnum" style="font-size:22px; font-weight:800; color:var(--ink); margin-top:4px;">{{ reachText }}</div>
+            <div style="font-size:12px; color:var(--gink); margin-top:3px;">{{ reachWho }}</div>
+          </div>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ startCampaign }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">Start campaign · ₹{{ promoTotal }}</div>
+          <div style="text-align:center; font-size:12px; color:var(--dim); margin-top:10px;">Pause or stop any time. You are charged for days run.</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ VERIFIED PRO ══ -->
+    <sc-if value="{{ isPro }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div style="flex:none; background:var(--band); padding:44px 20px 22px;">
+          <span onClick="{{ closeOverlay }}" style="font-size:20px; color:#FFFFFF; cursor:pointer;">←</span>
+          <div style="display:flex; align-items:center; gap:9px; margin-top:16px;">
+            <span style="font-size:10px; letter-spacing:0.16em; font-weight:800; color:var(--onG); background:var(--g); border-radius:5px; padding:4px 8px;">PRO</span>
+            <span style="font-size:11px; letter-spacing:0.14em; color:rgba(255,255,255,0.7);">VERIFIED TASKER</span>
+          </div>
+          <div style="font-size:26px; font-weight:800; color:#FFFFFF; letter-spacing:-0.03em; margin-top:12px; line-height:1.2;">Win more work with<br>a verified badge</div>
+          <div style="font-size:14px; color:rgba(255,255,255,0.75); margin-top:8px; line-height:1.45;">Verified Pros get 2.4× more accepted quotes.</div>
+        </div>
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:18px 20px 0;">
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim);">WHAT YOU GET</div>
+          <sc-for list="{{ proPerks }}" as="p" hint-placeholder-count="4">
+            <div style="display:flex; align-items:flex-start; gap:13px; padding:11px 0; border-bottom:1px solid var(--line);">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="flex:none; margin-top:1px;"><circle cx="12" cy="12" r="10" stroke="var(--g)" stroke-width="1.7"></circle><path d="m8 12.4 2.6 2.6L16 9.6" stroke="var(--g)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <div>
+                <div style="font-size:15px; font-weight:700; color:var(--ink);">{{ p.title }}</div>
+                <div style="font-size:13px; color:var(--mut); margin-top:3px; line-height:1.45;">{{ p.sub }}</div>
+              </div>
+            </div>
+          </sc-for>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:18px;">VERIFICATION STEPS</div>
+          <sc-for list="{{ proSteps }}" as="s" hint-placeholder-count="3">
+            <div style="display:flex; align-items:center; gap:13px; padding:12px 0; border-bottom:1px solid var(--line);">
+              <span style="width:24px; height:24px; border-radius:999px; background:{{ s.bg }}; border:1px solid {{ s.line }}; color:{{ s.numInk }}; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; flex:none;">{{ s.num }}</span>
+              <span style="flex:1; font-size:15px; color:{{ s.ink }};">{{ s.label }}</span>
+              <span style="font-size:12px; font-weight:600; color:{{ s.stateInk }};">{{ s.state }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding:12px 20px 24px;">
+          <div onClick="{{ continuePro }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:15px; font-weight:700; padding:15px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">Continue verification</div>
+          <div class="tnum" style="text-align:center; font-size:12px; color:var(--dim); margin-top:10px;">₹499 one-time · refunded if rejected</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ WITHDRAW ══ -->
+    <sc-if value="{{ isWithdraw }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:6; background:var(--pg); display:flex; flex-direction:column; animation:tdFade 0.26s ease-out both;">
+        <div class="noscroll" style="flex:1; min-height:0; overflow-y:auto; padding:44px 20px 0;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <span onClick="{{ closeOverlay }}" style="font-size:20px; color:var(--ink); cursor:pointer;">←</span>
+            <span style="font-size:17px; font-weight:700; color:var(--ink);">Withdraw</span>
+          </div>
+          <div style="font-size:13px; color:var(--mut); margin-top:24px;">Amount</div>
+          <div class="tnum" style="font-size:44px; font-weight:800; color:var(--ink); letter-spacing:-0.04em; line-height:1.05; margin-top:4px;">₹{{ balance }}</div>
+          <div style="font-size:12px; color:var(--dim); margin-top:8px;">Full available balance. Arrives in 1 working day.</div>
+          <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim); margin-top:24px;">TO</div>
+          <div style="display:flex; align-items:center; gap:13px; margin-top:11px; background:var(--card); border:1px solid var(--line2); border-radius:12px; padding:14px;">
+            <span style="width:38px; height:38px; border-radius:10px; background:var(--gwash); color:var(--gtext); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800;">UPI</span>
+            <div style="flex:1;">
+              <div style="font-size:15px; font-weight:700; color:var(--ink);">raju@okhdfcbank</div>
+              <div style="font-size:12px; color:var(--mut); margin-top:2px;">Default payout method</div>
+            </div>
+            <span style="font-size:13px; font-weight:600; color:var(--gtext);">Change</span>
+          </div>
+          <div style="margin-top:18px;">
+            <sc-for list="{{ withdrawRows }}" as="w" hint-placeholder-count="3">
+              <div style="display:flex; justify-content:space-between; padding:13px 0; border-bottom:1px solid var(--line);">
+                <span style="font-size:14px; color:{{ w.ink }};">{{ w.label }}</span>
+                <span class="tnum" style="font-size:14px; font-weight:{{ w.weight }}; color:var(--ink);">{{ w.value }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="padding:14px 20px 24px;">
+          <div onClick="{{ doWithdraw }}" style="background:var(--g); color:var(--onG); text-align:center; font-size:16px; font-weight:700; padding:16px; border-radius:999px; box-shadow:0 8px 22px var(--gshadow); cursor:pointer;" style-active="{{ press }}">Withdraw ₹{{ balance }}</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ SUCCESS BURST ══ -->
+    <sc-if value="{{ burst }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; z-index:9; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.32); animation:tdFade 0.2s ease-out both; pointer-events:none;">
+        <div style="position:relative; width:118px; height:118px; display:flex; align-items:center; justify-content:center;">
+          <span style="position:absolute; inset:0; border-radius:999px; border:2px solid var(--g); animation:tdRing 0.9s ease-out both;"></span>
+          <div style="width:82px; height:82px; border-radius:999px; background:var(--g); display:flex; align-items:center; justify-content:center; animation:tdPop 0.42s cubic-bezier(0.2,0.9,0.3,1.2) both; box-shadow:0 10px 30px var(--gshadow);">
+            <svg width="38" height="38" viewBox="0 0 24 24" fill="none"><path d="m6 12.4 3.6 3.6L18 7.6" stroke="var(--onG)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:60; animation:tdDraw 0.45s ease-out 0.16s both;"></path></svg>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ CREATE FAB ══ -->
+    <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+      <div onClick="{{ goCreate }}" style="position:absolute; right:18px; bottom:96px; z-index:4; display:flex; align-items:center; gap:9px; background:var(--g); color:var(--onG); border-radius:999px; padding:14px 18px; font-size:14px; font-weight:700; box-shadow:0 10px 26px var(--gshadow); cursor:pointer; transition:transform 0.18s ease; animation:tdUp 0.34s cubic-bezier(0.2,0.8,0.25,1) both;" style-active="{{ press }}">
+        <span style="font-size:17px; line-height:1;">＋</span><span>{{ createLabel }}</span>
+      </div>
+    </sc-if>
+
+    <!-- ══ TOAST ══ -->
+    <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; left:16px; right:16px; bottom:96px; z-index:8; background:var(--toast); color:var(--toastInk); border-radius:14px; padding:14px 16px; font-size:14px; font-weight:600; box-shadow:0 12px 30px rgba(0,0,0,0.28); animation:tdUp 0.3s cubic-bezier(0.2,0.8,0.25,1) both;">{{ toast }}</div>
+    </sc-if>
+
+    <!-- ══ BOTTOM NAV ══ -->
+    <div style="flex:none; display:flex; align-items:center; justify-content:space-around; padding:12px 14px 20px; border-top:1px solid var(--line); background:var(--bar); transition:background 0.3s ease;">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+        <div onClick="{{ n.pick }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; padding:4px 0;" style-active="{{ press }}">
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" style="transition:transform 0.24s cubic-bezier(0.2,0.8,0.3,1); transform:{{ n.scale }};"><path d="{{ n.d }}" stroke="{{ n.c }}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="transition:stroke 0.24s ease;"></path></svg>
+          <span style="font-size:9px; font-weight:600; color:{{ n.c }}; transition:color 0.24s ease;">{{ n.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+
+  </div>
+ </div>
+</div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:900},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Start state&quot;},&quot;mode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;worker&quot;,&quot;poster&quot;],&quot;default&quot;:&quot;worker&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Start state&quot;}}">
+class Component extends DCLogic {
+  state = {
+    theme: 'system', mode: 'worker', tab: 'home', filter: 0, orderTab: 0, radiusOn: true, budgetOn: false, fit: 1, sysDark: false, openTask: null,
+    loading: false, sheet: null, quote: 0, swipe: 0, dragging: false,
+    startMap: { 'Assemble a wardrobe': true, 'Photograph a flat before I rent it': true },
+    startedAt: { 'Assemble a wardrobe': Date.now() - 9678000, 'Photograph a flat before I rent it': Date.now() - 5400000 },
+    tick: 0, burst: false, toast: null,
+    otp: '', skills: [0, 1, 4], welcomeMode: 'poster', setupMode: 'worker', detailRow: null,
+    pillar: 0, draftPrice: 1200, lockTarget: null, sheetBy: null, draftFlag: 0, draftMediaSel: 1, sortLow: true,
+    bidPick: 'Tasker 4172', myQuotePick: 0, payPick: 0, promoB: 1, promoD: 1, audienceOn: false, promoteOn: false,
+    stars: 5, praise: [0, 1, 3], chatN: 0, reviewed: false, posted: [], from: null,
+    doneMap: { 'Photograph a flat before I rent it': 1 },
+    balance: 8200, escrow: 4635, clearing: 3600, myBids: [], clock: '1:47'
+  };
+
+  fitNow() {
+    const h = window.innerHeight || 844;
+    this.setState({ fit: Math.max(0.4, Math.min(1, (h - 40) / 844)) });
+  }
+
+  componentDidMount() {
+
+    this._mq = window.matchMedia('(prefers-color-scheme: dark)');
+    this._onMq = e => this.setState({ sysDark: e.matches });
+    this._mq.addEventListener('change', this._onMq);
+    this._onRz = () => this.fitNow();
+    window.addEventListener('resize', this._onRz);
+    this.setState({ sysDark: this._mq.matches });
+    this.fitNow();
+  }
+  componentWillUnmount() {
+clearTimeout(this._pending); clearTimeout(this._b); clearTimeout(this._to); clearTimeout(this._ld);
+    window.removeEventListener('resize', this._onRz);
+    if (this._mq && this._onMq) this._mq.removeEventListener('change', this._onMq);
+  }
+
+  flash(msg) { clearTimeout(this._to); this.setState({ toast: msg }); this._to = setTimeout(() => this.setState({ toast: null }), 2200); }
+  celebrate(msg) { clearTimeout(this._b); this.setState({ burst: true }); this._b = setTimeout(() => { this.setState({ burst: false }); if (msg) this.flash(msg); }, 900); }
+
+  go(tab) {
+    if (tab === this.state.tab) return;
+    this.setState({ tab, loading: tab === 'home', sheet: null, from: null });
+    if (tab === 'home') { clearTimeout(this._ld); this._ld = setTimeout(() => this.setState({ loading: false }), 620); }
+  }
+
+  setMode(mode) {
+    if (mode === this.state.mode) return;
+    this.setState({ mode, loading: true, filter: 0, sheet: null, openTask: null, orderTab: 0 });
+    clearTimeout(this._ld);
+    this._ld = setTimeout(() => this.setState({ loading: false }), 560);
+  }
+
+  roll(key, to) {
+    const from = this.state[key];
+    if (from === to) return;
+    const t0 = performance.now(), dur = 750;
+    const step = now => {
+      const p = Math.min(1, (now - t0) / dur);
+      const e = 1 - Math.pow(1 - p, 3);
+      this.setState({ [key]: Math.round(from + (to - from) * e) });
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  swipeAt(e) {
+    const r = e.currentTarget.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (e.clientX - r.left - 31) / (r.width - 62)));
+  }
+
+  renderVals() {
+    const S = this.state;
+    const dark = S.theme === 'dark' || (S.theme === 'system' && S.sysDark);
+    const T = dark
+      ? { pg:'#0E0E0E', bar:'#121212', card:'#151515', fill:'#1A1A1A', thumb:'#1F1F1F', line:'#1C1C1C', line2:'#1F1F1F', line3:'#2C2C2C', ink:'#FFFFFF', sub:'#B4B4B4', mut:'#8A8A8A', dim:'#858585', chev:'#8A8A8A', g:'#0C9E6C', gtext:'#12B77E', onG:'#04150E', gwash:'#12261D', gline:'#1C3B2C', gink:'#9FD9BF', gshadow:'rgba(12,158,108,0.34)', awash:'#1F1509', aline:'#3A2A12', amber:'#E0A85A', blue:'#4A90D9', violet:'#7F77DD', coral:'#E0724A', band:'#062B1E', canvas:'#050505', toast:'#F1F1F1', toastInk:'#16171A' }
+      : { pg:'#FFFFFF', bar:'#F7F7F7', card:'#FFFFFF', fill:'#F1F1F1', thumb:'#EDEDED', line:'#E8E8E8', line2:'#E4E4E4', line3:'#D6D6D6', ink:'#16171A', sub:'#4A4A4A', mut:'#5C5C5C', dim:'#6F6F6F', chev:'#9A9A9A', g:'#0C9E6C', gtext:'#0A7A54', onG:'#FFFFFF', gwash:'#EEF8F3', gline:'#C6E7D9', gink:'#0A6E4C', gshadow:'rgba(12,158,108,0.26)', awash:'#FDF4E3', aline:'#F0DEBB', amber:'#8A5A12', blue:'#2A6BAE', violet:'#5B52C4', coral:'#B4512C', band:'#0B3D2C', canvas:'#DEDEDE', toast:'#16171A', toastInk:'#FFFFFF' };
+
+    const vars = {}; Object.keys(T).forEach(k => vars['--' + k] = T[k]);
+    const worker = S.mode === 'worker';
+    const dOf = t => (S.doneMap && S.doneMap[t]) || 0;
+    const sOf = t => !!(S.startMap && S.startMap[t]);
+    const curTitle = (S.openTask && S.openTask.title) || (worker ? 'Vintage 35mm film camera' : 'Assemble a wardrobe');
+    const curDone = dOf(curTitle);
+    const press = { transform: 'scale(0.96)', opacity: 0.9 };
+    const cardPress = { transform: 'scale(0.985)' };
+
+    const ICON = {
+      home: 'M4 10.6 12 4l8 6.6V20h-5v-6H9v6H4v-9.4Z',
+      clip: 'M9 3.6h6v2.8H9zM6.4 5h11.2v15.4H6.4zM9.6 11h5M9.6 15h5',
+      wallet: 'M3.5 7.5h17v11h-17zM3.5 10.5h17M16 14h2',
+      user: 'M12 3.2a8.8 8.8 0 1 0 0 17.6 8.8 8.8 0 0 0 0-17.6ZM12 11.6a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6.3 18.8a6 6 0 0 1 11.4 0',
+      search: 'M11 4.2a6.8 6.8 0 1 0 0 13.6 6.8 6.8 0 0 0 0-13.6ZM16.2 16.2 20.5 20.5'
+    };
+    const nav = [
+      { k: 'home', label: 'Home', d: ICON.home },
+      { k: 'search', label: 'Search', d: ICON.search },
+      { k: 'orders', label: worker ? 'Bids' : 'Requests', d: ICON.clip },
+      { k: 'wallet', label: 'Wallet', d: ICON.wallet },
+      { k: 'profile', label: 'Profile', d: ICON.user }
+    ].map(n => ({
+      ...n, c: S.tab === n.k ? T.ink : T.dim,
+      scale: S.tab === n.k ? 'translateY(-2px) scale(1.06)' : 'none',
+      pick: () => this.go(n.k)
+    }));
+
+    const chip = (label, on, pick) => ({ label, pick, ink: on ? T.ink : T.mut, bg: on ? T.gwash : 'transparent', line: on ? T.g : T.line3 });
+    const filterLabels = ['Services', 'Goods & products', 'Local help'];
+    const filters = filterLabels.map((l, i) => chip(l, S.filter === i, () => this.setState({ filter: i })));
+
+    const workerFeed = [
+      { sponsored: true, who: 'Poster 9014', rating: '4.8', whoMeta: '31 requests posted · 3.2 km away', tag: 'PRODUCTS', tagInk: T.violet, title: 'Vintage 35mm film camera', meta: 'Complete by 9 Sep, 6 PM · 12 quotes', price: '₹4,500', hasMedia: true, glyph: '▶', dur: '0:34', by: '9 Sep, 6 PM', amount: 4500, body: 'Working SLR, clean viewfinder, tested shutter. Pentax or Olympus preferred, lens included.' },
+      { sponsored: false, who: 'Poster 6620', rating: '4.8', whoMeta: '14 requests posted · 1.1 km away', tag: 'SERVICES', tagInk: T.gtext, title: 'Fix leaking kitchen tap', meta: 'Complete by today, 8 PM · 4 quotes', price: '₹600', hasMedia: true, glyph: '▤', dur: null, by: 'today, 8 PM', amount: 600, body: 'Mixer tap drips constantly. Washer probably gone. Tools and part needed.' },
+      { sponsored: false, who: 'Poster 4471', rating: '4.6', whoMeta: '7 requests posted · 2.4 km away', tag: 'LOCAL HELP', tagInk: T.blue, title: 'Check the queue at RTO Indiranagar', meta: 'Complete by today, 4 PM · 7 quotes', price: '₹250', hasMedia: false, glyph: '', dur: null, by: 'today, 4 PM', amount: 250, body: 'Walk past and tell me how long the licence renewal line is. Photo helps.' }
+    ];
+    const posterFeed = [
+      { sponsored: true, who: 'Tasker 3315', rating: '4.9', whoMeta: '61 jobs done · 4 km away', tag: 'SERVICES', tagInk: T.gtext, title: 'Bespoke carpentry and joinery', meta: 'Made-to-measure furniture, fittings and repairs', price: '₹1,200', hasMedia: true, glyph: '▤', dur: null, by: null, amount: 1200, body: 'Ten years of joinery. Wardrobes, shelving, alcove units, on-site fitting included.' },
+      { sponsored: false, who: 'Tasker 2098', rating: '4.9', whoMeta: '42 jobs done · 2 km away', tag: 'LOCAL HELP', tagInk: T.blue, title: 'Same-day courier runs', meta: 'Documents and small parcels across the city', price: '₹250', hasMedia: false, glyph: '', dur: null, by: null, amount: 250, body: 'Two-wheeler, insulated bag, live location shared through the run.' },
+      { sponsored: false, who: 'Tasker 4172', rating: '4.7', whoMeta: '18 jobs done · 5 km away', tag: 'SERVICES', tagInk: T.gtext, title: 'Tap and plumbing repairs', meta: 'Leaks, fittings, bathroom fixes', price: '₹400', hasMedia: true, glyph: '▶', dur: '0:22', by: null, amount: 400, body: 'Licensed plumber. Carry spares for common mixer and cistern faults.' }
+    ];
+    const raw = worker ? workerFeed : posterFeed;
+    const feed = raw.map((c, i) => ({
+      ...c, delay: (i * 70) + 'ms',
+      line: c.sponsored ? T.g : T.line2,
+      priceLabel: worker ? 'THEIR QUOTE' : 'THEIR RATE',
+      open: () => this.setState(st => ({ tab: 'taskDetail', from: st.tab, detailRow: c, sheet: null, quote: c.amount })),
+      quoteNow: e => { if (e && e.stopPropagation) e.stopPropagation(); this.setState({ sheet: c.title, quote: c.amount }); },
+      accept: e => {
+        if (e && e.stopPropagation) e.stopPropagation();
+        if (worker) { this.setState({ sheet: null }); return this.celebrate('Quote accepted at ' + c.price); }
+        this.setState({ sheet: c.title, quote: c.amount, sheetBy: null });
+      }
+    }));
+
+    const sheet = S.sheet == null ? null : (raw.filter(r => r.title === S.sheet)[0] || (S.detailRow && S.detailRow.title === S.sheet ? S.detailRow : raw[0]));
+    const delta = sheet ? S.quote - sheet.amount : 0;
+
+    const bidRows = [
+      {
+        bucket: 1,
+        state: dOf('Vintage 35mm film camera') >= 1 ? 'WORK DONE · AWAITING POSTER' : (sOf('Vintage 35mm film camera') ? 'ACTIVE · TIMER RUNNING' : 'ACCEPTED · SWIPE TO START'),
+        dot: sOf('Vintage 35mm film camera') ? T.amber : T.g,
+        stateInk: sOf('Vintage 35mm film camera') ? T.amber : T.gtext,
+        title: 'Vintage 35mm film camera', price: '₹4,200',
+        meta: dOf('Vintage 35mm film camera') >= 1 ? 'Work marked done · poster confirms next' : (sOf('Vintage 35mm film camera') ? 'Task started · timer running' : 'Escrow funded · first to start wins'),
+        act: 'start',
+        escrow: '₹4,335', who: 'you are working',
+        payMeta: '₹4,200 to you · complete by 9 Sep, 5:00 PM'
+      },
+      { bucket: 2, state: 'PENDING', dot: T.blue, stateInk: T.blue, title: 'Fix leaking kitchen tap', price: '₹550', meta: 'Sent 2 hrs ago · 4 quotes total', act: null },
+      { bucket: 0, state: 'QUOTES ON MY SERVICE · 3 NEW', dot: T.violet, stateInk: T.violet, title: 'Bespoke carpentry and joinery', price: '₹1,200', meta: 'Posters sent quotes · lock one to take it', act: 'quotes' },
+      { bucket: 3, state: 'NOT SELECTED', dot: T.chev, stateInk: T.mut, title: 'Airport pickup, 6 AM', price: '₹900', meta: 'Another worker started first', act: null }
+    ];
+    const requestRows = [
+      { state: 'OPEN · 12 QUOTES', dot: T.blue, stateInk: T.blue, title: 'Vintage 35mm film camera', price: '₹4,500', meta: 'Complete by 9 Sep, 6:00 PM · tap to compare', act: 'compare', escrow: '₹4,335', who: 'not started', payMeta: '₹4,500 · complete by 9 Sep, 6:00 PM' },
+      { state: 'ACTIVE · TIMER RUNNING', dot: T.amber, stateInk: T.amber, title: 'Assemble a wardrobe', price: '₹1,200', meta: 'Tasker 8830 started 2 hrs ago', act: 'active', escrow: '₹1,236', who: 'Tasker 8830 working', payMeta: '₹1,200 · complete by 12 Sep, 2:00 PM' },
+      { bucket: 1, state: 'MARKED DONE · CONFIRM TO RELEASE', dot: T.amber, stateInk: T.amber, title: 'Photograph a flat before I rent it', price: '₹450', meta: 'Proof uploaded 1 hr ago · tap to review', act: 'confirm', escrow: '₹463', who: 'Tasker 8830 working', payMeta: '₹450 · complete by 11 Sep, 11:00 AM' },
+      { state: 'DONE · RELEASED', dot: T.g, stateInk: T.gtext, title: 'Fix leaking kitchen tap', price: '₹600', meta: 'Confirmed 3 Sep · tap to review the worker', act: 'review' }
+    ];
+    const allRows = (worker ? bidRows : requestRows).concat(S.myBids.filter(r => r.role === S.mode));
+    const tabNames = worker ? ['Listings', 'Accepted', 'Pending', 'Closed'] : ['Open', 'Active', 'Done'];
+    const bucket = r => {
+      if (typeof r.bucket === 'number') return r.bucket;
+      const s = r.state;
+      if (worker) {
+        if (/LISTING|QUOTES ON MY SERVICE/.test(s)) return 0;
+        if (/ACCEPTED|ACTIVE|WORK DONE/.test(s)) return 1;
+        if (/PENDING/.test(s)) return 2;
+        return 3;
+      }
+      if (/OPEN|PENDING/.test(s)) return 0;
+      if (/ACTIVE/.test(s)) return 1;
+      return 2;
+    };
+    const orderRows = allRows.filter(r => bucket(r) === S.orderTab).map((r, i) => ({
+      ...r, delay: (i * 70) + 'ms',
+      open: () => {
+        if (r.act === 'compare') return this.setState({ tab: 'compare', from: 'orders', bidPick: 'Tasker 4172', openTask: { title: r.title, price: r.price, escrow: r.escrow, who: r.who, payMeta: r.payMeta } });
+        if (r.act === 'quotes') return this.setState({ tab: 'myQuotes', from: 'orders', myQuotePick: 0 });
+        if (r.act === 'confirm') return this.setState({ tab: 'confirm', from: 'orders', openTask: { title: r.title, price: r.price, escrow: r.escrow, who: r.who, payMeta: r.payMeta } });
+        if (r.act === 'review') return this.setState({ tab: 'review', from: 'orders', stars: 5, openTask: { title: r.title, price: r.price, escrow: r.price, who: 'done', payMeta: r.price } });
+        const task = { title: r.title, price: r.price, escrow: r.escrow, who: r.who, payMeta: r.payMeta };
+        if (r.act === 'start') {
+          if (sOf(r.title)) this.setState({ tab: 'active', openTask: task });
+          else this.setState({ tab: 'swipe', swipe: 0, openTask: task });
+        } else if (r.act === 'active') this.setState({ tab: 'active', openTask: task });
+        else this.flash(r.title + ' · ' + r.price);
+      }
+    }));
+
+    const orderTabs = tabNames.map((label, i) => ({
+      label, weight: S.orderTab === i ? 700 : 600,
+      ink: S.orderTab === i ? T.ink : T.mut,
+      pick: () => this.setState({ orderTab: i })
+    }));
+
+    const startedStamp = (S.startedAt || {})[curTitle];
+    const liveElapsed = startedStamp ? Math.max(0, Math.floor((Date.now() - startedStamp) / 1000)) : 0;
+    const hh = Math.floor(liveElapsed / 3600), mm = Math.floor((liveElapsed % 3600) / 60), ss = liveElapsed % 60;
+    const pad = n => String(n).padStart(2, '0');
+    const frac = Math.min(1, liveElapsed / 14400);
+
+    const stepDefs = [
+      { label: 'Quote accepted', when: '5 Sep', at: 0 },
+      { label: 'Escrow funded', when: '5 Sep', at: 0 },
+      { label: 'Task started · contacts revealed', when: '11:07 AM', at: 1 },
+      { label: 'Work marked done by worker', when: curDone >= 1 ? 'Just now' : 'Pending', at: 2 },
+      { label: 'Poster confirms · escrow released', when: curDone >= 2 ? 'Just now' : 'Pending', at: 3 }
+    ];
+    const reached = curDone >= 2 ? 3 : (curDone >= 1 ? 2 : 1);
+    const steps = stepDefs.map(s => ({
+      ...s, dot: s.at <= reached ? T.g : T.line3,
+      ink: s.at <= reached ? T.mut : T.dim
+    }));
+
+    const doneReady = worker ? curDone === 0 : curDone === 1;
+    const doneDone = worker ? curDone >= 1 : curDone >= 2;
+
+    const fmt = n => n.toLocaleString('en-IN');
+
+    const fallbackTask = worker
+      ? { title: 'Vintage 35mm film camera', price: '₹4,200', escrow: '₹4,326', who: 'you are working', payMeta: '₹4,200 to you · complete by 9 Sep, 5:00 PM' }
+      : { title: 'Assemble a wardrobe', price: '₹1,200', escrow: '₹1,236', who: 'Tasker 8830 working', payMeta: '₹1,200 · complete by 12 Sep, 2:00 PM' };
+    const task = S.openTask && S.openTask.title ? S.openTask : fallbackTask;
+    const taskNum = parseInt(String(task.price).replace(/[^0-9]/g, ''), 10) || 0;
+    // TaskDrop takes a flat 20% worker commission on every completed order.
+    const releaseNum = Math.round(taskNum * 0.80);
+    const escrowNum = parseInt(String(task.escrow).replace(/[^0-9]/g, ''), 10) || 0;
+
+    const fallbackDetail = worker
+      ? { who: 'Poster 9014', rating: '4.8', whoMeta: '31 requests posted · 3.2 km away', tag: 'PRODUCTS', tagInk: T.violet, title: 'Vintage 35mm film camera', body: 'Working SLR, clean viewfinder, tested shutter. Pentax or Olympus preferred, lens included.', price: '₹4,500', by: '9 Sep, 6 PM', hasMedia: true, glyph: '▶', amount: 4500 }
+      : { who: 'Tasker 3315', rating: '4.9', whoMeta: '61 jobs done · 4 km away', tag: 'SERVICES', tagInk: T.gtext, title: 'Bespoke carpentry and joinery', body: 'Ten years of joinery. Wardrobes, shelving, alcove units, on-site fitting included.', price: '₹1,200', by: null, hasMedia: true, glyph: '▤', amount: 1200 };
+    const detail = S.detailRow && S.detailRow.title ? S.detailRow : fallbackDetail;
+
+    const compareData = [
+      { who: 'Tasker 4172', rating: '4.7', pro: false, meta: '18 jobs · 5 km away', price: '₹4,200', eta: 'by 9 Sep, 6 PM' },
+      { who: 'Tasker 2098', rating: '4.9', pro: true, meta: '42 jobs · 2 km away', price: '₹4,500', eta: 'by 9 Sep, 6 PM' },
+      { who: 'Tasker 8830', rating: '4.6', pro: false, meta: '9 jobs · 8 km away', price: '₹5,100', eta: 'by 8 Sep, 7 PM' },
+      { who: 'Tasker 3315', rating: '4.9', pro: true, meta: '61 jobs · 4 km away', price: '₹5,400', eta: 'by 10 Sep, 12 PM' }
+    ];
+    const priceOf = r => parseInt(String(r.price).replace(/[^0-9]/g, ''), 10) || 0;
+    const compareSorted = compareData.slice().sort((a, b) => S.sortLow ? priceOf(a) - priceOf(b) : parseFloat(b.rating) - parseFloat(a.rating));
+    const pickRow = S.lockTarget || compareSorted.filter(r => r.who === S.bidPick)[0] || compareSorted[0];
+    const pickNum = priceOf(pickRow);
+
+    const myQuoteData = [
+      { who: 'Poster 6620', rating: '4.8', meta: '14 requests posted · 1.1 km away', price: '₹1,400', task: 'Build a fitted alcove shelf, three tiers' },
+      { who: 'Poster 9014', rating: '4.8', meta: '31 requests posted · 3.2 km away', price: '₹1,150', task: 'Repair two wardrobe doors and realign hinges' },
+      { who: 'Poster 4471', rating: '4.6', meta: '7 requests posted · 2.4 km away', price: '₹980', task: 'Cut and fit a desk top to a bay window' }
+    ];
+
+    const draftCopy = (worker
+      ? [
+          { title: 'Bespoke carpentry and joinery', details: 'Made-to-measure furniture, fittings and repairs. Ten years on the tools, own transport.' },
+          { title: 'Vintage camera sourcing', details: 'I track down film bodies and lenses, test every shutter before handover.' },
+          { title: 'On-the-ground checks', details: 'Queue checks, price scouting, site visits anywhere in central Bengaluru.' }
+        ]
+      : [
+          { title: 'Assemble a wardrobe', details: 'Flat-pack unit, two doors, all parts and screws present. Tools needed.' },
+          { title: 'Vintage 35mm film camera', details: 'Working SLR, clean viewfinder, tested shutter. Pentax or Olympus preferred, lens included.' },
+          { title: 'Check the queue at RTO Indiranagar', details: 'Walk past and tell me how long the licence renewal line is. A photo helps.' }
+        ]
+    )[S.pillar];
+
+    const promoBudgets = worker ? [50, 80, 150] : [80, 150, 300];
+    const promoDurations = [{ label: '1 day', days: 1 }, { label: '3 days', days: 3 }, { label: '7 days', days: 7 }];
+    const reachBase = worker ? [900, 1600] : [1800, 3400];
+    const reachScale = S.audienceOn ? 0.55 : 1;
+    const reach = reachBase.map(n => Math.round(n * reachScale * (promoBudgets[S.promoB] / promoBudgets[1])).toLocaleString('en-IN'));
+
+    if (S.tab === 'active' && !this._pending) {
+      this._pending = setTimeout(() => { this._pending = null; this.setState({ tick: Date.now() }); }, 1000);
+    }
+
+    const liveFit = Math.max(0.4, Math.min(1, ((typeof window !== 'undefined' ? window.innerHeight : 844) - 40) / 844));
+
+    return {
+      rootVars: vars, press, cardPress,
+      clock: S.clock,
+      isHome: S.tab === 'home',
+      isSearch: S.tab === 'search',
+      frameWrap: { width: Math.round(390 * liveFit) + 'px', height: Math.round(844 * liveFit) + 'px', position: 'relative' },
+      frameScale: {
+        transform: 'scale(' + liveFit + ')', transformOrigin: 'top left',
+        position: 'absolute', top: 0, left: 0,
+        width: '390px', height: '844px', borderRadius: '30px', overflow: 'hidden',
+        background: T.pg, display: 'flex', flexDirection: 'column',
+        boxShadow: '0 26px 70px rgba(0,0,0,0.22)', transition: 'background 0.3s ease'
+      },
+      radiusOn: S.radiusOn,
+      budgetOn: S.budgetOn,
+      toggleRadius: () => this.setState(s => ({ radiusOn: !s.radiusOn })),
+      toggleBudget: () => this.setState(s => ({ budgetOn: !s.budgetOn })),
+      radiusSwitch: {
+        width: '42px', height: '24px', borderRadius: '999px', padding: '3px', flex: 'none',
+        background: S.radiusOn ? T.g : T.line3, display: 'flex',
+        justifyContent: S.radiusOn ? 'flex-end' : 'flex-start',
+        transition: 'background 0.24s ease, justify-content 0.24s ease', cursor: 'pointer'
+      },
+      budgetSwitch: {
+        width: '42px', height: '24px', borderRadius: '999px', padding: '3px', flex: 'none',
+        background: S.budgetOn ? T.g : T.line3, display: 'flex',
+        justifyContent: S.budgetOn ? 'flex-end' : 'flex-start',
+        transition: 'background 0.24s ease, justify-content 0.24s ease', cursor: 'pointer'
+      },
+      knobStyle: { width: '18px', height: '18px', borderRadius: '999px', background: '#FFFFFF', boxShadow: '0 1px 4px rgba(0,0,0,0.25)' },
+      savedSearches: [
+        { title: 'Camera gear under ₹6k', meta: 'Products · 12 km · 4 new' },
+        { title: 'Weekend moving jobs', meta: 'Services · 8 km · 2 new' },
+        { title: 'Local intel, Indiranagar', meta: 'Local Intel · 3 km · no new' }
+      ].map((s, i) => ({ ...s, delay: (i * 70) + 'ms', run: () => { this.go('home'); this.flash('Running “' + s.title + '”'); } })),
+      applyFilters: () => { this.go('home'); this.flash('34 tasks · Indiranagar' + (S.radiusOn ? ' · 12 km' : '')); },
+      isOrders: S.tab === 'orders',
+      isWallet: S.tab === 'wallet',
+      isProfile: S.tab === 'profile',
+      nav,
+
+      modeLabel: worker ? 'Worker' : 'Poster',
+      searchHint: worker ? 'Find a task or a service' : 'Find a worker or a service',
+      feedTitle: worker ? 'Tasks near you' : 'Workers near you',
+      filters,
+      loading: S.loading,
+      loaded: !S.loading,
+      feed,
+      skeletons: [0, 1, 2].map(i => {
+        const shim = {
+          background: 'linear-gradient(90deg,' + T.thumb + ' 0px,' + T.line + ' 60px,' + T.thumb + ' 120px)',
+          backgroundSize: '260px 100%',
+          animation: 'tdShim 1.15s linear infinite',
+          animationDelay: (i * 120) + 'ms',
+          borderRadius: '6px'
+        };
+        return { bar1: { ...shim, height: '13px', width: '52%' }, bar2: { ...shim, height: '17px', width: '84%', marginTop: '13px' }, bar3: { ...shim, height: '13px', width: '38%', marginTop: '13px' } };
+      }),
+      urgentTitle: worker ? 'Urgent requests' : 'Free right now',
+      urgentFeed: (worker
+        ? [{ who: 'Poster 2287', rating: '4.9', flag: 'CLOSES IN 3 HRS', title: 'Airport pickup, 6 AM', price: '₹900', amount: 900, whoMeta: '9 requests posted · 6.2 km away', tag: 'SERVICES', tagInk: T.gtext, body: 'Early pickup from Kempegowda, one large suitcase. Cash or UPI on arrival.', by: 'today, 6 AM', hasMedia: false }]
+        : [{ who: 'Tasker 5510', rating: '4.8', flag: 'FREE TODAY', title: 'Two-person moving crew', price: '₹1,800', amount: 1800, whoMeta: '27 jobs done · 3.4 km away', tag: 'SERVICES', tagInk: T.gtext, body: 'Van, straps and blankets included. Available from 2 PM today.', by: null, hasMedia: false }]
+      ).map((u, i) => ({
+        ...u, delay: (i * 70) + 'ms',
+        open: () => this.setState(st => ({ tab: 'taskDetail', from: st.tab, detailRow: u, sheet: null, quote: u.amount }))
+      })),
+
+      goProfile: () => this.go('profile'),
+      goHome: () => this.go('home'),
+
+      ordersTitle: worker ? 'My bids' : 'My requests',
+      orderTabs, orderRows,
+      ordersEmpty: orderRows.length === 0,
+      emptyLine: worker ? 'Quotes you send show up here.' : 'Requests you post show up here.',
+      underline: {
+        position: 'absolute', bottom: 0, height: '2px', background: T.ink,
+        width: 'calc((100% - 40px) / ' + tabNames.length + ')',
+        left: 'calc(20px + (100% - 40px) / ' + tabNames.length + ' * ' + S.orderTab + ')',
+        transition: 'left 0.3s cubic-bezier(0.2,0.8,0.25,1)'
+      },
+
+      walletLabel: worker ? 'Available to withdraw' : 'Wallet balance',
+      balance: fmt(S.balance),
+      escrow: fmt(S.escrow),
+      clearingFmt: fmt(S.clearing),
+      // Segmented bar is derived from the live balances, so it always sums to 100%.
+      barAvail: { width: (S.balance / (S.balance + S.escrow + S.clearing) * 100).toFixed(1) + '%', background: T.g, transition: 'width 0.7s cubic-bezier(0.3,0.8,0.3,1)' },
+      barEscrow: { width: (S.escrow / (S.balance + S.escrow + S.clearing) * 100).toFixed(1) + '%', background: T.amber, transition: 'width 0.7s cubic-bezier(0.3,0.8,0.3,1)' },
+      barClearing: { width: (S.clearing / (S.balance + S.escrow + S.clearing) * 100).toFixed(1) + '%', background: T.blue, transition: 'width 0.7s cubic-bezier(0.3,0.8,0.3,1)' },
+      ledger: [
+        { title: 'Payout received', meta: 'Fix leaking kitchen tap · cleared', amt: '+₹3,600', dot: T.g, ink: T.gtext },
+        { title: 'Held in escrow', meta: 'Vintage film camera · task started', amt: '₹4,635', dot: T.amber, ink: T.ink },
+        { title: 'Clearing', meta: 'Assemble a wardrobe · 3 days left', amt: '₹3,600', dot: T.blue, ink: T.ink }
+      ].map((l, i) => ({ ...l, delay: (i * 70) + 'ms' })),
+
+      roleRating: worker ? '★ 4.9 worker · 18 jobs done' : '★ 4.8 poster · 31 requests',
+      modes: [
+        { label: 'Post a Request', ink: worker ? T.mut : T.ink, pick: () => this.setMode('poster') },
+        { label: 'Find Work', ink: worker ? T.ink : T.mut, pick: () => this.setMode('worker') }
+      ],
+      modeSlider: {
+        position: 'absolute', top: '4px', bottom: '4px', width: 'calc(50% - 4px)',
+        left: worker ? 'calc(50%)' : '4px',
+        background: T.pg, borderRadius: '9px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+        transition: 'left 0.32s cubic-bezier(0.2,0.8,0.25,1)'
+      },
+      modeNote: worker ? 'You browse tasks and send quotes.' : 'You post requests and pick a worker.',
+      themes: [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(pair => {
+        const on = S.theme === pair[0];
+        return { label: pair[1], ink: on ? T.ink : T.mut, bg: on ? T.gwash : 'transparent', line: on ? T.g : T.line3,
+          pick: () => this.setState({ theme: pair[0] }) };
+      }),
+      themeNote: S.theme === 'system' ? ('Following your device · currently ' + (dark ? 'dark' : 'light')) : 'Set by you',
+      reviewsLabel: worker ? 'WORKER REVIEWS' : 'POSTER REVIEWS',
+      reviews: (worker
+        ? [{ who: 'Poster 9014', stars: '5.0', when: '3 Sep', text: 'Sourced exactly what I described and delivered a day early.' },
+           { who: 'Poster 6620', stars: '4.8', when: '28 Aug', text: 'Clean work, tidy afterwards, fair on the price.' }]
+        : [{ who: 'Tasker 3315', stars: '5.0', when: '4 Sep', text: 'Clear brief, paid into escrow straight away, confirmed fast.' },
+           { who: 'Tasker 2098', stars: '4.7', when: '30 Aug', text: 'Reasonable on timings and easy to reach once started.' }]
+      ).map((r, i) => ({ ...r, delay: (i * 80) + 'ms' })),
+
+      sheetOpen: !!sheet,
+      sheetWho: sheet && sheet.who,
+      sheetRating: sheet && sheet.rating,
+      sheetWhoMeta: sheet && sheet.whoMeta,
+      sheetTitle: sheet && sheet.title,
+      sheetBody: sheet && sheet.body,
+      sheetPrice: sheet && sheet.price,
+      sheetPriceLabel: worker ? 'THEIR QUOTE' : 'THEIR RATE',
+      sheetBy: sheet && sheet.by,
+      workerSheet: worker,
+      sheetNeedsBy: !worker,
+      sheetByText: S.sheetBy || 'Pick a date and time',
+      sheetByInk: S.sheetBy ? T.ink : T.coral,
+      byChips: ['Today, 8:00 PM', 'Tomorrow, 11:00 AM', '12 Sep, 2:00 PM'].map(label => ({
+        label,
+        ink: S.sheetBy === label ? T.ink : T.mut,
+        bg: S.sheetBy === label ? T.gwash : 'transparent',
+        line: S.sheetBy === label ? T.g : T.line3,
+        pick: () => this.setState({ sheetBy: label })
+      })),
+      sheetBlocked: !worker && !S.sheetBy,
+      sheetCtaStyle: {
+        background: (!worker && !S.sheetBy) ? T.fill : T.g,
+        color: (!worker && !S.sheetBy) ? T.mut : T.onG,
+        textAlign: 'center', fontSize: '16px', fontWeight: 700, padding: '16px',
+        borderRadius: '999px', cursor: 'pointer',
+        boxShadow: (!worker && !S.sheetBy) ? 'none' : '0 8px 22px ' + T.gshadow,
+        transition: 'background 0.25s ease, color 0.25s ease'
+      },
+      sheetCta: worker
+        ? 'Send quote'
+        : (!S.sheetBy
+            ? 'Set a completion date and time'
+            : ((sheet && S.quote === sheet.amount) ? 'Accept and fund escrow' : 'Send counter and fund escrow')),
+      sheetNote: worker
+        ? 'One quote per task. Contacts stay masked until the task starts.'
+        : 'Your quote goes to this worker. They can lock it and start.',
+      quoteAmount: fmt(S.quote),
+      deltaText: delta === 0 ? 'same as asked' : (delta > 0 ? '+₹' + fmt(delta) + ' above' : '−₹' + fmt(-delta) + ' below'),
+      deltaInk: delta === 0 ? T.dim : (delta > 0 ? T.amber : T.gtext),
+      quoteUp: () => this.setState(s => ({ quote: s.quote + 50 })),
+      quoteDown: () => this.setState(s => ({ quote: Math.max(50, s.quote - 50) })),
+      closeSheet: () => this.setState({ sheet: null }),
+      sendQuote: () => {
+        if (!worker) {
+          if (!S.sheetBy) return this.flash('Set a completion date and time first');
+          const isAccept = S.quote === sheet.amount;
+          return this.setState(st => ({
+            sheet: null, tab: 'escrow', from: 'home',
+            lockTarget: { who: sheet.who, price: '₹' + fmt(S.quote), title: sheet.title, rating: sheet.rating, by: S.sheetBy, kind: isAccept ? 'accept' : 'counter' }
+          }));
+        }
+        const row = { role: S.mode, bucket: 2, state: 'PENDING', dot: T.blue, stateInk: T.blue, title: sheet.title, price: '₹' + fmt(S.quote), meta: 'Sent just now · awaiting reply', act: null };
+        this.setState(s => ({ sheet: null, myBids: s.myBids.concat(row) }));
+        this.celebrate('Quote sent · ₹' + fmt(S.quote));
+      },
+
+      swipeOpen: S.tab === 'swipe',
+      swipeTitle: task.title,
+      swipeMeta: task.payMeta,
+      swipeHint: S.swipe > 0.9 ? 'Release to start' : 'Slide the handle all the way across.',
+      swipeLabelOpacity: 1 - Math.min(1, S.swipe * 1.6),
+      swipeGlyph: S.swipe > 0.9 ? '✓' : '→',
+      swipeFill: {
+        position: 'absolute', left: 0, top: 0, bottom: 0,
+        width: (12 + S.swipe * 88) + '%', background: T.gwash,
+        transition: S.dragging ? 'none' : 'width 0.34s cubic-bezier(0.2,0.8,0.25,1)'
+      },
+      swipeKnob: {
+        width: '50px', height: '50px', borderRadius: '999px', background: T.g,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: T.onG, fontSize: '19px', fontWeight: 800, position: 'relative', zIndex: 1,
+        transform: 'translateX(' + (S.swipe * 272) + 'px)',
+        boxShadow: '0 6px 18px ' + T.gshadow,
+        transition: S.dragging ? 'none' : 'transform 0.34s cubic-bezier(0.2,0.8,0.25,1)'
+      },
+      swipeDown: e => { e.currentTarget.setPointerCapture(e.pointerId); this.setState({ dragging: true, swipe: this.swipeAt(e) }); },
+      swipeMove: e => { if (this.state.dragging) this.setState({ swipe: this.swipeAt(e) }); },
+      swipeUp: e => {
+        const done = this.state.swipe > 0.9;
+        this.setState({ dragging: false, swipe: done ? 1 : 0 });
+        if (done) {
+          const t = (this.state.openTask && this.state.openTask.title) || 'Vintage 35mm film camera';
+          this.setState(st => ({
+            tab: 'active',
+            startMap: Object.assign({}, st.startMap, { [t]: true }),
+            startedAt: Object.assign({}, st.startedAt, { [t]: Date.now() }),
+            doneMap: Object.assign({}, st.doneMap, { [t]: 0 })
+          }));
+          this.celebrate('Task started · contacts revealed');
+        }
+      },
+      closeSwipe: () => this.setState({ tab: 'orders', swipe: 0 }),
+
+      activeOpen: S.tab === 'active',
+      elapsed: pad(hh) + ':' + pad(mm) + ':' + pad(ss),
+      ringOffset: Math.round(553 * (1 - frac)),
+      activeMeta: task.escrow + ' in escrow · ' + task.who,
+      steps,
+      revealedName: worker ? 'Arjun Nair' : 'Meera Rao',
+      revealedPhone: '+91 98••• ••210 · revealed',
+      doneLabel: doneDone
+        ? (worker ? 'Waiting for the poster' : 'Escrow released')
+        : (worker ? 'Mark work done' : (doneReady ? 'Confirm and release ₹' + fmt(releaseNum) : 'Waiting on the worker')),
+      doneNote: worker
+        ? 'The poster confirms next. Escrow releases on their confirmation.'
+        : (curDone >= 2
+            ? 'Funds are on their way to the worker.'
+            : (curDone === 1
+                ? 'The worker marked this done. Confirming releases escrow to them and cannot be undone.'
+                : 'You can confirm once the worker marks the job done.')),
+      doneBtn: {
+        marginTop: '20px', borderRadius: '999px', padding: '16px', textAlign: 'center',
+        fontSize: '16px', fontWeight: 700,
+        background: (doneDone || (!worker && !doneReady)) ? T.fill : T.g,
+        color: (doneDone || (!worker && !doneReady)) ? T.mut : T.onG,
+        boxShadow: (doneDone || (!worker && !doneReady)) ? 'none' : '0 8px 22px ' + T.gshadow,
+        cursor: 'pointer', transition: 'background 0.3s ease, color 0.3s ease'
+      },
+      markDone: () => {
+        if (worker) {
+          if (curDone >= 1) return this.flash('Already marked done');
+          this.setState(st => ({ doneMap: Object.assign({}, st.doneMap, { [curTitle]: 1 }) }));
+          this.celebrate('Work marked done');
+        } else {
+          if (curDone === 0) return this.flash('The worker has not marked it done yet');
+          if (curDone >= 2) return;
+          this.setState(st => ({ doneMap: Object.assign({}, st.doneMap, { [curTitle]: 2 }) }));
+          this.roll('balance', S.balance + releaseNum);
+          this.roll('escrow', Math.max(0, S.escrow - escrowNum));
+          this.celebrate('Escrow released · ₹' + fmt(releaseNum));
+        }
+      },
+      closeActive: () => this.setState({ tab: 'orders' }),
+
+      // ── auth flow ──
+      isSplash: S.tab === 'splash',
+      isWelcome: S.tab === 'welcome',
+      isSignup: S.tab === 'signup',
+      isSetup: S.tab === 'setup',
+      toWelcome: () => this.setState({ tab: 'welcome' }),
+      toSignup: () => this.setState({ tab: 'signup', otp: '' }),
+      toSetup: () => this.setState({ tab: 'setup' }),
+      skipAuth: () => this.setState({ tab: 'signup', otp: '' }),
+      welcomePick: S.welcomeMode === 'poster' ? 'Poster' : 'Worker',
+      welcomeCards: [
+        { key: 'poster', glyph: '✎', title: 'Post a Request', sub: 'I need something done or found' },
+        { key: 'worker', glyph: '⌕', title: 'Find Work', sub: 'I want to quote on tasks near me' }
+      ].map((w, i) => ({
+        ...w, delay: (i * 80) + 'ms',
+        line: S.welcomeMode === w.key ? T.g : T.line2,
+        pick: () => this.setState({ welcomeMode: w.key, setupMode: w.key })
+      })),
+      otpBoxes: [0, 1, 2, 3, 4, 5].map(i => ({
+        v: S.otp[i] || '',
+        line: S.otp[i] ? T.ink : T.line3,
+        tap: () => this.setState(s => ({ otp: (s.otp + String((i % 9) + 1)).slice(0, 6) }))
+      })),
+      fillOtp: () => this.setState({ otp: '482173' }),
+      otpBtnLabel: S.otp.length === 6 ? 'Verify and continue' : 'Enter the 6-digit code',
+      otpBtn: {
+        marginTop: '24px', borderRadius: '12px', padding: '16px', textAlign: 'center',
+        fontSize: '15px', fontWeight: 700, cursor: 'pointer',
+        background: S.otp.length === 6 ? T.g : T.fill,
+        color: S.otp.length === 6 ? T.onG : T.mut,
+        boxShadow: S.otp.length === 6 ? '0 8px 22px ' + T.gshadow : 'none',
+        transition: 'background 0.25s ease, color 0.25s ease'
+      },
+      verifyOtp: () => {
+        if (S.otp.length < 6) return this.flash('Enter all six digits');
+        this.setState({ tab: 'setup' });
+        this.celebrate('Number verified');
+      },
+      setupWorker: S.setupMode === 'worker',
+      skillChips: ['Sourcing', 'Local intel', 'Carpentry', 'Delivery', 'Repairs', 'Photography', 'Research', 'Errands'].map((label, i) => {
+        const on = S.skills.indexOf(i) >= 0;
+        return {
+          label, ink: on ? T.ink : T.mut, bg: on ? T.gwash : 'transparent', line: on ? T.g : T.line3,
+          pick: () => this.setState(s => ({ skills: on ? s.skills.filter(x => x !== i) : (s.skills.length >= 5 ? s.skills : s.skills.concat(i)) }))
+        };
+      }),
+      setupModes: [
+        { key: 'poster', label: 'Post a Request', sub: 'Ask for something' },
+        { key: 'worker', label: 'Find Work', sub: 'Browse and quote' }
+      ].map(m => {
+        const on = S.setupMode === m.key;
+        return { ...m, bg: on ? T.gwash : T.fill, line: on ? T.g : T.line3, ink: on ? T.ink : T.mut, pick: () => this.setState({ setupMode: m.key }) };
+      }),
+      finishSetup: () => {
+        this.setState({ tab: 'home', mode: S.setupMode, loading: true, orderTab: 0 });
+        clearTimeout(this._ld);
+        this._ld = setTimeout(() => this.setState({ loading: false }), 620);
+        this.celebrate('Welcome to TaskDrop');
+      },
+
+      // ── create ──
+      isCreate: S.tab === 'create',
+      isPostDetails: S.tab === 'postDetails',
+      closeOverlay: () => this.setState(s => ({ tab: s.from || 'home', from: null, swipe: 0 })),
+      createTitle: worker ? 'What do you offer?' : 'What do you need?',
+      createSub: worker
+        ? 'Pick a pillar. Posters find your listing through it.'
+        : 'Pick a pillar. It decides who sees your request first.',
+      pillarCards: [
+        { glyph: '⚒', title: 'Services', sub: worker ? 'Hands-on work you can do for others' : 'Repairs, moving, errands, anything hands-on', stat: '412 open · avg ₹1,450' },
+        { glyph: '◈', title: 'Products', sub: worker ? 'Goods you can source or hunt down' : 'Goods to source, hunt down or buy for you', stat: '86 open · avg ₹5,200' },
+        { glyph: '◉', title: 'Local Intel', sub: worker ? 'On-the-ground checks near you' : 'Answers only a local would know', stat: '54 open · avg ₹600' }
+      ].map((p, i) => ({
+        ...p, delay: (i * 70) + 'ms',
+        bg: S.pillar === i ? T.gwash : T.card,
+        line: S.pillar === i ? T.g : T.line2,
+        pick: () => this.setState({ pillar: i, tab: 'postDetails', from: 'create' })
+      })),
+      backToCreate: () => this.setState({ tab: 'create', from: 'home' }),
+      pillarLabel: ['SERVICES', 'PRODUCTS', 'LOCAL INTEL'][S.pillar],
+      draftTitle: draftCopy.title,
+      draftDetails: draftCopy.details,
+      draftAmountLabel: worker ? 'YOUR RATE' : 'BENCHMARK',
+      showFlags: !worker,
+      showDeadline: !worker,
+      deadlineHint: 'Required · workers quote against this deadline.',
+      draftMedia: [
+        { key: 0, glyph: '—', label: 'None' },
+        { key: 1, glyph: '▤', label: 'Photo' },
+        { key: 2, glyph: '▶', label: 'Video' }
+      ].map(m => {
+        const on = S.draftMediaSel === m.key;
+        return {
+          ...m, bg: on ? T.gwash : T.thumb,
+          border: '1px solid ' + (on ? T.g : 'transparent'),
+          ink: on ? T.gtext : T.chev,
+          tap: () => this.setState({ draftMediaSel: m.key })
+        };
+      }),
+      draftPrice: fmt(S.draftPrice),
+      draftUp: () => this.setState(s => ({ draftPrice: s.draftPrice + 100 })),
+      draftDown: () => this.setState(s => ({ draftPrice: Math.max(100, s.draftPrice - 100) })),
+      draftFlags: ['None', 'Urgent', 'Unique'].map((label, i) => {
+        const on = S.draftFlag === i;
+        const hue = i === 1 ? T.coral : (i === 2 ? T.violet : T.line3);
+        return { label, ink: on ? (i === 0 ? T.ink : hue) : T.mut, line: on ? hue : T.line3, bg: on ? T.fill : 'transparent', pick: () => this.setState({ draftFlag: i }) };
+      }),
+      publishLabel: S.promoteOn ? 'Publish & promote' : (worker ? 'Publish listing' : 'Post request'),
+      publishPost: () => {
+        const row = {
+          role: S.mode, bucket: 0,
+          state: worker ? 'LIVE LISTING · 0 QUOTES' : 'OPEN · 0 QUOTES',
+          dot: T.blue, stateInk: T.blue,
+          title: draftCopy.title,
+          price: '₹' + fmt(S.draftPrice),
+          meta: 'Posted just now · Indiranagar', act: null
+        };
+        this.setState(s => ({ tab: S.promoteOn ? 'promote' : 'orders', from: S.promoteOn ? 'orders' : null, orderTab: 0, myBids: s.myBids.concat(row) }));
+        this.celebrate(S.promoteOn ? 'Published · nudge your placement' : (worker ? 'Listing published' : 'Request posted'));
+      },
+      promoteOn: S.promoteOn,
+      promoteLabel: worker ? 'Promote my service' : 'Promote my task',
+      promoteNote: S.promoteOn ? 'Will boost right after you publish. Pause or stop any time.' : 'Reach more people. Pause or stop any time.',
+      togglePromote: () => this.setState(s => ({ promoteOn: !s.promoteOn })),
+      promoteTrack: {
+        width: '42px', height: '24px', borderRadius: '999px', padding: '3px', flex: 'none',
+        background: S.promoteOn ? T.g : T.line3, display: 'flex', alignItems: 'center',
+        cursor: 'pointer', transition: 'background 0.24s ease'
+      },
+      promoteKnob: {
+        width: '18px', height: '18px', borderRadius: '999px', background: '#FFFFFF',
+        transform: S.promoteOn ? 'translateX(18px)' : 'none',
+        transition: 'transform 0.24s cubic-bezier(0.2,0.8,0.25,1)'
+      },
+
+      // ── task detail ──
+      isTaskDetail: S.tab === 'taskDetail',
+      detailWho: detail.who,
+      detailRating: detail.rating,
+      detailWhoMeta: detail.whoMeta,
+      detailTag: detail.tag,
+      detailTagInk: detail.tagInk,
+      detailTitle: detail.title,
+      detailBody: detail.body,
+      detailHasMedia: !!detail.hasMedia,
+      detailGlyph: detail.glyph || '▤',
+      detailPrice: detail.price,
+      detailPriceLabel: worker ? 'THEIR QUOTE' : 'THEIR RATE',
+      detailBy: detail.by || (worker ? 'set by the poster' : 'you set it on engage'),
+      detailRows: (() => {
+        const parts = String(detail.whoMeta || '').split(' · ');
+        const record = parts[0] || '';
+        const distance = parts[1] || 'nearby';
+        return [
+          { label: worker ? 'Requests posted' : 'Jobs completed', value: (record.match(/\d[\d,]*/) || ['—'])[0] + ' · ★ ' + detail.rating },
+          { label: 'Distance', value: distance }
+        ];
+      })(),
+      detailCta: worker ? 'Send a quote' : 'Send my quote',
+      openQuoteSheet: () => this.setState({ sheet: detail.title, quote: detail.amount || S.quote }),
+      sharePost: () => this.flash('Share link copied'),
+
+      // ── compare quotes ──
+      isCompare: S.tab === 'compare',
+      compareState: 'OPEN · 12 QUOTES',
+      compareTitle: task.title,
+      compareBenchLabel: 'BENCHMARK',
+      compareBench: task.price,
+      compareBy: '9 Sep, 6 PM',
+      compareListLabel: 'INCOMING QUOTES',
+      sortLabel: S.sortLow ? 'lowest' : 'rating',
+      toggleSort: () => this.setState(s => ({ sortLow: !s.sortLow })),
+      compareRows: compareSorted.map((b, i) => ({
+        ...b, delay: (i * 70) + 'ms',
+        selected: b.who === pickRow.who,
+        bg: b.who === pickRow.who ? T.gwash : T.card,
+        line: b.who === pickRow.who ? T.g : T.line2,
+        pick: () => this.setState({ bidPick: b.who })
+      })),
+      lockLabel: 'Lock quote · ' + pickRow.price,
+      compareNote: 'Names and contacts unmask when the task starts.',
+      toEscrow: () => this.setState({ tab: 'escrow' }),
+      backToCompare: () => this.setState(st => ({ tab: st.lockTarget ? (st.from || 'home') : 'compare', lockTarget: null })),
+
+      // ── escrow ──
+      isEscrow: S.tab === 'escrow',
+      escrowTotal: fmt(Math.round(pickNum * 1.03)),
+      escrowRows: [
+        { label: (S.lockTarget ? (S.lockTarget.kind === 'accept' ? 'Accepted rate · ' : 'Your counter · ') : 'Locked quote · ') + pickRow.who, value: '₹' + fmt(pickNum), ink: T.mut, weight: 600 },
+        { label: 'Poster fee · 3%', value: '₹' + fmt(Math.round(pickNum * 0.03)), ink: T.mut, weight: 600 },
+        { label: 'Complete by', value: (S.lockTarget && S.lockTarget.by) || '9 Sep, 6:00 PM', ink: T.mut, weight: 600 },
+        { label: 'Total held', value: '₹' + fmt(Math.round(pickNum * 1.03)), ink: T.ink, weight: 800 }
+      ],
+      payMethods: [
+        { label: 'UPI · 8721' }, { label: 'Card · 4412' }
+      ].map((p, i) => {
+        const on = S.payPick === i;
+        return { ...p, line: on ? T.ink : T.line3, bg: on ? T.fill : 'transparent', ink: on ? T.ink : T.mut, weight: on ? 700 : 500, pick: () => this.setState({ payPick: i }) };
+      }),
+      payEscrow: () => {
+        const held = Math.round(pickNum * 1.03);
+        this.roll('escrow', S.escrow + held);
+        if (S.lockTarget) {
+          const row = {
+            role: 'poster', bucket: 0, state: 'LOCKED · WORKER TO START',
+            dot: T.g, stateInk: T.gtext, title: S.lockTarget.title, price: S.lockTarget.price,
+            meta: 'Escrow funded · by ' + (S.lockTarget.by || '9 Sep, 6:00 PM') + ' · ' + S.lockTarget.who + ' starts next', act: null
+          };
+          this.setState(st => ({ tab: 'orders', from: null, orderTab: 0, lockTarget: null, myBids: st.myBids.concat(row) }));
+        } else {
+          this.setState({ tab: 'orders', from: null, orderTab: 1 });
+        }
+        this.celebrate('₹' + fmt(held) + ' held in escrow · locked');
+      },
+
+      // ── quotes on my service ──
+      isMyQuotes: S.tab === 'myQuotes',
+      myQuoteRows: myQuoteData.map((q, i) => ({
+        ...q, delay: (i * 70) + 'ms',
+        selected: S.myQuotePick === i,
+        bg: S.myQuotePick === i ? T.gwash : T.card,
+        line: S.myQuotePick === i ? T.g : T.line2,
+        pick: () => this.setState({ myQuotePick: i })
+      })),
+      lockMyLabel: 'Lock quote · ' + (myQuoteData[S.myQuotePick] || myQuoteData[0]).price,
+      lockMyQuote: () => {
+        const q = myQuoteData[S.myQuotePick] || myQuoteData[0];
+        this.setState({
+          tab: 'swipe', swipe: 0,
+          openTask: { title: q.task, price: q.price, escrow: q.price, who: 'you are working', payMeta: q.price + ' to you · complete by 14 Sep, 5:00 PM' },
+          doneMap: Object.assign({}, S.doneMap, { [q.task]: 0 })
+        });
+        this.celebrate('Quote locked · escrow funded');
+      },
+
+      // ── confirm work ──
+      isConfirm: S.tab === 'confirm',
+      proofNote: 'Photographed every room, the balcony and the meter. Full set uploaded.',
+      releaseRows: [
+        { label: 'Held in escrow', value: task.escrow },
+        { label: 'Releases to the worker', value: '₹' + fmt(releaseNum) },
+        { label: 'Auto-confirms in', value: '2 days 4 hrs' }
+      ],
+      releaseAmount: fmt(releaseNum),
+      confirmRelease: () => {
+        this.roll('balance', S.balance + releaseNum);
+        this.roll('escrow', Math.max(0, S.escrow - escrowNum));
+        this.setState(st => ({ tab: 'review', from: 'orders', doneMap: Object.assign({}, st.doneMap, { [task.title]: 2 }) }));
+        this.celebrate('Escrow released · ₹' + fmt(releaseNum));
+      },
+      requestChanges: () => this.flash('Change request sent to the worker'),
+      openDispute: () => this.flash('A dispute case was opened'),
+
+      // ── chat ──
+      isChat: S.tab === 'chat',
+      chatEscrow: task.escrow + ' · in escrow',
+      chatDraft: S.chatN > 0 ? 'Message' : 'Type a message',
+      openActiveFromChat: () => this.setState({ tab: 'active', from: 'orders' }),
+      chatMsgs: [
+        { who: 'them', text: 'I have the K1000 tested and ready. Want a photo of the shutter curtain?' },
+        { who: 'me', text: 'Yes please, and the lens front element.' },
+        { who: 'them', kind: 'image' },
+        { who: 'them', kind: 'voice' }
+      ].concat(Array.from({ length: S.chatN }, () => ({ who: 'me', text: 'On my way, about ten minutes out.' }))).map(m => ({
+        text: m.text,
+        isImage: m.kind === 'image',
+        isVoice: m.kind === 'voice',
+        isText: !m.kind,
+        bubble: m.kind === 'image'
+          ? { alignSelf: 'flex-start', width: '158px', height: '108px', borderRadius: '16px', background: T.thumb, color: T.chev, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', animation: 'tdIn 0.28s ease-out both' }
+          : m.kind === 'voice'
+          ? { alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '11px', background: T.fill, borderRadius: '999px', padding: '11px 16px', animation: 'tdIn 0.28s ease-out both' }
+          : m.who === 'me'
+          ? { alignSelf: 'flex-end', maxWidth: '76%', background: T.g, color: T.onG, borderRadius: '16px 16px 5px 16px', padding: '11px 14px', fontSize: '14px', fontWeight: 500, lineHeight: 1.45, animation: 'tdIn 0.28s ease-out both' }
+          : { alignSelf: 'flex-start', maxWidth: '76%', background: T.fill, color: T.ink, borderRadius: '16px 16px 16px 5px', padding: '11px 14px', fontSize: '14px', lineHeight: 1.45, animation: 'tdIn 0.28s ease-out both' }
+      })),
+      sendChat: () => this.setState(s => ({ chatN: s.chatN + 1 })),
+
+      // ── review ──
+      isReview: S.tab === 'review',
+      reviewWho: worker ? 'the poster' : 'the worker',
+      reviewTask: task.title + ' · ' + task.price,
+      starRow: [1, 2, 3, 4, 5].map(n => ({
+        c: n <= S.stars ? T.g : T.line3,
+        scale: n <= S.stars ? 'scale(1.06)' : 'scale(1)',
+        pick: () => this.setState({ stars: n })
+      })),
+      reviewWord: ['Poor', 'Fair', 'Good', 'Great', 'Excellent'][S.stars - 1] || 'Excellent',
+      praiseChips: ['On time', 'Great communication', 'Fair price', 'Went the extra mile', 'Careful work'].map((label, i) => {
+        const on = S.praise.indexOf(i) >= 0;
+        return {
+          label, ink: on ? T.ink : T.mut, bg: on ? T.gwash : 'transparent', line: on ? T.g : T.line3,
+          pick: () => this.setState(s => ({ praise: on ? s.praise.filter(x => x !== i) : s.praise.concat(i) }))
+        };
+      }),
+      submitReview: () => {
+        this.setState({ tab: 'orders', orderTab: 2, reviewed: true });
+        this.celebrate('Review posted');
+      },
+
+      // ── promote ──
+      isPromote: S.tab === 'promote',
+      promoTitle: worker ? 'Promote this service' : 'Promote this task',
+      promoSubject: worker ? 'Bespoke carpentry and joinery' : 'Vintage 35mm film camera',
+      promoSubjectMeta: worker ? '₹1,200 rate · 61 jobs done' : '₹4,500 · open · 12 quotes',
+      promoBudget: fmt(promoBudgets[S.promoB]),
+      promoDays: promoDurations[S.promoD].label,
+      promoTotal: fmt(promoBudgets[S.promoB] * promoDurations[S.promoD].days),
+      budgetChips: promoBudgets.map((v, i) => ({
+        label: '₹' + fmt(v),
+        ink: S.promoB === i ? T.ink : T.mut,
+        bg: S.promoB === i ? T.gwash : 'transparent',
+        line: S.promoB === i ? T.g : T.line3,
+        pick: () => this.setState({ promoB: i })
+      })),
+      durationChips: promoDurations.map((d, i) => ({
+        label: d.label,
+        ink: S.promoD === i ? T.ink : T.mut,
+        bg: S.promoD === i ? T.gwash : 'transparent',
+        line: S.promoD === i ? T.g : T.line3,
+        pick: () => this.setState({ promoD: i })
+      })),
+      audienceOn: S.audienceOn,
+      audienceNote: S.audienceOn ? 'Narrowing who sees it' : 'Off · everyone in your city',
+      audienceWho: worker ? 'Posters within 15 km' : 'Workers within 12 km',
+      audienceNiche: worker ? 'Services' : 'Services · Products',
+      toggleAudience: () => this.setState(s => ({ audienceOn: !s.audienceOn })),
+      audienceTrack: {
+        width: '42px', height: '24px', borderRadius: '999px', padding: '3px',
+        background: S.audienceOn ? T.g : T.line3, display: 'flex', alignItems: 'center',
+        cursor: 'pointer', transition: 'background 0.24s ease'
+      },
+      audienceKnob: {
+        width: '18px', height: '18px', borderRadius: '999px', background: '#FFFFFF',
+        transform: S.audienceOn ? 'translateX(18px)' : 'none',
+        transition: 'transform 0.24s cubic-bezier(0.2,0.8,0.25,1)'
+      },
+      reachText: reach[0] + ' – ' + reach[1],
+      reachWho: (worker ? 'posters' : 'workers') + ' per day' + (S.audienceOn ? ' in your radius' : ' across your city'),
+      startCampaign: () => {
+        this.setState({ tab: worker ? 'home' : 'orders' });
+        this.celebrate('Campaign live · sponsored placement');
+      },
+
+      // ── verified pro ──
+      isPro: S.tab === 'pro',
+      proPerks: [
+        { title: 'Verified badge on every quote', sub: 'Posters see you passed ID and skill checks' },
+        { title: 'Your quotes stand out', sub: 'Pro quotes are marked in the compare list' },
+        { title: 'Priority in search', sub: 'Ranked above unverified taskers on matching tasks' },
+        { title: 'Faster clearing', sub: 'Payouts clear in 2 days instead of 7' }
+      ],
+      proSteps: [
+        { num: '✓', label: 'Government ID', state: 'Verified', bg: T.g, line: T.g, numInk: T.onG, ink: T.mut, stateInk: T.gtext },
+        { num: '2', label: 'Selfie match', state: 'In review', bg: 'transparent', line: T.amber, numInk: T.amber, ink: T.ink, stateInk: T.amber },
+        { num: '3', label: 'Skill proof · 3 completed jobs', state: '1 of 3', bg: 'transparent', line: T.line3, numInk: T.dim, ink: T.ink, stateInk: T.dim }
+      ],
+      continuePro: () => this.flash('Selfie match is still in review'),
+
+      // ── withdraw ──
+      isWithdraw: S.tab === 'withdraw',
+      withdrawRows: [
+        { label: 'Available', value: '₹' + fmt(S.balance), ink: T.mut, weight: 600 },
+        { label: 'Transfer fee', value: 'Free', ink: T.mut, weight: 600 },
+        { label: 'You receive', value: '₹' + fmt(S.balance), ink: T.ink, weight: 800 }
+      ],
+      doWithdraw: () => {
+        const amt = S.balance;
+        this.roll('balance', 0);
+        this.setState({ tab: 'wallet' });
+        this.celebrate('₹' + fmt(amt) + ' on its way');
+      },
+
+      profileRows: (worker
+        ? [
+            { glyph: '◈', label: 'Quotes on my service', go: 'myQuotes' },
+            { glyph: '✦', label: 'Promote my service', go: 'promote' },
+            { glyph: '✓', label: 'Get Verified Pro', go: 'pro' },
+            { glyph: '▦', label: 'Earnings and payouts', go: 'withdraw' },
+            { glyph: '↪', label: 'Sign out', go: 'splash' }
+          ]
+        : [
+            { glyph: '▤', label: 'My requests', go: 'orders' },
+            { glyph: '✦', label: 'Promote a request', go: 'promote' },
+            { glyph: '✓', label: 'Get Verified Pro', go: 'pro' },
+            { glyph: '▦', label: 'Wallet and payments', go: 'wallet' },
+            { glyph: '↪', label: 'Sign out', go: 'splash' }
+          ]
+      ).map(p => ({
+        ...p,
+        ink: p.go === 'splash' ? T.coral : T.ink,
+        tap: () => this.setState({ tab: p.go, from: 'profile', orderTab: 0 })
+      })),
+
+      showProof: worker,
+      proofHint: curDone >= 1 ? 'Proof sent to the poster with your completion.' : 'Add proof before you mark the work done.',
+      proofTiles: [
+        { key: 0, glyph: '▤', label: '', bg: T.thumb, border: 'none', ink: T.chev, cursor: 'default', tap: () => {} },
+        { key: 1, glyph: '▤', label: '', bg: T.thumb, border: 'none', ink: T.chev, cursor: 'default', tap: () => {} },
+        { key: 2, glyph: '+', label: 'Add', bg: 'transparent', border: '1px dashed ' + T.line3, ink: T.dim, cursor: 'pointer', tap: () => this.flash('Proof photo added') }
+      ],
+
+      // ── entry points ──
+      goCreate: () => this.setState(st => ({ tab: 'create', from: st.tab })),
+      goPromote: () => this.setState(st => ({ tab: 'promote', from: st.tab })),
+      goPro: () => this.setState(st => ({ tab: 'pro', from: st.tab })),
+      goWithdraw: () => this.setState(st => ({ tab: 'withdraw', from: st.tab })),
+      goChat: () => this.setState(st => ({ tab: 'chat', from: st.tab })),
+      goReview: () => this.setState(st => ({ tab: 'review', from: st.tab })),
+      signOut: () => this.setState({ tab: 'splash', otp: '' }),
+      createLabel: worker ? 'List a service' : 'Post a request',
+
+      burst: S.burst,
+      toast: S.toast
+    };
+  }
+}
+</script>
+</body>
+</html>

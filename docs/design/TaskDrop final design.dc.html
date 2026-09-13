@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#EDEDED; font-family:'Manrope',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:#0C9E6C; text-decoration:none; }
+  a:hover { color:#0A845A; }
+  * { box-sizing:border-box; }
+  .tnum { font-variant-numeric:lining-nums; }
+</style>
+</helmet>
+
+<div style="{{ rootVars }}">
+<div style="min-height:100vh; background:var(--canvas,#EDEDED); padding:60px 56px 120px; display:flex; flex-direction:column; gap:64px;">
+
+  <div style="display:flex; align-items:flex-end; gap:22px;">
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2.5c4.2 4.5 6.6 7.7 6.6 10.8A6.6 6.6 0 0 1 12 20a6.6 6.6 0 0 1-6.6-6.7C5.4 10.2 7.8 7 12 2.5Z" fill="var(--g,#0C9E6C)"></path>
+      <path d="M9.2 13.1l2.2 2.3 4-4.6" stroke="var(--pg,#FFFFFF)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+    </svg>
+    <div>
+      <div style="font-size:34px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.03em;">TaskDrop</div>
+      <div style="font-size:14px; color:var(--mut,#5C5C5C); margin-top:4px;">28 artboards · 390×844 · light by default, dark in Profile · no video feed</div>
+    </div>
+  </div>
+
+  <!-- ════════ ONBOARDING & AUTH ════════ -->
+  <div>
+    <div style="font-size:12px; letter-spacing:0.22em; color:var(--gtext,#0A7A54); font-weight:700;">ONBOARDING &amp; AUTH</div>
+    <div style="display:flex; flex-wrap:wrap; gap:30px; margin-top:22px;">
+
+      <!-- 01 SPLASH -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">01 · SPLASH</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:47</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 85%</span></div>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;">
+            <svg width="76" height="76" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2.5c4.2 4.5 6.6 7.7 6.6 10.8A6.6 6.6 0 0 1 12 20a6.6 6.6 0 0 1-6.6-6.7C5.4 10.2 7.8 7 12 2.5Z" fill="var(--g,#0C9E6C)"></path>
+              <path d="M9.2 13.1l2.2 2.3 4-4.6" stroke="var(--pg,#FFFFFF)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+            <div style="font-size:40px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.04em;">taskdrop<span style="color:var(--gtext,#0A7A54);">.</span></div>
+          </div>
+          <div style="padding:0 0 60px; text-align:center; font-size:13px; color:var(--dim,#6F6F6F);">Ask for anything. Someone can do it.</div>
+        </div>
+      </div>
+
+      <!-- 02 WELCOME -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">02 · WELCOME</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:47</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 85%</span></div>
+          <div style="flex:1; display:flex; flex-direction:column; justify-content:flex-end; padding:0 20px 22px; background:var(--pg,#FFFFFF);">
+            <div style="font-size:34px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.035em; line-height:1.15;">Real tasks.<br>Real people.<br>Nearby.</div>
+            <div style="display:flex; gap:9px; margin-top:20px;">
+              <span style="width:22px; height:3px; border-radius:2px; background:var(--g,#0C9E6C);"></span>
+              <span style="width:8px; height:3px; border-radius:2px; background:var(--line3,#D6D6D6);"></span>
+              <span style="width:8px; height:3px; border-radius:2px; background:var(--line3,#D6D6D6);"></span>
+            </div>
+            <div style="display:flex; gap:12px; margin-top:36px;">
+              <div style="flex:1; background:var(--fill,#F1F1F1); border-radius:14px; padding:22px 16px; text-align:center;">
+                <svg width="52" height="42" viewBox="0 0 52 42" fill="none" style="margin-bottom:14px;">
+                  <rect x="8" y="2" width="36" height="30" rx="4" stroke="var(--ink,#16171A)" stroke-width="1.6"></rect>
+                  <path d="m19 22 11-11 3.5 3.5-11 11H19z" stroke="var(--g,#0C9E6C)" stroke-width="1.6" stroke-linejoin="round"></path>
+                  <path d="M8 32h36" stroke="var(--ink,#16171A)" stroke-width="1.6"></path>
+                  <circle cx="15" cy="37" r="2.4" stroke="var(--ink,#16171A)" stroke-width="1.4"></circle>
+                  <path d="M22 37h20" stroke="var(--ink,#16171A)" stroke-width="1.4" stroke-linecap="round"></path>
+                </svg>
+                <div style="font-size:16px; font-weight:700; color:var(--ink,#16171A);">Post a Request</div>
+                <div style="font-size:12px; color:var(--mut,#5C5C5C); margin-top:6px; line-height:1.45;">I need something done or found</div>
+              </div>
+              <div style="flex:1; background:var(--fill,#F1F1F1); border-radius:14px; padding:22px 16px; text-align:center;">
+                <svg width="52" height="42" viewBox="0 0 52 42" fill="none" style="margin-bottom:14px;">
+                  <rect x="8" y="2" width="36" height="30" rx="4" stroke="var(--ink,#16171A)" stroke-width="1.6"></rect>
+                  <circle cx="25" cy="15" r="6.5" stroke="var(--g,#0C9E6C)" stroke-width="1.6"></circle>
+                  <path d="m30 20 4.5 4.5" stroke="var(--g,#0C9E6C)" stroke-width="1.6" stroke-linecap="round"></path>
+                  <path d="M8 32h36" stroke="var(--ink,#16171A)" stroke-width="1.6"></path>
+                  <circle cx="15" cy="37" r="2.4" stroke="var(--ink,#16171A)" stroke-width="1.4"></circle>
+                  <path d="M22 37h20" stroke="var(--ink,#16171A)" stroke-width="1.4" stroke-linecap="round"></path>
+                </svg>
+                <div style="font-size:16px; font-weight:700; color:var(--ink,#16171A);">Find Work</div>
+                <div style="font-size:12px; color:var(--mut,#5C5C5C); margin-top:6px; line-height:1.45;">I want to quote on tasks near me</div>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:30px; font-size:14px; font-weight:600; color:var(--ink,#16171A);">
+              <span style="text-decoration:underline;">Sign In</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 03 SIGN UP -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">03 · SIGN UP · PHONE OTP</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:47</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 85%</span></div>
+          <div style="padding:8px 20px 0; font-size:20px; color:var(--ink,#16171A);">←</div>
+          <div style="flex:1; padding:26px 20px 0;">
+            <div style="font-size:28px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.03em;">Create your account</div>
+            <div style="font-size:14px; color:var(--mut,#5C5C5C); margin-top:8px; line-height:1.5;">One account covers posting and working.</div>
+            <div style="display:flex; gap:22px; margin-top:28px; border-bottom:1px solid var(--line,#E8E8E8);">
+              <div style="font-size:14px; font-weight:700; color:var(--ink,#16171A); padding-bottom:11px; border-bottom:2px solid var(--ink,#16171A);">Phone</div>
+              <div style="font-size:14px; font-weight:600; color:var(--dim,#6F6F6F); padding-bottom:11px;">Email</div>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:26px;">MOBILE NUMBER</div>
+            <div style="display:flex; align-items:center; gap:12px; margin-top:12px; background:var(--fill,#F1F1F1); border-radius:12px; padding:15px 16px;">
+              <span style="font-size:15px; color:var(--mut,#5C5C5C);">+91</span>
+              <span style="width:1px; height:18px; background:var(--line3,#D6D6D6);"></span>
+              <span class="tnum" style="font-size:16px; color:var(--ink,#16171A);">98765 43210</span>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:26px;">6-DIGIT CODE · SENT BY SMS</div>
+            <div style="display:flex; gap:9px; margin-top:12px;">
+              <sc-for list="{{ otp }}" as="o" hint-placeholder-count="6">
+                <div class="tnum" style="flex:1; height:54px; border-radius:12px; background:var(--fill,#F1F1F1); border:1px solid {{ o.line }}; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700; color:var(--ink,#16171A);">{{ o.v }}</div>
+              </sc-for>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+              <span style="font-size:13px; color:var(--mut,#5C5C5C);">Sent to +91 •••• ••3210</span>
+              <span class="tnum" style="font-size:13px; color:var(--dim,#6F6F6F);">Resend in 24s</span>
+            </div>
+            <div style="margin-top:30px; background:var(--g,#0C9E6C); border-radius:12px; padding:16px; text-align:center; font-size:15px; font-weight:700; color:#04150E;">Verify and continue</div>
+            <div style="margin-top:22px; display:flex; align-items:center; gap:14px;">
+              <span style="flex:1; height:1px; background:#222222;"></span>
+              <span style="font-size:12px; color:var(--dim,#6F6F6F);">or</span>
+              <span style="flex:1; height:1px; background:#222222;"></span>
+            </div>
+            <div style="margin-top:22px; border:1px solid var(--line3,#D6D6D6); border-radius:12px; padding:15px; text-align:center; font-size:15px; font-weight:600; color:var(--ink,#16171A);">Continue with Google</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 04 PROFILE SETUP -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">04 · PROFILE SETUP</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:47</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 85%</span></div>
+          <div style="flex:1; overflow:hidden; padding:12px 20px 0;">
+            <div style="font-size:26px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.03em;">Set up your profile</div>
+            <div style="display:flex; align-items:center; gap:14px; margin-top:22px;">
+              <div style="width:66px; height:66px; border-radius:999px; background:var(--fill,#F1F1F1); border:1px dashed var(--dash,#CFCFCF); display:flex; align-items:center; justify-content:center; color:var(--dim,#6F6F6F); font-size:20px;">+</div>
+              <div>
+                <div style="font-size:15px; font-weight:700; color:var(--ink,#16171A);">Add a photo</div>
+                <div style="font-size:12px; color:var(--mut,#5C5C5C); margin-top:3px;">Profiles with photos get 3× more quotes</div>
+              </div>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:26px;">DISPLAY NAME</div>
+            <div style="background:var(--fill,#F1F1F1); border-radius:12px; padding:14px 16px; margin-top:10px; font-size:15px; color:var(--ink,#16171A);">Narasimha Raju</div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:22px;">LOCATION</div>
+            <div style="background:var(--fill,#F1F1F1); border-radius:12px; padding:14px 16px; margin-top:10px; display:flex; justify-content:space-between; font-size:15px; color:var(--ink,#16171A);"><span>Indiranagar, Bengaluru</span><span style="color:var(--gtext,#0A7A54); font-size:13px; font-weight:600;">Change</span></div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:22px;">SKILLS · PICK UP TO 5 <span style="color:var(--gtext,#0A7A54);">· FIND WORK ONLY</span></div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;">
+              <sc-for list="{{ skills }}" as="s" hint-placeholder-count="8">
+                <span style="font-size:13px; font-weight:600; color:{{ s.ink }}; background:{{ s.bg }}; border:1px solid {{ s.line }}; border-radius:999px; padding:9px 15px;">{{ s.label }}</span>
+              </sc-for>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:26px;">START IN</div>
+            <div style="display:flex; gap:10px; margin-top:12px;">
+              <div style="flex:1; border-radius:12px; padding:16px; background:var(--fill,#F1F1F1); border:1px solid var(--line3,#D6D6D6);">
+                <div style="font-size:15px; font-weight:700; color:var(--mut,#5C5C5C);">Post a Request</div>
+                <div style="font-size:12px; color:var(--dim,#6F6F6F); margin-top:5px;">Ask for something</div>
+              </div>
+              <div style="flex:1; border-radius:12px; padding:16px; background:var(--gtint,#E9F6F1); border:1px solid var(--g,#0C9E6C);">
+                <div style="font-size:15px; font-weight:700; color:var(--ink,#16171A);">Find Work</div>
+                <div style="font-size:12px; color:var(--mut,#5C5C5C); margin-top:5px;">Browse and quote</div>
+              </div>
+            </div>
+            <div style="font-size:12px; color:var(--dim,#6F6F6F); margin-top:12px; line-height:1.5;">Skills are asked for Find Work only — posters skip straight to finishing. Switch modes any time from Profile.</div>
+          </div>
+          <div style="padding:14px 20px 26px;">
+            <div style="background:var(--g,#0C9E6C); border-radius:12px; padding:16px; text-align:center; font-size:15px; font-weight:700; color:#04150E;">Finish setup</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════ CORE ════════ -->
+  <div>
+    <div style="font-size:12px; letter-spacing:0.22em; color:var(--gtext,#0A7A54); font-weight:700;">CORE · BOTTOM NAV</div>
+    <div style="display:flex; flex-wrap:wrap; gap:30px; margin-top:22px;">
+
+      <!-- 05 HOME -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">05 · HOME · WORKER · POSTER TASKS</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:47</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 85%</span></div>
+          <div style="flex:1; overflow:hidden; padding:10px 0 0;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:0 20px;">
+              <div style="font-size:22px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.03em;">taskdrop<span style="color:var(--gtext,#0A7A54);">.</span></div>
+              <div style="display:flex; align-items:center; gap:10px; background:var(--fill,#F1F1F1); border-radius:999px; padding:7px 12px;">
+                <span style="width:6px; height:6px; border-radius:999px; background:var(--g,#0C9E6C);"></span>
+                <span style="font-size:12px; font-weight:600; color:var(--ink,#16171A);">Worker</span>
+              </div>
+            </div>
+            <div style="margin:16px 20px 0; background:var(--fill,#F1F1F1); border-radius:12px; padding:13px 15px; display:flex; align-items:center; gap:11px;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="var(--mut,#5C5C5C)" stroke-width="1.8"></circle><path d="m16.5 16.5 4 4" stroke="var(--mut,#5C5C5C)" stroke-width="1.8" stroke-linecap="round"></path></svg>
+              <span style="font-size:14px; color:var(--mut,#5C5C5C);">Find a task or a service</span>
+            </div>
+            <div style="display:flex; gap:8px; padding:14px 20px 0; overflow:hidden;">
+              <sc-for list="{{ homeFilters }}" as="f" hint-placeholder-count="3">
+                <span style="font-size:12px; font-weight:600; color:{{ f.ink }}; background:{{ f.bg }}; border:1px solid {{ f.line }}; border-radius:999px; padding:8px 14px; white-space:nowrap;">{{ f.label }}</span>
+              </sc-for>
+            </div>
+
+            <div style="font-size:19px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.02em; padding:22px 20px 0;">Urgent requests</div>
+            <div style="padding:0 20px;">
+              <div style="background:var(--card,#FFFFFF); border:1px solid var(--line2,#E4E4E4); border-radius:14px; padding:15px; margin-top:12px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <span style="width:32px; height:32px; border-radius:999px; background:var(--thumb,#EDEDED); color:var(--chev,#9A9A9A); display:flex; align-items:center; justify-content:center; font-size:13px; flex:none;">☺</span>
+                  <span class="tnum" style="font-size:13px; font-weight:700; color:var(--ink,#16171A);">Poster 2287</span>
+                  <span class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C);">★ 4.9</span>
+                  <span style="font-size:9px; letter-spacing:0.14em; font-weight:700; color:var(--coral,#B4512C); margin-left:auto;">CLOSES IN 3 HRS</span>
+                </div>
+                <div style="display:flex; align-items:baseline; gap:12px; margin-top:11px;">
+                  <div style="flex:1; font-size:16px; font-weight:700; color:var(--ink,#16171A);">Airport pickup, 6 AM</div>
+                  <div class="tnum" style="font-size:16px; font-weight:800; color:var(--gtext,#0A7A54);">₹900</div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:baseline; justify-content:space-between; padding:26px 20px 0;">
+              <div style="font-size:19px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.02em;">Nearby tasks</div>
+              <span style="font-size:12px; font-weight:600; color:var(--gtext,#0A7A54);">See all</span>
+            </div>
+            <div style="padding:0 20px;">
+              <sc-for list="{{ nearby }}" as="t" hint-placeholder-count="3">
+                <div style="background:var(--card,#FFFFFF); border:1px solid {{ t.cardLine }}; border-radius:14px; padding:15px; margin-top:12px;">
+                  <sc-if value="{{ t.sponsored }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:11px; padding-bottom:10px; border-bottom:1px solid var(--line,#E8E8E8);">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" fill="var(--gtext,#0A7A54)"></path></svg>
+                      <span style="font-size:9px; letter-spacing:0.18em; font-weight:800; color:var(--gtext,#0A7A54);">SPONSORED</span>
+                    </div>
+                  </sc-if>
+                  <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="width:38px; height:38px; border-radius:999px; background:var(--thumb,#EDEDED); color:var(--chev,#9A9A9A); display:flex; align-items:center; justify-content:center; font-size:15px; flex:none;">☺</span>
+                    <div style="flex:1; min-width:0;">
+                      <div style="display:flex; align-items:center; gap:7px;">
+                        <span class="tnum" style="font-size:14px; font-weight:700; color:var(--ink,#16171A);">{{ t.handle }}</span>
+                        <span class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C);">★ {{ t.rating }}</span>
+                        <span style="font-size:9px; letter-spacing:0.14em; font-weight:700; color:{{ t.tagInk }}; margin-left:auto;">{{ t.tag }}</span>
+                      </div>
+                      <div class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C); margin-top:3px;">{{ t.posterMeta }}</div>
+                    </div>
+                  </div>
+                  <div style="display:flex; gap:13px; margin-top:12px;">
+                    <sc-if value="{{ t.hasMedia }}" hint-placeholder-val="{{ false }}">
+                      <div style="width:62px; height:62px; flex:none; border-radius:11px; background:var(--thumb,#EDEDED); position:relative; display:flex; align-items:center; justify-content:center; color:var(--chev,#9A9A9A); font-size:17px;">{{ t.mediaGlyph }}
+                        <sc-if value="{{ t.dur }}" hint-placeholder-val="{{ false }}">
+                          <span class="tnum" style="position:absolute; bottom:4px; right:4px; font-size:9px; color:#FFFFFF; background:rgba(0,0,0,0.6); border-radius:3px; padding:1px 4px;">{{ t.dur }}</span>
+                        </sc-if>
+                      </div>
+                    </sc-if>
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:16px; font-weight:700; color:var(--ink,#16171A); letter-spacing:-0.01em;">{{ t.title }}</div>
+                      <div style="font-size:13px; color:var(--mut,#5C5C5C); margin-top:5px; line-height:1.45;">{{ t.meta }}</div>
+                    </div>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:12px; margin-top:14px; padding-top:13px; border-top:1px solid var(--line,#E8E8E8);">
+                    <div style="flex:1;">
+                      <div style="font-size:10px; letter-spacing:0.14em; color:var(--dim,#6F6F6F);">THEIR QUOTE</div>
+                      <div class="tnum" style="font-size:19px; font-weight:800; color:var(--gtext,#0A7A54); margin-top:3px;">{{ t.price }}</div>
+                    </div>
+                    <span style="font-size:13px; font-weight:600; color:var(--mut,#5C5C5C); border:1px solid var(--line3,#D6D6D6); border-radius:999px; padding:10px 15px;">Counter the quote</span>
+                    <span style="font-size:13px; font-weight:700; color:#04150E; background:var(--g,#0C9E6C); border-radius:999px; padding:10px 16px;">Accept</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="flex:none; display:flex; align-items:center; justify-content:space-around; padding:14px 16px 22px; border-top:1px solid var(--line,#E8E8E8); background:var(--bar,#F7F7F7);">
+            <sc-for list="{{ navHome }}" as="n" hint-placeholder-count="5">
+              <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="{{ n.d }}" stroke="{{ n.c }}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <!-- 05b POSTER HOME -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">05b · HOME · POSTER · WORKER SERVICES</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:47</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 85%</span></div>
+          <div style="flex:1; overflow:hidden; padding:10px 0 0;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:0 20px;">
+              <div style="font-size:22px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.03em;">taskdrop<span style="color:var(--gtext,#0A7A54);">.</span></div>
+              <div style="display:flex; align-items:center; gap:10px; background:var(--fill,#F1F1F1); border-radius:999px; padding:7px 12px;">
+                <span style="width:6px; height:6px; border-radius:999px; background:var(--g,#0C9E6C);"></span>
+                <span style="font-size:12px; font-weight:600; color:var(--ink,#16171A);">Poster</span>
+              </div>
+            </div>
+            <div style="margin:16px 20px 0; background:var(--fill,#F1F1F1); border-radius:12px; padding:13px 15px; display:flex; align-items:center; gap:11px;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="var(--mut,#5C5C5C)" stroke-width="1.8"></circle><path d="m16.5 16.5 4 4" stroke="var(--mut,#5C5C5C)" stroke-width="1.8" stroke-linecap="round"></path></svg>
+              <span style="font-size:14px; color:var(--mut,#5C5C5C);">Find a worker or a service</span>
+            </div>
+            <div style="display:flex; gap:8px; padding:14px 20px 0; overflow-x:auto; white-space:nowrap; scrollbar-width:none;">
+              <sc-for list="{{ homeFilters }}" as="f" hint-placeholder-count="3">
+                <span style="font-size:12px; font-weight:600; color:{{ f.ink }}; background:{{ f.bg }}; border:1px solid {{ f.line }}; border-radius:999px; padding:8px 14px; white-space:nowrap;">{{ f.label }}</span>
+              </sc-for>
+            </div>
+            <div style="display:flex; align-items:baseline; justify-content:space-between; padding:24px 20px 0;">
+              <div style="font-size:19px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.02em;">Taskers near you</div>
+              <span style="font-size:12px; font-weight:600; color:var(--gtext,#0A7A54);">See all</span>
+            </div>
+            <div style="font-size:12px; color:var(--dim,#6F6F6F); padding:6px 20px 0; line-height:1.5;">Names and contacts stay hidden until a task starts.</div>
+            <div style="padding:0 20px;">
+              <sc-for list="{{ workerPosts }}" as="w" hint-placeholder-count="3">
+                <div style="background:var(--card,#FFFFFF); border:1px solid {{ w.cardLine }}; border-radius:14px; padding:15px; margin-top:12px;">
+                  <sc-if value="{{ w.sponsored }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:11px; padding-bottom:10px; border-bottom:1px solid var(--line,#E8E8E8);">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" fill="var(--gtext,#0A7A54)"></path></svg>
+                      <span style="font-size:9px; letter-spacing:0.18em; font-weight:800; color:var(--gtext,#0A7A54);">SPONSORED</span>
+                    </div>
+                  </sc-if>
+                  <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="width:38px; height:38px; border-radius:999px; background:var(--thumb,#EDEDED); color:var(--chev,#9A9A9A); display:flex; align-items:center; justify-content:center; font-size:15px; flex:none;">☺</span>
+                    <div style="flex:1; min-width:0;">
+                      <div style="display:flex; align-items:center; gap:7px;">
+                        <span class="tnum" style="font-size:14px; font-weight:700; color:var(--ink,#16171A);">{{ w.handle }}</span>
+                        <span class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C);">★ {{ w.rating }}</span>
+                        <sc-if value="{{ w.pro }}" hint-placeholder-val="{{ false }}">
+                          <span style="font-size:9px; letter-spacing:0.12em; font-weight:800; color:#04150E; background:var(--g,#0C9E6C); border-radius:4px; padding:2px 5px;">PRO</span>
+                        </sc-if>
+                      </div>
+                      <div class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C); margin-top:3px;">{{ w.meta }}</div>
+                    </div>
+                  </div>
+                  <div style="display:flex; gap:13px; margin-top:12px;">
+                    <sc-if value="{{ w.hasMedia }}" hint-placeholder-val="{{ false }}">
+                      <div style="width:62px; height:62px; flex:none; border-radius:11px; background:var(--thumb,#EDEDED); position:relative; display:flex; align-items:center; justify-content:center; color:var(--chev,#9A9A9A); font-size:17px;">{{ w.mediaGlyph }}
+                        <sc-if value="{{ w.dur }}" hint-placeholder-val="{{ false }}">
+                          <span class="tnum" style="position:absolute; bottom:4px; right:4px; font-size:9px; color:#FFFFFF; background:rgba(0,0,0,0.6); border-radius:3px; padding:1px 4px;">{{ w.dur }}</span>
+                        </sc-if>
+                      </div>
+                    </sc-if>
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:16px; font-weight:700; color:var(--ink,#16171A); letter-spacing:-0.01em;">{{ w.service }}</div>
+                      <div style="font-size:13px; color:var(--mut,#5C5C5C); margin-top:5px; line-height:1.45;">{{ w.sub }}</div>
+                    </div>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:12px; margin-top:14px; padding-top:13px; border-top:1px solid var(--line,#E8E8E8);">
+                    <div style="flex:1;">
+                      <div style="font-size:10px; letter-spacing:0.14em; color:var(--dim,#6F6F6F);">THEIR QUOTE</div>
+                      <div class="tnum" style="font-size:19px; font-weight:800; color:var(--gtext,#0A7A54); margin-top:3px;">{{ w.rate }}</div>
+                    </div>
+                    <span style="font-size:13px; font-weight:600; color:var(--mut,#5C5C5C); border:1px solid var(--line3,#D6D6D6); border-radius:999px; padding:10px 15px;">Counter the quote</span>
+                    <span style="font-size:13px; font-weight:700; color:#04150E; background:var(--g,#0C9E6C); border-radius:999px; padding:10px 16px;">Accept</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="flex:none; display:flex; align-items:center; justify-content:space-around; padding:14px 16px 22px; border-top:1px solid var(--line,#E8E8E8); background:var(--bar,#F7F7F7);">
+            <sc-for list="{{ navHome }}" as="n" hint-placeholder-count="5">
+              <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="{{ n.d }}" stroke="{{ n.c }}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <!-- 07 SEARCH & FILTERS -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">07 · SEARCH &amp; FILTERS</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:1; overflow:hidden; padding:8px 20px 0;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span style="font-size:20px; color:var(--ink,#16171A);">←</span>
+              <div style="flex:1; background:var(--fill,#F1F1F1); border-radius:12px; padding:12px 15px; font-size:14px; color:var(--ink,#16171A);">film camera</div>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:24px;">LOCATION</div>
+            <div style="display:flex; align-items:center; gap:11px; margin-top:11px; background:var(--fill,#F1F1F1); border-radius:12px; padding:12px 15px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z" stroke="var(--mut,#5C5C5C)" stroke-width="1.7" stroke-linejoin="round"></path><circle cx="12" cy="10" r="2.6" stroke="var(--mut,#5C5C5C)" stroke-width="1.7"></circle></svg>
+              <span style="flex:1; font-size:14px; color:var(--ink,#16171A);">Indiranagar, Bengaluru</span>
+              <span style="font-size:12px; font-weight:600; color:var(--gtext,#0A7A54);">Use my location</span>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:20px;">
+              <span style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F);">RADIUS FROM THERE</span>
+              <span style="font-size:11px; color:var(--dim,#6F6F6F);">Optional</span>
+            </div>
+            <div style="margin-top:14px; height:3px; background:var(--line3,#D6D6D6); border-radius:2px; position:relative;">
+              <div style="position:absolute; inset:0 42% 0 0; background:var(--g,#0C9E6C); border-radius:2px;"></div>
+              <div style="position:absolute; left:58%; top:-7px; width:17px; height:17px; border-radius:999px; background:var(--g,#0C9E6C);"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:10px; font-size:12px; color:var(--mut,#5C5C5C);"><span>1 km</span><span class="tnum" style="color:var(--ink,#16171A); font-weight:700;">12 km</span><span>25 km</span></div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:26px;">PILLAR</div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;">
+              <sc-for list="{{ pillarChips }}" as="c" hint-placeholder-count="3">
+                <span style="font-size:13px; font-weight:600; color:{{ c.ink }}; background:{{ c.bg }}; border:1px solid {{ c.line }}; border-radius:999px; padding:9px 15px;">{{ c.label }}</span>
+              </sc-for>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:26px;">BUDGET · OPTIONAL</div>
+            <div style="display:flex; gap:10px; margin-top:12px;">
+              <div style="flex:1; background:var(--fill,#F1F1F1); border-radius:12px; padding:13px 15px;"><div style="font-size:10px; color:var(--dim,#6F6F6F);">MIN</div><div class="tnum" style="font-size:15px; font-weight:700; color:var(--ink,#16171A); margin-top:3px;">₹500</div></div>
+              <div style="flex:1; background:var(--fill,#F1F1F1); border-radius:12px; padding:13px 15px;"><div style="font-size:10px; color:var(--dim,#6F6F6F);">MAX</div><div class="tnum" style="font-size:15px; font-weight:700; color:var(--ink,#16171A); margin-top:3px;">₹8,000</div></div>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:26px;">SAVED SEARCHES</div>
+            <sc-for list="{{ savedSearches }}" as="s" hint-placeholder-count="3">
+              <div style="display:flex; align-items:center; gap:12px; padding:15px 0; border-bottom:1px solid var(--line,#E8E8E8);">
+                <span style="font-size:15px; color:var(--mut,#5C5C5C);">⌕</span>
+                <div style="flex:1;"><div style="font-size:15px; color:var(--ink,#16171A);">{{ s.title }}</div><div style="font-size:12px; color:var(--dim,#6F6F6F); margin-top:2px;">{{ s.meta }}</div></div>
+                <span style="font-size:12px; font-weight:600; color:var(--gtext,#0A7A54);">Alerts on</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="padding:14px 20px 26px; display:flex; gap:10px;">
+            <div style="flex:1; border:1px solid var(--line3,#D6D6D6); border-radius:12px; padding:15px; text-align:center; font-size:15px; font-weight:600; color:var(--ink,#16171A);">Clear</div>
+            <div style="flex:2; background:var(--g,#0C9E6C); border-radius:12px; padding:15px; text-align:center; font-size:15px; font-weight:700; color:#04150E;">Show 34 tasks</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 09 ORDERS -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">09 · REQUESTS · OPEN / ACTIVE / MARKED DONE / DONE</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A); background:var(--bar,#F7F7F7);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:none; background:var(--bar,#F7F7F7); padding:6px 20px 16px; font-size:24px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.03em;">Manage requests</div>
+          <div style="flex:none; display:flex; background:var(--bar,#F7F7F7);">
+            <div style="flex:1; text-align:center; font-size:13px; font-weight:700; color:var(--ink,#16171A); padding:13px 0; border-bottom:2px solid var(--ink,#16171A);">Open</div>
+            <div style="flex:1; text-align:center; font-size:13px; font-weight:600; color:var(--mut,#5C5C5C); padding:13px 0; border-bottom:1px solid var(--line,#E8E8E8);">Active</div>
+            <div style="flex:1; text-align:center; font-size:13px; font-weight:600; color:var(--mut,#5C5C5C); padding:13px 0; border-bottom:1px solid var(--line,#E8E8E8); white-space:nowrap;">Marked done</div>
+            <div style="flex:1; text-align:center; font-size:13px; font-weight:600; color:var(--mut,#5C5C5C); padding:13px 0; border-bottom:1px solid var(--line,#E8E8E8);">Done</div>
+          </div>
+          <div style="flex:1; overflow:hidden; padding:6px 20px 0;">
+            <sc-for list="{{ orders }}" as="o" hint-placeholder-count="4">
+              <div style="background:var(--card,#FFFFFF); border:1px solid var(--line2,#E4E4E4); border-radius:14px; padding:15px; margin-top:12px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="width:5px; height:5px; border-radius:999px; background:{{ o.dot }};"></span>
+                  <span style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:{{ o.stateInk }};">{{ o.state }}</span>
+                </div>
+                <div style="display:flex; align-items:baseline; gap:12px; margin-top:9px;">
+                  <div style="flex:1; font-size:16px; font-weight:700; color:var(--ink,#16171A);">{{ o.title }}</div>
+                  <div class="tnum" style="font-size:15px; font-weight:800; color:var(--ink,#16171A);">{{ o.price }}</div>
+                </div>
+                <div style="font-size:12px; color:var(--mut,#5C5C5C); margin-top:6px;">{{ o.meta }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="flex:none; display:flex; align-items:center; justify-content:space-around; padding:14px 16px 22px; border-top:1px solid var(--line,#E8E8E8); background:var(--bar,#F7F7F7);">
+            <sc-for list="{{ navOrders }}" as="n" hint-placeholder-count="5">
+              <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="{{ n.d }}" stroke="{{ n.c }}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <!-- 09b ORDERS EMPTY -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">09b · REQUESTS · EMPTY</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A); background:var(--bar,#F7F7F7);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:none; background:var(--bar,#F7F7F7); padding:6px 20px 18px; font-size:24px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.03em;">Manage requests</div>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 40px;">
+            <svg width="190" height="140" viewBox="0 0 190 140" fill="none">
+              <path d="M46 62h58v52H46z" stroke="var(--ink,#16171A)" stroke-width="2.4" stroke-linejoin="round"></path>
+              <path d="M46 114h58" stroke="var(--ink,#16171A)" stroke-width="2.4"></path>
+              <path d="M64 86h22" stroke="var(--ink,#16171A)" stroke-width="2.4" stroke-linecap="round"></path>
+              <path d="M52 62 62 44h30l10 18" stroke="var(--ink,#16171A)" stroke-width="2.4" stroke-linejoin="round"></path>
+              <path d="M60 46h26v16H60z" fill="var(--g,#0C9E6C)"></path>
+              <circle cx="73" cy="54" r="4" fill="var(--pg,#FFFFFF)"></circle>
+              <path d="M104 114c14 0 22-10 22-22s-6-16-12-16-10 6-10 12" stroke="var(--ink,#16171A)" stroke-width="2.4" stroke-linecap="round"></path>
+              <circle cx="130" cy="108" r="6" stroke="var(--ink,#16171A)" stroke-width="2.4"></circle>
+              <path d="M30 114h130" stroke="var(--ink,#16171A)" stroke-width="2.4" stroke-linecap="round"></path>
+              <path d="M64 40c-4-10 2-16 8-14M84 40c4-10-2-16-8-14" stroke="var(--g,#0C9E6C)" stroke-width="2.4" stroke-linecap="round"></path>
+            </svg>
+            <div style="font-size:20px; font-weight:800; color:var(--ink,#16171A); margin-top:34px;">No requests yet</div>
+            <div style="font-size:15px; color:var(--sub,#4A4A4A); text-align:center; line-height:1.5; margin-top:12px;">Every good outcome starts with an ask. Post your first request.</div>
+            <div style="font-size:15px; font-weight:700; color:var(--ink,#16171A); text-decoration:underline; margin-top:26px;">Post a Request</div>
+          </div>
+          <div style="flex:none; display:flex; align-items:center; justify-content:space-around; padding:14px 16px 22px; border-top:1px solid var(--line,#E8E8E8); background:var(--bar,#F7F7F7);">
+            <sc-for list="{{ navOrders }}" as="n" hint-placeholder-count="5">
+              <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="{{ n.d }}" stroke="{{ n.c }}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <!-- 10 PROFILE -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">10 · PROFILE</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="flex:none; background:var(--band,#0B3D2C); padding:0 0 26px;">
+            <div style="height:34px; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:#FFFFFF;"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+            <div style="display:flex; justify-content:flex-end; padding:6px 20px 0;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 3a6 6 0 0 1 6 6v4l2 3H4l2-3V9a6 6 0 0 1 6-6Z" stroke="#FFFFFF" stroke-width="1.7" stroke-linejoin="round"></path><path d="M10 19a2 2 0 0 0 4 0" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round"></path></svg>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px; padding:22px 20px 0;">
+              <div style="width:66px; height:66px; border-radius:999px; background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.15); display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:800; color:#FFFFFF; position:relative;">N
+                <span style="position:absolute; right:-1px; bottom:-1px; width:17px; height:17px; border-radius:999px; background:var(--g,#0C9E6C); border:2px solid var(--band,#0B3D2C);"></span>
+              </div>
+              <div>
+                <div style="font-size:22px; font-weight:800; color:#FFFFFF; letter-spacing:-0.02em;">Narasimha_raju</div>
+                <div class="tnum" style="font-size:13px; color:rgba(255,255,255,0.75); margin-top:4px;">★ 4.9 worker · 18 jobs done</div>
+              </div>
+            </div>
+          </div>
+          <div style="flex:1; overflow:hidden;">
+            <div style="padding:22px 20px 12px; font-size:21px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.02em;">My TaskDrop</div>
+            <sc-for list="{{ profileMine }}" as="r" hint-placeholder-count="4">
+              <div style="display:flex; align-items:center; gap:16px; padding:16px 20px; background:var(--card,#FFFFFF); border-bottom:1px solid var(--line,#E8E8E8);">
+                <span style="width:22px; text-align:center; font-size:15px; color:var(--mut,#5C5C5C);">{{ r.glyph }}</span>
+                <span style="flex:1; font-size:16px; font-weight:600; color:var(--ink,#16171A);">{{ r.label }}</span>
+                <span style="font-size:16px; color:var(--chev,#9A9A9A);">›</span>
+              </div>
+            </sc-for>
+            <div style="padding:22px 20px 12px; font-size:21px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.02em;">Settings</div>
+            <sc-for list="{{ profileSettings }}" as="r" hint-placeholder-count="3">
+              <div style="display:flex; align-items:center; gap:16px; padding:16px 20px; background:var(--card,#FFFFFF); border-bottom:1px solid var(--line,#E8E8E8);">
+                <span style="width:22px; text-align:center; font-size:15px; color:var(--mut,#5C5C5C);">{{ r.glyph }}</span>
+                <span style="flex:1; font-size:16px; font-weight:600; color:var(--ink,#16171A);">{{ r.label }}</span>
+                <span style="font-size:16px; color:var(--chev,#9A9A9A);">›</span>
+              </div>
+            </sc-for>
+            <div style="padding:16px 20px; background:var(--card,#FFFFFF); border-bottom:1px solid var(--line,#E8E8E8);">
+              <div style="display:flex; align-items:center; gap:16px;">
+                <span style="width:22px; text-align:center; font-size:15px; color:var(--mut,#5C5C5C);">◐</span>
+                <span style="flex:1; font-size:16px; font-weight:600; color:var(--ink,#16171A);">Appearance</span>
+                <span style="font-size:13px; color:var(--mut,#5C5C5C);">{{ themeLabel }}</span>
+              </div>
+              <div style="display:flex; gap:8px; margin-top:14px; padding-left:38px;">
+                <sc-for list="{{ themeChoices }}" as="t" hint-placeholder-count="2">
+                  <span style="flex:1; text-align:center; font-size:13px; font-weight:600; color:{{ t.ink }}; background:{{ t.bg }}; border:1px solid {{ t.line }}; border-radius:10px; padding:10px 0;">{{ t.label }}</span>
+                </sc-for>
+              </div>
+              <div style="font-size:12px; color:var(--dim,#6F6F6F); margin-top:10px; padding-left:38px;">Light is the default. Your choice applies across the app.</div>
+            </div>
+            <div style="padding:22px 20px 12px; font-size:21px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.02em;">Resources</div>
+            <sc-for list="{{ profileResources }}" as="r" hint-placeholder-count="3">
+              <div style="display:flex; align-items:center; gap:16px; padding:16px 20px; background:var(--card,#FFFFFF); border-bottom:1px solid var(--line,#E8E8E8);">
+                <span style="width:22px; text-align:center; font-size:15px; color:var(--mut,#5C5C5C);">{{ r.glyph }}</span>
+                <span style="flex:1; font-size:16px; font-weight:600; color:var(--ink,#16171A);">{{ r.label }}</span>
+                <span style="font-size:16px; color:var(--chev,#9A9A9A);">›</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="flex:none; display:flex; align-items:center; justify-content:space-around; padding:14px 16px 22px; border-top:1px solid var(--line,#E8E8E8); background:var(--bar,#F7F7F7);">
+            <sc-for list="{{ navProfile }}" as="n" hint-placeholder-count="5">
+              <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="{{ n.d }}" stroke="{{ n.c }}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════ POSTER MODE ════════ -->
+  <div>
+    <div style="font-size:12px; letter-spacing:0.22em; color:var(--gtext,#0A7A54); font-weight:700;">POSTER MODE</div>
+    <div style="display:flex; flex-wrap:wrap; gap:30px; margin-top:22px;">
+
+      <!-- 11 POST A REQUEST -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">11 · POST A REQUEST · SERVICES / PRODUCTS / LOCAL INTEL</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:1; padding:8px 20px 0;">
+            <div style="font-size:20px; color:var(--ink,#16171A);">✕</div>
+            <div style="font-size:28px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.03em; margin-top:20px;">What do you need?</div>
+            <div style="font-size:14px; color:var(--mut,#5C5C5C); margin-top:8px; line-height:1.5;">Pick a pillar. It decides who sees your request first.</div>
+            <div style="margin-top:26px;">
+              <sc-for list="{{ pillarCards }}" as="p" hint-placeholder-count="3">
+                <div style="background:{{ p.bg }}; border:1px solid {{ p.line }}; border-radius:16px; padding:20px; margin-bottom:12px;">
+                  <div style="display:flex; align-items:center; gap:14px;">
+                    <span style="width:44px; height:44px; border-radius:12px; background:rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; font-size:19px; color:var(--gtext,#0A7A54);">{{ p.glyph }}</span>
+                    <div style="flex:1;">
+                      <div style="font-size:17px; font-weight:700; color:var(--ink,#16171A);">{{ p.title }}</div>
+                      <div style="font-size:13px; color:var(--mut,#5C5C5C); margin-top:4px; line-height:1.4;">{{ p.sub }}</div>
+                    </div>
+                    <span style="font-size:16px; color:var(--chev,#9A9A9A);">›</span>
+                  </div>
+                  <div class="tnum" style="font-size:12px; color:var(--dim,#6F6F6F); margin-top:14px;">{{ p.stat }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 12 POST DETAILS -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">12 · POST DETAILS</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:1; overflow:hidden; padding:8px 20px 0;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span style="font-size:20px; color:var(--ink,#16171A);">←</span>
+              <span style="font-size:12px; color:var(--dim,#6F6F6F);">Draft saved</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-top:16px;">
+              <span style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:var(--gtext,#0A7A54);">PRODUCTS</span>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:22px;">TITLE</div>
+            <div style="font-size:17px; color:var(--ink,#16171A); margin-top:9px; padding-bottom:12px; border-bottom:1px solid var(--line,#E8E8E8);">Vintage 35mm film camera</div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:22px;">DETAILS</div>
+            <div style="font-size:14px; color:var(--mut,#5C5C5C); margin-top:9px; line-height:1.55; padding-bottom:12px; border-bottom:1px solid var(--line,#E8E8E8);">Working SLR, clean viewfinder, tested shutter. Pentax or Olympus preferred, lens included.</div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:22px;">PHOTOS OR VIDEO · OPTIONAL</div>
+            <div style="display:flex; gap:10px; margin-top:12px;">
+              <div style="width:70px; height:70px; border-radius:12px; background:var(--thumb,#EDEDED); display:flex; align-items:center; justify-content:center; color:var(--chev,#9A9A9A); font-size:17px;">▤</div>
+              <div style="width:70px; height:70px; border-radius:12px; background:var(--thumb,#EDEDED); position:relative; display:flex; align-items:center; justify-content:center; color:var(--chev,#9A9A9A); font-size:17px;">▶<span class="tnum" style="position:absolute; bottom:5px; right:5px; font-size:9px; color:#FFFFFF; background:rgba(0,0,0,0.6); border-radius:3px; padding:1px 4px;">0:34</span></div>
+              <div style="width:70px; height:70px; border-radius:12px; border:1px dashed var(--dash,#CFCFCF); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:var(--dim,#6F6F6F);"><span style="font-size:17px;">+</span><span style="font-size:9px;">Photo</span></div>
+              <div style="width:70px; height:70px; border-radius:12px; border:1px dashed var(--dash,#CFCFCF); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:var(--dim,#6F6F6F);"><span style="font-size:17px;">+</span><span style="font-size:9px;">Video</span></div>
+            </div>
+            <div style="font-size:12px; color:var(--dim,#6F6F6F); margin-top:10px;">Text-only posts are fine. Video up to 60 seconds.</div>
+            <div style="display:flex; gap:10px; margin-top:22px;">
+              <div style="flex:1; background:var(--card,#FFFFFF); border:1px solid var(--line2,#E4E4E4); border-radius:12px; padding:14px;">
+                <div style="font-size:10px; letter-spacing:0.14em; color:var(--dim,#6F6F6F);">BENCHMARK</div>
+                <div class="tnum" style="font-size:22px; font-weight:800; color:var(--gtext,#0A7A54); margin-top:5px;">₹4,500</div>
+              </div>
+              <div style="flex:1; background:var(--card,#FFFFFF); border:1px solid var(--line2,#E4E4E4); border-radius:12px; padding:14px;">
+                <div style="font-size:10px; letter-spacing:0.14em; color:var(--dim,#6F6F6F);">COMPLETE BY</div>
+                <div style="font-size:15px; font-weight:700; color:var(--ink,#16171A); margin-top:7px;">9 Sep, 6:00 PM</div>
+              </div>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:22px;">LOCATION</div>
+            <div style="margin-top:12px; height:104px; border-radius:12px; background:var(--card,#FFFFFF); border:1px solid var(--line2,#E4E4E4); position:relative; overflow:hidden;">
+              <div style="position:absolute; inset:0; background:repeating-linear-gradient(0deg,var(--line2,#E4E4E4) 0 1px,transparent 1px 24px),repeating-linear-gradient(90deg,var(--line2,#E4E4E4) 0 1px,transparent 1px 28px);"></div>
+              <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-100%); display:flex; flex-direction:column; align-items:center;">
+                <span style="width:13px; height:13px; border-radius:999px; border:3px solid var(--g,#0C9E6C); background:var(--pg,#FFFFFF);"></span>
+                <span style="width:1.5px; height:10px; background:var(--g,#0C9E6C);"></span>
+              </div>
+              <span style="position:absolute; bottom:9px; right:11px; font-size:11px; color:var(--mut,#5C5C5C);">Indiranagar · 5 km radius</span>
+            </div>
+            <div style="display:flex; gap:9px; margin-top:16px;">
+              <span style="font-size:12px; font-weight:600; color:var(--coral,#B4512C); border:1px solid var(--coral,#B4512C); border-radius:999px; padding:8px 14px;">● Urgent</span>
+              <span style="font-size:12px; font-weight:600; color:var(--dim,#6F6F6F); border:1px solid var(--line3,#D6D6D6); border-radius:999px; padding:8px 14px;">● Unique</span>
+            </div>
+          </div>
+          <div style="padding:14px 20px 26px;">
+            <div style="background:var(--g,#0C9E6C); border-radius:12px; padding:16px; text-align:center; font-size:15px; font-weight:700; color:#04150E;">Post request</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 13 REQUEST DETAIL + BIDS -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">13 · REQUEST DETAIL · COMPARE BIDS</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:1; overflow:hidden; padding:8px 20px 0;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span style="font-size:20px; color:var(--ink,#16171A);">←</span>
+              <span style="font-size:18px; color:var(--ink,#16171A);">↗</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-top:16px;">
+              <span style="width:5px; height:5px; border-radius:999px; background:#E0724A;"></span>
+              <span style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:var(--coral,#B4512C);">URGENT</span>
+              <span style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:var(--dim,#6F6F6F); margin-left:6px;">OPEN · 12 QUOTES</span>
+            </div>
+            <div style="font-size:24px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.03em; margin-top:10px;">Vintage 35mm film camera</div>
+            <div style="display:flex; gap:22px; margin-top:18px; padding:14px 0; border-top:1px solid var(--line2,#E4E4E4); border-bottom:1px solid var(--line2,#E4E4E4);">
+              <div><div style="font-size:10px; letter-spacing:0.14em; color:var(--dim,#6F6F6F);">BENCHMARK</div><div class="tnum" style="font-size:19px; font-weight:800; color:var(--gtext,#0A7A54); margin-top:4px;">₹4,500</div></div>
+              <div><div style="font-size:10px; letter-spacing:0.14em; color:var(--dim,#6F6F6F);">COMPLETE BY</div><div style="font-size:19px; font-weight:700; color:var(--ink,#16171A); margin-top:4px;">9 Sep, 6 PM</div></div>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:18px;">
+              <span style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F);">INCOMING QUOTES</span>
+              <span style="font-size:12px; font-weight:600; color:var(--gtext,#0A7A54);">Sort: lowest ▾</span>
+            </div>
+            <sc-for list="{{ bids }}" as="b" hint-placeholder-count="4">
+              <div style="background:{{ b.bg }}; border:1px solid {{ b.line }}; border-radius:14px; padding:14px; margin-top:11px;">
+                <div style="display:flex; align-items:center; gap:11px;">
+                  <span style="width:36px; height:36px; border-radius:999px; background:var(--thumb,#EDEDED); color:var(--mut,#5C5C5C); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex:none;">{{ b.initial }}</span>
+                  <div style="flex:1; min-width:0;">
+                    <div style="display:flex; align-items:center; gap:7px;">
+                      <span style="font-size:15px; font-weight:700; color:var(--ink,#16171A);">{{ b.name }}</span>
+                      <span class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C);">★ {{ b.rating }}</span>
+                      <sc-if value="{{ b.pro }}" hint-placeholder-val="{{ false }}">
+                        <span style="font-size:9px; letter-spacing:0.12em; font-weight:800; color:#04150E; background:var(--g,#0C9E6C); border-radius:4px; padding:2px 5px;">PRO</span>
+                      </sc-if>
+                    </div>
+                    <div style="font-size:12px; color:var(--mut,#5C5C5C); margin-top:3px;">{{ b.meta }}</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div class="tnum" style="font-size:17px; font-weight:800; color:var(--ink,#16171A);">{{ b.price }}</div>
+                    <div class="tnum" style="font-size:11px; color:var(--dim,#6F6F6F); margin-top:2px;">{{ b.eta }}</div>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="padding:14px 20px 26px;">
+            <div style="background:var(--g,#0C9E6C); border-radius:12px; padding:16px; text-align:center; font-size:15px; font-weight:700; color:#04150E;">Lock this quote · ₹4,200</div>
+            <div style="text-align:center; font-size:12px; color:var(--dim,#6F6F6F); margin-top:11px; line-height:1.5;">Quotes carry a price and a completion time only. Names, contacts and chat unlock when the worker starts the task.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 15 ESCROW -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">15 · LOCK QUOTE → ESCROW</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:1; overflow:hidden; padding:8px 20px 0;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <span style="font-size:20px; color:var(--ink,#16171A);">←</span>
+              <span style="font-size:17px; font-weight:700; color:var(--ink,#16171A);">Confirm and pay</span>
+            </div>
+            <div style="font-size:13px; color:var(--mut,#5C5C5C); margin-top:28px;">Into escrow</div>
+            <div class="tnum" style="font-size:46px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.04em; line-height:1.05; margin-top:5px;">₹4,335</div>
+            <div style="margin-top:26px;">
+              <sc-for list="{{ escrowRows }}" as="e" hint-placeholder-count="4">
+                <div style="display:flex; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--line2,#E4E4E4);">
+                  <span style="font-size:14px; color:{{ e.ink }};">{{ e.label }}</span>
+                  <span class="tnum" style="font-size:14px; font-weight:{{ e.weight }}; color:var(--ink,#16171A);">{{ e.value }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="margin-top:22px; background:var(--gwash,#EEF8F3); border:1px solid var(--gline,#C6E7D9); border-radius:12px; padding:15px 16px; display:flex; gap:12px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 3 5 6v6c0 4.2 2.9 7.6 7 9 4.1-1.4 7-4.8 7-9V6l-7-3Z" stroke="var(--g,#0C9E6C)" stroke-width="1.7" stroke-linejoin="round"></path><path d="m9 12 2.2 2.2L15.5 10" stroke="var(--g,#0C9E6C)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <span style="font-size:13px; color:var(--gink,#0A6E4C); line-height:1.5;">Funds are held by TaskDrop and released only when you confirm the work is done.</span>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:24px;">PAY WITH</div>
+            <div style="display:flex; gap:10px; margin-top:12px;">
+              <div style="flex:1; border:1px solid var(--ink,#16171A); border-radius:12px; padding:14px; font-size:13px; font-weight:700; color:var(--ink,#16171A);">UPI · 8721</div>
+              <div style="flex:1; border:1px solid var(--line3,#D6D6D6); border-radius:12px; padding:14px; font-size:13px; color:var(--mut,#5C5C5C);">Card · 4412</div>
+            </div>
+          </div>
+          <div style="padding:14px 20px 26px;">
+            <div style="background:var(--g,#0C9E6C); border-radius:12px; padding:16px; text-align:center; font-size:15px; font-weight:700; color:#04150E;">Pay into escrow</div>
+            <div style="text-align:center; font-size:12px; color:var(--dim,#6F6F6F); margin-top:11px;">Contacts unmask once the task starts.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 16 ACTIVE TASK TIMER -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">16 · ACTIVE TASK · TIMER CANNOT BE STOPPED</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:1; overflow:hidden; padding:8px 20px 0;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <span style="font-size:20px; color:var(--ink,#16171A);">←</span>
+              <span style="font-size:17px; font-weight:700; color:var(--ink,#16171A);">Active task</span>
+            </div>
+            <div style="margin-top:26px; display:flex; flex-direction:column; align-items:center;">
+              <div style="position:relative; width:200px; height:200px;">
+                <svg width="200" height="200" viewBox="0 0 200 200" fill="none">
+                  <circle cx="100" cy="100" r="88" stroke="#1F1F1F" stroke-width="10"></circle>
+                  <circle cx="100" cy="100" r="88" stroke="var(--g,#0C9E6C)" stroke-width="10" stroke-linecap="round" stroke-dasharray="553" stroke-dashoffset="212" transform="rotate(-90 100 100)"></circle>
+                </svg>
+                <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                  <div class="tnum" style="font-size:38px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.03em;">02:41:18</div>
+                  <div style="font-size:12px; color:var(--mut,#5C5C5C); margin-top:6px;">of 4 hrs agreed</div>
+                </div>
+              </div>
+            </div>
+            <div style="text-align:center; margin-top:22px;">
+              <div style="font-size:19px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.02em;">Vintage 35mm film camera</div>
+              <div class="tnum" style="font-size:13px; color:var(--mut,#5C5C5C); margin-top:6px;">₹4,335 in escrow · Meera R. working</div>
+            </div>
+            <div style="margin-top:24px; background:var(--awash,#FDF4E3); border:1px solid var(--aline,#F0DEBB); border-radius:12px; padding:14px 16px; font-size:13px; color:var(--amber,#8A5A12); line-height:1.5;">The timer runs on its own — neither side can pause it. It caps at 8 hrs, twice the agreed duration, and overrun past that is auto-refunded.</div>
+            <div style="margin-top:22px; display:flex; align-items:center; gap:13px; padding-bottom:18px; border-bottom:1px solid var(--line2,#E4E4E4);">
+              <span style="width:40px; height:40px; border-radius:999px; background:var(--thumb,#EDEDED); color:var(--mut,#5C5C5C); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700;">M</span>
+              <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:7px;">
+                  <span style="font-size:15px; font-weight:700; color:var(--ink,#16171A);">Meera R.</span>
+                  <span class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C);">★ 4.9</span>
+                </div>
+                <div class="tnum" style="font-size:12px; color:var(--gtext,#0A7A54); margin-top:3px;">+91 98••• ••210 · revealed</div>
+              </div>
+              <span style="font-size:13px; font-weight:700; color:var(--gtext,#0A7A54);">Chat</span>
+            </div>
+          </div>
+          <div style="padding:14px 20px 26px; display:flex; flex-direction:column; gap:10px;">
+            <div style="background:var(--card,#FFFFFF); border:1px solid var(--line2,#E4E4E4); border-radius:12px; padding:15px; text-align:center; font-size:13px; color:var(--mut,#5C5C5C); line-height:1.5;">The timer cannot be paused or stopped. It runs until the worker marks the work done, or until the 8 hr cap.</div>
+            <div style="border:1px solid var(--line3,#D6D6D6); border-radius:12px; padding:16px; text-align:center; font-size:15px; font-weight:600; color:var(--ink,#16171A);">Message Meera</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 17 WORK COMPLETED CONFIRM -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">17 · WORK COMPLETED · CONFIRM</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:1; overflow:hidden; padding:8px 20px 0;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <span style="font-size:20px; color:var(--ink,#16171A);">←</span>
+              <span style="font-size:17px; font-weight:700; color:var(--ink,#16171A);">Review the work</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-top:20px;">
+              <span style="width:5px; height:5px; border-radius:999px; background:#E0A85A;"></span>
+              <span style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:var(--amber,#8A5A12);">WORK DONE · AWAITING YOUR CONFIRMATION</span>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:16px;">
+              <div style="flex:1; height:140px; border-radius:12px; background:var(--thumb,#EDEDED); display:flex; align-items:center; justify-content:center; color:var(--chev,#9A9A9A); font-size:20px;">▤</div>
+              <div style="flex:1; height:140px; border-radius:12px; background:var(--thumb,#EDEDED); display:flex; align-items:center; justify-content:center; color:var(--chev,#9A9A9A); font-size:20px;">▤</div>
+            </div>
+            <div style="font-size:14px; color:var(--sub,#4A4A4A); line-height:1.55; margin-top:16px;">Pentax K1000 sourced and tested, shutter clean at all speeds. 50mm f/2 lens and strap included.</div>
+            <div style="margin-top:22px;">
+              <sc-for list="{{ releaseRows }}" as="r" hint-placeholder-count="3">
+                <div style="display:flex; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--line2,#E4E4E4);">
+                  <span style="font-size:14px; color:var(--mut,#5C5C5C);">{{ r.label }}</span>
+                  <span class="tnum" style="font-size:14px; font-weight:600; color:var(--ink,#16171A);">{{ r.value }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="margin-top:20px; background:var(--gwash,#EEF8F3); border:1px solid var(--gline,#C6E7D9); border-radius:12px; padding:14px 16px; font-size:13px; color:var(--gink,#0A6E4C); line-height:1.5;">Confirming releases escrow to Meera R. This cannot be undone.</div>
+          </div>
+          <div style="padding:14px 20px 26px; display:flex; flex-direction:column; gap:12px;">
+            <div style="background:var(--g,#0C9E6C); border-radius:12px; padding:16px; text-align:center; font-size:15px; font-weight:700; color:#04150E;">Confirm and release ₹4,100</div>
+            <div style="display:flex; justify-content:center; gap:24px; font-size:13px; color:var(--mut,#5C5C5C);"><span>Request changes</span><span>Open dispute</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════ WORKER MODE ════════ -->
+  <div>
+    <div style="font-size:12px; letter-spacing:0.22em; color:var(--gtext,#0A7A54); font-weight:700;">WORKER (TASKER) MODE</div>
+    <div style="display:flex; flex-wrap:wrap; gap:30px; margin-top:22px;">
+
+      <!-- 19 TASK DETAIL -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">19 · TASK DETAIL</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:1; overflow:hidden; padding:8px 20px 0;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span style="font-size:20px; color:var(--ink,#16171A);">←</span>
+              <span style="font-size:18px; color:var(--ink,#16171A);">↗</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:13px; margin-top:18px; padding-bottom:16px; border-bottom:1px solid var(--line2,#E4E4E4);">
+              <span style="width:40px; height:40px; border-radius:999px; background:var(--thumb,#EDEDED); color:var(--chev,#9A9A9A); display:flex; align-items:center; justify-content:center; font-size:16px;">☺</span>
+              <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:7px;">
+                  <span class="tnum" style="font-size:15px; font-weight:700; color:var(--ink,#16171A);">Poster 9014</span>
+                  <span class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C);">★ 4.8</span>
+                </div>
+                <div style="font-size:12px; color:var(--mut,#5C5C5C); margin-top:3px;">31 requests posted · 3.2 km · name hidden until start</div>
+              </div>
+              <span style="font-size:16px; color:var(--chev,#9A9A9A);">›</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-top:16px;">
+              <span style="width:5px; height:5px; border-radius:999px; background:#E0724A;"></span>
+              <span style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:var(--coral,#B4512C);">URGENT</span>
+              <span style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:var(--dim,#6F6F6F); margin-left:6px;">PRODUCTS</span>
+            </div>
+            <div style="font-size:24px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.03em; margin-top:10px;">Vintage 35mm film camera</div>
+            <div style="font-size:14px; color:var(--sub,#4A4A4A); line-height:1.55; margin-top:12px;">Working SLR, clean viewfinder, tested shutter. Pentax or Olympus preferred, lens included. Happy to pay above benchmark for a tested unit.</div>
+            <div style="display:flex; gap:10px; margin-top:18px;">
+              <div style="width:88px; height:88px; border-radius:12px; background:var(--thumb,#EDEDED); display:flex; align-items:center; justify-content:center; color:var(--chev,#9A9A9A); font-size:18px;">▤</div>
+              <div style="width:88px; height:88px; border-radius:12px; background:var(--thumb,#EDEDED); display:flex; align-items:center; justify-content:center; color:var(--chev,#9A9A9A); font-size:18px;">▤</div>
+            </div>
+            <div style="display:flex; margin-top:20px; border-top:1px solid var(--line2,#E4E4E4); border-bottom:1px solid var(--line2,#E4E4E4);">
+              <div style="flex:1; padding:15px 0;"><div style="font-size:10px; letter-spacing:0.14em; color:var(--dim,#6F6F6F);">BENCHMARK</div><div class="tnum" style="font-size:20px; font-weight:800; color:var(--gtext,#0A7A54); margin-top:4px;">₹4,500</div></div>
+              <div style="flex:1; padding:15px 0;"><div style="font-size:10px; letter-spacing:0.14em; color:var(--dim,#6F6F6F);">COMPLETE BY</div><div style="font-size:20px; font-weight:700; color:var(--ink,#16171A); margin-top:4px;">9 Sep, 6 PM</div></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:15px 0; border-bottom:1px solid var(--line2,#E4E4E4);">
+              <span style="font-size:14px; color:var(--mut,#5C5C5C);">Quotes so far</span>
+              <span class="tnum" style="font-size:14px; font-weight:700; color:var(--ink,#16171A);">12 · lowest ₹4,200</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:15px 0; border-bottom:1px solid var(--line2,#E4E4E4);">
+              <span style="font-size:14px; color:var(--mut,#5C5C5C);">Distance</span>
+              <span class="tnum" style="font-size:14px; font-weight:700; color:var(--ink,#16171A);">3.2 km away</span>
+            </div>
+            <div style="font-size:12px; color:var(--dim,#6F6F6F); margin-top:14px;">Contacts stay masked until the task starts.</div>
+          </div>
+          <div style="padding:14px 20px 26px;">
+            <div style="background:var(--g,#0C9E6C); border-radius:12px; padding:16px; text-align:center; font-size:15px; font-weight:700; color:#04150E;">Send a quote</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 20 SEND A QUOTE -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">20 · SEND A QUOTE · ONE PER TASK</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:1; overflow:hidden; padding:8px 20px 0;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <span style="font-size:20px; color:var(--ink,#16171A);">←</span>
+              <span style="font-size:17px; font-weight:700; color:var(--ink,#16171A);">Your quote</span>
+            </div>
+            <div style="margin-top:20px; background:var(--gwash,#EEF8F3); border:1px solid var(--gline,#C6E7D9); border-radius:12px; padding:14px 16px; display:flex; align-items:flex-start; gap:12px;">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="flex:none; margin-top:1px;"><circle cx="12" cy="12" r="10" stroke="var(--g,#0C9E6C)" stroke-width="1.7"></circle><path d="m8 12.4 2.6 2.6L16 9.6" stroke="var(--g,#0C9E6C)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <div>
+                <div style="font-size:13px; font-weight:700; color:var(--ink,#16171A);">Quote on as many tasks as you like</div>
+                <div style="font-size:12px; color:var(--gink,#0A6E4C); margin-top:3px; line-height:1.45;">One quote per task — make this one count.</div>
+              </div>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:26px;">YOUR PRICE</div>
+            <div style="display:flex; align-items:baseline; gap:6px; margin-top:12px; padding-bottom:12px; border-bottom:1px solid var(--g,#0C9E6C);">
+              <span class="tnum" style="font-size:32px; font-weight:800; color:var(--ink,#16171A);">₹4,200</span>
+              <span class="tnum" style="font-size:13px; color:var(--mut,#5C5C5C); margin-left:auto;">benchmark ₹4,500</span>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:24px;">COMPLETE BY</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding-bottom:12px; border-bottom:1px solid var(--line,#E8E8E8);">
+              <span style="font-size:16px; font-weight:700; color:var(--ink,#16171A);">9 Sep, 5:00 PM</span>
+              <span style="font-size:13px; font-weight:600; color:var(--gtext,#0A7A54);">Change</span>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:24px;">NOTE TO POSTER</div>
+            <div style="font-size:14px; color:var(--mut,#5C5C5C); margin-top:10px; line-height:1.5;">I have a tested Pentax K1000 with a 50mm f/2. Can hand over in person tomorrow evening.</div>
+          </div>
+          <div style="padding:14px 20px 26px;">
+            <div style="background:var(--g,#0C9E6C); border-radius:12px; padding:16px; text-align:center; font-size:15px; font-weight:700; color:#04150E;">Send quote</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 21 MY BIDS -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">21 · MY BIDS</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A); background:var(--bar,#F7F7F7);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:none; background:var(--bar,#F7F7F7); padding:6px 20px 16px; font-size:24px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.03em;">My bids</div>
+          <div style="flex:none; display:flex; background:var(--bar,#F7F7F7);">
+            <div style="flex:1; text-align:center; font-size:14px; font-weight:700; color:var(--ink,#16171A); padding:13px 0; border-bottom:2px solid var(--ink,#16171A);">Pending</div>
+            <div style="flex:1; text-align:center; font-size:14px; font-weight:600; color:var(--mut,#5C5C5C); padding:13px 0; border-bottom:1px solid var(--line,#E8E8E8);">Accepted</div>
+          </div>
+          <div style="flex:1; overflow:hidden; padding:6px 20px 0;">
+            <sc-for list="{{ myBids }}" as="b" hint-placeholder-count="4">
+              <div style="background:var(--card,#FFFFFF); border:1px solid var(--line2,#E4E4E4); border-radius:14px; padding:15px; margin-top:12px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="width:5px; height:5px; border-radius:999px; background:{{ b.dot }};"></span>
+                  <span style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:{{ b.stateInk }};">{{ b.state }}</span>
+                </div>
+                <div style="display:flex; align-items:baseline; gap:12px; margin-top:9px;">
+                  <div style="flex:1; font-size:16px; font-weight:700; color:var(--ink,#16171A);">{{ b.title }}</div>
+                  <div class="tnum" style="font-size:16px; font-weight:800; color:var(--ink,#16171A);">{{ b.price }}</div>
+                </div>
+                <div style="font-size:12px; color:var(--mut,#5C5C5C); margin-top:6px;">{{ b.meta }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="flex:none; display:flex; align-items:center; justify-content:space-around; padding:14px 16px 22px; border-top:1px solid var(--line,#E8E8E8); background:var(--bar,#F7F7F7);">
+            <sc-for list="{{ navOrders }}" as="n" hint-placeholder-count="5">
+              <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="{{ n.d }}" stroke="{{ n.c }}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <!-- 21b QUOTES ON MY SERVICE · WORKER -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">21b · QUOTES ON MY SERVICE · WORKER LOCKS</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:1; overflow:hidden; padding:8px 20px 0;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <span style="font-size:20px; color:var(--ink,#16171A);">←</span>
+              <span style="font-size:17px; font-weight:700; color:var(--ink,#16171A);">Quotes on my service</span>
+            </div>
+            <div style="margin-top:16px; background:var(--card,#FFFFFF); border:1px solid var(--line2,#E4E4E4); border-radius:14px; padding:13px; display:flex; gap:12px; align-items:center;">
+              <span style="width:42px; height:42px; border-radius:11px; background:var(--thumb,#EDEDED); color:var(--chev,#9A9A9A); display:flex; align-items:center; justify-content:center; font-size:16px; flex:none;">▤</span>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:15px; font-weight:700; color:var(--ink,#16171A);">Bespoke carpentry and joinery</div>
+                <div class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C); margin-top:3px;">My rate ₹1,200 · 3 quotes received</div>
+              </div>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:20px;">POSTERS WHO QUOTED YOU</div>
+            <sc-for list="{{ posterQuotes }}" as="q" hint-placeholder-count="3">
+              <div style="background:{{ q.bg }}; border:1px solid {{ q.line }}; border-radius:14px; padding:14px; margin-top:11px;">
+                <div style="display:flex; align-items:center; gap:11px;">
+                  <span style="width:36px; height:36px; border-radius:999px; background:var(--thumb,#EDEDED); color:var(--chev,#9A9A9A); display:flex; align-items:center; justify-content:center; font-size:14px; flex:none;">☺</span>
+                  <div style="flex:1; min-width:0;">
+                    <div style="display:flex; align-items:center; gap:7px;">
+                      <span class="tnum" style="font-size:14px; font-weight:700; color:var(--ink,#16171A);">{{ q.handle }}</span>
+                      <span class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C);">★ {{ q.rating }}</span>
+                    </div>
+                    <div class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C); margin-top:3px;">{{ q.meta }}</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div class="tnum" style="font-size:17px; font-weight:800; color:var(--ink,#16171A);">{{ q.price }}</div>
+                    <div class="tnum" style="font-size:11px; color:var(--dim,#6F6F6F); margin-top:2px;">{{ q.by }}</div>
+                  </div>
+                </div>
+                <div style="font-size:13px; color:var(--sub,#4A4A4A); margin-top:11px; line-height:1.45;">{{ q.task }}</div>
+              </div>
+            </sc-for>
+            <div style="margin-top:16px; background:var(--gwash,#EEF8F3); border:1px solid var(--gline,#C6E7D9); border-radius:12px; padding:13px 16px; font-size:12px; color:var(--gink,#0A6E4C); line-height:1.5;">Locking a quote funds escrow from the poster. You then swipe to start, which reveals both contacts and begins the timer.</div>
+          </div>
+          <div style="padding:12px 20px 24px;">
+            <div style="background:var(--g,#0C9E6C); border-radius:12px; padding:16px; text-align:center; font-size:15px; font-weight:700; color:#04150E;">Lock this quote · ₹1,400</div>
+            <div style="text-align:center; font-size:12px; color:var(--dim,#6F6F6F); margin-top:10px;">Next: swipe to start the task.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 22 SWIPE TO START -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">22 · SWIPE TO START</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:1; padding:8px 20px 0; display:flex; flex-direction:column;">
+            <span style="font-size:20px; color:var(--ink,#16171A);">←</span>
+            <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="width:6px; height:6px; border-radius:999px; background:var(--g,#0C9E6C);"></span>
+                <span style="font-size:10px; letter-spacing:0.16em; font-weight:700; color:var(--gtext,#0A7A54);">QUOTE ACCEPTED · ESCROW FUNDED</span>
+              </div>
+              <div style="font-size:30px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.035em; margin-top:14px; line-height:1.2;">Vintage 35mm film camera</div>
+              <div class="tnum" style="font-size:15px; color:var(--mut,#5C5C5C); margin-top:10px;">₹4,200 to you · complete by 9 Sep, 5:00 PM</div>
+              <div style="margin-top:30px; padding:20px; background:var(--card,#FFFFFF); border:1px solid var(--line2,#E4E4E4); border-radius:14px;">
+                <div style="font-size:13px; color:var(--sub,#4A4A4A); line-height:1.55;">Starting the task reveals both contacts, begins the live timer and locks your slot. First accepted worker to start wins the job.</div>
+              </div>
+            </div>
+            <div style="padding-bottom:34px;">
+              <div style="height:62px; border-radius:999px; background:var(--card,#FFFFFF); border:1px solid var(--line2,#E4E4E4); display:flex; align-items:center; padding:6px; position:relative; overflow:hidden;">
+                <div style="position:absolute; left:0; top:0; bottom:0; width:34%; background:rgba(12,158,108,0.28);"></div>
+                <div style="width:50px; height:50px; border-radius:999px; background:var(--g,#0C9E6C); display:flex; align-items:center; justify-content:center; color:#04150E; font-size:19px; font-weight:800; position:relative; z-index:1;">→</div>
+                <div style="flex:1; text-align:center; padding-right:50px; font-size:15px; font-weight:700; color:var(--ink,#16171A); position:relative; z-index:1;">Swipe to start</div>
+              </div>
+              <div style="text-align:center; font-size:12px; color:var(--dim,#6F6F6F); margin-top:14px;">Timer starts the moment you swipe.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 23 ACTIVE JOB + PROOF -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">23 · ACTIVE JOB · UPLOAD PROOF</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:1; overflow:hidden; padding:8px 20px 0;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <span style="font-size:20px; color:var(--ink,#16171A);">←</span>
+              <span style="font-size:17px; font-weight:700; color:var(--ink,#16171A);">Active job</span>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:20px; background:var(--card,#FFFFFF); border:1px solid var(--line2,#E4E4E4); border-radius:14px; padding:16px;">
+              <div>
+                <div style="font-size:10px; letter-spacing:0.14em; color:var(--dim,#6F6F6F);">ELAPSED</div>
+                <div class="tnum" style="font-size:26px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.03em; margin-top:4px;">02:41:18</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:10px; letter-spacing:0.14em; color:var(--dim,#6F6F6F);">CAP</div>
+                <div class="tnum" style="font-size:15px; font-weight:700; color:var(--amber,#8A5A12); margin-top:6px;">8:00:00</div>
+              </div>
+            </div>
+            <div style="margin-top:20px;">
+              <sc-for list="{{ jobSteps }}" as="s" hint-placeholder-count="5">
+                <div style="display:flex; align-items:center; gap:12px; padding:13px 0; border-bottom:1px solid var(--line,#E8E8E8);">
+                  <span style="width:6px; height:6px; border-radius:999px; background:{{ s.dot }};"></span>
+                  <span style="flex:1; font-size:14px; color:{{ s.ink }};">{{ s.label }}</span>
+                  <span style="font-size:12px; color:var(--dim,#6F6F6F);">{{ s.when }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:24px;">PROOF OF WORK</div>
+            <div style="display:flex; gap:10px; margin-top:12px;">
+              <div style="width:92px; height:92px; border-radius:12px; background:var(--thumb,#EDEDED); display:flex; align-items:center; justify-content:center; color:var(--chev,#9A9A9A); font-size:18px;">▤</div>
+              <div style="width:92px; height:92px; border-radius:12px; background:var(--thumb,#EDEDED); display:flex; align-items:center; justify-content:center; color:var(--chev,#9A9A9A); font-size:18px;">▤</div>
+              <div style="width:92px; height:92px; border-radius:12px; border:1px dashed var(--dash,#CFCFCF); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; color:var(--dim,#6F6F6F);"><span style="font-size:19px;">+</span><span style="font-size:11px;">Add</span></div>
+            </div>
+            <div style="font-size:14px; color:var(--mut,#5C5C5C); margin-top:16px; line-height:1.5;">Pentax K1000 tested, shutter clean at all speeds. Lens and strap included.</div>
+          </div>
+          <div style="padding:14px 20px 26px; display:flex; flex-direction:column; gap:10px;">
+            <div style="background:var(--g,#0C9E6C); border-radius:12px; padding:16px; text-align:center; font-size:15px; font-weight:700; color:#04150E;">Mark work done</div>
+            <div style="text-align:center; font-size:12px; color:var(--dim,#6F6F6F);">The poster confirms next. Escrow releases on their confirmation.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 24 EARNINGS -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">24 · EARNINGS &amp; PAYOUT</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:1; overflow:hidden; padding:8px 20px 0;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <span style="font-size:20px; color:var(--ink,#16171A);">←</span>
+              <span style="font-size:17px; font-weight:700; color:var(--ink,#16171A);">Earnings</span>
+            </div>
+            <div style="font-size:13px; color:var(--mut,#5C5C5C); margin-top:26px;">Available to withdraw</div>
+            <div class="tnum" style="font-size:44px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.04em; line-height:1.1; margin-top:4px;">₹8,200</div>
+            <div style="display:flex; height:7px; border-radius:999px; overflow:hidden; background:var(--thumb,#EDEDED); margin-top:18px;">
+              <div style="width:50%; background:var(--g,#0C9E6C);"></div>
+              <div style="width:28%; background:#E0A85A;"></div>
+              <div style="width:22%; background:#4A90D9;"></div>
+            </div>
+            <div style="display:flex; gap:16px; margin-top:12px; font-size:11px; color:var(--mut,#5C5C5C);">
+              <span>● Available</span><span style="color:var(--amber,#8A5A12);">● In escrow</span><span style="color:var(--blue,#2A6BAE);">● Clearing</span>
+            </div>
+            <div style="display:flex; margin-top:20px; border-top:1px solid var(--line2,#E4E4E4); border-bottom:1px solid var(--line2,#E4E4E4);">
+              <div style="flex:1; padding:15px 0; border-right:1px solid var(--line2,#E4E4E4);"><div style="font-size:11px; color:var(--amber,#8A5A12);">In escrow</div><div class="tnum" style="font-size:19px; font-weight:800; color:var(--ink,#16171A); margin-top:5px;">₹4,635</div></div>
+              <div style="flex:1; padding:15px 0 15px 16px;"><div style="font-size:11px; color:var(--blue,#2A6BAE);">Clearing · 7d</div><div class="tnum" style="font-size:19px; font-weight:800; color:var(--ink,#16171A); margin-top:5px;">₹3,600</div></div>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:24px;">RECENT</div>
+            <sc-for list="{{ earnings }}" as="e" hint-placeholder-count="4">
+              <div style="display:flex; align-items:center; gap:12px; padding:15px 0; border-bottom:1px solid var(--line,#E8E8E8);">
+                <span style="width:6px; height:6px; border-radius:999px; background:{{ e.dot }}; flex:none;"></span>
+                <div style="flex:1; min-width:0;">
+                  <div style="font-size:15px; font-weight:600; color:var(--ink,#16171A);">{{ e.title }}</div>
+                  <div style="font-size:12px; color:var(--mut,#5C5C5C); margin-top:2px;">{{ e.meta }}</div>
+                </div>
+                <span class="tnum" style="font-size:15px; font-weight:700; color:{{ e.ink }};">{{ e.amt }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="padding:14px 20px 26px;">
+            <div style="background:var(--g,#0C9E6C); border-radius:12px; padding:16px; text-align:center; font-size:15px; font-weight:700; color:#04150E;">Withdraw ₹8,200</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════ SHARED ════════ -->
+  <div>
+    <div style="font-size:12px; letter-spacing:0.22em; color:var(--gtext,#0A7A54); font-weight:700;">SHARED</div>
+    <div style="display:flex; flex-wrap:wrap; gap:30px; margin-top:22px;">
+
+      <!-- 25 CHAT -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">25 · PER-TASK CHAT · AFTER TASK STARTED</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A); background:var(--bar,#F7F7F7);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:none; background:var(--bar,#F7F7F7); padding:6px 18px 14px; display:flex; align-items:center; gap:12px;">
+            <span style="font-size:20px; color:var(--ink,#16171A);">←</span>
+            <span style="width:36px; height:36px; border-radius:999px; background:var(--thumb,#EDEDED); color:var(--mut,#5C5C5C); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700;">M</span>
+            <div style="flex:1;">
+              <div style="display:flex; align-items:center; gap:7px;">
+                <span style="font-size:15px; font-weight:700; color:var(--ink,#16171A);">Meera R.</span>
+                <span class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C);">★ 4.9</span>
+              </div>
+              <div style="font-size:11px; color:var(--gtext,#0A7A54); margin-top:2px;">Contact revealed</div>
+            </div>
+            <span style="font-size:17px; color:var(--ink,#16171A);">☏</span>
+          </div>
+          <div style="flex:none; background:var(--card,#FFFFFF); border-bottom:1px solid var(--line2,#E4E4E4); padding:12px 18px; display:flex; align-items:center; gap:11px;">
+            <span style="width:32px; height:32px; border-radius:9px; background:var(--thumb,#EDEDED); display:flex; align-items:center; justify-content:center; color:var(--chev,#9A9A9A); font-size:13px;">▤</span>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:13px; font-weight:700; color:var(--ink,#16171A);">Vintage 35mm film camera</div>
+              <div class="tnum" style="font-size:11px; color:var(--mut,#5C5C5C); margin-top:2px;">₹4,200 · in escrow</div>
+            </div>
+            <span style="font-size:12px; font-weight:700; color:var(--gtext,#0A7A54);">View</span>
+          </div>
+          <div style="flex:1; overflow:hidden; padding:18px; display:flex; flex-direction:column; gap:12px;">
+            <div style="align-self:center; text-align:center; background:var(--gwash,#EEF8F3); border:1px solid var(--gline,#C6E7D9); border-radius:10px; padding:9px 14px; font-size:11px; color:var(--gink,#0A6E4C); line-height:1.45;">Chat opened when Meera started the task.<br>Contacts unmasked for both sides.</div>
+            <div style="align-self:flex-start; max-width:76%; background:var(--fill,#F1F1F1); border-radius:16px 16px 16px 5px; padding:12px 15px; font-size:14px; color:var(--ink,#16171A); line-height:1.45;">I have the K1000 tested and ready. Want a photo of the shutter curtain?</div>
+            <div style="align-self:flex-end; max-width:76%; background:var(--g,#0C9E6C); border-radius:16px 16px 5px 16px; padding:12px 15px; font-size:14px; color:#04150E; font-weight:500; line-height:1.45;">Yes please, and the lens front element.</div>
+            <div style="align-self:flex-start; width:160px; height:110px; border-radius:16px; background:var(--thumb,#EDEDED); display:flex; align-items:center; justify-content:center; color:var(--chev,#9A9A9A); font-size:18px;">▤</div>
+            <div style="align-self:flex-start; display:flex; align-items:center; gap:11px; background:var(--fill,#F1F1F1); border-radius:999px; padding:11px 16px;">
+              <span style="font-size:13px; color:var(--ink,#16171A);">▶</span>
+              <span style="width:76px; height:3px; background:var(--dash,#CFCFCF); border-radius:999px;"></span>
+              <span class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C);">0:12</span>
+            </div>
+            <div style="align-self:flex-end; font-size:11px; color:var(--dim,#6F6F6F);">Read 1:46 PM</div>
+          </div>
+          <div style="flex:none; padding:12px 18px 24px; border-top:1px solid var(--line,#E8E8E8); display:flex; align-items:center; gap:12px; background:var(--bar,#F7F7F7);">
+            <span style="font-size:20px; color:var(--mut,#5C5C5C);">+</span>
+            <div style="flex:1; background:var(--fill,#F1F1F1); border-radius:999px; padding:12px 16px; font-size:14px; color:var(--dim,#6F6F6F);">Message</div>
+            <span style="font-size:17px; color:var(--mut,#5C5C5C);">🎙</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 26 RATINGS -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">26 · RATINGS &amp; REVIEW</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:1; overflow:hidden; padding:8px 20px 0;">
+            <div style="font-size:20px; color:var(--ink,#16171A);">✕</div>
+            <div style="text-align:center; margin-top:28px;">
+              <span style="width:70px; height:70px; border-radius:999px; background:var(--thumb,#EDEDED); color:var(--mut,#5C5C5C); display:inline-flex; align-items:center; justify-content:center; font-size:25px; font-weight:800;">M</span>
+              <div style="font-size:24px; font-weight:800; color:var(--ink,#16171A); letter-spacing:-0.03em; margin-top:16px;">How did Meera do?</div>
+              <div style="font-size:14px; color:var(--mut,#5C5C5C); margin-top:8px;">Vintage 35mm film camera · ₹4,200</div>
+              <div style="display:flex; justify-content:center; gap:12px; margin-top:26px;">
+                <sc-for list="{{ stars }}" as="s" hint-placeholder-count="5">
+                  <span style="font-size:34px; color:{{ s.c }};">★</span>
+                </sc-for>
+              </div>
+              <div style="font-size:14px; font-weight:700; color:var(--gtext,#0A7A54); margin-top:12px;">Excellent</div>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:32px;">WHAT WENT WELL</div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;">
+              <sc-for list="{{ praise }}" as="p" hint-placeholder-count="5">
+                <span style="font-size:13px; font-weight:600; color:{{ p.ink }}; background:{{ p.bg }}; border:1px solid {{ p.line }}; border-radius:999px; padding:9px 15px;">{{ p.label }}</span>
+              </sc-for>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:26px;">WRITE A REVIEW · OPTIONAL</div>
+            <div style="background:var(--card,#FFFFFF); border:1px solid var(--line2,#E4E4E4); border-radius:12px; padding:15px; margin-top:12px; font-size:14px; color:var(--dim,#6F6F6F); line-height:1.5; min-height:96px;">Sourced exactly what I described and delivered a day early…</div>
+          </div>
+          <div style="padding:14px 20px 26px;">
+            <div style="background:var(--g,#0C9E6C); border-radius:12px; padding:16px; text-align:center; font-size:15px; font-weight:700; color:#04150E;">Submit review</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 28 PROMOTE · AD CAMPAIGN -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">27 · PROMOTE · POSTER</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:1; overflow:hidden; padding:8px 20px 0;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <span style="font-size:20px; color:var(--ink,#16171A);">←</span>
+              <span style="font-size:17px; font-weight:700; color:var(--ink,#16171A);">Promote this task</span>
+            </div>
+            <div style="margin-top:16px; background:var(--card,#FFFFFF); border:1px solid var(--line2,#E4E4E4); border-radius:14px; padding:13px; display:flex; gap:12px; align-items:center;">
+              <span style="width:42px; height:42px; border-radius:11px; background:var(--thumb,#EDEDED); color:var(--chev,#9A9A9A); display:flex; align-items:center; justify-content:center; font-size:16px; flex:none;">▤</span>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:15px; font-weight:700; color:var(--ink,#16171A);">Vintage 35mm film camera</div>
+                <div class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C); margin-top:3px;">₹4,500 · open · 12 quotes</div>
+              </div>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:20px;">DAILY BUDGET</div>
+            <div style="display:flex; align-items:baseline; gap:8px; margin-top:10px; padding-bottom:11px; border-bottom:1px solid var(--g,#0C9E6C);">
+              <span class="tnum" style="font-size:29px; font-weight:800; color:var(--ink,#16171A);">₹150</span>
+              <span class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C); margin-left:auto;">₹450 over 3 days</span>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:11px;">
+              <sc-for list="{{ adBudgets }}" as="a" hint-placeholder-count="3">
+                <span class="tnum" style="flex:1; text-align:center; font-size:13px; font-weight:600; color:{{ a.ink }}; background:{{ a.bg }}; border:1px solid {{ a.line }}; border-radius:10px; padding:10px 0;">{{ a.label }}</span>
+              </sc-for>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:18px;">RUN FOR</div>
+            <div style="display:flex; gap:8px; margin-top:10px;">
+              <sc-for list="{{ adDurations }}" as="a" hint-placeholder-count="3">
+                <span style="flex:1; text-align:center; font-size:13px; font-weight:600; color:{{ a.ink }}; background:{{ a.bg }}; border:1px solid {{ a.line }}; border-radius:10px; padding:10px 0;">{{ a.label }}</span>
+              </sc-for>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:18px;">
+              <span style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F);">SHOW IT TO</span>
+              <span style="font-size:11px; color:var(--dim,#6F6F6F);">Optional · defaults to everyone</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding-bottom:11px; border-bottom:1px solid var(--line,#E8E8E8);">
+              <span style="font-size:15px; color:var(--ink,#16171A);">Workers within 12 km</span>
+              <span style="font-size:13px; font-weight:600; color:var(--gtext,#0A7A54);">Change</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--line,#E8E8E8);">
+              <span style="font-size:15px; color:var(--ink,#16171A);">Services · Products</span>
+              <span style="font-size:13px; font-weight:600; color:var(--gtext,#0A7A54);">Change</span>
+            </div>
+            <div style="margin-top:16px; background:var(--gwash,#EEF8F3); border:1px solid var(--gline,#C6E7D9); border-radius:12px; padding:13px 16px;">
+              <div style="font-size:11px; letter-spacing:0.14em; color:var(--gink,#0A6E4C);">ESTIMATED REACH</div>
+              <div class="tnum" style="font-size:23px; font-weight:800; color:var(--ink,#16171A); margin-top:4px;">1,800 – 3,400</div>
+              <div style="font-size:12px; color:var(--gink,#0A6E4C); margin-top:3px;">workers per day in your radius</div>
+            </div>
+          </div>
+          <div style="padding:12px 20px 24px;">
+            <div style="background:var(--g,#0C9E6C); border-radius:12px; padding:15px; text-align:center; font-size:15px; font-weight:700; color:#04150E;">Start campaign · ₹450</div>
+            <div style="text-align:center; font-size:12px; color:var(--dim,#6F6F6F); margin-top:10px;">Pause or stop any time. You are charged for days run.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 27b PROMOTE · WORKER -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">27b · PROMOTE · WORKER</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:var(--ink,#16171A);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:1; overflow:hidden; padding:8px 20px 0;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <span style="font-size:20px; color:var(--ink,#16171A);">←</span>
+              <span style="font-size:17px; font-weight:700; color:var(--ink,#16171A);">Promote this service</span>
+            </div>
+            <div style="margin-top:16px; background:var(--card,#FFFFFF); border:1px solid var(--line2,#E4E4E4); border-radius:14px; padding:13px; display:flex; gap:12px; align-items:center;">
+              <span style="width:42px; height:42px; border-radius:11px; background:var(--thumb,#EDEDED); color:var(--chev,#9A9A9A); display:flex; align-items:center; justify-content:center; font-size:16px; flex:none;">▤</span>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:15px; font-weight:700; color:var(--ink,#16171A);">Bespoke carpentry and joinery</div>
+                <div class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C); margin-top:3px;">₹1,200 rate · 61 jobs done</div>
+              </div>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:20px;">DAILY BUDGET</div>
+            <div style="display:flex; align-items:baseline; gap:8px; margin-top:10px; padding-bottom:11px; border-bottom:1px solid var(--g,#0C9E6C);">
+              <span class="tnum" style="font-size:29px; font-weight:800; color:var(--ink,#16171A);">₹80</span>
+              <span class="tnum" style="font-size:12px; color:var(--mut,#5C5C5C); margin-left:auto;">₹560 over 7 days</span>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:11px;">
+              <sc-for list="{{ adBudgetsWorker }}" as="a" hint-placeholder-count="3">
+                <span class="tnum" style="flex:1; text-align:center; font-size:13px; font-weight:600; color:{{ a.ink }}; background:{{ a.bg }}; border:1px solid {{ a.line }}; border-radius:10px; padding:10px 0;">{{ a.label }}</span>
+              </sc-for>
+            </div>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:18px;">RUN FOR</div>
+            <div style="display:flex; gap:8px; margin-top:10px;">
+              <sc-for list="{{ adDurationsWorker }}" as="a" hint-placeholder-count="3">
+                <span style="flex:1; text-align:center; font-size:13px; font-weight:600; color:{{ a.ink }}; background:{{ a.bg }}; border:1px solid {{ a.line }}; border-radius:10px; padding:10px 0;">{{ a.label }}</span>
+              </sc-for>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:18px;">
+              <span style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F);">SHOW IT TO</span>
+              <span style="font-size:11px; color:var(--dim,#6F6F6F);">Optional · defaults to everyone</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding-bottom:11px; border-bottom:1px solid var(--line,#E8E8E8);">
+              <span style="font-size:15px; color:var(--ink,#16171A);">Posters within 15 km</span>
+              <span style="font-size:13px; font-weight:600; color:var(--gtext,#0A7A54);">Change</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--line,#E8E8E8);">
+              <span style="font-size:15px; color:var(--ink,#16171A);">Services</span>
+              <span style="font-size:13px; font-weight:600; color:var(--gtext,#0A7A54);">Change</span>
+            </div>
+            <div style="margin-top:16px; background:var(--gwash,#EEF8F3); border:1px solid var(--gline,#C6E7D9); border-radius:12px; padding:13px 16px;">
+              <div style="font-size:11px; letter-spacing:0.14em; color:var(--gink,#0A6E4C);">ESTIMATED REACH</div>
+              <div class="tnum" style="font-size:23px; font-weight:800; color:var(--ink,#16171A); margin-top:4px;">900 – 1,600</div>
+              <div style="font-size:12px; color:var(--gink,#0A6E4C); margin-top:3px;">posters per day in your radius</div>
+            </div>
+          </div>
+          <div style="padding:12px 20px 24px;">
+            <div style="background:var(--g,#0C9E6C); border-radius:12px; padding:15px; text-align:center; font-size:15px; font-weight:700; color:#04150E;">Start campaign · ₹560</div>
+            <div style="text-align:center; font-size:12px; color:var(--dim,#6F6F6F); margin-top:10px;">Pause or stop any time. You are charged for days run.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 27 VERIFIED PRO -->
+      <div style="width:390px;">
+        <div style="font-size:11px; letter-spacing:0.16em; color:var(--dim,#6F6F6F); margin-bottom:9px;">28 · GET VERIFIED PRO</div>
+        <div style="width:390px; height:844px; border-radius:26px; overflow:hidden; background:var(--pg,#FFFFFF); display:flex; flex-direction:column; box-shadow:var(--shadow,0 20px 50px rgba(0,0,0,0.14));">
+          <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:11px; color:#FFFFFF; background:var(--band,#0B3D2C);"><span class="tnum">1:48</span><span class="tnum" style="letter-spacing:0.06em;">5G ▮▮▮ 84%</span></div>
+          <div style="flex:none; background:var(--band,#0B3D2C); padding:10px 20px 22px;">
+            <div style="font-size:20px; color:#FFFFFF;">←</div>
+            <div style="display:flex; align-items:center; gap:9px; margin-top:18px;">
+              <span style="font-size:10px; letter-spacing:0.16em; font-weight:800; color:#04150E; background:var(--g,#0C9E6C); border-radius:5px; padding:4px 8px;">PRO</span>
+              <span style="font-size:11px; letter-spacing:0.14em; color:rgba(255,255,255,0.7);">VERIFIED TASKER</span>
+            </div>
+            <div style="font-size:27px; font-weight:800; color:#FFFFFF; letter-spacing:-0.03em; margin-top:12px; line-height:1.2;">Win more work with<br>a verified badge</div>
+            <div style="font-size:14px; color:rgba(255,255,255,0.75); margin-top:8px; line-height:1.45;">Verified Pros get 2.4× more accepted quotes.</div>
+          </div>
+          <div style="flex:1; overflow:hidden; padding:18px 20px 0;">
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F);">WHAT YOU GET</div>
+            <sc-for list="{{ proPerks }}" as="p" hint-placeholder-count="4">
+              <div style="display:flex; align-items:flex-start; gap:13px; padding:11px 0; border-bottom:1px solid var(--line,#E8E8E8);">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="flex:none; margin-top:1px;"><circle cx="12" cy="12" r="10" stroke="var(--g,#0C9E6C)" stroke-width="1.7"></circle><path d="m8 12.4 2.6 2.6L16 9.6" stroke="var(--g,#0C9E6C)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                <div>
+                  <div style="font-size:15px; font-weight:700; color:var(--ink,#16171A);">{{ p.title }}</div>
+                  <div style="font-size:13px; color:var(--mut,#5C5C5C); margin-top:3px; line-height:1.45;">{{ p.sub }}</div>
+                </div>
+              </div>
+            </sc-for>
+            <div style="font-size:11px; letter-spacing:0.14em; color:var(--dim,#6F6F6F); margin-top:18px;">VERIFICATION STEPS</div>
+            <sc-for list="{{ proSteps }}" as="s" hint-placeholder-count="3">
+              <div style="display:flex; align-items:center; gap:13px; padding:12px 0; border-bottom:1px solid var(--line,#E8E8E8);">
+                <span style="width:24px; height:24px; border-radius:999px; background:{{ s.bg }}; border:1px solid {{ s.line }}; color:{{ s.numInk }}; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; flex:none;">{{ s.num }}</span>
+                <span style="flex:1; font-size:15px; color:{{ s.ink }};">{{ s.label }}</span>
+                <span style="font-size:12px; font-weight:600; color:{{ s.stateInk }};">{{ s.state }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="padding:12px 20px 24px;">
+            <div style="background:var(--g,#0C9E6C); border-radius:12px; padding:15px; text-align:center; font-size:15px; font-weight:700; color:#04150E;">Continue verification</div>
+            <div class="tnum" style="text-align:center; font-size:12px; color:var(--dim,#6F6F6F); margin-top:11px;">₹499 one-time · refunded if rejected</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#0C9E6C&quot;,&quot;options&quot;:[&quot;#0C9E6C&quot;,&quot;#1DBF73&quot;,&quot;#00A88F&quot;,&quot;#E0724A&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;},&quot;band&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#0B3D2C&quot;,&quot;options&quot;:[&quot;#0B3D2C&quot;,&quot;#062B1E&quot;,&quot;#123528&quot;,&quot;#1A1A1A&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const G = this.props.accent || '#0C9E6C';
+    const BAND = this.props.band || '#0B3D2C';
+    const TH = this.props.theme === 'dark' ? 'dark' : 'light';
+    const W = 'var(--ink,#16171A)', MUT = 'var(--mut,#5C5C5C)', DIM = 'var(--dim,#6F6F6F)', LINE = 'var(--line3,#D6D6D6)';
+    const CARD = 'var(--card,#FFFFFF)', CLINE = 'var(--line2,#E4E4E4)', GTINT = 'var(--gtint,#E9F6F1)';
+    const TOKENS = {
+      light: { '--pg':'#FFFFFF','--bar':'#F7F7F7','--card':'#FFFFFF','--fill':'#F1F1F1','--thumb':'#EDEDED','--line':'#E8E8E8','--line2':'#E4E4E4','--line3':'#D6D6D6','--dash':'#CFCFCF','--ink':'#16171A','--sub':'#4A4A4A','--mut':'#5C5C5C','--dim':'#6F6F6F','--chev':'#9A9A9A','--gtint':'#E9F6F1','--gwash':'#EEF8F3','--gline':'#C6E7D9','--gink':'#0A6E4C','--awash':'#FDF4E3','--aline':'#F0DEBB','--amber':'#8A5A12','--blue':'#2A6BAE','--coral':'#B4512C','--violet':'#5B52C4','--gtext':'#0A7A54','--canvas':'#EDEDED','--shadow':'0 20px 50px rgba(0,0,0,0.14)' },
+      dark: { '--pg':'#0E0E0E','--bar':'#121212','--card':'#151515','--fill':'#1A1A1A','--thumb':'#1F1F1F','--line':'#1C1C1C','--line2':'#1F1F1F','--line3':'#2C2C2C','--dash':'#3A3A3A','--ink':'#FFFFFF','--sub':'#B4B4B4','--mut':'#8A8A8A','--dim':'#6E6E6E','--chev':'#5A5A5A','--gtint':'#123528','--gwash':'#12261D','--gline':'#1C3B2C','--gink':'#9FD9BF','--awash':'#1F1509','--aline':'#3A2A12','--amber':'#E0A85A','--blue':'#4A90D9','--coral':'#E0724A','--violet':'#7F77DD','--gtext':'#0C9E6C','--canvas':'#050505','--shadow':'0 24px 60px rgba(0,0,0,0.6)' }
+    };
+
+    const ICONS = {
+      home: 'M4 10.6 12 4l8 6.6V20h-5v-6H9v6H4v-9.4Z',
+      mail: 'M3.5 6.5h17v11h-17zM3.6 7.1 12 13l8.4-5.9',
+      search: 'M11 4.2a6.8 6.8 0 1 0 0 13.6 6.8 6.8 0 0 0 0-13.6ZM16.2 16.2 20.5 20.5',
+      clip: 'M9 3.6h6v2.8H9zM6.4 5h11.2v15.4H6.4zM9.6 11h5M9.6 15h5',
+      user: 'M12 3.2a8.8 8.8 0 1 0 0 17.6 8.8 8.8 0 0 0 0-17.6ZM12 11.6a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6.3 18.8a6 6 0 0 1 11.4 0'
+    };
+    const nav = active => ['home', 'mail', 'search', 'clip', 'user'].map(k => ({
+      d: ICONS[k], c: k === active ? W : DIM
+    }));
+
+    const chip = (label, on) => ({
+      label, ink: on ? W : MUT, bg: on ? GTINT : 'transparent', line: on ? G : LINE
+    });
+
+    return {
+      rootVars: { ...TOKENS[TH], '--g': G, '--band': BAND },
+
+      navHome: nav('home'), navInbox: nav('mail'), navSearch: nav('search'),
+      navOrders: nav('clip'), navProfile: nav('user'),
+
+      otp: ['4', '8', '2', '1', '', ''].map(v => ({ v, line: v ? W : LINE })),
+
+      skills: [
+        chip('Sourcing', true), chip('Local intel', true), chip('Carpentry', false),
+        chip('Delivery', false), chip('Repairs', true), chip('Photography', false),
+        chip('Research', false), chip('Errands', false)
+      ],
+
+
+      homeFilters: [chip('Services', true), chip('Goods & products', false), chip('Local help', false)],
+
+      themeLabel: TH === 'dark' ? 'Dark' : 'Light',
+      themeChoices: [
+        { label: 'Light', ink: TH === 'dark' ? MUT : W, bg: TH === 'dark' ? 'transparent' : GTINT, line: TH === 'dark' ? LINE : G },
+        { label: 'Dark', ink: TH === 'dark' ? W : MUT, bg: TH === 'dark' ? GTINT : 'transparent', line: TH === 'dark' ? G : LINE }
+      ],
+
+      pillarCards: [
+        { glyph: '⚒', title: 'Services', sub: 'Repairs, moving, errands, anything hands-on', stat: '412 open · avg ₹1,450', bg: GTINT, line: G },
+        { glyph: '◈', title: 'Products', sub: 'Goods to source, hunt down or buy on your behalf', stat: '86 open · avg ₹5,200', bg: CARD, line: CLINE },
+        { glyph: '◉', title: 'Local Intel', sub: 'On-the-ground answers only a local would know', stat: '54 open · avg ₹600', bg: CARD, line: CLINE }
+      ],
+
+      pillarChips: [chip('Services', true), chip('Products', false), chip('Local Intel', true)],
+
+
+      nearby: [
+        { sponsored: true, cardLine: G, tag: 'PRODUCTS', tagInk: 'var(--violet,#5B52C4)', handle: 'Poster 9014', rating: '4.8', posterMeta: '31 requests posted · 3.2 km away', title: 'Vintage 35mm film camera', price: '₹4,500', meta: 'Complete by 9 Sep, 6 PM · 12 quotes so far', hasMedia: true, mediaGlyph: '▶', dur: '0:34' },
+        { sponsored: false, cardLine: CLINE, tag: 'SERVICES', tagInk: 'var(--gtext,#0A7A54)', handle: 'Poster 6620', rating: '4.8', posterMeta: '14 requests posted · 1.1 km away', title: 'Fix leaking kitchen tap', price: '₹600', meta: 'Complete by today, 8 PM · 4 quotes so far', hasMedia: true, mediaGlyph: '▤', dur: null }
+      ],
+
+
+      workerPosts: [
+        { sponsored: true, cardLine: G, handle: 'Tasker 3315', rating: '4.9', pro: true, meta: '61 jobs · 4 km away', service: 'Bespoke carpentry and joinery', sub: 'Made-to-measure furniture, fittings and repairs', rate: '₹1,200', hasMedia: true, mediaGlyph: '▤', dur: null },
+        { sponsored: false, cardLine: CLINE, handle: 'Tasker 2098', rating: '4.9', pro: false, meta: '42 jobs · 2 km away', service: 'Same-day courier runs', sub: 'Documents and small parcels across the city', rate: '₹250', hasMedia: false, mediaGlyph: '', dur: null },
+        { sponsored: false, cardLine: CLINE, handle: 'Tasker 4172', rating: '4.7', pro: false, meta: '18 jobs · 5 km away', service: 'Tap and plumbing repairs', sub: 'Leaks, fittings, bathroom fixes', rate: '₹400', hasMedia: true, mediaGlyph: '▶', dur: '0:22' }
+      ],
+
+
+
+      orders: [
+        { state: 'OPEN · 12 QUOTES', dot: '#4A90D9', stateInk: 'var(--blue,#2A6BAE)', title: 'Vintage 35mm film camera', price: '₹4,500', meta: 'Complete by 9 Sep, 6:00 PM · Indiranagar' },
+        { state: 'OPEN · 3 QUOTES', dot: '#4A90D9', stateInk: 'var(--blue,#2A6BAE)', title: 'Move two desks across town', price: '₹1,800', meta: 'Complete by 13 Sep, 9:00 AM · Koramangala' },
+        { state: 'ACTIVE · TIMER RUNNING', dot: '#E0A85A', stateInk: 'var(--amber,#8A5A12)', title: 'Assemble a wardrobe', price: '₹1,200', meta: 'Ayesha T. started 2 hrs ago · 4 hrs agreed' },
+        { state: 'MARKED DONE · AWAITING YOUR CONFIRMATION', dot: '#E0A85A', stateInk: 'var(--amber,#8A5A12)', title: 'Photograph a flat before I rent it', price: '₹450', meta: 'Proof uploaded 1 hr ago · auto-confirms in 2 days' },
+        { state: 'DONE · RELEASED', dot: '#0C9E6C', stateInk: 'var(--gtext,#0A7A54)', title: 'Fix leaking kitchen tap', price: '₹600', meta: 'Confirmed 3 Sep, 4:20 PM · reviewed' }
+      ],
+
+      bids: [
+        { initial: '☺', name: 'Tasker 4172', rating: '4.7', pro: false, meta: '18 jobs · 5 km away', price: '₹4,200', eta: 'by 9 Sep, 6 PM', bg: 'var(--gwash,#EEF8F3)', line: G },
+        { initial: '☺', name: 'Tasker 2098', rating: '4.9', pro: true, meta: '42 jobs · 2 km away', price: '₹4,500', eta: 'by 9 Sep, 6 PM', bg: CARD, line: CLINE },
+        { initial: '☺', name: 'Tasker 8830', rating: '4.6', pro: false, meta: '9 jobs · 8 km away', price: '₹5,100', eta: 'by 8 Sep, 7 PM', bg: CARD, line: CLINE },
+        { initial: '☺', name: 'Tasker 3315', rating: '4.9', pro: true, meta: '61 jobs · 4 km away', price: '₹5,400', eta: 'by 10 Sep, 12 PM', bg: CARD, line: CLINE }
+      ],
+
+
+      escrowRows: [
+        { label: 'Locked quote · Tasker 4172', value: '₹4,200', ink: MUT, weight: 600 },
+        { label: 'Poster fee · 3%', value: '₹135', ink: MUT, weight: 600 },
+        { label: 'Payout mode', value: 'One-time', ink: MUT, weight: 600 },
+        { label: 'Total held', value: '₹4,335', ink: W, weight: 800 }
+      ],
+
+      releaseRows: [
+        { label: 'Held in escrow', value: '₹4,335' },
+        { label: 'Releases to Meera', value: '₹4,100' },
+        { label: 'Auto-confirms in', value: '2 days 4 hrs' }
+      ],
+
+      adBudgets: ['₹80', '₹150', '₹300'].map((label, i) => ({
+        label, ink: i === 1 ? W : MUT, bg: i === 1 ? GTINT : 'transparent', line: i === 1 ? G : LINE
+      })),
+      adDurations: ['1 day', '3 days', '7 days'].map((label, i) => ({
+        label, ink: i === 1 ? W : MUT, bg: i === 1 ? GTINT : 'transparent', line: i === 1 ? G : LINE
+      })),
+
+      adBudgetsWorker: ['₹80', '₹150', '₹300'].map((label, i) => ({
+        label, ink: i === 0 ? W : MUT, bg: i === 0 ? GTINT : 'transparent', line: i === 0 ? G : LINE
+      })),
+      adDurationsWorker: ['1 day', '3 days', '7 days'].map((label, i) => ({
+        label, ink: i === 2 ? W : MUT, bg: i === 2 ? GTINT : 'transparent', line: i === 2 ? G : LINE
+      })),
+
+      myBids: [
+        { state: 'ACCEPTED · SWIPE TO START', dot: G, stateInk: 'var(--gtext,#0A7A54)', title: 'Vintage 35mm film camera', price: '₹4,200', meta: 'Escrow funded · first to start wins' },
+        { state: 'PENDING', dot: '#4A90D9', stateInk: 'var(--blue,#2A6BAE)', title: 'Assemble a wardrobe', price: '₹1,150', meta: 'Sent 2 hrs ago · 5 quotes total' },
+        { state: 'PENDING', dot: '#4A90D9', stateInk: 'var(--blue,#2A6BAE)', title: 'Photograph a flat', price: '₹400', meta: 'Sent yesterday · 3 quotes total' },
+        { state: 'NOT SELECTED', dot: 'var(--chev,#9A9A9A)', stateInk: 'var(--mut,#5C5C5C)', title: 'Airport pickup, 6 AM', price: '₹900', meta: 'Another worker started first' }
+      ],
+
+      savedSearches: [
+        { title: 'Camera gear under ₹6k', meta: 'Products · 12 km · 4 new' },
+        { title: 'Weekend moving jobs', meta: 'Services · 8 km · 2 new' },
+        { title: 'Local intel, Indiranagar', meta: 'Local Intel · 3 km · no new' }
+      ],
+
+      posterQuotes: [
+        { handle: 'Poster 5510', rating: '4.9', meta: '22 requests posted · 2 km away', price: '₹1,400', by: 'by 12 Sep', task: 'Built-in wardrobe for a 9 ft alcove, sliding doors.', bg: 'var(--gwash,#EEF8F3)', line: G },
+        { handle: 'Poster 9014', rating: '4.8', meta: '31 requests posted · 3.2 km away', price: '₹1,250', by: 'by 14 Sep', task: 'Two bookshelves, oak, wall-mounted.', bg: CARD, line: CLINE },
+        { handle: 'Poster 2287', rating: '4.9', meta: '8 requests posted · 6 km away', price: '₹1,100', by: 'by 18 Sep', task: 'Repair and refinish a dining table top.', bg: CARD, line: CLINE }
+      ],
+
+      jobSteps: [
+        { label: 'Quote accepted', when: '5 Sep', dot: G, ink: MUT },
+        { label: 'Escrow funded', when: '5 Sep', dot: G, ink: MUT },
+        { label: 'Task started · contacts revealed', when: '11:07 AM', dot: G, ink: MUT },
+        { label: 'Work marked done by you', when: 'Pending', dot: LINE, ink: DIM },
+        { label: 'Poster confirms · escrow released', when: 'Pending', dot: LINE, ink: DIM }
+      ],
+
+      earnings: [
+        { title: 'Payout received', meta: 'Fix leaking kitchen tap · cleared', amt: '+₹3,600', dot: G, ink: 'var(--gtext,#0A7A54)' },
+        { title: 'Held in escrow', meta: 'Vintage film camera · task started', amt: '₹4,635', dot: '#E0A85A', ink: W },
+        { title: 'Clearing', meta: 'Assemble a wardrobe · 3 days left', amt: '₹3,600', dot: '#4A90D9', ink: W },
+        { title: 'Quote fee', meta: '2 extra quotes in August', amt: '−₹40', dot: '#6E6E6E', ink: W }
+      ],
+
+      stars: [0, 1, 2, 3, 4].map(i => ({ c: i < 5 ? G : LINE })),
+
+      praise: [
+        chip('On time', true), chip('Great communication', true), chip('Fair price', false),
+        chip('Went the extra mile', true), chip('Careful work', false)
+      ],
+
+      profileMine: [
+        { glyph: '▤', label: 'My requests' },
+        { glyph: '◈', label: 'My bids and jobs' },
+        { glyph: '♡', label: 'Saved tasks' },
+        { glyph: '↗', label: 'Invite friends' }
+      ],
+      profileSettings: [
+        { glyph: '⚙', label: 'Preferences' },
+        { glyph: '◉', label: 'Account' },
+        { glyph: '▦', label: 'Earnings and payouts' }
+      ],
+      profileResources: [
+        { glyph: '◍', label: 'Support' },
+        { glyph: '?', label: 'Community and legal' },
+        { glyph: '✦', label: 'Get Verified Pro' }
+      ],
+
+      proPerks: [
+        { title: 'Verified badge on every quote', sub: 'Posters see you passed ID and skill checks' },
+        { title: 'Your quotes stand out', sub: 'Pro quotes are marked in the poster’s compare list' },
+        { title: 'Priority in search', sub: 'Ranked above unverified taskers on matching tasks' },
+        { title: 'Faster clearing', sub: 'Payouts clear in 2 days instead of 7' }
+      ],
+
+      proSteps: [
+        { num: '✓', label: 'Government ID', state: 'Verified', bg: G, line: G, numInk: '#04150E', ink: MUT, stateInk: 'var(--gtext,#0A7A54)' },
+        { num: '2', label: 'Selfie match', state: 'In review', bg: 'transparent', line: '#E0A85A', numInk: 'var(--amber,#8A5A12)', ink: W, stateInk: 'var(--amber,#8A5A12)' },
+        { num: '3', label: 'Skill proof · 3 completed jobs', state: '1 of 3', bg: 'transparent', line: LINE, numInk: DIM, ink: W, stateInk: DIM }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

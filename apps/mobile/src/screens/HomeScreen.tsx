@@ -1,0 +1,720 @@
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text as RNText,
+  Pressable,
+  Animated,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+import { Screen, formatINR } from '../components/ui';
+import { Icon } from '../components/Icon';
+import { useTheme } from '../providers/ThemeProvider';
+import { useNav } from '../providers/NavProvider';
+import { useMode } from '../providers/ModeProvider';
+import { useApp } from '../providers/AppStateProvider';
+import { supabase } from '../lib/supabase';
+import { fontFamilyFor, type Theme } from '../theme';
+
+/**
+ * Home feed — pixel parity with docs/design/_design_markup.html lines 35-139
+ * (header, search hint, filter chips, feed title, skeleton loaders, feed
+ * cards with sponsored/identity/tag/media-thumb/price/buttons, urgent strip).
+ * Data/handlers mirror docs/design/_design_source.jsx renderVals() lines
+ * 108-135 (feed) and 335-342 (urgent). Mode-aware: workers see posters'
+ * requests, posters see taskers' services. Falls back to the live Supabase
+ * OPEN-tasks query when it returns rows; otherwise renders the design's
+ * sample feed so the screen always looks finished.
+ */
+
+export type FeedRow = {
+  id: string;
+  sponsored: boolean;
+  who: string;
+  rating: string;
+  whoMeta: string;
+  tag: 'SERVICES' | 'PRODUCTS' | 'LOCAL HELP';
+  title: string;
+  meta: string;
+  amountMinor: number;
+  hasMedia: boolean;
+  glyph: '▶' | '▤' | '';
+  dur: string | null;
+  body: string;
+  by: string | null;
+};
+
+const FILTER_LABELS = ['Services', 'Goods & products', 'Local help'];
+
+// Sample feed reproduced from _design_source.jsx workerFeed/posterFeed.
+// Design amounts are rupees (e.g. amount: 4500 => ₹4,500); the app works in
+// paise, so every amount below is *100 to become amountMinor.
+const WORKER_FEED: FeedRow[] = [
+  {
+    id: 'w1',
+    sponsored: true,
+    who: 'Poster 9014',
+    rating: '4.8',
+    whoMeta: '31 requests posted · 3.2 km away',
+    tag: 'PRODUCTS',
+    title: 'Vintage 35mm film camera',
+    meta: 'Complete by 9 Sep, 6 PM · 12 quotes',
+    amountMinor: 450000,
+    hasMedia: true,
+    glyph: '▶',
+    dur: '0:34',
+    body: 'Working SLR, clean viewfinder, tested shutter. Pentax or Olympus preferred, lens included.',
+    by: '9 Sep, 6 PM',
+  },
+  {
+    id: 'w2',
+    sponsored: false,
+    who: 'Poster 6620',
+    rating: '4.8',
+    whoMeta: '14 requests posted · 1.1 km away',
+    tag: 'SERVICES',
+    title: 'Fix leaking kitchen tap',
+    meta: 'Complete by today, 8 PM · 4 quotes',
+    amountMinor: 60000,
+    hasMedia: true,
+    glyph: '▤',
+    dur: null,
+    body: 'Mixer tap drips constantly. Washer probably gone. Tools and part needed.',
+    by: 'today, 8 PM',
+  },
+  {
+    id: 'w3',
+    sponsored: false,
+    who: 'Poster 4471',
+    rating: '4.6',
+    whoMeta: '7 requests posted · 2.4 km away',
+    tag: 'LOCAL HELP',
+    title: 'Check the queue at RTO Indiranagar',
+    meta: 'Complete by today, 4 PM · 7 quotes',
+    amountMinor: 25000,
+    hasMedia: false,
+    glyph: '',
+    dur: null,
+    body: 'Walk past and tell me how long the licence renewal line is. Photo helps.',
+    by: 'today, 4 PM',
+  },
+];
+
+const POSTER_FEED: FeedRow[] = [
+  {
+    id: 'p1',
+    sponsored: true,
+    who: 'Tasker 3315',
+    rating: '4.9',
+    whoMeta: '61 jobs done · 4 km away',
+    tag: 'SERVICES',
+    title: 'Bespoke carpentry and joinery',
+    meta: 'Made-to-measure furniture, fittings and repairs',
+    amountMinor: 120000,
+    hasMedia: true,
+    glyph: '▤',
+    dur: null,
+    body: 'Ten years of joinery. Wardrobes, shelving, alcove units, on-site fitting included.',
+    by: null,
+  },
+  {
+    id: 'p2',
+    sponsored: false,
+    who: 'Tasker 2098',
+    rating: '4.9',
+    whoMeta: '42 jobs done · 2 km away',
+    tag: 'LOCAL HELP',
+    title: 'Same-day courier runs',
+    meta: 'Documents and small parcels across the city',
+    amountMinor: 25000,
+    hasMedia: false,
+    glyph: '',
+    dur: null,
+    body: 'Two-wheeler, insulated bag, live location shared through the run.',
+    by: null,
+  },
+  {
+    id: 'p3',
+    sponsored: false,
+    who: 'Tasker 4172',
+    rating: '4.7',
+    whoMeta: '18 jobs done · 5 km away',
+    tag: 'SERVICES',
+    title: 'Tap and plumbing repairs',
+    meta: 'Leaks, fittings, bathroom fixes',
+    amountMinor: 40000,
+    hasMedia: true,
+    glyph: '▶',
+    dur: '0:22',
+    body: 'Licensed plumber. Carry spares for common mixer and cistern faults.',
+    by: null,
+  },
+];
+
+const URGENT_WORKER: FeedRow = {
+  id: 'u-w',
+  sponsored: false,
+  who: 'Poster 2287',
+  rating: '4.9',
+  whoMeta: '9 requests posted · 6.2 km away',
+  tag: 'SERVICES',
+  title: 'Airport pickup, 6 AM',
+  meta: 'CLOSES IN 3 HRS',
+  amountMinor: 90000,
+  hasMedia: false,
+  glyph: '',
+  dur: null,
+  body: 'Early pickup from Kempegowda, one large suitcase. Cash or UPI on arrival.',
+  by: 'today, 6 AM',
+};
+
+const URGENT_POSTER: FeedRow = {
+  id: 'u-p',
+  sponsored: false,
+  who: 'Tasker 5510',
+  rating: '4.8',
+  whoMeta: '27 jobs done · 3.4 km away',
+  tag: 'SERVICES',
+  title: 'Two-person moving crew',
+  meta: 'FREE TODAY',
+  amountMinor: 180000,
+  hasMedia: false,
+  glyph: '',
+  dur: null,
+  body: 'Van, straps and blankets included. Available from 2 PM today.',
+  by: null,
+};
+
+// Live Supabase rows (id,title,pillar,benchmark_minor,flag,loc_label) don't carry
+// identity/media/body — map them into the same card shape with what we have.
+type LiveTask = {
+  id: string;
+  title: string;
+  pillar: string;
+  benchmark_minor: number;
+  flag: string;
+  loc_label: string | null;
+};
+
+const PILLAR_TAG: Record<string, FeedRow['tag']> = {
+  services: 'SERVICES',
+  procurement: 'PRODUCTS',
+  local_intel: 'LOCAL HELP',
+};
+
+function liveToFeedRow(task: LiveTask, worker: boolean): FeedRow {
+  return {
+    id: task.id,
+    sponsored: false,
+    who: worker ? 'Poster' : 'Tasker',
+    rating: '—',
+    whoMeta: task.loc_label ?? 'Nearby',
+    tag: PILLAR_TAG[task.pillar] ?? 'SERVICES',
+    title: task.title,
+    meta: task.flag === 'urgent' ? 'Urgent' : task.flag === 'unique' ? 'Unique' : task.loc_label ?? 'Nearby',
+    amountMinor: task.benchmark_minor,
+    hasMedia: false,
+    glyph: '',
+    dur: null,
+    body: '',
+    by: null,
+  };
+}
+
+function tagInk(t: Theme, tag: FeedRow['tag']): string {
+  if (tag === 'SERVICES') return t.colors.accentDeep;
+  if (tag === 'PRODUCTS') return t.colors.purple;
+  return t.colors.blue;
+}
+
+function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
+  return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
+}
+
+/** Fades + slides content in on mount, ~ the markup's tdFade/tdIn keyframes. Cleans up on unmount. */
+function FadeIn({
+  children,
+  duration = 260,
+  delay = 0,
+  translateY = 0,
+  style,
+}: {
+  children: React.ReactNode;
+  duration?: number;
+  delay?: number;
+  translateY?: number;
+  style?: ViewStyle;
+}) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const ty = useRef(new Animated.Value(translateY)).current;
+  useEffect(() => {
+    const anim = Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration, delay, useNativeDriver: true }),
+      Animated.timing(ty, { toValue: 0, duration, delay, useNativeDriver: true }),
+    ]);
+    anim.start();
+    return () => anim.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <Animated.View style={[style, { opacity, transform: [{ translateY: ty }] }]}>{children}</Animated.View>
+  );
+}
+
+/** Scale-down press feedback, matching the markup's style-active="{{press}}"/"{{cardPress}}". */
+function Pressy({
+  onPress,
+  scaleTo = 0.96,
+  style,
+  children,
+}: {
+  onPress?: () => void;
+  scaleTo?: number;
+  style?: ViewStyle;
+  children: React.ReactNode;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [style, { transform: [{ scale: pressed ? scaleTo : 1 }] }]}
+    >
+      {children}
+    </Pressable>
+  );
+}
+
+function FilterChip({
+  label,
+  active,
+  onPress,
+  t,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+  t: Theme;
+}) {
+  return (
+    <Pressy
+      onPress={onPress}
+      scaleTo={0.96}
+      style={{
+        backgroundColor: active ? t.colors.accentSoft : 'transparent',
+        borderWidth: 1,
+        borderColor: active ? t.colors.accent : t.colors.line,
+        borderRadius: 999,
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+      }}
+    >
+      <RNText style={tx('600', 12, active ? t.colors.ink : t.colors.muted)} numberOfLines={1}>
+        {label}
+      </RNText>
+    </Pressy>
+  );
+}
+
+/** Shimmering skeleton bar, standing in for the markup's tdShim background-position animation. */
+function ShimmerBar({
+  width,
+  height,
+  marginTop,
+  t,
+}: {
+  width: number | `${number}%`;
+  height: number;
+  marginTop?: number;
+  t: Theme;
+}) {
+  const opacity = useRef(new Animated.Value(0.45)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 575, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.45, duration: 575, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+  return (
+    <Animated.View
+      style={{
+        width,
+        height,
+        marginTop,
+        borderRadius: 6,
+        backgroundColor: t.colors.surface2,
+        opacity,
+      }}
+    />
+  );
+}
+
+function SponsoredMark({ t }: { t: Theme }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 11,
+        paddingBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: t.colors.line,
+      }}
+    >
+      <Svg width={11} height={11} viewBox="0 0 24 24" fill="none">
+        <Path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" fill={t.colors.accentDeep} />
+      </Svg>
+      <RNText style={tx('800', 9, t.colors.accentDeep, { letterSpacing: 1.62 })}>SPONSORED</RNText>
+    </View>
+  );
+}
+
+function FeedCard({
+  row,
+  index,
+  worker,
+  onOpen,
+  onCounter,
+  onAccept,
+  t,
+}: {
+  row: FeedRow;
+  index: number;
+  worker: boolean;
+  onOpen: () => void;
+  onCounter: () => void;
+  onAccept: () => void;
+  t: Theme;
+}) {
+  const priceLabel = worker ? 'THEIR QUOTE' : 'THEIR RATE';
+  return (
+    <FadeIn duration={400} delay={index * 70} translateY={10} style={{ marginTop: 12 }}>
+      <Pressy
+        onPress={onOpen}
+        scaleTo={0.985}
+        style={{
+          backgroundColor: t.colors.surface,
+          borderWidth: 1,
+          borderColor: row.sponsored ? t.colors.accent : t.colors.line,
+          borderRadius: 14,
+          padding: 15,
+        }}
+      >
+        {row.sponsored && <SponsoredMark t={t} />}
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 999,
+              backgroundColor: t.colors.surface2,
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <RNText style={tx('400', 15, t.colors.muted)}>☺</RNText>
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+              <RNText style={tx('700', 14, t.colors.ink)}>{row.who}</RNText>
+              <RNText style={tx('400', 12, t.colors.muted)}>★ {row.rating}</RNText>
+              <RNText style={tx('700', 9, tagInk(t, row.tag), { letterSpacing: 1.26, marginLeft: 'auto' })}>
+                {row.tag}
+              </RNText>
+            </View>
+            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>{row.whoMeta}</RNText>
+          </View>
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 13, marginTop: 12 }}>
+          {row.hasMedia && (
+            <View
+              style={{
+                width: 62,
+                height: 62,
+                borderRadius: 11,
+                backgroundColor: t.colors.surface2,
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <RNText style={tx('400', 17, t.colors.muted)}>{row.glyph}</RNText>
+              {row.dur && (
+                <RNText
+                  style={tx('600', 9, '#FFFFFF', {
+                    position: 'absolute',
+                    bottom: 4,
+                    right: 4,
+                    backgroundColor: 'rgba(0,0,0,0.6)',
+                    borderRadius: 3,
+                    paddingVertical: 1,
+                    paddingHorizontal: 4,
+                    overflow: 'hidden',
+                  })}
+                >
+                  {row.dur}
+                </RNText>
+              )}
+            </View>
+          )}
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <RNText style={tx('700', 16, t.colors.ink, { letterSpacing: -0.16 })}>{row.title}</RNText>
+            <RNText style={tx('400', 13, t.colors.muted, { marginTop: 5, lineHeight: 19 })}>{row.meta}</RNText>
+          </View>
+        </View>
+
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            marginTop: 14,
+            paddingTop: 13,
+            borderTopWidth: 1,
+            borderTopColor: t.colors.line,
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <RNText style={tx('400', 10, t.colors.muted, { letterSpacing: 1.4 })}>{priceLabel}</RNText>
+            <RNText style={tx('800', 19, t.colors.accentDeep, { marginTop: 3 })}>{formatINR(row.amountMinor)}</RNText>
+          </View>
+          <Pressy
+            onPress={onCounter}
+            style={{
+              borderWidth: 1,
+              borderColor: t.colors.line,
+              borderRadius: 999,
+              paddingVertical: 10,
+              paddingHorizontal: 15,
+            }}
+          >
+            <RNText style={tx('600', 13, t.colors.muted)}>Counter</RNText>
+          </Pressy>
+          <Pressy
+            onPress={onAccept}
+            style={{
+              backgroundColor: t.colors.accent,
+              borderRadius: 999,
+              paddingVertical: 10,
+              paddingHorizontal: 16,
+              shadowColor: t.colors.accent,
+              shadowOpacity: 0.4,
+              shadowRadius: 10,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 3,
+            }}
+          >
+            <RNText style={tx('700', 13, t.colors.onAccent)}>Accept</RNText>
+          </Pressy>
+        </View>
+      </Pressy>
+    </FadeIn>
+  );
+}
+
+export function HomeScreen() {
+  const t = useTheme();
+  const { go } = useNav();
+  const { mode } = useMode();
+  const { setOpenTask, celebrate } = useApp();
+  const worker = mode === 'worker';
+
+  const [liveTasks, setLiveTasks] = useState<LiveTask[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('id,title,pillar,benchmark_minor,flag,loc_label')
+        .eq('status', 'OPEN')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (!active) return;
+      if (!error && data && data.length > 0) {
+        setLiveTasks(data as LiveTask[]);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Brief skeleton flash on mount / mode change, mirroring the design's go()/setMode() loading window.
+  useEffect(() => {
+    setLoading(true);
+    const id = setTimeout(() => setLoading(false), 600);
+    return () => clearTimeout(id);
+  }, [worker]);
+
+  const sampleFeed = worker ? WORKER_FEED : POSTER_FEED;
+  const feed: FeedRow[] = liveTasks ? liveTasks.map((task) => liveToFeedRow(task, worker)) : sampleFeed;
+  const urgentRow = worker ? URGENT_WORKER : URGENT_POSTER;
+
+  const openRow = (row: FeedRow) => {
+    setOpenTask({
+      title: row.title,
+      price: formatINR(row.amountMinor),
+      who: row.who,
+    });
+    go('taskDetail', { row });
+  };
+
+  const onAccept = (row: FeedRow) => {
+    if (worker) {
+      celebrate('Quote accepted at ' + formatINR(row.amountMinor));
+      return;
+    }
+    openRow(row);
+  };
+
+  return (
+    <Screen scroll padded={false}>
+      <FadeIn duration={260}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 6 }}>
+          <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.66 })}>
+            taskdrop
+            <RNText style={tx('800', 22, t.colors.accent)}>.</RNText>
+          </RNText>
+          <Pressy
+            onPress={() => go('profile')}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 9,
+              backgroundColor: t.colors.surface2,
+              borderRadius: 999,
+              paddingVertical: 7,
+              paddingHorizontal: 13,
+            }}
+          >
+            <View style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: t.colors.accent }} />
+            <RNText style={tx('700', 12, t.colors.ink)}>{worker ? 'Worker' : 'Poster'}</RNText>
+          </Pressy>
+        </View>
+
+        <Pressy
+          onPress={() => go('search')}
+          style={{
+            marginTop: 15,
+            marginHorizontal: 20,
+            backgroundColor: t.colors.surface2,
+            borderRadius: 12,
+            paddingVertical: 13,
+            paddingHorizontal: 15,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 11,
+          }}
+        >
+          <Icon name="search" size={17} color={t.colors.muted} strokeWidth={1.8} />
+          <RNText style={tx('400', 14, t.colors.muted)}>
+            {worker ? 'Find a task or a service' : 'Find a worker or a service'}
+          </RNText>
+        </Pressy>
+
+        <View style={{ flexDirection: 'row', gap: 8, paddingTop: 14, paddingHorizontal: 20 }}>
+          {FILTER_LABELS.map((label, i) => (
+            <FilterChip key={label} label={label} active={filter === i} onPress={() => setFilter(i)} t={t} />
+          ))}
+        </View>
+
+        <RNText style={tx('800', 19, t.colors.ink, { letterSpacing: -0.38, paddingTop: 22, paddingHorizontal: 20 })}>
+          {worker ? 'Tasks near you' : 'Workers near you'}
+        </RNText>
+
+        {loading ? (
+          <View style={{ paddingHorizontal: 20 }}>
+            {[0, 1, 2].map((i) => (
+              <View
+                key={i}
+                style={{
+                  backgroundColor: t.colors.surface,
+                  borderWidth: 1,
+                  borderColor: t.colors.line,
+                  borderRadius: 14,
+                  padding: 15,
+                  marginTop: 12,
+                }}
+              >
+                <ShimmerBar width="52%" height={13} t={t} />
+                <ShimmerBar width="84%" height={17} marginTop={13} t={t} />
+                <ShimmerBar width="38%" height={13} marginTop={13} t={t} />
+              </View>
+            ))}
+          </View>
+        ) : (
+          <>
+            <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+              {feed.map((row, i) => (
+                <FeedCard
+                  key={row.id}
+                  row={row}
+                  index={i}
+                  worker={worker}
+                  onOpen={() => openRow(row)}
+                  onCounter={() => openRow(row)}
+                  onAccept={() => onAccept(row)}
+                  t={t}
+                />
+              ))}
+            </View>
+
+            <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
+              <RNText style={tx('800', 19, t.colors.ink, { letterSpacing: -0.38, marginTop: 10 })}>
+                {worker ? 'Urgent requests' : 'Free right now'}
+              </RNText>
+              <FadeIn duration={400} translateY={10} style={{ marginTop: 12 }}>
+                <Pressy
+                  onPress={() => openRow(urgentRow)}
+                  scaleTo={0.985}
+                  style={{
+                    backgroundColor: t.colors.surface,
+                    borderWidth: 1,
+                    borderColor: t.colors.line,
+                    borderRadius: 14,
+                    padding: 15,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <View
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 999,
+                        backgroundColor: t.colors.surface2,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <RNText style={tx('400', 13, t.colors.muted)}>☺</RNText>
+                    </View>
+                    <RNText style={tx('700', 13, t.colors.ink)}>{urgentRow.who}</RNText>
+                    <RNText style={tx('400', 12, t.colors.muted)}>★ {urgentRow.rating}</RNText>
+                    <RNText style={tx('700', 9, t.colors.signal, { letterSpacing: 1.26, marginLeft: 'auto' })}>
+                      {urgentRow.meta}
+                    </RNText>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 12, marginTop: 11 }}>
+                    <RNText style={tx('700', 16, t.colors.ink, { flex: 1 })}>{urgentRow.title}</RNText>
+                    <RNText style={tx('800', 16, t.colors.accentDeep)}>{formatINR(urgentRow.amountMinor)}</RNText>
+                  </View>
+                </Pressy>
+              </FadeIn>
+            </View>
+          </>
+        )}
+      </FadeIn>
+    </Screen>
+  );
+}
