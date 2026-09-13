@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable } from 'react-native';
 import { Screen, Text, Card, Row, Button, Divider, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { confirmRelease as confirmReleaseOnServer } from '../data/api';
 
 /**
  * Poster flow: confirm work done → release escrow. Design parity with
@@ -45,6 +46,8 @@ export function ConfirmScreen() {
       : (parseRupeeStringToMinor(openTask?.escrow) ?? FALLBACK_ESCROW_MINOR);
 
   const releaseMinor = Math.round(priceMinor * 0.8);
+  const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+  const [busy, setBusy] = useState(false);
 
   const releaseRows = [
     { label: 'Held in escrow', value: formatINR(escrowMinor) },
@@ -52,12 +55,22 @@ export function ConfirmScreen() {
     { label: 'Auto-confirms in', value: '2 days 4 hrs' },
   ];
 
-  const handleConfirm = () => {
-    roll('balance', balance + releaseMinor);
-    roll('escrow', Math.max(0, escrow - escrowMinor));
-    setDone(title, 2);
-    celebrate(`Escrow released · ${formatINR(releaseMinor)}`);
-    go('review', { title });
+  const handleConfirm = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      // The commission split happens in Postgres; the numbers below only mirror it.
+      if (taskId) await confirmReleaseOnServer(taskId);
+      roll('balance', balance + releaseMinor);
+      roll('escrow', Math.max(0, escrow - escrowMinor));
+      setDone(title, 2);
+      celebrate(`Escrow released · ${formatINR(releaseMinor)}`);
+      go('review', { title, taskId });
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not release the escrow');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -102,7 +115,10 @@ export function ConfirmScreen() {
         </Text>
       </Card>
 
-      <Button label={`Confirm and release ${formatINR(releaseMinor)}`} onPress={handleConfirm} />
+      <Button
+        label={busy ? 'Releasing…' : `Confirm and release ${formatINR(releaseMinor)}`}
+        onPress={handleConfirm}
+      />
       <Button
         label="Request changes"
         variant="secondary"

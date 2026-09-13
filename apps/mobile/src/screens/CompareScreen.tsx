@@ -11,9 +11,12 @@ import {
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
+import { useApp } from '../providers/AppStateProvider';
+import { listBidsForTask, lockBid } from '../data/api';
 import { fontFamilyFor, type Theme } from '../theme';
 
 type Quote = {
+  bidId?: string;
   who: string;
   rating: number;
   pro: boolean;
@@ -94,22 +97,71 @@ function Pressy({
 export function CompareScreen() {
   const t = useTheme();
   const { params, go, back } = useNav();
+  const { flash } = useApp();
   const [sortLow, setSortLow] = useState(true);
-  const [picked, setPicked] = useState(COMPARE_DATA[0]!.who);
+  const [picked, setPicked] = useState<string | null>(null);
+  const [rows, setRows] = useState<Quote[] | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const title = typeof params.title === 'string' ? params.title : 'Assemble a wardrobe';
   const benchMinor = typeof params.priceMinor === 'number' ? params.priceMinor : FALLBACK_BENCH_MINOR;
+  const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+
+  // Real quotes on this task. Without a task id (sample navigation) we keep the
+  // design's example rows so the screen still reads correctly.
+  useEffect(() => {
+    let alive = true;
+    if (!taskId) {
+      setRows(null);
+      return;
+    }
+    listBidsForTask(taskId)
+      .then((bids) => {
+        if (!alive) return;
+        setRows(
+          bids.map((b) => ({
+            bidId: b.id,
+            who: b.profiles?.display_name ?? 'Tasker',
+            rating: Number(b.profiles?.worker_rating_avg ?? 0) || 0,
+            pro: false,
+            meta: `${b.profiles?.worker_rating_count ?? 0} jobs`,
+            priceMinor: b.price_minor,
+            eta: `${Math.round(b.time_limit_minutes / 60)} hrs`,
+          })),
+        );
+      })
+      .catch(() => setRows([]));
+    return () => {
+      alive = false;
+    };
+  }, [taskId]);
+
+  const source: Quote[] = rows ?? COMPARE_DATA;
 
   const sorted = useMemo(() => {
-    const rows = COMPARE_DATA.slice();
-    rows.sort((a, b) => (sortLow ? a.priceMinor - b.priceMinor : b.rating - a.rating));
-    return rows;
-  }, [sortLow]);
+    const list = source.slice();
+    list.sort((a, b) => (sortLow ? a.priceMinor - b.priceMinor : b.rating - a.rating));
+    return list;
+  }, [sortLow, source]);
 
-  const pickRow = sorted.find((r) => r.who === picked) ?? sorted[0]!;
+  const pickRow = sorted.find((r) => r.who === picked) ?? sorted[0];
 
-  const handleLock = () => {
-    go('escrow', { priceMinor: pickRow.priceMinor, title, who: pickRow.who });
+  const handleLock = async () => {
+    if (!pickRow || busy) return;
+    // Real quote -> lock it server-side (creates the assignment + escrow).
+    if (pickRow.bidId) {
+      setBusy(true);
+      try {
+        await lockBid(pickRow.bidId);
+        go('escrow', { priceMinor: pickRow.priceMinor, title, who: pickRow.who, taskId });
+      } catch (e) {
+        flash(e instanceof Error ? e.message : 'Could not lock that quote');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+    go('escrow', { priceMinor: pickRow.priceMinor, title, who: pickRow.who, taskId });
   };
 
   return (

@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, ScrollView, TextInput, type TextStyle } from 'react-native';
 import { Screen } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode, type Mode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { useAuth } from '../providers/AuthProvider';
+import { getProfile, updateProfile } from '../data/api';
 import { fontFamilyFor } from '../theme';
 
 /**
@@ -28,21 +30,67 @@ export function SetupScreen() {
   const t = useTheme();
   const { reset, back } = useNav();
   const { mode, setMode } = useMode();
-  const { celebrate } = useApp();
+  const { celebrate, flash } = useApp();
+  const { userId } = useAuth();
   const [skills, setSkills] = useState<number[]>([0, 1, 4]);
-  const [name, setName] = useState('Narasimha Raju');
-  const [place, setPlace] = useState('Indiranagar, Bengaluru');
+  const [name, setName] = useState('');
+  const [place, setPlace] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const worker = mode === 'worker';
+
+  // Prefill from whatever is already saved, so re-opening setup edits rather
+  // than silently overwrites. The fetch can land after the user has already
+  // started typing, so anything they've touched is left alone — otherwise the
+  // prefill lands in the middle of their input.
+  const touched = useRef(false);
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    getProfile(userId)
+      .then((p) => {
+        if (!alive || !p || touched.current) return;
+        setName(p.display_name ?? '');
+        setPlace(p.loc_label ?? '');
+        const saved = (p.skills ?? []) as string[];
+        if (saved.length > 0) {
+          setSkills(saved.map((s) => SKILLS.indexOf(s)).filter((i) => i >= 0));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
 
   const toggleSkill = (i: number) =>
     setSkills((prev) =>
       prev.includes(i) ? prev.filter((x) => x !== i) : prev.length >= 5 ? prev : [...prev, i],
     );
 
-  const finish = () => {
-    reset('home');
-    celebrate('Welcome to TaskDrop');
+  const finish = async () => {
+    if (busy) return;
+    const displayName = name.trim();
+    if (!displayName) {
+      flash('Add a display name first');
+      return;
+    }
+    setBusy(true);
+    try {
+      if (userId) {
+        await updateProfile(userId, {
+          displayName,
+          skills: worker ? skills.map((i) => SKILLS[i]!).filter(Boolean) : undefined,
+          locLabel: place.trim() || null,
+        });
+      }
+      reset('home');
+      celebrate('Welcome to TaskDrop');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not save your profile');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const label = (s: string, extra?: TextStyle) => (
@@ -100,7 +148,10 @@ export function SetupScreen() {
         >
           <TextInput
             value={name}
-            onChangeText={setName}
+            onChangeText={(v) => {
+              touched.current = true;
+              setName(v);
+            }}
             placeholder="Your name"
             placeholderTextColor={t.colors.muted}
             style={tx('400', 15, t.colors.ink, { padding: 0 })}
@@ -122,7 +173,10 @@ export function SetupScreen() {
         >
           <TextInput
             value={place}
-            onChangeText={setPlace}
+            onChangeText={(v) => {
+              touched.current = true;
+              setPlace(v);
+            }}
             placeholder="Where are you based?"
             placeholderTextColor={t.colors.muted}
             style={tx('400', 15, t.colors.ink, { flex: 1, padding: 0 })}
@@ -199,7 +253,9 @@ export function SetupScreen() {
             transform: [{ scale: pressed ? 0.96 : 1 }],
           })}
         >
-          <RNText style={tx('700', 16, t.colors.onAccent)}>Finish setup</RNText>
+          <RNText style={tx('700', 16, t.colors.onAccent)}>
+            {busy ? 'Saving…' : 'Finish setup'}
+          </RNText>
         </Pressable>
       </ScrollView>
     </Screen>

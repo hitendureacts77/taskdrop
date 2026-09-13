@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text as RNText,
@@ -14,8 +14,9 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { supabase } from '../lib/supabase';
+import { searchTasks } from '../data/api';
 import { fontFamilyFor, type Theme } from '../theme';
+import type { Enums } from '@taskdrop/db-types';
 
 /**
  * Home feed — pixel parity with docs/design/_design_markup.html lines 35-139
@@ -521,7 +522,7 @@ function FeedCard({
 
 export function HomeScreen() {
   const t = useTheme();
-  const { go } = useNav();
+  const { go, params } = useNav();
   const { mode } = useMode();
   const { setOpenTask, celebrate } = useApp();
   const worker = mode === 'worker';
@@ -531,30 +532,61 @@ export function HomeScreen() {
   // Pillar filters are optional: none selected means "show everything", and
   // tapping the active chip clears it again.
   const [filter, setFilter] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Filters arriving from the search screen. Their presence also switches the
+  // feed from "fall back to samples" to "show exactly what matched".
+  const searchQ = typeof params.q === 'string' ? params.q : null;
+  const searchPillar = typeof params.pillar === 'string' ? (params.pillar as Enums<'pillar'>) : null;
+  const searchMin = typeof params.minMinor === 'number' ? params.minMinor : null;
+  const searchMax = typeof params.maxMinor === 'number' ? params.maxMinor : null;
+  const searching = searchQ !== null || searchPillar !== null || searchMin !== null;
+
+  const load = useCallback(async () => {
+    const rows = await searchTasks({
+      q: searchQ ?? undefined,
+      pillar: searchPillar,
+      minMinor: searchMin,
+      maxMinor: searchMax,
+      limit: 20,
+    });
+    return rows as LiveTask[];
+  }, [searchQ, searchPillar, searchMin, searchMax]);
 
   useEffect(() => {
     let active = true;
-    (async () => {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('id,title,pillar,benchmark_minor,flag,loc_label')
-        .eq('status', 'OPEN')
-        .order('created_at', { ascending: false })
-        .limit(20);
-      if (!active) return;
-      if (!error && data && data.length > 0) {
-        setLiveTasks(data as LiveTask[]);
-      }
-    })();
+    setLoading(true);
+    load()
+      .then((rows) => {
+        if (!active) return;
+        // Outside a search an empty table falls back to the design's sample
+        // feed; inside one, "no results" has to stay visible.
+        setLiveTasks(rows.length > 0 || searching ? rows : null);
+      })
+      .catch(() => active && setLiveTasks(searching ? [] : null))
+      .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, []);
+  }, [load, searching]);
 
-  // Brief skeleton flash on mount / mode change, mirroring the design's go()/setMode() loading window.
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const rows = await load();
+      setLiveTasks(rows.length > 0 || searching ? rows : null);
+    } catch {
+      /* keep whatever is on screen */
+    } finally {
+      setRefreshing(false);
+    }
+  }, [load, searching]);
+
+  // Skeleton flash when switching mode, mirroring the design's setMode() window.
+  // (The fetch above owns `loading` for the initial load.)
   useEffect(() => {
     setLoading(true);
-    const id = setTimeout(() => setLoading(false), 600);
+    const id = setTimeout(() => setLoading(false), 400);
     return () => clearTimeout(id);
   }, [worker]);
 
@@ -584,7 +616,7 @@ export function HomeScreen() {
   };
 
   return (
-    <Screen scroll padded={false}>
+    <Screen scroll padded={false} onRefresh={refresh} refreshing={refreshing}>
       <FadeIn duration={260}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 6 }}>
           <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.66 })}>
@@ -641,8 +673,31 @@ export function HomeScreen() {
         </View>
 
         <RNText style={tx('800', 19, t.colors.ink, { letterSpacing: -0.38, paddingTop: 22, paddingHorizontal: 20 })}>
-          {worker ? 'Tasks near you' : 'Workers near you'}
+          {searching ? 'Search results' : worker ? 'Tasks near you' : 'Workers near you'}
         </RNText>
+        {searchQ ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 10,
+              marginHorizontal: 20,
+              alignSelf: 'flex-start',
+              backgroundColor: t.colors.accentSoft,
+              borderWidth: 1,
+              borderColor: t.colors.accentBorder,
+              borderRadius: 999,
+              paddingVertical: 7,
+              paddingHorizontal: 13,
+            }}
+          >
+            <RNText style={tx('600', 12, t.colors.accentDeep)}>“{searchQ}”</RNText>
+            <Pressable onPress={() => go('home')} hitSlop={8}>
+              <RNText style={tx('700', 13, t.colors.accentDeep)}>✕</RNText>
+            </Pressable>
+          </View>
+        ) : null}
 
         {loading ? (
           <View style={{ paddingHorizontal: 20 }}>
@@ -667,6 +722,48 @@ export function HomeScreen() {
         ) : (
           <>
             <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+              {feed.length === 0 ? (
+                <View
+                  style={{
+                    backgroundColor: t.colors.surface,
+                    borderWidth: 1,
+                    borderColor: t.colors.line,
+                    borderRadius: 14,
+                    padding: 22,
+                    marginTop: 12,
+                    alignItems: 'center',
+                  }}
+                >
+                  <RNText style={tx('700', 15, t.colors.ink, { textAlign: 'center' })}>
+                    Nothing matches yet
+                  </RNText>
+                  <RNText
+                    style={tx('400', 13, t.colors.muted, {
+                      textAlign: 'center',
+                      marginTop: 7,
+                      lineHeight: 19,
+                    })}
+                  >
+                    {searching
+                      ? 'Try a broader search, or clear the filters.'
+                      : 'Pull down to refresh, or post the first request.'}
+                  </RNText>
+                  <Pressy
+                    onPress={() => (searching ? go('home') : go('create'))}
+                    style={{
+                      marginTop: 15,
+                      backgroundColor: t.colors.accent,
+                      borderRadius: 999,
+                      paddingVertical: 11,
+                      paddingHorizontal: 20,
+                    }}
+                  >
+                    <RNText style={tx('700', 13, t.colors.onAccent)}>
+                      {searching ? 'Clear filters' : 'Post a request'}
+                    </RNText>
+                  </Pressy>
+                </View>
+              ) : null}
               {feed.map((row, i) => (
                 <FeedCard
                   key={row.id}

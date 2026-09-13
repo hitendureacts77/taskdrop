@@ -15,6 +15,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { markWorkDone as markWorkDoneOnServer, confirmRelease as confirmReleaseOnServer } from '../data/api';
 import { workerNetPayout, posterEscrowCharge } from '@taskdrop/rules';
 import { fontFamilyFor } from '../theme';
 
@@ -99,6 +100,7 @@ export function ActiveScreen() {
   const { params, back, go } = useNav();
   const { mode } = useMode();
   const { openTask, doneOf, setDone, roll, balance, escrow, celebrate, flash } = useApp();
+  const [busy, setBusy] = useState(false);
 
   const worker = mode === 'worker';
   const fallback = FALLBACK_TASK[mode];
@@ -174,20 +176,34 @@ export function ActiveScreen() {
 
   const doneDisabled = doneDone || (!worker && !doneReady);
 
-  const markDone = () => {
+  const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+
+  const markDone = async () => {
+    if (busy) return;
     if (doneDisabled) {
       if (worker) flash('Already marked done');
       else if (curDone === 0) flash('The worker has not marked it done yet');
       return;
     }
-    if (worker) {
-      setDone(title, 1);
-      celebrate('Work marked done');
-    } else {
-      setDone(title, 2);
-      roll('balance', balance + releasePaise);
-      roll('escrow', Math.max(0, escrow - escrowPaise));
-      celebrate(`Escrow released · ${formatINR(releasePaise)}`);
+    setBusy(true);
+    try {
+      if (worker) {
+        // Server opens the poster's review window and stamps work_done_at.
+        if (taskId) await markWorkDoneOnServer(taskId);
+        setDone(title, 1);
+        celebrate('Work marked done');
+      } else {
+        // Server takes the commission and credits the worker's clearing balance.
+        if (taskId) await confirmReleaseOnServer(taskId);
+        setDone(title, 2);
+        roll('balance', balance + releasePaise);
+        roll('escrow', Math.max(0, escrow - escrowPaise));
+        celebrate(`Escrow released · ${formatINR(releasePaise)}`);
+      }
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not update this task');
+    } finally {
+      setBusy(false);
     }
   };
 

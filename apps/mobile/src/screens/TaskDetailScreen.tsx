@@ -6,6 +6,8 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { useAuth } from '../providers/AuthProvider';
+import { placeBid } from '../data/api';
 import { fontFamilyFor, type Theme } from '../theme';
 import type { FeedRow } from './HomeScreen';
 
@@ -21,6 +23,7 @@ import type { FeedRow } from './HomeScreen';
  */
 
 type Detail = {
+  id?: string;
   who: string;
   rating: string;
   whoMeta: string;
@@ -95,12 +98,15 @@ export function TaskDetailScreen() {
   const { params, back, go } = useNav();
   const { mode } = useMode();
   const { flash, celebrate } = useApp();
+  const { userId } = useAuth();
+  const [busy, setBusy] = useState(false);
   const worker = mode === 'worker';
 
   const detail: Detail = useMemo(() => {
     const row = params.row;
     if (isFeedRow(row)) {
       return {
+        id: row.id,
         who: row.who,
         rating: row.rating,
         whoMeta: row.whoMeta,
@@ -138,13 +144,34 @@ export function TaskDetailScreen() {
   const detailBy = detail.by ?? (worker ? 'set by the poster' : 'you set it on engage');
   const cta = worker ? 'Send a quote' : 'Send my quote';
 
-  const sendQuote = () => {
+  // Sample feed rows have ids like "w1"; only real tasks carry a uuid.
+  const realTaskId = detail.id && /^[0-9a-f-]{36}$/.test(detail.id) ? detail.id : null;
+
+  const sendQuote = async () => {
+    if (busy) return;
     if (worker) {
-      celebrate('Quote sent · ' + formatINR(quote));
-      go('home');
+      if (!realTaskId) return flash('This is a sample task — post a real one to quote on it');
+      if (!userId) return flash('Sign in to send a quote');
+      setBusy(true);
+      try {
+        await placeBid({
+          taskId: realTaskId,
+          workerId: userId,
+          priceMinor: quote,
+          timeLimitMinutes: 240,
+        });
+        celebrate('Quote sent · ' + formatINR(quote));
+        go('orders');
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Could not send the quote';
+        // The unique index on (task_id, worker_id) is the "one quote per task" rule.
+        flash(/duplicate|unique/i.test(msg) ? 'You have already quoted on this task' : msg);
+      } finally {
+        setBusy(false);
+      }
       return;
     }
-    go('escrow', { priceMinor: quote, title: detail.title });
+    go('escrow', { priceMinor: quote, title: detail.title, taskId: realTaskId });
   };
 
   return (
@@ -316,7 +343,12 @@ export function TaskDetailScreen() {
             </Pressable>
           </View>
 
-          <Button label={cta} onPress={sendQuote} style={{ marginTop: t.spacing.lg }} />
+          <Button
+            label={busy ? 'Sending…' : cta}
+            disabled={busy}
+            onPress={sendQuote}
+            style={{ marginTop: t.spacing.lg }}
+          />
           <RNText style={tx('500', 12, t.colors.muted, { marginTop: 10, textAlign: 'center' })}>
             {worker
               ? 'One quote per task. Contacts stay masked until the task starts.'

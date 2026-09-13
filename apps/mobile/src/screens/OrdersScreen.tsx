@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text as RNText,
@@ -13,6 +13,15 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp, type TaskCtx } from '../providers/AppStateProvider';
+import { useAuth } from '../providers/AuthProvider';
+import {
+  listMyTasks,
+  listMyBids,
+  listMyAssignments,
+  type Task,
+  type Bid,
+  type Assignment,
+} from '../data/api';
 import { fontFamilyFor, type Theme } from '../theme';
 
 /**
@@ -28,6 +37,7 @@ type Tone = 'accent' | 'gold' | 'signal' | 'blue' | 'violet' | 'neutral';
 type Act = 'compare' | 'quotes' | 'confirm' | 'review' | 'active' | 'start' | null;
 
 type ViewRow = {
+  taskId?: string;
   bucket?: number;
   state: string;
   tone: Tone;
@@ -93,6 +103,71 @@ function bucketOf(row: { bucket?: number; state: string }, worker: boolean): num
 
 const WORKER_TABS = ['Listings', 'Accepted', 'Pending', 'Closed'];
 const POSTER_TABS = ['Open', 'Active', 'Done'];
+
+/** A task the signed-in user posted. Status decides label, tone, tab and tap. */
+function posterRow(task: Task): ViewRow {
+  const priceMinor = task.locked_minor ?? task.benchmark_minor;
+  const base = {
+    taskId: task.id,
+    title: task.title,
+    priceLabel: formatINR(priceMinor),
+    priceMinor,
+  };
+  switch (task.status) {
+    case 'OPEN':
+      return { ...base, bucket: 0, state: 'OPEN · TAP TO COMPARE', tone: 'blue', meta: 'Waiting for quotes', act: 'compare' };
+    case 'LOCKED':
+      return { ...base, bucket: 0, state: 'LOCKED · WORKER TO START', tone: 'accent', meta: 'Escrow funded · worker starts next', act: null };
+    case 'TASK_STARTED':
+      return { ...base, bucket: 1, state: 'ACTIVE · TIMER RUNNING', tone: 'gold', meta: 'Work is underway', act: 'active' };
+    case 'OVERDUE':
+      return { ...base, bucket: 1, state: 'OVERDUE', tone: 'signal', meta: 'Past the agreed time', act: 'active' };
+    case 'WORK_DONE':
+    case 'REVISION_REQUESTED':
+      return { ...base, bucket: 1, state: 'MARKED DONE · CONFIRM TO RELEASE', tone: 'gold', meta: 'Tap to review and release', act: 'confirm' };
+    case 'COMPLETED':
+    case 'AUTO_COMPLETED':
+      return { ...base, bucket: 2, state: 'DONE · RELEASED', tone: 'accent', meta: 'Tap to review the worker', act: 'review' };
+    default:
+      return { ...base, bucket: 2, state: String(task.status), tone: 'neutral', meta: '', act: null };
+  }
+}
+
+/** A quote this worker sent that hasn't been locked yet. */
+function workerBidRow(bid: Bid & { tasks: Task | null }): ViewRow {
+  return {
+    taskId: bid.task_id,
+    bucket: 2,
+    state: 'PENDING',
+    tone: 'blue',
+    title: bid.tasks?.title ?? 'Task',
+    priceLabel: formatINR(bid.price_minor),
+    priceMinor: bid.price_minor,
+    meta: 'Quote sent · awaiting the poster',
+    act: null,
+  };
+}
+
+/** A task this worker was picked for. */
+function workerAssignmentRow(a: Assignment & { tasks: Task | null }): ViewRow {
+  const task = a.tasks;
+  const priceMinor = task?.locked_minor ?? a.escrow_minor;
+  const base = {
+    taskId: a.task_id,
+    title: task?.title ?? 'Task',
+    priceLabel: formatINR(priceMinor),
+    priceMinor,
+  };
+  if (a.status === 'refunded')
+    return { ...base, bucket: 3, state: 'NOT SELECTED', tone: 'neutral', meta: 'Another worker started first', act: null };
+  if (a.status === 'released' || task?.status === 'COMPLETED' || task?.status === 'AUTO_COMPLETED')
+    return { ...base, bucket: 3, state: 'DONE · PAID', tone: 'accent', meta: 'Earnings are clearing', act: null };
+  if (task?.status === 'WORK_DONE' || task?.status === 'REVISION_REQUESTED')
+    return { ...base, bucket: 1, state: 'WORK DONE · AWAITING POSTER', tone: 'gold', meta: 'Poster confirms next', act: 'active' };
+  if (task?.status === 'TASK_STARTED' || task?.status === 'OVERDUE' || a.status === 'started')
+    return { ...base, bucket: 1, state: 'ACTIVE · TIMER RUNNING', tone: 'gold', meta: 'Task started · timer running', act: 'start' };
+  return { ...base, bucket: 1, state: 'ACCEPTED · SWIPE TO START', tone: 'accent', meta: 'Escrow funded · first to start wins', act: 'start' };
+}
 
 function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
   return { fontFamily: fontFamilyFor(weight), fontSize: size, color, ...extra };
@@ -266,132 +341,53 @@ export function OrdersScreen() {
   const t = useTheme();
   const { go } = useNav();
   const { mode } = useMode();
-  const { myBids, flash, setOpenTask, doneOf, startedOf } = useApp();
+  const { flash, setOpenTask, startedOf } = useApp();
+  const { userId } = useAuth();
   const [orderTab, setOrderTab] = useState(0);
 
   const worker = mode === 'worker';
 
-  // Sample rows straight from the design (_design_source.jsx lines 138-159), with
-  // amounts converted to paise per the app's money contract.
-  const designRows: ViewRow[] = useMemo(() => {
-    if (worker) {
-      const title = 'Vintage 35mm film camera';
-      const started = startedOf(title);
-      const done = doneOf(title);
-      return [
-        {
-          bucket: 1,
-          state: done >= 1 ? 'WORK DONE · AWAITING POSTER' : started ? 'ACTIVE · TIMER RUNNING' : 'ACCEPTED · SWIPE TO START',
-          tone: started ? 'gold' : 'accent',
-          title,
-          priceLabel: formatINR(420000),
-          priceMinor: 420000,
-          meta: done >= 1 ? 'Work marked done · poster confirms next' : started ? 'Task started · timer running' : 'Escrow funded · first to start wins',
-          act: 'start',
-          escrowLabel: formatINR(433500),
-          who: 'you are working',
-          payMeta: `${formatINR(420000)} to you · complete by 9 Sep, 5:00 PM`,
-        },
-        {
-          bucket: 2,
-          state: 'PENDING',
-          tone: 'blue',
-          title: 'Fix leaking kitchen tap',
-          priceLabel: formatINR(55000),
-          priceMinor: 55000,
-          meta: 'Sent 2 hrs ago · 4 quotes total',
-          act: null,
-        },
-        {
-          bucket: 0,
-          state: 'QUOTES ON MY SERVICE · 3 NEW',
-          tone: 'violet',
-          title: 'Bespoke carpentry and joinery',
-          priceLabel: formatINR(120000),
-          priceMinor: 120000,
-          meta: 'Posters sent quotes · lock one to take it',
-          act: 'quotes',
-        },
-        {
-          bucket: 3,
-          state: 'NOT SELECTED',
-          tone: 'neutral',
-          title: 'Airport pickup, 6 AM',
-          priceLabel: formatINR(90000),
-          priceMinor: 90000,
-          meta: 'Another worker started first',
-          act: null,
-        },
-      ];
+  // Real rows for the signed-in user: tasks they posted, or the quotes and
+  // assignments they hold as a worker. Status drives the label, tone and the
+  // action a tap performs.
+  const [rows, setRows] = useState<ViewRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!userId) {
+      setRows([]);
+      setLoading(false);
+      return;
     }
-    return [
-      {
-        state: 'OPEN · 12 QUOTES',
-        tone: 'blue',
-        title: 'Vintage 35mm film camera',
-        priceLabel: formatINR(450000),
-        priceMinor: 450000,
-        meta: 'Complete by 9 Sep, 6:00 PM · tap to compare',
-        act: 'compare',
-        escrowLabel: formatINR(433500),
-        who: 'not started',
-        payMeta: `${formatINR(450000)} · complete by 9 Sep, 6:00 PM`,
-      },
-      {
-        state: 'ACTIVE · TIMER RUNNING',
-        tone: 'gold',
-        title: 'Assemble a wardrobe',
-        priceLabel: formatINR(120000),
-        priceMinor: 120000,
-        meta: 'Tasker 8830 started 2 hrs ago',
-        act: 'active',
-        escrowLabel: formatINR(123600),
-        who: 'Tasker 8830 working',
-        payMeta: `${formatINR(120000)} · complete by 12 Sep, 2:00 PM`,
-      },
-      {
-        bucket: 1,
-        state: 'MARKED DONE · CONFIRM TO RELEASE',
-        tone: 'gold',
-        title: 'Photograph a flat before I rent it',
-        priceLabel: formatINR(45000),
-        priceMinor: 45000,
-        meta: 'Proof uploaded 1 hr ago · tap to review',
-        act: 'confirm',
-        escrowLabel: formatINR(46300),
-        who: 'Tasker 8830 working',
-        payMeta: `${formatINR(45000)} · complete by 11 Sep, 11:00 AM`,
-      },
-      {
-        state: 'DONE · RELEASED',
-        tone: 'accent',
-        title: 'Fix leaking kitchen tap',
-        priceLabel: formatINR(60000),
-        priceMinor: 60000,
-        meta: 'Confirmed 3 Sep · tap to review the worker',
-        act: 'review',
-      },
-    ];
-  }, [worker, doneOf, startedOf]);
+    setLoading(true);
+    try {
+      if (!worker) {
+        const tasks = await listMyTasks(userId);
+        setRows(tasks.map(posterRow));
+      } else {
+        const [bids, assignments] = await Promise.all([
+          listMyBids(userId),
+          listMyAssignments(userId),
+        ]);
+        // An assignment supersedes the quote it came from.
+        const assignedTaskIds = new Set(assignments.map((a) => a.task_id));
+        setRows([
+          ...assignments.map(workerAssignmentRow),
+          ...bids.filter((b) => !assignedTaskIds.has(b.task_id)).map(workerBidRow),
+        ]);
+      }
+    } catch {
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, worker]);
 
-  const myBidRows: ViewRow[] = useMemo(
-    () =>
-      myBids
-        .filter((r) => r.role === mode)
-        .map((r) => ({
-          bucket: r.bucket,
-          state: r.state,
-          tone: (r.tone ?? 'neutral') as Tone,
-          title: r.title,
-          priceLabel: r.price,
-          priceMinor: 0,
-          meta: r.meta,
-          act: null,
-        })),
-    [myBids, mode],
-  );
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-  const allRows = useMemo(() => designRows.concat(myBidRows), [designRows, myBidRows]);
+  const allRows = rows;
 
   const tabNames = worker ? WORKER_TABS : POSTER_TABS;
   const orderRows = useMemo(
@@ -399,41 +395,27 @@ export function OrdersScreen() {
     [allRows, worker, orderTab],
   );
 
+  // Every tap carries the real task id so the next screen works on live data.
   const openRow = (row: ViewRow) => {
-    if (row.act === 'compare') {
-      const task: TaskCtx = { title: row.title, price: row.priceLabel, escrow: row.escrowLabel, who: row.who, payMeta: row.payMeta };
-      setOpenTask(task);
-      go('compare', { title: row.title, priceMinor: row.priceMinor });
-      return;
+    const task: TaskCtx = { title: row.title, price: row.priceLabel };
+    const p = { title: row.title, priceMinor: row.priceMinor, taskId: row.taskId };
+    setOpenTask(task);
+    switch (row.act) {
+      case 'compare':
+        return go('compare', p);
+      case 'quotes':
+        return go('myQuotes', p);
+      case 'confirm':
+        return go('confirm', p);
+      case 'review':
+        return go('review', p);
+      case 'active':
+        return go('active', p);
+      case 'start':
+        return startedOf(row.title) ? go('active', p) : go('swipe', p);
+      default:
+        return flash(`${row.title} · ${row.priceLabel}`);
     }
-    if (row.act === 'quotes') {
-      go('myQuotes');
-      return;
-    }
-    if (row.act === 'confirm') {
-      const task: TaskCtx = { title: row.title, price: row.priceLabel, escrow: row.escrowLabel, who: row.who, payMeta: row.payMeta };
-      setOpenTask(task);
-      go('confirm', { title: row.title, priceMinor: row.priceMinor });
-      return;
-    }
-    if (row.act === 'review') {
-      setOpenTask({ title: row.title, price: row.priceLabel, escrow: row.priceLabel, who: 'done', payMeta: row.priceLabel });
-      go('review', { title: row.title });
-      return;
-    }
-    const task: TaskCtx = { title: row.title, price: row.priceLabel, escrow: row.escrowLabel, who: row.who, payMeta: row.payMeta };
-    if (row.act === 'start') {
-      setOpenTask(task);
-      if (startedOf(row.title)) go('active', { title: row.title });
-      else go('swipe', { title: row.title });
-      return;
-    }
-    if (row.act === 'active') {
-      setOpenTask(task);
-      go('active', { title: row.title });
-      return;
-    }
-    flash(`${row.title} · ${row.priceLabel}`);
   };
 
   const emptyLine = worker ? 'Quotes you send show up here.' : 'Requests you post show up here.';

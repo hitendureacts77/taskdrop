@@ -16,7 +16,9 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { searchTasks } from '../data/api';
 import { fontFamilyFor, type Theme } from '../theme';
+import type { Enums } from '@taskdrop/db-types';
 
 /**
  * Search screen — pixel parity with docs/design/_design_markup.html lines
@@ -26,6 +28,11 @@ import { fontFamilyFor, type Theme } from '../theme';
  */
 
 const FILTER_LABELS = ['Services', 'Goods & products', 'Local help'];
+// Chip index -> the pillar enum stored on tasks.
+const FILTER_PILLARS: Enums<'pillar'>[] = ['services', 'procurement', 'local_intel'];
+
+const BUDGET_MIN_MINOR = 50000; // ₹500
+const BUDGET_MAX_MINOR = 800000; // ₹8,000
 
 const SAVED_SEARCHES = [
   { title: 'Camera gear under ₹6k', meta: 'Products · 12 km · 4 new' },
@@ -200,17 +207,51 @@ export function SearchScreen() {
   const [query, setQuery] = useState('');
   const [radiusOn, setRadiusOn] = useState(true);
   const [budgetOn, setBudgetOn] = useState(false);
-  const [pillar, setPillar] = useState(0);
+  // Pillar is an optional filter: null means every pillar, and tapping the
+  // active chip clears it again.
+  const [pillar, setPillar] = useState<number | null>(null);
+  const [count, setCount] = useState<number | null>(null);
+
+  const filters = {
+    q: query,
+    pillar: pillar === null ? null : FILTER_PILLARS[pillar]!,
+    minMinor: budgetOn ? BUDGET_MIN_MINOR : null,
+    maxMinor: budgetOn ? BUDGET_MAX_MINOR : null,
+  };
+
+  // Live result count as the filters change. Debounced so typing doesn't fire a
+  // request per keystroke; `alive` drops answers that arrive out of order.
+  useEffect(() => {
+    let alive = true;
+    setCount(null);
+    const id = setTimeout(() => {
+      searchTasks({ ...filters, limit: 60 })
+        .then((rows) => alive && setCount(rows.length))
+        .catch(() => alive && setCount(0));
+    }, 250);
+    return () => {
+      alive = false;
+      clearTimeout(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, pillar, budgetOn]);
 
   const runSaved = (title: string) => {
-    go('home');
+    go('home', { q: title });
     flash('Running "' + title + '"');
   };
 
   const applyFilters = () => {
-    go('home');
-    flash('34 tasks · Indiranagar' + (radiusOn ? ' · 12 km' : ''));
+    go('home', {
+      q: query.trim() || undefined,
+      pillar: filters.pillar ?? undefined,
+      minMinor: filters.minMinor ?? undefined,
+      maxMinor: filters.maxMinor ?? undefined,
+    });
   };
+
+  const ctaLabel =
+    count === null ? 'Searching…' : count === 1 ? 'Show 1 task' : `Show ${count} tasks`;
 
   return (
     <Screen scroll padded={false}>
@@ -307,7 +348,13 @@ export function SearchScreen() {
         <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 22 })}>PILLAR</RNText>
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 11 }}>
           {FILTER_LABELS.map((label, i) => (
-            <FilterChip key={label} label={label} active={pillar === i} onPress={() => setPillar(i)} t={t} />
+            <FilterChip
+              key={label}
+              label={label}
+              active={pillar === i}
+              onPress={() => setPillar((cur) => (cur === i ? null : i))}
+              t={t}
+            />
           ))}
         </View>
 
@@ -367,7 +414,7 @@ export function SearchScreen() {
             elevation: 4,
           }}
         >
-          <RNText style={tx('700', 16, t.colors.onAccent)}>Show 34 tasks</RNText>
+          <RNText style={tx('700', 16, t.colors.onAccent)}>{ctaLabel}</RNText>
         </Pressy>
       </FadeIn>
     </Screen>

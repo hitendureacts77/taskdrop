@@ -5,6 +5,7 @@ import {
   Pressable,
   StyleSheet,
   ScrollView,
+  RefreshControl,
   type ViewStyle,
   type TextStyle,
   type StyleProp,
@@ -19,11 +20,16 @@ export function Screen({
   scroll = false,
   padded = true,
   style,
+  onRefresh,
+  refreshing = false,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
   padded?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** Pull-to-refresh handler. Only has an effect together with `scroll`. */
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }) {
   const t = useTheme();
   const inner: StyleProp<ViewStyle> = [
@@ -41,6 +47,11 @@ export function Screen({
             { paddingBottom: t.spacing.xxl },
           ]}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.colors.accent} />
+            ) : undefined
+          }
         >
           {children}
         </ScrollView>

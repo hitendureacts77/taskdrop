@@ -84,6 +84,34 @@ export async function listBidsForTask(
   return rows.map((b) => ({ ...b, profiles: byId.get(b.worker_id) ?? null }));
 }
 
+export type TaskSearch = {
+  q?: string;
+  pillar?: Enums<'pillar'> | null;
+  minMinor?: number | null;
+  maxMinor?: number | null;
+  limit?: number;
+};
+
+/**
+ * Open tasks matching the search screen's filters. Every filter is optional —
+ * an empty search is just the feed. `q` matches the title or the description.
+ */
+export async function searchTasks(input: TaskSearch = {}): Promise<Task[]> {
+  let query = supabase.from('tasks').select('*').eq('status', 'OPEN');
+
+  const q = input.q?.trim();
+  if (q) {
+    // Commas and parens would break out of PostgREST's or() filter grammar.
+    const safe = q.replace(/[,()*]/g, ' ').trim();
+    if (safe) query = query.or(`title.ilike.%${safe}%,description.ilike.%${safe}%`);
+  }
+  if (input.pillar) query = query.eq('pillar', input.pillar);
+  if (typeof input.minMinor === 'number') query = query.gte('benchmark_minor', input.minMinor);
+  if (typeof input.maxMinor === 'number') query = query.lte('benchmark_minor', input.maxMinor);
+
+  return unwrap(await query.order('created_at', { ascending: false }).limit(input.limit ?? 30));
+}
+
 export async function getTask(taskId: string): Promise<Task | null> {
   const { data, error } = await supabase.from('tasks').select('*').eq('id', taskId).maybeSingle();
   if (error) throw new Error(error.message);
@@ -167,6 +195,25 @@ export async function placeBid(input: {
   return rows[0]!;
 }
 
+export type ProfileEdits = {
+  displayName?: string;
+  skills?: string[];
+  locLabel?: string | null;
+};
+
+/** Save the setup/profile screen's fields. RLS limits this to your own row. */
+export async function updateProfile(userId: string, edits: ProfileEdits): Promise<Profile> {
+  const patch: Partial<Pick<Profile, 'display_name' | 'skills' | 'loc_label'>> = {};
+  if (edits.displayName !== undefined) patch.display_name = edits.displayName;
+  if (edits.skills !== undefined) patch.skills = edits.skills;
+  if (edits.locLabel !== undefined) patch.loc_label = edits.locLabel;
+
+  const rows = unwrap(await supabase.from('profiles').update(patch).eq('id', userId).select());
+  const row = rows[0];
+  if (!row) throw new Error('Could not save your profile');
+  return row;
+}
+
 // ------------------------------------------------- lifecycle (server-side) --
 
 async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
@@ -189,9 +236,49 @@ export const markWorkDone = (taskId: string) => rpc<Task>('mark_work_done', { p_
 export const confirmRelease = (taskId: string) =>
   rpc<Task>('confirm_release', { p_task_id: taskId });
 
+/**
+ * Rate the other side of a finished task. The server decides who the subject is
+ * and recomputes their average, so neither can be forged from here.
+ */
+export const submitReview = (taskId: string, rating: number, comment?: string) =>
+  rpc<unknown>('submit_review', {
+    p_task_id: taskId,
+    p_rating: rating,
+    p_comment: comment?.trim() ? comment.trim() : null,
+  });
+
+/**
+ * Move money out of the wallet. The debit and the payout row happen in one
+ * locked transaction server-side, so a double tap can't withdraw twice.
+ */
+export const requestWithdrawal = (amountMinor: number, destination?: string) =>
+  rpc<unknown>('request_withdrawal', {
+    p_amount_minor: amountMinor,
+    p_destination: destination?.trim() ? destination.trim() : null,
+  });
+
 // -------------------------------------------------------------- payments ---
 
 export type PaymentLink = { paymentId: string; url: string };
+
+/**
+ * supabase-js turns any non-2xx from an Edge Function into the unhelpful
+ * "Edge Function returned a non-2xx status code" and hides the body on
+ * `error.context`. Our functions always answer with `{ error: "..." }`, so dig
+ * that out and show the real reason instead.
+ */
+async function functionError(error: unknown, fallback: string): Promise<Error> {
+  const context = (error as { context?: unknown }).context;
+  if (context instanceof Response) {
+    try {
+      const body = (await context.clone().json()) as { error?: string };
+      if (body?.error) return new Error(body.error);
+    } catch {
+      /* not JSON — fall through */
+    }
+  }
+  return new Error(error instanceof Error ? error.message : fallback);
+}
 
 /**
  * Open a Razorpay payment link to fund a task's escrow or top up the wallet.
@@ -207,10 +294,7 @@ export async function createPaymentLink(input: {
   const { data, error } = await supabase.functions.invoke('razorpay', {
     body: { action: 'create-link', ...input },
   });
-  if (error) {
-    const detail = (data as { error?: string } | null)?.error;
-    throw new Error(detail ?? error.message);
-  }
+  if (error) throw await functionError(error, 'Could not start the payment');
   const out = data as { paymentId?: string; url?: string; error?: string };
   if (out.error) throw new Error(out.error);
   if (!out.paymentId || !out.url) throw new Error('Could not start the payment');
@@ -222,7 +306,7 @@ export async function syncPayment(paymentId: string): Promise<'created' | 'paid'
   const { data, error } = await supabase.functions.invoke('razorpay', {
     body: { action: 'sync', paymentId },
   });
-  if (error) throw new Error(error.message);
+  if (error) throw await functionError(error, 'Could not check the payment');
   const out = data as { status?: string; error?: string };
   if (out.error) throw new Error(out.error);
   return (out.status as 'created' | 'paid' | 'cancelled') ?? 'created';

@@ -14,6 +14,7 @@ import { Screen } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { startTask as startTaskOnServer } from '../data/api';
 import { fontFamilyFor } from '../theme';
 
 /**
@@ -58,7 +59,7 @@ function FadeIn({ children, duration = 260 }: { children: React.ReactNode; durat
 export function SwipeScreen() {
   const t = useTheme();
   const { params, go, back } = useNav();
-  const { openTask, startTask, celebrate } = useApp();
+  const { openTask, startTask, celebrate, flash } = useApp();
 
   const title =
     typeof params.title === 'string'
@@ -134,7 +135,19 @@ export function SwipeScreen() {
           setProgress(1);
           setStarted(true);
           startTask(title);
-          celebrate('Task started · contacts revealed');
+          const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+          if (taskId) {
+            // First worker to reach TASK_STARTED wins; the server decides.
+            startTaskOnServer(taskId)
+              .then(() => celebrate('Task started · contacts revealed'))
+              .catch((e: unknown) => {
+                setStarted(false);
+                setProgress(0);
+                flash(e instanceof Error ? e.message : 'Could not start this task');
+              });
+          } else {
+            celebrate('Task started · contacts revealed');
+          }
           navTimeoutRef.current = setTimeout(() => go('active', params), 220);
         } else {
           setProgress(0);

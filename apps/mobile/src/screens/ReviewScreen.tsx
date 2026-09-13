@@ -5,6 +5,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { submitReview } from '../data/api';
 import { fontFamilyFor } from '../theme';
 
 /**
@@ -76,11 +77,14 @@ export function ReviewScreen() {
   const t = useTheme();
   const { params, back, go } = useNav();
   const { mode } = useMode();
-  const { openTask, celebrate } = useApp();
+  const { openTask, celebrate, flash } = useApp();
 
   const [stars, setStars] = useState(5);
   const [praise, setPraise] = useState<number[]>([0, 1]);
   const [comment, setComment] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const taskId = typeof params.taskId === 'string' ? params.taskId : null;
 
   const fallback = FALLBACK_TASK[mode];
   const title = typeof params.title === 'string' ? params.title : (openTask?.title ?? fallback.title);
@@ -92,9 +96,26 @@ export function ReviewScreen() {
     setPraise((prev) => (prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]));
   };
 
-  const submit = () => {
-    celebrate('Review posted');
-    go('orders');
+  const submit = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (taskId) {
+        // reviews has no praise column, so the chips ride along in the comment
+        // rather than being dropped on the floor.
+        const tags = praise.map((i) => PRAISE[i]).filter(Boolean);
+        const body = [comment.trim(), tags.length ? tags.join(' · ') : '']
+          .filter(Boolean)
+          .join('\n');
+        await submitReview(taskId, stars, body);
+      }
+      celebrate('Review posted');
+      go('orders');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not post that review');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -196,7 +217,9 @@ export function ReviewScreen() {
             },
           ]}
         >
-          <RNText style={tx('700', 16, t.colors.onAccent)}>Submit review</RNText>
+          <RNText style={tx('700', 16, t.colors.onAccent)}>
+            {busy ? 'Posting…' : 'Submit review'}
+          </RNText>
         </Pressable>
       </View>
     </Screen>

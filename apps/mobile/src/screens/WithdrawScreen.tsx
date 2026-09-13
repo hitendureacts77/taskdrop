@@ -1,15 +1,19 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text as RNText, Pressable, ScrollView, type TextStyle, type ViewStyle } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
+import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { getWallet, requestWithdrawal } from '../data/api';
 import { fontFamilyFor } from '../theme';
 
 /**
  * Withdraw — pixel parity with docs/design/_design_markup.html lines 1097-1129.
- * Sweeps the whole available balance (design's doWithdraw, _design_source.jsx
- * lines 900-905): rolls the balance to zero, celebrates, returns to the wallet.
+ * The design sweeps the whole balance; here the amount is typeable and defaults
+ * to the full available balance, because a partial withdrawal is the thing
+ * people actually reach for. The wallet debit happens inside request_withdrawal
+ * so the balance and the payout row can never disagree.
  */
 
 function tx(weight: string, size: number, color: string, extra?: TextStyle): TextStyle {
@@ -38,19 +42,60 @@ function Pressy({
 export function WithdrawScreen() {
   const t = useTheme();
   const { go, back } = useNav();
-  const { balance, roll, celebrate } = useApp();
+  const { balance, roll, celebrate, flash } = useApp();
+
+  // Start from the real wallet balance, not whatever the animated counter holds.
+  const [availableMinor, setAvailableMinor] = useState(balance);
+  const [rupees, setRupees] = useState(Math.floor(balance / 100));
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getWallet()
+      .then((w) => {
+        if (!alive || !w) return;
+        setAvailableMinor(w.balance_minor);
+        setRupees(Math.floor(w.balance_minor / 100));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const amountMinor = rupees * 100;
+  const overdrawn = amountMinor > availableMinor;
+  const empty = amountMinor <= 0;
 
   const rows: { label: string; value: string; strong: boolean }[] = [
-    { label: 'Available', value: formatINR(balance), strong: false },
+    { label: 'Available', value: formatINR(availableMinor), strong: false },
     { label: 'Transfer fee', value: 'Free', strong: false },
-    { label: 'You receive', value: formatINR(balance), strong: true },
+    { label: 'You receive', value: formatINR(empty || overdrawn ? 0 : amountMinor), strong: true },
   ];
 
-  const doWithdraw = () => {
-    const amount = formatINR(balance);
-    roll('balance', 0);
-    celebrate(`${amount} on its way`);
-    go('wallet');
+  const doWithdraw = async () => {
+    if (busy) return;
+    if (empty) {
+      flash('Enter an amount to withdraw');
+      return;
+    }
+    if (overdrawn) {
+      flash(`You only have ${formatINR(availableMinor)} available`);
+      return;
+    }
+    setBusy(true);
+    try {
+      await requestWithdrawal(amountMinor, 'raju@okhdfcbank');
+      const left = availableMinor - amountMinor;
+      setAvailableMinor(left);
+      roll('balance', left);
+      celebrate(`${formatINR(amountMinor)} on its way`);
+      go('wallet');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not start that withdrawal');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -68,12 +113,26 @@ export function WithdrawScreen() {
         </View>
 
         <RNText style={tx('400', 13, t.colors.muted, { marginTop: 24 })}>Amount</RNText>
-        <RNText style={tx('800', 44, t.colors.ink, { letterSpacing: -1.76, lineHeight: 46.2, marginTop: 4 })}>
-          {formatINR(balance)}
-        </RNText>
-        <RNText style={tx('400', 12, t.colors.muted, { marginTop: 8 })}>
-          Full available balance. Arrives in 1 working day.
-        </RNText>
+        <AmountField
+          rupees={rupees}
+          onChangeRupees={setRupees}
+          align="left"
+          style={tx('800', 44, overdrawn ? t.colors.signal : t.colors.ink, {
+            letterSpacing: -1.76,
+            lineHeight: 46.2,
+            marginTop: 4,
+          })}
+        />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}>
+          <RNText style={tx('400', 12, overdrawn ? t.colors.signal : t.colors.muted, { flex: 1 })}>
+            {overdrawn
+              ? `Only ${formatINR(availableMinor)} available.`
+              : 'Arrives in 1 working day.'}
+          </RNText>
+          <Pressable onPress={() => setRupees(Math.floor(availableMinor / 100))} hitSlop={8}>
+            <RNText style={tx('600', 12, t.colors.accentDeep)}>Withdraw all</RNText>
+          </Pressable>
+        </View>
 
         <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 24 })}>TO</RNText>
         <View
@@ -135,6 +194,7 @@ export function WithdrawScreen() {
             borderRadius: 999,
             paddingVertical: 16,
             alignItems: 'center',
+            opacity: empty || overdrawn ? 0.5 : 1,
             shadowColor: t.colors.accent,
             shadowOpacity: 0.35,
             shadowRadius: 22,
@@ -142,7 +202,9 @@ export function WithdrawScreen() {
             elevation: 6,
           }}
         >
-          <RNText style={tx('700', 16, t.colors.onAccent)}>Withdraw {formatINR(balance)}</RNText>
+          <RNText style={tx('700', 16, t.colors.onAccent)}>
+            {busy ? 'Sending…' : `Withdraw ${formatINR(amountMinor)}`}
+          </RNText>
         </Pressy>
       </View>
     </Screen>
