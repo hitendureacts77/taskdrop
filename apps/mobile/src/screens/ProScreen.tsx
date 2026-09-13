@@ -165,7 +165,7 @@ export function ProScreen() {
 
       <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 }}>
         <Pressable
-          onPress={() => flash('Selfie match is still in review')}
+          onPress={() => flash('Verification is not open yet — we will let you know when it is')}
           style={({ pressed }) => ({
             backgroundColor: t.colors.accent,
             borderRadius: 999,

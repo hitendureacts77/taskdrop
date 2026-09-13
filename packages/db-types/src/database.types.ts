@@ -171,6 +171,38 @@ export type Database = {
           },
         ]
       }
+      messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          sender_id: string
+          task_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          sender_id: string
+          task_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount_minor: number
@@ -572,6 +604,78 @@ export type Database = {
       }
       mark_work_done: {
         Args: { p_task_id: string }
+        Returns: {
+          auto_complete_at: string | null
+          benchmark_minor: number
+          clear_at: string | null
+          completed_at: string | null
+          created_at: string
+          description: string
+          flag: Database["public"]["Enums"]["task_flag"]
+          id: string
+          loc_label: string | null
+          loc_lat: number | null
+          loc_lng: number | null
+          locked_bid_id: string | null
+          locked_minor: number | null
+          media_kind: string | null
+          media_path: string | null
+          media_seconds: number | null
+          payout_mode: Database["public"]["Enums"]["payout_mode"] | null
+          pillar: Database["public"]["Enums"]["pillar"]
+          poster_id: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          time_limit_minutes: number
+          title: string
+          updated_at: string
+          work_done_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tasks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      open_dispute: {
+        Args: { p_reason?: string; p_task_id: string }
+        Returns: {
+          auto_complete_at: string | null
+          benchmark_minor: number
+          clear_at: string | null
+          completed_at: string | null
+          created_at: string
+          description: string
+          flag: Database["public"]["Enums"]["task_flag"]
+          id: string
+          loc_label: string | null
+          loc_lat: number | null
+          loc_lng: number | null
+          locked_bid_id: string | null
+          locked_minor: number | null
+          media_kind: string | null
+          media_path: string | null
+          media_seconds: number | null
+          payout_mode: Database["public"]["Enums"]["payout_mode"] | null
+          pillar: Database["public"]["Enums"]["pillar"]
+          poster_id: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          time_limit_minutes: number
+          title: string
+          updated_at: string
+          work_done_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tasks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      request_revision: {
+        Args: { p_note?: string; p_task_id: string }
         Returns: {
           auto_complete_at: string | null
           benchmark_minor: number

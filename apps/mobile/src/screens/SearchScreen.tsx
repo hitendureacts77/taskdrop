@@ -15,6 +15,7 @@ import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { searchTasks } from '../data/api';
+import { resolveCurrentPlace } from '../lib/location';
 import { fontFamilyFor, type Theme } from '../theme';
 import type { Enums } from '@taskdrop/db-types';
 import { FadeIn, Pressy, tx } from '../components/primitives';
@@ -154,6 +155,9 @@ export function SearchScreen() {
   // active chip clears it again.
   const [pillar, setPillar] = useState<number | null>(null);
   const [count, setCount] = useState<number | null>(null);
+  // Nothing is assumed about where the user is until they ask for it.
+  const [place, setPlace] = useState<string | null>(null);
+  const [locating, setLocating] = useState(false);
 
   const filters = {
     q: query,
@@ -179,6 +183,19 @@ export function SearchScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, pillar, budgetOn]);
 
+  const useMyLocation = async () => {
+    if (locating) return;
+    setLocating(true);
+    try {
+      const found = await resolveCurrentPlace();
+      setPlace(found.label);
+      flash(found.label);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not read your location');
+    } finally {
+      setLocating(false);
+    }
+  };
   const runSaved = (title: string) => {
     go('home', { q: title });
     flash('Running "' + title + '"');
@@ -238,9 +255,16 @@ export function SearchScreen() {
           }}
         >
           <LocationPinIcon color={t.colors.muted} />
-          <RNText style={tx('400', 14, t.colors.ink, { flex: 1 })}>Indiranagar, Bengaluru</RNText>
-          <Pressy onPress={() => flash('Using your location')}>
-            <RNText style={tx('600', 12, t.colors.accentDeep)}>Use my location</RNText>
+          <RNText
+            style={tx('400', 14, place ? t.colors.ink : t.colors.muted, { flex: 1 })}
+            numberOfLines={1}
+          >
+            {place ?? 'Anywhere'}
+          </RNText>
+          <Pressy onPress={useMyLocation}>
+            <RNText style={tx('600', 12, t.colors.accentDeep)}>
+              {locating ? 'Locating…' : 'Use my location'}
+            </RNText>
           </Pressy>
         </View>
 

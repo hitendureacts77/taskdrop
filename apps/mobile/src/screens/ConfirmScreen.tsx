@@ -4,7 +4,13 @@ import { Screen, Text, Card, Row, Button, Divider, formatINR } from '../componen
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { confirmRelease as confirmReleaseOnServer, getTaskDetail, type TaskDetail } from '../data/api';
+import {
+  confirmRelease as confirmReleaseOnServer,
+  requestRevision,
+  openDispute,
+  getTaskDetail,
+  type TaskDetail,
+} from '../data/api';
 import { workerNetPayout } from '@taskdrop/rules';
 
 /**
@@ -80,6 +86,36 @@ export function ConfirmScreen() {
     { label: 'Auto-confirms in', value: countdown(detail?.task.auto_complete_at ?? null) },
   ];
 
+  const askForChanges = async () => {
+    if (busy) return;
+    if (!taskId) return flash('This is a sample task');
+    setBusy(true);
+    try {
+      await requestRevision(taskId);
+      celebrate('Sent back for changes');
+      go('orders');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not send that back');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const raiseDispute = async () => {
+    if (busy) return;
+    if (!taskId) return flash('This is a sample task');
+    setBusy(true);
+    try {
+      await openDispute(taskId);
+      // Escrow is frozen, not moved — an admin resolves it from here.
+      celebrate('Dispute opened · escrow is frozen');
+      go('orders');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not open a dispute');
+    } finally {
+      setBusy(false);
+    }
+  };
   const handleConfirm = async () => {
     if (busy) return;
     setBusy(true);
@@ -152,11 +188,11 @@ export function ConfirmScreen() {
         label="Request changes"
         variant="secondary"
         style={{ marginTop: t.spacing.md }}
-        onPress={() => flash('Change request sent to the worker')}
+        onPress={askForChanges}
       />
 
       <Pressable
-        onPress={() => flash('A dispute case was opened')}
+        onPress={raiseDispute}
         style={{ marginTop: t.spacing.lg, alignItems: 'center', padding: t.spacing.sm }}
       >
         <Text variant="label" color="signal">

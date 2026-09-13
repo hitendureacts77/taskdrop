@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text as RNText,
@@ -9,11 +9,19 @@ import {
   Platform,
   type ViewStyle,
 } from 'react-native';
-import { Screen } from '../components/ui';
+import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { useAuth } from '../providers/AuthProvider';
+import {
+  listMessages,
+  sendMessage,
+  subscribeToMessages,
+  getTaskDetail,
+  type Message as DbMessage,
+} from '../data/api';
 import { fontFamilyFor, type Theme } from '../theme';
 import { tx } from '../components/primitives';
 
@@ -110,24 +118,88 @@ export function ChatScreen() {
   const t = useTheme();
   const { params, back, go } = useNav();
   const { mode } = useMode();
-  const { openTask } = useApp();
+  const { openTask, flash } = useApp();
 
   const fallback = FALLBACK_TASK[mode];
   const title = typeof params.title === 'string' ? params.title : (openTask?.title ?? fallback.title);
-  const escrowStr = openTask?.escrow ?? fallback.escrow;
-  const counterpartyName = mode === 'worker' ? 'Meera Rao' : 'Arjun Nair';
 
-  const [messages, setMessages] = useState<Message[]>(SEED);
+  const { userId } = useAuth();
+  const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+
+  // Without a task there is no thread to load, so the design's sample
+  // conversation stands in and the composer says why it can't send.
+  const [messages, setMessages] = useState<Message[]>(taskId ? [] : SEED);
   const [draft, setDraft] = useState('');
-  const nextId = useRef(SEED.length + 1);
+  const [sending, setSending] = useState(false);
+  const [otherName, setOtherName] = useState<string | null>(null);
+  const [escrowMinor, setEscrowMinor] = useState<number | null>(null);
 
-  const send = () => {
+  const escrowStr =
+    escrowMinor !== null ? formatINR(escrowMinor) : (openTask?.escrow ?? fallback.escrow);
+
+  // Whoever is actually on the other side of this task.
+  const counterpartyName = otherName ?? (mode === 'worker' ? 'The poster' : 'The worker');
+
+  const toBubble = (m: DbMessage): Message => ({
+    id: m.id,
+    who: m.sender_id === userId ? 'me' : 'them',
+    kind: 'text',
+    text: m.body,
+  });
+
+  useEffect(() => {
+    if (!taskId || !userId) return;
+    let alive = true;
+
+    void (async () => {
+      try {
+        const [rows, detail] = await Promise.all([listMessages(taskId), getTaskDetail(taskId)]);
+        if (!alive) return;
+        setMessages(rows.map(toBubble));
+        const other = detail
+          ? detail.task.poster_id === userId
+            ? detail.worker
+            : detail.poster
+          : null;
+        setOtherName(other?.display_name ?? null);
+        setEscrowMinor(detail?.assignment?.escrow_minor ?? null);
+      } catch (e) {
+        if (alive) flash(e instanceof Error ? e.message : 'Could not open this chat');
+      }
+    })();
+
+    // Both sides see new messages without polling.
+    const unsubscribe = subscribeToMessages(taskId, (m) => {
+      if (!alive) return;
+      // Our own insert already landed optimistically; don't double it.
+      setMessages((prev) => (prev.some((p) => p.id === m.id) ? prev : [...prev, toBubble(m)]));
+    });
+
+    return () => {
+      alive = false;
+      unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId, userId]);
+
+  const send = async () => {
     const text = draft.trim();
-    if (!text) return;
-    const id = `m${nextId.current}`;
-    nextId.current += 1;
-    setMessages((prev) => [...prev, { id, who: 'me', kind: 'text', text }]);
+    if (!text || sending) return;
+    if (!taskId || !userId) {
+      flash('Open this chat from the task to send a message');
+      return;
+    }
+    setSending(true);
     setDraft('');
+    try {
+      const saved = await sendMessage(taskId, userId, text);
+      setMessages((prev) => (prev.some((p) => p.id === saved.id) ? prev : [...prev, toBubble(saved)]));
+    } catch (e) {
+      setDraft(text); // hand the text back rather than losing it
+      flash(e instanceof Error ? e.message : 'Could not send that');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (

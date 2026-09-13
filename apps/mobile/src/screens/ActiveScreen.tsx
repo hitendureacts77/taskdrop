@@ -399,7 +399,7 @@ export function ActiveScreen() {
                 </View>
               ))}
               <Pressy
-                onPress={() => flash('Proof photo added')}
+                onPress={() => flash('Photo proof is coming soon — describe the work in chat for now')}
                 style={{
                   width: 88,
                   height: 88,

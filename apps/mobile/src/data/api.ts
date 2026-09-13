@@ -246,6 +246,57 @@ export async function getProfile(userId: string): Promise<Profile | null> {
   return data;
 }
 
+// -------------------------------------------------------------- messages ---
+
+export type Message = {
+  id: string;
+  task_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+};
+
+/** The thread for one task, oldest first. RLS limits this to its two parties. */
+export async function listMessages(taskId: string): Promise<Message[]> {
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('task_id', taskId)
+    .order('created_at');
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Message[];
+}
+
+export async function sendMessage(taskId: string, senderId: string, body: string): Promise<Message> {
+  const text = body.trim();
+  if (!text) throw new Error('Nothing to send');
+  const { data, error } = await supabase
+    .from('messages')
+    .insert({ task_id: taskId, sender_id: senderId, body: text })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data as Message;
+}
+
+/**
+ * Live updates for a task's thread. Returns an unsubscribe function; call it on
+ * unmount or the channel leaks across screens.
+ */
+export function subscribeToMessages(taskId: string, onInsert: (m: Message) => void): () => void {
+  const channel = supabase
+    .channel(`messages:${taskId}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'messages', filter: `task_id=eq.${taskId}` },
+      (payload) => onInsert(payload.new as Message),
+    )
+    .subscribe();
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
 // --------------------------------------------------------------- writes ----
 
 export type NewTask = {
@@ -343,6 +394,14 @@ export const markWorkDone = (taskId: string) => rpc<Task>('mark_work_done', { p_
 /** Poster accepts: commission deducted, worker paid into clearing. */
 export const confirmRelease = (taskId: string) =>
   rpc<Task>('confirm_release', { p_task_id: taskId });
+
+/** Poster sends the work back. Escrow stays put; the worker gets another go. */
+export const requestRevision = (taskId: string, note?: string) =>
+  rpc<Task>('request_revision', { p_task_id: taskId, p_note: note?.trim() || null });
+
+/** Either side escalates. Deliberately moves no money — an admin resolves it. */
+export const openDispute = (taskId: string, reason?: string) =>
+  rpc<Task>('open_dispute', { p_task_id: taskId, p_reason: reason?.trim() || null });
 
 /**
  * Rate the other side of a finished task. The server decides who the subject is
