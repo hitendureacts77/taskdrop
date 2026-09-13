@@ -31,6 +31,12 @@ const COMPARE_DATA: Quote[] = [
   { who: 'Tasker 3315', rating: 4.9, pro: true, meta: '61 jobs · 4 km away', priceMinor: 540000, eta: 'by 10 Sep, 12 PM' },
 ];
 
+/** "no jobs yet" / "1 job" / "12 jobs" - never "1 jobs". */
+function jobsLabel(n: number): string {
+  if (n === 0) return "no jobs yet";
+  return n + (n === 1 ? " job" : " jobs");
+}
+
 const FALLBACK_BENCH_MINOR = 120000; // ₹1,200 — poster fallback task price
 
 /** Poster flow: incoming bids on a posted task, sortable, each lockable into escrow.
@@ -79,7 +85,7 @@ export function CompareScreen() {
             who: b.profiles?.display_name ?? 'Tasker',
             rating: Number(b.profiles?.worker_rating_avg ?? 0) || 0,
             pro: false,
-            meta: `${b.profiles?.worker_rating_count ?? 0} jobs`,
+            meta: jobsLabel(b.profiles?.worker_rating_count ?? 0),
             priceMinor: b.price_minor,
             eta: `${Math.round(b.time_limit_minutes / 60)} hrs`,
           })),
@@ -117,7 +123,7 @@ export function CompareScreen() {
       setBusy(true);
       try {
         await lockBid(pickRow.bidId);
-        go('escrow', { priceMinor: pickRow.priceMinor, title, who: pickRow.who, taskId });
+        go('escrow', { priceMinor: pickRow.priceMinor, title, who: pickRow.who, taskId, by: completeBy });
       } catch (e) {
         flash(e instanceof Error ? e.message : 'Could not lock that quote');
       } finally {
@@ -125,7 +131,7 @@ export function CompareScreen() {
       }
       return;
     }
-    go('escrow', { priceMinor: pickRow.priceMinor, title, who: pickRow.who, taskId });
+    go('escrow', { priceMinor: pickRow.priceMinor, title, who: pickRow.who, taskId, by: completeBy });
   };
 
   return (

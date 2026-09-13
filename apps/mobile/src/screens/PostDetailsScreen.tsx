@@ -108,9 +108,10 @@ export function PostDetailsScreen() {
   const pillar = typeof params.pillar === 'number' ? params.pillar : 0;
   const draft = DRAFTS[worker ? 'worker' : 'poster'][pillar] ?? DRAFTS.poster[0];
 
-  // The pillar's draft copy seeds the form; everything stays editable from here.
-  const [title, setTitle] = useState<string>(draft.title);
-  const [details, setDetails] = useState<string>(draft.details);
+  // The pillar's draft copy is a prompt, not a value: seeding the fields with it
+  // meant tapping Post published the sample task verbatim.
+  const [title, setTitle] = useState<string>('');
+  const [details, setDetails] = useState<string>('');
   // Deadline defaults to this time tomorrow; picked with the calendar + clock.
   const [deadline, setDeadline] = useState<Date>(() => new Date(Date.now() + 24 * 3600 * 1000));
   const [showDate, setShowDate] = useState(false);
@@ -133,7 +134,11 @@ export function PostDetailsScreen() {
 
   const publish = async () => {
     if (busy) return;
-    const finalTitle = title.trim() || draft.title;
+    const finalTitle = title.trim();
+    if (!finalTitle) {
+      flash('Give your request a title');
+      return;
+    }
     setBusy(true);
     try {
       if (!userId) throw new Error('Sign in to post');
@@ -182,7 +187,7 @@ export function PostDetailsScreen() {
         <TextInput
           value={title}
           onChangeText={setTitle}
-          placeholder="What do you need?"
+          placeholder={draft.title}
           placeholderTextColor={t.colors.muted}
           style={tx('400', 17, t.colors.ink, {
             marginTop: 9,
@@ -198,7 +203,7 @@ export function PostDetailsScreen() {
           value={details}
           onChangeText={setDetails}
           multiline
-          placeholder="Add anything that helps someone quote accurately"
+          placeholder={draft.details}
           placeholderTextColor={t.colors.muted}
           style={tx('400', 14, t.colors.muted, {
             marginTop: 9,
