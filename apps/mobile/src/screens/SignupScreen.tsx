@@ -5,11 +5,13 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
+import { getProfile } from '../data/api';
+import { supabase } from '../lib/supabase';
 import { tx } from '../components/primitives';
 
 export function SignupScreen() {
   const t = useTheme();
-  const { go, back } = useNav();
+  const { go, back, reset } = useNav();
   const { celebrate, flash } = useApp();
   const { requestCode, verifyCode } = useAuth();
   const [phone, setPhone] = useState('');
@@ -40,8 +42,21 @@ export function SignupScreen() {
     setBusy(true);
     try {
       await verifyCode(phone, otp);
-      go('setup');
       celebrate('Number verified');
+      // Returning users go straight to the app; setup is for the first run.
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      let onboarded = false;
+      if (user) {
+        try {
+          onboarded = Boolean((await getProfile(user.id))?.onboarded_at);
+        } catch {
+          /* treat an unreadable profile as first run */
+        }
+      }
+      if (onboarded) reset('home');
+      else go('setup');
     } catch (e) {
       flash(e instanceof Error ? e.message : 'That code is not right');
     } finally {

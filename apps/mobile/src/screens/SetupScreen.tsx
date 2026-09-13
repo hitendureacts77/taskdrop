@@ -72,6 +72,7 @@ export function SetupScreen() {
           displayName,
           skills: worker ? skills.map((i) => SKILLS[i]!).filter(Boolean) : undefined,
           locLabel: place.trim() || null,
+          onboarded: true,
         });
       }
       reset('home');

@@ -9,7 +9,8 @@ import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { listBidsForTask, lockBid } from '../data/api';
+import { listBidsForTask, lockBid, getTask, type Task } from '../data/api';
+import { formatDeadline } from '../components/DateTimeSheet';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 
 type Quote = {
@@ -43,10 +44,23 @@ export function CompareScreen() {
   const [picked, setPicked] = useState<string | null>(null);
   const [rows, setRows] = useState<Quote[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [task, setTask] = useState<Task | null>(null);
+
 
   const title = typeof params.title === 'string' ? params.title : 'Assemble a wardrobe';
   const benchMinor = typeof params.priceMinor === 'number' ? params.priceMinor : FALLBACK_BENCH_MINOR;
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+
+  useEffect(() => {
+    if (!taskId) return;
+    let alive = true;
+    getTask(taskId)
+      .then((row) => alive && setTask(row))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [taskId]);
 
   // Real quotes on this task. Without a task id (sample navigation) we keep the
   // design's example rows so the screen still reads correctly.
@@ -87,6 +101,15 @@ export function CompareScreen() {
 
   const pickRow = sorted.find((r) => r.who === picked) ?? sorted[0];
 
+  // Sample navigation has no task behind it, so fall back to the design copy.
+  const quoteCount = rows?.length ?? sorted.length;
+  const headerLine = task
+    ? task.status + ' · ' + quoteCount + (quoteCount === 1 ? ' QUOTE' : ' QUOTES')
+    : 'OPEN · ' + quoteCount + (quoteCount === 1 ? ' QUOTE' : ' QUOTES');
+  const completeBy = task
+    ? formatDeadline(new Date(new Date(task.created_at).getTime() + task.time_limit_minutes * 60_000))
+    : '9 Sep, 6 PM';
+
   const handleLock = async () => {
     if (!pickRow || busy) return;
     // Real quote -> lock it server-side (creates the assignment + escrow).
@@ -116,7 +139,9 @@ export function CompareScreen() {
           <RNText style={tx('400', 20, t.colors.ink)}>←</RNText>
         </Pressable>
 
-        <RNText style={tx('700', 10, t.colors.blue, { letterSpacing: 1.6, marginTop: 16 })}>OPEN · 12 QUOTES</RNText>
+        <RNText style={tx('700', 10, t.colors.blue, { letterSpacing: 1.6, marginTop: 16 })}>
+          {headerLine}
+        </RNText>
         <RNText style={tx('800', 23, t.colors.ink, { letterSpacing: -0.69, marginTop: 9 })}>{title}</RNText>
 
         <View
@@ -136,7 +161,7 @@ export function CompareScreen() {
           </View>
           <View>
             <RNText style={tx('400', 10, t.colors.muted, { letterSpacing: 1.4 })}>COMPLETE BY</RNText>
-            <RNText style={tx('700', 19, t.colors.ink, { marginTop: 4 })}>9 Sep, 6 PM</RNText>
+            <RNText style={tx('700', 19, t.colors.ink, { marginTop: 4 })}>{completeBy}</RNText>
           </View>
         </View>
 

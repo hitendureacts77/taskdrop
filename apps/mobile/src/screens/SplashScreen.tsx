@@ -24,6 +24,14 @@ export function SplashScreen() {
     };
   }, [pop, rise]);
 
+  // The design continues on tap, but a splash with no affordance reads as a
+  // hung app — so move on once the mark has finished drawing. Tapping still
+  // skips ahead.
+  useEffect(() => {
+    const id = setTimeout(() => reset('welcome'), 1600);
+    return () => clearTimeout(id);
+  }, [reset]);
+
   return (
     <Screen padded={false}>
       <Pressable onPress={() => reset('welcome')} style={{ flex: 1 }}>

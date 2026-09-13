@@ -9,7 +9,7 @@ import {
   type PanResponderGestureState,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { Screen } from '../components/ui';
+import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
@@ -49,10 +49,13 @@ export function SwipeScreen() {
     typeof params.title === 'string'
       ? params.title
       : (openTask?.title ?? FALLBACK_TASK.title);
+  // Orders passes the real price; the sample line is only for design previews.
   const payMeta =
-    typeof params.payMeta === 'string'
-      ? params.payMeta
-      : (openTask?.payMeta ?? FALLBACK_TASK.payMeta);
+    typeof params.priceMinor === 'number'
+      ? formatINR(params.priceMinor)
+      : typeof params.payMeta === 'string'
+        ? params.payMeta
+        : (openTask?.payMeta ?? FALLBACK_TASK.payMeta);
 
   const [trackWidth, setTrackWidth] = useState(0);
   const [progress, setProgress] = useState(0); // 0..1, live drag position

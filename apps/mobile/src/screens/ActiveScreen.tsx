@@ -12,7 +12,12 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { markWorkDone as markWorkDoneOnServer, confirmRelease as confirmReleaseOnServer } from '../data/api';
+import {
+  markWorkDone as markWorkDoneOnServer,
+  confirmRelease as confirmReleaseOnServer,
+  getTaskDetail,
+  type TaskDetail,
+} from '../data/api';
 import { workerNetPayout, posterEscrowCharge } from '@taskdrop/rules';
 import { Pressy, tx } from '../components/primitives';
 
@@ -78,11 +83,34 @@ export function ActiveScreen() {
   const worker = mode === 'worker';
   const fallback = FALLBACK_TASK[mode];
 
-  const title = typeof params.title === 'string' ? params.title : (openTask?.title ?? fallback.title);
+  const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+  const [detail, setDetail] = useState<TaskDetail | null>(null);
+
+  useEffect(() => {
+    if (!taskId) return;
+    let alive = true;
+    getTaskDetail(taskId)
+      .then((d) => alive && setDetail(d))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [taskId]);
+
+  const title =
+    detail?.task.title ??
+    (typeof params.title === 'string' ? params.title : (openTask?.title ?? fallback.title));
   const priceStr = openTask?.price ?? fallback.price;
   const escrowStr = openTask?.escrow ?? fallback.escrow;
-  const counterparty = worker ? 'the poster' : (openTask?.who ?? 'Tasker 8830 working');
-  const revealedName = worker ? 'Arjun Nair' : 'Meera Rao';
+
+  // The other side of this task. Contacts only unmask once it has started, so
+  // before that we deliberately show the masked handle rather than a name.
+  const otherParty = worker ? detail?.poster : detail?.worker;
+  const started = detail ? detail.task.started_at !== null : true;
+  const counterparty = worker
+    ? 'the poster'
+    : (otherParty?.display_name ?? openTask?.who ?? 'the worker');
+  const revealedName = started ? (otherParty?.display_name ?? 'Your counterparty') : 'Hidden until start';
 
   const curDone = doneOf(title);
 
@@ -125,9 +153,15 @@ export function ActiveScreen() {
   const doneReady = worker ? curDone === 0 : curDone === 1;
   const doneDone = worker ? curDone >= 1 : curDone >= 2;
 
-  const pricePaise = parsePaise(priceStr);
+  const pricePaise =
+    detail?.task.locked_minor ??
+    (typeof params.priceMinor === 'number' ? params.priceMinor : parsePaise(priceStr));
   const releasePaise = workerNetPayout(pricePaise);
-  const escrowPaise = parsePaise(escrowStr) || posterEscrowCharge(pricePaise);
+  const escrowPaise =
+    detail?.assignment?.escrow_minor ??
+    (typeof params.escrowMinor === 'number'
+      ? params.escrowMinor
+      : parsePaise(escrowStr) || posterEscrowCharge(pricePaise));
 
   const doneLabel = doneDone
     ? worker
@@ -149,7 +183,6 @@ export function ActiveScreen() {
 
   const doneDisabled = doneDone || (!worker && !doneReady);
 
-  const taskId = typeof params.taskId === 'string' ? params.taskId : null;
 
   const markDone = async () => {
     if (busy) return;
@@ -232,7 +265,7 @@ export function ActiveScreen() {
           <RNText
             style={tx('400', 13, t.colors.muted, { marginTop: 6, fontVariant: ['tabular-nums'], textAlign: 'center' })}
           >
-            {escrowStr} in escrow · {counterparty}
+            {formatINR(escrowPaise)} in escrow · {counterparty}
           </RNText>
         </View>
 
@@ -338,7 +371,7 @@ export function ActiveScreen() {
           <View style={{ flex: 1 }}>
             <RNText style={tx('700', 15, t.colors.ink)}>{revealedName}</RNText>
             <RNText style={tx('400', 12, t.colors.accentDeep, { marginTop: 3, fontVariant: ['tabular-nums'] })}>
-              +91 98••• ••210 · revealed
+              {started ? 'Contact shared · use chat' : 'Revealed when the task starts'}
             </RNText>
           </View>
           <Pressy onPress={() => go('chat', params)}>
