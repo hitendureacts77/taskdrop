@@ -1,9 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, Animated, ScrollView } from 'react-native';
 import { Screen } from '../components/ui';
 import { useTheme, useThemeControls } from '../providers/ThemeProvider';
 import { useNav, type ScreenName } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
+import { useAuth } from '../providers/AuthProvider';
+import { getProfile, listReviewsAbout, type Profile, type Review } from '../data/api';
 import { tx } from '../components/primitives';
 
 function SlideIn({ delay, children }: { delay: number; children: React.ReactNode }) {
@@ -41,15 +43,13 @@ const POSTER_ROWS: { glyph: string; label: string; go: ScreenName }[] = [
   { glyph: '↪', label: 'Sign out', go: 'splash' },
 ];
 
-const WORKER_REVIEWS = [
-  { who: 'Poster 9014', stars: '5.0', when: '3 Sep', text: 'Sourced exactly what I described and delivered a day early.' },
-  { who: 'Poster 6620', stars: '4.8', when: '28 Aug', text: 'Clean work, tidy afterwards, fair on the price.' },
-];
 
-const POSTER_REVIEWS = [
-  { who: 'Tasker 3315', stars: '5.0', when: '4 Sep', text: 'Clear brief, paid into escrow straight away, confirmed fast.' },
-  { who: 'Tasker 2098', stars: '4.7', when: '30 Aug', text: 'Reasonable on timings and easy to reach once started.' },
-];
+/** '3 Sep' — the short form the design's review rows use. */
+function formatReviewDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
 
 export function ProfileScreen() {
   const t = useTheme();
@@ -73,7 +73,45 @@ export function ProfileScreen() {
   }, [worker, slide]);
 
   const rows = worker ? WORKER_ROWS : POSTER_ROWS;
-  const reviews = worker ? WORKER_REVIEWS : POSTER_REVIEWS;
+  const { userId } = useAuth();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+
+  // Poster and worker reputations are separate, so re-fetch when the mode flips.
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    void (async () => {
+      try {
+        const [p, r] = await Promise.all([
+          getProfile(userId),
+          listReviewsAbout(userId, worker ? 'worker' : 'poster'),
+        ]);
+        if (!alive) return;
+        setProfile(p);
+        setReviews(r);
+      } catch {
+        /* leave the header on its placeholders */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [userId, worker]);
+
+  const displayName = profile?.display_name ?? 'Your profile';
+  const ratingAvg = worker ? profile?.worker_rating_avg : profile?.poster_rating_avg;
+  const ratingCount = worker ? profile?.worker_rating_count : profile?.poster_rating_count;
+  const initial = displayName.trim().charAt(0).toUpperCase() || '?';
+
+  // A brand-new account has no rating yet — say so rather than showing 0.0.
+  const roleLine =
+    ratingCount && ratingCount > 0
+      ? '★ ' + Number(ratingAvg ?? 0).toFixed(1) + (worker ? ' worker · ' : ' poster · ') + ratingCount +
+        (worker ? (ratingCount === 1 ? ' job done' : ' jobs done') : (ratingCount === 1 ? ' request' : ' requests'))
+      : worker
+        ? 'New worker · no reviews yet'
+        : 'New poster · no reviews yet';
   const themeNote =
     pref === 'system' ? `Following your device · currently ${t.isDark ? 'dark' : 'light'}` : 'Set by you';
 
@@ -95,12 +133,14 @@ export function ProfileScreen() {
                 justifyContent: 'center',
               }}
             >
-              <RNText style={tx('800', 23, '#FFFFFF')}>N</RNText>
+              <RNText style={tx('800', 23, '#FFFFFF')}>{initial}</RNText>
             </View>
             <View>
-              <RNText style={tx('800', 21, '#FFFFFF', { letterSpacing: -0.42 })}>Narasimha_raju</RNText>
+              <RNText style={tx('800', 21, '#FFFFFF', { letterSpacing: -0.42 })} numberOfLines={1}>
+                {displayName}
+              </RNText>
               <RNText style={tx('400', 13, 'rgba(255,255,255,0.78)', { marginTop: 4 })}>
-                {worker ? '★ 4.9 worker · 18 jobs done' : '★ 4.8 poster · 31 requests'}
+                {roleLine}
               </RNText>
             </View>
           </View>
@@ -217,8 +257,15 @@ export function ProfileScreen() {
           <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 22 })}>
             {worker ? 'WORKER REVIEWS' : 'POSTER REVIEWS'}
           </RNText>
+          {reviews.length === 0 && (
+            <RNText style={tx('400', 13, t.colors.muted, { marginTop: 12, lineHeight: 19.5 })}>
+              {worker
+                ? 'Finish a job and the poster’s review shows up here.'
+                : 'Post a request and the worker’s review shows up here.'}
+            </RNText>
+          )}
           {reviews.map((r, i) => (
-            <SlideIn key={r.who} delay={i * 80}>
+            <SlideIn key={r.id} delay={i * 80}>
               <View
                 style={{
                   paddingVertical: 14,
@@ -227,13 +274,17 @@ export function ProfileScreen() {
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-                  <RNText style={tx('700', 13, t.colors.ink)}>{r.who}</RNText>
-                  <RNText style={tx('400', 12, t.colors.accentDeep)}>★ {r.stars}</RNText>
-                  <RNText style={tx('400', 11, t.colors.muted, { marginLeft: 'auto' })}>{r.when}</RNText>
+                  <RNText style={tx('700', 13, t.colors.ink)}>{r.author?.display_name ?? 'Someone'}</RNText>
+                  <RNText style={tx('400', 12, t.colors.accentDeep)}>★ {r.rating.toFixed(1)}</RNText>
+                  <RNText style={tx('400', 11, t.colors.muted, { marginLeft: 'auto' })}>
+                    {formatReviewDate(r.created_at)}
+                  </RNText>
                 </View>
-                <RNText style={tx('400', 13, t.colors.muted, { marginTop: 6, lineHeight: 19.5 })}>
-                  {r.text}
-                </RNText>
+                {r.comment ? (
+                  <RNText style={tx('400', 13, t.colors.muted, { marginTop: 6, lineHeight: 19.5 })}>
+                    {r.comment}
+                  </RNText>
+                ) : null}
               </View>
             </SlideIn>
           ))}

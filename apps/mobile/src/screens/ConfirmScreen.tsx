@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable } from 'react-native';
 import { Screen, Text, Card, Row, Button, Divider, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { confirmRelease as confirmReleaseOnServer } from '../data/api';
+import { confirmRelease as confirmReleaseOnServer, getTaskDetail, type TaskDetail } from '../data/api';
+import { workerNetPayout } from '@taskdrop/rules';
 
 /**
  * Poster flow: confirm work done → release escrow. Design parity with
@@ -25,6 +26,17 @@ function parseRupeeStringToMinor(value?: string): number | null {
   return Number.isFinite(n) ? n * 100 : null;
 }
 
+/** "2 days 4 hrs" style countdown to the task auto-confirming on its own. */
+function countdown(iso: string | null): string {
+  if (!iso) return '—';
+  const ms = new Date(iso).getTime() - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return 'any moment';
+  const hours = Math.floor(ms / 3_600_000);
+  const days = Math.floor(hours / 24);
+  if (days >= 1) return days + (days === 1 ? ' day ' : ' days ') + (hours % 24) + ' hrs';
+  if (hours >= 1) return hours + (hours === 1 ? ' hr' : ' hrs');
+  return Math.max(1, Math.floor(ms / 60_000)) + ' min';
+}
 export function ConfirmScreen() {
   const t = useTheme();
   const { params, go } = useNav();
@@ -40,19 +52,32 @@ export function ConfirmScreen() {
       ? params.priceMinor
       : (parseRupeeStringToMinor(openTask?.price) ?? FALLBACK_PRICE_MINOR);
 
-  const escrowMinor =
-    typeof params.escrowMinor === 'number'
-      ? params.escrowMinor
-      : (parseRupeeStringToMinor(openTask?.escrow) ?? FALLBACK_ESCROW_MINOR);
-
-  const releaseMinor = Math.round(priceMinor * 0.8);
+  const releaseMinor = workerNetPayout(priceMinor);
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
   const [busy, setBusy] = useState(false);
+  const [detail, setDetail] = useState<TaskDetail | null>(null);
+
+  useEffect(() => {
+    if (!taskId) return;
+    let alive = true;
+    getTaskDetail(taskId)
+      .then((d) => alive && setDetail(d))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [taskId]);
+
+  const escrowMinor =
+    detail?.assignment?.escrow_minor ??
+    (typeof params.escrowMinor === 'number'
+      ? params.escrowMinor
+      : (parseRupeeStringToMinor(openTask?.escrow) ?? FALLBACK_ESCROW_MINOR));
 
   const releaseRows = [
     { label: 'Held in escrow', value: formatINR(escrowMinor) },
     { label: 'Releases to the worker', value: formatINR(releaseMinor) },
-    { label: 'Auto-confirms in', value: '2 days 4 hrs' },
+    { label: 'Auto-confirms in', value: countdown(detail?.task.auto_complete_at ?? null) },
   ];
 
   const handleConfirm = async () => {
@@ -84,9 +109,13 @@ export function ConfirmScreen() {
 
       <Card style={{ backgroundColor: t.colors.surface2, borderColor: 'transparent', marginBottom: t.spacing.lg }}>
         <Text variant="label" color="muted" style={{ marginBottom: 4 }}>
-          PROOF SUBMITTED
+          WHAT YOU ASKED FOR
         </Text>
-        <Text variant="body">Photographed every room, the balcony and the meter. Full set uploaded.</Text>
+        <Text variant="body">
+          {detail?.task.description?.trim()
+            ? detail.task.description
+            : 'The worker marked this done. Check the work before you release the escrow.'}
+        </Text>
       </Card>
 
       <Card style={{ marginBottom: t.spacing.lg }}>

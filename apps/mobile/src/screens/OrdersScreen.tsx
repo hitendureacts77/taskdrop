@@ -16,6 +16,7 @@ import {
   listMyTasks,
   listMyBids,
   listMyAssignments,
+  countBidsByTask,
   type Task,
   type Bid,
   type Assignment,
@@ -46,6 +47,7 @@ type ViewRow = {
   meta: string;
   act: Act;
   escrowLabel?: string;
+  escrowMinor?: number;
   who?: string;
   payMeta?: string;
 };
@@ -104,7 +106,7 @@ const WORKER_TABS = ['Listings', 'Accepted', 'Pending', 'Closed'];
 const POSTER_TABS = ['Open', 'Active', 'Done'];
 
 /** A task the signed-in user posted. Status decides label, tone, tab and tap. */
-function posterRow(task: Task): ViewRow {
+function posterRow(task: Task, quoteCount = 0): ViewRow {
   const priceMinor = task.locked_minor ?? task.benchmark_minor;
   const base = {
     taskId: task.id,
@@ -114,7 +116,14 @@ function posterRow(task: Task): ViewRow {
   };
   switch (task.status) {
     case 'OPEN':
-      return { ...base, bucket: 0, state: 'OPEN · TAP TO COMPARE', tone: 'blue', meta: 'Waiting for quotes', act: 'compare' };
+      return {
+        ...base,
+        bucket: 0,
+        state: quoteCount > 0 ? 'OPEN · ' + quoteCount + (quoteCount === 1 ? ' QUOTE' : ' QUOTES') : 'OPEN',
+        tone: 'blue',
+        meta: quoteCount > 0 ? 'Tap to compare and lock one' : 'Waiting for quotes',
+        act: 'compare',
+      };
     case 'LOCKED':
       return { ...base, bucket: 0, state: 'LOCKED · WORKER TO START', tone: 'accent', meta: 'Escrow funded · worker starts next', act: null };
     case 'TASK_STARTED':
@@ -156,6 +165,7 @@ function workerAssignmentRow(a: Assignment & { tasks: Task | null }): ViewRow {
     title: task?.title ?? 'Task',
     priceLabel: formatINR(priceMinor),
     priceMinor,
+    escrowMinor: a.escrow_minor,
   };
   if (a.status === 'refunded')
     return { ...base, bucket: 3, state: 'NOT SELECTED', tone: 'neutral', meta: 'Another worker started first', act: null };
@@ -307,7 +317,8 @@ export function OrdersScreen() {
     try {
       if (!worker) {
         const tasks = await listMyTasks(userId);
-        setRows(tasks.map(posterRow));
+        const counts = await countBidsByTask(tasks.filter((t) => t.status === 'OPEN').map((t) => t.id));
+        setRows(tasks.map((t) => posterRow(t, counts.get(t.id) ?? 0)));
       } else {
         const [bids, assignments] = await Promise.all([
           listMyBids(userId),
@@ -351,7 +362,13 @@ export function OrdersScreen() {
   // Every tap carries the real task id so the next screen works on live data.
   const openRow = (row: ViewRow) => {
     const task: TaskCtx = { title: row.title, price: row.priceLabel };
-    const p = { title: row.title, priceMinor: row.priceMinor, taskId: row.taskId };
+    const p = {
+      title: row.title,
+      priceMinor: row.priceMinor,
+      taskId: row.taskId,
+      escrowMinor: row.escrowMinor,
+      payMeta: row.payMeta ?? row.priceLabel,
+    };
     setOpenTask(task);
     switch (row.act) {
       case 'compare':

@@ -6,6 +6,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { createPaymentLink, syncPayment } from '../data/api';
+import { posterEscrowCharge } from '@taskdrop/rules';
 import { Pressy, tx } from '../components/primitives';
 
 const FALLBACK_LOCKED_MINOR = 450000; // ₹4,500
@@ -58,7 +59,7 @@ export function EscrowScreen() {
   const who = typeof params.who === 'string' ? params.who : null;
   const by = typeof params.by === 'string' ? params.by : '9 Sep, 6:00 PM';
   const lockedMinor = typeof params.priceMinor === 'number' ? params.priceMinor : FALLBACK_LOCKED_MINOR;
-  const feeMinor = Math.round(lockedMinor * 0.03);
+  const feeMinor = posterEscrowCharge(lockedMinor) - lockedMinor;
   const totalMinor = lockedMinor + feeMinor;
 
   const rows: { label: string; value: string; strong: boolean }[] = [

@@ -84,6 +84,14 @@ export async function listBidsForTask(
   return rows.map((b) => ({ ...b, profiles: byId.get(b.worker_id) ?? null }));
 }
 
+/** How many quotes each of these tasks has, for the poster's own list. */
+export async function countBidsByTask(taskIds: string[]): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (taskIds.length === 0) return counts;
+  const rows = unwrap(await supabase.from('bids').select('task_id').in('task_id', taskIds));
+  for (const r of rows) counts.set(r.task_id, (counts.get(r.task_id) ?? 0) + 1);
+  return counts;
+}
 export type TaskSearch = {
   q?: string;
   pillar?: Enums<'pillar'> | null;
@@ -118,6 +126,47 @@ export async function getTask(taskId: string): Promise<Task | null> {
   return data;
 }
 
+/**
+ * Everything the live-task screens need about one task in a single round trip:
+ * the task, the assignment holding the escrow, and the counterparty. Screens
+ * were falling back to sample amounts and invented contact names because none
+ * of this was fetched.
+ */
+export type TaskDetail = {
+  task: Task;
+  assignment: Assignment | null;
+  poster: Profile | null;
+  worker: Profile | null;
+};
+
+export async function getTaskDetail(taskId: string): Promise<TaskDetail | null> {
+  const task = await getTask(taskId);
+  if (!task) return null;
+
+  const assignments = unwrap(
+    await supabase
+      .from('assignments')
+      .select('*')
+      .eq('task_id', taskId)
+      .order('created_at', { ascending: false }),
+  );
+  // A task can carry stale holds from workers who lost the race to start.
+  const assignment =
+    assignments.find((a) => a.status === 'started' || a.status === 'released') ??
+    assignments[0] ??
+    null;
+
+  const ids = [task.poster_id, assignment?.worker_id].filter(Boolean) as string[];
+  const people = ids.length ? unwrap(await supabase.from('profiles').select('*').in('id', ids)) : [];
+  const byId = new Map(people.map((p) => [p.id, p]));
+
+  return {
+    task,
+    assignment,
+    poster: byId.get(task.poster_id) ?? null,
+    worker: assignment ? (byId.get(assignment.worker_id) ?? null) : null,
+  };
+}
 export async function getWallet(): Promise<Wallet | null> {
   const { data, error } = await supabase.from('wallets').select('*').maybeSingle();
   if (error) throw new Error(error.message);
@@ -135,6 +184,32 @@ export async function getEscrowHeld(): Promise<number> {
   return rows.reduce((sum, r) => sum + (r.escrow_minor ?? 0), 0);
 }
 
+export type Review = Tables<'reviews'> & { author: Profile | null };
+
+/**
+ * Reviews written about someone in one role. Poster and worker reputations are
+ * deliberately separate, so they are never merged.
+ */
+export async function listReviewsAbout(
+  userId: string,
+  role: Enums<'app_role'>,
+  limit = 10,
+): Promise<Review[]> {
+  const rows = unwrap(
+    await supabase
+      .from('reviews')
+      .select('*')
+      .eq('subject_id', userId)
+      .eq('about_role', role)
+      .order('created_at', { ascending: false })
+      .limit(limit),
+  );
+  if (rows.length === 0) return [];
+  const ids = [...new Set(rows.map((r) => r.author_id))];
+  const people = unwrap(await supabase.from('profiles').select('*').in('id', ids));
+  const byId = new Map(people.map((x) => [x.id, x]));
+  return rows.map((r) => ({ ...r, author: byId.get(r.author_id) ?? null }));
+}
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
   if (error) throw new Error(error.message);
