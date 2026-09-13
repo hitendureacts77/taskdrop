@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen, Card, Button, formatINR } from '../components/ui';
 import { AmountField } from '../components/AmountField';
@@ -7,7 +7,10 @@ import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
-import { placeBid } from '../data/api';
+import { placeBid, getTaskDetail, getPosterStats, getProfile, type Profile } from '../data/api';
+import { distanceKm, formatDistance } from '@taskdrop/rules';
+import { ShareSheet, useShare } from '../components/ShareSheet';
+import { taskUrl } from '../lib/links';
 import { type Theme } from '../theme';
 import type { FeedRow } from './HomeScreen';
 import { FadeIn, tx } from '../components/primitives';
@@ -112,35 +115,111 @@ export function TaskDetailScreen() {
 
   const [quote, setQuote] = useState(detail.amountMinor);
 
+  // Only a real row has a uuid; sample rows keep the design copy.
+  const realId = detail.id && /^[0-9a-f-]{36}$/i.test(detail.id) ? detail.id : null;
+
+  const share = useShare(flash);
+  const [me, setMe] = useState<Profile | null>(null);
+  const [other, setOther] = useState<{
+    name: string;
+    record: string;
+    rating: number;
+    ratingCount: number;
+    locLabel: string | null;
+    locLat: number | null;
+    locLng: number | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!realId || !userId) return;
+    let alive = true;
+    void (async () => {
+      try {
+        const [mine, td] = await Promise.all([getProfile(userId), getTaskDetail(realId)]);
+        if (!alive) return;
+        setMe(mine);
+        const posterId = td?.task.poster_id;
+        if (!posterId) return;
+        const stats = await getPosterStats(posterId);
+        if (!alive) return;
+        const n = stats.requestsPosted;
+        setOther({
+          name: stats.profile?.display_name ?? 'Poster',
+          record: n + (n === 1 ? ' request posted' : ' requests posted'),
+          rating: Number(stats.profile?.poster_rating_avg ?? 0),
+          ratingCount: stats.profile?.poster_rating_count ?? 0,
+          locLabel: stats.profile?.loc_label ?? null,
+          locLat: stats.profile?.loc_lat ?? null,
+          locLng: stats.profile?.loc_lng ?? null,
+        });
+      } catch {
+        /* leave the design copy in place */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [realId, userId]);
+
   const priceLabel = worker ? 'THEIR QUOTE' : 'THEIR RATE';
   const delta = quote - detail.amountMinor;
   const deltaText =
     delta === 0 ? 'same as asked' : delta > 0 ? `+${formatINR(delta)} above` : `−${formatINR(-delta)} below`;
   const deltaColor = delta === 0 ? t.colors.muted : delta > 0 ? t.colors.gold : t.colors.accent;
 
+  // The design's sample rows carry their record inside a display string; a real
+  // task has a real poster behind it, so use them rather than parsing that.
   const whoMetaParts = detail.whoMeta.split(' · ');
-  const record = whoMetaParts[0] ?? '';
-  const distance = whoMetaParts[1] ?? 'nearby';
-  const recordCount = record.match(/\d[\d,]*/)?.[0] ?? '—';
+  const sampleRecord = whoMetaParts[0] ?? null;
+  const sampleDistance = whoMetaParts[1] ?? null;
+
+  const recordLabel = worker ? 'Requests posted' : 'Jobs completed';
+  const recordValue = other
+    ? other.ratingCount > 0
+      ? other.record + ' · ★ ' + other.rating.toFixed(1)
+      : other.record + ' · no reviews yet'
+    : (sampleRecord ?? 'New here');
+
+  // Never claim "nearby" when neither side has shared a location.
+  const distanceValue =
+    formatDistance(
+      distanceKm(
+        { lat: me?.loc_lat ?? null, lng: me?.loc_lng ?? null },
+        { lat: other?.locLat ?? null, lng: other?.locLng ?? null },
+      ),
+    ) ??
+    other?.locLabel ??
+    sampleDistance ??
+    'Not shared';
+
+  // Identity in the header comes from the same loaded profile as the rows
+  // below, so the two can never disagree.
+  const displayName = other?.name ?? detail.who;
+  const ratingText = other
+    ? other.ratingCount > 0
+      ? '★ ' + other.rating.toFixed(1)
+      : null
+    : detail.rating && detail.rating !== '—'
+      ? '★ ' + detail.rating
+      : null;
+  const displayMeta = other?.locLabel ?? detail.whoMeta;
   const detailRows = [
-    { label: worker ? 'Requests posted' : 'Jobs completed', value: `${recordCount} · ★ ${detail.rating}` },
-    { label: 'Distance', value: distance },
+    { label: recordLabel, value: recordValue },
+    { label: 'Distance', value: distanceValue },
   ];
 
   const cta = worker ? 'Send a quote' : 'Send my quote';
 
-  // Sample feed rows have ids like "w1"; only real tasks carry a uuid.
-  const realTaskId = detail.id && /^[0-9a-f-]{36}$/.test(detail.id) ? detail.id : null;
 
   const sendQuote = async () => {
     if (busy) return;
     if (worker) {
-      if (!realTaskId) return flash('This is a sample task — post a real one to quote on it');
+      if (!realId) return flash('This is a sample task — post a real one to quote on it');
       if (!userId) return flash('Sign in to send a quote');
       setBusy(true);
       try {
         await placeBid({
-          taskId: realTaskId,
+          taskId: realId,
           workerId: userId,
           priceMinor: quote,
           timeLimitMinutes: 240,
@@ -156,7 +235,7 @@ export function TaskDetailScreen() {
       }
       return;
     }
-    go('escrow', { priceMinor: quote, title: detail.title, taskId: realTaskId });
+    go('escrow', { priceMinor: quote, title: detail.title, taskId: realId });
   };
 
   return (
@@ -166,7 +245,20 @@ export function TaskDetailScreen() {
           <Pressable onPress={back} hitSlop={8}>
             <RNText style={tx('400', 20, t.colors.ink)}>←</RNText>
           </Pressable>
-          <Pressable onPress={() => flash('Share link copied')} hitSlop={8}>
+          <Pressable
+            onPress={() =>
+              share.start(
+                realId && taskUrl(realId)
+                  ? {
+                      title: detail.title,
+                      message: `${detail.title} · ${formatINR(detail.amountMinor)} on TaskDrop`,
+                      url: taskUrl(realId)!,
+                    }
+                  : null,
+              )
+            }
+            hitSlop={8}
+          >
             <RNText style={tx('400', 18, t.colors.ink)}>↗</RNText>
           </Pressable>
         </View>
@@ -196,10 +288,12 @@ export function TaskDetailScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-              <RNText style={tx('700', 15, t.colors.ink)}>{detail.who}</RNText>
-              <RNText style={tx('400', 12, t.colors.muted)}>★ {detail.rating}</RNText>
+              <RNText style={tx('700', 15, t.colors.ink)}>{displayName}</RNText>
+              {ratingText ? (
+                <RNText style={tx('400', 12, t.colors.muted)}>{ratingText}</RNText>
+              ) : null}
             </View>
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>{detail.whoMeta}</RNText>
+            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>{displayMeta}</RNText>
           </View>
           <RNText style={tx('400', 16, t.colors.muted)}>›</RNText>
         </View>
@@ -306,7 +400,7 @@ export function TaskDetailScreen() {
             <View style={{ flex: 1, alignItems: 'center' }}>
               <AmountField
                 rupees={Math.round(quote / 100)}
-                onChangeRupees={(r) => setQuote(r * 100)}
+                onChangeRupees={(r) => setQuote((r ?? 0) * 100)}
                 min={1}
                 style={tx('800', 30, t.colors.ink, { letterSpacing: -0.5 })}
               />
@@ -341,6 +435,7 @@ export function TaskDetailScreen() {
           </RNText>
         </Card>
       </FadeIn>
+      <ShareSheet visible={share.open} item={share.item} onClose={share.close} flash={flash} />
     </Screen>
   );
 }

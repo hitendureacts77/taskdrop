@@ -84,7 +84,7 @@ export function WithdrawScreen() {
         <RNText style={tx('400', 13, t.colors.muted, { marginTop: 24 })}>Amount</RNText>
         <AmountField
           rupees={rupees}
-          onChangeRupees={setRupees}
+          onChangeRupees={(r) => setRupees(r ?? 0)}
           align="left"
           style={tx('800', 44, overdrawn ? t.colors.signal : t.colors.ink, {
             letterSpacing: -1.76,

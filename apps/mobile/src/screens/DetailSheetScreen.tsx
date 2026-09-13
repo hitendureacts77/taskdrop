@@ -173,7 +173,7 @@ export function DetailSheetScreen() {
             <View style={{ flex: 1, alignItems: 'center' }}>
               <AmountField
                 rupees={Math.round(quote / 100)}
-                onChangeRupees={(r) => setQuote(r * 100)}
+                onChangeRupees={(r) => setQuote((r ?? 0) * 100)}
                 min={1}
                 style={tx('800', 30, t.colors.ink, { letterSpacing: -0.9 })}
               />

@@ -120,6 +120,17 @@ export async function searchTasks(input: TaskSearch = {}): Promise<Task[]> {
   return unwrap(await query.order('created_at', { ascending: false }).limit(input.limit ?? 30));
 }
 
+export type TaskWithPoster = Task & { poster: Profile | null };
+
+/** Attach the poster profile to a page of tasks, for feed rows that show identity. */
+export async function attachPosters(tasks: Task[]): Promise<TaskWithPoster[]> {
+  if (tasks.length === 0) return [];
+  const ids = [...new Set(tasks.map((t) => t.poster_id))];
+  const people = unwrap(await supabase.from('profiles').select('*').in('id', ids));
+  const byId = new Map(people.map((x) => [x.id, x]));
+  return tasks.map((t) => ({ ...t, poster: byId.get(t.poster_id) ?? null }));
+}
+
 export async function getTask(taskId: string): Promise<Task | null> {
   const { data, error } = await supabase.from('tasks').select('*').eq('id', taskId).maybeSingle();
   if (error) throw new Error(error.message);
@@ -210,6 +221,25 @@ export async function listReviewsAbout(
   const byId = new Map(people.map((x) => [x.id, x]));
   return rows.map((r) => ({ ...r, author: byId.get(r.author_id) ?? null }));
 }
+export type PosterStats = {
+  profile: Profile | null;
+  requestsPosted: number;
+};
+
+/**
+ * Who a poster is, as a worker sees them before quoting: their profile and how
+ * many requests they have actually posted. The screen used to parse these out
+ * of a display string, which meant live rows showed a dash.
+ */
+export async function getPosterStats(posterId: string): Promise<PosterStats> {
+  const [profile, tasks] = await Promise.all([
+    getProfile(posterId),
+    supabase.from('tasks').select('id').eq('poster_id', posterId),
+  ]);
+  if (tasks.error) throw new Error(tasks.error.message);
+  return { profile, requestsPosted: tasks.data?.length ?? 0 };
+}
+
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
   if (error) throw new Error(error.message);

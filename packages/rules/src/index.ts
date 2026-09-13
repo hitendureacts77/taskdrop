@@ -115,3 +115,31 @@ export function autoCompleteAt(workDoneAt: Date): Date {
   d.setUTCDate(d.getUTCDate() + TIMING.REVIEW_WINDOW_DAYS);
   return d;
 }
+
+/**
+ * Great-circle distance in kilometres between two points, or null when either
+ * side hasn't shared a location. Callers must render the null case honestly
+ * rather than guessing "nearby".
+ */
+export function distanceKm(
+  a: { lat: number | null; lng: number | null },
+  b: { lat: number | null; lng: number | null },
+): number | null {
+  if (a.lat == null || a.lng == null || b.lat == null || b.lng == null) return null;
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+/** "800 m" / "4.2 km" / "12 km" — how far, phrased the way people say it. */
+export function formatDistance(km: number | null): string | null {
+  if (km == null || !Number.isFinite(km)) return null;
+  if (km < 1) return Math.max(50, Math.round((km * 1000) / 50) * 50) + ' m';
+  if (km < 10) return km.toFixed(1) + ' km';
+  return Math.round(km) + ' km';
+}

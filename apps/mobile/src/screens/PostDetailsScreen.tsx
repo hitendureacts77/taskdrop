@@ -112,13 +112,14 @@ export function PostDetailsScreen() {
   // meant tapping Post published the sample task verbatim.
   const [title, setTitle] = useState<string>('');
   const [details, setDetails] = useState<string>('');
-  // Deadline defaults to this time tomorrow; picked with the calendar + clock.
-  const [deadline, setDeadline] = useState<Date>(() => new Date(Date.now() + 24 * 3600 * 1000));
+  // No default deadline: the poster opens the calendar and picks one.
+  const [deadline, setDeadline] = useState<Date | null>(null);
   const [showDate, setShowDate] = useState(false);
-  const [location, setLocation] = useState('Indiranagar · 5 km radius');
+  // No assumed area either; blank means the task isn't tied to one.
+  const [location, setLocation] = useState('');
   const [coords, setCoords] = useState<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
   const [showLoc, setShowLoc] = useState(false);
-  const [price, setPrice] = useState(1200);
+  const [price, setPrice] = useState<number | null>(null);
   const [media, setMedia] = useState(1);
   const [flag, setFlag] = useState(0);
   const [promoteOn, setPromoteOn] = useState(false);
@@ -139,6 +140,14 @@ export function PostDetailsScreen() {
       flash('Give your request a title');
       return;
     }
+    if (price === null || price <= 0) {
+      flash(worker ? 'Set your rate' : 'Set a benchmark price');
+      return;
+    }
+    if (!worker && !deadline) {
+      flash('Pick when this needs to be done by');
+      return;
+    }
     setBusy(true);
     try {
       if (!userId) throw new Error('Sign in to post');
@@ -150,7 +159,9 @@ export function PostDetailsScreen() {
         // Money is stored in paise.
         benchmarkMinor: price * 100,
         // The chosen deadline is what workers quote against.
-        timeLimitMinutes: Math.max(15, Math.round((deadline.getTime() - Date.now()) / 60000)),
+        timeLimitMinutes: deadline
+          ? Math.max(15, Math.round((deadline.getTime() - Date.now()) / 60000))
+          : 24 * 60,
         flag: FLAG_VALUES[flag] ?? 'none',
         locLabel: location.split('·')[0]?.trim() || null,
       });
@@ -257,7 +268,7 @@ export function PostDetailsScreen() {
             {label(worker ? 'YOUR RATE' : 'BENCHMARK', {}, t.colors.muted)}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
               <Pressable
-                onPress={() => setPrice((p) => Math.max(100, p - 100))}
+                onPress={() => setPrice((p) => Math.max(100, (p ?? 100) - 100))}
                 style={{
                   width: 26,
                   height: 26,
@@ -274,12 +285,13 @@ export function PostDetailsScreen() {
                 rupees={price}
                 onChangeRupees={setPrice}
                 min={100}
+                placeholder="Set it"
                 // minWidth:0 lets the field shrink inside the half-width card so
                 // the "+" stepper never gets pushed out of view.
                 style={tx('800', 18, t.colors.accentDeep, { flex: 1, minWidth: 0 })}
               />
               <Pressable
-                onPress={() => setPrice((p) => p + 100)}
+                onPress={() => setPrice((p) => (p ?? 0) + 100)}
                 style={{
                   width: 26,
                   height: 26,
@@ -308,11 +320,13 @@ export function PostDetailsScreen() {
             >
               {label('COMPLETE BY ·', {}, t.colors.accentDeep)}
               <Pressable onPress={() => setShowDate(true)} hitSlop={6}>
-                <RNText style={tx('700', 15, t.colors.ink, { marginTop: 8 })}>
-                  {formatDeadline(deadline)}
+                <RNText
+                  style={tx('700', 15, deadline ? t.colors.ink : t.colors.muted, { marginTop: 8 })}
+                >
+                  {deadline ? formatDeadline(deadline) : 'Not set'}
                 </RNText>
                 <RNText style={tx('400', 11, t.colors.accentDeep, { marginTop: 3 })}>
-                  Tap to change
+                  {deadline ? 'Tap to change' : 'Tap to pick'}
                 </RNText>
               </Pressable>
             </View>
@@ -490,7 +504,7 @@ export function PostDetailsScreen() {
 
       <DateTimeSheet
         visible={showDate}
-        initial={deadline}
+        initial={deadline ?? undefined}
         onCancel={() => setShowDate(false)}
         onConfirm={(d) => {
           setDeadline(d);

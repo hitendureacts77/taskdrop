@@ -8,6 +8,10 @@ import { useTheme } from '../providers/ThemeProvider';
  * While focused it shows raw digits so the keypad is easy to use; when blurred
  * it reformats to "₹1,200". Works in whole rupees — callers holding paise should
  * convert at the boundary.
+ *
+ * `rupees` may be null for "not set yet", which renders the placeholder instead
+ * of a number. A screen that pre-fills an amount is deciding for the user, so
+ * the amount they publish should start empty.
  */
 export function AmountField({
   rupees,
@@ -15,34 +19,39 @@ export function AmountField({
   style,
   min = 0,
   align = 'center',
+  placeholder = '₹0',
 }: {
-  rupees: number;
-  onChangeRupees: (next: number) => void;
+  rupees: number | null;
+  onChangeRupees: (next: number | null) => void;
   style?: StyleProp<TextStyle>;
   min?: number;
   align?: TextStyle['textAlign'];
+  placeholder?: string;
 }) {
   const t = useTheme();
   const [draft, setDraft] = useState<string | null>(null);
 
-  const display = draft ?? `₹${rupees.toLocaleString('en-IN')}`;
+  const display = draft ?? (rupees === null ? '' : `₹${rupees.toLocaleString('en-IN')}`);
 
   return (
     <TextInput
       value={display}
-      onFocus={() => setDraft(String(rupees))}
+      onFocus={() => setDraft(rupees === null ? '' : String(rupees))}
       onChangeText={(text) => {
         const digits = text.replace(/[^0-9]/g, '');
         setDraft(digits);
-        onChangeRupees(digits === '' ? 0 : Number(digits));
+        onChangeRupees(digits === '' ? null : Number(digits));
       }}
       onBlur={() => {
         setDraft(null);
-        if (rupees < min) onChangeRupees(min);
+        // Only enforce the floor on an amount the user actually entered;
+        // clamping an empty field would silently invent a value.
+        if (rupees !== null && rupees < min) onChangeRupees(min);
       }}
       keyboardType="number-pad"
       inputMode="numeric"
       selectTextOnFocus
+      placeholder={placeholder}
       style={[{ padding: 0, textAlign: align, color: t.colors.ink }, style]}
       placeholderTextColor={t.colors.muted}
     />

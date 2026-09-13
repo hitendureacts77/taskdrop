@@ -12,7 +12,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { searchTasks } from '../data/api';
+import { searchTasks, attachPosters } from '../data/api';
 import { type Theme } from '../theme';
 import type { Enums } from '@taskdrop/db-types';
 import { FadeIn, Pressy, tx } from '../components/primitives';
@@ -195,6 +195,12 @@ type LiveTask = {
   benchmark_minor: number;
   flag: string;
   loc_label: string | null;
+  poster: {
+    display_name: string;
+    poster_rating_avg: number | string;
+    poster_rating_count: number;
+    loc_label: string | null;
+  } | null;
 };
 
 const PILLAR_TAG: Record<string, FeedRow['tag']> = {
@@ -207,12 +213,21 @@ function liveToFeedRow(task: LiveTask, worker: boolean): FeedRow {
   return {
     id: task.id,
     sponsored: false,
-    who: worker ? 'Poster' : 'Tasker',
-    rating: '—',
-    whoMeta: task.loc_label ?? 'Nearby',
+    who: task.poster?.display_name ?? (worker ? 'Poster' : 'Tasker'),
+    // A new account genuinely has no rating; a dash says so without faking 0.0.
+    rating:
+      task.poster && task.poster.poster_rating_count > 0
+        ? Number(task.poster.poster_rating_avg).toFixed(1)
+        : 'new',
+    whoMeta: task.loc_label ?? task.poster?.loc_label ?? 'Location not shared',
     tag: PILLAR_TAG[task.pillar] ?? 'SERVICES',
     title: task.title,
-    meta: task.flag === 'urgent' ? 'Urgent' : task.flag === 'unique' ? 'Unique' : task.loc_label ?? 'Nearby',
+    meta:
+      task.flag === 'urgent'
+        ? 'Urgent'
+        : task.flag === 'unique'
+          ? 'Unique'
+          : (task.loc_label ?? 'Location not shared'),
     amountMinor: task.benchmark_minor,
     hasMedia: false,
     glyph: '',
@@ -367,7 +382,9 @@ function FeedCard({
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
               <RNText style={tx('700', 14, t.colors.ink)}>{row.who}</RNText>
-              <RNText style={tx('400', 12, t.colors.muted)}>★ {row.rating}</RNText>
+              <RNText style={tx('400', 12, t.colors.muted)}>
+                {row.rating === 'new' ? 'new here' : '★ ' + row.rating}
+              </RNText>
               <RNText style={tx('700', 9, tagInk(t, row.tag), { letterSpacing: 1.26, marginLeft: 'auto' })}>
                 {row.tag}
               </RNText>
@@ -493,7 +510,7 @@ export function HomeScreen() {
       maxMinor: searchMax,
       limit: 20,
     });
-    return rows as LiveTask[];
+    return (await attachPosters(rows)) as unknown as LiveTask[];
   }, [searchQ, searchPillar, searchMin, searchMax]);
 
   useEffect(() => {
@@ -752,7 +769,9 @@ export function HomeScreen() {
                       <RNText style={tx('400', 13, t.colors.muted)}>☺</RNText>
                     </View>
                     <RNText style={tx('700', 13, t.colors.ink)}>{urgentRow.who}</RNText>
-                    <RNText style={tx('400', 12, t.colors.muted)}>★ {urgentRow.rating}</RNText>
+                    <RNText style={tx('400', 12, t.colors.muted)}>
+                      {urgentRow.rating === 'new' ? 'new here' : '★ ' + urgentRow.rating}
+                    </RNText>
                     <RNText style={tx('700', 9, t.colors.signal, { letterSpacing: 1.26, marginLeft: 'auto' })}>
                       {urgentRow.meta}
                     </RNText>
