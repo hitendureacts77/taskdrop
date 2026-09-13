@@ -5,7 +5,15 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { getWallet, getEscrowHeld, createPaymentLink, syncPayment } from '../data/api';
+import { useAuth } from '../providers/AuthProvider';
+import {
+  getWallet,
+  getEscrowHeld,
+  createPaymentLink,
+  syncPayment,
+  listWalletActivity,
+  type WalletEvent,
+} from '../data/api';
 import { Pressy, tx } from '../components/primitives';
 
 /** Staggered row entrance, ~ the markup's tdIn keyframe with animation-delay. */
@@ -33,6 +41,7 @@ export function WalletScreen() {
   const { go } = useNav();
   const { mode } = useMode();
   const { balance, escrow, clearing, flash, celebrate } = useApp();
+  const { userId } = useAuth();
   const [busy, setBusy] = useState(false);
   const [topUpId, setTopUpId] = useState<string | null>(null);
   const [live, setLive] = useState<{ balance: number; escrow: number; clearing: number } | null>(null);
@@ -85,29 +94,28 @@ export function WalletScreen() {
   const total = Math.max(1, shown.balance + shown.escrow + shown.clearing);
   const pct = (n: number) => `${((n / total) * 100).toFixed(1)}%` as `${number}%`;
 
-  const ledger = [
-    {
-      title: 'Payout received',
-      meta: 'Fix leaking kitchen tap · cleared',
-      amt: `+${formatINR(360000)}`,
-      dot: t.colors.accent,
-      ink: t.colors.accentDeep,
-    },
-    {
-      title: 'Held in escrow',
-      meta: 'Vintage film camera · task started',
-      amt: formatINR(463500),
-      dot: t.colors.gold,
-      ink: t.colors.ink,
-    },
-    {
-      title: 'Clearing',
-      meta: 'Assemble a wardrobe · 3 days left',
-      amt: formatINR(360000),
-      dot: t.colors.blue,
-      ink: t.colors.ink,
-    },
-  ];
+  // Real money events for this account. Nothing here is illustrative: the
+  // previous three rows showed a payout and an escrow hold that never existed.
+  const [ledger, setLedger] = useState<WalletEvent[]>([]);
+  const [ledgerLoading, setLedgerLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) {
+      setLedgerLoading(false);
+      return;
+    }
+    let alive = true;
+    listWalletActivity(userId)
+      .then((rows) => alive && setLedger(rows))
+      .catch(() => alive && setLedger([]))
+      .finally(() => alive && setLedgerLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+
+  const dotFor = (k: WalletEvent['kind']) =>
+    k === 'escrow' ? t.colors.gold : k === 'clearing' ? t.colors.blue : t.colors.accent;
 
   return (
     <Screen padded={false}>
@@ -208,8 +216,16 @@ export function WalletScreen() {
           RECENT
         </RNText>
 
+        {!ledgerLoading && ledger.length === 0 && (
+          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, lineHeight: 20 })}>
+            {worker
+              ? 'Finish a task and your earnings show up here.'
+              : 'Post a task and the money you put in escrow shows up here.'}
+          </RNText>
+        )}
+
         {ledger.map((l, i) => (
-          <SlideIn key={l.title} delay={i * 70}>
+          <SlideIn key={l.id} delay={i * 70}>
             <View
               style={{
                 flexDirection: 'row',
@@ -220,12 +236,19 @@ export function WalletScreen() {
                 borderBottomColor: t.colors.line,
               }}
             >
-              <View style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: l.dot }} />
+              <View style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: dotFor(l.kind) }} />
               <View style={{ flex: 1, minWidth: 0 }}>
-                <RNText style={tx('600', 15, t.colors.ink)}>{l.title}</RNText>
-                <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>{l.meta}</RNText>
+                <RNText style={tx('600', 15, t.colors.ink)} numberOfLines={1}>
+                  {l.title}
+                </RNText>
+                <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>
+                  {l.meta}
+                </RNText>
               </View>
-              <RNText style={tx('700', 15, l.ink)}>{l.amt}</RNText>
+              <RNText style={tx('700', 15, l.incoming ? t.colors.accentDeep : t.colors.ink)}>
+                {l.incoming ? '+' : ''}
+                {formatINR(l.amountMinor)}
+              </RNText>
             </View>
           </SlideIn>
         ))}

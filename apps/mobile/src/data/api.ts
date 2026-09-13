@@ -240,6 +240,115 @@ export async function getPosterStats(posterId: string): Promise<PosterStats> {
   return { profile, requestsPosted: tasks.data?.length ?? 0 };
 }
 
+export type WalletEvent = {
+  id: string;
+  kind: 'released' | 'escrow' | 'clearing' | 'payout' | 'topup';
+  title: string;
+  meta: string;
+  amountMinor: number;
+  /** Positive events read as money in; the rest are holds or money out. */
+  incoming: boolean;
+  at: string;
+};
+
+/**
+ * What actually happened to this user's money, newest first.
+ *
+ * Assembled from the assignments they are party to plus their payouts and
+ * top-ups. The wallet screen used to show three invented rows — including a
+ * "+₹3,600 payout received" to people holding ₹0 — which is the last place an
+ * app should be making things up.
+ */
+export async function listWalletActivity(userId: string, limit = 12): Promise<WalletEvent[]> {
+  const [asWorker, asPoster, payouts, payments] = await Promise.all([
+    supabase.from('assignments').select('*, tasks(title)').eq('worker_id', userId),
+    supabase.from('tasks').select('id,title,status,locked_minor,updated_at').eq('poster_id', userId),
+    supabase.from('payouts').select('*').eq('user_id', userId),
+    supabase.from('payments').select('*').eq('user_id', userId).eq('status', 'paid'),
+  ]);
+  for (const r of [asWorker, asPoster, payouts, payments]) {
+    if (r.error) throw new Error(r.error.message);
+  }
+
+  const events: WalletEvent[] = [];
+
+  for (const a of asWorker.data ?? []) {
+    const title = (a.tasks as { title?: string } | null)?.title ?? 'Task';
+    if (a.status === 'released') {
+      events.push({
+        id: 'w-' + a.id,
+        kind: 'clearing',
+        title: 'Earnings clearing',
+        meta: title + ' · released to you',
+        amountMinor: Math.round(a.escrow_minor / 1.03 * 0.8),
+        incoming: true,
+        at: a.updated_at,
+      });
+    } else if (a.status === 'started' || a.status === 'assigned') {
+      events.push({
+        id: 'w-' + a.id,
+        kind: 'escrow',
+        title: 'Escrow funded for you',
+        meta: title + (a.status === 'started' ? ' · in progress' : ' · not started yet'),
+        amountMinor: a.escrow_minor,
+        incoming: false,
+        at: a.updated_at,
+      });
+    }
+  }
+
+  for (const t of asPoster.data ?? []) {
+    if (t.status === 'COMPLETED' || t.status === 'AUTO_COMPLETED') {
+      events.push({
+        id: 'p-' + t.id,
+        kind: 'released',
+        title: 'Escrow released',
+        meta: t.title + ' · completed',
+        amountMinor: t.locked_minor ?? 0,
+        incoming: false,
+        at: t.updated_at,
+      });
+    } else if (t.status === 'LOCKED' || t.status === 'TASK_STARTED' || t.status === 'WORK_DONE') {
+      events.push({
+        id: 'p-' + t.id,
+        kind: 'escrow',
+        title: 'Held in escrow',
+        meta: t.title + ' · awaiting completion',
+        amountMinor: t.locked_minor ?? 0,
+        incoming: false,
+        at: t.updated_at,
+      });
+    }
+  }
+
+  for (const o of payouts.data ?? []) {
+    events.push({
+      id: 'o-' + o.id,
+      kind: 'payout',
+      title: o.status === 'paid' ? 'Payout sent' : o.status === 'failed' ? 'Payout failed' : 'Payout on its way',
+      meta: o.destination ?? 'To your account',
+      amountMinor: o.amount_minor,
+      incoming: false,
+      at: o.created_at,
+    });
+  }
+
+  for (const pay of payments.data ?? []) {
+    events.push({
+      id: 'c-' + pay.id,
+      kind: 'topup',
+      title: pay.purpose === 'topup' ? 'Money added' : 'Escrow funded',
+      meta: pay.provider,
+      amountMinor: pay.amount_minor,
+      incoming: pay.purpose === 'topup',
+      at: pay.paid_at ?? pay.created_at,
+    });
+  }
+
+  events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+  return events.slice(0, limit);
+}
+
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
   if (error) throw new Error(error.message);

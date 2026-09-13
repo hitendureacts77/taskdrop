@@ -47,111 +47,6 @@ export type FeedRow = {
 
 const FILTER_LABELS = ['Services', 'Goods & products', 'Local help'];
 
-// Sample feed reproduced from _design_source.jsx workerFeed/posterFeed.
-// Design amounts are rupees (e.g. amount: 4500 => ₹4,500); the app works in
-// paise, so every amount below is *100 to become amountMinor.
-const WORKER_FEED: FeedRow[] = [
-  {
-    id: 'w1',
-    sponsored: true,
-    who: 'Poster 9014',
-    rating: '4.8',
-    whoMeta: '31 requests posted · 3.2 km away',
-    tag: 'PRODUCTS',
-    title: 'Vintage 35mm film camera',
-    meta: 'Complete by 9 Sep, 6 PM · 12 quotes',
-    amountMinor: 450000,
-    hasMedia: true,
-    glyph: '▶',
-    dur: '0:34',
-    body: 'Working SLR, clean viewfinder, tested shutter. Pentax or Olympus preferred, lens included.',
-    by: '9 Sep, 6 PM',
-  },
-  {
-    id: 'w2',
-    sponsored: false,
-    who: 'Poster 6620',
-    rating: '4.8',
-    whoMeta: '14 requests posted · 1.1 km away',
-    tag: 'SERVICES',
-    title: 'Fix leaking kitchen tap',
-    meta: 'Complete by today, 8 PM · 4 quotes',
-    amountMinor: 60000,
-    hasMedia: true,
-    glyph: '▤',
-    dur: null,
-    body: 'Mixer tap drips constantly. Washer probably gone. Tools and part needed.',
-    by: 'today, 8 PM',
-  },
-  {
-    id: 'w3',
-    sponsored: false,
-    who: 'Poster 4471',
-    rating: '4.6',
-    whoMeta: '7 requests posted · 2.4 km away',
-    tag: 'LOCAL HELP',
-    title: 'Check the queue at RTO Indiranagar',
-    meta: 'Complete by today, 4 PM · 7 quotes',
-    amountMinor: 25000,
-    hasMedia: false,
-    glyph: '',
-    dur: null,
-    body: 'Walk past and tell me how long the licence renewal line is. Photo helps.',
-    by: 'today, 4 PM',
-  },
-];
-
-const POSTER_FEED: FeedRow[] = [
-  {
-    id: 'p1',
-    sponsored: true,
-    who: 'Tasker 3315',
-    rating: '4.9',
-    whoMeta: '61 jobs done · 4 km away',
-    tag: 'SERVICES',
-    title: 'Bespoke carpentry and joinery',
-    meta: 'Made-to-measure furniture, fittings and repairs',
-    amountMinor: 120000,
-    hasMedia: true,
-    glyph: '▤',
-    dur: null,
-    body: 'Ten years of joinery. Wardrobes, shelving, alcove units, on-site fitting included.',
-    by: null,
-  },
-  {
-    id: 'p2',
-    sponsored: false,
-    who: 'Tasker 2098',
-    rating: '4.9',
-    whoMeta: '42 jobs done · 2 km away',
-    tag: 'LOCAL HELP',
-    title: 'Same-day courier runs',
-    meta: 'Documents and small parcels across the city',
-    amountMinor: 25000,
-    hasMedia: false,
-    glyph: '',
-    dur: null,
-    body: 'Two-wheeler, insulated bag, live location shared through the run.',
-    by: null,
-  },
-  {
-    id: 'p3',
-    sponsored: false,
-    who: 'Tasker 4172',
-    rating: '4.7',
-    whoMeta: '18 jobs done · 5 km away',
-    tag: 'SERVICES',
-    title: 'Tap and plumbing repairs',
-    meta: 'Leaks, fittings, bathroom fixes',
-    amountMinor: 40000,
-    hasMedia: true,
-    glyph: '▶',
-    dur: '0:22',
-    body: 'Licensed plumber. Carry spares for common mixer and cistern faults.',
-    by: null,
-  },
-];
-
 const URGENT_WORKER: FeedRow = {
   id: 'u-w',
   sponsored: false,
@@ -521,9 +416,9 @@ export function HomeScreen() {
         if (!active) return;
         // Outside a search an empty table falls back to the design's sample
         // feed; inside one, "no results" has to stay visible.
-        setLiveTasks(rows.length > 0 || searching ? rows : null);
+        setLiveTasks(rows);
       })
-      .catch(() => active && setLiveTasks(searching ? [] : null))
+      .catch(() => active && setLiveTasks([]))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
@@ -533,8 +428,7 @@ export function HomeScreen() {
   const refresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const rows = await load();
-      setLiveTasks(rows.length > 0 || searching ? rows : null);
+      setLiveTasks(await load());
     } catch {
       /* keep whatever is on screen */
     } finally {
@@ -550,8 +444,7 @@ export function HomeScreen() {
     return () => clearTimeout(id);
   }, [worker]);
 
-  const sampleFeed = worker ? WORKER_FEED : POSTER_FEED;
-  const allRows: FeedRow[] = liveTasks ? liveTasks.map((task) => liveToFeedRow(task, worker)) : sampleFeed;
+  const allRows: FeedRow[] = (liveTasks ?? []).map((task) => liveToFeedRow(task, worker));
   // Chip index -> card tag. No selection shows every pillar.
   const FILTER_TAGS: FeedRow['tag'][] = ['SERVICES', 'PRODUCTS', 'LOCAL HELP'];
   const feed: FeedRow[] =

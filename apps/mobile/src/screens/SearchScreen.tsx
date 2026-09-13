@@ -34,12 +34,6 @@ const FILTER_PILLARS: Enums<'pillar'>[] = ['services', 'procurement', 'local_int
 const BUDGET_MIN_MINOR = 50000; // ₹500
 const BUDGET_MAX_MINOR = 800000; // ₹8,000
 
-const SAVED_SEARCHES = [
-  { title: 'Camera gear under ₹6k', meta: 'Products · 12 km · 4 new' },
-  { title: 'Weekend moving jobs', meta: 'Services · 8 km · 2 new' },
-  { title: 'Local intel, Indiranagar', meta: 'Local Intel · 3 km · no new' },
-];
-
 const SWITCH_WIDTH = 42;
 const SWITCH_HEIGHT = 24;
 const KNOB_SIZE = 18;
@@ -196,10 +190,6 @@ export function SearchScreen() {
       setLocating(false);
     }
   };
-  const runSaved = (title: string) => {
-    go('home', { q: title });
-    flash('Running "' + title + '"');
-  };
 
   const applyFilters = () => {
     go('home', {
@@ -343,28 +333,10 @@ export function SearchScreen() {
         )}
 
         <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 24 })}>SAVED SEARCHES</RNText>
-        {SAVED_SEARCHES.map((s, i) => (
-          <FadeIn key={s.title} duration={340} delay={i * 70} translateY={10}>
-            <Pressy
-              onPress={() => runSaved(s.title)}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-                paddingVertical: 15,
-                borderBottomWidth: 1,
-                borderBottomColor: t.colors.line,
-              }}
-            >
-              <Icon name="search" size={15} color={t.colors.muted} strokeWidth={1.9} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <RNText style={tx('400', 15, t.colors.ink)}>{s.title}</RNText>
-                <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>{s.meta}</RNText>
-              </View>
-              <RNText style={tx('600', 12, t.colors.accentDeep)}>Alerts on</RNText>
-            </Pressy>
-          </FadeIn>
-        ))}
+        {/* Saved searches need somewhere to save to; until then, say so. */}
+        <RNText style={tx('400', 13, t.colors.muted, { marginTop: 11, lineHeight: 20 })}>
+          Saving a search is coming. Set the filters you want and tap below.
+        </RNText>
 
         <Pressy
           onPress={applyFilters}
