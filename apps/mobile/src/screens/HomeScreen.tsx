@@ -247,7 +247,7 @@ function FeedCard({
   const priceLabel = worker ? 'THEIR QUOTE' : 'THEIR RATE';
   return (
     <FadeIn duration={400} delay={index * 70} translateY={10} style={{ marginTop: 12 }}>
-      <Pressy
+      <Pressy containsControls
         onPress={onOpen}
         scaleTo={0.985}
         style={{

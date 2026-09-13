@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, ScrollView, TextInput, ActivityIndicator, type TextStyle } from 'react-native';
 import { Screen } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
@@ -20,7 +20,20 @@ export function SignupScreen() {
 
   const complete = otp.length === 6;
 
-  const tapBox = (i: number) => setOtp((prev) => (prev + String((i % 9) + 1)).slice(0, 6));
+  // Six digits can only mean one thing, so submit rather than waiting for a tap.
+  // The guard is a ref, not state: a code is single-use, so two in-flight
+  // verifies mean the second one always fails.
+  const verifying = useRef(false);
+  useEffect(() => {
+    if (!complete || busy || verifying.current) return;
+    verifying.current = true;
+    void verify().finally(() => {
+      verifying.current = false;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [complete, busy]);
+
+  const codeRef = useRef<TextInput>(null);
 
   // No SMS gateway yet, so the function hands the code back and we fill it in.
   const autofill = async () => {
@@ -59,6 +72,9 @@ export function SignupScreen() {
       else go('setup');
     } catch (e) {
       flash(e instanceof Error ? e.message : 'That code is not right');
+      // Clear it, or the auto-submit cannot fire again for a retry.
+      setOtp('');
+      codeRef.current?.focus();
     } finally {
       setBusy(false);
     }
@@ -104,6 +120,8 @@ export function SignupScreen() {
           <TextInput
             value={phone}
             onChangeText={(v) => setPhone(v.replace(/[^0-9]/g, '').slice(0, 10))}
+            onSubmitEditing={() => void autofill()}
+            returnKeyType="send"
             placeholder="98765 43210"
             placeholderTextColor={t.colors.muted}
             keyboardType="number-pad"
@@ -114,29 +132,52 @@ export function SignupScreen() {
         </View>
 
         {label('6-DIGIT CODE · SENT BY SMS', { marginTop: 24 })}
-        <View style={{ flexDirection: 'row', gap: 9, marginTop: 11 }}>
-          {[0, 1, 2, 3, 4, 5].map((i) => {
-            const v = otp[i] ?? '';
-            return (
-              <Pressable
-                key={i}
-                onPress={() => tapBox(i)}
-                style={{
-                  flex: 1,
-                  height: 54,
-                  borderRadius: 12,
-                  backgroundColor: t.colors.surface2,
-                  borderWidth: 1,
-                  borderColor: v ? t.colors.ink : t.colors.line,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <RNText style={tx('700', 20, t.colors.ink)}>{v}</RNText>
-              </Pressable>
-            );
-          })}
-        </View>
+        <Pressable onPress={() => codeRef.current?.focus()}>
+          <View style={{ flexDirection: 'row', gap: 9, marginTop: 11 }}>
+            {[0, 1, 2, 3, 4, 5].map((i) => {
+              const v = otp[i] ?? '';
+              // The box the next digit lands in gets the focus ring.
+              const active = i === Math.min(otp.length, 5);
+              return (
+                <View
+                  key={i}
+                  style={{
+                    flex: 1,
+                    height: 54,
+                    borderRadius: 12,
+                    backgroundColor: t.colors.surface2,
+                    borderWidth: 1,
+                    borderColor: v ? t.colors.ink : active ? t.colors.accent : t.colors.line,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <RNText style={tx('700', 20, t.colors.ink)}>{v}</RNText>
+                </View>
+              );
+            })}
+          </View>
+
+          {/* The real field. Invisible, but it is what receives the code. */}
+          <TextInput
+            ref={codeRef}
+            value={otp}
+            onChangeText={(v) => setOtp(v.replace(/[^0-9]/g, '').slice(0, 6))}
+            keyboardType="number-pad"
+            inputMode="numeric"
+            maxLength={6}
+            autoComplete="sms-otp"
+            textContentType="oneTimeCode"
+            style={{
+              position: 'absolute',
+              top: 11,
+              left: 0,
+              right: 0,
+              height: 54,
+              opacity: 0,
+            }}
+          />
+        </Pressable>
 
         <View
           style={{

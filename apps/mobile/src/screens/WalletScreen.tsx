@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Animated, ScrollView, Linking } from 'react-native';
+import { View, Text as RNText, Animated, ScrollView, Linking, RefreshControl } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -98,6 +98,25 @@ export function WalletScreen() {
   // previous three rows showed a payout and an escrow hold that never existed.
   const [ledger, setLedger] = useState<WalletEvent[]>([]);
   const [ledgerLoading, setLedgerLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refresh = async () => {
+    if (!userId) return;
+    setRefreshing(true);
+    try {
+      const [w, held, rows] = await Promise.all([
+        getWallet(),
+        getEscrowHeld(),
+        listWalletActivity(userId),
+      ]);
+      if (w) setLive({ balance: w.balance_minor, clearing: w.clearing_minor, escrow: held });
+      setLedger(rows);
+    } catch {
+      /* keep what is on screen */
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     if (!userId) {
@@ -123,6 +142,9 @@ export function WalletScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 16 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />
+        }
       >
         <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.72 })}>Wallet</RNText>
 

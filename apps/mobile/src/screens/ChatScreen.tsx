@@ -353,10 +353,12 @@ export function ChatScreen() {
           <TextInput
             value={draft}
             onChangeText={setDraft}
+            onSubmitEditing={() => void send()}
+            returnKeyType="send"
+            blurOnSubmit={false}
             placeholder="Type a message"
             placeholderTextColor={t.colors.muted}
             multiline
-            onSubmitEditing={send}
             style={{
               flex: 1,
               backgroundColor: t.colors.surface2,

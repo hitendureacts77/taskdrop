@@ -21,16 +21,35 @@ export function Pressy({
   scaleTo = 0.96,
   style,
   children,
+  label,
+  disabled,
+  containsControls,
 }: {
   onPress?: () => void;
   scaleTo?: number;
   style?: StyleProp<ViewStyle>;
   children: React.ReactNode;
+  /** What a screen reader announces. Defaults to the text inside. */
+  label?: string;
+  disabled?: boolean;
+  /**
+   * Set on a Pressy that contains other Pressys. HTML forbids a button inside a
+   * button, and react-native-web renders accessibilityRole="button" as a real
+   * <button> — so a tappable card wrapping its own actions must not claim the
+   * role, or the markup is invalid and the inner controls stop behaving.
+   */
+  containsControls?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [style, { transform: [{ scale: pressed ? scaleTo : 1 }] }]}
+      disabled={disabled}
+      // Without these every control in the app is an unlabelled div to a screen
+      // reader, and none of them are reachable by keyboard on the web build.
+      accessibilityRole={containsControls ? undefined : 'button'}
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: Boolean(disabled) }}
+      style={({ pressed }) => [style, { transform: [{ scale: pressed && !disabled ? scaleTo : 1 }] }]}
     >
       {children}
     </Pressable>
