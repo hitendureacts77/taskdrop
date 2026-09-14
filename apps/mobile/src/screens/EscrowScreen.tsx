@@ -1,5 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, Animated, ScrollView, Linking } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text as RNText,
+  Pressable,
+  Animated,
+  ScrollView,
+  Linking,
+  ActivityIndicator,
+} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
@@ -9,7 +17,10 @@ import { createPaymentLink, syncPayment } from '../data/api';
 import { posterEscrowCharge } from '@taskdrop/rules';
 import { Pressy, tx } from '../components/primitives';
 
-const FALLBACK_LOCKED_MINOR = 450000; // ₹4,500
+/** How often we ask the server whether the money has landed. */
+const POLL_MS = 3000;
+/** Stop after ~3 minutes; past that something is wrong and polling is noise. */
+const POLL_LIMIT = 60;
 
 /** Shield + checkmark icon copied from the markup (lines 821-824); the checkmark
  * draws in over ~0.7s like the markup's tdDraw keyframe. Cleans up on unmount. */
@@ -49,32 +60,80 @@ export function EscrowScreen() {
   const t = useTheme();
   const { params, go, back } = useNav();
   const { escrow, roll, celebrate, flash } = useApp();
-  const [payPick, setPayPick] = useState(0);
   const [busy, setBusy] = useState(false);
   const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [payUrl, setPayUrl] = useState<string | null>(null);
+  const [waiting, setWaiting] = useState(false);
+  const [checks, setChecks] = useState(0);
 
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
 
-  const title = typeof params.title === 'string' ? params.title : 'Vintage 35mm film camera';
+  const title = typeof params.title === 'string' ? params.title : null;
   const who = typeof params.who === 'string' ? params.who : null;
-  const by = typeof params.by === 'string' ? params.by : '9 Sep, 6:00 PM';
-  const lockedMinor = typeof params.priceMinor === 'number' ? params.priceMinor : FALLBACK_LOCKED_MINOR;
-  const feeMinor = posterEscrowCharge(lockedMinor) - lockedMinor;
-  const totalMinor = lockedMinor + feeMinor;
+  const by = typeof params.by === 'string' ? params.by : null;
+  // No fallback price. This screen charges real money, and a default here
+  // meant arriving without a quote showed a confident ₹4,635 bill for a task
+  // that did not exist.
+  const lockedMinor = typeof params.priceMinor === 'number' ? params.priceMinor : null;
+  const feeMinor = lockedMinor === null ? 0 : posterEscrowCharge(lockedMinor) - lockedMinor;
+  const totalMinor = lockedMinor === null ? 0 : lockedMinor + feeMinor;
 
   const rows: { label: string; value: string; strong: boolean }[] = [
-    { label: who ? `Locked quote · ${who}` : 'Locked quote', value: formatINR(lockedMinor), strong: false },
+    { label: who ? `Locked quote · ${who}` : 'Locked quote', value: formatINR(lockedMinor ?? 0), strong: false },
     { label: 'Poster fee · 3%', value: formatINR(feeMinor), strong: false },
-    { label: 'Complete by', value: by, strong: false },
+    ...(by ? [{ label: 'Complete by', value: by, strong: false }] : []),
     { label: 'Total held', value: formatINR(totalMinor), strong: true },
   ];
 
-  const methods = ['UPI · 8721', 'Card · 4412'];
-
   // Razorpay opens in the browser as a payment link, so the same flow works on
   // web and in Expo Go. We poll for settlement when the user comes back.
+  const settled = useRef(false);
+
+  /** One check. Returns true once the money is actually in. */
+  const checkOnce = useCallback(
+    async (id: string): Promise<boolean> => {
+      const status = await syncPayment(id);
+      if (status !== 'paid') return false;
+      if (settled.current) return true;
+      settled.current = true;
+      roll('escrow', escrow + totalMinor);
+      celebrate(`${formatINR(totalMinor)} held in escrow · locked`);
+      go('orders');
+      return true;
+    },
+    [escrow, go, roll, celebrate, totalMinor],
+  );
+
+  /**
+   * Watch for the money instead of asking the payer to swear they sent it.
+   *
+   * The webhook settles the payment the moment Razorpay confirms it, so the
+   * app's job is just to notice. Polling stops on its own after a few minutes:
+   * past that the answer is not going to arrive by waiting, and a spinner that
+   * never ends is worse than a button.
+   */
+  useEffect(() => {
+    if (!waiting || !paymentId) return;
+    let alive = true;
+    const timer = setInterval(() => {
+      if (!alive) return;
+      setChecks((n) => n + 1);
+      void checkOnce(paymentId).catch(() => {
+        /* a failed poll is not worth a toast; the next one will try again */
+      });
+    }, POLL_MS);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [waiting, paymentId, checkOnce]);
+
+  useEffect(() => {
+    if (checks >= POLL_LIMIT) setWaiting(false);
+  }, [checks]);
+
   const pay = async () => {
-    if (busy) return;
+    if (busy || lockedMinor === null) return;
     setBusy(true);
     try {
       const { paymentId: id, url } = await createPaymentLink({
@@ -83,33 +142,74 @@ export function EscrowScreen() {
         taskId,
       });
       setPaymentId(id);
+      setPayUrl(url);
+      setChecks(0);
+      setWaiting(true);
       await Linking.openURL(url);
-      flash('Finish the payment, then tap “I’ve paid”');
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not start the payment');
+      setWaiting(false);
     } finally {
       setBusy(false);
     }
   };
 
-  const confirmPaid = async () => {
+  /** The manual nudge, for when someone paid and came straight back. */
+  const checkNow = async () => {
     if (!paymentId || busy) return;
     setBusy(true);
     try {
-      const status = await syncPayment(paymentId);
-      if (status !== 'paid') {
-        flash('We have not seen that payment yet');
-        return;
-      }
-      roll('escrow', escrow + totalMinor);
-      celebrate(`${formatINR(totalMinor)} held in escrow · locked`);
-      go('orders');
+      const paid = await checkOnce(paymentId);
+      if (!paid) flash('No payment seen yet — it can take a few seconds');
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not check the payment');
     } finally {
       setBusy(false);
     }
   };
+
+  const reopen = async () => {
+    if (!payUrl) return;
+    setChecks(0);
+    setWaiting(true);
+    await Linking.openURL(payUrl);
+  };
+
+  if (lockedMinor === null) {
+    // Reached without a locked quote. Previously this screen invented one and
+    // offered to charge for it.
+    return (
+      <Screen padded={false}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
+              <RNText style={tx('400', 20, t.colors.ink)}>←</RNText>
+            </Pressable>
+            <RNText style={tx('700', 17, t.colors.ink)}>Confirm and pay</RNText>
+          </View>
+          <RNText style={tx('800', 20, t.colors.ink, { marginTop: 40, letterSpacing: -0.4 })}>
+            Nothing to pay for yet
+          </RNText>
+          <RNText style={tx('400', 14, t.colors.muted, { marginTop: 10, lineHeight: 21 })}>
+            Escrow is funded once you accept a quote. Open the request, pick the quote you want,
+            and the amount will be carried through to here.
+          </RNText>
+          <Pressy
+            onPress={() => go('orders')}
+            style={{
+              marginTop: 22,
+              backgroundColor: t.colors.accent,
+              borderRadius: 999,
+              paddingVertical: 15,
+              alignItems: 'center',
+            }}
+          >
+            <RNText style={tx('700', 15, t.colors.onAccent)}>Go to my requests</RNText>
+          </Pressy>
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen padded={false}>
@@ -170,33 +270,59 @@ export function EscrowScreen() {
           </RNText>
         </View>
 
-        <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 22 })}>PAY WITH</RNText>
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 11 }}>
-          {methods.map((label, i) => {
-            const on = payPick === i;
-            return (
-              <Pressy
-                key={label}
-                onPress={() => setPayPick(i)}
-                style={{
-                  flex: 1,
-                  borderWidth: 1,
-                  borderColor: on ? t.colors.ink : t.colors.line,
-                  backgroundColor: on ? t.colors.surface2 : 'transparent',
-                  borderRadius: 12,
-                  padding: 14,
-                }}
-              >
-                <RNText style={tx(on ? '700' : '500', 13, on ? t.colors.ink : t.colors.muted)}>{label}</RNText>
-              </Pressy>
-            );
-          })}
+        <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 22 })}>
+          PAY WITH
+        </RNText>
+        {/* There are no saved cards. This used to offer "UPI · 8721" and
+            "Card · 4412" — invented digits for accounts nobody had added, and
+            tapping one changed nothing, because the real choice is made on
+            Razorpay's page. So say what actually happens instead. */}
+        <View
+          style={{
+            marginTop: 11,
+            borderWidth: 1,
+            borderColor: t.colors.line,
+            borderRadius: 12,
+            padding: 15,
+          }}
+        >
+          <RNText style={tx('700', 14, t.colors.ink)}>Razorpay secure checkout</RNText>
+          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 5, lineHeight: 19 })}>
+            UPI, cards, netbanking and wallets. You choose there — TaskDrop never sees your card
+            or UPI PIN.
+          </RNText>
         </View>
+
+        {waiting && (
+          <View
+            style={{
+              marginTop: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 11,
+              backgroundColor: t.colors.surface2,
+              borderRadius: 12,
+              padding: 15,
+            }}
+          >
+            <ActivityIndicator size="small" color={t.colors.accent} />
+            <RNText style={tx('400', 13, t.colors.muted, { flex: 1, lineHeight: 19 })}>
+              Waiting for your payment to confirm. You can leave this open — it updates itself.
+            </RNText>
+          </View>
+        )}
+
+        {paymentId && !waiting && (
+          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 16, lineHeight: 19 })}>
+            Still not confirmed. If you have paid, tap check below — otherwise reopen the payment
+            page and finish there.
+          </RNText>
+        )}
       </ScrollView>
 
       <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
         <Pressy
-          onPress={paymentId ? confirmPaid : pay}
+          onPress={paymentId ? checkNow : pay}
           scaleTo={0.96}
           style={{
             backgroundColor: t.colors.accent,
@@ -211,9 +337,24 @@ export function EscrowScreen() {
           }}
         >
           <RNText style={tx('700', 16, t.colors.onAccent)}>
-            {busy ? 'Working…' : paymentId ? 'I’ve paid — check now' : 'Pay into escrow'}
+            {busy
+              ? 'Checking…'
+              : paymentId
+                ? 'Check payment now'
+                : `Pay ${formatINR(totalMinor)} into escrow`}
           </RNText>
         </Pressy>
+
+        {paymentId && payUrl && (
+          <Pressable
+            onPress={() => void reopen()}
+            accessibilityRole="button"
+            accessibilityLabel="Reopen the payment page"
+            style={{ marginTop: 12, alignItems: 'center' }}
+          >
+            <RNText style={tx('700', 13, t.colors.accentDeep)}>Reopen payment page</RNText>
+          </Pressable>
+        )}
         <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10 })}>
           Contacts unmask once the task starts.
         </RNText>

@@ -142,6 +142,16 @@ export function TaskDetailScreen() {
     locLat: number | null;
     locLng: number | null;
   } | null>(null);
+  // The task as the database has it. The feed row is a summary — it carries no
+  // description and, until now, the fetched task was used only for the poster
+  // and then discarded, so a worker deciding whether to quote could see neither
+  // the description nor the photo.
+  const [live, setLive] = useState<{
+    body: string;
+    mediaPath: string | null;
+    mediaKind: 'image' | 'video' | null;
+    mediaSeconds: number | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!realId || !userId) return;
@@ -151,6 +161,15 @@ export function TaskDetailScreen() {
         const [mine, td] = await Promise.all([getProfile(userId), getTaskDetail(realId)]);
         if (!alive) return;
         setMe(mine);
+        if (td?.task) {
+          const kind = td.task.media_kind;
+          setLive({
+            body: td.task.description ?? '',
+            mediaPath: td.task.media_path ?? null,
+            mediaKind: kind === 'image' || kind === 'video' ? kind : null,
+            mediaSeconds: td.task.media_seconds ?? null,
+          });
+        }
         const posterId = td?.task.poster_id;
         if (!posterId) return;
         const stats = await getPosterStats(posterId);
@@ -173,6 +192,11 @@ export function TaskDetailScreen() {
       alive = false;
     };
   }, [realId, userId]);
+
+  const body = live?.body || detail.body;
+  const mediaPath = live ? live.mediaPath : detail.mediaPath;
+  const mediaKind = live ? live.mediaKind : detail.mediaKind;
+  const mediaSeconds = live ? live.mediaSeconds : detail.mediaSeconds;
 
   const priceLabel = worker ? 'THEIR QUOTE' : 'THEIR RATE';
   const delta = quote - detail.amountMinor;
@@ -315,19 +339,17 @@ export function TaskDetailScreen() {
           {detail.tag}
         </RNText>
         <RNText style={tx('800', 23, t.colors.ink, { letterSpacing: -0.69, marginTop: 9 })}>{detail.title}</RNText>
-        <RNText style={tx('400', 14, t.colors.text, { lineHeight: 21.7, marginTop: 11 })}>{detail.body}</RNText>
+        {body ? (
+          <RNText style={tx('400', 14, t.colors.text, { lineHeight: 21.7, marginTop: 11 })}>
+            {body}
+          </RNText>
+        ) : null}
 
         {/* One attachment, shown properly. This used to be two grey squares
             with a glyph in them — a picture of a photo, not the photo. */}
-        {detail.mediaPath && (
-          <View style={{ marginTop: 16 }}>
-            <TaskMediaThumb
-              path={detail.mediaPath}
-              kind={detail.mediaKind}
-              seconds={detail.mediaSeconds}
-              size={undefined}
-              radius={14}
-            />
+        {mediaPath && (
+          <View style={{ marginTop: 16, height: 210 }}>
+            <TaskMediaThumb path={mediaPath} kind={mediaKind} seconds={mediaSeconds} radius={14} />
           </View>
         )}
 
