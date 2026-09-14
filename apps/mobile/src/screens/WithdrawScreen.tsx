@@ -1,25 +1,59 @@
 import { useEffect, useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView } from 'react-native';
+import { View, Text as RNText, Pressable, ScrollView, TextInput } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
 import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { getWallet, requestWithdrawal } from '../data/api';
+import { getWallet, getProfile, updateProfile, requestWithdrawal } from '../data/api';
+import { useAuth } from '../providers/AuthProvider';
 import { Pressy, tx } from '../components/primitives';
 
 export function WithdrawScreen() {
   const t = useTheme();
   const { go, back } = useNav();
   const { balance, roll, celebrate, flash } = useApp();
+  const { userId } = useAuth();
 
   // Start from the real wallet balance, not whatever the animated counter holds.
   const [availableMinor, setAvailableMinor] = useState(balance);
   const [rupees, setRupees] = useState(Math.floor(balance / 100));
   const [busy, setBusy] = useState(false);
+  const [upi, setUpi] = useState<string | null>(null);
+  const [upiDraft, setUpiDraft] = useState('');
+  const [editingUpi, setEditingUpi] = useState(false);
+
+  const startEditUpi = () => {
+    setUpiDraft(upi ?? '');
+    setEditingUpi(true);
+  };
+
+  const saveUpi = async () => {
+    const next = upiDraft.trim();
+    // Matches the check constraint on profiles, so the error arrives here
+    // rather than as a database failure.
+    if (!/^[A-Za-z0-9._-]{2,64}@[A-Za-z][A-Za-z0-9.-]{1,32}$/.test(next)) {
+      flash('That does not look like a UPI id — try yourname@bank');
+      return;
+    }
+    if (!userId) return;
+    try {
+      await updateProfile(userId, { payoutUpi: next });
+      setUpi(next);
+      setEditingUpi(false);
+      flash('Payout account saved');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not save that');
+    }
+  };
 
   useEffect(() => {
     let alive = true;
+    if (userId) {
+      getProfile(userId)
+        .then((me) => alive && setUpi(me?.payout_upi ?? null))
+        .catch(() => {});
+    }
     getWallet()
       .then((w) => {
         if (!alive || !w) return;
@@ -52,9 +86,14 @@ export function WithdrawScreen() {
       flash(`You only have ${formatINR(availableMinor)} available`);
       return;
     }
+    if (!upi) {
+      flash('Add the UPI id your money should go to first');
+      startEditUpi();
+      return;
+    }
     setBusy(true);
     try {
-      await requestWithdrawal(amountMinor, 'raju@okhdfcbank');
+      await requestWithdrawal(amountMinor, upi);
       const left = availableMinor - amountMinor;
       setAvailableMinor(left);
       roll('balance', left);
@@ -130,10 +169,37 @@ export function WithdrawScreen() {
             <RNText style={tx('800', 14, t.colors.accentDeep)}>UPI</RNText>
           </View>
           <View style={{ flex: 1 }}>
-            <RNText style={tx('700', 15, t.colors.ink)}>raju@okhdfcbank</RNText>
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>Default payout method</RNText>
+            {editingUpi ? (
+              <TextInput
+                value={upiDraft}
+                onChangeText={setUpiDraft}
+                onSubmitEditing={() => void saveUpi()}
+                autoFocus
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                placeholder="yourname@bank"
+                placeholderTextColor={t.colors.muted}
+                style={tx('700', 15, t.colors.ink, { padding: 0 })}
+              />
+            ) : (
+              <RNText style={tx('700', 15, upi ? t.colors.ink : t.colors.muted)}>
+                {upi ?? 'No payout account yet'}
+              </RNText>
+            )}
+            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
+              {upi ? 'Where your money is sent' : 'Add the UPI id your money should go to'}
+            </RNText>
           </View>
-          <RNText style={tx('600', 13, t.colors.accentDeep)}>Change</RNText>
+          <Pressable
+            onPress={() => (editingUpi ? void saveUpi() : startEditUpi())}
+            hitSlop={8}
+            accessibilityRole="button"
+          >
+            <RNText style={tx('600', 13, t.colors.accentDeep)}>
+              {editingUpi ? 'Save' : upi ? 'Change' : 'Add'}
+            </RNText>
+          </Pressable>
         </View>
 
         <View style={{ marginTop: 18 }}>

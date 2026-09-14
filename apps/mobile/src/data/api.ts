@@ -471,6 +471,8 @@ export type ProfileEdits = {
   locLabel?: string | null;
   locLat?: number | null;
   locLng?: number | null;
+  /** UPI handle money is paid out to. The user owns this; never invent one. */
+  payoutUpi?: string | null;
   /** Stamp the profile as having finished setup. */
   onboarded?: boolean;
 };
@@ -478,13 +480,23 @@ export type ProfileEdits = {
 /** Save the setup/profile screen's fields. RLS limits this to your own row. */
 export async function updateProfile(userId: string, edits: ProfileEdits): Promise<Profile> {
   const patch: Partial<
-    Pick<Profile, 'display_name' | 'skills' | 'loc_label' | 'loc_lat' | 'loc_lng' | 'onboarded_at'>
+    Pick<
+      Profile,
+      | 'display_name'
+      | 'skills'
+      | 'loc_label'
+      | 'loc_lat'
+      | 'loc_lng'
+      | 'payout_upi'
+      | 'onboarded_at'
+    >
   > = {};
   if (edits.displayName !== undefined) patch.display_name = edits.displayName;
   if (edits.skills !== undefined) patch.skills = edits.skills;
   if (edits.locLabel !== undefined) patch.loc_label = edits.locLabel;
   if (edits.locLat !== undefined) patch.loc_lat = edits.locLat;
   if (edits.locLng !== undefined) patch.loc_lng = edits.locLng;
+  if (edits.payoutUpi !== undefined) patch.payout_upi = edits.payoutUpi;
   if (edits.onboarded) patch.onboarded_at = new Date().toISOString();
 
   const rows = unwrap(await supabase.from('profiles').update(patch).eq('id', userId).select());
