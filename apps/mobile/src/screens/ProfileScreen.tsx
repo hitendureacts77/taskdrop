@@ -81,7 +81,10 @@ export function ProfileScreen() {
   // through to a refusal.
   const rows = [
     ...(admin
-      ? [{ glyph: '◔', label: 'Your business', go: 'analytics' as ScreenName }]
+      ? [
+          { glyph: '⚙', label: 'Run TaskDrop', go: 'admin' as ScreenName },
+          { glyph: '◔', label: 'Your business', go: 'analytics' as ScreenName },
+        ]
       : []),
     ...(worker ? WORKER_ROWS : POSTER_ROWS),
   ];

@@ -309,7 +309,7 @@ export function SearchScreen() {
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 22 }}>
-          <RNText style={tx('400', 11, t.colors.muted, { flex: 1, letterSpacing: 1.54 })}>RADIUS FROM THERE</RNText>
+          <RNText style={tx('400', 11, t.colors.muted, { flex: 1, letterSpacing: 1.54 })}>{worker ? 'FIND WORK IN THE RADIUS' : 'FIND THE WORKER IN THE RADIUS'}</RNText>
           <ToggleSwitch value={radiusOn} onChange={setRadiusOn} />
         </View>
         {radiusOn && (

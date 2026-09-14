@@ -35,6 +35,7 @@ import { WithdrawScreen } from '../screens/WithdrawScreen';
 import { OrdersScreen } from '../screens/OrdersScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { AnalyticsScreen } from '../screens/AnalyticsScreen';
+import { AdminScreen } from '../screens/AdminScreen';
 import { PromoteScreen } from '../screens/PromoteScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 
@@ -66,6 +67,7 @@ const REGISTRY: Partial<Record<ScreenName, React.ComponentType>> = {
   orders: OrdersScreen,
   profile: ProfileScreen,
   analytics: AnalyticsScreen,
+  admin: AdminScreen,
   promote: PromoteScreen,
   search: SearchScreen,
 };
