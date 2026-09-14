@@ -37,14 +37,6 @@ type Message =
   | { id: string; who: 'me' | 'them'; kind: 'image' }
   | { id: string; who: 'me' | 'them'; kind: 'voice'; duration: string };
 
-// Seed reproduced verbatim from _design_source.jsx lines 792-796.
-const SEED: Message[] = [
-  { id: 'm1', who: 'them', kind: 'text', text: 'I have the K1000 tested and ready. Want a photo of the shutter curtain?' },
-  { id: 'm2', who: 'me', kind: 'text', text: 'Yes please, and the lens front element.' },
-  { id: 'm3', who: 'them', kind: 'image' },
-  { id: 'm4', who: 'them', kind: 'voice', duration: '0:12' },
-];
-
 const FALLBACK_TASK = {
   worker: { title: 'Vintage 35mm film camera', escrow: '₹4,326' },
   poster: { title: 'Assemble a wardrobe', escrow: '₹1,236' },
@@ -128,7 +120,10 @@ export function ChatScreen() {
 
   // Without a task there is no thread to load, so the design's sample
   // conversation stands in and the composer says why it can't send.
-  const [messages, setMessages] = useState<Message[]>(taskId ? [] : SEED);
+  // Empty, always. This used to fall back to a scripted exchange about a film
+  // camera, so a thread opened without a task showed a conversation between two
+  // people that had never happened.
+  const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [otherName, setOtherName] = useState<string | null>(null);

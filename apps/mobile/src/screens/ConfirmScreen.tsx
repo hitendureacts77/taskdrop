@@ -21,9 +21,6 @@ import { workerNetPayout } from '@taskdrop/rules';
  * locked price on release (see `releaseNum` in the design source).
  */
 
-const FALLBACK_TITLE = 'Photograph a flat before I rent it';
-const FALLBACK_PRICE_MINOR = 45000; // ₹450
-const FALLBACK_ESCROW_MINOR = 46300; // ₹463 — matches the design's fallback task
 
 /** The design stores task.price/task.escrow as rupee strings like '₹4,200'. */
 function parseRupeeStringToMinor(value?: string): number | null {
@@ -48,17 +45,16 @@ export function ConfirmScreen() {
   const { params, go } = useNav();
   const { openTask, balance, escrow, roll, setDone, celebrate, flash } = useApp();
 
-  const title =
-    typeof params.title === 'string'
-      ? params.title
-      : (openTask?.title ?? FALLBACK_TITLE);
+  const title = typeof params.title === 'string' ? params.title : (openTask?.title ?? null);
 
+  // No invented price. This screen releases escrow to a worker, and a default
+  // here meant a task that did not exist still showed a confident payout.
   const priceMinor =
     typeof params.priceMinor === 'number'
       ? params.priceMinor
-      : (parseRupeeStringToMinor(openTask?.price) ?? FALLBACK_PRICE_MINOR);
+      : parseRupeeStringToMinor(openTask?.price);
 
-  const releaseMinor = workerNetPayout(priceMinor);
+  const releaseMinor = priceMinor === null ? 0 : workerNetPayout(priceMinor);
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
   const [busy, setBusy] = useState(false);
   const [detail, setDetail] = useState<TaskDetail | null>(null);
@@ -78,11 +74,11 @@ export function ConfirmScreen() {
     detail?.assignment?.escrow_minor ??
     (typeof params.escrowMinor === 'number'
       ? params.escrowMinor
-      : (parseRupeeStringToMinor(openTask?.escrow) ?? FALLBACK_ESCROW_MINOR));
+      : parseRupeeStringToMinor(openTask?.escrow));
 
   const releaseRows = [
-    { label: 'Held in escrow', value: formatINR(escrowMinor) },
-    { label: 'Releases to the worker', value: formatINR(releaseMinor) },
+    { label: 'Held in escrow', value: escrowMinor === null ? '—' : formatINR(escrowMinor) },
+    { label: 'Releases to the worker', value: priceMinor === null ? '—' : formatINR(releaseMinor) },
     { label: 'Auto-confirms in', value: countdown(detail?.task.auto_complete_at ?? null) },
   ];
 
@@ -118,15 +114,22 @@ export function ConfirmScreen() {
   };
   const handleConfirm = async () => {
     if (busy) return;
+    // Without a real task there is nothing to release. It used to skip the
+    // server call and still roll the balance and celebrate "Escrow released",
+    // which is a success message for something that never happened.
+    if (!taskId) {
+      flash('This is a sample task — open a real one from your requests');
+      return;
+    }
     setBusy(true);
     try {
       // The commission split happens in Postgres; the numbers below only mirror it.
-      if (taskId) await confirmReleaseOnServer(taskId);
+      await confirmReleaseOnServer(taskId);
       roll('balance', balance + releaseMinor);
-      roll('escrow', Math.max(0, escrow - escrowMinor));
-      setDone(title, 2);
+      roll('escrow', Math.max(0, escrow - (escrowMinor ?? 0)));
+      if (title) setDone(title, 2);
       celebrate(`Escrow released · ${formatINR(releaseMinor)}`);
-      go('review', { title, taskId });
+      go('review', { title: title ?? '', taskId });
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not release the escrow');
     } finally {
@@ -140,7 +143,7 @@ export function ConfirmScreen() {
         CONFIRM WORK
       </Text>
       <Text variant="h1" style={{ marginTop: 4, marginBottom: t.spacing.lg }}>
-        {title}
+        {title ?? "No task selected"}
       </Text>
 
       <Card style={{ backgroundColor: t.colors.surface2, borderColor: 'transparent', marginBottom: t.spacing.lg }}>

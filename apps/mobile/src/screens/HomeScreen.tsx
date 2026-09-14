@@ -53,45 +53,6 @@ export type FeedRow = {
 
 const FILTER_LABELS = ['Services', 'Goods & products', 'Local help'];
 
-const URGENT_WORKER: FeedRow = {
-  id: 'u-w',
-  sponsored: false,
-  who: 'Poster 2287',
-  rating: '4.9',
-  whoMeta: '9 requests posted · 6.2 km away',
-  tag: 'SERVICES',
-  title: 'Airport pickup, 6 AM',
-  meta: 'CLOSES IN 3 HRS',
-  amountMinor: 90000,
-  hasMedia: false,
-  glyph: '',
-  mediaPath: null,
-  mediaKind: null,
-  mediaSeconds: null,
-  dur: null,
-  body: 'Early pickup from Kempegowda, one large suitcase. Cash or UPI on arrival.',
-  by: 'today, 6 AM',
-};
-
-const URGENT_POSTER: FeedRow = {
-  id: 'u-p',
-  sponsored: false,
-  who: 'Tasker 5510',
-  rating: '4.8',
-  whoMeta: '27 jobs done · 3.4 km away',
-  tag: 'SERVICES',
-  title: 'Two-person moving crew',
-  meta: 'FREE TODAY',
-  amountMinor: 180000,
-  hasMedia: false,
-  glyph: '',
-  mediaPath: null,
-  mediaKind: null,
-  mediaSeconds: null,
-  dur: null,
-  body: 'Van, straps and blankets included. Available from 2 PM today.',
-  by: null,
-};
 
 // Live Supabase rows (id,title,pillar,benchmark_minor,flag,loc_label) don't carry
 // identity/media/body — map them into the same card shape with what we have.
@@ -448,7 +409,10 @@ export function HomeScreen() {
   const FILTER_TAGS: FeedRow['tag'][] = ['SERVICES', 'PRODUCTS', 'LOCAL HELP'];
   const feed: FeedRow[] =
     filter === null ? allRows : allRows.filter((row) => row.tag === FILTER_TAGS[filter]);
-  const urgentRow = worker ? URGENT_WORKER : URGENT_POSTER;
+  // Urgent means flagged urgent, by whoever posted it. This used to render one
+  // hard-coded card -- a person, a rating and a price that existed nowhere --
+  // on the front page of the marketplace, for every user, always.
+  const urgentRows = allRows.filter((row) => row.meta === 'Urgent').slice(0, 3);
 
   const openRow = (row: FeedRow) => {
     setOpenTask({
@@ -652,51 +616,67 @@ export function HomeScreen() {
               ))}
             </View>
 
-            <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
-              <RNText style={tx('800', 19, t.colors.ink, { letterSpacing: -0.38, marginTop: 10 })}>
-                {worker ? 'Urgent requests' : 'Free right now'}
-              </RNText>
-              <FadeIn duration={400} translateY={10} style={{ marginTop: 12 }}>
-                <Pressy
-                  onPress={() => openRow(urgentRow)}
-                  scaleTo={0.985}
-                  style={{
-                    backgroundColor: t.colors.surface,
-                    borderWidth: 1,
-                    borderColor: t.colors.line,
-                    borderRadius: 14,
-                    padding: 15,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <View
+            {urgentRows.length > 0 && (
+              <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
+                <RNText style={tx('800', 19, t.colors.ink, { letterSpacing: -0.38, marginTop: 10 })}>
+                  {worker ? 'Urgent requests' : 'Free right now'}
+                </RNText>
+                {urgentRows.map((row) => (
+                  <FadeIn key={row.id} duration={400} translateY={10} style={{ marginTop: 12 }}>
+                    <Pressy
+                      onPress={() => openRow(row)}
+                      scaleTo={0.985}
+                      label={`${row.title}, ${formatINR(row.amountMinor)}`}
                       style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 999,
-                        backgroundColor: t.colors.surface2,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
+                        backgroundColor: t.colors.surface,
+                        borderWidth: 1,
+                        borderColor: t.colors.line,
+                        borderRadius: 14,
+                        padding: 15,
                       }}
                     >
-                      <RNText style={tx('400', 13, t.colors.muted)}>☺</RNText>
-                    </View>
-                    <RNText style={tx('700', 13, t.colors.ink)}>{urgentRow.who}</RNText>
-                    <RNText style={tx('400', 12, t.colors.muted)}>
-                      {urgentRow.rating === 'new' ? 'new here' : '★ ' + urgentRow.rating}
-                    </RNText>
-                    <RNText style={tx('700', 9, t.colors.signal, { letterSpacing: 1.26, marginLeft: 'auto' })}>
-                      {urgentRow.meta}
-                    </RNText>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 12, marginTop: 11 }}>
-                    <RNText style={tx('700', 16, t.colors.ink, { flex: 1 })}>{urgentRow.title}</RNText>
-                    <RNText style={tx('800', 16, t.colors.accentDeep)}>{formatINR(urgentRow.amountMinor)}</RNText>
-                  </View>
-                </Pressy>
-              </FadeIn>
-            </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <View
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 999,
+                            backgroundColor: t.colors.surface2,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <RNText style={tx('400', 13, t.colors.muted)}>☺</RNText>
+                        </View>
+                        <RNText style={tx('700', 13, t.colors.ink)}>{row.who}</RNText>
+                        <RNText style={tx('400', 12, t.colors.muted)}>
+                          {row.rating === 'new' ? 'new here' : '★ ' + row.rating}
+                        </RNText>
+                        <RNText
+                          style={tx('700', 9, t.colors.signal, {
+                            letterSpacing: 1.26,
+                            marginLeft: 'auto',
+                          })}
+                        >
+                          URGENT
+                        </RNText>
+                      </View>
+                      <View
+                        style={{ flexDirection: 'row', alignItems: 'baseline', gap: 12, marginTop: 11 }}
+                      >
+                        <RNText style={tx('700', 16, t.colors.ink, { flex: 1 })} numberOfLines={2}>
+                          {row.title}
+                        </RNText>
+                        <RNText style={tx('800', 16, t.colors.accentDeep)}>
+                          {formatINR(row.amountMinor)}
+                        </RNText>
+                      </View>
+                    </Pressy>
+                  </FadeIn>
+                ))}
+              </View>
+            )}
           </>
         )}
       </FadeIn>
