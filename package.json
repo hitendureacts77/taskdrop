@@ -18,7 +18,7 @@
     "typecheck": "turbo run typecheck",
     "test": "node --experimental-strip-types --test packages/rules/src/rules.test.ts packages/schemas/src/schemas.test.ts",
     "db:types": "supabase gen types typescript --project-id wjxvingpfbfvkfqhrguj --schema public > packages/db-types/src/database.types.ts",
-    "test:db": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f supabase/tests/money_rules.test.sql -f supabase/tests/chat_access.test.sql",
+    "test:db": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f supabase/tests/money_rules.test.sql -f supabase/tests/chat_access.test.sql -f supabase/tests/cancel_rules.test.sql",
     "check": "npm run typecheck && npm run lint && npm test"
   },
   "devDependencies": {

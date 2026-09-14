@@ -530,6 +530,42 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_task: {
+        Args: { p_reason?: string; p_task_id: string }
+        Returns: {
+          auto_complete_at: string | null
+          benchmark_minor: number
+          clear_at: string | null
+          completed_at: string | null
+          created_at: string
+          description: string
+          flag: Database["public"]["Enums"]["task_flag"]
+          id: string
+          loc_label: string | null
+          loc_lat: number | null
+          loc_lng: number | null
+          locked_bid_id: string | null
+          locked_minor: number | null
+          media_kind: string | null
+          media_path: string | null
+          media_seconds: number | null
+          payout_mode: Database["public"]["Enums"]["payout_mode"] | null
+          pillar: Database["public"]["Enums"]["pillar"]
+          poster_id: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          time_limit_minutes: number
+          title: string
+          updated_at: string
+          work_done_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tasks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       confirm_release: {
         Args: { p_task_id: string }
         Returns: {

@@ -531,6 +531,14 @@ export const confirmRelease = (taskId: string) =>
 export const requestRevision = (taskId: string, note?: string) =>
   rpc<Task>('request_revision', { p_task_id: taskId, p_note: note?.trim() || null });
 
+/**
+ * Withdraw from a task. A poster cancelling after the worker has started pays
+ * them a 5% fine; a worker stepping off hands the task back to the market
+ * rather than killing it. The server decides all of that.
+ */
+export const cancelTask = (taskId: string, reason?: string) =>
+  rpc<Task>('cancel_task', { p_task_id: taskId, p_reason: reason?.trim() || null });
+
 /** Either side escalates. Deliberately moves no money — an admin resolves it. */
 export const openDispute = (taskId: string, reason?: string) =>
   rpc<Task>('open_dispute', { p_task_id: taskId, p_reason: reason?.trim() || null });

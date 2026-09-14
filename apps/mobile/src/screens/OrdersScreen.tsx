@@ -17,6 +17,7 @@ import {
   listMyBids,
   listMyAssignments,
   countBidsByTask,
+  cancelTask,
   type Task,
   type Bid,
   type Assignment,
@@ -48,6 +49,8 @@ type ViewRow = {
   act: Act;
   escrowLabel?: string;
   escrowMinor?: number;
+  /** Whether withdrawing is still possible — the server checks this too. */
+  cancellable?: boolean;
   who?: string;
   payMeta?: string;
 };
@@ -113,6 +116,8 @@ function posterRow(task: Task, quoteCount = 0): ViewRow {
     title: task.title,
     priceLabel: formatINR(priceMinor),
     priceMinor,
+    // Once work is submitted it is a dispute, not a cancellation.
+    cancellable: ['OPEN', 'LOCKED', 'TASK_STARTED', 'OVERDUE'].includes(task.status),
   };
   switch (task.status) {
     case 'OPEN':
@@ -166,6 +171,9 @@ function workerAssignmentRow(a: Assignment & { tasks: Task | null }): ViewRow {
     priceLabel: formatINR(priceMinor),
     priceMinor,
     escrowMinor: a.escrow_minor,
+    cancellable:
+      (a.status === 'assigned' || a.status === 'started') &&
+      (task?.status === 'LOCKED' || task?.status === 'TASK_STARTED' || task?.status === 'OVERDUE'),
   };
   if (a.status === 'refunded')
     return { ...base, bucket: 3, state: 'NOT SELECTED', tone: 'neutral', meta: 'Another worker started first', act: null };
@@ -236,16 +244,19 @@ function OrderCard({
   row,
   index,
   onOpen,
+  onCancel,
   t,
 }: {
   row: ViewRow;
   index: number;
   onOpen: () => void;
+  onCancel?: () => void;
   t: Theme;
 }) {
   return (
     <FadeIn duration={360} delay={index * 70} translateY={10} style={{ marginTop: 12 }}>
       <Pressy
+        containsControls
         onPress={onOpen}
         scaleTo={0.985}
         style={{
@@ -272,6 +283,18 @@ function OrderCard({
           <RNText style={tx('800', 16, t.colors.ink)}>{row.priceLabel}</RNText>
         </View>
         <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6 })}>{row.meta}</RNText>
+
+        {onCancel && (
+          <Pressable
+            onPress={onCancel}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Cancel ${row.title}`}
+            style={{ alignSelf: 'flex-start', marginTop: 11 }}
+          >
+            <RNText style={tx('600', 12, t.colors.signal)}>Cancel</RNText>
+          </Pressable>
+        )}
       </Pressy>
     </FadeIn>
   );
@@ -360,6 +383,24 @@ export function OrdersScreen() {
   );
 
   // Every tap carries the real task id so the next screen works on live data.
+  const [cancelling, setCancelling] = useState<string | null>(null);
+
+  const cancelRow = async (row: ViewRow) => {
+    if (!row.taskId || cancelling) return;
+    setCancelling(row.taskId);
+    try {
+      await cancelTask(row.taskId);
+      // The wording differs because the outcome does: a worker stepping off
+      // puts the task back on the market rather than ending it.
+      flash(worker ? 'You stepped off — the task is open again' : 'Request cancelled');
+      await load();
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not cancel that');
+    } finally {
+      setCancelling(null);
+    }
+  };
+
   const openRow = (row: ViewRow) => {
     const task: TaskCtx = { title: row.title, price: row.priceLabel };
     const p = {
@@ -408,7 +449,14 @@ export function OrdersScreen() {
 
         <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16 }}>
           {orderRows.map((row, i) => (
-            <OrderCard key={`${row.title}-${i}`} row={row} index={i} onOpen={() => openRow(row)} t={t} />
+            <OrderCard
+              key={`${row.title}-${i}`}
+              row={row}
+              index={i}
+              onOpen={() => openRow(row)}
+              onCancel={row.taskId && row.cancellable ? () => void cancelRow(row) : undefined}
+              t={t}
+            />
           ))}
 
           {loading && orderRows.length === 0 &&
