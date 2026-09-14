@@ -9,7 +9,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web --port 8081",
     "web:export": "expo export -p web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:apk": "eas build --platform android --profile preview",
+    "build:store": "eas build --platform android --profile production"
   },
   "dependencies": {
     "@expo-google-fonts/manrope": "^0.4.2",

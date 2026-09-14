@@ -17,7 +17,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.taskdrop.app",
+      "versionCode": 1,
+      "usesCleartextTraffic": false
     },
     "web": {
       "bundler": "metro",
@@ -25,7 +28,22 @@
     },
     "plugins": [
       "expo-font",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "TaskDrop uses your photos so you can show a worker the job before they quote.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "TaskDrop uses your location to show jobs near you and to set where a job is.",
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ]
     ]
   }
 }
