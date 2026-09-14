@@ -37,12 +37,16 @@ export function rememberPlace(place: PickedPlace): void {
   if (!label) return;
 
   // Most recent first, no duplicates by label, and prefer the entry that
-  // actually has coordinates if the same place comes back both ways.
+  // actually has coordinates if the same place comes back both ways. The typed
+  // door details ride along, so picking a recent address fills the form back in
+  // rather than making someone enter their own flat number twice.
   const existing = (cache ?? []).find((p) => p.label === label);
   const merged: PickedPlace = {
     label,
     lat: place.lat ?? existing?.lat ?? null,
     lng: place.lng ?? existing?.lng ?? null,
+    area: place.area ?? existing?.area,
+    details: place.details ?? existing?.details,
   };
   cache = [merged, ...(cache ?? []).filter((p) => p.label !== label)].slice(0, MAX);
 

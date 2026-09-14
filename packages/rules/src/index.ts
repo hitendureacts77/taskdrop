@@ -191,3 +191,82 @@ export function quickDeadlines(now: Date = new Date()): { label: string; at: Dat
 
   return out;
 }
+
+// --------------------------------------------------------------- addresses ---
+
+/**
+ * The parts of an address only the person standing there can tell you.
+ *
+ * A pin gets a worker to the building. It does not get them to the door, and
+ * reverse geocoding never will — no map knows which floor you are on or that
+ * the entrance is round the back. So the map answers "where", and this answers
+ * "which one", and a task needs both.
+ */
+export type AddressDetails = {
+  /** Flat, house or block number. The one part that is not optional. */
+  line1: string;
+  /** Building, apartment or street, usually pre-filled from the pin. */
+  line2?: string;
+  landmark?: string;
+  /** Anything a stranger needs in order not to phone you. */
+  directions?: string;
+  tag?: AddressTag;
+  /** The name given when the tag is "other". */
+  tagName?: string;
+};
+
+export type AddressTag = 'home' | 'work' | 'other';
+
+const clean = (s?: string): string => (s ?? '').trim().replace(/\s+/g, ' ');
+
+/** For comparison only: case, punctuation and spacing all stop mattering. */
+const key = (s: string): string =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+/**
+ * One readable line from the pieces, ordered the way someone says it out loud:
+ * the door, then the building, then the landmark that saves the phone call,
+ * then whatever of the area the map knew that has not already been said.
+ *
+ * The dedupe is the reason this is not a join(). Reverse geocoding routinely
+ * returns the building name the user has just typed — often in different case,
+ * or as part of a longer segment — and an address that says "Casa Rouge" twice
+ * reads like a bug. Segments are compared loosely enough to catch that, and one
+ * that merely *contains* an earlier one is dropped too.
+ */
+export function formatAddress(details: AddressDetails, area?: string): string {
+  const lead = [clean(details.line1), clean(details.line2), clean(details.landmark)].filter(Boolean);
+
+  const out: string[] = [];
+  const seen: string[] = [];
+
+  const add = (part: string) => {
+    const k = key(part);
+    if (!k) return;
+    // Already said, or said as part of something longer we already have.
+    if (seen.some((s) => s === k || s.includes(k) || k.includes(s))) return;
+    seen.push(k);
+    out.push(part);
+  };
+
+  lead.forEach(add);
+  // The area arrives as one string; split it so a single repeated segment can
+  // be dropped without losing the rest of the city and postcode.
+  clean(area)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .forEach(add);
+
+  return out.join(', ');
+}
+
+/** How a saved address is labelled in a list. */
+export function addressTagLabel(details?: AddressDetails): string | null {
+  if (!details?.tag) return null;
+  if (details.tag === 'other') return clean(details.tagName) || 'Other';
+  return details.tag === 'home' ? 'Home' : 'Work';
+}

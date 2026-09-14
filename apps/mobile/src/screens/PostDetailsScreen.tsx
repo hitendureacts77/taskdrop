@@ -10,6 +10,7 @@ import { useAuth } from '../providers/AuthProvider';
 import { createTask } from '../data/api';
 import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
 import { LocationSheet } from '../components/LocationSheet';
+import { MapPicker } from '../components/MapPicker';
 import { tx } from '../components/primitives';
 
 const DRAFTS = {
@@ -43,55 +44,76 @@ const DURATIONS = [
 
 /** Faint map grid + centre pin, standing in for the markup's CSS gradients.
  *  The place label is editable so the poster can retype their area. */
-function MapBox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+/**
+ * What the chosen location looks like on the form.
+ *
+ * This used to be a drawn grid with a text box over it: it looked like a map,
+ * showed nothing, and let someone type an address that contradicted the pin.
+ * Now it is the real map at the real point, and it is read-only — the address
+ * is edited where it was set, which is the only place both halves are visible.
+ */
+function LocationPreview({
+  label,
+  coords,
+  onEdit,
+}: {
+  label: string;
+  coords: { lat: number | null; lng: number | null };
+  onEdit: () => void;
+}) {
   const t = useTheme();
-  const rows = [22, 44, 66, 88];
-  const cols = [26, 52, 78, 104, 130, 156, 182, 208, 234, 260, 286, 312, 338, 364, 390, 416, 442];
-  return (
-    <View
-      style={{
-        marginTop: 11,
-        height: 96,
-        borderRadius: 12,
-        backgroundColor: t.colors.surface,
-        borderWidth: 1,
-        borderColor: t.colors.line,
-        overflow: 'hidden',
-      }}
-    >
-      {rows.map((y) => (
-        <View key={`r${y}`} style={{ position: 'absolute', left: 0, right: 0, top: y, height: 1, backgroundColor: t.colors.line }} />
-      ))}
-      {cols.map((x) => (
-        <View key={`c${x}`} style={{ position: 'absolute', top: 0, bottom: 0, left: x, width: 1, backgroundColor: t.colors.line }} />
-      ))}
-      <View style={{ position: 'absolute', left: 0, right: 0, top: 26, alignItems: 'center' }}>
-        <View
-          style={{
-            width: 12,
-            height: 12,
-            borderRadius: 999,
-            borderWidth: 3,
-            borderColor: t.colors.accent,
-            backgroundColor: t.colors.bg,
-          }}
-        />
-        <View style={{ width: 1.5, height: 9, backgroundColor: t.colors.accent }} />
-      </View>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        placeholder="Area · radius"
-        placeholderTextColor={t.colors.muted}
-        style={tx('400', 11, t.colors.muted, {
-          position: 'absolute',
-          bottom: 8,
-          right: 10,
-          padding: 0,
-          textAlign: 'right',
-          minWidth: 160,
+
+  if (coords.lat == null || coords.lng == null) {
+    return (
+      <Pressable
+        onPress={onEdit}
+        accessibilityRole="button"
+        accessibilityLabel="Set the location for this request"
+        style={({ pressed }) => ({
+          marginTop: 11,
+          padding: 16,
+          borderRadius: 12,
+          backgroundColor: t.colors.surface,
+          borderWidth: 1,
+          borderStyle: "dashed",
+          borderColor: t.colors.line,
+          alignItems: "center",
+          transform: [{ scale: pressed ? 0.99 : 1 }],
         })}
-      />
+      >
+        <RNText style={tx("700", 14, t.colors.accentDeep)}>Set a location</RNText>
+        <RNText style={tx("400", 12, t.colors.muted, { marginTop: 4, textAlign: "center" })}>
+          Drop a pin and add the flat number, so a worker can actually find you.
+        </RNText>
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={{ marginTop: 11 }}>
+      <View style={{ height: 118, borderRadius: 12, overflow: "hidden" }}>
+        <MapPicker
+          lat={coords.lat}
+          lng={coords.lng}
+          zoom={16}
+          height={118}
+          interactive={false}
+        />
+      </View>
+      <Pressable
+        onPress={onEdit}
+        accessibilityRole="button"
+        accessibilityLabel="Change the location"
+        style={({ pressed }) => ({
+          marginTop: 9,
+          flexDirection: "row",
+          alignItems: "flex-start",
+          gap: 9,
+          opacity: pressed ? 0.7 : 1,
+        })}
+      >
+        <RNText style={tx("400", 13, t.colors.ink, { flex: 1, lineHeight: 19 })}>{label}</RNText>
+      </Pressable>
     </View>
   );
 }
@@ -163,7 +185,7 @@ export function PostDetailsScreen() {
           ? Math.max(15, Math.round((deadline.getTime() - Date.now()) / 60000))
           : 24 * 60,
         flag: FLAG_VALUES[flag] ?? 'none',
-        locLabel: location.split('·')[0]?.trim() || null,
+        locLabel: location.trim() || null,
         locLat: coords.lat,
         locLng: coords.lng,
       });
@@ -356,7 +378,7 @@ export function PostDetailsScreen() {
             </RNText>
           </Pressable>
         </View>
-        <MapBox value={location} onChange={setLocation} />
+        <LocationPreview label={location} coords={coords} onEdit={() => setShowLoc(true)} />
 
         {!worker && (
           <>

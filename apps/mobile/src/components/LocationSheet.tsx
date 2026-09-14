@@ -15,11 +15,15 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
 import { MapPicker } from './MapPicker';
+import { AddressForm } from './AddressForm';
 import {
   resolveCurrentPlace,
   searchPlaces,
   searchProvider,
   describeCoords,
+  formatAddress,
+  addressTagLabel,
+  type AddressDetails,
   type PickedPlace,
 } from '../lib/location';
 import { rememberPlace, recentPlaces, loadRecentPlaces } from '../lib/recentPlaces';
@@ -42,6 +46,11 @@ export type { PickedPlace };
  * The alternative, which this replaces, was a form whose answer got turned into
  * a pin behind your back. It saved a tap and cost you the one thing that
  * matters: seeing where the pin actually landed.
+ *
+ * Confirming the pin is not the end, though. A pin reaches the building; it
+ * cannot reach the door, so the second half is AddressForm — flat number,
+ * landmark, how to get in. Map first and form second, in that order, because
+ * the form can then pre-fill the street from the pin rather than asking twice.
  */
 
 /** Bengaluru, only ever used when there is nothing at all to centre on. */
@@ -133,6 +142,11 @@ export function LocationSheet({
   const [panelOpen, setPanelOpen] = useState(false);
   const [recents, setRecents] = useState<PickedPlace[]>(recentPlaces());
 
+  // Map first, then the door details. A back arrow returns to the map with
+  // whatever has been typed still intact.
+  const [step, setStep] = useState<'map' | 'form'>('map');
+  const [details, setDetails] = useState<AddressDetails | undefined>();
+
   const [locating, setLocating] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   // The address panel grows when there is a note or a long address, so the
@@ -206,13 +220,20 @@ export function LocationSheet({
     setResults(null);
     setPanelOpen(false);
     setNote(null);
+    setStep('map');
+    setDetails(undefined);
 
     let alive = true;
     void loadRecentPlaces().then((r) => {
       if (!alive) return;
       setRecents(r);
       const last = r.find((p) => p.lat != null && p.lng != null);
-      if (last) goTo({ lat: last.lat!, lng: last.lng! }, last.label);
+      if (!last) return;
+      // The saved label already has the door details folded into it. Seed the
+      // map with the plain area instead, or the next save would compose the
+      // flat number on top of an address that already contains it.
+      goTo({ lat: last.lat!, lng: last.lng! }, last.area ?? last.label);
+      setDetails(last.details);
     });
     void findMe();
     return () => {
@@ -253,14 +274,23 @@ export function LocationSheet({
     setQuery('');
     setResults(null);
     inputRef.current?.blur();
-    if (r.lat != null && r.lng != null) goTo({ lat: r.lat, lng: r.lng }, r.label);
+    // A saved address knows its own flat number; a fresh search hit does not.
+    setDetails(r.details);
+    if (r.lat != null && r.lng != null) goTo({ lat: r.lat, lng: r.lng }, r.area ?? r.label);
   };
 
-  const confirm = () => {
+  const area = pinLabel || `${pin.lat.toFixed(4)}, ${pin.lng.toFixed(4)}`;
+
+  /** The pin is agreed. Now find out which door it is. */
+  const confirmPin = () => setStep('form');
+
+  const saveAddress = (entered: AddressDetails) => {
     const place: PickedPlace = {
-      label: pinLabel || `${pin.lat.toFixed(4)}, ${pin.lng.toFixed(4)}`,
+      label: formatAddress(entered, area),
       lat: pin.lat,
       lng: pin.lng,
+      area,
+      details: entered,
     };
     rememberPlace(place);
     onPick(place);
@@ -281,6 +311,8 @@ export function LocationSheet({
   const topInset = Math.max(insets.top, 12);
   const bottomInset = Math.max(insets.bottom, 12);
 
+  const tagOf = (place: PickedPlace) => addressTagLabel(place.details);
+
   const listRow = (place: PickedPlace, key: string, muted = false) => (
     <Pressable
       key={key}
@@ -297,11 +329,42 @@ export function LocationSheet({
       })}
     >
       <PinIcon color={muted ? t.colors.muted : t.colors.accentDeep} />
-      <RNText style={tx('400', 15, t.colors.ink, { flex: 1 })} numberOfLines={2}>
-        {place.label}
-      </RNText>
+      <View style={{ flex: 1 }}>
+        {tagOf(place) && (
+          <RNText style={tx('700', 13, t.colors.ink)}>{tagOf(place)}</RNText>
+        )}
+        <RNText
+          style={tx('400', tagOf(place) ? 13 : 15, tagOf(place) ? t.colors.muted : t.colors.ink, {
+            marginTop: tagOf(place) ? 2 : 0,
+          })}
+          numberOfLines={2}
+        >
+          {place.label}
+        </RNText>
+      </View>
     </Pressable>
   );
+
+  if (step === 'form') {
+    return (
+      <Modal visible={visible} animationType="slide" onRequestClose={() => setStep('map')}>
+        <AddressForm
+          area={area}
+          pin={pin}
+          initial={details}
+          topInset={topInset}
+          bottomInset={bottomInset}
+          onBack={(drafted) => {
+            // Keep what was typed. Going back to nudge the pin should not cost
+            // someone the flat number they just entered.
+            setDetails(drafted);
+            setStep('map');
+          }}
+          onSave={saveAddress}
+        />
+      </Modal>
+    );
+  }
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onCancel}>
@@ -525,7 +588,7 @@ export function LocationSheet({
           )}
 
           <Pressable
-            onPress={confirm}
+            onPress={confirmPin}
             accessibilityRole="button"
             accessibilityLabel="Confirm this location"
             style={({ pressed }) => ({

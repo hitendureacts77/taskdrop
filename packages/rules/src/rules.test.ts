@@ -11,6 +11,8 @@ import {
   formatDistance,
   describeLeadTime,
   quickDeadlines,
+  formatAddress,
+  addressTagLabel,
 } from './index.ts';
 
 // All amounts in minor units (paise). ₹1000 = 100000.
@@ -98,4 +100,45 @@ test('this weekend means the coming Saturday, not today when it is Saturday', ()
   const weekend = quickDeadlines(saturday).find((c) => c.label === 'This weekend');
   assert.ok(weekend);
   assert.equal(weekend.at.getDate(), 26);
+});
+
+test('formatAddress puts the door first and the area last', () => {
+  const line = formatAddress(
+    { line1: 'Flat 402, 4th floor', line2: 'Casa Rouge' },
+    'Road No. 8, Kothaguda, Hyderabad',
+  );
+  assert.equal(line, 'Flat 402, 4th floor, Casa Rouge, Road No. 8, Kothaguda, Hyderabad');
+});
+
+test('formatAddress does not say the building name twice', () => {
+  // Reverse geocoding hands back the building the user just typed, in a
+  // different case. Saying it again reads like a bug.
+  const line = formatAddress(
+    { line1: 'Flat 402', line2: 'Casa Rouge B-Block' },
+    'Casa Rouge B-Block, CASA ROUGE, Road No. 8, Kothaguda',
+  );
+  assert.equal(line, 'Flat 402, Casa Rouge B-Block, Road No. 8, Kothaguda');
+});
+
+test('formatAddress keeps the landmark as the user worded it', () => {
+  // No "near" is bolted on: people write "opposite the park gate" and
+  // "near the temple" alike, and only one of those survives a prefix.
+  const line = formatAddress(
+    { line1: 'H.No 12', landmark: 'opposite the park gate' },
+    'Kothaguda, Hyderabad',
+  );
+  assert.equal(line, 'H.No 12, opposite the park gate, Kothaguda, Hyderabad');
+});
+
+test('formatAddress copes with only the required field', () => {
+  assert.equal(formatAddress({ line1: 'Flat 402' }), 'Flat 402');
+  assert.equal(formatAddress({ line1: '  Flat 402  ' }, '   '), 'Flat 402');
+});
+
+test('addressTagLabel names an "other" address, or falls back', () => {
+  assert.equal(addressTagLabel({ line1: 'x', tag: 'home' }), 'Home');
+  assert.equal(addressTagLabel({ line1: 'x', tag: 'other', tagName: "Mum's flat" }), "Mum's flat");
+  assert.equal(addressTagLabel({ line1: 'x', tag: 'other' }), 'Other');
+  assert.equal(addressTagLabel({ line1: 'x' }), null);
+  assert.equal(addressTagLabel(undefined), null);
 });

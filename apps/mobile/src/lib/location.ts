@@ -18,7 +18,25 @@ import * as Location from 'expo-location';
  * guess; anything that reaches the database now knows where it is.
  */
 
-export type PickedPlace = { label: string; lat: number | null; lng: number | null };
+/**
+ * The address shape and the formatter live in @taskdrop/rules: composing one
+ * readable line out of a door, a building and a reverse-geocoded area has more
+ * edge cases than it looks (a building named twice in different case, a
+ * landmark the user already worded as "opposite the..."), and those belong
+ * where they can be tested rather than in a screen.
+ */
+export type { AddressDetails, AddressTag } from "@taskdrop/rules";
+export { formatAddress, addressTagLabel } from "@taskdrop/rules";
+
+export type PickedPlace = {
+  /** One line, ready to show. Built by formatAddress when there are details. */
+  label: string;
+  lat: number | null;
+  lng: number | null;
+  /** What the pin alone resolved to, kept so the form can be re-edited later. */
+  area?: string;
+  details?: import("@taskdrop/rules").AddressDetails;
+};
 
 const MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 

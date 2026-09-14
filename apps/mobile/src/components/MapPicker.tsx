@@ -66,18 +66,24 @@ export function MapPicker({
   height,
   radius = 12,
   controlsTop = 8,
+  interactive = true,
 }: {
   lat: number;
   lng: number;
   zoom?: number;
-  /** Fires when the pin settles somewhere new, not on every frame of a drag. */
-  onMoved: (next: { lat: number; lng: number }) => void;
+  /**
+   * Fires when the pin settles somewhere new, not on every frame of a drag.
+   * Not needed for a still preview, which has nothing to report.
+   */
+  onMoved?: (next: { lat: number; lng: number }) => void;
   /** Fixed height, or leave it out to fill whatever space the parent gives. */
   height?: number;
   /** 0 for a full-bleed map that runs to the edges of the screen. */
   radius?: number;
   /** Push the zoom buttons down, so anything floating over the top clears them. */
   controlsTop?: number;
+  /** false for a still preview of a point that has already been agreed. */
+  interactive?: boolean;
 }) {
   const t = useTheme();
   const [zoom, setZoom] = useState(initialZoom);
@@ -138,12 +144,12 @@ export function MapPicker({
       onPanResponderRelease: () => {
         draggingRef.current = false;
         animateLift(false);
-        onMovedRef.current(centreRef.current);
+        onMovedRef.current?.(centreRef.current);
       },
       onPanResponderTerminate: () => {
         draggingRef.current = false;
         animateLift(false);
-        onMovedRef.current(centreRef.current);
+        onMovedRef.current?.(centreRef.current);
       },
     }),
   ).current;
@@ -153,7 +159,7 @@ export function MapPicker({
     if (next === zoom) return;
     setZoom(next);
     // Zooming keeps the same centre, so the pin still means what it meant.
-    onMoved(centreRef.current);
+    onMoved?.(centreRef.current);
   };
 
   // Which tiles cover the frame, and where each one sits within it.
@@ -206,7 +212,7 @@ export function MapPicker({
         ...(radius > 0 ? { borderWidth: 1, borderColor: t.colors.line } : null),
       }}
     >
-      <View {...pan.panHandlers} style={{ flex: 1 }}>
+      <View {...(interactive ? pan.panHandlers : null)} style={{ flex: 1 }}>
         {tiles.map((tile) => (
           <Image
             key={tile.key}
@@ -261,8 +267,11 @@ export function MapPicker({
         </View>
       </View>
 
-      <View style={{ position: 'absolute', right: 8, top: controlsTop, gap: 6 }}>
-        {([1, -1] as const).map((by) => (
+      <View
+        style={{ position: 'absolute', right: 8, top: controlsTop, gap: 6 }}
+        pointerEvents={interactive ? 'auto' : 'none'}
+      >
+        {(interactive ? ([1, -1] as const) : []).map((by) => (
           <Pressable
             key={by}
             onPress={() => changeZoom(by)}
