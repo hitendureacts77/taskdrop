@@ -738,6 +738,59 @@ export async function listPayouts(limit = 20): Promise<Payout[]> {
 export const cancelWithdrawal = (payoutId: string) =>
   rpc<unknown>('cancel_withdrawal', { p_payout_id: payoutId });
 
+// ------------------------------------------------------------ promotions ---
+
+export type Promotion = {
+  id: string;
+  task_id: string;
+  amount_minor: number;
+  days: number;
+  status: 'pending' | 'active' | 'expired' | 'cancelled';
+  starts_at: string | null;
+  ends_at: string | null;
+  created_at: string;
+};
+
+/** Open a campaign. It stays pending until its payment settles. */
+export const startPromotion = (taskId: string, days: number, amountMinor: number) =>
+  rpc<Promotion>('start_promotion', {
+    p_task_id: taskId,
+    p_days: days,
+    p_amount_minor: amountMinor,
+  });
+
+/** Turn a paid campaign on. The server checks the payment really settled. */
+export const activatePromotion = (promotionId: string, paymentId: string) =>
+  rpc<Promotion>('activate_promotion', {
+    p_promotion_id: promotionId,
+    p_payment_id: paymentId,
+  });
+
+export const cancelPromotion = (promotionId: string) =>
+  rpc<Promotion>('cancel_promotion', { p_promotion_id: promotionId });
+
+/** This user's campaigns, newest first. */
+export async function listPromotions(): Promise<Promotion[]> {
+  const uid = await myId();
+  if (!uid) return [];
+  const rows = unwrap(
+    await supabase
+      .from('task_promotions')
+      .select('*')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false })
+      .limit(20),
+  );
+  return rows as unknown as Promotion[];
+}
+
+/** Task ids that are sponsored right now, for marking feed cards. */
+export async function sponsoredTaskIds(): Promise<Set<string>> {
+  const { data, error } = await supabase.from('sponsored_tasks').select('task_id');
+  if (error) return new Set();
+  return new Set((data ?? []).map((r) => (r as { task_id: string }).task_id));
+}
+
 // -------------------------------------------------------------- payments ---
 
 export type PaymentLink = { paymentId: string; url: string };

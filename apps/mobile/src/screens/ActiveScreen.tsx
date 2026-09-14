@@ -191,16 +191,22 @@ export function ActiveScreen() {
       else if (curDone === 0) flash('The worker has not marked it done yet');
       return;
     }
+    // Without a real task none of this reaches the server, and celebrating
+    // anyway tells someone their work was marked done when nothing happened.
+    if (!taskId) {
+      flash('This is a sample task — open a real one from your requests');
+      return;
+    }
     setBusy(true);
     try {
       if (worker) {
         // Server opens the poster's review window and stamps work_done_at.
-        if (taskId) await markWorkDoneOnServer(taskId);
+        await markWorkDoneOnServer(taskId);
         setDone(title, 1);
         celebrate('Work marked done');
       } else {
         // Server takes the commission and credits the worker's clearing balance.
-        if (taskId) await confirmReleaseOnServer(taskId);
+        await confirmReleaseOnServer(taskId);
         setDone(title, 2);
         roll('balance', balance + releasePaise);
         roll('escrow', Math.max(0, escrow - escrowPaise));

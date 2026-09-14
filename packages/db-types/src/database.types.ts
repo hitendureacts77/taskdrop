@@ -256,6 +256,48 @@ export type Database = {
           },
         ]
       }
+      task_promotions: {
+        Row: {
+          amount_minor: number
+          created_at: string
+          days: number
+          ends_at: string | null
+          id: string
+          payment_id: string | null
+          starts_at: string | null
+          status: string
+          task_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_minor: number
+          created_at?: string
+          days: number
+          ends_at?: string | null
+          id?: string
+          payment_id?: string | null
+          starts_at?: string | null
+          status?: string
+          task_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_minor?: number
+          created_at?: string
+          days?: number
+          ends_at?: string | null
+          id?: string
+          payment_id?: string | null
+          starts_at?: string | null
+          status?: string
+          task_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payouts: {
         Row: {
           amount_minor: number
@@ -527,9 +569,26 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      sponsored_tasks: {
+        Row: {
+          task_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      activate_promotion: {
+        Args: { p_payment_id: string; p_promotion_id: string }
+        Returns: Database["public"]["Tables"]["task_promotions"]["Row"]
+      }
+      cancel_promotion: {
+        Args: { p_promotion_id: string }
+        Returns: Database["public"]["Tables"]["task_promotions"]["Row"]
+      }
+      start_promotion: {
+        Args: { p_amount_minor: number; p_days: number; p_task_id: string }
+        Returns: Database["public"]["Tables"]["task_promotions"]["Row"]
+      }
       app_secrets: {
         Args: Record<PropertyKey, never>
         Returns: Json

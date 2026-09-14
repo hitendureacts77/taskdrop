@@ -95,9 +95,13 @@ export function ReviewScreen() {
 
   const submit = async () => {
     if (busy) return;
+    if (!taskId) {
+      flash('This is a sample task — open a real one from your requests');
+      return;
+    }
     setBusy(true);
     try {
-      if (taskId) {
+      {
         // reviews has no praise column, so the chips ride along in the comment
         // rather than being dropped on the floor.
         const tags = praise.map((i) => PRAISE[i]).filter(Boolean);

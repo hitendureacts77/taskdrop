@@ -6,12 +6,15 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { useAuth } from '../providers/AuthProvider';
+import { placeBid } from '../data/api';
 import { tx } from '../components/primitives';
 
 const BY_CHIPS = ['Today, 8:00 PM', 'Tomorrow, 11:00 AM', '12 Sep, 2:00 PM'];
 const STEP = 5000; // ₹50 in paise
 
 type SheetRow = {
+  id?: string;
   who?: string;
   rating?: string;
   whoMeta?: string;
@@ -26,6 +29,8 @@ export function DetailSheetScreen() {
   const { params, go, back } = useNav();
   const { mode } = useMode();
   const { celebrate, flash } = useApp();
+  const { userId } = useAuth();
+  const [busy, setBusy] = useState(false);
 
   const worker = mode === 'worker';
   const row = (params.row ?? {}) as SheetRow;
@@ -65,14 +70,41 @@ export function DetailSheetScreen() {
         ? 'Accept and fund escrow'
         : 'Send counter and fund escrow';
 
-  const send = () => {
+  // Only a real task has a uuid; the design sample rows do not.
+  const realId = row.id && /^[0-9a-f-]{36}$/i.test(row.id) ? row.id : null;
+
+  const send = async () => {
+    if (busy) return;
+
     if (worker) {
-      celebrate(`Quote sent · ${formatINR(quote)}`);
-      go('home');
+      // This used to celebrate "Quote sent" and navigate home without writing
+      // anything. The worker believed they had quoted and the poster never saw
+      // a thing -- the worst possible failure for a marketplace, because it is
+      // silent on both sides.
+      if (!realId) return flash('This is a sample card — open a real task to quote');
+      if (!userId) return flash('Sign in to send a quote');
+      setBusy(true);
+      try {
+        await placeBid({
+          taskId: realId,
+          workerId: userId,
+          priceMinor: quote,
+          timeLimitMinutes: 240,
+        });
+        celebrate(`Quote sent · ${formatINR(quote)}`);
+        go('orders');
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Could not send the quote';
+        // The unique index on (task_id, worker_id) is the "one quote per task" rule.
+        flash(/duplicate|unique/i.test(msg) ? 'You have already quoted on this task' : msg);
+      } finally {
+        setBusy(false);
+      }
       return;
     }
+
     if (blocked) return flash('Set a completion date and time first');
-    go('escrow', { title, priceMinor: quote, who, by });
+    go('escrow', { title, priceMinor: quote, who, by, taskId: realId });
   };
 
   const label = (s: string, extra?: TextStyle) => (
@@ -249,7 +281,7 @@ export function DetailSheetScreen() {
 
         <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
           <Pressable
-            onPress={send}
+            onPress={() => void send()}
             style={({ pressed }) => ({
               backgroundColor: blocked ? t.colors.surface2 : t.colors.accent,
               borderRadius: 999,

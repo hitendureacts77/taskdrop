@@ -131,7 +131,10 @@ export function CompareScreen() {
       }
       return;
     }
-    go('escrow', { priceMinor: pickRow.priceMinor, title, who: pickRow.who, taskId, by: completeBy });
+    // No bid id means this is a sample quote. Sending someone to a payment
+    // screen for it would take real money against an assignment that was never
+    // created.
+    flash('That is a sample quote — pick a real one from your requests');
   };
 
   return (

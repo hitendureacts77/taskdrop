@@ -119,23 +119,28 @@ export function SwipeScreen() {
       onPanResponderRelease: () => {
         if (startedRef.current) return;
         if (progressRef.current > RELEASE_THRESHOLD) {
+          const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+          if (!taskId) {
+            // Sliding used to announce "contacts revealed" for a task that did
+            // not exist, and move on to the active screen regardless.
+            setProgress(0);
+            flash('This is a sample task — open a real one from your requests');
+            return;
+          }
           setProgress(1);
           setStarted(true);
           startTask(title);
-          const taskId = typeof params.taskId === 'string' ? params.taskId : null;
-          if (taskId) {
-            // First worker to reach TASK_STARTED wins; the server decides.
-            startTaskOnServer(taskId)
-              .then(() => celebrate('Task started · contacts revealed'))
-              .catch((e: unknown) => {
-                setStarted(false);
-                setProgress(0);
-                flash(e instanceof Error ? e.message : 'Could not start this task');
-              });
-          } else {
-            celebrate('Task started · contacts revealed');
-          }
-          navTimeoutRef.current = setTimeout(() => go('active', params), 220);
+          // First worker to reach TASK_STARTED wins; the server decides.
+          startTaskOnServer(taskId)
+            .then(() => {
+              celebrate('Task started · contacts revealed');
+              navTimeoutRef.current = setTimeout(() => go('active', params), 220);
+            })
+            .catch((e: unknown) => {
+              setStarted(false);
+              setProgress(0);
+              flash(e instanceof Error ? e.message : 'Could not start this task');
+            });
         } else {
           setProgress(0);
         }

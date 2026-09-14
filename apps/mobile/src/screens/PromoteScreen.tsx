@@ -5,6 +5,9 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { startPromotion, createPaymentLink, syncPayment, activatePromotion } from '../data/api';
+import { formatINR } from '../components/ui';
+import { Linking } from 'react-native';
 import { tx } from '../components/primitives';
 
 const DURATIONS = [
@@ -15,9 +18,13 @@ const DURATIONS = [
 
 export function PromoteScreen() {
   const t = useTheme();
-  const { go, back } = useNav();
+  const { go, back, params } = useNav();
   const { mode } = useMode();
-  const { celebrate } = useApp();
+  const { celebrate, flash } = useApp();
+  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<{ promotionId: string; paymentId: string } | null>(null);
+
+  const taskId = typeof params.taskId === 'string' ? params.taskId : null;
 
   const worker = mode === 'worker';
   const [budgetIdx, setBudgetIdx] = useState(1);
@@ -70,9 +77,58 @@ export function PromoteScreen() {
     </View>
   );
 
-  const start = () => {
-    celebrate('Campaign live · sponsored placement');
-    go(worker ? 'home' : 'orders');
+  /**
+   * Buy the placement.
+   *
+   * This used to celebrate "Campaign live" and navigate away, having written
+   * nothing and charged nothing. A campaign is now a real row that stays
+   * pending until its payment settles — the server will not switch it on
+   * without a paid payment, so abandoning the payment page gets you nothing
+   * rather than free advertising.
+   */
+  const start = async () => {
+    if (busy) return;
+    if (!taskId) {
+      flash('Open a real listing from your requests to promote it');
+      return;
+    }
+    setBusy(true);
+    try {
+      const totalMinor = total * 100;
+      const promo = await startPromotion(taskId, days, totalMinor);
+      const { paymentId, url } = await createPaymentLink({
+        purpose: 'escrow',
+        amountMinor: totalMinor,
+        taskId,
+      });
+      setPending({ promotionId: promo.id, paymentId });
+      await Linking.openURL(url);
+      flash('Finish the payment, then come back and tap Activate');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not start that campaign');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** Switch it on, once the money is actually in. */
+  const activate = async () => {
+    if (!pending || busy) return;
+    setBusy(true);
+    try {
+      const status = await syncPayment(pending.paymentId);
+      if (status !== 'paid') {
+        flash('No payment seen yet — it can take a few seconds');
+        return;
+      }
+      await activatePromotion(pending.promotionId, pending.paymentId);
+      celebrate(`Campaign live · ${formatINR(total * 100)} for ${days} ${days === 1 ? 'day' : 'days'}`);
+      go(worker ? 'home' : 'orders');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not activate that campaign');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -234,7 +290,7 @@ export function PromoteScreen() {
 
       <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
         <Pressable
-          onPress={start}
+          onPress={() => void (pending ? activate() : start())}
           style={({ pressed }) => ({
             backgroundColor: t.colors.accent,
             borderRadius: 999,
@@ -249,7 +305,11 @@ export function PromoteScreen() {
           })}
         >
           <RNText style={tx('700', 16, t.colors.onAccent)}>
-            Start campaign · ₹{total.toLocaleString('en-IN')}
+            {busy
+              ? 'Working…'
+              : pending
+                ? 'Activate campaign'
+                : `Start campaign · ₹${total.toLocaleString('en-IN')}`}
           </RNText>
         </Pressable>
         <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10 })}>
