@@ -178,8 +178,30 @@ export async function getTaskDetail(taskId: string): Promise<TaskDetail | null> 
     worker: assignment ? (byId.get(assignment.worker_id) ?? null) : null,
   };
 }
+/**
+ * Who is asking.
+ *
+ * "My row" queries must say whose row they mean rather than leaning on RLS to
+ * have filtered for them. An admin's policies deliberately match every row, so
+ * a query that relies on RLS alone silently turns into "everybody's rows" the
+ * moment the person running it has a staff account.
+ */
+async function myId(): Promise<string | null> {
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id ?? null;
+}
+
 export async function getWallet(): Promise<Wallet | null> {
-  const { data, error } = await supabase.from('wallets').select('*').maybeSingle();
+  const uid = await myId();
+  if (!uid) return null;
+  // Explicitly mine. Without the filter an admin matches all seven wallets,
+  // maybeSingle() throws on the extra rows, and the screen quietly falls back
+  // to whatever it had -- which is how a balance nobody owns ends up on screen.
+  const { data, error } = await supabase
+    .from('wallets')
+    .select('*')
+    .eq('user_id', uid)
+    .maybeSingle();
   if (error) throw new Error(error.message);
   return data;
 }
@@ -189,10 +211,24 @@ export async function getWallet(): Promise<Wallet | null> {
  * assignment rather than the wallet, so it has to be summed.
  */
 export async function getEscrowHeld(): Promise<number> {
+  const uid = await myId();
+  if (!uid) return 0;
+  // Either side of the deal has money tied up: the worker is owed it, the
+  // poster has paid it in. assignments only names the worker, so the poster
+  // side comes through the task, and the pairing is decided here rather than
+  // in a PostgREST filter that cannot span the join cleanly.
   const rows = unwrap(
-    await supabase.from('assignments').select('escrow_minor,status').in('status', ['assigned', 'started']),
+    await supabase
+      .from('assignments')
+      .select('escrow_minor,status,worker_id,tasks!inner(poster_id)')
+      .in('status', ['assigned', 'started']),
   );
-  return rows.reduce((sum, r) => sum + (r.escrow_minor ?? 0), 0);
+  return rows
+    .filter((r) => {
+      const poster = (r.tasks as { poster_id?: string } | null)?.poster_id;
+      return r.worker_id === uid || poster === uid;
+    })
+    .reduce((sum, r) => sum + (r.escrow_minor ?? 0), 0);
 }
 
 export type Review = Tables<'reviews'> & { author: Profile | null };
@@ -325,10 +361,23 @@ export async function listWalletActivity(userId: string, limit = 12): Promise<Wa
     events.push({
       id: 'o-' + o.id,
       kind: 'payout',
-      title: o.status === 'paid' ? 'Payout sent' : o.status === 'failed' ? 'Payout failed' : 'Payout on its way',
+      // A cancelled payout is money that came back, not money on its way out;
+      // labelling it "on its way" told people their withdrawal was still live
+      // after they had just taken it back.
+      title:
+        o.status === 'paid'
+          ? 'Payout sent'
+          : o.status === 'failed'
+            ? 'Payout failed'
+            : o.status === 'cancelled'
+              ? 'Withdrawal cancelled'
+              : o.status === 'processing'
+                ? 'Payout on its way'
+                : 'Withdrawal requested',
       meta: o.destination ?? 'To your account',
       amountMinor: o.amount_minor,
-      incoming: false,
+      // Cancelled and failed both put the money back in the wallet.
+      incoming: o.status === 'cancelled' || o.status === 'failed',
       at: o.created_at,
     });
   }
@@ -653,6 +702,41 @@ export const requestWithdrawal = (amountMinor: number, destination?: string) =>
     p_amount_minor: amountMinor,
     p_destination: destination?.trim() ? destination.trim() : null,
   });
+
+/** A withdrawal, as the person who asked for it sees it. */
+export type Payout = {
+  id: string;
+  amount_minor: number;
+  status: 'requested' | 'processing' | 'paid' | 'failed' | 'cancelled';
+  destination: string | null;
+  failure_note: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Every withdrawal this person has ever asked for, newest first. */
+export async function listPayouts(limit = 20): Promise<Payout[]> {
+  const uid = await myId();
+  if (!uid) return [];
+  const rows = unwrap(
+    await supabase
+      .from('payouts')
+      .select('*')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false })
+      .limit(limit),
+  );
+  return rows as unknown as Payout[];
+}
+
+/**
+ * Take a withdrawal back while it is still only requested.
+ *
+ * The server decides whether that is still allowed and refunds the wallet in
+ * the same locked transaction, so this cannot be raced into a double refund.
+ */
+export const cancelWithdrawal = (payoutId: string) =>
+  rpc<unknown>('cancel_withdrawal', { p_payout_id: payoutId });
 
 // -------------------------------------------------------------- payments ---
 

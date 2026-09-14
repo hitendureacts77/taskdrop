@@ -1,17 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, Text as RNText, Pressable, ScrollView, TextInput } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
 import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { getWallet, getProfile, updateProfile, requestWithdrawal } from '../data/api';
+import {
+  getWallet,
+  getProfile,
+  updateProfile,
+  requestWithdrawal,
+  listPayouts,
+  cancelWithdrawal,
+  type Payout,
+} from '../data/api';
+import { PayoutList } from '../components/PayoutList';
 import { useAuth } from '../providers/AuthProvider';
 import { Pressy, tx } from '../components/primitives';
 
 export function WithdrawScreen() {
   const t = useTheme();
-  const { go, back } = useNav();
+  const { back } = useNav();
   const { balance, roll, celebrate, flash } = useApp();
   const { userId } = useAuth();
 
@@ -22,6 +31,9 @@ export function WithdrawScreen() {
   const [upi, setUpi] = useState<string | null>(null);
   const [upiDraft, setUpiDraft] = useState('');
   const [editingUpi, setEditingUpi] = useState(false);
+  const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [loadingPayouts, setLoadingPayouts] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const startEditUpi = () => {
     setUpiDraft(upi ?? '');
@@ -47,6 +59,20 @@ export function WithdrawScreen() {
     }
   };
 
+  /**
+   * Re-read the wallet and the queue together. They are two halves of one
+   * number — showing a refreshed balance beside a stale payout list is how
+   * someone ends up thinking their money vanished.
+   */
+  const refresh = useCallback(async () => {
+    const [wallet, rows] = await Promise.allSettled([getWallet(), listPayouts()]);
+    if (wallet.status === 'fulfilled' && wallet.value) {
+      setAvailableMinor(wallet.value.balance_minor);
+    }
+    if (rows.status === 'fulfilled') setPayouts(rows.value);
+    setLoadingPayouts(false);
+  }, []);
+
   useEffect(() => {
     let alive = true;
     if (userId) {
@@ -58,13 +84,17 @@ export function WithdrawScreen() {
       .then((w) => {
         if (!alive || !w) return;
         setAvailableMinor(w.balance_minor);
+        // Pre-fill the amount once, from the real balance. After that it is
+        // the user's number and must not be overwritten by a refresh.
         setRupees(Math.floor(w.balance_minor / 100));
       })
       .catch(() => {});
+    void refresh();
     return () => {
       alive = false;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const amountMinor = rupees * 100;
   const overdrawn = amountMinor > availableMinor;
@@ -96,15 +126,42 @@ export function WithdrawScreen() {
       await requestWithdrawal(amountMinor, upi);
       const left = availableMinor - amountMinor;
       setAvailableMinor(left);
+      setRupees(0);
       roll('balance', left);
-      celebrate(`${formatINR(amountMinor)} on its way`);
-      go('wallet');
+      celebrate(`${formatINR(amountMinor)} requested`);
+      // Stay put. The whole point of the queue below is that you can see the
+      // request you just made — and change your mind about it.
+      await refresh();
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not start that withdrawal');
     } finally {
       setBusy(false);
     }
   };
+
+  const doCancel = async (payout: Payout) => {
+    if (cancellingId) return;
+    setCancellingId(payout.id);
+    try {
+      await cancelWithdrawal(payout.id);
+      const back = availableMinor + payout.amount_minor;
+      setAvailableMinor(back);
+      roll('balance', back);
+      celebrate(`${formatINR(payout.amount_minor)} back in your wallet`);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not cancel that withdrawal');
+    } finally {
+      setCancellingId(null);
+      // Either way the server is the truth about what the queue looks like now.
+      await refresh();
+    }
+  };
+
+  // Money that has left the wallet but has not arrived anywhere yet. Without
+  // this the two numbers do not add up and it looks like money went missing.
+  const inFlightMinor = payouts
+    .filter((p) => p.status === 'requested' || p.status === 'processing')
+    .reduce((sum, p) => sum + p.amount_minor, 0);
 
   return (
     <Screen padded={false}>
@@ -137,8 +194,47 @@ export function WithdrawScreen() {
               ? `Only ${formatINR(availableMinor)} available.`
               : 'Arrives in 1 working day.'}
           </RNText>
-          <Pressable onPress={() => setRupees(Math.floor(availableMinor / 100))} hitSlop={8}>
-            <RNText style={tx('600', 12, t.colors.accentDeep)}>Withdraw all</RNText>
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+          {[50000, 100000, 250000].map((minor) => (
+            <Pressable
+              key={minor}
+              onPress={() => setRupees(minor / 100)}
+              disabled={minor > availableMinor}
+              accessibilityRole="button"
+              accessibilityLabel={`Withdraw ${formatINR(minor)}`}
+              style={({ pressed }) => ({
+                paddingHorizontal: 14,
+                paddingVertical: 9,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: t.colors.line,
+                backgroundColor: t.colors.surface,
+                opacity: minor > availableMinor ? 0.35 : 1,
+                transform: [{ scale: pressed ? 0.96 : 1 }],
+              })}
+            >
+              <RNText style={tx('700', 12, t.colors.ink)}>{formatINR(minor)}</RNText>
+            </Pressable>
+          ))}
+          <Pressable
+            onPress={() => setRupees(Math.floor(availableMinor / 100))}
+            disabled={availableMinor <= 0}
+            accessibilityRole="button"
+            accessibilityLabel="Withdraw the whole balance"
+            style={({ pressed }) => ({
+              paddingHorizontal: 14,
+              paddingVertical: 9,
+              borderRadius: 999,
+              borderWidth: 1,
+              borderColor: t.colors.accent,
+              backgroundColor: t.colors.accentSoft,
+              opacity: availableMinor <= 0 ? 0.35 : 1,
+              transform: [{ scale: pressed ? 0.96 : 1 }],
+            })}
+          >
+            <RNText style={tx('700', 12, t.colors.accentDeep)}>All</RNText>
           </Pressable>
         </View>
 
@@ -219,6 +315,33 @@ export function WithdrawScreen() {
             </View>
           ))}
         </View>
+
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            marginTop: 26,
+          }}
+        >
+          <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54 })}>
+            YOUR WITHDRAWALS
+          </RNText>
+          {inFlightMinor > 0 && (
+            <RNText style={tx('600', 12, t.colors.muted)}>
+              {formatINR(inFlightMinor)} on its way
+            </RNText>
+          )}
+        </View>
+
+        <PayoutList
+          payouts={payouts}
+          loading={loadingPayouts}
+          cancellingId={cancellingId}
+          onCancel={(p) => void doCancel(p)}
+        />
+
+        <View style={{ height: 20 }} />
       </ScrollView>
 
       <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>

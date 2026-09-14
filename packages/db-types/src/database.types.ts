@@ -530,6 +530,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      app_secrets: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      cancel_withdrawal: {
+        Args: { p_payout_id: string }
+        Returns: {
+          amount_minor: number
+          created_at: string
+          destination: string | null
+          failure_note: string | null
+          id: string
+          status: Database["public"]["Enums"]["payout_status"]
+          updated_at: string
+          user_id: string
+        }
+      }
       cancel_task: {
         Args: { p_reason?: string; p_task_id: string }
         Returns: {
@@ -832,7 +849,12 @@ export type Database = {
       payment_purpose: "escrow" | "topup"
       payment_status: "created" | "paid" | "failed" | "cancelled"
       payout_mode: "one_time" | "milestones"
-      payout_status: "requested" | "paid" | "failed"
+      payout_status:
+        | "requested"
+        | "processing"
+        | "paid"
+        | "failed"
+        | "cancelled"
       pillar: "services" | "procurement" | "local_intel"
       task_flag: "none" | "urgent" | "unique"
       task_status:
@@ -980,7 +1002,7 @@ export const Constants = {
       payment_purpose: ["escrow", "topup"],
       payment_status: ["created", "paid", "failed", "cancelled"],
       payout_mode: ["one_time", "milestones"],
-      payout_status: ["requested", "paid", "failed"],
+      payout_status: ["requested", "processing", "paid", "failed", "cancelled"],
       pillar: ["services", "procurement", "local_intel"],
       task_flag: ["none", "urgent", "unique"],
       task_status: [

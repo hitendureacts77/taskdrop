@@ -60,9 +60,12 @@ type AppStateCtx = AppState & {
 const Ctx = createContext<AppStateCtx | null>(null);
 
 const INITIAL: AppState = {
-  balance: 820000, // ₹8,200
-  escrow: 463500, // ₹4,635
-  clearing: 360000, // ₹3,600
+  // Zero, not a showroom figure. These are what the UI shows before the real
+  // wallet has loaded, and a number invented here is indistinguishable on
+  // screen from money the person actually has.
+  balance: 0,
+  escrow: 0,
+  clearing: 0,
   doneMap: { 'Photograph a flat before I rent it': 1 },
   startMap: { 'Assemble a wardrobe': true },
   startedAt: { 'Assemble a wardrobe': Date.now() - 9678000 },

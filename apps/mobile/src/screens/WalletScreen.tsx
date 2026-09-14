@@ -89,7 +89,11 @@ export function WalletScreen() {
     }
   };
 
+  // Never substitute local state for the server's answer: this is the screen
+  // that tells someone how much money they have, and a plausible wrong number
+  // is worse here than an honest blank.
   const shown = live ?? { balance, escrow, clearing };
+  const loaded = live !== null;
   const worker = mode === 'worker';
   const total = Math.max(1, shown.balance + shown.escrow + shown.clearing);
   const pct = (n: number) => `${((n / total) * 100).toFixed(1)}%` as `${number}%`;
@@ -154,7 +158,7 @@ export function WalletScreen() {
         <RNText
           style={tx('800', 44, t.colors.ink, { letterSpacing: -1.76, lineHeight: 48.4, marginTop: 4 })}
         >
-          {formatINR(shown.balance)}
+          {loaded ? formatINR(shown.balance) : '—'}
         </RNText>
 
         {/* Segmented available / escrow / clearing bar */}
@@ -214,7 +218,9 @@ export function WalletScreen() {
             elevation: 6,
           }}
         >
-          <RNText style={tx('700', 15, t.colors.onAccent)}>Withdraw {formatINR(shown.balance)}</RNText>
+          <RNText style={tx('700', 15, t.colors.onAccent)}>
+            {loaded ? `Withdraw ${formatINR(shown.balance)}` : 'Withdraw'}
+          </RNText>
         </Pressy>
 
         {/* Money in, via Razorpay. Opens a payment link, then settles on return. */}
