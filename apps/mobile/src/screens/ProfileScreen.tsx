@@ -5,7 +5,7 @@ import { useTheme, useThemeControls } from '../providers/ThemeProvider';
 import { useNav, type ScreenName } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useAuth } from '../providers/AuthProvider';
-import { getProfile, listReviewsAbout, type Profile, type Review } from '../data/api';
+import { getProfile, listReviewsAbout, isAdmin, type Profile, type Review } from '../data/api';
 import { tx } from '../components/primitives';
 
 function SlideIn({ delay, children }: { delay: number; children: React.ReactNode }) {
@@ -72,10 +72,19 @@ export function ProfileScreen() {
     return () => anim.stop();
   }, [worker, slide]);
 
-  const rows = worker ? WORKER_ROWS : POSTER_ROWS;
   const { userId } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [admin, setAdmin] = useState(false);
+
+  // Only surfaced to accounts that can actually open it, so nobody taps
+  // through to a refusal.
+  const rows = [
+    ...(admin
+      ? [{ glyph: '◔', label: 'Your business', go: 'analytics' as ScreenName }]
+      : []),
+    ...(worker ? WORKER_ROWS : POSTER_ROWS),
+  ];
 
   // Poster and worker reputations are separate, so re-fetch when the mode flips.
   useEffect(() => {
@@ -90,6 +99,7 @@ export function ProfileScreen() {
         if (!alive) return;
         setProfile(p);
         setReviews(r);
+        setAdmin(await isAdmin(userId));
       } catch {
         /* leave the header on its placeholders */
       }

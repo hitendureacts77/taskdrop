@@ -28,7 +28,8 @@ export type ScreenName =
   | 'withdraw'
   | 'promote'
   | 'review'
-  | 'profile';
+  | 'profile'
+  | 'analytics';
 
 export type NavParams = Record<string, unknown>;
 

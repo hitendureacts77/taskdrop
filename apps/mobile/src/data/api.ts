@@ -397,6 +397,49 @@ export async function getProfile(userId: string): Promise<Profile | null> {
   return data;
 }
 
+// ------------------------------------------------------------- analytics ---
+
+export type PlatformStats = {
+  windowDays: number;
+  gmvMinor: number;
+  revenueMinor: number;
+  escrowHeldMinor: number;
+  payoutsPendingMinor: number;
+  tasksPosted: number;
+  tasksCompleted: number;
+  tasksCancelled: number;
+  tasksOpen: number;
+  tasksLive: number;
+  disputesOpen: number;
+  quotesPlaced: number;
+  quotedRate: number;
+  newUsers: number;
+  totalUsers: number;
+  activeUsers: number;
+  avgWorkerRating: number;
+  daily: { day: string; posted: number; completed: number; revenue_minor: number }[];
+};
+
+/** Whether this account can see the platform's numbers at all. */
+export async function isAdmin(userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('role', 'admin')
+    .maybeSingle();
+  if (error) return false;
+  return Boolean(data);
+}
+
+/**
+ * Every figure the dashboard shows, in one round trip. The server refuses
+ * outright unless the caller is an admin — these numbers span every user's
+ * rows, so the check cannot live in the client.
+ */
+export const platformStats = (days = 30) =>
+  rpc<PlatformStats>('platform_stats', { p_days: days });
+
 // -------------------------------------------------------------- messages ---
 
 export type Message = {
