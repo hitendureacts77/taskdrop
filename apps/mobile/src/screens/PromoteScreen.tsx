@@ -66,6 +66,11 @@ export function PromoteScreen() {
   }, []);
 
   const taskId = pickedId;
+  const picked = mine.find((m) => m.id === pickedId) ?? null;
+  // The list is collapsed once something is chosen. Five full-width cards
+  // pushed the budget and duration — the things this screen is actually for —
+  // off the bottom of the screen.
+  const [choosing, setChoosing] = useState(false);
 
 
   const worker = mode === 'worker';
@@ -313,54 +318,77 @@ export function PromoteScreen() {
               <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54 })}>
                 WHICH LISTING
               </RNText>
-              {mine.map((m) => {
-                const on = m.id === pickedId;
-                return (
-                  <Pressable
-                    key={m.id}
-                    onPress={() => setPickedId(on ? null : m.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Promote ${m.title}`}
-                    accessibilityState={{ selected: on }}
-                    style={({ pressed }) => ({
-                      marginTop: 9,
-                      borderWidth: 1,
-                      borderColor: on ? t.colors.accent : t.colors.line,
-                      backgroundColor: on ? t.colors.accentSoft : t.colors.surface,
-                      borderRadius: 14,
-                      padding: 13,
-                      flexDirection: 'row',
-                      gap: 12,
-                      alignItems: 'center',
-                      transform: [{ scale: pressed ? 0.99 : 1 }],
-                    })}
-                  >
-                    <View
-                      style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: 11,
-                        backgroundColor: on ? t.colors.bg : t.colors.surface2,
-                        alignItems: 'center',
-                        justifyContent: 'center',
+
+              {/* One line when settled; the full list only while choosing. */}
+              {picked && !choosing ? (
+                <Pressable
+                  onPress={() => setChoosing(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Change listing, currently ${picked.title}`}
+                  style={({ pressed }) => ({
+                    marginTop: 9,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingVertical: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: t.colors.line,
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <RNText style={tx('700', 15, t.colors.ink)} numberOfLines={1}>
+                      {picked.title}
+                    </RNText>
+                    <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
+                      {formatINR(picked.benchmark_minor)} ·{' '}
+                      {picked.quotes === 1 ? '1 quote' : `${picked.quotes} quotes`}
+                    </RNText>
+                  </View>
+                  {mine.length > 1 && (
+                    <RNText style={tx('700', 12, t.colors.accentDeep)}>Change</RNText>
+                  )}
+                </Pressable>
+              ) : (
+                mine.map((m) => {
+                  const on = m.id === pickedId;
+                  return (
+                    <Pressable
+                      key={m.id}
+                      onPress={() => {
+                        setPickedId(m.id);
+                        setChoosing(false);
                       }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Promote ${m.title}`}
+                      accessibilityState={{ selected: on }}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 12,
+                        paddingVertical: 12,
+                        borderBottomWidth: 1,
+                        borderBottomColor: t.colors.line,
+                        opacity: pressed ? 0.7 : 1,
+                      })}
                     >
-                      <RNText style={tx('400', 16, on ? t.colors.accentDeep : t.colors.muted)}>
-                        {on ? '✓' : '▤'}
-                      </RNText>
-                    </View>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <RNText style={tx('700', 15, t.colors.ink)} numberOfLines={2}>
-                        {m.title}
-                      </RNText>
-                      <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>
-                        {formatINR(m.benchmark_minor)} · open ·{' '}
-                        {m.quotes === 1 ? '1 quote' : `${m.quotes} quotes`}
-                      </RNText>
-                    </View>
-                  </Pressable>
-                );
-              })}
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <RNText
+                          style={tx(on ? '700' : '500', 15, on ? t.colors.ink : t.colors.text)}
+                          numberOfLines={1}
+                        >
+                          {m.title}
+                        </RNText>
+                        <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
+                          {formatINR(m.benchmark_minor)} ·{' '}
+                          {m.quotes === 1 ? '1 quote' : `${m.quotes} quotes`}
+                        </RNText>
+                      </View>
+                      {on && <RNText style={tx('700', 14, t.colors.accentDeep)}>✓</RNText>}
+                    </Pressable>
+                  );
+                })
+              )}
             </>
           )}
         </View>

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Animated, ScrollView, Linking, RefreshControl } from 'react-native';
+import { View, Text as RNText, Animated, ScrollView, RefreshControl } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -9,12 +9,11 @@ import { useAuth } from '../providers/AuthProvider';
 import {
   getWallet,
   getEscrowHeld,
-  createPaymentLink,
-  syncPayment,
   listWalletActivity,
   type WalletEvent,
 } from '../data/api';
 import { Pressy, tx } from '../components/primitives';
+import { AddFundsSheet } from '../components/AddFundsSheet';
 
 /** Staggered row entrance, ~ the markup's tdIn keyframe with animation-delay. */
 function SlideIn({ delay, children }: { delay: number; children: React.ReactNode }) {
@@ -42,8 +41,6 @@ export function WalletScreen() {
   const { mode } = useMode();
   const { balance, escrow, clearing, flash, celebrate } = useApp();
   const { userId } = useAuth();
-  const [busy, setBusy] = useState(false);
-  const [topUpId, setTopUpId] = useState<string | null>(null);
   const [live, setLive] = useState<{ balance: number; escrow: number; clearing: number } | null>(null);
 
   // Real wallet for the signed-in user; the in-memory figures are the fallback
@@ -61,32 +58,25 @@ export function WalletScreen() {
     };
   }, []);
 
-  // Top-up: open a Razorpay link, then settle it when they come back.
-  const topUp = async () => {
-    if (busy) return;
-    setBusy(true);
+  // Adding money lives in its own sheet: it has to ask how much, and it has
+  // to watch for the payment rather than asking whether it arrived.
+  const [addingFunds, setAddingFunds] = useState(false);
+
+  const onFunded = async (amountMinor: number) => {
+    setAddingFunds(false);
     try {
-      if (topUpId) {
-        const status = await syncPayment(topUpId);
-        if (status !== 'paid') {
-          flash('We have not seen that payment yet');
-          return;
-        }
-        const w = await getWallet();
-        if (w) setLive((p) => ({ ...(p ?? { escrow: 0, clearing: 0, balance: 0 }), balance: w.balance_minor, clearing: w.clearing_minor }));
-        setTopUpId(null);
-        celebrate('Funds added');
-        return;
+      const w = await getWallet();
+      if (w) {
+        setLive((p) => ({
+          ...(p ?? { escrow: 0, clearing: 0, balance: 0 }),
+          balance: w.balance_minor,
+          clearing: w.clearing_minor,
+        }));
       }
-      const { paymentId, url } = await createPaymentLink({ purpose: 'topup', amountMinor: 100000 });
-      setTopUpId(paymentId);
-      await Linking.openURL(url);
-      flash('Finish the payment, then tap “I’ve paid”');
-    } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not start the payment');
-    } finally {
-      setBusy(false);
+    } catch {
+      /* the celebrate below is still true; the figure refreshes on next load */
     }
+    celebrate(`${formatINR(amountMinor)} added`);
   };
 
   // Never substitute local state for the server's answer: this is the screen
@@ -225,7 +215,7 @@ export function WalletScreen() {
 
         {/* Money in, via Razorpay. Opens a payment link, then settles on return. */}
         <Pressy
-          onPress={topUp}
+          onPress={() => setAddingFunds(true)}
           style={{
             marginTop: 10,
             borderRadius: 999,
@@ -236,7 +226,7 @@ export function WalletScreen() {
           }}
         >
           <RNText style={tx('700', 15, t.colors.ink)}>
-            {topUpId ? 'I’ve paid — check now' : busy ? 'Working…' : 'Add funds'}
+            Add money
           </RNText>
         </Pressy>
 
@@ -281,6 +271,13 @@ export function WalletScreen() {
           </SlideIn>
         ))}
       </ScrollView>
+
+      <AddFundsSheet
+        visible={addingFunds}
+        onClose={() => setAddingFunds(false)}
+        onFunded={(minor: number) => void onFunded(minor)}
+        flash={flash}
+      />
     </Screen>
   );
 }
