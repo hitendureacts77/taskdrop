@@ -15,7 +15,7 @@ import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { searchTasks } from '../data/api';
-import { resolveCurrentPlace } from '../lib/location';
+import { resolveCurrentPlace, locationPermission } from '../lib/location';
 import { fontFamilyFor, type Theme } from '../theme';
 import type { Enums } from '@taskdrop/db-types';
 import { FadeIn, Pressy, tx } from '../components/primitives';
@@ -158,6 +158,19 @@ export function SearchScreen() {
   const [placeAt, setPlaceAt] = useState<{ lat: number; lng: number } | null>(null);
   const [radiusKm, setRadiusKm] = useState(12);
   const [locating, setLocating] = useState(false);
+  // Checked on arrival, so the control can tell the truth before it is tapped.
+  // A button that looks live and then says "declined" reads as a broken button.
+  const [locationOff, setLocationOff] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void locationPermission().then(({ granted, canAskAgain }) => {
+      if (alive) setLocationOff(!granted && !canAskAgain);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
   const [pickingPlace, setPickingPlace] = useState(false);
 
   // Radius only means something once there is a point to measure from.
@@ -306,8 +319,8 @@ export function SearchScreen() {
             </RNText>
           </Pressy>
           <Pressy onPress={useMyLocation} label="Use my current location">
-            <RNText style={tx('600', 12, t.colors.accentDeep)}>
-              {locating ? 'Locating…' : 'Use my location'}
+            <RNText style={tx('600', 12, locationOff ? t.colors.signal : t.colors.accentDeep)}>
+              {locating ? 'Locating…' : locationOff ? 'Location is off' : 'Use my location'}
             </RNText>
           </Pressy>
         </View>

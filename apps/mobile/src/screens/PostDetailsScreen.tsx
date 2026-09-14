@@ -15,16 +15,27 @@ import { MediaAttach } from '../components/MediaAttach';
 import type { TaskMedia } from '../lib/media';
 import { tx } from '../components/primitives';
 
-const DRAFTS = {
-  worker: [
-    { title: 'Bespoke carpentry and joinery', details: 'Made-to-measure furniture, fittings and repairs. Ten years on the tools, own transport.' },
-    { title: 'Vintage camera sourcing', details: 'I track down film bodies and lenses, test every shutter before handover.' },
-    { title: 'On-the-ground checks', details: 'Queue checks, price scouting, site visits anywhere in central Bengaluru.' },
-  ],
+/**
+ * Placeholder text for the title and details fields.
+ *
+ * These used to be finished-looking sample posts — "Vintage 35mm film camera",
+ * "Working SLR, clean viewfinder, tested shutter" — which read as a filled-in
+ * form even though the value was empty. People reported the fields as
+ * auto-populated, and they were right to: a placeholder that looks like real
+ * content is one.
+ *
+ * A placeholder should ask for something, not demonstrate an answer.
+ */
+const HINTS = {
   poster: [
-    { title: 'Assemble a wardrobe', details: 'Flat-pack unit, two doors, all parts and screws present. Tools needed.' },
-    { title: 'Vintage 35mm film camera', details: 'Working SLR, clean viewfinder, tested shutter. Pentax or Olympus preferred, lens included.' },
-    { title: 'Check the queue at RTO Indiranagar', details: 'Walk past and tell me how long the licence renewal line is. A photo helps.' },
+    { title: 'What needs doing?', details: 'What is the job, and anything a worker should know before quoting.' },
+    { title: 'What should they find or buy?', details: 'Make, size, condition, budget — whatever narrows it down.' },
+    { title: 'What do you need checked?', details: 'Where, when, and what you want them to report back.' },
+  ],
+  worker: [
+    { title: 'What do you do?', details: 'The work you take on, and what makes you worth picking.' },
+    { title: 'What do you source?', details: 'What you find, how you check it, and how you hand it over.' },
+    { title: 'What can you check on?', details: 'Where you cover and what you can report back.' },
   ],
 } as const;
 
@@ -125,7 +136,7 @@ export function PostDetailsScreen() {
 
   const worker = mode === 'worker';
   const pillar = typeof params.pillar === 'number' ? params.pillar : 0;
-  const draft = DRAFTS[worker ? 'worker' : 'poster'][pillar] ?? DRAFTS.poster[0];
+  const draft = HINTS[worker ? 'worker' : 'poster'][pillar] ?? HINTS.poster[0];
 
   // The pillar's draft copy is a prompt, not a value: seeding the fields with it
   // meant tapping Post published the sample task verbatim.
@@ -282,7 +293,7 @@ export function PostDetailsScreen() {
                 rupees={price}
                 onChangeRupees={setPrice}
                 min={100}
-                placeholder="Set it"
+                placeholder="0"
                 // minWidth:0 lets the field shrink inside the half-width card so
                 // the "+" stepper never gets pushed out of view.
                 style={tx('800', 18, t.colors.accentDeep, { flex: 1, minWidth: 0 })}

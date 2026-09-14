@@ -94,6 +94,12 @@ export async function locationPermission(): Promise<{
 }> {
   try {
     const p = await Location.getForegroundPermissionsAsync();
+    // Same correction as in resolveCurrentPlace: on web, canAskAgain lies once
+    // the origin is blocked, and a caller using this to decide what to show
+    // would promise a prompt that will never appear.
+    if (!p.granted && (await webPermanentlyDenied())) {
+      return { granted: false, canAskAgain: false };
+    }
     return { granted: p.granted, canAskAgain: p.canAskAgain };
   } catch {
     return { granted: false, canAskAgain: false };

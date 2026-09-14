@@ -19,6 +19,7 @@ import { AddressForm } from './AddressForm';
 import {
   resolveCurrentPlace,
   openLocationSettings,
+  locationPermission,
   LocationError,
   searchPlaces,
   searchProvider,
@@ -165,6 +166,18 @@ export function LocationSheet({
   // is useless on its own -- tapping the button again can never work, so the
   // way out has to be offered instead.
   const [blocked, setBlocked] = useState(false);
+
+  // Ask the OS on arrival rather than waiting for a tap to reveal it.
+  useEffect(() => {
+    if (!visible) return;
+    let alive = true;
+    void locationPermission().then(({ granted, canAskAgain }) => {
+      if (alive && !granted && !canAskAgain) setBlocked(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [visible]);
   // The address panel grows when there is a note or a long address, so the
   // button that floats above it has to be told how tall it actually got
   // rather than clearing a height someone guessed once.
@@ -574,8 +587,8 @@ export function LocationSheet({
             ) : (
               <CrosshairIcon color={t.colors.accentDeep} />
             )}
-            <RNText style={tx('700', 13, t.colors.accentDeep)}>
-              {locating ? 'Locating…' : 'Use my location'}
+            <RNText style={tx('700', 13, blocked ? t.colors.signal : t.colors.accentDeep)}>
+              {locating ? 'Locating…' : blocked ? 'Location is off' : 'Use my location'}
             </RNText>
           </Pressable>
         )}
