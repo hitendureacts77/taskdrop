@@ -146,6 +146,16 @@ Deno.serve(async (req: Request) => {
       .update({ status, paid_at: paid ? new Date().toISOString() : null })
       .eq("id", row.id);
 
+    // Funding the task here too, so the app does not depend on the webhook
+    // having arrived first. fund_task_from_payment is idempotent, so whichever
+    // gets there first wins and the other is a no-op.
+    if (paid && row.purpose === "escrow" && row.task_id) {
+      const { error: fundErr } = await admin.rpc("fund_task_from_payment", {
+        p_payment_id: row.id,
+      });
+      if (fundErr) console.error("could not fund task", row.task_id, fundErr.message);
+    }
+
     // A settled top-up becomes spendable balance. Escrow holds are attached to
     // the assignment when the quote is locked, so nothing to move here.
     if (paid && row.purpose === "topup") {

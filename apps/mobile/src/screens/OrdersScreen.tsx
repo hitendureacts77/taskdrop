@@ -35,7 +35,7 @@ import { FadeIn, Pressy, tx } from '../components/primitives';
 
 /** Tone keys shared with `useApp().myBids` so both sources render identically. */
 type Tone = 'accent' | 'gold' | 'signal' | 'blue' | 'violet' | 'neutral';
-type Act = 'compare' | 'quotes' | 'confirm' | 'review' | 'active' | 'start' | null;
+type Act = 'compare' | 'quotes' | 'confirm' | 'review' | 'active' | 'start' | 'pay' | null;
 
 type ViewRow = {
   taskId?: string;
@@ -130,7 +130,12 @@ function posterRow(task: Task, quoteCount = 0): ViewRow {
         act: 'compare',
       };
     case 'LOCKED':
-      return { ...base, bucket: 0, state: 'LOCKED · WORKER TO START', tone: 'accent', meta: 'Escrow funded · worker starts next', act: null };
+      // "Escrow funded" used to be printed here unconditionally, which was a
+      // claim the data did not support: a locked task with funded_at null has
+      // had nothing collected, and the worker cannot start until it does.
+      return task.funded_at
+        ? { ...base, bucket: 0, state: 'LOCKED · WORKER TO START', tone: 'accent', meta: 'Escrow funded · worker starts next', act: null }
+        : { ...base, bucket: 0, state: 'AWAITING YOUR PAYMENT', tone: 'signal', meta: 'Pay the escrow so the worker can start', act: 'pay' };
     case 'TASK_STARTED':
       return { ...base, bucket: 1, state: 'ACTIVE · TIMER RUNNING', tone: 'gold', meta: 'Work is underway', act: 'active' };
     case 'OVERDUE':
@@ -183,6 +188,10 @@ function workerAssignmentRow(a: Assignment & { tasks: Task | null }): ViewRow {
     return { ...base, bucket: 1, state: 'WORK DONE · AWAITING POSTER', tone: 'gold', meta: 'Poster confirms next', act: 'active' };
   if (task?.status === 'TASK_STARTED' || task?.status === 'OVERDUE' || a.status === 'started')
     return { ...base, bucket: 1, state: 'ACTIVE · TIMER RUNNING', tone: 'gold', meta: 'Task started · timer running', act: 'start' };
+  // Sliding to start now fails server-side on an unfunded task, so say so here
+  // rather than letting someone swipe into a refusal.
+  if (!task?.funded_at)
+    return { ...base, bucket: 1, state: 'WAITING ON PAYMENT', tone: 'gold', meta: 'The poster has not funded the escrow yet', act: null };
   return { ...base, bucket: 1, state: 'ACCEPTED · SWIPE TO START', tone: 'accent', meta: 'Escrow funded · first to start wins', act: 'start' };
 }
 
@@ -412,6 +421,12 @@ export function OrdersScreen() {
     };
     setOpenTask(task);
     switch (row.act) {
+      case 'pay':
+        return go('escrow', {
+          ...p,
+          priceMinor: row.priceMinor,
+          escrowMinor: row.escrowMinor,
+        });
       case 'compare':
         return go('compare', p);
       case 'quotes':

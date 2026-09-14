@@ -117,6 +117,19 @@ Deno.serve(async (req: Request) => {
     .update({ status, paid_at: paid ? new Date().toISOString() : null })
     .eq("id", row.id);
 
+  // A settled escrow payment is what makes a task startable. Doing it here
+  // rather than only in the app means a poster who pays and closes the app
+  // still ends up with a funded task.
+  if (paid && row.purpose === "escrow" && row.task_id) {
+    const { error: fundErr } = await admin.rpc("fund_task_from_payment", {
+      p_payment_id: row.id,
+    });
+    // Never fail the webhook over this: Razorpay would retry the whole event
+    // and the payment is already settled. Log it and let the app fund on its
+    // next poll instead.
+    if (fundErr) console.error("could not fund task", row.task_id, fundErr.message);
+  }
+
   // A settled top-up becomes spendable balance. Escrow holds are attached to
   // the assignment when the quote is locked, so nothing to move for those.
   if (paid && row.purpose === "topup") {

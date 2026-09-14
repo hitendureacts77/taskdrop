@@ -488,9 +488,12 @@ export type Database = {
           auto_complete_at: string | null
           benchmark_minor: number
           clear_at: string | null
+          cleared_at: string | null
           completed_at: string | null
           created_at: string
           description: string
+          funded_at: string | null
+          funding_payment_id: string | null
           flag: Database["public"]["Enums"]["task_flag"]
           id: string
           loc_label: string | null
@@ -515,9 +518,12 @@ export type Database = {
           auto_complete_at?: string | null
           benchmark_minor: number
           clear_at?: string | null
+          cleared_at?: string | null
           completed_at?: string | null
           created_at?: string
           description?: string
+          funded_at?: string | null
+          funding_payment_id?: string | null
           flag?: Database["public"]["Enums"]["task_flag"]
           id?: string
           loc_label?: string | null
@@ -647,6 +653,14 @@ export type Database = {
       admin_set_admin: {
         Args: { p_on: boolean; p_user_id: string }
         Returns: boolean
+      }
+      fund_task: {
+        Args: { p_payment_id: string; p_task_id: string }
+        Returns: Database["public"]["Tables"]["tasks"]["Row"]
+      }
+      fund_task_from_payment: {
+        Args: { p_payment_id: string }
+        Returns: Database["public"]["Tables"]["tasks"]["Row"]
       }
       app_secrets: {
         Args: Record<PropertyKey, never>
