@@ -349,6 +349,48 @@ export async function listWalletActivity(userId: string, limit = 12): Promise<Wa
   return events.slice(0, limit);
 }
 
+/**
+ * How many things are waiting on this user right now.
+ *
+ * Nothing in the app told anyone that something had happened — a poster never
+ * learned a quote arrived, a worker never learned they had been picked — so
+ * there was no reason to come back. This is the cheap, honest version of that:
+ * derived from the tables that already exist, no polling infrastructure, and it
+ * only counts things the person can actually act on.
+ */
+export async function countNeedsAttention(
+  userId: string,
+  mode: 'poster' | 'worker',
+): Promise<number> {
+  if (mode === 'poster') {
+    const mine = unwrap(
+      await supabase.from('tasks').select('id,status').eq('poster_id', userId),
+    );
+    // Work submitted and waiting on them to release.
+    let count = mine.filter((t) => t.status === 'WORK_DONE').length;
+
+    // Quotes arrived on something still open.
+    const openIds = mine.filter((t) => t.status === 'OPEN').map((t) => t.id);
+    if (openIds.length > 0) {
+      const counts = await countBidsByTask(openIds);
+      count += openIds.filter((id) => (counts.get(id) ?? 0) > 0).length;
+    }
+    return count;
+  }
+
+  const assignments = unwrap(
+    await supabase
+      .from('assignments')
+      .select('status, tasks(status)')
+      .eq('worker_id', userId)
+      .in('status', ['assigned', 'started']),
+  );
+  // Picked but not started yet is the one that actually needs them.
+  return assignments.filter(
+    (a) => (a.tasks as { status?: string } | null)?.status === 'LOCKED',
+  ).length;
+}
+
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
   if (error) throw new Error(error.message);
