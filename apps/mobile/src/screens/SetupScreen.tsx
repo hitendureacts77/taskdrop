@@ -7,6 +7,7 @@ import { useMode, type Mode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { getProfile, updateProfile } from '../data/api';
+import { LocationSheet } from '../components/LocationSheet';
 import { tx } from '../components/primitives';
 
 const SKILLS = ['Sourcing', 'Local intel', 'Carpentry', 'Delivery', 'Repairs', 'Photography', 'Research', 'Errands'];
@@ -26,6 +27,11 @@ export function SetupScreen() {
   const [name, setName] = useState('');
   const [place, setPlace] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showLoc, setShowLoc] = useState(false);
+  const [coords, setCoords] = useState<{ lat: number | null; lng: number | null }>({
+    lat: null,
+    lng: null,
+  });
 
   const worker = mode === 'worker';
 
@@ -42,6 +48,7 @@ export function SetupScreen() {
         if (!alive || !p || touched.current) return;
         setName(p.display_name ?? '');
         setPlace(p.loc_label ?? '');
+        setCoords({ lat: p.loc_lat, lng: p.loc_lng });
         const saved = (p.skills ?? []) as string[];
         if (saved.length > 0) {
           setSkills(saved.map((s) => SKILLS.indexOf(s)).filter((i) => i >= 0));
@@ -72,6 +79,8 @@ export function SetupScreen() {
           displayName,
           skills: worker ? skills.map((i) => SKILLS[i]!).filter(Boolean) : undefined,
           locLabel: place.trim() || null,
+          locLat: coords.lat,
+          locLng: coords.lng,
           onboarded: true,
         });
       }
@@ -172,7 +181,11 @@ export function SetupScreen() {
             placeholderTextColor={t.colors.muted}
             style={tx('400', 15, t.colors.ink, { flex: 1, padding: 0 })}
           />
-          <RNText style={tx('600', 13, t.colors.accentDeep)}>Change</RNText>
+          <Pressable onPress={() => setShowLoc(true)} hitSlop={8} accessibilityRole="button">
+            <RNText style={tx('600', 13, t.colors.accentDeep)}>
+              {place ? 'Change' : 'Find me'}
+            </RNText>
+          </Pressable>
         </View>
 
         {worker && (
@@ -249,6 +262,17 @@ export function SetupScreen() {
           </RNText>
         </Pressable>
       </ScrollView>
+
+      <LocationSheet
+        visible={showLoc}
+        onCancel={() => setShowLoc(false)}
+        onPick={(picked) => {
+          touched.current = true;
+          setPlace(picked.label);
+          setCoords({ lat: picked.lat, lng: picked.lng });
+          setShowLoc(false);
+        }}
+      />
     </Screen>
   );
 }

@@ -57,3 +57,24 @@ npm run db:types       # regenerate DB types after a schema change
 The design is the source of truth for every screen. `docs/design/TaskDrop App.dc.html` is the original;
 `docs/design/_design_markup.html` is its extracted visual markup and `docs/design/_design_source.jsx`
 its data/logic layer. Screens are ported to match this markup exactly.
+
+## Location and place search
+
+Place search works out of the box with no configuration: it uses OpenStreetMap's
+Nominatim, which needs no key and returns real coordinates on both web and
+device. That matters because a place label with no latitude and longitude is
+how "Distance: nearby" ends up being a guess.
+
+To use Google Places instead — better results for Indian addresses — set:
+
+```
+EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=...
+```
+
+Restrict the key to the Places API and to your own origins before shipping.
+Anything prefixed `EXPO_PUBLIC_` is visible in the client bundle.
+
+The lookup order is Google Places (if a key is set) → Nominatim → the device
+geocoder (native only). Whatever the source, the chosen place is stored with its
+coordinates, and the last few places you picked are kept on the device so you
+aren't searching for home every time.

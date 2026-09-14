@@ -164,6 +164,8 @@ export function PostDetailsScreen() {
           : 24 * 60,
         flag: FLAG_VALUES[flag] ?? 'none',
         locLabel: location.split('·')[0]?.trim() || null,
+        locLat: coords.lat,
+        locLng: coords.lng,
       });
       celebrate(
         promoteOn ? 'Published · nudge your placement' : worker ? 'Listing published' : 'Request posted',

@@ -417,6 +417,9 @@ export type NewTask = {
   timeLimitMinutes: number;
   flag?: Enums<'task_flag'>;
   locLabel?: string | null;
+  /** Real coordinates, so distance between two people is computable. */
+  locLat?: number | null;
+  locLng?: number | null;
 };
 
 export async function createTask(input: NewTask): Promise<Task> {
@@ -432,6 +435,8 @@ export async function createTask(input: NewTask): Promise<Task> {
         time_limit_minutes: input.timeLimitMinutes,
         flag: input.flag ?? 'none',
         loc_label: input.locLabel ?? null,
+        loc_lat: input.locLat ?? null,
+        loc_lng: input.locLng ?? null,
       })
       .select(),
   );
@@ -464,16 +469,22 @@ export type ProfileEdits = {
   displayName?: string;
   skills?: string[];
   locLabel?: string | null;
+  locLat?: number | null;
+  locLng?: number | null;
   /** Stamp the profile as having finished setup. */
   onboarded?: boolean;
 };
 
 /** Save the setup/profile screen's fields. RLS limits this to your own row. */
 export async function updateProfile(userId: string, edits: ProfileEdits): Promise<Profile> {
-  const patch: Partial<Pick<Profile, 'display_name' | 'skills' | 'loc_label' | 'onboarded_at'>> = {};
+  const patch: Partial<
+    Pick<Profile, 'display_name' | 'skills' | 'loc_label' | 'loc_lat' | 'loc_lng' | 'onboarded_at'>
+  > = {};
   if (edits.displayName !== undefined) patch.display_name = edits.displayName;
   if (edits.skills !== undefined) patch.skills = edits.skills;
   if (edits.locLabel !== undefined) patch.loc_label = edits.locLabel;
+  if (edits.locLat !== undefined) patch.loc_lat = edits.locLat;
+  if (edits.locLng !== undefined) patch.loc_lng = edits.locLng;
   if (edits.onboarded) patch.onboarded_at = new Date().toISOString();
 
   const rows = unwrap(await supabase.from('profiles').update(patch).eq('id', userId).select());

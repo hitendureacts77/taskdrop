@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text as RNText,
@@ -8,14 +8,19 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
-import * as Location from 'expo-location';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
+import {
+  resolveCurrentPlace,
+  searchPlaces,
+  searchProvider,
+  type PickedPlace,
+} from '../lib/location';
+import { rememberPlace, recentPlaces, loadRecentPlaces } from '../lib/recentPlaces';
 
-export type PickedPlace = { label: string; lat: number | null; lng: number | null };
+export type { PickedPlace };
 
-const MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 
 function PinIcon({ color }: { color: string }) {
   return (
@@ -60,30 +65,26 @@ export function LocationSheet({
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PickedPlace[]>([]);
+  const [recents, setRecents] = useState<PickedPlace[]>(recentPlaces());
+  const provider = searchProvider();
+
+  // Recents live on the device, so they load asynchronously the first time.
+  useEffect(() => {
+    if (!visible) return;
+    let alive = true;
+    void loadRecentPlaces().then((r) => alive && setRecents(r));
+    return () => {
+      alive = false;
+    };
+  }, [visible]);
 
   const useCurrent = async () => {
     setError(null);
     setBusy(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') throw new Error('Location permission was declined');
-
-      const pos = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = pos.coords;
-
-      let label = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-      try {
-        // Not available on web; fall back to coordinates there.
-        const [place] = await Location.reverseGeocodeAsync({ latitude, longitude });
-        if (place) {
-          label = [place.name ?? place.street, place.city ?? place.subregion, place.region]
-            .filter(Boolean)
-            .join(', ');
-        }
-      } catch {
-        /* keep the coordinate label */
-      }
-      onPick({ label, lat: latitude, lng: longitude });
+      const place = await resolveCurrentPlace();
+      rememberPlace(place);
+      onPick(place);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not read your location');
     } finally {
@@ -98,33 +99,21 @@ export function LocationSheet({
     setBusy(true);
     setResults([]);
     try {
-      if (MAPS_KEY) {
-        const res = await fetch(
-          `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${MAPS_KEY}`,
-        );
-        const json = (await res.json()) as {
-          results?: { name?: string; formatted_address?: string; geometry?: { location?: { lat: number; lng: number } } }[];
-        };
-        setResults(
-          (json.results ?? []).slice(0, 6).map((r) => ({
-            label: r.formatted_address ?? r.name ?? q,
-            lat: r.geometry?.location?.lat ?? null,
-            lng: r.geometry?.location?.lng ?? null,
-          })),
-        );
-      } else {
-        // No Maps key: use the device geocoder where it exists.
-        const hits = await Location.geocodeAsync(q);
-        setResults(hits.slice(0, 6).map((h) => ({ label: q, lat: h.latitude, lng: h.longitude })));
-      }
+      const hits = await searchPlaces(q);
+      // Whatever the providers said, the typed place stays selectable — but it
+      // is marked so the caller knows it carries no coordinates.
+      setResults(hits.length > 0 ? hits : [{ label: q, lat: null, lng: null }]);
+      if (hits.length === 0) setError('No match found — you can still use what you typed');
     } catch {
-      /* geocoding unsupported (web) — handled by the fallback below */
+      setResults([{ label: q, lat: null, lng: null }]);
     } finally {
-      // Never leave them with nothing to tap: whatever the geocoder said, the
-      // typed place is always selectable.
-      setResults((prev) => (prev.length > 0 ? prev : [{ label: q, lat: null, lng: null }]));
       setBusy(false);
     }
+  };
+
+  const choose = (place: PickedPlace) => {
+    rememberPlace(place);
+    onPick(place);
   };
 
   const optionCard = (
@@ -198,9 +187,42 @@ export function LocationSheet({
                 )}
                 {optionCard(
                   <MapIcon color={t.colors.accentDeep} />,
-                  'Choose on the map',
-                  'Search for an area or landmark',
+                  'Search for a place',
+                  provider === 'google'
+                    ? 'Powered by Google Places'
+                    : 'Areas and landmarks, worldwide',
                   () => setSearching(true),
+                )}
+
+                {recents.length > 0 && (
+                  <>
+                    <RNText
+                      style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 20 })}
+                    >
+                      RECENT
+                    </RNText>
+                    {recents.map((r) => (
+                      <Pressable
+                        key={r.label}
+                        onPress={() => choose(r)}
+                        accessibilityRole="button"
+                        accessibilityLabel={r.label}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 12,
+                          paddingVertical: 13,
+                          borderBottomWidth: 1,
+                          borderBottomColor: t.colors.line,
+                        }}
+                      >
+                        <PinIcon color={t.colors.muted} />
+                        <RNText style={tx('400', 15, t.colors.ink, { flex: 1 })} numberOfLines={1}>
+                          {r.label}
+                        </RNText>
+                      </Pressable>
+                    ))}
+                  </>
                 )}
               </>
             ) : (
@@ -220,7 +242,9 @@ export function LocationSheet({
                   <TextInput
                     value={query}
                     onChangeText={setQuery}
-                    onSubmitEditing={search}
+                    onSubmitEditing={() => void search()}
+                    returnKeyType="search"
+                    blurOnSubmit={false}
                     autoFocus
                     placeholder="Search an area, e.g. Indiranagar"
                     placeholderTextColor={t.colors.muted}
@@ -234,7 +258,7 @@ export function LocationSheet({
                 {results.map((r, i) => (
                   <Pressable
                     key={`${r.label}-${i}`}
-                    onPress={() => onPick(r)}
+                    onPress={() => choose(r)}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -249,10 +273,10 @@ export function LocationSheet({
                   </Pressable>
                 ))}
 
-                {!MAPS_KEY && (
+                {provider === 'osm' && (
                   <RNText style={tx('400', 12, t.colors.muted, { marginTop: 14, lineHeight: 18 })}>
-                    Add EXPO_PUBLIC_GOOGLE_MAPS_API_KEY to search Google Places directly. Until
-                    then this uses your device's geocoder.
+                    Results from OpenStreetMap. Set EXPO_PUBLIC_GOOGLE_MAPS_API_KEY to use Google
+                    Places instead.
                   </RNText>
                 )}
 
