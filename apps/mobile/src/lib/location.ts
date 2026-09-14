@@ -77,7 +77,7 @@ export async function resolveCurrentPlace(): Promise<PickedPlace> {
 }
 
 /** Best available name for a point; falls back to the coordinates themselves. */
-async function describeCoords(lat: number, lng: number): Promise<string> {
+export async function describeCoords(lat: number, lng: number): Promise<string> {
   // Reverse geocoding is not implemented on web.
   if (Platform.OS !== 'web') {
     try {
