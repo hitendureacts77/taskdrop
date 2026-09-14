@@ -1,20 +1,34 @@
 # Going live with real payments
 
-Everything except the money loop runs today. Payments are the one part I cannot
-finish for you, because it needs credentials that are yours — I will not invent
-them, and you should not paste them into a chat with anyone, including me.
+Everything that could be automated has been:
 
-Here is the whole list, in order. It is short.
+- the webhook is deployed with JWT verification **off**, so Razorpay can reach it
+- a 256-bit `RAZORPAY_WEBHOOK_SECRET` is already generated into your `.env`
+- `npm run check:payments` tells you what is still outstanding
+
+Two values remain, and they exist only inside your Razorpay dashboard. Nobody
+else can generate them — not me, and not the Razorpay connector, which is
+read-only. Put them in `.env` (gitignored) and one script sends them up; they
+never pass through a chat, a commit, or your shell history.
 
 ## 1. Razorpay keys
 
 In the Razorpay dashboard: **Settings → API Keys → Generate Live Key**.
 
-Set them as Supabase Edge Function secrets (not in `.env`, not in the app
-bundle — these are server-only and must never reach a client):
+They are server-only: they must never reach a client bundle. The script below
+sends them straight to Supabase as Edge Function secrets.
+
+Put them in `.env`:
+
+```
+RAZORPAY_KEY_ID=rzp_live_...
+RAZORPAY_KEY_SECRET=...
+```
+
+then send all three secrets up in one go:
 
 ```bash
-npx supabase secrets set RAZORPAY_KEY_ID=rzp_live_xxx RAZORPAY_KEY_SECRET=xxx --project-ref wjxvingpfbfvkfqhrguj
+bash scripts/push-payment-secrets.sh
 ```
 
 Until these are set, the app says "Razorpay is not configured" when someone
@@ -27,12 +41,8 @@ Without it a payment only settles if the payer returns to the app and taps
 "I've paid". Close the tab after paying and Razorpay has the money while the
 task sits unfunded.
 
-Generate a webhook secret (any long random string), set it, then register the
-endpoint:
-
-```bash
-npx supabase secrets set RAZORPAY_WEBHOOK_SECRET=<a long random string> --project-ref wjxvingpfbfvkfqhrguj
-```
+The secret is already generated and sits in your `.env`; the script above sends
+it. Register the endpoint in Razorpay with that same value:
 
 In Razorpay: **Settings → Webhooks → Add New Webhook**
 
@@ -40,20 +50,8 @@ In Razorpay: **Settings → Webhooks → Add New Webhook**
 - Secret: the same string
 - Active events: `payment_link.paid`
 
-**One manual step I could not do from here:** that function must have JWT
-verification turned **off**, because Razorpay has no Supabase session. It is
-declared in `supabase/config.toml`, but the deploy I made through the
-management API ignored it and left verification on — a webhook arriving now
-gets a 401 before the signature is ever checked.
-
-Fix it either way:
-
-```bash
-npx supabase functions deploy razorpay-webhook --project-ref wjxvingpfbfvkfqhrguj
-```
-
-or in the dashboard: **Edge Functions → razorpay-webhook → Details → uncheck
-"Verify JWT"**.
+JWT verification is already **off** for this function — it has to be, because
+Razorpay has no Supabase session.
 
 The function is safe public: every request is HMAC-SHA256 signed with your
 webhook secret and compared in constant time, and anything that does not match
