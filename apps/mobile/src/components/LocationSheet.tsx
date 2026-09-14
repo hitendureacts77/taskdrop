@@ -638,7 +638,7 @@ export function LocationSheet({
                         // A browser will not let a page open its own permission
                         // settings, so say where the control actually is.
                         setNote(
-                          'Tap the padlock in the address bar, allow Location, then reload.',
+                          'Allow Location for this site in your browser settings, then reload. Some in-app browsers cannot grant it at all — open the site in Chrome or Safari instead.',
                         );
                       }
                     });
