@@ -4,8 +4,9 @@ import Svg, { Rect, Line } from 'react-native-svg';
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
+import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { platformStats, type PlatformStats } from '../data/api';
+import { platformStats, myStats, type PlatformStats, type MyStats } from '../data/api';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import type { Theme } from '../theme';
 
@@ -138,11 +139,27 @@ export function AnalyticsScreen() {
   const { back } = useNav();
   const { flash } = useApp();
 
+  const { mode } = useMode();
+  const worker = mode === 'worker';
   const [days, setDays] = useState(30);
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
   const [picked, setPicked] = useState<number | null>(null);
+  // Your own figures, which everyone gets. The platform-wide ones below stay
+  // admin-only; before this, a poster could not see what they had spent and a
+  // worker could not see what they had earned.
+  const [mine, setMine] = useState<MyStats | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void myStats(worker ? 'worker' : 'poster')
+      .then((m) => alive && setMine(m))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [worker]);
 
   const load = useCallback(
     async (window: number) => {
@@ -176,12 +193,97 @@ export function AnalyticsScreen() {
         </Pressable>
 
         <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.72, marginTop: 14 })}>
-          Your business
+          {worker ? 'My earnings and jobs' : 'My spending and requests'}
         </RNText>
 
+        {/* The person's own numbers, first, because they are the ones they
+            came for. Platform totals are a separate thing further down. */}
+        {mine ? (
+          <View style={{ marginTop: 16 }}>
+            <View
+              style={{
+                padding: 16,
+                borderRadius: 14,
+                backgroundColor: t.colors.accentSoft,
+                borderWidth: 1,
+                borderColor: t.colors.accentBorder,
+              }}
+            >
+              <RNText style={tx('400', 11, t.colors.accentDeep, { letterSpacing: 1.4 })}>
+                {mine.role === 'worker' ? 'EARNED SO FAR' : 'SPENT SO FAR'}
+              </RNText>
+              <RNText
+                style={tx('800', 32, t.colors.ink, { letterSpacing: -1, marginTop: 5 })}
+              >
+                {formatINR(mine.role === 'worker' ? mine.earnedMinor : mine.spentMinor)}
+              </RNText>
+              <RNText style={tx('400', 12, t.colors.accentDeep, { marginTop: 4, lineHeight: 18 })}>
+                {mine.role === 'worker'
+                  ? `${formatINR(mine.availableMinor)} ready to withdraw · ${formatINR(
+                      mine.clearingMinor,
+                    )} still clearing`
+                  : `${formatINR(mine.escrowHeldMinor)} held in escrow right now`}
+              </RNText>
+            </View>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
+              {(mine.role === 'worker'
+                ? [
+                    { label: 'Quotes sent', value: String(mine.quotesPlaced) },
+                    { label: 'Quotes won', value: String(mine.quotesWon) },
+                    { label: 'Jobs in hand', value: String(mine.jobsLive) },
+                    { label: 'Jobs finished', value: String(mine.jobsDone) },
+                    { label: 'Withdrawn', value: formatINR(mine.withdrawnMinor) },
+                    {
+                      label: 'Your rating',
+                      value: mine.ratingCount > 0 ? `★ ${Number(mine.rating).toFixed(1)}` : '—',
+                    },
+                  ]
+                : [
+                    { label: 'Requests posted', value: String(mine.posted) },
+                    { label: 'Still open', value: String(mine.open) },
+                    { label: 'Being worked on', value: String(mine.live) },
+                    { label: 'Finished', value: String(mine.completed) },
+                    { label: 'Quotes received', value: String(mine.quotesReceived) },
+                    {
+                      label: 'Your rating',
+                      value: mine.ratingCount > 0 ? `★ ${Number(mine.rating).toFixed(1)}` : '—',
+                    },
+                  ]
+              ).map((cell) => (
+                <View
+                  key={cell.label}
+                  style={{
+                    flexBasis: '47%',
+                    flexGrow: 1,
+                    padding: 13,
+                    borderRadius: 12,
+                    backgroundColor: t.colors.surface,
+                    borderWidth: 1,
+                    borderColor: t.colors.line,
+                  }}
+                >
+                  <RNText style={tx('400', 11, t.colors.muted)}>{cell.label}</RNText>
+                  <RNText style={tx('800', 19, t.colors.ink, { marginTop: 5 })}>
+                    {cell.value}
+                  </RNText>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        {!denied && (
+          <RNText
+            style={tx('800', 19, t.colors.ink, { letterSpacing: -0.4, marginTop: 30 })}
+          >
+            Across the whole marketplace
+          </RNText>
+        )}
+
         {denied ? (
-          <RNText style={tx('400', 14, t.colors.muted, { marginTop: 16, lineHeight: 21 })}>
-            These numbers are for admins. Ask an owner to add your account to the admin role.
+          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 20, lineHeight: 20 })}>
+            Marketplace-wide figures are for admins. Your own numbers are above.
           </RNText>
         ) : null}
 

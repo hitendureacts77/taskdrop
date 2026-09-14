@@ -79,13 +79,23 @@ export function ProfileScreen() {
 
   // Only surfaced to accounts that can actually open it, so nobody taps
   // through to a refusal.
+  // Both sides get their own numbers, and the two names say whose money they
+  // are. "Your business" meant nothing in particular to either role.
+  const statsRow = worker
+    ? { glyph: '◔', label: 'My earnings and jobs', go: 'analytics' as ScreenName }
+    : { glyph: '◔', label: 'My spending and requests', go: 'analytics' as ScreenName };
+
+  // The owner console is one tool, but the queue that matters depends on which
+  // way money is moving for the side you are on: a poster pays into escrow and
+  // gets refunds, a worker is owed payouts. The name leads with that.
+  const adminRow = worker
+    ? { glyph: '⚙', label: 'Payouts and disputes', go: 'admin' as ScreenName }
+    : { glyph: '⚙', label: 'Escrow and disputes', go: 'admin' as ScreenName };
+
   const rows = [
-    ...(admin
-      ? [
-          { glyph: '⚙', label: 'Run TaskDrop', go: 'admin' as ScreenName },
-          { glyph: '◔', label: 'Your business', go: 'analytics' as ScreenName },
-        ]
-      : []),
+    ...(admin ? [adminRow] : []),
+    // Everyone sees their own figures. Only the platform-wide ones are gated.
+    statsRow,
     ...(worker ? WORKER_ROWS : POSTER_ROWS),
   ];
 

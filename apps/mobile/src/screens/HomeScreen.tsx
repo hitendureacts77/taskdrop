@@ -82,6 +82,28 @@ const PILLAR_TAG: Record<string, FeedRow['tag']> = {
   local_intel: 'LOCAL HELP',
 };
 
+/**
+ * The area part of an address, for a list.
+ *
+ * Task locations are now full door-level addresses -- flat number, floor,
+ * landmark, area, city -- which is right on a detail screen and far too much
+ * on a feed card, where it wrapped to three lines and was printed twice.
+ * A country on the end tells a local user nothing, so it goes.
+ */
+function shortPlace(label: string | null | undefined): string | null {
+  if (!label) return null;
+  const parts = label
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .filter((x) => !/^india$/i.test(x))
+    // A bare postcode is noise in a list.
+    .filter((x) => !/^d{5,6}$/.test(x));
+  if (parts.length === 0) return null;
+  // The last two are the locality and the city, which is what places a job.
+  return parts.slice(-2).join(', ');
+}
+
 function liveToFeedRow(task: LiveTask, worker: boolean): FeedRow {
   return {
     id: task.id,
@@ -92,7 +114,9 @@ function liveToFeedRow(task: LiveTask, worker: boolean): FeedRow {
       task.poster && task.poster.poster_rating_count > 0
         ? Number(task.poster.poster_rating_avg).toFixed(1)
         : 'new',
-    whoMeta: task.loc_label ?? task.poster?.loc_label ?? 'Location not shared',
+    // The person, not the job. The job's location is on the line below, and
+    // printing the same long address twice on one card helps nobody.
+    whoMeta: shortPlace(task.poster?.loc_label) ?? 'new here',
     tag: PILLAR_TAG[task.pillar] ?? 'SERVICES',
     title: task.title,
     meta:
@@ -100,7 +124,7 @@ function liveToFeedRow(task: LiveTask, worker: boolean): FeedRow {
         ? 'Urgent'
         : task.flag === 'unique'
           ? 'Unique'
-          : (task.loc_label ?? 'Location not shared'),
+          : (shortPlace(task.loc_label) ?? 'Location not shared'),
     amountMinor: task.benchmark_minor,
     // Media comes from the row now. hasMedia used to be hard-coded false, so an
     // attached photo was uploaded and then shown to nobody.
@@ -271,7 +295,9 @@ const FeedCard = memo(function FeedCard({
                 {row.tag}
               </RNText>
             </View>
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>{row.whoMeta}</RNText>
+            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })} numberOfLines={1}>
+              {row.whoMeta}
+            </RNText>
           </View>
         </View>
 
@@ -287,7 +313,12 @@ const FeedCard = memo(function FeedCard({
           )}
           <View style={{ flex: 1, minWidth: 0 }}>
             <RNText style={tx('700', 16, t.colors.ink, { letterSpacing: -0.16 })}>{row.title}</RNText>
-            <RNText style={tx('400', 13, t.colors.muted, { marginTop: 5, lineHeight: 19 })}>{row.meta}</RNText>
+            <RNText
+              style={tx('400', 13, t.colors.muted, { marginTop: 5, lineHeight: 19 })}
+              numberOfLines={1}
+            >
+              {row.meta}
+            </RNText>
           </View>
         </View>
 
@@ -555,7 +586,15 @@ export function HomeScreen() {
           </RNText>
         </Pressy>
 
-        <View style={{ flexDirection: 'row', gap: 8, paddingTop: 14, paddingHorizontal: 20 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            gap: 8,
+            paddingTop: 14,
+            paddingHorizontal: 20,
+            alignItems: 'center',
+          }}
+        >
           {FILTER_LABELS.map((label, i) => (
             <FilterChip
               key={label}
@@ -565,6 +604,34 @@ export function HomeScreen() {
               t={t}
             />
           ))}
+          {/* Only here when there is something to clear. A permanent one would
+              be a control that does nothing most of the time. Tapping the
+              active chip still clears it too; this is the obvious way out for
+              anyone who does not know that. */}
+          {(filter !== null || searching) && (
+            <Pressable
+              onPress={() => {
+                setFilter(null);
+                if (searching) go('home');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear the filters"
+              hitSlop={8}
+              style={({ pressed }) => ({
+                width: 32,
+                height: 32,
+                borderRadius: 999,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: t.colors.line,
+                backgroundColor: t.colors.surface,
+                transform: [{ scale: pressed ? 0.92 : 1 }],
+              })}
+            >
+              <RNText style={tx('600', 15, t.colors.muted, { lineHeight: 17 })}>×</RNText>
+            </Pressable>
+          )}
         </View>
 
         <RNText style={tx('800', 19, t.colors.ink, { letterSpacing: -0.38, paddingTop: 22, paddingHorizontal: 20 })}>

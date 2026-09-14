@@ -15,6 +15,7 @@ import { type Theme } from '../theme';
 import type { FeedRow } from './HomeScreen';
 import { FadeIn, tx } from '../components/primitives';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
+import { PersonSheet } from '../components/PersonSheet';
 
 /**
  * Task detail — pixel parity with docs/design/_design_markup.html lines
@@ -133,6 +134,8 @@ export function TaskDetailScreen() {
 
   const share = useShare(flash);
   const [me, setMe] = useState<Profile | null>(null);
+  const [showPerson, setShowPerson] = useState(false);
+  const [otherId, setOtherId] = useState<string | null>(null);
   const [other, setOther] = useState<{
     name: string;
     record: string;
@@ -172,6 +175,7 @@ export function TaskDetailScreen() {
         }
         const posterId = td?.task.poster_id;
         if (!posterId) return;
+        setOtherId(posterId);
         const stats = await getPosterStats(posterId);
         if (!alive) return;
         const n = stats.requestsPosted;
@@ -300,7 +304,10 @@ export function TaskDetailScreen() {
           </Pressable>
         </View>
 
-        <View
+        <Pressable
+          onPress={() => setShowPerson(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`About ${displayName}`}
           style={{
             flexDirection: 'row',
             alignItems: 'center',
@@ -333,7 +340,7 @@ export function TaskDetailScreen() {
             <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>{displayMeta}</RNText>
           </View>
           <RNText style={tx('400', 16, t.colors.muted)}>›</RNText>
-        </View>
+        </Pressable>
 
         <RNText style={tx('700', 10, tagInk(t, detail.tag), { letterSpacing: 1.6, marginTop: 16 })}>
           {detail.tag}
@@ -456,6 +463,18 @@ export function TaskDetailScreen() {
         </Card>
       </FadeIn>
       <ShareSheet visible={share.open} item={share.item} onClose={share.close} flash={flash} />
+
+      <PersonSheet
+        visible={showPerson}
+        onClose={() => setShowPerson(false)}
+        userId={otherId}
+        name={displayName}
+        meta={[other?.record, displayMeta].filter(Boolean).join(' · ') || displayMeta}
+        rating={other?.rating ?? 0}
+        ratingCount={other?.ratingCount ?? 0}
+        // A worker is looking at whoever posted the task, and vice versa.
+        role={worker ? 'poster' : 'worker'}
+      />
     </Screen>
   );
 }

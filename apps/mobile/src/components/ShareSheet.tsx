@@ -1,8 +1,16 @@
 import { useState } from 'react';
-import { Text as RNText, Pressable, Modal } from 'react-native';
+import { View, Text as RNText, Pressable, Modal, ScrollView } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
-import { canOpenShareSheet, shareLink, copyLink, type Shareable } from '../lib/share';
+import {
+  canOpenShareSheet,
+  shareLink,
+  copyLink,
+  shareTo,
+  SHARE_TARGETS,
+  type Shareable,
+  type ShareTargetId,
+} from '../lib/share';
 
 /**
  * The share control.
@@ -45,12 +53,25 @@ export function ShareSheet({
   const t = useTheme();
   if (!item) return null;
 
+  const say = (outcome: string, id?: ShareTargetId) => {
+    if (outcome === 'copied') {
+      // Instagram cannot be handed a link, so the copy is the whole action and
+      // needs to say what to do next rather than a bare "Link copied".
+      flash(id === 'instagram' ? 'Link copied — paste it in your story or DM' : 'Link copied');
+    } else if (outcome === 'failed') flash('Could not share that link');
+    else if (outcome === 'shared') flash('Shared');
+  };
+
   const run = async (kind: 'sheet' | 'copy') => {
     const outcome = kind === 'sheet' ? await shareLink(item) : await copyLink(item.url);
     onClose();
-    if (outcome === 'copied') flash('Link copied');
-    else if (outcome === 'failed') flash('Could not share that link');
-    else if (outcome === 'shared') flash('Shared');
+    say(outcome);
+  };
+
+  const toApp = async (id: ShareTargetId) => {
+    const outcome = await shareTo(id, item);
+    onClose();
+    say(outcome, id);
   };
 
   const rows: { label: string; hint: string; onPress: () => void }[] = [
@@ -86,6 +107,48 @@ export function ShareSheet({
           <RNText style={tx('800', 18, t.colors.ink, { letterSpacing: -0.4 })} numberOfLines={2}>
             {item.title}
           </RNText>
+
+          {/* Named apps first, the way people actually think about sharing:
+              they want to send it to someone on WhatsApp, not to contemplate
+              a generic sheet. */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 10, paddingVertical: 16, paddingRight: 6 }}
+          >
+            {SHARE_TARGETS.map((target) => (
+              <Pressable
+                key={target.id}
+                onPress={() => void toApp(target.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`${target.label} — ${target.hint}`}
+                style={({ pressed }) => ({
+                  width: 72,
+                  alignItems: 'center',
+                  gap: 7,
+                  transform: [{ scale: pressed ? 0.94 : 1 }],
+                })}
+              >
+                <View
+                  style={{
+                    width: 54,
+                    height: 54,
+                    borderRadius: 999,
+                    backgroundColor: t.colors.surface,
+                    borderWidth: 1,
+                    borderColor: t.colors.line,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <RNText style={tx('800', 15, t.colors.ink)}>{target.glyph}</RNText>
+                </View>
+                <RNText style={tx('600', 11, t.colors.muted)} numberOfLines={1}>
+                  {target.label}
+                </RNText>
+              </Pressable>
+            ))}
+          </ScrollView>
 
           {rows.map((r) => (
             <Pressable

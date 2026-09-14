@@ -1,4 +1,4 @@
-import { Platform, Share } from 'react-native';
+import { Platform, Share, Linking } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 
 /**
@@ -25,6 +25,86 @@ export type Shareable = {
 };
 
 export type ShareOutcome = 'shared' | 'copied' | 'dismissed' | 'failed';
+
+export type ShareTargetId = 'whatsapp' | 'telegram' | 'x' | 'facebook' | 'email' | 'sms' | 'instagram';
+
+export type ShareTarget = {
+  id: ShareTargetId;
+  label: string;
+  /** Two letters, because bundling seven brand logos for this is not worth it. */
+  glyph: string;
+  hint: string;
+};
+
+/**
+ * The apps we can hand a link to directly.
+ *
+ * Instagram is in this list and behaves differently on purpose: it has no
+ * public way to receive a link from another app — no share intent, no prefilled
+ * DM, nothing. Every app that appears to "share to Instagram" is really
+ * copying to the clipboard and asking you to paste. So that is what this does,
+ * and it says so, rather than opening instagram:// and leaving someone staring
+ * at an empty compose box wondering where their link went.
+ */
+export const SHARE_TARGETS: ShareTarget[] = [
+  { id: 'whatsapp', label: 'WhatsApp', glyph: 'WA', hint: 'Send in a chat' },
+  { id: 'instagram', label: 'Instagram', glyph: 'IG', hint: 'Copies — paste in a story or DM' },
+  { id: 'telegram', label: 'Telegram', glyph: 'TG', hint: 'Send in a chat' },
+  { id: 'x', label: 'X', glyph: 'X', hint: 'Post it' },
+  { id: 'facebook', label: 'Facebook', glyph: 'FB', hint: 'Post it' },
+  { id: 'sms', label: 'Message', glyph: 'SMS', hint: 'Text it to someone' },
+  { id: 'email', label: 'Email', glyph: '@', hint: 'Send as an email' },
+];
+
+/** The URL that hands this link to that app, or null when there is not one. */
+function targetUrl(id: ShareTargetId, item: Shareable): string | null {
+  const text = encodeURIComponent(`${item.message}`);
+  const url = encodeURIComponent(item.url);
+  const both = encodeURIComponent(`${item.message}
+${item.url}`);
+
+  switch (id) {
+    case 'whatsapp':
+      // wa.me works on the web and opens the app on a phone, so one URL covers
+      // both instead of branching on a scheme that web cannot open.
+      return `https://wa.me/?text=${both}`;
+    case 'telegram':
+      return `https://t.me/share/url?url=${url}&text=${text}`;
+    case 'x':
+      return `https://twitter.com/intent/tweet?text=${text}&url=${url}`;
+    case 'facebook':
+      return `https://www.facebook.com/sharer/sharer.php?u=${url}`;
+    case 'sms':
+      // iOS wants &body, Android wants ?body. This form works on both.
+      return Platform.OS === 'ios' ? `sms:&body=${both}` : `sms:?body=${both}`;
+    case 'email':
+      return `mailto:?subject=${encodeURIComponent(item.title)}&body=${both}`;
+    case 'instagram':
+      // Deliberately none. See the note on SHARE_TARGETS.
+      return null;
+  }
+}
+
+/** Hand the link to one named app. Instagram copies, because it must. */
+export async function shareTo(id: ShareTargetId, item: Shareable): Promise<ShareOutcome> {
+  if (id === 'instagram') return copyLink(item.url);
+  const url = targetUrl(id, item);
+  if (!url) return copyLink(item.url);
+
+  try {
+    if (Platform.OS === 'web') {
+      // A new tab, so the app is not navigated away from mid-task.
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return 'shared';
+    }
+    const ok = await Linking.canOpenURL(url);
+    if (!ok) return copyLink(item.url);
+    await Linking.openURL(url);
+    return 'shared';
+  } catch {
+    return copyLink(item.url);
+  }
+}
 
 function webShareAvailable(): boolean {
   return (
