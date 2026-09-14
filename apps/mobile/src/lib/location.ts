@@ -137,27 +137,44 @@ export async function searchPlaces(query: string): Promise<PickedPlace[]> {
   return [];
 }
 
+/**
+ * Google Places. This is the *new* Places API, not the textsearch endpoint —
+ * Google no longer enables the legacy one on new projects, so a key that works
+ * fine will still answer REQUEST_DENIED there. Different shape too: a POST, the
+ * key in a header rather than the query string, and an explicit field mask
+ * (you are billed for the fields you ask for, so ask for three).
+ */
 async function googlePlaces(q: string): Promise<PickedPlace[]> {
   try {
     const res = await withTimeout(
-      fetch(
-        `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${MAPS_KEY}`,
-      ),
+      fetch('https://places.googleapis.com/v1/places:searchText', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': MAPS_KEY,
+          'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location',
+        },
+        body: JSON.stringify({ textQuery: q, maxResultCount: 6 }),
+      }),
       8000,
     );
     const json = (await res.json()) as {
-      results?: {
-        name?: string;
-        formatted_address?: string;
-        geometry?: { location?: { lat: number; lng: number } };
+      places?: {
+        displayName?: { text?: string };
+        formattedAddress?: string;
+        location?: { latitude?: number; longitude?: number };
       }[];
     };
-    return (json.results ?? []).slice(0, 6).map((r) => ({
-      label: r.formatted_address ?? r.name ?? q,
-      lat: r.geometry?.location?.lat ?? null,
-      lng: r.geometry?.location?.lng ?? null,
-    }));
+    return (json.places ?? [])
+      .map((r) => ({
+        label: r.formattedAddress ?? r.displayName?.text ?? q,
+        lat: r.location?.latitude ?? null,
+        lng: r.location?.longitude ?? null,
+      }))
+      .filter((r) => r.lat !== null && r.lng !== null);
   } catch {
+    // A refused or misconfigured key is not a dead end — the chain falls
+    // through to OpenStreetMap, which needs no key at all.
     return [];
   }
 }
