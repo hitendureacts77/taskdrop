@@ -63,18 +63,25 @@ export function MapPicker({
   lng,
   zoom: initialZoom = 15,
   onMoved,
-  height = 240,
+  height,
+  radius = 12,
+  controlsTop = 8,
 }: {
   lat: number;
   lng: number;
   zoom?: number;
   /** Fires when the pin settles somewhere new, not on every frame of a drag. */
   onMoved: (next: { lat: number; lng: number }) => void;
+  /** Fixed height, or leave it out to fill whatever space the parent gives. */
   height?: number;
+  /** 0 for a full-bleed map that runs to the edges of the screen. */
+  radius?: number;
+  /** Push the zoom buttons down, so anything floating over the top clears them. */
+  controlsTop?: number;
 }) {
   const t = useTheme();
   const [zoom, setZoom] = useState(initialZoom);
-  const [size, setSize] = useState({ w: 0, h: height });
+  const [size, setSize] = useState({ w: 0, h: height ?? 0 });
   const [centre, setCentre] = useState({ lat, lng });
 
   // A drag reads and writes these every frame, so they are refs: the
@@ -179,8 +186,10 @@ export function MapPicker({
   }, [centre, zoom, size]);
 
   const onLayout = (e: LayoutChangeEvent) => {
-    const { width } = e.nativeEvent.layout;
-    setSize({ w: Math.round(width), h: height });
+    // Measured rather than assumed: without a height prop this fills the
+    // parent, and the tile grid has to know how tall that turned out to be.
+    const { width, height: measured } = e.nativeEvent.layout;
+    setSize({ w: Math.round(width), h: Math.round(measured) });
   };
 
   const pinLift = lift.interpolate({ inputRange: [0, 1], outputRange: [0, -10] });
@@ -190,12 +199,11 @@ export function MapPicker({
     <View
       onLayout={onLayout}
       style={{
-        height,
-        borderRadius: 12,
+        ...(height === undefined ? { flex: 1 } : { height }),
+        borderRadius: radius,
         overflow: 'hidden',
         backgroundColor: t.colors.surface2,
-        borderWidth: 1,
-        borderColor: t.colors.line,
+        ...(radius > 0 ? { borderWidth: 1, borderColor: t.colors.line } : null),
       }}
     >
       <View {...pan.panHandlers} style={{ flex: 1 }}>
@@ -253,7 +261,7 @@ export function MapPicker({
         </View>
       </View>
 
-      <View style={{ position: 'absolute', right: 8, top: 8, gap: 6 }}>
+      <View style={{ position: 'absolute', right: 8, top: controlsTop, gap: 6 }}>
         {([1, -1] as const).map((by) => (
           <Pressable
             key={by}

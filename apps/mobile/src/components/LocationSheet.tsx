@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text as RNText,
@@ -7,7 +7,10 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  Animated,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
@@ -24,24 +27,32 @@ import { rememberPlace, recentPlaces, loadRecentPlaces } from '../lib/recentPlac
 export type { PickedPlace };
 
 /**
- * Setting a location, the way the delivery apps do it.
+ * Setting a location.
  *
- * Three ways in, one way out. Whether you use your current position, search for
- * a place, or type an area, you land on the same map with the pin already on
- * your best guess — and you confirm or nudge it from there. That last step is
- * the point: an address string is rarely the exact gate, door or block, and a
- * pin the user has personally agreed to is worth far more than one we inferred.
+ * There is one screen and it is the map. Not a menu that leads to a map, not
+ * three modes to choose between — the map is up from the moment the screen
+ * opens, and everything else floats on top of it.
  *
- * Only "recent" skips the map, because those are places the user already
- * confirmed once.
+ * Search, the current-location button and the recent list are all just ways of
+ * *moving* that map. None of them ends the flow. The flow ends one way: the pin
+ * is where you want it and you tap Confirm. That is the whole design, and it is
+ * why the address panel is always on screen — at every moment you can see the
+ * point you are about to hand over and what it is called.
+ *
+ * The alternative, which this replaces, was a form whose answer got turned into
+ * a pin behind your back. It saved a tap and cost you the one thing that
+ * matters: seeing where the pin actually landed.
  */
 
 /** Bengaluru, only ever used when there is nothing at all to centre on. */
 const FALLBACK = { lat: 12.9716, lng: 77.5946 };
 
-function PinIcon({ color }: { color: string }) {
+/** Long enough that typing does not fire a request per keystroke. */
+const TYPING_PAUSE = 350;
+
+function PinIcon({ color, size = 20 }: { color: string; size?: number }) {
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
         d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"
         stroke={color}
@@ -53,21 +64,43 @@ function PinIcon({ color }: { color: string }) {
   );
 }
 
-function MapIcon({ color }: { color: string }) {
+function SearchIcon({ color }: { color: string }) {
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4Z"
-        stroke={color}
-        strokeWidth={1.7}
-        strokeLinejoin="round"
-      />
-      <Path d="M9 4v13M15 6.5v13" stroke={color} strokeWidth={1.7} />
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+      <Circle cx={11} cy={11} r={6.5} stroke={color} strokeWidth={1.8} />
+      <Path d="m16 16 4.5 4.5" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
     </Svg>
   );
 }
 
-type Mode = 'options' | 'search' | 'map';
+function CrosshairIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={12} r={6} stroke={color} strokeWidth={1.8} />
+      <Circle cx={12} cy={12} r={1.8} fill={color} />
+      <Path
+        d="M12 2v3M12 19v3M2 12h3M19 12h3"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
+function BackIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M15 5l-7 7 7 7"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
 
 export function LocationSheet({
   visible,
@@ -79,381 +112,434 @@ export function LocationSheet({
   onPick: (place: PickedPlace) => void;
 }) {
   const t = useTheme();
-  const [mode, setMode] = useState<Mode>('options');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<PickedPlace[]>([]);
-  const [recents, setRecents] = useState<PickedPlace[]>(recentPlaces());
+  const insets = useSafeAreaInsets();
   const provider = searchProvider();
 
-  // What the map is showing, and what we will hand back if they confirm.
+  // Where the map is looking. `nonce` exists so that picking the same place
+  // twice still recentres: the coordinates would be identical, and MapPicker
+  // only follows a genuine change.
+  const [target, setTarget] = useState<{ lat: number; lng: number; nonce: number }>({
+    ...FALLBACK,
+    nonce: 0,
+  });
+  // Where the pin actually is, which after a drag is not where we sent it.
   const [pin, setPin] = useState<{ lat: number; lng: number }>(FALLBACK);
-  const [pinLabel, setPinLabel] = useState<string>('');
+  const [pinLabel, setPinLabel] = useState('');
   const [naming, setNaming] = useState(false);
 
-  useEffect(() => {
-    if (!visible) return;
-    setMode('options');
-    setError(null);
-    let alive = true;
-    void loadRecentPlaces().then((r) => alive && setRecents(r));
-    return () => {
-      alive = false;
-    };
-  }, [visible]);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<PickedPlace[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [recents, setRecents] = useState<PickedPlace[]>(recentPlaces());
+
+  const [locating, setLocating] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  // The address panel grows when there is a note or a long address, so the
+  // button that floats above it has to be told how tall it actually got
+  // rather than clearing a height someone guessed once.
+  const [panelHeight, setPanelHeight] = useState(180);
+
+  const inputRef = useRef<TextInput>(null);
 
   /**
-   * Name whatever the pin is sitting on. Each drag supersedes the last, so a
+   * Name whatever the pin is sitting on. Each move supersedes the last, so a
    * slow reverse-geocode from an earlier position can never overwrite a newer
    * one — hence the token.
    */
   const namingToken = useRef(0);
-  const nameThePin = async (at: { lat: number; lng: number }) => {
+  const nameThePin = useCallback(async (at: { lat: number; lng: number }) => {
     const mine = ++namingToken.current;
     setNaming(true);
     try {
       const label = await describeCoords(at.lat, at.lng);
       if (mine === namingToken.current) setPinLabel(label);
     } catch {
-      if (mine === namingToken.current) {
-        setPinLabel(`${at.lat.toFixed(4)}, ${at.lng.toFixed(4)}`);
-      }
+      if (mine === namingToken.current) setPinLabel('');
     } finally {
       if (mine === namingToken.current) setNaming(false);
     }
-  };
+  }, []);
 
-  /** Open the map on a point, and start working out what it is called. */
-  const openMapAt = (at: { lat: number; lng: number }, label?: string) => {
-    setPin(at);
-    setPinLabel(label ?? '');
-    setMode('map');
-    setError(null);
-    if (!label) void nameThePin(at);
-  };
+  /** Move the map somewhere, and work out what is there. */
+  const goTo = useCallback(
+    (at: { lat: number; lng: number }, label?: string) => {
+      setTarget((prev) => ({ ...at, nonce: prev.nonce + 1 }));
+      setPin(at);
+      setPinLabel(label ?? '');
+      if (label) namingToken.current += 1; // a known name outranks any in-flight lookup
+      else void nameThePin(at);
+    },
+    [nameThePin],
+  );
 
-  const useCurrent = async () => {
-    setError(null);
-    setBusy(true);
+  const findMe = useCallback(async () => {
+    setNote(null);
+    setLocating(true);
     try {
       const place = await resolveCurrentPlace();
       if (place.lat !== null && place.lng !== null) {
-        // Straight onto the map rather than done: GPS gets you to the building,
-        // not the door, and the user is the one who knows the difference.
-        openMapAt({ lat: place.lat, lng: place.lng }, place.label);
+        goTo({ lat: place.lat, lng: place.lng }, place.label);
       } else {
-        onPick(place);
+        setNote('Found you, but not precisely — drag the pin to the right spot');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not read your location');
+      setNote(e instanceof Error ? e.message : 'Could not read your location');
     } finally {
-      setBusy(false);
+      setLocating(false);
     }
-  };
+  }, [goTo]);
 
-  const search = async () => {
+  // Opening the screen starts by looking for you. That is the common case, and
+  // waiting to be asked for permission to be helpful is a tap wasted. If it
+  // fails we quietly sit on the last place used instead.
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!visible) {
+      opened.current = false;
+      return;
+    }
+    if (opened.current) return;
+    opened.current = true;
+
+    setQuery('');
+    setResults(null);
+    setPanelOpen(false);
+    setNote(null);
+
+    let alive = true;
+    void loadRecentPlaces().then((r) => {
+      if (!alive) return;
+      setRecents(r);
+      const last = r.find((p) => p.lat != null && p.lng != null);
+      if (last) goTo({ lat: last.lat!, lng: last.lng! }, last.label);
+    });
+    void findMe();
+    return () => {
+      alive = false;
+    };
+  }, [visible, goTo, findMe]);
+
+  // Live search. Debounced, and each run is tagged so a slow early response
+  // cannot land after a faster later one and show results for a stale query.
+  const searchToken = useRef(0);
+  useEffect(() => {
     const q = query.trim();
-    if (!q) return;
-    setError(null);
-    setBusy(true);
-    setResults([]);
-    try {
-      const hits = await searchPlaces(q);
-      setResults(hits.length > 0 ? hits : [{ label: q, lat: null, lng: null }]);
-      if (hits.length === 0) setError('No match found — you can still use what you typed');
-    } catch {
-      setResults([{ label: q, lat: null, lng: null }]);
-    } finally {
-      setBusy(false);
+    if (q.length < 2) {
+      setResults(null);
+      setSearching(false);
+      return;
     }
+    const mine = ++searchToken.current;
+    setSearching(true);
+    const timer = setTimeout(() => {
+      void searchPlaces(q)
+        .then((hits) => {
+          if (mine === searchToken.current) setResults(hits);
+        })
+        .catch(() => {
+          if (mine === searchToken.current) setResults([]);
+        })
+        .finally(() => {
+          if (mine === searchToken.current) setSearching(false);
+        });
+    }, TYPING_PAUSE);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const chooseResult = (r: PickedPlace) => {
+    setNote(null);
+    setPanelOpen(false);
+    setQuery('');
+    setResults(null);
+    inputRef.current?.blur();
+    if (r.lat != null && r.lng != null) goTo({ lat: r.lat, lng: r.lng }, r.label);
   };
 
-  /** A search hit drops the pin there; typed text with no match has nowhere to drop. */
-  const pickResult = (r: PickedPlace) => {
-    if (r.lat !== null && r.lng !== null) openMapAt({ lat: r.lat, lng: r.lng }, r.label);
-    else finish(r);
-  };
-
-  const finish = (place: PickedPlace) => {
+  const confirm = () => {
+    const place: PickedPlace = {
+      label: pinLabel || `${pin.lat.toFixed(4)}, ${pin.lng.toFixed(4)}`,
+      lat: pin.lat,
+      lng: pin.lng,
+    };
     rememberPlace(place);
     onPick(place);
   };
 
-  const confirmPin = () => {
-    finish({
-      label: pinLabel || `${pin.lat.toFixed(4)}, ${pin.lng.toFixed(4)}`,
-      lat: pin.lat,
-      lng: pin.lng,
-    });
-  };
+  // The address panel slides up once we have something to say, so the map is
+  // unobstructed for the first beat.
+  const rise = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.spring(rise, {
+      toValue: visible ? 1 : 0,
+      useNativeDriver: true,
+      friction: 9,
+      tension: 70,
+    }).start();
+  }, [visible, rise]);
 
-  const optionCard = (
-    icon: React.ReactNode,
-    title: string,
-    sub: string,
-    onPress: () => void,
-  ) => (
+  const topInset = Math.max(insets.top, 12);
+  const bottomInset = Math.max(insets.bottom, 12);
+
+  const listRow = (place: PickedPlace, key: string, muted = false) => (
     <Pressable
-      onPress={onPress}
+      key={key}
+      onPress={() => chooseResult(place)}
       accessibilityRole="button"
-      accessibilityLabel={title}
+      accessibilityLabel={place.label}
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 14,
-        padding: 16,
-        borderRadius: 14,
-        backgroundColor: t.colors.surface,
-        borderWidth: 1,
-        borderColor: t.colors.line,
-        marginTop: 12,
-        transform: [{ scale: pressed ? 0.985 : 1 }],
+        gap: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        backgroundColor: pressed ? t.colors.surface2 : 'transparent',
       })}
     >
-      <View
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 12,
-          backgroundColor: t.colors.accentSoft,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {icon}
-      </View>
-      <View style={{ flex: 1 }}>
-        <RNText style={tx('700', 15, t.colors.ink)}>{title}</RNText>
-        <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>{sub}</RNText>
-      </View>
-      <RNText style={tx('400', 16, t.colors.muted)}>›</RNText>
-    </Pressable>
-  );
-
-  const backLink = (to: Mode, label: string) => (
-    <Pressable
-      onPress={() => {
-        setMode(to);
-        setError(null);
-      }}
-      accessibilityRole="button"
-      style={{ marginTop: 16 }}
-    >
-      <RNText style={tx('600', 14, t.colors.muted)}>← {label}</RNText>
+      <PinIcon color={muted ? t.colors.muted : t.colors.accentDeep} />
+      <RNText style={tx('400', 15, t.colors.ink, { flex: 1 })} numberOfLines={2}>
+        {place.label}
+      </RNText>
     </Pressable>
   );
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
-      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' }}>
-        <Pressable style={{ flex: 1 }} onPress={onCancel} accessibilityLabel="Close" />
+    <Modal visible={visible} animationType="slide" onRequestClose={onCancel}>
+      <View style={{ flex: 1, backgroundColor: t.colors.bg }}>
+        {/* The map is the screen. Everything below is layered over it. */}
+        <MapPicker
+          lat={target.lat}
+          lng={target.lng}
+          radius={0}
+          controlsTop={topInset + 76}
+          onMoved={(next) => {
+            // Placing the pin by hand answers whatever the note was warning about.
+            setNote(null);
+            setPin(next);
+            void nameThePin(next);
+          }}
+        />
+
+        {/* ---- floating search bar ---- */}
         <View
           style={{
+            position: 'absolute',
+            left: 12,
+            right: 12,
+            top: topInset,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
             backgroundColor: t.colors.bg,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            paddingBottom: 24,
-            maxHeight: '88%',
+            borderRadius: 14,
+            paddingHorizontal: 12,
+            paddingVertical: Platform.OS === 'web' ? 10 : 6,
+            borderWidth: 1,
+            borderColor: t.colors.line,
+            shadowColor: '#000',
+            shadowOpacity: 0.16,
+            shadowRadius: 12,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 4,
           }}
         >
-          <View style={{ paddingTop: 12, alignItems: 'center' }}>
-            <View style={{ width: 38, height: 4, borderRadius: 999, backgroundColor: t.colors.line }} />
-          </View>
+          <Pressable
+            onPress={() => {
+              if (panelOpen) {
+                setPanelOpen(false);
+                setQuery('');
+                inputRef.current?.blur();
+              } else {
+                onCancel();
+              }
+            }}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={panelOpen ? 'Close search' : 'Close'}
+          >
+            <BackIcon color={t.colors.ink} />
+          </Pressable>
+          <TextInput
+            ref={inputRef}
+            value={query}
+            onChangeText={(v) => {
+              setQuery(v);
+              setPanelOpen(true);
+            }}
+            onFocus={() => setPanelOpen(true)}
+            placeholder="Search an area, street or landmark"
+            placeholderTextColor={t.colors.muted}
+            returnKeyType="search"
+            style={tx('400', 15, t.colors.ink, { flex: 1, paddingVertical: 8 })}
+          />
+          {searching ? <ActivityIndicator size="small" color={t.colors.accent} /> : null}
+          {!searching && query.length === 0 ? <SearchIcon color={t.colors.muted} /> : null}
+        </View>
 
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16 }}>
-            <RNText style={tx('800', 20, t.colors.ink, { letterSpacing: -0.4 })}>
-              {mode === 'map' ? 'Move the pin' : 'Location'}
-            </RNText>
-
-            {mode === 'options' && (
-              <>
-                {optionCard(
-                  <PinIcon color={t.colors.accentDeep} />,
-                  'Use my current location',
-                  'Find where you are, then fine-tune it',
-                  () => void useCurrent(),
-                )}
-                {optionCard(
-                  <MapIcon color={t.colors.accentDeep} />,
-                  'Search for a place',
-                  provider === 'google'
-                    ? 'Powered by Google Places'
-                    : 'Areas and landmarks, worldwide',
-                  () => setMode('search'),
-                )}
-                {optionCard(
-                  <MapIcon color={t.colors.accentDeep} />,
-                  'Pin it on the map',
-                  'Drag to the exact spot',
-                  () => openMapAt(recents[0]?.lat != null
-                    ? { lat: recents[0].lat!, lng: recents[0].lng! }
-                    : FALLBACK),
-                )}
-
-                {recents.length > 0 && (
-                  <>
-                    <RNText
-                      style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 20 })}
-                    >
-                      RECENT
-                    </RNText>
-                    {recents.map((r) => (
-                      <Pressable
-                        key={r.label}
-                        onPress={() => finish(r)}
-                        accessibilityRole="button"
-                        accessibilityLabel={r.label}
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 12,
-                          paddingVertical: 13,
-                          borderBottomWidth: 1,
-                          borderBottomColor: t.colors.line,
-                        }}
-                      >
-                        <PinIcon color={t.colors.muted} />
-                        <RNText style={tx('400', 15, t.colors.ink, { flex: 1 })} numberOfLines={1}>
-                          {r.label}
-                        </RNText>
-                      </Pressable>
-                    ))}
-                  </>
-                )}
-              </>
-            )}
-
-            {mode === 'search' && (
-              <>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 10,
-                    marginTop: 14,
-                    backgroundColor: t.colors.surface2,
-                    borderRadius: 12,
-                    paddingVertical: 13,
-                    paddingHorizontal: 14,
-                  }}
-                >
-                  <TextInput
-                    value={query}
-                    onChangeText={setQuery}
-                    onSubmitEditing={() => void search()}
-                    returnKeyType="search"
-                    blurOnSubmit={false}
-                    autoFocus
-                    placeholder="Search an area, e.g. Indiranagar"
-                    placeholderTextColor={t.colors.muted}
-                    style={tx('400', 15, t.colors.ink, { flex: 1, padding: 0 })}
-                  />
-                  <Pressable onPress={() => void search()} hitSlop={8} accessibilityRole="button">
-                    <RNText style={tx('700', 13, t.colors.accentDeep)}>Search</RNText>
-                  </Pressable>
-                </View>
-
-                {results.map((r, i) => (
-                  <Pressable
-                    key={`${r.label}-${i}`}
-                    onPress={() => pickResult(r)}
-                    accessibilityRole="button"
-                    accessibilityLabel={r.label}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 12,
-                      paddingVertical: 14,
-                      borderBottomWidth: 1,
-                      borderBottomColor: t.colors.line,
-                    }}
+        {/* ---- results / recents, over the map ---- */}
+        {panelOpen && (
+          <View
+            style={{
+              position: 'absolute',
+              left: 12,
+              right: 12,
+              top: topInset + 62,
+              maxHeight: '55%',
+              backgroundColor: t.colors.bg,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: t.colors.line,
+              overflow: 'hidden',
+              shadowColor: '#000',
+              shadowOpacity: 0.16,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 4,
+            }}
+          >
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {query.trim().length < 2 && recents.length > 0 && (
+                <>
+                  <RNText
+                    style={tx('400', 11, t.colors.muted, {
+                      letterSpacing: 1.5,
+                      paddingHorizontal: 16,
+                      paddingTop: 14,
+                      paddingBottom: 4,
+                    })}
                   >
-                    <PinIcon color={t.colors.muted} />
-                    <RNText style={tx('400', 15, t.colors.ink, { flex: 1 })}>{r.label}</RNText>
-                  </Pressable>
-                ))}
-
-                {provider === 'osm' && (
-                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 14, lineHeight: 18 })}>
-                    Results from OpenStreetMap. Set EXPO_PUBLIC_GOOGLE_MAPS_API_KEY to use Google
-                    Places instead.
+                    RECENT
                   </RNText>
-                )}
+                  {recents
+                    .filter((r) => r.lat != null && r.lng != null)
+                    .map((r, i) => listRow(r, `recent-${i}`, true))}
+                </>
+              )}
 
-                {backLink('options', 'Back to options')}
-              </>
-            )}
-
-            {mode === 'map' && (
-              <>
-                <RNText style={tx('400', 13, t.colors.muted, { marginTop: 8, lineHeight: 19 })}>
-                  Drag the map so the pin sits on the exact spot.
+              {query.trim().length < 2 && recents.length === 0 && (
+                <RNText style={tx('400', 13, t.colors.muted, { padding: 16, lineHeight: 19 })}>
+                  Type an area and pick it from the list — the map will move there, and you can
+                  still drag the pin to the exact spot.
                 </RNText>
+              )}
 
-                <View style={{ marginTop: 12 }}>
-                  <MapPicker
-                    lat={pin.lat}
-                    lng={pin.lng}
-                    onMoved={(next) => {
-                      setPin(next);
-                      void nameThePin(next);
-                    }}
-                  />
-                </View>
+              {results?.map((r, i) => listRow(r, `hit-${i}`))}
 
-                <View
-                  style={{
-                    marginTop: 12,
-                    padding: 13,
-                    borderRadius: 12,
-                    backgroundColor: t.colors.surface,
-                    borderWidth: 1,
-                    borderColor: t.colors.line,
-                  }}
-                >
-                  <RNText style={tx('400', 10, t.colors.muted, { letterSpacing: 1.4 })}>
-                    PIN IS ON
-                  </RNText>
-                  <RNText style={tx('700', 14, t.colors.ink, { marginTop: 4 })} numberOfLines={2}>
-                    {naming ? 'Working out where that is…' : pinLabel || 'Somewhere off the map'}
-                  </RNText>
-                  <RNText style={tx('400', 11, t.colors.muted, { marginTop: 3 })}>
-                    {pin.lat.toFixed(5)}, {pin.lng.toFixed(5)}
-                  </RNText>
-                </View>
+              {results?.length === 0 && !searching && (
+                <RNText style={tx('400', 13, t.colors.muted, { padding: 16, lineHeight: 19 })}>
+                  Nothing matched “{query.trim()}”. Close this and drag the map instead — the pin is
+                  what gets saved, not the text.
+                </RNText>
+              )}
 
-                <Pressable
-                  onPress={confirmPin}
-                  accessibilityRole="button"
-                  accessibilityLabel="Confirm this location"
-                  style={({ pressed }) => ({
-                    marginTop: 14,
-                    backgroundColor: t.colors.accent,
-                    borderRadius: 999,
-                    paddingVertical: 15,
-                    alignItems: 'center',
-                    transform: [{ scale: pressed ? 0.97 : 1 }],
+              {provider === 'osm' && (results?.length ?? 0) > 0 && (
+                <RNText
+                  style={tx('400', 11, t.colors.muted, {
+                    paddingHorizontal: 16,
+                    paddingVertical: 10,
                   })}
                 >
-                  <RNText style={tx('700', 15, t.colors.onAccent)}>Confirm this location</RNText>
-                </Pressable>
+                  Results from OpenStreetMap.
+                </RNText>
+              )}
+            </ScrollView>
+          </View>
+        )}
 
-                {backLink('options', 'Back to options')}
-              </>
+        {/* ---- current location, sitting just above the address panel ---- */}
+        {!panelOpen && (
+          <Pressable
+            onPress={() => void findMe()}
+            accessibilityRole="button"
+            accessibilityLabel="Move the map to my current location"
+            style={({ pressed }) => ({
+              position: 'absolute',
+              right: 14,
+              bottom: panelHeight + 14,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              paddingHorizontal: 14,
+              paddingVertical: 11,
+              borderRadius: 999,
+              backgroundColor: t.colors.bg,
+              borderWidth: 1,
+              borderColor: t.colors.line,
+              shadowColor: '#000',
+              shadowOpacity: 0.18,
+              shadowRadius: 10,
+              shadowOffset: { width: 0, height: 3 },
+              elevation: 4,
+              transform: [{ scale: pressed ? 0.96 : 1 }],
+            })}
+          >
+            {locating ? (
+              <ActivityIndicator size="small" color={t.colors.accent} />
+            ) : (
+              <CrosshairIcon color={t.colors.accentDeep} />
             )}
+            <RNText style={tx('700', 13, t.colors.accentDeep)}>
+              {locating ? 'Locating…' : 'Use my location'}
+            </RNText>
+          </Pressable>
+        )}
 
-            {busy && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16 }}>
-                <ActivityIndicator color={t.colors.accent} />
-                <RNText style={tx('400', 13, t.colors.muted)}>Working…</RNText>
-              </View>
-            )}
-            {error && (
-              <RNText style={tx('600', 13, t.colors.signal, { marginTop: 14 })}>{error}</RNText>
-            )}
-          </ScrollView>
-        </View>
+        {/* ---- the address panel: always there, always the truth ---- */}
+        <Animated.View
+          onLayout={(e) => setPanelHeight(Math.round(e.nativeEvent.layout.height))}
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            paddingHorizontal: 20,
+            paddingTop: 18,
+            paddingBottom: bottomInset + 6,
+            backgroundColor: t.colors.bg,
+            borderTopLeftRadius: 22,
+            borderTopRightRadius: 22,
+            shadowColor: '#000',
+            shadowOpacity: 0.14,
+            shadowRadius: 16,
+            shadowOffset: { width: 0, height: -4 },
+            elevation: 12,
+            transform: [
+              { translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [220, 0] }) },
+            ],
+          }}
+        >
+          <RNText style={tx('400', 10, t.colors.muted, { letterSpacing: 1.4 })}>
+            PIN IS ON
+          </RNText>
+          <RNText style={tx('800', 17, t.colors.ink, { marginTop: 5, letterSpacing: -0.3 })} numberOfLines={2}>
+            {naming ? 'Working out where that is…' : pinLabel || 'Drag the map to set your spot'}
+          </RNText>
+          <RNText style={tx('400', 11, t.colors.muted, { marginTop: 4 })}>
+            {pin.lat.toFixed(5)}, {pin.lng.toFixed(5)}
+          </RNText>
+
+          {note && (
+            <RNText style={tx('600', 12, t.colors.signal, { marginTop: 10, lineHeight: 17 })}>
+              {note}
+            </RNText>
+          )}
+
+          <Pressable
+            onPress={confirm}
+            accessibilityRole="button"
+            accessibilityLabel="Confirm this location"
+            style={({ pressed }) => ({
+              marginTop: 14,
+              backgroundColor: t.colors.accent,
+              borderRadius: 999,
+              paddingVertical: 15,
+              alignItems: 'center',
+              transform: [{ scale: pressed ? 0.97 : 1 }],
+            })}
+          >
+            <RNText style={tx('700', 15, t.colors.onAccent)}>Confirm location</RNText>
+          </Pressable>
+        </Animated.View>
       </View>
     </Modal>
   );
