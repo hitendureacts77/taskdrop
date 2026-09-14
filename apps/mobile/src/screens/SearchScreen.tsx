@@ -193,7 +193,11 @@ export function SearchScreen() {
     if (locating) return;
     setLocating(true);
     try {
-      const found = await resolveCurrentPlace();
+      const found = await resolveCurrentPlace({
+        // Move the search anchor the moment a cached fix exists, so tapping
+        // this does something visible immediately rather than after a wait.
+        onPartial: (at) => setPlaceAt(at),
+      });
       setPlace(found.label);
       if (found.lat !== null && found.lng !== null) {
         setPlaceAt({ lat: found.lat, lng: found.lng });

@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
 import * as Location from 'expo-location';
 
 /**
@@ -49,6 +49,10 @@ export function searchProvider(): 'google' | 'osm' {
 
 export type LocationFailure =
   | 'denied'
+  /** Refused, and the OS will not ask again — only Settings can undo it. */
+  | 'blocked'
+  /** Location is switched off for the whole device, not just for us. */
+  | 'services-off'
   | 'timeout'
   | 'unavailable'
   | 'unnamed';
@@ -63,35 +67,150 @@ export class LocationError extends Error {
   }
 }
 
-/** Read the device's position and turn it into something a person recognises. */
-export async function resolveCurrentPlace(): Promise<PickedPlace> {
-  let granted = false;
+/**
+ * Whether the browser has already refused and will not ask again.
+ *
+ * expo-location on web reports canAskAgain: true even once the origin is
+ * blocked, so a refusal there looks re-askable when it is not, and the app
+ * offers a button that can never work. The Permissions API knows the truth.
+ */
+async function webPermanentlyDenied(): Promise<boolean> {
+  if (Platform.OS !== 'web') return false;
   try {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    granted = status === 'granted';
+    const status = await navigator.permissions.query({
+      name: 'geolocation' as PermissionName,
+    });
+    return status.state === 'denied';
+  } catch {
+    // Not every browser exposes it; fall back to treating it as re-askable.
+    return false;
+  }
+}
+
+/** What the OS currently thinks, without asking the user anything. */
+export async function locationPermission(): Promise<{
+  granted: boolean;
+  canAskAgain: boolean;
+}> {
+  try {
+    const p = await Location.getForegroundPermissionsAsync();
+    return { granted: p.granted, canAskAgain: p.canAskAgain };
+  } catch {
+    return { granted: false, canAskAgain: false };
+  }
+}
+
+/**
+ * Read the device position.
+ *
+ * Two things make this feel instant rather than laggy, and both are what the
+ * delivery apps do:
+ *
+ *   1. The last known fix is handed back straight away through onPartial. The
+ *      phone almost always has one, it arrives in milliseconds, and it is close
+ *      enough to put the map in the right place while the real fix lands.
+ *   2. The precise fix is asked for at High accuracy, not Balanced. Balanced is
+ *      about 100m, which in a city is the wrong building — and this pin is the
+ *      thing a worker has to navigate to.
+ *
+ * The failure kinds are separated because the fix for each one is different,
+ * and "Could not read your location" tells nobody what to do next.
+ */
+export async function resolveCurrentPlace(opts?: {
+  /** Called with a rough position the moment one is available, if one is. */
+  onPartial?: (at: { lat: number; lng: number }) => void;
+}): Promise<PickedPlace> {
+  let granted = false;
+  let canAskAgain = true;
+  try {
+    // Ask what we already have before prompting: re-prompting someone who has
+    // already said yes is a dialog for nothing.
+    const existing = await Location.getForegroundPermissionsAsync();
+    if (existing.granted) {
+      granted = true;
+    } else if (await webPermanentlyDenied()) {
+      canAskAgain = false;
+    } else if (existing.canAskAgain) {
+      const asked = await Location.requestForegroundPermissionsAsync();
+      granted = asked.granted;
+      canAskAgain = asked.canAskAgain;
+    } else {
+      canAskAgain = false;
+    }
   } catch {
     throw new LocationError('unavailable', 'This device cannot share a location');
   }
+
   if (!granted) {
-    throw new LocationError('denied', 'Location permission was declined — you can still type an area');
+    throw canAskAgain
+      ? new LocationError(
+          'denied',
+          'Location access was declined. You can search for the area instead.',
+        )
+      : new LocationError(
+          'blocked',
+          Platform.OS === 'web'
+            ? 'This site is blocked from seeing your location.'
+            : 'Location is turned off for TaskDrop. Turn it back on in settings, or search for the area instead.',
+        );
+  }
+
+  // Location switched off device-wide otherwise reads as a permission problem,
+  // and sends people to the wrong settings screen looking for it.
+  try {
+    if (!(await Location.hasServicesEnabledAsync())) {
+      throw new LocationError(
+        'services-off',
+        'Location is switched off on this device. Turn it on and try again.',
+      );
+    }
+  } catch (e) {
+    if (e instanceof LocationError) throw e;
+    // Not reliable on every platform; not a reason to stop.
+  }
+
+  // The instant half. A fix up to a couple of minutes old is fine for centring
+  // a map, and the precise one is right behind it.
+  if (opts?.onPartial) {
+    try {
+      const last = await Location.getLastKnownPositionAsync({ maxAge: 120_000 });
+      if (last) opts.onPartial({ lat: last.coords.latitude, lng: last.coords.longitude });
+    } catch {
+      /* no cached fix is normal on a fresh install */
+    }
   }
 
   let coords: { latitude: number; longitude: number };
   try {
     // Without a ceiling this can hang indefinitely on a cold GPS fix.
     const pos = await withTimeout(
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
       15_000,
     );
     coords = pos.coords;
   } catch (e) {
     if (e instanceof LocationError) throw e;
-    throw new LocationError('timeout', 'Could not get a fix — try again, or type your area');
+    throw new LocationError('timeout', 'Could not get a fix — try again, or search for the area');
   }
 
   const { latitude, longitude } = coords;
   const label = await describeCoords(latitude, longitude);
   return { label, lat: latitude, lng: longitude };
+}
+
+/**
+ * Open the OS settings page for this app, so a blocked permission has a way
+ * back. There is no equivalent on the web — a page cannot open its own
+ * permission settings — which is why the copy differs there.
+ */
+export async function openLocationSettings(): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+  try {
+    await Linking.openSettings();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Best available name for a point; falls back to the coordinates themselves. */

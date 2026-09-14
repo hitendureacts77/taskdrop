@@ -18,6 +18,8 @@ import { MapPicker } from './MapPicker';
 import { AddressForm } from './AddressForm';
 import {
   resolveCurrentPlace,
+  openLocationSettings,
+  LocationError,
   searchPlaces,
   searchProvider,
   describeCoords,
@@ -159,6 +161,10 @@ export function LocationSheet({
 
   const [locating, setLocating] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // Set when the OS will not ask again. That is the one case where a message
+  // is useless on its own -- tapping the button again can never work, so the
+  // way out has to be offered instead.
+  const [blocked, setBlocked] = useState(false);
   // The address panel grows when there is a note or a long address, so the
   // button that floats above it has to be told how tall it actually got
   // rather than clearing a height someone guessed once.
@@ -199,15 +205,24 @@ export function LocationSheet({
 
   const findMe = useCallback(async () => {
     setNote(null);
+    setBlocked(false);
     setLocating(true);
     try {
-      const place = await resolveCurrentPlace();
+      const place = await resolveCurrentPlace({
+        // The cached fix lands in milliseconds and moves the map immediately,
+        // so the screen responds to the tap instead of sitting still for the
+        // seconds a real GPS fix takes.
+        onPartial: (at) => goTo(at),
+      });
       if (place.lat !== null && place.lng !== null) {
         goTo({ lat: place.lat, lng: place.lng }, place.label);
       } else {
         setNote('Found you, but not precisely — drag the pin to the right spot');
       }
     } catch (e) {
+      if (e instanceof LocationError && (e.kind === 'blocked' || e.kind === 'services-off')) {
+        setBlocked(true);
+      }
       setNote(e instanceof Error ? e.message : 'Could not read your location');
     } finally {
       setLocating(false);
@@ -600,9 +615,39 @@ export function LocationSheet({
           </RNText>
 
           {note && (
-            <RNText style={tx('600', 12, t.colors.signal, { marginTop: 10, lineHeight: 17 })}>
-              {note}
-            </RNText>
+            <View style={{ marginTop: 10 }}>
+              <RNText style={tx('600', 12, t.colors.signal, { lineHeight: 17 })}>{note}</RNText>
+              {blocked && (
+                <Pressable
+                  onPress={() => {
+                    void openLocationSettings().then((opened) => {
+                      if (!opened) {
+                        // A browser will not let a page open its own permission
+                        // settings, so say where the control actually is.
+                        setNote(
+                          'Tap the padlock in the address bar, allow Location, then reload.',
+                        );
+                      }
+                    });
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open location settings"
+                  style={({ pressed }) => ({
+                    alignSelf: 'flex-start',
+                    marginTop: 9,
+                    paddingHorizontal: 14,
+                    paddingVertical: 9,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: t.colors.line,
+                    backgroundColor: t.colors.surface,
+                    transform: [{ scale: pressed ? 0.96 : 1 }],
+                  })}
+                >
+                  <RNText style={tx('700', 12, t.colors.accentDeep)}>Open settings</RNText>
+                </Pressable>
+              )}
+            </View>
           )}
 
           <Pressable
