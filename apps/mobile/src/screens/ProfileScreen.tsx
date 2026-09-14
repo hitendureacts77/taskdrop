@@ -72,7 +72,7 @@ export function ProfileScreen() {
     return () => anim.stop();
   }, [worker, slide]);
 
-  const { userId } = useAuth();
+  const { userId, signOut } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [admin, setAdmin] = useState(false);
@@ -241,7 +241,15 @@ export function ProfileScreen() {
           {rows.map((r) => (
             <Pressable
               key={r.label}
-              onPress={() => (r.go === 'splash' ? reset('splash') : go(r.go))}
+              onPress={() => {
+                if (r.go !== 'splash') return go(r.go);
+                // Actually end the session. This used to just navigate to the
+                // splash screen, leaving the Supabase session on the device --
+                // so "Sign out" signed nobody out.
+                void signOut()
+                  .catch(() => {})
+                  .finally(() => reset('splash'));
+              }}
               style={({ pressed }) => ({
                 flexDirection: 'row',
                 alignItems: 'center',

@@ -19,6 +19,8 @@ import { resolveCurrentPlace } from '../lib/location';
 import { fontFamilyFor, type Theme } from '../theme';
 import type { Enums } from '@taskdrop/db-types';
 import { FadeIn, Pressy, tx } from '../components/primitives';
+import { Slider } from '../components/Slider';
+import { LocationSheet } from '../components/LocationSheet';
 
 /**
  * Search screen — pixel parity with docs/design/_design_markup.html lines
@@ -151,13 +153,22 @@ export function SearchScreen() {
   const [count, setCount] = useState<number | null>(null);
   // Nothing is assumed about where the user is until they ask for it.
   const [place, setPlace] = useState<string | null>(null);
+  // The point the radius is measured from. A label with no coordinates cannot
+  // filter anything, so both are kept together or neither is.
+  const [placeAt, setPlaceAt] = useState<{ lat: number; lng: number } | null>(null);
+  const [radiusKm, setRadiusKm] = useState(12);
   const [locating, setLocating] = useState(false);
+  const [pickingPlace, setPickingPlace] = useState(false);
+
+  // Radius only means something once there is a point to measure from.
+  const near = radiusOn && placeAt ? { ...placeAt, radiusKm } : null;
 
   const filters = {
     q: query,
     pillar: pillar === null ? null : FILTER_PILLARS[pillar]!,
     minMinor: budgetOn ? BUDGET_MIN_MINOR : null,
     maxMinor: budgetOn ? BUDGET_MAX_MINOR : null,
+    near,
   };
 
   // Live result count as the filters change. Debounced so typing doesn't fire a
@@ -175,7 +186,8 @@ export function SearchScreen() {
       clearTimeout(id);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, pillar, budgetOn]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, pillar, budgetOn, radiusOn, radiusKm, placeAt?.lat, placeAt?.lng]);
 
   const useMyLocation = async () => {
     if (locating) return;
@@ -183,6 +195,15 @@ export function SearchScreen() {
     try {
       const found = await resolveCurrentPlace();
       setPlace(found.label);
+      if (found.lat !== null && found.lng !== null) {
+        setPlaceAt({ lat: found.lat, lng: found.lng });
+      } else {
+        // A label without a pin cannot anchor a radius; say so rather than
+        // leaving the slider looking like it is doing something.
+        setPlaceAt(null);
+        flash('Found the area but not a precise point — pick it on the map to use a radius');
+        return;
+      }
       flash(found.label);
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not read your location');
@@ -197,11 +218,32 @@ export function SearchScreen() {
       pillar: filters.pillar ?? undefined,
       minMinor: filters.minMinor ?? undefined,
       maxMinor: filters.maxMinor ?? undefined,
+      nearLat: near?.lat,
+      nearLng: near?.lng,
+      radiusKm: near?.radiusKm,
     });
   };
 
   const ctaLabel =
     count === null ? 'Searching…' : count === 1 ? 'Show 1 task' : `Show ${count} tasks`;
+
+  const locationSheet = (
+    <LocationSheet
+      visible={pickingPlace}
+      // A search radius needs a centre, not a doorstep.
+      askForDetails={false}
+      onCancel={() => setPickingPlace(false)}
+      onPick={(picked) => {
+        setPickingPlace(false);
+        setPlace(picked.label);
+        setPlaceAt(
+          picked.lat !== null && picked.lng !== null
+            ? { lat: picked.lat, lng: picked.lng }
+            : null,
+        );
+      }}
+    />
+  );
 
   return (
     <Screen scroll padded={false}>
@@ -245,13 +287,21 @@ export function SearchScreen() {
           }}
         >
           <LocationPinIcon color={t.colors.muted} />
-          <RNText
-            style={tx('400', 14, place ? t.colors.ink : t.colors.muted, { flex: 1 })}
-            numberOfLines={1}
+          {/* The whole row opens the map, so a radius can be centred on any
+              place — not only wherever the phone happens to be. */}
+          <Pressy
+            onPress={() => setPickingPlace(true)}
+            label={place ? `Change the search location, currently ${place}` : 'Choose a search location'}
+            style={{ flex: 1 }}
           >
-            {place ?? 'Anywhere'}
-          </RNText>
-          <Pressy onPress={useMyLocation}>
+            <RNText
+              style={tx('400', 14, place ? t.colors.ink : t.colors.muted)}
+              numberOfLines={1}
+            >
+              {place ?? 'Anywhere'}
+            </RNText>
+          </Pressy>
+          <Pressy onPress={useMyLocation} label="Use my current location">
             <RNText style={tx('600', 12, t.colors.accentDeep)}>
               {locating ? 'Locating…' : 'Use my location'}
             </RNText>
@@ -264,41 +314,23 @@ export function SearchScreen() {
         </View>
         {radiusOn && (
           <FadeIn duration={260}>
-            <View style={{ marginTop: 16, height: 3, backgroundColor: t.colors.line, borderRadius: 2, position: 'relative' }}>
-              <View
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: '58%',
-                  backgroundColor: t.colors.accent,
-                  borderRadius: 2,
-                }}
-              />
-              <View
-                style={{
-                  position: 'absolute',
-                  left: '58%',
-                  top: -7,
-                  width: 17,
-                  height: 17,
-                  marginLeft: -8.5,
-                  borderRadius: 999,
-                  backgroundColor: t.colors.accent,
-                  shadowColor: t.colors.accent,
-                  shadowOpacity: 0.4,
-                  shadowRadius: 8,
-                  shadowOffset: { width: 0, height: 3 },
-                  elevation: 3,
-                }}
-              />
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
+            <Slider
+              value={radiusKm}
+              min={1}
+              max={25}
+              onChange={setRadiusKm}
+              accessibilityLabel="Search radius in kilometres"
+            />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <RNText style={tx('400', 12, t.colors.muted)}>1 km</RNText>
-              <RNText style={tx('700', 12, t.colors.ink)}>12 km</RNText>
+              <RNText style={tx('700', 12, t.colors.ink)}>{radiusKm} km</RNText>
               <RNText style={tx('400', 12, t.colors.muted)}>25 km</RNText>
             </View>
+            {!placeAt && (
+              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 9, lineHeight: 18 })}>
+                Set a location above and the radius will start filtering from there.
+              </RNText>
+            )}
           </FadeIn>
         )}
 
@@ -332,10 +364,13 @@ export function SearchScreen() {
           </FadeIn>
         )}
 
-        <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 24 })}>SAVED SEARCHES</RNText>
+        {/* There was a "SAVED SEARCHES" heading here over the words "saving a
+            search is coming" — a section title for a feature that does not
+            exist. The instruction underneath is the only part that was ever
+            true, so that is all that is left. */}
         {/* Saved searches need somewhere to save to; until then, say so. */}
         <RNText style={tx('400', 13, t.colors.muted, { marginTop: 11, lineHeight: 20 })}>
-          Saving a search is coming. Set the filters you want and tap below.
+          Set the filters you want, then tap below.
         </RNText>
 
         <Pressy
@@ -356,6 +391,7 @@ export function SearchScreen() {
           <RNText style={tx('700', 16, t.colors.onAccent)}>{ctaLabel}</RNText>
         </Pressy>
       </FadeIn>
+      {locationSheet}
     </Screen>
   );
 }

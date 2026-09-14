@@ -115,10 +115,20 @@ export function LocationSheet({
   visible,
   onCancel,
   onPick,
+  askForDetails = true,
 }: {
   visible: boolean;
   onCancel: () => void;
   onPick: (place: PickedPlace) => void;
+  /**
+   * Whether the pin needs a door attached to it.
+   *
+   * True when someone is saying where a job is: a worker has to find the flat.
+   * False when the pin is only a centre point — searching within 6 km of an
+   * area does not need a house number, and demanding one is a wall in front of
+   * a filter.
+   */
+  askForDetails?: boolean;
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -281,8 +291,16 @@ export function LocationSheet({
 
   const area = pinLabel || `${pin.lat.toFixed(4)}, ${pin.lng.toFixed(4)}`;
 
-  /** The pin is agreed. Now find out which door it is. */
-  const confirmPin = () => setStep('form');
+  /** The pin is agreed. Now find out which door it is, if the caller needs one. */
+  const confirmPin = () => {
+    if (!askForDetails) {
+      const place: PickedPlace = { label: area, lat: pin.lat, lng: pin.lng, area };
+      rememberPlace(place);
+      onPick(place);
+      return;
+    }
+    setStep('form');
+  };
 
   const saveAddress = (entered: AddressDetails) => {
     const place: PickedPlace = {

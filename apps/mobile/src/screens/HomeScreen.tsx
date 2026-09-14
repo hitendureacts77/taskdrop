@@ -360,7 +360,13 @@ export function HomeScreen() {
   const searchPillar = typeof params.pillar === 'string' ? (params.pillar as Enums<'pillar'>) : null;
   const searchMin = typeof params.minMinor === 'number' ? params.minMinor : null;
   const searchMax = typeof params.maxMinor === 'number' ? params.maxMinor : null;
-  const searching = searchQ !== null || searchPillar !== null || searchMin !== null;
+  // The radius the search screen chose. Carried through here, or the slider
+  // would move, report a count, and then be ignored by the list it produced.
+  const nearLat = typeof params.nearLat === 'number' ? params.nearLat : null;
+  const nearLng = typeof params.nearLng === 'number' ? params.nearLng : null;
+  const radiusKm = typeof params.radiusKm === 'number' ? params.radiusKm : null;
+  const searching =
+    searchQ !== null || searchPillar !== null || searchMin !== null || nearLat !== null;
 
   const load = useCallback(async () => {
     const rows = await searchTasks({
@@ -368,10 +374,14 @@ export function HomeScreen() {
       pillar: searchPillar,
       minMinor: searchMin,
       maxMinor: searchMax,
+      near:
+        nearLat !== null && nearLng !== null && radiusKm !== null
+          ? { lat: nearLat, lng: nearLng, radiusKm }
+          : null,
       limit: 20,
     });
     return (await attachPosters(rows)) as unknown as LiveTask[];
-  }, [searchQ, searchPillar, searchMin, searchMax]);
+  }, [searchQ, searchPillar, searchMin, searchMax, nearLat, nearLng, radiusKm]);
 
   useEffect(() => {
     let active = true;
@@ -417,7 +427,7 @@ export function HomeScreen() {
   // Urgent means flagged urgent, by whoever posted it. This used to render one
   // hard-coded card -- a person, a rating and a price that existed nowhere --
   // on the front page of the marketplace, for every user, always.
-  const urgentRows = allRows.filter((row) => row.meta === 'Urgent').slice(0, 3);
+  const urgentRows = feed.filter((row) => row.meta === 'Urgent').slice(0, 3);
 
   /**
    * One signing call for the whole page.
@@ -612,12 +622,16 @@ export function HomeScreen() {
                       lineHeight: 19,
                     })}
                   >
-                    {searching
-                      ? 'Try a broader search, or clear the filters.'
-                      : 'Pull down to refresh, or post the first request.'}
+                    {filter !== null
+                      ? `No ${FILTER_LABELS[filter]?.toLowerCase()} tasks open right now. The pillar chips are optional — clear it to see everything.`
+                      : searching
+                        ? 'Try a broader search, or clear the filters.'
+                        : 'Pull down to refresh, or post the first request.'}
                   </RNText>
                   <Pressy
-                    onPress={() => (searching ? go('home') : go('create'))}
+                    onPress={() =>
+                      filter !== null ? setFilter(null) : searching ? go('home') : go('create')
+                    }
                     style={{
                       marginTop: 15,
                       backgroundColor: t.colors.accent,
@@ -627,7 +641,11 @@ export function HomeScreen() {
                     }}
                   >
                     <RNText style={tx('700', 13, t.colors.onAccent)}>
-                      {searching ? 'Clear filters' : 'Post a request'}
+                      {filter !== null
+                        ? `Show all`
+                        : searching
+                          ? 'Clear filters'
+                          : 'Post a request'}
                     </RNText>
                   </Pressy>
                 </View>

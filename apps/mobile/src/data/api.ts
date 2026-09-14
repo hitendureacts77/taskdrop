@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { distanceKm } from '@taskdrop/rules';
 import type { Tables, Enums } from '@taskdrop/db-types';
 
 /**
@@ -98,6 +99,8 @@ export type TaskSearch = {
   minMinor?: number | null;
   maxMinor?: number | null;
   limit?: number;
+  /** Only tasks within radiusKm of this point. Tasks with no pin are excluded. */
+  near?: { lat: number; lng: number; radiusKm: number } | null;
 };
 
 /**
@@ -117,7 +120,23 @@ export async function searchTasks(input: TaskSearch = {}): Promise<Task[]> {
   if (typeof input.minMinor === 'number') query = query.gte('benchmark_minor', input.minMinor);
   if (typeof input.maxMinor === 'number') query = query.lte('benchmark_minor', input.maxMinor);
 
-  return unwrap(await query.order('created_at', { ascending: false }).limit(input.limit ?? 30));
+  const rows = unwrap(
+    await query.order('created_at', { ascending: false }).limit(input.limit ?? 30),
+  );
+
+  // Distance is filtered here rather than in SQL: Postgres has no geo index on
+  // this table, and the page is already capped, so a haversine over at most a
+  // few dozen rows is cheaper than adding PostGIS for it. A task with no pin
+  // cannot be shown to be within any radius, so it is not.
+  const near = input.near;
+  if (!near) return rows;
+  return rows.filter((row) => {
+    const km = distanceKm(
+      { lat: near.lat, lng: near.lng },
+      { lat: row.loc_lat, lng: row.loc_lng },
+    );
+    return km !== null && km <= near.radiusKm;
+  });
 }
 
 export type TaskWithPoster = Task & { poster: Profile | null };
