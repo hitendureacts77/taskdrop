@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text as RNText,
@@ -18,6 +18,7 @@ import { type Theme } from '../theme';
 import type { Enums } from '@taskdrop/db-types';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
+import { signedMediaUrls } from '../lib/media';
 
 /**
  * Home feed — pixel parity with docs/design/_design_markup.html lines 35-139
@@ -209,13 +210,14 @@ function SponsoredMark({ t }: { t: Theme }) {
   );
 }
 
-function FeedCard({
+const FeedCard = memo(function FeedCard({
   row,
   index,
   worker,
   onOpen,
   onCounter,
   onAccept,
+  mediaUrl,
   t,
 }: {
   row: FeedRow;
@@ -224,6 +226,8 @@ function FeedCard({
   onOpen: () => void;
   onCounter: () => void;
   onAccept: () => void;
+  /** Signed once for the whole page, not once per card. */
+  mediaUrl?: string | null;
   t: Theme;
 }) {
   const priceLabel = worker ? 'THEIR QUOTE' : 'THEIR RATE';
@@ -276,6 +280,7 @@ function FeedCard({
               path={row.mediaPath}
               kind={row.mediaKind}
               seconds={row.mediaSeconds}
+              url={mediaUrl}
               size={62}
             />
           )}
@@ -332,7 +337,7 @@ function FeedCard({
       </Pressy>
     </FadeIn>
   );
-}
+});
 
 export function HomeScreen() {
   const t = useTheme();
@@ -413,6 +418,31 @@ export function HomeScreen() {
   // hard-coded card -- a person, a rating and a price that existed nowhere --
   // on the front page of the marketplace, for every user, always.
   const urgentRows = allRows.filter((row) => row.meta === 'Urgent').slice(0, 3);
+
+  /**
+   * One signing call for the whole page.
+   *
+   * The bucket is private, so every thumbnail needs a signed URL, and asking
+   * for them one card at a time is a request per row — the difference between
+   * a feed that loads and a feed that trickles in. Keyed by path so a card
+   * looks its own up.
+   */
+  const mediaPaths = useMemo(
+    () => allRows.map((row) => row.mediaPath).filter((x): x is string => Boolean(x)),
+    [allRows],
+  );
+  const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
+  const signedKey = mediaPaths.join('|');
+  useEffect(() => {
+    if (!signedKey) return;
+    let alive = true;
+    void signedMediaUrls(signedKey.split('|')).then((map) => {
+      if (alive) setMediaUrls(map);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [signedKey]);
 
   const openRow = (row: FeedRow) => {
     setOpenTask({
@@ -611,6 +641,7 @@ export function HomeScreen() {
                   onOpen={() => openRow(row)}
                   onCounter={() => openRow(row)}
                   onAccept={() => void onAccept(row)}
+                  mediaUrl={row.mediaPath ? (mediaUrls[row.mediaPath] ?? null) : undefined}
                   t={t}
                 />
               ))}

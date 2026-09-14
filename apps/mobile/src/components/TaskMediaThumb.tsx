@@ -30,11 +30,20 @@ export function TaskMediaThumb({
   seconds?: number | null;
   /** A square of this side, or fill the parent when left out. */
   size?: number;
-  /** An already-signed URL, when the caller signed a whole page in one go. */
+  /**
+   * Who signs.
+   *
+   *   undefined -> nobody else is; sign it here.
+   *   null      -> the parent signs for the whole page and has not finished yet.
+   *                Wait. Signing here as well is exactly the per-row request
+   *                storm the batch exists to avoid.
+   *   string    -> the parent's answer, use it.
+   */
   url?: string | null;
   radius?: number;
 }) {
   const t = useTheme();
+  const parentSigns = url !== undefined;
   const [resolved, setResolved] = useState<string | null>(url ?? null);
   const [failed, setFailed] = useState(false);
 
@@ -43,7 +52,7 @@ export function TaskMediaThumb({
       setResolved(url);
       return;
     }
-    if (!path) return;
+    if (parentSigns || !path) return;
     let alive = true;
     setFailed(false);
     void signedMediaUrl(path).then((signed) => {
@@ -54,7 +63,7 @@ export function TaskMediaThumb({
     return () => {
       alive = false;
     };
-  }, [path, url]);
+  }, [path, url, parentSigns]);
 
   if (!path || !kind) return null;
 
