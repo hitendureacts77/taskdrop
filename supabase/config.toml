@@ -1,0 +1,25 @@
+project_id = "wjxvingpfbfvkfqhrguj"
+
+# Which Edge Functions require a Supabase session.
+#
+# Two of these are called by things that have no session and cannot have one,
+# so they must be public — and each secures itself by another means:
+#
+#   phone-auth       is how you sign in, so requiring a session is circular.
+#                    It rate-limits by phone number and burns the code on use.
+#   razorpay-webhook is called by Razorpay's servers. Every request is
+#                    HMAC-SHA256 signed with RAZORPAY_WEBHOOK_SECRET and
+#                    anything that does not verify is refused before a row is
+#                    touched.
+#
+# razorpay itself acts on the caller's own wallet and task, so it keeps JWT
+# verification on.
+
+[functions.phone-auth]
+verify_jwt = false
+
+[functions.razorpay]
+verify_jwt = true
+
+[functions.razorpay-webhook]
+verify_jwt = false
