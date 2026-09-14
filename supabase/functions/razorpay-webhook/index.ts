@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { secret } from "../_shared/secrets.ts";
 
 /**
  * Razorpay webhook receiver.
@@ -19,7 +20,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
  * subscribed to payment_link.paid.
  */
 
-const SECRET = Deno.env.get("RAZORPAY_WEBHOOK_SECRET") ?? "";
+
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -35,10 +36,10 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-async function signatureFor(raw: string): Promise<string> {
+async function signatureFor(raw: string, secretValue: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(SECRET),
+    new TextEncoder().encode(secretValue),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
@@ -50,11 +51,12 @@ async function signatureFor(raw: string): Promise<string> {
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
+  const SECRET = await secret("RAZORPAY_WEBHOOK_SECRET");
   if (!SECRET) {
     return json(
       {
         error:
-          "Webhook is not configured. Set RAZORPAY_WEBHOOK_SECRET as an Edge Function secret.",
+          "Webhook is not configured. Set RAZORPAY_WEBHOOK_SECRET as an Edge Function secret, or store it in Vault.",
         configured: false,
       },
       503,
@@ -65,7 +67,7 @@ Deno.serve(async (req: Request) => {
   // text and parse it afterwards — re-serialising JSON would change it.
   const raw = await req.text();
   const sent = req.headers.get("x-razorpay-signature") ?? "";
-  const expected = await signatureFor(raw);
+  const expected = await signatureFor(raw, SECRET);
   if (!sent || !safeEqual(sent, expected)) {
     return json({ error: "Bad signature" }, 401);
   }

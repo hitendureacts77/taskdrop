@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { secret } from "../_shared/secrets.ts";
 
 /**
  * Razorpay money-in for TaskDrop.
@@ -27,13 +28,11 @@ const json = (body: unknown, status = 200) =>
     headers: { ...CORS, "Content-Type": "application/json" },
   });
 
-const RZP_ID = Deno.env.get("RAZORPAY_KEY_ID") ?? "";
-const RZP_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET") ?? "";
 const RZP = "https://api.razorpay.com/v1";
 
-function rzpHeaders() {
+function rzpHeaders(id: string, key: string) {
   return {
-    Authorization: `Basic ${btoa(`${RZP_ID}:${RZP_SECRET}`)}`,
+    Authorization: `Basic ${btoa(`${id}:${key}`)}`,
     "Content-Type": "application/json",
   };
 }
@@ -41,11 +40,13 @@ function rzpHeaders() {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
+  const RZP_ID = await secret("RAZORPAY_KEY_ID");
+  const RZP_SECRET = await secret("RAZORPAY_KEY_SECRET");
   if (!RZP_ID || !RZP_SECRET) {
     return json(
       {
         error:
-          "Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET as Edge Function secrets.",
+          "Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET as Edge Function secrets, or store them in Vault.",
         configured: false,
       },
       503,
@@ -90,7 +91,7 @@ Deno.serve(async (req: Request) => {
 
     const res = await fetch(`${RZP}/payment_links`, {
       method: "POST",
-      headers: rzpHeaders(),
+      headers: rzpHeaders(RZP_ID, RZP_SECRET),
       body: JSON.stringify({
         amount,
         currency: "INR",
@@ -133,7 +134,7 @@ Deno.serve(async (req: Request) => {
     if (!row) return json({ error: "Payment not found" }, 404);
     if (row.status === "paid") return json({ ok: true, status: "paid", alreadySettled: true });
 
-    const res = await fetch(`${RZP}/payment_links/${row.provider_ref}`, { headers: rzpHeaders() });
+    const res = await fetch(`${RZP}/payment_links/${row.provider_ref}`, { headers: rzpHeaders(RZP_ID, RZP_SECRET) });
     const link = await res.json();
     if (!res.ok) return json({ error: link?.error?.description ?? "Could not read the payment" }, 502);
 
