@@ -33,6 +33,8 @@ export function CreateFab() {
     >
       <Pressable
         onPress={() => go('create')}
+        accessibilityRole="button"
+        accessibilityLabel={mode === 'worker' ? 'List a service' : 'Post a request'}
         style={({ pressed }) => ({
           flexDirection: 'row',
           alignItems: 'center',

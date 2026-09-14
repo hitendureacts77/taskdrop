@@ -12,7 +12,8 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { searchTasks, attachPosters } from '../data/api';
+import { searchTasks, attachPosters, placeBid } from '../data/api';
+import { useAuth } from '../providers/AuthProvider';
 import { type Theme } from '../theme';
 import type { Enums } from '@taskdrop/db-types';
 import { FadeIn, Pressy, tx } from '../components/primitives';
@@ -379,7 +380,8 @@ export function HomeScreen() {
   const t = useTheme();
   const { go, params } = useNav();
   const { mode } = useMode();
-  const { setOpenTask, celebrate } = useApp();
+  const { setOpenTask, celebrate, flash } = useApp();
+  const { userId } = useAuth();
   const worker = mode === 'worker';
 
   const [liveTasks, setLiveTasks] = useState<LiveTask[] | null>(null);
@@ -460,12 +462,34 @@ export function HomeScreen() {
     go('taskDetail', { row });
   };
 
-  const onAccept = (row: FeedRow) => {
-    if (worker) {
-      celebrate('Quote accepted at ' + formatINR(row.amountMinor));
-      return;
+  const [quoting, setQuoting] = useState<string | null>(null);
+
+  const onAccept = async (row: FeedRow) => {
+    if (!worker) return openRow(row);
+
+    // Sample rows have ids like "w1"; only a real task can be quoted on.
+    if (!/^[0-9a-f-]{36}$/i.test(row.id)) {
+      return flash('This is a sample card — open a real task to quote');
     }
-    openRow(row);
+    if (!userId) return flash('Sign in to send a quote');
+    if (quoting) return;
+
+    setQuoting(row.id);
+    try {
+      await placeBid({
+        taskId: row.id,
+        workerId: userId,
+        priceMinor: row.amountMinor,
+        timeLimitMinutes: 240,
+      });
+      celebrate('Quote sent at ' + formatINR(row.amountMinor));
+      go('orders');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Could not send that quote';
+      flash(/duplicate|unique/i.test(msg) ? 'You have already quoted on this task' : msg);
+    } finally {
+      setQuoting(null);
+    }
   };
 
   return (
@@ -625,7 +649,7 @@ export function HomeScreen() {
                   worker={worker}
                   onOpen={() => openRow(row)}
                   onCounter={() => openRow(row)}
-                  onAccept={() => onAccept(row)}
+                  onAccept={() => void onAccept(row)}
                   t={t}
                 />
               ))}

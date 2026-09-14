@@ -9,6 +9,8 @@ import {
   autoCompleteAt,
   distanceKm,
   formatDistance,
+  describeLeadTime,
+  quickDeadlines,
 } from './index.ts';
 
 // All amounts in minor units (paise). ₹1000 = 100000.
@@ -65,4 +67,35 @@ test('distance formats the way people say it, and stays null when unknown', () =
   assert.equal(formatDistance(0.4), '400 m');
   assert.equal(formatDistance(4.23), '4.2 km');
   assert.equal(formatDistance(12.6), '13 km');
+});
+
+// --- deadline phrasing ------------------------------------------------------
+
+test('lead time is phrased the way people think about it', () => {
+  const now = new Date('2026-09-14T10:00:00');
+  const at = (h: number) => new Date(now.getTime() + h * 3600 * 1000);
+  assert.equal(describeLeadTime(at(-1), now), 'That time has already passed');
+  assert.equal(describeLeadTime(new Date(now.getTime() + 30 * 60000), now), 'in about 30 minutes');
+  assert.equal(describeLeadTime(at(1), now), 'in about 1 hour');
+  assert.equal(describeLeadTime(at(6), now), 'in about 6 hours');
+  assert.equal(describeLeadTime(at(24), now), 'in about 1 day');
+  assert.equal(describeLeadTime(at(24 * 30), now), 'in about 4 weeks');
+});
+
+test('no quick deadline is ever already in the past', () => {
+  // 9pm: "this evening" has gone, so it must not be offered.
+  const late = new Date('2026-09-14T21:00:00');
+  const choices = quickDeadlines(late);
+  assert.ok(!choices.some((c) => c.label === 'This evening'));
+  for (const c of choices) {
+    assert.ok(c.at.getTime() > late.getTime(), `${c.label} is in the past`);
+  }
+});
+
+test('this weekend means the coming Saturday, not today when it is Saturday', () => {
+  const saturday = new Date('2026-09-19T08:00:00');
+  assert.equal(saturday.getDay(), 6);
+  const weekend = quickDeadlines(saturday).find((c) => c.label === 'This weekend');
+  assert.ok(weekend);
+  assert.equal(weekend.at.getDate(), 26);
 });

@@ -143,3 +143,51 @@ export function formatDistance(km: number | null): string | null {
   if (km < 10) return km.toFixed(1) + ' km';
   return Math.round(km) + ' km';
 }
+
+// ---------------------------------------------------------------------------
+// Deadline phrasing. The poster is choosing "how long do I give this", so the
+// UI has to say that back to them rather than only showing a date.
+// ---------------------------------------------------------------------------
+
+/** "in about 6 hours" — how far away a deadline is, in words. */
+export function describeLeadTime(target: Date, now: Date = new Date()): string {
+  const ms = target.getTime() - now.getTime();
+  if (ms <= 0) return 'That time has already passed';
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `in about ${mins} minute${mins === 1 ? '' : 's'}`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `in about ${hours} hour${hours === 1 ? '' : 's'}`;
+  const days = Math.round(hours / 24);
+  if (days < 14) return `in about ${days} day${days === 1 ? '' : 's'}`;
+  return `in about ${Math.round(days / 7)} weeks`;
+}
+
+/**
+ * The deadlines people actually reach for, relative to now. "This evening" is
+ * dropped once the evening has gone, so a preset is never already in the past.
+ */
+export function quickDeadlines(now: Date = new Date()): { label: string; at: Date }[] {
+  const out: { label: string; at: Date }[] = [];
+
+  const in3h = new Date(now.getTime() + 3 * 3600 * 1000);
+  in3h.setMinutes(Math.round(in3h.getMinutes() / 5) * 5, 0, 0);
+  out.push({ label: 'In 3 hours', at: in3h });
+
+  const evening = new Date(now);
+  evening.setHours(19, 0, 0, 0);
+  if (evening.getTime() > now.getTime()) out.push({ label: 'This evening', at: evening });
+
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(9, 0, 0, 0);
+  out.push({ label: 'Tomorrow 9 AM', at: tomorrow });
+
+  // Saturday morning; if it is already the weekend, the next one.
+  const weekend = new Date(now);
+  const untilSat = (6 - weekend.getDay() + 7) % 7 || 7;
+  weekend.setDate(weekend.getDate() + untilSat);
+  weekend.setHours(10, 0, 0, 0);
+  out.push({ label: 'This weekend', at: weekend });
+
+  return out;
+}

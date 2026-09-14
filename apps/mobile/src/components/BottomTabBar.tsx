@@ -39,6 +39,9 @@ export function BottomTabBar() {
           <Pressable
             key={tab.key}
             onPress={() => go(tab.key)}
+            accessibilityRole="tab"
+            accessibilityLabel={tab.label}
+            accessibilityState={{ selected: active }}
             style={({ pressed }) => ({
               alignItems: 'center',
               flex: 1,
