@@ -3,6 +3,7 @@ import { View, Text as RNText, Pressable, ScrollView, Modal, Animated, Easing } 
 import { useTheme } from '../providers/ThemeProvider';
 import { describeLeadTime, quickDeadlines } from '@taskdrop/rules';
 import { tx } from './primitives';
+import { ClockDial } from './ClockDial';
 
 /**
  * "Complete by" — the one field every request hangs on, so it is worth making
@@ -20,8 +21,6 @@ const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
-const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
-const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
 function startOfDay(d: Date): Date {
   const x = new Date(d);
@@ -130,6 +129,8 @@ export function DateTimeSheet({
   const [minute, setMinute] = useState((Math.round(base.getMinutes() / 5) * 5) % 60);
   const [pm, setPm] = useState(base.getHours() >= 12);
   const [note, setNote] = useState<string | null>(null);
+  // Which half of the clock the dial is editing.
+  const [dialMode, setDialMode] = useState<'hour' | 'minute'>('hour');
 
   const today = startOfDay(new Date());
 
@@ -140,6 +141,7 @@ export function DateTimeSheet({
       rise.setValue(0);
       return;
     }
+    setDialMode('hour');
     const anim = Animated.spring(rise, {
       toValue: 1,
       useNativeDriver: true,
@@ -357,35 +359,33 @@ export function DateTimeSheet({
               )}
             </Animated.View>
 
-            <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 18 })}>
+            <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 20 })}>
               TIME
             </RNText>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 }}>
-              <RNText style={tx('800', 30, t.colors.ink, { letterSpacing: -0.6 })}>
-                {hour}:{String(minute).padStart(2, '0')}
-              </RNText>
-              <View style={{ flexDirection: 'row', gap: 8, marginLeft: 'auto' }}>
-                {chip('AM', !pm, () => setPm(false))}
-                {chip('PM', pm, () => setPm(true))}
+            <View style={{ alignItems: 'center', marginTop: 12 }}>
+              <ClockDial
+                hour={hour}
+                minute={minute}
+                mode={dialMode}
+                onModeChange={setDialMode}
+                onChange={(next) => {
+                  if (next.hour !== undefined) {
+                    setHour(next.hour);
+                    // Setting the hour is almost always followed by the
+                    // minutes, so move the dial on rather than making them tap.
+                    setDialMode('minute');
+                  }
+                  if (next.minute !== undefined) setMinute(next.minute);
+                  setNote(null);
+                }}
+              />
+
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+                {chip('AM', !pm, () => setPm(false), true)}
+                {chip('PM', pm, () => setPm(true), true)}
               </View>
             </View>
-
-            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 14 })}>Hour</RNText>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {HOURS.map((h) => chip(String(h), h === hour, () => setHour(h)))}
-              </View>
-            </ScrollView>
-
-            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 14 })}>Minute</RNText>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {MINUTES.map((m) =>
-                  chip(String(m).padStart(2, '0'), m === minute, () => setMinute(m)),
-                )}
-              </View>
-            </ScrollView>
 
             {/* What the choice actually means, in words. */}
             <View
