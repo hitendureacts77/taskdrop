@@ -11,6 +11,8 @@ import { createTask } from '../data/api';
 import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
 import { LocationSheet } from '../components/LocationSheet';
 import { MapPicker } from '../components/MapPicker';
+import { MediaAttach } from '../components/MediaAttach';
+import type { TaskMedia } from '../lib/media';
 import { tx } from '../components/primitives';
 
 const DRAFTS = {
@@ -30,11 +32,6 @@ const PILLAR_LABELS = ['SERVICES', 'PRODUCTS', 'LOCAL INTEL'];
 // Chip order -> database enums.
 const PILLARS = ['services', 'procurement', 'local_intel'] as const;
 const FLAG_VALUES = ['none', 'urgent', 'unique'] as const;
-const MEDIA = [
-  { glyph: '—', label: 'None' },
-  { glyph: '▤', label: 'Photo' },
-  { glyph: '▶', label: 'Video' },
-];
 const FLAGS = ['None', 'Urgent', 'Unique'];
 const DURATIONS = [
   { label: '1 day', days: 1 },
@@ -142,7 +139,7 @@ export function PostDetailsScreen() {
   const [coords, setCoords] = useState<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
   const [showLoc, setShowLoc] = useState(false);
   const [price, setPrice] = useState<number | null>(null);
-  const [media, setMedia] = useState(1);
+  const [media, setMedia] = useState<TaskMedia | null>(null);
   const [flag, setFlag] = useState(0);
   const [promoteOn, setPromoteOn] = useState(false);
   const [budgetIdx, setBudgetIdx] = useState(1);
@@ -185,6 +182,7 @@ export function PostDetailsScreen() {
           ? Math.max(15, Math.round((deadline.getTime() - Date.now()) / 60000))
           : 24 * 60,
         flag: FLAG_VALUES[flag] ?? 'none',
+        media,
         locLabel: location.trim() || null,
         locLat: coords.lat,
         locLng: coords.lng,
@@ -251,32 +249,7 @@ export function PostDetailsScreen() {
         />
 
         {label('PHOTOS OR VIDEO · OPTIONAL', { marginTop: 18 })}
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 11 }}>
-          {MEDIA.map((m, i) => {
-            const on = media === i;
-            return (
-              <Pressable
-                key={m.label}
-                onPress={() => setMedia(i)}
-                style={({ pressed }) => ({
-                  width: 68,
-                  height: 68,
-                  borderRadius: 12,
-                  backgroundColor: on ? t.colors.accentSoft : t.colors.surface2,
-                  borderWidth: 1,
-                  borderColor: on ? t.colors.accent : 'transparent',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 3,
-                  transform: [{ scale: pressed ? 0.96 : 1 }],
-                })}
-              >
-                <RNText style={tx('400', 17, on ? t.colors.accentDeep : t.colors.muted)}>{m.glyph}</RNText>
-                <RNText style={tx('400', 9, on ? t.colors.accentDeep : t.colors.muted)}>{m.label}</RNText>
-              </Pressable>
-            );
-          })}
-        </View>
+        <MediaAttach value={media} onChange={setMedia} />
 
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
           <View

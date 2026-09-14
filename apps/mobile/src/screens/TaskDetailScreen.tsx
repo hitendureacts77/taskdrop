@@ -14,6 +14,7 @@ import { taskUrl } from '../lib/links';
 import { type Theme } from '../theme';
 import type { FeedRow } from './HomeScreen';
 import { FadeIn, tx } from '../components/primitives';
+import { TaskMediaThumb } from '../components/TaskMediaThumb';
 
 /**
  * Task detail — pixel parity with docs/design/_design_markup.html lines
@@ -38,6 +39,9 @@ type Detail = {
   by: string | null;
   hasMedia: boolean;
   glyph: '▶' | '▤' | '';
+  mediaPath: string | null;
+  mediaKind: 'image' | 'video' | null;
+  mediaSeconds: number | null;
   dur: string | null;
 };
 
@@ -51,7 +55,10 @@ const FALLBACK_WORKER: Detail = {
   body: 'Working SLR, clean viewfinder, tested shutter. Pentax or Olympus preferred, lens included.',
   amountMinor: 450000,
   by: '9 Sep, 6 PM',
-  hasMedia: true,
+  hasMedia: false,
+  mediaPath: null,
+  mediaKind: null,
+  mediaSeconds: null,
   glyph: '▶',
   dur: '0:34',
 };
@@ -65,7 +72,10 @@ const FALLBACK_POSTER: Detail = {
   body: 'Ten years of joinery. Wardrobes, shelving, alcove units, on-site fitting included.',
   amountMinor: 120000,
   by: null,
-  hasMedia: true,
+  hasMedia: false,
+  mediaPath: null,
+  mediaKind: null,
+  mediaSeconds: null,
   glyph: '▤',
   dur: null,
 };
@@ -106,6 +116,9 @@ export function TaskDetailScreen() {
         by: row.by,
         hasMedia: row.hasMedia,
         glyph: row.glyph,
+        mediaPath: row.mediaPath,
+        mediaKind: row.mediaKind,
+        mediaSeconds: row.mediaSeconds,
         dur: row.dur,
       };
     }
@@ -304,32 +317,17 @@ export function TaskDetailScreen() {
         <RNText style={tx('800', 23, t.colors.ink, { letterSpacing: -0.69, marginTop: 9 })}>{detail.title}</RNText>
         <RNText style={tx('400', 14, t.colors.text, { lineHeight: 21.7, marginTop: 11 })}>{detail.body}</RNText>
 
-        {detail.hasMedia && (
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-            <View
-              style={{
-                width: 86,
-                height: 86,
-                borderRadius: 12,
-                backgroundColor: t.colors.surface2,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <RNText style={tx('400', 18, t.colors.muted)}>{detail.glyph}</RNText>
-            </View>
-            <View
-              style={{
-                width: 86,
-                height: 86,
-                borderRadius: 12,
-                backgroundColor: t.colors.surface2,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <RNText style={tx('400', 18, t.colors.muted)}>▤</RNText>
-            </View>
+        {/* One attachment, shown properly. This used to be two grey squares
+            with a glyph in them — a picture of a photo, not the photo. */}
+        {detail.mediaPath && (
+          <View style={{ marginTop: 16 }}>
+            <TaskMediaThumb
+              path={detail.mediaPath}
+              kind={detail.mediaKind}
+              seconds={detail.mediaSeconds}
+              size={undefined}
+              radius={14}
+            />
           </View>
         )}
 

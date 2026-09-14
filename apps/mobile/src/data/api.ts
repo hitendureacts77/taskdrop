@@ -501,6 +501,8 @@ export type NewTask = {
   benchmarkMinor: number;
   timeLimitMinutes: number;
   flag?: Enums<'task_flag'>;
+  /** Storage path + kind for an attached photo or video, if there is one. */
+  media?: { kind: 'image' | 'video'; path: string; seconds?: number } | null;
   locLabel?: string | null;
   /** Real coordinates, so distance between two people is computable. */
   locLat?: number | null;
@@ -519,6 +521,9 @@ export async function createTask(input: NewTask): Promise<Task> {
         benchmark_minor: input.benchmarkMinor,
         time_limit_minutes: input.timeLimitMinutes,
         flag: input.flag ?? 'none',
+        media_kind: input.media?.kind ?? null,
+        media_path: input.media?.path ?? null,
+        media_seconds: input.media?.seconds ?? null,
         loc_label: input.locLabel ?? null,
         loc_lat: input.locLat ?? null,
         loc_lng: input.locLng ?? null,

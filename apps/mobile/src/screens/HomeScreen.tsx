@@ -17,6 +17,7 @@ import { useAuth } from '../providers/AuthProvider';
 import { type Theme } from '../theme';
 import type { Enums } from '@taskdrop/db-types';
 import { FadeIn, Pressy, tx } from '../components/primitives';
+import { TaskMediaThumb } from '../components/TaskMediaThumb';
 
 /**
  * Home feed — pixel parity with docs/design/_design_markup.html lines 35-139
@@ -41,6 +42,10 @@ export type FeedRow = {
   amountMinor: number;
   hasMedia: boolean;
   glyph: '▶' | '▤' | '';
+  /** Storage path for the attached file, and what kind it is. */
+  mediaPath: string | null;
+  mediaKind: 'image' | 'video' | null;
+  mediaSeconds: number | null;
   dur: string | null;
   body: string;
   by: string | null;
@@ -60,6 +65,9 @@ const URGENT_WORKER: FeedRow = {
   amountMinor: 90000,
   hasMedia: false,
   glyph: '',
+  mediaPath: null,
+  mediaKind: null,
+  mediaSeconds: null,
   dur: null,
   body: 'Early pickup from Kempegowda, one large suitcase. Cash or UPI on arrival.',
   by: 'today, 6 AM',
@@ -77,6 +85,9 @@ const URGENT_POSTER: FeedRow = {
   amountMinor: 180000,
   hasMedia: false,
   glyph: '',
+  mediaPath: null,
+  mediaKind: null,
+  mediaSeconds: null,
   dur: null,
   body: 'Van, straps and blankets included. Available from 2 PM today.',
   by: null,
@@ -91,6 +102,9 @@ type LiveTask = {
   benchmark_minor: number;
   flag: string;
   loc_label: string | null;
+  media_kind: string | null;
+  media_path: string | null;
+  media_seconds: number | null;
   poster: {
     display_name: string;
     poster_rating_avg: number | string;
@@ -125,9 +139,15 @@ function liveToFeedRow(task: LiveTask, worker: boolean): FeedRow {
           ? 'Unique'
           : (task.loc_label ?? 'Location not shared'),
     amountMinor: task.benchmark_minor,
-    hasMedia: false,
-    glyph: '',
-    dur: null,
+    // Media comes from the row now. hasMedia used to be hard-coded false, so an
+    // attached photo was uploaded and then shown to nobody.
+    hasMedia: Boolean(task.media_path),
+    glyph: task.media_kind === 'video' ? '▶' : task.media_path ? '▤' : '',
+    mediaPath: task.media_path ?? null,
+    mediaKind:
+      task.media_kind === 'video' || task.media_kind === 'image' ? task.media_kind : null,
+    mediaSeconds: task.media_seconds ?? null,
+    dur: task.media_seconds ? `${task.media_seconds}s` : null,
     body: '',
     by: null,
   };
@@ -291,35 +311,12 @@ function FeedCard({
 
         <View style={{ flexDirection: 'row', gap: 13, marginTop: 12 }}>
           {row.hasMedia && (
-            <View
-              style={{
-                width: 62,
-                height: 62,
-                borderRadius: 11,
-                backgroundColor: t.colors.surface2,
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <RNText style={tx('400', 17, t.colors.muted)}>{row.glyph}</RNText>
-              {row.dur && (
-                <RNText
-                  style={tx('600', 9, '#FFFFFF', {
-                    position: 'absolute',
-                    bottom: 4,
-                    right: 4,
-                    backgroundColor: 'rgba(0,0,0,0.6)',
-                    borderRadius: 3,
-                    paddingVertical: 1,
-                    paddingHorizontal: 4,
-                    overflow: 'hidden',
-                  })}
-                >
-                  {row.dur}
-                </RNText>
-              )}
-            </View>
+            <TaskMediaThumb
+              path={row.mediaPath}
+              kind={row.mediaKind}
+              seconds={row.mediaSeconds}
+              size={62}
+            />
           )}
           <View style={{ flex: 1, minWidth: 0 }}>
             <RNText style={tx('700', 16, t.colors.ink, { letterSpacing: -0.16 })}>{row.title}</RNText>
