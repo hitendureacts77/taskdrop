@@ -61,6 +61,17 @@ is refused before a row is touched.
 
 ## 3. Check it end to end
 
+One command tells you which step you are on:
+
+```bash
+npm run check:payments
+```
+
+It sends no money. It reads the status codes the functions already return and
+names the next fix. Right now it reports both steps above as outstanding.
+
+Manually, if you prefer:
+
 ```bash
 curl -i -X POST https://wjxvingpfbfvkfqhrguj.supabase.co/functions/v1/razorpay-webhook \
   -H 'Content-Type: application/json' -d '{}'
@@ -94,9 +105,11 @@ It should read `paid` without anyone tapping anything.
   because there is no SMS provider wired up, which is fine for testing and not
   fine in public. Plug in an SMS gateway and delete the `devCode` from the
   response.
-- **Maps key (optional).** Place search already works via OpenStreetMap. Set
-  `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` for better Indian addresses, restricted to
-  the Places API and your origins.
+- **Restrict the Maps key.** It is set and working (Places API New). Because it
+  is `EXPO_PUBLIC_`, it ships inside the app bundle and anyone can read it — so
+  restriction in Google Cloud Console is the only thing protecting your billing.
+  Credentials → the key → Application restrictions (your web origins + Android
+  package/SHA-1) and API restrictions (Places API New only).
 
 ## What is already enforced server-side
 
