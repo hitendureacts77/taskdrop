@@ -9,7 +9,6 @@ export type ScreenName =
   | 'welcome'
   | 'signup'
   | 'setup'
-  | 'pro'
   | 'home'
   | 'search'
   | 'create'

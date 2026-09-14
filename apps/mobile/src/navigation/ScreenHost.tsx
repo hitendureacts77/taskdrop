@@ -16,7 +16,6 @@ import { DetailSheetScreen } from '../screens/DetailSheetScreen';
 import { WelcomeScreen } from '../screens/WelcomeScreen';
 import { SignupScreen } from '../screens/SignupScreen';
 import { SetupScreen } from '../screens/SetupScreen';
-import { ProScreen } from '../screens/ProScreen';
 // Task flow (Sonnet agent)
 import { CreateScreen } from '../screens/CreateScreen';
 import { PostDetailsScreen } from '../screens/PostDetailsScreen';
@@ -49,7 +48,6 @@ const REGISTRY: Partial<Record<ScreenName, React.ComponentType>> = {
   welcome: WelcomeScreen,
   signup: SignupScreen,
   setup: SetupScreen,
-  pro: ProScreen,
   taskDetail: TaskDetailScreen,
   detailSheet: DetailSheetScreen,
   create: CreateScreen,

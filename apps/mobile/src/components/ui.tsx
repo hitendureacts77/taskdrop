@@ -224,26 +224,6 @@ export function Chip({
   );
 }
 
-/** Gold "Verified Pro" badge from the design. */
-export function VerifiedBadge({ label = 'Verified Pro' }: { label?: string }) {
-  const t = useTheme();
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        backgroundColor: t.colors.goldSoft,
-        borderRadius: t.radius.pill,
-        paddingVertical: 3,
-        paddingHorizontal: 9,
-      }}
-    >
-      <RNText style={{ color: t.colors.goldInk, fontSize: 11, fontWeight: '800' }}>✓ {label}</RNText>
-    </View>
-  );
-}
-
 export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
   const t = useTheme();
   const initials = name

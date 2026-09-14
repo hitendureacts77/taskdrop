@@ -30,7 +30,6 @@ function SlideIn({ delay, children }: { delay: number; children: React.ReactNode
 const WORKER_ROWS: { glyph: string; label: string; go: ScreenName }[] = [
   { glyph: '◈', label: 'Work for you', go: 'myQuotes' },
   { glyph: '✦', label: 'Promote my service', go: 'promote' },
-  { glyph: '✓', label: 'Get Verified Pro', go: 'pro' },
   { glyph: '▦', label: 'Earnings and payouts', go: 'withdraw' },
   { glyph: '↪', label: 'Sign out', go: 'splash' },
 ];
@@ -38,7 +37,6 @@ const WORKER_ROWS: { glyph: string; label: string; go: ScreenName }[] = [
 const POSTER_ROWS: { glyph: string; label: string; go: ScreenName }[] = [
   { glyph: '▤', label: 'My requests', go: 'orders' },
   { glyph: '✦', label: 'Promote a request', go: 'promote' },
-  { glyph: '✓', label: 'Get Verified Pro', go: 'pro' },
   { glyph: '▦', label: 'Wallet and payments', go: 'wallet' },
   { glyph: '↪', label: 'Sign out', go: 'splash' },
 ];
