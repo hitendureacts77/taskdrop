@@ -19,6 +19,7 @@ import type { Enums } from '@taskdrop/db-types';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { signedMediaUrls } from '../lib/media';
+import { sponsoredTaskIds } from '../data/api';
 
 /**
  * Home feed — pixel parity with docs/design/_design_markup.html lines 35-139
@@ -419,7 +420,23 @@ export function HomeScreen() {
     return () => clearTimeout(id);
   }, [worker]);
 
-  const allRows: FeedRow[] = (liveTasks ?? []).map((task) => liveToFeedRow(task, worker));
+  // Which listings are being paid for right now. Without this, promotion was
+  // money for nothing: the card had a sponsored style and the flag was
+  // hard-coded false, so a live campaign changed nothing anyone could see.
+  const [sponsored, setSponsored] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let alive = true;
+    void sponsoredTaskIds().then((ids) => alive && setSponsored(ids));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const allRows: FeedRow[] = (liveTasks ?? [])
+    .map((task) => ({ ...liveToFeedRow(task, worker), sponsored: sponsored.has(task.id) }))
+    // Paid placement is the thing being sold, so it has to actually place:
+    // sponsored listings sit at the top, and keep their order within that.
+    .sort((a, b) => Number(b.sponsored) - Number(a.sponsored));
   // Chip index -> card tag. No selection shows every pillar.
   const FILTER_TAGS: FeedRow['tag'][] = ['SERVICES', 'PRODUCTS', 'LOCAL HELP'];
   const feed: FeedRow[] =

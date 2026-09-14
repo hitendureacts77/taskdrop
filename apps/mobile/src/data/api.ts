@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { distanceKm } from '@taskdrop/rules';
-import type { Tables, Enums } from '@taskdrop/db-types';
+import type { Tables, TablesInsert, Enums } from '@taskdrop/db-types';
 
 /**
  * Every database read/write the app performs.
@@ -756,6 +756,160 @@ export async function listPayouts(limit = 20): Promise<Payout[]> {
  */
 export const cancelWithdrawal = (payoutId: string) =>
   rpc<unknown>('cancel_withdrawal', { p_payout_id: payoutId });
+
+export type PayoutDestination = {
+  id: string;
+  kind: 'upi' | 'bank';
+  label: string | null;
+  upi_id: string | null;
+  account_name: string | null;
+  account_number: string | null;
+  ifsc: string | null;
+  is_default: boolean;
+  created_at: string;
+};
+
+/** How a destination reads on screen, with the account number mostly hidden. */
+export function describeDestination(d: PayoutDestination): string {
+  if (d.kind === 'upi') return d.upi_id ?? 'UPI';
+  const tail = (d.account_number ?? '').slice(-4);
+  // Never render a full account number back: it is the one part worth stealing
+  // and the last four are enough to tell two accounts apart.
+  return `${d.account_name ?? 'Bank account'} ····${tail}`;
+}
+
+export async function listPayoutDestinations(): Promise<PayoutDestination[]> {
+  const uid = await myId();
+  if (!uid) return [];
+  const rows = unwrap(
+    await supabase
+      .from('payout_destinations')
+      .select('*')
+      .eq('user_id', uid)
+      .order('is_default', { ascending: false })
+      .order('created_at', { ascending: false }),
+  );
+  return rows as unknown as PayoutDestination[];
+}
+
+export async function addPayoutDestination(
+  input:
+    | { kind: 'upi'; upiId: string; label?: string }
+    | { kind: 'bank'; accountName: string; accountNumber: string; ifsc: string; label?: string },
+): Promise<PayoutDestination> {
+  const uid = await myId();
+  if (!uid) throw new Error('Sign in first');
+  // One shape, so the column check constraint decides what is valid rather
+  // than a TypeScript union that PostgREST cannot narrow.
+  const row: TablesInsert<'payout_destinations'> = {
+    user_id: uid,
+    kind: input.kind,
+    label: input.label ?? (input.kind === 'upi' ? 'UPI' : 'Bank'),
+    upi_id: input.kind === 'upi' ? input.upiId.trim() : null,
+    account_name: input.kind === 'bank' ? input.accountName.trim() : null,
+    account_number: input.kind === 'bank' ? input.accountNumber.trim() : null,
+    // IFSC is always upper case; accepting lower and storing it breaks the
+    // format check for no reason.
+    ifsc: input.kind === 'bank' ? input.ifsc.trim().toUpperCase() : null,
+  };
+  const rows = unwrap(await supabase.from('payout_destinations').insert(row).select());
+  return rows[0] as unknown as PayoutDestination;
+}
+
+export async function removePayoutDestination(id: string): Promise<void> {
+  unwrap(await supabase.from('payout_destinations').delete().eq('id', id).select());
+}
+
+export const setDefaultPayoutDestination = (id: string) =>
+  rpc<PayoutDestination>('set_default_payout_destination', { p_destination_id: id });
+
+export type PromotableTask = {
+  id: string;
+  title: string;
+  benchmark_minor: number;
+  status: string;
+  quotes: number;
+};
+
+/**
+ * The listings this person could pay to promote: their own, still open.
+ *
+ * The promote screen used to show one hard-coded task — "Vintage 35mm film
+ * camera, 12 quotes" — belonging to nobody, with no way to choose a different
+ * one.
+ */
+export async function promotableTasks(): Promise<PromotableTask[]> {
+  const uid = await myId();
+  if (!uid) return [];
+  const rows = unwrap(
+    await supabase
+      .from('tasks')
+      .select('id,title,benchmark_minor,status')
+      .eq('poster_id', uid)
+      .in('status', ['OPEN'])
+      .order('created_at', { ascending: false })
+      .limit(30),
+  );
+  if (rows.length === 0) return [];
+
+  // How much interest each already has, which is the number that decides
+  // whether promoting it is worth the money.
+  const counts = unwrap(
+    await supabase.from('bids').select('task_id').in('task_id', rows.map((r) => r.id)),
+  );
+  const byTask = new Map<string, number>();
+  for (const b of counts) byTask.set(b.task_id, (byTask.get(b.task_id) ?? 0) + 1);
+
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    benchmark_minor: r.benchmark_minor,
+    status: r.status,
+    quotes: byTask.get(r.id) ?? 0,
+  }));
+}
+
+/** A poster's own numbers: what they have asked for and what it cost. */
+export type PosterStatsMine = {
+  role: 'poster';
+  spentMinor: number;
+  escrowHeldMinor: number;
+  posted: number;
+  open: number;
+  live: number;
+  completed: number;
+  cancelled: number;
+  quotesReceived: number;
+  rating: number | null;
+  ratingCount: number;
+};
+
+/** A worker's own numbers: what they have won and what it paid. */
+export type WorkerStatsMine = {
+  role: 'worker';
+  earnedMinor: number;
+  clearingMinor: number;
+  availableMinor: number;
+  withdrawnMinor: number;
+  quotesPlaced: number;
+  quotesWon: number;
+  jobsLive: number;
+  jobsDone: number;
+  rating: number | null;
+  ratingCount: number;
+};
+
+export type MyStats = PosterStatsMine | WorkerStatsMine;
+
+/**
+ * This user's own figures, shaped for the role they are asking as.
+ *
+ * The only statistics in the product were platform-wide and admin-only, so a
+ * poster could not see what they had spent and a worker could not see what they
+ * had earned. Available to everyone, because these are their own numbers.
+ */
+export const myStats = (role: 'worker' | 'poster') =>
+  rpc<MyStats>('my_stats', { p_role: role });
 
 // ----------------------------------------------------------------- admin ---
 

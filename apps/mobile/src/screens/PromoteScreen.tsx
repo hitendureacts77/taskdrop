@@ -1,11 +1,26 @@
-import { useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, type TextStyle } from 'react-native';
+import { useEffect, useState } from 'react';
+import {
+  View,
+  Text as RNText,
+  Pressable,
+  ScrollView,
+  ActivityIndicator,
+  Modal,
+  type TextStyle,
+} from 'react-native';
 import { Screen } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { startPromotion, createPaymentLink, syncPayment, activatePromotion } from '../data/api';
+import {
+  startPromotion,
+  createPaymentLink,
+  syncPayment,
+  activatePromotion,
+  promotableTasks,
+  type PromotableTask,
+} from '../data/api';
 import { formatINR } from '../components/ui';
 import { Linking } from 'react-native';
 import { tx } from '../components/primitives';
@@ -23,8 +38,35 @@ export function PromoteScreen() {
   const { celebrate, flash } = useApp();
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<{ promotionId: string; paymentId: string } | null>(null);
+  const [explaining, setExplaining] = useState(false);
 
-  const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+  // Which listing is being promoted. Arrives pre-chosen when you come from a
+  // task, otherwise you pick from your own open ones.
+  const [mine, setMine] = useState<PromotableTask[]>([]);
+  const [loadingMine, setLoadingMine] = useState(true);
+  const [pickedId, setPickedId] = useState<string | null>(
+    typeof params.taskId === 'string' ? params.taskId : null,
+  );
+
+  useEffect(() => {
+    let alive = true;
+    void promotableTasks()
+      .then((rows) => {
+        if (!alive) return;
+        setMine(rows);
+        // Nothing pre-chosen and exactly one candidate: choosing it for them
+        // is obvious rather than presumptuous.
+        setPickedId((cur) => cur ?? (rows.length === 1 ? rows[0]!.id : null));
+      })
+      .catch(() => {})
+      .finally(() => alive && setLoadingMine(false));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const taskId = pickedId;
+
 
   const worker = mode === 'worker';
   const [budgetIdx, setBudgetIdx] = useState(1);
@@ -89,7 +131,11 @@ export function PromoteScreen() {
   const start = async () => {
     if (busy) return;
     if (!taskId) {
-      flash('Open a real listing from your requests to promote it');
+      flash(
+        mine.length === 0
+          ? 'You have no open listings to promote yet'
+          : 'Pick which listing to promote first',
+      );
       return;
     }
     setBusy(true);
@@ -131,6 +177,99 @@ export function PromoteScreen() {
     }
   };
 
+  /**
+   * What the money buys, in plain words.
+   *
+   * Everything in here has to stay true of what the code actually does: a paid
+   * campaign marks the listing sponsored, and sponsored listings sort to the
+   * top of the feed until the campaign ends. If that changes, this changes.
+   */
+  const explainer = (
+    <Modal
+      visible={explaining}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setExplaining(false)}
+    >
+      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' }}>
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={() => setExplaining(false)}
+          accessibilityLabel="Close"
+        />
+        <View
+          style={{
+            backgroundColor: t.colors.bg,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            padding: 22,
+            paddingBottom: 30,
+          }}
+        >
+          <RNText style={tx('800', 20, t.colors.ink, { letterSpacing: -0.4 })}>
+            What promoting does
+          </RNText>
+
+          <RNText style={tx('400', 14, t.colors.text, { marginTop: 12, lineHeight: 21 })}>
+            A promoted listing sits at the top of the feed, above everything posted normally,
+            and is marked as sponsored. That is the whole mechanism — it buys position, nothing
+            else.
+          </RNText>
+
+          <RNText style={tx('700', 14, t.colors.ink, { marginTop: 18 })}>
+            What the budget changes
+          </RNText>
+          <RNText style={tx('400', 14, t.colors.text, { marginTop: 6, lineHeight: 21 })}>
+            The daily budget sets how many people your listing is put in front of each day, and
+            the duration sets how many days that lasts. A bigger daily budget reaches more
+            people per day; more days reaches people who were not looking today. Same total
+            money, different shape — {formatINR(total * 100)} spread over {days}{' '}
+            {days === 1 ? 'day' : 'days'} is {formatINR(budget * 100)} a day.
+          </RNText>
+
+          <RNText style={tx('700', 14, t.colors.ink, { marginTop: 18 })}>
+            What it does not do
+          </RNText>
+          <RNText style={tx('400', 14, t.colors.text, { marginTop: 6, lineHeight: 21 })}>
+            It does not make anyone quote, and it does not change your price. A listing with a
+            rate well under the going one will be seen more and still be passed over. If a
+            listing has been up a while with no quotes, the price is usually the reason — not
+            the position.
+          </RNText>
+
+          <RNText style={tx('700', 14, t.colors.ink, { marginTop: 18 })}>When it is worth it</RNText>
+          <RNText style={tx('400', 14, t.colors.text, { marginTop: 6, lineHeight: 21 })}>
+            Best on something urgent, or in a category with a lot posted at once where good
+            listings get buried. Least useful on something niche, where the few people who can
+            do it will find it anyway.
+          </RNText>
+
+          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 18, lineHeight: 18 })}>
+            You are charged once, up front, for the days you choose. Stopping early does not
+            refund the remaining days. The reach figure above is an estimate from how many
+            people browse your city, not a promise.
+          </RNText>
+
+          <Pressable
+            onPress={() => setExplaining(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            style={({ pressed }) => ({
+              marginTop: 20,
+              backgroundColor: t.colors.accent,
+              borderRadius: 999,
+              paddingVertical: 14,
+              alignItems: 'center',
+              transform: [{ scale: pressed ? 0.97 : 1 }],
+            })}
+          >
+            <RNText style={tx('700', 15, t.colors.onAccent)}>Got it</RNText>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+
   return (
     <Screen padded={false}>
       <ScrollView
@@ -147,42 +286,107 @@ export function PromoteScreen() {
           </RNText>
         </View>
 
-        <View
-          style={{
-            marginTop: 14,
-            backgroundColor: t.colors.surface,
-            borderWidth: 1,
-            borderColor: t.colors.line,
-            borderRadius: 14,
-            padding: 13,
-            flexDirection: 'row',
-            gap: 12,
-            alignItems: 'center',
-          }}
-        >
-          <View
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 11,
-              backgroundColor: t.colors.surface2,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <RNText style={tx('400', 16, t.colors.muted)}>▤</RNText>
-          </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <RNText style={tx('700', 15, t.colors.ink)}>
-              {worker ? 'Bespoke carpentry and joinery' : 'Vintage 35mm film camera'}
-            </RNText>
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>
-              {worker ? '₹1,200 rate · 61 jobs done' : '₹4,500 · open · 12 quotes'}
-            </RNText>
-          </View>
+        <View style={{ marginTop: 14 }}>
+          {loadingMine ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 }}>
+              <ActivityIndicator size="small" color={t.colors.muted} />
+              <RNText style={tx('400', 13, t.colors.muted)}>Finding your listings…</RNText>
+            </View>
+          ) : mine.length === 0 ? (
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: t.colors.line,
+                borderStyle: 'dashed',
+                borderRadius: 14,
+                padding: 16,
+              }}
+            >
+              <RNText style={tx('700', 14, t.colors.ink)}>Nothing open to promote</RNText>
+              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 5, lineHeight: 18 })}>
+                Only your own open listings can be promoted. Post one, or reopen a closed one,
+                and it will show up here.
+              </RNText>
+            </View>
+          ) : (
+            <>
+              <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54 })}>
+                WHICH LISTING
+              </RNText>
+              {mine.map((m) => {
+                const on = m.id === pickedId;
+                return (
+                  <Pressable
+                    key={m.id}
+                    onPress={() => setPickedId(on ? null : m.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Promote ${m.title}`}
+                    accessibilityState={{ selected: on }}
+                    style={({ pressed }) => ({
+                      marginTop: 9,
+                      borderWidth: 1,
+                      borderColor: on ? t.colors.accent : t.colors.line,
+                      backgroundColor: on ? t.colors.accentSoft : t.colors.surface,
+                      borderRadius: 14,
+                      padding: 13,
+                      flexDirection: 'row',
+                      gap: 12,
+                      alignItems: 'center',
+                      transform: [{ scale: pressed ? 0.99 : 1 }],
+                    })}
+                  >
+                    <View
+                      style={{
+                        width: 42,
+                        height: 42,
+                        borderRadius: 11,
+                        backgroundColor: on ? t.colors.bg : t.colors.surface2,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <RNText style={tx('400', 16, on ? t.colors.accentDeep : t.colors.muted)}>
+                        {on ? '✓' : '▤'}
+                      </RNText>
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <RNText style={tx('700', 15, t.colors.ink)} numberOfLines={2}>
+                        {m.title}
+                      </RNText>
+                      <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>
+                        {formatINR(m.benchmark_minor)} · open ·{' '}
+                        {m.quotes === 1 ? '1 quote' : `${m.quotes} quotes`}
+                      </RNText>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </>
+          )}
         </View>
 
-        {label('DAILY BUDGET', { marginTop: 18 })}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            marginTop: 18,
+          }}
+        >
+          {label('DAILY BUDGET')}
+          <Pressable
+            onPress={() => setExplaining(true)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="How promotion works"
+          >
+            <RNText
+              style={tx('700', 12, t.colors.accentDeep, { textDecorationLine: 'underline' })}
+            >
+              How this works
+            </RNText>
+          </Pressable>
+        </View>
         <View
           style={{
             flexDirection: 'row',
@@ -316,6 +520,7 @@ export function PromoteScreen() {
           Pause or stop any time. You are charged for days run.
         </RNText>
       </View>
+      {explainer}
     </Screen>
   );
 }

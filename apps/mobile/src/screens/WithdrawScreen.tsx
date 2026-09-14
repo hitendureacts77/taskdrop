@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, TextInput } from 'react-native';
+import { View, Text as RNText, Pressable, ScrollView } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
 import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
@@ -7,14 +7,18 @@ import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
 import {
   getWallet,
-  getProfile,
-  updateProfile,
   requestWithdrawal,
   listPayouts,
   cancelWithdrawal,
   type Payout,
 } from '../data/api';
 import { PayoutList } from '../components/PayoutList';
+import { PayoutDestinationSheet } from '../components/PayoutDestinationSheet';
+import {
+  describeDestination,
+  listPayoutDestinations,
+  type PayoutDestination,
+} from '../data/api';
 import { useAuth } from '../providers/AuthProvider';
 import { Pressy, tx } from '../components/primitives';
 
@@ -28,36 +32,18 @@ export function WithdrawScreen() {
   const [availableMinor, setAvailableMinor] = useState(balance);
   const [rupees, setRupees] = useState(Math.floor(balance / 100));
   const [busy, setBusy] = useState(false);
-  const [upi, setUpi] = useState<string | null>(null);
-  const [upiDraft, setUpiDraft] = useState('');
-  const [editingUpi, setEditingUpi] = useState(false);
+  // The saved account money is sent to. Replaces an inline text field that
+  // edited one UPI id in place.
+  const [destination, setDestination] = useState<PayoutDestination | null>(null);
+  const [pickingDestination, setPickingDestination] = useState(false);
+  const upi = destination
+    ? destination.kind === 'upi'
+      ? destination.upi_id
+      : describeDestination(destination)
+    : null;
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [loadingPayouts, setLoadingPayouts] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-
-  const startEditUpi = () => {
-    setUpiDraft(upi ?? '');
-    setEditingUpi(true);
-  };
-
-  const saveUpi = async () => {
-    const next = upiDraft.trim();
-    // Matches the check constraint on profiles, so the error arrives here
-    // rather than as a database failure.
-    if (!/^[A-Za-z0-9._-]{2,64}@[A-Za-z][A-Za-z0-9.-]{1,32}$/.test(next)) {
-      flash('That does not look like a UPI id — try yourname@bank');
-      return;
-    }
-    if (!userId) return;
-    try {
-      await updateProfile(userId, { payoutUpi: next });
-      setUpi(next);
-      setEditingUpi(false);
-      flash('Payout account saved');
-    } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not save that');
-    }
-  };
 
   /**
    * Re-read the wallet and the queue together. They are two halves of one
@@ -75,11 +61,12 @@ export function WithdrawScreen() {
 
   useEffect(() => {
     let alive = true;
-    if (userId) {
-      getProfile(userId)
-        .then((me) => alive && setUpi(me?.payout_upi ?? null))
-        .catch(() => {});
-    }
+    void listPayoutDestinations()
+      .then((list) => {
+        if (!alive) return;
+        setDestination(list.find((d) => d.is_default) ?? list[0] ?? null);
+      })
+      .catch(() => {});
     getWallet()
       .then((w) => {
         if (!alive || !w) return;
@@ -117,13 +104,13 @@ export function WithdrawScreen() {
       return;
     }
     if (!upi) {
-      flash('Add the UPI id your money should go to first');
-      startEditUpi();
+      flash('Add the account your money should go to first');
+      setPickingDestination(true);
       return;
     }
     setBusy(true);
     try {
-      await requestWithdrawal(amountMinor, upi);
+      await requestWithdrawal(amountMinor, destination ? describeDestination(destination) : upi);
       const left = availableMinor - amountMinor;
       setAvailableMinor(left);
       setRupees(0);
@@ -262,38 +249,30 @@ export function WithdrawScreen() {
               justifyContent: 'center',
             }}
           >
-            <RNText style={tx('800', 14, t.colors.accentDeep)}>UPI</RNText>
+            <RNText style={tx('800', destination?.kind === 'bank' ? 11 : 14, t.colors.accentDeep)}>
+              {destination?.kind === 'bank' ? 'BANK' : 'UPI'}
+            </RNText>
           </View>
           <View style={{ flex: 1 }}>
-            {editingUpi ? (
-              <TextInput
-                value={upiDraft}
-                onChangeText={setUpiDraft}
-                onSubmitEditing={() => void saveUpi()}
-                autoFocus
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="done"
-                placeholder="yourname@bank"
-                placeholderTextColor={t.colors.muted}
-                style={tx('700', 15, t.colors.ink, { padding: 0 })}
-              />
-            ) : (
-              <RNText style={tx('700', 15, upi ? t.colors.ink : t.colors.muted)}>
-                {upi ?? 'No payout account yet'}
-              </RNText>
-            )}
+            <RNText style={tx('700', 15, upi ? t.colors.ink : t.colors.muted)} numberOfLines={1}>
+              {upi ?? 'No payout account yet'}
+            </RNText>
             <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
-              {upi ? 'Where your money is sent' : 'Add the UPI id your money should go to'}
+              {destination
+                ? destination.kind === 'upi'
+                  ? 'UPI · usually instant'
+                  : 'Bank transfer · 1 working day'
+                : 'UPI or a bank account'}
             </RNText>
           </View>
           <Pressable
-            onPress={() => (editingUpi ? void saveUpi() : startEditUpi())}
+            onPress={() => setPickingDestination(true)}
             hitSlop={8}
             accessibilityRole="button"
+            accessibilityLabel={upi ? 'Change where your money is sent' : 'Add a payout account'}
           >
             <RNText style={tx('600', 13, t.colors.accentDeep)}>
-              {editingUpi ? 'Save' : upi ? 'Change' : 'Add'}
+              {upi ? 'Change' : 'Add'}
             </RNText>
           </Pressable>
         </View>
@@ -365,6 +344,12 @@ export function WithdrawScreen() {
           </RNText>
         </Pressy>
       </View>
+
+      <PayoutDestinationSheet
+        visible={pickingDestination}
+        onClose={() => setPickingDestination(false)}
+        onChanged={setDestination}
+      />
     </Screen>
   );
 }

@@ -298,6 +298,45 @@ export type Database = {
         }
         Relationships: []
       }
+      payout_destinations: {
+        Row: {
+          account_name: string | null
+          account_number: string | null
+          created_at: string
+          id: string
+          ifsc: string | null
+          is_default: boolean
+          kind: string
+          label: string | null
+          upi_id: string | null
+          user_id: string
+        }
+        Insert: {
+          account_name?: string | null
+          account_number?: string | null
+          created_at?: string
+          id?: string
+          ifsc?: string | null
+          is_default?: boolean
+          kind: string
+          label?: string | null
+          upi_id?: string | null
+          user_id: string
+        }
+        Update: {
+          account_name?: string | null
+          account_number?: string | null
+          created_at?: string
+          id?: string
+          ifsc?: string | null
+          is_default?: boolean
+          kind?: string
+          label?: string | null
+          upi_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       payouts: {
         Row: {
           amount_minor: number
@@ -588,6 +627,26 @@ export type Database = {
       start_promotion: {
         Args: { p_amount_minor: number; p_days: number; p_task_id: string }
         Returns: Database["public"]["Tables"]["task_promotions"]["Row"]
+      }
+      my_stats: {
+        Args: { p_role?: string }
+        Returns: Json
+      }
+      settle_cleared_earnings: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      set_default_payout_destination: {
+        Args: { p_destination_id: string }
+        Returns: Database["public"]["Tables"]["payout_destinations"]["Row"]
+      }
+      admin_mark_payout: {
+        Args: { p_note?: string; p_payout_id: string; p_status: string }
+        Returns: Database["public"]["Tables"]["payouts"]["Row"]
+      }
+      admin_set_admin: {
+        Args: { p_on: boolean; p_user_id: string }
+        Returns: boolean
       }
       app_secrets: {
         Args: Record<PropertyKey, never>
