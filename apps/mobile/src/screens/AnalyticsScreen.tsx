@@ -6,14 +6,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
-import {
-  platformStats,
-  myStats,
-  platformPeopleMoney,
-  type PlatformStats,
-  type MyStats,
-  type PersonMoney,
-} from '../data/api';
+import { platformStats, myStats, type PlatformStats, type MyStats } from '../data/api';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import type { Theme } from '../theme';
 
@@ -29,23 +22,6 @@ import type { Theme } from '../theme';
 const WINDOWS = [7, 30, 90];
 
 /** A headline number. Not a chart — one figure does not need axes. */
-/**
- * Bar width on a scale shared by the whole list.
- *
- * Scaling each row to itself would make every bar full-width and say nothing;
- * the point of the chart is comparing people to each other.
- */
-function peopleBarWidth(
-  value: number,
-  rows: { spent_minor: number; earned_minor: number }[],
-): `${number}%` {
-  const widest = Math.max(
-    1,
-    ...rows.map((r) => Math.max(Number(r.spent_minor ?? 0), Number(r.earned_minor ?? 0))),
-  );
-  return `${Math.round((value / widest) * 100)}%`;
-}
-
 function Stat({
   label,
   value,
@@ -174,8 +150,6 @@ export function AnalyticsScreen() {
   // admin-only; before this, a poster could not see what they had spent and a
   // worker could not see what they had earned.
   const [mine, setMine] = useState<MyStats | null>(null);
-  // Who is spending, who is earning, and what is owed to each of them.
-  const [people, setPeople] = useState<PersonMoney[] | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -209,16 +183,6 @@ export function AnalyticsScreen() {
     void load(days);
   }, [days, load]);
 
-  useEffect(() => {
-    let alive = true;
-    void platformPeopleMoney(days)
-      .then((rows) => alive && setPeople(rows))
-      // Not an admin, most likely. The section simply does not render.
-      .catch(() => alive && setPeople(null));
-    return () => {
-      alive = false;
-    };
-  }, [days]);
 
   const day = stats && picked !== null ? stats.daily[picked] : null;
 
@@ -455,159 +419,6 @@ export function AnalyticsScreen() {
                   />
                 </View>
 
-                {people && people.length > 0 && (
-                  <>
-                    <RNText
-                      style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 26 })}
-                    >
-                      MONEY BY PERSON
-                    </RNText>
-
-                    {/* The combined position first: the three numbers that have
-                        to reconcile before any per-person row means anything. */}
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        marginTop: 11,
-                        borderWidth: 1,
-                        borderColor: t.colors.line,
-                        borderRadius: 12,
-                        overflow: 'hidden',
-                        backgroundColor: t.colors.surface,
-                      }}
-                    >
-                      {([
-                        { k: 'spent_minor' as const, label: 'POSTERS SPENT', ink: t.colors.ink },
-                        { k: 'earned_minor' as const, label: 'WORKERS EARNED', ink: t.colors.accentDeep },
-                        { k: 'wallet_minor' as const, label: 'OWED OUT', ink: t.colors.gold },
-                      ]).map((cell, i) => (
-                        <View
-                          key={cell.k}
-                          style={{
-                            flex: 1,
-                            padding: 13,
-                            borderLeftWidth: i === 0 ? 0 : 1,
-                            borderLeftColor: t.colors.line,
-                          }}
-                        >
-                          <RNText style={tx('400', 9.5, t.colors.muted, { letterSpacing: 1.1 })}>
-                            {cell.label}
-                          </RNText>
-                          <RNText style={tx('800', 16, cell.ink, { marginTop: 5 })}>
-                            {formatINR(people.reduce((sum, r) => sum + Number(r[cell.k] ?? 0), 0))}
-                          </RNText>
-                        </View>
-                      ))}
-                    </View>
-
-                    <View
-                      style={{
-                        marginTop: 11,
-                        borderWidth: 1,
-                        borderColor: t.colors.line,
-                        borderRadius: 12,
-                        backgroundColor: t.colors.surface,
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {people.map((row, i) => {
-                        const spent = Number(row.spent_minor ?? 0);
-                        const earned = Number(row.earned_minor ?? 0);
-                        const owed = Number(row.wallet_minor ?? 0);
-                        const escrowed = Number(row.in_escrow_minor ?? 0);
-
-                        return (
-                          <View
-                            key={row.user_id}
-                            style={{
-                              paddingVertical: 13,
-                              paddingHorizontal: 14,
-                              borderTopWidth: i === 0 ? 0 : 1,
-                              borderTopColor: t.colors.line,
-                            }}
-                          >
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                              <RNText
-                                style={tx('700', 14, t.colors.ink, { flex: 1 })}
-                                numberOfLines={1}
-                              >
-                                {row.name}
-                              </RNText>
-                              {owed > 0 && (
-                                <RNText
-                                  style={tx('700', 11, t.colors.goldInk, {
-                                    backgroundColor: t.colors.goldSoft,
-                                    paddingHorizontal: 8,
-                                    paddingVertical: 3,
-                                    borderRadius: 999,
-                                    overflow: 'hidden',
-                                  })}
-                                >
-                                  {formatINR(owed)} owed
-                                </RNText>
-                              )}
-                            </View>
-
-                            {/* Spent and earned on one shared scale, so bar
-                                lengths compare between people rather than
-                                being per-row noise. Someone who only posts has
-                                no green bar and vice versa, which is the shape
-                                you want to read at a glance. */}
-                            <View style={{ gap: 5, marginTop: 9 }}>
-                              {([
-                                { label: 'Spent', value: spent, color: t.colors.blue },
-                                { label: 'Earned', value: earned, color: t.colors.accent },
-                              ] as const).map((bar) => (
-                                <View
-                                  key={bar.label}
-                                  style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}
-                                >
-                                  <RNText style={tx('400', 11, t.colors.muted, { width: 46 })}>
-                                    {bar.label}
-                                  </RNText>
-                                  <View
-                                    style={{
-                                      flex: 1,
-                                      height: 6,
-                                      borderRadius: 999,
-                                      backgroundColor: t.colors.surface2,
-                                      overflow: 'hidden',
-                                    }}
-                                  >
-                                    <View
-                                      style={{
-                                        width: peopleBarWidth(bar.value, people),
-                                        height: '100%',
-                                        backgroundColor: bar.color,
-                                        borderRadius: 999,
-                                      }}
-                                    />
-                                  </View>
-                                  <RNText
-                                    style={tx(
-                                      '600',
-                                      12,
-                                      bar.value > 0 ? t.colors.ink : t.colors.muted,
-                                      { width: 74, textAlign: 'right' },
-                                    )}
-                                  >
-                                    {formatINR(bar.value)}
-                                  </RNText>
-                                </View>
-                              ))}
-                            </View>
-
-                            {escrowed > 0 && (
-                              <RNText style={tx('400', 11, t.colors.muted, { marginTop: 7 })}>
-                                {formatINR(escrowed)} of theirs is in live escrow
-                              </RNText>
-                            )}
-                          </View>
-                        );
-                      })}
-                    </View>
-                  </>
-                )}
                 <View style={{ height: 28 }} />
 
               </FadeIn>

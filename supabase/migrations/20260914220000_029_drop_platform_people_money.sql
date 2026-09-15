@@ -1,0 +1,17 @@
+-- Removed. The panel it fed was wrong, and in a way worth recording.
+--
+-- It put three numbers side by side that do not reconcile: "posters spent" and
+-- "workers earned" were flows over the selected window and counted only funded
+-- work, while "owed out" was an all-time wallet balance counting everything.
+-- So owed out (13,160) came out larger than everything workers had ever
+-- earned (6,600), which reads as a bug because it is one.
+--
+-- Worse, the difference was not noise. 6,560 of that "owed" figure traces back
+-- to tasks completed before the funding gate existed -- work nobody ever paid
+-- for. The panel was presenting the phantom liability the funding gate was
+-- built to stop, as though it were money the business genuinely owed.
+--
+-- A per-person money view is still worth having. It needs one consistent
+-- basis: either all-time everywhere, or windowed everywhere, and a wallet
+-- figure reconciled against funded work rather than standing beside it.
+drop function if exists public.platform_people_money(integer);

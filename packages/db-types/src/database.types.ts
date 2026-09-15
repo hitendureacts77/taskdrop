@@ -662,10 +662,6 @@ export type Database = {
         Args: { p_payment_id: string }
         Returns: Database["public"]["Tables"]["tasks"]["Row"]
       }
-      platform_people_money: {
-        Args: { p_days?: number }
-        Returns: Json
-      }
       app_secrets: {
         Args: Record<PropertyKey, never>
         Returns: Json
