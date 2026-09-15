@@ -911,6 +911,31 @@ export type MyStats = PosterStatsMine | WorkerStatsMine;
 export const myStats = (role: 'worker' | 'poster') =>
   rpc<MyStats>('my_stats', { p_role: role });
 
+/** One person's money, as the owner sees it. */
+export type PersonMoney = {
+  user_id: string;
+  name: string;
+  /** What they have paid for completed work, as a poster. */
+  spent_minor: number;
+  /** What they have taken home after commission, as a worker. */
+  earned_minor: number;
+  /** Their money sitting in live escrow right now. */
+  in_escrow_minor: number;
+  /** What TaskDrop owes them today: withdrawable plus still clearing. */
+  wallet_minor: number;
+  net_minor: number;
+  volume_minor: number;
+};
+
+/**
+ * Who is spending, who is earning, and what the business owes each of them.
+ *
+ * Replaces a head-count panel — active users, new users, average rating — that
+ * told an operator nothing they could act on.
+ */
+export const platformPeopleMoney = (days: number) =>
+  rpc<PersonMoney[]>('platform_people_money', { p_days: days });
+
 // ----------------------------------------------------------------- admin ---
 
 export type AdminPayout = Payout & { profile: Profile | null };
