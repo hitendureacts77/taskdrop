@@ -12,6 +12,7 @@ import { useApp } from '../providers/AppStateProvider';
 import { listBidsForTask, lockBid, getTask, type Task } from '../data/api';
 import { formatDeadline } from '../components/DateTimeSheet';
 import { FadeIn, Pressy, tx } from '../components/primitives';
+import { TaskMediaThumb } from '../components/TaskMediaThumb';
 
 type Quote = {
   bidId?: string;
@@ -29,7 +30,12 @@ function jobsLabel(n: number): string {
   return n + (n === 1 ? " job" : " jobs");
 }
 
-const FALLBACK_BENCH_MINOR = 120000; // ₹1,200 — poster fallback task price
+/** The pillar as a poster would name it, not as the column spells it. */
+const PILLAR_LABEL: Record<string, string> = {
+  services: 'SERVICES',
+  procurement: 'GOODS & PRODUCTS',
+  local_intel: 'LOCAL HELP',
+};
 
 /** Poster flow: incoming bids on a posted task, sortable, each lockable into escrow.
  * Pixel parity with docs/design/_design_markup.html lines 752-801. Data/handlers
@@ -45,9 +51,12 @@ export function CompareScreen() {
   const [task, setTask] = useState<Task | null>(null);
 
 
-  const title = typeof params.title === 'string' ? params.title : 'Assemble a wardrobe';
-  const benchMinor = typeof params.priceMinor === 'number' ? params.priceMinor : FALLBACK_BENCH_MINOR;
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+  // The params paint the screen on the first frame; the fetched row replaces
+  // them the moment it lands. Neither falls back to an invented request.
+  const title = task?.title ?? (typeof params.title === 'string' ? params.title : '');
+  const benchMinor =
+    task?.benchmark_minor ?? (typeof params.priceMinor === 'number' ? params.priceMinor : 0);
 
   useEffect(() => {
     if (!taskId) return;
@@ -146,6 +155,38 @@ export function CompareScreen() {
           {headerLine}
         </RNText>
         <RNText style={tx('800', 23, t.colors.ink, { letterSpacing: -0.69, marginTop: 9 })}>{title}</RNText>
+
+        {/* The post, inside the screen that decides on it. A poster reading
+            four quotes needs to see what he actually asked for — the words, the
+            photo and the place — without going back to find them. */}
+        {task?.pillar && (
+          <RNText style={tx('700', 10, t.colors.muted, { letterSpacing: 1.6, marginTop: 10 })}>
+            {PILLAR_LABEL[task.pillar] ?? String(task.pillar).toUpperCase()}
+          </RNText>
+        )}
+
+        {task?.description ? (
+          <RNText style={tx('400', 14, t.colors.text, { lineHeight: 21.7, marginTop: 10 })}>
+            {task.description}
+          </RNText>
+        ) : null}
+
+        {task?.media_path && (
+          <View style={{ marginTop: 14, height: 200 }}>
+            <TaskMediaThumb
+              path={task.media_path}
+              kind={task.media_kind === 'video' ? 'video' : 'image'}
+              seconds={task.media_seconds ?? null}
+              radius={14}
+            />
+          </View>
+        )}
+
+        {task?.loc_label ? (
+          <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 12 })}>
+            📍 {task.loc_label}
+          </RNText>
+        ) : null}
 
         <View
           style={{
