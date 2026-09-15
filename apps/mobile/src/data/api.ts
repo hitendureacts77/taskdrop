@@ -26,14 +26,13 @@ function unwrap<T>(res: { data: T | null; error: { message: string } | null }): 
 
 /** Open tasks for the worker feed, newest first. */
 export async function listOpenTasks(limit = 30): Promise<Task[]> {
-  return unwrap(
-    await supabase
-      .from('tasks')
-      .select('*')
-      .eq('status', 'OPEN')
-      .order('created_at', { ascending: false })
-      .limit(limit),
-  );
+  const uid = await myId();
+  let query = supabase.from('tasks').select('*').eq('status', 'OPEN');
+  // Your own request is not something you can take on, so it does not belong
+  // in a feed of work to take on. Leaving it in was how a poster ended up
+  // pressing "Send a quote" on himself and meeting a policy error.
+  if (uid) query = query.neq('poster_id', uid);
+  return unwrap(await query.order('created_at', { ascending: false }).limit(limit));
 }
 
 /** Tasks this user posted. */
@@ -108,7 +107,11 @@ export type TaskSearch = {
  * an empty search is just the feed. `q` matches the title or the description.
  */
 export async function searchTasks(input: TaskSearch = {}): Promise<Task[]> {
+  const uid = await myId();
   let query = supabase.from('tasks').select('*').eq('status', 'OPEN');
+  // Same reason as listOpenTasks: browse and search show work you could take,
+  // and your own request is never that.
+  if (uid) query = query.neq('poster_id', uid);
 
   const q = input.q?.trim();
   if (q) {
@@ -646,10 +649,11 @@ export async function placeBid(input: {
  * offered rather than after it is pressed. A refusal a user could have been
  * told about in advance should never arrive as an error.
  */
-export async function canQuoteOn(
-  taskId: string,
-  userId: string,
-): Promise<{ allowed: boolean; reason?: string }> {
+export type QuoteVerdict =
+  | { allowed: true }
+  | { allowed: false; code: 'own' | 'closed' | 'duplicate'; reason: string };
+
+export async function canQuoteOn(taskId: string, userId: string): Promise<QuoteVerdict> {
   const { data, error } = await supabase
     .from('tasks')
     .select('poster_id,status')
@@ -658,10 +662,18 @@ export async function canQuoteOn(
   if (error || !data) return { allowed: true };  // let the server decide
 
   if (data.poster_id === userId) {
-    return { allowed: false, reason: 'This is your own request — you cannot quote on it.' };
+    return {
+      allowed: false,
+      code: 'own',
+      reason: 'This is your own request — you cannot quote on it.',
+    };
   }
   if (data.status !== 'OPEN') {
-    return { allowed: false, reason: 'This request is no longer open for quotes.' };
+    return {
+      allowed: false,
+      code: 'closed',
+      reason: 'This request is no longer open for quotes.',
+    };
   }
 
   const { data: mine } = await supabase
@@ -670,7 +682,13 @@ export async function canQuoteOn(
     .eq('task_id', taskId)
     .eq('worker_id', userId)
     .maybeSingle();
-  if (mine) return { allowed: false, reason: 'You have already quoted on this task.' };
+  if (mine) {
+    return {
+      allowed: false,
+      code: 'duplicate',
+      reason: 'You have already quoted on this task.',
+    };
+  }
 
   return { allowed: true };
 }

@@ -23,14 +23,6 @@ type Quote = {
   eta: string;
 };
 
-// _design_source.jsx lines 235-239
-const COMPARE_DATA: Quote[] = [
-  { who: 'Tasker 4172', rating: 4.7, pro: false, meta: '18 jobs · 5 km away', priceMinor: 420000, eta: 'by 9 Sep, 6 PM' },
-  { who: 'Tasker 2098', rating: 4.9, pro: true, meta: '42 jobs · 2 km away', priceMinor: 450000, eta: 'by 9 Sep, 6 PM' },
-  { who: 'Tasker 8830', rating: 4.6, pro: false, meta: '9 jobs · 8 km away', priceMinor: 510000, eta: 'by 8 Sep, 7 PM' },
-  { who: 'Tasker 3315', rating: 4.9, pro: true, meta: '61 jobs · 4 km away', priceMinor: 540000, eta: 'by 10 Sep, 12 PM' },
-];
-
 /** "no jobs yet" / "1 job" / "12 jobs" - never "1 jobs". */
 function jobsLabel(n: number): string {
   if (n === 0) return "no jobs yet";
@@ -97,7 +89,9 @@ export function CompareScreen() {
     };
   }, [taskId]);
 
-  const source: Quote[] = rows ?? COMPARE_DATA;
+  // No invented quotes. An empty list is a true statement about a new
+  // request; four imaginary taskers with ratings is not.
+  const source: Quote[] = rows ?? [];
 
   const sorted = useMemo(() => {
     const list = source.slice();
@@ -176,9 +170,13 @@ export function CompareScreen() {
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
           <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54 })}>INCOMING QUOTES</RNText>
-          <Pressable onPress={() => setSortLow((v) => !v)}>
-            <RNText style={tx('700', 12, t.colors.accentDeep)}>Sort: {sortLow ? 'lowest' : 'rating'} ▾</RNText>
-          </Pressable>
+          {sorted.length > 1 && (
+            <Pressable onPress={() => setSortLow((v) => !v)}>
+              <RNText style={tx('700', 12, t.colors.accentDeep)}>
+                Sort: {sortLow ? 'lowest' : 'rating'} ▾
+              </RNText>
+            </Pressable>
+          )}
         </View>
 
         {sorted.map((row, i) => {
@@ -247,9 +245,34 @@ export function CompareScreen() {
             </FadeIn>
           );
         })}
+
+        {sorted.length === 0 && (
+          <View
+            style={{
+              marginTop: 12,
+              borderWidth: 1,
+              borderColor: t.colors.line,
+              borderRadius: 14,
+              backgroundColor: t.colors.surface,
+              padding: 18,
+            }}
+          >
+            <RNText style={tx('700', 15, t.colors.ink)}>No quotes yet</RNText>
+            <RNText style={tx('400', 13, t.colors.muted, { marginTop: 6, lineHeight: 20 })}>
+              Your request is live and taskers nearby can see it. Quotes land here as
+              they come in, and nothing is charged until you lock one.
+            </RNText>
+          </View>
+        )}
       </ScrollView>
 
       <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+        {!pickRow ? (
+          <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', lineHeight: 18 })}>
+            Nothing to lock yet. You will get a notification when the first quote arrives.
+          </RNText>
+        ) : (
+        <>
         <Pressy
           onPress={handleLock}
           scaleTo={0.96}
@@ -270,6 +293,8 @@ export function CompareScreen() {
         <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10, lineHeight: 18 })}>
           Names and contacts unmask when the task starts.
         </RNText>
+        </>
+        )}
       </View>
     </Screen>
   );

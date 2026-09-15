@@ -157,8 +157,8 @@ export function TaskDetailScreen() {
   // and then discarded, so a worker deciding whether to quote could see neither
   // the description nor the photo.
   // Why this person cannot quote here, asked before the button is drawn.
-  // The database enforces the same three rules; being refused after typing a
-  // price and pressing send is a worse way to learn them.
+  // Only ever "the task closed" or "you already quoted" — a worker looking at
+  // his own request is redirected to the poster side instead of refused.
   const [blocked, setBlocked] = useState<string | null>(null);
   const [live, setLive] = useState<{
     body: string;
@@ -187,7 +187,17 @@ export function TaskDetailScreen() {
         if (worker) {
           const verdict = await canQuoteOn(realId, userId);
           if (!alive) return;
-          setBlocked(verdict.allowed ? null : (verdict.reason ?? null));
+          if (!verdict.allowed && verdict.code === 'own') {
+            // Not a refusal — the wrong screen. Your own request has a poster
+            // side, and what you want there is the quotes it has received.
+            go('compare', {
+              title: td?.task.title ?? '',
+              priceMinor: td?.task.benchmark_minor ?? 0,
+              taskId: realId,
+            });
+            return;
+          }
+          setBlocked(verdict.allowed ? null : verdict.reason);
         }
         const posterId = td?.task.poster_id;
         if (!posterId) return;
@@ -211,7 +221,7 @@ export function TaskDetailScreen() {
     return () => {
       alive = false;
     };
-  }, [realId, userId, worker]);
+  }, [realId, userId, worker, go]);
 
   const body = live?.body || detail.body;
   const mediaPath = live ? live.mediaPath : detail.mediaPath;
@@ -429,22 +439,12 @@ export function TaskDetailScreen() {
              the person somewhere different to go next. */
           <Card style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
             <RNText style={tx('600', 13, t.colors.muted, { marginBottom: 8 })}>
-              {/already quoted/i.test(blocked)
-                ? 'QUOTE SENT'
-                : /your own request/i.test(blocked)
-                  ? 'YOUR REQUEST'
-                  : 'CLOSED FOR QUOTES'}
+              {/already quoted/i.test(blocked) ? 'QUOTE SENT' : 'CLOSED FOR QUOTES'}
             </RNText>
             <RNText style={tx('600', 15, t.colors.ink, { lineHeight: 22 })}>{blocked}</RNText>
             <Button
-              label={
-                /already quoted/i.test(blocked)
-                  ? 'See my quote'
-                  : /your own request/i.test(blocked)
-                    ? 'See the quotes on it'
-                    : 'Find another request'
-              }
-              onPress={() => go(/no longer open/i.test(blocked) ? 'search' : 'orders')}
+              label={/already quoted/i.test(blocked) ? 'See my quote' : 'Find another request'}
+              onPress={() => go(/already quoted/i.test(blocked) ? 'orders' : 'search')}
               style={{ marginTop: t.spacing.lg }}
             />
           </Card>
