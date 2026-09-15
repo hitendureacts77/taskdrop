@@ -911,29 +911,6 @@ export type MyStats = PosterStatsMine | WorkerStatsMine;
 export const myStats = (role: 'worker' | 'poster') =>
   rpc<MyStats>('my_stats', { p_role: role });
 
-/**
- * One person's money, all time, on a single basis.
- *
- * reconciles is the row checking itself: earned must equal what has been paid
- * out plus what is still owed. The first version of this panel mixed a
- * windowed flow with an all-time balance and produced an "owed" figure larger
- * than everything workers had ever earned, so the identity is now computed
- * server-side and surfaced rather than assumed.
- */
-export type PersonMoney = {
-  user_id: string;
-  name: string;
-  spent_minor: number;
-  earned_minor: number;
-  paid_out_minor: number;
-  owed_minor: number;
-  in_escrow_minor: number;
-  reconciles: boolean;
-  volume_minor: number;
-};
-
-export const peopleMoney = () => rpc<PersonMoney[]>('people_money', {});
-
 // ----------------------------------------------------------------- admin ---
 
 export type AdminPayout = Payout & { profile: Profile | null };

@@ -1,0 +1,14 @@
+-- Removed at the owner's request, second time of asking.
+--
+-- The first version was wrong: it mixed a windowed flow with an all-time
+-- balance and showed an "owed" figure larger than everything workers had ever
+-- earned. The second was arithmetically sound -- all-time throughout, every
+-- row checking earned = paid out + still owed -- and was still not wanted.
+--
+-- The reconciliation work it prompted stays and was the valuable part: the
+-- 6,560 of credits for unfunded work is reversed, wallet_adjustments records
+-- it, and every wallet now matches funded earnings exactly. Those are in
+-- migrations 030 and 031 and are unaffected by this.
+--
+-- Not to be rebuilt without being asked for.
+drop function if exists public.people_money();
