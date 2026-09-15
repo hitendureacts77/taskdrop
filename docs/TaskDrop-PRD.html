@@ -1,0 +1,1315 @@
+<title>TaskDrop PRD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;1,400&display=swap">
+<style>
+  :root {
+    --paper: #F5F7F6;
+    --card: #FFFFFF;
+    --raise: #ECF0EE;
+    --ink: #101E19;
+    --ink2: #34443D;
+    --muted: #5F6F68;
+    --line: #DCE3E0;
+    --line2: #C6D0CC;
+    --accent: #0C7D56;
+    --accent-soft: #E2F2EB;
+    --gold: #8A6000;
+    --gold-soft: #F8EFD9;
+    --flag: #A62D22;
+    --flag-soft: #FBE7E4;
+    --blue: #1E5F8F;
+    --blue-soft: #E3EEF6;
+
+    --f-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --f-serif: "IBM Plex Serif", ui-serif, Georgia, serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0B110F;
+      --card: #121A17;
+      --raise: #18221E;
+      --ink: #E7EFEB;
+      --ink2: #BFCCC6;
+      --muted: #8B9C95;
+      --line: #232F2A;
+      --line2: #2F3E38;
+      --accent: #3ED49C;
+      --accent-soft: #12271F;
+      --gold: #E3B45C;
+      --gold-soft: #26200F;
+      --flag: #F0897C;
+      --flag-soft: #2A1614;
+      --blue: #78B5E0;
+      --blue-soft: #10202B;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #0B110F;
+    --card: #121A17;
+    --raise: #18221E;
+    --ink: #E7EFEB;
+    --ink2: #BFCCC6;
+    --muted: #8B9C95;
+    --line: #232F2A;
+    --line2: #2F3E38;
+    --accent: #3ED49C;
+    --accent-soft: #12271F;
+    --gold: #E3B45C;
+    --gold-soft: #26200F;
+    --flag: #F0897C;
+    --flag-soft: #2A1614;
+    --blue: #78B5E0;
+    --blue-soft: #10202B;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--f-sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding-inline: 20px;
+    padding-block: 0 72px;
+  }
+
+  /* ---------- masthead ---------- */
+  header.mast {
+    border-bottom: 1px solid var(--line);
+    padding-block: 52px 30px;
+  }
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-size: clamp(34px, 6vw, 52px);
+    line-height: 1.04;
+    letter-spacing: -0.028em;
+    font-weight: 700;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-family: var(--f-serif);
+    font-size: clamp(17px, 2.4vw, 20px);
+    line-height: 1.55;
+    color: var(--ink2);
+    max-width: 60ch;
+    margin: 0;
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 28px;
+    margin-top: 26px;
+    font-family: var(--f-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .meta-row b { color: var(--ink2); font-weight: 500; }
+
+  /* ---------- layout ---------- */
+  .cols {
+    display: grid;
+    grid-template-columns: 210px minmax(0, 1fr);
+    gap: 56px;
+    align-items: start;
+  }
+  @media (max-width: 980px) {
+    .cols { grid-template-columns: 1fr; gap: 0; }
+    nav.toc { position: static !important; margin-block: 28px 8px; }
+  }
+
+  nav.toc {
+    position: sticky;
+    top: 24px;
+    padding-top: 40px;
+    font-size: 13.5px;
+  }
+  nav.toc .toc-h {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+  nav.toc a {
+    color: var(--ink2);
+    text-decoration: none;
+    display: block;
+    border-left: 2px solid var(--line);
+    padding-left: 11px;
+  }
+  nav.toc a:hover { color: var(--accent); border-left-color: var(--accent); }
+  nav.toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  main { padding-top: 40px; min-width: 0; }
+
+  section { margin-bottom: 60px; scroll-margin-top: 20px; }
+  h2 {
+    font-size: clamp(23px, 3.4vw, 29px);
+    letter-spacing: -0.02em;
+    line-height: 1.18;
+    margin: 0 0 6px;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+  h2 .num {
+    font-family: var(--f-mono);
+    font-size: 0.55em;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    margin-right: 12px;
+    vertical-align: 0.18em;
+  }
+  h3 {
+    font-size: 17.5px;
+    margin: 32px 0 8px;
+    letter-spacing: -0.01em;
+    font-weight: 600;
+  }
+  .lede { color: var(--ink2); max-width: 68ch; margin: 0 0 22px; }
+  p { max-width: 68ch; }
+  a { color: var(--accent); }
+
+  /* ---------- flow blocks ---------- */
+  .flow {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 22px 24px;
+    margin-bottom: 18px;
+  }
+  .flow > header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 12px;
+    margin-bottom: 4px;
+  }
+  .flow-id {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+  }
+  .flow h3 { margin: 0; font-size: 18px; }
+  .who {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 12px 0 16px;
+  }
+  .chip {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--raise);
+    color: var(--ink2);
+    border: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .chip.poster { background: var(--blue-soft); color: var(--blue); border-color: transparent; }
+  .chip.worker { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  .chip.money  { background: var(--gold-soft); color: var(--gold); border-color: transparent; }
+  .chip.ops    { background: var(--flag-soft); color: var(--flag); border-color: transparent; }
+
+  ol.steps { counter-reset: s; list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; }
+  ol.steps > li {
+    counter-increment: s;
+    position: relative;
+    padding-left: 34px;
+    max-width: 66ch;
+  }
+  ol.steps > li::before {
+    content: counter(s);
+    position: absolute;
+    left: 0; top: 1px;
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    background: var(--raise);
+    color: var(--ink2);
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    font-weight: 600;
+    display: grid;
+    place-items: center;
+  }
+
+  .rule {
+    margin-top: 18px;
+    border-left: 3px solid var(--line2);
+    padding: 2px 0 2px 15px;
+  }
+  .rule .rule-h {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+  .rule ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; }
+  .rule li { max-width: 62ch; }
+  .rule.guard { border-left-color: var(--accent); }
+  .rule.warn  { border-left-color: var(--flag); }
+
+  code, .mono { font-family: var(--f-mono); font-size: 0.875em; }
+  code {
+    background: var(--raise);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--ink2);
+  }
+  .state {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 2px 7px;
+    border-radius: 5px;
+    background: var(--raise);
+    border: 1px solid var(--line);
+    white-space: nowrap;
+    display: inline-block;
+  }
+  .state.live { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  .state.hold { background: var(--gold-soft); color: var(--gold); border-color: transparent; }
+  .state.bad  { background: var(--flag-soft); color: var(--flag); border-color: transparent; }
+
+  /* ---------- tables ---------- */
+  .scroll-x { overflow-x: auto; margin: 16px 0 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 580px;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px 10px 0;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  th {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    border-bottom-color: var(--line2);
+  }
+  td.num { font-variant-numeric: tabular-nums; text-align: right; padding-right: 0; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* ---------- money panel ---------- */
+  .ledger {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-top: 20px;
+  }
+  .ledger table { min-width: 0; font-size: 15px; }
+  .ledger td:last-child { font-variant-numeric: tabular-nums; text-align: right; padding-right: 0; white-space: nowrap; }
+  .ledger tr.total td { border-top: 2px solid var(--line2); border-bottom: none; font-weight: 600; padding-top: 12px; }
+  .ledger tr.total td:last-child { color: var(--accent); }
+  .ledger .note { color: var(--muted); font-size: 13px; margin: 14px 0 0; }
+
+  /* ---------- gaps ---------- */
+  .gap-item {
+    display: grid;
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+    align-items: start;
+  }
+  .gap-item:last-child { border-bottom: none; }
+  .sev {
+    font-family: var(--f-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 0;
+    text-align: center;
+    border-radius: 5px;
+    font-weight: 600;
+  }
+  .sev.blocks { background: var(--flag-soft); color: var(--flag); }
+  .sev.manual { background: var(--gold-soft); color: var(--gold); }
+  .sev.later  { background: var(--raise); color: var(--muted); }
+  .gap-item h4 { margin: 0 0 3px; font-size: 15.5px; font-weight: 600; }
+  .gap-item p { margin: 0; font-size: 14.5px; color: var(--ink2); }
+  @media (max-width: 520px) {
+    .gap-item { grid-template-columns: 1fr; gap: 6px; }
+    .sev { justify-self: start; padding-inline: 10px; }
+  }
+
+  .callout {
+    background: var(--accent-soft);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 20px 0;
+    font-family: var(--f-serif);
+    font-size: 16.5px;
+    line-height: 1.55;
+    color: var(--ink);
+    max-width: 66ch;
+  }
+  .callout.warn { background: var(--flag-soft); }
+
+  hr.rule-line { border: none; border-top: 1px solid var(--line); margin: 0; }
+
+  footer.end {
+    border-top: 1px solid var(--line);
+    margin-top: 30px;
+    padding-top: 24px;
+    font-size: 13.5px;
+    color: var(--muted);
+    max-width: 68ch;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+  }
+
+  /* ---------- print / PDF ----------
+     The screen page is a dark-capable, sticky-rail document. On paper it has to
+     become an ordinary one: light, single column, with the contents as a real
+     contents list and every flow block kept whole on one page. */
+  @page {
+    size: A4;
+    margin: 17mm 15mm 16mm;
+  }
+
+  @media print {
+    :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
+      --paper: #FFFFFF;
+      --card: #FFFFFF;
+      --raise: #F0F3F1;
+      --ink: #101E19;
+      --ink2: #34443D;
+      --muted: #5F6F68;
+      --line: #D8E0DC;
+      --line2: #BDC8C3;
+      --accent: #0C7D56;
+      --accent-soft: #E6F3EC;
+      --gold: #8A6000;
+      --gold-soft: #F8EFD9;
+      --flag: #A62D22;
+      --flag-soft: #FBE7E4;
+      --blue: #1E5F8F;
+      --blue-soft: #E3EEF6;
+    }
+
+    body {
+      background: #FFFFFF;
+      font-size: 10.2pt;
+      line-height: 1.5;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+
+    .wrap { max-width: none; padding: 0; }
+
+    /* One column. The rail becomes a contents list under the masthead. */
+    .cols { display: block; }
+    nav.toc {
+      position: static;
+      padding-top: 0;
+      margin: 26px 0 0;
+      break-after: page;
+    }
+    /* The base rail is a grid; on paper it reads better as two plain columns. */
+    nav.toc ol {
+      display: block;
+      columns: 2;
+      column-gap: 30px;
+    }
+    nav.toc li { break-inside: avoid; margin-bottom: 7px; }
+    nav.toc a { color: var(--ink2); }
+
+    header.mast { padding-block: 0 26px; }
+    h1 { font-size: 34pt; }
+    .standfirst { font-size: 12pt; }
+
+    main { padding-top: 0; }
+
+    /* Each numbered section opens a page; the first one follows the contents. */
+    section { break-before: page; margin-bottom: 0; }
+    section#premise { break-before: auto; }
+    hr.rule-line { display: none; }
+
+    h2 { font-size: 19pt; break-after: avoid; }
+    h3 { break-after: avoid; }
+    p, li { orphans: 3; widows: 3; }
+
+    /* A flow, a ledger, a gap row and a callout each read as one object —
+       splitting one across a page break is what makes printed specs unusable. */
+    .flow, .ledger, .gap-item, .callout, .rule { break-inside: avoid; }
+
+    /* Nothing scrolls on paper. */
+    .scroll-x { overflow: visible; }
+    table { min-width: 0; font-size: 9.2pt; }
+    thead { display: table-header-group; }
+    tr { break-inside: avoid; }
+
+    a { text-decoration: none; }
+    footer.end { break-inside: avoid; }
+  }
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">Product requirements · v1 · as built</p>
+  <h1>TaskDrop</h1>
+  <p class="standfirst">A reverse marketplace for local work. Someone posts what they need with a
+  fair price attached; taskers nearby quote against it; the money sits in escrow until the poster
+  says the work is done. This document is the specification of every flow in the product, written
+  against the code and the database that exist today — not against an intention.</p>
+  <div class="meta-row">
+    <span><b>Market</b> India · INR</span>
+    <span><b>Platforms</b> Android, Web</span>
+    <span><b>Stack</b> Expo SDK 57 · React Native 0.86 · Supabase</span>
+    <span><b>Payments</b> Razorpay (test mode)</span>
+    <span><b>Status</b> Feature-complete, pre-launch</span>
+  </div>
+</header>
+
+<div class="cols">
+
+<nav class="toc" aria-label="Contents">
+  <div class="toc-h">Contents</div>
+  <ol>
+    <li><a href="#premise">The premise</a></li>
+    <li><a href="#people">People &amp; roles</a></li>
+    <li><a href="#principles">Product principles</a></li>
+    <li><a href="#money">The money model</a></li>
+    <li><a href="#states">Task state machine</a></li>
+    <li><a href="#flows">The flows</a></li>
+    <li><a href="#permissions">Permission model</a></li>
+    <li><a href="#ops">Running it</a></li>
+    <li><a href="#gaps">Known gaps</a></li>
+    <li><a href="#accept">Acceptance checks</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<!-- ============ 1 ============ -->
+<section id="premise">
+  <h2><span class="num">01</span>The premise</h2>
+  <p class="lede">Most marketplaces ask the worker to advertise and the buyer to shop. TaskDrop
+  inverts it.</p>
+
+  <p>A <b>poster</b> publishes an open request — what needs doing, where, by when, and a
+  <b>benchmark price</b> they think it is worth. That benchmark is published, not hidden. Nearby
+  <b>workers</b> see the request and send a <b>quote</b>: their price and how long they need. The
+  poster compares the quotes that arrive and <b>locks</b> one, which assigns the job and creates
+  an escrow obligation. The poster pays that escrow before any work is allowed to start. When the
+  worker marks the job done and the poster confirms, the money is released to the worker — minus
+  commission — and clears into a withdrawable balance a week later.</p>
+
+  <div class="callout">The benchmark price is the product. It stops the race to the bottom that
+  open bidding produces, because the poster has already said out loud what the job is worth before
+  anyone competes for it.</div>
+
+  <h3>Three kinds of request</h3>
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Pillar</th><th>Means</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td><code>services</code></td><td>Someone does a job for you</td><td>Rewire two bedroom sockets</td></tr>
+      <tr><td><code>procurement</code></td><td>Someone buys or fetches something</td><td>Collect a part from a dealer in Peenya</td></tr>
+      <tr><td><code>local_intel</code></td><td>Someone finds something out on the ground</td><td>Check whether that flat is really vacant</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<hr class="rule-line">
+
+<!-- ============ 2 ============ -->
+<section id="people">
+  <h2><span class="num">02</span>People &amp; roles</h2>
+  <p class="lede">One account, two modes. Nobody signs up as "a worker" or "a poster" — every
+  profile holds both roles and a toggle decides which side of the app they are looking at.</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Role</th><th>What they do</th><th>How it is held</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="chip poster">poster</span></td>
+        <td>Publishes requests, compares quotes, funds escrow, confirms completion, rates the worker.</td>
+        <td>Granted on signup.</td>
+      </tr>
+      <tr>
+        <td><span class="chip worker">worker</span></td>
+        <td>Browses requests, sends quotes, starts and submits work, withdraws earnings.</td>
+        <td>Granted on signup.</td>
+      </tr>
+      <tr>
+        <td><span class="chip ops">admin</span></td>
+        <td>Marks payouts paid, settles disputes, runs the clearing sweep.</td>
+        <td>Granted manually. <b>No screen in the app</b> — see §08.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>The mode toggle</h3>
+  <p>Mode is a view preference, not a permission. Switching to <b>Post a Request</b> changes the
+  home feed, the Orders tab ("My requests" vs "My jobs"), the wallet framing (spending vs earnings)
+  and the wording throughout. It does not change what the database will allow — that is decided
+  per row, per action, by the rules in §07.</p>
+
+  <div class="rule warn">
+    <div class="rule-h">Rule — the two sides never meet on one task</div>
+    <ul>
+      <li>A poster cannot quote on his own request, in any mode. The database refuses it and the app
+      no longer offers it: his own requests are excluded from browse and search, and opening one
+      takes him to the poster side of that task — the quotes it has received.</li>
+      <li>A worker cannot lock his own quote. Only the poster of the task can lock.</li>
+    </ul>
+  </div>
+</section>
+
+<hr class="rule-line">
+
+<!-- ============ 3 ============ -->
+<section id="principles">
+  <h2><span class="num">03</span>Product principles</h2>
+  <p class="lede">Four rules that decided most of the arguments during the build. They are worth
+  stating because breaking any of them is how this product would fail with real money in it.</p>
+
+  <h3>1 &nbsp;· &nbsp;No work before payment</h3>
+  <p>Fiverr's oldest rule, and the one this product got wrong first. A task cannot be started,
+  submitted, or released unless <code>funded_at</code> is set — meaning a settled payment covering
+  the full escrow exists against that exact task. Before this gate was added, tasks ran to
+  completion and released money that had never been collected.</p>
+
+  <h3>2 &nbsp;· &nbsp;The server decides, always</h3>
+  <p>Every transition that touches money or state is a <code>SECURITY DEFINER</code> function that
+  re-reads <code>auth.uid()</code> and re-checks the rules itself. The app cannot move money by
+  writing a row. It asks, and the database says yes or no. A client is a rendering of state, never
+  a source of it.</p>
+
+  <h3>3 &nbsp;· &nbsp;Money is an integer count of paise</h3>
+  <p>Never a float, never rupees. <code>price_minor</code>, <code>escrow_minor</code>,
+  <code>balance_minor</code>, <code>clearing_minor</code>. Rupees exist only in
+  <code>formatINR()</code>, at the last moment before a human reads them.</p>
+
+  <h3>4 &nbsp;· &nbsp;Nothing invented is ever shown</h3>
+  <p>If the real answer is zero, the screen says zero. A wallet with no data shows ₹0, not a
+  plausible balance; a request with no quotes says "No quotes yet", not four imaginary taskers with
+  ratings. Placeholder data that is indistinguishable from real data is the single most dangerous
+  thing a money app can render, and every instance found during the build was removed.</p>
+</section>
+
+<hr class="rule-line">
+
+<!-- ============ 4 ============ -->
+<section id="money">
+  <h2><span class="num">04</span>The money model</h2>
+  <p class="lede">All rates live in a <code>settings</code> table and are read at transaction time,
+  so changing one does not require a deploy — and does not retroactively change a task already
+  priced.</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Setting</th><th>Value</th><th>Applies</th></tr></thead>
+    <tbody>
+      <tr><td><code>worker_commission_pct</code></td><td class="num">20%</td><td>Taken off the worker's quote at release.</td></tr>
+      <tr><td><code>poster_service_fee_pct</code></td><td class="num">3%</td><td>Added to the quote at lock, to form the escrow.</td></tr>
+      <tr><td><code>post_start_cancel_penalty_pct</code></td><td class="num">5%</td><td>Paid to the worker if the poster cancels after work started.</td></tr>
+      <tr><td><code>clearing_period_days</code></td><td class="num">7 days</td><td>Earnings sit in clearing before becoming withdrawable.</td></tr>
+      <tr><td><code>review_window_days</code></td><td class="num">3 days</td><td>Window in which a rating can be left.</td></tr>
+      <tr><td><code>max_video_seconds</code></td><td class="num">60 s</td><td>Cap on an attached video.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Worked example</h3>
+  <p>A poster publishes a request with a benchmark of ₹1,200. A worker quotes ₹1,000 and the poster
+  locks that quote.</p>
+
+  <div class="ledger">
+    <table>
+      <tbody>
+        <tr><td>Worker's quote <span class="mono">(locked_minor)</span></td><td>₹1,000.00</td></tr>
+        <tr><td>Poster service fee, 3%</td><td>+ ₹30.00</td></tr>
+        <tr class="total"><td>Poster pays into escrow <span class="mono">(escrow_minor)</span></td><td>₹1,030.00</td></tr>
+      </tbody>
+    </table>
+    <table style="margin-top:18px">
+      <tbody>
+        <tr><td>Worker's quote</td><td>₹1,000.00</td></tr>
+        <tr><td>Commission, 20%</td><td>− ₹200.00</td></tr>
+        <tr class="total"><td>Worker receives</td><td>₹800.00</td></tr>
+      </tbody>
+    </table>
+    <p class="note">TaskDrop keeps ₹230 on a ₹1,000 job — 23% of the quote, 22.3% of what the
+    poster paid. The poster sees the 3% as a line item; the worker sees the 20% before sending the
+    quote. Neither number is hidden.</p>
+  </div>
+
+  <h3>Where the money actually sits</h3>
+  <ol class="steps">
+    <li>The poster pays Razorpay. The funds land in <b>TaskDrop's Razorpay settlement account</b> —
+    a normal merchant account, not a regulated escrow account. This is the honest description and
+    it matters legally.</li>
+    <li>A webhook (<code>payment_link.paid</code>) marks the <code>payments</code> row
+    <code>paid</code>, and <code>fund_task()</code> stamps <code>funded_at</code> on the task. The
+    escrow is now recognised.</li>
+    <li>On release, the worker's net is credited to <code>wallets.clearing_minor</code> — an
+    internal ledger entry, not a transfer. No money has left TaskDrop.</li>
+    <li>After the clearing period, <code>settle_cleared_earnings()</code> moves it to
+    <code>balance_minor</code>, which is withdrawable.</li>
+    <li>A withdrawal debits <code>balance_minor</code> immediately and creates a
+    <code>payouts</code> row. An operator sends the money by UPI or bank transfer and marks it
+    <code>paid</code>.</li>
+  </ol>
+
+  <div class="callout warn">Until an operator sends that transfer, every worker balance on the
+  platform is a liability TaskDrop owes out of a single pooled account. That is a business risk and
+  a compliance question, not a bug — but it should be understood before real money is taken.</div>
+</section>
+
+<hr class="rule-line">
+
+<!-- ============ 5 ============ -->
+<section id="states">
+  <h2><span class="num">05</span>Task state machine</h2>
+  <p class="lede">Ten states. Every transition is a named function; nothing changes status by an
+  ordinary table write.</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>From</th><th>Event</th><th>To</th><th>Who</th><th>Function</th></tr></thead>
+    <tbody>
+      <tr><td>—</td><td>Request published</td><td><span class="state live">OPEN</span></td><td><span class="chip poster">poster</span></td><td><code>insert tasks</code></td></tr>
+      <tr><td><span class="state live">OPEN</span></td><td>Quote locked</td><td><span class="state hold">LOCKED</span></td><td><span class="chip poster">poster</span></td><td><code>lock_bid()</code></td></tr>
+      <tr><td><span class="state hold">LOCKED</span></td><td>Escrow paid</td><td><span class="state hold">LOCKED</span> <span class="mono">+ funded_at</span></td><td><span class="chip poster">poster</span></td><td><code>fund_task()</code></td></tr>
+      <tr><td><span class="state hold">LOCKED</span></td><td>Work started</td><td><span class="state live">TASK_STARTED</span></td><td><span class="chip worker">worker</span></td><td><code>start_task()</code></td></tr>
+      <tr><td><span class="state live">TASK_STARTED</span></td><td>Deadline passed</td><td><span class="state bad">OVERDUE</span></td><td>system</td><td>— <i>not automated</i></td></tr>
+      <tr><td><span class="state live">TASK_STARTED</span></td><td>Work submitted</td><td><span class="state hold">WORK_DONE</span></td><td><span class="chip worker">worker</span></td><td><code>mark_work_done()</code></td></tr>
+      <tr><td><span class="state hold">WORK_DONE</span></td><td>Changes asked for</td><td><span class="state hold">REVISION_REQUESTED</span></td><td><span class="chip poster">poster</span></td><td><code>request_revision()</code></td></tr>
+      <tr><td><span class="state hold">WORK_DONE</span></td><td>Poster confirms</td><td><span class="state live">COMPLETED</span></td><td><span class="chip poster">poster</span></td><td><code>confirm_release()</code></td></tr>
+      <tr><td><span class="state hold">WORK_DONE</span></td><td>No response in window</td><td><span class="state live">AUTO_COMPLETED</span></td><td>system</td><td>— <i>not automated</i></td></tr>
+      <tr><td>any live state</td><td>Dispute raised</td><td><span class="state bad">DISPUTED</span></td><td>either party</td><td><code>open_dispute()</code></td></tr>
+      <tr><td><span class="state bad">DISPUTED</span></td><td>Settled</td><td><span class="state live">COMPLETED</span> / <span class="state bad">CANCELLED</span></td><td><span class="chip ops">admin</span></td><td><code>admin_resolve_dispute()</code></td></tr>
+      <tr><td>before submission</td><td>Cancelled</td><td><span class="state bad">CANCELLED</span> / <span class="state live">OPEN</span></td><td>either party</td><td><code>cancel_task()</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="rule guard">
+    <div class="rule-h">Invariants</div>
+    <ul>
+      <li><code>funded_at</code> is set exactly once and never cleared. A retry of
+      <code>fund_task()</code> returns success without double-counting.</li>
+      <li>Underpayment does not fund a task. Overpayment funds it and the difference is left for an
+      operator to decide on, never guessed at.</li>
+      <li>A worker cancelling before submission returns the task to <span class="state live">OPEN</span>
+      and unlocks the quote — the poster keeps the request and the other quotes.</li>
+      <li>Work already submitted cannot be cancelled by anyone. The only route out is a dispute.</li>
+    </ul>
+  </div>
+</section>
+
+<hr class="rule-line">
+
+<!-- ============ 6 ============ -->
+<section id="flows">
+  <h2><span class="num">06</span>The flows</h2>
+  <p class="lede">Fifteen flows cover everything a person can do in the app. Each names its actor,
+  what must already be true, the steps as the user experiences them, and what the server enforces
+  regardless of what the screen offers.</p>
+
+  <!-- F1 -->
+  <article class="flow">
+    <header><span class="flow-id">F1</span><h3>Sign up and identity</h3></header>
+    <div class="who"><span class="chip">new user</span><span class="chip">phone OTP</span></div>
+    <ol class="steps">
+      <li>Welcome screen states the premise in one line and offers <b>Get started</b>.</li>
+      <li>The user enters an Indian mobile number. An OTP is sent through the
+      <code>phone-auth</code> edge function.</li>
+      <li>Entering the code creates the Supabase auth user. A trigger
+      (<code>handle_new_user()</code>) creates the profile, grants both the
+      <span class="chip poster">poster</span> and <span class="chip worker">worker</span> roles, and
+      opens a zero-balance wallet.</li>
+      <li>Setup asks for a display name and a home location. Both are skippable; the display name
+      defaults to <span class="mono">Tasker&nbsp;NNNN</span> from the phone number.</li>
+      <li>The user lands on the home feed in worker mode.</li>
+    </ol>
+    <div class="rule">
+      <div class="rule-h">Enforced</div>
+      <ul>
+        <li>No password is ever collected. Phone possession is the only credential.</li>
+        <li>Contact details stay masked between counterparties until a task starts.</li>
+      </ul>
+    </div>
+  </article>
+
+  <!-- F2 -->
+  <article class="flow">
+    <header><span class="flow-id">F2</span><h3>Post a request</h3></header>
+    <div class="who"><span class="chip poster">poster</span></div>
+    <ol class="steps">
+      <li>The <b>+ List a request</b> button opens the composer. The user picks a pillar
+      (services, procurement, local intel).</li>
+      <li>Title and description. Optionally a photo or a video up to 60 seconds, captured or picked
+      from the library, uploaded to a private bucket under an owner-scoped path.</li>
+      <li>Location: a map pin, then a Swiggy-style address form over it — house or flat, floor,
+      landmark, and a label (Home / Work / Other). Only line one is required.</li>
+      <li>A deadline, expressed as a time limit in minutes, and a <b>benchmark price</b>.</li>
+      <li>Review and publish. The task is created <span class="state live">OPEN</span> and becomes
+      visible to every worker except its own poster.</li>
+    </ol>
+    <div class="rule">
+      <div class="rule-h">Enforced</div>
+      <ul>
+        <li>Media lives in a private bucket. Every read is a short-lived signed URL; there are no
+        public object URLs.</li>
+        <li>Publishing costs nothing. Money is not involved until a quote is locked.</li>
+      </ul>
+    </div>
+  </article>
+
+  <!-- F3 -->
+  <article class="flow">
+    <header><span class="flow-id">F3</span><h3>Discover work and send a quote</h3></header>
+    <div class="who"><span class="chip worker">worker</span></div>
+    <ol class="steps">
+      <li>The home feed lists open requests, newest first, each showing the poster, the pillar, the
+      benchmark price and any media thumbnail. Sponsored listings (F13) sit at the top, marked.</li>
+      <li>Search narrows by text, pillar, price range, and a radius around a chosen point. The
+      radius is applied to the list that is actually rendered, not merely reported.</li>
+      <li>Opening a request shows the full description, the media, the poster's record and rating,
+      and a quote box pre-filled with the benchmark.</li>
+      <li>The worker adjusts the price and sends the quote. It appears on the poster's compare
+      screen immediately.</li>
+      <li>The worker tracks it under <b>My jobs → Quoted</b>.</li>
+    </ol>
+    <div class="rule guard">
+      <div class="rule-h">Enforced — three conditions, all required</div>
+      <ul>
+        <li>The quote is filed under the sender's own id.</li>
+        <li>The sender holds the worker role.</li>
+        <li>The task is <span class="state live">OPEN</span> <b>and was not posted by the sender</b>.</li>
+      </ul>
+    </div>
+    <div class="rule">
+      <div class="rule-h">When a quote is refused</div>
+      <ul>
+        <li><b>Your own request</b> — cannot occur through the feed, which excludes it. Reaching the
+        task by a shared link redirects to the poster side of it.</li>
+        <li><b>Already quoted</b> — the screen says so and offers <i>See my quote</i>. One quote per
+        task is a unique index, not a UI check.</li>
+        <li><b>No longer open</b> — the screen says so and offers <i>Find another request</i>.</li>
+      </ul>
+    </div>
+  </article>
+
+  <!-- F4 -->
+  <article class="flow">
+    <header><span class="flow-id">F4</span><h3>Compare quotes and lock one</h3></header>
+    <div class="who"><span class="chip poster">poster</span></div>
+    <ol class="steps">
+      <li><b>My requests → Open</b> lists the poster's live requests with a quote count.</li>
+      <li>Opening one shows the benchmark, the deadline, and every quote received — price, the
+      worker's rating and job count, distance, and their promised completion time.</li>
+      <li>With no quotes yet the screen says so plainly and states that nothing is charged until a
+      quote is locked.</li>
+      <li>Quotes sort by lowest price or by rating. Selecting one and confirming calls
+      <code>lock_bid()</code>.</li>
+      <li>The task moves to <span class="state hold">LOCKED</span>, an assignment is created holding
+      <span class="mono">escrow_minor</span> = quote + 3%, and the poster is sent straight to
+      payment (F5).</li>
+    </ol>
+    <div class="rule">
+      <div class="rule-h">Enforced</div>
+      <ul>
+        <li>Only the task's poster can lock, and only while the task is <span class="state live">OPEN</span>.</li>
+        <li>Locking is idempotent per worker — re-locking updates the escrow rather than creating a
+        second assignment.</li>
+        <li>Worker names and contacts stay masked until the task starts.</li>
+      </ul>
+    </div>
+  </article>
+
+  <!-- F5 -->
+  <article class="flow">
+    <header><span class="flow-id">F5</span><h3>Fund the escrow</h3></header>
+    <div class="who"><span class="chip poster">poster</span><span class="chip money">razorpay</span></div>
+    <ol class="steps">
+      <li>The payment screen itemises the quote, the 3% fee and the total, then lists the methods —
+      UPI, cards, netbanking, wallets — in the Zomato pattern.</li>
+      <li>Choosing a method creates a <code>payments</code> row (<code>purpose = 'escrow'</code>,
+      carrying the task id) and opens the Razorpay payment link.</li>
+      <li>Razorpay's <code>payment_link.paid</code> webhook, signature-verified, marks the payment
+      <code>paid</code>.</li>
+      <li><code>fund_task()</code> checks the payment is the poster's own, settled, raised for
+      escrow, raised for <b>this</b> task, and at least the escrow amount — then stamps
+      <code>funded_at</code>.</li>
+      <li>The screen polls and moves on by itself. There is no "I've paid, check now" button; the
+      app does not take the user's word for a payment.</li>
+    </ol>
+    <div class="rule guard">
+      <div class="rule-h">Enforced</div>
+      <ul>
+        <li>A payment raised for one task can never fund another.</li>
+        <li>A payment that has not settled cannot fund anything.</li>
+        <li>Underpaying does not fund the task.</li>
+        <li>The Razorpay key secret never reaches the app bundle. It is resolved server-side only.</li>
+      </ul>
+    </div>
+  </article>
+
+  <!-- F6 -->
+  <article class="flow">
+    <header><span class="flow-id">F6</span><h3>Start the work</h3></header>
+    <div class="who"><span class="chip worker">worker</span></div>
+    <ol class="steps">
+      <li>The locked job appears under <b>My jobs → To start</b>, showing the escrow as funded or
+      awaiting payment.</li>
+      <li>A slide-to-start control calls <code>start_task()</code>.</li>
+      <li>The task moves to <span class="state live">TASK_STARTED</span>, the countdown to the
+      deadline begins, and contact details unmask for both sides.</li>
+    </ol>
+    <div class="rule guard">
+      <div class="rule-h">Enforced — the funding gate</div>
+      <ul>
+        <li><code>start_task()</code> refuses if <code>funded_at</code> is null. A worker cannot be
+        put to work on money that was never collected, and the app tells them the poster has not
+        paid yet rather than pretending otherwise.</li>
+        <li>Only the assigned worker can start.</li>
+      </ul>
+    </div>
+  </article>
+
+  <!-- F7 -->
+  <article class="flow">
+    <header><span class="flow-id">F7</span><h3>Talk during the job</h3></header>
+    <div class="who"><span class="chip poster">poster</span><span class="chip worker">worker</span></div>
+    <ol class="steps">
+      <li>A thread exists per task and is reachable from the active-job screen on both sides.</li>
+      <li>Messages are text, delivered over Supabase realtime.</li>
+      <li>The thread stays readable after completion, as the record of what was agreed.</li>
+    </ol>
+    <div class="rule">
+      <div class="rule-h">Enforced</div>
+      <ul>
+        <li>Only the poster and the assigned worker of that task can read or write the thread. No
+        third party, including another worker who quoted, has access.</li>
+      </ul>
+    </div>
+  </article>
+
+  <!-- F8 -->
+  <article class="flow">
+    <header><span class="flow-id">F8</span><h3>Submit work, and ask for changes</h3></header>
+    <div class="who"><span class="chip worker">worker</span><span class="chip poster">poster</span></div>
+    <ol class="steps">
+      <li>The worker marks the job done — <code>mark_work_done()</code> — optionally attaching
+      proof. The task becomes <span class="state hold">WORK_DONE</span>.</li>
+      <li>The poster is prompted to confirm or to ask for changes.</li>
+      <li><code>request_revision()</code> moves it to
+      <span class="state hold">REVISION_REQUESTED</span> with a note, and the worker can resubmit.</li>
+      <li>Escrow does not move in either direction during this loop.</li>
+    </ol>
+    <div class="rule">
+      <div class="rule-h">Enforced</div>
+      <ul>
+        <li>Only the assigned worker can submit; only the poster can ask for changes.</li>
+        <li>Submission requires a funded task.</li>
+        <li>Once submitted, neither side can cancel — see F12.</li>
+      </ul>
+    </div>
+  </article>
+
+  <!-- F9 -->
+  <article class="flow">
+    <header><span class="flow-id">F9</span><h3>Release the money and rate</h3></header>
+    <div class="who"><span class="chip poster">poster</span><span class="chip money">escrow</span></div>
+    <ol class="steps">
+      <li>The poster confirms. <code>confirm_release()</code> re-checks that the task is funded, was
+      submitted, and has a live worker.</li>
+      <li>The worker's net — quote less 20% — is credited to <code>clearing_minor</code>.</li>
+      <li>The task becomes <span class="state live">COMPLETED</span> and
+      <code>clear_at</code> is set to seven days out.</li>
+      <li>Both sides are invited to rate each other within three days. Ratings feed the record shown
+      on every future quote.</li>
+    </ol>
+    <div class="rule guard">
+      <div class="rule-h">Enforced</div>
+      <ul>
+        <li>Only the poster releases. There is no admin override on a healthy task.</li>
+        <li>An unfunded task cannot be released: <i>"No escrow was ever paid for this task, so there
+        is nothing to release."</i></li>
+      </ul>
+    </div>
+  </article>
+
+  <!-- F10 -->
+  <article class="flow">
+    <header><span class="flow-id">F10</span><h3>Clearing and withdrawal</h3></header>
+    <div class="who"><span class="chip worker">worker</span><span class="chip money">payout</span></div>
+    <ol class="steps">
+      <li>Released earnings sit in <b>clearing</b> for seven days. The wallet shows clearing and
+      available as separate numbers, with the date each amount clears.</li>
+      <li><code>settle_cleared_earnings()</code> moves due amounts into the available balance. It is
+      safe to run repeatedly — a task settles at most once.</li>
+      <li>The worker chooses a payout destination: a UPI VPA or a bank account, saved and shown
+      masked (<span class="mono">····8901</span>).</li>
+      <li>They enter an amount — typed or chosen from chips, capped at the available balance — and
+      request it. <code>request_withdrawal()</code> debits the balance immediately and creates a
+      <code>payouts</code> row at <code>requested</code>.</li>
+      <li>While still <code>requested</code>, the withdrawal can be cancelled or its destination
+      changed; <code>cancel_withdrawal()</code> returns the money to the balance.</li>
+      <li>An operator transfers the money and marks the payout <code>paid</code>, or
+      <code>failed</code> — which refunds the full amount to the wallet.</li>
+    </ol>
+    <div class="rule guard">
+      <div class="rule-h">Enforced</div>
+      <ul>
+        <li>The balance is locked for update while checking, so two simultaneous requests cannot
+        both pass.</li>
+        <li>Withdrawing more than the available balance is refused. Clearing money is not available.</li>
+        <li>A payout already <code>paid</code> or <code>failed</code> cannot be re-marked, so a
+        refund cannot be issued twice.</li>
+      </ul>
+    </div>
+  </article>
+
+  <!-- F11 -->
+  <article class="flow">
+    <header><span class="flow-id">F11</span><h3>Cancellation</h3></header>
+    <div class="who"><span class="chip poster">poster</span><span class="chip worker">worker</span></div>
+    <ol class="steps">
+      <li>Either party can cancel any time before the work is submitted.</li>
+      <li><b>Worker cancels:</b> the assignment is voided, the quote is unlocked and the task
+      returns to <span class="state live">OPEN</span> with its other quotes intact. No penalty.</li>
+      <li><b>Poster cancels before work started:</b> the task closes
+      <span class="state bad">CANCELLED</span>. No penalty.</li>
+      <li><b>Poster cancels after work started:</b> 5% of the quote is credited to the worker's
+      clearing as compensation for time already given, and the task closes.</li>
+      <li>Every cancellation is written to <code>cancellations_log</code> with who, when, at which
+      phase, and what was paid or forfeited.</li>
+    </ol>
+    <div class="rule warn">
+      <div class="rule-h">Open item</div>
+      <ul>
+        <li>Cancelling closes the task and records the penalty, but <b>does not automatically refund
+        the poster's escrow payment</b>. That refund is an operator action through Razorpay today.
+        See §09.</li>
+      </ul>
+    </div>
+  </article>
+
+  <!-- F12 -->
+  <article class="flow">
+    <header><span class="flow-id">F12</span><h3>Dispute</h3></header>
+    <div class="who"><span class="chip poster">poster</span><span class="chip worker">worker</span><span class="chip ops">admin</span></div>
+    <ol class="steps">
+      <li>Once work is submitted, cancelling is closed off. Either side can instead open a dispute
+      with a reason.</li>
+      <li>The task moves to <span class="state bad">DISPUTED</span> and the escrow freezes. Neither
+      party can move it.</li>
+      <li>An operator reviews the thread and any attached proof.</li>
+      <li><code>admin_resolve_dispute()</code> settles it one of two ways: <b>for the worker</b>,
+      which releases exactly as a normal completion would, or <b>for the poster</b>, which cancels
+      the task for refund.</li>
+      <li>The decision and its reason are written to <code>cancellations_log</code>.</li>
+    </ol>
+  </article>
+
+  <!-- F13 -->
+  <article class="flow">
+    <header><span class="flow-id">F13</span><h3>Promote a listing</h3></header>
+    <div class="who"><span class="chip poster">poster</span><span class="chip worker">worker</span><span class="chip money">revenue</span></div>
+    <ol class="steps">
+      <li>Promote opens with a searchable picker of the user's own live listings — a request if they
+      post, a service if they work.</li>
+      <li>They choose a daily budget and a number of days. An explainer states plainly what the
+      budget buys: position at the top of the feed and in search, marked as sponsored.</li>
+      <li><code>start_promotion()</code> creates the promotion and raises a payment.</li>
+      <li>On settlement, <code>activate_promotion()</code> makes it live.
+      <code>cancel_promotion()</code> ends it early.</li>
+      <li>Sponsored ids are read by the feed and pinned to the top, always labelled.</li>
+    </ol>
+    <div class="rule">
+      <div class="rule-h">Enforced</div>
+      <ul>
+        <li>A promotion only goes live against a settled payment.</li>
+        <li>Only the owner of a listing can promote it.</li>
+        <li>Sponsored placement is always visibly marked. It never masquerades as organic ranking.</li>
+      </ul>
+    </div>
+  </article>
+
+  <!-- F14 -->
+  <article class="flow">
+    <header><span class="flow-id">F14</span><h3>Wallet and money views</h3></header>
+    <div class="who"><span class="chip poster">poster</span><span class="chip worker">worker</span></div>
+    <ol class="steps">
+      <li>The wallet shows available and clearing separately, never as one blended number, with the
+      date each clearing amount becomes withdrawable.</li>
+      <li>Top-up adds funds by the same payment path, with a ₹10 floor.</li>
+      <li>The money screen is named for the mode: <b>My spending and requests</b> for a poster,
+      <b>My earnings and jobs</b> for a worker, and shows the figures that side actually cares
+      about.</li>
+      <li>Every figure is scoped to the signed-in user by an explicit filter, never left to row
+      security to narrow.</li>
+    </ol>
+    <div class="rule">
+      <div class="rule-h">Enforced</div>
+      <ul>
+        <li>A wallet query that cannot be scoped returns nothing and the screen shows zero. It never
+        falls back to a number that is not the user's.</li>
+      </ul>
+    </div>
+  </article>
+
+  <!-- F15 -->
+  <article class="flow">
+    <header><span class="flow-id">F15</span><h3>Operations</h3></header>
+    <div class="who"><span class="chip ops">admin</span></div>
+    <ol class="steps">
+      <li>Three jobs cannot be skipped: paying workers who have withdrawn, settling disputes, and
+      running the clearing sweep.</li>
+      <li>There is deliberately <b>no admin screen in the app</b>. The functions exist and are run
+      from the Supabase SQL editor, which authenticates as the project owner.</li>
+      <li>The procedure is written up in <code>docs/RUNNING_THE_BUSINESS.md</code>, with the exact
+      statement for each job.</li>
+    </ol>
+    <div class="rule warn">
+      <div class="rule-h">The one that cannot wait</div>
+      <ul>
+        <li>Until the clearing sweep runs on a schedule, a worker's money stops at clearing and they
+        cannot withdraw it. Enabling <code>pg_cron</code> and scheduling the nightly sweep is a
+        launch blocker, not an improvement.</li>
+      </ul>
+    </div>
+  </article>
+</section>
+
+<hr class="rule-line">
+
+<!-- ============ 7 ============ -->
+<section id="permissions">
+  <h2><span class="num">07</span>Permission model</h2>
+  <p class="lede">Row-level security is on for every table. The app holds an anonymous key with no
+  privileges of its own; what a person can see and do is decided per row by their
+  <code>auth.uid()</code>.</p>
+
+  <h3>How a policy reads</h3>
+  <p>The insert policy on <code>bids</code> is the clearest example, and the one that produced the
+  most visible bug in the build:</p>
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Condition</th><th>Means</th><th>What the user is told</th></tr></thead>
+    <tbody>
+      <tr><td><code>worker_id = auth.uid()</code></td><td>You can only file a quote as yourself</td><td>Never reached through the UI</td></tr>
+      <tr><td><code>has_role(uid,'worker')</code></td><td>You hold the worker role</td><td>Never reached — every account has it</td></tr>
+      <tr><td><code>task_open_for_bid(task, uid)</code></td><td>Task is <span class="state live">OPEN</span> and not yours</td><td>"Your own request" → redirected · "No longer open" → explained</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout">A policy failure is a correct answer to a wrong question. Postgres saying
+  <span class="mono">new row violates row-level security policy</span> means the app offered
+  something it should not have. The fix belongs in front of the button, not in the error handler —
+  and the error handler still has to speak English, because there is always a race left over.</div>
+
+  <h3>Other rules worth naming</h3>
+  <ul>
+    <li><b>Tasks</b> — open tasks readable by all; drafts and closed tasks by their poster and
+    assigned worker only.</li>
+    <li><b>Bids</b> — visible to the worker who sent it and the poster of the task. Workers cannot
+    see each other's quotes.</li>
+    <li><b>Messages</b> — the two parties to that task, nobody else.</li>
+    <li><b>Wallets, payouts, payments</b> — the owner only, plus admin.</li>
+    <li><b>Helper functions</b> live in a <code>private</code> schema that PostgREST does not serve,
+    so they cannot be called from a client.</li>
+    <li><b>Secrets</b> resolve server-side in three tiers: environment, then Vault via a
+    service-role-only function, then a compiled-in fallback for test keys. The anonymous key gets
+    401 from the secrets function — verified.</li>
+  </ul>
+</section>
+
+<hr class="rule-line">
+
+<!-- ============ 8 ============ -->
+<section id="ops">
+  <h2><span class="num">08</span>Running it</h2>
+  <p class="lede">What has to be true for the app to work, beyond the code being correct.</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Job</th><th>Cadence</th><th>How</th></tr></thead>
+    <tbody>
+      <tr><td>Release cleared earnings</td><td>Nightly</td><td><code>settle_cleared_earnings()</code> — needs <code>pg_cron</code></td></tr>
+      <tr><td>Pay withdrawal requests</td><td>Daily</td><td>Transfer by UPI or bank, then <code>admin_mark_payout()</code></td></tr>
+      <tr><td>Settle disputes</td><td>As raised</td><td><code>admin_resolve_dispute()</code></td></tr>
+      <tr><td>Refund cancelled escrow</td><td>As raised</td><td>Razorpay dashboard — manual</td></tr>
+      <tr><td>Check the numbers</td><td>Weekly</td><td><code>platform_stats(30)</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Before taking real money</h3>
+  <ol class="steps">
+    <li>Enable UPI on the Razorpay account and register the <code>payment_link.paid</code> webhook.</li>
+    <li>Rotate the Razorpay keys — the test keys used during the build have been handled in plain
+    text and must not survive into live mode.</li>
+    <li>Restrict the Google Maps key in Cloud Console to the Places API and the
+    <code>com.taskdrop.app</code> package. It ships in the client bundle; that restriction is the
+    only real protection it has.</li>
+    <li>Enable <code>pg_cron</code> and schedule the nightly clearing sweep.</li>
+    <li>Decide how escrow is held and say so in the terms. A pooled merchant account is not an
+    escrow account, and workers' balances are unsecured liabilities against it.</li>
+  </ol>
+</section>
+
+<hr class="rule-line">
+
+<!-- ============ 9 ============ -->
+<section id="gaps">
+  <h2><span class="num">09</span>Known gaps</h2>
+  <p class="lede">Stated plainly, because a specification that only describes what works is not a
+  specification.</p>
+
+  <div class="gap-item">
+    <div class="sev blocks">Blocks</div>
+    <div>
+      <h4>The clearing sweep is not scheduled</h4>
+      <p><code>pg_cron</code> is not enabled on the project. Until it is, released earnings sit in
+      clearing forever and no worker can withdraw. One statement fixes it.</p>
+    </div>
+  </div>
+  <div class="gap-item">
+    <div class="sev blocks">Blocks</div>
+    <div>
+      <h4>Cancelling does not refund the poster</h4>
+      <p><code>cancel_task()</code> closes the task, records the phase and credits the worker's 5%
+      where due — but nothing reverses the poster's Razorpay payment. Today that is a manual refund
+      an operator must remember to issue.</p>
+    </div>
+  </div>
+  <div class="gap-item">
+    <div class="sev manual">Manual</div>
+    <div>
+      <h4>Payouts are hand-run</h4>
+      <p>There is no Razorpay Payouts integration. A person reads the queue, sends UPI or a bank
+      transfer, and marks the row. Workable at low volume, not past it.</p>
+    </div>
+  </div>
+  <div class="gap-item">
+    <div class="sev manual">Manual</div>
+    <div>
+      <h4>OVERDUE and AUTO_COMPLETED never fire</h4>
+      <p>Both states exist and the app renders them, but nothing transitions a task into either. A
+      poster who goes quiet after work is submitted leaves the worker waiting indefinitely.</p>
+    </div>
+  </div>
+  <div class="gap-item">
+    <div class="sev manual">Manual</div>
+    <div>
+      <h4>No admin surface</h4>
+      <p>Removed by decision — the console showed queues that were usually empty and read as
+      meaningless. Operations run through documented SQL instead. Correct for one operator;
+      revisit at a second.</p>
+    </div>
+  </div>
+  <div class="gap-item">
+    <div class="sev later">Later</div>
+    <div>
+      <h4>No notifications</h4>
+      <p>Everything is pull. "You will be notified when the first quote arrives" is currently a
+      promise the product cannot keep — either build push, or change the copy.</p>
+    </div>
+  </div>
+  <div class="gap-item">
+    <div class="sev later">Later</div>
+    <div>
+      <h4>No identity verification</h4>
+      <p>A phone number is the only thing known about anyone. Ratings accumulate from real
+      completed jobs, which is honest but slow, and there is no KYC on either side.</p>
+    </div>
+  </div>
+  <div class="gap-item">
+    <div class="sev later">Later</div>
+    <div>
+      <h4>iOS is not built</h4>
+      <p>The codebase is one React Native app targeting Android and web. iOS needs a build, a
+      developer account, and a review pass — no code changes expected.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="rule-line">
+
+<!-- ============ 10 ============ -->
+<section id="accept">
+  <h2><span class="num">10</span>Acceptance checks</h2>
+  <p class="lede">The behaviours that must hold before this ships. Each is a thing to try, not a
+  thing to assert.</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>#</th><th>Check</th><th>Expected</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">A1</td><td>Post a request, then browse and search as the same account</td><td>Your own request appears nowhere in either</td></tr>
+      <tr><td class="mono">A2</td><td>Open your own request by its shared link, in worker mode</td><td>Lands on the quotes-received screen, not a quote box</td></tr>
+      <tr><td class="mono">A3</td><td>Open a request you have already quoted on</td><td>"You have already quoted on this task", with a way to see it</td></tr>
+      <tr><td class="mono">A4</td><td>Open a request with zero quotes as its poster</td><td>"No quotes yet" — no crash, no invented quotes</td></tr>
+      <tr><td class="mono">A5</td><td>Lock a quote, then try to start the job without paying</td><td>Refused, and the worker is told the poster has not paid</td></tr>
+      <tr><td class="mono">A6</td><td>Pay less than the escrow amount</td><td>Task is not funded</td></tr>
+      <tr><td class="mono">A7</td><td>Pay for task A, try to fund task B with it</td><td>Refused</td></tr>
+      <tr><td class="mono">A8</td><td>Release an unfunded task</td><td>Refused with the reason</td></tr>
+      <tr><td class="mono">A9</td><td>Withdraw more than the available balance</td><td>Refused; clearing money is not spendable</td></tr>
+      <tr><td class="mono">A10</td><td>Cancel a withdrawal, then check the wallet</td><td>Exact amount returned, once</td></tr>
+      <tr><td class="mono">A11</td><td>Call any money RPC with the anonymous key</td><td>Refused</td></tr>
+      <tr><td class="mono">A12</td><td>Read another user's wallet, bid, or message row</td><td>Empty, not an error — the row is simply not there</td></tr>
+      <tr><td class="mono">A13</td><td>Install the Android build and sign in on a real phone</td><td>Bundles and runs; web parity is not proof of this</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer class="end">
+  <p>Written against the codebase and the live database, September 2026. Where this document and the
+  code disagree, the code is what ships — treat the difference as a bug in one of them and say which.</p>
+</footer>
+
+</main>
+</div>
+</div>
