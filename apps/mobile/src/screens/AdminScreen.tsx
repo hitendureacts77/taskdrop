@@ -12,6 +12,8 @@ import {
   adminDisputes,
   adminResolveDispute,
   settleClearedEarnings,
+  platformStats,
+  type PlatformStats,
   type AdminPayout,
   type AdminDispute,
 } from '../data/api';
@@ -94,7 +96,7 @@ function ActionButton({
 
 export function AdminScreen() {
   const t = useTheme();
-  const { back, go } = useNav();
+  const { back } = useNav();
   const { flash, celebrate } = useApp();
   const { userId } = useAuth();
 
@@ -103,11 +105,21 @@ export function AdminScreen() {
   const [payouts, setPayouts] = useState<AdminPayout[]>([]);
   const [disputes, setDisputes] = useState<AdminDispute[]>([]);
   const [workingId, setWorkingId] = useState<string | null>(null);
+  const [stats, setStats] = useState<PlatformStats | null>(null);
+
+  // How many things are actually waiting on a decision. This is the number an
+  // operator opens the screen to find out.
+  const needsYou = payouts.length + disputes.length;
 
   const refresh = useCallback(async () => {
-    const [p, d] = await Promise.allSettled([adminPayoutQueue(), adminDisputes()]);
+    const [p, d, st] = await Promise.allSettled([
+      adminPayoutQueue(),
+      adminDisputes(),
+      platformStats(30),
+    ]);
     if (p.status === 'fulfilled') setPayouts(p.value);
     if (d.status === 'fulfilled') setDisputes(d.value);
+    if (st.status === 'fulfilled') setStats(st.value);
     setLoading(false);
   }, []);
 
@@ -204,8 +216,105 @@ export function AdminScreen() {
           </View>
         ) : (
           <>
+            {/* What the business is holding and what it owes, before any
+                queue. Without this the screen was four headings, three of them
+                usually empty, which told an operator nothing about the state
+                of their own money. */}
+            <View
+              style={{
+                marginTop: 18,
+                borderWidth: 1,
+                borderColor: needsYou > 0 ? t.colors.gold : t.colors.line,
+                backgroundColor: needsYou > 0 ? t.colors.goldSoft : t.colors.surface,
+                borderRadius: 14,
+                padding: 16,
+              }}
+            >
+              <RNText
+                style={tx('800', 17, needsYou > 0 ? t.colors.goldInk : t.colors.ink, {
+                  letterSpacing: -0.2,
+                })}
+              >
+                {needsYou === 0
+                  ? 'Nothing needs you right now'
+                  : needsYou === 1
+                    ? '1 thing needs you'
+                    : `${needsYou} things need you`}
+              </RNText>
+              <RNText
+                style={tx('400', 13, needsYou > 0 ? t.colors.goldInk : t.colors.muted, {
+                  marginTop: 4,
+                  lineHeight: 19,
+                })}
+              >
+                {needsYou === 0
+                  ? 'Withdrawals and disputes appear here the moment they are raised.'
+                  : [
+                      payouts.length > 0
+                        ? `${payouts.length} withdrawal${payouts.length === 1 ? '' : 's'} to send`
+                        : null,
+                      disputes.length > 0
+                        ? `${disputes.length} dispute${disputes.length === 1 ? '' : 's'} to settle`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+              </RNText>
+            </View>
+
+            <View
+              style={{
+                flexDirection: 'row',
+                marginTop: 12,
+                borderWidth: 1,
+                borderColor: t.colors.line,
+                borderRadius: 12,
+                overflow: 'hidden',
+                backgroundColor: t.colors.surface,
+              }}
+            >
+              {([
+                {
+                  label: 'HOLDING',
+                  value: stats ? formatINR(stats.escrowHeldMinor) : '—',
+                  sub: 'in live escrow',
+                  ink: t.colors.gold,
+                },
+                {
+                  label: 'OWE OUT',
+                  value: stats ? formatINR(stats.payoutsPendingMinor) : '—',
+                  sub: 'requested by workers',
+                  ink: t.colors.ink,
+                },
+                {
+                  label: 'REVENUE',
+                  value: stats ? formatINR(stats.revenueMinor) : '—',
+                  sub: 'last 30 days',
+                  ink: t.colors.accentDeep,
+                },
+              ]).map((cell, i) => (
+                <View
+                  key={cell.label}
+                  style={{
+                    flex: 1,
+                    padding: 13,
+                    borderLeftWidth: i === 0 ? 0 : 1,
+                    borderLeftColor: t.colors.line,
+                  }}
+                >
+                  <RNText style={tx('400', 9.5, t.colors.muted, { letterSpacing: 1.1 })}>
+                    {cell.label}
+                  </RNText>
+                  <RNText style={tx('800', 16, cell.ink, { marginTop: 5 })}>{cell.value}</RNText>
+                  <RNText style={tx('400', 10.5, t.colors.muted, { marginTop: 2 })}>
+                    {cell.sub}
+                  </RNText>
+                </View>
+              ))}
+            </View>
+
             <Section
-              title="Withdrawals to send"
+              title={payouts.length > 0 ? `Withdrawals to send (${payouts.length})` : 'Withdrawals to send'}
               sub="Money has already left these wallets. Mark one paid once the transfer is out, or failed to put it back."
             >
               {payouts.length === 0 ? (
@@ -273,7 +382,7 @@ export function AdminScreen() {
             </Section>
 
             <Section
-              title="Disputes to settle"
+              title={disputes.length > 0 ? `Disputes to settle (${disputes.length})` : 'Disputes to settle'}
               sub="Escrow on these is frozen until you decide. Neither side can move it."
             >
               {disputes.length === 0 ? (
@@ -340,9 +449,6 @@ export function AdminScreen() {
               />
             </Section>
 
-            <Section title="Numbers" sub="Revenue, volume and the health of the marketplace.">
-              <ActionButton label="Open analytics" onPress={() => go('analytics')} />
-            </Section>
           </>
         )}
       </ScrollView>
