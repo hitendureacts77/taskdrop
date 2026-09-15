@@ -601,6 +601,21 @@ export async function createTask(input: NewTask): Promise<Task> {
   return rows[0]!;
 }
 
+/**
+ * Turn a database refusal into something a person can act on.
+ *
+ * RLS answers "new row violates row-level security policy for table bids",
+ * which is true, unhelpful, and alarming. The policy has three conditions and
+ * each one means something different to the person who just tapped a button.
+ */
+function quoteRefusalMessage(raw: string): string {
+  if (/duplicate|unique/i.test(raw)) return 'You have already quoted on this task';
+  if (/row-level security|violates.*policy/i.test(raw)) {
+    return 'You cannot quote on this one — it is either your own request, or it is no longer open.';
+  }
+  return raw;
+}
+
 export async function placeBid(input: {
   taskId: string;
   workerId: string;
@@ -608,19 +623,56 @@ export async function placeBid(input: {
   timeLimitMinutes: number;
   message?: string;
 }): Promise<Bid> {
-  const rows = unwrap(
-    await supabase
-      .from('bids')
-      .insert({
-        task_id: input.taskId,
-        worker_id: input.workerId,
-        price_minor: input.priceMinor,
-        time_limit_minutes: input.timeLimitMinutes,
-        message: input.message ?? null,
-      })
-      .select(),
-  );
-  return rows[0]!;
+  const { data, error } = await supabase
+    .from('bids')
+    .insert({
+      task_id: input.taskId,
+      worker_id: input.workerId,
+      price_minor: input.priceMinor,
+      time_limit_minutes: input.timeLimitMinutes,
+      message: input.message ?? null,
+    })
+    .select();
+  // Translated here rather than at each call site, so every screen that places
+  // a bid gets the same sentence instead of raw Postgres.
+  if (error) throw new Error(quoteRefusalMessage(error.message));
+  return (data ?? [])[0]!;
+}
+
+/**
+ * Whether this person may quote on this task, and why not when they may not.
+ *
+ * The same three conditions the RLS policy checks, asked before the button is
+ * offered rather than after it is pressed. A refusal a user could have been
+ * told about in advance should never arrive as an error.
+ */
+export async function canQuoteOn(
+  taskId: string,
+  userId: string,
+): Promise<{ allowed: boolean; reason?: string }> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('poster_id,status')
+    .eq('id', taskId)
+    .maybeSingle();
+  if (error || !data) return { allowed: true };  // let the server decide
+
+  if (data.poster_id === userId) {
+    return { allowed: false, reason: 'This is your own request — you cannot quote on it.' };
+  }
+  if (data.status !== 'OPEN') {
+    return { allowed: false, reason: 'This request is no longer open for quotes.' };
+  }
+
+  const { data: mine } = await supabase
+    .from('bids')
+    .select('id')
+    .eq('task_id', taskId)
+    .eq('worker_id', userId)
+    .maybeSingle();
+  if (mine) return { allowed: false, reason: 'You have already quoted on this task.' };
+
+  return { allowed: true };
 }
 
 export type ProfileEdits = {

@@ -7,7 +7,14 @@ import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
-import { placeBid, getTaskDetail, getPosterStats, getProfile, type Profile } from '../data/api';
+import {
+  placeBid,
+  canQuoteOn,
+  getTaskDetail,
+  getPosterStats,
+  getProfile,
+  type Profile,
+} from '../data/api';
 import { distanceKm, formatDistance } from '@taskdrop/rules';
 import { ShareSheet, useShare } from '../components/ShareSheet';
 import { taskUrl } from '../lib/links';
@@ -149,6 +156,10 @@ export function TaskDetailScreen() {
   // description and, until now, the fetched task was used only for the poster
   // and then discarded, so a worker deciding whether to quote could see neither
   // the description nor the photo.
+  // Why this person cannot quote here, asked before the button is drawn.
+  // The database enforces the same three rules; being refused after typing a
+  // price and pressing send is a worse way to learn them.
+  const [blocked, setBlocked] = useState<string | null>(null);
   const [live, setLive] = useState<{
     body: string;
     mediaPath: string | null;
@@ -173,6 +184,11 @@ export function TaskDetailScreen() {
             mediaSeconds: td.task.media_seconds ?? null,
           });
         }
+        if (worker) {
+          const verdict = await canQuoteOn(realId, userId);
+          if (!alive) return;
+          setBlocked(verdict.allowed ? null : (verdict.reason ?? null));
+        }
         const posterId = td?.task.poster_id;
         if (!posterId) return;
         setOtherId(posterId);
@@ -195,7 +211,7 @@ export function TaskDetailScreen() {
     return () => {
       alive = false;
     };
-  }, [realId, userId]);
+  }, [realId, userId, worker]);
 
   const body = live?.body || detail.body;
   const mediaPath = live ? live.mediaPath : detail.mediaPath;
@@ -268,9 +284,11 @@ export function TaskDetailScreen() {
         celebrate('Quote sent · ' + formatINR(quote));
         go('orders');
       } catch (e) {
+        // placeBid already turns a policy refusal into a sentence. Whatever it
+        // is, it also means the quote box should not still be offered.
         const msg = e instanceof Error ? e.message : 'Could not send the quote';
-        // The unique index on (task_id, worker_id) is the "one quote per task" rule.
-        flash(/duplicate|unique/i.test(msg) ? 'You have already quoted on this task' : msg);
+        setBlocked(msg);
+        flash(msg);
       } finally {
         setBusy(false);
       }
@@ -405,6 +423,32 @@ export function TaskDetailScreen() {
           Contacts stay masked until the task starts.
         </RNText>
 
+        {worker && blocked ? (
+          /* Say why instead of showing a price box that cannot be sent. The
+             three reasons — own request, closed, already quoted — each leave
+             the person somewhere different to go next. */
+          <Card style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
+            <RNText style={tx('600', 13, t.colors.muted, { marginBottom: 8 })}>
+              {/already quoted/i.test(blocked)
+                ? 'QUOTE SENT'
+                : /your own request/i.test(blocked)
+                  ? 'YOUR REQUEST'
+                  : 'CLOSED FOR QUOTES'}
+            </RNText>
+            <RNText style={tx('600', 15, t.colors.ink, { lineHeight: 22 })}>{blocked}</RNText>
+            <Button
+              label={
+                /already quoted/i.test(blocked)
+                  ? 'See my quote'
+                  : /your own request/i.test(blocked)
+                    ? 'See the quotes on it'
+                    : 'Find another request'
+              }
+              onPress={() => go(/no longer open/i.test(blocked) ? 'search' : 'orders')}
+              style={{ marginTop: t.spacing.lg }}
+            />
+          </Card>
+        ) : (
         <Card style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
           <RNText style={tx('600', 13, t.colors.muted, { marginBottom: 10 })}>
             {worker ? 'YOUR QUOTE' : 'YOUR OFFER'}
@@ -461,6 +505,7 @@ export function TaskDetailScreen() {
               : 'Your quote goes to this worker. They can lock it and start.'}
           </RNText>
         </Card>
+        )}
       </FadeIn>
       <ShareSheet visible={share.open} item={share.item} onClose={share.close} flash={flash} />
 
