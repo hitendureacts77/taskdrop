@@ -6,9 +6,11 @@ import {
   ScrollView,
   ActivityIndicator,
   Modal,
+  TextInput,
   type TextStyle,
 } from 'react-native';
 import { Screen } from '../components/ui';
+import { Icon } from '../components/Icon';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -71,6 +73,16 @@ export function PromoteScreen() {
   // pushed the budget and duration — the things this screen is actually for —
   // off the bottom of the screen.
   const [choosing, setChoosing] = useState(false);
+  // Typing filters the list rather than scrolling it. Five listings fit on a
+  // screen; fifty do not, and this screen exists to set a budget, not to be a
+  // list of everything you have ever posted.
+  const [listingQuery, setListingQuery] = useState('');
+
+  const matches = (() => {
+    const q = listingQuery.trim().toLowerCase();
+    if (!q) return mine;
+    return mine.filter((m) => m.title.toLowerCase().includes(q));
+  })();
 
 
   const worker = mode === 'worker';
@@ -350,7 +362,48 @@ export function PromoteScreen() {
                   )}
                 </Pressable>
               ) : (
-                mine.map((m) => {
+                <>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 9,
+                      marginTop: 9,
+                      backgroundColor: t.colors.surface2,
+                      borderRadius: 11,
+                      paddingHorizontal: 13,
+                      paddingVertical: 10,
+                    }}
+                  >
+                    <Icon name="search" size={16} color={t.colors.muted} strokeWidth={1.8} />
+                    <TextInput
+                      value={listingQuery}
+                      onChangeText={setListingQuery}
+                      placeholder="Search your listings"
+                      placeholderTextColor={t.colors.muted}
+                      autoCorrect={false}
+                      style={tx('400', 14, t.colors.ink, { flex: 1, padding: 0 })}
+                    />
+                    {listingQuery.length > 0 && (
+                      <Pressable
+                        onPress={() => setListingQuery('')}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Clear the search"
+                      >
+                        <RNText style={tx('600', 15, t.colors.muted)}>×</RNText>
+                      </Pressable>
+                    )}
+                  </View>
+
+                  {matches.length === 0 && (
+                    <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, lineHeight: 19 })}>
+                      Nothing matches “{listingQuery.trim()}”. Only your own open listings can be
+                      promoted.
+                    </RNText>
+                  )}
+
+                  {matches.map((m) => {
                   const on = m.id === pickedId;
                   return (
                     <Pressable
@@ -358,6 +411,7 @@ export function PromoteScreen() {
                       onPress={() => {
                         setPickedId(m.id);
                         setChoosing(false);
+                        setListingQuery('');
                       }}
                       accessibilityRole="button"
                       accessibilityLabel={`Promote ${m.title}`}
@@ -387,7 +441,8 @@ export function PromoteScreen() {
                       {on && <RNText style={tx('700', 14, t.colors.accentDeep)}>✓</RNText>}
                     </Pressable>
                   );
-                })
+                  })}
+                </>
               )}
             </>
           )}
