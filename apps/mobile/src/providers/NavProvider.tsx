@@ -28,8 +28,7 @@ export type ScreenName =
   | 'promote'
   | 'review'
   | 'profile'
-  | 'analytics'
-  | 'admin';
+  | 'analytics';
 
 export type NavParams = Record<string, unknown>;
 

@@ -911,92 +911,12 @@ export type MyStats = PosterStatsMine | WorkerStatsMine;
 export const myStats = (role: 'worker' | 'poster') =>
   rpc<MyStats>('my_stats', { p_role: role });
 
-// ----------------------------------------------------------------- admin ---
-
-export type AdminPayout = Payout & { profile: Profile | null };
-
-/** Everything waiting to be sent, oldest first: a queue, so work it in order. */
-export async function adminPayoutQueue(): Promise<AdminPayout[]> {
-  const rows = unwrap(
-    await supabase
-      .from('payouts')
-      .select('*')
-      .in('status', ['requested', 'processing'])
-      .order('created_at', { ascending: true })
-      .limit(100),
-  );
-  const ids = [...new Set(rows.map((r) => r.user_id))];
-  const people = ids.length
-    ? unwrap(await supabase.from('profiles').select('*').in('id', ids))
-    : [];
-  const byId = new Map(people.map((x) => [x.id, x]));
-  return rows.map((r) => ({
-    ...(r as unknown as Payout),
-    profile: byId.get(r.user_id) ?? null,
-  }));
-}
-
-/** Move a payout on, or fail it (which refunds the wallet). */
-export const adminMarkPayout = (
-  payoutId: string,
-  status: 'processing' | 'paid' | 'failed',
-  note?: string,
-) =>
-  rpc<Payout>('admin_mark_payout', {
-    p_payout_id: payoutId,
-    p_status: status,
-    p_note: note?.trim() ? note.trim() : null,
-  });
-
-export type AdminDispute = {
-  id: string;
-  title: string;
-  locked_minor: number | null;
-  updated_at: string;
-  poster: Profile | null;
-};
-
-/** Tasks frozen in dispute, waiting on a decision. */
-export async function adminDisputes(): Promise<AdminDispute[]> {
-  const rows = unwrap(
-    await supabase
-      .from('tasks')
-      .select('id,title,locked_minor,updated_at,poster_id')
-      .eq('status', 'DISPUTED')
-      .order('updated_at', { ascending: true })
-      .limit(50),
-  );
-  const ids = [...new Set(rows.map((r) => r.poster_id))];
-  const people = ids.length
-    ? unwrap(await supabase.from('profiles').select('*').in('id', ids))
-    : [];
-  const byId = new Map(people.map((x) => [x.id, x]));
-  return rows.map((r) => ({
-    id: r.id,
-    title: r.title,
-    locked_minor: r.locked_minor,
-    updated_at: r.updated_at,
-    poster: byId.get(r.poster_id) ?? null,
-  }));
-}
-
-/** Settle a dispute for one side. The only way escrow moves once frozen. */
-export const adminResolveDispute = (
-  taskId: string,
-  outcome: 'worker' | 'poster',
-  note?: string,
-) =>
-  rpc<unknown>('admin_resolve_dispute', {
-    p_task_id: taskId,
-    p_outcome: outcome,
-    p_note: note?.trim() ? note.trim() : null,
-  });
-
-/**
- * Move every earning past its clearing period into the spendable balance.
- * Returns how many tasks were settled.
- */
-export const settleClearedEarnings = () => rpc<number>('settle_cleared_earnings', {});
+// The owner console was removed at the owner's request, so its client
+// wrappers went with it. The functions themselves are still in the database --
+// admin_mark_payout, admin_resolve_dispute, settle_cleared_earnings -- because
+// they remain the only mechanism by which a worker gets paid or a dispute is
+// settled. They are callable from SQL until something in the app calls them
+// again. See docs/RUNNING_THE_BUSINESS.md.
 
 // ------------------------------------------------------------ promotions ---
 

@@ -5,7 +5,7 @@ import { useTheme, useThemeControls } from '../providers/ThemeProvider';
 import { useNav, type ScreenName } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useAuth } from '../providers/AuthProvider';
-import { getProfile, listReviewsAbout, isAdmin, type Profile, type Review } from '../data/api';
+import { getProfile, listReviewsAbout, type Profile, type Review } from '../data/api';
 import { tx } from '../components/primitives';
 
 function SlideIn({ delay, children }: { delay: number; children: React.ReactNode }) {
@@ -73,7 +73,6 @@ export function ProfileScreen() {
   const { userId, signOut } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [admin, setAdmin] = useState(false);
 
   // Only surfaced to accounts that can actually open it, so nobody taps
   // through to a refusal.
@@ -83,15 +82,7 @@ export function ProfileScreen() {
     ? { glyph: '◔', label: 'My earnings and jobs', go: 'analytics' as ScreenName }
     : { glyph: '◔', label: 'My spending and requests', go: 'analytics' as ScreenName };
 
-  // The owner console is one tool, but the queue that matters depends on which
-  // way money is moving for the side you are on: a poster pays into escrow and
-  // gets refunds, a worker is owed payouts. The name leads with that.
-  const adminRow = worker
-    ? { glyph: '⚙', label: 'Payouts and disputes', go: 'admin' as ScreenName }
-    : { glyph: '⚙', label: 'Escrow and disputes', go: 'admin' as ScreenName };
-
   const rows = [
-    ...(admin ? [adminRow] : []),
     // Everyone sees their own figures. Only the platform-wide ones are gated.
     statsRow,
     ...(worker ? WORKER_ROWS : POSTER_ROWS),
@@ -110,7 +101,6 @@ export function ProfileScreen() {
         if (!alive) return;
         setProfile(p);
         setReviews(r);
-        setAdmin(await isAdmin(userId));
       } catch {
         /* leave the header on its placeholders */
       }
