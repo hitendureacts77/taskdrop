@@ -112,9 +112,16 @@ Deno.serve(async (req: Request) => {
   const paid = link.status === "paid" || event.event === "payment_link.paid";
   const status = paid ? "paid" : link.status === "cancelled" ? "cancelled" : "created";
 
+  // The refundable id travels on the payment entity, not the link entity.
+  const payId = event.payload?.payment?.entity?.id ?? null;
+
   await admin
     .from("payments")
-    .update({ status, paid_at: paid ? new Date().toISOString() : null })
+    .update({
+      status,
+      paid_at: paid ? new Date().toISOString() : null,
+      ...(payId ? { provider_payment_id: payId } : {}),
+    })
     .eq("id", row.id);
 
   // A settled escrow payment is what makes a task startable. Doing it here

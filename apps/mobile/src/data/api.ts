@@ -1085,6 +1085,26 @@ export async function createPaymentLink(input: {
   return { paymentId: out.paymentId, url: out.url };
 }
 
+/**
+ * Send a cancelled task's escrow back to the poster.
+ *
+ * How much is owed is worked out in Postgres — escrow, less what the worker
+ * was already paid out of it, less anything refunded before — so a caller
+ * cannot ask for a number. Safe to call on a task that owes nothing: it
+ * returns zero rather than failing.
+ */
+export async function refundEscrow(
+  taskId: string,
+): Promise<{ refundedMinor: number; reason?: string }> {
+  const { data, error } = await supabase.functions.invoke('razorpay', {
+    body: { action: 'refund-escrow', taskId },
+  });
+  if (error) throw await functionError(error, 'Could not start the refund');
+  const out = data as { refundedMinor?: number; reason?: string; error?: string };
+  if (out.error) throw new Error(out.error);
+  return { refundedMinor: Number(out.refundedMinor ?? 0), reason: out.reason };
+}
+
 /** Re-check a payment with Razorpay and settle our side of it. */
 export async function syncPayment(paymentId: string): Promise<'created' | 'paid' | 'cancelled'> {
   const { data, error } = await supabase.functions.invoke('razorpay', {

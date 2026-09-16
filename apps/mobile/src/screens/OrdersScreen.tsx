@@ -18,6 +18,7 @@ import {
   listMyAssignments,
   countBidsByTask,
   cancelTask,
+  refundEscrow,
   type Task,
   type Bid,
   type Assignment,
@@ -403,6 +404,21 @@ export function OrdersScreen() {
       // puts the task back on the market rather than ending it.
       flash(worker ? 'You stepped off — the task is open again' : 'Request cancelled');
       await load();
+
+      // A poster who paid gets that money back now, not when somebody
+      // remembers. The refund is attempted quietly: the cancellation already
+      // succeeded and must not be reported as having failed.
+      if (!worker) {
+        try {
+          const out = await refundEscrow(row.taskId);
+          if (out.refundedMinor > 0) {
+            flash(formatINR(out.refundedMinor) + ' is on its way back to you');
+            await load();
+          }
+        } catch {
+          flash('Cancelled. Your refund is being processed — it can take a few days.');
+        }
+      }
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not cancel that');
     } finally {

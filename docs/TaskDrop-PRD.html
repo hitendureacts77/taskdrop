@@ -695,6 +695,9 @@
     <li>A withdrawal debits <code>balance_minor</code> immediately and creates a
     <code>payouts</code> row. An operator sends the money by UPI or bank transfer and marks it
     <code>paid</code>.</li>
+    <li>If the task is cancelled instead, the escrow goes back the way it came — a Razorpay refund
+    against the original payment, for the escrow less whatever the worker was already paid out of
+    it.</li>
   </ol>
 
   <div class="callout warn">Until an operator sends that transfer, every worker balance on the
@@ -1024,12 +1027,20 @@
       <li>Every cancellation is written to <code>cancellations_log</code> with who, when, at which
       phase, and what was paid or forfeited.</li>
     </ol>
-    <div class="rule warn">
-      <div class="rule-h">Open item</div>
+    <div class="rule guard">
+      <div class="rule-h">The refund</div>
       <ul>
-        <li>Cancelling closes the task and records the penalty, but <b>does not automatically refund
-        the poster's escrow payment</b>. That refund is an operator action through Razorpay today.
-        See §09.</li>
+        <li>The moment <code>cancel_task()</code> succeeds, the app asks for the refund and Razorpay
+        sends the money back to however the poster paid. Typically 5–7 working days at the bank's
+        pace, not TaskDrop's.</li>
+        <li>How much is worked out in Postgres by <code>escrow_refund_due()</code> — the escrow,
+        less anything already refunded, less the 5% the worker was paid out of it. The caller cannot
+        propose an amount.</li>
+        <li>The refund is written down only after Razorpay has accepted it, and a payment can never
+        be refunded past what was paid.</li>
+        <li>Anything that slips through — the app closed mid-cancel, Razorpay unreachable, a task
+        cancelled by a dispute ruling — appears in <code>refunds_outstanding</code> for an operator
+        to clear. That view should normally be empty.</li>
       </ul>
     </div>
   </article>
@@ -1179,7 +1190,7 @@
       <tr><td>Release cleared earnings</td><td>Nightly</td><td><code>settle_cleared_earnings()</code> — needs <code>pg_cron</code></td></tr>
       <tr><td>Pay withdrawal requests</td><td>Daily</td><td>Transfer by UPI or bank, then <code>admin_mark_payout()</code></td></tr>
       <tr><td>Settle disputes</td><td>As raised</td><td><code>admin_resolve_dispute()</code></td></tr>
-      <tr><td>Refund cancelled escrow</td><td>As raised</td><td>Razorpay dashboard — manual</td></tr>
+      <tr><td>Refund cancelled escrow</td><td>Automatic</td><td>Sent on cancel; leftovers in <code>refunds_outstanding</code></td></tr>
       <tr><td>Check the numbers</td><td>Weekly</td><td><code>platform_stats(30)</code></td></tr>
     </tbody>
   </table>
@@ -1216,12 +1227,13 @@
     </div>
   </div>
   <div class="gap-item">
-    <div class="sev blocks">Blocks</div>
+    <div class="sev manual">Manual</div>
     <div>
-      <h4>Cancelling does not refund the poster</h4>
-      <p><code>cancel_task()</code> closes the task, records the phase and credits the worker's 5%
-      where due — but nothing reverses the poster's Razorpay payment. Today that is a manual refund
-      an operator must remember to issue.</p>
+      <h4>Refunds after a dispute ruling are still by hand</h4>
+      <p>A poster cancelling their own task is refunded automatically. A dispute settled for the
+      poster cancels the task from the operator's side, where no app is running to ask for the
+      refund — so it lands in <code>refunds_outstanding</code> and has to be cleared from the
+      Razorpay dashboard.</p>
     </div>
   </div>
   <div class="gap-item">

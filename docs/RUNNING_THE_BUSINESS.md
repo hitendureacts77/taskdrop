@@ -104,6 +104,38 @@ remember it.
 
 ---
 
+## 4. Refunding a cancelled task
+
+Cancelling now refunds the poster by itself: the app asks Razorpay for the
+refund the moment `cancel_task()` succeeds. This section is for the times it
+does not — the poster closed the app mid-cancel, Razorpay was down, or the
+task was cancelled by a dispute ruling rather than by the poster.
+
+**See what is owed:**
+
+```sql
+select task_id, title, due_minor / 100.0 as rupees,
+       provider_payment_id, cancelled_at
+from public.refunds_outstanding
+order by cancelled_at;
+```
+
+Anything listed here is money TaskDrop is holding that belongs to a poster.
+The list should normally be empty.
+
+**Send it** from the Razorpay dashboard against `provider_payment_id`, for
+exactly `due_minor`, then write it down so the row stops appearing:
+
+```sql
+select public.record_escrow_refund('<payment id>', '<rfnd_... from Razorpay>', <amount in paise>);
+```
+
+`due_minor` is the escrow less anything already refunded and less the 5%
+penalty the worker was paid out of it. Do not refund the gross amount — the
+worker's share has already left.
+
+---
+
 ## Checking the numbers
 
 ```sql
