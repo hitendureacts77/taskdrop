@@ -6,6 +6,7 @@ import {
   Animated,
   ScrollView,
   Linking,
+  Platform,
   ActivityIndicator,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -13,7 +14,7 @@ import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { createPaymentLink, syncPayment } from '../data/api';
+import { createPaymentLink, syncPayment, getTaskDetail } from '../data/api';
 import { posterEscrowCharge } from '@taskdrop/rules';
 import { Pressy, tx } from '../components/primitives';
 
@@ -65,6 +66,8 @@ export function EscrowScreen() {
   const [payUrl, setPayUrl] = useState<string | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [checks, setChecks] = useState(0);
+  /** Razorpay took the money but the task is still not funded. */
+  const [shortPaid, setShortPaid] = useState(false);
 
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
 
@@ -75,8 +78,28 @@ export function EscrowScreen() {
   // meant arriving without a quote showed a confident ₹4,635 bill for a task
   // that did not exist.
   const lockedMinor = typeof params.priceMinor === 'number' ? params.priceMinor : null;
-  const feeMinor = lockedMinor === null ? 0 : posterEscrowCharge(lockedMinor) - lockedMinor;
-  const totalMinor = lockedMinor === null ? 0 : lockedMinor + feeMinor;
+
+  // What the database says this costs, which is the only figure that can
+  // actually fund the task. The local calculation below is a first paint while
+  // this loads, not a second opinion.
+  const [dueMinor, setDueMinor] = useState<number | null>(null);
+  useEffect(() => {
+    if (!taskId) return;
+    let alive = true;
+    void getTaskDetail(taskId)
+      .then((d) => {
+        if (alive && d?.assignment?.escrow_minor) setDueMinor(Number(d.assignment.escrow_minor));
+      })
+      .catch(() => {
+        /* the server prices the link regardless; this is only the preview */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [taskId]);
+
+  const totalMinor = dueMinor ?? (lockedMinor === null ? 0 : posterEscrowCharge(lockedMinor));
+  const feeMinor = lockedMinor === null ? 0 : totalMinor - lockedMinor;
 
   const rows: { label: string; value: string; strong: boolean }[] = [
     { label: who ? `Locked quote · ${who}` : 'Locked quote', value: formatINR(lockedMinor ?? 0), strong: false },
@@ -92,8 +115,18 @@ export function EscrowScreen() {
   /** One check. Returns true once the money is actually in. */
   const checkOnce = useCallback(
     async (id: string): Promise<boolean> => {
-      const status = await syncPayment(id);
+      const { status, funded } = await syncPayment(id);
       if (status !== 'paid') return false;
+
+      // Paid but not funded is a real state, not a rounding artefact: the
+      // money reached Razorpay and the task did not get marked funded. Saying
+      // "held in escrow" here would be a lie the worker discovers later, when
+      // Start refuses. Keep waiting and say so.
+      if (!funded) {
+        setShortPaid(true);
+        return false;
+      }
+
       if (settled.current) return true;
       settled.current = true;
       roll('escrow', escrow + totalMinor);
@@ -134,19 +167,30 @@ export function EscrowScreen() {
 
   const pay = async () => {
     if (busy || lockedMinor === null) return;
+
+    // Claim the tab inside the click, before any await.
+    //
+    // On web Linking.openURL is window.open, and a window.open that runs after
+    // an await is no longer attributed to the tap that began it, so the browser
+    // blocks it without saying anything. The old order was: create the link
+    // (a round trip), then open. Which meant tapping Pay created a payments row
+    // and appeared to do nothing at all.
+    const tab =
+      Platform.OS === 'web' && typeof window !== 'undefined' ? window.open('', '_blank') : null;
+
     setBusy(true);
     try {
-      const { paymentId: id, url } = await createPaymentLink({
-        purpose: 'escrow',
-        amountMinor: totalMinor,
-        taskId,
-      });
+      // No amount: escrow is priced by the server from the locked quote.
+      const { paymentId: id, url } = await createPaymentLink({ purpose: 'escrow', taskId });
       setPaymentId(id);
       setPayUrl(url);
       setChecks(0);
+      setShortPaid(false);
       setWaiting(true);
-      await Linking.openURL(url);
+      if (tab) tab.location.href = url;
+      else await Linking.openURL(url);
     } catch (e) {
+      tab?.close();
       flash(e instanceof Error ? e.message : 'Could not start the payment');
       setWaiting(false);
     } finally {
@@ -160,7 +204,13 @@ export function EscrowScreen() {
     setBusy(true);
     try {
       const paid = await checkOnce(paymentId);
-      if (!paid) flash('No payment seen yet — it can take a few seconds');
+      if (!paid) {
+        flash(
+          shortPaid
+            ? 'Payment received, but the task is not funded yet — hold on'
+            : 'No payment seen yet — it can take a few seconds',
+        );
+      }
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not check the payment');
     } finally {

@@ -78,7 +78,7 @@ export function AddFundsSheet({
 
   const checkOnce = useCallback(
     async (id: string, amount: number): Promise<boolean> => {
-      const status = await syncPayment(id);
+      const { status } = await syncPayment(id);
       if (status !== 'paid') return false;
       if (settled.current) return true;
       settled.current = true;

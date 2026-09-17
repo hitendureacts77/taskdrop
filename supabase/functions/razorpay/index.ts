@@ -41,6 +41,16 @@ function rzpHeaders(id: string, key: string) {
   };
 }
 
+/** Whether the task behind a payment is actually funded right now. */
+async function taskIsFunded(
+  admin: ReturnType<typeof createClient>,
+  taskId: string | null,
+): Promise<boolean> {
+  if (!taskId) return false;
+  const { data } = await admin.from("tasks").select("funded_at").eq("id", taskId).maybeSingle();
+  return Boolean(data?.funded_at);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
@@ -86,8 +96,46 @@ Deno.serve(async (req: Request) => {
 
   // ---- create-link --------------------------------------------------------
   if (body.action === "create-link") {
-    const amount = Math.round(Number(body.amountMinor ?? 0));
     const purpose = body.purpose === "topup" ? "topup" : "escrow";
+    let amount = Math.round(Number(body.amountMinor ?? 0));
+
+    // Escrow is priced here, from the assignment, and the number the client
+    // sent is discarded.
+    //
+    // It used to be trusted, and the client worked it out as
+    // Math.round(quote * 1.03) in float while lock_bid worked it out as
+    // round(quote * 1.03) in numeric. Those agree almost always -- and when
+    // they did not, the payment came in a paisa short, fund_task refused it,
+    // and the task stayed unfunded with the money collected. One number, one
+    // place, and that whole class of bug is gone.
+    if (purpose === "escrow") {
+      if (!body.taskId) return json({ error: "Which task is this for?" }, 400);
+
+      const { data: task, error: taskErr } = await admin
+        .from("tasks")
+        .select("id, poster_id, status, funded_at")
+        .eq("id", body.taskId)
+        .maybeSingle();
+      if (taskErr) return json({ error: taskErr.message }, 500);
+      if (!task) return json({ error: "That task no longer exists" }, 404);
+      if (task.poster_id !== userId) return json({ error: "Only the poster funds a task" }, 403);
+      if (task.funded_at) {
+        return json({ error: "This task is already funded", alreadyFunded: true }, 409);
+      }
+
+      const { data: assignment } = await admin
+        .from("assignments")
+        .select("escrow_minor")
+        .eq("task_id", task.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!assignment?.escrow_minor) {
+        return json({ error: "No quote has been locked on this task yet" }, 400);
+      }
+      amount = Number(assignment.escrow_minor);
+    }
+
     if (!Number.isFinite(amount) || amount <= 0) return json({ error: "Invalid amount" }, 400);
 
     const description =
@@ -123,7 +171,8 @@ Deno.serve(async (req: Request) => {
       .single();
     if (error) return json({ error: error.message }, 500);
 
-    return json({ ok: true, paymentId: row.id, url: link.short_url });
+    // The amount is echoed back because the caller no longer decides it.
+    return json({ ok: true, paymentId: row.id, url: link.short_url, amountMinor: amount });
   }
 
   // ---- sync ---------------------------------------------------------------
@@ -136,7 +185,14 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
     if (error) return json({ error: error.message }, 500);
     if (!row) return json({ error: "Payment not found" }, 404);
-    if (row.status === "paid") return json({ ok: true, status: "paid", alreadySettled: true });
+    if (row.status === "paid") {
+      return json({
+        ok: true,
+        status: "paid",
+        alreadySettled: true,
+        funded: await taskIsFunded(admin, row.task_id),
+      });
+    }
 
     const res = await fetch(`${RZP}/payment_links/${row.provider_ref}`, { headers: rzpHeaders(RZP_ID, RZP_SECRET) });
     const link = await res.json();
@@ -182,7 +238,15 @@ Deno.serve(async (req: Request) => {
         .eq("user_id", userId);
     }
 
-    return json({ ok: true, status });
+    // Settling the payment and funding the task are two different things, and
+    // the screen that asks needs the second one. Reporting only "paid" is how
+    // a poster gets told the money is held in escrow while funded_at is still
+    // null and the worker cannot start.
+    return json({
+      ok: true,
+      status,
+      funded: paid ? await taskIsFunded(admin, row.task_id) : false,
+    });
   }
 
   // ---- refund-escrow ------------------------------------------------------

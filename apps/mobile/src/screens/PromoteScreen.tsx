@@ -179,7 +179,7 @@ export function PromoteScreen() {
     if (!pending || busy) return;
     setBusy(true);
     try {
-      const status = await syncPayment(pending.paymentId);
+      const { status } = await syncPayment(pending.paymentId);
       if (status !== 'paid') {
         flash('No payment seen yet — it can take a few seconds');
         return;

@@ -783,6 +783,25 @@ export const submitReview = (taskId: string, rating: number, comment?: string) =
   });
 
 /**
+ * Move completed earnings whose seven days are up out of clearing and into the
+ * spendable balance.
+ *
+ * Nothing called this. The function has existed since migration 023 and is
+ * granted to `authenticated` precisely so it need not wait on an operator --
+ * but its client wrapper went out with the owner console, so the sweep had no
+ * caller anywhere in the product. Earnings reached `clearing_minor`, their
+ * clearing period elapsed, and they stayed there: every wallet in the live
+ * database is holding a balance of zero against money that has already cleared.
+ *
+ * It is idempotent (a task is swept at most once, via tasks.cleared_at) and it
+ * sweeps every worker who is due, not just the caller, so whoever opens their
+ * wallet first pays everybody. Call it before showing a balance, never instead
+ * of reading one, and let it fail quietly -- a sweep that does not run means a
+ * number is briefly stale, which is not worth an error on this screen.
+ */
+export const settleClearedEarnings = () => rpc<number>('settle_cleared_earnings', {});
+
+/**
  * Move money out of the wallet. The debit and the payout row happen in one
  * locked transaction server-side, so a double tap can't withdraw twice.
  */
@@ -799,6 +818,8 @@ export type Payout = {
   status: 'requested' | 'processing' | 'paid' | 'failed' | 'cancelled';
   destination: string | null;
   failure_note: string | null;
+  /** The bank's reference for the transfer, written when it is marked paid. */
+  reference: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -981,12 +1002,16 @@ export type MyStats = PosterStatsMine | WorkerStatsMine;
 export const myStats = (role: 'worker' | 'poster') =>
   rpc<MyStats>('my_stats', { p_role: role });
 
-// The owner console was removed at the owner's request, so its client
-// wrappers went with it. The functions themselves are still in the database --
-// admin_mark_payout, admin_resolve_dispute, settle_cleared_earnings -- because
-// they remain the only mechanism by which a worker gets paid or a dispute is
-// settled. They are callable from SQL until something in the app calls them
-// again. See docs/RUNNING_THE_BUSINESS.md.
+// The owner console was removed at the owner's request, so its client wrappers
+// went with it. admin_mark_payout and admin_resolve_dispute are still in the
+// database -- they remain the only mechanism by which a worker gets paid or a
+// dispute is settled -- and are driven from outside the app: `npm run payouts`
+// and the SQL in docs/RUNNING_THE_BUSINESS.md.
+//
+// settle_cleared_earnings came back (see settleClearedEarnings above). It was
+// never an owner action: it is granted to `authenticated` because it only ever
+// moves money that is already owed, and leaving it without a caller meant every
+// worker's cleared earnings sat in clearing_minor for good.
 
 // ------------------------------------------------------------ promotions ---
 
@@ -1043,7 +1068,14 @@ export async function sponsoredTaskIds(): Promise<Set<string>> {
 
 // -------------------------------------------------------------- payments ---
 
-export type PaymentLink = { paymentId: string; url: string };
+export type PaymentLink = { paymentId: string; url: string; amountMinor: number };
+
+/** What a settlement check found: the payment's state, and whether the task it
+ *  was raised for is actually funded now. The two are not the same thing. */
+export type PaymentCheck = {
+  status: 'created' | 'paid' | 'cancelled';
+  funded: boolean;
+};
 
 /**
  * supabase-js turns any non-2xx from an Edge Function into the unhelpful
@@ -1071,7 +1103,8 @@ async function functionError(error: unknown, fallback: string): Promise<Error> {
  */
 export async function createPaymentLink(input: {
   purpose: 'escrow' | 'topup';
-  amountMinor: number;
+  /** Top-ups only. Escrow is priced by the server from the locked quote. */
+  amountMinor?: number;
   taskId?: string | null;
   returnUrl?: string;
 }): Promise<PaymentLink> {
@@ -1079,10 +1112,20 @@ export async function createPaymentLink(input: {
     body: { action: 'create-link', ...input },
   });
   if (error) throw await functionError(error, 'Could not start the payment');
-  const out = data as { paymentId?: string; url?: string; error?: string };
+  const out = data as {
+    paymentId?: string;
+    url?: string;
+    amountMinor?: number;
+    error?: string;
+  };
   if (out.error) throw new Error(out.error);
   if (!out.paymentId || !out.url) throw new Error('Could not start the payment');
-  return { paymentId: out.paymentId, url: out.url };
+  // The server's figure, not the one we asked with.
+  return {
+    paymentId: out.paymentId,
+    url: out.url,
+    amountMinor: Number(out.amountMinor ?? input.amountMinor ?? 0),
+  };
 }
 
 /**
@@ -1105,13 +1148,23 @@ export async function refundEscrow(
   return { refundedMinor: Number(out.refundedMinor ?? 0), reason: out.reason };
 }
 
-/** Re-check a payment with Razorpay and settle our side of it. */
-export async function syncPayment(paymentId: string): Promise<'created' | 'paid' | 'cancelled'> {
+/**
+ * Re-check a payment with Razorpay and settle our side of it.
+ *
+ * Returns the task's funding state as well, because "the card went through"
+ * and "the job is funded" are different questions and only the second one
+ * lets a worker start. Answering the first and showing the second is how a
+ * poster gets told money is held in escrow when it is not.
+ */
+export async function syncPayment(paymentId: string): Promise<PaymentCheck> {
   const { data, error } = await supabase.functions.invoke('razorpay', {
     body: { action: 'sync', paymentId },
   });
   if (error) throw await functionError(error, 'Could not check the payment');
-  const out = data as { status?: string; error?: string };
+  const out = data as { status?: string; funded?: boolean; error?: string };
   if (out.error) throw new Error(out.error);
-  return (out.status as 'created' | 'paid' | 'cancelled') ?? 'created';
+  return {
+    status: (out.status as 'created' | 'paid' | 'cancelled') ?? 'created',
+    funded: Boolean(out.funded),
+  };
 }
