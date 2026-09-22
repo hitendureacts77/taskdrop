@@ -3,6 +3,7 @@ import {
   View,
   Text as RNText,
   Pressable,
+  Animated,
   StyleSheet,
   ScrollView,
   RefreshControl,
@@ -13,6 +14,22 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../providers/ThemeProvider';
 import { fontFamilyFor, type Theme } from '../theme';
+
+/** Animatable Pressable so a press can drive a native-thread scale/opacity
+ *  tween directly on the touchable's own style, instead of the instant
+ *  on/off `pressed` swap. Shared by Button and Chip below. */
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/** A small, snappy press-in/press-out scale — the one bit of shared motion
+ *  every tappable control in the app gets for free. */
+function usePressScale(to = 0.96) {
+  const scale = React.useRef(new Animated.Value(1)).current;
+  const onPressIn = () =>
+    Animated.spring(scale, { toValue: to, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+  const onPressOut = () =>
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 6 }).start();
+  return { scale, onPressIn, onPressOut };
+}
 
 /** Full-screen container with themed background + safe area. */
 export function Screen({
@@ -115,17 +132,34 @@ export function Card({
     padding: t.spacing.lg,
   };
   if (onPress) {
-    return (
-      <Pressable
-        onPress={onPress}
-        accessibilityRole="button"
-        style={({ pressed }) => [s, pressed && { opacity: 0.85 }, style]}
-      >
-        {children}
-      </Pressable>
-    );
+    return <PressableCard baseStyle={s} onPress={onPress} style={style}>{children}</PressableCard>;
   }
   return <View style={[s, style]}>{children}</View>;
+}
+
+function PressableCard({
+  children,
+  baseStyle,
+  onPress,
+  style,
+}: {
+  children: React.ReactNode;
+  baseStyle: StyleProp<ViewStyle>;
+  onPress: () => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { scale, onPressIn, onPressOut } = usePressScale(0.98);
+  return (
+    <AnimatedPressable
+      onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      accessibilityRole="button"
+      style={[baseStyle, { transform: [{ scale }] }, style]}
+    >
+      {children}
+    </AnimatedPressable>
+  );
 }
 
 export function Button({
@@ -156,14 +190,17 @@ export function Button({
       : variant === 'secondary'
         ? t.colors.ink
         : t.colors.accent;
+  const { scale, onPressIn, onPressOut } = usePressScale();
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: Boolean(disabled) }}
-      style={({ pressed }) => [
+      style={[
         {
           backgroundColor: bg,
           borderRadius: t.radius.md,
@@ -173,13 +210,14 @@ export function Button({
           justifyContent: 'center',
           borderWidth: variant === 'ghost' ? StyleSheet.hairlineWidth : 0,
           borderColor: t.colors.accent,
-          opacity: disabled ? 0.5 : pressed ? 0.9 : 1,
+          opacity: disabled ? 0.5 : 1,
+          transform: [{ scale }],
         },
         style,
       ]}
     >
       <RNText style={{ color: fg, fontSize: 15, fontFamily: fontFamilyFor('700') }}>{label}</RNText>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -204,9 +242,12 @@ export function Chip({
       : toneColor
     : t.colors.surface2;
   const fg = active ? t.colors.onAccent : t.colors.text;
+  const { scale, onPressIn, onPressOut } = usePressScale(0.94);
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected: Boolean(active) }}
@@ -217,10 +258,11 @@ export function Chip({
         paddingHorizontal: 13,
         borderWidth: active ? 0 : StyleSheet.hairlineWidth,
         borderColor: t.colors.line,
+        transform: [{ scale }],
       }}
     >
       <RNText style={{ color: fg, fontSize: 13, fontFamily: fontFamilyFor('600') }}>{label}</RNText>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 

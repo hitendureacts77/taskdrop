@@ -11,7 +11,16 @@ const CARDS: { key: Mode; glyph: string; title: string; sub: string }[] = [
   { key: 'worker', glyph: '⌕', title: 'Find Work', sub: 'I want to quote on tasks near me' },
 ];
 
-function CardIn({ delay, children }: { delay: number; children: React.ReactNode }) {
+function CardIn({
+  delay,
+  grow = true,
+  children,
+}: {
+  delay: number;
+  /** Row cards share the width; a block in a column must not take the height. */
+  grow?: boolean;
+  children: React.ReactNode;
+}) {
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const anim = Animated.timing(v, { toValue: 1, duration: 400, delay, useNativeDriver: true });
@@ -21,7 +30,7 @@ function CardIn({ delay, children }: { delay: number; children: React.ReactNode 
   return (
     <Animated.View
       style={{
-        flex: 1,
+        ...(grow ? { flex: 1 } : null),
         opacity: v,
         transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
       }}
@@ -49,7 +58,13 @@ export function WelcomeScreen() {
           Real tasks.{'\n'}Real people.{'\n'}Nearby.
         </RNText>
 
-        <View style={{ flexDirection: 'row', gap: 12, marginTop: 34 }}>
+        <RNText
+          style={tx('600', 11, t.colors.accentDeep, { letterSpacing: 1.54, marginTop: 30 })}
+        >
+          I'M HERE TO
+        </RNText>
+
+        <View style={{ flexDirection: 'row', gap: 12, marginTop: 11 }}>
           {CARDS.map((c, i) => {
             const on = picked === c.key;
             return (
@@ -86,30 +101,52 @@ export function WelcomeScreen() {
           })}
         </View>
 
-        <Pressable
-          onPress={() => go('signup')}
-          style={({ pressed }) => ({
-            marginTop: 26,
-            backgroundColor: t.colors.accent,
-            borderRadius: 999,
-            paddingVertical: 16,
-            alignItems: 'center',
-            shadowColor: t.colors.accent,
-            shadowOpacity: 0.35,
-            shadowRadius: 22,
-            shadowOffset: { width: 0, height: 8 },
-            elevation: 6,
-            transform: [{ scale: pressed ? 0.96 : 1 }],
-          })}
-        >
-          <RNText style={tx('700', 16, t.colors.onAccent)}>
-            Continue as {picked === 'poster' ? 'Poster' : 'Worker'}
-          </RNText>
-        </Pressable>
+        <CardIn delay={160} grow={false}>
+          <Pressable
+            onPress={() => go('signup', { mode: 'signup' })}
+            style={({ pressed }) => ({
+              marginTop: 26,
+              backgroundColor: t.colors.accent,
+              borderRadius: 999,
+              paddingVertical: 16,
+              alignItems: 'center',
+              shadowColor: t.colors.accent,
+              shadowOpacity: 0.35,
+              shadowRadius: 22,
+              shadowOffset: { width: 0, height: 8 },
+              elevation: 6,
+              transform: [{ scale: pressed ? 0.96 : 1 }],
+            })}
+          >
+            <RNText style={tx('700', 16, t.colors.onAccent)}>
+              Create account as {picked === 'poster' ? 'Poster' : 'Worker'}
+            </RNText>
+          </Pressable>
 
-        <Pressable onPress={() => go('signup')} style={{ marginTop: 16 }}>
-          <RNText style={tx('600', 14, t.colors.muted, { textAlign: 'center' })}>Sign in instead</RNText>
-        </Pressable>
+          {/* Signing in used to be a grey line of text, which is not a door a
+              returning user can find. Same size and shape as sign-up, one step
+              quieter. */}
+          <Pressable
+            onPress={() => go('signup', { mode: 'signin' })}
+            style={({ pressed }) => ({
+              marginTop: 12,
+              borderRadius: 999,
+              borderWidth: 1,
+              borderColor: t.colors.accent,
+              paddingVertical: 15,
+              alignItems: 'center',
+              transform: [{ scale: pressed ? 0.96 : 1 }],
+            })}
+          >
+            <RNText style={tx('700', 16, t.colors.accentDeep)}>Sign in</RNText>
+          </Pressable>
+
+          <RNText
+            style={tx('400', 12, t.colors.muted, { marginTop: 14, textAlign: 'center' })}
+          >
+            Already used TaskDrop? Sign in — one account covers both.
+          </RNText>
+        </CardIn>
       </View>
     </Screen>
   );

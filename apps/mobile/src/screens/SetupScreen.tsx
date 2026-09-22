@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, TextInput, type TextStyle } from 'react-native';
+import {
+  View,
+  Text as RNText,
+  Pressable,
+  ScrollView,
+  TextInput,
+  Image,
+  ActivityIndicator,
+  type TextStyle,
+} from 'react-native';
+import { pickMedia, uploadMedia, signedMediaUrl } from '../lib/media';
 import { Screen } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -28,6 +38,12 @@ export function SetupScreen() {
   const [place, setPlace] = useState('');
   const [busy, setBusy] = useState(false);
   const [showLoc, setShowLoc] = useState(false);
+  // The photo: `avatarPath` is what gets saved (a path in the private bucket),
+  // `avatarPreview` is only what is drawn — the local file while the upload
+  // runs, a signed URL once it is stored.
+  const [avatarPath, setAvatarPath] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [coords, setCoords] = useState<{ lat: number | null; lng: number | null }>({
     lat: null,
     lng: null,
@@ -49,6 +65,14 @@ export function SetupScreen() {
         setName(p.display_name ?? '');
         setPlace(p.loc_label ?? '');
         setCoords({ lat: p.loc_lat, lng: p.loc_lng });
+        if (p.avatar_url) {
+          setAvatarPath(p.avatar_url);
+          // The bucket is private, so a stored path is not something an
+          // <Image> can load; sign it for the life of this screen.
+          void signedMediaUrl(p.avatar_url).then((url) => {
+            if (alive && url) setAvatarPreview(url);
+          });
+        }
         const saved = (p.skills ?? []) as string[];
         if (saved.length > 0) {
           setSkills(saved.map((s) => SKILLS.indexOf(s)).filter((i) => i >= 0));
@@ -65,6 +89,29 @@ export function SetupScreen() {
       prev.includes(i) ? prev.filter((x) => x !== i) : prev.length >= 5 ? prev : [...prev, i],
     );
 
+  // "Add a photo" was a plain View with a + in it — no handler, no picker, no
+  // upload. It looked tappable and did nothing, which is why the picture never
+  // arrived. Same pick-and-upload path task media already uses.
+  const choosePhoto = async () => {
+    if (photoBusy) return;
+    try {
+      const picked = await pickMedia('image');
+      if (!picked) return; // cancelled
+      touched.current = true;
+      setAvatarPreview(picked.uri); // show it immediately, upload behind it
+      setPhotoBusy(true);
+      const stored = await uploadMedia(picked);
+      setAvatarPath(stored.path);
+    } catch (e) {
+      // Put the old photo back rather than leaving a preview that was never saved.
+      setAvatarPreview(null);
+      setAvatarPath(null);
+      flash(e instanceof Error ? e.message : 'Could not add that photo');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
   const finish = async () => {
     if (busy) return;
     const displayName = name.trim();
@@ -77,6 +124,7 @@ export function SetupScreen() {
       if (userId) {
         await updateProfile(userId, {
           displayName,
+          avatarUrl: avatarPath ?? undefined,
           skills: worker ? skills.map((i) => SKILLS[i]!).filter(Boolean) : undefined,
           locLabel: place.trim() || null,
           locLat: coords.lat,
@@ -93,8 +141,10 @@ export function SetupScreen() {
     }
   };
 
+  // Section headers were 400-weight in `muted`, which on the dark theme sat a
+  // hair above the background and made the whole form read as switched off.
   const label = (s: string, extra?: TextStyle) => (
-    <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, ...extra })}>{s}</RNText>
+    <RNText style={tx('600', 11, t.colors.accentDeep, { letterSpacing: 1.54, ...extra })}>{s}</RNText>
   );
 
   return (
@@ -112,35 +162,74 @@ export function SetupScreen() {
           Set up your profile
         </RNText>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 20 }}>
+        <Pressable
+          onPress={choosePhoto}
+          disabled={photoBusy}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 14,
+            marginTop: 20,
+            padding: 14,
+            borderRadius: 16,
+            backgroundColor: t.colors.accentSoft,
+            borderWidth: 1,
+            borderColor: t.colors.accentBorder,
+            transform: [{ scale: pressed ? 0.99 : 1 }],
+          })}
+        >
           <View
             style={{
               width: 64,
               height: 64,
               borderRadius: 999,
-              backgroundColor: t.colors.surface2,
+              overflow: 'hidden',
+              backgroundColor: t.colors.surface,
               borderWidth: 1,
-              borderStyle: 'dashed',
-              borderColor: t.colors.line,
+              borderStyle: avatarPreview ? 'solid' : 'dashed',
+              borderColor: t.colors.accent,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <RNText style={tx('400', 20, t.colors.muted)}>+</RNText>
+            {avatarPreview ? (
+              <Image source={{ uri: avatarPreview }} style={{ width: 64, height: 64 }} />
+            ) : (
+              <RNText style={tx('400', 22, t.colors.accent)}>+</RNText>
+            )}
+            {photoBusy && (
+              <View
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'rgba(0,0,0,0.45)',
+                }}
+              >
+                <ActivityIndicator color={t.colors.onAccent} />
+              </View>
+            )}
           </View>
-          <View>
-            <RNText style={tx('700', 15, t.colors.ink)}>Add a photo</RNText>
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>
+          <View style={{ flex: 1 }}>
+            <RNText style={tx('700', 15, t.colors.ink)}>
+              {photoBusy ? 'Adding your photo…' : avatarPreview ? 'Change photo' : 'Add a photo'}
+            </RNText>
+            <RNText style={tx('500', 12, t.colors.accentDeep, { marginTop: 3 })}>
               Profiles with photos get 3× more quotes
             </RNText>
           </View>
-        </View>
+        </Pressable>
 
         {label('DISPLAY NAME', { marginTop: 22 })}
         <View
           style={{
             backgroundColor: t.colors.surface2,
             borderRadius: 12,
+            // Bordered, like the code boxes on signup: without an edge these
+            // read as flat patches rather than fields.
+            borderWidth: 1,
+            borderColor: name.trim() ? t.colors.accentBorder : t.colors.line,
             paddingVertical: 14,
             paddingHorizontal: 16,
             marginTop: 10,
@@ -163,6 +252,8 @@ export function SetupScreen() {
           style={{
             backgroundColor: t.colors.surface2,
             borderRadius: 12,
+            borderWidth: 1,
+            borderColor: place.trim() ? t.colors.accentBorder : t.colors.line,
             paddingVertical: 14,
             paddingHorizontal: 16,
             marginTop: 10,
@@ -202,13 +293,15 @@ export function SetupScreen() {
                       borderRadius: 999,
                       paddingVertical: 9,
                       paddingHorizontal: 15,
-                      backgroundColor: on ? t.colors.accentSoft : 'transparent',
+                      // Selected reads as a solid accent pill rather than a pale
+                      // tint, so picked skills are obvious at a glance.
+                      backgroundColor: on ? t.colors.accent : t.colors.surface2,
                       borderWidth: 1,
                       borderColor: on ? t.colors.accent : t.colors.line,
                       transform: [{ scale: pressed ? 0.96 : 1 }],
                     })}
                   >
-                    <RNText style={tx('600', 13, on ? t.colors.ink : t.colors.muted)}>{s}</RNText>
+                    <RNText style={tx('600', 13, on ? t.colors.onAccent : t.colors.text)}>{s}</RNText>
                   </Pressable>
                 );
               })}
@@ -234,8 +327,10 @@ export function SetupScreen() {
                   transform: [{ scale: pressed ? 0.985 : 1 }],
                 })}
               >
-                <RNText style={tx('700', 15, on ? t.colors.ink : t.colors.muted)}>{m.label}</RNText>
-                <RNText style={tx('400', 12, t.colors.muted, { marginTop: 5 })}>{m.sub}</RNText>
+                <RNText style={tx('700', 15, on ? t.colors.accentDeep : t.colors.ink)}>
+                  {m.label}
+                </RNText>
+                <RNText style={tx('400', 12, t.colors.text, { marginTop: 5 })}>{m.sub}</RNText>
               </Pressable>
             );
           })}

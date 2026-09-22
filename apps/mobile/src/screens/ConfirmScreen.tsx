@@ -17,8 +17,11 @@ import { workerNetPayout } from '@taskdrop/rules';
  * Poster flow: confirm work done → release escrow. Design parity with
  * docs/design/_design_source.jsx lines 769-785 (`confirmRelease`,
  * `releaseRows`, `proofNote`). Not the lock-quote screen — that's EscrowScreen.
- * TaskDrop takes a flat 20% worker commission, so the worker nets 80% of the
- * locked price on release (see `releaseNum` in the design source).
+ * TaskDrop takes a flat 20% worker commission, applied in Postgres on release.
+ * Deliberately NOT surfaced here: the poster sees what they put in escrow and
+ * nothing that lets them derive our cut, so don't reintroduce the worker's net
+ * figure on this screen (or in its toast) — the same applies to ActiveScreen's
+ * confirm button. Commission belongs in the admin analytics view.
  */
 
 
@@ -76,9 +79,12 @@ export function ConfirmScreen() {
       ? params.escrowMinor
       : parseRupeeStringToMinor(openTask?.escrow));
 
+  // What the poster sees is their own side of the deal: the amount they put in
+  // escrow and when it settles on its own. The commission split is the
+  // platform's business and is applied in Postgres — showing the worker's net
+  // here let anyone read our cut straight off the screen.
   const releaseRows = [
     { label: 'Held in escrow', value: escrowMinor === null ? '—' : formatINR(escrowMinor) },
-    { label: 'Releases to the worker', value: priceMinor === null ? '—' : formatINR(releaseMinor) },
     { label: 'Auto-confirms in', value: countdown(detail?.task.auto_complete_at ?? null) },
   ];
 
@@ -128,7 +134,8 @@ export function ConfirmScreen() {
       roll('balance', balance + releaseMinor);
       roll('escrow', Math.max(0, escrow - (escrowMinor ?? 0)));
       if (title) setDone(title, 2);
-      celebrate(`Escrow released · ${formatINR(releaseMinor)}`);
+      // Not the worker's net — that figure is our commission made visible.
+      celebrate('Payment released');
       go('review', { title: title ?? '', taskId });
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not release the escrow');
@@ -178,13 +185,13 @@ export function ConfirmScreen() {
 
       <Card style={{ backgroundColor: t.colors.accentSoft, borderColor: t.colors.accentBorder, marginBottom: t.spacing.xl }}>
         <Text variant="body" style={{ color: t.colors.accentDeep }}>
-          The worker nets 80% of the locked price — TaskDrop takes a flat 20% commission on every
-          completed order.
+          Releasing pays the worker and closes this order. If something is not right, send it back
+          for changes before you release.
         </Text>
       </Card>
 
       <Button
-        label={busy ? 'Releasing…' : `Confirm and release ${formatINR(releaseMinor)}`}
+        label={busy ? 'Releasing…' : 'Confirm and release payment'}
         onPress={handleConfirm}
       />
       <Button

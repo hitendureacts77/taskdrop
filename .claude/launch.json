@@ -4,8 +4,14 @@
     {
       "name": "web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "web", "--workspace", "@taskdrop/mobile"],
-      "port": 8081
+      "runtimeArgs": [
+        "run",
+        "web",
+        "--workspace",
+        "@taskdrop/mobile"
+      ],
+      "port": 8081,
+      "autoPort": true
     }
   ]
 }

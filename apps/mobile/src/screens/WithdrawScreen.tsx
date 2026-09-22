@@ -10,6 +10,7 @@ import {
   requestWithdrawal,
   listPayouts,
   cancelWithdrawal,
+  settleClearedEarnings,
   type Payout,
 } from '../data/api';
 import { PayoutList } from '../components/PayoutList';
@@ -51,6 +52,10 @@ export function WithdrawScreen() {
    * someone ends up thinking their money vanished.
    */
   const refresh = useCallback(async () => {
+    // Anything whose clearing period has elapsed is spendable, so sweep before
+    // reading. This is the screen where the difference matters: without it a
+    // worker is told to wait for money that cleared days ago.
+    await settleClearedEarnings().catch(() => {});
     const [wallet, rows] = await Promise.allSettled([getWallet(), listPayouts()]);
     if (wallet.status === 'fulfilled' && wallet.value) {
       setAvailableMinor(wallet.value.balance_minor);
@@ -67,7 +72,11 @@ export function WithdrawScreen() {
         setDestination(list.find((d) => d.is_default) ?? list[0] ?? null);
       })
       .catch(() => {});
-    getWallet()
+    // After the refresh, not beside it: refresh sweeps cleared earnings into
+    // the balance, and pre-filling from a read that raced it offers the worker
+    // less than they actually have.
+    void refresh()
+      .then(() => getWallet())
       .then((w) => {
         if (!alive || !w) return;
         setAvailableMinor(w.balance_minor);
@@ -76,7 +85,6 @@ export function WithdrawScreen() {
         setRupees(Math.floor(w.balance_minor / 100));
       })
       .catch(() => {});
-    void refresh();
     return () => {
       alive = false;
     };

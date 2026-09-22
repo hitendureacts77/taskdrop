@@ -3,12 +3,12 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   useFonts,
-  Manrope_400Regular,
-  Manrope_500Medium,
-  Manrope_600SemiBold,
-  Manrope_700Bold,
-  Manrope_800ExtraBold,
-} from '@expo-google-fonts/manrope';
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
 import { ThemeProvider } from './src/providers/ThemeProvider';
 import { ModeProvider } from './src/providers/ModeProvider';
 import { AppStateProvider } from './src/providers/AppStateProvider';
@@ -16,29 +16,32 @@ import { AuthProvider, useAuth } from './src/providers/AuthProvider';
 import { NavProvider } from './src/providers/NavProvider';
 import { ScreenHost } from './src/navigation/ScreenHost';
 import { Overlays } from './src/components/Overlays';
+import { WebShell } from './src/components/WebShell';
 
 /** Starts on the feed when a session is restored, otherwise at the splash. */
 function Routes() {
-  const { ready, session } = useAuth();
+  const { ready, session, postAuthRoute } = useAuth();
   if (!ready) return <View style={{ flex: 1, backgroundColor: '#0F1012' }} />;
   return (
-    <NavProvider initial={session ? 'home' : 'splash'}>
+    <NavProvider initial={postAuthRoute ?? (session ? 'home' : 'splash')}>
       <StatusBar style="auto" />
-      <View style={{ flex: 1 }}>
-        <ScreenHost />
-        <Overlays />
-      </View>
+      <WebShell>
+        <View style={{ flex: 1 }}>
+          <ScreenHost />
+          <Overlays />
+        </View>
+      </WebShell>
     </NavProvider>
   );
 }
 
 export default function App() {
   const [fontsLoaded, fontError] = useFonts({
-    Manrope_400Regular,
-    Manrope_500Medium,
-    Manrope_600SemiBold,
-    Manrope_700Bold,
-    Manrope_800ExtraBold,
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
   });
 
   // Never block the whole app on a font: if loading fails, render anyway and

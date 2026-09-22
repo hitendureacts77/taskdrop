@@ -118,6 +118,12 @@ export function PayoutList({
               </RNText>
             ) : null}
 
+            {p.status === 'paid' && p.reference ? (
+              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6, lineHeight: 17 })}>
+                Sent · reference {p.reference}
+              </RNText>
+            ) : null}
+
             {p.status === 'processing' ? (
               <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6, lineHeight: 17 })}>
                 On its way to your bank. It can no longer be cancelled.

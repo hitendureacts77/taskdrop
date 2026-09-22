@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2.116.0";
 
 /**
  * Where an Edge Function gets its secrets.

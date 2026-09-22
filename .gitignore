@@ -27,3 +27,7 @@ Thumbs.db
 # logs
 *.log
 npm-debug.log*
+
+# third-party agent skills (npx skills add)
+.agents/
+db.types.tmp

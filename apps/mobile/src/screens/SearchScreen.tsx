@@ -29,7 +29,8 @@ import { LocationSheet } from '../components/LocationSheet';
  * docs/design/_design_source.jsx renderVals() lines 290-312.
  */
 
-const FILTER_LABELS = ['Services', 'Goods & products', 'Local help'];
+// Must match the pillar names in CreateScreen.tsx exactly — see the note there.
+const FILTER_LABELS = ['Services', 'Products', 'Local Intel'];
 // Chip index -> the pillar enum stored on tasks.
 const FILTER_PILLARS: Enums<'pillar'>[] = ['services', 'procurement', 'local_intel'];
 

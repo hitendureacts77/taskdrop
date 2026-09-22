@@ -20,6 +20,12 @@ export function createBrowserClient(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false,
+      // supabase-js defaults to 'implicit', which returns Google's session in
+      // a URL fragment (#access_token=...) instead of a ?code= query param --
+      // AuthProvider's OAuth callback handling only ever looks for the latter,
+      // so an implicit-flow session lands in the URL and is silently dropped.
+      // PKCE is what exchangeCodeForSession (used on both web and native) expects.
+      flowType: 'pkce',
       ...(options?.storage ? { storage: options.storage as never } : {}),
     },
   });

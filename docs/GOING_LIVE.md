@@ -105,18 +105,22 @@ It should read `paid` without anyone tapping anything.
 
 - **Razorpay KYC** has to be complete or live keys stay disabled.
 - **Payouts are recorded, not sent.** `request_withdrawal` debits the wallet and
-  writes a `payouts` row as `requested`; actually moving money to a worker's UPI
-  needs RazorpayX or a manual transfer, and then marking the row `paid`. Nothing
-  is lost — the ledger is correct — but a human is currently in that loop.
+  writes a `payouts` row as `requested`; a person then sends the money over UPI
+  and marks the row. `npm run payouts` is that loop, and it costs nothing to run
+  — a UPI transfer carries no fee, while every payout API charges per transfer
+  or per month. See [PAYING_WORKERS.md](PAYING_WORKERS.md) for the comparison
+  and for when it is worth automating.
 - **Set an admin.** The analytics dashboard only appears for accounts in the
   `admin` role:
   ```sql
   insert into public.user_roles (user_id, role) values ('<your-user-id>', 'admin');
   ```
-- **Replace the OTP shortcut.** `phone-auth` returns the code in its response
-  because there is no SMS provider wired up, which is fine for testing and not
-  fine in public. Plug in an SMS gateway and delete the `devCode` from the
-  response.
+- **Finish the OTP setup.** `phone-auth` texts the code through MSG91 and only
+  hands it back for numbers in `TEST_PHONES`. Three things still gate launch:
+  DLT registration with TRAI (entity, sender header, template — days of
+  paperwork, start early), the MSG91 secrets set in Supabase, and `TEST_PHONES`
+  cleared, since anyone can sign in as a number listed there. Full runbook in
+  [SMS_OTP.md](SMS_OTP.md).
 - **Restrict the Maps key.** It is set and working (Places API New). Because it
   is `EXPO_PUBLIC_`, it ships inside the app bundle and anyone can read it — so
   restriction in Google Cloud Console is the only thing protecting your billing.

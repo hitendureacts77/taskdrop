@@ -5,18 +5,40 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
-import { getProfile } from '../data/api';
+import { postSignInRoute } from '../data/api';
 import { supabase } from '../lib/supabase';
 import { tx } from '../components/primitives';
 
 export function SignupScreen() {
   const t = useTheme();
-  const { go, back, reset } = useNav();
+  const { go, back, reset, params } = useNav();
   const { celebrate, flash } = useApp();
-  const { requestCode, verifyCode } = useAuth();
+  const { requestCode, verifyCode, signInWithGoogle } = useAuth();
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
+
+  // One screen serves both doors off the welcome page. The exchange is
+  // identical either way -- a phone number and a six-digit code -- but the
+  // wording has to match what the person thought they were doing, and only
+  // the sign-up door is allowed to register a number that has no account.
+  const mode: 'signin' | 'signup' = params.mode === 'signin' ? 'signin' : 'signup';
+  const signingIn = mode === 'signin';
+
+  const copy = signingIn
+    ? {
+        title: 'Welcome back',
+        sub: 'Sign in with the mobile number you used before.',
+        switchPrompt: 'New here?',
+        switchAction: 'Create an account',
+      }
+    : {
+        title: 'Create your account',
+        sub: 'One account covers posting and working.',
+        switchPrompt: 'Already have an account?',
+        switchAction: 'Sign in',
+      };
 
   const complete = otp.length === 6;
 
@@ -35,14 +57,17 @@ export function SignupScreen() {
 
   const codeRef = useRef<TextInput>(null);
 
-  // No SMS gateway yet, so the function hands the code back and we fill it in.
-  const autofill = async () => {
+  // The real flow is a code that arrives by SMS and gets typed in by hand, so
+  // never fill the boxes in for the user. Numbers on the server's TEST_PHONES
+  // allowlist skip the SMS and get the code back instead — surface that plainly
+  // as a test code rather than pretending a message was delivered.
+  const sendCode = async () => {
     if (phone.replace(/[^0-9]/g, '').length !== 10) return flash('Enter a 10-digit mobile number');
     setBusy(true);
     try {
       const { devCode } = await requestCode(phone);
-      if (devCode) setOtp(devCode);
-      flash('Code sent');
+      flash(devCode ? `Test number — code ${devCode}` : `Code sent to +91 ${phone}`);
+      codeRef.current?.focus();
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not send a code');
     } finally {
@@ -54,21 +79,14 @@ export function SignupScreen() {
     if (!complete) return flash('Enter all six digits');
     setBusy(true);
     try {
-      await verifyCode(phone, otp);
-      celebrate('Number verified');
+      await verifyCode(phone, otp, mode);
+      celebrate(signingIn ? 'Signed in' : 'Number verified');
       // Returning users go straight to the app; setup is for the first run.
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      let onboarded = false;
-      if (user) {
-        try {
-          onboarded = Boolean((await getProfile(user.id))?.onboarded_at);
-        } catch {
-          /* treat an unreadable profile as first run */
-        }
-      }
-      if (onboarded) reset('home');
+      const route = await postSignInRoute(user?.id ?? '');
+      if (route === 'home') reset('home');
       else go('setup');
     } catch (e) {
       flash(e instanceof Error ? e.message : 'That code is not right');
@@ -77,6 +95,29 @@ export function SignupScreen() {
       codeRef.current?.focus();
     } finally {
       setBusy(false);
+    }
+  };
+
+  // On the web this never returns -- the page redirects to Google and back,
+  // and AuthProvider's postAuthRoute takes over routing on that fresh load.
+  // Native stays on this screen the whole time, so it routes itself here,
+  // the same way verify() does above.
+  const googleSignIn = async () => {
+    setGoogleBusy(true);
+    try {
+      await signInWithGoogle();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const route = await postSignInRoute(user.id);
+        if (route === 'home') reset('home');
+        else go('setup');
+      }
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not sign in with Google');
+    } finally {
+      setGoogleBusy(false);
     }
   };
 
@@ -96,10 +137,10 @@ export function SignupScreen() {
         </Pressable>
 
         <RNText style={tx('800', 27, t.colors.ink, { letterSpacing: -0.81, marginTop: 22 })}>
-          Create your account
+          {copy.title}
         </RNText>
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21 })}>
-          One account covers posting and working.
+          {copy.sub}
         </RNText>
 
         {label('MOBILE NUMBER', { marginTop: 26 })}
@@ -111,6 +152,10 @@ export function SignupScreen() {
             marginTop: 11,
             backgroundColor: t.colors.surface2,
             borderRadius: 12,
+            // Same bordered box as the six code boxes below: without it this
+            // field reads as a flat patch rather than a field.
+            borderWidth: 1,
+            borderColor: phone.length === 10 ? t.colors.ink : t.colors.line,
             paddingVertical: 15,
             paddingHorizontal: 16,
           }}
@@ -120,7 +165,7 @@ export function SignupScreen() {
           <TextInput
             value={phone}
             onChangeText={(v) => setPhone(v.replace(/[^0-9]/g, '').slice(0, 10))}
-            onSubmitEditing={() => void autofill()}
+            onSubmitEditing={() => void sendCode()}
             returnKeyType="send"
             placeholder="98765 43210"
             placeholderTextColor={t.colors.muted}
@@ -129,6 +174,26 @@ export function SignupScreen() {
             maxLength={10}
             style={tx('400', 16, t.colors.ink, { flex: 1, padding: 0 })}
           />
+        </View>
+
+        {/* Sending the code belongs with the number you are sending it to, so
+            this row sits between the phone block and the code block. */}
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginTop: 12,
+          }}
+        >
+          <RNText style={tx('400', 13, t.colors.muted)}>
+            {phone.length === 10 ? `Sent to +91 •••• ••${phone.slice(-4)}` : 'Enter your number'}
+          </RNText>
+          <Pressable onPress={sendCode} hitSlop={8} disabled={busy}>
+            <RNText style={tx('700', 13, t.colors.accentDeep)}>
+              {busy ? 'Sending…' : 'Send code'}
+            </RNText>
+          </Pressable>
         </View>
 
         {label('6-DIGIT CODE · SENT BY SMS', { marginTop: 24 })}
@@ -179,24 +244,6 @@ export function SignupScreen() {
           />
         </Pressable>
 
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginTop: 14,
-          }}
-        >
-          <RNText style={tx('400', 13, t.colors.muted)}>
-            {phone.length === 10 ? `Sent to +91 •••• ••${phone.slice(-4)}` : 'Enter your number'}
-          </RNText>
-          <Pressable onPress={autofill} hitSlop={8} disabled={busy}>
-            <RNText style={tx('700', 13, t.colors.accentDeep)}>
-              {busy ? 'Sending…' : 'Send code'}
-            </RNText>
-          </Pressable>
-        </View>
-
         <Pressable
           onPress={verify}
           style={({ pressed }) => ({
@@ -233,7 +280,8 @@ export function SignupScreen() {
         </View>
 
         <Pressable
-          onPress={() => go('setup')}
+          onPress={googleSignIn}
+          disabled={googleBusy}
           style={({ pressed }) => ({
             marginTop: 20,
             borderWidth: 1,
@@ -241,10 +289,26 @@ export function SignupScreen() {
             borderRadius: 12,
             paddingVertical: 15,
             alignItems: 'center',
+            opacity: googleBusy ? 0.6 : 1,
             transform: [{ scale: pressed ? 0.96 : 1 }],
           })}
         >
-          <RNText style={tx('600', 15, t.colors.ink)}>Continue with Google</RNText>
+          {googleBusy ? (
+            <ActivityIndicator color={t.colors.ink} />
+          ) : (
+            <RNText style={tx('600', 15, t.colors.ink)}>Continue with Google</RNText>
+          )}
+        </Pressable>
+
+        {/* The other door. Pushing rather than replacing keeps the back arrow
+            meaningful -- it still leads out to the welcome screen. */}
+        <Pressable
+          onPress={() => go('signup', { mode: signingIn ? 'signup' : 'signin' })}
+          hitSlop={8}
+          style={{ marginTop: 22, flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+        >
+          <RNText style={tx('400', 14, t.colors.muted)}>{copy.switchPrompt}</RNText>
+          <RNText style={tx('700', 14, t.colors.accent)}>{copy.switchAction}</RNText>
         </Pressable>
       </ScrollView>
     </Screen>

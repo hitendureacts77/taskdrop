@@ -1,7 +1,10 @@
 /**
  * TaskDrop theme tokens — extracted from the design canvas palette.
- * Brand accent #0C9E6C; gold = verified-badge; signal = warnings/cancel;
- * purple = promotions/ads. Light + dark are role-consistent.
+ * Brand accent is a cool jade green (#0E8F72 light / #2FBF96 dark) —
+ * deliberately cooler and deeper than the brighter grass-green marketplace
+ * incumbents (Fiverr, Upwork) use, while staying clearly a green; gold =
+ * verified-badge; signal = warnings/cancel; purple = promotions/ads. Light +
+ * dark are role-consistent.
  */
 export type Palette = {
   bg: string;
@@ -35,10 +38,10 @@ export const light: Palette = {
   ink: '#16171A',
   text: '#4A4A4A',
   muted: '#8A8A8A',
-  accent: '#0C9E6C',
-  accentDeep: '#0A7E56',
-  accentSoft: '#EEF8F3',
-  accentBorder: '#C6E7D9',
+  accent: '#0E8F72',
+  accentDeep: '#0A6F58',
+  accentSoft: '#E9F6F1',
+  accentBorder: '#BFE3D5',
   gold: '#E0A85A',
   goldSoft: '#F0DEBB',
   goldInk: '#8A5A12',
@@ -59,10 +62,10 @@ export const dark: Palette = {
   ink: '#F1F1F1',
   text: '#D6D6D6',
   muted: '#8A8A8A',
-  accent: '#1FB37D',
-  accentDeep: '#33C48E',
-  accentSoft: '#12271D',
-  accentBorder: '#1E3A2C',
+  accent: '#2FBF96',
+  accentDeep: '#57D1AE',
+  accentSoft: '#12271F',
+  accentBorder: '#1E3A30',
   gold: '#E0A85A',
   goldSoft: '#2C2413',
   goldInk: '#E7C784',
@@ -75,14 +78,14 @@ export const dark: Palette = {
   onAccent: '#04140D',
 };
 
-/** Manrope families (from @expo-google-fonts/manrope). RN needs a distinct
- *  family per weight rather than a numeric fontWeight. */
+/** Plus Jakarta Sans families (from @expo-google-fonts/plus-jakarta-sans).
+ *  RN needs a distinct family per weight rather than a numeric fontWeight. */
 export const fonts = {
-  regular: 'Manrope_400Regular',
-  medium: 'Manrope_500Medium',
-  semibold: 'Manrope_600SemiBold',
-  bold: 'Manrope_700Bold',
-  extrabold: 'Manrope_800ExtraBold',
+  regular: 'PlusJakartaSans_400Regular',
+  medium: 'PlusJakartaSans_500Medium',
+  semibold: 'PlusJakartaSans_600SemiBold',
+  bold: 'PlusJakartaSans_700Bold',
+  extrabold: 'PlusJakartaSans_800ExtraBold',
 } as const;
 
 export function fontFamilyFor(weight?: string): string {

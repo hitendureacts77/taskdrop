@@ -468,6 +468,21 @@ export async function getProfile(userId: string): Promise<Profile | null> {
   return data;
 }
 
+/**
+ * Where a freshly-signed-in user should land: setup for a first run, home for
+ * a returning one. Shared by every sign-in path (phone OTP, Google) so they
+ * agree on what "first run" means. An unreadable profile is treated as first
+ * run rather than thrown, since the trigger that creates it can lag the
+ * client by a beat.
+ */
+export async function postSignInRoute(userId: string): Promise<'home' | 'setup'> {
+  try {
+    return (await getProfile(userId))?.onboarded_at ? 'home' : 'setup';
+  } catch {
+    return 'setup';
+  }
+}
+
 // ------------------------------------------------------------- analytics ---
 
 export type PlatformStats = {
@@ -699,6 +714,9 @@ export type ProfileEdits = {
   locLabel?: string | null;
   locLat?: number | null;
   locLng?: number | null;
+  /** Storage path of the profile photo in the task-media bucket, never a URL:
+   *  the bucket is private, so display signs a short-lived URL on render. */
+  avatarUrl?: string | null;
   /** UPI handle money is paid out to. The user owns this; never invent one. */
   payoutUpi?: string | null;
   /** Stamp the profile as having finished setup. */
@@ -712,6 +730,7 @@ export async function updateProfile(userId: string, edits: ProfileEdits): Promis
       Profile,
       | 'display_name'
       | 'skills'
+      | 'avatar_url'
       | 'loc_label'
       | 'loc_lat'
       | 'loc_lng'
@@ -724,6 +743,7 @@ export async function updateProfile(userId: string, edits: ProfileEdits): Promis
   if (edits.locLabel !== undefined) patch.loc_label = edits.locLabel;
   if (edits.locLat !== undefined) patch.loc_lat = edits.locLat;
   if (edits.locLng !== undefined) patch.loc_lng = edits.locLng;
+  if (edits.avatarUrl !== undefined) patch.avatar_url = edits.avatarUrl;
   if (edits.payoutUpi !== undefined) patch.payout_upi = edits.payoutUpi;
   if (edits.onboarded) patch.onboarded_at = new Date().toISOString();
 
@@ -794,12 +814,15 @@ export const submitReview = (taskId: string, rating: number, comment?: string) =
  * database is holding a balance of zero against money that has already cleared.
  *
  * It is idempotent (a task is swept at most once, via tasks.cleared_at) and it
- * sweeps every worker who is due, not just the caller, so whoever opens their
- * wallet first pays everybody. Call it before showing a balance, never instead
- * of reading one, and let it fail quietly -- a sweep that does not run means a
- * number is briefly stale, which is not worth an error on this screen.
+ * settles only the caller's own work. It used to sweep everybody, which meant
+ * one cheap request from any signed-in user drove a row-locking write across
+ * every task in the table; migration 045 split that unscoped sweep off to the
+ * nightly pg_cron job and left this half for the app. Call it before showing a
+ * balance, never instead of reading one, and let it fail quietly -- a sweep
+ * that does not run means a number is briefly stale, which is not worth an
+ * error on this screen.
  */
-export const settleClearedEarnings = () => rpc<number>('settle_cleared_earnings', {});
+export const settleClearedEarnings = () => rpc<number>('settle_my_cleared_earnings', {});
 
 /**
  * Move money out of the wallet. The debit and the payout row happen in one
@@ -1059,11 +1082,33 @@ export async function listPromotions(): Promise<Promotion[]> {
   return rows as unknown as Promotion[];
 }
 
-/** Task ids that are sponsored right now, for marking feed cards. */
-export async function sponsoredTaskIds(): Promise<Set<string>> {
-  const { data, error } = await supabase.from('sponsored_tasks').select('task_id');
-  if (error) return new Set();
-  return new Set((data ?? []).map((r) => (r as { task_id: string }).task_id));
+/**
+ * The live ad auction, already ordered. Rank 1 is the winning campaign.
+ *
+ * The ordering is the server's, not ours: it is bid x estimated action rate,
+ * damped by pacing and with out-of-budget campaigns dropped. The client only
+ * needs to know the running order, so that is all this returns.
+ */
+export async function adAuctionRanks(): Promise<Map<string, number>> {
+  const { data, error } = await supabase.rpc('ad_auction');
+  if (error) return new Map();
+  return new Map(
+    (data ?? []).map((r) => {
+      const row = r as { task_id: string; rank: number | null };
+      return [row.task_id, Number(row.rank ?? 0)];
+    }),
+  );
+}
+
+/** Bill one impression against the campaign's daily budget. Best-effort: a
+ *  feed that renders must not fail because delivery could not be logged. */
+export async function recordAdImpression(taskId: string): Promise<void> {
+  await supabase.rpc('record_ad_impression', { p_task_id: taskId });
+}
+
+/** Free, but it feeds the action rate that decides future ranking. */
+export async function recordAdClick(taskId: string): Promise<void> {
+  await supabase.rpc('record_ad_click', { p_task_id: taskId });
 }
 
 // -------------------------------------------------------------- payments ---

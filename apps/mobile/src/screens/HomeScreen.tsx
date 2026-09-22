@@ -19,7 +19,7 @@ import type { Enums } from '@taskdrop/db-types';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { signedMediaUrls } from '../lib/media';
-import { sponsoredTaskIds } from '../data/api';
+import { adAuctionRanks, recordAdImpression, recordAdClick } from '../data/api';
 
 /**
  * Home feed — pixel parity with docs/design/_design_markup.html lines 35-139
@@ -35,6 +35,8 @@ import { sponsoredTaskIds } from '../data/api';
 export type FeedRow = {
   id: string;
   sponsored: boolean;
+  /** Winning position in the live ad auction; 1 is best, 0 when organic. */
+  adRank: number;
   who: string;
   rating: string;
   whoMeta: string;
@@ -53,7 +55,11 @@ export type FeedRow = {
   by: string | null;
 };
 
-const FILTER_LABELS = ['Services', 'Goods & products', 'Local help'];
+// Must match the pillar names in CreateScreen.tsx exactly — this list and
+// SearchScreen's copy are the display side of the same 'services' /
+// 'procurement' / 'local_intel' pillar enum CreateScreen names "Services",
+// "Products", "Local Intel". Keep the three in sync.
+const FILTER_LABELS = ['Services', 'Products', 'Local Intel'];
 
 
 // Live Supabase rows (id,title,pillar,benchmark_minor,flag,loc_label) don't carry
@@ -108,6 +114,7 @@ function liveToFeedRow(task: LiveTask, worker: boolean): FeedRow {
   return {
     id: task.id,
     sponsored: false,
+    adRank: 0,
     who: task.poster?.display_name ?? (worker ? 'Poster' : 'Tasker'),
     // A new account genuinely has no rating; a dash says so without faking 0.0.
     rating:
@@ -454,20 +461,27 @@ export function HomeScreen() {
   // Which listings are being paid for right now. Without this, promotion was
   // money for nothing: the card had a sponsored style and the flag was
   // hard-coded false, so a live campaign changed nothing anyone could see.
-  const [sponsored, setSponsored] = useState<Set<string>>(new Set());
+  // Who is winning the ad auction right now. The order is decided server-side
+  // (bid x action rate, paced, out-of-budget campaigns dropped); the client is
+  // told the running order and nothing else, so placement cannot be argued
+  // with from a phone.
+  const [adRanks, setAdRanks] = useState<Map<string, number>>(new Map());
   useEffect(() => {
     let alive = true;
-    void sponsoredTaskIds().then((ids) => alive && setSponsored(ids));
+    void adAuctionRanks().then((m) => alive && setAdRanks(m));
     return () => {
       alive = false;
     };
   }, []);
 
   const allRows: FeedRow[] = (liveTasks ?? [])
-    .map((task) => ({ ...liveToFeedRow(task, worker), sponsored: sponsored.has(task.id) }))
-    // Paid placement is the thing being sold, so it has to actually place:
-    // sponsored listings sit at the top, and keep their order within that.
-    .sort((a, b) => Number(b.sponsored) - Number(a.sponsored));
+    .map((task) => {
+      const adRank = adRanks.get(task.id) ?? 0;
+      return { ...liveToFeedRow(task, worker), sponsored: adRank > 0, adRank };
+    })
+    // Sponsored above organic, then in the auction's own order (rank 1 first).
+    // Ties and organic rows keep the server's order, which is newest-first.
+    .sort((a, b) => Number(b.sponsored) - Number(a.sponsored) || a.adRank - b.adRank);
   // Chip index -> card tag. No selection shows every pillar.
   const FILTER_TAGS: FeedRow['tag'][] = ['SERVICES', 'PRODUCTS', 'LOCAL HELP'];
   const feed: FeedRow[] =
@@ -476,6 +490,19 @@ export function HomeScreen() {
   // hard-coded card -- a person, a rating and a price that existed nowhere --
   // on the front page of the marketplace, for every user, always.
   const urgentRows = feed.filter((row) => row.meta === 'Urgent').slice(0, 3);
+
+  // Delivery. A sponsored card that reaches the screen is an impression, and
+  // an impression is what the advertiser's daily budget actually buys — until
+  // this fired, "daily budget" could never be spent. Billed once per task per
+  // mount: re-sorting or filtering the feed is not a new view of the ad.
+  const billed = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const row of feed) {
+      if (!row.sponsored || billed.current.has(row.id)) continue;
+      billed.current.add(row.id);
+      void recordAdImpression(row.id).catch(() => {});
+    }
+  }, [feed]);
 
   /**
    * One signing call for the whole page.
@@ -503,6 +530,9 @@ export function HomeScreen() {
   }, [signedKey]);
 
   const openRow = (row: FeedRow) => {
+    // A tap on a paid card is the action the auction is estimating. Logged
+    // before navigating, and never allowed to block it.
+    if (row.sponsored) void recordAdClick(row.id).catch(() => {});
     setOpenTask({
       title: row.title,
       price: formatINR(row.amountMinor),
@@ -749,10 +779,15 @@ export function HomeScreen() {
               ))}
             </View>
 
-            {urgentRows.length > 0 && (
+            {/* Worker-only. These rows are urgent *requests*, which is work a
+                worker can pick up — but on the poster's side they were being
+                relabelled "Free right now", as though other people's urgent
+                jobs were available workers. A poster has no use for a list of
+                someone else's requests. */}
+            {worker && urgentRows.length > 0 && (
               <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
                 <RNText style={tx('800', 19, t.colors.ink, { letterSpacing: -0.38, marginTop: 10 })}>
-                  {worker ? 'Urgent requests' : 'Free right now'}
+                  Urgent requests
                 </RNText>
                 {urgentRows.map((row) => (
                   <FadeIn key={row.id} duration={400} translateY={10} style={{ marginTop: 12 }}>

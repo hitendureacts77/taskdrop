@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useMemo, useState, useCallback } from 'react';
+import React, { createContext, useContext, useMemo, useState, useCallback, useEffect } from 'react';
+import { BackHandler, Platform } from 'react-native';
 
 /**
  * Lightweight screen navigator that mirrors the design's own tab-state model.
@@ -68,6 +69,23 @@ export function NavProvider({
     () => ({ screen: top.screen, params: top.params, go, back, reset }),
     [top, go, back, reset],
   );
+
+  // Android hardware/gesture back button: pop our own stack like any native
+  // screen would, and only let the OS handle it (close the app) once we're
+  // at the root screen. Native-only — BackHandler.addEventListener is a
+  // no-op on web/iOS.
+  const stackLength = stack.length;
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (stackLength > 1) {
+        back();
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [stackLength, back]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

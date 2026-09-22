@@ -16,32 +16,37 @@ This is the one that cannot be skipped. A worker requests a withdrawal, the
 money leaves their wallet immediately, and the payout sits at `requested`
 until someone marks it. Nothing else moves it.
 
-**See what is owed:**
+It has its own command now, because the SQL below was missing the one thing the
+job actually needs — a bank destination is masked in `payouts.destination` and
+cannot be paid into:
 
-```sql
-select o.id, p.display_name, o.amount_minor / 100.0 as rupees,
-       o.destination, o.status, o.created_at
-from public.payouts o
-join public.profiles p on p.id = o.user_id
-where o.status in ('requested', 'processing')
-order by o.created_at;
+```bash
+npm run payouts                        # who is owed what, and where to send it
+npm run payouts paid <id> <reference>  # after the money has left
+npm run payouts failed <id> "<why>"    # bounced — refunds their wallet
 ```
 
-**Send the money** — by UPI or bank transfer, to the `destination` shown —
-then record it:
+Send the money yourself over UPI, which costs nothing. The listing prints a
+`upi://` link that opens straight into a UPI app with the amount filled in.
+[PAYING_WORKERS.md](PAYING_WORKERS.md) covers why this is by hand, what the
+providers charge, and when to automate it.
+
+Still doable in the SQL Editor if you prefer:
 
 ```sql
-select public.admin_mark_payout('<payout id>', 'paid');
-```
-
-**If the transfer bounces**, this puts the full amount back in their wallet:
-
-```sql
+select * from public.admin_payout_queue();
+select public.admin_mark_payout('<payout id>', 'paid', '<upi reference>');
 select public.admin_mark_payout('<payout id>', 'failed', 'Bank rejected the VPA');
 ```
 
 A payout already marked `paid` or `failed` cannot be re-marked, so a mistake
 here is not silently correctable — check the id before running it.
+
+> **If these raise `Admins only`**, migration 037 has not been applied yet.
+> Before it, `private.is_admin()` was `has_role(auth.uid(), 'admin')` and
+> nothing else — and `auth.uid()` is null in the SQL Editor, so every function
+> on this page refused the owner. Apply
+> `supabase/migrations/20260916100000_037_operator_can_pass_admin_checks.sql`.
 
 ---
 
@@ -78,8 +83,18 @@ Either way it is written to `cancellations_log` with your reason.
 ## 3. Releasing cleared earnings
 
 Completed work sits in `clearing_minor` for seven days, then has to be moved
-into `balance_minor` before a worker can withdraw it. Nothing does this on a
-schedule yet, so **until it is automated, a worker's money stops here.**
+into `balance_minor` before a worker can withdraw it.
+
+**This is no longer a manual job.** The app sweeps whenever anyone opens their
+wallet or the withdraw screen, and one person opening it settles every worker
+who is due, not just themselves. `settle_cleared_earnings()` is granted to
+`authenticated` for exactly that reason — it only ever moves money that is
+already owed.
+
+Migration 038 adds the nightly `pg_cron` job as well, so the figures stay right
+for someone who is not in the app. Apply it and this section needs nobody.
+
+By hand, if you want to force it:
 
 ```sql
 select public.settle_cleared_earnings();
@@ -87,20 +102,6 @@ select public.settle_cleared_earnings();
 
 It returns how many tasks it settled, and is safe to run as often as you like —
 a task is settled at most once.
-
-**Automate it.** Enable `pg_cron` (Supabase → Database → Extensions) and this
-runs it nightly:
-
-```sql
-select cron.schedule(
-  'settle-cleared-earnings',
-  '0 2 * * *',
-  $$select public.settle_cleared_earnings()$$
-);
-```
-
-That removes the one job on this page that genuinely cannot wait for someone to
-remember it.
 
 ---
 

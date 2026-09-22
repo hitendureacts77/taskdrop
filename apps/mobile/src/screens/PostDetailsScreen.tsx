@@ -163,6 +163,18 @@ export function PostDetailsScreen() {
     <RNText style={tx('400', 11, color ?? t.colors.muted, { letterSpacing: 1.54, ...extra })}>{s}</RNText>
   );
 
+  // Text fields carry the same bordered box as the benchmark and deadline
+  // cards below them. A bare underline reads as unfinished next to those, and
+  // barely shows at all on the dark theme.
+  const fieldBox = {
+    backgroundColor: t.colors.surface,
+    borderWidth: 1,
+    borderColor: t.colors.line,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  } as const;
+
   const publish = async () => {
     if (busy) return;
     const finalTitle = title.trim();
@@ -192,7 +204,11 @@ export function PostDetailsScreen() {
         timeLimitMinutes: deadline
           ? Math.max(15, Math.round((deadline.getTime() - Date.now()) / 60000))
           : 24 * 60,
-        flag: FLAG_VALUES[flag] ?? 'none',
+        // Urgent/Unique is a poster's signal about a job, so a worker's
+        // listing never carries one. The picker is already hidden in worker
+        // mode, but the state survives a mode switch made without leaving
+        // this form, so pin it here rather than trusting the UI.
+        flag: worker ? 'none' : (FLAG_VALUES[flag] ?? 'none'),
         media,
         locLabel: location.trim() || null,
         locLat: coords.lat,
@@ -220,7 +236,6 @@ export function PostDetailsScreen() {
           <Pressable onPress={back} hitSlop={10}>
             <RNText style={tx('400', 20, t.colors.ink)}>←</RNText>
           </Pressable>
-          <RNText style={tx('400', 12, t.colors.muted)}>Draft saved</RNText>
         </View>
 
         <RNText style={tx('700', 10, t.colors.accentDeep, { letterSpacing: 1.6, marginTop: 16 })}>
@@ -233,13 +248,7 @@ export function PostDetailsScreen() {
           onChangeText={setTitle}
           placeholder={draft.title}
           placeholderTextColor={t.colors.muted}
-          style={tx('400', 17, t.colors.ink, {
-            marginTop: 9,
-            padding: 0,
-            paddingBottom: 11,
-            borderBottomWidth: 1,
-            borderBottomColor: t.colors.line,
-          })}
+          style={tx('400', 17, t.colors.ink, { ...fieldBox, marginTop: 9 })}
         />
 
         {label('DETAILS', { marginTop: 18 })}
@@ -249,13 +258,14 @@ export function PostDetailsScreen() {
           multiline
           placeholder={draft.details}
           placeholderTextColor={t.colors.muted}
-          style={tx('400', 14, t.colors.muted, {
+          // Typed text is `ink`, not `muted` — the value a person just wrote
+          // has to read as strongly as any other content on the form.
+          style={tx('400', 14, t.colors.ink, {
+            ...fieldBox,
             marginTop: 9,
-            padding: 0,
+            minHeight: 92,
             lineHeight: 21.7,
-            paddingBottom: 11,
-            borderBottomWidth: 1,
-            borderBottomColor: t.colors.line,
+            textAlignVertical: 'top',
           })}
         />
 

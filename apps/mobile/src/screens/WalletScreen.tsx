@@ -10,6 +10,7 @@ import {
   getWallet,
   getEscrowHeld,
   listWalletActivity,
+  settleClearedEarnings,
   type WalletEvent,
 } from '../data/api';
 import { Pressy, tx } from '../components/primitives';
@@ -47,7 +48,12 @@ export function WalletScreen() {
   // until it loads (or when signed out).
   useEffect(() => {
     let alive = true;
-    Promise.all([getWallet(), getEscrowHeld()])
+    // Sweep first. Earnings that finished clearing are spendable, and reading
+    // the wallet before moving them shows them as still clearing -- which on
+    // this screen reads as "my money is stuck".
+    settleClearedEarnings()
+      .catch(() => {})
+      .then(() => Promise.all([getWallet(), getEscrowHeld()]))
       .then(([w, held]) => {
         if (!alive || !w) return;
         setLive({ balance: w.balance_minor, escrow: held, clearing: w.clearing_minor });
@@ -98,6 +104,7 @@ export function WalletScreen() {
     if (!userId) return;
     setRefreshing(true);
     try {
+      await settleClearedEarnings().catch(() => {});
       const [w, held, rows] = await Promise.all([
         getWallet(),
         getEscrowHeld(),

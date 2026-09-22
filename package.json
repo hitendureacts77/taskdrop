@@ -17,10 +17,11 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "node --experimental-strip-types --test packages/rules/src/rules.test.ts packages/schemas/src/schemas.test.ts",
-    "db:types": "supabase gen types typescript --project-id wjxvingpfbfvkfqhrguj --schema public > packages/db-types/src/database.types.ts",
-    "test:db": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f supabase/tests/money_rules.test.sql -f supabase/tests/chat_access.test.sql -f supabase/tests/cancel_rules.test.sql",
+    "db:types": "supabase gen types typescript --project-id wjxvingpfbfvkfqhrguj --schema public > db.types.tmp && node -e \"require('fs').renameSync('db.types.tmp','packages/db-types/src/database.types.ts')\"",
+    "test:db": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f supabase/tests/money_rules.test.sql -f supabase/tests/chat_access.test.sql -f supabase/tests/cancel_rules.test.sql -f supabase/tests/funding_rules.test.sql -f supabase/tests/withdrawal_rules.test.sql -f supabase/tests/rpc_surface.test.sql",
     "check": "npm run typecheck && npm run lint && npm test",
-    "check:payments": "node scripts/check-payments.mjs"
+    "check:payments": "node scripts/check-payments.mjs",
+    "payouts": "node scripts/payouts.mjs"
   },
   "devDependencies": {
     "turbo": "^2.1.3",

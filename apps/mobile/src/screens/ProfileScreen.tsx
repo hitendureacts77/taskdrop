@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, Animated, ScrollView } from 'react-native';
+import { View, Text as RNText, Pressable, Animated, ScrollView, Image } from 'react-native';
 import { Screen } from '../components/ui';
 import { useTheme, useThemeControls } from '../providers/ThemeProvider';
 import { useNav, type ScreenName } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { getProfile, listReviewsAbout, type Profile, type Review } from '../data/api';
+import { signedMediaUrl } from '../lib/media';
 import { tx } from '../components/primitives';
 
 function SlideIn({ delay, children }: { delay: number; children: React.ReactNode }) {
@@ -73,6 +74,9 @@ export function ProfileScreen() {
   const { userId, signOut } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
+  // The bucket is private, so the stored path has to be signed before an
+  // <Image> can load it. Null just means we fall back to the initial.
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   // Only surfaced to accounts that can actually open it, so nobody taps
   // through to a refusal.
@@ -101,6 +105,12 @@ export function ProfileScreen() {
         if (!alive) return;
         setProfile(p);
         setReviews(r);
+        if (p?.avatar_url) {
+          const url = await signedMediaUrl(p.avatar_url);
+          if (alive) setAvatarUrl(url);
+        } else {
+          setAvatarUrl(null);
+        }
       } catch {
         /* leave the header on its placeholders */
       }
@@ -142,9 +152,14 @@ export function ProfileScreen() {
                 borderColor: 'rgba(255,255,255,0.18)',
                 alignItems: 'center',
                 justifyContent: 'center',
+                overflow: 'hidden',
               }}
             >
-              <RNText style={tx('800', 23, '#FFFFFF')}>{initial}</RNText>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={{ width: '100%', height: '100%' }} />
+              ) : (
+                <RNText style={tx('800', 23, '#FFFFFF')}>{initial}</RNText>
+              )}
             </View>
             <View>
               <RNText style={tx('800', 21, '#FFFFFF', { letterSpacing: -0.42 })} numberOfLines={1}>

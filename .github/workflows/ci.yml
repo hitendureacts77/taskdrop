@@ -1,0 +1,57 @@
+name: CI
+
+# The P0 fixes in migration 045 are only fixes for as long as something keeps
+# checking. Until this existed, `npm run check` and `npm run test:db` were
+# enforced by memory alone.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  check:
+    name: typecheck, lint, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run check
+
+      # Fails the build on a new advisory rather than letting them accumulate
+      # the way the current 10 moderates did.
+      - name: npm audit
+        run: npm audit --audit-level=moderate
+
+  database:
+    name: money and access rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Brings up a throwaway Postgres with the auth schema, the anon and
+      # authenticated roles, and every migration in supabase/migrations applied
+      # in order. The SQL tests need all three -- they call auth.uid() and they
+      # assert on grants held by those roles.
+      - name: start local supabase
+        run: supabase db start
+
+      - name: run the SQL suite
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: npm run test:db
+
+      - name: stop
+        if: always()
+        run: supabase stop --no-backup

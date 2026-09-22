@@ -12,7 +12,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0C9E6C",
+        "backgroundColor": "#0E8F72",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -24,7 +24,17 @@
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "TaskDrop",
+      "shortName": "TaskDrop",
+      "description": "Post a request, get quotes, pay into escrow, get it done.",
+      "lang": "en",
+      "themeColor": "#0E8F72",
+      "backgroundColor": "#0F1012",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": "/",
+      "output": "single"
     },
     "plugins": [
       "expo-font",
@@ -43,7 +53,8 @@
           "locationAlwaysAndWhenInUsePermission": "TaskDrop uses your location to show jobs near you and to set where a job is.",
           "isAndroidBackgroundLocationEnabled": false
         }
-      ]
+      ],
+      "expo-web-browser"
     ]
   }
 }

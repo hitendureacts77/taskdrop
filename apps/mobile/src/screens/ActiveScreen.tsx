@@ -170,7 +170,9 @@ export function ActiveScreen() {
     : worker
       ? 'Mark work done'
       : doneReady
-        ? `Confirm and release ${formatINR(releasePaise)}`
+        ? // No figure: the worker's net is the locked price minus our
+          // commission, so printing it tells the poster exactly what we take.
+          'Confirm and release payment'
         : 'Waiting on the worker';
 
   const doneNote = worker
@@ -210,7 +212,8 @@ export function ActiveScreen() {
         setDone(title, 2);
         roll('balance', balance + releasePaise);
         roll('escrow', Math.max(0, escrow - escrowPaise));
-        celebrate(`Escrow released · ${formatINR(releasePaise)}`);
+        // The net is the locked price minus our commission — don't print it.
+        celebrate('Payment released');
       }
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not update this task');
