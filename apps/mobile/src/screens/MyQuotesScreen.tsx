@@ -26,7 +26,7 @@ export function MyQuotesScreen() {
       try {
         const [me, open, mine] = await Promise.all([
           getProfile(userId),
-          searchTasks({ limit: 40 }),
+          searchTasks({ limit: 40, kind: 'request' }),
           listMyBids(userId),
         ]);
         if (!alive) return;

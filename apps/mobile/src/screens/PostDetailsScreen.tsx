@@ -209,6 +209,9 @@ export function PostDetailsScreen() {
         // mode, but the state survives a mode switch made without leaving
         // this form, so pin it here rather than trusting the UI.
         flag: worker ? 'none' : (FLAG_VALUES[flag] ?? 'none'),
+        // A worker's listing is a service; a poster's is a request. Each side
+        // browses the other's (migration 050).
+        kind: worker ? 'service' : 'request',
         media,
         locLabel: location.trim() || null,
         locLat: coords.lat,

@@ -24,10 +24,20 @@ function unwrap<T>(res: { data: T | null; error: { message: string } | null }): 
 
 // ---------------------------------------------------------------- reads ----
 
-/** Open tasks for the worker feed, newest first. */
-export async function listOpenTasks(limit = 30): Promise<Task[]> {
+/**
+ * What a post is: a poster's request for work, or a worker's listed service.
+ * Each side browses the other side's posts -- workers see requests, posters
+ * see services (migration 050).
+ */
+export type TaskKind = 'request' | 'service';
+
+/** The kind of post each mode browses. */
+export const kindFor = (mode: 'worker' | 'poster'): TaskKind => (mode === 'worker' ? 'request' : 'service');
+
+/** Open posts of one kind, newest first. */
+export async function listOpenTasks(limit = 30, kind: TaskKind = 'request'): Promise<Task[]> {
   const uid = await myId();
-  let query = supabase.from('tasks').select('*').eq('status', 'OPEN');
+  let query = supabase.from('tasks').select('*').eq('status', 'OPEN').eq('kind', kind);
   // Your own request is not something you can take on, so it does not belong
   // in a feed of work to take on. Leaving it in was how a poster ended up
   // pressing "Send a quote" on himself and meeting a policy error.
@@ -35,13 +45,14 @@ export async function listOpenTasks(limit = 30): Promise<Task[]> {
   return unwrap(await query.order('created_at', { ascending: false }).limit(limit));
 }
 
-/** Tasks this user posted. */
-export async function listMyTasks(userId: string): Promise<Task[]> {
+/** Posts this user made: their requests, or (with 'service') their listings. */
+export async function listMyTasks(userId: string, kind: TaskKind = 'request'): Promise<Task[]> {
   return unwrap(
     await supabase
       .from('tasks')
       .select('*')
       .eq('poster_id', userId)
+      .eq('kind', kind)
       .order('created_at', { ascending: false }),
   );
 }
@@ -98,6 +109,8 @@ export type TaskSearch = {
   minMinor?: number | null;
   maxMinor?: number | null;
   limit?: number;
+  /** Which side's posts: requests (what workers browse) or services. */
+  kind?: TaskKind;
   /** Only tasks within radiusKm of this point. Tasks with no pin are excluded. */
   near?: { lat: number; lng: number; radiusKm: number } | null;
 };
@@ -108,7 +121,7 @@ export type TaskSearch = {
  */
 export async function searchTasks(input: TaskSearch = {}): Promise<Task[]> {
   const uid = await myId();
-  let query = supabase.from('tasks').select('*').eq('status', 'OPEN');
+  let query = supabase.from('tasks').select('*').eq('status', 'OPEN').eq('kind', input.kind ?? 'request');
   // Same reason as listOpenTasks: browse and search show work you could take,
   // and your own request is never that.
   if (uid) query = query.neq('poster_id', uid);
@@ -601,6 +614,8 @@ export type NewTask = {
   assignmentMode?: 'bids' | 'auto';
   dueAt?: string | null;
   milestones?: { title: string; pct: number }[];
+  /** A poster's request (the default) or a worker's service listing. */
+  kind?: TaskKind;
 };
 
 export async function createTask(input: NewTask): Promise<Task> {
@@ -627,6 +642,7 @@ export async function createTask(input: NewTask): Promise<Task> {
         assignment_mode: input.assignmentMode ?? 'bids',
         due_at: input.dueAt ?? null,
         milestones: input.milestones ?? [],
+        kind: input.kind ?? 'request',
       })
       .select(),
   );
@@ -685,7 +701,7 @@ export type QuoteVerdict =
 export async function canQuoteOn(taskId: string, userId: string): Promise<QuoteVerdict> {
   const { data, error } = await supabase
     .from('tasks')
-    .select('poster_id,status')
+    .select('poster_id,status,kind')
     .eq('id', taskId)
     .maybeSingle();
   if (error || !data) return { allowed: true };  // let the server decide
@@ -695,6 +711,13 @@ export async function canQuoteOn(taskId: string, userId: string): Promise<QuoteV
       allowed: false,
       code: 'own',
       reason: 'This is your own request — you cannot quote on it.',
+    };
+  }
+  if (data.kind !== 'request') {
+    return {
+      allowed: false,
+      code: 'closed',
+      reason: 'This is a worker’s service listing, not a request — only requests take quotes.',
     };
   }
   if (data.status !== 'OPEN') {

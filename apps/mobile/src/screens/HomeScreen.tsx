@@ -11,7 +11,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { searchTasks, attachPosters, placeBid } from '../data/api';
+import { searchTasks, attachPosters, placeBid, kindFor } from '../data/api';
 import { useAuth } from '../providers/AuthProvider';
 import { type Theme } from '../theme';
 import type { Enums } from '@taskdrop/db-types';
@@ -419,9 +419,11 @@ export function HomeScreen() {
           ? { lat: nearLat, lng: nearLng, radiusKm }
           : null,
       limit: 20,
+      // Workers browse requests, posters browse services.
+      kind: kindFor(worker ? 'worker' : 'poster'),
     });
     return (await attachPosters(rows)) as unknown as LiveTask[];
-  }, [searchQ, searchPillar, searchMin, searchMax, nearLat, nearLng, radiusKm]);
+  }, [searchQ, searchPillar, searchMin, searchMax, nearLat, nearLng, radiusKm, worker]);
 
   useEffect(() => {
     let active = true;
@@ -627,7 +629,7 @@ export function HomeScreen() {
         </View>
 
         <RNText style={tx('800', 17, t.colors.ink, { letterSpacing: -0.34, paddingTop: 26, paddingHorizontal: 20 })}>
-          {searching ? 'Search results' : worker ? 'Work near you' : 'Recent requests nearby'}
+          {searching ? 'Search results' : worker ? 'Work near you' : 'Services near you'}
         </RNText>
         {searchQ ? (
           <View
@@ -689,7 +691,7 @@ export function HomeScreen() {
                   }}
                 >
                   <RNText style={tx('700', 15, t.colors.ink, { textAlign: 'center' })}>
-                    Nothing matches yet
+                    {!worker && !searching && filter === null ? 'No services listed yet' : 'Nothing matches yet'}
                   </RNText>
                   <RNText
                     style={tx('400', 13, t.colors.muted, {
@@ -702,11 +704,13 @@ export function HomeScreen() {
                       ? `No ${FILTER_LABELS[filter]?.toLowerCase()} tasks open right now. The pillar chips are optional — clear it to see everything.`
                       : searching
                         ? 'Try a broader search, or clear the filters.'
-                        : 'Pull down to refresh, or post the first request.'}
+                        : worker
+                          ? 'Pull down to refresh, or check back soon.'
+                          : 'Workers’ service listings show up here. Meanwhile, post a request and workers will quote on it.'}
                   </RNText>
                   <Pressy
                     onPress={() =>
-                      filter !== null ? setFilter(null) : searching ? go('home') : go('create')
+                      filter !== null ? setFilter(null) : searching ? go('home') : go(worker ? 'explore' : 'aiPost')
                     }
                     style={{
                       marginTop: 15,
@@ -721,7 +725,9 @@ export function HomeScreen() {
                         ? `Show all`
                         : searching
                           ? 'Clear filters'
-                          : 'Post a request'}
+                          : worker
+                            ? 'Find work'
+                            : 'Post a request'}
                     </RNText>
                   </Pressy>
                 </View>

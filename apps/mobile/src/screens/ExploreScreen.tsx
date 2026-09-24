@@ -377,7 +377,7 @@ function FindWork() {
   }, [userId]);
 
   const load = useCallback(async () => {
-    const found = await searchTasks({ q: query || undefined, limit: 60 });
+    const found = await searchTasks({ q: query || undefined, limit: 60, kind: 'request' });
     return attachPosters(found);
   }, [query]);
 

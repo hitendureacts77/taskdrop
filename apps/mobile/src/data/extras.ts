@@ -236,7 +236,7 @@ export const publicProfileStats = (userId: string) =>
  */
 export async function recommendedTasks(skills: string[], limit = 10): Promise<Task[]> {
   const uid = await myId();
-  let q = supabase.from('tasks').select('*').eq('status', 'OPEN');
+  let q = supabase.from('tasks').select('*').eq('status', 'OPEN').eq('kind', 'request');
   if (uid) q = q.neq('poster_id', uid);
   const rows = unwrap(await q.order('created_at', { ascending: false }).limit(60));
   if (skills.length === 0) return rows.slice(0, limit);

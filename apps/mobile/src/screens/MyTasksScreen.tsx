@@ -269,12 +269,15 @@ function PostedCard({
   task,
   index,
   quotes,
+  service,
   onOpen,
   onMenu,
 }: {
   task: Task;
   index: number;
   quotes: number;
+  /** A worker's own service listing: no quotes, no "needs providers". */
+  service?: boolean;
   onOpen: () => void;
   onMenu: () => void;
 }) {
@@ -309,7 +312,7 @@ function PostedCard({
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 9, flexWrap: 'wrap' }}>
             <RNText style={tx('800', 15, t.colors.ink)}>{rupees((task.locked_minor ?? task.benchmark_minor) / 100)}</RNText>
             {left ? <RNText style={tx('600', 11, left === 'overdue' ? t.colors.signal : t.colors.goldInk)}>{left}</RNText> : null}
-            {task.status === 'OPEN' ? (
+            {task.status === 'OPEN' && !service ? (
               <RNText style={tx('600', 11, quotes > 0 ? t.colors.accentDeep : t.colors.blue)}>
                 {quotes > 0 ? `${quotes} quote${quotes === 1 ? '' : 's'}` : 'Needs providers'}
               </RNText>
@@ -326,7 +329,7 @@ function PostedCard({
 
 // --------------------------------------------------------------- worker -----
 
-const WORKER_TABS = ['Active', 'Quotes', 'Done', 'Saved'] as const;
+const WORKER_TABS = ['Active', 'Quotes', 'Done', 'Saved', 'Listings'] as const;
 
 function MyWork() {
   const t = useTheme();
@@ -336,6 +339,8 @@ function MyWork() {
   const [tab, setTab] = useState(0);
   const [rows, setRows] = useState<ViewRow[] | null>(null);
   const [saved, setSavedTasks] = useState<TaskWithPoster[] | null>(null);
+  // Services this worker listed; posters browse these (migration 050).
+  const [listings, setListings] = useState<Task[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [stats, setStats] = useState<MyStats | null>(null);
   const [bidTask, setBidTask] = useState<Task | null>(null);
@@ -346,13 +351,15 @@ function MyWork() {
       setRows([]);
       return;
     }
-    const [bids, assignments, s, sv, ids] = await Promise.all([
+    const [bids, assignments, s, sv, ids, mine] = await Promise.all([
       listMyBids(userId),
       listMyAssignments(userId),
       myStats('worker').catch(() => null),
       listSavedTasks().then(attachPosters).catch(() => [] as TaskWithPoster[]),
       listSavedTaskIds().catch(() => new Set<string>()),
+      listMyTasks(userId, 'service').catch(() => [] as Task[]),
     ]);
+    setListings(mine);
     const assigned = new Set(assignments.map((a) => a.task_id));
     setRows([
       ...assignments.map(workerAssignmentRow),
@@ -377,7 +384,7 @@ function MyWork() {
   const bucketFor = (i: number) => (i === 0 ? 1 : i === 1 ? 2 : 3);
   const list = (rows ?? []).filter((r) => r.bucket === bucketFor(tab));
   const counts = WORKER_TABS.map((_, i) =>
-    i === 3 ? (saved?.length ?? 0) : (rows ?? []).filter((r) => r.bucket === bucketFor(i)).length,
+    i === 3 ? (saved?.length ?? 0) : i === 4 ? listings.length : (rows ?? []).filter((r) => r.bucket === bucketFor(i)).length,
   );
 
   const w = stats && stats.role === 'worker' ? stats : null;
@@ -419,6 +426,28 @@ function MyWork() {
         <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
           {rows === null ? (
             [0, 1].map((i) => <Shimmer key={i} height={90} style={{ marginTop: 12 }} />)
+          ) : tab === 4 ? (
+            listings.length === 0 ? (
+              <EmptyState
+                icon="tag"
+                title="No service listings"
+                body="List a service and posters looking for help will find you."
+                actionLabel="List a service"
+                onAction={() => go('create')}
+              />
+            ) : (
+              listings.map((task, i) => (
+                <PostedCard
+                  key={task.id}
+                  task={task}
+                  index={i}
+                  quotes={0}
+                  service
+                  onOpen={() => go('taskManage', { taskId: task.id })}
+                  onMenu={() => go('taskManage', { taskId: task.id })}
+                />
+              ))
+            )
           ) : tab === 3 ? (
             (saved ?? []).length === 0 ? (
               <EmptyState icon="bookmark" title="No saved tasks" body="Tap the bookmark on any task to keep it here." actionLabel="Browse tasks" onAction={() => go('explore')} />

@@ -990,6 +990,7 @@ export type Database = {
           funded_at: string | null
           funding_payment_id: string | null
           id: string
+          kind: string
           loc_label: string | null
           loc_lat: number | null
           loc_lng: number | null
@@ -1026,6 +1027,7 @@ export type Database = {
           funded_at?: string | null
           funding_payment_id?: string | null
           id?: string
+          kind?: string
           loc_label?: string | null
           loc_lat?: number | null
           loc_lng?: number | null
@@ -1062,6 +1064,7 @@ export type Database = {
           funded_at?: string | null
           funding_payment_id?: string | null
           id?: string
+          kind?: string
           loc_label?: string | null
           loc_lat?: number | null
           loc_lng?: number | null
@@ -1316,6 +1319,7 @@ export type Database = {
           funded_at: string | null
           funding_payment_id: string | null
           id: string
+          kind: string
           loc_label: string | null
           loc_lat: number | null
           loc_lng: number | null
@@ -1391,6 +1395,7 @@ export type Database = {
           funded_at: string | null
           funding_payment_id: string | null
           id: string
+          kind: string
           loc_label: string | null
           loc_lat: number | null
           loc_lng: number | null
@@ -1456,6 +1461,7 @@ export type Database = {
           funded_at: string | null
           funding_payment_id: string | null
           id: string
+          kind: string
           loc_label: string | null
           loc_lat: number | null
           loc_lng: number | null
@@ -1510,6 +1516,7 @@ export type Database = {
           funded_at: string | null
           funding_payment_id: string | null
           id: string
+          kind: string
           loc_label: string | null
           loc_lat: number | null
           loc_lng: number | null
@@ -1555,6 +1562,7 @@ export type Database = {
           funded_at: string | null
           funding_payment_id: string | null
           id: string
+          kind: string
           loc_label: string | null
           loc_lat: number | null
           loc_lng: number | null
@@ -1603,6 +1611,7 @@ export type Database = {
           funded_at: string | null
           funding_payment_id: string | null
           id: string
+          kind: string
           loc_label: string | null
           loc_lat: number | null
           loc_lng: number | null
@@ -1648,6 +1657,7 @@ export type Database = {
           funded_at: string | null
           funding_payment_id: string | null
           id: string
+          kind: string
           loc_label: string | null
           loc_lat: number | null
           loc_lng: number | null
@@ -1710,6 +1720,7 @@ export type Database = {
           funded_at: string | null
           funding_payment_id: string | null
           id: string
+          kind: string
           loc_label: string | null
           loc_lat: number | null
           loc_lng: number | null
@@ -1832,6 +1843,7 @@ export type Database = {
           funded_at: string | null
           funding_payment_id: string | null
           id: string
+          kind: string
           loc_label: string | null
           loc_lat: number | null
           loc_lng: number | null
@@ -1969,6 +1981,7 @@ export type Database = {
           funded_at: string | null
           funding_payment_id: string | null
           id: string
+          kind: string
           loc_label: string | null
           loc_lat: number | null
           loc_lng: number | null

@@ -14,7 +14,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
-import { searchTasks } from '../data/api';
+import { searchTasks, kindFor } from '../data/api';
 import { resolveCurrentPlace, locationPermission } from '../lib/location';
 import { fontFamilyFor, type Theme } from '../theme';
 import type { Enums } from '@taskdrop/db-types';
@@ -191,7 +191,7 @@ export function SearchScreen() {
     let alive = true;
     setCount(null);
     const id = setTimeout(() => {
-      searchTasks({ ...filters, limit: 60 })
+      searchTasks({ ...filters, kind: kindFor(mode === 'worker' ? 'worker' : 'poster'), limit: 60 })
         .then((rows) => alive && setCount(rows.length))
         .catch(() => alive && setCount(0));
     }, 250);
