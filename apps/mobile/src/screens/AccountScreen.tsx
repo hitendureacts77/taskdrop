@@ -1,0 +1,313 @@
+import { useEffect, useState } from 'react';
+import { View, Text as RNText, ScrollView, Pressable } from 'react-native';
+import { Screen } from '../components/ui';
+import { Icon } from '../components/Icon';
+import { Badge, Field, PrimaryButton, TopBar, UnderlineTabs } from '../components/kit';
+import { tx } from '../components/primitives';
+import { useTheme, useThemeControls } from '../providers/ThemeProvider';
+import { useNav } from '../providers/NavProvider';
+import { useApp } from '../providers/AppStateProvider';
+import { useAuth } from '../providers/AuthProvider';
+import { useMode } from '../providers/ModeProvider';
+import { getProfile, updateProfile, type Profile } from '../data/api';
+import {
+  aiCreditsToday,
+  platformFees,
+  setPassword,
+  updateProfileExtras,
+  usernameAvailable,
+  verificationState,
+  type Fees,
+} from '../data/extras';
+
+const TABS = ['Profile', 'Security', 'Billing', 'Preferences'];
+
+/**
+ * Account & settings: the handle and name people see, the password that makes
+ * @username sign-in possible, what the account costs, and how the app looks.
+ */
+export function AccountScreen() {
+  const t = useTheme();
+  const { back, go, params } = useNav();
+  const { flash, celebrate } = useApp();
+  const { userId, signOut } = useAuth();
+  const { reset } = useNav();
+  const { pref, setPref } = useThemeControls();
+  const { mode, setMode } = useMode();
+  const [tab, setTab] = useState(typeof params.tab === 'number' ? params.tab : 0);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  const [free, setFree] = useState<boolean | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [savingPw, setSavingPw] = useState(false);
+  const [verify, setVerify] = useState<{ phone: boolean; email: boolean; google: boolean } | null>(null);
+  const [fees, setFees] = useState<Fees | null>(null);
+  const [ai, setAi] = useState<{ used: number; limit: number } | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    void getProfile(userId).then((p) => {
+      setProfile(p);
+      setName(p?.display_name ?? '');
+      setUsername(p?.username ?? '');
+    });
+    void verificationState().then(setVerify);
+    void platformFees().then(setFees);
+    void aiCreditsToday().then(setAi);
+  }, [userId]);
+
+  // Check the handle as it is typed, debounced.
+  useEffect(() => {
+    const handle = username.trim().toLowerCase();
+    if (!handle || handle === profile?.username) {
+      setFree(null);
+      return;
+    }
+    const id = setTimeout(() => void usernameAvailable(handle).then(setFree), 350);
+    return () => clearTimeout(id);
+  }, [username, profile?.username]);
+
+  const handleOk = /^[a-z0-9_]{3,20}$/.test(username.trim().toLowerCase());
+
+  const saveProfile = async () => {
+    if (!userId) return;
+    if (!name.trim()) return flash('Add a display name');
+    if (username.trim() && !handleOk) return flash('Usernames are 3–20 characters: a–z, 0–9 and _');
+    setSavingProfile(true);
+    try {
+      await updateProfile(userId, { displayName: name.trim() });
+      const p = await updateProfileExtras(userId, { username: username.trim() || null });
+      setProfile(p);
+      celebrate('Saved');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not save');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const savePassword = async () => {
+    if (!profile?.username) return flash('Pick a username first — it is what you sign in with');
+    if (pw !== pw2) return flash('The two passwords do not match');
+    setSavingPw(true);
+    try {
+      await setPassword(pw);
+      setPw('');
+      setPw2('');
+      celebrate('Password set');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not set the password');
+    } finally {
+      setSavingPw(false);
+    }
+  };
+
+  const card = { backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, padding: 15, marginTop: 14 } as const;
+  const pct = (n: number) => `${Math.round(n * 1000) / 10}%`;
+
+  return (
+    <Screen padded={false}>
+      <TopBar title="Account & settings" onBack={back} />
+      <UnderlineTabs tabs={TABS} active={tab} onPick={setTab} />
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
+        {tab === 0 ? (
+          <>
+            <View style={card}>
+              <RNText style={tx('800', 15, t.colors.ink)}>Account information</RNText>
+              <Field label="Display name" value={name} onChangeText={setName} style={{ marginTop: 14 }} maxLength={40} />
+              <Field
+                label="Username"
+                value={username}
+                onChangeText={(v) => setUsername(v.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase().slice(0, 20))}
+                style={{ marginTop: 14 }}
+                autoCapitalize="none"
+                autoCorrect={false}
+                left={<RNText style={tx('600', 15, t.colors.muted)}>@</RNText>}
+                error={username && !handleOk ? '3–20 characters: a–z, 0–9 and _' : free === false ? 'That username is taken' : null}
+                hint={free ? 'Available' : 'Your public handle, and how you sign in with a password'}
+              />
+              <PrimaryButton label="Save" onPress={() => void saveProfile()} busy={savingProfile} style={{ marginTop: 16 }} />
+            </View>
+            <View style={card}>
+              <RNText style={tx('800', 15, t.colors.ink)}>More about you</RNText>
+              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
+                Bio, skills, languages and location live on your profile page.
+              </RNText>
+              <Pressable onPress={() => go('profileEdit')} style={{ marginTop: 12 }} accessibilityRole="button">
+                <RNText style={tx('700', 13, t.colors.accentDeep)}>Edit profile ›</RNText>
+              </Pressable>
+            </View>
+            <View style={card}>
+              <RNText style={tx('800', 15, t.colors.ink)}>Identity verification</RNText>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                <Badge label={verify?.phone ? 'Phone ✓' : 'Phone'} tone={verify?.phone ? 'accent' : 'neutral'} />
+                <Badge label={verify?.email ? 'Email ✓' : 'Email'} tone={verify?.email ? 'accent' : 'neutral'} />
+                <Badge label="ID · coming soon" tone="neutral" />
+              </View>
+              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 10, lineHeight: 18 })}>
+                Level {(verify?.phone ? 1 : 0) + (verify?.email ? 1 : 0)}/3 · Verified accounts get more replies.
+              </RNText>
+            </View>
+          </>
+        ) : null}
+
+        {tab === 1 ? (
+          <>
+            <View style={card}>
+              <RNText style={tx('800', 15, t.colors.ink)}>Password sign-in</RNText>
+              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
+                {profile?.username
+                  ? `Set a password to sign in as @${profile.username} without an SMS code.`
+                  : 'Pick a username on the Profile tab first — you sign in with it.'}
+              </RNText>
+              <Field label="New password" value={pw} onChangeText={setPw} secureTextEntry style={{ marginTop: 14 }} autoCapitalize="none" />
+              <Field
+                label="Confirm password"
+                value={pw2}
+                onChangeText={setPw2}
+                secureTextEntry
+                style={{ marginTop: 14 }}
+                autoCapitalize="none"
+                error={pw2 && pw !== pw2 ? 'Does not match' : null}
+                hint="At least 8 characters."
+              />
+              <PrimaryButton
+                label="Set password"
+                onPress={() => void savePassword()}
+                busy={savingPw}
+                disabled={!profile?.username || pw.length < 8 || pw !== pw2}
+                style={{ marginTop: 16 }}
+              />
+            </View>
+            <View style={card}>
+              <RNText style={tx('800', 15, t.colors.ink)}>Sign-in methods</RNText>
+              <View style={{ gap: 8, marginTop: 10 }}>
+                <RNText style={tx('400', 13, t.colors.text)}>{verify?.phone ? '✓' : '–'} Mobile number (SMS code)</RNText>
+                <RNText style={tx('400', 13, t.colors.text)}>{verify?.google ? '✓' : '–'} Google</RNText>
+                <RNText style={tx('400', 13, t.colors.text)}>{profile?.username ? '✓' : '–'} Username and password</RNText>
+              </View>
+            </View>
+            <Pressable
+              onPress={() => void signOut().finally(() => reset('splash'))}
+              accessibilityRole="button"
+              style={{ ...card, flexDirection: 'row', alignItems: 'center', gap: 10 }}
+            >
+              <Icon name="logout" size={18} color={t.colors.signal} />
+              <RNText style={tx('700', 14, t.colors.signal)}>Sign out on this device</RNText>
+            </Pressable>
+          </>
+        ) : null}
+
+        {tab === 2 ? (
+          <>
+            <View style={card}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>Your plan: Free</RNText>
+                <Badge label="Current" />
+              </View>
+              <View style={{ flexDirection: 'row', marginTop: 14 }}>
+                {[
+                  ['Worker commission', fees ? pct(fees.commission) : '–'],
+                  ['Poster service fee', fees ? pct(fees.posterFee) : '–'],
+                  ['AI credits / day', fees ? String(fees.aiDaily) : '–'],
+                ].map(([k, v]) => (
+                  <View key={k} style={{ flex: 1 }}>
+                    <RNText style={tx('400', 11, t.colors.muted)}>{k}</RNText>
+                    <RNText style={tx('800', 16, t.colors.ink, { marginTop: 4 })}>{v}</RNText>
+                  </View>
+                ))}
+              </View>
+              <Pressable onPress={() => go('pricing')} style={{ marginTop: 14 }} accessibilityRole="button">
+                <RNText style={tx('700', 13, t.colors.accentDeep)}>Compare plans ›</RNText>
+              </Pressable>
+            </View>
+            <View style={{ ...card, borderColor: t.colors.purple }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Icon name="sparkle" size={16} color={t.colors.purple} />
+                <RNText style={tx('800', 15, t.colors.ink)}>AI credits</RNText>
+              </View>
+              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
+                Each AI question set or brief uses one credit. Credits reset at midnight. When they run out, the quick
+                writer still drafts your post.
+              </RNText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+                <RNText style={tx('700', 13, t.colors.ink, { flex: 1 })}>Daily credits</RNText>
+                <RNText style={tx('800', 13, t.colors.ink)}>
+                  {ai ? `${Math.max(0, ai.limit - ai.used)} / ${ai.limit}` : '–'}
+                </RNText>
+              </View>
+              <View style={{ height: 6, borderRadius: 999, backgroundColor: t.colors.line, marginTop: 8, overflow: 'hidden' }}>
+                <View
+                  style={{
+                    height: 6,
+                    backgroundColor: t.colors.purple,
+                    width: ai ? `${Math.max(0, Math.min(100, ((ai.limit - ai.used) / ai.limit) * 100))}%` : '0%',
+                  }}
+                />
+              </View>
+            </View>
+          </>
+        ) : null}
+
+        {tab === 3 ? (
+          <>
+            <View style={card}>
+              <RNText style={tx('800', 15, t.colors.ink)}>Theme</RNText>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                {(['system', 'light', 'dark'] as const).map((p) => (
+                  <Pressable
+                    key={p}
+                    onPress={() => setPref(p)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: pref === p }}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: pref === p ? t.colors.accent : t.colors.line,
+                      backgroundColor: pref === p ? t.colors.accentSoft : 'transparent',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <RNText style={tx('600', 13, pref === p ? t.colors.ink : t.colors.muted)}>
+                      {p === 'system' ? 'System' : p === 'light' ? 'Light' : 'Dark'}
+                    </RNText>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+            <View style={card}>
+              <RNText style={tx('800', 15, t.colors.ink)}>Mode</RNText>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                {(['poster', 'worker'] as const).map((m) => (
+                  <Pressable
+                    key={m}
+                    onPress={() => setMode(m)}
+                    accessibilityRole="button"
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: mode === m ? t.colors.accent : t.colors.line,
+                      backgroundColor: mode === m ? t.colors.accentSoft : 'transparent',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <RNText style={tx('600', 13, mode === m ? t.colors.ink : t.colors.muted)}>
+                      {m === 'poster' ? 'Post' : 'Earn'}
+                    </RNText>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          </>
+        ) : null}
+      </ScrollView>
+    </Screen>
+  );
+}

@@ -29,7 +29,22 @@ export type ScreenName =
   | 'promote'
   | 'review'
   | 'profile'
-  | 'analytics';
+  | 'analytics'
+  // Second wave: AI posting, explore, my tasks and the account surfaces.
+  | 'aiPost'
+  | 'explore'
+  | 'myTasks'
+  | 'taskManage'
+  | 'notifications'
+  | 'inbox'
+  | 'account'
+  | 'help'
+  | 'ticket'
+  | 'pricing'
+  | 'disputes'
+  | 'profileEdit'
+  | 'publicProfile'
+  | 'saved';
 
 export type NavParams = Record<string, unknown>;
 

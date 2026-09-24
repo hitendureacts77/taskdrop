@@ -10,7 +10,7 @@ import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
-import { useApp, type TaskCtx } from '../providers/AppStateProvider';
+import { useApp } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import {
   listMyTasks,
@@ -19,11 +19,18 @@ import {
   countBidsByTask,
   cancelTask,
   refundEscrow,
-  type Task,
-  type Bid,
-  type Assignment,
 } from '../data/api';
 import { type Theme } from '../theme';
+import {
+  bucketOf,
+  openRow as openTaskRow,
+  posterRow,
+  toneDot,
+  toneInk,
+  workerAssignmentRow,
+  workerBidRow,
+  type ViewRow,
+} from '../lib/taskRows';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 
 /**
@@ -34,167 +41,10 @@ import { FadeIn, Pressy, tx } from '../components/primitives';
  * posters see requests they posted.
  */
 
-/** Tone keys shared with `useApp().myBids` so both sources render identically. */
-type Tone = 'accent' | 'gold' | 'signal' | 'blue' | 'violet' | 'neutral';
-type Act = 'compare' | 'quotes' | 'confirm' | 'review' | 'active' | 'start' | 'pay' | null;
-
-type ViewRow = {
-  taskId?: string;
-  bucket?: number;
-  state: string;
-  tone: Tone;
-  title: string;
-  priceLabel: string;
-  priceMinor: number;
-  meta: string;
-  act: Act;
-  escrowLabel?: string;
-  escrowMinor?: number;
-  /** Whether withdrawing is still possible — the server checks this too. */
-  cancellable?: boolean;
-  who?: string;
-  payMeta?: string;
-};
-
-function toneDot(tone: Tone, colors: Theme['colors']): string {
-  switch (tone) {
-    case 'gold':
-      return colors.gold;
-    case 'signal':
-      return colors.signal;
-    case 'blue':
-      return colors.blue;
-    case 'violet':
-      return colors.purple;
-    case 'accent':
-      return colors.accent;
-    default:
-      return colors.muted;
-  }
-}
-
-function toneInk(tone: Tone, colors: Theme['colors']): string {
-  switch (tone) {
-    case 'gold':
-      return colors.gold;
-    case 'signal':
-      return colors.signalDeep;
-    case 'blue':
-      return colors.blue;
-    case 'violet':
-      return colors.purple;
-    case 'accent':
-      return colors.accentDeep;
-    default:
-      return colors.muted;
-  }
-}
-
-/** Bucket-index rule from the design: an explicit bucket wins, otherwise the
- * status text is classified per-mode. Mirrors `_design_source.jsx` lines 162-174. */
-function bucketOf(row: { bucket?: number; state: string }, worker: boolean): number {
-  if (typeof row.bucket === 'number') return row.bucket;
-  const s = row.state;
-  if (worker) {
-    if (/LISTING|QUOTES ON MY SERVICE/.test(s)) return 0;
-    if (/ACCEPTED|ACTIVE|WORK DONE/.test(s)) return 1;
-    if (/PENDING/.test(s)) return 2;
-    return 3;
-  }
-  if (/OPEN|PENDING/.test(s)) return 0;
-  if (/ACTIVE/.test(s)) return 1;
-  return 2;
-}
 
 const WORKER_TABS = ['Listings', 'Accepted', 'Pending', 'Closed'];
 const POSTER_TABS = ['Open', 'Active', 'Done'];
 
-/** A task the signed-in user posted. Status decides label, tone, tab and tap. */
-function posterRow(task: Task, quoteCount = 0): ViewRow {
-  const priceMinor = task.locked_minor ?? task.benchmark_minor;
-  const base = {
-    taskId: task.id,
-    title: task.title,
-    priceLabel: formatINR(priceMinor),
-    priceMinor,
-    // Once work is submitted it is a dispute, not a cancellation.
-    cancellable: ['OPEN', 'LOCKED', 'TASK_STARTED', 'OVERDUE'].includes(task.status),
-  };
-  switch (task.status) {
-    case 'OPEN':
-      return {
-        ...base,
-        bucket: 0,
-        state: quoteCount > 0 ? 'OPEN · ' + quoteCount + (quoteCount === 1 ? ' QUOTE' : ' QUOTES') : 'OPEN',
-        tone: 'blue',
-        meta: quoteCount > 0 ? 'Tap to compare and lock one' : 'Waiting for quotes',
-        act: 'compare',
-      };
-    case 'LOCKED':
-      // "Escrow funded" used to be printed here unconditionally, which was a
-      // claim the data did not support: a locked task with funded_at null has
-      // had nothing collected, and the worker cannot start until it does.
-      return task.funded_at
-        ? { ...base, bucket: 0, state: 'LOCKED · WORKER TO START', tone: 'accent', meta: 'Escrow funded · worker starts next', act: null }
-        : { ...base, bucket: 0, state: 'AWAITING YOUR PAYMENT', tone: 'signal', meta: 'Pay the escrow so the worker can start', act: 'pay' };
-    case 'TASK_STARTED':
-      return { ...base, bucket: 1, state: 'ACTIVE · TIMER RUNNING', tone: 'gold', meta: 'Work is underway', act: 'active' };
-    case 'OVERDUE':
-      return { ...base, bucket: 1, state: 'OVERDUE', tone: 'signal', meta: 'Past the agreed time', act: 'active' };
-    case 'WORK_DONE':
-    case 'REVISION_REQUESTED':
-      return { ...base, bucket: 1, state: 'MARKED DONE · CONFIRM TO RELEASE', tone: 'gold', meta: 'Tap to review and release', act: 'confirm' };
-    case 'COMPLETED':
-    case 'AUTO_COMPLETED':
-      return { ...base, bucket: 2, state: 'DONE · RELEASED', tone: 'accent', meta: 'Tap to review the worker', act: 'review' };
-    default:
-      return { ...base, bucket: 2, state: String(task.status), tone: 'neutral', meta: '', act: null };
-  }
-}
-
-/** A quote this worker sent that hasn't been locked yet. */
-function workerBidRow(bid: Bid & { tasks: Task | null }): ViewRow {
-  return {
-    taskId: bid.task_id,
-    bucket: 2,
-    state: 'PENDING',
-    tone: 'blue',
-    title: bid.tasks?.title ?? 'Task',
-    priceLabel: formatINR(bid.price_minor),
-    priceMinor: bid.price_minor,
-    meta: 'Quote sent · awaiting the poster',
-    act: null,
-  };
-}
-
-/** A task this worker was picked for. */
-function workerAssignmentRow(a: Assignment & { tasks: Task | null }): ViewRow {
-  const task = a.tasks;
-  const priceMinor = task?.locked_minor ?? a.escrow_minor;
-  const base = {
-    taskId: a.task_id,
-    title: task?.title ?? 'Task',
-    priceLabel: formatINR(priceMinor),
-    priceMinor,
-    escrowMinor: a.escrow_minor,
-    cancellable:
-      (a.status === 'assigned' || a.status === 'started') &&
-      (task?.status === 'LOCKED' || task?.status === 'TASK_STARTED' || task?.status === 'OVERDUE'),
-  };
-  if (a.status === 'refunded')
-    return { ...base, bucket: 3, state: 'NOT SELECTED', tone: 'neutral', meta: 'Another worker started first', act: null };
-  if (a.status === 'released' || task?.status === 'COMPLETED' || task?.status === 'AUTO_COMPLETED')
-    return { ...base, bucket: 3, state: 'DONE · PAID', tone: 'accent', meta: 'Earnings are clearing', act: null };
-  if (task?.status === 'WORK_DONE' || task?.status === 'REVISION_REQUESTED')
-    return { ...base, bucket: 1, state: 'WORK DONE · AWAITING POSTER', tone: 'gold', meta: 'Poster confirms next', act: 'active' };
-  if (task?.status === 'TASK_STARTED' || task?.status === 'OVERDUE' || a.status === 'started')
-    return { ...base, bucket: 1, state: 'ACTIVE · TIMER RUNNING', tone: 'gold', meta: 'Task started · timer running', act: 'start' };
-  // Sliding to start now fails server-side on an unfunded task, so say so here
-  // rather than letting someone swipe into a refusal.
-  if (!task?.funded_at)
-    return { ...base, bucket: 1, state: 'WAITING ON PAYMENT', tone: 'gold', meta: 'The poster has not funded the escrow yet', act: null };
-  return { ...base, bucket: 1, state: 'ACCEPTED · SWIPE TO START', tone: 'accent', meta: 'Escrow funded · first to start wins', act: 'start' };
-}
 
 /** Tab row with a sliding underline, ~ markup lines 208-214 (underline calc in
  * `_design_source.jsx` lines 351-356: width (100%-40px)/n, left 20px + that*index). */
@@ -426,39 +276,7 @@ export function OrdersScreen() {
     }
   };
 
-  const openRow = (row: ViewRow) => {
-    const task: TaskCtx = { title: row.title, price: row.priceLabel };
-    const p = {
-      title: row.title,
-      priceMinor: row.priceMinor,
-      taskId: row.taskId,
-      escrowMinor: row.escrowMinor,
-      payMeta: row.payMeta ?? row.priceLabel,
-    };
-    setOpenTask(task);
-    switch (row.act) {
-      case 'pay':
-        return go('escrow', {
-          ...p,
-          priceMinor: row.priceMinor,
-          escrowMinor: row.escrowMinor,
-        });
-      case 'compare':
-        return go('compare', p);
-      case 'quotes':
-        return go('myQuotes', p);
-      case 'confirm':
-        return go('confirm', p);
-      case 'review':
-        return go('review', p);
-      case 'active':
-        return go('active', p);
-      case 'start':
-        return startedOf(row.title) ? go('active', p) : go('swipe', p);
-      default:
-        return flash(`${row.title} · ${row.priceLabel}`);
-    }
-  };
+  const openRow = (row: ViewRow) => openTaskRow(row, { go, flash, setOpenTask, startedOf });
 
   const emptyLine = worker ? 'Quotes you send show up here.' : 'Requests you post show up here.';
 

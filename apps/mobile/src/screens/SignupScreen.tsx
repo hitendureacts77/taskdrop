@@ -8,6 +8,8 @@ import { useAuth } from '../providers/AuthProvider';
 import { postSignInRoute } from '../data/api';
 import { supabase } from '../lib/supabase';
 import { tx } from '../components/primitives';
+import { Field, PrimaryButton } from '../components/kit';
+import { signInWithUsername } from '../data/extras';
 
 export function SignupScreen() {
   const t = useTheme();
@@ -18,6 +20,22 @@ export function SignupScreen() {
   const [otp, setOtp] = useState('');
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  // Signing in can also be @username + password, once one is set in
+  // Settings -> Security. Creating an account is always by phone.
+  const [method, setMethod] = useState<'phone' | 'password'>('phone');
+  const [username, setUsername] = useState('');
+  const [password, setPasswordText] = useState('');
+  const [pwBusy, setPwBusy] = useState(false);
+  // The server refuses a second code within 60 seconds; count it down here
+  // rather than letting a tap meet that refusal.
+  const [resendAt, setResendAt] = useState(0);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (resendAt <= Date.now()) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [resendAt]);
+  const waitSec = Math.max(0, Math.ceil((resendAt - now) / 1000));
 
   // One screen serves both doors off the welcome page. The exchange is
   // identical either way -- a phone number and a six-digit code -- but the
@@ -67,6 +85,8 @@ export function SignupScreen() {
     try {
       const { devCode } = await requestCode(phone);
       flash(devCode ? `Test number — code ${devCode}` : `Code sent to +91 ${phone}`);
+      setResendAt(Date.now() + 60_000);
+      setNow(Date.now());
       codeRef.current?.focus();
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not send a code');
@@ -121,6 +141,25 @@ export function SignupScreen() {
     }
   };
 
+  const passwordSignIn = async () => {
+    if (!username.trim() || !password) return flash('Enter your username and password');
+    setPwBusy(true);
+    try {
+      await signInWithUsername(username, password);
+      celebrate('Signed in');
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const route = await postSignInRoute(user?.id ?? '');
+      if (route === 'home') reset('home');
+      else go('setup');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not sign in');
+    } finally {
+      setPwBusy(false);
+    }
+  };
+
   const label = (s: string, extra?: TextStyle) => (
     <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, ...extra })}>{s}</RNText>
   );
@@ -140,9 +179,56 @@ export function SignupScreen() {
           {copy.title}
         </RNText>
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21 })}>
-          {copy.sub}
+          {signingIn && method === 'password' ? 'Sign in with your @username and password.' : copy.sub}
         </RNText>
 
+        {signingIn ? (
+          <View style={{ flexDirection: 'row', marginTop: 22, backgroundColor: t.colors.surface2, borderRadius: 12, padding: 4 }}>
+            {(['phone', 'password'] as const).map((m) => (
+              <Pressable
+                key={m}
+                onPress={() => setMethod(m)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: method === m }}
+                style={{ flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: 'center', backgroundColor: method === m ? t.colors.bg : 'transparent' }}
+              >
+                <RNText style={tx('700', 14, method === m ? t.colors.ink : t.colors.muted)}>
+                  {m === 'phone' ? 'Phone' : 'Password'}
+                </RNText>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+
+        {method === 'password' && signingIn ? (
+          <>
+            <Field
+              label="Username"
+              value={username}
+              onChangeText={(v) => setUsername(v.replace(/[^a-zA-Z0-9_@]/g, '').toLowerCase())}
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="yourname"
+              left={<RNText style={tx('600', 15, t.colors.muted)}>@</RNText>}
+              style={{ marginTop: 22 }}
+            />
+            <Field
+              label="Password"
+              value={password}
+              onChangeText={setPasswordText}
+              secureTextEntry
+              autoCapitalize="none"
+              style={{ marginTop: 14 }}
+              returnKeyType="go"
+              onSubmitEditing={() => void passwordSignIn()}
+            />
+            <PrimaryButton label="Sign in" onPress={() => void passwordSignIn()} busy={pwBusy} style={{ marginTop: 20 }} />
+            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 12, lineHeight: 18, textAlign: 'center' })}>
+              Forgot your password? Sign in with your phone, then set a new one in Settings → Security.
+            </RNText>
+          </>
+        ) : (
+          <>
         {label('MOBILE NUMBER', { marginTop: 26 })}
         <View
           style={{
@@ -189,9 +275,15 @@ export function SignupScreen() {
           <RNText style={tx('400', 13, t.colors.muted)}>
             {phone.length === 10 ? `Sent to +91 •••• ••${phone.slice(-4)}` : 'Enter your number'}
           </RNText>
-          <Pressable onPress={sendCode} hitSlop={8} disabled={busy}>
+          <Pressable onPress={sendCode} hitSlop={8} disabled={busy || waitSec > 0}>
             <RNText style={tx('700', 13, t.colors.accentDeep)}>
-              {busy ? 'Sending…' : 'Send code'}
+              {busy
+                ? 'Sending…'
+                : waitSec > 0
+                  ? `Resend in 0:${String(waitSec).padStart(2, '0')}`
+                  : resendAt
+                    ? 'Resend code'
+                    : 'Send code'}
             </RNText>
           </Pressable>
         </View>
@@ -272,6 +364,9 @@ export function SignupScreen() {
             </RNText>
           )}
         </Pressable>
+
+          </>
+        )}
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 22 }}>
           <View style={{ flex: 1, height: 1, backgroundColor: t.colors.line }} />

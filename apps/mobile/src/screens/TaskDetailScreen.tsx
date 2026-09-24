@@ -13,7 +13,9 @@ import {
   getTaskDetail,
   getPosterStats,
   getProfile,
+  getTask,
   type Profile,
+  type Task,
 } from '../data/api';
 import { distanceKm, formatDistance } from '@taskdrop/rules';
 import { ShareSheet, useShare } from '../components/ShareSheet';
@@ -23,6 +25,7 @@ import type { FeedRow } from './HomeScreen';
 import { FadeIn, tx } from '../components/primitives';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { PersonSheet } from '../components/PersonSheet';
+import { BidSheet } from '../components/BidSheet';
 
 /**
  * Task detail — pixel parity with docs/design/_design_markup.html lines
@@ -277,6 +280,16 @@ export function TaskDetailScreen() {
 
   const cta = worker ? 'Send a quote' : 'Send my quote';
 
+  // The detailed bid: a proposal, hours and a delivery date on top of the
+  // price. Same placeBid underneath, so the same checks apply.
+  const [bidTask, setBidTask] = useState<Task | null>(null);
+  const openBid = async () => {
+    if (!realId) return flash('This is a sample task — post a real one to quote on it');
+    const task = await getTask(realId).catch(() => null);
+    if (!task) return flash('This task is no longer available');
+    setBidTask(task);
+  };
+
 
   const sendQuote = async () => {
     if (busy) return;
@@ -504,9 +517,20 @@ export function TaskDetailScreen() {
               ? 'One quote per task. Contacts stay masked until the task starts.'
               : 'Your quote goes to this worker. They can lock it and start.'}
           </RNText>
+          {worker && realId ? (
+            <Pressable onPress={() => void openBid()} style={{ alignSelf: 'center', marginTop: 12 }} accessibilityRole="button">
+              <RNText style={tx('700', 13, t.colors.purpleDeep)}>Or send a detailed bid with a proposal ›</RNText>
+            </Pressable>
+          ) : null}
         </Card>
         )}
       </FadeIn>
+      <BidSheet
+        task={bidTask}
+        visible={bidTask !== null}
+        onClose={() => setBidTask(null)}
+        onPlaced={() => go('myTasks')}
+      />
       <ShareSheet visible={share.open} item={share.item} onClose={share.close} flash={flash} />
 
       <PersonSheet

@@ -8,7 +8,7 @@ import { Icon, type IconName } from './Icon';
 import { useAuth } from '../providers/AuthProvider';
 import { countNeedsAttention } from '../data/api';
 
-/** Design's 5-tab bar: Home · Search · Orders(Bids/Requests) · Wallet · Profile. */
+/** 5-tab bar: Home · Explore · My Tasks (My Work) · Wallet · Profile. */
 export function BottomTabBar() {
   const t = useTheme();
   const { screen, go } = useNav();
@@ -32,8 +32,8 @@ export function BottomTabBar() {
 
   const tabs: Array<{ key: ScreenName; icon: IconName; label: string }> = [
     { key: 'home', icon: 'home', label: 'Home' },
-    { key: 'search', icon: 'search', label: 'Search' },
-    { key: 'orders', icon: 'orders', label: mode === 'worker' ? 'Bids' : 'Requests' },
+    { key: 'explore', icon: 'compass', label: 'Explore' },
+    { key: 'myTasks', icon: 'orders', label: mode === 'worker' ? 'My Work' : 'My Tasks' },
     { key: 'wallet', icon: 'wallet', label: 'Wallet' },
     { key: 'profile', icon: 'user', label: 'Profile' },
   ];
@@ -60,7 +60,7 @@ export function BottomTabBar() {
             onPress={() => go(tab.key)}
             accessibilityRole="tab"
             accessibilityLabel={
-              tab.key === 'orders' && waiting > 0
+              tab.key === 'myTasks' && waiting > 0
                 ? `${tab.label}, ${waiting} needing attention`
                 : tab.label
             }
@@ -79,7 +79,7 @@ export function BottomTabBar() {
               }}
             >
               <Icon name={tab.icon} size={23} color={color} strokeWidth={1.7} />
-              {tab.key === 'orders' && waiting > 0 && (
+              {tab.key === 'myTasks' && waiting > 0 && (
                 <View
                   style={{
                     position: 'absolute',

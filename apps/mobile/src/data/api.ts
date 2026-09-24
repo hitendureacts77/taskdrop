@@ -593,6 +593,14 @@ export type NewTask = {
   /** Real coordinates, so distance between two people is computable. */
   locLat?: number | null;
   locLng?: number | null;
+  /** What the brief writer decided (migration 048). All optional. */
+  category?: string | null;
+  skills?: string[];
+  difficulty?: 'easy' | 'medium' | 'hard' | null;
+  /** 'auto' locks the first quote at or under the budget without asking. */
+  assignmentMode?: 'bids' | 'auto';
+  dueAt?: string | null;
+  milestones?: { title: string; pct: number }[];
 };
 
 export async function createTask(input: NewTask): Promise<Task> {
@@ -613,6 +621,12 @@ export async function createTask(input: NewTask): Promise<Task> {
         loc_label: input.locLabel ?? null,
         loc_lat: input.locLat ?? null,
         loc_lng: input.locLng ?? null,
+        category: input.category ?? null,
+        skills: input.skills ?? [],
+        difficulty: input.difficulty ?? null,
+        assignment_mode: input.assignmentMode ?? 'bids',
+        due_at: input.dueAt ?? null,
+        milestones: input.milestones ?? [],
       })
       .select(),
   );

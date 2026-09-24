@@ -32,7 +32,7 @@ export function CreateFab() {
       }}
     >
       <Pressable
-        onPress={() => go('create')}
+        onPress={() => go(mode === 'worker' ? 'create' : 'aiPost')}
         accessibilityRole="button"
         accessibilityLabel={mode === 'worker' ? 'List a service' : 'Post a request'}
         style={({ pressed }) => ({

@@ -73,6 +73,24 @@ export type Database = {
           },
         ]
       }
+      ai_usage: {
+        Row: {
+          day: string
+          used: number
+          user_id: string
+        }
+        Insert: {
+          day?: string
+          used?: number
+          user_id: string
+        }
+        Update: {
+          day?: string
+          used?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       assignments: {
         Row: {
           bid_id: string
@@ -278,6 +296,33 @@ export type Database = {
           },
         ]
       }
+      feedback: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          kind: string
+          page: string | null
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          kind: string
+          page?: string | null
+          user_id?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          page?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           body: string
@@ -316,6 +361,81 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          kind: string
+          read_at: string | null
+          task_id: string | null
+          ticket_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          read_at?: string | null
+          task_id?: string | null
+          ticket_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          read_at?: string | null
+          task_id?: string | null
+          ticket_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "refunds_outstanding"
+            referencedColumns: ["task_id"]
+          },
+          {
+            foreignKeyName: "notifications_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      password_attempts: {
+        Row: {
+          at: string
+          id: number
+          ip: string | null
+          ok: boolean
+          username: string
+        }
+        Insert: {
+          at?: string
+          id?: never
+          ip?: string | null
+          ok?: boolean
+          username: string
+        }
+        Update: {
+          at?: string
+          id?: never
+          ip?: string | null
+          ok?: boolean
+          username?: string
+        }
+        Relationships: []
       }
       payments: {
         Row: {
@@ -512,9 +632,14 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
           created_at: string
           display_name: string
           id: string
+          intent: string | null
+          languages: string[]
+          last_seen_at: string | null
+          live_until: string | null
           loc_label: string | null
           loc_lat: number | null
           loc_lng: number | null
@@ -522,16 +647,23 @@ export type Database = {
           payout_upi: string | null
           poster_rating_avg: number
           poster_rating_count: number
+          referral_code: string | null
           skills: string[]
           updated_at: string
+          username: string | null
           worker_rating_avg: number
           worker_rating_count: number
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           display_name: string
           id: string
+          intent?: string | null
+          languages?: string[]
+          last_seen_at?: string | null
+          live_until?: string | null
           loc_label?: string | null
           loc_lat?: number | null
           loc_lng?: number | null
@@ -539,16 +671,23 @@ export type Database = {
           payout_upi?: string | null
           poster_rating_avg?: number
           poster_rating_count?: number
+          referral_code?: string | null
           skills?: string[]
           updated_at?: string
+          username?: string | null
           worker_rating_avg?: number
           worker_rating_count?: number
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           display_name?: string
           id?: string
+          intent?: string | null
+          languages?: string[]
+          last_seen_at?: string | null
+          live_until?: string | null
           loc_label?: string | null
           loc_lat?: number | null
           loc_lng?: number | null
@@ -556,10 +695,30 @@ export type Database = {
           payout_upi?: string | null
           poster_rating_avg?: number
           poster_rating_count?: number
+          referral_code?: string | null
           skills?: string[]
           updated_at?: string
+          username?: string | null
           worker_rating_avg?: number
           worker_rating_count?: number
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          referred_id: string
+          referrer_id: string
+        }
+        Insert: {
+          created_at?: string
+          referred_id: string
+          referrer_id: string
+        }
+        Update: {
+          created_at?: string
+          referred_id?: string
+          referrer_id?: string
         }
         Relationships: []
       }
@@ -611,6 +770,39 @@ export type Database = {
           },
         ]
       }
+      saved_tasks: {
+        Row: {
+          created_at: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_tasks_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "refunds_outstanding"
+            referencedColumns: ["task_id"]
+          },
+          {
+            foreignKeyName: "saved_tasks_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       settings: {
         Row: {
           key: string
@@ -626,6 +818,74 @@ export type Database = {
           key?: string
           updated_at?: string
           value?: Json
+        }
+        Relationships: []
+      }
+      support_messages: {
+        Row: {
+          body: string
+          created_at: string
+          from_staff: boolean
+          id: string
+          sender_id: string | null
+          ticket_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          from_staff?: boolean
+          id?: string
+          sender_id?: string | null
+          ticket_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          from_staff?: boolean
+          id?: string
+          sender_id?: string | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          page: string | null
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          page?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          page?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -715,13 +975,17 @@ export type Database = {
       }
       tasks: {
         Row: {
+          assignment_mode: string
           auto_complete_at: string | null
           benchmark_minor: number
+          category: string | null
           clear_at: string | null
           cleared_at: string | null
           completed_at: string | null
           created_at: string
           description: string
+          difficulty: string | null
+          due_at: string | null
           flag: Database["public"]["Enums"]["task_flag"]
           funded_at: string | null
           funding_payment_id: string | null
@@ -734,9 +998,11 @@ export type Database = {
           media_kind: string | null
           media_path: string | null
           media_seconds: number | null
+          milestones: Json
           payout_mode: Database["public"]["Enums"]["payout_mode"] | null
           pillar: Database["public"]["Enums"]["pillar"]
           poster_id: string
+          skills: string[]
           started_at: string | null
           status: Database["public"]["Enums"]["task_status"]
           time_limit_minutes: number
@@ -745,13 +1011,17 @@ export type Database = {
           work_done_at: string | null
         }
         Insert: {
+          assignment_mode?: string
           auto_complete_at?: string | null
           benchmark_minor: number
+          category?: string | null
           clear_at?: string | null
           cleared_at?: string | null
           completed_at?: string | null
           created_at?: string
           description?: string
+          difficulty?: string | null
+          due_at?: string | null
           flag?: Database["public"]["Enums"]["task_flag"]
           funded_at?: string | null
           funding_payment_id?: string | null
@@ -764,9 +1034,11 @@ export type Database = {
           media_kind?: string | null
           media_path?: string | null
           media_seconds?: number | null
+          milestones?: Json
           payout_mode?: Database["public"]["Enums"]["payout_mode"] | null
           pillar: Database["public"]["Enums"]["pillar"]
           poster_id: string
+          skills?: string[]
           started_at?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           time_limit_minutes: number
@@ -775,13 +1047,17 @@ export type Database = {
           work_done_at?: string | null
         }
         Update: {
+          assignment_mode?: string
           auto_complete_at?: string | null
           benchmark_minor?: number
+          category?: string | null
           clear_at?: string | null
           cleared_at?: string | null
           completed_at?: string | null
           created_at?: string
           description?: string
+          difficulty?: string | null
+          due_at?: string | null
           flag?: Database["public"]["Enums"]["task_flag"]
           funded_at?: string | null
           funding_payment_id?: string | null
@@ -794,9 +1070,11 @@ export type Database = {
           media_kind?: string | null
           media_path?: string | null
           media_seconds?: number | null
+          milestones?: Json
           payout_mode?: Database["public"]["Enums"]["payout_mode"] | null
           pillar?: Database["public"]["Enums"]["pillar"]
           poster_id?: string
+          skills?: string[]
           started_at?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           time_limit_minutes?: number
@@ -1023,13 +1301,17 @@ export type Database = {
       admin_resolve_dispute: {
         Args: { p_note?: string; p_outcome: string; p_task_id: string }
         Returns: {
+          assignment_mode: string
           auto_complete_at: string | null
           benchmark_minor: number
+          category: string | null
           clear_at: string | null
           cleared_at: string | null
           completed_at: string | null
           created_at: string
           description: string
+          difficulty: string | null
+          due_at: string | null
           flag: Database["public"]["Enums"]["task_flag"]
           funded_at: string | null
           funding_payment_id: string | null
@@ -1042,9 +1324,11 @@ export type Database = {
           media_kind: string | null
           media_path: string | null
           media_seconds: number | null
+          milestones: Json
           payout_mode: Database["public"]["Enums"]["payout_mode"] | null
           pillar: Database["public"]["Enums"]["pillar"]
           poster_id: string
+          skills: string[]
           started_at: string | null
           status: Database["public"]["Enums"]["task_status"]
           time_limit_minutes: number
@@ -1064,6 +1348,7 @@ export type Database = {
         Returns: boolean
       }
       app_secrets: { Args: never; Returns: Json }
+      apply_referral_code: { Args: { p_code: string }; Returns: boolean }
       cancel_promotion: {
         Args: { p_promotion_id: string }
         Returns: {
@@ -1091,13 +1376,17 @@ export type Database = {
       cancel_task: {
         Args: { p_reason?: string; p_task_id: string }
         Returns: {
+          assignment_mode: string
           auto_complete_at: string | null
           benchmark_minor: number
+          category: string | null
           clear_at: string | null
           cleared_at: string | null
           completed_at: string | null
           created_at: string
           description: string
+          difficulty: string | null
+          due_at: string | null
           flag: Database["public"]["Enums"]["task_flag"]
           funded_at: string | null
           funding_payment_id: string | null
@@ -1110,9 +1399,11 @@ export type Database = {
           media_kind: string | null
           media_path: string | null
           media_seconds: number | null
+          milestones: Json
           payout_mode: Database["public"]["Enums"]["payout_mode"] | null
           pillar: Database["public"]["Enums"]["pillar"]
           poster_id: string
+          skills: string[]
           started_at: string | null
           status: Database["public"]["Enums"]["task_status"]
           time_limit_minutes: number
@@ -1150,13 +1441,17 @@ export type Database = {
       confirm_release: {
         Args: { p_task_id: string }
         Returns: {
+          assignment_mode: string
           auto_complete_at: string | null
           benchmark_minor: number
+          category: string | null
           clear_at: string | null
           cleared_at: string | null
           completed_at: string | null
           created_at: string
           description: string
+          difficulty: string | null
+          due_at: string | null
           flag: Database["public"]["Enums"]["task_flag"]
           funded_at: string | null
           funding_payment_id: string | null
@@ -1169,9 +1464,11 @@ export type Database = {
           media_kind: string | null
           media_path: string | null
           media_seconds: number | null
+          milestones: Json
           payout_mode: Database["public"]["Enums"]["payout_mode"] | null
           pillar: Database["public"]["Enums"]["pillar"]
           poster_id: string
+          skills: string[]
           started_at: string | null
           status: Database["public"]["Enums"]["task_status"]
           time_limit_minutes: number
@@ -1198,13 +1495,17 @@ export type Database = {
       fund_task: {
         Args: { p_payment_id: string; p_task_id: string }
         Returns: {
+          assignment_mode: string
           auto_complete_at: string | null
           benchmark_minor: number
+          category: string | null
           clear_at: string | null
           cleared_at: string | null
           completed_at: string | null
           created_at: string
           description: string
+          difficulty: string | null
+          due_at: string | null
           flag: Database["public"]["Enums"]["task_flag"]
           funded_at: string | null
           funding_payment_id: string | null
@@ -1217,9 +1518,11 @@ export type Database = {
           media_kind: string | null
           media_path: string | null
           media_seconds: number | null
+          milestones: Json
           payout_mode: Database["public"]["Enums"]["payout_mode"] | null
           pillar: Database["public"]["Enums"]["pillar"]
           poster_id: string
+          skills: string[]
           started_at: string | null
           status: Database["public"]["Enums"]["task_status"]
           time_limit_minutes: number
@@ -1237,13 +1540,17 @@ export type Database = {
       fund_task_from_payment: {
         Args: { p_payment_id: string }
         Returns: {
+          assignment_mode: string
           auto_complete_at: string | null
           benchmark_minor: number
+          category: string | null
           clear_at: string | null
           cleared_at: string | null
           completed_at: string | null
           created_at: string
           description: string
+          difficulty: string | null
+          due_at: string | null
           flag: Database["public"]["Enums"]["task_flag"]
           funded_at: string | null
           funding_payment_id: string | null
@@ -1256,9 +1563,11 @@ export type Database = {
           media_kind: string | null
           media_path: string | null
           media_seconds: number | null
+          milestones: Json
           payout_mode: Database["public"]["Enums"]["payout_mode"] | null
           pillar: Database["public"]["Enums"]["pillar"]
           poster_id: string
+          skills: string[]
           started_at: string | null
           status: Database["public"]["Enums"]["task_status"]
           time_limit_minutes: number
@@ -1279,13 +1588,17 @@ export type Database = {
           p_payout_mode?: Database["public"]["Enums"]["payout_mode"]
         }
         Returns: {
+          assignment_mode: string
           auto_complete_at: string | null
           benchmark_minor: number
+          category: string | null
           clear_at: string | null
           cleared_at: string | null
           completed_at: string | null
           created_at: string
           description: string
+          difficulty: string | null
+          due_at: string | null
           flag: Database["public"]["Enums"]["task_flag"]
           funded_at: string | null
           funding_payment_id: string | null
@@ -1298,9 +1611,11 @@ export type Database = {
           media_kind: string | null
           media_path: string | null
           media_seconds: number | null
+          milestones: Json
           payout_mode: Database["public"]["Enums"]["payout_mode"] | null
           pillar: Database["public"]["Enums"]["pillar"]
           poster_id: string
+          skills: string[]
           started_at: string | null
           status: Database["public"]["Enums"]["task_status"]
           time_limit_minutes: number
@@ -1318,13 +1633,17 @@ export type Database = {
       mark_work_done: {
         Args: { p_task_id: string }
         Returns: {
+          assignment_mode: string
           auto_complete_at: string | null
           benchmark_minor: number
+          category: string | null
           clear_at: string | null
           cleared_at: string | null
           completed_at: string | null
           created_at: string
           description: string
+          difficulty: string | null
+          due_at: string | null
           flag: Database["public"]["Enums"]["task_flag"]
           funded_at: string | null
           funding_payment_id: string | null
@@ -1337,9 +1656,11 @@ export type Database = {
           media_kind: string | null
           media_path: string | null
           media_seconds: number | null
+          milestones: Json
           payout_mode: Database["public"]["Enums"]["payout_mode"] | null
           pillar: Database["public"]["Enums"]["pillar"]
           poster_id: string
+          skills: string[]
           started_at: string | null
           status: Database["public"]["Enums"]["task_status"]
           time_limit_minutes: number
@@ -1374,13 +1695,17 @@ export type Database = {
       open_dispute: {
         Args: { p_reason?: string; p_task_id: string }
         Returns: {
+          assignment_mode: string
           auto_complete_at: string | null
           benchmark_minor: number
+          category: string | null
           clear_at: string | null
           cleared_at: string | null
           completed_at: string | null
           created_at: string
           description: string
+          difficulty: string | null
+          due_at: string | null
           flag: Database["public"]["Enums"]["task_flag"]
           funded_at: string | null
           funding_payment_id: string | null
@@ -1393,9 +1718,11 @@ export type Database = {
           media_kind: string | null
           media_path: string | null
           media_seconds: number | null
+          milestones: Json
           payout_mode: Database["public"]["Enums"]["payout_mode"] | null
           pillar: Database["public"]["Enums"]["pillar"]
           poster_id: string
+          skills: string[]
           started_at: string | null
           status: Database["public"]["Enums"]["task_status"]
           time_limit_minutes: number
@@ -1410,6 +1737,25 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      open_support_ticket: {
+        Args: { p_body: string; p_category: string; p_page?: string }
+        Returns: {
+          category: string
+          created_at: string
+          id: string
+          page: string | null
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "support_tickets"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       platform_earnings: {
         Args: never
         Returns: {
@@ -1419,7 +1765,9 @@ export type Database = {
           poster_fee_minor: number
         }[]
       }
+      platform_highlights: { Args: never; Returns: Json }
       platform_stats: { Args: { p_days?: number }; Returns: Json }
+      public_profile_stats: { Args: { p_user: string }; Returns: Json }
       record_ad_click: { Args: { p_task_id: string }; Returns: undefined }
       record_ad_impression: { Args: { p_task_id: string }; Returns: undefined }
       record_escrow_refund: {
@@ -1449,16 +1797,37 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      reply_support_ticket: {
+        Args: { p_body: string; p_ticket_id: string }
+        Returns: {
+          body: string
+          created_at: string
+          from_staff: boolean
+          id: string
+          sender_id: string | null
+          ticket_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "support_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       request_revision: {
         Args: { p_note?: string; p_task_id: string }
         Returns: {
+          assignment_mode: string
           auto_complete_at: string | null
           benchmark_minor: number
+          category: string | null
           clear_at: string | null
           cleared_at: string | null
           completed_at: string | null
           created_at: string
           description: string
+          difficulty: string | null
+          due_at: string | null
           flag: Database["public"]["Enums"]["task_flag"]
           funded_at: string | null
           funding_payment_id: string | null
@@ -1471,9 +1840,11 @@ export type Database = {
           media_kind: string | null
           media_path: string | null
           media_seconds: number | null
+          milestones: Json
           payout_mode: Database["public"]["Enums"]["payout_mode"] | null
           pillar: Database["public"]["Enums"]["pillar"]
           poster_id: string
+          skills: string[]
           started_at: string | null
           status: Database["public"]["Enums"]["task_status"]
           time_limit_minutes: number
@@ -1508,6 +1879,25 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      resolve_support_ticket: {
+        Args: { p_ticket_id: string }
+        Returns: {
+          category: string
+          created_at: string
+          id: string
+          page: string | null
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "support_tickets"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       set_app_secret: {
         Args: { p_name: string; p_value: string }
         Returns: string
@@ -1536,6 +1926,7 @@ export type Database = {
       settle_cleared_earnings: { Args: never; Returns: number }
       settle_finished_campaigns: { Args: never; Returns: number }
       settle_my_cleared_earnings: { Args: never; Returns: number }
+      spend_ai_credit: { Args: { p_user: string }; Returns: number }
       start_promotion: {
         Args: { p_amount_minor: number; p_days: number; p_task_id: string }
         Returns: {
@@ -1563,13 +1954,17 @@ export type Database = {
       start_task: {
         Args: { p_task_id: string }
         Returns: {
+          assignment_mode: string
           auto_complete_at: string | null
           benchmark_minor: number
+          category: string | null
           clear_at: string | null
           cleared_at: string | null
           completed_at: string | null
           created_at: string
           description: string
+          difficulty: string | null
+          due_at: string | null
           flag: Database["public"]["Enums"]["task_flag"]
           funded_at: string | null
           funding_payment_id: string | null
@@ -1582,9 +1977,11 @@ export type Database = {
           media_kind: string | null
           media_path: string | null
           media_seconds: number | null
+          milestones: Json
           payout_mode: Database["public"]["Enums"]["payout_mode"] | null
           pillar: Database["public"]["Enums"]["pillar"]
           poster_id: string
+          skills: string[]
           started_at: string | null
           status: Database["public"]["Enums"]["task_status"]
           time_limit_minutes: number
@@ -1617,6 +2014,28 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      top_earners: {
+        Args: { p_kind?: string; p_limit?: number }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          id: string
+          jobs_done: number
+          rating: number
+          rating_count: number
+          skill: string
+          username: string
+        }[]
+      }
+      trending_categories: {
+        Args: { p_limit?: number }
+        Returns: {
+          avg_budget_minor: number
+          category: string
+          open_count: number
+          recent_count: number
+        }[]
       }
     }
     Enums: {

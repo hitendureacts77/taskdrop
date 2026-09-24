@@ -28,10 +28,24 @@ function SlideIn({ delay, children }: { delay: number; children: React.ReactNode
   );
 }
 
+// The account pages both sides share.
+const SHARED_ROWS: { glyph: string; label: string; go: ScreenName }[] = [
+  { glyph: '✎', label: 'Edit my profile', go: 'profileEdit' },
+  { glyph: '◉', label: 'Preview as others see me', go: 'publicProfile' },
+  { glyph: '✉', label: 'Messages', go: 'inbox' },
+  { glyph: '◔', label: 'Notifications', go: 'notifications' },
+  { glyph: '⚖', label: 'My disputes', go: 'disputes' },
+  { glyph: '₹', label: 'Pricing & plans', go: 'pricing' },
+  { glyph: '⚙', label: 'Account & settings', go: 'account' },
+  { glyph: '?', label: 'Help & support', go: 'help' },
+];
+
 const WORKER_ROWS: { glyph: string; label: string; go: ScreenName }[] = [
   { glyph: '◈', label: 'Work for you', go: 'myQuotes' },
   { glyph: '✦', label: 'Promote my service', go: 'promote' },
   { glyph: '▦', label: 'Earnings and payouts', go: 'withdraw' },
+  { glyph: '◇', label: 'Saved tasks', go: 'saved' },
+  ...SHARED_ROWS,
   { glyph: '↪', label: 'Sign out', go: 'splash' },
 ];
 
@@ -39,6 +53,7 @@ const POSTER_ROWS: { glyph: string; label: string; go: ScreenName }[] = [
   { glyph: '▤', label: 'My requests', go: 'orders' },
   { glyph: '✦', label: 'Promote a request', go: 'promote' },
   { glyph: '▦', label: 'Wallet and payments', go: 'wallet' },
+  ...SHARED_ROWS,
   { glyph: '↪', label: 'Sign out', go: 'splash' },
 ];
 

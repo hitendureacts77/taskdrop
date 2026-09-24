@@ -1,0 +1,188 @@
+import { useEffect, useState } from 'react';
+import { View, Text as RNText, ScrollView, Image, Pressable } from 'react-native';
+import { Screen } from '../components/ui';
+import { Icon } from '../components/Icon';
+import { Badge, EmptyState, Shimmer, TopBar, timeAgo } from '../components/kit';
+import { tx } from '../components/primitives';
+import { useTheme } from '../providers/ThemeProvider';
+import { useNav } from '../providers/NavProvider';
+import { useAuth } from '../providers/AuthProvider';
+import { getProfile, listReviewsAbout, type Profile, type Review } from '../data/api';
+import { publicProfileStats, verificationState, type PublicStats } from '../data/extras';
+import { signedMediaUrl } from '../lib/media';
+import { levelFor } from '../lib/levels';
+
+/**
+ * Someone's profile as anyone else sees it. Opened on yourself, it is the
+ * "preview as others see" view, with a way back to editing.
+ */
+export function PublicProfileScreen() {
+  const t = useTheme();
+  const { back, params, go } = useNav();
+  const { userId } = useAuth();
+  const id = typeof params.userId === 'string' ? params.userId : userId;
+  const self = id === userId;
+  const [p, setP] = useState<Profile | null | undefined>(undefined);
+  const [stats, setStats] = useState<PublicStats | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const [verified, setVerified] = useState<{ phone: boolean; email: boolean } | null>(null);
+
+  useEffect(() => {
+    if (!id) return setP(null);
+    let alive = true;
+    void (async () => {
+      const [profile, s, r] = await Promise.all([
+        getProfile(id).catch(() => null),
+        publicProfileStats(id).catch(() => null),
+        listReviewsAbout(id, 'worker').catch(() => [] as Review[]),
+      ]);
+      if (!alive) return;
+      setP(profile);
+      setStats(s);
+      setReviews(r);
+      if (profile?.avatar_url) {
+        const url = await signedMediaUrl(profile.avatar_url);
+        if (alive) setAvatar(url);
+      }
+      if (self) setVerified(await verificationState());
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [id, self]);
+
+  if (p === undefined) {
+    return (
+      <Screen padded={false}>
+        <TopBar title="Profile" onBack={back} />
+        <View style={{ paddingHorizontal: 20 }}>
+          <Shimmer height={180} />
+        </View>
+      </Screen>
+    );
+  }
+  if (p === null) {
+    return (
+      <Screen padded={false}>
+        <TopBar title="Profile" onBack={back} />
+        <EmptyState icon="user" title="This profile is not available" />
+      </Screen>
+    );
+  }
+
+  const level = levelFor(stats?.jobsDone ?? 0, Number(p.worker_rating_avg ?? 0));
+  const joined = new Date(p.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  const activeRecently = p.last_seen_at && Date.now() - new Date(p.last_seen_at).getTime() < 15 * 60000;
+  const live = p.live_until && new Date(p.live_until).getTime() > Date.now();
+
+  return (
+    <Screen padded={false}>
+      <TopBar
+        title={self ? 'Preview' : p.display_name}
+        onBack={back}
+        right={
+          self ? (
+            <Pressable onPress={() => go('profileEdit')} hitSlop={8} accessibilityRole="button">
+              <RNText style={tx('700', 13, t.colors.accentDeep)}>Edit profile</RNText>
+            </Pressable>
+          ) : undefined
+        }
+      />
+      <ScrollView contentContainerStyle={{ paddingBottom: 28 }}>
+        {self ? (
+          <View style={{ marginHorizontal: 20, flexDirection: 'row', gap: 8, backgroundColor: t.colors.accentSoft, borderRadius: 10, padding: 11, marginBottom: 12 }}>
+            <Icon name="eye" size={16} color={t.colors.accentDeep} />
+            <RNText style={tx('500', 12, t.colors.accentDeep, { flex: 1 })}>This is how your profile appears to others.</RNText>
+          </View>
+        ) : null}
+
+        <View style={{ marginHorizontal: 20, backgroundColor: t.isDark ? '#062B1E' : '#0B3D2C', borderRadius: 18, padding: 18 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <View style={{ width: 70, height: 70, borderRadius: 999, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)' }}>
+              {avatar ? (
+                <Image source={{ uri: avatar }} style={{ width: 70, height: 70 }} />
+              ) : (
+                <RNText style={tx('800', 26, '#FFFFFF')}>{p.display_name.charAt(0).toUpperCase()}</RNText>
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <RNText style={tx('800', 19, '#FFFFFF')} numberOfLines={1}>{p.display_name}</RNText>
+              {p.username ? <RNText style={tx('500', 13, 'rgba(255,255,255,0.75)', { marginTop: 2 })}>@{p.username}</RNText> : null}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                {verified && (verified.phone || verified.email) ? <Badge label="Verified" /> : null}
+                <Badge label={`Lvl ${level.index} · ${level.name}`} tone="gold" />
+                {live ? <Badge label="Live now" tone="signal" /> : null}
+              </View>
+            </View>
+          </View>
+          {p.bio ? <RNText style={tx('400', 13, 'rgba(255,255,255,0.88)', { marginTop: 14, lineHeight: 19 })}>{p.bio}</RNText> : null}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 14 }}>
+            <Meta icon="clock" text={activeRecently ? 'Active just now' : p.last_seen_at ? `Active ${timeAgo(p.last_seen_at)}` : 'New here'} />
+            <Meta icon="list" text={`Joined ${joined}`} />
+            {p.loc_label ? <Meta icon="pin" text={p.loc_label.split(',').slice(-2).join(',').trim()} /> : null}
+          </View>
+        </View>
+
+        <View style={{ flexDirection: 'row', marginHorizontal: 20, marginTop: 12, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, paddingVertical: 14 }}>
+          {[
+            ['Tasks done', String(stats?.jobsDone ?? '–')],
+            ['Rating', p.worker_rating_count > 0 ? `★ ${Number(p.worker_rating_avg).toFixed(1)}` : 'New'],
+            ['Tasks posted', String(stats?.tasksPosted ?? '–')],
+          ].map(([k, v]) => (
+            <View key={k} style={{ flex: 1, alignItems: 'center' }}>
+              <RNText style={tx('800', 18, t.colors.ink)}>{v}</RNText>
+              <RNText style={tx('500', 11, t.colors.muted, { marginTop: 3 })}>{k}</RNText>
+            </View>
+          ))}
+        </View>
+
+        <View style={{ paddingHorizontal: 20 }}>
+          {(p.skills ?? []).length > 0 ? (
+            <>
+              <RNText style={tx('800', 15, t.colors.ink, { marginTop: 20 })}>Works in</RNText>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 10 }}>
+                {p.skills.map((s) => (
+                  <View key={s} style={{ backgroundColor: t.colors.accentSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
+                    <RNText style={tx('600', 12, t.colors.accentDeep)}>{s}</RNText>
+                  </View>
+                ))}
+              </View>
+            </>
+          ) : null}
+          {(p.languages ?? []).length > 0 ? (
+            <>
+              <RNText style={tx('800', 15, t.colors.ink, { marginTop: 20 })}>Speaks</RNText>
+              <RNText style={tx('400', 13, t.colors.text, { marginTop: 6 })}>{p.languages.join(' · ')}</RNText>
+            </>
+          ) : null}
+
+          <RNText style={tx('800', 15, t.colors.ink, { marginTop: 20 })}>Reviews</RNText>
+          {reviews.length === 0 ? (
+            <RNText style={tx('400', 13, t.colors.muted, { marginTop: 8 })}>No reviews yet.</RNText>
+          ) : (
+            reviews.map((r) => (
+              <View key={r.id} style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: t.colors.line }}>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <RNText style={tx('700', 13, t.colors.ink)}>{r.author?.display_name ?? 'Someone'}</RNText>
+                  <RNText style={tx('500', 12, t.colors.accentDeep)}>★ {r.rating.toFixed(1)}</RNText>
+                  <RNText style={tx('400', 11, t.colors.muted, { marginLeft: 'auto' })}>{timeAgo(r.created_at)}</RNText>
+                </View>
+                {r.comment ? <RNText style={tx('400', 13, t.colors.muted, { marginTop: 5, lineHeight: 19 })}>{r.comment}</RNText> : null}
+              </View>
+            ))
+          )}
+        </View>
+      </ScrollView>
+    </Screen>
+  );
+}
+
+function Meta({ icon, text }: { icon: 'clock' | 'list' | 'pin'; text: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+      <Icon name={icon} size={13} color="rgba(255,255,255,0.75)" />
+      <RNText style={tx('500', 12, 'rgba(255,255,255,0.8)')}>{text}</RNText>
+    </View>
+  );
+}

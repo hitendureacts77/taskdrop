@@ -7,7 +7,6 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Screen, formatINR } from '../components/ui';
-import { Icon } from '../components/Icon';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -18,6 +17,8 @@ import { type Theme } from '../theme';
 import type { Enums } from '@taskdrop/db-types';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
+import { AppHeader } from '../components/AppHeader';
+import { HomeSections } from '../components/HomeSections';
 import { signedMediaUrls } from '../lib/media';
 import { adAuctionRanks, recordAdImpression, recordAdClick } from '../data/api';
 
@@ -574,47 +575,8 @@ export function HomeScreen() {
   return (
     <Screen scroll padded={false} onRefresh={refresh} refreshing={refreshing}>
       <FadeIn duration={260}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 6 }}>
-          <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.66 })}>
-            taskdrop
-            <RNText style={tx('800', 22, t.colors.accent)}>.</RNText>
-          </RNText>
-          <Pressy
-            onPress={() => go('profile')}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 9,
-              backgroundColor: t.colors.surface2,
-              borderRadius: 999,
-              paddingVertical: 7,
-              paddingHorizontal: 13,
-            }}
-          >
-            <View style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: t.colors.accent }} />
-            <RNText style={tx('700', 12, t.colors.ink)}>{worker ? 'Worker' : 'Poster'}</RNText>
-          </Pressy>
-        </View>
-
-        <Pressy
-          onPress={() => go('search')}
-          style={{
-            marginTop: 15,
-            marginHorizontal: 20,
-            backgroundColor: t.colors.surface2,
-            borderRadius: 12,
-            paddingVertical: 13,
-            paddingHorizontal: 15,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 11,
-          }}
-        >
-          <Icon name="search" size={17} color={t.colors.muted} strokeWidth={1.8} />
-          <RNText style={tx('400', 14, t.colors.muted)}>
-            {worker ? 'Find a task or a service' : 'Find a worker or a service'}
-          </RNText>
-        </Pressy>
+        <AppHeader />
+        <HomeSections />
 
         <View
           style={{
@@ -664,8 +626,8 @@ export function HomeScreen() {
           )}
         </View>
 
-        <RNText style={tx('800', 19, t.colors.ink, { letterSpacing: -0.38, paddingTop: 22, paddingHorizontal: 20 })}>
-          {searching ? 'Search results' : worker ? 'Tasks near you' : 'Workers near you'}
+        <RNText style={tx('800', 17, t.colors.ink, { letterSpacing: -0.34, paddingTop: 26, paddingHorizontal: 20 })}>
+          {searching ? 'Search results' : worker ? 'Work near you' : 'Recent requests nearby'}
         </RNText>
         {searchQ ? (
           <View

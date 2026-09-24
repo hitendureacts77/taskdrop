@@ -52,6 +52,51 @@ npm run db:types       # regenerate DB types after a schema change
 - Ref: `wjxvingpfbfvkfqhrguj` · Region: `ap-south-1` (Mumbai)
 - URL: https://wjxvingpfbfvkfqhrguj.supabase.co
 
+## AI posting, explore and account features
+
+Posting starts from **"What's on your mind?"**: one sentence becomes a task post
+in five steps — AI quick-pick questions, an AI-written brief (with writing
+styles), when, budget (with optional milestones), and how providers are chosen
+(review bids, or **auto-accept** the first quote at or under budget). Around it:
+Explore (templates, ideas, trending categories, top earners, platform
+highlights), Find Work filters, My Tasks / My Work, notifications, a messages
+inbox, saved tasks, help & support tickets, feedback, referrals, pricing, a
+public profile with profile strength and levels, "go live" for workers, and
+username + password sign-in.
+
+Schema: `supabase/migrations/…_048_marketplace_features.sql` (and `_049`).
+Edge Functions: `ai-assistant` and `password-auth`.
+
+### Turning on the AI writer
+
+The brief writer is Claude (`claude-haiku-4-5`) behind the `ai-assistant` Edge
+Function. It needs an Anthropic API key, set as a function secret:
+
+```bash
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-... --project-ref wjxvingpfbfvkfqhrguj
+```
+
+(or Dashboard → Edge Functions → Secrets). Until a key is set the app uses its
+built-in quick writer (`apps/mobile/src/lib/taskBrief.ts`), so posting always
+works. Each AI call spends one daily credit per user; the allowance is the
+`ai_daily_credits` row in `settings` (default 10).
+
+To answer a support ticket from the Supabase SQL editor (open tickets are in
+`support_tickets` where `status = 'waiting'`):
+
+```sql
+with t as (select id, user_id from support_tickets where id = '<ticket id>')
+, m as (insert into support_messages (ticket_id, from_staff, body)
+        select id, true, 'Your reply here' from t returning ticket_id)
+update support_tickets set status = 'answered', updated_at = now()
+ where id in (select ticket_id from m);
+select private.notify(user_id, 'support', 'Support replied', 'Your reply here', null, id)
+  from support_tickets where id = '<ticket id>';
+```
+
+The person gets a notification and sees the reply in the thread. (A signed-in
+admin can do the same through `reply_support_ticket`.)
+
 ## Design
 
 The design is the source of truth for every screen. `docs/design/TaskDrop App.dc.html` is the original;
