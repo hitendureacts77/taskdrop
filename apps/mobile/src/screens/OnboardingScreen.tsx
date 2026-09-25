@@ -124,6 +124,11 @@ export function OnboardingScreen() {
     setBusy(true);
     try {
       await updateProfile(userId, { onboarded: true });
+      // Chose to earn and picked skills: the worker profile is done here, no
+      // second setup when they switch to Earn.
+      if (intent !== 'post' && skills.length > 0) {
+        await updateProfileExtras(userId, { workerOnboarded: true, ...(intent === 'both' && bio.trim() ? { workerBio: bio } : {}) });
+      }
       setMode(intent === 'earn' ? 'worker' : 'poster');
       reset('home');
       celebrate('Welcome to TaskDrop');
@@ -337,7 +342,9 @@ export function OnboardingScreen() {
             locLat: place?.lat ?? null,
             locLng: place?.lng ?? null,
           });
-          await updateProfileExtras(userId, { bio, languages: langs });
+          // Earning-only sign-ups write their worker bio; everyone else starts
+          // with the poster one. Each side can be edited later.
+          await updateProfileExtras(userId, intent === 'earn' ? { workerBio: bio, languages: langs } : { bio, languages: langs });
         })}
       />
     );

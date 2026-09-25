@@ -53,18 +53,28 @@ export function profileStrength(
   p: Profile | null,
   v: { phone: boolean; email: boolean },
   reviews: number,
+  role: 'worker' | 'poster' = 'worker',
 ): Strength {
-  const words = (p?.bio ?? '').trim().split(/\s+/).filter(Boolean).length;
+  const bio = (role === 'worker' ? p?.worker_bio : p?.bio) ?? '';
+  const words = bio.trim().split(/\s+/).filter(Boolean).length;
   const basic: StrengthItem[] = [
     { label: 'Add your name', done: Boolean(p?.display_name?.trim()), points: 10 },
     { label: 'Add a profile photo', done: Boolean(p?.avatar_url), points: 10 },
     { label: 'Set your location', done: Boolean(p?.loc_label), points: 10 },
   ];
-  const pro: StrengthItem[] = [
-    { label: 'Write a bio of at least 50 words', done: words >= 50, points: 15 },
-    { label: 'Add at least 3 skills', done: (p?.skills?.length ?? 0) >= 3, points: 15 },
-    { label: 'Add the languages you speak', done: (p?.languages?.length ?? 0) > 0, points: 10 },
-  ];
+  // A poster's profile has no skills: a short "about you" and languages
+  // carry the same weight instead.
+  const pro: StrengthItem[] =
+    role === 'worker'
+      ? [
+          { label: 'Write about your work in 50+ words', done: words >= 50, points: 15 },
+          { label: 'Add at least 3 skills', done: (p?.skills?.length ?? 0) >= 3, points: 15 },
+          { label: 'Add the languages you speak', done: (p?.languages?.length ?? 0) > 0, points: 10 },
+        ]
+      : [
+          { label: 'Say a little about yourself (15+ words)', done: words >= 15, points: 25 },
+          { label: 'Add the languages you speak', done: (p?.languages?.length ?? 0) > 0, points: 15 },
+        ];
   const trust: StrengthItem[] = [
     { label: 'Verify your phone or email', done: v.phone || v.email, points: 15 },
     { label: 'Pick a username', done: Boolean(p?.username), points: 5 },

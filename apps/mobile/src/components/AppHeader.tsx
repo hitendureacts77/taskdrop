@@ -3,12 +3,13 @@ import { View, Text as RNText, Pressable, Animated, Modal, ScrollView, Image } f
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
+import { useSwitchMode } from '../lib/useSwitchMode';
 import { useAuth } from '../providers/AuthProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { getProfile, getWallet, type Profile } from '../data/api';
 import {
   aiCreditsToday,
-  countUnreadNotifications,
+  countUnreadFor,
   subscribeToNotifications,
 } from '../data/extras';
 import { signedMediaUrl } from '../lib/media';
@@ -32,7 +33,11 @@ const last = { userId: '' as string | null, initial: '?', avatar: null as string
 export function AppHeader() {
   const t = useTheme();
   const { go, reset, screen } = useNav();
-  const { mode, setMode } = useMode();
+  const { mode } = useMode();
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  // Earn needs a worker profile first; this opens setup when it is missing.
+  const switchMode = useSwitchMode();
   const { userId } = useAuth();
   const same = last.userId === userId;
   const [unread, setUnreadState] = useState(same ? last.unread : 0);
@@ -49,14 +54,17 @@ export function AppHeader() {
   useEffect(() => {
     if (!userId) return;
     let alive = true;
-    void countUnreadNotifications().then((n) => alive && setUnread(n));
+    void countUnreadFor(mode === 'worker' ? 'worker' : 'poster').then((n) => alive && setUnread(n));
     return () => {
       alive = false;
     };
-  }, [userId, screen]);
+  }, [userId, screen, mode]);
   useEffect(() => {
     if (!userId) return;
-    return subscribeToNotifications(userId, () => setUnread((n) => n + 1));
+    // A new alert may belong to the other side; recount rather than +1.
+    return subscribeToNotifications(userId, () => {
+      void countUnreadFor(modeRef.current === 'worker' ? 'worker' : 'poster').then(setUnread);
+    });
   }, [userId]);
 
   useEffect(() => {
@@ -131,7 +139,7 @@ export function AppHeader() {
             return (
               <Pressable
                 key={m}
-                onPress={() => setMode(m)}
+                onPress={() => void switchMode(m)}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: on }}
                 accessibilityLabel={m === 'poster' ? 'Post mode' : 'Earn mode'}

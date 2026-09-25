@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, ScrollView, Pressable } from 'react-native';
 import { Screen, Text, Row, Button, Avatar, formatINR } from '../components/ui';
+import { AvatarPresence } from '../components/PresenceDot';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
@@ -128,7 +129,10 @@ export function MyQuotesScreen() {
                 }}
               >
                 <Row gap={11} align="center">
-                  <Avatar name={poster?.display_name ?? 'Poster'} size={36} />
+                  <View>
+                    <Avatar name={poster?.display_name ?? 'Poster'} size={36} />
+                    <AvatarPresence lastSeen={poster?.last_seen_at} ring={t.colors.surface} />
+                  </View>
                   <View style={{ flex: 1 }}>
                     <Row gap={7} align="center">
                       <Text variant="h3">{poster?.display_name ?? 'Poster'}</Text>

@@ -75,6 +75,30 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
+/**
+ * The Earn side has its own colour: royal blue where the Post side is green.
+ * Wrapping the signed-in app in this swaps the accent tokens, so every
+ * button, chip, tab, border and focus ring follows the mode -- nothing on the
+ * worker side is left green by a screen that forgot to ask.
+ */
+const WORKER_ACCENT = {
+  light: { accent: '#2F5BEA', accentDeep: '#1E40AF', accentSoft: '#EAF0FF', accentBorder: '#C5D3FA', onAccent: '#FFFFFF' },
+  dark: { accent: '#6B8CFF', accentDeep: '#8FA8FF', accentSoft: '#151C33', accentBorder: '#26345E', onAccent: '#FFFFFF' },
+} as const;
+
+export function RoleTheme({ worker, children }: { worker: boolean; children: React.ReactNode }) {
+  const outer = useContext(Ctx);
+  if (!outer) throw new Error('RoleTheme must be used inside ThemeProvider');
+  const theme = useMemo<Theme>(() => {
+    if (!worker) return outer.theme;
+    const swap = outer.theme.isDark ? WORKER_ACCENT.dark : WORKER_ACCENT.light;
+    return { ...outer.theme, colors: { ...outer.theme.colors, ...swap } };
+  }, [outer.theme, worker]);
+  useWebFocusRing(theme.colors.accent);
+  const value = useMemo<ThemeCtx>(() => ({ ...outer, theme }), [outer, theme]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
 export function useTheme(): Theme {
   const c = useContext(Ctx);
   if (!c) throw new Error('useTheme must be used inside ThemeProvider');

@@ -20,7 +20,7 @@ import { AddFundsSheet } from '../components/AddFundsSheet';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
 import { Pill, SectionTitle, UnderlineTabs } from '../components/kit';
-import { MoneyFlowChart, type FlowPoint } from '../components/MoneyFlowChart';
+import { MoneyBars, type MoneyBar } from '../components/MoneyBars';
 import { countMyReferrals, feesSince, platformFees } from '../data/extras';
 
 /** Staggered row entrance, ~ the markup's tdIn keyframe with animation-delay. */
@@ -61,7 +61,7 @@ export function WalletScreen() {
     // this screen reads as "my money is stuck".
     settleClearedEarnings()
       .catch(() => {})
-      .then(() => Promise.all([getWallet(), getEscrowHeld()]))
+      .then(() => Promise.all([getWallet(), getEscrowHeld('poster')]))
       .then(([w, held]) => {
         if (!alive || !w) return;
         setLive({ balance: w.balance_minor, escrow: held, clearing: w.clearing_minor });
@@ -113,7 +113,7 @@ export function WalletScreen() {
       await settleClearedEarnings().catch(() => {});
       const [w, held, rows] = await Promise.all([
         getWallet(),
-        getEscrowHeld(),
+        getEscrowHeld('poster'),
         listWalletActivity(userId, 200),
       ]);
       if (w) setLive({ balance: w.balance_minor, clearing: w.clearing_minor, escrow: held });
@@ -180,7 +180,9 @@ export function WalletScreen() {
   const mine = useMemo(
     () =>
       ledger.filter((l) =>
-        worker ? l.kind === 'clearing' || l.kind === 'payout' : l.kind === 'escrow' || l.kind === 'released' || l.kind === 'topup',
+        worker
+          ? l.kind === 'clearing' || l.kind === 'payout' || l.kind === 'incoming'
+          : l.kind === 'escrow' || l.kind === 'released' || l.kind === 'topup',
       ),
     [ledger, worker],
   );
@@ -189,37 +191,60 @@ export function WalletScreen() {
     [mine, since],
   );
 
-  // Weekly buckets (monthly for all time), in rupees.
-  const flow = useMemo<FlowPoint[]>(() => {
-    const start = since ?? (mine.length ? new Date(mine[mine.length - 1]!.at) : new Date());
-    const monthly = !since;
-    const buckets: FlowPoint[] = [];
-    const cursor = new Date(start);
-    const end = new Date();
-    let guard = 0;
-    while (cursor <= end && guard++ < 24) {
-      buckets.push({
-        label: cursor.toLocaleDateString('en-IN', monthly ? { month: 'short' } : { day: 'numeric', month: 'short' }),
-        income: 0,
-        expense: 0,
-      });
-      if (monthly) cursor.setMonth(cursor.getMonth() + 1);
-      else cursor.setDate(cursor.getDate() + 7);
+  // Bars for the chart, in rupees. Always a full range, so one entry never
+  // leaves the chart empty: five weekly bars for a month, the last six months
+  // (or more, back to the first entry, up to a year) for all time.
+  const bars = useMemo<MoneyBar[]>(() => {
+    const now = new Date();
+    const fmt = (d: Date, o: Intl.DateTimeFormatOptions) => d.toLocaleDateString('en-IN', o);
+    type B = MoneyBar & { from: number; to: number };
+    const out: B[] = [];
+    if (period === 'This month') {
+      const y = now.getFullYear();
+      const m = now.getMonth();
+      const last = new Date(y, m + 1, 0).getDate();
+      for (const [d0, d1] of [[1, 7], [8, 14], [15, 21], [22, 28], [29, last]] as const) {
+        if (d0 > last) break;
+        const from = new Date(y, m, d0).getTime();
+        const to = new Date(y, m, d1, 23, 59, 59).getTime();
+        const mon = fmt(new Date(y, m, d0), { month: 'short' });
+        out.push({ label: `${d0}–${d1}`, range: `${d0} – ${d1} ${mon}`, value: 0, from, to });
+      }
+    } else if (period === 'Last 30 days') {
+      const end = now.getTime();
+      for (let i = 4; i >= 0; i--) {
+        const to = end - i * 6 * 86400000;
+        const from = to - 6 * 86400000 + 1;
+        const fd = new Date(from);
+        const td = new Date(to);
+        out.push({
+          label: fmt(fd, { day: 'numeric', month: 'short' }),
+          range: `${fmt(fd, { day: 'numeric', month: 'short' })} – ${fmt(td, { day: 'numeric', month: 'short' })}`,
+          value: 0,
+          from,
+          to,
+        });
+      }
+    } else {
+      const oldest = mine.length ? new Date(mine[mine.length - 1]!.at) : now;
+      const span = (now.getFullYear() - oldest.getFullYear()) * 12 + now.getMonth() - oldest.getMonth() + 1;
+      const months = Math.min(12, Math.max(6, span));
+      for (let i = months - 1; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const from = d.getTime();
+        const to = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59).getTime();
+        out.push({ label: fmt(d, { month: 'short' }), range: fmt(d, { month: 'long', year: 'numeric' }), value: 0, from, to });
+      }
     }
-    if (buckets.length === 0) return [];
-    for (const l of inPeriod) {
+    for (const l of mine) {
       // Earnings for a worker, spending (not top-ups) for a poster.
-      if (worker ? l.kind !== 'clearing' : l.kind === 'topup') continue;
-      const at = new Date(l.at);
-      const i = monthly
-        ? (at.getFullYear() - start.getFullYear()) * 12 + at.getMonth() - start.getMonth()
-        : Math.floor((at.getTime() - start.getTime()) / (7 * 86400000));
-      const b = buckets[Math.max(0, Math.min(buckets.length - 1, i))]!;
-      if (worker) b.income += l.amountMinor / 100;
-      else b.expense += l.amountMinor / 100;
+      if (worker ? l.kind !== 'clearing' : l.kind !== 'released' && l.kind !== 'escrow') continue;
+      const at = new Date(l.at).getTime();
+      const hit = out.find((x) => at >= x.from && at <= x.to);
+      if (hit) hit.value += l.amountMinor / 100;
     }
-    return buckets;
-  }, [inPeriod, mine, since, worker]);
+    return out.map(({ label, range, value }) => ({ label, range, value: Math.round(value) }));
+  }, [mine, period, worker]);
 
   const periodTotal = inPeriod
     .filter((l) => (worker ? l.kind === 'clearing' : l.kind === 'escrow' || l.kind === 'released'))
@@ -229,9 +254,12 @@ export function WalletScreen() {
   const TX_TABS = worker ? ['All', 'Earnings', 'Withdrawals'] : ['All', 'Spending', 'Money added'];
   const [txTab, setTxTab] = useState(0);
   useEffect(() => setTxTab(0), [worker]);
+  const TX_FIRST = 7;
+  const [txAll, setTxAll] = useState(false);
+  useEffect(() => setTxAll(false), [txTab, worker, period]);
   const txRows = inPeriod.filter((l) => {
     if (txTab === 0) return true;
-    if (worker) return txTab === 1 ? l.kind === 'clearing' : l.kind === 'payout';
+    if (worker) return txTab === 1 ? l.kind === 'clearing' || l.kind === 'incoming' : l.kind === 'payout';
     return txTab === 1 ? l.kind === 'escrow' || l.kind === 'released' : l.kind === 'topup';
   });
 
@@ -256,7 +284,13 @@ export function WalletScreen() {
   } as const;
 
   const dotFor = (k: WalletEvent['kind']) =>
-    k === 'escrow' ? t.colors.gold : k === 'clearing' ? t.colors.blue : k === 'payout' ? t.colors.purple : t.colors.accent;
+    k === 'escrow' || k === 'incoming'
+      ? t.colors.gold
+      : k === 'clearing'
+        ? t.colors.blue
+        : k === 'payout'
+          ? t.colors.purple
+          : t.colors.accent;
 
   const chartColor = worker ? t.colors.purple : t.colors.accent;
   const feeMinor = fees ? (worker ? fees.commissionMinor : fees.serviceMinor) : null;
@@ -347,7 +381,7 @@ export function WalletScreen() {
           </View>
           <View style={{ marginTop: 12 }}>
             {periodTotal > 0 ? (
-              <MoneyFlowChart points={flow} only={worker ? 'income' : 'expense'} color={chartColor} />
+              <MoneyBars bars={bars} color={chartColor} verb={worker ? 'earned' : 'spent'} />
             ) : (
               <RNText style={tx('400', 12, t.colors.muted, { paddingVertical: 18, textAlign: 'center' })}>
                 {worker ? 'Nothing earned in this period yet.' : 'Nothing spent in this period.'}
@@ -400,13 +434,13 @@ export function WalletScreen() {
           <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, lineHeight: 20 })}>
             {mine.length === 0
               ? worker
-                ? 'Finish a job and your earnings show up here.'
+                ? 'Finish a gig and your earnings show up here.'
                 : 'Hire someone and what you pay shows up here.'
               : 'Nothing of this kind in this period.'}
           </RNText>
         )}
 
-        {txRows.map((l, i) => (
+        {(txAll ? txRows : txRows.slice(0, TX_FIRST)).map((l, i) => (
           <SlideIn key={l.id} delay={Math.min(i, 8) * 50}>
             <View
               style={{
@@ -434,6 +468,27 @@ export function WalletScreen() {
             </View>
           </SlideIn>
         ))}
+
+        {txRows.length > TX_FIRST ? (
+          <Pressable
+            onPress={() => setTxAll((v) => !v)}
+            accessibilityRole="button"
+            style={({ pressed }) => ({
+              alignSelf: 'center',
+              marginTop: 12,
+              paddingVertical: 8,
+              paddingHorizontal: 16,
+              borderRadius: 999,
+              borderWidth: 1,
+              borderColor: t.colors.line,
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <RNText style={tx('700', 12, t.colors.accentDeep)}>
+              {txAll ? 'Show less' : `Show ${txRows.length - TX_FIRST} more`}
+            </RNText>
+          </Pressable>
+        ) : null}
 
         {code ? (
           <View style={{ ...card, marginTop: 24, flexDirection: 'row', alignItems: 'center', gap: 12 }}>

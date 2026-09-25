@@ -44,7 +44,9 @@ export type ScreenName =
   | 'disputes'
   | 'profileEdit'
   | 'publicProfile'
-  | 'saved';
+  | 'saved'
+  | 'workerSetup'
+  | 'listing';
 
 export type NavParams = Record<string, unknown>;
 

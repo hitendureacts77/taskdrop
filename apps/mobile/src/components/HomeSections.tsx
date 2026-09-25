@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text as RNText, TextInput, Pressable, ScrollView } from 'react-native';
+import { View, Text as RNText, TextInput, Pressable } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -35,6 +35,7 @@ import { Badge, BottomSheet, SectionTitle, Shimmer, rupees, timeLeft } from './k
 import { WorkCard, categoryIcon } from './WorkCard';
 import { BidSheet } from './BidSheet';
 import { LiveWorkers } from './LiveWorkers';
+import { Rail } from './Rail';
 import { HowItWorks } from './HowItWorks';
 import { LocationSheet, type PickedPlace } from './LocationSheet';
 import { Pressy, tx } from './primitives';
@@ -258,8 +259,8 @@ function PostTop() {
             onAction={() => go('myTasks')}
             style={{ marginTop: 24 }}
           />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10, marginHorizontal: -20 }}>
-            <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20 }}>
+          <View style={{ marginTop: 10 }}>
+            <Rail>
               {active.map((task) => {
                 const b = statusBadge(task);
                 const left = timeLeft(task.due_at);
@@ -293,8 +294,8 @@ function PostTop() {
                   </Pressy>
                 );
               })}
-            </View>
-          </ScrollView>
+            </Rail>
+          </View>
         </>
       ) : null}
 
@@ -308,8 +309,8 @@ function PostTop() {
         onAction={() => go('explore')}
         style={{ marginTop: 24 }}
       />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12, marginHorizontal: -20 }}>
-        <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20 }}>
+      <View style={{ marginTop: 12 }}>
+        <Rail step={300}>
           {TEMPLATES.slice(0, 8).map((x) => (
             <Pressy
               key={x.key}
@@ -345,8 +346,8 @@ function PostTop() {
               </RNText>
             </Pressy>
           ))}
-        </View>
-      </ScrollView>
+        </Rail>
+      </View>
 
       {/* What is busy */}
       {trending.length > 0 ? (
@@ -575,7 +576,7 @@ function EarnTop() {
               backgroundColor: 'rgba(255,255,255,0.08)',
             }}
           />
-          <RNText style={tx('600', 12, 'rgba(255,255,255,0.75)')}>Find your next job</RNText>
+          <RNText style={tx('600', 12, 'rgba(255,255,255,0.75)')}>Find your next gig</RNText>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginTop: 6 }}>
             <View style={{ flex: 1 }}>
               <RNText style={tx('800', 20, '#FFFFFF', { letterSpacing: -0.4 })}>{level.name}</RNText>
@@ -592,7 +593,7 @@ function EarnTop() {
               </View>
               <RNText style={tx('400', 11, 'rgba(255,255,255,0.8)', { marginTop: 6 })}>
                 {level.next
-                  ? `${level.jobsToGo} job${level.jobsToGo === 1 ? '' : 's'}${level.ratingShort ? ` + ★ ${level.next.rating}` : ''} to ${level.next.name}`
+                  ? `${level.jobsToGo} gig${level.jobsToGo === 1 ? '' : 's'}${level.ratingShort ? ` + ★ ${level.next.rating}` : ''} to ${level.next.name}`
                   : 'Highest level'}
               </RNText>
             </View>
@@ -625,7 +626,7 @@ function EarnTop() {
       <Pressable
         onPress={() => go('explore', { focusSearch: Date.now() })}
         accessibilityRole="search"
-        accessibilityLabel="Search jobs"
+        accessibilityLabel="Search gigs"
         style={({ pressed }) => ({
           flexDirection: 'row',
           alignItems: 'center',
@@ -643,7 +644,7 @@ function EarnTop() {
       >
         <Icon name="search" size={16} color={t.colors.muted} />
         <RNText style={tx('400', 14, t.colors.muted, { flex: 1, paddingVertical: 7 })} numberOfLines={1}>
-          Search jobs: data entry, logo, tutoring…
+          Search gigs: data entry, logo, tutoring…
         </RNText>
         <View style={{ width: 34, height: 34, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="search" size={16} color="#FFFFFF" strokeWidth={2} />
@@ -675,7 +676,7 @@ function EarnTop() {
 
         {/* 2. Near the area the worker chose */}
         <SectionTitle
-          title={areaName ? `Near ${areaName}` : 'Work near you'}
+          title={areaName ? `Gigs near ${areaName}` : 'Gigs near you'}
           icon="pin"
           action={place ? 'Change area' : undefined}
           onAction={() => setPickPlace(true)}
@@ -716,7 +717,7 @@ function EarnTop() {
                   padding: 14,
                 }}
               >
-                <RNText style={tx('600', 13, t.colors.ink)}>No jobs within {radius} km yet</RNText>
+                <RNText style={tx('600', 13, t.colors.ink)}>No gigs within {radius} km yet</RNText>
                 <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4 })}>
                   {radius < 50 ? 'Widen the radius, or try remote work below.' : 'Try remote work below, or another area.'}
                 </RNText>
@@ -747,7 +748,7 @@ function EarnTop() {
             <View style={{ flex: 1 }}>
               <RNText style={tx('700', 14, t.colors.accentDeep)}>Set your area</RNText>
               <RNText style={tx('400', 12, t.colors.accentDeep, { marginTop: 2 })}>
-                We’ll show jobs close to where you are
+                We’ll show gigs close to where you are
               </RNText>
             </View>
             <Icon name="chevronRight" size={16} color={t.colors.accentDeep} />
@@ -760,7 +761,7 @@ function EarnTop() {
         {remote === null ? (
           <Shimmer height={110} style={{ marginTop: 12 }} />
         ) : remote.length === 0 ? (
-          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10 })}>No remote jobs open right now.</RNText>
+          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10 })}>No remote gigs open right now.</RNText>
         ) : (
           <>
             {firstFew('remote', remote).map((task, i) => card(task, i))}
@@ -782,7 +783,7 @@ function EarnTop() {
           style={{ alignSelf: 'center', marginTop: 18, marginBottom: 20 }}
           accessibilityRole="button"
         >
-          <RNText style={tx('700', 13, t.colors.purpleDeep)}>See every open job ›</RNText>
+          <RNText style={tx('700', 13, t.colors.purpleDeep)}>See every open gig ›</RNText>
         </Pressable>
       </View>
       <BottomSheet visible={howOpen} onClose={() => setHowOpen(false)} title="How TaskDrop works" subtitle="Earning, step by step">

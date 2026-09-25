@@ -9,6 +9,7 @@ import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { useMode } from '../providers/ModeProvider';
+import { useSwitchMode } from '../lib/useSwitchMode';
 import { getProfile, updateProfile, type Profile } from '../data/api';
 import {
   setPassword,
@@ -31,7 +32,9 @@ export function AccountScreen() {
   const { userId, signOut } = useAuth();
   const { reset } = useNav();
   const { pref, setPref } = useThemeControls();
-  const { mode, setMode } = useMode();
+  const { mode } = useMode();
+  // Earn needs a worker profile first; this opens setup when it is missing.
+  const switchMode = useSwitchMode();
   const [tab, setTab] = useState(typeof params.tab === 'number' ? params.tab : 0);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [name, setName] = useState('');
@@ -228,7 +231,7 @@ export function AccountScreen() {
                 {(['poster', 'worker'] as const).map((m) => (
                   <Pressable
                     key={m}
-                    onPress={() => setMode(m)}
+                    onPress={() => void switchMode(m)}
                     accessibilityRole="button"
                     style={{
                       flex: 1,

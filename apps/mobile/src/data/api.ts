@@ -242,7 +242,9 @@ export async function getWallet(): Promise<Wallet | null> {
  * Escrow currently held for this user's live assignments. It sits on the
  * assignment rather than the wallet, so it has to be summed.
  */
-export async function getEscrowHeld(): Promise<number> {
+/** Escrow tied up in live jobs. With a side, only that side: what a poster
+ *  has paid in, or what a worker is owed. */
+export async function getEscrowHeld(side?: 'poster' | 'worker'): Promise<number> {
   const uid = await myId();
   if (!uid) return 0;
   // Either side of the deal has money tied up: the worker is owed it, the
@@ -258,6 +260,8 @@ export async function getEscrowHeld(): Promise<number> {
   return rows
     .filter((r) => {
       const poster = (r.tasks as { poster_id?: string } | null)?.poster_id;
+      if (side === 'poster') return poster === uid;
+      if (side === 'worker') return r.worker_id === uid;
       return r.worker_id === uid || poster === uid;
     })
     .reduce((sum, r) => sum + (r.escrow_minor ?? 0), 0);
@@ -310,7 +314,10 @@ export async function getPosterStats(posterId: string): Promise<PosterStats> {
 
 export type WalletEvent = {
   id: string;
-  kind: 'released' | 'escrow' | 'clearing' | 'payout' | 'topup';
+  /** 'incoming' is a worker's job in progress -- money on its way to them.
+   *  'escrow' and 'released' are a poster's holds and payments. Kept apart so
+   *  each side's wallet shows only its own money. */
+  kind: 'released' | 'escrow' | 'incoming' | 'clearing' | 'payout' | 'topup';
   title: string;
   meta: string;
   amountMinor: number;
@@ -355,10 +362,11 @@ export async function listWalletActivity(userId: string, limit = 12): Promise<Wa
     } else if (a.status === 'started' || a.status === 'assigned') {
       events.push({
         id: 'w-' + a.id,
-        kind: 'escrow',
-        title: 'Escrow funded for you',
+        kind: 'incoming',
+        title: 'Coming to you',
         meta: title + (a.status === 'started' ? ' · in progress' : ' · not started yet'),
-        amountMinor: a.escrow_minor,
+        // What reaches them once it's approved: the price, less commission.
+        amountMinor: Math.round((a.escrow_minor / 1.03) * 0.8),
         incoming: false,
         at: a.updated_at,
       });
@@ -415,11 +423,14 @@ export async function listWalletActivity(userId: string, limit = 12): Promise<Wa
   }
 
   for (const pay of payments.data ?? []) {
+    // An escrow payment is already on the list as that task's "Held in
+    // escrow" / "Escrow released"; only top-ups are their own event.
+    if (pay.purpose !== 'topup') continue;
     events.push({
       id: 'c-' + pay.id,
       kind: 'topup',
-      title: pay.purpose === 'topup' ? 'Money added' : 'Escrow funded',
-      meta: pay.provider,
+      title: 'Money added',
+      meta: 'Added to your wallet',
       amountMinor: pay.amount_minor,
       incoming: pay.purpose === 'topup',
       at: pay.paid_at ?? pay.created_at,
@@ -1315,4 +1326,57 @@ export async function syncPayment(paymentId: string): Promise<PaymentCheck> {
     status: (out.status as 'created' | 'paid' | 'cancelled') ?? 'created',
     funded: Boolean(out.funded),
   };
+}
+
+// ------------------------------------------------------------- listings -----
+
+/**
+ * A worker's gig offer ("I will create thumbnails") is a task of kind
+ * 'service' posted by the worker: the price is where it starts, the time
+ * limit is the delivery time.
+ */
+export type ListingInput = {
+  title: string;
+  description: string;
+  priceMinor: number;
+  deliveryDays: number;
+  category: string | null;
+};
+
+export async function createListing(userId: string, input: ListingInput): Promise<Task> {
+  return createTask({
+    posterId: userId,
+    pillar: 'services',
+    title: input.title,
+    description: input.description,
+    benchmarkMinor: input.priceMinor,
+    timeLimitMinutes: input.deliveryDays * 1440,
+    category: input.category,
+    locLabel: 'Remote',
+    kind: 'service',
+  });
+}
+
+export async function updateListing(id: string, input: ListingInput): Promise<Task> {
+  const rows = unwrap(
+    await supabase
+      .from('tasks')
+      .update({
+        title: input.title,
+        description: input.description,
+        benchmark_minor: input.priceMinor,
+        time_limit_minutes: input.deliveryDays * 1440,
+        category: input.category,
+      })
+      .eq('id', id)
+      .eq('kind', 'service')
+      .select(),
+  );
+  if (!rows[0]) throw new Error('This listing can no longer be edited');
+  return rows[0];
+}
+
+/** Take a listing down. It stops showing to posters. */
+export async function removeListing(id: string): Promise<void> {
+  unwrap(await supabase.from('tasks').update({ status: 'CANCELLED' }).eq('id', id).eq('kind', 'service').select('id'));
 }

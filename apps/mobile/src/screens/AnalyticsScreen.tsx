@@ -195,7 +195,7 @@ export function AnalyticsScreen() {
         </Pressable>
 
         <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.72, marginTop: 14 })}>
-          {worker ? 'My earnings and jobs' : 'My spending and requests'}
+          {worker ? 'My earnings and gigs' : 'My spending and requests'}
         </RNText>
 
         {/* The person's own numbers, first, because they are the ones they
@@ -233,8 +233,8 @@ export function AnalyticsScreen() {
                 ? [
                     { label: 'Quotes sent', value: String(mine.quotesPlaced) },
                     { label: 'Quotes won', value: String(mine.quotesWon) },
-                    { label: 'Jobs in hand', value: String(mine.jobsLive) },
-                    { label: 'Jobs finished', value: String(mine.jobsDone) },
+                    { label: 'Gigs in hand', value: String(mine.jobsLive) },
+                    { label: 'Gigs finished', value: String(mine.jobsDone) },
                     { label: 'Withdrawn', value: formatINR(mine.withdrawnMinor) },
                     {
                       label: 'Your rating',

@@ -19,6 +19,10 @@ import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { AppHeader } from '../components/AppHeader';
 import { HomeSections } from '../components/HomeSections';
+import { ListingCard } from '../components/ListingCard';
+import { Rail } from '../components/Rail';
+import { taskToFeedRow } from '../lib/openTask';
+import type { TaskWithPoster } from '../data/api';
 import { signedMediaUrls } from '../lib/media';
 import { adAuctionRanks, recordAdImpression, recordAdClick } from '../data/api';
 
@@ -583,7 +587,40 @@ export function HomeScreen() {
             today) in HomeSections. The flat feed below is for posters, and
             for either side's search results. */}
         {searching ? null : <HomeSections />}
-        {!worker || searching ? (
+        {!worker && !searching ? (
+          // What workers offer, as gig cards in a row that pages sideways.
+          <View style={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+              <RNText style={tx('800', 17, t.colors.ink, { letterSpacing: -0.34, flex: 1 })}>Services near you</RNText>
+              <RNText style={tx('500', 12, t.colors.muted)}>{loading ? '' : `${feed.length} offered`}</RNText>
+            </View>
+            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>Gigs workers offer — tap one to see it and hire</RNText>
+            {loading ? (
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                {[0, 1].map((i) => (
+                  <View key={i} style={{ width: 240, height: 210, borderRadius: 16, backgroundColor: t.colors.surface2 }} />
+                ))}
+              </View>
+            ) : feed.length === 0 ? (
+              <RNText style={tx('400', 13, t.colors.muted, { marginTop: 12 })}>No services listed nearby yet.</RNText>
+            ) : (
+              <View style={{ marginTop: 12 }}>
+                <Rail step={250}>
+                  {(liveTasks ?? [])
+                    .filter((task) => feed.some((row) => row.id === task.id))
+                    .map((task) => (
+                      <ListingCard
+                        key={task.id}
+                        task={task as unknown as TaskWithPoster}
+                        width={240}
+                        onPress={() => go('taskDetail', { row: taskToFeedRow(task as unknown as TaskWithPoster) })}
+                      />
+                    ))}
+                </Rail>
+              </View>
+            )}
+          </View>
+        ) : searching ? (
         <>
 
         <View

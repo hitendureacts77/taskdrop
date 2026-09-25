@@ -26,7 +26,7 @@ import { FadeIn, tx } from '../components/primitives';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { PersonSheet } from '../components/PersonSheet';
 import { BidSheet } from '../components/BidSheet';
-import { PresenceDot } from '../components/PresenceDot';
+import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 
 /**
  * Task detail — pixel parity with docs/design/_design_markup.html lines
@@ -373,6 +373,7 @@ export function TaskDetailScreen() {
             }}
           >
             <RNText style={tx('400', 16, t.colors.muted)}>☺</RNText>
+            {other ? <AvatarPresence lastSeen={other.lastSeen} ring={t.colors.bg} /> : null}
           </View>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
@@ -384,7 +385,7 @@ export function TaskDetailScreen() {
             <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>{displayMeta}</RNText>
             {other ? (
               <View style={{ marginTop: 5 }}>
-                <PresenceDot lastSeen={other.lastSeen} />
+                <PresenceLabel lastSeen={other.lastSeen} />
               </View>
             ) : null}
           </View>

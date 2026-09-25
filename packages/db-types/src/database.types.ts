@@ -653,6 +653,8 @@ export type Database = {
           username: string | null
           worker_rating_avg: number
           worker_rating_count: number
+          worker_bio: string | null
+          worker_onboarded_at: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -677,6 +679,8 @@ export type Database = {
           username?: string | null
           worker_rating_avg?: number
           worker_rating_count?: number
+          worker_bio?: string | null
+          worker_onboarded_at?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -701,6 +705,8 @@ export type Database = {
           username?: string | null
           worker_rating_avg?: number
           worker_rating_count?: number
+          worker_bio?: string | null
+          worker_onboarded_at?: string | null
         }
         Relationships: []
       }

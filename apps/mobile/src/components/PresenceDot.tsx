@@ -62,3 +62,14 @@ export function AvatarPresence({ lastSeen, ring }: { lastSeen: string | null | u
     />
   );
 }
+
+/** Just the words -- for when the dot sits on the person's picture. */
+export function PresenceLabel({ lastSeen }: { lastSeen: string | null | undefined }) {
+  const t = useTheme();
+  const p = presenceOf(lastSeen);
+  return (
+    <RNText style={tx('600', 11, p.online ? '#16A34A' : t.colors.muted)} numberOfLines={1}>
+      {p.label}
+    </RNText>
+  );
+}

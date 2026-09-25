@@ -12,6 +12,8 @@ import { publicProfileStats, verificationState, type PublicStats } from '../data
 import { signedMediaUrl } from '../lib/media';
 import { levelFor } from '../lib/levels';
 import { presenceOf } from '../lib/presence';
+import { AvatarPresence } from '../components/PresenceDot';
+import { useMode } from '../providers/ModeProvider';
 
 /**
  * Someone's profile as anyone else sees it. Opened on yourself, it is the
@@ -23,6 +25,19 @@ export function PublicProfileScreen() {
   const { userId } = useAuth();
   const id = typeof params.userId === 'string' ? params.userId : userId;
   const self = id === userId;
+  // Which face of the account to show. Asked for explicitly by the caller;
+  // otherwise the other side from yours (a poster looks at workers, a worker
+  // at posters), and your own preview shows the side you're on.
+  const { mode } = useMode();
+  const role: 'worker' | 'poster' =
+    params.role === 'worker' || params.role === 'poster'
+      ? params.role
+      : self
+        ? mode
+        : mode === 'worker'
+          ? 'poster'
+          : 'worker';
+  const asWorker = role === 'worker';
   const [p, setP] = useState<Profile | null | undefined>(undefined);
   const [stats, setStats] = useState<PublicStats | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -36,7 +51,7 @@ export function PublicProfileScreen() {
       const [profile, s, r] = await Promise.all([
         getProfile(id).catch(() => null),
         publicProfileStats(id).catch(() => null),
-        listReviewsAbout(id, 'worker').catch(() => [] as Review[]),
+        listReviewsAbout(id, role).catch(() => [] as Review[]),
       ]);
       if (!alive) return;
       setP(profile);
@@ -51,7 +66,7 @@ export function PublicProfileScreen() {
     return () => {
       alive = false;
     };
-  }, [id, self]);
+  }, [id, self, role]);
 
   if (p === undefined) {
     return (
@@ -75,6 +90,10 @@ export function PublicProfileScreen() {
   const level = levelFor(stats?.jobsDone ?? 0, Number(p.worker_rating_avg ?? 0));
   const joined = new Date(p.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
   const presence = presenceOf(p.last_seen_at);
+  const bioText = asWorker ? p.worker_bio : p.bio;
+  const rating = asWorker
+    ? { avg: Number(p.worker_rating_avg), count: p.worker_rating_count }
+    : { avg: Number(p.poster_rating_avg), count: p.poster_rating_count };
 
   return (
     <Screen padded={false}>
@@ -97,25 +116,40 @@ export function PublicProfileScreen() {
           </View>
         ) : null}
 
-        <View style={{ marginHorizontal: 20, backgroundColor: t.isDark ? '#062B1E' : '#0B3D2C', borderRadius: 18, padding: 18 }}>
+        <View
+          style={{
+            marginHorizontal: 20,
+            // Worker profiles in the Earn blue, poster profiles in the Post green.
+            backgroundColor: asWorker ? (t.isDark ? '#0C1A4D' : '#1E3A8A') : t.isDark ? '#062B1E' : '#0B3D2C',
+            borderRadius: 18,
+            padding: 18,
+          }}
+        >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-            <View style={{ width: 70, height: 70, borderRadius: 999, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)' }}>
-              {avatar ? (
-                <Image source={{ uri: avatar }} style={{ width: 70, height: 70 }} />
-              ) : (
-                <RNText style={tx('800', 26, '#FFFFFF')}>{p.display_name.charAt(0).toUpperCase()}</RNText>
-              )}
+            <View>
+              <View style={{ width: 70, height: 70, borderRadius: 999, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)' }}>
+                {avatar ? (
+                  <Image source={{ uri: avatar }} style={{ width: 70, height: 70 }} />
+                ) : (
+                  <RNText style={tx('800', 26, '#FFFFFF')}>{p.display_name.charAt(0).toUpperCase()}</RNText>
+                )}
+              </View>
+              {/* Status on the picture itself, like a chat app. */}
+              <AvatarPresence lastSeen={self ? new Date().toISOString() : p.last_seen_at} ring={asWorker ? '#1E3A8A' : '#0B3D2C'} />
             </View>
             <View style={{ flex: 1 }}>
               <RNText style={tx('800', 19, '#FFFFFF')} numberOfLines={1}>{p.display_name}</RNText>
               {p.username ? <RNText style={tx('500', 13, 'rgba(255,255,255,0.75)', { marginTop: 2 })}>@{p.username}</RNText> : null}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                 {verified && (verified.phone || verified.email) ? <Badge label="Verified" /> : null}
-                <Badge label={`Lvl ${level.index} · ${level.name}`} tone="gold" />
+                {asWorker ? <Badge label={`Lvl ${level.index} · ${level.name}`} tone="gold" /> : null}
               </View>
             </View>
           </View>
-          {p.bio ? <RNText style={tx('400', 13, 'rgba(255,255,255,0.88)', { marginTop: 14, lineHeight: 19 })}>{p.bio}</RNText> : null}
+          <RNText style={tx('700', 11, 'rgba(255,255,255,0.7)', { marginTop: 12, letterSpacing: 1 })}>
+            {asWorker ? 'WORKER PROFILE' : 'POSTER PROFILE'}
+          </RNText>
+          {bioText ? <RNText style={tx('400', 13, 'rgba(255,255,255,0.88)', { marginTop: 6, lineHeight: 19 })}>{bioText}</RNText> : null}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 14 }}>
             {/* Like a chat app: a green dot while they have TaskDrop open. */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -137,11 +171,18 @@ export function PublicProfileScreen() {
         </View>
 
         <View style={{ flexDirection: 'row', marginHorizontal: 20, marginTop: 12, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, paddingVertical: 14 }}>
-          {[
-            ['Tasks done', String(stats?.jobsDone ?? '–')],
-            ['Rating', p.worker_rating_count > 0 ? `★ ${Number(p.worker_rating_avg).toFixed(1)}` : 'New'],
-            ['Tasks posted', String(stats?.tasksPosted ?? '–')],
-          ].map(([k, v]) => (
+          {(asWorker
+            ? [
+                ['Gigs done', String(stats?.jobsDone ?? '–')],
+                ['Rating', rating.count > 0 ? `★ ${rating.avg.toFixed(1)}` : 'New'],
+                ['Reviews', String(rating.count)],
+              ]
+            : [
+                ['Tasks posted', String(stats?.tasksPosted ?? '–')],
+                ['Rating', rating.count > 0 ? `★ ${rating.avg.toFixed(1)}` : 'New'],
+                ['Completed', String(stats?.tasksCompletedAsPoster ?? '–')],
+              ]
+          ).map(([k, v]) => (
             <View key={k} style={{ flex: 1, alignItems: 'center' }}>
               <RNText style={tx('800', 18, t.colors.ink)}>{v}</RNText>
               <RNText style={tx('500', 11, t.colors.muted, { marginTop: 3 })}>{k}</RNText>
@@ -150,7 +191,7 @@ export function PublicProfileScreen() {
         </View>
 
         <View style={{ paddingHorizontal: 20 }}>
-          {(p.skills ?? []).length > 0 ? (
+          {asWorker && (p.skills ?? []).length > 0 ? (
             <>
               <RNText style={tx('800', 15, t.colors.ink, { marginTop: 20 })}>Works in</RNText>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 10 }}>

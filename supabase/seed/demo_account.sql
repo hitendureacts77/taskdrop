@@ -195,7 +195,7 @@ begin
   t := gen_random_uuid();
   insert into tasks (id, poster_id, pillar, title, description, benchmark_minor, time_limit_minutes, loc_label,
     created_at, category, skills, difficulty, kind)
-  values (t, h, 'services', 'Content writing - blogs, captions and product copy',
+  values (t, h, 'services', 'I will write blogs, captions and product copy',
     'SEO blogs, Instagram captions and product descriptions in English and Hindi. Two free revisions.',
     50000, 1440, 'Remote', now() - interval '6 days', 'Writing & Content', '{Content writing}', 'easy', 'service');
   insert into private.demo_seed (tbl, row_id) values ('tasks', t);
@@ -300,6 +300,14 @@ begin
   returning id
   )
   insert into private.demo_seed (tbl, row_id) select 'notifications', id from ins;
+
+  -- Point each notification at its task, so tapping it opens the post.
+  update notifications n set task_id = t.id
+    from tasks t
+   where n.id in (select row_id from private.demo_seed where tbl = 'notifications')
+     and n.task_id is null
+     and t.id in (select row_id from private.demo_seed where tbl = 'tasks')
+     and n.title like '%"' || t.title || '"%';
 end $$;
 
 commit;

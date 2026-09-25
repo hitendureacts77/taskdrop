@@ -473,8 +473,8 @@ function FindWork() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.purple} />}
       >
         <View style={{ alignItems: 'center', paddingHorizontal: 20, paddingTop: 10 }}>
-          <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Browse jobs</RNText>
-          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4 })}>Every open job, filtered your way</RNText>
+          <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Browse gigs</RNText>
+          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4 })}>Every open gig, filtered your way</RNText>
         </View>
         <SearchBox
           value={q}
@@ -486,7 +486,7 @@ function FindWork() {
           tone="purple"
         />
         <View style={{ marginTop: 16 }}>
-          <UnderlineTabs tabs={['Jobs', 'Busy now', 'How it works']} active={tab} onPick={setTab} />
+          <UnderlineTabs tabs={['Gigs', 'Busy now', 'How it works']} active={tab} onPick={setTab} />
         </View>
         <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
           {tab === 2 ? (

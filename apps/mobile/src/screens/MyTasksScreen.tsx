@@ -28,6 +28,7 @@ import {
 } from '../data/api';
 import { listSavedTasks, listSavedTaskIds, setSaved } from '../data/extras';
 import { openRow, toneInk, workerAssignmentRow, workerBidRow, type ViewRow } from '../lib/taskRows';
+import { ListingCard } from '../components/ListingCard';
 import { taskToFeedRow } from '../lib/openTask';
 
 /**
@@ -331,7 +332,7 @@ function PostedCard({
 
 // --------------------------------------------------------------- worker -----
 
-const WORKER_TABS = ['Active', 'Quotes', 'Done', 'Saved', 'Listings'] as const;
+const WORKER_TABS = ['Active', 'Quotes', 'Done', 'Saved', 'My gigs'] as const;
 
 function MyWork() {
   const t = useTheme();
@@ -362,7 +363,7 @@ function MyWork() {
       listSavedTaskIds().catch(() => new Set<string>()),
       listMyTasks(userId, 'service').catch(() => [] as Task[]),
     ]);
-    setListings(mine);
+    setListings(mine.filter((x) => x.status !== 'CANCELLED'));
     const assigned = new Set(assignments.map((a) => a.task_id));
     setRows([
       ...assignments.map(workerAssignmentRow),
@@ -441,23 +442,27 @@ function MyWork() {
             listings.length === 0 ? (
               <EmptyState
                 icon="tag"
-                title="No service listings"
-                body="List a service and posters looking for help will find you."
-                actionLabel="List a service"
-                onAction={() => go('create')}
+                title="No gigs listed yet"
+                body="Offer what you do — “I will design your logo, from ₹800” — and posters can hire you straight from it."
+                actionLabel="List a gig"
+                onAction={() => go('listing')}
               />
             ) : (
-              listings.map((task, i) => (
-                <PostedCard
-                  key={task.id}
-                  task={task}
-                  index={i}
-                  quotes={0}
-                  service
-                  onOpen={() => go('taskManage', { taskId: task.id })}
-                  onMenu={() => go('taskManage', { taskId: task.id })}
-                />
-              ))
+              <>
+                {listings.map((task) => (
+                  <View key={task.id} style={{ marginTop: 12 }}>
+                    <ListingCard task={task} owner onPress={() => go('listing', { taskId: task.id })} />
+                  </View>
+                ))}
+                <Pressable
+                  onPress={() => go('listing')}
+                  accessibilityRole="button"
+                  style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: t.colors.accentBorder }}
+                >
+                  <Icon name="plus" size={15} color={t.colors.accentDeep} />
+                  <RNText style={tx('700', 13, t.colors.accentDeep)}>List another gig</RNText>
+                </Pressable>
+              </>
             )
           ) : tab === 3 ? (
             (saved ?? []).length === 0 ? (

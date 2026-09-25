@@ -4,6 +4,7 @@ import { Screen } from '../components/ui';
 import { useTheme, useThemeControls } from '../providers/ThemeProvider';
 import { useNav, type ScreenName, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
+import { useSwitchMode } from '../lib/useSwitchMode';
 import { useAuth } from '../providers/AuthProvider';
 import { getProfile, listReviewsAbout, type Profile, type Review } from '../data/api';
 import { signedMediaUrl } from '../lib/media';
@@ -64,10 +65,13 @@ export function ProfileScreen() {
   const t = useTheme();
   const { pref, setPref } = useThemeControls();
   const { go, reset } = useNav();
-  const { mode, setMode } = useMode();
+  const { mode } = useMode();
+  // Earn needs a worker profile first; this opens setup when it is missing.
+  const switchMode = useSwitchMode();
 
   const worker = mode === 'worker';
-  const band = t.isDark ? '#062B1E' : '#0B3D2C';
+  // The header band takes the side's colour: deep blue for earning, deep green for posting.
+  const band = worker ? (t.isDark ? '#0C1A4D' : '#1E3A8A') : t.isDark ? '#062B1E' : '#0B3D2C';
 
   // Mode slider: "Post a Request" left, "Find Work" right.
   const slide = useRef(new Animated.Value(worker ? 1 : 0)).current;
@@ -94,7 +98,7 @@ export function ProfileScreen() {
   // Both sides get their own numbers, and the two names say whose money they
   // are. "Your business" meant nothing in particular to either role.
   const statsRow = worker
-    ? { glyph: '◔', label: 'My earnings and jobs', go: 'analytics' as ScreenName }
+    ? { glyph: '◔', label: 'My earnings and gigs', go: 'analytics' as ScreenName }
     : { glyph: '◔', label: 'My spending and requests', go: 'analytics' as ScreenName };
 
   const rows = [
@@ -140,7 +144,7 @@ export function ProfileScreen() {
   const roleLine =
     ratingCount && ratingCount > 0
       ? '★ ' + Number(ratingAvg ?? 0).toFixed(1) + (worker ? ' worker · ' : ' poster · ') + ratingCount +
-        (worker ? (ratingCount === 1 ? ' job done' : ' jobs done') : (ratingCount === 1 ? ' request' : ' requests'))
+        (worker ? (ratingCount === 1 ? ' gig done' : ' gigs done') : (ratingCount === 1 ? ' request' : ' requests'))
       : worker
         ? 'New worker · no reviews yet'
         : 'New poster · no reviews yet';
@@ -172,6 +176,8 @@ export function ProfileScreen() {
                 <RNText style={tx('800', 23, '#FFFFFF')}>{initial}</RNText>
               )}
             </View>
+            {/* You have the app open, so you're active -- shown the way others see it. */}
+            <View style={{ position: 'absolute', left: 50, top: 48, width: 15, height: 15, borderRadius: 999, backgroundColor: '#22C55E', borderWidth: 2.5, borderColor: band }} />
             <View>
               <RNText style={tx('800', 21, '#FFFFFF', { letterSpacing: -0.42 })} numberOfLines={1}>
                 {displayName}
@@ -179,6 +185,7 @@ export function ProfileScreen() {
               <RNText style={tx('400', 13, 'rgba(255,255,255,0.78)', { marginTop: 4 })}>
                 {roleLine}
               </RNText>
+              <RNText style={tx('600', 12, '#86EFAC', { marginTop: 4 })}>● Active now</RNText>
             </View>
           </View>
         </View>
@@ -210,7 +217,7 @@ export function ProfileScreen() {
             {(['poster', 'worker'] as const).map((m) => {
               const on = mode === m;
               return (
-                <Pressable key={m} onPress={() => setMode(m)} style={{ flex: 1, paddingVertical: 11 }}>
+                <Pressable key={m} onPress={() => void switchMode(m)} style={{ flex: 1, paddingVertical: 11 }}>
                   <RNText
                     style={tx('700', 14, on ? t.colors.ink : t.colors.muted, { textAlign: 'center' })}
                   >
@@ -305,7 +312,7 @@ export function ProfileScreen() {
           {reviews.length === 0 && (
             <RNText style={tx('400', 13, t.colors.muted, { marginTop: 12, lineHeight: 19.5 })}>
               {worker
-                ? 'Finish a job and the poster’s review shows up here.'
+                ? 'Finish a gig and the poster’s review shows up here.'
                 : 'Post a request and the worker’s review shows up here.'}
             </RNText>
           )}

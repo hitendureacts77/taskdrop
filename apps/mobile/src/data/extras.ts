@@ -59,6 +59,47 @@ export async function countUnreadNotifications(): Promise<number> {
   return count ?? 0;
 }
 
+/**
+ * Which side a notification belongs to: 'poster' if it is about a task this
+ * person posted, 'worker' if about one they quoted on or are doing, 'both'
+ * when it has no task (support replies, referrals).
+ */
+export type NotificationSide = 'poster' | 'worker' | 'both';
+
+export async function notificationSides(rows: Notification[]): Promise<Map<string, NotificationSide>> {
+  const uid = await myId();
+  const out = new Map<string, NotificationSide>();
+  const taskIds = [...new Set(rows.map((r) => r.task_id).filter((x): x is string => Boolean(x)))];
+  const owner = new Map<string, string>();
+  if (taskIds.length) {
+    const { data } = await supabase.from('tasks').select('id, poster_id').in('id', taskIds);
+    for (const t of data ?? []) owner.set(t.id, t.poster_id);
+  }
+  for (const r of rows) {
+    if (!r.task_id) out.set(r.id, 'both');
+    else out.set(r.id, owner.get(r.task_id) === uid ? 'poster' : 'worker');
+  }
+  return out;
+}
+
+/** Unread notifications for one side (plus those that belong to both). */
+export async function countUnreadFor(side: 'poster' | 'worker'): Promise<number> {
+  const uid = await myId();
+  if (!uid) return 0;
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', uid)
+    .is('read_at', null)
+    .limit(200);
+  if (error || !data) return 0;
+  const sides = await notificationSides(data);
+  return data.filter((n) => {
+    const s = sides.get(n.id);
+    return s === side || s === 'both';
+  }).length;
+}
+
 export async function markNotificationsRead(ids?: string[]): Promise<void> {
   const uid = await myId();
   if (!uid) return;
@@ -337,15 +378,22 @@ export async function usernameAvailable(username: string): Promise<boolean> {
 
 export type ProfileExtras = {
   username?: string | null;
+  /** The poster-side bio: who they are as someone hiring. */
   bio?: string | null;
+  /** The worker-side bio: what they do and why hire them. */
+  workerBio?: string | null;
   languages?: string[];
   intent?: 'post' | 'earn' | 'both' | null;
+  /** Stamp the worker profile as complete. */
+  workerOnboarded?: boolean;
 };
 
 export async function updateProfileExtras(userId: string, edits: ProfileExtras): Promise<Profile> {
   const patch: TablesUpdate<'profiles'> = {};
   if (edits.username !== undefined) patch.username = edits.username ? edits.username.trim().toLowerCase() : null;
   if (edits.bio !== undefined) patch.bio = edits.bio?.trim() || null;
+  if (edits.workerBio !== undefined) patch.worker_bio = edits.workerBio?.trim() || null;
+  if (edits.workerOnboarded) patch.worker_onboarded_at = new Date().toISOString();
   if (edits.languages !== undefined) patch.languages = edits.languages;
   if (edits.intent !== undefined) patch.intent = edits.intent;
   const { data, error } = await supabase.from('profiles').update(patch).eq('id', userId).select();
@@ -392,7 +440,8 @@ export async function listActiveWorkers(limit = 12): Promise<Profile[]> {
     .select('*')
     .gt('last_seen_at', new Date(Date.now() - 30 * 60_000).toISOString())
     .not('onboarded_at', 'is', null)
-    .neq('skills', []);
+    // PostgREST wants the empty array literally: skills=neq.{}
+    .filter('skills', 'neq', '{}');
   if (uid) q = q.neq('id', uid);
   const { data, error } = await q.order('last_seen_at', { ascending: false }).limit(limit);
   if (error) return [];

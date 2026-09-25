@@ -13,7 +13,7 @@ import { listBidsForTask, lockBid, getTask, type Task } from '../data/api';
 import { formatDeadline } from '../components/DateTimeSheet';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
-import { PresenceDot } from '../components/PresenceDot';
+import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 
 type Quote = {
   bidId?: string;
@@ -251,6 +251,7 @@ export function CompareScreen() {
                     }}
                   >
                     <RNText style={tx('400', 14, t.colors.muted)}>☺</RNText>
+                    {row.bidId ? <AvatarPresence lastSeen={row.lastSeen} ring={t.colors.surface} /> : null}
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
@@ -265,7 +266,7 @@ export function CompareScreen() {
                     <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>{row.meta}</RNText>
                     {row.bidId ? (
                       <View style={{ marginTop: 4 }}>
-                        <PresenceDot lastSeen={row.lastSeen} />
+                        <PresenceLabel lastSeen={row.lastSeen} />
                       </View>
                     ) : null}
                   </View>

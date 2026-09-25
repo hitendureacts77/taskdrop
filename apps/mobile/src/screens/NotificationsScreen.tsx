@@ -8,14 +8,18 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { useMode } from '../providers/ModeProvider';
-import { useActions } from '../providers/AppStateProvider';
 import {
   listNotifications,
   markNotificationsRead,
+  notificationSides,
   subscribeToNotifications,
   type Notification,
+  type NotificationSide,
 } from '../data/extras';
-import { getTask } from '../data/api';
+import { attachPosters, getTask, listMyAssignments } from '../data/api';
+import { openRow, workerAssignmentRow } from '../lib/taskRows';
+import { taskToFeedRow } from '../lib/openTask';
+import { useApp } from '../providers/AppStateProvider';
 
 const ICON: Record<string, IconName> = {
   quote: 'tag',
@@ -34,37 +38,53 @@ const ICON: Record<string, IconName> = {
   auto_locked: 'bolt',
 };
 
-// Which side of the marketplace a notification is about, so opening it puts
-// the person in the right mode.
-const POSTER_KINDS = new Set(['quote', 'started', 'submitted', 'auto_locked', 'reopened']);
-const WORKER_KINDS = new Set(['picked', 'funded', 'revision', 'released']);
 
 /**
  * Everything that has happened that needs this person. Rows are written by
  * database triggers (migration 048) when a quote arrives, a task changes
  * state, a message comes in or support replies -- so nothing here is made up
  * on the client.
+ *
+ * Each side sees its own alerts: in Earn, what happened on work you quoted on
+ * or are doing; in Post, what happened on your requests. Tapping one opens
+ * that post.
  */
 export function NotificationsScreen() {
   const t = useTheme();
   const { back, go } = useNav();
   const { userId } = useAuth();
-  const { setMode } = useMode();
-  const { flash } = useActions();
+  const { mode, setMode } = useMode();
+  const { flash, setOpenTask, startedOf } = useApp();
   const [tab, setTab] = useState(0);
-  const [rows, setRows] = useState<Notification[] | null>(null);
+  const [all, setAll] = useState<Notification[] | null>(null);
+  const [sides, setSides] = useState<Map<string, NotificationSide>>(new Map());
+  const [opening, setOpening] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => setRows(await listNotifications(80)), []);
+  const load = useCallback(async () => {
+    const list = await listNotifications(80);
+    setSides(await notificationSides(list));
+    setAll(list);
+  }, []);
 
   useEffect(() => {
-    void load().catch(() => setRows([]));
+    void load().catch(() => setAll([]));
   }, [load]);
 
   useEffect(() => {
     if (!userId) return;
-    return subscribeToNotifications(userId, (n) => setRows((cur) => [n, ...(cur ?? [])]));
+    return subscribeToNotifications(userId, (n) => {
+      void notificationSides([n]).then((m) => setSides((cur) => new Map([...cur, ...m])));
+      setAll((cur) => [n, ...(cur ?? [])]);
+    });
   }, [userId]);
+
+  // Only this side's alerts (and the ones that belong to both).
+  const rows = all === null ? null : all.filter((n) => {
+    const side = sides.get(n.id) ?? 'both';
+    return side === 'both' || side === mode;
+  });
+  const setRows = setAll;
 
   const refresh = async () => {
     setRefreshing(true);
@@ -77,9 +97,11 @@ export function NotificationsScreen() {
 
   const markAll = async () => {
     try {
-      await markNotificationsRead();
+      // This side only: the other side's unread alerts stay unread.
+      const ids = unread.map((r) => r.id);
+      await markNotificationsRead(ids);
       const now = new Date().toISOString();
-      setRows((cur) => (cur ?? []).map((r) => ({ ...r, read_at: r.read_at ?? now })));
+      setRows((cur) => (cur ?? []).map((r) => (ids.includes(r.id) ? { ...r, read_at: r.read_at ?? now } : r)));
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not mark them read');
     }
@@ -91,20 +113,28 @@ export function NotificationsScreen() {
       setRows((cur) => (cur ?? []).map((r) => (r.id === n.id ? { ...r, read_at: new Date().toISOString() } : r)));
     }
     if (n.ticket_id) return go('ticket', { ticketId: n.ticket_id });
-    if (!n.task_id) return;
+    if (n.kind === 'referral') return go('wallet');
+    if (!n.task_id || !userId) return;
     if (n.kind === 'message') return go('chat', { taskId: n.task_id });
-    if (POSTER_KINDS.has(n.kind)) {
-      setMode('poster');
-      return go('taskManage', { taskId: n.task_id });
+    setOpening(n.id);
+    try {
+      const task = await getTask(n.task_id).catch(() => null);
+      if (!task) return flash('That task is no longer available');
+      // Your own request: its page, with quotes, progress and the worker.
+      if (task.poster_id === userId) {
+        setMode('poster');
+        return go('taskManage', { taskId: task.id });
+      }
+      // Work you're doing: straight to where it stands (start, in progress,
+      // waiting on approval...). Otherwise the post itself.
+      setMode('worker');
+      const mine = (await listMyAssignments(userId).catch(() => [])).find((a) => a.task_id === task.id);
+      if (mine) return openRow(workerAssignmentRow(mine), { go, flash, setOpenTask, startedOf });
+      const [withPoster] = await attachPosters([task]);
+      go('taskDetail', { row: taskToFeedRow(withPoster!) });
+    } finally {
+      setOpening(null);
     }
-    if (WORKER_KINDS.has(n.kind)) setMode('worker');
-    const task = await getTask(n.task_id).catch(() => null);
-    if (!task) return flash('That task is no longer available');
-    if (task.poster_id === userId) {
-      setMode('poster');
-      return go('taskManage', { taskId: task.id });
-    }
-    go('myTasks');
   };
 
   return (
@@ -120,6 +150,9 @@ export function NotificationsScreen() {
           ) : undefined
         }
       />
+      <RNText style={tx('500', 12, t.colors.muted, { paddingHorizontal: 20, marginBottom: 6 })}>
+        {mode === 'worker' ? 'Alerts about work you quoted on or are doing' : 'Alerts about the tasks you posted'}
+      </RNText>
       <UnderlineTabs tabs={[`Unread (${unread.length})`, 'All']} active={tab} onPick={setTab} />
       <ScrollView
         style={{ flex: 1 }}
@@ -149,7 +182,7 @@ export function NotificationsScreen() {
                   borderWidth: 1,
                   borderColor: n.read_at ? t.colors.line : t.colors.accentBorder,
                   backgroundColor: n.read_at ? t.colors.surface : t.colors.accentSoft,
-                  opacity: pressed ? 0.8 : 1,
+                  opacity: pressed || opening === n.id ? 0.6 : 1,
                 })}
               >
                 <View style={{ width: 34, height: 34, borderRadius: 999, backgroundColor: t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}>

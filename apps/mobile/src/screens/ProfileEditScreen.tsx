@@ -9,6 +9,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
+import { useMode } from '../providers/ModeProvider';
 import { getProfile, listReviewsAbout, updateProfile, type Profile } from '../data/api';
 import { updateProfileExtras, verificationState } from '../data/extras';
 import { PresenceDot } from '../components/PresenceDot';
@@ -36,6 +37,9 @@ export function ProfileEditScreen() {
   const { back, go } = useNav();
   const { flash, celebrate } = useActions();
   const { userId } = useAuth();
+  // One account, two profiles: this screen edits the side you're on.
+  const { mode } = useMode();
+  const worker = mode === 'worker';
   const [tab, setTab] = useState(0);
   const [p, setP] = useState<Profile | null>(null);
   const [bio, setBio] = useState('');
@@ -58,11 +62,11 @@ export function ProfileEditScreen() {
       const [profile, v, r] = await Promise.all([
         getProfile(userId),
         verificationState(),
-        listReviewsAbout(userId, 'worker').catch(() => []),
+        listReviewsAbout(userId, worker ? 'worker' : 'poster').catch(() => []),
       ]);
       if (!alive || !profile) return;
       setP(profile);
-      setBio(profile.bio ?? '');
+      setBio((worker ? profile.worker_bio : profile.bio) ?? '');
       setSkills(profile.skills ?? []);
       setLangs(profile.languages ?? []);
       setPlace(profile.loc_label ? { label: profile.loc_label, lat: profile.loc_lat, lng: profile.loc_lng } : null);
@@ -77,13 +81,15 @@ export function ProfileEditScreen() {
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [userId, worker]);
 
   const draft: Profile | null = p
-    ? { ...p, bio, skills, languages: langs, loc_label: place?.label ?? null }
+    ? { ...p, bio, worker_bio: bio, skills, languages: langs, loc_label: place?.label ?? null }
     : null;
-  const strength = profileStrength(draft, verify, reviews);
+  const strength = profileStrength(draft, verify, reviews, worker ? 'worker' : 'poster');
   const level = levelFor(p?.worker_rating_count ?? 0, Number(p?.worker_rating_avg ?? 0));
+  // Posters have no Skills tab: their second tab is Status.
+  const view = worker ? tab : tab === 1 ? 2 : 0;
   const words = bio.trim().split(/\s+/).filter(Boolean).length;
 
   const choosePhoto = async () => {
@@ -109,12 +115,12 @@ export function ProfileEditScreen() {
     setSaving(true);
     try {
       await updateProfile(userId, {
-        skills,
+        ...(worker ? { skills } : {}),
         locLabel: place?.label ?? null,
         locLat: place?.lat ?? null,
         locLng: place?.lng ?? null,
       });
-      const next = await updateProfileExtras(userId, { bio, languages: langs });
+      const next = await updateProfileExtras(userId, worker ? { workerBio: bio, languages: langs } : { bio, languages: langs });
       setP(next);
       celebrate('Profile saved');
     } catch (e) {
@@ -137,10 +143,10 @@ export function ProfileEditScreen() {
   return (
     <Screen padded={false}>
       <TopBar
-        title="My profile"
+        title={worker ? 'My worker profile' : 'My poster profile'}
         onBack={back}
         right={
-          <Pressable onPress={() => go('publicProfile', { userId })} hitSlop={8} accessibilityRole="button">
+          <Pressable onPress={() => go('publicProfile', { userId, role: worker ? 'worker' : 'poster' })} hitSlop={8} accessibilityRole="button">
             <RNText style={tx('700', 13, t.colors.accentDeep)}>Preview</RNText>
           </Pressable>
         }
@@ -208,21 +214,29 @@ export function ProfileEditScreen() {
         </View>
 
         <View style={{ marginTop: 16 }}>
-          <UnderlineTabs tabs={['About', 'Expertise', 'Status']} active={tab} onPick={setTab} />
+          <UnderlineTabs tabs={worker ? ['About', 'Skills', 'Status'] : ['About', 'Status']} active={tab} onPick={setTab} />
         </View>
 
         <View style={{ paddingHorizontal: 20 }}>
-          {tab === 0 ? (
+          {view === 0 ? (
             <>
               <Field
-                label="Bio"
+                label={worker ? 'About your work' : 'About you'}
                 value={bio}
                 onChangeText={setBio}
                 multiline
                 maxLength={500}
-                placeholder="Who you are, what you’re good at, and what people can count on you for"
+                placeholder={
+                  worker
+                    ? 'What you do, your experience, and why posters can count on you'
+                    : 'Who you are and the kind of tasks you usually post'
+                }
                 style={{ marginTop: 16 }}
-                hint={`${bio.length}/500 characters · ${words} words${words < 50 ? ' (50+ recommended)' : ''}`}
+                hint={
+                  worker
+                    ? `${bio.length}/500 characters · ${words} words${words < 50 ? ' (50+ recommended)' : ''} · shown to posters`
+                    : `${bio.length}/500 characters · shown to workers who quote on your tasks`
+                }
               />
               <RNText style={tx('600', 11, t.colors.accentDeep, { letterSpacing: 1.3, marginTop: 18 })}>LOCATION</RNText>
               <Pressable
@@ -246,7 +260,7 @@ export function ProfileEditScreen() {
             </>
           ) : null}
 
-          {tab === 1 ? (
+          {view === 1 ? (
             <>
               <RNText style={tx('400', 13, t.colors.muted, { marginTop: 16, lineHeight: 19 })}>
                 Pick up to 8. We use these to recommend tasks to you and to show you on the explore page.
@@ -284,7 +298,7 @@ export function ProfileEditScreen() {
             </>
           ) : null}
 
-          {tab === 2 ? (
+          {view === 2 ? (
             <View style={card}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>Your status</RNText>
@@ -303,7 +317,7 @@ export function ProfileEditScreen() {
             </View>
           ) : null}
 
-          {tab !== 2 ? <PrimaryButton label="Save profile" onPress={() => void save()} busy={saving} style={{ marginTop: 20 }} /> : null}
+          {view !== 2 ? <PrimaryButton label="Save profile" onPress={() => void save()} busy={saving} style={{ marginTop: 20 }} /> : null}
         </View>
       </ScrollView>
       <LocationSheet

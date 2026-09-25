@@ -52,6 +52,8 @@ import { DisputesScreen } from '../screens/DisputesScreen';
 import { ProfileEditScreen } from '../screens/ProfileEditScreen';
 import { PublicProfileScreen } from '../screens/PublicProfileScreen';
 import { SavedScreen } from '../screens/SavedScreen';
+import { WorkerSetupScreen } from '../screens/WorkerSetupScreen';
+import { ListingEditScreen } from '../screens/ListingEditScreen';
 
 // Screens that show the bottom tab bar (the main app tabs).
 // search and orders are no longer tabs, but they keep the bar when reached.
@@ -103,6 +105,8 @@ const REGISTRY: Partial<Record<ScreenName, React.ComponentType>> = {
   profileEdit: ProfileEditScreen,
   publicProfile: PublicProfileScreen,
   saved: SavedScreen,
+  workerSetup: WorkerSetupScreen,
+  listing: ListingEditScreen,
 };
 
 export function ScreenHost() {

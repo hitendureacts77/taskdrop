@@ -9,8 +9,8 @@ import {
   PlusJakartaSans_700Bold,
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { ThemeProvider } from './src/providers/ThemeProvider';
-import { ModeProvider } from './src/providers/ModeProvider';
+import { RoleTheme, ThemeProvider } from './src/providers/ThemeProvider';
+import { ModeProvider, useMode } from './src/providers/ModeProvider';
 import { AppStateProvider } from './src/providers/AppStateProvider';
 import { AuthProvider, useAuth } from './src/providers/AuthProvider';
 import { NavProvider } from './src/providers/NavProvider';
@@ -24,8 +24,12 @@ import { PresenceBeat } from './src/components/PresenceBeat';
 /** Starts on the feed when a session is restored, otherwise at the splash. */
 function Routes() {
   const { ready, session, postAuthRoute } = useAuth();
+  const { mode } = useMode();
   if (!ready) return <View style={{ flex: 1, backgroundColor: '#0F1012' }} />;
   return (
+    // Signed in and earning: the whole app turns royal blue. Sign-up and the
+    // welcome screens keep the brand green.
+    <RoleTheme worker={Boolean(session) && mode === 'worker'}>
     <NavProvider initial={postAuthRoute ?? (session ? 'home' : 'splash')}>
       <StatusBar style="auto" />
       <PushBridge />
@@ -38,6 +42,7 @@ function Routes() {
         </View>
       </WebShell>
     </NavProvider>
+    </RoleTheme>
   );
 }
 

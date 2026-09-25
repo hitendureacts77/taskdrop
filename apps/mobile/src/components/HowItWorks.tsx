@@ -16,7 +16,7 @@ const HIRE: Step[] = [
 ];
 
 const EARN: Step[] = [
-  { scene: 'find', title: 'Find a job', body: 'Matches for your skills, jobs near your area, and remote work, all on your home.' },
+  { scene: 'find', title: 'Find a gig', body: 'Matches for your skills, gigs near your area, and remote work, all on your home.' },
   { scene: 'quote', title: 'Send your quote', body: 'Your price and why you. You can edit it any time until the poster accepts.' },
   { scene: 'work', title: 'Do the work', body: 'The money is already in escrow before you start, so you know it is there.' },
   { scene: 'paid', title: 'Get paid', body: 'When the poster approves, it clears to your wallet. Withdraw to UPI or bank.' },
