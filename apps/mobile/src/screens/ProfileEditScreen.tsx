@@ -10,7 +10,8 @@ import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { getProfile, listReviewsAbout, updateProfile, type Profile } from '../data/api';
-import { setLive, updateProfileExtras, verificationState } from '../data/extras';
+import { updateProfileExtras, verificationState } from '../data/extras';
+import { PresenceDot } from '../components/PresenceDot';
 import { pickMedia, signedMediaUrl, uploadMedia } from '../lib/media';
 import { levelFor, profileStrength } from '../lib/levels';
 
@@ -24,7 +25,6 @@ export const LANGUAGES = [
   'English', 'Hindi', 'Telugu', 'Tamil', 'Kannada', 'Malayalam', 'Marathi', 'Bengali', 'Gujarati', 'Punjabi', 'Urdu', 'Odia',
 ];
 
-const LIVE_OPTIONS = [30, 60, 120];
 
 /**
  * My profile: the parts other people read, with a strength meter that says
@@ -49,7 +49,7 @@ export function ProfileEditScreen() {
   const [saving, setSaving] = useState(false);
   const [verify, setVerify] = useState({ phone: false, email: false });
   const [reviews, setReviews] = useState(0);
-  const [liveUntil, setLiveUntil] = useState<string | null>(null);
+  const [lastSeen, setLastSeen] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -68,7 +68,7 @@ export function ProfileEditScreen() {
       setPlace(profile.loc_label ? { label: profile.loc_label, lat: profile.loc_lat, lng: profile.loc_lng } : null);
       setVerify(v);
       setReviews(r.length);
-      setLiveUntil(profile.live_until);
+      setLastSeen(profile.last_seen_at);
       if (profile.avatar_url) {
         const url = await signedMediaUrl(profile.avatar_url);
         if (alive) setAvatar(url);
@@ -85,7 +85,6 @@ export function ProfileEditScreen() {
   const strength = profileStrength(draft, verify, reviews);
   const level = levelFor(p?.worker_rating_count ?? 0, Number(p?.worker_rating_avg ?? 0));
   const words = bio.trim().split(/\s+/).filter(Boolean).length;
-  const live = liveUntil && new Date(liveUntil).getTime() > Date.now();
 
   const choosePhoto = async () => {
     if (!userId || photoBusy) return;
@@ -125,16 +124,6 @@ export function ProfileEditScreen() {
     }
   };
 
-  const goLive = async (minutes: number) => {
-    if (!userId) return;
-    try {
-      const until = await setLive(userId, minutes);
-      setLiveUntil(until);
-      flash(minutes ? `You’re live for ${minutes >= 60 ? minutes / 60 + ' h' : minutes + ' min'}` : 'You’re offline');
-    } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not update that');
-    }
-  };
 
   const toggle = (list: string[], set: (v: string[]) => void, value: string, max: number) => {
     if (list.includes(value)) set(list.filter((x) => x !== value));
@@ -219,7 +208,7 @@ export function ProfileEditScreen() {
         </View>
 
         <View style={{ marginTop: 16 }}>
-          <UnderlineTabs tabs={['About', 'Expertise', 'Availability']} active={tab} onPick={setTab} />
+          <UnderlineTabs tabs={['About', 'Expertise', 'Status']} active={tab} onPick={setTab} />
         </View>
 
         <View style={{ paddingHorizontal: 20 }}>
@@ -298,21 +287,19 @@ export function ProfileEditScreen() {
           {tab === 2 ? (
             <View style={card}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Icon name="live" size={18} color={live ? t.colors.signal : t.colors.muted} />
-                <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>{live ? 'You’re available now' : 'Available now'}</RNText>
-                {live ? <Badge label="On" tone="signal" /> : null}
+                <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>Your status</RNText>
+                <PresenceDot lastSeen={new Date().toISOString()} />
               </View>
               <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6, lineHeight: 18 })}>
-                {live
-                  ? `Posters see you as available for instant tasks until ${new Date(liveUntil!).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}.`
-                  : 'Show posters you are free to take a task right now.'}
+                Automatic, like a chat app. While you have TaskDrop open, posters see a green dot and
+                “Active now” next to your name. When you close it, they see how long you’ve been away —
+                “Away · 20 min”. Nothing to switch on or off.
               </RNText>
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-                {LIVE_OPTIONS.map((m) => (
-                  <Pill key={m} label={m >= 60 ? `${m / 60} hour${m > 60 ? 's' : ''}` : `${m} min`} onPress={() => void goLive(m)} />
-                ))}
-                {live ? <Pill label="Go offline" onPress={() => void goLive(0)} /> : null}
-              </View>
+              {lastSeen ? (
+                <RNText style={tx('400', 11, t.colors.muted, { marginTop: 10 })}>
+                  Before this visit you were last active {new Date(lastSeen).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}.
+                </RNText>
+              ) : null}
             </View>
           ) : null}
 

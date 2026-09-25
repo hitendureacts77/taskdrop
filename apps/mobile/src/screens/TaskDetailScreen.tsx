@@ -26,6 +26,7 @@ import { FadeIn, tx } from '../components/primitives';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { PersonSheet } from '../components/PersonSheet';
 import { BidSheet } from '../components/BidSheet';
+import { PresenceDot } from '../components/PresenceDot';
 
 /**
  * Task detail — pixel parity with docs/design/_design_markup.html lines
@@ -154,6 +155,7 @@ export function TaskDetailScreen() {
     locLabel: string | null;
     locLat: number | null;
     locLng: number | null;
+    lastSeen: string | null;
   } | null>(null);
   // The task as the database has it. The feed row is a summary — it carries no
   // description and, until now, the fetched task was used only for the poster
@@ -216,6 +218,7 @@ export function TaskDetailScreen() {
           locLabel: stats.profile?.loc_label ?? null,
           locLat: stats.profile?.loc_lat ?? null,
           locLng: stats.profile?.loc_lng ?? null,
+          lastSeen: stats.profile?.last_seen_at ?? null,
         });
       } catch {
         /* leave the design copy in place */
@@ -379,6 +382,11 @@ export function TaskDetailScreen() {
               ) : null}
             </View>
             <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>{displayMeta}</RNText>
+            {other ? (
+              <View style={{ marginTop: 5 }}>
+                <PresenceDot lastSeen={other.lastSeen} />
+              </View>
+            ) : null}
           </View>
           <RNText style={tx('400', 16, t.colors.muted)}>›</RNText>
         </Pressable>

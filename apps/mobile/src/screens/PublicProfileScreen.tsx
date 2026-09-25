@@ -11,6 +11,7 @@ import { getProfile, listReviewsAbout, type Profile, type Review } from '../data
 import { publicProfileStats, verificationState, type PublicStats } from '../data/extras';
 import { signedMediaUrl } from '../lib/media';
 import { levelFor } from '../lib/levels';
+import { presenceOf } from '../lib/presence';
 
 /**
  * Someone's profile as anyone else sees it. Opened on yourself, it is the
@@ -73,8 +74,7 @@ export function PublicProfileScreen() {
 
   const level = levelFor(stats?.jobsDone ?? 0, Number(p.worker_rating_avg ?? 0));
   const joined = new Date(p.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-  const activeRecently = p.last_seen_at && Date.now() - new Date(p.last_seen_at).getTime() < 15 * 60000;
-  const live = p.live_until && new Date(p.live_until).getTime() > Date.now();
+  const presence = presenceOf(p.last_seen_at);
 
   return (
     <Screen padded={false}>
@@ -112,13 +112,25 @@ export function PublicProfileScreen() {
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                 {verified && (verified.phone || verified.email) ? <Badge label="Verified" /> : null}
                 <Badge label={`Lvl ${level.index} · ${level.name}`} tone="gold" />
-                {live ? <Badge label="Live now" tone="signal" /> : null}
               </View>
             </View>
           </View>
           {p.bio ? <RNText style={tx('400', 13, 'rgba(255,255,255,0.88)', { marginTop: 14, lineHeight: 19 })}>{p.bio}</RNText> : null}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 14 }}>
-            <Meta icon="clock" text={activeRecently ? 'Active just now' : p.last_seen_at ? `Active ${timeAgo(p.last_seen_at)}` : 'New here'} />
+            {/* Like a chat app: a green dot while they have TaskDrop open. */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 999,
+                  backgroundColor: self || presence.online ? '#22C55E' : 'transparent',
+                  borderWidth: self || presence.online ? 0 : 1.5,
+                  borderColor: 'rgba(255,255,255,0.7)',
+                }}
+              />
+              <RNText style={tx('600', 12, 'rgba(255,255,255,0.88)')}>{self ? 'Active now' : presence.label}</RNText>
+            </View>
             <Meta icon="list" text={`Joined ${joined}`} />
             {p.loc_label ? <Meta icon="pin" text={p.loc_label.split(',').slice(-2).join(',').trim()} /> : null}
           </View>

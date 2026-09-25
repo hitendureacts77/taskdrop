@@ -13,6 +13,7 @@ import { listBidsForTask, lockBid, getTask, type Task } from '../data/api';
 import { formatDeadline } from '../components/DateTimeSheet';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
+import { PresenceDot } from '../components/PresenceDot';
 
 type Quote = {
   bidId?: string;
@@ -22,6 +23,7 @@ type Quote = {
   meta: string;
   priceMinor: number;
   eta: string;
+  lastSeen?: string | null;
 };
 
 /** "no jobs yet" / "1 job" / "12 jobs" - never "1 jobs". */
@@ -89,6 +91,7 @@ export function CompareScreen() {
             meta: jobsLabel(b.profiles?.worker_rating_count ?? 0),
             priceMinor: b.price_minor,
             eta: `${Math.round(b.time_limit_minutes / 60)} hrs`,
+            lastSeen: b.profiles?.last_seen_at ?? null,
           })),
         );
       })
@@ -260,6 +263,11 @@ export function CompareScreen() {
                       )}
                     </View>
                     <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>{row.meta}</RNText>
+                    {row.bidId ? (
+                      <View style={{ marginTop: 4 }}>
+                        <PresenceDot lastSeen={row.lastSeen} />
+                      </View>
+                    ) : null}
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <RNText style={tx('800', 17, t.colors.ink)}>{formatINR(row.priceMinor)}</RNText>

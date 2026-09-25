@@ -10,7 +10,6 @@ import {
   aiCreditsToday,
   countUnreadNotifications,
   subscribeToNotifications,
-  touchPresence,
 } from '../data/extras';
 import { signedMediaUrl } from '../lib/media';
 import { Icon, type IconName } from './Icon';
@@ -63,7 +62,6 @@ export function AppHeader() {
   useEffect(() => {
     if (!userId) return;
     let alive = true;
-    void touchPresence(userId);
     getProfile(userId)
       .then(async (p) => {
         if (!alive || !p) return;

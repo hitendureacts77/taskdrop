@@ -2,7 +2,7 @@ import { View, Text as RNText } from 'react-native';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 import { useTheme } from '../providers/ThemeProvider';
 import type { Theme } from '../theme';
-import { FadeIn, tx } from './primitives';
+import { tx } from './primitives';
 
 type Scene = 'describe' | 'quotes' | 'escrow' | 'done' | 'find' | 'quote' | 'work' | 'paid';
 
@@ -37,7 +37,7 @@ export function HowItWorks({ side = 'hire' }: { side?: 'hire' | 'earn' }) {
       {steps.map((s, i) => {
         const flip = i % 2 === 1;
         return (
-          <FadeIn key={s.scene} duration={380} delay={i * 90} translateY={10}>
+          <View key={s.scene}>
             <View style={{ flexDirection: flip ? 'row-reverse' : 'row', alignItems: 'center', gap: 14 }}>
               <View
                 style={{
@@ -74,7 +74,7 @@ export function HowItWorks({ side = 'hire' }: { side?: 'hire' | 'earn' }) {
               </View>
             </View>
             {i < steps.length - 1 ? <Connector flip={flip} color={tone} /> : null}
-          </FadeIn>
+          </View>
         );
       })}
     </View>

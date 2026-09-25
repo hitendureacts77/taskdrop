@@ -11,16 +11,14 @@ import { useAuth } from '../providers/AuthProvider';
 import { useMode } from '../providers/ModeProvider';
 import { getProfile, updateProfile, type Profile } from '../data/api';
 import {
-  aiCreditsToday,
-  platformFees,
   setPassword,
   updateProfileExtras,
   usernameAvailable,
   verificationState,
-  type Fees,
 } from '../data/extras';
 
-const TABS = ['You', 'Sign-in', 'Fees', 'App'];
+// Fees live on their own page (Profile → How fees work), not in settings.
+const TABS = ['You', 'Sign-in', 'App'];
 
 /**
  * Account & settings: the handle and name people see, the password that makes
@@ -44,8 +42,6 @@ export function AccountScreen() {
   const [pw2, setPw2] = useState('');
   const [savingPw, setSavingPw] = useState(false);
   const [verify, setVerify] = useState<{ phone: boolean; email: boolean; google: boolean } | null>(null);
-  const [fees, setFees] = useState<Fees | null>(null);
-  const [ai, setAi] = useState<{ used: number; limit: number } | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -55,8 +51,6 @@ export function AccountScreen() {
       setUsername(p?.username ?? '');
     });
     void verificationState().then(setVerify);
-    void platformFees().then(setFees);
-    void aiCreditsToday().then(setAi);
   }, [userId]);
 
   // Check the handle as it is typed, debounced.
@@ -106,7 +100,6 @@ export function AccountScreen() {
   };
 
   const card = { backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, padding: 15, marginTop: 14 } as const;
-  const pct = (n: number) => `${Math.round(n * 1000) / 10}%`;
 
   return (
     <Screen padded={false}>
@@ -202,56 +195,6 @@ export function AccountScreen() {
         ) : null}
 
         {tab === 2 ? (
-          <>
-            <View style={card}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>Your fees</RNText>
-              </View>
-              <View style={{ flexDirection: 'row', marginTop: 14 }}>
-                {[
-                  ['Worker commission', fees ? pct(fees.commission) : '–'],
-                  ['Poster service fee', fees ? pct(fees.posterFee) : '–'],
-                  ['AI credits / day', fees ? String(fees.aiDaily) : '–'],
-                ].map(([k, v]) => (
-                  <View key={k} style={{ flex: 1 }}>
-                    <RNText style={tx('400', 11, t.colors.muted)}>{k}</RNText>
-                    <RNText style={tx('800', 16, t.colors.ink, { marginTop: 4 })}>{v}</RNText>
-                  </View>
-                ))}
-              </View>
-              <Pressable onPress={() => go('pricing')} style={{ marginTop: 14 }} accessibilityRole="button">
-                <RNText style={tx('700', 13, t.colors.accentDeep)}>How fees work ›</RNText>
-              </Pressable>
-            </View>
-            <View style={{ ...card, borderColor: t.colors.ai }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Icon name="sparkle" size={16} color={t.colors.ai} />
-                <RNText style={tx('800', 15, t.colors.ink)}>AI credits</RNText>
-              </View>
-              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
-                Each AI question set or brief uses one credit. Credits reset at midnight. When they run out, the quick
-                writer still drafts your post.
-              </RNText>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-                <RNText style={tx('700', 13, t.colors.ink, { flex: 1 })}>Daily credits</RNText>
-                <RNText style={tx('800', 13, t.colors.ink)}>
-                  {ai ? `${Math.max(0, ai.limit - ai.used)} / ${ai.limit}` : '–'}
-                </RNText>
-              </View>
-              <View style={{ height: 6, borderRadius: 999, backgroundColor: t.colors.line, marginTop: 8, overflow: 'hidden' }}>
-                <View
-                  style={{
-                    height: 6,
-                    backgroundColor: t.colors.ai,
-                    width: ai ? `${Math.max(0, Math.min(100, ((ai.limit - ai.used) / ai.limit) * 100))}%` : '0%',
-                  }}
-                />
-              </View>
-            </View>
-          </>
-        ) : null}
-
-        {tab === 3 ? (
           <>
             <View style={card}>
               <RNText style={tx('800', 15, t.colors.ink)}>Theme</RNText>

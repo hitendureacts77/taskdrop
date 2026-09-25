@@ -21,7 +21,6 @@ import {
   remoteTasks,
   tasksNear,
   urgentTasks,
-  setLive,
   setSaved,
   trendingCategories,
   type TrendingCategory,
@@ -30,13 +29,13 @@ import { TEMPLATES } from '../lib/taskBrief';
 import { levelFor } from '../lib/levels';
 import { useVoiceInput } from '../lib/speech';
 import { taskToFeedRow } from '../lib/openTask';
-import { SearchBox } from '../screens/ExploreScreen';
 import { statusBadge } from '../screens/MyTasksScreen';
 import { Icon } from './Icon';
-import { Badge, SectionTitle, Shimmer, rupees, timeLeft } from './kit';
+import { Badge, BottomSheet, SectionTitle, Shimmer, rupees, timeLeft } from './kit';
 import { WorkCard, categoryIcon } from './WorkCard';
 import { BidSheet } from './BidSheet';
 import { LiveWorkers } from './LiveWorkers';
+import { HowItWorks } from './HowItWorks';
 import { LocationSheet, type PickedPlace } from './LocationSheet';
 import { Pressy, tx } from './primitives';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
@@ -64,6 +63,7 @@ function PostTop() {
   const [active, setActive] = useState<Task[] | null>(null);
   const [trending, setTrending] = useState<TrendingCategory[]>([]);
   const [focused, setFocused] = useState(false);
+  const [howOpen, setHowOpen] = useState(false);
 
   const voice = useVoiceInput((text) => setPrompt((cur) => (cur ? cur + ' ' + text : text)), flash);
 
@@ -217,6 +217,36 @@ function PostTop() {
           </View>
         </View>
       </View>
+
+      <Pressable
+        onPress={() => setHowOpen(true)}
+        accessibilityRole="button"
+        style={({ pressed }) => ({
+          marginTop: 12,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+          backgroundColor: t.colors.surface,
+          borderWidth: 1,
+          borderColor: t.colors.line,
+          borderRadius: 14,
+          paddingVertical: 11,
+          paddingHorizontal: 14,
+          opacity: pressed ? 0.8 : 1,
+        })}
+      >
+        <View style={{ width: 30, height: 30, borderRadius: 999, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="help" size={16} color={t.colors.accentDeep} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <RNText style={tx('700', 13, t.colors.ink)}>How TaskDrop works</RNText>
+          <RNText style={tx('400', 11, t.colors.muted, { marginTop: 1 })}>Post, get quotes, pay safely, approve — in pictures</RNText>
+        </View>
+        <Icon name="chevronRight" size={16} color={t.colors.muted} />
+      </Pressable>
+      <BottomSheet visible={howOpen} onClose={() => setHowOpen(false)} title="How TaskDrop works" subtitle="Hiring, step by step">
+        <HowItWorks side="hire" />
+      </BottomSheet>
 
       {/* What they already have going */}
       {active && active.length > 0 ? (
@@ -389,13 +419,11 @@ const RADII = [3, 10, 25, 50];
 function EarnTop() {
   const t = useTheme();
   const { go, screen } = useNav();
-  const { flash, celebrate } = useActions();
+  const { flash } = useActions();
   const { userId } = useAuth();
-  const [q, setQ] = useState('');
   const [stats, setStats] = useState<MyStats | null>(null);
   const [rating, setRating] = useState(0);
   const [skills, setSkills] = useState<string[]>([]);
-  const [liveUntil, setLiveUntil] = useState<string | null>(null);
   const [place, setPlace] = useState<{ label: string; lat: number; lng: number } | null>(null);
   const [radius, setRadius] = useState(10);
   const [pickPlace, setPickPlace] = useState(false);
@@ -405,9 +433,9 @@ function EarnTop() {
   const [urgent, setUrgent] = useState<TaskWithPoster[]>([]);
   const [saved, setSavedIds] = useState<Set<string>>(new Set());
   const [bidTask, setBidTask] = useState<Task | null>(null);
-  const [, setTick] = useState(0);
+  const [showAll, setShowAll] = useState<Record<string, boolean>>({});
+  const [howOpen, setHowOpen] = useState(false);
 
-  const voice = useVoiceInput((text) => setQ((cur) => (cur ? cur + ' ' + text : text)), flash);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -419,7 +447,6 @@ function EarnTop() {
     setStats(s);
     setRating(Number(p?.worker_rating_avg ?? 0));
     setSkills(p?.skills ?? []);
-    setLiveUntil(p?.live_until ?? null);
     setSavedIds(ids);
     setPlace((cur) => {
       if (p?.loc_lat == null || p?.loc_lng == null) return null;
@@ -428,9 +455,9 @@ function EarnTop() {
       return { label: p.loc_label ?? 'Your area', lat: p.loc_lat, lng: p.loc_lng };
     });
     const [r, rem, urg] = await Promise.all([
-      recommendedTasks(p?.skills ?? [], 3).catch(() => []),
-      remoteTasks(4).catch(() => []),
-      urgentTasks(3).catch(() => []),
+      recommendedTasks(p?.skills ?? [], 8).catch(() => []),
+      remoteTasks(8).catch(() => []),
+      urgentTasks(6).catch(() => []),
     ]);
     const [rp, remp, urgp] = await Promise.all([attachPosters(r), attachPosters(rem), attachPosters(urg)]);
     setRecs(rp);
@@ -451,7 +478,7 @@ function EarnTop() {
     }
     let alive = true;
     setNear(null);
-    void tasksNear(place, radius, 5)
+    void tasksNear(place, radius, 8)
       .then(async (rows) => {
         const withPeople = await attachPosters(rows);
         if (alive) setNear(withPeople.map((x, i) => ({ ...x, km: rows[i]!.km })));
@@ -462,29 +489,8 @@ function EarnTop() {
     };
   }, [place, radius]);
 
-  // Re-render every 30s while available, so the countdown moves.
-  const live = liveUntil !== null && new Date(liveUntil).getTime() > Date.now();
-  useEffect(() => {
-    if (!live) return;
-    const id = setInterval(() => setTick((n) => n + 1), 30000);
-    return () => clearInterval(id);
-  }, [live]);
-
   const w = stats && stats.role === 'worker' ? stats : null;
   const level = levelFor(w?.jobsDone ?? 0, rating);
-  const minsLeft = live ? Math.max(1, Math.round((new Date(liveUntil!).getTime() - Date.now()) / 60000)) : 0;
-
-  const toggleLive = async () => {
-    if (!userId) return;
-    try {
-      const until = await setLive(userId, live ? 0 : 30);
-      setLiveUntil(until);
-      if (until) celebrate('Posters can see you’re available');
-      else flash('You’re no longer shown as available');
-    } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not update that');
-    }
-  };
 
   const toggleSave = async (id: string) => {
     const on = !saved.has(id);
@@ -507,6 +513,34 @@ function EarnTop() {
       flash(e instanceof Error ? e.message : 'Could not save your area'),
     );
   };
+
+  // Two per section to start with; "Show more" opens the rest in place.
+  const FIRST = 2;
+  const more = (key: string, total: number) =>
+    total > FIRST ? (
+      <Pressable
+        onPress={() => setShowAll((m) => ({ ...m, [key]: !m[key] }))}
+        accessibilityRole="button"
+        style={({ pressed }) => ({
+          marginTop: 10,
+          alignSelf: 'center',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          paddingVertical: 8,
+          paddingHorizontal: 16,
+          borderRadius: 999,
+          borderWidth: 1,
+          borderColor: t.colors.line,
+          opacity: pressed ? 0.7 : 1,
+        })}
+      >
+        <RNText style={tx('700', 12, t.colors.purpleDeep)}>
+          {showAll[key] ? 'Show less' : `Show ${total - FIRST} more`}
+        </RNText>
+      </Pressable>
+    ) : null;
+  const firstFew = <T,>(key: string, rows: T[]) => (showAll[key] ? rows : rows.slice(0, FIRST));
 
   const card = (task: TaskWithPoster, i: number, km?: number) => (
     <WorkCard
@@ -568,42 +602,53 @@ function EarnTop() {
             </View>
           </View>
           <Pressy
-            onPress={() => void toggleLive()}
+            onPress={() => setHowOpen(true)}
             style={{
               marginTop: 14,
               flexDirection: 'row',
               alignItems: 'center',
               gap: 8,
-              backgroundColor: live ? '#FFFFFF' : 'rgba(255,255,255,0.14)',
+              backgroundColor: 'rgba(255,255,255,0.14)',
               borderRadius: 999,
               paddingVertical: 9,
               paddingHorizontal: 14,
               alignSelf: 'flex-start',
             }}
           >
-            <View
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: 999,
-                backgroundColor: live ? t.colors.accent : 'rgba(255,255,255,0.6)',
-              }}
-            />
-            <RNText style={tx('700', 12, live ? t.colors.purpleDeep : '#FFFFFF')}>
-              {live ? `Available now · ${minsLeft} min · tap to stop` : 'Show me as available for 30 min'}
-            </RNText>
+            <Icon name="help" size={14} color="#FFFFFF" />
+            <RNText style={tx('700', 12, '#FFFFFF')}>How TaskDrop works</RNText>
           </Pressy>
         </View>
       </View>
 
-      <SearchBox
-        value={q}
-        onChange={setQ}
-        onSubmit={() => go('explore', { q: q.trim() })}
-        placeholder="Search jobs: data entry, logo, tutoring…"
-        voice={voice}
-        tone="purple"
-      />
+      {/* Search lives on Browse jobs; tapping here goes straight there. */}
+      <Pressable
+        onPress={() => go('explore', { focusSearch: Date.now() })}
+        accessibilityRole="search"
+        accessibilityLabel="Search jobs"
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          marginHorizontal: 20,
+          marginTop: 14,
+          backgroundColor: t.colors.surface,
+          borderWidth: 1,
+          borderColor: pressed ? t.colors.purple : t.colors.line,
+          borderRadius: 999,
+          paddingLeft: 14,
+          paddingRight: 5,
+          paddingVertical: 5,
+        })}
+      >
+        <Icon name="search" size={16} color={t.colors.muted} />
+        <RNText style={tx('400', 14, t.colors.muted, { flex: 1, paddingVertical: 7 })} numberOfLines={1}>
+          Search jobs: data entry, logo, tutoring…
+        </RNText>
+        <View style={{ width: 34, height: 34, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="search" size={16} color="#FFFFFF" strokeWidth={2} />
+        </View>
+      </Pressable>
 
       <View style={{ paddingHorizontal: 20 }}>
         {/* 1. Skills */}
@@ -622,7 +667,10 @@ function EarnTop() {
         ) : recs.length === 0 ? (
           <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10 })}>Nothing open right now. Check back soon.</RNText>
         ) : (
-          recs.map((task, i) => card(task, i))
+          <>
+            {firstFew('recs', recs).map((task, i) => card(task, i))}
+            {more('recs', recs.length)}
+          </>
         )}
 
         {/* 2. Near the area the worker chose */}
@@ -674,7 +722,10 @@ function EarnTop() {
                 </RNText>
               </View>
             ) : (
-              near.map((task, i) => card(task, i, task.km))
+              <>
+                {firstFew('near', near).map((task, i) => card(task, i, task.km))}
+                {more('near', near.length)}
+              </>
             )}
           </>
         ) : (
@@ -711,14 +762,18 @@ function EarnTop() {
         ) : remote.length === 0 ? (
           <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10 })}>No remote jobs open right now.</RNText>
         ) : (
-          remote.map((task, i) => card(task, i))
+          <>
+            {firstFew('remote', remote).map((task, i) => card(task, i))}
+            {more('remote', remote.length)}
+          </>
         )}
 
         {/* 4. Needed today */}
         {urgent.length > 0 ? (
           <>
             <SectionTitle title="Needed today" icon="bolt" badge="Urgent" style={{ marginTop: 26 }} />
-            {urgent.map((task, i) => card(task, i))}
+            {firstFew('urgent', urgent).map((task, i) => card(task, i))}
+            {more('urgent', urgent.length)}
           </>
         ) : null}
 
@@ -730,6 +785,9 @@ function EarnTop() {
           <RNText style={tx('700', 13, t.colors.purpleDeep)}>See every open job ›</RNText>
         </Pressable>
       </View>
+      <BottomSheet visible={howOpen} onClose={() => setHowOpen(false)} title="How TaskDrop works" subtitle="Earning, step by step">
+        <HowItWorks side="earn" />
+      </BottomSheet>
       <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void load()} />
       <LocationSheet
         visible={pickPlace}

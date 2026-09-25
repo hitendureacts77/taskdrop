@@ -32,7 +32,6 @@ function SlideIn({ delay, children }: { delay: number; children: React.ReactNode
 // tasks) or a header icon (messages, notifications) is not repeated here.
 const SHARED_ROWS: { glyph: string; label: string; go: ScreenName }[] = [
   { glyph: '✎', label: 'Edit my profile', go: 'profileEdit' },
-  { glyph: '◉', label: 'Preview as others see me', go: 'publicProfile' },
   { glyph: '⚖', label: 'My disputes', go: 'disputes' },
   { glyph: '₹', label: 'How fees work', go: 'pricing' },
   { glyph: '⚙', label: 'Account & settings', go: 'account' },

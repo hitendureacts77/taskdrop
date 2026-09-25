@@ -5,6 +5,8 @@ import type { TaskWithPoster } from '../data/api';
 import { Icon, type IconName } from './Icon';
 import { Badge, rupees, timeAgo, timeLeft } from './kit';
 import { FadeIn, Pressy, tx } from './primitives';
+import { PresenceDot } from './PresenceDot';
+import { presenceOf } from '../lib/presence';
 
 const CATEGORY_ICON: Record<string, IconName> = {
   'Home Services': 'home',
@@ -59,6 +61,7 @@ export const WorkCard = memo(function WorkCard({
   const rating =
     task.poster && task.poster.poster_rating_count > 0 ? Number(task.poster.poster_rating_avg).toFixed(1) : null;
   const live = task.flag === 'urgent';
+  const presence = presenceOf(task.poster?.last_seen_at);
 
   return (
     <FadeIn duration={360} delay={Math.min(index, 6) * 60} translateY={8} style={{ marginTop: 12 }}>
@@ -95,7 +98,7 @@ export const WorkCard = memo(function WorkCard({
             </RNText>
             <Badge label={task.assignment_mode === 'auto' ? 'Auto' : 'Bid'} tone={task.assignment_mode === 'auto' ? 'accent' : 'neutral'} />
             {task.difficulty ? <Badge label={task.difficulty} tone="blue" /> : null}
-            {live ? <Badge label="Live" tone="signal" /> : null}
+            {live ? <Badge label="Urgent" tone="signal" /> : null}
             <View style={{ flex: 1 }} />
             {onToggleSave ? (
               <Pressable
@@ -140,9 +143,15 @@ export const WorkCard = memo(function WorkCard({
               </RNText>
             ) : null}
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 9 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 9 }}>
+            {/* Whether the poster has TaskDrop open right now, like a chat app. */}
+            <PresenceDot lastSeen={task.poster?.last_seen_at} dotOnly />
             <RNText style={tx('400', 11, t.colors.muted, { flex: 1 })} numberOfLines={1}>
-              by {task.poster?.username ? '@' + task.poster.username : (task.poster?.display_name ?? 'someone')}
+              {task.poster?.username ? '@' + task.poster.username : (task.poster?.display_name ?? 'someone')}
+              {' · '}
+              <RNText style={{ color: presence.online ? '#16A34A' : t.colors.muted, fontWeight: presence.online ? '600' : '400' }}>
+                {presence.label}
+              </RNText>
               {rating ? ` · ★ ${rating}` : ''} · {timeAgo(task.created_at)}
             </RNText>
             <Pressy

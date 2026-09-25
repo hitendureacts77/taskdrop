@@ -19,6 +19,7 @@ import { Overlays } from './src/components/Overlays';
 import { WebShell } from './src/components/WebShell';
 import { PushBridge } from './src/components/PushBridge';
 import { SessionWatch } from './src/components/SessionWatch';
+import { PresenceBeat } from './src/components/PresenceBeat';
 
 /** Starts on the feed when a session is restored, otherwise at the splash. */
 function Routes() {
@@ -29,6 +30,7 @@ function Routes() {
       <StatusBar style="auto" />
       <PushBridge />
       <SessionWatch />
+      <PresenceBeat />
       <WebShell>
         <View style={{ flex: 1 }}>
           <ScreenHost />

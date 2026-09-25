@@ -1,7 +1,7 @@
 import { currentUserId, supabase } from '../lib/supabase';
 import { distanceKm } from '@taskdrop/rules';
 import type { Tables, TablesUpdate } from '@taskdrop/db-types';
-import { forgetProfile, primeProfile, type Task, type Profile } from './api';
+import { primeProfile, type Task, type Profile } from './api';
 
 /**
  * Reads and writes for the second-wave features: notifications, saved tasks,
@@ -365,12 +365,12 @@ export async function updateProfileExtras(userId: string, edits: ProfileExtras):
 let lastPresence = 0;
 
 /**
- * Record that this person is around. Best-effort; never throws. At most once
- * every five minutes -- the header mounts on every tab, and "active just now"
- * does not need a write per screen change.
+ * Record that this person has TaskDrop open. Called about once a minute while
+ * the app is in front (PresenceBeat); anything closer together than 45s is
+ * skipped. Best-effort; never throws.
  */
 export async function touchPresence(userId: string): Promise<void> {
-  if (Date.now() - lastPresence < 5 * 60000) return;
+  if (Date.now() - lastPresence < 45_000) return;
   lastPresence = Date.now();
   try {
     await supabase.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', userId);
@@ -380,30 +380,23 @@ export async function touchPresence(userId: string): Promise<void> {
 }
 
 /**
- * Workers who are live right now (they pressed "Go live" and the window has
- * not run out), soonest-expiring last. Profiles are public, so this is a plain
- * read; the caller is left out so nobody sees themselves.
+ * Workers who have been around lately, most recently active first: the ones
+ * with TaskDrop open now at the top, then those who stepped away within the
+ * last half hour. Only people who offer work (skills set). The caller is left
+ * out so nobody sees themselves.
  */
-export async function listLiveWorkers(limit = 20): Promise<Profile[]> {
+export async function listActiveWorkers(limit = 12): Promise<Profile[]> {
   const uid = await myId();
   let q = supabase
     .from('profiles')
     .select('*')
-    .gt('live_until', new Date().toISOString())
-    .not('onboarded_at', 'is', null);
+    .gt('last_seen_at', new Date(Date.now() - 30 * 60_000).toISOString())
+    .not('onboarded_at', 'is', null)
+    .neq('skills', []);
   if (uid) q = q.neq('id', uid);
-  const { data, error } = await q.order('live_until', { ascending: false }).limit(limit);
+  const { data, error } = await q.order('last_seen_at', { ascending: false }).limit(limit);
   if (error) return [];
   return data ?? [];
-}
-
-/** Go live for `minutes`, or go offline with 0. Returns the new live_until. */
-export async function setLive(userId: string, minutes: number): Promise<string | null> {
-  const until = minutes > 0 ? new Date(Date.now() + minutes * 60000).toISOString() : null;
-  const { error } = await supabase.from('profiles').update({ live_until: until }).eq('id', userId);
-  if (error) throw new Error(error.message);
-  forgetProfile(userId);
-  return until;
 }
 
 // ------------------------------------------------------------------ fees -----

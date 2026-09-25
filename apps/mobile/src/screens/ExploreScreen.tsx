@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text as RNText, ScrollView, TextInput, Pressable, RefreshControl } from 'react-native';
 import { Screen } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
@@ -263,6 +263,7 @@ export function SearchBox({
   submitIcon = 'search',
   tone = 'accent',
   right,
+  inputRef,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -272,6 +273,7 @@ export function SearchBox({
   submitIcon?: 'search' | 'send';
   tone?: 'accent' | 'purple';
   right?: React.ReactNode;
+  inputRef?: React.RefObject<TextInput | null>;
 }) {
   const t = useTheme();
   const color = tone === 'purple' ? t.colors.purpleDeep : t.colors.accent;
@@ -294,6 +296,7 @@ export function SearchBox({
       >
         <Icon name="search" size={16} color={t.colors.muted} />
         <TextInput
+          ref={inputRef}
           value={value}
           onChangeText={onChange}
           onSubmitEditing={onSubmit}
@@ -350,6 +353,29 @@ function FindWork() {
   const [cat, setCat] = useState<string | null>(typeof params.category === 'string' ? params.category : null);
   const [rows, setRows] = useState<TaskWithPoster[] | null>(null);
   const focusTick = useFocusTick();
+  const [allCats, setAllCats] = useState(false);
+  const searchRef = useRef<TextInput>(null);
+
+  // Arriving from the home search bar: start clean (no leftover filters that
+  // would hide every result) and put the cursor in the search box.
+  const focusSearch = params.focusSearch;
+  useEffect(() => {
+    if (!focusSearch) return;
+    setFilter('all');
+    setCat(null);
+    setTab(0);
+    setTimeout(() => searchRef.current?.focus(), 250);
+  }, [focusSearch]);
+  // A search handed over with a query replaces the old one, filters cleared.
+  const handedQ = typeof params.q === 'string' ? params.q : null;
+  useEffect(() => {
+    if (handedQ === null) return;
+    setQ(handedQ);
+    setQuery(handedQ);
+    setFilter('all');
+    setCat(null);
+    setTab(0);
+  }, [handedQ]);
   const [saved, setSavedIds] = useState<Set<string>>(new Set());
   const [me, setMe] = useState<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
   const [bidTask, setBidTask] = useState<Task | null>(null);
@@ -454,6 +480,7 @@ function FindWork() {
           value={q}
           onChange={setQ}
           onSubmit={() => setQuery(q.trim())}
+          inputRef={searchRef}
           placeholder="E.g. data entry, logo design, home tutoring…"
           voice={voice}
           tone="purple"
@@ -473,20 +500,23 @@ function FindWork() {
             />
           ) : (
             <>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }}>
-                <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20 }}>
-                  {FILTERS.map((f) => (
-                    <Pill key={f.key} label={f.label} icon={f.icon} active={filter === f.key} onPress={() => setFilter(f.key)} />
-                  ))}
-                </View>
-              </ScrollView>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20, marginTop: 8 }}>
-                <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20 }}>
-                  {CATEGORIES.map((c) => (
-                    <Pill key={c} label={c} active={cat === c} onPress={() => setCat(cat === c ? null : c)} />
-                  ))}
-                </View>
-              </ScrollView>
+              {/* Chips wrap onto new lines rather than running off the edge:
+                  every filter is visible, with its name, without sideways
+                  scrolling (which a mouse can't do). */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {FILTERS.map((f) => (
+                  <Pill key={f.key} label={f.label} icon={f.icon} active={filter === f.key} onPress={() => setFilter(f.key)} />
+                ))}
+              </View>
+              <RNText style={tx('600', 11, t.colors.muted, { marginTop: 14, letterSpacing: 0.6 })}>CATEGORY</RNText>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                {(allCats ? CATEGORIES : CATEGORIES.slice(0, 6)).map((c) => (
+                  <Pill key={c} label={c} active={cat === c} onPress={() => setCat(cat === c ? null : c)} />
+                ))}
+                {CATEGORIES.length > 6 ? (
+                  <Pill label={allCats ? 'Fewer' : `+${CATEGORIES.length - 6} more`} onPress={() => setAllCats((v) => !v)} />
+                ) : null}
+              </View>
 
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
                 <RNText style={tx('700', 13, t.colors.ink, { flex: 1 })}>
