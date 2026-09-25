@@ -23,6 +23,7 @@ import { taskUrl } from '../lib/links';
 import { type Theme } from '../theme';
 import type { FeedRow } from './HomeScreen';
 import { FadeIn, tx } from '../components/primitives';
+import { TaskDescription } from '../components/TaskDescription';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { PersonSheet } from '../components/PersonSheet';
 import { BidSheet } from '../components/BidSheet';
@@ -398,9 +399,9 @@ export function TaskDetailScreen() {
         </RNText>
         <RNText style={tx('800', 23, t.colors.ink, { letterSpacing: -0.69, marginTop: 9 })}>{detail.title}</RNText>
         {body ? (
-          <RNText style={tx('400', 14, t.colors.text, { lineHeight: 21.7, marginTop: 11 })}>
-            {body}
-          </RNText>
+          <View style={{ marginTop: 14 }}>
+            <TaskDescription text={body} title={detail.title} />
+          </View>
         ) : null}
 
         {/* One attachment, shown properly. This used to be two grey squares

@@ -246,6 +246,9 @@ export function formatAddress(details: AddressDetails, area?: string): string {
   const add = (part: string) => {
     const k = key(part);
     if (!k) return;
+    // A bare map coordinate ("12.9716") is where the pin was before the place
+    // name arrived. It is not an address line.
+    if (/^-?\d{1,3}\.\d{2,}$/.test(part.trim())) return;
     // Already said, or said as part of something longer we already have.
     if (seen.some((s) => s === k || s.includes(k) || k.includes(s))) return;
     seen.push(k);

@@ -9,6 +9,7 @@ import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { placeBid } from '../data/api';
 import { tx } from '../components/primitives';
+import { TaskDescription } from '../components/TaskDescription';
 
 const BY_CHIPS = ['Today, 8:00 PM', 'Tomorrow, 11:00 AM', '12 Sep, 2:00 PM'];
 const STEP = 5000; // ₹50 in paise
@@ -176,7 +177,9 @@ export function DetailSheetScreen() {
           <RNText style={tx('800', 23, t.colors.ink, { letterSpacing: -0.69, marginTop: 16 })}>
             {title}
           </RNText>
-          <RNText style={tx('400', 14, t.colors.text, { lineHeight: 21.7, marginTop: 10 })}>{body}</RNText>
+          <View style={{ marginTop: 12 }}>
+            <TaskDescription text={body} title={title} />
+          </View>
 
           <View
             style={{

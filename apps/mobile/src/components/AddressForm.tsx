@@ -29,7 +29,10 @@ import type { AddressDetails, AddressTag } from '../lib/location';
 
 /** The building-ish head of a resolved address, which is what line 2 wants. */
 function firstPart(area: string): string {
-  return area.split(',')[0]?.trim() ?? '';
+  const head = area.split(',')[0]?.trim() ?? '';
+  // Before the place name arrives the area is just the pin's coordinates;
+  // "12.9716" is not a building.
+  return /^-?\d{1,3}\.\d+$/.test(head) ? '' : head;
 }
 
 const TAGS: { key: AddressTag; label: string }[] = [
@@ -99,8 +102,7 @@ export function AddressForm({
   const line2Touched = useRef(Boolean(initial?.line2));
   useEffect(() => {
     if (line2Touched.current) return;
-    const filled = firstPart(area);
-    if (filled) setLine2(filled);
+    setLine2(firstPart(area));
   }, [area]);
   const [landmark, setLandmark] = useState(initial?.landmark ?? '');
   const [directions, setDirections] = useState(initial?.directions ?? '');

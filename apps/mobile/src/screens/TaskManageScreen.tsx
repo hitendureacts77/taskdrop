@@ -18,6 +18,8 @@ import {
 import { categoryLabel } from '../components/WorkCard';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { FadeIn, tx } from '../components/primitives';
+import { TaskDescription } from '../components/TaskDescription';
+import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
@@ -183,7 +185,13 @@ export function TaskManageScreen() {
         <Badge label={task.assignment_mode === 'auto' ? 'Auto-accept' : 'Bid-based'} tone="neutral" />
       </View>
       <View style={{ marginTop: 10 }}>
-        <UnderlineTabs tabs={['Overview', 'Work']} active={tab} onPick={setTab} />
+        {/* While the task is open the second tab is where quotes land; once
+            someone is hired it is where that worker is. */}
+        <UnderlineTabs
+          tabs={['Overview', task.status === 'OPEN' ? `Worker quotes${bids.length ? ` (${bids.length})` : ''}` : 'Worker']}
+          active={tab}
+          onPick={setTab}
+        />
       </View>
 
       <ScrollView
@@ -198,7 +206,9 @@ export function TaskManageScreen() {
                 <Icon name="list" size={16} color={t.colors.accentDeep} />
                 <RNText style={tx('800', 15, t.colors.ink)}>Task description</RNText>
               </View>
-              <RNText style={tx('400', 13, t.colors.text, { marginTop: 10, lineHeight: 20 })}>{task.description || '—'}</RNText>
+              <View style={{ marginTop: 12 }}>
+                <TaskDescription text={task.description} title={task.title} size="sm" />
+              </View>
               {task.media_path ? (
                 <View style={{ marginTop: 12 }}>
                   <TaskMediaThumb
@@ -318,23 +328,57 @@ export function TaskManageScreen() {
               bids.length === 0 ? (
                 <EmptyState icon="users" title="No quotes yet" body="Workers nearby will see your task. You’ll get a notification when a quote comes in." />
               ) : (
-                bids.slice(0, 5).map((b, i) => (
-                  <FadeIn key={b.id} duration={300} delay={i * 50}>
-                    <View style={card}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <RNText style={tx('700', 14, t.colors.ink, { flex: 1 })}>{b.profiles?.display_name ?? 'Worker'}</RNText>
-                        <RNText style={tx('800', 16, t.colors.accentDeep)}>{rupees(b.price_minor / 100)}</RNText>
-                      </View>
-                      {b.message ? (
-                        <RNText style={tx('400', 12, t.colors.text, { marginTop: 6, lineHeight: 18 })} numberOfLines={4}>{b.message}</RNText>
-                      ) : null}
-                      <RNText style={tx('400', 11, t.colors.muted, { marginTop: 6 })}>
-                        {b.profiles && b.profiles.worker_rating_count > 0 ? `★ ${Number(b.profiles.worker_rating_avg).toFixed(1)} · ` : ''}
-                        {timeAgo(b.created_at)}
-                      </RNText>
-                    </View>
-                  </FadeIn>
-                ))
+                <>
+                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 14, lineHeight: 17 })}>
+                    {bids.length === 1
+                      ? 'One worker has quoted. Accept it now, or wait for more.'
+                      : `${bids.length} workers have quoted. Compare them side by side, then pick one.`}
+                  </RNText>
+                  {bids.map((b, i) => {
+                    const who = b.profiles;
+                    const name = who?.username ? '@' + who.username : (who?.display_name ?? 'Worker');
+                    const diff = b.price_minor - task.benchmark_minor;
+                    return (
+                      <FadeIn key={b.id} duration={300} delay={Math.min(i, 6) * 50}>
+                        <View style={card}>
+                          <Pressable
+                            onPress={() => who && go('publicProfile', { userId: who.id })}
+                            accessibilityRole="button"
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}
+                          >
+                            <View>
+                              <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
+                                <RNText style={tx('800', 15, '#FFFFFF')}>{(who?.display_name || '?').charAt(0).toUpperCase()}</RNText>
+                              </View>
+                              <AvatarPresence lastSeen={who?.last_seen_at} ring={t.colors.surface} />
+                            </View>
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <RNText style={tx('700', 14, t.colors.ink)} numberOfLines={1}>{name}</RNText>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                <RNText style={tx('600', 11, who && who.worker_rating_count > 0 ? t.colors.goldInk : t.colors.muted)}>
+                                  {who && who.worker_rating_count > 0 ? `★ ${Number(who.worker_rating_avg).toFixed(1)} (${who.worker_rating_count})` : 'New worker'}
+                                </RNText>
+                                <PresenceLabel lastSeen={who?.last_seen_at} />
+                              </View>
+                            </View>
+                            <View style={{ alignItems: 'flex-end' }}>
+                              <RNText style={tx('800', 17, t.colors.ink)}>{rupees(b.price_minor / 100)}</RNText>
+                              <RNText style={tx('600', 10, diff > 0 ? t.colors.goldInk : t.colors.accentDeep, { marginTop: 1 })}>
+                                {diff === 0 ? 'Your budget' : diff > 0 ? `${rupees(diff / 100)} over budget` : `${rupees(-diff / 100)} under budget`}
+                              </RNText>
+                            </View>
+                          </Pressable>
+                          {b.message ? (
+                            <View style={{ marginTop: 11, backgroundColor: t.colors.surface2, borderRadius: 10, padding: 11 }}>
+                              <RNText style={tx('400', 13, t.colors.text, { lineHeight: 19 })} numberOfLines={4}>“{b.message}”</RNText>
+                            </View>
+                          ) : null}
+                          <RNText style={tx('400', 11, t.colors.muted, { marginTop: 8 })}>Quoted {timeAgo(b.created_at)}</RNText>
+                        </View>
+                      </FadeIn>
+                    );
+                  })}
+                </>
               )
             ) : !worker ? (
               <EmptyState icon="briefcase" title="No one is on this task" />

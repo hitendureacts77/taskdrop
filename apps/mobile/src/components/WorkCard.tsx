@@ -5,6 +5,7 @@ import type { TaskWithPoster } from '../data/api';
 import { Icon, type IconName } from './Icon';
 import { Badge, rupees, timeAgo, timeLeft } from './kit';
 import { FadeIn, Pressy, tx } from './primitives';
+import { descriptionPreview } from './TaskDescription';
 import { PresenceDot } from './PresenceDot';
 import { presenceOf } from '../lib/presence';
 import { roughPlace } from '../lib/place';
@@ -58,6 +59,7 @@ export const WorkCard = memo(function WorkCard({
   km?: number;
 }) {
   const t = useTheme();
+  const preview = descriptionPreview(task.description, task.title);
   const left = timeLeft(task.due_at);
   const rating =
     task.poster && task.poster.poster_rating_count > 0 ? Number(task.poster.poster_rating_avg).toFixed(1) : null;
@@ -115,9 +117,9 @@ export const WorkCard = memo(function WorkCard({
           <RNText style={tx('700', 15, t.colors.ink, { marginTop: 5 })} numberOfLines={2}>
             {task.title}
           </RNText>
-          {task.description ? (
+          {preview ? (
             <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 17 })} numberOfLines={2}>
-              {task.description.replace(/\n+/g, ' ')}
+              {preview}
             </RNText>
           ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 9 }}>

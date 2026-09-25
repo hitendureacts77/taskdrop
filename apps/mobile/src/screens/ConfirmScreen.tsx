@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable } from 'react-native';
 import { Screen, Text, Card, Row, Button, Divider, formatINR } from '../components/ui';
+import { TaskDescription } from '../components/TaskDescription';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
@@ -157,11 +158,11 @@ export function ConfirmScreen() {
         <Text variant="label" color="muted" style={{ marginBottom: 4 }}>
           WHAT YOU ASKED FOR
         </Text>
-        <Text variant="body">
-          {detail?.task.description?.trim()
-            ? detail.task.description
-            : 'The worker marked this done. Check the work before you release the escrow.'}
-        </Text>
+        {detail?.task.description?.trim() ? (
+          <TaskDescription text={detail.task.description} title={detail.task.title} size="sm" />
+        ) : (
+          <Text variant="body">The worker marked this done. Check the work before you release the escrow.</Text>
+        )}
       </Card>
 
       <Card style={{ marginBottom: t.spacing.lg }}>

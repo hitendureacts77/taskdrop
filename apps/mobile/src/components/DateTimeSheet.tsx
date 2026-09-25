@@ -114,9 +114,12 @@ export function DateTimeSheet({
   initial,
   onCancel,
   onConfirm,
+  quick = true,
 }: {
   visible: boolean;
   initial?: Date;
+  /** Show the one-tap deadlines row. Off where the screen already offers its own shortcuts. */
+  quick?: boolean;
   onCancel: () => void;
   onConfirm: (d: Date) => void;
 }) {
@@ -210,6 +213,13 @@ export function DateTimeSheet({
     setNote(null);
   };
 
+  // Open on whatever deadline the screen is showing right now, not the one it
+  // had when the sheet first mounted.
+  useEffect(() => {
+    if (visible && initial) applyQuick(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
   const presets = useMemo(() => quickDeadlines(new Date()), []);
 
   const chip = (label: string, on: boolean, onPress: () => void, wide = false) => (
@@ -272,6 +282,7 @@ export function DateTimeSheet({
             <RNText style={tx('800', 20, t.colors.ink, { letterSpacing: -0.4 })}>Complete by</RNText>
 
             {/* The deadlines people actually want, one tap away. */}
+            {quick ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 14 }}>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {presets.map((q) =>
@@ -284,13 +295,14 @@ export function DateTimeSheet({
                 )}
               </View>
             </ScrollView>
+            ) : null}
 
             <View
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginTop: 18,
+                marginTop: quick ? 18 : 14,
               }}
             >
               <Pressable

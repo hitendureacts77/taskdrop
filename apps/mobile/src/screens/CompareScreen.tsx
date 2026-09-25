@@ -12,6 +12,7 @@ import { useActions } from '../providers/AppStateProvider';
 import { listBidsForTask, lockBid, getTask, type Task } from '../data/api';
 import { formatDeadline } from '../components/DateTimeSheet';
 import { FadeIn, Pressy, tx } from '../components/primitives';
+import { TaskDescription } from '../components/TaskDescription';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 
@@ -169,9 +170,9 @@ export function CompareScreen() {
         )}
 
         {task?.description ? (
-          <RNText style={tx('400', 14, t.colors.text, { lineHeight: 21.7, marginTop: 10 })}>
-            {task.description}
-          </RNText>
+          <View style={{ marginTop: 12 }}>
+            <TaskDescription text={task.description} title={task.title} />
+          </View>
         ) : null}
 
         {task?.media_path && (

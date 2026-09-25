@@ -7,6 +7,7 @@ import { Badge, BottomSheet, EmptyState, MenuRow, Pill, Shimmer, StatTile, Under
 import { WorkCard, categoryIcon, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
 import { FadeIn, Pressy, tx } from '../components/primitives';
+import { descriptionPreview } from '../components/TaskDescription';
 import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -287,6 +288,7 @@ function PostedCard({
   const t = useTheme();
   const badge = statusBadge(task);
   const left = task.status === 'OPEN' ? timeLeft(task.due_at) : null;
+  const preview = descriptionPreview(task.description, task.title);
   return (
     <FadeIn duration={340} delay={Math.min(index, 6) * 60} translateY={8} style={{ marginTop: 12 }}>
       <Pressy
@@ -309,9 +311,11 @@ function PostedCard({
             </Pressable>
           </View>
           <RNText style={tx('700', 15, t.colors.ink, { marginTop: 5 })} numberOfLines={2}>{task.title}</RNText>
-          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 17 })} numberOfLines={2}>
-            {task.description.replace(/\n+/g, ' ')}
-          </RNText>
+          {preview ? (
+            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 17 })} numberOfLines={2}>
+              {preview}
+            </RNText>
+          ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 9, flexWrap: 'wrap' }}>
             <RNText style={tx('800', 15, t.colors.ink)}>{rupees((task.locked_minor ?? task.benchmark_minor) / 100)}</RNText>
             {left ? <RNText style={tx('600', 11, left === 'overdue' ? t.colors.signal : t.colors.goldInk)}>{left}</RNText> : null}

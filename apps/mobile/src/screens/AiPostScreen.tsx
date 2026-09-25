@@ -9,6 +9,8 @@ import { LocationSheet, type PickedPlace } from '../components/LocationSheet';
 import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
 import { Badge, Field, PrimaryButton, rupees } from '../components/kit';
 import { Pressy, tx } from '../components/primitives';
+import { TaskDescription } from '../components/TaskDescription';
+import { roughPlace } from '../lib/place';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
@@ -601,24 +603,37 @@ export function AiPostScreen() {
           )}
           {chip(customDue && whenKey === 'custom' ? formatDeadline(customDue) : 'Pick a date', whenKey === 'custom', () => setShowDate(true), 'list')}
         </View>
-        <View
-          style={{
+        {/* The deadline itself is the way in to change it. */}
+        <Pressable
+          onPress={() => setShowDate(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`Complete by ${formatDeadline(due)}. Change`}
+          style={({ pressed }) => ({
             marginTop: 18,
             backgroundColor: t.colors.surface,
             borderWidth: 1,
-            borderColor: t.colors.line,
+            borderColor: pressed ? t.colors.accent : t.colors.line,
             borderRadius: 14,
             padding: 14,
-          }}
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+          })}
         >
-          <RNText style={tx('600', 12, t.colors.muted)}>Complete by</RNText>
-          <RNText style={tx('800', 17, t.colors.ink, { marginTop: 4 })}>{formatDeadline(due)}</RNText>
-          {whenKey === 'now' ? (
-            <RNText style={tx('400', 12, t.colors.signalDeep, { marginTop: 6 })}>
-              Marked urgent, so workers nearby see it first.
-            </RNText>
-          ) : null}
-        </View>
+          <View style={{ flex: 1 }}>
+            <RNText style={tx('600', 12, t.colors.muted)}>Complete by</RNText>
+            <RNText style={tx('800', 17, t.colors.ink, { marginTop: 4 })}>{formatDeadline(due)}</RNText>
+            {whenKey === 'now' ? (
+              <RNText style={tx('400', 12, t.colors.signalDeep, { marginTop: 6 })}>
+                Marked urgent, so workers nearby see it first.
+              </RNText>
+            ) : null}
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: t.colors.accentSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6 }}>
+            <Icon name="edit" size={13} color={t.colors.accentDeep} />
+            <RNText style={tx('700', 12, t.colors.accentDeep)}>Change</RNText>
+          </View>
+        </Pressable>
       </>
     );
     footer = <PrimaryButton label="Continue" onPress={() => setPhase('budget')} />;
@@ -806,15 +821,15 @@ export function AiPostScreen() {
       WHEN_OPTIONS.find((o) => o.key === whenKey)?.label ?? formatDeadline(due),
       rupees(budget ?? 0),
       mode === 'auto' ? 'Auto-accept' : 'Bid-based',
-      remote ? 'Remote' : (place?.label.split(',').slice(-2).join(',').trim() ?? 'Location not set'),
+      remote ? 'Remote' : (roughPlace(place?.area || place?.label) ?? 'Location not set'),
     ];
     body = (
       <>
         <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Ready to post?</RNText>
         <View style={{ marginTop: 14, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, padding: 15 }}>
-          <RNText style={tx('800', 17, t.colors.ink)}>{title.trim()}</RNText>
-          <RNText style={tx('400', 13, t.colors.text, { marginTop: 8, lineHeight: 20 })}>{description.trim()}</RNText>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+          <RNText style={tx('800', 18, t.colors.ink, { letterSpacing: -0.3, marginBottom: 12 })}>{title.trim()}</RNText>
+          <TaskDescription text={description} title={title} size="sm" />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: t.colors.line }}>
             {tags.map((x) => (
               <View key={x} style={{ borderWidth: 1, borderColor: t.colors.line, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9 }}>
                 <RNText style={tx('600', 11, t.colors.text)} numberOfLines={1}>{x}</RNText>
@@ -873,7 +888,8 @@ export function AiPostScreen() {
 
       <DateTimeSheet
         visible={showDate}
-        initial={customDue ?? undefined}
+        quick={false}
+        initial={whenKey === 'custom' && customDue ? customDue : due}
         onCancel={() => setShowDate(false)}
         onConfirm={(d) => {
           setCustomDue(d);
