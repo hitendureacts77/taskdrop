@@ -8,7 +8,7 @@ import {
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { listBidsForTask, lockBid, getTask, type Task } from '../data/api';
 import { formatDeadline } from '../components/DateTimeSheet';
 import { FadeIn, Pressy, tx } from '../components/primitives';
@@ -43,7 +43,7 @@ const PILLAR_LABEL: Record<string, string> = {
 export function CompareScreen() {
   const t = useTheme();
   const { params, go, back } = useNav();
-  const { flash } = useApp();
+  const { flash } = useActions();
   const [sortLow, setSortLow] = useState(true);
   const [picked, setPicked] = useState<string | null>(null);
   const [rows, setRows] = useState<Quote[] | null>(null);

@@ -6,7 +6,7 @@ import { Badge, Field, PrimaryButton, TopBar, UnderlineTabs } from '../component
 import { tx } from '../components/primitives';
 import { useTheme, useThemeControls } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { useMode } from '../providers/ModeProvider';
 import { getProfile, updateProfile, type Profile } from '../data/api';
@@ -29,7 +29,7 @@ const TABS = ['You', 'Sign-in', 'Fees', 'App'];
 export function AccountScreen() {
   const t = useTheme();
   const { back, go, params } = useNav();
-  const { flash, celebrate } = useApp();
+  const { flash, celebrate } = useActions();
   const { userId, signOut } = useAuth();
   const { reset } = useNav();
   const { pref, setPref } = useThemeControls();

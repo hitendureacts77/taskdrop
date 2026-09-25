@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, Animated, ScrollView, Image } from 'react-native';
 import { Screen } from '../components/ui';
 import { useTheme, useThemeControls } from '../providers/ThemeProvider';
-import { useNav, type ScreenName } from '../providers/NavProvider';
+import { useNav, type ScreenName, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { getProfile, listReviewsAbout, type Profile, type Review } from '../data/api';
@@ -83,6 +83,7 @@ export function ProfileScreen() {
   }, [worker, slide]);
 
   const { userId, signOut } = useAuth();
+  const focusTick = useFocusTick();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   // The bucket is private, so the stored path has to be signed before an
@@ -129,7 +130,7 @@ export function ProfileScreen() {
     return () => {
       alive = false;
     };
-  }, [userId, worker]);
+  }, [userId, worker, focusTick]);
 
   const displayName = profile?.display_name ?? 'Your profile';
   const ratingAvg = worker ? profile?.worker_rating_avg : profile?.poster_rating_avg;

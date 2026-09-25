@@ -105,6 +105,41 @@ export function NavProvider({
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
+const FocusCtx = createContext(0);
+
+/**
+ * A kept-alive tab sees its own last params, not whichever screen is on top.
+ * Tabs stay mounted while hidden (so coming back is instant, not a reload);
+ * without this, the home feed would read the explore screen's search query.
+ * `focus` counts how many times this tab has come back into view.
+ */
+export function ScreenScope({
+  params,
+  focus,
+  children,
+}: {
+  params: NavParams;
+  focus: number;
+  children: React.ReactNode;
+}) {
+  const outer = useContext(Ctx);
+  if (!outer) throw new Error('ScreenScope must be used inside NavProvider');
+  const value = useMemo<NavCtx>(() => ({ ...outer, params }), [outer, params]);
+  return (
+    <Ctx.Provider value={value}>
+      <FocusCtx.Provider value={focus}>{children}</FocusCtx.Provider>
+    </Ctx.Provider>
+  );
+}
+
+/**
+ * Goes up by one each time this tab comes back into view. Put it in a load
+ * effect's dependencies to refresh quietly on return. 0 outside a tab.
+ */
+export function useFocusTick(): number {
+  return useContext(FocusCtx);
+}
+
 export function useNav() {
   const c = useContext(Ctx);
   if (!c) throw new Error('useNav must be used inside NavProvider');

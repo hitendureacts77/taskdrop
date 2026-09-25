@@ -8,7 +8,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { useMode } from '../providers/ModeProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import {
   listNotifications,
   markNotificationsRead,
@@ -50,7 +50,7 @@ export function NotificationsScreen() {
   const { back, go } = useNav();
   const { userId } = useAuth();
   const { setMode } = useMode();
-  const { flash } = useApp();
+  const { flash } = useActions();
   const [tab, setTab] = useState(0);
   const [rows, setRows] = useState<Notification[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);

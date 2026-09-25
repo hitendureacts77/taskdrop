@@ -7,7 +7,7 @@ import { FeedbackSheet } from '../components/FeedbackSheet';
 import { FadeIn, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import {
   TICKET_CATEGORIES,
   getTicket,
@@ -34,7 +34,7 @@ const STATUS: Record<string, { label: string; tone: 'gold' | 'accent' | 'neutral
 export function HelpScreen() {
   const t = useTheme();
   const { back, go } = useNav();
-  const { flash, celebrate } = useApp();
+  const { flash, celebrate } = useActions();
   const [category, setCategory] = useState<TicketCategory>('payment');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
@@ -141,7 +141,7 @@ function TicketRow({ ticket, onPress }: { ticket: Ticket; onPress: () => void })
 export function TicketScreen() {
   const t = useTheme();
   const { back, params } = useNav();
-  const { flash } = useApp();
+  const { flash } = useActions();
   const ticketId = typeof params.ticketId === 'string' ? params.ticketId : null;
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [messages, setMessages] = useState<TicketMessage[] | null>(null);

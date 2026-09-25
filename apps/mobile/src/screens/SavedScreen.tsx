@@ -5,7 +5,7 @@ import { EmptyState, Shimmer, TopBar } from '../components/kit';
 import { WorkCard } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
 import { useNav } from '../providers/NavProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { useMode } from '../providers/ModeProvider';
 import { attachPosters, type Task, type TaskWithPoster } from '../data/api';
 import { listSavedTasks, setSaved } from '../data/extras';
@@ -14,7 +14,7 @@ import { taskToFeedRow } from '../lib/openTask';
 /** Tasks saved for later, from the bookmark on any task card. */
 export function SavedScreen() {
   const { back, go } = useNav();
-  const { flash } = useApp();
+  const { flash } = useActions();
   const { setMode } = useMode();
   const [rows, setRows] = useState<TaskWithPoster[] | null>(null);
   const [bidTask, setBidTask] = useState<Task | null>(null);

@@ -8,9 +8,9 @@ import {
 import Svg, { Path } from 'react-native-svg';
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
-import { useNav } from '../providers/NavProvider';
+import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { searchTasks, attachPosters, placeBid, kindFor } from '../data/api';
 import { useAuth } from '../providers/AuthProvider';
 import { type Theme } from '../theme';
@@ -383,8 +383,9 @@ export function HomeScreen() {
   const t = useTheme();
   const { go, params } = useNav();
   const { mode } = useMode();
-  const { setOpenTask, celebrate, flash } = useApp();
+  const { setOpenTask, celebrate, flash } = useActions();
   const { userId } = useAuth();
+  const focusTick = useFocusTick();
   const worker = mode === 'worker';
 
   const [liveTasks, setLiveTasks] = useState<LiveTask[] | null>(null);
@@ -423,7 +424,7 @@ export function HomeScreen() {
       kind: kindFor(worker ? 'worker' : 'poster'),
     });
     return (await attachPosters(rows)) as unknown as LiveTask[];
-  }, [searchQ, searchPillar, searchMin, searchMax, nearLat, nearLng, radiusKm, worker]);
+  }, [searchQ, searchPillar, searchMin, searchMax, nearLat, nearLng, radiusKm, worker, focusTick]);
 
   useEffect(() => {
     let active = true;

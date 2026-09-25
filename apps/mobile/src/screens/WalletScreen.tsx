@@ -3,7 +3,7 @@ import { View, Text as RNText, Animated, ScrollView, RefreshControl, Pressable, 
 import * as Clipboard from 'expo-clipboard';
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
-import { useNav } from '../providers/NavProvider';
+import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
@@ -49,6 +49,7 @@ export function WalletScreen() {
   const { mode } = useMode();
   const { balance, escrow, clearing, flash, celebrate } = useApp();
   const { userId } = useAuth();
+  const focusTick = useFocusTick();
   const [live, setLive] = useState<{ balance: number; escrow: number; clearing: number } | null>(null);
 
   // Real wallet for the signed-in user; the in-memory figures are the fallback
@@ -69,7 +70,7 @@ export function WalletScreen() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [focusTick]);
 
   // Adding money lives in its own sheet: it has to ask how much, and it has
   // to watch for the payment rather than asking whether it arrived.
@@ -137,7 +138,7 @@ export function WalletScreen() {
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [userId, focusTick]);
 
   // ---- period, referral and fees -------------------------------------------
   const PERIODS = ['This month', 'Last 30 days', 'All time'] as const;

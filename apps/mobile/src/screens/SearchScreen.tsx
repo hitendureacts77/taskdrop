@@ -13,7 +13,7 @@ import { Icon } from '../components/Icon';
 import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { searchTasks, kindFor } from '../data/api';
 import { resolveCurrentPlace, locationPermission } from '../lib/location';
 import { fontFamilyFor, type Theme } from '../theme';
@@ -142,7 +142,7 @@ export function SearchScreen() {
   const t = useTheme();
   const { go } = useNav();
   const { mode } = useMode();
-  const { flash } = useApp();
+  const { flash } = useActions();
   const worker = mode === 'worker';
 
   const [query, setQuery] = useState('');

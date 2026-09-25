@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { currentUserId, supabase } from '../lib/supabase';
 import { distanceKm } from '@taskdrop/rules';
 import type { Tables, TablesInsert, Enums } from '@taskdrop/db-types';
 
@@ -221,10 +221,7 @@ export async function getTaskDetail(taskId: string): Promise<TaskDetail | null> 
  * a query that relies on RLS alone silently turns into "everybody's rows" the
  * moment the person running it has a staff account.
  */
-async function myId(): Promise<string | null> {
-  const { data } = await supabase.auth.getUser();
-  return data.user?.id ?? null;
-}
+const myId = currentUserId;
 
 export async function getWallet(): Promise<Wallet | null> {
   const uid = await myId();
@@ -475,10 +472,37 @@ export async function countNeedsAttention(
   ).length;
 }
 
-export async function getProfile(userId: string): Promise<Profile | null> {
-  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-  if (error) throw new Error(error.message);
-  return data;
+/**
+ * Profiles are read by the header, the home sections, explore, the wallet and
+ * more, often for the same person within the same second. They are kept for a
+ * short while and concurrent reads share one request; every write in the app
+ * primes or clears the entry, so an edit is never shown stale.
+ */
+const PROFILE_TTL_MS = 20_000;
+const profileCache = new Map<string, { at: number; p: Promise<Profile | null> }>();
+
+export function getProfile(userId: string, opts: { fresh?: boolean } = {}): Promise<Profile | null> {
+  const hit = profileCache.get(userId);
+  if (!opts.fresh && hit && Date.now() - hit.at < PROFILE_TTL_MS) return hit.p;
+  const p = (async () => {
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data;
+  })();
+  profileCache.set(userId, { at: Date.now(), p });
+  // A failed read must not be served from the cache.
+  p.catch(() => profileCache.delete(userId));
+  return p;
+}
+
+/** Store a profile row the app just wrote, so the next read has it. */
+export function primeProfile(row: Profile): void {
+  profileCache.set(row.id, { at: Date.now(), p: Promise.resolve(row) });
+}
+
+/** Drop a cached profile after a write that did not return the row. */
+export function forgetProfile(userId: string): void {
+  profileCache.delete(userId);
 }
 
 /**
@@ -824,12 +848,16 @@ export async function updateProfile(userId: string, edits: ProfileEdits): Promis
   const rows = unwrap(await supabase.from('profiles').update(patch).eq('id', userId).select());
   const row = rows[0];
   if (!row) throw new Error('Could not save your profile');
+  primeProfile(row);
   return row;
 }
 
 // ------------------------------------------------- lifecycle (server-side) --
 
 async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
+  // Every function here needs a signed-in caller; asking without one is a
+  // guaranteed 401 and a wasted round trip.
+  if (!(await myId())) throw new Error('Sign in first');
   const { data, error } = await supabase.rpc(fn as never, args as never);
   if (error) throw new Error(error.message);
   return data as T;
@@ -1164,6 +1192,7 @@ export async function listPromotions(): Promise<Promotion[]> {
  * needs to know the running order, so that is all this returns.
  */
 export async function adAuctionRanks(): Promise<Map<string, number>> {
+  if (!(await myId())) return new Map();
   const { data, error } = await supabase.rpc('ad_auction');
   if (error) return new Map();
   return new Map(

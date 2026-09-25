@@ -3,7 +3,7 @@ import { View, ScrollView, Pressable } from 'react-native';
 import { Screen, Text, Row, Button, Avatar, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { searchTasks, listMyBids, getProfile, attachPosters, type TaskWithPoster } from '../data/api';
 
@@ -13,7 +13,7 @@ import { searchTasks, listMyBids, getProfile, attachPosters, type TaskWithPoster
 export function MyQuotesScreen() {
   const t = useTheme();
   const { back, go } = useNav();
-  const { flash } = useApp();
+  const { flash } = useActions();
   const { userId } = useAuth();
   const [picked, setPicked] = useState(0);
   const [rows, setRows] = useState<TaskWithPoster[]>([]);

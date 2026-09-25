@@ -10,9 +10,9 @@ import { BidSheet } from '../components/BidSheet';
 import { HowItWorks } from '../components/HowItWorks';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { useTheme, ring } from '../providers/ThemeProvider';
-import { useNav } from '../providers/NavProvider';
+import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import {
   attachPosters,
@@ -49,7 +49,7 @@ export function ExploreScreen() {
 function ExploreIdeas() {
   const t = useTheme();
   const { go } = useNav();
-  const { flash } = useApp();
+  const { flash } = useActions();
   const { userId } = useAuth();
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState('');
@@ -104,9 +104,7 @@ function ExploreIdeas() {
         </View>
 
         <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
-          {tab === 2 ? (
-            <HowItWorks side="earn" />
-          ) : tab === 1 ? (
+          {tab === 1 ? (
             <TrendingSection onCategory={(c) => go('aiPost', { prompt: `I need help with ${c.toLowerCase()}: ` })} />
           ) : (
             <>
@@ -343,7 +341,7 @@ const QUICK_EARN_MAX_MINOR = 30000; // ₹300 and under
 function FindWork() {
   const t = useTheme();
   const { go, params } = useNav();
-  const { flash, setOpenTask } = useApp();
+  const { flash, setOpenTask } = useActions();
   const { userId } = useAuth();
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState(typeof params.q === 'string' ? params.q : '');
@@ -351,6 +349,7 @@ function FindWork() {
   const [filter, setFilter] = useState<Filter>(typeof params.filter === 'string' ? (params.filter as Filter) : 'all');
   const [cat, setCat] = useState<string | null>(typeof params.category === 'string' ? params.category : null);
   const [rows, setRows] = useState<TaskWithPoster[] | null>(null);
+  const focusTick = useFocusTick();
   const [saved, setSavedIds] = useState<Set<string>>(new Set());
   const [me, setMe] = useState<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
   const [bidTask, setBidTask] = useState<Task | null>(null);
@@ -367,7 +366,7 @@ function FindWork() {
   const load = useCallback(async () => {
     const found = await searchTasks({ q: query || undefined, limit: 60, kind: 'request' });
     return attachPosters(found);
-  }, [query]);
+  }, [query, focusTick]);
 
   useEffect(() => {
     let alive = true;
@@ -463,7 +462,9 @@ function FindWork() {
           <UnderlineTabs tabs={['Jobs', 'Busy now', 'How it works']} active={tab} onPick={setTab} />
         </View>
         <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
-          {tab === 1 ? (
+          {tab === 2 ? (
+            <HowItWorks side="earn" />
+          ) : tab === 1 ? (
             <TrendingSection
               onCategory={(c) => {
                 setCat(c);

@@ -57,7 +57,14 @@ type AppStateCtx = AppState & {
   startedOf: (title: string) => boolean;
 };
 
-const Ctx = createContext<AppStateCtx | null>(null);
+type Actions = Pick<
+  AppStateCtx,
+  'flash' | 'celebrate' | 'roll' | 'setOpenTask' | 'startTask' | 'setDone' | 'addBid'
+>;
+
+const ActionsCtx = createContext<Actions | null>(null);
+const StateCtx = createContext<(AppState & Pick<AppStateCtx, 'doneOf' | 'startedOf'>) | null>(null);
+const FxCtx = createContext<{ toast: string | null; burst: boolean } | null>(null);
 
 const INITIAL: AppState = {
   // Zero, not a showroom figure. These are what the UI shows before the real
@@ -77,22 +84,23 @@ const INITIAL: AppState = {
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [s, setS] = useState<AppState>(INITIAL);
+  const [fx, setFx] = useState<{ toast: string | null; burst: boolean }>({ toast: null, burst: false });
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const burstTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rollTimers = useRef<Record<string, ReturnType<typeof setInterval>>>({});
 
   const flash = useCallback((msg: string) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    setS((p) => ({ ...p, toast: msg }));
-    toastTimer.current = setTimeout(() => setS((p) => ({ ...p, toast: null })), 2200);
+    setFx((p) => ({ ...p, toast: msg }));
+    toastTimer.current = setTimeout(() => setFx((p) => ({ ...p, toast: null })), 2200);
   }, []);
 
   const celebrate = useCallback(
     (msg?: string) => {
       if (burstTimer.current) clearTimeout(burstTimer.current);
-      setS((p) => ({ ...p, burst: true }));
+      setFx((p) => ({ ...p, burst: true }));
       burstTimer.current = setTimeout(() => {
-        setS((p) => ({ ...p, burst: false }));
+        setFx((p) => ({ ...p, burst: false }));
         if (msg) flash(msg);
       }, 900);
     },
@@ -137,27 +145,34 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const doneOf = useCallback((title: string) => s.doneMap[title] ?? 0, [s.doneMap]);
   const startedOf = useCallback((title: string) => !!s.startMap[title], [s.startMap]);
 
-  const value = useMemo<AppStateCtx>(
-    () => ({
-      ...s,
-      flash,
-      celebrate,
-      roll,
-      setOpenTask,
-      startTask,
-      setDone,
-      addBid,
-      doneOf,
-      startedOf,
-    }),
-    [s, flash, celebrate, roll, setOpenTask, startTask, setDone, addBid, doneOf, startedOf],
+  // Three contexts, so a toast or a rolling balance does not re-render every
+  // screen: most components only call flash/celebrate, which never change.
+  const actions = useMemo<Actions>(
+    () => ({ flash, celebrate, roll, setOpenTask, startTask, setDone, addBid }),
+    [flash, celebrate, roll, setOpenTask, startTask, setDone, addBid],
   );
+  const state = useMemo(() => ({ ...s, doneOf, startedOf }), [s, doneOf, startedOf]);
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <ActionsCtx.Provider value={actions}>
+      <StateCtx.Provider value={state}>
+        <FxCtx.Provider value={fx}>{children}</FxCtx.Provider>
+      </StateCtx.Provider>
+    </ActionsCtx.Provider>
+  );
 }
 
-export function useApp() {
-  const c = useContext(Ctx);
-  if (!c) throw new Error('useApp must be used inside AppStateProvider');
+/** Just the actions (flash, celebrate, ...). Stable: never causes a re-render. */
+export function useActions(): Actions {
+  const c = useContext(ActionsCtx);
+  if (!c) throw new Error('useActions must be used inside AppStateProvider');
   return c;
+}
+
+/** Everything: actions, shared state, and the toast/burst overlay state. */
+export function useApp(): AppStateCtx {
+  const actions = useActions();
+  const state = useContext(StateCtx)!;
+  const fx = useContext(FxCtx)!;
+  return { ...state, ...fx, ...actions };
 }

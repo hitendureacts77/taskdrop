@@ -5,7 +5,7 @@ import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import {
   placeBid,
@@ -107,7 +107,7 @@ export function TaskDetailScreen() {
   const t = useTheme();
   const { params, back, go } = useNav();
   const { mode } = useMode();
-  const { flash, celebrate } = useApp();
+  const { flash, celebrate } = useActions();
   const { userId } = useAuth();
   const [busy, setBusy] = useState(false);
   const worker = mode === 'worker';

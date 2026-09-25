@@ -8,7 +8,7 @@ import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { getProfile, updateProfile } from '../data/api';
 import { applyReferralCode, platformFees, updateProfileExtras, usernameAvailable } from '../data/extras';
@@ -28,7 +28,7 @@ export function OnboardingScreen() {
   const t = useTheme();
   const { reset } = useNav();
   const { setMode } = useMode();
-  const { flash, celebrate } = useApp();
+  const { flash, celebrate } = useActions();
   const { userId } = useAuth();
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);

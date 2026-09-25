@@ -3,7 +3,7 @@ import { View, Text as RNText, TextInput, Pressable, ScrollView } from 'react-na
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import {
   attachPosters,
@@ -58,7 +58,7 @@ export function HomeSections() {
 function PostTop() {
   const t = useTheme();
   const { go, screen } = useNav();
-  const { flash } = useApp();
+  const { flash } = useActions();
   const { userId } = useAuth();
   const [prompt, setPrompt] = useState('');
   const [active, setActive] = useState<Task[] | null>(null);
@@ -389,7 +389,7 @@ const RADII = [3, 10, 25, 50];
 function EarnTop() {
   const t = useTheme();
   const { go, screen } = useNav();
-  const { flash, celebrate } = useApp();
+  const { flash, celebrate } = useActions();
   const { userId } = useAuth();
   const [q, setQ] = useState('');
   const [stats, setStats] = useState<MyStats | null>(null);

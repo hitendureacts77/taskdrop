@@ -8,9 +8,9 @@ import { WorkCard, categoryIcon, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { useTheme, ring } from '../providers/ThemeProvider';
-import { useNav } from '../providers/NavProvider';
+import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useApp, useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import {
   attachPosters,
@@ -93,8 +93,9 @@ export function statusBadge(task: Task): { label: string; tone: 'accent' | 'gold
 function MyPosted() {
   const t = useTheme();
   const { go } = useNav();
-  const { flash } = useApp();
+  const { flash } = useActions();
   const { userId } = useAuth();
+  const focusTick = useFocusTick();
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [quotes, setQuotes] = useState<Map<string, number>>(new Map());
   const [stats, setStats] = useState<MyStats | null>(null);
@@ -115,7 +116,7 @@ function MyPosted() {
     setTasks(rows);
     setQuotes(counts);
     setStats(s);
-  }, [userId]);
+  }, [userId, focusTick]);
 
   useEffect(() => {
     void load().catch(() => setTasks([]));
@@ -337,6 +338,7 @@ function MyWork() {
   const { go } = useNav();
   const { flash, setOpenTask, startedOf } = useApp();
   const { userId } = useAuth();
+  const focusTick = useFocusTick();
   const [tab, setTab] = useState(0);
   const [rows, setRows] = useState<ViewRow[] | null>(null);
   const [saved, setSavedTasks] = useState<TaskWithPoster[] | null>(null);
@@ -369,7 +371,7 @@ function MyWork() {
     setStats(s);
     setSavedTasks(sv);
     setSavedIds(ids);
-  }, [userId]);
+  }, [userId, focusTick]);
 
   useEffect(() => {
     void load().catch(() => setRows([]));

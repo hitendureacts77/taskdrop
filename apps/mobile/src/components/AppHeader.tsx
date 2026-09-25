@@ -4,7 +4,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useAuth } from '../providers/AuthProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { getProfile, getWallet, type Profile } from '../data/api';
 import {
   aiCreditsToday,
@@ -24,15 +24,27 @@ import { levelFor } from '../lib/levels';
  * three things that need reaching from anywhere -- notifications, messages and
  * the account drawer.
  */
+/**
+ * What the header last showed. Every tab mounts its own header, and starting
+ * each one blank made the avatar and the unread badge blink on every switch.
+ */
+const last = { userId: '' as string | null, initial: '?', avatar: null as string | null, unread: 0 };
+
 export function AppHeader() {
   const t = useTheme();
   const { go, reset, screen } = useNav();
   const { mode, setMode } = useMode();
   const { userId } = useAuth();
-  const [unread, setUnread] = useState(0);
+  const same = last.userId === userId;
+  const [unread, setUnreadState] = useState(same ? last.unread : 0);
   const [drawer, setDrawer] = useState(false);
-  const [initial, setInitial] = useState('?');
-  const [avatar, setAvatar] = useState<string | null>(null);
+  const [initial, setInitialState] = useState(same ? last.initial : '?');
+  const [avatar, setAvatarState] = useState<string | null>(same ? last.avatar : null);
+  last.userId = userId;
+  const setUnread = (next: number | ((n: number) => number)) =>
+    setUnreadState((cur) => (last.unread = typeof next === 'function' ? next(cur) : next));
+  const setInitial = (v: string) => setInitialState((last.initial = v));
+  const setAvatar = (v: string | null) => setAvatarState((last.avatar = v));
 
   // Unread count: read on every screen change, and bumped live.
   useEffect(() => {
@@ -173,7 +185,7 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
   const { go, reset } = useNav();
   const { mode } = useMode();
   const { userId, signOut } = useAuth();
-  const { flash } = useApp();
+  const { flash } = useActions();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [ai, setAi] = useState<{ used: number; limit: number } | null>(null);

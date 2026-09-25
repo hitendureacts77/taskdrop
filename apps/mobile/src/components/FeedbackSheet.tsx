@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text as RNText } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { sendFeedback, type FeedbackKind } from '../data/extras';
 import { BottomSheet, Field, Pill, PrimaryButton } from './kit';
 import { tx } from './primitives';
@@ -18,7 +18,7 @@ const KINDS: { key: FeedbackKind; label: string }[] = [
 export function FeedbackSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const t = useTheme();
   const { screen } = useNav();
-  const { flash, celebrate } = useApp();
+  const { flash, celebrate } = useActions();
   const [kind, setKind] = useState<FeedbackKind>('idea');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);

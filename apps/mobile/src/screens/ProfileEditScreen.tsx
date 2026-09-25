@@ -7,7 +7,7 @@ import { LocationSheet } from '../components/LocationSheet';
 import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { getProfile, listReviewsAbout, updateProfile, type Profile } from '../data/api';
 import { setLive, updateProfileExtras, verificationState } from '../data/extras';
@@ -34,7 +34,7 @@ const LIVE_OPTIONS = [30, 60, 120];
 export function ProfileEditScreen() {
   const t = useTheme();
   const { back, go } = useNav();
-  const { flash, celebrate } = useApp();
+  const { flash, celebrate } = useActions();
   const { userId } = useAuth();
   const [tab, setTab] = useState(0);
   const [p, setP] = useState<Profile | null>(null);

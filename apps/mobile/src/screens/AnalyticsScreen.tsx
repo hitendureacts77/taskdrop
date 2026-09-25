@@ -5,7 +5,7 @@ import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { platformStats, myStats, type PlatformStats, type MyStats } from '../data/api';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import type { Theme } from '../theme';
@@ -137,7 +137,7 @@ function RevenueBars({
 export function AnalyticsScreen() {
   const t = useTheme();
   const { back } = useNav();
-  const { flash } = useApp();
+  const { flash } = useActions();
 
   const { mode } = useMode();
   const worker = mode === 'worker';

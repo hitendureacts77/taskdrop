@@ -3,7 +3,7 @@ import { View, Text as RNText, Pressable, ScrollView, TextInput, ActivityIndicat
 import { Screen } from '../components/ui';
 import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { postSignInRoute } from '../data/api';
 import { supabase } from '../lib/supabase';
@@ -14,7 +14,7 @@ import { signInWithUsername } from '../data/extras';
 export function SignupScreen() {
   const t = useTheme();
   const { go, back, reset, params } = useNav();
-  const { celebrate, flash } = useApp();
+  const { celebrate, flash } = useActions();
   const { requestCode, verifyCode, signInWithGoogle } = useAuth();
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');

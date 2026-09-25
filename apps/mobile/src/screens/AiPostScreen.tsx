@@ -11,7 +11,7 @@ import { Badge, Field, PrimaryButton, rupees } from '../components/kit';
 import { Pressy, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { useMode } from '../providers/ModeProvider';
 import { createTask, getProfile, type Task } from '../data/api';
@@ -110,7 +110,7 @@ const SLIDER_STOPS = [2000, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1
 export function AiPostScreen() {
   const t = useTheme();
   const { params, back, reset, go } = useNav();
-  const { flash, celebrate } = useApp();
+  const { flash, celebrate } = useActions();
   const { userId } = useAuth();
   const { setMode } = useMode();
 

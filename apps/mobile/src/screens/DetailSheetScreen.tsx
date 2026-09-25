@@ -5,7 +5,7 @@ import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { placeBid } from '../data/api';
 import { tx } from '../components/primitives';
@@ -28,7 +28,7 @@ export function DetailSheetScreen() {
   const t = useTheme();
   const { params, go, back } = useNav();
   const { mode } = useMode();
-  const { celebrate, flash } = useApp();
+  const { celebrate, flash } = useActions();
   const { userId } = useAuth();
   const [busy, setBusy] = useState(false);
 

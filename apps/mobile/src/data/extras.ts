@@ -1,7 +1,7 @@
-import { supabase } from '../lib/supabase';
+import { currentUserId, supabase } from '../lib/supabase';
 import { distanceKm } from '@taskdrop/rules';
 import type { Tables, TablesUpdate } from '@taskdrop/db-types';
-import type { Task, Profile } from './api';
+import { forgetProfile, primeProfile, type Task, type Profile } from './api';
 
 /**
  * Reads and writes for the second-wave features: notifications, saved tasks,
@@ -19,12 +19,12 @@ function unwrap<T>(res: { data: T | null; error: { message: string } | null }): 
   return res.data;
 }
 
-async function myId(): Promise<string | null> {
-  const { data } = await supabase.auth.getUser();
-  return data.user?.id ?? null;
-}
+const myId = currentUserId;
 
 async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
+  // Every function here needs a signed-in caller; asking without one is a
+  // guaranteed 401 and a wasted round trip.
+  if (!(await myId())) throw new Error('Sign in first');
   const { data, error } = await supabase.rpc(fn as never, args as never);
   if (error) throw new Error(error.message);
   return data as T;
@@ -358,11 +358,20 @@ export async function updateProfileExtras(userId: string, edits: ProfileExtras):
   }
   const row = (data ?? [])[0];
   if (!row) throw new Error('Could not save your profile');
+  primeProfile(row);
   return row;
 }
 
-/** Record that this person is around. Best-effort; never throws. */
+let lastPresence = 0;
+
+/**
+ * Record that this person is around. Best-effort; never throws. At most once
+ * every five minutes -- the header mounts on every tab, and "active just now"
+ * does not need a write per screen change.
+ */
 export async function touchPresence(userId: string): Promise<void> {
+  if (Date.now() - lastPresence < 5 * 60000) return;
+  lastPresence = Date.now();
   try {
     await supabase.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', userId);
   } catch {
@@ -393,6 +402,7 @@ export async function setLive(userId: string, minutes: number): Promise<string |
   const until = minutes > 0 ? new Date(Date.now() + minutes * 60000).toISOString() : null;
   const { error } = await supabase.from('profiles').update({ live_until: until }).eq('id', userId);
   if (error) throw new Error(error.message);
+  forgetProfile(userId);
   return until;
 }
 

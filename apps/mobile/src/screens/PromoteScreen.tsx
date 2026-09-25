@@ -14,7 +14,7 @@ import { Icon } from '../components/Icon';
 import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import {
   startPromotion,
   createPaymentLink,
@@ -37,7 +37,7 @@ export function PromoteScreen() {
   const t = useTheme();
   const { go, back, params } = useNav();
   const { mode } = useMode();
-  const { celebrate, flash } = useApp();
+  const { celebrate, flash } = useActions();
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<{ promotionId: string; paymentId: string } | null>(null);
   const [explaining, setExplaining] = useState(false);

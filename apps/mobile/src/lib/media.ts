@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { MEDIA } from '@taskdrop/rules';
-import { supabase } from './supabase';
+import { currentUserId, supabase } from './supabase';
 
 /**
  * Attaching a photo or a video to a task.
@@ -127,8 +127,7 @@ async function readBytes(uri: string): Promise<Uint8Array> {
  * anyone else's space.
  */
 export async function uploadMedia(picked: PickedMedia): Promise<TaskMedia> {
-  const { data: auth } = await supabase.auth.getUser();
-  const userId = auth.user?.id;
+  const userId = await currentUserId();
   if (!userId) throw new MediaError('Sign in before attaching a file.');
 
   const body = await readBytes(picked.uri);
@@ -155,33 +154,68 @@ export async function removeMedia(path: string): Promise<void> {
 /** An hour is long enough to look at a task and short enough not to be shared. */
 const SIGNED_URL_SECONDS = 60 * 60;
 
+/**
+ * Signed URLs are reused until shortly before they expire. Signing mints a new
+ * token each time, and a new token is a new URL -- so without this, every
+ * visit to a screen re-downloaded every photo and avatar on it, and they
+ * flickered in. The same URL lets the browser and the image cache keep them.
+ */
+const REUSE_MS = (SIGNED_URL_SECONDS - 10 * 60) * 1000;
+const signed = new Map<string, { url: string; at: number }>();
+const pending = new Map<string, Promise<string | null>>();
+
+function cached(path: string): string | null {
+  const hit = signed.get(path);
+  return hit && Date.now() - hit.at < REUSE_MS ? hit.url : null;
+}
+
 /** A viewable URL for one stored path, or null if it cannot be signed. */
 export async function signedMediaUrl(path: string): Promise<string | null> {
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(path, SIGNED_URL_SECONDS);
-  if (error) return null;
-  return data?.signedUrl ?? null;
+  const hit = cached(path);
+  if (hit) return hit;
+  const inFlight = pending.get(path);
+  if (inFlight) return inFlight;
+  const p = (async () => {
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, SIGNED_URL_SECONDS);
+    if (error || !data?.signedUrl) return null;
+    signed.set(path, { url: data.signedUrl, at: Date.now() });
+    return data.signedUrl;
+  })().finally(() => pending.delete(path));
+  pending.set(path, p);
+  return p;
+}
+
+/** The URL for a path if it is already signed, for a first paint with no wait. */
+export function peekSignedUrl(path: string | null | undefined): string | null {
+  return path ? cached(path) : null;
 }
 
 /**
- * Signed URLs for many paths in one round trip, keyed by path.
+ * Signed URLs for many paths in one round trip, keyed by path. Paths signed
+ * recently come from the cache; only the rest are asked for.
  *
  * A list of tasks would otherwise make one request per thumbnail, which is the
  * difference between a feed that loads and a feed that crawls.
  */
 export async function signedMediaUrls(paths: string[]): Promise<Record<string, string>> {
   const wanted = [...new Set(paths.filter(Boolean))];
-  if (wanted.length === 0) return {};
-
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrls(wanted, SIGNED_URL_SECONDS);
-  if (error || !data) return {};
-
   const out: Record<string, string> = {};
+  const missing: string[] = [];
+  for (const p of wanted) {
+    const hit = cached(p);
+    if (hit) out[p] = hit;
+    else missing.push(p);
+  }
+  if (missing.length === 0) return out;
+
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(missing, SIGNED_URL_SECONDS);
+  if (error || !data) return out;
+  const now = Date.now();
   for (const row of data) {
-    if (row.path && row.signedUrl) out[row.path] = row.signedUrl;
+    if (row.path && row.signedUrl) {
+      out[row.path] = row.signedUrl;
+      signed.set(row.path, { url: row.signedUrl, at: now });
+    }
   }
   return out;
 }

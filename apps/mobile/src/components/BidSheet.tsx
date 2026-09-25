@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text as RNText, Pressable, ActivityIndicator } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { canQuoteOn, getMyBid, placeBid, updateBid, type Bid, type Task } from '../data/api';
 import { maskContacts } from '../lib/mask';
@@ -43,7 +43,7 @@ export function BidSheet({
   onPlaced?: () => void;
 }) {
   const t = useTheme();
-  const { flash, celebrate } = useApp();
+  const { flash, celebrate } = useActions();
   const { userId } = useAuth();
   const [pitch, setPitch] = useState('');
   const [masked, setMasked] = useState(false);
