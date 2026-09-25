@@ -441,11 +441,7 @@ export function AiPostScreen() {
             <Icon name="shield" size={15} color={t.colors.signalDeep} />
             <RNText style={tx('600', 12, t.colors.signalDeep, { flex: 1, lineHeight: 17 })}>{contactIssueMessage(issue)}</RNText>
           </View>
-        ) : (
-          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 10, lineHeight: 17 })}>
-            Don’t add phone numbers or addresses here — you’ll share those in chat with the person you hire.
-          </RNText>
-        )}
+        ) : null}
       </>
     );
     footer = busy ? (
