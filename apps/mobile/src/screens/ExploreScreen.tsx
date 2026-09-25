@@ -503,7 +503,7 @@ function FindWork() {
                     ? 'Loading…'
                     : `${shown.length} ${shown.length === 1 ? 'result' : 'results'}${query ? ` for “${query}”` : ''}`}
                 </RNText>
-                {(filter !== 'all' || cat || query) && (
+                {filter !== 'all' || cat !== null || query !== '' ? (
                   <Pressable
                     onPress={() => {
                       setFilter('all');
@@ -515,7 +515,7 @@ function FindWork() {
                   >
                     <RNText style={tx('700', 12, t.colors.purpleDeep)}>Clear all</RNText>
                   </Pressable>
-                )}
+                ) : null}
               </View>
               {filter === 'local' && me.lat === null ? (
                 <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6 })}>

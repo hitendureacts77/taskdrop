@@ -32,6 +32,7 @@ import { Icon } from './Icon';
 import { Badge, SectionTitle, Shimmer, rupees, timeLeft } from './kit';
 import { WorkCard, categoryIcon } from './WorkCard';
 import { BidSheet } from './BidSheet';
+import { LiveWorkers } from './LiveWorkers';
 import { Pressy, tx } from './primitives';
 
 /** The top of the home screen, above the existing feed. */
@@ -130,6 +131,8 @@ function PostTop() {
           </Pressable>
         </View>
       </View>
+
+      <LiveWorkers active={screen === 'home'} />
 
       {active && active.length > 0 ? (
         <>
