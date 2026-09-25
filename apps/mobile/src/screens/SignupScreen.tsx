@@ -47,7 +47,7 @@ export function SignupScreen() {
   const copy = signingIn
     ? {
         title: 'Welcome back',
-        sub: 'Sign in with the mobile number you used before.',
+        sub: 'Use Google, your mobile number, or your @username.',
         switchPrompt: 'New here?',
         switchAction: 'Create an account',
       }
@@ -179,11 +179,40 @@ export function SignupScreen() {
           {copy.title}
         </RNText>
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21 })}>
-          {signingIn && method === 'password' ? 'Sign in with your @username and password.' : copy.sub}
+          {copy.sub}
         </RNText>
 
+        {/* All three ways in one place: Google, then the phone code or a
+            username + password. Google goes first because it is one tap. */}
+        <Pressable
+          onPress={googleSignIn}
+          disabled={googleBusy}
+          style={({ pressed }) => ({
+            marginTop: 22,
+            borderWidth: 1,
+            borderColor: t.colors.line,
+            borderRadius: 12,
+            paddingVertical: 15,
+            alignItems: 'center',
+            opacity: googleBusy ? 0.6 : 1,
+            transform: [{ scale: pressed ? 0.96 : 1 }],
+          })}
+        >
+          {googleBusy ? (
+            <ActivityIndicator color={t.colors.ink} />
+          ) : (
+            <RNText style={tx('600', 15, t.colors.ink)}>Continue with Google</RNText>
+          )}
+        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 20 }}>
+          <View style={{ flex: 1, height: 1, backgroundColor: t.colors.line }} />
+          <RNText style={tx('400', 12, t.colors.muted)}>or</RNText>
+          <View style={{ flex: 1, height: 1, backgroundColor: t.colors.line }} />
+        </View>
+
+
         {signingIn ? (
-          <View style={{ flexDirection: 'row', marginTop: 22, backgroundColor: t.colors.surface2, borderRadius: 12, padding: 4 }}>
+          <View style={{ flexDirection: 'row', marginTop: 18, backgroundColor: t.colors.surface2, borderRadius: 12, padding: 4 }}>
             {(['phone', 'password'] as const).map((m) => (
               <Pressable
                 key={m}
@@ -193,7 +222,7 @@ export function SignupScreen() {
                 style={{ flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: 'center', backgroundColor: method === m ? t.colors.bg : 'transparent' }}
               >
                 <RNText style={tx('700', 14, method === m ? t.colors.ink : t.colors.muted)}>
-                  {m === 'phone' ? 'Phone' : 'Password'}
+                  {m === 'phone' ? 'Phone' : 'Username'}
                 </RNText>
               </Pressable>
             ))}
@@ -368,32 +397,6 @@ export function SignupScreen() {
           </>
         )}
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 22 }}>
-          <View style={{ flex: 1, height: 1, backgroundColor: t.colors.line }} />
-          <RNText style={tx('400', 12, t.colors.muted)}>or</RNText>
-          <View style={{ flex: 1, height: 1, backgroundColor: t.colors.line }} />
-        </View>
-
-        <Pressable
-          onPress={googleSignIn}
-          disabled={googleBusy}
-          style={({ pressed }) => ({
-            marginTop: 20,
-            borderWidth: 1,
-            borderColor: t.colors.line,
-            borderRadius: 12,
-            paddingVertical: 15,
-            alignItems: 'center',
-            opacity: googleBusy ? 0.6 : 1,
-            transform: [{ scale: pressed ? 0.96 : 1 }],
-          })}
-        >
-          {googleBusy ? (
-            <ActivityIndicator color={t.colors.ink} />
-          ) : (
-            <RNText style={tx('600', 15, t.colors.ink)}>Continue with Google</RNText>
-          )}
-        </Pressable>
 
         {/* The other door. Pushing rather than replacing keeps the back arrow
             meaningful -- it still leads out to the welcome screen. */}

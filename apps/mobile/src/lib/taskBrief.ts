@@ -42,7 +42,7 @@ export function pillarFor(category: string): Pillar {
 }
 
 export const WRITING_STYLES = [
-  { key: 'professional', label: 'Professional' },
+  { key: 'professional', label: 'Work' },
   { key: 'casual', label: 'Casual' },
   { key: 'short', label: 'Short & clear' },
   { key: 'bulleted', label: 'Bulleted' },
@@ -72,7 +72,7 @@ export type Source = 'ai' | 'offline';
 
 // ------------------------------------------------------------- templates ----
 
-export type TemplateTag = 'Legwork' | 'Quick Work' | 'Creative' | 'Tech' | 'Academic' | 'Professional' | 'Advice';
+export type TemplateTag = 'Errands' | 'Quick jobs' | 'Creative' | 'Tech' | 'Study' | 'Work' | 'Advice';
 
 export type Template = {
   key: string;
@@ -85,30 +85,30 @@ export type Template = {
   hot?: boolean;
 };
 
-export const TEMPLATE_TAGS: TemplateTag[] = ['Legwork', 'Quick Work', 'Creative', 'Tech', 'Academic', 'Professional', 'Advice'];
+export const TEMPLATE_TAGS: TemplateTag[] = ['Errands', 'Quick jobs', 'Creative', 'Tech', 'Study', 'Work', 'Advice'];
 
-/** The "Try asking" starters. Each one opens the composer pre-filled. */
+/** Starting points for a post. Each one opens the composer pre-filled. */
 export const TEMPLATES: Template[] = [
-  { key: 'ask-people', title: 'Ask People', sub: 'Honest answers from real people', tag: 'Quick Work', icon: 'users', prompt: 'Ask 10 people which of these two options they prefer and why: ' },
-  { key: 'find-quotes', title: 'Find It & Get Quotes', sub: 'Who has it and what they charge', tag: 'Legwork', icon: 'search', prompt: 'Find 3 shops near me that sell ' },
-  { key: 'offload', title: 'Offload My Work', sub: 'A finished piece of your work', tag: 'Professional', icon: 'briefcase', prompt: 'I need someone to finish this piece of work for me: ' },
-  { key: 'edit-reel', title: 'Edit My Reel', sub: 'Your footage, cut with music', tag: 'Creative', icon: 'play', prompt: 'Edit my raw footage into a 30-second reel with music and captions', hot: true },
-  { key: 'refer-me', title: 'Refer Me at Your Company', sub: 'An intro, or who to reach', tag: 'Legwork', icon: 'send', prompt: 'Looking for an employee referral at ' },
-  { key: 'done-it', title: "Ask Someone Who's Done It", sub: 'Advice and next steps', tag: 'Advice', icon: 'help', prompt: 'I want advice from someone who has already ' },
-  { key: 'promote', title: 'Promote My Page', sub: 'Posts, and how they performed', tag: 'Creative', icon: 'trending', prompt: 'Help me promote my Instagram page for my small business' },
-  { key: 'design', title: 'Design Something', sub: 'Artwork in the sizes you need', tag: 'Creative', icon: 'edit', prompt: 'Design a logo for my ' },
-  { key: 'govt-form', title: 'Fill a Govt Form', sub: 'Filled in and ready to submit', tag: 'Legwork', icon: 'list', prompt: 'Help me fill and submit my ', hot: true },
-  { key: 'make-call', title: 'Make This Call for Me', sub: 'What was said and agreed', tag: 'Legwork', icon: 'phone', prompt: 'Call this office and find out ', hot: true },
-  { key: 'shoot-reel', title: 'Shoot a Reel for Me', sub: 'Filmed and edited, ready to post', tag: 'Creative', icon: 'play', prompt: 'Shoot and edit a short reel of my ' },
-  { key: 'resume', title: 'Review My Resume', sub: 'Line-by-line fixes, ATS ready', tag: 'Professional', icon: 'edit', prompt: 'Review my resume and fix it for the ATS for a role in ' },
-  { key: 'fix-site', title: 'Fix My Website', sub: 'The broken thing, working again', tag: 'Tech', icon: 'settings', prompt: 'Fix this problem on my website: ' },
-  { key: 'exam-prep', title: 'Exam Prep Coach', sub: 'A plan for what to revise first', tag: 'Academic', icon: 'list', prompt: 'Make me a revision plan for my exam on ' },
-  { key: 'portfolio', title: 'Build Portfolio Site', sub: 'A one-page site with your work', tag: 'Tech', icon: 'compass', prompt: 'Build a one-page portfolio website for my work as a ' },
-  { key: 'shops-near', title: 'Find Shops Near Me', sub: 'Which shops, the price, a number', tag: 'Legwork', icon: 'pin', prompt: 'Find shops near me that repair ', hot: true },
-  { key: 'local-help', title: 'Find Me Local Help', sub: 'Three people, with rates', tag: 'Legwork', icon: 'users', prompt: 'Find me 3 reliable ' },
-  { key: 'area', title: 'Do Something for the Area', sub: 'Photos of it done, and the ticket', tag: 'Legwork', icon: 'flag', prompt: 'Report the broken streetlight on my road to the municipality and share the complaint number' },
-  { key: 'signups', title: 'Get Me Real Signups', sub: 'Real signups, with proof', tag: 'Quick Work', icon: 'check', prompt: 'Get 20 real people to sign up for ' },
-  { key: 'check-this', title: 'Check This for Me', sub: 'Confirmed answers, and who said so', tag: 'Quick Work', icon: 'eye', prompt: 'Visit this place and check whether ' },
+  { key: 'ask-people', title: 'Get opinions', sub: 'Honest answers from real people', tag: 'Quick jobs', icon: 'users', prompt: 'Ask 10 people which of these two options they prefer and why: ' },
+  { key: 'find-quotes', title: 'Price check', sub: 'Who has it and what they charge', tag: 'Errands', icon: 'search', prompt: 'Find 3 shops near me that sell ' },
+  { key: 'offload', title: 'Hand off a task', sub: 'A finished piece of your work', tag: 'Work', icon: 'briefcase', prompt: 'I need someone to finish this piece of work for me: ' },
+  { key: 'edit-reel', title: 'Reel editing', sub: 'Your footage, cut with music', tag: 'Creative', icon: 'play', prompt: 'Edit my raw footage into a 30-second reel with music and captions', hot: true },
+  { key: 'refer-me', title: 'Job referral', sub: 'An intro, or who to reach', tag: 'Errands', icon: 'send', prompt: 'Looking for an employee referral at ' },
+  { key: 'done-it', title: 'Talk to someone experienced', sub: 'Advice and next steps', tag: 'Advice', icon: 'help', prompt: 'I want advice from someone who has already ' },
+  { key: 'promote', title: 'Grow my page', sub: 'Posts, and how they performed', tag: 'Creative', icon: 'trending', prompt: 'Help me promote my Instagram page for my small business' },
+  { key: 'design', title: 'Logo & design', sub: 'Artwork in the sizes you need', tag: 'Creative', icon: 'edit', prompt: 'Design a logo for my ' },
+  { key: 'govt-form', title: 'Govt form help', sub: 'Filled in and ready to submit', tag: 'Errands', icon: 'list', prompt: 'Help me fill and submit my ', hot: true },
+  { key: 'make-call', title: 'Make a call for me', sub: 'What was said and agreed', tag: 'Errands', icon: 'phone', prompt: 'Call this office and find out ', hot: true },
+  { key: 'shoot-reel', title: 'Shoot a video', sub: 'Filmed and edited, ready to post', tag: 'Creative', icon: 'play', prompt: 'Shoot and edit a short reel of my ' },
+  { key: 'resume', title: 'Resume fix', sub: 'Line-by-line fixes, ATS ready', tag: 'Work', icon: 'edit', prompt: 'Review my resume and fix it for the ATS for a role in ' },
+  { key: 'fix-site', title: 'Website fix', sub: 'The broken thing, working again', tag: 'Tech', icon: 'settings', prompt: 'Fix this problem on my website: ' },
+  { key: 'exam-prep', title: 'Revision plan', sub: 'A plan for what to revise first', tag: 'Study', icon: 'list', prompt: 'Make me a revision plan for my exam on ' },
+  { key: 'portfolio', title: 'Portfolio website', sub: 'A one-page site with your work', tag: 'Tech', icon: 'compass', prompt: 'Build a one-page portfolio website for my work as a ' },
+  { key: 'shops-near', title: 'Repair shops nearby', sub: 'Which shops, the price, a number', tag: 'Errands', icon: 'pin', prompt: 'Find shops near me that repair ', hot: true },
+  { key: 'local-help', title: 'Local helpers', sub: 'Three people, with rates', tag: 'Errands', icon: 'users', prompt: 'Find me 3 reliable ' },
+  { key: 'area', title: 'Civic complaint', sub: 'Photos of it done, and the ticket', tag: 'Errands', icon: 'flag', prompt: 'Report the broken streetlight on my road to the municipality and share the complaint number' },
+  { key: 'signups', title: 'Real signups', sub: 'Real signups, with proof', tag: 'Quick jobs', icon: 'check', prompt: 'Get 20 real people to sign up for ' },
+  { key: 'check-this', title: 'On-the-spot check', sub: 'Confirmed answers, and who said so', tag: 'Quick jobs', icon: 'eye', prompt: 'Visit this place and check whether ' },
 ];
 
 /** "What can we help you with?" -- situations, shuffled on the explore page. */

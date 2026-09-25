@@ -17,6 +17,7 @@ import { NavProvider } from './src/providers/NavProvider';
 import { ScreenHost } from './src/navigation/ScreenHost';
 import { Overlays } from './src/components/Overlays';
 import { WebShell } from './src/components/WebShell';
+import { PushBridge } from './src/components/PushBridge';
 
 /** Starts on the feed when a session is restored, otherwise at the splash. */
 function Routes() {
@@ -25,6 +26,7 @@ function Routes() {
   return (
     <NavProvider initial={postAuthRoute ?? (session ? 'home' : 'splash')}>
       <StatusBar style="auto" />
+      <PushBridge />
       <WebShell>
         <View style={{ flex: 1 }}>
           <ScreenHost />

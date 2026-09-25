@@ -10,7 +10,7 @@ import { tx } from './primitives';
 const REFRESH_MS = 60_000;
 
 /**
- * "Live now": workers who pressed Go live and are free for an instant task.
+ * "Available now": workers who marked themselves available and are free for an instant task.
  *
  * Re-read every minute while it is on screen, so someone whose window ran out
  * drops off rather than sitting there looking available. Hidden entirely when
@@ -52,7 +52,7 @@ export function LiveWorkers({ active }: { active: boolean }) {
     <View style={{ marginTop: 24 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Animated.View style={{ width: 9, height: 9, borderRadius: 999, backgroundColor: t.colors.accent, opacity: pulse }} />
-        <SectionTitle title="Live now" style={{ flex: 1 }} badge={`${workers.length} online`} />
+        <SectionTitle title="Available now" style={{ flex: 1 }} badge={`${workers.length} free`} />
       </View>
       <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>
         Workers free right now for an instant task

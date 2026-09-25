@@ -15,6 +15,7 @@ import { useAuth } from '../providers/AuthProvider';
 import {
   attachPosters,
   cancelTask,
+  getTask,
   countBidsByTask,
   listMyAssignments,
   listMyBids,
@@ -390,6 +391,14 @@ function MyWork() {
   const w = stats && stats.role === 'worker' ? stats : null;
   const success = w && w.quotesPlaced > 0 ? Math.round((w.quotesWon / w.quotesPlaced) * 100) : 0;
 
+  // A pending quote opens back up for editing: price, pitch, hours, date.
+  const editQuote = async (taskId?: string) => {
+    if (!taskId) return;
+    const task = await getTask(taskId).catch(() => null);
+    if (!task) return flash('That request is no longer available');
+    setBidTask(task);
+  };
+
   const unsave = async (id: string) => {
     try {
       await setSaved(id, false);
@@ -476,7 +485,9 @@ function MyWork() {
             list.map((row, i) => (
               <FadeIn key={`${row.taskId}-${i}`} duration={320} delay={Math.min(i, 6) * 60} translateY={8} style={{ marginTop: 12 }}>
                 <Pressy
-                  onPress={() => openRow(row, { go, flash, setOpenTask, startedOf })}
+                  onPress={() =>
+                    tab === 1 ? void editQuote(row.taskId) : openRow(row, { go, flash, setOpenTask, startedOf })
+                  }
                   scaleTo={0.985}
                   style={{ backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, padding: 14 }}
                 >
@@ -485,7 +496,10 @@ function MyWork() {
                     <RNText style={tx('700', 15, t.colors.ink, { flex: 1 })} numberOfLines={2}>{row.title}</RNText>
                     <RNText style={tx('800', 15, t.colors.ink)}>{row.priceLabel}</RNText>
                   </View>
-                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 5 })}>{row.meta}</RNText>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
+                    <RNText style={tx('400', 12, t.colors.muted, { flex: 1 })}>{row.meta}</RNText>
+                    {tab === 1 ? <RNText style={tx('700', 12, t.colors.purpleDeep)}>Edit quote ›</RNText> : null}
+                  </View>
                 </Pressy>
               </FadeIn>
             ))

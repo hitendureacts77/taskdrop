@@ -11,10 +11,10 @@ import type { Profile } from '../data/api';
 export type Level = { index: number; name: string; jobs: number; rating: number };
 
 export const LEVELS: Level[] = [
-  { index: 1, name: 'Newcomer', jobs: 0, rating: 0 },
-  { index: 2, name: 'Rising', jobs: 5, rating: 4.0 },
+  { index: 1, name: 'Starter', jobs: 0, rating: 0 },
+  { index: 2, name: 'Trusted', jobs: 5, rating: 4.0 },
   { index: 3, name: 'Pro', jobs: 20, rating: 4.5 },
-  { index: 4, name: 'Expert', jobs: 50, rating: 4.7 },
+  { index: 4, name: 'Top Dropper', jobs: 50, rating: 4.7 },
 ];
 
 export type LevelStatus = Level & {
@@ -73,9 +73,9 @@ export function profileStrength(
   const sum = (xs: StrengthItem[]) => xs.reduce((n, x) => n + (x.done ? x.points : 0), 0);
   const max = (xs: StrengthItem[]) => xs.reduce((n, x) => n + x.points, 0);
   const sections = [
-    { label: 'Basic info', got: sum(basic), max: max(basic) },
-    { label: 'Professional content', got: sum(pro), max: max(pro) },
-    { label: 'Trust & credentials', got: sum(trust), max: max(trust) },
+    { label: 'About you', got: sum(basic), max: max(basic) },
+    { label: 'Your work', got: sum(pro), max: max(pro) },
+    { label: 'Trust', got: sum(trust), max: max(trust) },
   ];
   return {
     score: sections.reduce((n, s) => n + s.got, 0),

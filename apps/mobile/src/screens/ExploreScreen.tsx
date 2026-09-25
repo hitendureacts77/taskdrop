@@ -7,6 +7,7 @@ import { EmptyState, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../compo
 import { TrendingSection } from '../components/Trending';
 import { WorkCard, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
+import { HowItWorks } from '../components/HowItWorks';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -87,8 +88,8 @@ function ExploreIdeas() {
       <AppHeader />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         <View style={{ alignItems: 'center', paddingHorizontal: 20, paddingTop: 10 }}>
-          <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Explore ideas</RNText>
-          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4 })}>Discover what you can get done on TaskDrop</RNText>
+          <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Ideas & templates</RNText>
+          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4 })}>Pick a starting point, or describe your own</RNText>
         </View>
         <SearchBox
           value={q}
@@ -99,11 +100,13 @@ function ExploreIdeas() {
           submitIcon="send"
         />
         <View style={{ marginTop: 16 }}>
-          <UnderlineTabs tabs={['Get it done', 'Trending']} active={tab} onPick={setTab} />
+          <UnderlineTabs tabs={['Ideas', 'Busy now']} active={tab} onPick={setTab} />
         </View>
 
         <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
-          {tab === 1 ? (
+          {tab === 2 ? (
+            <HowItWorks side="earn" />
+          ) : tab === 1 ? (
             <TrendingSection onCategory={(c) => go('aiPost', { prompt: `I need help with ${c.toLowerCase()}: ` })} />
           ) : (
             <>
@@ -143,8 +146,8 @@ function ExploreIdeas() {
                 </>
               ) : null}
 
-              <SectionTitle title="Quick templates" icon="sparkle" />
-              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4 })}>One-tap task creation — review and post in seconds</RNText>
+              <SectionTitle title="Start from a template" icon="sparkle" />
+              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4 })}>Tap one, tweak the details, post</RNText>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12, marginHorizontal: -20 }}>
                 <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20 }}>
                   <Pill label="All" active={tag === null} onPress={() => setTag(null)} />
@@ -156,7 +159,7 @@ function ExploreIdeas() {
               <TemplateGrid items={templates} onPick={(prompt) => go('aiPost', { prompt })} />
 
               <View style={{ height: 26 }} />
-              <SectionTitle title="What can we help you with?" icon="help" action="Shuffle" onAction={() => setSeed((s) => s + 1)} />
+              <SectionTitle title="People often ask for" icon="users" action="Shuffle" onAction={() => setSeed((s) => s + 1)} />
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
                 {ideas.map((idea, i) => (
                   <FadeIn key={idea.title + seed} duration={300} delay={i * 40} style={{ width: '47.5%' }}>
@@ -188,24 +191,8 @@ function ExploreIdeas() {
               </View>
 
               <View style={{ height: 26 }} />
-              <SectionTitle title="How it works" icon="help" />
-              <View style={{ gap: 10, marginTop: 12 }}>
-                {[
-                  ['Describe it', 'Say what you need — AI turns it into a clear post in seconds.'],
-                  ['Get matched', 'Workers nearby quote on it. Auto-accept, or pick from the bids.'],
-                  ['Pay when it’s done', 'Your money sits in escrow until you approve the work.'],
-                ].map(([title, body], i) => (
-                  <View key={title} style={{ flexDirection: 'row', gap: 12, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, padding: 13 }}>
-                    <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: t.colors.accent, alignItems: 'center', justifyContent: 'center' }}>
-                      <RNText style={tx('800', 14, t.colors.onAccent)}>{i + 1}</RNText>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <RNText style={tx('700', 14, t.colors.ink)}>{title}</RNText>
-                      <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3, lineHeight: 17 })}>{body}</RNText>
-                    </View>
-                  </View>
-                ))}
-              </View>
+              <SectionTitle title="How TaskDrop works" icon="help" />
+              <HowItWorks side="hire" />
             </>
           )}
         </View>
@@ -338,15 +325,16 @@ export function SearchBox({
 
 // ------------------------------------------------------------ worker side ---
 
-type Filter = 'all' | 'quick_accept' | 'quick_earn' | 'bid' | 'live' | 'local';
+type Filter = 'all' | 'quick_accept' | 'quick_earn' | 'bid' | 'live' | 'local' | 'remote';
 
 const FILTERS: { key: Filter; label: string; icon?: Parameters<typeof Pill>[0]['icon'] }[] = [
   { key: 'all', label: 'All', icon: 'list' },
-  { key: 'quick_accept', label: 'Quick accept', icon: 'bolt' },
-  { key: 'quick_earn', label: 'Quick earn', icon: 'wallet' },
-  { key: 'bid', label: 'Bid required', icon: 'gavel' },
-  { key: 'live', label: 'Live', icon: 'live' },
-  { key: 'local', label: 'Local', icon: 'pin' },
+  { key: 'local', label: 'Nearby', icon: 'pin' },
+  { key: 'remote', label: 'Remote', icon: 'compass' },
+  { key: 'quick_accept', label: 'Instant hire', icon: 'bolt' },
+  { key: 'live', label: 'Due soon', icon: 'clock' },
+  { key: 'quick_earn', label: 'Under ₹300', icon: 'wallet' },
+  { key: 'bid', label: 'Open to quotes', icon: 'gavel' },
 ];
 
 const LOCAL_KM = 10;
@@ -417,6 +405,8 @@ function FindWork() {
           return r.assignment_mode !== 'auto';
         case 'live':
           return r.flag === 'urgent' || (r.due_at ? new Date(r.due_at).getTime() < soon : false);
+        case 'remote':
+          return r.loc_lat === null;
         case 'local': {
           const km = distanceKm({ lat: me.lat, lng: me.lng }, { lat: r.loc_lat, lng: r.loc_lng });
           return km !== null && km <= LOCAL_KM;
@@ -458,8 +448,8 @@ function FindWork() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.purple} />}
       >
         <View style={{ alignItems: 'center', paddingHorizontal: 20, paddingTop: 10 }}>
-          <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Find work</RNText>
-          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4 })}>Discover tasks matching your skills</RNText>
+          <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Browse jobs</RNText>
+          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4 })}>Every open job, filtered your way</RNText>
         </View>
         <SearchBox
           value={q}
@@ -470,7 +460,7 @@ function FindWork() {
           tone="purple"
         />
         <View style={{ marginTop: 16 }}>
-          <UnderlineTabs tabs={['Find work', 'Trending']} active={tab} onPick={setTab} />
+          <UnderlineTabs tabs={['Jobs', 'Busy now', 'How it works']} active={tab} onPick={setTab} />
         </View>
         <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
           {tab === 1 ? (
@@ -519,7 +509,7 @@ function FindWork() {
               </View>
               {filter === 'local' && me.lat === null ? (
                 <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6 })}>
-                  Set your location in your profile to see jobs within {LOCAL_KM} km.
+                  Set your area on the home screen to see jobs within {LOCAL_KM} km.
                 </RNText>
               ) : null}
 

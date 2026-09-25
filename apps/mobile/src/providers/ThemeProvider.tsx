@@ -20,13 +20,17 @@ function useWebFocusRing(accent: string) {
       el.id = FOCUS_STYLE_ID;
       document.head.appendChild(el);
     }
+    // The ring goes on the field's own box, not on the bare <input> inside it.
+    // Ringing the input drew a second, smaller rectangle inside every bordered
+    // field -- a box in a box. The input's direct parent is the field's
+    // bordered container, so outlining that highlights the whole component.
     el.textContent = `
       input:focus, textarea:focus, select:focus, [contenteditable]:focus {
-        outline: 2px solid ${accent};
-        outline-offset: 2px;
+        outline: none;
       }
-      input:focus:not(:focus-visible), textarea:focus:not(:focus-visible) {
-        outline-color: ${accent};
+      div:has(> input:focus), div:has(> textarea:focus) {
+        outline: 2px solid ${accent};
+        outline-offset: -1px;
       }
     `;
   }, [accent]);

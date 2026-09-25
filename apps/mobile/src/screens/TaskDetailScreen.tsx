@@ -456,8 +456,8 @@ export function TaskDetailScreen() {
             </RNText>
             <RNText style={tx('600', 15, t.colors.ink, { lineHeight: 22 })}>{blocked}</RNText>
             <Button
-              label={/already quoted/i.test(blocked) ? 'See my quote' : 'Find another request'}
-              onPress={() => go(/already quoted/i.test(blocked) ? 'orders' : 'search')}
+              label={/already quoted/i.test(blocked) ? 'Edit my quote' : 'Find another request'}
+              onPress={() => (/already quoted/i.test(blocked) ? void openBid() : go('explore'))}
               style={{ marginTop: t.spacing.lg }}
             />
           </Card>

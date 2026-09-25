@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { distanceKm } from '@taskdrop/rules';
 import type { Tables, TablesUpdate } from '@taskdrop/db-types';
 import type { Task, Profile } from './api';
 
@@ -67,10 +68,18 @@ export async function markNotificationsRead(ids?: string[]): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-/** New rows for this user, live. Returns an unsubscribe function. */
+let notifChannelSeq = 0;
+
+/**
+ * New rows for this user, live. Returns an unsubscribe function.
+ *
+ * Each subscriber gets its own channel: supabase-js hands back the existing
+ * channel for a repeated name, and the header, the bell screen and the push
+ * bridge all listen at once.
+ */
 export function subscribeToNotifications(userId: string, onInsert: (n: Notification) => void): () => void {
   const channel = supabase
-    .channel(`notifications:${userId}`)
+    .channel(`notifications:${userId}:${++notifChannelSeq}`)
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
@@ -508,4 +517,48 @@ export async function verificationState(): Promise<{ phone: boolean; email: bool
   const phone = /@phone\.taskdrop\.app$/i.test(email);
   const google = providers.includes('google');
   return { phone, email: google || (!phone && Boolean(u?.email_confirmed_at)), google };
+}
+
+// ------------------------------------------------------------- remote work --
+
+/**
+ * Open requests that can be done from anywhere: posted as "Remote", or with no
+ * pin at all. Newest first, never your own.
+ */
+export async function remoteTasks(limit = 5): Promise<Task[]> {
+  const uid = await myId();
+  let q = supabase
+    .from('tasks')
+    .select('*')
+    .eq('status', 'OPEN')
+    .eq('kind', 'request')
+    .is('loc_lat', null);
+  if (uid) q = q.neq('poster_id', uid);
+  return unwrap(await q.order('created_at', { ascending: false }).limit(limit));
+}
+
+/** Open, pinned requests closest to a point, within a radius, nearest first. */
+export async function tasksNear(near: { lat: number; lng: number }, radiusKm: number, limit = 5): Promise<(Task & { km: number })[]> {
+  const uid = await myId();
+  let q = supabase
+    .from('tasks')
+    .select('*')
+    .eq('status', 'OPEN')
+    .eq('kind', 'request')
+    .not('loc_lat', 'is', null);
+  if (uid) q = q.neq('poster_id', uid);
+  const rows = unwrap(await q.order('created_at', { ascending: false }).limit(200));
+  return rows
+    .map((task) => ({ ...task, km: distanceKm(near, { lat: task.loc_lat, lng: task.loc_lng }) ?? Infinity }))
+    .filter((x) => x.km <= radiusKm)
+    .sort((a, b) => a.km - b.km)
+    .slice(0, limit);
+}
+
+/** Open requests flagged urgent, soonest deadline first. */
+export async function urgentTasks(limit = 3): Promise<Task[]> {
+  const uid = await myId();
+  let q = supabase.from('tasks').select('*').eq('status', 'OPEN').eq('kind', 'request').eq('flag', 'urgent');
+  if (uid) q = q.neq('poster_id', uid);
+  return unwrap(await q.order('due_at', { ascending: true, nullsFirst: false }).limit(limit));
 }

@@ -73,14 +73,14 @@ export function PromoteScreen() {
   // pushed the budget and duration — the things this screen is actually for —
   // off the bottom of the screen.
   const [choosing, setChoosing] = useState(false);
-  // Typing filters the list rather than scrolling it. Five listings fit on a
-  // screen; fifty do not, and this screen exists to set a budget, not to be a
-  // list of everything you have ever posted.
+  // Nothing is listed until something is typed: this screen exists to set a
+  // budget, not to show everything the person has ever posted. A word from
+  // the title finds the post.
   const [listingQuery, setListingQuery] = useState('');
 
   const matches = (() => {
     const q = listingQuery.trim().toLowerCase();
-    if (!q) return mine;
+    if (!q) return [];
     return mine.filter((m) => m.title.toLowerCase().includes(q));
   })();
 
@@ -398,8 +398,9 @@ export function PromoteScreen() {
 
                   {matches.length === 0 && (
                     <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, lineHeight: 19 })}>
-                      Nothing matches “{listingQuery.trim()}”. Only your own open listings can be
-                      promoted.
+                      {listingQuery.trim()
+                        ? `Nothing matches “${listingQuery.trim()}”. Only your own open posts can be promoted.`
+                        : `Type a word from the title to find the post you want to promote (${mine.length} open).`}
                     </RNText>
                   )}
 

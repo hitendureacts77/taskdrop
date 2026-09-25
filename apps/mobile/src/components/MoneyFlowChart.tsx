@@ -12,15 +12,27 @@ const PAD_L = 6;
 const PAD_R = 6;
 
 /**
- * Money in against money out, per bucket, as two smoothed lines with a soft
- * fill -- the shape of the "Money flow" card. Values are whole rupees.
- * Tapping a column shows its two figures.
+ * Money over time as a smoothed line with a soft fill. Values are whole
+ * rupees. With `only`, one series is drawn -- a worker sees what they earned,
+ * a poster what they spent -- rather than the two set against each other.
+ * Tapping a column shows its figure.
  */
-export function MoneyFlowChart({ points }: { points: FlowPoint[] }) {
+export function MoneyFlowChart({
+  points,
+  only,
+  color,
+}: {
+  points: FlowPoint[];
+  only?: 'income' | 'expense';
+  color?: string;
+}) {
   const t = useTheme();
   const [w, setW] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
-  const max = Math.max(1, ...points.flatMap((p) => [p.income, p.expense]));
+  const max = Math.max(
+    1,
+    ...points.flatMap((p) => (only === 'income' ? [p.income] : only === 'expense' ? [p.expense] : [p.income, p.expense])),
+  );
   const n = points.length;
   const x = (i: number) => (n <= 1 ? w / 2 : PAD_L + (i * (w - PAD_L - PAD_R)) / (n - 1));
   const y = (v: number) => H - 8 - (v / max) * (H - 24);
@@ -41,8 +53,10 @@ export function MoneyFlowChart({ points }: { points: FlowPoint[] }) {
     return d ? `${d} L ${x(n - 1)} ${H} L ${x(0)} ${H} Z` : '';
   };
 
-  const income = t.colors.accent;
-  const expense = t.colors.signal;
+  const income = color ?? t.colors.accent;
+  const expense = color ?? t.colors.signal;
+  const showIn = only !== 'expense';
+  const showOut = only !== 'income';
   const sel = picked !== null ? points[picked] : null;
 
   return (
@@ -63,15 +77,15 @@ export function MoneyFlowChart({ points }: { points: FlowPoint[] }) {
             {[0.25, 0.5, 0.75].map((f) => (
               <Line key={f} x1={0} x2={w} y1={H * f} y2={H * f} stroke={t.colors.line} strokeWidth={1} strokeDasharray="3 4" />
             ))}
-            <Path d={area('income')} fill={income} opacity={0.12} />
-            <Path d={area('expense')} fill={expense} opacity={0.1} />
-            <Path d={line('income')} stroke={income} strokeWidth={2.4} fill="none" />
-            <Path d={line('expense')} stroke={expense} strokeWidth={2.4} fill="none" />
+            {showIn ? <Path d={area('income')} fill={income} opacity={0.14} /> : null}
+            {showOut ? <Path d={area('expense')} fill={expense} opacity={0.14} /> : null}
+            {showIn ? <Path d={line('income')} stroke={income} strokeWidth={2.4} fill="none" /> : null}
+            {showOut ? <Path d={line('expense')} stroke={expense} strokeWidth={2.4} fill="none" /> : null}
             {picked !== null && sel ? (
               <>
                 <Line x1={x(picked)} x2={x(picked)} y1={0} y2={H} stroke={t.colors.muted} strokeWidth={1} />
-                <Circle cx={x(picked)} cy={y(sel.income)} r={4} fill={income} />
-                <Circle cx={x(picked)} cy={y(sel.expense)} r={4} fill={expense} />
+                {showIn ? <Circle cx={x(picked)} cy={y(sel.income)} r={4} fill={income} /> : null}
+                {showOut ? <Circle cx={x(picked)} cy={y(sel.expense)} r={4} fill={expense} /> : null}
               </>
             ) : null}
           </Svg>
@@ -86,8 +100,17 @@ export function MoneyFlowChart({ points }: { points: FlowPoint[] }) {
       </View>
       {sel ? (
         <RNText style={tx('600', 12, t.colors.ink, { marginTop: 8 })}>
-          {sel.label}: <RNText style={{ color: income }}>in {rupees(sel.income)}</RNText> ·{' '}
-          <RNText style={{ color: expense }}>out {rupees(sel.expense)}</RNText>
+          {sel.label}:{' '}
+          {only === 'income' ? (
+            <RNText style={{ color: income }}>{rupees(sel.income)} earned</RNText>
+          ) : only === 'expense' ? (
+            <RNText style={{ color: expense }}>{rupees(sel.expense)} spent</RNText>
+          ) : (
+            <>
+              <RNText style={{ color: income }}>in {rupees(sel.income)}</RNText> ·{' '}
+              <RNText style={{ color: expense }}>out {rupees(sel.expense)}</RNText>
+            </>
+          )}
         </RNText>
       ) : null}
     </View>

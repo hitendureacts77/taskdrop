@@ -305,6 +305,49 @@ export function CompareScreen() {
             </RNText>
           </View>
         )}
+
+        {/* What a quote will look like when one arrives. Marked as an example
+            and not tappable, so it can never be mistaken for a real offer. */}
+        {sorted.length === 0 && (
+          <View
+            style={{
+              marginTop: 12,
+              borderWidth: 1,
+              borderStyle: 'dashed',
+              borderColor: t.colors.accentBorder,
+              borderRadius: 14,
+              padding: 15,
+              opacity: 0.85,
+            }}
+            accessibilityLabel="Example of a quote"
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ backgroundColor: t.colors.goldSoft, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
+                <RNText style={tx('800', 10, t.colors.goldInk, { letterSpacing: 0.8 })}>EXAMPLE</RNText>
+              </View>
+              <RNText style={tx('400', 12, t.colors.muted)}>How a quote will appear</RNText>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: 12 }}>
+              <View style={{ width: 38, height: 38, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
+                <RNText style={tx('800', 15, '#FFFFFF')}>R</RNText>
+              </View>
+              <View style={{ flex: 1 }}>
+                <RNText style={tx('700', 14, t.colors.ink)}>A tasker near you</RNText>
+                <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>★ 4.8 · 23 jobs done · 2.1 km away</RNText>
+              </View>
+              <RNText style={tx('800', 17, t.colors.accentDeep)}>
+                {formatINR(Math.max(1000, Math.round((benchMinor * 0.9) / 1000) * 1000))}
+              </RNText>
+            </View>
+            <RNText style={tx('400', 13, t.colors.text, { marginTop: 10, lineHeight: 19 })}>
+              I’ve done jobs like this many times and can come by this evening. The price includes my tools; I’ll
+              check with you before buying any parts.
+            </RNText>
+            <RNText style={tx('500', 12, t.colors.muted, { marginTop: 8 })}>
+              Estimated time: 2 hours · Can deliver by tomorrow, 6 PM
+            </RNText>
+          </View>
+        )}
       </ScrollView>
 
       <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>

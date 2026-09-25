@@ -20,7 +20,7 @@ import {
   type Fees,
 } from '../data/extras';
 
-const TABS = ['Profile', 'Security', 'Billing', 'Preferences'];
+const TABS = ['You', 'Sign-in', 'Fees', 'App'];
 
 /**
  * Account & settings: the handle and name people see, the password that makes
@@ -205,8 +205,7 @@ export function AccountScreen() {
           <>
             <View style={card}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>Your plan: Free</RNText>
-                <Badge label="Current" />
+                <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>Your fees</RNText>
               </View>
               <View style={{ flexDirection: 'row', marginTop: 14 }}>
                 {[
@@ -221,7 +220,7 @@ export function AccountScreen() {
                 ))}
               </View>
               <Pressable onPress={() => go('pricing')} style={{ marginTop: 14 }} accessibilityRole="button">
-                <RNText style={tx('700', 13, t.colors.accentDeep)}>Compare plans ›</RNText>
+                <RNText style={tx('700', 13, t.colors.accentDeep)}>How fees work ›</RNText>
               </Pressable>
             </View>
             <View style={{ ...card, borderColor: t.colors.ai }}>

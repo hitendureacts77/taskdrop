@@ -43,6 +43,7 @@ export const WorkCard = memo(function WorkCard({
   onOpen,
   onApply,
   onToggleSave,
+  km,
 }: {
   task: TaskWithPoster;
   index?: number;
@@ -50,6 +51,8 @@ export const WorkCard = memo(function WorkCard({
   onOpen: () => void;
   onApply: () => void;
   onToggleSave?: () => void;
+  /** Distance from the worker's area, when the list is sorted by it. */
+  km?: number;
 }) {
   const t = useTheme();
   const left = timeLeft(task.due_at);
@@ -121,7 +124,17 @@ export const WorkCard = memo(function WorkCard({
                 <RNText style={tx('600', 11, left === 'overdue' ? t.colors.signal : t.colors.goldInk)}>{left}</RNText>
               </View>
             ) : null}
-            {task.loc_label ? (
+            {km !== undefined && Number.isFinite(km) ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                <Icon name="pin" size={12} color={t.colors.accentDeep} strokeWidth={2} />
+                <RNText style={tx('600', 11, t.colors.accentDeep)}>{km < 1 ? '< 1 km' : `${km.toFixed(km < 10 ? 1 : 0)} km`}</RNText>
+              </View>
+            ) : task.loc_lat === null ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                <Icon name="compass" size={12} color={t.colors.blue} strokeWidth={2} />
+                <RNText style={tx('600', 11, t.colors.blue)}>Remote</RNText>
+              </View>
+            ) : task.loc_label ? (
               <RNText style={tx('400', 11, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>
                 {task.loc_label.split(',').slice(-2).join(',').trim()}
               </RNText>

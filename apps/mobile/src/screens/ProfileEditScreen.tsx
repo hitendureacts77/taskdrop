@@ -191,7 +191,7 @@ export function ProfileEditScreen() {
 
           <View style={card}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>Profile strength</RNText>
+              <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>Profile score</RNText>
               <RNText style={tx('800', 15, barColor)}>{strength.score}%</RNText>
             </View>
             <View style={{ height: 6, borderRadius: 999, backgroundColor: t.colors.line, marginTop: 10, overflow: 'hidden' }}>
@@ -299,8 +299,8 @@ export function ProfileEditScreen() {
             <View style={card}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Icon name="live" size={18} color={live ? t.colors.signal : t.colors.muted} />
-                <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>{live ? 'You’re live' : 'Go live'}</RNText>
-                {live ? <Badge label="Live" tone="signal" /> : null}
+                <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>{live ? 'You’re available now' : 'Available now'}</RNText>
+                {live ? <Badge label="On" tone="signal" /> : null}
               </View>
               <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6, lineHeight: 18 })}>
                 {live

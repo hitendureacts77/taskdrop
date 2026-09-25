@@ -26,7 +26,7 @@ import { levelFor } from '../lib/levels';
  */
 export function AppHeader() {
   const t = useTheme();
-  const { go, screen } = useNav();
+  const { go, reset, screen } = useNav();
   const { mode, setMode } = useMode();
   const { userId } = useAuth();
   const [unread, setUnread] = useState(0);
@@ -109,9 +109,12 @@ export function AppHeader() {
   return (
     <>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 6 }}>
-        <RNText style={tx('800', 20, t.colors.ink, { letterSpacing: -0.6 })}>
-          taskdrop<RNText style={tx('800', 20, t.colors.accent)}>.</RNText>
-        </RNText>
+        {/* The logo is the way home from anywhere, as on most apps. */}
+        <Pressable onPress={() => reset('home')} accessibilityRole="link" accessibilityLabel="TaskDrop home" hitSlop={6}>
+          <RNText style={tx('800', 20, t.colors.ink, { letterSpacing: -0.6 })}>
+            taskdrop<RNText style={tx('800', 20, t.colors.accent)}>.</RNText>
+          </RNText>
+        </Pressable>
         <View style={{ flexDirection: 'row', backgroundColor: t.colors.surface2, borderRadius: 999, padding: 3, marginLeft: 4 }}>
           {(['poster', 'worker'] as const).map((m) => {
             const on = mode === m;
@@ -276,7 +279,6 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
                   </RNText>
                   <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
                     <Badge label={level.name} tone="gold" />
-                    <Badge label="Free plan" tone="neutral" />
                   </View>
                 </View>
               </View>
@@ -309,7 +311,7 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
               {row('wallet', 'Wallet', balance !== null ? `Balance ${rupees(balance / 100)}` : 'Balance and payments', () =>
                 open(() => go('wallet')),
               )}
-              {row('card', 'Pricing & plans', 'Fees and what each plan includes', () => open(() => go('pricing')))}
+              {row('card', 'How fees work', 'What TaskDrop takes, and when', () => open(() => go('pricing')))}
               {row('gavel', 'My disputes', 'Track issue resolutions', () => open(() => go('disputes')))}
               {row('settings', 'Settings', 'Account, security and preferences', () => open(() => go('account')))}
 

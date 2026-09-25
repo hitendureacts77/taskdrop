@@ -578,7 +578,12 @@ export function HomeScreen() {
     <Screen scroll padded={false} onRefresh={refresh} refreshing={refreshing}>
       <FadeIn duration={260}>
         <AppHeader />
-        <HomeSections />
+        {/* A worker's home is sectioned (skills, near you, remote, needed
+            today) in HomeSections. The flat feed below is for posters, and
+            for either side's search results. */}
+        {searching ? null : <HomeSections />}
+        {!worker || searching ? (
+        <>
 
         <View
           style={{
@@ -815,6 +820,8 @@ export function HomeScreen() {
             )}
           </>
         )}
+        </>
+        ) : null}
       </FadeIn>
     </Screen>
   );

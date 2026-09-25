@@ -20,7 +20,10 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.taskdrop.app",
       "versionCode": 1,
-      "usesCleartextTraffic": false
+      "usesCleartextTraffic": false,
+      "permissions": [
+        "POST_NOTIFICATIONS"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -54,7 +57,13 @@
           "isAndroidBackgroundLocationEnabled": false
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "color": "#0E8F72"
+        }
+      ]
     ]
   }
 }

@@ -54,7 +54,7 @@ export function TrendingSection({ onCategory }: { onCategory?: (category: string
 
   return (
     <View>
-      <SectionTitle title="Trending categories" icon="trending" badge="Live" />
+      <SectionTitle title="Busiest categories" icon="trending" badge="Today" />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
         {cats === null
           ? [0, 1, 2, 3].map((i) => <Shimmer key={i} height={64} style={{ width: '47%' }} />)
@@ -93,7 +93,7 @@ export function TrendingSection({ onCategory }: { onCategory?: (category: string
               ))}
       </View>
 
-      <SectionTitle title="Top earners" icon="trophy" style={{ marginTop: 26 }} />
+      <SectionTitle title="Most trusted taskers" icon="trophy" style={{ marginTop: 26 }} />
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
         <Pill label="Top rated" icon="star" active={kind === 'top_rated'} onPress={() => setKind('top_rated')} />
         <Pill label="Most active" icon="trending" active={kind === 'most_active'} onPress={() => setKind('most_active')} />
@@ -111,7 +111,7 @@ export function TrendingSection({ onCategory }: { onCategory?: (category: string
         </View>
       </ScrollView>
 
-      <SectionTitle title="Platform highlights" icon="bolt" style={{ marginTop: 26 }} />
+      <SectionTitle title="TaskDrop this week" icon="bolt" style={{ marginTop: 26 }} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 12, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, paddingVertical: 14 }}>
         {[
           { label: 'Active now', value: hl?.activeNow, color: t.colors.accentDeep },

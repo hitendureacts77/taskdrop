@@ -427,8 +427,8 @@ export function AiPostScreen() {
       </View>
     ) : (
       <>
-        <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Quick picks</RNText>
-        <RNText style={tx('400', 13, t.colors.muted, { marginTop: 6 })}>~30 seconds — pick what fits and we’ll draft your brief.</RNText>
+        <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>A few quick questions</RNText>
+        <RNText style={tx('400', 13, t.colors.muted, { marginTop: 6 })}>Tap what fits. It takes about half a minute.</RNText>
         <View style={{ flexDirection: 'row', gap: 6, marginTop: 16 }}>
           {questions.map((_, i) => (
             <View
@@ -476,7 +476,7 @@ export function AiPostScreen() {
   if (phase === 'brief') {
     body = (
       <>
-        <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Review your brief</RNText>
+        <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Check your post</RNText>
         {sourceNote}
         {busy ? (
           <View style={{ alignItems: 'center', paddingVertical: 60, gap: 12 }}>

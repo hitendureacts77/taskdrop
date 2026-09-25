@@ -687,6 +687,43 @@ export async function placeBid(input: {
   return (data ?? [])[0]!;
 }
 
+/** This worker's own quote on a task, if they sent one. */
+export async function getMyBid(taskId: string, userId: string): Promise<Bid | null> {
+  const { data, error } = await supabase
+    .from('bids')
+    .select('*')
+    .eq('task_id', taskId)
+    .eq('worker_id', userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+/**
+ * Change a quote already sent. The bids_update_own policy only lets a worker
+ * touch their own quote while it is not locked, so a quote the poster has
+ * accepted can no longer be edited from here.
+ */
+export async function updateBid(
+  bidId: string,
+  edits: { priceMinor: number; timeLimitMinutes: number; message: string | null },
+): Promise<Bid> {
+  const { data, error } = await supabase
+    .from('bids')
+    .update({
+      price_minor: edits.priceMinor,
+      time_limit_minutes: edits.timeLimitMinutes,
+      message: edits.message,
+    })
+    .eq('id', bidId)
+    .eq('is_locked', false)
+    .select();
+  if (error) throw new Error(quoteRefusalMessage(error.message));
+  const row = (data ?? [])[0];
+  if (!row) throw new Error('This quote was already accepted, so it can no longer be changed');
+  return row;
+}
+
 /**
  * Whether this person may quote on this task, and why not when they may not.
  *
