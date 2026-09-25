@@ -20,6 +20,13 @@ import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
  *   MSG91_AUTHKEY      MSG91 auth key
  *   MSG91_TEMPLATE_ID  DLT-approved OTP template id, which must contain ##OTP##
  *   TEST_PHONES        optional, comma-separated 10-digit numbers that skip SMS
+ *
+ * Development codes for every number: while SMS is not configured, setting
+ * public.settings key 'dev_otp_for_all' to true makes every number get a fresh
+ * code back in the response (the app fills it in). That lets anyone who knows
+ * a number sign in as it, so it only arms with no MSG91 keys present, and it
+ * must be switched off before real people use the app:
+ *   update public.settings set value = 'false' where key = 'dev_otp_for_all';
  */
 
 const CORS = {
@@ -62,6 +69,16 @@ if (DEV_BYPASS) {
     `[phone-auth] ALLOW_ANY_OTP is ON: every number is accepted with code ${DEV_OTP}. ` +
       `This is a development-only bypass and must never run against real users.`,
   );
+}
+
+/**
+ * The development switch in public.settings. Read per request so it can be
+ * flipped off without a redeploy, and never armed once real SMS is set up.
+ */
+async function devCodesForAll(admin: ReturnType<typeof createClient>): Promise<boolean> {
+  if (MSG91_AUTHKEY || MSG91_TEMPLATE_ID) return false;
+  const { data } = await admin.from("settings").select("value").eq("key", "dev_otp_for_all").maybeSingle();
+  return data?.value === true;
 }
 
 function normalise(phone: string): string {
@@ -156,10 +173,26 @@ Deno.serve(async (req: Request) => {
 
   // ---- send ---------------------------------------------------------------
   if (body.action === "send") {
-    // A number on the allowlist, or the dev bypass, skips the SMS gateway and
+    // Right door? Checked before a code is made, so nobody types a code only
+    // to be told afterwards. Creating an account for a number that already
+    // has one would silently sign them into it; signing in with a number that
+    // has none has nowhere to go.
+    const email = `p${phone}@phone.taskdrop.app`;
+    if (body.mode === "signup" && (await accountExists(email))) {
+      return json(
+        { error: "An account with this number already exists. Sign in instead.", accountExists: true },
+        409,
+      );
+    }
+    if (body.mode === "signin" && !(await accountExists(email))) {
+      return json({ error: "No account found for that number. Create one instead.", noAccount: true }, 404);
+    }
+
+    // A number on the allowlist, or a dev switch, skips the SMS gateway and
     // gets its code back in the response instead of over the air.
     const isTest = TEST_PHONES.has(phone);
-    const skipSms = isTest || DEV_BYPASS;
+    const devForAll = await devCodesForAll(admin);
+    const skipSms = isTest || DEV_BYPASS || devForAll;
 
     // Refuse rather than fall back to returning the code. An unconfigured
     // server that answers with the OTP is worse than one that answers "not yet".
@@ -290,6 +323,15 @@ Deno.serve(async (req: Request) => {
       return json(
         { error: "No account found for that number. Create one instead.", noAccount: true },
         404,
+      );
+    }
+
+    // And the reverse: "Create account" with a number that already has one
+    // must not quietly sign into it.
+    if (!wantsSignIn && (await accountExists(email))) {
+      return json(
+        { error: "An account with this number already exists. Sign in instead.", accountExists: true },
+        409,
       );
     }
 

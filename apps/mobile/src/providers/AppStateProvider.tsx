@@ -92,7 +92,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const flash = useCallback((msg: string) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setFx((p) => ({ ...p, toast: msg }));
-    toastTimer.current = setTimeout(() => setFx((p) => ({ ...p, toast: null })), 2200);
+    // Long enough to read: longer messages stay up longer.
+    const ms = Math.min(6000, Math.max(2200, msg.length * 55));
+    toastTimer.current = setTimeout(() => setFx((p) => ({ ...p, toast: null })), ms);
   }, []);
 
   const celebrate = useCallback(

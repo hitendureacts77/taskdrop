@@ -4,7 +4,7 @@ import { Screen } from '../components/ui';
 import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
-import { useAuth } from '../providers/AuthProvider';
+import { AuthError, useAuth } from '../providers/AuthProvider';
 import { postSignInRoute } from '../data/api';
 import { supabase } from '../lib/supabase';
 import { tx } from '../components/primitives';
@@ -17,6 +17,8 @@ export function SignupScreen() {
   const { celebrate, flash } = useActions();
   const { requestCode, verifyCode, signInWithGoogle } = useAuth();
   const [phone, setPhone] = useState('');
+  // Set when the server says this is the wrong door for this number.
+  const [wrongDoor, setWrongDoor] = useState<'exists' | 'none' | null>(null);
   const [otp, setOtp] = useState('');
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
@@ -76,24 +78,45 @@ export function SignupScreen() {
   const codeRef = useRef<TextInput>(null);
   const [codeFocused, setCodeFocused] = useState(false);
 
-  // The real flow is a code that arrives by SMS and gets typed in by hand, so
-  // never fill the boxes in for the user. Numbers on the server's TEST_PHONES
-  // allowlist skip the SMS and get the code back instead — surface that plainly
-  // as a test code rather than pretending a message was delivered.
+  // Normally the code arrives by SMS and is typed in by hand. While the server
+  // is in development (no SMS yet) it hands the code back instead, and it is
+  // filled in here -- the six digits then submit themselves.
+  //
+  // The mode goes with the request, so the server can stop at the wrong door
+  // before any code is made: "Create account" for a number that already has
+  // one, or "Sign in" for a number that has none.
   const sendCode = async () => {
     if (phone.replace(/[^0-9]/g, '').length !== 10) return flash('Enter a 10-digit mobile number');
     setBusy(true);
+    setWrongDoor(null);
     try {
-      const { devCode } = await requestCode(phone);
-      flash(devCode ? `Test number — code ${devCode}` : `Code sent to +91 ${phone}`);
+      const { devCode } = await requestCode(phone, mode);
       setResendAt(Date.now() + 60_000);
       setNow(Date.now());
-      codeRef.current?.focus();
+      if (devCode) {
+        flash('Development code filled in');
+        setOtp(devCode);
+      } else {
+        flash(`Code sent to +91 ${phone}`);
+        codeRef.current?.focus();
+      }
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not send a code');
+      if (e instanceof AuthError && (e.accountExists || e.noAccount)) {
+        setWrongDoor(e.accountExists ? 'exists' : 'none');
+      } else {
+        flash(e instanceof Error ? e.message : 'Could not send a code');
+      }
     } finally {
       setBusy(false);
     }
+  };
+
+  // Go through the other door with the same number, ready to send a code.
+  const switchDoor = () => {
+    setWrongDoor(null);
+    setOtp('');
+    setResendAt(0);
+    go('signup', { mode: signingIn ? 'signup' : 'signin' });
   };
 
   const verify = async () => {
@@ -110,7 +133,11 @@ export function SignupScreen() {
       if (route === 'home') reset('home');
       else go('setup');
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'That code is not right');
+      if (e instanceof AuthError && (e.accountExists || e.noAccount)) {
+        setWrongDoor(e.accountExists ? 'exists' : 'none');
+      } else {
+        flash(e instanceof Error ? e.message : 'That code is not right');
+      }
       // Clear it, or the auto-submit cannot fire again for a retry.
       setOtp('');
       codeRef.current?.focus();
@@ -126,7 +153,7 @@ export function SignupScreen() {
   const googleSignIn = async () => {
     setGoogleBusy(true);
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(mode);
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -280,7 +307,10 @@ export function SignupScreen() {
           <View style={{ width: 1, height: 18, backgroundColor: t.colors.line }} />
           <TextInput
             value={phone}
-            onChangeText={(v) => setPhone(v.replace(/[^0-9]/g, '').slice(0, 10))}
+            onChangeText={(v) => {
+              setPhone(v.replace(/[^0-9]/g, '').slice(0, 10));
+              setWrongDoor(null);
+            }}
             onSubmitEditing={() => void sendCode()}
             returnKeyType="send"
             placeholder="98765 43210"
@@ -303,7 +333,7 @@ export function SignupScreen() {
           }}
         >
           <RNText style={tx('400', 13, t.colors.muted)}>
-            {phone.length === 10 ? `Sent to +91 •••• ••${phone.slice(-4)}` : 'Enter your number'}
+            {resendAt && phone.length === 10 ? `Sent to +91 •••• ••${phone.slice(-4)}` : 'Enter your number'}
           </RNText>
           <Pressable onPress={sendCode} hitSlop={8} disabled={busy || waitSec > 0}>
             <RNText style={tx('700', 13, t.colors.accentDeep)}>
@@ -317,6 +347,45 @@ export function SignupScreen() {
             </RNText>
           </Pressable>
         </View>
+
+        {wrongDoor ? (
+          <View
+            style={{
+              marginTop: 14,
+              backgroundColor: t.colors.accentSoft,
+              borderWidth: 1,
+              borderColor: t.colors.accentBorder,
+              borderRadius: 14,
+              padding: 14,
+            }}
+          >
+            <RNText style={tx('700', 14, t.colors.ink)}>
+              {wrongDoor === 'exists' ? 'You already have an account' : 'No account for this number yet'}
+            </RNText>
+            <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4, lineHeight: 19 })}>
+              {wrongDoor === 'exists'
+                ? `+91 ${phone} is already registered on TaskDrop. Sign in to continue.`
+                : `Create an account with +91 ${phone} — it only takes a minute.`}
+            </RNText>
+            <Pressable
+              onPress={switchDoor}
+              accessibilityRole="button"
+              style={({ pressed }) => ({
+                marginTop: 12,
+                alignSelf: 'flex-start',
+                backgroundColor: t.colors.accent,
+                borderRadius: 999,
+                paddingVertical: 9,
+                paddingHorizontal: 16,
+                transform: [{ scale: pressed ? 0.97 : 1 }],
+              })}
+            >
+              <RNText style={tx('700', 13, t.colors.onAccent)}>
+                {wrongDoor === 'exists' ? 'Sign in instead' : 'Create account instead'}
+              </RNText>
+            </Pressable>
+          </View>
+        ) : null}
 
         {label('6-DIGIT CODE · SENT BY SMS', { marginTop: 24 })}
         <Pressable onPress={() => codeRef.current?.focus()}>

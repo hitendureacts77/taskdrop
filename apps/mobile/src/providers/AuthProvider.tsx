@@ -11,8 +11,8 @@ import { postSignInRoute } from '../data/api';
  * OAuth straight through Supabase.
  *
  * The OTP code arrives by SMS (MSG91, sent server-side). `devCode` comes back
- * only for numbers on the server's TEST_PHONES allowlist, so on a real
- * handset it is always undefined. Verifying swaps a one-time token for a
+ * only for numbers on the server's TEST_PHONES allowlist, or for every number
+ * while the server's development switch is on and SMS is not configured. Verifying swaps a one-time token for a
  * genuine session, which supabase-js then persists and refreshes on its own.
  */
 
@@ -27,8 +27,13 @@ type AuthCtx = {
    * restored session on a normal cold start leaves this null.
    */
   postAuthRoute: 'home' | 'setup' | null;
-  /** Ask for a code. Only hands one back for allowlisted test numbers. */
-  requestCode: (phone: string) => Promise<{ devCode?: string }>;
+  /**
+   * Ask for a code. `mode` lets the server stop at the wrong door before any
+   * code is made: 'signup' with a number that has an account, or 'signin'
+   * with one that has none, rejects with an AuthError saying which. Hands a
+   * code back only in development (see phone-auth).
+   */
+  requestCode: (phone: string, mode?: 'signin' | 'signup') => Promise<{ devCode?: string }>;
   /**
    * Verify the code and start a session. `mode` decides whether an unknown
    * number may be registered: 'signup' creates, 'signin' refuses. Resolves
@@ -40,8 +45,13 @@ type AuthCtx = {
     mode?: 'signin' | 'signup',
   ) => Promise<{ isNew: boolean }>;
   /** Start Google sign-in. Resolves on native once a session exists; on web
-   *  the page navigates away and this never resolves. */
-  signInWithGoogle: () => Promise<void>;
+   *  the page navigates away and this never resolves. `intent` is which
+   *  door was used: from "Create account", an account that already existed
+   *  is signed in with a notice saying so. */
+  signInWithGoogle: (intent?: 'signin' | 'signup') => Promise<void>;
+  /** A one-off message for the person, e.g. "account already exists". */
+  notice: string | null;
+  clearNotice: () => void;
   signOut: () => Promise<void>;
 };
 
@@ -50,6 +60,17 @@ const Ctx = createContext<AuthCtx | null>(null);
 const FN_URL = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/phone-auth`;
 const ANON = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
+/** A phone-auth refusal, with which wrong door it was. */
+export class AuthError extends Error {
+  accountExists: boolean;
+  noAccount: boolean;
+  constructor(message: string, flags: { accountExists?: unknown; noAccount?: unknown }) {
+    super(message);
+    this.accountExists = flags.accountExists === true;
+    this.noAccount = flags.noAccount === true;
+  }
+}
+
 async function callFn(body: Record<string, unknown>) {
   const res = await fetch(FN_URL, {
     method: 'POST',
@@ -57,8 +78,17 @@ async function callFn(body: Record<string, unknown>) {
     body: JSON.stringify(body),
   });
   const json = (await res.json()) as Record<string, unknown>;
-  if (!res.ok) throw new Error(String(json.error ?? 'Something went wrong'));
+  if (!res.ok) throw new AuthError(String(json.error ?? 'Something went wrong'), json);
   return json;
+}
+
+const GOOGLE_INTENT_KEY = 'td:google-intent';
+const EXISTING_GOOGLE =
+  'You already have a TaskDrop account with this Google ID, so we signed you in.';
+
+/** Made more than a minute ago: an account that existed before this sign-in. */
+function existedBefore(createdAt: string | undefined): boolean {
+  return Boolean(createdAt) && Date.now() - new Date(createdAt!).getTime() > 60_000;
 }
 
 WebBrowser.maybeCompleteAuthSession();
@@ -88,6 +118,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const [postAuthRoute, setPostAuthRoute] = useState<'home' | 'setup' | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const clearNotice = useCallback(() => setNotice(null), []);
 
   useEffect(() => {
     let alive = true;
@@ -131,6 +163,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error('[auth] exchangeCodeForSession failed:', error.code, error.message);
           } else if (alive) {
             const { data } = await supabase.auth.getUser();
+            let intent: string | null = null;
+            try {
+              intent = window.sessionStorage.getItem(GOOGLE_INTENT_KEY);
+              window.sessionStorage.removeItem(GOOGLE_INTENT_KEY);
+            } catch {
+              /* storage blocked: no notice, still signed in */
+            }
+            if (intent === 'signup' && existedBefore(data.user?.created_at)) setNotice(EXISTING_GOOGLE);
             setPostAuthRoute(await postSignInRoute(data.user?.id ?? ''));
           }
         }
@@ -147,8 +187,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const requestCode = useCallback(async (phone: string) => {
-    const out = await callFn({ action: 'send', phone });
+  const requestCode = useCallback(async (phone: string, mode?: 'signin' | 'signup') => {
+    const out = await callFn({ action: 'send', phone, mode });
     return { devCode: typeof out.devCode === 'string' ? out.devCode : undefined };
   }, []);
 
@@ -164,11 +204,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { isNew: out.isNew === true };
   }, []);
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (intent: 'signin' | 'signup' = 'signin') => {
     const isWeb = Platform.OS === 'web' && typeof window !== 'undefined';
     const redirectTo = isWeb ? window.location.origin : Linking.createURL('auth-callback');
 
     if (isWeb) {
+      // The page reloads on the way back, so the door used is carried over.
+      try {
+        window.sessionStorage.setItem(GOOGLE_INTENT_KEY, intent);
+      } catch {
+        /* storage blocked: no notice later, sign-in still works */
+      }
       // A same-tab redirect to Google and back, same as any "Continue with
       // Google" button -- this app reloads from scratch when it lands.
       const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
@@ -193,8 +239,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Same bare-code requirement as the web path above.
     const returnedCode = new URL(result.url).searchParams.get('code');
     if (!returnedCode) throw new Error('Google did not return a code');
-    const { error: exchangeError } = await exchangeCodeForSessionWithRetry(returnedCode);
+    const { data: exchanged, error: exchangeError } = await exchangeCodeForSessionWithRetry(returnedCode);
     if (exchangeError) throw new Error(exchangeError.message);
+    if (intent === 'signup' && existedBefore(exchanged.user?.created_at)) setNotice(EXISTING_GOOGLE);
   }, []);
 
   const signOut = useCallback(async () => {
@@ -211,8 +258,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       verifyCode,
       signInWithGoogle,
       signOut,
+      notice,
+      clearNotice,
     }),
-    [session, ready, postAuthRoute, requestCode, verifyCode, signInWithGoogle, signOut],
+    [session, ready, postAuthRoute, requestCode, verifyCode, signInWithGoogle, signOut, notice, clearNotice],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
