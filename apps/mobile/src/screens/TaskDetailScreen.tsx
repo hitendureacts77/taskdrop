@@ -26,6 +26,7 @@ import { FadeIn, tx } from '../components/primitives';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { PersonSheet } from '../components/PersonSheet';
 import { BidSheet } from '../components/BidSheet';
+import { roughPlace } from '../lib/place';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 
 /**
@@ -215,7 +216,7 @@ export function TaskDetailScreen() {
           record: n + (n === 1 ? ' request posted' : ' requests posted'),
           rating: Number(stats.profile?.poster_rating_avg ?? 0),
           ratingCount: stats.profile?.poster_rating_count ?? 0,
-          locLabel: stats.profile?.loc_label ?? null,
+          locLabel: roughPlace(stats.profile?.loc_label),
           locLat: stats.profile?.loc_lat ?? null,
           locLng: stats.profile?.loc_lng ?? null,
           lastSeen: stats.profile?.last_seen_at ?? null,

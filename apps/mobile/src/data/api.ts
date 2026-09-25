@@ -1341,6 +1341,10 @@ export type ListingInput = {
   priceMinor: number;
   deliveryDays: number;
   category: string | null;
+  /** Rough area only ("Kondapur"), or 'Remote'. Never a door-level address. */
+  locLabel: string;
+  locLat: number | null;
+  locLng: number | null;
 };
 
 export async function createListing(userId: string, input: ListingInput): Promise<Task> {
@@ -1352,7 +1356,9 @@ export async function createListing(userId: string, input: ListingInput): Promis
     benchmarkMinor: input.priceMinor,
     timeLimitMinutes: input.deliveryDays * 1440,
     category: input.category,
-    locLabel: 'Remote',
+    locLabel: input.locLabel,
+    locLat: input.locLat,
+    locLng: input.locLng,
     kind: 'service',
   });
 }
@@ -1367,6 +1373,9 @@ export async function updateListing(id: string, input: ListingInput): Promise<Ta
         benchmark_minor: input.priceMinor,
         time_limit_minutes: input.deliveryDays * 1440,
         category: input.category,
+        loc_label: input.locLabel,
+        loc_lat: input.locLat,
+        loc_lng: input.locLng,
       })
       .eq('id', id)
       .eq('kind', 'service')
@@ -1379,4 +1388,37 @@ export async function updateListing(id: string, input: ListingInput): Promise<Ta
 /** Take a listing down. It stops showing to posters. */
 export async function removeListing(id: string): Promise<void> {
   unwrap(await supabase.from('tasks').update({ status: 'CANCELLED' }).eq('id', id).eq('kind', 'service').select('id'));
+}
+
+// -------------------------------------------------------- proof of work -----
+
+export type Proof = Omit<Tables<'task_proofs'>, 'files'> & { files: import('../lib/media').ProofFile[] };
+
+/** What the worker says they did, with photos or documents. Required before "done". */
+export async function submitProof(input: {
+  taskId: string;
+  workerId: string;
+  summary: string;
+  files: import('../lib/media').ProofFile[];
+}): Promise<Proof> {
+  const rows = unwrap(
+    await supabase
+      .from('task_proofs')
+      .insert({ task_id: input.taskId, worker_id: input.workerId, summary: input.summary.trim(), files: input.files })
+      .select(),
+  );
+  return rows[0] as Proof;
+}
+
+/** The latest proof for a task, for the worker who sent it or the poster reviewing it. */
+export async function getProof(taskId: string): Promise<Proof | null> {
+  const { data, error } = await supabase
+    .from('task_proofs')
+    .select('*')
+    .eq('task_id', taskId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return (data as Proof | null) ?? null;
 }

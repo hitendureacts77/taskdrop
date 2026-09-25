@@ -1,459 +1,486 @@
-import { useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text as RNText,
-  Pressable,
-  Animated,
-  Easing,
-} from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text as RNText, Pressable, Animated, Easing, Image, Linking, ActivityIndicator } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Screen, formatINR } from '../components/ui';
+import { Icon } from '../components/Icon';
+import { EmptyState, Field } from '../components/kit';
+import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
-import { useApp } from '../providers/AppStateProvider';
+import { useAuth } from '../providers/AuthProvider';
+import { useActions } from '../providers/AppStateProvider';
 import {
-  markWorkDone as markWorkDoneOnServer,
-  confirmRelease as confirmReleaseOnServer,
+  confirmRelease,
+  getProof,
   getTaskDetail,
+  markWorkDone,
+  requestRevision,
+  submitProof,
+  type Proof,
   type TaskDetail,
 } from '../data/api';
-import { workerNetPayout, posterEscrowCharge } from '@taskdrop/rules';
+import {
+  pickDocument,
+  pickMedia,
+  signedMediaUrl,
+  signedMediaUrls,
+  uploadProofFile,
+  type ProofFile,
+} from '../lib/media';
+import { maskContacts } from '../lib/mask';
 import { Pressy, tx } from '../components/primitives';
 
-/**
- * Active task — pixel parity with docs/design/_design_markup.html lines
- * 427-498: header, circular SVG progress ring with the live HH:MM:SS timer
- * centered inside, elapsed/cap card, overrun warning, steps timeline,
- * revealed-contact card, worker proof tiles, mode-aware primary button.
- * Data/handlers mirror docs/design/_design_source.jsx lines 197-217
- * (elapsed/ringOffset/steps math) and 493-532 (doneLabel/doneNote/doneBtn).
- */
-
-const AGREED_DURATION_SEC = 4 * 60 * 60; // "4 hrs agreed"
 const RING_R = 88;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_R; // ~553, matches the markup's stroke-dasharray
+const RING_C = 2 * Math.PI * RING_R;
 
-// Design's fallbackTask (lines 221-223), keyed by mode.
-const FALLBACK_TASK = {
-  worker: {
-    title: 'Vintage 35mm film camera',
-    price: '₹4,200',
-    escrow: '₹4,326',
-    payMeta: '₹4,200 to you · complete by 9 Sep, 5:00 PM',
-  },
-  poster: {
-    title: 'Assemble a wardrobe',
-    price: '₹1,200',
-    escrow: '₹1,236',
-    payMeta: '₹1,200 · complete by 12 Sep, 2:00 PM',
-  },
-} as const;
-
-function pad(n: number): string {
-  return String(n).padStart(2, '0');
+/** "2h 14m", "3d 4h", "45m", "40s". */
+function span(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return `${s % 60}s`;
 }
 
-function formatHMS(totalSeconds: number): string {
-  const s = Math.max(0, Math.floor(totalSeconds));
-  const hh = Math.floor(s / 3600);
-  const mm = Math.floor((s % 3600) / 60);
-  const ss = s % 60;
-  return `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
+function hms(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${p(Math.floor(s / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`;
 }
 
-/** Turn a formatted rupee string ("₹4,200") back into paise for money math. */
-function parsePaise(value: string | undefined): number {
-  if (!value) return 0;
-  const digits = value.replace(/[^0-9]/g, '');
-  return digits ? parseInt(digits, 10) * 100 : 0;
-}
+const when = (iso: string) =>
+  new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
-type Step = { label: string; reached: boolean };
-
+/**
+ * A job in progress, for both sides, from the task itself.
+ *
+ * The clock counts down to the poster's deadline and stops the moment the
+ * worker marks the work done. The worker finishes by sending proof -- what
+ * they did, with photos or documents; the poster reviews it and releases the
+ * money, asks for changes, or, if they don't answer within the review
+ * window, the money is released to the worker automatically.
+ */
 export function ActiveScreen() {
   const t = useTheme();
   const { params, back, go } = useNav();
   const { mode } = useMode();
-  const { openTask, doneOf, setDone, roll, balance, escrow, celebrate, flash } = useApp();
+  const { userId } = useAuth();
+  const { flash, celebrate } = useActions();
+  const worker = mode === 'worker';
+  const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+
+  const [detail, setDetail] = useState<TaskDetail | null | undefined>(undefined);
+  const [proof, setProof] = useState<Proof | null>(null);
+  const [proofUrls, setProofUrls] = useState<Record<string, string>>({});
+  const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState(false);
 
-  const worker = mode === 'worker';
-  const fallback = FALLBACK_TASK[mode];
+  // The worker's proof, before it is sent.
+  const [summary, setSummary] = useState('');
+  const [files, setFiles] = useState<ProofFile[]>([]);
+  const [uploading, setUploading] = useState(false);
 
-  const taskId = typeof params.taskId === 'string' ? params.taskId : null;
-  const [detail, setDetail] = useState<TaskDetail | null>(null);
-
-  useEffect(() => {
-    if (!taskId) return;
-    let alive = true;
-    getTaskDetail(taskId)
-      .then((d) => alive && setDetail(d))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
+  const load = useCallback(async () => {
+    if (!taskId) return setDetail(null);
+    const [d, p] = await Promise.all([getTaskDetail(taskId).catch(() => null), getProof(taskId)]);
+    setDetail(d);
+    setProof(p);
+    const paths = (p?.files ?? []).filter((f) => f.kind !== 'file').map((f) => f.path);
+    if (paths.length) setProofUrls(await signedMediaUrls(paths));
   }, [taskId]);
 
-  const title =
-    detail?.task.title ??
-    (typeof params.title === 'string' ? params.title : (openTask?.title ?? fallback.title));
-  const priceStr = openTask?.price ?? fallback.price;
-  const escrowStr = openTask?.escrow ?? fallback.escrow;
-
-  // The other side of this task. Contacts only unmask once it has started, so
-  // before that we deliberately show the masked handle rather than a name.
-  const otherParty = worker ? detail?.poster : detail?.worker;
-  const started = detail ? detail.task.started_at !== null : true;
-  const counterparty = worker
-    ? 'the poster'
-    : (otherParty?.display_name ?? openTask?.who ?? 'the worker');
-  const revealedName = started ? (otherParty?.display_name ?? 'Your counterparty') : 'Hidden until start';
-
-  const curDone = doneOf(title);
-
-  // Timer anchors to when the task actually started; falls back to "now" so
-  // the screen still works if it's opened without going through SwipeScreen.
-  const startedAtRef = useRef<number>(typeof params.startedAt === 'number' ? params.startedAt : Date.now());
-  const [now, setNow] = useState<number>(() => Date.now());
-
   useEffect(() => {
+    void load();
+  }, [load]);
+
+  const task = detail?.task ?? null;
+  const status = task?.status;
+  const doneAt = task?.work_done_at ? new Date(task.work_done_at).getTime() : null;
+  const startedAt = task?.started_at ? new Date(task.started_at).getTime() : null;
+  const deadline = task
+    ? task.due_at
+      ? new Date(task.due_at).getTime()
+      : (startedAt ?? Date.now()) + task.time_limit_minutes * 60000
+    : Date.now();
+  const running = status === 'TASK_STARTED' || status === 'OVERDUE' || status === 'REVISION_REQUESTED';
+
+  // Tick only while the clock is live; once the work is done it stays still.
+  useEffect(() => {
+    if (!running) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [running]);
 
-  const elapsedSec = Math.max(0, Math.floor((now - startedAtRef.current) / 1000));
-  const frac = Math.min(1, elapsedSec / AGREED_DURATION_SEC);
-  const ringOffset = Math.round(RING_CIRCUMFERENCE * (1 - frac));
+  const clockNow = doneAt ?? now;
+  const remaining = deadline - clockNow;
+  const total = Math.max(60000, deadline - (startedAt ?? deadline - 3600000));
+  const frac = Math.min(1, Math.max(0, (clockNow - (startedAt ?? clockNow)) / total));
 
-  // Animates the ring toward its target offset, ~ the markup's 0.9s cubic-bezier transition.
-  const ringAnim = useRef(new Animated.Value(RING_CIRCUMFERENCE)).current;
+  const ring = useRef(new Animated.Value(RING_C)).current;
   useEffect(() => {
-    const anim = Animated.timing(ringAnim, {
-      toValue: ringOffset,
-      duration: 900,
-      easing: Easing.bezier(0.3, 0.8, 0.3, 1),
+    Animated.timing(ring, {
+      toValue: RING_C * (1 - frac),
+      duration: 700,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
-    });
-    anim.start();
-    return () => anim.stop();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ringOffset]);
+    }).start();
+  }, [frac, ring]);
 
-  const steps: Step[] = [
-    { label: 'Quote accepted', reached: true },
-    { label: 'Escrow funded', reached: true },
-    { label: 'Task started · contacts revealed', reached: true },
-    { label: 'Work marked done', reached: curDone >= 1 },
-    { label: 'Poster confirms · escrow released', reached: curDone >= 2 },
+  if (detail === undefined) {
+    return (
+      <Screen padded={false}>
+        <ActivityIndicator color={t.colors.accent} style={{ marginTop: 80 }} />
+      </Screen>
+    );
+  }
+  if (!detail || !task) {
+    return (
+      <Screen padded={false}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
+          <Pressable onPress={back} hitSlop={10}>
+            <Icon name="back" size={20} color={t.colors.ink} />
+          </Pressable>
+        </View>
+        <EmptyState icon="briefcase" title="This job isn’t available" body="Open it again from My Work or My Tasks." />
+      </Screen>
+    );
+  }
+
+  const other = worker ? detail.poster : detail.worker;
+  const otherName = startedAt ? (other?.display_name ?? (worker ? 'The poster' : 'The worker')) : 'Shown when the job starts';
+  const escrowMinor = detail.assignment?.escrow_minor ?? task.locked_minor ?? 0;
+  const finished = status === 'COMPLETED' || status === 'AUTO_COMPLETED';
+  const overdue = !doneAt && remaining < 0;
+
+  const steps = [
+    { label: 'Quote accepted', at: task.created_at, reached: Boolean(task.locked_bid_id) },
+    { label: 'Escrow funded', at: task.funded_at, reached: Boolean(task.funded_at) },
+    { label: 'Work started · contacts shared', at: task.started_at, reached: Boolean(task.started_at) },
+    { label: 'Work done · proof sent', at: task.work_done_at, reached: Boolean(task.work_done_at) },
+    {
+      label: status === 'AUTO_COMPLETED' ? 'Released automatically' : 'Approved · payment released',
+      at: task.completed_at,
+      reached: finished,
+    },
   ];
 
-  const doneReady = worker ? curDone === 0 : curDone === 1;
-  const doneDone = worker ? curDone >= 1 : curDone >= 2;
+  // ------------------------------------------------------------ actions ----
 
-  const pricePaise =
-    detail?.task.locked_minor ??
-    (typeof params.priceMinor === 'number' ? params.priceMinor : parsePaise(priceStr));
-  const releasePaise = workerNetPayout(pricePaise);
-  const escrowPaise =
-    detail?.assignment?.escrow_minor ??
-    (typeof params.escrowMinor === 'number'
-      ? params.escrowMinor
-      : parsePaise(escrowStr) || posterEscrowCharge(pricePaise));
-
-  const doneLabel = doneDone
-    ? worker
-      ? 'Waiting for the poster'
-      : 'Escrow released'
-    : worker
-      ? 'Mark work done'
-      : doneReady
-        ? // No figure: the worker's net is the locked price minus our
-          // commission, so printing it tells the poster exactly what we take.
-          'Confirm and release payment'
-        : 'Waiting on the worker';
-
-  const doneNote = worker
-    ? 'The poster confirms next. Escrow releases on their confirmation.'
-    : curDone >= 2
-      ? 'Funds are on their way to the worker.'
-      : curDone === 1
-        ? 'The worker marked this done. Confirming releases escrow to them and cannot be undone.'
-        : 'You can confirm once the worker marks the job done.';
-
-  const doneDisabled = doneDone || (!worker && !doneReady);
-
-
-  const markDone = async () => {
-    if (busy) return;
-    if (doneDisabled) {
-      if (worker) flash('Already marked done');
-      else if (curDone === 0) flash('The worker has not marked it done yet');
-      return;
+  const addPhoto = async () => {
+    try {
+      const picked = await pickMedia('image');
+      if (!picked) return;
+      setUploading(true);
+      const f = await uploadProofFile({ uri: picked.uri, mimeType: picked.mimeType, name: 'Photo' }, 'image');
+      setFiles((x) => [...x, f]);
+      const url = await signedMediaUrl(f.path);
+      if (url) setProofUrls((m) => ({ ...m, [f.path]: url }));
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not add that photo');
+    } finally {
+      setUploading(false);
     }
-    // Without a real task none of this reaches the server, and celebrating
-    // anyway tells someone their work was marked done when nothing happened.
-    if (!taskId) {
-      flash('This is a sample task — open a real one from your requests');
-      return;
+  };
+
+  const addDocument = async () => {
+    try {
+      const picked = await pickDocument();
+      if (!picked) return;
+      setUploading(true);
+      const f = await uploadProofFile(picked, 'file');
+      setFiles((x) => [...x, f]);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not add that file');
+    } finally {
+      setUploading(false);
     }
+  };
+
+  const openFile = async (f: ProofFile) => {
+    const url = proofUrls[f.path] ?? (await signedMediaUrl(f.path));
+    if (url) void Linking.openURL(url);
+  };
+
+  const finishWork = async () => {
+    if (!userId) return;
+    if (summary.trim().length < 10) return flash('Say what you did — a sentence or two');
     setBusy(true);
     try {
-      if (worker) {
-        // Server opens the poster's review window and stamps work_done_at.
-        await markWorkDoneOnServer(taskId);
-        setDone(title, 1);
-        celebrate('Work marked done');
-      } else {
-        // Server takes the commission and credits the worker's clearing balance.
-        await confirmReleaseOnServer(taskId);
-        setDone(title, 2);
-        roll('balance', balance + releasePaise);
-        roll('escrow', Math.max(0, escrow - escrowPaise));
-        // The net is the locked price minus our commission — don't print it.
-        celebrate('Payment released');
-      }
+      await submitProof({ taskId: task.id, workerId: userId, summary: maskContacts(summary).text, files });
+      await markWorkDone(task.id);
+      celebrate('Work sent to the poster');
+      await load();
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not update this task');
+      flash(e instanceof Error ? e.message : 'Could not mark it done');
     } finally {
       setBusy(false);
     }
   };
 
+  const approve = async () => {
+    setBusy(true);
+    try {
+      await confirmRelease(task.id);
+      celebrate('Payment released');
+      await load();
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not release payment');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const askChanges = async () => {
+    setBusy(true);
+    try {
+      await requestRevision(task.id);
+      flash('Sent back for changes — the timer runs again');
+      await load();
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not send it back');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const fileTile = (f: ProofFile, onRemove?: () => void) => (
+    <Pressable
+      key={f.path}
+      onPress={() => void openFile(f)}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${f.name}`}
+      style={{ width: 84, height: 84, borderRadius: 12, overflow: 'hidden', backgroundColor: t.colors.surface2, borderWidth: 1, borderColor: t.colors.line, alignItems: 'center', justifyContent: 'center', padding: 6 }}
+    >
+      {f.kind === 'image' && proofUrls[f.path] ? (
+        <Image source={{ uri: proofUrls[f.path] }} style={{ position: 'absolute', inset: 0 }} resizeMode="cover" />
+      ) : (
+        <>
+          <Icon name={f.kind === 'video' ? 'play' : 'list'} size={20} color={t.colors.accentDeep} />
+          <RNText style={tx('600', 10, t.colors.text, { marginTop: 4, textAlign: 'center' })} numberOfLines={2}>
+            {f.name}
+          </RNText>
+        </>
+      )}
+      {onRemove ? (
+        <Pressable onPress={onRemove} hitSlop={6} accessibilityLabel="Remove" style={{ position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="close" size={11} color="#FFFFFF" />
+        </Pressable>
+      ) : null}
+    </Pressable>
+  );
+
+  const card = { marginTop: 16, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 16, padding: 15 } as const;
+
+  // -------------------------------------------------------------- view -----
+
   return (
     <Screen scroll padded={false}>
       <View style={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 28 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <Pressable onPress={back} hitSlop={10}>
-            <RNText style={tx('400', 20, t.colors.ink)}>←</RNText>
+          <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
+            <Icon name="back" size={20} color={t.colors.ink} />
           </Pressable>
-          <RNText style={tx('700', 17, t.colors.ink)}>Active task</RNText>
+          <RNText style={tx('700', 17, t.colors.ink, { flex: 1 })} numberOfLines={1}>{task.title}</RNText>
         </View>
 
-        <View style={{ alignItems: 'center', marginTop: 22 }}>
+        {/* The clock: time left to the poster's deadline; frozen once done. */}
+        <View style={{ alignItems: 'center', marginTop: 20 }}>
           <View style={{ width: 200, height: 200 }}>
-            <Svg width={200} height={200} viewBox="0 0 200 200" fill="none" style={{ transform: [{ rotate: '-90deg' }] }}>
+            <Svg width={200} height={200} viewBox="0 0 200 200" style={{ transform: [{ rotate: '-90deg' }] }}>
               <Circle cx={100} cy={100} r={RING_R} stroke={t.colors.surface2} strokeWidth={10} fill="none" />
-              <AnimatedCircle
+              <AnimatedCircleComp
                 cx={100}
                 cy={100}
                 r={RING_R}
-                stroke={t.colors.accent}
+                stroke={overdue ? t.colors.signal : doneAt ? '#22C55E' : t.colors.accent}
                 strokeWidth={10}
                 strokeLinecap="round"
-                strokeDasharray={RING_CIRCUMFERENCE}
-                strokeDashoffset={ringAnim}
+                strokeDasharray={RING_C}
+                strokeDashoffset={ring}
                 fill="none"
               />
             </Svg>
-            <View
-              style={{
-                position: 'absolute',
-                inset: 0,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <RNText
-                style={tx('800', 36, t.colors.ink, {
-                  letterSpacing: -1.08,
-                  fontVariant: ['tabular-nums'],
-                })}
-              >
-                {formatHMS(elapsedSec)}
-              </RNText>
-              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6 })}>of 4 hrs agreed</RNText>
+            <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 }}>
+              {doneAt ? (
+                <>
+                  <Icon name="check" size={26} color="#16A34A" strokeWidth={2.4} />
+                  <RNText style={tx('800', 20, t.colors.ink, { marginTop: 6 })}>Done</RNText>
+                  <RNText style={tx('500', 12, t.colors.muted, { marginTop: 4, textAlign: 'center' })}>
+                    {startedAt ? `in ${span(doneAt - startedAt)}` : 'Timer stopped'}
+                  </RNText>
+                </>
+              ) : !startedAt ? (
+                <>
+                  <RNText style={tx('800', 20, t.colors.ink)}>Not started</RNText>
+                  <RNText style={tx('500', 12, t.colors.muted, { marginTop: 4, textAlign: 'center' })}>Due {when(new Date(deadline).toISOString())}</RNText>
+                </>
+              ) : (
+                <>
+                  <RNText style={tx('800', 32, overdue ? t.colors.signal : t.colors.ink, { letterSpacing: -1, fontVariant: ['tabular-nums'] })}>
+                    {hms(Math.abs(remaining))}
+                  </RNText>
+                  <RNText style={tx('600', 12, overdue ? t.colors.signal : t.colors.muted, { marginTop: 6 })}>
+                    {overdue ? 'past the deadline' : 'left to the deadline'}
+                  </RNText>
+                </>
+              )}
             </View>
           </View>
         </View>
 
-        <View style={{ alignItems: 'center', marginTop: 20 }}>
-          <RNText style={tx('800', 19, t.colors.ink, { letterSpacing: -0.38, textAlign: 'center' })}>{title}</RNText>
-          <RNText
-            style={tx('400', 13, t.colors.muted, { marginTop: 6, fontVariant: ['tabular-nums'], textAlign: 'center' })}
-          >
-            {formatINR(escrowPaise)} in escrow · {counterparty}
-          </RNText>
-        </View>
-
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: 18,
-            backgroundColor: t.colors.surface,
-            borderWidth: 1,
-            borderColor: t.colors.line,
-            borderRadius: 14,
-            padding: 15,
-          }}
-        >
-          <View>
-            <RNText style={tx('400', 10, t.colors.muted, { letterSpacing: 1.4 })}>ELAPSED</RNText>
-            <RNText
-              style={tx('800', 24, t.colors.ink, {
-                letterSpacing: -0.72,
-                marginTop: 4,
-                fontVariant: ['tabular-nums'],
-              })}
-            >
-              {formatHMS(elapsedSec)}
-            </RNText>
+        <View style={{ ...card, flexDirection: 'row' }}>
+          <View style={{ flex: 1 }}>
+            <RNText style={tx('600', 10, t.colors.muted, { letterSpacing: 1.2 })}>DEADLINE</RNText>
+            <RNText style={tx('800', 14, t.colors.ink, { marginTop: 4 })}>{when(new Date(deadline).toISOString())}</RNText>
+            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Set by the poster</RNText>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <RNText style={tx('400', 10, t.colors.muted, { letterSpacing: 1.4 })}>CAP</RNText>
-            <RNText style={tx('700', 15, t.colors.gold, { marginTop: 6, fontVariant: ['tabular-nums'] })}>
-              08:00:00
-            </RNText>
+            <RNText style={tx('600', 10, t.colors.muted, { letterSpacing: 1.2 })}>IN ESCROW</RNText>
+            <RNText style={tx('800', 14, t.colors.ink, { marginTop: 4 })}>{formatINR(escrowMinor)}</RNText>
+            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Held safely until approval</RNText>
           </View>
         </View>
 
-        <View
-          style={{
-            marginTop: 12,
-            backgroundColor: t.colors.goldSoft,
-            borderWidth: 1,
-            borderColor: t.colors.gold,
-            borderRadius: 12,
-            paddingVertical: 13,
-            paddingHorizontal: 15,
-          }}
-        >
-          <RNText style={tx('400', 13, t.colors.gold, { lineHeight: 20 })}>
-            The timer runs on its own — neither side can pause it. It caps at 8 hrs, twice the agreed duration, and
-            overrun past that is auto-refunded.
-          </RNText>
-        </View>
-
-        <View style={{ marginTop: 22 }}>
-          {steps.map((s) => (
-            <View
-              key={s.label}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-                paddingVertical: 12,
-                borderBottomWidth: 1,
-                borderBottomColor: t.colors.line,
-              }}
-            >
-              <View
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: 999,
-                  backgroundColor: s.reached ? t.colors.accent : t.colors.line,
-                }}
-              />
-              <RNText style={tx('400', 14, t.colors.muted, { flex: 1 })}>{s.label}</RNText>
+        {/* The other person. */}
+        <View style={{ ...card, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View>
+            <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+              <RNText style={tx('800', 15, t.colors.ink)}>{(other?.display_name ?? '?').charAt(0).toUpperCase()}</RNText>
             </View>
-          ))}
-        </View>
-
-        <View
-          style={{
-            marginTop: 22,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 13,
-            paddingBottom: 18,
-            borderBottomWidth: 1,
-            borderBottomColor: t.colors.line,
-          }}
-        >
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 999,
-              backgroundColor: t.colors.surface2,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <RNText style={tx('400', 16, t.colors.muted)}>☺</RNText>
+            {other ? <AvatarPresence lastSeen={other.last_seen_at} ring={t.colors.surface} /> : null}
           </View>
           <View style={{ flex: 1 }}>
-            <RNText style={tx('700', 15, t.colors.ink)}>{revealedName}</RNText>
-            <RNText style={tx('400', 12, t.colors.accentDeep, { marginTop: 3, fontVariant: ['tabular-nums'] })}>
-              {started ? 'Contact shared · use chat' : 'Revealed when the task starts'}
-            </RNText>
+            <RNText style={tx('700', 14, t.colors.ink)}>{otherName}</RNText>
+            {other ? <PresenceLabel lastSeen={other.last_seen_at} /> : null}
           </View>
-          <Pressy onPress={() => go('chat', params)}>
+          <Pressy onPress={() => go('chat', { taskId: task.id })} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: t.colors.line, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 }}>
+            <Icon name="chat" size={14} color={t.colors.accentDeep} />
             <RNText style={tx('700', 13, t.colors.accentDeep)}>Chat</RNText>
           </Pressy>
         </View>
 
-        {worker && (
-          <View style={{ marginTop: 20 }}>
-            <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54 })}>PROOF OF WORK</RNText>
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 11 }}>
-              {[0, 1].map((key) => (
-                <View
-                  key={key}
-                  style={{
-                    width: 88,
-                    height: 88,
-                    borderRadius: 12,
-                    backgroundColor: t.colors.surface2,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <RNText style={tx('400', 18, t.colors.muted)}>▤</RNText>
-                </View>
-              ))}
-              <Pressy
-                onPress={() => flash('Photo proof is coming soon — describe the work in chat for now')}
-                style={{
-                  width: 88,
-                  height: 88,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderStyle: 'dashed',
-                  borderColor: t.colors.line,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 4,
-                }}
-              >
-                <RNText style={tx('400', 18, t.colors.muted)}>+</RNText>
-                <RNText style={tx('400', 10, t.colors.muted)}>Add</RNText>
-              </Pressy>
+        {/* Where it stands. */}
+        <View style={{ marginTop: 16 }}>
+          {steps.map((s) => (
+            <View key={s.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 }}>
+              <View style={{ width: 18, height: 18, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: s.reached ? t.colors.accent : t.colors.surface2 }}>
+                {s.reached ? <Icon name="check" size={11} color={t.colors.onAccent} strokeWidth={3} /> : null}
+              </View>
+              <RNText style={tx(s.reached ? '600' : '400', 13, s.reached ? t.colors.ink : t.colors.muted, { flex: 1 })}>{s.label}</RNText>
+              {s.reached && s.at ? <RNText style={tx('400', 11, t.colors.muted)}>{when(s.at)}</RNText> : null}
             </View>
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 10, lineHeight: 18 })}>
-              {curDone >= 1
-                ? 'Proof sent to the poster with your completion.'
-                : 'Add proof before you mark the work done.'}
-            </RNText>
-          </View>
-        )}
+          ))}
+        </View>
 
-        <Pressy
-          onPress={markDone}
-          style={{
-            marginTop: 20,
-            borderRadius: 999,
-            paddingVertical: 16,
-            alignItems: 'center',
-            backgroundColor: doneDisabled ? t.colors.surface2 : t.colors.accent,
-            shadowColor: t.colors.accent,
-            shadowOpacity: doneDisabled ? 0 : 0.4,
-            shadowRadius: 10,
-            shadowOffset: { width: 0, height: 4 },
-            elevation: doneDisabled ? 0 : 3,
-          }}
-        >
-          <RNText style={tx('700', 16, doneDisabled ? t.colors.muted : t.colors.onAccent)}>{doneLabel}</RNText>
-        </Pressy>
-        <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 11, lineHeight: 18 })}>
-          {doneNote}
-        </RNText>
+        {/* Proof of work: sent, or being written. */}
+        {proof && (doneAt || finished) ? (
+          <View style={card}>
+            <RNText style={tx('600', 10, t.colors.muted, { letterSpacing: 1.2 })}>PROOF OF WORK</RNText>
+            <RNText style={tx('400', 14, t.colors.ink, { marginTop: 8, lineHeight: 21 })}>{proof.summary}</RNText>
+            {proof.files.length ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>{proof.files.map((f) => fileTile(f))}</View>
+            ) : null}
+            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 10 })}>Sent {when(proof.created_at)}</RNText>
+          </View>
+        ) : null}
+
+        {worker && running && startedAt ? (
+          <View style={card}>
+            <RNText style={tx('800', 15, t.colors.ink)}>Finish and send proof</RNText>
+            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
+              Say what you did and add photos or documents. The poster sees this before approving.
+            </RNText>
+            <Field
+              value={summary}
+              onChangeText={setSummary}
+              multiline
+              maxLength={2000}
+              minHeight={90}
+              placeholder="E.g. Wrote all 30 captions with hashtags, shared as a Google Doc; changed 3 after your notes."
+              style={{ marginTop: 12 }}
+            />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+              {files.map((f) => fileTile(f, () => setFiles((x) => x.filter((y) => y.path !== f.path))))}
+              {files.length < 10 ? (
+                <>
+                  <Pressable onPress={() => void addPhoto()} disabled={uploading} accessibilityRole="button" style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: t.colors.accentBorder, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                    <Icon name="plus" size={18} color={t.colors.accentDeep} />
+                    <RNText style={tx('600', 10, t.colors.accentDeep)}>Photo</RNText>
+                  </Pressable>
+                  <Pressable onPress={() => void addDocument()} disabled={uploading} accessibilityRole="button" style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: t.colors.accentBorder, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                    <Icon name="list" size={18} color={t.colors.accentDeep} />
+                    <RNText style={tx('600', 10, t.colors.accentDeep)}>Document</RNText>
+                  </Pressable>
+                </>
+              ) : null}
+              {uploading ? <ActivityIndicator color={t.colors.accent} style={{ alignSelf: 'center', marginLeft: 6 }} /> : null}
+            </View>
+            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 8 })}>PDF, Word, Excel, PowerPoint or text · up to 50 MB each</RNText>
+          </View>
+        ) : null}
+
+        {/* The one thing to do next, for whoever is on this screen. */}
+        {worker && running && startedAt ? (
+          <PrimaryAction label="Mark work done" busy={busy} disabled={summary.trim().length < 10 || uploading} onPress={() => void finishWork()} />
+        ) : null}
+        {worker && status === 'WORK_DONE' && task.auto_complete_at ? (
+          <Note>
+            Waiting for the poster to approve. If they don’t respond by {when(task.auto_complete_at)}, the payment is
+            released to you automatically.
+          </Note>
+        ) : null}
+
+        {!worker && status === 'WORK_DONE' ? (
+          <>
+            <PrimaryAction label="Approve and release payment" busy={busy} onPress={() => void approve()} />
+            <Pressable onPress={() => void askChanges()} disabled={busy} accessibilityRole="button" style={{ alignSelf: 'center', marginTop: 14 }}>
+              <RNText style={tx('700', 13, t.colors.accentDeep)}>Ask for changes</RNText>
+            </Pressable>
+            {task.auto_complete_at ? (
+              <Note>
+                If you don’t respond by {when(task.auto_complete_at)}, the payment is released to the worker
+                automatically.
+              </Note>
+            ) : null}
+          </>
+        ) : null}
+        {!worker && running ? <Note>The worker is on it. You’ll be notified when they send the work.</Note> : null}
+        {finished ? (
+          <Note>
+            {status === 'AUTO_COMPLETED' ? 'Released automatically after the review window.' : 'Approved and paid.'}{' '}
+            {worker ? 'Your earnings are clearing in your wallet.' : 'Thanks for using TaskDrop.'}
+          </Note>
+        ) : null}
       </View>
     </Screen>
+  );
+}
+
+const AnimatedCircleComp = Animated.createAnimatedComponent(Circle);
+
+function PrimaryAction({ label, onPress, busy, disabled }: { label: string; onPress: () => void; busy?: boolean; disabled?: boolean }) {
+  const t = useTheme();
+  const off = disabled || busy;
+  return (
+    <Pressy
+      onPress={() => !off && onPress()}
+      style={{ marginTop: 20, borderRadius: 999, paddingVertical: 16, alignItems: 'center', backgroundColor: off ? t.colors.surface2 : t.colors.accent }}
+    >
+      {busy ? <ActivityIndicator color={t.colors.onAccent} /> : <RNText style={tx('700', 16, off ? t.colors.muted : t.colors.onAccent)}>{label}</RNText>}
+    </Pressy>
+  );
+}
+
+function Note({ children }: { children: React.ReactNode }) {
+  const t = useTheme();
+  return (
+    <View style={{ marginTop: 14, flexDirection: 'row', gap: 8, backgroundColor: t.colors.surface2, borderRadius: 12, padding: 12 }}>
+      <Icon name="clock" size={14} color={t.colors.muted} />
+      <RNText style={tx('400', 12, t.colors.text, { flex: 1, lineHeight: 18 })}>{children}</RNText>
+    </View>
   );
 }

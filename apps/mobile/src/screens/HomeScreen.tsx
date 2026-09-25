@@ -19,6 +19,7 @@ import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { AppHeader } from '../components/AppHeader';
 import { HomeSections } from '../components/HomeSections';
+import { roughPlace } from '../lib/place';
 import { ListingCard } from '../components/ListingCard';
 import { Rail } from '../components/Rail';
 import { taskToFeedRow } from '../lib/openTask';
@@ -93,28 +94,6 @@ const PILLAR_TAG: Record<string, FeedRow['tag']> = {
   local_intel: 'LOCAL HELP',
 };
 
-/**
- * The area part of an address, for a list.
- *
- * Task locations are now full door-level addresses -- flat number, floor,
- * landmark, area, city -- which is right on a detail screen and far too much
- * on a feed card, where it wrapped to three lines and was printed twice.
- * A country on the end tells a local user nothing, so it goes.
- */
-function shortPlace(label: string | null | undefined): string | null {
-  if (!label) return null;
-  const parts = label
-    .split(',')
-    .map((x) => x.trim())
-    .filter(Boolean)
-    .filter((x) => !/^india$/i.test(x))
-    // A bare postcode is noise in a list.
-    .filter((x) => !/^d{5,6}$/.test(x));
-  if (parts.length === 0) return null;
-  // The last two are the locality and the city, which is what places a job.
-  return parts.slice(-2).join(', ');
-}
-
 function liveToFeedRow(task: LiveTask, worker: boolean): FeedRow {
   return {
     id: task.id,
@@ -128,7 +107,7 @@ function liveToFeedRow(task: LiveTask, worker: boolean): FeedRow {
         : 'new',
     // The person, not the job. The job's location is on the line below, and
     // printing the same long address twice on one card helps nobody.
-    whoMeta: shortPlace(task.poster?.loc_label) ?? 'new here',
+    whoMeta: roughPlace(task.poster?.loc_label) ?? 'new here',
     tag: PILLAR_TAG[task.pillar] ?? 'SERVICES',
     title: task.title,
     meta:
@@ -136,7 +115,7 @@ function liveToFeedRow(task: LiveTask, worker: boolean): FeedRow {
         ? 'Urgent'
         : task.flag === 'unique'
           ? 'Unique'
-          : (shortPlace(task.loc_label) ?? 'Location not shared'),
+          : (roughPlace(task.loc_label) ?? 'Area not shared'),
     amountMinor: task.benchmark_minor,
     // Media comes from the row now. hasMedia used to be hard-coded false, so an
     // attached photo was uploaded and then shown to nobody.

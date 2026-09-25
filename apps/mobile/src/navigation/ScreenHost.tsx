@@ -5,6 +5,7 @@ import { ScreenScope, useNav, type NavParams, type ScreenName } from '../provide
 import { useAuth } from '../providers/AuthProvider';
 import { incomingTaskId, clearIncomingTask } from '../lib/links';
 import { getTask } from '../data/api';
+import { roughPlace } from '../lib/place';
 import { BottomTabBar } from '../components/BottomTabBar';
 import { FadeIn } from '../components/primitives';
 import { CreateFab } from '../components/CreateFab';
@@ -154,10 +155,10 @@ export function ScreenHost() {
             sponsored: false,
             who: 'Poster',
             rating: '—',
-            whoMeta: task.loc_label ?? '',
+            whoMeta: roughPlace(task.loc_label) ?? '',
             tag: 'SERVICES',
             title: task.title,
-            meta: task.loc_label ?? '',
+            meta: roughPlace(task.loc_label) ?? '',
             amountMinor: task.benchmark_minor,
             hasMedia: false,
             glyph: '',

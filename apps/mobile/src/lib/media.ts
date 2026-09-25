@@ -219,3 +219,55 @@ export async function signedMediaUrls(paths: string[]): Promise<Record<string, s
   }
   return out;
 }
+
+// ---------------------------------------------------------- proof of work --
+
+/** A file attached as proof of work: a photo, a video or a document. */
+export type ProofFile = { path: string; kind: 'image' | 'video' | 'file'; name: string };
+
+/** A picked document, before upload. */
+export type PickedDocument = { uri: string; mimeType: string; name: string; bytes: number };
+
+const DOC_TYPES = [
+  'application/pdf',
+  'text/plain',
+  'text/csv',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+];
+
+/** Open the document picker (PDF, Word, Excel, PowerPoint, text). Straight off a press. */
+export async function pickDocument(): Promise<PickedDocument | null> {
+  const DocumentPicker = await import('expo-document-picker');
+  const res = await DocumentPicker.getDocumentAsync({ type: DOC_TYPES, copyToCacheDirectory: true, multiple: false });
+  if (res.canceled || !res.assets?.[0]) return null;
+  const a = res.assets[0];
+  const bytes = a.size ?? 0;
+  if (bytes > MAX_BYTES) {
+    throw new MediaError(`That file is ${(bytes / 1024 / 1024).toFixed(0)} MB. The limit is ${MAX_BYTES / 1024 / 1024} MB.`);
+  }
+  return { uri: a.uri, mimeType: a.mimeType ?? 'application/octet-stream', name: a.name, bytes };
+}
+
+/** Upload a proof file (photo, video or document) into the uploader's folder. */
+export async function uploadProofFile(
+  picked: { uri: string; mimeType: string; name?: string },
+  kind: ProofFile['kind'],
+): Promise<ProofFile> {
+  const userId = await currentUserId();
+  if (!userId) throw new MediaError('Sign in before attaching a file.');
+  const body = await readBytes(picked.uri);
+  if (body.byteLength > MAX_BYTES) {
+    throw new MediaError(`That file is too big. The limit is ${MAX_BYTES / 1024 / 1024} MB.`);
+  }
+  const fromName = picked.name?.split('.').pop()?.toLowerCase();
+  const ext = kind === 'file' ? (fromName && fromName.length <= 5 ? fromName : 'pdf') : extensionFor(picked.mimeType, kind === 'video' ? 'mp4' : 'jpg');
+  const path = `${userId}/proof-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await supabase.storage.from(BUCKET).upload(path, body, { contentType: picked.mimeType, upsert: false });
+  if (error) throw new MediaError(error.message);
+  return { path, kind, name: picked.name ?? (kind === 'image' ? 'Photo' : kind === 'video' ? 'Video' : 'Document') };
+}

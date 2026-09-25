@@ -979,6 +979,33 @@ export type Database = {
           },
         ]
       }
+      task_proofs: {
+        Row: {
+          created_at: string
+          files: Json
+          id: string
+          summary: string
+          task_id: string
+          worker_id: string
+        }
+        Insert: {
+          created_at?: string
+          files?: Json
+          id?: string
+          summary: string
+          task_id: string
+          worker_id: string
+        }
+        Update: {
+          created_at?: string
+          files?: Json
+          id?: string
+          summary?: string
+          task_id?: string
+          worker_id?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assignment_mode: string

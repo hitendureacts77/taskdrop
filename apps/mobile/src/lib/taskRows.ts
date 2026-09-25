@@ -118,7 +118,7 @@ export function posterRow(task: Task, quoteCount = 0): ViewRow {
       return { ...base, bucket: 1, state: 'OVERDUE', tone: 'signal', meta: 'Past the agreed time', act: 'active' };
     case 'WORK_DONE':
     case 'REVISION_REQUESTED':
-      return { ...base, bucket: 1, state: 'MARKED DONE · CONFIRM TO RELEASE', tone: 'gold', meta: 'Tap to review and release', act: 'confirm' };
+      return { ...base, bucket: 1, state: 'MARKED DONE · REVIEW THE PROOF', tone: 'gold', meta: 'Tap to see the proof and release', act: 'active' };
     case 'COMPLETED':
     case 'AUTO_COMPLETED':
       return { ...base, bucket: 2, state: 'DONE · RELEASED', tone: 'accent', meta: 'Tap to review the worker', act: 'review' };
@@ -159,11 +159,11 @@ export function workerAssignmentRow(a: Assignment & { tasks: Task | null }): Vie
   if (a.status === 'refunded')
     return { ...base, bucket: 3, state: 'NOT SELECTED', tone: 'neutral', meta: 'Another worker started first', act: null };
   if (a.status === 'released' || task?.status === 'COMPLETED' || task?.status === 'AUTO_COMPLETED')
-    return { ...base, bucket: 3, state: 'DONE · PAID', tone: 'accent', meta: 'Earnings are clearing', act: null };
+    return { ...base, bucket: 3, state: 'DONE · PAID', tone: 'accent', meta: 'Earnings are clearing', act: 'active' };
   if (task?.status === 'WORK_DONE' || task?.status === 'REVISION_REQUESTED')
     return { ...base, bucket: 1, state: 'WORK DONE · AWAITING POSTER', tone: 'gold', meta: 'Poster confirms next', act: 'active' };
   if (task?.status === 'TASK_STARTED' || task?.status === 'OVERDUE' || a.status === 'started')
-    return { ...base, bucket: 1, state: 'ACTIVE · TIMER RUNNING', tone: 'gold', meta: 'Task started · timer running', act: 'start' };
+    return { ...base, bucket: 1, state: 'ACTIVE · TIMER RUNNING', tone: 'gold', meta: 'Task started · timer running', act: 'active' };
   // Sliding to start now fails server-side on an unfunded task, so say so here
   // rather than letting someone swipe into a refusal.
   if (!task?.funded_at)

@@ -5,12 +5,13 @@ import { Icon } from './Icon';
 import { categoryIcon } from './WorkCard';
 import { AvatarPresence, PresenceLabel } from './PresenceDot';
 import { rupees } from './kit';
+import { roughPlace } from '../lib/place';
 import { Pressy, tx } from './primitives';
 
 /** "3-day delivery", "Delivered in 1 day". */
 export function deliveryLabel(minutes: number): string {
   const days = Math.max(1, Math.round(minutes / 1440));
-  return `${days}-day delivery`;
+  return days === 1 ? 'Delivers in ~1 day' : `Delivers in ~${days} days`;
 }
 
 /**
@@ -80,7 +81,9 @@ export function ListingCard({
         </RNText>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
           <Icon name="clock" size={12} color={t.colors.muted} />
-          <RNText style={tx('500', 11, t.colors.muted)}>{deliveryLabel(task.time_limit_minutes)}</RNText>
+          <RNText style={tx('500', 11, t.colors.muted)} numberOfLines={1}>
+            {deliveryLabel(task.time_limit_minutes)} · {roughPlace(task.loc_label) ?? 'Remote'}
+          </RNText>
           {!owner ? <RNText style={tx('600', 11, t.colors.goldInk)}> · {rating}</RNText> : null}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: t.colors.line }}>

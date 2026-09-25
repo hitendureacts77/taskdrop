@@ -10,6 +10,7 @@ set local session_replication_role = replica;
 update public.tasks set locked_bid_id = null, funding_payment_id = null
  where id in (select row_id from private.demo_seed where tbl = 'tasks');
 
+delete from public.task_proofs   where task_id in (select row_id from private.demo_seed where tbl = 'tasks');
 delete from public.notifications where id in (select row_id from private.demo_seed where tbl = 'notifications');
 delete from public.messages      where id in (select row_id from private.demo_seed where tbl = 'messages');
 delete from public.reviews       where id in (select row_id from private.demo_seed where tbl = 'reviews');

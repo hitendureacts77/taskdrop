@@ -7,6 +7,7 @@ import { Badge, rupees, timeAgo, timeLeft } from './kit';
 import { FadeIn, Pressy, tx } from './primitives';
 import { PresenceDot } from './PresenceDot';
 import { presenceOf } from '../lib/presence';
+import { roughPlace } from '../lib/place';
 
 const CATEGORY_ICON: Record<string, IconName> = {
   'Home Services': 'home',
@@ -139,7 +140,7 @@ export const WorkCard = memo(function WorkCard({
               </View>
             ) : task.loc_label ? (
               <RNText style={tx('400', 11, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>
-                {task.loc_label.split(',').slice(-2).join(',').trim()}
+                {roughPlace(task.loc_label) ?? 'Area not shared'}
               </RNText>
             ) : null}
           </View>
@@ -152,7 +153,7 @@ export const WorkCard = memo(function WorkCard({
               <RNText style={{ color: presence.online ? '#16A34A' : t.colors.muted, fontWeight: presence.online ? '600' : '400' }}>
                 {presence.label}
               </RNText>
-              {rating ? ` · ★ ${rating}` : ''} · {timeAgo(task.created_at)}
+              {rating ? ` · ★ ${rating}` : ''} · posted {timeAgo(task.created_at)}
             </RNText>
             <Pressy
               onPress={onApply}

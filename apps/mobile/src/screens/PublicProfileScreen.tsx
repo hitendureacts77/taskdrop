@@ -12,6 +12,7 @@ import { publicProfileStats, verificationState, type PublicStats } from '../data
 import { signedMediaUrl } from '../lib/media';
 import { levelFor } from '../lib/levels';
 import { presenceOf } from '../lib/presence';
+import { roughPlace } from '../lib/place';
 import { AvatarPresence } from '../components/PresenceDot';
 import { useMode } from '../providers/ModeProvider';
 
@@ -166,7 +167,7 @@ export function PublicProfileScreen() {
               <RNText style={tx('600', 12, 'rgba(255,255,255,0.88)')}>{self ? 'Active now' : presence.label}</RNText>
             </View>
             <Meta icon="list" text={`Joined ${joined}`} />
-            {p.loc_label ? <Meta icon="pin" text={p.loc_label.split(',').slice(-2).join(',').trim()} /> : null}
+            {roughPlace(p.loc_label) ? <Meta icon="pin" text={roughPlace(p.loc_label)!} /> : null}
           </View>
         </View>
 

@@ -12,6 +12,8 @@ import { useActions } from '../providers/AppStateProvider';
 import { createListing, getTask, removeListing, updateListing, type Task } from '../data/api';
 import { CATEGORIES } from '../lib/taskBrief';
 import { findContactIssue, contactIssueMessage } from '../lib/mask';
+import { roughPlace } from '../lib/place';
+import { LocationSheet } from '../components/LocationSheet';
 
 const DELIVERY = [1, 2, 3, 5, 7];
 const PREFIX = 'I will ';
@@ -33,6 +35,11 @@ export function ListingEditScreen() {
   const [price, setPrice] = useState('');
   const [days, setDays] = useState(3);
   const [category, setCategory] = useState<string | null>(null);
+  // Where the gig is offered: remote, or around an area. Only the area name and
+  // a pin rounded to about a kilometre are kept -- never the exact spot.
+  const [remote, setRemote] = useState(true);
+  const [area, setArea] = useState<{ label: string; lat: number; lng: number } | null>(null);
+  const [pickArea, setPickArea] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -45,19 +52,45 @@ export function ListingEditScreen() {
       setPrice(String(Math.round(task.benchmark_minor / 100)));
       setDays(Math.max(1, Math.round(task.time_limit_minutes / 1440)));
       setCategory(task.category);
+      if (task.loc_label && task.loc_label !== 'Remote' && task.loc_lat != null && task.loc_lng != null) {
+        setRemote(false);
+        setArea({ label: task.loc_label, lat: task.loc_lat, lng: task.loc_lng });
+      }
     });
   }, [taskId]);
 
   const title = PREFIX + what.trim();
   const priceNum = Number(price);
   const issue = findContactIssue(what + ' ' + details);
-  const ready = what.trim().length >= 6 && details.trim().length >= 20 && priceNum >= 50 && !issue;
+  const missing =
+    what.trim().length < 4
+      ? 'Say what you’ll do after “I will”'
+      : details.trim().length < 10
+        ? 'Add what’s included — a line or two'
+        : !priceNum || priceNum < 50
+          ? 'Set a starting price of at least ₹50'
+          : issue
+            ? contactIssueMessage(issue)
+            : !remote && !area
+              ? 'Pick the area you work in, or choose Remote'
+              : null;
 
   const save = async () => {
-    if (!userId || !ready) return;
+    if (!userId) return;
+    if (missing) return flash(missing);
     setBusy(true);
     try {
-      const input = { title, description: details.trim(), priceMinor: Math.round(priceNum * 100), deliveryDays: days, category };
+      const round = (n: number) => Math.round(n * 100) / 100;
+      const input = {
+        title,
+        description: details.trim(),
+        priceMinor: Math.round(priceNum * 100),
+        deliveryDays: days,
+        category,
+        locLabel: remote || !area ? 'Remote' : area.label,
+        locLat: remote || !area ? null : round(area.lat),
+        locLng: remote || !area ? null : round(area.lng),
+      };
       if (loaded) await updateListing(loaded.id, input);
       else await createListing(userId, input);
       celebrate(loaded ? 'Listing updated' : 'Your gig is live');
@@ -93,7 +126,7 @@ export function ListingEditScreen() {
   }
 
   const preview: Task | null = loaded
-    ? { ...loaded, title, description: details, benchmark_minor: Math.round((priceNum || 0) * 100), time_limit_minutes: days * 1440, category }
+    ? { ...loaded, title, description: details, benchmark_minor: Math.round((priceNum || 0) * 100), time_limit_minutes: days * 1440, category, loc_label: remote || !area ? 'Remote' : area.label }
     : null;
 
   const label = (s: string, top = 20) => (
@@ -147,7 +180,29 @@ export function ListingEditScreen() {
           />
         </View>
 
-        {label('DELIVERY TIME')}
+        {label('WHERE YOU OFFER THIS')}
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 9 }}>
+          <Pill label="Remote / online" icon="compass" active={remote} onPress={() => setRemote(true)} />
+          <Pill label="In person" icon="pin" active={!remote} onPress={() => { setRemote(false); if (!area) setPickArea(true); }} />
+        </View>
+        {!remote ? (
+          <Pressable
+            onPress={() => setPickArea(true)}
+            accessibilityRole="button"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, padding: 13, borderRadius: 12, borderWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface2 }}
+          >
+            <Icon name="pin" size={16} color={t.colors.accentDeep} />
+            <RNText style={tx('500', 14, area ? t.colors.ink : t.colors.muted, { flex: 1 })} numberOfLines={1}>
+              {area ? area.label : 'Pick your area on the map'}
+            </RNText>
+            <RNText style={tx('700', 13, t.colors.accentDeep)}>{area ? 'Change' : 'Pick'}</RNText>
+          </Pressable>
+        ) : null}
+        <RNText style={tx('400', 11, t.colors.muted, { marginTop: 6 })}>
+          {remote ? 'Posters anywhere can hire you.' : 'Posters see only the area, never your exact location.'}
+        </RNText>
+
+        {label('USUALLY DELIVERS IN')}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
           {DELIVERY.map((d) => (
             <Pill key={d} label={d === 1 ? '1 day' : `${d} days`} active={days === d} onPress={() => setDays(d)} />
@@ -173,7 +228,10 @@ export function ListingEditScreen() {
           </>
         ) : null}
 
-        <PrimaryButton label={loaded ? 'Save changes' : 'Publish gig'} onPress={() => void save()} busy={busy} disabled={!ready} style={{ marginTop: 24 }} />
+        <PrimaryButton label={loaded ? 'Save changes' : 'Publish gig'} onPress={() => void save()} busy={busy} style={{ marginTop: 24 }} />
+        {missing ? (
+          <RNText style={tx('500', 12, t.colors.muted, { marginTop: 8, textAlign: 'center' })}>{missing}</RNText>
+        ) : null}
         {loaded ? (
           <Pressable onPress={() => void remove()} accessibilityRole="button" style={{ alignSelf: 'center', marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name="close" size={14} color={t.colors.signal} />
@@ -181,6 +239,16 @@ export function ListingEditScreen() {
           </Pressable>
         ) : null}
       </ScrollView>
+      <LocationSheet
+        visible={pickArea}
+        askForDetails={false}
+        onCancel={() => setPickArea(false)}
+        onPick={(picked) => {
+          setPickArea(false);
+          if (picked.lat == null || picked.lng == null) return flash('Drop a pin on the map');
+          setArea({ label: roughPlace(picked.area || picked.label) ?? 'Your area', lat: picked.lat, lng: picked.lng });
+        }}
+      />
     </Screen>
   );
 }

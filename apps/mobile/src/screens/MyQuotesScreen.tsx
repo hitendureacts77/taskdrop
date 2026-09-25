@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, ScrollView, Pressable } from 'react-native';
 import { Screen, Text, Row, Button, Avatar, formatINR } from '../components/ui';
 import { AvatarPresence } from '../components/PresenceDot';
+import { roughPlace } from '../lib/place';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
@@ -73,10 +74,10 @@ export function MyQuotesScreen() {
           current.poster && current.poster.poster_rating_count > 0
             ? Number(current.poster.poster_rating_avg).toFixed(1)
             : 'new',
-        whoMeta: current.loc_label ?? '',
+        whoMeta: roughPlace(current.loc_label) ?? '',
         tag: 'SERVICES',
         title: current.title,
-        meta: current.loc_label ?? '',
+        meta: roughPlace(current.loc_label) ?? '',
         amountMinor: current.benchmark_minor,
         hasMedia: false,
         glyph: '',
@@ -141,7 +142,7 @@ export function MyQuotesScreen() {
                       </Text>
                     </Row>
                     <Text color="muted" variant="caption" style={{ marginTop: 3 }}>
-                      {row.loc_label ?? 'Location not shared'}
+                      {roughPlace(row.loc_label) ?? 'Area not shared'}
                     </Text>
                   </View>
                   <Text variant="h3">{formatINR(row.benchmark_minor)}</Text>

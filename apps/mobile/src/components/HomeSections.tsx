@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, TextInput, Pressable } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -38,6 +38,8 @@ import { LiveWorkers } from './LiveWorkers';
 import { Rail } from './Rail';
 import { HowItWorks } from './HowItWorks';
 import { LocationSheet, type PickedPlace } from './LocationSheet';
+import { resolveCurrentPlace } from '../lib/location';
+import { roughPlace } from '../lib/place';
 import { Pressy, tx } from './primitives';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { contactIssueMessage, findContactIssue } from '../lib/mask';
@@ -470,6 +472,21 @@ function EarnTop() {
     if (screen === 'home') void load();
   }, [load, screen]);
 
+  const askedLocation = useRef(false);
+  useEffect(() => {
+    if (!userId || place || askedLocation.current || recs === null) return;
+    askedLocation.current = true;
+    void resolveCurrentPlace()
+      .then((found) => choosePlace(found))
+      .catch(() => {
+        /* declined or unavailable: the "Set your area" card stays */
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, place, recs]);
+
+  useEffect(() => {
+  }, [load, screen]);
+
   // Work near the worker's chosen area, re-read whenever the area or the
   // radius changes. Nearest first.
   useEffect(() => {
@@ -556,13 +573,45 @@ function EarnTop() {
     />
   );
 
-  const areaName = place
-    ? (place.label.split(',').map((x) => x.trim()).filter(Boolean)[0] ?? 'your area')
-    : null;
+  const area = place ? roughPlace(place.label) : null;
+  const areaName = area ? area.split(',')[0]! : null;
 
   return (
     <View>
-      <View style={{ paddingHorizontal: 20, marginTop: 10 }}>
+      {/* Where you are, like a delivery app: tap to search or use your location. */}
+      <Pressable
+        onPress={() => setPickPlace(true)}
+        accessibilityRole="button"
+        accessibilityLabel={area ? `Your area: ${area}. Change` : 'Set your area'}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          marginHorizontal: 20,
+          marginTop: 6,
+          paddingVertical: 6,
+          opacity: pressed ? 0.7 : 1,
+        })}
+      >
+        <View style={{ width: 30, height: 30, borderRadius: 999, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="pin" size={16} color={t.colors.accentDeep} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <RNText style={tx('800', 15, t.colors.ink)} numberOfLines={1}>
+              {areaName ?? 'Set your location'}
+            </RNText>
+            <View style={{ transform: [{ rotate: '90deg' }] }}>
+              <Icon name="chevronRight" size={14} color={t.colors.ink} />
+            </View>
+          </View>
+          <RNText style={tx('400', 11, t.colors.muted)} numberOfLines={1}>
+            {area && area !== areaName ? `${area} · gigs near you` : area ? 'Showing gigs near you' : 'To show gigs near you'}
+          </RNText>
+        </View>
+      </Pressable>
+
+      <View style={{ paddingHorizontal: 20, marginTop: 6 }}>
         {/* Where you stand, in one card: level, jobs on the go, availability. */}
         <View style={{ backgroundColor: t.colors.purpleDeep, borderRadius: 18, padding: 16, overflow: 'hidden' }}>
           <View
@@ -678,8 +727,6 @@ function EarnTop() {
         <SectionTitle
           title={areaName ? `Gigs near ${areaName}` : 'Gigs near you'}
           icon="pin"
-          action={place ? 'Change area' : undefined}
-          onAction={() => setPickPlace(true)}
           style={{ marginTop: 26 }}
         />
         {place ? (
