@@ -39,6 +39,8 @@ import { BidSheet } from './BidSheet';
 import { LiveWorkers } from './LiveWorkers';
 import { LocationSheet, type PickedPlace } from './LocationSheet';
 import { Pressy, tx } from './primitives';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { contactIssueMessage, findContactIssue } from '../lib/mask';
 
 /** The top of the home screen, above the existing feed. */
 export function HomeSections() {
@@ -61,6 +63,7 @@ function PostTop() {
   const [prompt, setPrompt] = useState('');
   const [active, setActive] = useState<Task[] | null>(null);
   const [trending, setTrending] = useState<TrendingCategory[]>([]);
+  const [focused, setFocused] = useState(false);
 
   const voice = useVoiceInput((text) => setPrompt((cur) => (cur ? cur + ' ' + text : text)), flash);
 
@@ -82,8 +85,10 @@ function PostTop() {
     };
   }, [userId, screen]);
 
+  const issue = findContactIssue(prompt);
   const submit = () => {
     if (prompt.trim().length < 3) return flash('Tell us what you need done');
+    if (issue) return flash(contactIssueMessage(issue));
     go('aiPost', { prompt: prompt.trim() });
     setPrompt('');
   };
@@ -93,53 +98,100 @@ function PostTop() {
 
   return (
     <View style={{ paddingHorizontal: 20 }}>
-      {/* Composer */}
+      {/* Composer: one card, a soft glow, and the input straight on it. */}
       <View
         style={{
           marginTop: 10,
-          borderRadius: 20,
+          borderRadius: 22,
           overflow: 'hidden',
           borderWidth: 1,
-          borderColor: t.colors.accentBorder,
+          borderColor: issue ? t.colors.signal : focused ? t.colors.accent : t.colors.line,
           backgroundColor: t.colors.surface,
+          shadowColor: t.colors.accent,
+          shadowOpacity: focused ? 0.22 : 0.1,
+          shadowRadius: 18,
+          shadowOffset: { width: 0, height: 6 },
+          elevation: 3,
         }}
       >
-        <View style={{ backgroundColor: t.colors.accentDeep, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12 }}>
-          <RNText style={tx('800', 20, '#FFFFFF', { letterSpacing: -0.4 })}>Drop a task</RNText>
-          <RNText style={tx('400', 12, 'rgba(255,255,255,0.85)', { marginTop: 3 })}>
-            Say it in your own words. We’ll turn it into a post.
-          </RNText>
-        </View>
-        <View style={{ padding: 12 }}>
+        <Svg style={{ position: 'absolute', top: 0, left: 0, right: 0 }} width="100%" height={150} preserveAspectRatio="none">
+          <Defs>
+            <LinearGradient id="composerGlow" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor={t.colors.accent} stopOpacity={0.2} />
+              <Stop offset="0.55" stopColor={t.colors.accent} stopOpacity={0.04} />
+              <Stop offset="1" stopColor={t.colors.accent} stopOpacity={0} />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="150" fill="url(#composerGlow)" />
+        </Svg>
+        <View style={{ paddingHorizontal: 18, paddingTop: 18, paddingBottom: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Icon name="sparkle" size={13} color={t.colors.ai} />
+            <RNText style={tx('700', 11, t.colors.ai, { letterSpacing: 0.6 })}>AI WRITES THE POST</RNText>
+          </View>
+          <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.6, marginTop: 8 })}>Drop a task</RNText>
           <TextInput
             value={prompt}
             onChangeText={setPrompt}
             onSubmitEditing={submit}
-            placeholder="E.g. get my scooter serviced this week, or find 3 caterers for 40 people…"
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            placeholder="What do you need done? E.g. service my scooter this week"
             placeholderTextColor={t.colors.muted}
             multiline
             blurOnSubmit
             returnKeyType="send"
-            style={tx('400', 15, t.colors.ink, { minHeight: 52, maxHeight: 110, padding: 0, textAlignVertical: 'top' })}
+            style={tx('400', 16, t.colors.ink, {
+              minHeight: 56,
+              maxHeight: 120,
+              padding: 0,
+              marginTop: 10,
+              lineHeight: 23,
+              textAlignVertical: 'top',
+            })}
           />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-            <Icon name="sparkle" size={14} color={t.colors.ai} />
-            <RNText style={tx('500', 11, t.colors.muted, { flex: 1 })}>AI drafts it, you check it</RNText>
+          {issue ? (
+            <RNText style={tx('600', 12, t.colors.signalDeep, { marginTop: 8, lineHeight: 17 })}>
+              {contactIssueMessage(issue)}
+            </RNText>
+          ) : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
+            <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {quick.slice(0, 2).map((x) => (
+                <Pressable
+                  key={x.key}
+                  onPress={() => go('aiPost', { prompt: x.prompt })}
+                  accessibilityRole="button"
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 5,
+                    borderRadius: 999,
+                    backgroundColor: t.colors.surface2,
+                    paddingVertical: 6,
+                    paddingHorizontal: 10,
+                  }}
+                >
+                  <Icon name={x.icon} size={12} color={t.colors.accentDeep} />
+                  <RNText style={tx('600', 11, t.colors.text)}>{x.title}</RNText>
+                </Pressable>
+              ))}
+            </View>
             {voice.supported ? (
               <Pressable
                 onPress={voice.toggle}
                 accessibilityRole="button"
                 accessibilityLabel="Voice typing"
                 style={{
-                  width: 36,
-                  height: 36,
+                  width: 40,
+                  height: 40,
                   borderRadius: 999,
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: voice.listening ? t.colors.signalSoft : t.colors.surface2,
                 }}
               >
-                <Icon name="mic" size={17} color={voice.listening ? t.colors.signal : t.colors.muted} />
+                <Icon name="mic" size={18} color={voice.listening ? t.colors.signal : t.colors.muted} />
               </Pressable>
             ) : null}
             <Pressable
@@ -147,42 +199,22 @@ function PostTop() {
               accessibilityRole="button"
               accessibilityLabel="Continue"
               style={{
-                height: 36,
+                width: 40,
+                height: 40,
                 borderRadius: 999,
-                paddingHorizontal: 14,
-                flexDirection: 'row',
-                gap: 6,
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: t.colors.accent,
+                backgroundColor: prompt.trim().length >= 3 && !issue ? t.colors.accent : t.colors.surface2,
               }}
             >
-              <RNText style={tx('700', 13, t.colors.onAccent)}>Next</RNText>
-              <Icon name="send" size={14} color={t.colors.onAccent} strokeWidth={2} />
+              <Icon
+                name="send"
+                size={17}
+                color={prompt.trim().length >= 3 && !issue ? t.colors.onAccent : t.colors.muted}
+                strokeWidth={2}
+              />
             </Pressable>
           </View>
-        </View>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 12, paddingBottom: 12 }}>
-          {quick.map((x) => (
-            <Pressable
-              key={x.key}
-              onPress={() => go('aiPost', { prompt: x.prompt })}
-              accessibilityRole="button"
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 5,
-                borderRadius: 999,
-                borderWidth: 1,
-                borderColor: t.colors.line,
-                paddingVertical: 5,
-                paddingHorizontal: 10,
-              }}
-            >
-              <Icon name={x.icon} size={12} color={t.colors.accentDeep} />
-              <RNText style={tx('600', 11, t.colors.text)}>{x.title}</RNText>
-            </Pressable>
-          ))}
         </View>
       </View>
 

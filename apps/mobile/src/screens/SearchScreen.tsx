@@ -10,7 +10,7 @@ import {
 import Svg, { Path, Circle } from 'react-native-svg';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { useTheme } from '../providers/ThemeProvider';
+import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
@@ -268,7 +268,7 @@ export function SearchScreen() {
       <FadeIn duration={260} style={{ paddingHorizontal: 20, paddingTop: 6 }}>
         <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.72 })}>Search</RNText>
 
-        <View
+        <View {...ring}
           style={{
             marginTop: 15,
             backgroundColor: t.colors.surface2,

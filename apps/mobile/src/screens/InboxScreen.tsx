@@ -4,7 +4,7 @@ import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { EmptyState, Shimmer, TopBar, timeAgo } from '../components/kit';
 import { FadeIn, tx } from '../components/primitives';
-import { useTheme } from '../providers/ThemeProvider';
+import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { listThreads, type Thread } from '../data/extras';
 
@@ -37,7 +37,7 @@ export function InboxScreen() {
   return (
     <Screen padded={false}>
       <TopBar title="Messages" subtitle="Open a thread to read and reply" onBack={back} />
-      <View
+      <View {...ring}
         style={{
           flexDirection: 'row',
           alignItems: 'center',

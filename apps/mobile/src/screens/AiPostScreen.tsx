@@ -17,6 +17,7 @@ import { useMode } from '../providers/ModeProvider';
 import { createTask, getProfile, type Task } from '../data/api';
 import type { TaskMedia } from '../lib/media';
 import { useVoiceInput } from '../lib/speech';
+import { contactIssueMessage, findContactIssue } from '../lib/mask';
 import { FEES } from '@taskdrop/rules';
 import {
   CATEGORIES,
@@ -69,6 +70,43 @@ function isTask(v: unknown): v is Task {
   return !!v && typeof v === 'object' && 'title' in v && 'benchmark_minor' in v;
 }
 
+/** Checklist steps for a split job, by how many parts. Percentages add to 100. */
+const MILESTONE_PLANS: Record<number, { title: string; pct: number }[]> = {
+  2: [
+    { title: 'Work started', pct: 50 },
+    { title: 'Work completed', pct: 50 },
+  ],
+  3: [
+    { title: 'Plan agreed', pct: 30 },
+    { title: 'First draft or half done', pct: 30 },
+    { title: 'Work completed', pct: 40 },
+  ],
+  4: [
+    { title: 'Plan agreed', pct: 20 },
+    { title: 'Work started', pct: 25 },
+    { title: 'Half done, shared for review', pct: 25 },
+    { title: 'Work completed', pct: 30 },
+  ],
+  5: [
+    { title: 'Plan agreed', pct: 15 },
+    { title: 'Work started', pct: 20 },
+    { title: 'Half done, shared for review', pct: 20 },
+    { title: 'Changes made', pct: 20 },
+    { title: 'Work completed', pct: 25 },
+  ],
+  6: [
+    { title: 'Plan agreed', pct: 10 },
+    { title: 'Materials or access ready', pct: 15 },
+    { title: 'Work started', pct: 15 },
+    { title: 'Half done, shared for review', pct: 20 },
+    { title: 'Changes made', pct: 20 },
+    { title: 'Work completed', pct: 20 },
+  ],
+};
+
+/** Where the budget slider ends; it steps up as the amount grows, with no ceiling. */
+const SLIDER_STOPS = [2000, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000];
+
 export function AiPostScreen() {
   const t = useTheme();
   const { params, back, reset, go } = useNav();
@@ -82,6 +120,7 @@ export function AiPostScreen() {
     typeof params.prompt === 'string' ? params.prompt : similar ? similar.title : '',
   );
   const [busy, setBusy] = useState(false);
+  const [promptFocused, setPromptFocused] = useState(false);
 
   // Quick picks.
   const [questions, setQuestions] = useState<QuickQuestion[]>([]);
@@ -109,7 +148,7 @@ export function AiPostScreen() {
 
   // Budget.
   const [budget, setBudget] = useState<number | null>(similar ? Math.round(similar.benchmark_minor / 100) : null);
-  const [split, setSplit] = useState<0 | 2 | 3>(0);
+  const [split, setSplit] = useState<0 | 2 | 3 | 4 | 5 | 6>(0);
 
   // Providers.
   const [mode, setAssign] = useState<'bids' | 'auto'>('bids');
@@ -209,22 +248,14 @@ export function AiPostScreen() {
     [whenKey, customDue],
   );
 
-  const canLeaveBrief = title.trim().length >= 4 && description.trim().length >= 10;
+  const titleIssue = findContactIssue(title);
+  const descIssue = findContactIssue(description);
+  const canLeaveBrief =
+    title.trim().length >= 4 && description.trim().length >= 10 && !titleIssue && !descIssue;
   const budgetOk = (budget ?? 0) >= 10;
   const feeRupees = Math.round((budget ?? 0) * FEES.POSTER_SERVICE_FEE_PCT);
 
-  const milestones = useMemo(() => {
-    if (split === 0) return [] as { title: string; pct: number }[];
-    if (split === 2) return [
-      { title: 'Work started', pct: 50 },
-      { title: 'Work completed', pct: 50 },
-    ];
-    return [
-      { title: 'Plan agreed', pct: 30 },
-      { title: 'First draft or half done', pct: 30 },
-      { title: 'Work completed', pct: 40 },
-    ];
-  }, [split]);
+  const milestones = useMemo(() => MILESTONE_PLANS[split] ?? [], [split]);
 
   const post = async () => {
     if (!userId) return flash('Sign in to post a task');
@@ -357,6 +388,7 @@ export function AiPostScreen() {
   let footer: React.ReactNode = null;
 
   if (phase === 'what') {
+    const issue = findContactIssue(prompt);
     body = (
       <>
         <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>What do you need done?</RNText>
@@ -368,7 +400,7 @@ export function AiPostScreen() {
             marginTop: 16,
             backgroundColor: t.colors.surface,
             borderWidth: 1,
-            borderColor: t.colors.line,
+            borderColor: issue ? t.colors.signal : promptFocused ? t.colors.accent : t.colors.line,
             borderRadius: 14,
             padding: 14,
           }}
@@ -376,6 +408,8 @@ export function AiPostScreen() {
           <TextInput
             value={prompt}
             onChangeText={setPrompt}
+            onFocus={() => setPromptFocused(true)}
+            onBlur={() => setPromptFocused(false)}
             placeholder="E.g. I want a mechanic to fix the side stand of my scooter at home"
             placeholderTextColor={t.colors.muted}
             multiline
@@ -402,9 +436,16 @@ export function AiPostScreen() {
             </View>
           ) : null}
         </View>
-        <RNText style={tx('400', 12, t.colors.muted, { marginTop: 10, lineHeight: 17 })}>
-          Don’t add phone numbers or addresses here — you’ll share those in chat with the person you hire.
-        </RNText>
+        {issue ? (
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, backgroundColor: t.colors.signalSoft, borderRadius: 10, padding: 11 }}>
+            <Icon name="shield" size={15} color={t.colors.signalDeep} />
+            <RNText style={tx('600', 12, t.colors.signalDeep, { flex: 1, lineHeight: 17 })}>{contactIssueMessage(issue)}</RNText>
+          </View>
+        ) : (
+          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 10, lineHeight: 17 })}>
+            Don’t add phone numbers or addresses here — you’ll share those in chat with the person you hire.
+          </RNText>
+        )}
       </>
     );
     footer = busy ? (
@@ -413,7 +454,7 @@ export function AiPostScreen() {
         <RNText style={tx('600', 14, t.colors.muted)}>Thinking of good questions…</RNText>
       </View>
     ) : (
-      <PrimaryButton label="Continue" onPress={() => void startPicks()} disabled={prompt.trim().length < 5} />
+      <PrimaryButton label="Continue" onPress={() => void startPicks()} disabled={prompt.trim().length < 5 || issue !== null} />
     );
   }
 
@@ -485,7 +526,14 @@ export function AiPostScreen() {
           </View>
         ) : (
           <>
-            <Field label="Title" value={title} onChangeText={setTitle} style={{ marginTop: 16 }} maxLength={80} />
+            <Field
+              label="Title"
+              value={title}
+              onChangeText={setTitle}
+              style={{ marginTop: 16 }}
+              maxLength={80}
+              error={titleIssue ? contactIssueMessage(titleIssue) : null}
+            />
             <Field
               label="Description"
               value={description}
@@ -494,16 +542,15 @@ export function AiPostScreen() {
               minHeight={170}
               style={{ marginTop: 16 }}
               maxLength={1500}
+              error={descIssue ? contactIssueMessage(descIssue) : null}
             />
           </>
         )}
 
         <RNText style={tx('600', 11, t.colors.accentDeep, { letterSpacing: 1.3, marginTop: 18 })}>CATEGORY</RNText>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 9, marginHorizontal: -20 }}>
-          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20 }}>
-            {CATEGORIES.map((c) => chip(c, category === c, () => setCategory(c)))}
-          </View>
-        </ScrollView>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
+          {CATEGORIES.map((c) => chip(c, category === c, () => setCategory(c)))}
+        </View>
 
         {!similar ? (
           <>
@@ -588,7 +635,7 @@ export function AiPostScreen() {
       .filter((n) => n >= 10)
       .sort((a, b) => a - b)
       .slice(0, 6);
-    const sliderMax = Math.max(2000, hi * 2, budget ?? 0);
+    const sliderMax = SLIDER_STOPS.find((m) => m >= Math.max(hi * 2, (budget ?? 0) * 1.25)) ?? Math.ceil(((budget ?? 0) * 1.25) / 100000) * 100000;
     body = (
       <>
         <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>How much for this task?</RNText>
@@ -638,8 +685,11 @@ export function AiPostScreen() {
           />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
             <RNText style={tx('400', 11, t.colors.muted)}>₹10</RNText>
-            <RNText style={tx('400', 11, t.colors.muted)}>{rupees(sliderMax)}</RNText>
+            <RNText style={tx('400', 11, t.colors.muted)}>{rupees(sliderMax)}+</RNText>
           </View>
+          <RNText style={tx('400', 11, t.colors.muted, { marginTop: 6, textAlign: 'center' })}>
+            No upper limit. Type any amount above.
+          </RNText>
         </View>
 
         <Pressable
@@ -654,9 +704,8 @@ export function AiPostScreen() {
         </Pressable>
         {split ? (
           <View style={{ marginTop: 12, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, padding: 14 }}>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {chip('2 parts', split === 2, () => setSplit(2))}
-              {chip('3 parts', split === 3, () => setSplit(3))}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {([2, 3, 4, 5, 6] as const).map((n) => chip(`${n} parts`, split === n, () => setSplit(n)))}
             </View>
             {milestones.map((m, i) => (
               <View key={m.title} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>

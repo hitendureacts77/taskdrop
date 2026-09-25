@@ -38,7 +38,7 @@ export function AmountField({
       value={display}
       onFocus={() => setDraft(rupees === null ? '' : String(rupees))}
       onChangeText={(text) => {
-        const digits = text.replace(/[^0-9]/g, '');
+        const digits = text.replace(/[^0-9]/g, '').slice(0, 10);
         setDraft(digits);
         onChangeRupees(digits === '' ? null : Number(digits));
       }}

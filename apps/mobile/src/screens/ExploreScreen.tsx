@@ -9,7 +9,7 @@ import { WorkCard, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
 import { HowItWorks } from '../components/HowItWorks';
 import { FadeIn, Pressy, tx } from '../components/primitives';
-import { useTheme } from '../providers/ThemeProvider';
+import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
@@ -279,7 +279,7 @@ export function SearchBox({
   const color = tone === 'purple' ? t.colors.purpleDeep : t.colors.accent;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 20, marginTop: 14 }}>
-      <View
+      <View {...ring}
         style={{
           flex: 1,
           flexDirection: 'row',

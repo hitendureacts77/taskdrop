@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { useTheme } from '../providers/ThemeProvider';
+import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
@@ -363,7 +363,7 @@ export function PromoteScreen() {
                 </Pressable>
               ) : (
                 <>
-                  <View
+                  <View {...ring}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, ScrollView, TextInput, ActivityIndicator, type TextStyle } from 'react-native';
 import { Screen } from '../components/ui';
-import { useTheme } from '../providers/ThemeProvider';
+import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
@@ -74,6 +74,7 @@ export function SignupScreen() {
   }, [complete, busy]);
 
   const codeRef = useRef<TextInput>(null);
+  const [codeFocused, setCodeFocused] = useState(false);
 
   // The real flow is a code that arrives by SMS and gets typed in by hand, so
   // never fill the boxes in for the user. Numbers on the server's TEST_PHONES
@@ -259,7 +260,7 @@ export function SignupScreen() {
         ) : (
           <>
         {label('MOBILE NUMBER', { marginTop: 26 })}
-        <View
+        <View {...ring}
           style={{
             flexDirection: 'row',
             alignItems: 'center',
@@ -322,8 +323,8 @@ export function SignupScreen() {
           <View style={{ flexDirection: 'row', gap: 9, marginTop: 11 }}>
             {[0, 1, 2, 3, 4, 5].map((i) => {
               const v = otp[i] ?? '';
-              // The box the next digit lands in gets the focus ring.
-              const active = i === Math.min(otp.length, 5);
+              // While typing the code, the box the next digit lands in lights up.
+              const active = codeFocused && i === Math.min(otp.length, 5);
               return (
                 <View
                   key={i}
@@ -348,6 +349,8 @@ export function SignupScreen() {
           <TextInput
             ref={codeRef}
             value={otp}
+            onFocus={() => setCodeFocused(true)}
+            onBlur={() => setCodeFocused(false)}
             onChangeText={(v) => setOtp(v.replace(/[^0-9]/g, '').slice(0, 6))}
             keyboardType="number-pad"
             inputMode="numeric"

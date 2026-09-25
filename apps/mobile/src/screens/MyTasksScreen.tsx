@@ -7,7 +7,7 @@ import { Badge, BottomSheet, EmptyState, MenuRow, Pill, Shimmer, StatTile, Under
 import { WorkCard, categoryIcon, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
 import { FadeIn, Pressy, tx } from '../components/primitives';
-import { useTheme } from '../providers/ThemeProvider';
+import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
@@ -179,7 +179,7 @@ function MyPosted() {
           <StatTile icon="check" label="Completions" value={String(s?.completed ?? '–')} tone="purple" />
         </View>
 
-        <View
+        <View {...ring}
           style={{
             flexDirection: 'row',
             alignItems: 'center',

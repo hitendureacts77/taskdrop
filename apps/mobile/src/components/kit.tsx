@@ -180,6 +180,9 @@ export function Field({
 }) {
   const t = useTheme();
   const [focused, setFocused] = useState(false);
+  // Multiline boxes grow with their text, so the whole thing is always
+  // visible instead of hiding behind a scrollbar inside the box.
+  const [contentH, setContentH] = useState(0);
   return (
     <View style={style}>
       {label ? (
@@ -212,9 +215,15 @@ export function Field({
             setFocused(false);
             input.onBlur?.(e);
           }}
+          onContentSizeChange={(e) => {
+            if (input.multiline) setContentH(e.nativeEvent.contentSize.height);
+            input.onContentSizeChange?.(e);
+          }}
           style={[
             tx('400', 15, t.colors.ink, { flex: 1, padding: 0 }),
-            input.multiline ? { minHeight, textAlignVertical: 'top' } : null,
+            input.multiline
+              ? { minHeight, height: Math.max(minHeight, Math.ceil(contentH)), textAlignVertical: 'top' }
+              : null,
           ]}
         />
         {right}
