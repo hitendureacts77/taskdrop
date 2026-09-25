@@ -224,9 +224,9 @@ export function AccountScreen() {
                 <RNText style={tx('700', 13, t.colors.accentDeep)}>Compare plans ›</RNText>
               </Pressable>
             </View>
-            <View style={{ ...card, borderColor: t.colors.purple }}>
+            <View style={{ ...card, borderColor: t.colors.ai }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Icon name="sparkle" size={16} color={t.colors.purple} />
+                <Icon name="sparkle" size={16} color={t.colors.ai} />
                 <RNText style={tx('800', 15, t.colors.ink)}>AI credits</RNText>
               </View>
               <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
@@ -243,7 +243,7 @@ export function AccountScreen() {
                 <View
                   style={{
                     height: 6,
-                    backgroundColor: t.colors.purple,
+                    backgroundColor: t.colors.ai,
                     width: ai ? `${Math.max(0, Math.min(100, ((ai.limit - ai.used) / ai.limit) * 100))}%` : '0%',
                   }}
                 />

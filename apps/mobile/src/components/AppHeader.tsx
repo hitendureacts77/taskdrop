@@ -324,7 +324,7 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
               {ai ? (
                 <View style={{ marginTop: 14, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 12, padding: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Icon name="sparkle" size={14} color={t.colors.purple} />
+                    <Icon name="sparkle" size={14} color={t.colors.ai} />
                     <RNText style={tx('700', 12, t.colors.ink, { flex: 1 })}>AI credits today</RNText>
                     <RNText style={tx('700', 12, t.colors.ink)}>
                       {Math.max(0, ai.limit - ai.used)}/{ai.limit}
@@ -335,7 +335,7 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
                       style={{
                         width: `${Math.max(0, Math.min(100, ((ai.limit - ai.used) / ai.limit) * 100))}%`,
                         height: 5,
-                        backgroundColor: t.colors.purple,
+                        backgroundColor: t.colors.ai,
                       }}
                     />
                   </View>

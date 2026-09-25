@@ -3,8 +3,10 @@
  * Brand accent is a cool jade green (#0E8F72 light / #2FBF96 dark) —
  * deliberately cooler and deeper than the brighter grass-green marketplace
  * incumbents (Fiverr, Upwork) use, while staying clearly a green; gold =
- * verified-badge; signal = warnings/cancel; purple = promotions/ads. Light +
- * dark are role-consistent.
+ * verified-badge; signal = warnings/cancel; purple = the worker (Earn) side,
+ * now a royal blue despite the name, plus promotions/ads; ai = the AI
+ * assistant (sparkle, credits), kept violet so it stays its own thing.
+ * Light + dark are role-consistent.
  */
 export type Palette = {
   bg: string;
@@ -26,6 +28,7 @@ export type Palette = {
   signalSoft: string;
   purple: string;
   purpleDeep: string;
+  ai: string;
   blue: string;
   onAccent: string;
 };
@@ -48,8 +51,9 @@ export const light: Palette = {
   signal: '#E0724A',
   signalDeep: '#B4512C',
   signalSoft: '#FBEDE7',
-  purple: '#7F77DD',
-  purpleDeep: '#5B52C4',
+  purple: '#2F5BEA',
+  purpleDeep: '#1E40AF',
+  ai: '#7F77DD',
   blue: '#4A90D9',
   onAccent: '#FFFFFF',
 };
@@ -72,8 +76,9 @@ export const dark: Palette = {
   signal: '#E0724A',
   signalDeep: '#F0906B',
   signalSoft: '#2A1A13',
-  purple: '#8A82E6',
-  purpleDeep: '#7F77DD',
+  purple: '#6B8CFF',
+  purpleDeep: '#4F6FE8',
+  ai: '#8A82E6',
   blue: '#5AA0E6',
   onAccent: '#04140D',
 };

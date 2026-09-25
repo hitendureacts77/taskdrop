@@ -109,7 +109,7 @@ function PostTop() {
           style={tx('400', 15, t.colors.ink, { minHeight: 48, maxHeight: 110, padding: 0, textAlignVertical: 'top' })}
         />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-          <Icon name="sparkle" size={14} color={t.colors.purple} />
+          <Icon name="sparkle" size={14} color={t.colors.ai} />
           <RNText style={tx('500', 11, t.colors.muted, { flex: 1 })}>AI writes the post for you</RNText>
           {voice.supported ? (
             <Pressable

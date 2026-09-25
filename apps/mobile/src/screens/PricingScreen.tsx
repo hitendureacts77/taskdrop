@@ -69,7 +69,7 @@ export function PricingScreen() {
 
         <View style={{ marginTop: 12, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 16, padding: 16 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Icon name="sparkle" size={16} color={t.colors.purple} />
+            <Icon name="sparkle" size={16} color={t.colors.ai} />
             <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>Plans with lower fees</RNText>
             <Badge label="Coming soon" tone="purple" />
           </View>

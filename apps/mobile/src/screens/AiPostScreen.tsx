@@ -340,8 +340,8 @@ export function AiPostScreen() {
   const sourceNote =
     source === 'ai' ? (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 }}>
-        <Icon name="sparkle" size={13} color={t.colors.purple} strokeWidth={1.8} />
-        <RNText style={tx('500', 12, t.colors.purple)}>
+        <Icon name="sparkle" size={13} color={t.colors.ai} strokeWidth={1.8} />
+        <RNText style={tx('500', 12, t.colors.ai)}>
           Drafted by AI{credits !== null ? ` · ${credits} credit${credits === 1 ? '' : 's'} left today` : ''}
         </RNText>
       </View>
