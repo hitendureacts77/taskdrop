@@ -77,7 +77,7 @@ export function SplashScreen() {
             textAlign: 'center',
           })}
         >
-          Ask for anything. Someone gets it done.
+          Ask for anything. Someone gets it done for you.
         </RNText>
       </Pressable>
     </Screen>
