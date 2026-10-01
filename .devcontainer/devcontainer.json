@@ -1,0 +1,28 @@
+{
+  "name": "TaskDrop",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+
+  // Codespaces offers to fill these in when the codespace is created, and
+  // remembers them as user secrets after that.
+  "secrets": {
+    "EXPO_PUBLIC_SUPABASE_URL": {
+      "description": "Supabase project URL, e.g. https://wjxvingpfbfvkfqhrguj.supabase.co"
+    },
+    "EXPO_PUBLIC_SUPABASE_ANON_KEY": {
+      "description": "Supabase anon (publishable) key, from Project Settings > API"
+    }
+  },
+
+  "postCreateCommand": "npm ci && node .devcontainer/write-env.mjs",
+
+  "forwardPorts": [8081],
+  "portsAttributes": {
+    "8081": { "label": "TaskDrop web", "onAutoForward": "openBrowser" }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["dbaeumer.vscode-eslint", "expo.vscode-expo-tools"]
+    }
+  }
+}

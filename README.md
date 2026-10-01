@@ -39,6 +39,21 @@ npm run android
 npm run web:export     # outputs apps/mobile/dist
 ```
 
+### In GitHub Codespaces
+
+Open the repo in a codespace (Code → Codespaces → Create). It installs
+dependencies and writes `apps/mobile/.env` for you; when asked, give it the
+`EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` secrets. Then:
+
+```bash
+npm run web
+```
+
+and open port 8081 from the **Ports** tab — `localhost` inside the codespace
+isn't your machine. For Google sign-in to return to the codespace, add
+`https://*.app.github.dev/**` to Supabase → Authentication → URL Configuration
+→ Redirect URLs.
+
 Other commands:
 
 ```bash
