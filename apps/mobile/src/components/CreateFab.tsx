@@ -34,7 +34,7 @@ export function CreateFab() {
       <Pressable
         onPress={() => go(mode === 'worker' ? 'listing' : 'aiPost')}
         accessibilityRole="button"
-        accessibilityLabel={mode === 'worker' ? 'List a gig' : 'Post a request'}
+        accessibilityLabel={mode === 'worker' ? 'Offer a service' : 'Post a request'}
         style={({ pressed }) => ({
           flexDirection: 'row',
           alignItems: 'center',
@@ -55,7 +55,7 @@ export function CreateFab() {
           ＋
         </RNText>
         <RNText style={{ fontSize: 14, color: t.colors.onAccent, fontFamily: fontFamilyFor('700') }}>
-          {mode === 'worker' ? 'List a gig' : 'Post a request'}
+          {mode === 'worker' ? 'Offer a service' : 'Post a request'}
         </RNText>
       </Pressable>
     </Animated.View>

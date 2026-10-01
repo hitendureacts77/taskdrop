@@ -100,9 +100,9 @@ export function posterRow(task: Task, quoteCount = 0): ViewRow {
       return {
         ...base,
         bucket: 0,
-        state: quoteCount > 0 ? 'OPEN · ' + quoteCount + (quoteCount === 1 ? ' QUOTE' : ' QUOTES') : 'OPEN',
+        state: quoteCount > 0 ? 'OPEN · ' + quoteCount + (quoteCount === 1 ? ' OFFER' : ' OFFERS') : 'OPEN',
         tone: 'blue',
-        meta: quoteCount > 0 ? 'Tap to compare and lock one' : 'Waiting for quotes',
+        meta: quoteCount > 0 ? 'Tap to compare and choose one' : 'Waiting for offers',
         act: 'compare',
       };
     case 'LOCKED':
@@ -110,8 +110,8 @@ export function posterRow(task: Task, quoteCount = 0): ViewRow {
       // claim the data did not support: a locked task with funded_at null has
       // had nothing collected, and the worker cannot start until it does.
       return task.funded_at
-        ? { ...base, bucket: 0, state: 'LOCKED · WORKER TO START', tone: 'accent', meta: 'Escrow funded · worker starts next', act: null }
-        : { ...base, bucket: 0, state: 'AWAITING YOUR PAYMENT', tone: 'signal', meta: 'Pay the escrow so the worker can start', act: 'pay' };
+        ? { ...base, bucket: 0, state: 'PAID · WORKER STARTS NEXT', tone: 'accent', meta: 'Paid · worker starts next', act: null }
+        : { ...base, bucket: 0, state: 'WAITING FOR YOUR PAYMENT', tone: 'signal', meta: 'Pay so the worker can start', act: 'pay' };
     case 'TASK_STARTED':
       return { ...base, bucket: 1, state: 'ACTIVE · TIMER RUNNING', tone: 'gold', meta: 'Work is underway', act: 'active' };
     case 'OVERDUE':
@@ -121,7 +121,7 @@ export function posterRow(task: Task, quoteCount = 0): ViewRow {
       return { ...base, bucket: 1, state: 'MARKED DONE · REVIEW THE PROOF', tone: 'gold', meta: 'Tap to see the proof and release', act: 'active' };
     case 'COMPLETED':
     case 'AUTO_COMPLETED':
-      return { ...base, bucket: 2, state: 'DONE · RELEASED', tone: 'accent', meta: 'Tap to review the worker', act: 'review' };
+      return { ...base, bucket: 2, state: 'DONE · PAID', tone: 'accent', meta: 'Tap to review the worker', act: 'review' };
     default:
       return { ...base, bucket: 2, state: String(task.status), tone: 'neutral', meta: '', act: null };
   }
@@ -137,7 +137,7 @@ export function workerBidRow(bid: Bid & { tasks: Task | null }): ViewRow {
     title: bid.tasks?.title ?? 'Task',
     priceLabel: formatINR(bid.price_minor),
     priceMinor: bid.price_minor,
-    meta: 'Quote sent · awaiting the poster',
+    meta: 'Offer sent · waiting for the customer',
     act: null,
   };
 }
@@ -159,16 +159,34 @@ export function workerAssignmentRow(a: Assignment & { tasks: Task | null }): Vie
   if (a.status === 'refunded')
     return { ...base, bucket: 3, state: 'NOT SELECTED', tone: 'neutral', meta: 'Another worker started first', act: null };
   if (a.status === 'released' || task?.status === 'COMPLETED' || task?.status === 'AUTO_COMPLETED')
-    return { ...base, bucket: 3, state: 'DONE · PAID', tone: 'accent', meta: 'Earnings are clearing', act: 'active' };
+    return { ...base, bucket: 3, state: 'DONE · PAID', tone: 'accent', meta: 'Earnings on the way', act: 'active' };
   if (task?.status === 'WORK_DONE' || task?.status === 'REVISION_REQUESTED')
-    return { ...base, bucket: 1, state: 'WORK DONE · AWAITING POSTER', tone: 'gold', meta: 'Poster confirms next', act: 'active' };
+    return { ...base, bucket: 1, state: 'WORK DONE · WAITING FOR CUSTOMER', tone: 'gold', meta: 'Customer confirms next', act: 'active' };
   if (task?.status === 'TASK_STARTED' || task?.status === 'OVERDUE' || a.status === 'started')
     return { ...base, bucket: 1, state: 'ACTIVE · TIMER RUNNING', tone: 'gold', meta: 'Task started · timer running', act: 'active' };
   // Sliding to start now fails server-side on an unfunded task, so say so here
   // rather than letting someone swipe into a refusal.
   if (!task?.funded_at)
-    return { ...base, bucket: 1, state: 'WAITING ON PAYMENT', tone: 'gold', meta: 'The poster has not funded the escrow yet', act: null };
-  return { ...base, bucket: 1, state: 'ACCEPTED · SWIPE TO START', tone: 'accent', meta: 'Escrow funded · first to start wins', act: 'start' };
+    return { ...base, bucket: 1, state: 'WAITING ON PAYMENT', tone: 'gold', meta: 'The customer has not paid yet', act: null };
+  return { ...base, bucket: 1, state: 'ACCEPTED · SWIPE TO START', tone: 'accent', meta: 'Paid · first to start gets the job', act: 'start' };
+}
+
+/** Statuses where the live tracker, not the overview, is what the poster needs. */
+const TRACKED = ['TASK_STARTED', 'OVERDUE', 'WORK_DONE', 'REVISION_REQUESTED'];
+
+/**
+ * Open one of my posted tasks from a list. Work underway, or waiting on my
+ * review, goes straight to the tracker -- that is the screen with the thing to
+ * do on it. Everything else opens the task's overview.
+ */
+export function openPostedTask(
+  task: Pick<Task, 'id' | 'status' | 'title' | 'locked_minor' | 'benchmark_minor'>,
+  go: (s: ScreenName, p?: NavParams) => void,
+): void {
+  if (TRACKED.includes(task.status)) {
+    return go('active', { taskId: task.id, title: task.title, priceMinor: task.locked_minor ?? task.benchmark_minor });
+  }
+  go('taskManage', { taskId: task.id });
 }
 
 /** Open a row: the same switch OrdersScreen always used. */

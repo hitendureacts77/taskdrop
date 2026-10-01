@@ -24,7 +24,8 @@ import {
   type PromotableTask,
 } from '../data/api';
 import { formatINR } from '../components/ui';
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
+import { PaymentSheet } from '../components/PaymentSheet';
 import { tx } from '../components/primitives';
 
 const DURATIONS = [
@@ -39,6 +40,8 @@ export function PromoteScreen() {
   const { mode } = useMode();
   const { celebrate, flash } = useActions();
   const [busy, setBusy] = useState(false);
+  // Native: the checkout opens in a sheet here rather than in Chrome.
+  const [payUrl, setPayUrl] = useState<string | null>(null);
   const [pending, setPending] = useState<{ promotionId: string; paymentId: string } | null>(null);
   const [explaining, setExplaining] = useState(false);
 
@@ -150,8 +153,8 @@ export function PromoteScreen() {
     if (!taskId) {
       flash(
         mine.length === 0
-          ? 'You have no open listings to promote yet'
-          : 'Pick which listing to promote first',
+          ? 'You have no open posts to promote yet'
+          : 'Pick which post to promote first',
       );
       return;
     }
@@ -165,7 +168,8 @@ export function PromoteScreen() {
         taskId,
       });
       setPending({ promotionId: promo.id, paymentId });
-      await Linking.openURL(url);
+      if (Platform.OS === 'web') await Linking.openURL(url);
+      else setPayUrl(url);
       flash('Finish the payment, then come back and tap Activate');
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not start that campaign');
@@ -228,8 +232,8 @@ export function PromoteScreen() {
           </RNText>
 
           <RNText style={tx('400', 14, t.colors.text, { marginTop: 12, lineHeight: 21 })}>
-            A promoted listing sits at the top of the feed, above everything posted normally,
-            and is marked as sponsored. That is the whole mechanism — it buys position, nothing
+            A promoted post sits at the top of the list, above everything posted normally,
+            and is marked as promoted. That is all it does — it buys position, nothing
             else.
           </RNText>
 
@@ -237,7 +241,7 @@ export function PromoteScreen() {
             What the budget changes
           </RNText>
           <RNText style={tx('400', 14, t.colors.text, { marginTop: 6, lineHeight: 21 })}>
-            The daily budget sets how many people your listing is put in front of each day, and
+            The daily budget sets how many people your post is put in front of each day, and
             the duration sets how many days that lasts. A bigger daily budget reaches more
             people per day; more days reaches people who were not looking today. Same total
             money, different shape — {formatINR(total * 100)} spread over {days}{' '}
@@ -248,16 +252,16 @@ export function PromoteScreen() {
             What it does not do
           </RNText>
           <RNText style={tx('400', 14, t.colors.text, { marginTop: 6, lineHeight: 21 })}>
-            It does not make anyone quote, and it does not change your price. A listing with a
+            It does not make anyone send an offer, and it does not change your price. A post with a
             rate well under the going one will be seen more and still be passed over. If a
-            listing has been up a while with no quotes, the price is usually the reason — not
+            post has been up a while with no offers, the price is usually the reason — not
             the position.
           </RNText>
 
           <RNText style={tx('700', 14, t.colors.ink, { marginTop: 18 })}>When it is worth it</RNText>
           <RNText style={tx('400', 14, t.colors.text, { marginTop: 6, lineHeight: 21 })}>
             Best on something urgent, or in a category with a lot posted at once where good
-            listings get buried. Least useful on something niche, where the few people who can
+            posts get buried. Least useful on something niche, where the few people who can
             do it will find it anyway.
           </RNText>
 
@@ -295,8 +299,8 @@ export function PromoteScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <Pressable onPress={back} hitSlop={10}>
-            <RNText style={tx('400', 20, t.colors.ink)}>←</RNText>
+          <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
+            <Icon name="back" size={20} color={t.colors.ink} />
           </Pressable>
           <RNText style={tx('700', 17, t.colors.ink)}>
             {worker ? 'Promote this service' : 'Promote this task'}
@@ -307,7 +311,7 @@ export function PromoteScreen() {
           {loadingMine ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 }}>
               <ActivityIndicator size="small" color={t.colors.muted} />
-              <RNText style={tx('400', 13, t.colors.muted)}>Finding your listings…</RNText>
+              <RNText style={tx('400', 13, t.colors.muted)}>Finding your posts…</RNText>
             </View>
           ) : mine.length === 0 ? (
             <View
@@ -321,14 +325,14 @@ export function PromoteScreen() {
             >
               <RNText style={tx('700', 14, t.colors.ink)}>Nothing open to promote</RNText>
               <RNText style={tx('400', 12, t.colors.muted, { marginTop: 5, lineHeight: 18 })}>
-                Only your own open listings can be promoted. Post one, or reopen a closed one,
+                Only your own open posts can be promoted. Post one, or reopen a closed one,
                 and it will show up here.
               </RNText>
             </View>
           ) : (
             <>
               <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54 })}>
-                WHICH LISTING
+                WHICH POST
               </RNText>
 
               {/* One line when settled; the full list only while choosing. */}
@@ -336,7 +340,7 @@ export function PromoteScreen() {
                 <Pressable
                   onPress={() => setChoosing(true)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Change listing, currently ${picked.title}`}
+                  accessibilityLabel={`Change post, currently ${picked.title}`}
                   style={({ pressed }) => ({
                     marginTop: 9,
                     flexDirection: 'row',
@@ -354,7 +358,7 @@ export function PromoteScreen() {
                     </RNText>
                     <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
                       {formatINR(picked.benchmark_minor)} ·{' '}
-                      {picked.quotes === 1 ? '1 quote' : `${picked.quotes} quotes`}
+                      {picked.quotes === 1 ? '1 offer' : `${picked.quotes} offers`}
                     </RNText>
                   </View>
                   {mine.length > 1 && (
@@ -379,7 +383,7 @@ export function PromoteScreen() {
                     <TextInput
                       value={listingQuery}
                       onChangeText={setListingQuery}
-                      placeholder="Search your listings"
+                      placeholder="Search your posts"
                       placeholderTextColor={t.colors.muted}
                       autoCorrect={false}
                       style={tx('400', 14, t.colors.ink, { flex: 1, padding: 0 })}
@@ -436,7 +440,7 @@ export function PromoteScreen() {
                         </RNText>
                         <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
                           {formatINR(m.benchmark_minor)} ·{' '}
-                          {m.quotes === 1 ? '1 quote' : `${m.quotes} quotes`}
+                          {m.quotes === 1 ? '1 offer' : `${m.quotes} offers`}
                         </RNText>
                       </View>
                       {on && <RNText style={tx('700', 14, t.colors.accentDeep)}>✓</RNText>}
@@ -532,7 +536,7 @@ export function PromoteScreen() {
         {audienceOn && (
           <View style={{ marginTop: 14 }}>
             {[
-              worker ? 'Posters within 15 km' : 'Workers within 12 km',
+              worker ? 'Customers within 15 km' : 'Workers within 12 km',
               worker ? 'Services' : 'Services · Products',
             ].map((row, i) => (
               <View
@@ -605,6 +609,7 @@ export function PromoteScreen() {
         </RNText>
       </View>
       {explainer}
+      <PaymentSheet url={payUrl} visible={payUrl !== null} onClose={() => setPayUrl(null)} />
     </Screen>
   );
 }

@@ -1,8 +1,23 @@
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { supabase } from './supabase';
+
+type NotificationsModule = typeof import('expo-notifications');
+
+// Since SDK 53, merely importing expo-notifications throws inside Expo Go on
+// Android (remote push was removed there). Load it lazily and skip it in that
+// one environment; the in-app bell still shows every notification.
+const inAndroidExpoGo =
+  Platform.OS === 'android' && Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+let notificationsModule: NotificationsModule | null | undefined;
+function loadNotifications(): NotificationsModule | null {
+  if (notificationsModule === undefined) {
+    notificationsModule = inAndroidExpoGo ? null : (require('expo-notifications') as NotificationsModule);
+  }
+  return notificationsModule;
+}
 
 /**
  * Phone notifications.
@@ -14,7 +29,8 @@ import { supabase } from './supabase';
  *    (migration 051), so it arrives even with the app closed.
  *  - Local. While the app is open, the realtime feed of notification rows is
  *    shown as a system notification by the app itself. This is what works in
- *    Expo Go and in a browser tab, where remote push is not available.
+ *    a browser tab and in Expo Go on iOS, where remote push is not available.
+ *    Expo Go on Android gets neither; there the in-app bell is the only route.
  *
  * When remote push is registered, the local route stands down, so nothing is
  * shown twice.
@@ -26,6 +42,8 @@ let configured = false;
 function configure() {
   if (configured || Platform.OS === 'web') return;
   configured = true;
+  const Notifications = loadNotifications();
+  if (!Notifications) return;
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: true,
@@ -64,6 +82,8 @@ export async function setupPush(): Promise<void> {
     return;
   }
 
+  const Notifications = loadNotifications();
+  if (!Notifications) return;
   configure();
   try {
     const current = await Notifications.getPermissionsAsync();
@@ -98,6 +118,8 @@ export async function showLocal(n: { title: string; body: string | null; id: str
     }
     return;
   }
+  const Notifications = loadNotifications();
+  if (!Notifications) return;
   configure();
   try {
     await Notifications.scheduleNotificationAsync({
@@ -116,7 +138,8 @@ export async function showLocal(n: { title: string; body: string | null; id: str
 
 /** Call back when the person taps a notification. Returns an unsubscribe. */
 export function onNotificationTap(cb: (data: { taskId?: string | null }) => void): () => void {
-  if (Platform.OS === 'web') return () => {};
+  const Notifications = Platform.OS === 'web' ? null : loadNotifications();
+  if (!Notifications) return () => {};
   const sub = Notifications.addNotificationResponseReceivedListener((res) => {
     cb((res.notification.request.content.data ?? {}) as { taskId?: string | null });
   });

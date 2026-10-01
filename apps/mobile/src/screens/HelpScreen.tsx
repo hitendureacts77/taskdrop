@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text as RNText, ScrollView, Pressable, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text as RNText, ScrollView, Pressable, TextInput, KeyboardAvoidingView } from 'react-native';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { Badge, EmptyState, Field, Pill, PrimaryButton, Shimmer, TopBar, timeAgo } from '../components/kit';
@@ -88,6 +88,30 @@ export function HelpScreen() {
           <RNText style={tx('400', 12, t.colors.muted, { lineHeight: 18 })}>
             Not stuck, just have an idea or found a bug? <RNText style={tx('700', 12, t.colors.accentDeep)}>Send feedback</RNText> instead — it goes to the team that builds TaskDrop.
           </RNText>
+        </Pressable>
+
+        <Pressable
+          onPress={() => go('pricing')}
+          accessibilityRole="button"
+          style={({ pressed }) => ({
+            marginTop: 18,
+            padding: 13,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: t.colors.line,
+            backgroundColor: t.colors.surface,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            opacity: pressed ? 0.8 : 1,
+          })}
+        >
+          <Icon name="card" size={18} color={t.colors.accentDeep} />
+          <View style={{ flex: 1 }}>
+            <RNText style={tx('700', 13, t.colors.ink)}>How fees work</RNText>
+            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>What TaskDrop takes, and when</RNText>
+          </View>
+          <RNText style={tx('600', 16, t.colors.muted)}>›</RNText>
         </Pressable>
 
         <RNText style={tx('800', 16, t.colors.ink, { marginTop: 26 })}>Your conversations</RNText>
@@ -188,7 +212,7 @@ export function TicketScreen() {
 
   return (
     <Screen padded={false}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <TopBar title="Your conversation" onBack={back} right={<Badge label={s.label} tone={s.tone} />} />
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16 }}>
           {messages === null ? (

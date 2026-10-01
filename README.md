@@ -65,21 +65,16 @@ public profile with profile strength and levels, "go live" for workers, and
 username + password sign-in.
 
 Schema: `supabase/migrations/…_048_marketplace_features.sql` (and `_049`).
-Edge Functions: `ai-assistant` and `password-auth`.
+Edge Function: `password-auth`.
 
-### Turning on the AI writer
+### The post writer
 
-The brief writer is Claude (`claude-haiku-4-5`) behind the `ai-assistant` Edge
-Function. It needs an Anthropic API key, set as a function secret:
-
-```bash
-supabase secrets set ANTHROPIC_API_KEY=sk-ant-... --project-ref wjxvingpfbfvkfqhrguj
-```
-
-(or Dashboard → Edge Functions → Secrets). Until a key is set the app uses its
-built-in quick writer (`apps/mobile/src/lib/taskBrief.ts`), so posting always
-works. Each AI call spends one daily credit per user; the allowance is the
-`ai_daily_credits` row in `settings` (default 10).
+"What's on your mind?" turns a sentence into a task post with the built-in
+writer in `apps/mobile/src/lib/taskBrief.ts`. It runs on the phone, with no
+AI and no network call: it scores the request against ~45 task types (English
+and common Hinglish words), asks up to four questions for that type, skips
+anything the request already answers, and prices the job from the answers.
+To support a new kind of task, add a topic to `TOPICS` in that file.
 
 To answer a support ticket from the Supabase SQL editor (open tickets are in
 `support_tickets` where `status = 'waiting'`):

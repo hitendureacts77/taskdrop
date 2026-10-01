@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Icon } from '../components/Icon';
 import { View, Text as RNText, TextInput, Pressable, Animated, ScrollView } from 'react-native';
 import { Screen } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
@@ -87,7 +88,7 @@ export function ReviewScreen() {
   const title = typeof params.title === 'string' ? params.title : (openTask?.title ?? fallback.title);
   const price = openTask?.price ?? fallback.price;
 
-  const reviewWho = mode === 'worker' ? 'the poster' : 'the worker';
+  const reviewWho = mode === 'worker' ? 'the customer' : 'the worker';
 
   const togglePraise = (i: number) => {
     setPraise((prev) => (prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]));
@@ -126,7 +127,7 @@ export function ReviewScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6 }}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable onPress={back} hitSlop={10}>
+        <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
           <RNText style={tx('400', 20, t.colors.ink)}>✕</RNText>
         </Pressable>
 
@@ -141,7 +142,7 @@ export function ReviewScreen() {
               justifyContent: 'center',
             }}
           >
-            <RNText style={tx('400', 24, t.colors.muted)}>☺</RNText>
+            <Icon name="user" size={26} color={t.colors.muted} />
           </View>
           <RNText style={tx('800', 23, t.colors.ink, { letterSpacing: -0.69, marginTop: 14, textAlign: 'center' })}>
             How did {reviewWho} do?

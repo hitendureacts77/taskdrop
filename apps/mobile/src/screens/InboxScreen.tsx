@@ -66,7 +66,7 @@ export function InboxScreen() {
           <EmptyState
             icon="chat"
             title="No messages yet"
-            body="Threads appear here when you chat with someone about a task."
+            body="A conversation opens here as soon as you hire someone, or someone hires you."
           />
         ) : (
           shown.map((th, i) => (
@@ -92,9 +92,11 @@ export function InboxScreen() {
                     <RNText style={tx('700', 14, t.colors.ink, { flex: 1 })} numberOfLines={1}>{th.title}</RNText>
                     <RNText style={tx('400', 11, t.colors.muted)}>{timeAgo(th.lastAt)}</RNText>
                   </View>
-                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })} numberOfLines={1}>
-                    {th.lastFromMe ? 'You: ' : ''}
-                    {th.lastBody}
+                  <RNText
+                    style={tx(th.lastBody ? '400' : '600', 12, th.lastBody ? t.colors.muted : t.colors.accentDeep, { marginTop: 3 })}
+                    numberOfLines={1}
+                  >
+                    {th.lastBody ? (th.lastFromMe ? 'You: ' : '') + th.lastBody : 'No messages yet · say hello'}
                   </RNText>
                 </View>
               </Pressable>

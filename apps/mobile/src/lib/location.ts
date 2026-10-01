@@ -237,7 +237,7 @@ export async function describeCoords(lat: number, lng: number): Promise<string> 
     const res = await withTimeout(
       fetch(
         `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=14`,
-        { headers: { Accept: 'application/json' } },
+        { headers: OSM_HEADERS },
       ),
       8000,
     );
@@ -327,7 +327,7 @@ async function openStreetMap(q: string): Promise<PickedPlace[]> {
     const res = await withTimeout(
       fetch(
         `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=${encodeURIComponent(q)}`,
-        { headers: { Accept: 'application/json' } },
+        { headers: OSM_HEADERS },
       ),
       8000,
     );
@@ -346,6 +346,16 @@ async function openStreetMap(q: string): Promise<PickedPlace[]> {
     return [];
   }
 }
+
+/**
+ * OpenStreetMap's usage policy refuses anonymous app traffic (a 403). A
+ * browser identifies itself; a native fetch does not, so it has to say who it
+ * is. Browsers forbid setting User-Agent, hence native only.
+ */
+const OSM_HEADERS: Record<string, string> =
+  Platform.OS === 'web'
+    ? { Accept: 'application/json' }
+    : { Accept: 'application/json', 'User-Agent': 'TaskDrop/1.0 (com.taskdrop.app)' };
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([

@@ -5,7 +5,9 @@ import { Icon, type IconName } from '../components/Icon';
 import {
   Badge,
   BottomSheet,
+  ConfirmDialog,
   EmptyState,
+  SwipeTabs,
   MenuRow,
   PrimaryButton,
   Shimmer,
@@ -27,7 +29,9 @@ import {
   cancelTask,
   getTaskDetail,
   listBidsForTask,
+  lockBid,
   refundEscrow,
+  WalletShortError,
   type Bid,
   type Profile,
   type TaskDetail,
@@ -36,6 +40,16 @@ import { openRow, posterRow } from '../lib/taskRows';
 import { statusBadge } from './MyTasksScreen';
 import { formatDeadline } from '../components/DateTimeSheet';
 import { FEES } from '@taskdrop/rules';
+import { AddFundsSheet } from '../components/AddFundsSheet';
+
+type QuoteFilter = 'newest' | 'cheapest' | 'budget' | 'rated' | 'fastest';
+const QUOTE_FILTERS: { key: QuoteFilter; label: string }[] = [
+  { key: 'newest', label: 'Newest' },
+  { key: 'cheapest', label: 'Lowest price' },
+  { key: 'budget', label: 'Within budget' },
+  { key: 'rated', label: 'Top rated' },
+  { key: 'fastest', label: 'Fastest' },
+];
 
 type Milestone = { title: string; pct: number };
 type Event = { at: string; title: string; body?: string; icon: IconName };
@@ -57,14 +71,20 @@ function milestonesOf(v: unknown): Milestone[] {
 export function TaskManageScreen() {
   const t = useTheme();
   const { params, back, go } = useNav();
-  const { flash, setOpenTask, startedOf } = useApp();
+  const { flash, celebrate, setOpenTask, startedOf } = useApp();
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
   const [detail, setDetail] = useState<TaskDetail | null | undefined>(undefined);
   const [bids, setBids] = useState<(Bid & { profiles: Profile | null })[]>([]);
   const [tab, setTab] = useState(0);
   const [menu, setMenu] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [quoteFilter, setQuoteFilter] = useState<QuoteFilter>('newest');
+  const [selecting, setSelecting] = useState<{ bidId: string; name: string; priceMinor: number } | null>(null);
+  const [locking, setLocking] = useState(false);
+  // Set when the wallet cannot cover the chosen offer: exactly what is missing.
+  const [shortBy, setShortBy] = useState<{ minor: number; pick: { bidId: string; name: string; priceMinor: number } } | null>(null);
 
   const load = useCallback(async () => {
     if (!taskId) return setDetail(null);
@@ -119,20 +139,20 @@ export function TaskManageScreen() {
       body: b.profiles?.display_name ? `from ${b.profiles.display_name}` : undefined,
       icon: 'tag' as IconName,
     })),
-    ...(assignment ? [{ at: assignment.created_at, title: 'Quote accepted', body: worker?.display_name ? `${worker.display_name} was picked` : undefined, icon: 'check' as IconName }] : []),
-    ...(task.funded_at ? [{ at: task.funded_at, title: 'Escrow funded', body: formatINR(escrow) + ' held safely', icon: 'lock' as IconName }] : []),
+    ...(assignment ? [{ at: assignment.created_at, title: 'Offer accepted', body: worker?.display_name ? `${worker.display_name} was picked` : undefined, icon: 'check' as IconName }] : []),
+    ...(task.funded_at ? [{ at: task.funded_at, title: 'Payment held safely', body: formatINR(escrow) + ' held safely', icon: 'lock' as IconName }] : []),
     ...(task.started_at ? [{ at: task.started_at, title: 'Work started', icon: 'play' as IconName }] : []),
     ...(task.work_done_at ? [{ at: task.work_done_at, title: 'Work submitted', body: 'Review it and release the payment', icon: 'flag' as IconName }] : []),
     ...(task.completed_at ? [{ at: task.completed_at, title: 'Completed', body: 'Payment released to the worker', icon: 'trophy' as IconName }] : []),
     ...(task.status === 'CANCELLED' ? [{ at: task.updated_at, title: 'Task closed', icon: 'close' as IconName }] : []),
-    ...(task.status === 'DISPUTED' ? [{ at: task.updated_at, title: 'Dispute opened', body: 'Our team is looking at it', icon: 'gavel' as IconName }] : []),
+    ...(task.status === 'DISPUTED' ? [{ at: task.updated_at, title: 'Problem reported', body: 'Our team is looking at it', icon: 'gavel' as IconName }] : []),
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
   const primary: { label: string; onPress: () => void } | null =
     row.act === 'compare'
-      ? { label: bids.length ? `Compare ${bids.length} quote${bids.length === 1 ? '' : 's'}` : 'Waiting for quotes', onPress: () => openRow(row, { go, flash, setOpenTask, startedOf }) }
+      ? { label: bids.length ? `Compare ${bids.length} offer${bids.length === 1 ? '' : 's'}` : 'Waiting for offers', onPress: () => openRow(row, { go, flash, setOpenTask, startedOf }) }
       : row.act === 'pay'
-        ? { label: `Pay ${formatINR(escrow)} into escrow`, onPress: () => openRow(row, { go, flash, setOpenTask, startedOf }) }
+        ? { label: `Pay ${formatINR(escrow)} now`, onPress: () => openRow(row, { go, flash, setOpenTask, startedOf }) }
         : row.act === 'confirm'
           ? { label: 'Review the work and release', onPress: () => openRow(row, { go, flash, setOpenTask, startedOf }) }
           : row.act === 'active'
@@ -141,11 +161,46 @@ export function TaskManageScreen() {
               ? { label: 'Rate the worker', onPress: () => openRow(row, { go, flash, setOpenTask, startedOf }) }
               : null;
 
+  // Choosing an offer pays for it from the wallet in the same step. A wallet
+  // that is short opens a top-up for exactly the difference, and the offer is
+  // chosen by itself once that money lands.
+  const lockPick = async (pick: { bidId: string; name: string; priceMinor: number }) => {
+    if (locking) return;
+    setLocking(true);
+    try {
+      await lockBid(pick.bidId);
+      setSelecting(null);
+      celebrate(`${pick.name} is hired · paid from your wallet`);
+      await load().catch(() => {});
+    } catch (e) {
+      if (e instanceof WalletShortError) {
+        setSelecting(null);
+        setShortBy({ minor: e.shortMinor, pick });
+      } else {
+        flash(e instanceof Error ? e.message : 'Could not choose that offer');
+      }
+    } finally {
+      setLocking(false);
+    }
+  };
+  const lockSelected = () => (selecting ? lockPick(selecting) : undefined);
+
+  const visibleBids = bids
+    .filter((b) => (quoteFilter === 'budget' ? b.price_minor <= task.benchmark_minor : true))
+    .sort((a, b) => {
+      if (quoteFilter === 'cheapest' || quoteFilter === 'budget') return a.price_minor - b.price_minor;
+      if (quoteFilter === 'rated') {
+        return Number(b.profiles?.worker_rating_avg ?? 0) - Number(a.profiles?.worker_rating_avg ?? 0);
+      }
+      if (quoteFilter === 'fastest') return a.time_limit_minutes - b.time_limit_minutes;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
   const close = async () => {
     setClosing(true);
     try {
       await cancelTask(task.id);
-      setMenu(false);
+      setConfirmClose(false);
       flash('Task closed');
       try {
         const out = await refundEscrow(task.id);
@@ -182,18 +237,19 @@ export function TaskManageScreen() {
       />
       <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 20, marginTop: -4 }}>
         <Badge label={badge.label} tone={badge.tone} />
-        <Badge label={task.assignment_mode === 'auto' ? 'Auto-accept' : 'Bid-based'} tone="neutral" />
+        <Badge label={task.assignment_mode === 'auto' ? 'Auto-hire' : 'Choose from offers'} tone="neutral" />
       </View>
       <View style={{ marginTop: 10 }}>
         {/* While the task is open the second tab is where quotes land; once
             someone is hired it is where that worker is. */}
         <UnderlineTabs
-          tabs={['Overview', task.status === 'OPEN' ? `Worker quotes${bids.length ? ` (${bids.length})` : ''}` : 'Worker']}
+          tabs={['Overview', task.status === 'OPEN' ? `Worker offers${bids.length ? ` (${bids.length})` : ''}` : 'Worker']}
           active={tab}
           onPick={setTab}
         />
       </View>
 
+      <SwipeTabs index={tab} count={2} onChange={setTab}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
@@ -225,7 +281,7 @@ export function TaskManageScreen() {
               <View style={card}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Icon name="flag" size={16} color={t.colors.purple} />
-                  <RNText style={tx('800', 15, t.colors.ink)}>Milestones ({milestones.length})</RNText>
+                  <RNText style={tx('800', 15, t.colors.ink)}>Steps ({milestones.length})</RNText>
                 </View>
                 {milestones.map((m, i) => (
                   <View key={m.title} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, backgroundColor: t.colors.surface2, borderRadius: 10, padding: 11 }}>
@@ -264,17 +320,17 @@ export function TaskManageScreen() {
 
             <View style={card}>
               <RNText style={tx('800', 15, t.colors.ink, { marginBottom: 4 })}>Task details</RNText>
-              {detailRow('Quotes', String(bids.length))}
+              {detailRow('Offers', String(bids.length))}
               {detailRow('Budget', rupees(task.benchmark_minor / 100))}
-              {task.locked_minor ? detailRow('Accepted quote', rupees(task.locked_minor / 100)) : null}
+              {task.locked_minor ? detailRow('Accepted offer', rupees(task.locked_minor / 100)) : null}
               {detailRow(
-                'Your escrow',
-                task.funded_at ? `${formatINR(escrow)} held` : assignment ? `${formatINR(escrow)} due` : 'Paid when you accept a quote',
+                'Your payment',
+                task.funded_at ? `${formatINR(escrow)} held` : assignment ? `${formatINR(escrow)} due` : 'Paid when you accept an offer',
               )}
               {task.due_at ? detailRow('Target date', formatDeadline(new Date(task.due_at)) + (left ? ` · ${left}` : '')) : null}
               {detailRow('Category', categoryLabel(task))}
               {task.difficulty ? detailRow('Difficulty', task.difficulty.charAt(0).toUpperCase() + task.difficulty.slice(1)) : null}
-              {detailRow('Assignment', task.assignment_mode === 'auto' ? 'Auto-accept' : 'Review bids')}
+              {detailRow('Assignment', task.assignment_mode === 'auto' ? 'Auto-hire' : 'See offers')}
               {detailRow('Location', task.loc_label ?? 'Not set')}
               {(task.skills ?? []).length > 0 ? (
                 <View style={{ marginTop: 8 }}>
@@ -326,15 +382,56 @@ export function TaskManageScreen() {
 
             {task.status === 'OPEN' ? (
               bids.length === 0 ? (
-                <EmptyState icon="users" title="No quotes yet" body="Workers nearby will see your task. You’ll get a notification when a quote comes in." />
+                <EmptyState icon="users" title="No offers yet" body="Workers nearby will see your task. You’ll get a notification when an offer comes in." />
               ) : (
                 <>
                   <RNText style={tx('400', 12, t.colors.muted, { marginTop: 14, lineHeight: 17 })}>
                     {bids.length === 1
-                      ? 'One worker has quoted. Accept it now, or wait for more.'
-                      : `${bids.length} workers have quoted. Compare them side by side, then pick one.`}
+                      ? 'One worker has sent an offer. Select it now, or wait for more.'
+                      : `${bids.length} workers have sent offers. Filter them, then select the one you want.`}
                   </RNText>
-                  {bids.map((b, i) => {
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={{ marginTop: 12, marginHorizontal: -20 }}
+                    contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
+                  >
+                    {QUOTE_FILTERS.map((f) => {
+                      const on = quoteFilter === f.key;
+                      return (
+                        <Pressable
+                          key={f.key}
+                          onPress={() => setQuoteFilter(f.key)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: on }}
+                          style={({ pressed }) => ({
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 6,
+                            paddingVertical: 8,
+                            paddingHorizontal: 13,
+                            borderRadius: 999,
+                            backgroundColor: on ? t.colors.ink : t.colors.surface,
+                            borderWidth: 1,
+                            borderColor: on ? t.colors.ink : t.colors.line,
+                            transform: [{ scale: pressed ? 0.95 : 1 }],
+                          })}
+                        >
+                          {f.key === 'newest' ? <Icon name="filter" size={13} color={on ? t.colors.bg : t.colors.muted} /> : null}
+                          <RNText style={tx('700', 12, on ? t.colors.bg : t.colors.ink)}>{f.label}</RNText>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                  {visibleBids.length === 0 ? (
+                    <View style={[card, { alignItems: 'center', paddingVertical: 22 }]}>
+                      <RNText style={tx('700', 14, t.colors.ink)}>No offers within your budget yet</RNText>
+                      <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, textAlign: 'center' })}>
+                        Try another filter, or wait for more offers to come in.
+                      </RNText>
+                    </View>
+                  ) : null}
+                  {visibleBids.map((b, i) => {
                     const who = b.profiles;
                     const name = who?.username ? '@' + who.username : (who?.display_name ?? 'Worker');
                     const diff = b.price_minor - task.benchmark_minor;
@@ -373,7 +470,32 @@ export function TaskManageScreen() {
                               <RNText style={tx('400', 13, t.colors.text, { lineHeight: 19 })} numberOfLines={4}>“{b.message}”</RNText>
                             </View>
                           ) : null}
-                          <RNText style={tx('400', 11, t.colors.muted, { marginTop: 8 })}>Quoted {timeAgo(b.created_at)}</RNText>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
+                            <View style={{ flex: 1 }}>
+                              <RNText style={tx('400', 11, t.colors.muted)}>Offered {timeAgo(b.created_at)}</RNText>
+                              <RNText style={tx('600', 11, t.colors.text, { marginTop: 2 })}>
+                                Done in ~{Math.max(1, Math.round(b.time_limit_minutes / 60))} hr{Math.round(b.time_limit_minutes / 60) === 1 ? '' : 's'}
+                              </RNText>
+                            </View>
+                            <Pressable
+                              onPress={() => setSelecting({ bidId: b.id, name, priceMinor: b.price_minor })}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Select ${name}'s quote of ${rupees(b.price_minor / 100)}`}
+                              style={({ pressed }) => ({
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 6,
+                                paddingVertical: 10,
+                                paddingHorizontal: 16,
+                                borderRadius: 999,
+                                backgroundColor: t.colors.accent,
+                                transform: [{ scale: pressed ? 0.96 : 1 }],
+                              })}
+                            >
+                              <Icon name="check" size={14} color={t.colors.onAccent} strokeWidth={2.4} />
+                              <RNText style={tx('800', 13, t.colors.onAccent)}>Choose this offer</RNText>
+                            </Pressable>
+                          </View>
                         </View>
                       </FadeIn>
                     );
@@ -386,6 +508,7 @@ export function TaskManageScreen() {
           </>
         )}
       </ScrollView>
+      </SwipeTabs>
 
       {primary ? (
         <View style={{ paddingHorizontal: 20, paddingBottom: 16, paddingTop: 6 }}>
@@ -399,9 +522,66 @@ export function TaskManageScreen() {
           <MenuRow icon="chat" label="Message the worker" onPress={() => { setMenu(false); go('chat', { taskId: task.id, title: task.title }); }} />
         ) : null}
         {row.cancellable ? (
-          <MenuRow icon="close" label={closing ? 'Closing…' : 'Close task'} sub="Escrow, if paid, is refunded minus any fine" danger onPress={() => void close()} />
+          <MenuRow
+            icon="close"
+            label="Close task"
+            sub="Everything you paid comes back, fee included"
+            danger
+            onPress={() => {
+              setMenu(false);
+              setConfirmClose(true);
+            }}
+          />
         ) : null}
       </BottomSheet>
+
+      <ConfirmDialog
+        visible={confirmClose}
+        danger
+        icon="close"
+        title="Close this task?"
+        message={
+          task.funded_at
+            ? `“${task.title}” will be cancelled and the worker taken off it. Everything you paid, service fee included, goes back to your wallet. This can’t be undone.`
+            : `“${task.title}” will be taken down and workers can no longer send offers for it. This can’t be undone.`
+        }
+        confirmLabel="Yes, close task"
+        cancelLabel="Keep it"
+        busy={closing}
+        onCancel={() => setConfirmClose(false)}
+        onConfirm={() => void close()}
+      />
+
+      <ConfirmDialog
+        visible={selecting !== null}
+        icon="check"
+        title={selecting ? `Select ${selecting.name}?` : ''}
+        message={
+          selecting
+            ? `${rupees(Math.round(selecting.priceMinor * (1 + FEES.POSTER_SERVICE_FEE_PCT)) / 100)} (the offer plus the ${Math.round(FEES.POSTER_SERVICE_FEE_PCT * 100)}% service fee) is taken from your wallet and locked in this task until it is done. If the task is cancelled or not completed, all of it comes back. Phone numbers are shared once the work starts.`
+            : ''
+        }
+        confirmLabel="Choose and pay from wallet"
+        busy={locking}
+        onCancel={() => setSelecting(null)}
+        onConfirm={() => void lockSelected()}
+      />
+      <AddFundsSheet
+        visible={shortBy !== null}
+        initialMinor={shortBy?.minor}
+        reason={
+          shortBy
+            ? `Your wallet is ${formatINR(shortBy.minor)} short for ${shortBy.pick.name}’s offer. Add at least that much, and the offer is chosen as soon as the money arrives.`
+            : undefined
+        }
+        onClose={() => setShortBy(null)}
+        flash={flash}
+        onFunded={() => {
+          const pick = shortBy?.pick;
+          setShortBy(null);
+          if (pick) void lockPick(pick);
+        }}
+      />
     </Screen>
   );
 }

@@ -73,24 +73,6 @@ export type Database = {
           },
         ]
       }
-      ai_usage: {
-        Row: {
-          day: string
-          used: number
-          user_id: string
-        }
-        Insert: {
-          day?: string
-          used?: number
-          user_id: string
-        }
-        Update: {
-          day?: string
-          used?: number
-          user_id?: string
-        }
-        Relationships: []
-      }
       assignments: {
         Row: {
           bid_id: string
@@ -1022,6 +1004,9 @@ export type Database = {
           flag: Database["public"]["Enums"]["task_flag"]
           funded_at: string | null
           funding_payment_id: string | null
+          funded_minor: number | null
+          funded_via: string | null
+          wallet_refunded_at: string | null
           id: string
           kind: string
           loc_label: string | null
@@ -1059,6 +1044,9 @@ export type Database = {
           flag?: Database["public"]["Enums"]["task_flag"]
           funded_at?: string | null
           funding_payment_id?: string | null
+          funded_minor?: number | null
+          funded_via?: string | null
+          wallet_refunded_at?: string | null
           id?: string
           kind?: string
           loc_label?: string | null
@@ -1096,6 +1084,9 @@ export type Database = {
           flag?: Database["public"]["Enums"]["task_flag"]
           funded_at?: string | null
           funding_payment_id?: string | null
+          funded_minor?: number | null
+          funded_via?: string | null
+          wallet_refunded_at?: string | null
           id?: string
           kind?: string
           loc_label?: string | null
@@ -1191,6 +1182,7 @@ export type Database = {
         Row: {
           balance_minor: number
           clearing_minor: number
+          credits_minor: number
           currency: string
           updated_at: string
           user_id: string
@@ -1198,6 +1190,7 @@ export type Database = {
         Insert: {
           balance_minor?: number
           clearing_minor?: number
+          credits_minor?: number
           currency?: string
           updated_at?: string
           user_id: string
@@ -1205,6 +1198,7 @@ export type Database = {
         Update: {
           balance_minor?: number
           clearing_minor?: number
+          credits_minor?: number
           currency?: string
           updated_at?: string
           user_id?: string
@@ -1971,7 +1965,6 @@ export type Database = {
       settle_cleared_earnings: { Args: never; Returns: number }
       settle_finished_campaigns: { Args: never; Returns: number }
       settle_my_cleared_earnings: { Args: never; Returns: number }
-      spend_ai_credit: { Args: { p_user: string }; Returns: number }
       start_promotion: {
         Args: { p_amount_minor: number; p_days: number; p_task_id: string }
         Returns: {

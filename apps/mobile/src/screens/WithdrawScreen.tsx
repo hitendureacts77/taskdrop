@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView } from 'react-native';
+import { Icon } from '../components/Icon';
+import { View, Text as RNText, Pressable, ScrollView, TextInput } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
 import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
@@ -16,12 +17,14 @@ import {
 import { PayoutList } from '../components/PayoutList';
 import { PayoutDestinationSheet } from '../components/PayoutDestinationSheet';
 import {
+  addPayoutDestination,
   describeDestination,
   listPayoutDestinations,
   type PayoutDestination,
 } from '../data/api';
 import { useAuth } from '../providers/AuthProvider';
 import { Pressy, tx } from '../components/primitives';
+import { MIN_WITHDRAW_MINOR } from './WalletScreen';
 
 export function WithdrawScreen() {
   const t = useTheme();
@@ -94,12 +97,19 @@ export function WithdrawScreen() {
   const amountMinor = rupees * 100;
   const overdrawn = amountMinor > availableMinor;
   const empty = amountMinor <= 0;
+  const belowMin = !empty && amountMinor < MIN_WITHDRAW_MINOR;
 
   const rows: { label: string; value: string; strong: boolean }[] = [
     { label: 'Available', value: formatINR(availableMinor), strong: false },
+    { label: 'You withdraw', value: formatINR(empty || overdrawn ? 0 : amountMinor), strong: false },
     { label: 'Transfer fee', value: 'Free', strong: false },
     { label: 'You receive', value: formatINR(empty || overdrawn ? 0 : amountMinor), strong: true },
   ];
+
+  // As on Kardoh: with no saved account, type a UPI ID right here. It is saved
+  // as the default destination the first time it is used.
+  const [typedUpi, setTypedUpi] = useState('');
+  const typedUpiValid = /^[a-zA-Z0-9._-]{2,}@[a-zA-Z]{2,}$/.test(typedUpi.trim());
 
   const doWithdraw = async () => {
     if (busy) return;
@@ -111,14 +121,22 @@ export function WithdrawScreen() {
       flash(`You only have ${formatINR(availableMinor)} available`);
       return;
     }
-    if (!upi) {
-      flash('Add the account your money should go to first');
-      setPickingDestination(true);
+    if (belowMin) {
+      flash(`The minimum withdrawal is ${formatINR(MIN_WITHDRAW_MINOR)}`);
+      return;
+    }
+    if (!destination && !typedUpiValid) {
+      flash(typedUpi.trim() ? 'That UPI ID doesn’t look right — e.g. name@okaxis' : 'Enter the UPI ID to send the money to');
       return;
     }
     setBusy(true);
     try {
-      await requestWithdrawal(amountMinor, destination ? describeDestination(destination) : upi);
+      let dest = destination;
+      if (!dest) {
+        dest = await addPayoutDestination({ kind: 'upi', upiId: typedUpi.trim() });
+        setDestination(dest);
+      }
+      await requestWithdrawal(amountMinor, dest.id, describeDestination(dest));
       const left = availableMinor - amountMinor;
       setAvailableMinor(left);
       setRupees(0);
@@ -166,8 +184,8 @@ export function WithdrawScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <Pressable onPress={back} hitSlop={10}>
-            <RNText style={tx('400', 20, t.colors.ink)}>←</RNText>
+          <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
+            <Icon name="back" size={20} color={t.colors.ink} />
           </Pressable>
           <RNText style={tx('700', 17, t.colors.ink)}>Withdraw</RNText>
         </View>
@@ -187,7 +205,9 @@ export function WithdrawScreen() {
           <RNText style={tx('400', 12, overdrawn ? t.colors.signal : t.colors.muted, { flex: 1 })}>
             {overdrawn
               ? `Only ${formatINR(availableMinor)} available.`
-              : 'Arrives in 1 working day.'}
+              : belowMin
+                ? `Minimum ${formatINR(MIN_WITHDRAW_MINOR)}.`
+                : `Minimum ${formatINR(MIN_WITHDRAW_MINOR)} · usually reaches your UPI within 1 working day.`}
           </RNText>
         </View>
 
@@ -234,6 +254,35 @@ export function WithdrawScreen() {
         </View>
 
         <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 24 })}>TO</RNText>
+        {!destination ? (
+          <>
+            <TextInput
+              value={typedUpi}
+              onChangeText={(v) => setTypedUpi(v.replace(/\s/g, ''))}
+              placeholder="UPI ID"
+              placeholderTextColor={t.colors.muted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              accessibilityLabel="UPI ID to send the money to"
+              style={tx('600', 15, t.colors.ink, {
+                marginTop: 11,
+                backgroundColor: t.colors.surface,
+                borderWidth: 1,
+                borderColor: typedUpi && !typedUpiValid ? t.colors.signal : typedUpiValid ? t.colors.accent : t.colors.line,
+                borderRadius: 12,
+                paddingHorizontal: 14,
+                paddingVertical: 14,
+              })}
+            />
+            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6 })}>
+              e.g. name@okaxis, 9876543210@ybl, name@paytm ·{' '}
+              <RNText onPress={() => setPickingDestination(true)} style={tx('600', 12, t.colors.accentDeep)}>
+                or add a bank account
+              </RNText>
+            </RNText>
+          </>
+        ) : (
         <View
           style={{
             flexDirection: 'row',
@@ -263,12 +312,12 @@ export function WithdrawScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <RNText style={tx('700', 15, upi ? t.colors.ink : t.colors.muted)} numberOfLines={1}>
-              {upi ?? 'No payout account yet'}
+              {upi ?? 'No bank or UPI account yet'}
             </RNText>
             <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
               {destination
                 ? destination.kind === 'upi'
-                  ? 'UPI · usually instant'
+                  ? 'UPI · within 1 working day'
                   : 'Bank transfer · 1 working day'
                 : 'UPI or a bank account'}
             </RNText>
@@ -277,13 +326,14 @@ export function WithdrawScreen() {
             onPress={() => setPickingDestination(true)}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel={upi ? 'Change where your money is sent' : 'Add a payout account'}
+            accessibilityLabel={upi ? 'Change where your money is sent' : 'Add a bank or UPI account'}
           >
             <RNText style={tx('600', 13, t.colors.accentDeep)}>
               {upi ? 'Change' : 'Add'}
             </RNText>
           </Pressable>
         </View>
+        )}
 
         <View style={{ marginTop: 18 }}>
           {rows.map((r) => (
@@ -316,7 +366,7 @@ export function WithdrawScreen() {
           </RNText>
           {inFlightMinor > 0 && (
             <RNText style={tx('600', 12, t.colors.muted)}>
-              {formatINR(inFlightMinor)} on its way
+              {formatINR(inFlightMinor)} waiting to be sent
             </RNText>
           )}
         </View>

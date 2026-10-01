@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Icon } from '../components/Icon';
 import { View, ScrollView, Pressable } from 'react-native';
 import { Screen, Text, Row, Button, Avatar, formatINR } from '../components/ui';
 import { AvatarPresence } from '../components/PresenceDot';
@@ -69,7 +70,7 @@ export function MyQuotesScreen() {
       row: {
         id: current.id,
         sponsored: false,
-        who: current.poster?.display_name ?? 'Poster',
+        who: current.poster?.display_name ?? 'Customer',
         rating:
           current.poster && current.poster.poster_rating_count > 0
             ? Number(current.poster.poster_rating_avg).toFixed(1)
@@ -91,24 +92,22 @@ export function MyQuotesScreen() {
   return (
     <Screen>
       <View style={{ flex: 1 }}>
-        <Pressable onPress={back} hitSlop={10} style={{ paddingTop: 8 }}>
-          <Text variant="h2" color="muted">
-            ←
-          </Text>
+        <Pressable onPress={back} hitSlop={10} style={{ paddingTop: 8 }} accessibilityRole="button" accessibilityLabel="Back">
+          <Icon name="back" size={22} color={t.colors.ink} />
         </Pressable>
 
         <Text variant="h1" style={{ marginTop: 16 }}>
           Work for you
         </Text>
         <Text color="muted" variant="body" style={{ marginTop: 8, lineHeight: 21, marginBottom: 4 }}>
-          Open requests that match your skills and you haven't quoted on yet.
+          Open requests that match your skills and you haven't sent an offer for yet.
         </Text>
 
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
           {!loading && rows.length === 0 && (
             <Text color="muted" variant="body" style={{ marginTop: 24, lineHeight: 21 }}>
               Nothing open matches your skills right now. Add more skills in your
-              profile, or browse the whole feed.
+              profile, or browse all jobs.
             </Text>
           )}
 
@@ -131,12 +130,12 @@ export function MyQuotesScreen() {
               >
                 <Row gap={11} align="center">
                   <View>
-                    <Avatar name={poster?.display_name ?? 'Poster'} size={36} />
+                    <Avatar name={poster?.display_name ?? 'Customer'} size={36} />
                     <AvatarPresence lastSeen={poster?.last_seen_at} ring={t.colors.surface} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Row gap={7} align="center">
-                      <Text variant="h3">{poster?.display_name ?? 'Poster'}</Text>
+                      <Text variant="h3">{poster?.display_name ?? 'Customer'}</Text>
                       <Text color="muted" variant="caption">
                         {rated ? '★ ' + Number(poster.poster_rating_avg).toFixed(1) : 'new here'}
                       </Text>
@@ -175,11 +174,11 @@ export function MyQuotesScreen() {
 
       <View style={{ paddingTop: 14, paddingBottom: 24 }}>
         <Button
-          label={current ? `Quote on this · ${formatINR(current.benchmark_minor)}` : 'Nothing to quote on'}
+          label={current ? `Quote on this · ${formatINR(current.benchmark_minor)}` : 'Nothing to make an offer on'}
           onPress={openIt}
         />
         <Text color="muted" variant="caption" style={{ textAlign: 'center', marginTop: 10, lineHeight: 18 }}>
-          The poster picks a quote; escrow is funded before you start.
+          The customer picks an offer; the customer pays before you start.
         </Text>
       </View>
     </Screen>

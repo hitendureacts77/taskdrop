@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Icon } from '../components/Icon';
 import { View, Text as RNText, Pressable, ScrollView, TextInput, type TextStyle } from 'react-native';
 import { Screen } from '../components/ui';
 import { AmountField } from '../components/AmountField';
@@ -28,7 +29,7 @@ import { tx } from '../components/primitives';
  */
 const HINTS = {
   poster: [
-    { title: 'What needs doing?', details: 'What is the job, and anything a worker should know before quoting.' },
+    { title: 'What needs doing?', details: 'What is the job, and anything a worker should know before making an offer.' },
     { title: 'What should they find or buy?', details: 'Make, size, condition, budget — whatever narrows it down.' },
     { title: 'What do you need checked?', details: 'Where, when, and what you want them to report back.' },
   ],
@@ -39,7 +40,7 @@ const HINTS = {
   ],
 } as const;
 
-const PILLAR_LABELS = ['SERVICES', 'PRODUCTS', 'LOCAL INTEL'];
+const PILLAR_LABELS = ['SERVICES', 'PRODUCTS', 'LOCAL HELP'];
 // Chip order -> database enums.
 const PILLARS = ['services', 'procurement', 'local_intel'] as const;
 const FLAG_VALUES = ['none', 'urgent', 'unique'] as const;
@@ -183,7 +184,7 @@ export function PostDetailsScreen() {
       return;
     }
     if (price === null || price <= 0) {
-      flash(worker ? 'Set your rate' : 'Set a benchmark price');
+      flash(worker ? 'Set your rate' : 'Set your budget');
       return;
     }
     if (!worker && !deadline) {
@@ -218,7 +219,7 @@ export function PostDetailsScreen() {
         locLng: coords.lng,
       });
       celebrate(
-        promoteOn ? 'Published · nudge your placement' : worker ? 'Listing published' : 'Request posted',
+        promoteOn ? 'Published · nudge your placement' : worker ? 'Service published' : 'Request posted',
       );
       go(promoteOn ? 'promote' : 'orders');
     } catch (e) {
@@ -236,8 +237,8 @@ export function PostDetailsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Pressable onPress={back} hitSlop={10}>
-            <RNText style={tx('400', 20, t.colors.ink)}>←</RNText>
+          <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
+            <Icon name="back" size={20} color={t.colors.ink} />
           </Pressable>
         </View>
 
@@ -286,7 +287,7 @@ export function PostDetailsScreen() {
               padding: 13,
             }}
           >
-            {label(worker ? 'YOUR RATE' : 'BENCHMARK', {}, t.colors.muted)}
+            {label(worker ? 'YOUR RATE' : 'BUDGET', {}, t.colors.muted)}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
               <Pressable
                 onPress={() => setPrice((p) => Math.max(100, (p ?? 100) - 100))}
@@ -356,7 +357,7 @@ export function PostDetailsScreen() {
 
         {!worker && (
           <RNText style={tx('400', 12, t.colors.muted, { marginTop: 9 })}>
-            Required · workers quote against this deadline.
+            Required · workers plan their offers around this deadline.
           </RNText>
         )}
 
@@ -518,7 +519,7 @@ export function PostDetailsScreen() {
           })}
         >
           <RNText style={tx('700', 16, t.colors.onAccent)}>
-            {promoteOn ? 'Publish & promote' : worker ? 'Publish listing' : 'Post request'}
+            {promoteOn ? 'Publish & promote' : worker ? 'Publish service' : 'Post request'}
           </RNText>
         </Pressable>
       </View>

@@ -18,7 +18,7 @@ export function taskToFeedRow(task: TaskWithPoster): FeedRow {
     id: task.id,
     sponsored: false,
     adRank: 0,
-    who: task.poster?.display_name ?? 'Poster',
+    who: task.poster?.display_name ?? 'Customer',
     rating:
       task.poster && task.poster.poster_rating_count > 0
         ? Number(task.poster.poster_rating_avg).toFixed(1)

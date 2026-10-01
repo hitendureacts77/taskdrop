@@ -34,7 +34,7 @@ export function DisputesScreen() {
 
   return (
     <Screen padded={false}>
-      <TopBar title="My disputes" subtitle="Where each one stands" onBack={back} />
+      <TopBar title="My complaints" subtitle="Where each one stands" onBack={back} />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
           <StatTile icon="gavel" label="Active" value={rows ? String(rows.length) : '–'} tone="signal" />
@@ -43,7 +43,7 @@ export function DisputesScreen() {
         {rows === null ? (
           <Shimmer height={80} style={{ marginTop: 14 }} />
         ) : rows.length === 0 ? (
-          <EmptyState icon="shield" title="No disputes" body="If something goes wrong on a task, open a dispute from the task page. It will show up here." />
+          <EmptyState icon="shield" title="No complaints" body="If something goes wrong on a task, report a problem from the task page. It will show up here." />
         ) : (
           rows.map((task) => (
             <View key={task.id} style={{ marginTop: 12, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, padding: 14 }}>

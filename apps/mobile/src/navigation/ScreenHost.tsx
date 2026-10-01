@@ -7,6 +7,9 @@ import { incomingTaskId, clearIncomingTask } from '../lib/links';
 import { getTask } from '../data/api';
 import { roughPlace } from '../lib/place';
 import { BottomTabBar } from '../components/BottomTabBar';
+import { SideNav } from '../components/SideNav';
+import { DesktopAuthFrame } from '../components/DesktopAuthFrame';
+import { NARROW_CONTENT, WIDE_CONTENT, useLayout } from '../lib/layout';
 import { FadeIn } from '../components/primitives';
 import { CreateFab } from '../components/CreateFab';
 import { SplashScreen } from '../screens/SplashScreen';
@@ -16,8 +19,7 @@ import { Placeholder } from '../screens/Placeholder';
 import { TaskDetailScreen } from '../screens/TaskDetailScreen';
 import { DetailSheetScreen } from '../screens/DetailSheetScreen';
 // Onboarding (Haiku agent)
-import { WelcomeScreen } from '../screens/WelcomeScreen';
-import { SignupScreen } from '../screens/SignupScreen';
+import { AccessScreen } from '../screens/AccessScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 // Task flow (Sonnet agent)
 import { CreateScreen } from '../screens/CreateScreen';
@@ -32,7 +34,7 @@ import { ActiveScreen } from '../screens/ActiveScreen';
 import { ChatScreen } from '../screens/ChatScreen';
 import { ReviewScreen } from '../screens/ReviewScreen';
 // Money & profile (Sonnet agent)
-import { WalletScreen } from '../screens/WalletScreen';
+import { SpendingScreen, WalletScreen } from '../screens/WalletScreen';
 import { WithdrawScreen } from '../screens/WithdrawScreen';
 import { OrdersScreen } from '../screens/OrdersScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
@@ -66,12 +68,17 @@ const TABBED: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'profile',
 // rebuilding the screen and fetching everything again behind a skeleton.
 const KEEP_ALIVE: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'profile'];
 
+// Desktop web: screens shown before sign-in, and screens given the wide column.
+const PRE_AUTH: ScreenName[] = ['splash', 'welcome', 'signup', 'setup'];
+const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'search', 'orders', 'saved', 'wallet', 'spending', 'profile'];
+
 // Registry. Screens the agent team hasn't delivered yet fall back to Placeholder.
 const REGISTRY: Partial<Record<ScreenName, React.ComponentType>> = {
   splash: SplashScreen,
   home: HomeScreen,
-  welcome: WelcomeScreen,
-  signup: SignupScreen,
+  // One way in for everyone: new and returning people share this screen.
+  welcome: AccessScreen,
+  signup: AccessScreen,
   setup: OnboardingScreen,
   taskDetail: TaskDetailScreen,
   detailSheet: DetailSheetScreen,
@@ -90,6 +97,7 @@ const REGISTRY: Partial<Record<ScreenName, React.ComponentType>> = {
   orders: OrdersScreen,
   profile: ProfileScreen,
   analytics: AnalyticsScreen,
+  spending: SpendingScreen,
   promote: PromoteScreen,
   search: SearchScreen,
   aiPost: AiPostScreen,
@@ -114,6 +122,7 @@ export function ScreenHost() {
   const t = useTheme();
   const { screen, params, go } = useNav();
   const { userId } = useAuth();
+  const { desktop } = useLayout();
   const Comp = REGISTRY[screen];
 
   // Which tabs are alive, with the params each last had and how many times it
@@ -153,7 +162,7 @@ export function ScreenHost() {
           row: {
             id: task.id,
             sponsored: false,
-            who: 'Poster',
+            who: 'Customer',
             rating: '—',
             whoMeta: roughPlace(task.loc_label) ?? '',
             tag: 'SERVICES',
@@ -173,8 +182,7 @@ export function ScreenHost() {
     })();
   }, [go]);
 
-  return (
-    <View style={{ flex: 1, backgroundColor: t.colors.bg }}>
+  const content = (
       <View style={{ flex: 1 }}>
         {[...kept.current].map(([name, k]) => {
           const Tab = REGISTRY[name];
@@ -194,6 +202,29 @@ export function ScreenHost() {
           </FadeIn>
         )}
       </View>
+  );
+
+  // Desktop web: sign-in screens get the split brand/form layout; the app gets
+  // the sidebar (in place of the tab bar and the + button) and a centred column.
+  if (desktop && PRE_AUTH.includes(screen)) {
+    return <DesktopAuthFrame>{content}</DesktopAuthFrame>;
+  }
+  if (desktop) {
+    return (
+      <View style={{ flex: 1, flexDirection: 'row', backgroundColor: t.colors.bg }}>
+        <SideNav />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <View style={{ flex: 1, width: '100%', maxWidth: WIDE.includes(screen) ? WIDE_CONTENT : NARROW_CONTENT }}>
+            {content}
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: t.colors.bg }}>
+      {content}
       {screen === 'home' && <CreateFab />}
       {TABBED.includes(screen) && <BottomTabBar />}
     </View>

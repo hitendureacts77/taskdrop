@@ -13,6 +13,7 @@ import {
 import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
 import { formatINR } from './ui';
+import { PaymentSheet } from './PaymentSheet';
 import { createPaymentLink, syncPayment } from '../data/api';
 
 /**
@@ -30,7 +31,7 @@ import { createPaymentLink, syncPayment } from '../data/api';
 
 const QUICK = [50000, 100000, 200000, 500000];
 /** Below this, the gateway's own fee is most of the transaction. */
-const MIN_MINOR = 1000;
+const MIN_MINOR = 5000;
 /** A sanity ceiling, not a policy — nobody tops up two lakh by accident. */
 const MAX_MINOR = 20000000;
 
@@ -45,12 +46,18 @@ export function AddFundsSheet({
   onClose,
   onFunded,
   flash,
+  initialMinor,
+  reason,
 }: {
   visible: boolean;
   onClose: () => void;
   /** Fires once the money is actually in, with the amount that landed. */
   onFunded: (amountMinor: number) => void;
   flash: (msg: string) => void;
+  /** Start with this amount filled in -- say, exactly what a job is short by. */
+  initialMinor?: number;
+  /** Why the money is needed, shown under the title. */
+  reason?: string;
 }) {
   const t = useTheme();
   const [phase, setPhase] = useState<Phase>('amount');
@@ -67,11 +74,13 @@ export function AddFundsSheet({
   useEffect(() => {
     if (!visible) return;
     setPhase('amount');
-    setRupees('');
+    // Rounded up to whole rupees, and never under the smallest top-up.
+    setRupees(initialMinor ? String(Math.ceil(Math.max(initialMinor, MIN_MINOR) / 100)) : '');
     setError(null);
     setPayment(null);
     setChecks(0);
     settled.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   const amountMinor = Math.round((Number(rupees.replace(/[^0-9]/g, '')) || 0) * 100);
@@ -109,6 +118,9 @@ export function AddFundsSheet({
     if (checks >= POLL_LIMIT && phase === 'waiting') setPhase('stalled');
   }, [checks, phase]);
 
+  // Native: Razorpay opens in a sheet over this one, not in Chrome.
+  const [payOpen, setPayOpen] = useState(false);
+
   const start = async () => {
     if (busy) return;
     setError(null);
@@ -128,7 +140,8 @@ export function AddFundsSheet({
       setPayment({ id: paymentId, url, amountMinor });
       setChecks(0);
       setPhase('waiting');
-      await Linking.openURL(url);
+      if (Platform.OS === 'web') await Linking.openURL(url);
+      else setPayOpen(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not start the payment');
       setPhase('amount');
@@ -155,14 +168,15 @@ export function AddFundsSheet({
     if (!payment) return;
     setChecks(0);
     setPhase('waiting');
-    await Linking.openURL(payment.url);
+    if (Platform.OS === 'web') await Linking.openURL(payment.url);
+    else setPayOpen(true);
   };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
       >
         <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Close" />
         <View
@@ -181,7 +195,7 @@ export function AddFundsSheet({
                 Add money
               </RNText>
               <RNText style={tx('400', 13, t.colors.muted, { marginTop: 5, lineHeight: 19 })}>
-                Goes into your TaskDrop wallet. You can spend it on escrow, or withdraw it again.
+                {reason ?? 'Goes into your TaskDrop wallet. You can use it to pay for jobs, or withdraw it again.'}
               </RNText>
 
               <View
@@ -212,6 +226,10 @@ export function AddFundsSheet({
                   style={tx('800', 34, t.colors.ink, { flex: 1, padding: 0 })}
                 />
               </View>
+
+              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6 })}>
+                Minimum {formatINR(MIN_MINOR)}
+              </RNText>
 
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
                 {QUICK.map((minor) => (
@@ -277,9 +295,16 @@ export function AddFundsSheet({
                 </RNText>
               </Pressable>
 
-              <RNText style={tx('400', 11, t.colors.muted, { marginTop: 12, lineHeight: 17 })}>
-                Paid on Razorpay&apos;s secure page — UPI, cards, netbanking. TaskDrop never sees
-                your card or UPI PIN.
+              <RNText style={tx('400', 12, t.colors.goldInk, { marginTop: 14, lineHeight: 18 })}>
+                A Razorpay payment window will open.{' '}
+                <RNText style={tx('700', 12, t.colors.goldInk)}>
+                  Don&apos;t close it until you see a confirmation
+                </RNText>{' '}
+                — closing early can take the money without it reaching your wallet.
+              </RNText>
+
+              <RNText style={tx('400', 11, t.colors.muted, { marginTop: 10, lineHeight: 17 })}>
+                UPI, cards, netbanking. TaskDrop never sees your card or UPI PIN.
               </RNText>
             </>
           ) : (
@@ -357,6 +382,7 @@ export function AddFundsSheet({
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+      <PaymentSheet url={payment?.url ?? null} visible={payOpen && phase === 'waiting'} onClose={() => setPayOpen(false)} />
     </Modal>
   );
 }

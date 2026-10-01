@@ -1,5 +1,5 @@
-import { currentUserId, supabase } from '../lib/supabase';
-import { distanceKm } from '@taskdrop/rules';
+import { currentUserId, notExpired, supabase } from '../lib/supabase';
+import { FEES, distanceKm, workerNetPayout } from '@taskdrop/rules';
 import type { Tables, TablesInsert, Enums } from '@taskdrop/db-types';
 
 /**
@@ -37,7 +37,7 @@ export const kindFor = (mode: 'worker' | 'poster'): TaskKind => (mode === 'worke
 /** Open posts of one kind, newest first. */
 export async function listOpenTasks(limit = 30, kind: TaskKind = 'request'): Promise<Task[]> {
   const uid = await myId();
-  let query = supabase.from('tasks').select('*').eq('status', 'OPEN').eq('kind', kind);
+  let query = supabase.from('tasks').select('*').eq('status', 'OPEN').or(notExpired()).eq('kind', kind);
   // Your own request is not something you can take on, so it does not belong
   // in a feed of work to take on. Leaving it in was how a poster ended up
   // pressing "Send a quote" on himself and meeting a policy error.
@@ -121,7 +121,7 @@ export type TaskSearch = {
  */
 export async function searchTasks(input: TaskSearch = {}): Promise<Task[]> {
   const uid = await myId();
-  let query = supabase.from('tasks').select('*').eq('status', 'OPEN').eq('kind', input.kind ?? 'request');
+  let query = supabase.from('tasks').select('*').eq('status', 'OPEN').or(notExpired()).eq('kind', input.kind ?? 'request');
   // Same reason as listOpenTasks: browse and search show work you could take,
   // and your own request is never that.
   if (uid) query = query.neq('poster_id', uid);
@@ -254,12 +254,15 @@ export async function getEscrowHeld(side?: 'poster' | 'worker'): Promise<number>
   const rows = unwrap(
     await supabase
       .from('assignments')
-      .select('escrow_minor,status,worker_id,tasks!inner(poster_id)')
+      .select('escrow_minor,status,worker_id,tasks!inner(poster_id,funded_at)')
       .in('status', ['assigned', 'started']),
   );
   return rows
     .filter((r) => {
-      const poster = (r.tasks as { poster_id?: string } | null)?.poster_id;
+      const task = r.tasks as { poster_id?: string; funded_at?: string | null } | null;
+      // A job locked but not paid for holds no money.
+      if (!task?.funded_at) return false;
+      const poster = task.poster_id;
       if (side === 'poster') return poster === uid;
       if (side === 'worker') return r.worker_id === uid;
       return r.worker_id === uid || poster === uid;
@@ -334,10 +337,16 @@ export type WalletEvent = {
  * "+₹3,600 payout received" to people holding ₹0 — which is the last place an
  * app should be making things up.
  */
+/** A task whose money is locked: chosen and paid for, but not yet finished. */
+const IN_PROGRESS = new Set(['LOCKED', 'TASK_STARTED', 'OVERDUE', 'WORK_DONE', 'REVISION_REQUESTED', 'DISPUTED']);
+
 export async function listWalletActivity(userId: string, limit = 12): Promise<WalletEvent[]> {
   const [asWorker, asPoster, payouts, payments] = await Promise.all([
     supabase.from('assignments').select('*, tasks(title)').eq('worker_id', userId),
-    supabase.from('tasks').select('id,title,status,locked_minor,updated_at').eq('poster_id', userId),
+    supabase
+      .from('tasks')
+      .select('id,title,status,locked_minor,updated_at,funded_at,funded_minor,wallet_refunded_at,assignments(escrow_minor)')
+      .eq('poster_id', userId),
     supabase.from('payouts').select('*').eq('user_id', userId),
     supabase.from('payments').select('*').eq('user_id', userId).eq('status', 'paid'),
   ]);
@@ -353,9 +362,9 @@ export async function listWalletActivity(userId: string, limit = 12): Promise<Wa
       events.push({
         id: 'w-' + a.id,
         kind: 'clearing',
-        title: 'Earnings clearing',
-        meta: title + ' · released to you',
-        amountMinor: Math.round(a.escrow_minor / 1.03 * 0.8),
+        title: 'Earned',
+        meta: title + ' · added to your wallet',
+        amountMinor: workerNetPayout(Math.round(a.escrow_minor / (1 + FEES.POSTER_SERVICE_FEE_PCT))),
         incoming: true,
         at: a.updated_at,
       });
@@ -366,7 +375,7 @@ export async function listWalletActivity(userId: string, limit = 12): Promise<Wa
         title: 'Coming to you',
         meta: title + (a.status === 'started' ? ' · in progress' : ' · not started yet'),
         // What reaches them once it's approved: the price, less commission.
-        amountMinor: Math.round((a.escrow_minor / 1.03) * 0.8),
+        amountMinor: workerNetPayout(Math.round(a.escrow_minor / (1 + FEES.POSTER_SERVICE_FEE_PCT))),
         incoming: false,
         at: a.updated_at,
       });
@@ -374,25 +383,44 @@ export async function listWalletActivity(userId: string, limit = 12): Promise<Wa
   }
 
   for (const t of asPoster.data ?? []) {
+    // What the poster actually paid in: the price plus the service fee, as
+    // held on the assignment. Showing the bare price here disagreed with the
+    // "held" figure at the top of the wallet (₹700 here, ₹721 there).
+    const escrows = (t.assignments as { escrow_minor: number }[] | null) ?? [];
+    const paidMinor =
+      t.funded_minor ?? (escrows.length ? Math.max(...escrows.map((a) => a.escrow_minor)) : (t.locked_minor ?? 0));
+    // Only money actually paid in counts: a job locked but not yet paid for
+    // has taken nothing from anyone.
+    if (!t.funded_at && !t.wallet_refunded_at) continue;
     if (t.status === 'COMPLETED' || t.status === 'AUTO_COMPLETED') {
       events.push({
         id: 'p-' + t.id,
         kind: 'released',
-        title: 'Escrow released',
+        title: 'Paid to worker',
         meta: t.title + ' · completed',
-        amountMinor: t.locked_minor ?? 0,
+        amountMinor: paidMinor,
         incoming: false,
         at: t.updated_at,
       });
-    } else if (t.status === 'LOCKED' || t.status === 'TASK_STARTED' || t.status === 'WORK_DONE') {
+    } else if (IN_PROGRESS.has(t.status)) {
       events.push({
         id: 'p-' + t.id,
         kind: 'escrow',
-        title: 'Held in escrow',
-        meta: t.title + ' · awaiting completion',
-        amountMinor: t.locked_minor ?? 0,
+        title: 'Locked in a task',
+        meta: t.title + ' · can’t be withdrawn until it’s done',
+        amountMinor: paidMinor,
         incoming: false,
         at: t.updated_at,
+      });
+    } else if (t.status === 'CANCELLED' && t.wallet_refunded_at) {
+      events.push({
+        id: 'r-' + t.id,
+        kind: 'topup',
+        title: 'Returned to your wallet',
+        meta: t.title + ' · not completed, full refund',
+        amountMinor: paidMinor,
+        incoming: true,
+        at: t.wallet_refunded_at,
       });
     }
   }
@@ -406,14 +434,16 @@ export async function listWalletActivity(userId: string, limit = 12): Promise<Wa
       // after they had just taken it back.
       title:
         o.status === 'paid'
-          ? 'Payout sent'
+          ? 'Sent to your bank'
           : o.status === 'failed'
-            ? 'Payout failed'
+            ? 'Transfer failed'
             : o.status === 'cancelled'
               ? 'Withdrawal cancelled'
               : o.status === 'processing'
-                ? 'Payout on its way'
-                : 'Withdrawal requested',
+                ? 'Transfer on its way'
+                : (o.destination ?? '').includes('@')
+                  ? 'Withdrawal request via UPI'
+                  : 'Withdrawal requested',
       meta: o.destination ?? 'To your account',
       amountMinor: o.amount_minor,
       // Cancelled and failed both put the money back in the wallet.
@@ -429,7 +459,7 @@ export async function listWalletActivity(userId: string, limit = 12): Promise<Wa
     events.push({
       id: 'c-' + pay.id,
       kind: 'topup',
-      title: 'Money added',
+      title: 'Deposit via Razorpay',
       meta: 'Added to your wallet',
       amountMinor: pay.amount_minor,
       incoming: pay.purpose === 'topup',
@@ -608,6 +638,20 @@ export async function sendMessage(taskId: string, senderId: string, body: string
 }
 
 /**
+ * The other side's phone number on one of my tasks, for the call button.
+ * The server only answers once the work has started, and only to the poster
+ * or the hired worker; a Google-only account has no number (null).
+ */
+export async function taskContactPhone(taskId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('task_contact_phone' as never, { p_task_id: taskId } as never);
+  if (error) throw new Error(error.message);
+  return typeof data === 'string' && data ? data : null;
+}
+
+/** Chat photos travel as an ordinary message whose body is this marker + a storage path. */
+export const CHAT_MEDIA_PREFIX = '::media::';
+
+/**
  * Live updates for a task's thread. Returns an unsubscribe function; call it on
  * unmount or the channel leaks across screens.
  */
@@ -692,9 +736,9 @@ export async function createTask(input: NewTask): Promise<Task> {
  * each one means something different to the person who just tapped a button.
  */
 function quoteRefusalMessage(raw: string): string {
-  if (/duplicate|unique/i.test(raw)) return 'You have already quoted on this task';
+  if (/duplicate|unique/i.test(raw)) return 'You have already sent an offer for this task';
   if (/row-level security|violates.*policy/i.test(raw)) {
-    return 'You cannot quote on this one — it is either your own request, or it is no longer open.';
+    return 'You cannot send an offer for this one — it is either your own request, or it is no longer open.';
   }
   return raw;
 }
@@ -755,7 +799,7 @@ export async function updateBid(
     .select();
   if (error) throw new Error(quoteRefusalMessage(error.message));
   const row = (data ?? [])[0];
-  if (!row) throw new Error('This quote was already accepted, so it can no longer be changed');
+  if (!row) throw new Error('This offer was already accepted, so it can no longer be changed');
   return row;
 }
 
@@ -782,21 +826,21 @@ export async function canQuoteOn(taskId: string, userId: string): Promise<QuoteV
     return {
       allowed: false,
       code: 'own',
-      reason: 'This is your own request — you cannot quote on it.',
+      reason: 'This is your own request — you cannot send an offer for it.',
     };
   }
   if (data.kind !== 'request') {
     return {
       allowed: false,
       code: 'closed',
-      reason: 'This is a worker’s service listing, not a request — only requests take quotes.',
+      reason: 'This is a worker’s service, not a request — only requests take offers.',
     };
   }
   if (data.status !== 'OPEN') {
     return {
       allowed: false,
       code: 'closed',
-      reason: 'This request is no longer open for quotes.',
+      reason: 'This request is no longer open for offers.',
     };
   }
 
@@ -810,7 +854,7 @@ export async function canQuoteOn(taskId: string, userId: string): Promise<QuoteV
     return {
       allowed: false,
       code: 'duplicate',
-      reason: 'You have already quoted on this task.',
+      reason: 'You have already sent an offer for this task.',
     };
   }
 
@@ -870,13 +914,32 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   // guaranteed 401 and a wasted round trip.
   if (!(await myId())) throw new Error('Sign in first');
   const { data, error } = await supabase.rpc(fn as never, args as never);
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Postgres puts the shortfall in DETAIL when a wallet cannot cover a job.
+    const short = Number(error.details);
+    if (error.message === 'Not enough money in your wallet' && short > 0) throw new WalletShortError(short);
+    throw new Error(error.message);
+  }
   return data as T;
 }
 
-/** Poster locks a quote: assignment created, escrow recorded, task LOCKED. */
+/** The poster's wallet does not cover a job; `shortMinor` is exactly what is missing. */
+export class WalletShortError extends Error {
+  constructor(public shortMinor: number) {
+    super('Not enough money in your wallet');
+  }
+}
+
+/**
+ * Poster locks a quote. The price plus the service fee is taken from their
+ * wallet in the same step; a wallet that is short throws WalletShortError and
+ * nothing is locked.
+ */
 export const lockBid = (bidId: string, payoutMode: Enums<'payout_mode'> = 'one_time') =>
   rpc<Task>('lock_bid', { p_bid_id: bidId, p_payout_mode: payoutMode });
+
+/** Pay for a job that was locked unpaid (an auto-hire, say) from the wallet. */
+export const payTaskFromWallet = (taskId: string) => rpc<Task>('pay_task_from_wallet', { p_task_id: taskId });
 
 /** Worker starts. First to start wins; the other holds are released. */
 export const startTask = (taskId: string) => rpc<Task>('start_task', { p_task_id: taskId });
@@ -941,11 +1004,22 @@ export const settleClearedEarnings = () => rpc<number>('settle_my_cleared_earnin
  * Move money out of the wallet. The debit and the payout row happen in one
  * locked transaction server-side, so a double tap can't withdraw twice.
  */
-export const requestWithdrawal = (amountMinor: number, destination?: string) =>
-  rpc<unknown>('request_withdrawal', {
+/**
+ * Ask for a withdrawal to one of the worker's saved accounts, then hand it to
+ * RazorpayX straight away. The earnings leave the balance at the request; the
+ * transfer itself is confirmed later (paid, or failed and refunded). If
+ * RazorpayX is not set up, or cannot be reached, the request simply waits --
+ * it is never lost -- and is sent by an admin instead.
+ */
+export async function requestWithdrawal(amountMinor: number, destinationId: string | null, destinationLabel?: string) {
+  const row = await rpc<{ id: string }>('request_withdrawal', {
     p_amount_minor: amountMinor,
-    p_destination: destination?.trim() ? destination.trim() : null,
+    p_destination: destinationLabel?.trim() ? destinationLabel.trim() : null,
+    p_destination_id: destinationId,
   });
+  await supabase.functions.invoke('razorpayx-payouts', { body: { action: 'send', payoutId: row.id } }).catch(() => {});
+  return row;
+}
 
 /** A withdrawal, as the person who asked for it sees it. */
 export type Payout = {
@@ -1381,7 +1455,7 @@ export async function updateListing(id: string, input: ListingInput): Promise<Ta
       .eq('kind', 'service')
       .select(),
   );
-  if (!rows[0]) throw new Error('This listing can no longer be edited');
+  if (!rows[0]) throw new Error('This service can no longer be edited');
   return rows[0];
 }
 

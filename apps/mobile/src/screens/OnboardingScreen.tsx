@@ -11,7 +11,8 @@ import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { getProfile, updateProfile } from '../data/api';
-import { applyReferralCode, platformFees, updateProfileExtras, usernameAvailable } from '../data/extras';
+import { applyReferralCode, updateProfileExtras, usernameAvailable } from '../data/extras';
+import { nameCarriesContact } from '../lib/mask';
 import { pickMedia, signedMediaUrl, uploadMedia } from '../lib/media';
 import { LANGUAGES, SKILL_OPTIONS } from './ProfileEditScreen';
 
@@ -32,7 +33,6 @@ export function OnboardingScreen() {
   const { userId } = useAuth();
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [aiDaily, setAiDaily] = useState(10);
 
   const [code, setCode] = useState('');
   const [username, setUsername] = useState('');
@@ -49,7 +49,6 @@ export function OnboardingScreen() {
   const [photoBusy, setPhotoBusy] = useState(false);
 
   useEffect(() => {
-    void platformFees().then((f) => setAiDaily(f.aiDaily));
     if (!userId) return;
     void getProfile(userId).then(async (p) => {
       if (!p) return;
@@ -180,9 +179,8 @@ export function OnboardingScreen() {
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21 })}>
           Your marketplace to get work done and earn money nearby. Let’s set you up in under a minute.
         </RNText>
-        {bigCard('wallet', 'Earn money', 'Complete tasks near you and get paid through escrow')}
-        {bigCard('briefcase', 'Hire help', 'Post a task in plain words — AI writes the post')}
-        {bigCard('sparkle', 'Free AI credits', `${aiDaily} AI-written posts a day, on the free plan`)}
+        {bigCard('wallet', 'Earn money', 'Complete tasks near you and get paid safely')}
+        {bigCard('briefcase', 'Hire help', 'Post a task in plain words — we write the post')}
         <Field
           label="Have a referral code? (optional)"
           value={code}
@@ -206,7 +204,7 @@ export function OnboardingScreen() {
   }
 
   if (step === 1) {
-    const ok = /^[a-z0-9_]{3,20}$/.test(username);
+    const ok = /^[a-z0-9_]{3,20}$/.test(username) && !nameCarriesContact(username);
     body = (
       <>
         <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.6 })}>Pick a username</RNText>
@@ -250,7 +248,7 @@ export function OnboardingScreen() {
         <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.6 })}>What brings you here?</RNText>
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8 })}>You can switch between posting and earning any time.</RNText>
         {bigCard('briefcase', 'Get things done', 'Post tasks and pick someone to do them', 'post')}
-        {bigCard('wallet', 'Earn money', 'Find tasks near you and send quotes', 'earn')}
+        {bigCard('wallet', 'Earn money', 'Find tasks near you and send offers', 'earn')}
         {bigCard('users', 'Both', 'Post when I need help, earn when I’m free', 'both')}
       </>
     );
@@ -359,8 +357,8 @@ export function OnboardingScreen() {
         <RNText style={tx('800', 24, t.colors.ink, { marginTop: 18, textAlign: 'center' })}>You’re all set{name ? `, ${name.split(' ')[0]}` : ''}!</RNText>
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21, textAlign: 'center' })}>
           {intent === 'earn'
-            ? 'Find a task near you and send your first quote.'
-            : 'Tell us what you need done and AI will write the post for you.'}
+            ? 'Find a task near you and send your first offer.'
+            : 'Tell us what you need done and we’ll write the post for you.'}
         </RNText>
       </View>
     );
@@ -396,6 +394,8 @@ export function OnboardingScreen() {
       <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>{footer}</View>
       <LocationSheet
         visible={showLoc}
+        // A profile shows an area, never a door: it is public.
+        askForDetails={false}
         onCancel={() => setShowLoc(false)}
         onPick={(p) => {
           setPlace({ label: p.label, lat: p.lat, lng: p.lng });

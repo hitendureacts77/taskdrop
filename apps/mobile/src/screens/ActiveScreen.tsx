@@ -151,14 +151,14 @@ export function ActiveScreen() {
   }
 
   const other = worker ? detail.poster : detail.worker;
-  const otherName = startedAt ? (other?.display_name ?? (worker ? 'The poster' : 'The worker')) : 'Shown when the job starts';
+  const otherName = startedAt ? (other?.display_name ?? (worker ? 'The customer' : 'The worker')) : 'Shown when the job starts';
   const escrowMinor = detail.assignment?.escrow_minor ?? task.locked_minor ?? 0;
   const finished = status === 'COMPLETED' || status === 'AUTO_COMPLETED';
   const overdue = !doneAt && remaining < 0;
 
   const steps = [
-    { label: 'Quote accepted', at: task.created_at, reached: Boolean(task.locked_bid_id) },
-    { label: 'Escrow funded', at: task.funded_at, reached: Boolean(task.funded_at) },
+    { label: 'Offer accepted', at: task.created_at, reached: Boolean(task.locked_bid_id) },
+    { label: 'Payment held safely', at: task.funded_at, reached: Boolean(task.funded_at) },
     { label: 'Work started · contacts shared', at: task.started_at, reached: Boolean(task.started_at) },
     { label: 'Work done · proof sent', at: task.work_done_at, reached: Boolean(task.work_done_at) },
     {
@@ -212,7 +212,7 @@ export function ActiveScreen() {
     try {
       await submitProof({ taskId: task.id, workerId: userId, summary: maskContacts(summary).text, files });
       await markWorkDone(task.id);
-      celebrate('Work sent to the poster');
+      celebrate('Work sent to the customer');
       await load();
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not mark it done');
@@ -285,6 +285,20 @@ export function ActiveScreen() {
             <Icon name="back" size={20} color={t.colors.ink} />
           </Pressable>
           <RNText style={tx('700', 17, t.colors.ink, { flex: 1 })} numberOfLines={1}>{task.title}</RNText>
+          {/* Lists open in-progress tasks straight here; the overview (quotes,
+              timeline, details) stays one tap away for the poster. */}
+          {!worker ? (
+            <Pressable
+              onPress={() => go('taskManage', { taskId: task.id })}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Task details"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999, borderWidth: 1, borderColor: t.colors.line }}
+            >
+              <Icon name="list" size={13} color={t.colors.ink} />
+              <RNText style={tx('700', 12, t.colors.ink)}>Details</RNText>
+            </Pressable>
+          ) : null}
         </View>
 
         {/* The clock: time left to the poster's deadline; frozen once done. */}
@@ -336,10 +350,10 @@ export function ActiveScreen() {
           <View style={{ flex: 1 }}>
             <RNText style={tx('600', 10, t.colors.muted, { letterSpacing: 1.2 })}>DEADLINE</RNText>
             <RNText style={tx('800', 14, t.colors.ink, { marginTop: 4 })}>{when(new Date(deadline).toISOString())}</RNText>
-            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Set by the poster</RNText>
+            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Set by the customer</RNText>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <RNText style={tx('600', 10, t.colors.muted, { letterSpacing: 1.2 })}>IN ESCROW</RNText>
+            <RNText style={tx('600', 10, t.colors.muted, { letterSpacing: 1.2 })}>HELD SAFELY</RNText>
             <RNText style={tx('800', 14, t.colors.ink, { marginTop: 4 })}>{formatINR(escrowMinor)}</RNText>
             <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Held safely until approval</RNText>
           </View>
@@ -392,7 +406,7 @@ export function ActiveScreen() {
           <View style={card}>
             <RNText style={tx('800', 15, t.colors.ink)}>Finish and send proof</RNText>
             <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
-              Say what you did and add photos or documents. The poster sees this before approving.
+              Say what you did and add photos or documents. The customer sees this before approving.
             </RNText>
             <Field
               value={summary}
@@ -429,7 +443,7 @@ export function ActiveScreen() {
         ) : null}
         {worker && status === 'WORK_DONE' && task.auto_complete_at ? (
           <Note>
-            Waiting for the poster to approve. If they don’t respond by {when(task.auto_complete_at)}, the payment is
+            Waiting for the customer to approve. If they don’t respond by {when(task.auto_complete_at)}, the payment is
             released to you automatically.
           </Note>
         ) : null}
@@ -452,7 +466,7 @@ export function ActiveScreen() {
         {finished ? (
           <Note>
             {status === 'AUTO_COMPLETED' ? 'Released automatically after the review window.' : 'Approved and paid.'}{' '}
-            {worker ? 'Your earnings are clearing in your wallet.' : 'Thanks for using TaskDrop.'}
+            {worker ? 'Your earnings are on the way to your wallet.' : 'Thanks for using TaskDrop.'}
           </Note>
         ) : null}
       </View>

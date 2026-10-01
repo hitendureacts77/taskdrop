@@ -18,7 +18,8 @@ import { workerNetPayout } from '@taskdrop/rules';
  * Poster flow: confirm work done → release escrow. Design parity with
  * docs/design/_design_source.jsx lines 769-785 (`confirmRelease`,
  * `releaseRows`, `proofNote`). Not the lock-quote screen — that's EscrowScreen.
- * TaskDrop takes a flat 20% worker commission, applied in Postgres on release.
+ * TaskDrop takes a flat worker commission (the worker_commission_pct setting),
+ * applied in Postgres on release.
  * Deliberately NOT surfaced here: the poster sees what they put in escrow and
  * nothing that lets them derive our cut, so don't reintroduce the worker's net
  * figure on this screen (or in its toast) — the same applies to ActiveScreen's
@@ -85,7 +86,7 @@ export function ConfirmScreen() {
   // platform's business and is applied in Postgres — showing the worker's net
   // here let anyone read our cut straight off the screen.
   const releaseRows = [
-    { label: 'Held in escrow', value: escrowMinor === null ? '—' : formatINR(escrowMinor) },
+    { label: 'Held safely', value: escrowMinor === null ? '—' : formatINR(escrowMinor) },
     { label: 'Auto-confirms in', value: countdown(detail?.task.auto_complete_at ?? null) },
   ];
 
@@ -111,10 +112,10 @@ export function ConfirmScreen() {
     try {
       await openDispute(taskId);
       // Escrow is frozen, not moved — an admin resolves it from here.
-      celebrate('Dispute opened · escrow is frozen');
+      celebrate('Problem reported · payment is on hold');
       go('orders');
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not open a dispute');
+      flash(e instanceof Error ? e.message : 'Could not report the problem');
     } finally {
       setBusy(false);
     }
@@ -139,7 +140,7 @@ export function ConfirmScreen() {
       celebrate('Payment released');
       go('review', { title: title ?? '', taskId });
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not release the escrow');
+      flash(e instanceof Error ? e.message : 'Could not release the payment');
     } finally {
       setBusy(false);
     }
@@ -161,7 +162,7 @@ export function ConfirmScreen() {
         {detail?.task.description?.trim() ? (
           <TaskDescription text={detail.task.description} title={detail.task.title} size="sm" />
         ) : (
-          <Text variant="body">The worker marked this done. Check the work before you release the escrow.</Text>
+          <Text variant="body">The worker marked this done. Check the work before you release the payment.</Text>
         )}
       </Card>
 
@@ -207,7 +208,7 @@ export function ConfirmScreen() {
         style={{ marginTop: t.spacing.lg, alignItems: 'center', padding: t.spacing.sm }}
       >
         <Text variant="label" color="signal">
-          Open a dispute
+          Report a problem
         </Text>
       </Pressable>
     </Screen>

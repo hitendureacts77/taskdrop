@@ -31,6 +31,8 @@ export type Palette = {
   ai: string;
   blue: string;
   onAccent: string;
+  /** Background for big cards with white text (balances, summaries): dark enough in both themes. */
+  hero: string;
 };
 
 export const light: Palette = {
@@ -56,6 +58,7 @@ export const light: Palette = {
   ai: '#7F77DD',
   blue: '#4A90D9',
   onAccent: '#FFFFFF',
+  hero: '#0A6F58',
 };
 
 export const dark: Palette = {
@@ -81,6 +84,7 @@ export const dark: Palette = {
   ai: '#8A82E6',
   blue: '#5AA0E6',
   onAccent: '#04140D',
+  hero: '#0B5E4B',
 };
 
 /** Plus Jakarta Sans families (from @expo-google-fonts/plus-jakarta-sans).

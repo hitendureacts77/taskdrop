@@ -9,6 +9,8 @@ import { useAuth } from '../providers/AuthProvider';
 import { getProfile, listReviewsAbout, type Profile, type Review } from '../data/api';
 import { signedMediaUrl } from '../lib/media';
 import { tx } from '../components/primitives';
+import { Icon, type IconName } from '../components/Icon';
+import { ConfirmDialog } from '../components/kit';
 
 function SlideIn({ delay, children }: { delay: number; children: React.ReactNode }) {
   const v = useRef(new Animated.Value(0)).current;
@@ -31,26 +33,25 @@ function SlideIn({ delay, children }: { delay: number; children: React.ReactNode
 
 // The account pages both sides share. Anything already a tab (wallet, my
 // tasks) or a header icon (messages, notifications) is not repeated here.
-const SHARED_ROWS: { glyph: string; label: string; go: ScreenName }[] = [
-  { glyph: '✎', label: 'Edit my profile', go: 'profileEdit' },
-  { glyph: '⚖', label: 'My disputes', go: 'disputes' },
-  { glyph: '₹', label: 'How fees work', go: 'pricing' },
-  { glyph: '⚙', label: 'Account & settings', go: 'account' },
-  { glyph: '?', label: 'Help & support', go: 'help' },
+const SHARED_ROWS: { icon: IconName; label: string; go: ScreenName }[] = [
+  { icon: 'edit' as IconName, label: 'Edit my profile', go: 'profileEdit' },
+  { icon: 'gavel' as IconName, label: 'My complaints', go: 'disputes' },
+  { icon: 'settings' as IconName, label: 'Account & settings', go: 'account' },
+  { icon: 'help' as IconName, label: 'Help & support', go: 'help' },
 ];
 
-const WORKER_ROWS: { glyph: string; label: string; go: ScreenName }[] = [
-  { glyph: '◈', label: 'Work for you', go: 'myQuotes' },
-  { glyph: '✦', label: 'Promote my service', go: 'promote' },
-  { glyph: '◇', label: 'Saved tasks', go: 'saved' },
+const WORKER_ROWS: { icon: IconName; label: string; go: ScreenName }[] = [
+  { icon: 'briefcase' as IconName, label: 'Work for you', go: 'myQuotes' },
+  { icon: 'bolt' as IconName, label: 'Promote my service', go: 'promote' },
+  { icon: 'bookmark' as IconName, label: 'Saved tasks', go: 'saved' },
   ...SHARED_ROWS,
-  { glyph: '↪', label: 'Sign out', go: 'splash' },
+  { icon: 'logout' as IconName, label: 'Sign out', go: 'splash' },
 ];
 
-const POSTER_ROWS: { glyph: string; label: string; go: ScreenName }[] = [
-  { glyph: '✦', label: 'Promote a request', go: 'promote' },
+const POSTER_ROWS: { icon: IconName; label: string; go: ScreenName }[] = [
+  { icon: 'bolt' as IconName, label: 'Promote a request', go: 'promote' },
   ...SHARED_ROWS,
-  { glyph: '↪', label: 'Sign out', go: 'splash' },
+  { icon: 'logout' as IconName, label: 'Sign out', go: 'splash' },
 ];
 
 
@@ -92,18 +93,21 @@ export function ProfileScreen() {
   // The bucket is private, so the stored path has to be signed before an
   // <Image> can load it. Null just means we fall back to the initial.
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   // Only surfaced to accounts that can actually open it, so nobody taps
   // through to a refusal.
   // Both sides get their own numbers, and the two names say whose money they
   // are. "Your business" meant nothing in particular to either role.
   const statsRow = worker
-    ? { glyph: '◔', label: 'My earnings and gigs', go: 'analytics' as ScreenName }
-    : { glyph: '◔', label: 'My spending and requests', go: 'analytics' as ScreenName };
+    ? { icon: 'trending' as IconName, label: 'My earnings and jobs', go: 'analytics' as ScreenName }
+    : { icon: 'trending' as IconName, label: 'My spending and requests', go: 'analytics' as ScreenName };
 
   const rows = [
     // Everyone sees their own figures. Only the platform-wide ones are gated.
     statsRow,
+    // A poster's spend chart lives here rather than on the Wallet tab.
+    ...(worker ? [] : [{ icon: 'wallet' as IconName, label: 'Spending insights', go: 'spending' as ScreenName }]),
     ...(worker ? WORKER_ROWS : POSTER_ROWS),
   ];
 
@@ -143,11 +147,11 @@ export function ProfileScreen() {
   // A brand-new account has no rating yet — say so rather than showing 0.0.
   const roleLine =
     ratingCount && ratingCount > 0
-      ? '★ ' + Number(ratingAvg ?? 0).toFixed(1) + (worker ? ' worker · ' : ' poster · ') + ratingCount +
-        (worker ? (ratingCount === 1 ? ' gig done' : ' gigs done') : (ratingCount === 1 ? ' request' : ' requests'))
+      ? '★ ' + Number(ratingAvg ?? 0).toFixed(1) + (worker ? ' worker · ' : ' customer · ') + ratingCount +
+        (worker ? (ratingCount === 1 ? ' job done' : ' jobs done') : (ratingCount === 1 ? ' request' : ' requests'))
       : worker
         ? 'New worker · no reviews yet'
-        : 'New poster · no reviews yet';
+        : 'New customer · no reviews yet';
   const themeNote =
     pref === 'system' ? `Following your device · currently ${t.isDark ? 'dark' : 'light'}` : 'Set by you';
 
@@ -228,7 +232,7 @@ export function ProfileScreen() {
             })}
           </View>
           <RNText style={tx('400', 12, t.colors.muted, { marginTop: 9, lineHeight: 18 })}>
-            {worker ? 'You browse tasks and send quotes.' : 'You post requests and pick a worker.'}
+            {worker ? 'You browse tasks and send offers.' : 'You post requests and pick a worker.'}
           </RNText>
 
           <View
@@ -277,12 +281,7 @@ export function ProfileScreen() {
               key={r.label}
               onPress={() => {
                 if (r.go !== 'splash') return go(r.go);
-                // Actually end the session. This used to just navigate to the
-                // splash screen, leaving the Supabase session on the device --
-                // so "Sign out" signed nobody out.
-                void signOut()
-                  .catch(() => {})
-                  .finally(() => reset('splash'));
+                setConfirmSignOut(true);
               }}
               style={({ pressed }) => ({
                 flexDirection: 'row',
@@ -294,25 +293,34 @@ export function ProfileScreen() {
                 transform: [{ scale: pressed ? 0.985 : 1 }],
               })}
             >
-              <RNText style={tx('400', 15, t.colors.muted, { width: 22, textAlign: 'center' })}>
-                {r.glyph}
-              </RNText>
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 11,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: r.go === 'splash' ? t.colors.signalSoft : t.colors.surface2,
+                }}
+              >
+                <Icon name={r.icon} size={18} color={r.go === 'splash' ? t.colors.signal : t.colors.ink} strokeWidth={1.8} />
+              </View>
               <RNText
                 style={tx('600', 16, r.go === 'splash' ? t.colors.signal : t.colors.ink, { flex: 1 })}
               >
                 {r.label}
               </RNText>
-              <RNText style={tx('400', 16, t.colors.muted)}>›</RNText>
+              <Icon name="chevronRight" size={16} color={t.colors.muted} />
             </Pressable>
           ))}
 
           <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 22 })}>
-            {worker ? 'WORKER REVIEWS' : 'POSTER REVIEWS'}
+            {worker ? 'WORKER REVIEWS' : 'CUSTOMER REVIEWS'}
           </RNText>
           {reviews.length === 0 && (
             <RNText style={tx('400', 13, t.colors.muted, { marginTop: 12, lineHeight: 19.5 })}>
               {worker
-                ? 'Finish a gig and the poster’s review shows up here.'
+                ? 'Finish a job and the customer’s review shows up here.'
                 : 'Post a request and the worker’s review shows up here.'}
             </RNText>
           )}
@@ -342,6 +350,23 @@ export function ProfileScreen() {
           ))}
         </View>
       </ScrollView>
+      <ConfirmDialog
+        visible={confirmSignOut}
+        danger
+        icon="logout"
+        title="Sign out of TaskDrop?"
+        message="You’ll need your phone number or Google account to sign back in. Your tasks and wallet stay safe."
+        confirmLabel="Sign out"
+        cancelLabel="Stay signed in"
+        onCancel={() => setConfirmSignOut(false)}
+        onConfirm={() => {
+          setConfirmSignOut(false);
+          // Actually end the session, not just go back to the splash screen.
+          void signOut()
+            .catch(() => {})
+            .finally(() => reset('splash'));
+        }}
+      />
     </Screen>
   );
 }

@@ -137,18 +137,13 @@ Deno.serve(async (req: Request) => {
     if (fundErr) console.error("could not fund task", row.task_id, fundErr.message);
   }
 
-  // A settled top-up becomes spendable balance. Escrow holds are attached to
-  // the assignment when the quote is locked, so nothing to move for those.
+  // A settled top-up becomes task credits: spendable on tasks, never
+  // withdrawable. credit_topup is idempotent per payment, so a retried event
+  // cannot credit twice. Escrow holds are attached to the assignment when the
+  // quote is locked, so nothing to move for those.
   if (paid && row.purpose === "topup") {
-    const { data: w } = await admin
-      .from("wallets")
-      .select("balance_minor")
-      .eq("user_id", row.user_id)
-      .single();
-    await admin
-      .from("wallets")
-      .update({ balance_minor: (w?.balance_minor ?? 0) + row.amount_minor })
-      .eq("user_id", row.user_id);
+    const { error: creditErr } = await admin.rpc("credit_topup", { p_payment_id: row.id });
+    if (creditErr) console.error("could not credit top-up", row.id, creditErr.message);
   }
 
   return json({ ok: true, status });

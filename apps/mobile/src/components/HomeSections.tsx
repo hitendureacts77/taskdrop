@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, TextInput, Pressable } from 'react-native';
+import { View, Text as RNText, Pressable, TextInput } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
+import { openPostedTask } from '../lib/taskRows';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
@@ -28,10 +29,11 @@ import {
 import { TEMPLATES } from '../lib/taskBrief';
 import { levelFor } from '../lib/levels';
 import { useVoiceInput } from '../lib/speech';
+import { contactIssueMessage, findContactIssue } from '../lib/mask';
 import { taskToFeedRow } from '../lib/openTask';
 import { statusBadge } from '../screens/MyTasksScreen';
 import { Icon } from './Icon';
-import { Badge, BottomSheet, SectionTitle, Shimmer, rupees, timeLeft } from './kit';
+import { Badge, BottomSheet, Grid, SectionTitle, Shimmer, rupees, timeLeft } from './kit';
 import { WorkCard, categoryIcon } from './WorkCard';
 import { BidSheet } from './BidSheet';
 import { LiveWorkers } from './LiveWorkers';
@@ -42,7 +44,6 @@ import { resolveCurrentPlace } from '../lib/location';
 import { roughPlace } from '../lib/place';
 import { Pressy, tx } from './primitives';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
-import { contactIssueMessage, findContactIssue } from '../lib/mask';
 
 /** The top of the home screen, above the existing feed. */
 export function HomeSections() {
@@ -62,17 +63,18 @@ function PostTop() {
   const { go, screen } = useNav();
   const { flash } = useActions();
   const { userId } = useAuth();
-  const [prompt, setPrompt] = useState('');
   const [active, setActive] = useState<Task[] | null>(null);
   const [trending, setTrending] = useState<TrendingCategory[]>([]);
-  const [focused, setFocused] = useState(false);
   const [howOpen, setHowOpen] = useState(false);
-
-  const voice = useVoiceInput((text) => setPrompt((cur) => (cur ? cur + ' ' + text : text)), flash);
+  const [place, setPlace] = useState<string | null>(null);
+  const [pickPlace, setPickPlace] = useState(false);
 
   useEffect(() => {
     if (!userId || screen !== 'home') return;
     let alive = true;
+    getProfile(userId)
+      .then((p) => alive && setPlace(p?.loc_label ?? null))
+      .catch(() => {});
     listMyTasks(userId)
       .then(
         (rows) =>
@@ -81,13 +83,32 @@ function PostTop() {
       )
       .catch(() => alive && setActive([]));
     trendingCategories(5)
-      .then((r) => alive && setTrending(r))
+      .then((r) => alive && setTrending(r.filter((c) => c.open_count > 0)))
       .catch(() => {});
     return () => {
       alive = false;
     };
   }, [userId, screen]);
 
+  // The same area a worker sets: where this poster's jobs usually are, and
+  // the starting point of every post's location.
+  const choosePlace = async (picked: PickedPlace) => {
+    setPickPlace(false);
+    if (picked.lat === null || picked.lng === null) return flash('Drop a pin on the map to set your area');
+    const label = picked.area || picked.label;
+    setPlace(label);
+    if (!userId) return;
+    await updateProfile(userId, { locLabel: label, locLat: picked.lat, locLng: picked.lng }).catch((e) =>
+      flash(e instanceof Error ? e.message : 'Could not save your area'),
+    );
+  };
+
+  const quick = TEMPLATES.filter((x) => x.hot).slice(0, 4);
+
+  // The composer on the card: typed (or spoken) here, sent to the posting flow.
+  const [prompt, setPrompt] = useState('');
+  const [focused, setFocused] = useState(false);
+  const voice = useVoiceInput((text) => setPrompt((cur) => (cur ? cur + ' ' + text : text)), flash);
   const issue = findContactIssue(prompt);
   const submit = () => {
     if (prompt.trim().length < 3) return flash('Tell us what you need done');
@@ -95,16 +116,23 @@ function PostTop() {
     go('aiPost', { prompt: prompt.trim() });
     setPrompt('');
   };
-
-  const quick = TEMPLATES.filter((x) => x.hot).slice(0, 4);
   const busiest = Math.max(1, ...trending.map((c) => c.open_count));
 
   return (
     <View style={{ paddingHorizontal: 20 }}>
-      {/* Composer: one card, a soft glow, and the input straight on it. */}
+      <AreaBar
+        label={place}
+        sub={(area) => (area ? 'Your posts reach workers around here' : 'So workers near you see your posts')}
+        onPress={() => setPickPlace(true)}
+        flush
+      />
+
+      {/* The composer: the card itself is where you type. Sending opens the
+          step-by-step flow with these words, which asks the quick questions,
+          writes the post and checks it with you. */}
       <View
         style={{
-          marginTop: 10,
+          marginTop: 6,
           borderRadius: 22,
           overflow: 'hidden',
           borderWidth: 1,
@@ -129,8 +157,8 @@ function PostTop() {
         </Svg>
         <View style={{ paddingHorizontal: 18, paddingTop: 18, paddingBottom: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Icon name="sparkle" size={13} color={t.colors.ai} />
-            <RNText style={tx('700', 11, t.colors.ai, { letterSpacing: 0.6 })}>AI WRITES THE POST</RNText>
+            <Icon name="edit" size={13} color={t.colors.accentDeep} />
+            <RNText style={tx('700', 11, t.colors.accentDeep, { letterSpacing: 0.6 })}>WE WRITE THE POST FOR YOU</RNText>
           </View>
           <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.6, marginTop: 8 })}>Drop a task</RNText>
           <TextInput
@@ -243,7 +271,7 @@ function PostTop() {
         </View>
         <View style={{ flex: 1 }}>
           <RNText style={tx('700', 13, t.colors.ink)}>How TaskDrop works</RNText>
-          <RNText style={tx('400', 11, t.colors.muted, { marginTop: 1 })}>Post, get quotes, pay safely, approve — in pictures</RNText>
+          <RNText style={tx('400', 11, t.colors.muted, { marginTop: 1 })}>Post, get offers, pay safely, approve — in pictures</RNText>
         </View>
         <Icon name="chevronRight" size={16} color={t.colors.muted} />
       </Pressable>
@@ -255,7 +283,7 @@ function PostTop() {
       {active && active.length > 0 ? (
         <>
           <SectionTitle
-            title="Your tasks"
+            title="Your published tasks"
             icon="briefcase"
             action="Manage"
             onAction={() => go('myTasks')}
@@ -269,7 +297,7 @@ function PostTop() {
                 return (
                   <Pressy
                     key={task.id}
-                    onPress={() => go('taskManage', { taskId: task.id })}
+                    onPress={() => openPostedTask(task, go)}
                     scaleTo={0.98}
                     style={{
                       width: 200,
@@ -405,7 +433,68 @@ function PostTop() {
           </View>
         </>
       ) : null}
+      <LocationSheet
+        visible={pickPlace}
+        askForDetails={false}
+        onCancel={() => setPickPlace(false)}
+        onPick={(p) => void choosePlace(p)}
+      />
     </View>
+  );
+}
+
+/**
+ * Where you are, like a delivery app: the area in bold, a line under it, tap
+ * to search or use your location. Both sides of the app show it -- workers to
+ * find jobs near them, posters to reach workers near them.
+ */
+function AreaBar({
+  label,
+  sub,
+  onPress,
+  flush = false,
+}: {
+  label: string | null;
+  sub: (area: string | null, areaName: string | null) => string;
+  onPress: () => void;
+  /** Already inside a padded column. */
+  flush?: boolean;
+}) {
+  const t = useTheme();
+  const area = label ? roughPlace(label) : null;
+  const areaName = area ? area.split(',')[0]! : null;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={area ? `Your area: ${area}. Change` : 'Set your area'}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginHorizontal: flush ? 0 : 20,
+        marginTop: 6,
+        paddingVertical: 6,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <View style={{ width: 30, height: 30, borderRadius: 999, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name="pin" size={16} color={t.colors.accentDeep} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <RNText style={tx('800', 15, t.colors.ink)} numberOfLines={1}>
+            {areaName ?? 'Set your location'}
+          </RNText>
+          <View style={{ transform: [{ rotate: '90deg' }] }}>
+            <Icon name="chevronRight" size={14} color={t.colors.ink} />
+          </View>
+        </View>
+        <RNText style={tx('400', 11, t.colors.muted)} numberOfLines={1}>
+          {sub(area, areaName)}
+        </RNText>
+      </View>
+    </Pressable>
   );
 }
 
@@ -578,38 +667,11 @@ function EarnTop() {
 
   return (
     <View>
-      {/* Where you are, like a delivery app: tap to search or use your location. */}
-      <Pressable
+      <AreaBar
+        label={place?.label ?? null}
+        sub={(a, n) => (a && a !== n ? `${a} · jobs near you` : a ? 'Showing jobs near you' : 'To show jobs near you')}
         onPress={() => setPickPlace(true)}
-        accessibilityRole="button"
-        accessibilityLabel={area ? `Your area: ${area}. Change` : 'Set your area'}
-        style={({ pressed }) => ({
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 8,
-          marginHorizontal: 20,
-          marginTop: 6,
-          paddingVertical: 6,
-          opacity: pressed ? 0.7 : 1,
-        })}
-      >
-        <View style={{ width: 30, height: 30, borderRadius: 999, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="pin" size={16} color={t.colors.accentDeep} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <RNText style={tx('800', 15, t.colors.ink)} numberOfLines={1}>
-              {areaName ?? 'Set your location'}
-            </RNText>
-            <View style={{ transform: [{ rotate: '90deg' }] }}>
-              <Icon name="chevronRight" size={14} color={t.colors.ink} />
-            </View>
-          </View>
-          <RNText style={tx('400', 11, t.colors.muted)} numberOfLines={1}>
-            {area && area !== areaName ? `${area} · gigs near you` : area ? 'Showing gigs near you' : 'To show gigs near you'}
-          </RNText>
-        </View>
-      </Pressable>
+      />
 
       <View style={{ paddingHorizontal: 20, marginTop: 6 }}>
         {/* Where you stand, in one card: level, jobs on the go, availability. */}
@@ -625,7 +687,7 @@ function EarnTop() {
               backgroundColor: 'rgba(255,255,255,0.08)',
             }}
           />
-          <RNText style={tx('600', 12, 'rgba(255,255,255,0.75)')}>Find your next gig</RNText>
+          <RNText style={tx('600', 12, 'rgba(255,255,255,0.75)')}>Find your next job</RNText>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginTop: 6 }}>
             <View style={{ flex: 1 }}>
               <RNText style={tx('800', 20, '#FFFFFF', { letterSpacing: -0.4 })}>{level.name}</RNText>
@@ -642,7 +704,7 @@ function EarnTop() {
               </View>
               <RNText style={tx('400', 11, 'rgba(255,255,255,0.8)', { marginTop: 6 })}>
                 {level.next
-                  ? `${level.jobsToGo} gig${level.jobsToGo === 1 ? '' : 's'}${level.ratingShort ? ` + ★ ${level.next.rating}` : ''} to ${level.next.name}`
+                  ? `${level.jobsToGo} job${level.jobsToGo === 1 ? '' : 's'}${level.ratingShort ? ` + ★ ${level.next.rating}` : ''} to ${level.next.name}`
                   : 'Highest level'}
               </RNText>
             </View>
@@ -675,7 +737,7 @@ function EarnTop() {
       <Pressable
         onPress={() => go('explore', { focusSearch: Date.now() })}
         accessibilityRole="search"
-        accessibilityLabel="Search gigs"
+        accessibilityLabel="Search jobs"
         style={({ pressed }) => ({
           flexDirection: 'row',
           alignItems: 'center',
@@ -693,7 +755,7 @@ function EarnTop() {
       >
         <Icon name="search" size={16} color={t.colors.muted} />
         <RNText style={tx('400', 14, t.colors.muted, { flex: 1, paddingVertical: 7 })} numberOfLines={1}>
-          Search gigs: data entry, logo, tutoring…
+          Search jobs: data entry, logo, tutoring…
         </RNText>
         <View style={{ width: 34, height: 34, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="search" size={16} color="#FFFFFF" strokeWidth={2} />
@@ -718,14 +780,14 @@ function EarnTop() {
           <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10 })}>Nothing open right now. Check back soon.</RNText>
         ) : (
           <>
-            {firstFew('recs', recs).map((task, i) => card(task, i))}
+            <Grid>{firstFew('recs', recs).map((task, i) => card(task, i))}</Grid>
             {more('recs', recs.length)}
           </>
         )}
 
         {/* 2. Near the area the worker chose */}
         <SectionTitle
-          title={areaName ? `Gigs near ${areaName}` : 'Gigs near you'}
+          title={areaName ? `Jobs near ${areaName}` : 'Jobs near you'}
           icon="pin"
           style={{ marginTop: 26 }}
         />
@@ -764,14 +826,14 @@ function EarnTop() {
                   padding: 14,
                 }}
               >
-                <RNText style={tx('600', 13, t.colors.ink)}>No gigs within {radius} km yet</RNText>
+                <RNText style={tx('600', 13, t.colors.ink)}>No jobs within {radius} km yet</RNText>
                 <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4 })}>
                   {radius < 50 ? 'Widen the radius, or try remote work below.' : 'Try remote work below, or another area.'}
                 </RNText>
               </View>
             ) : (
               <>
-                {firstFew('near', near).map((task, i) => card(task, i, task.km))}
+                <Grid>{firstFew('near', near).map((task, i) => card(task, i, task.km))}</Grid>
                 {more('near', near.length)}
               </>
             )}
@@ -795,7 +857,7 @@ function EarnTop() {
             <View style={{ flex: 1 }}>
               <RNText style={tx('700', 14, t.colors.accentDeep)}>Set your area</RNText>
               <RNText style={tx('400', 12, t.colors.accentDeep, { marginTop: 2 })}>
-                We’ll show gigs close to where you are
+                We’ll show jobs close to where you are
               </RNText>
             </View>
             <Icon name="chevronRight" size={16} color={t.colors.accentDeep} />
@@ -808,10 +870,10 @@ function EarnTop() {
         {remote === null ? (
           <Shimmer height={110} style={{ marginTop: 12 }} />
         ) : remote.length === 0 ? (
-          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10 })}>No remote gigs open right now.</RNText>
+          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10 })}>No remote jobs open right now.</RNText>
         ) : (
           <>
-            {firstFew('remote', remote).map((task, i) => card(task, i))}
+            <Grid>{firstFew('remote', remote).map((task, i) => card(task, i))}</Grid>
             {more('remote', remote.length)}
           </>
         )}
@@ -820,7 +882,7 @@ function EarnTop() {
         {urgent.length > 0 ? (
           <>
             <SectionTitle title="Needed today" icon="bolt" badge="Urgent" style={{ marginTop: 26 }} />
-            {firstFew('urgent', urgent).map((task, i) => card(task, i))}
+            <Grid>{firstFew('urgent', urgent).map((task, i) => card(task, i))}</Grid>
             {more('urgent', urgent.length)}
           </>
         ) : null}
@@ -830,7 +892,7 @@ function EarnTop() {
           style={{ alignSelf: 'center', marginTop: 18, marginBottom: 20 }}
           accessibilityRole="button"
         >
-          <RNText style={tx('700', 13, t.colors.purpleDeep)}>See every open gig ›</RNText>
+          <RNText style={tx('700', 13, t.colors.purpleDeep)}>See every open job ›</RNText>
         </Pressable>
       </View>
       <BottomSheet visible={howOpen} onClose={() => setHowOpen(false)} title="How TaskDrop works" subtitle="Earning, step by step">

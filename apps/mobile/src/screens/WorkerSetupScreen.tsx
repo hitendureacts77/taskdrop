@@ -96,7 +96,7 @@ function Setup() {
         <View style={{ flexDirection: 'row', gap: 10, backgroundColor: t.colors.accentSoft, borderRadius: 14, padding: 14 }}>
           <Icon name="briefcase" size={18} color={t.colors.accentDeep} />
           <RNText style={tx('500', 13, t.colors.accentDeep, { flex: 1, lineHeight: 19 })}>
-            Same account and @username — this adds the profile posters see before they hire you. Takes a minute.
+            Same account and @username — this adds the profile customers see before they hire you. Takes a minute.
           </RNText>
         </View>
 
@@ -109,7 +109,7 @@ function Setup() {
           placeholder="E.g. I write blogs and product copy in English and Hindi. 3 years, quick turnaround."
           style={{ marginTop: 18 }}
           error={bio.trim() && !bioOk ? 'A sentence or two, at least 20 characters' : null}
-          hint="Shown on your worker profile. Your poster profile keeps its own bio."
+          hint="Shown on your worker profile. Your customer profile keeps its own bio."
         />
 
         {label('YOUR SKILLS · PICK UP TO 8')}

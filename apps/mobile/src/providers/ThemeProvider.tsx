@@ -82,8 +82,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
  * worker side is left green by a screen that forgot to ask.
  */
 const WORKER_ACCENT = {
-  light: { accent: '#2F5BEA', accentDeep: '#1E40AF', accentSoft: '#EAF0FF', accentBorder: '#C5D3FA', onAccent: '#FFFFFF' },
-  dark: { accent: '#6B8CFF', accentDeep: '#8FA8FF', accentSoft: '#151C33', accentBorder: '#26345E', onAccent: '#FFFFFF' },
+  light: { accent: '#2F5BEA', accentDeep: '#1E40AF', accentSoft: '#EAF0FF', accentBorder: '#C5D3FA', onAccent: '#FFFFFF', hero: '#1E40AF' },
+  dark: { accent: '#6B8CFF', accentDeep: '#8FA8FF', accentSoft: '#151C33', accentBorder: '#26345E', onAccent: '#FFFFFF', hero: '#2A45B8' },
 } as const;
 
 export function RoleTheme({ worker, children }: { worker: boolean; children: React.ReactNode }) {

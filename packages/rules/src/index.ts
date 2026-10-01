@@ -10,10 +10,14 @@
  * defaults".
  */
 
-/** Fees & penalties, expressed as fractions (0.20 === 20%). */
+/** Fees & penalties, expressed as fractions (0.10 === 10%). */
 export const FEES = {
-  /** Flat commission taken from the worker on every completed order. */
-  WORKER_COMMISSION_PCT: 0.2,
+  /**
+   * Flat commission taken from the worker on every completed order. The live
+   * value is the worker_commission_pct setting in Postgres, which the payout
+   * functions read; keep the two the same.
+   */
+  WORKER_COMMISSION_PCT: 0.1,
   /** Service fee added on top of the locked value, paid by the poster at escrow. */
   POSTER_SERVICE_FEE_PCT: 0.03,
   /** Fine on the poster for cancelling AFTER the worker has started (normal, not overdue). */
@@ -84,7 +88,7 @@ export function posterEscrowCharge(lockedMinor: number): number {
   return Math.round(lockedMinor * (1 + FEES.POSTER_SERVICE_FEE_PCT));
 }
 
-/** What the worker nets on a completed order: locked amount − 20% commission. */
+/** What the worker nets on a completed order: locked amount minus the commission. */
 export function workerNetPayout(lockedMinor: number): number {
   return Math.round(lockedMinor * (1 - FEES.WORKER_COMMISSION_PCT));
 }

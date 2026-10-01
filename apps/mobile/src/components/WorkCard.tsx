@@ -99,7 +99,7 @@ export const WorkCard = memo(function WorkCard({
             <RNText style={tx('600', 11, t.colors.muted)} numberOfLines={1}>
               {categoryLabel(task)}
             </RNText>
-            <Badge label={task.assignment_mode === 'auto' ? 'Auto' : 'Bid'} tone={task.assignment_mode === 'auto' ? 'accent' : 'neutral'} />
+            <Badge label={task.assignment_mode === 'auto' ? 'Auto' : 'Offer'} tone={task.assignment_mode === 'auto' ? 'accent' : 'neutral'} />
             {task.difficulty ? <Badge label={task.difficulty} tone="blue" /> : null}
             {live ? <Badge label="Urgent" tone="signal" /> : null}
             <View style={{ flex: 1 }} />
@@ -159,6 +159,7 @@ export const WorkCard = memo(function WorkCard({
             </RNText>
             <Pressy
               onPress={onApply}
+              label={`Apply for ${task.title}`}
               style={{ backgroundColor: t.colors.purpleDeep, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 16 }}
             >
               <RNText style={tx('700', 12, '#FFFFFF')}>Apply</RNText>

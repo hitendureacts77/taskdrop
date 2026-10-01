@@ -3,7 +3,7 @@ import { View, Text as RNText, ScrollView, Pressable, TextInput, RefreshControl 
 import { Screen, formatINR } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
-import { Badge, BottomSheet, EmptyState, MenuRow, Pill, Shimmer, StatTile, UnderlineTabs, rupees, timeLeft } from '../components/kit';
+import { Badge, BottomSheet, ConfirmDialog, EmptyState, Grid, MenuRow, Pill, PillTabs, Shimmer, StatTile, SwipeTabs, rupees, timeLeft } from '../components/kit';
 import { WorkCard, categoryIcon, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
 import { FadeIn, Pressy, tx } from '../components/primitives';
@@ -28,7 +28,7 @@ import {
   type TaskWithPoster,
 } from '../data/api';
 import { listSavedTasks, listSavedTaskIds, setSaved } from '../data/extras';
-import { openRow, toneInk, workerAssignmentRow, workerBidRow, type ViewRow } from '../lib/taskRows';
+import { openPostedTask, openRow, toneInk, workerAssignmentRow, workerBidRow, type ViewRow } from '../lib/taskRows';
 import { ListingCard } from '../components/ListingCard';
 import { taskToFeedRow } from '../lib/openTask';
 
@@ -73,7 +73,7 @@ export function statusBadge(task: Task): { label: string; tone: 'accent' | 'gold
     case 'OPEN':
       return { label: 'Open', tone: 'accent' };
     case 'LOCKED':
-      return task.funded_at ? { label: 'Worker to start', tone: 'accent' } : { label: 'Awaiting payment', tone: 'signal' };
+      return task.funded_at ? { label: 'Worker to start', tone: 'accent' } : { label: 'Waiting for payment', tone: 'signal' };
     case 'TASK_STARTED':
       return { label: 'In progress', tone: 'gold' };
     case 'OVERDUE':
@@ -86,7 +86,7 @@ export function statusBadge(task: Task): { label: string; tone: 'accent' | 'gold
     case 'AUTO_COMPLETED':
       return { label: 'Completed', tone: 'blue' };
     case 'DISPUTED':
-      return { label: 'Disputed', tone: 'signal' };
+      return { label: 'Problem reported', tone: 'signal' };
     default:
       return { label: 'Cancelled', tone: 'neutral' };
   }
@@ -100,12 +100,12 @@ function MyPosted() {
   const focusTick = useFocusTick();
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [quotes, setQuotes] = useState<Map<string, number>>(new Map());
-  const [stats, setStats] = useState<MyStats | null>(null);
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState('');
   const [needs, setNeeds] = useState(false);
   const [menu, setMenu] = useState<Task | null>(null);
   const [closing, setClosing] = useState(false);
+  const [confirmClose, setConfirmClose] = useState<Task | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -113,11 +113,12 @@ function MyPosted() {
       setTasks([]);
       return;
     }
-    const [rows, s] = await Promise.all([listMyTasks(userId), myStats('poster').catch(() => null)]);
+    // Every figure on this screen is counted from this one list, so the
+    // summary card and the tab counts can never disagree.
+    const rows = await listMyTasks(userId);
     const counts = await countBidsByTask(rows.filter((r) => r.status === 'OPEN').map((r) => r.id));
     setTasks(rows);
     setQuotes(counts);
-    setStats(s);
   }, [userId, focusTick]);
 
   useEffect(() => {
@@ -149,7 +150,7 @@ function MyPosted() {
     setClosing(true);
     try {
       await cancelTask(task.id);
-      setMenu(null);
+      setConfirmClose(null);
       flash('Task closed');
       try {
         const out = await refundEscrow(task.id);
@@ -165,7 +166,7 @@ function MyPosted() {
     }
   };
 
-  const s = stats && stats.role === 'poster' ? stats : null;
+  const reviewCount = (tasks ?? []).filter((x) => x.status === 'WORK_DONE').length;
 
   return (
     <Screen padded={false}>
@@ -175,11 +176,59 @@ function MyPosted() {
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />}
       >
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 20, paddingTop: 8 }}>
-          <StatTile icon="list" label="Active tasks" value={String(s ? s.open + s.live : '–')} />
-          <StatTile icon="eye" label="Pending reviews" value={String((tasks ?? []).filter((x) => x.status === 'WORK_DONE').length)} tone="gold" />
-          <StatTile icon="wallet" label="Total spent" value={s ? formatINR(s.spentMinor) : '–'} tone="blue" />
-          <StatTile icon="check" label="Completions" value={String(s?.completed ?? '–')} tone="purple" />
+        {/* One summary card rather than four tiles: what is running, what is
+            waiting on me, what is done. Spending lives in Wallet → Insights. */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+          <View
+            style={{
+              borderRadius: 22,
+              padding: 18,
+              backgroundColor: t.colors.hero,
+              overflow: 'hidden',
+            }}
+          >
+            <View style={{ position: 'absolute', right: -40, top: -50, width: 160, height: 160, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+            <View style={{ position: 'absolute', right: 30, bottom: -60, width: 120, height: 120, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.05)' }} />
+            <RNText style={tx('600', 12, 'rgba(255,255,255,0.75)', { letterSpacing: 0.3 })}>Your tasks at a glance</RNText>
+            <View style={{ flexDirection: 'row', marginTop: 12 }}>
+              {[
+                { value: (counts[0] ?? 0) + (counts[1] ?? 0), label: 'Active' },
+                { value: reviewCount, label: 'To review' },
+                { value: counts[2] ?? 0, label: 'Completed' },
+              ].map((m, i) => (
+                <View key={m.label} style={{ flex: 1, borderLeftWidth: i ? 1 : 0, borderLeftColor: 'rgba(255,255,255,0.15)', paddingLeft: i ? 14 : 0 }}>
+                  <RNText style={tx('800', 26, '#FFFFFF', { letterSpacing: -0.6 })}>{m.value}</RNText>
+                  <RNText style={tx('600', 12, 'rgba(255,255,255,0.75)', { marginTop: 1 })}>{m.label}</RNText>
+                </View>
+              ))}
+            </View>
+            {reviewCount > 0 ? (
+              <Pressable
+                onPress={() => {
+                  const next = (tasks ?? []).find((x) => x.status === 'WORK_DONE');
+                  if (next) openPostedTask(next, go);
+                }}
+                accessibilityRole="button"
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  marginTop: 16,
+                  paddingVertical: 11,
+                  paddingHorizontal: 14,
+                  borderRadius: 14,
+                  backgroundColor: 'rgba(255,255,255,0.14)',
+                  transform: [{ scale: pressed ? 0.98 : 1 }],
+                })}
+              >
+                <Icon name="eye" size={16} color="#FFFFFF" />
+                <RNText style={tx('700', 13, '#FFFFFF', { flex: 1 })}>
+                  {reviewCount === 1 ? '1 task is waiting for your review' : `${reviewCount} tasks are waiting for your review`}
+                </RNText>
+                <Icon name="chevronRight" size={16} color="#FFFFFF" />
+              </Pressable>
+            ) : null}
+          </View>
         </View>
 
         <View {...ring}
@@ -211,9 +260,9 @@ function MyPosted() {
           </View>
         ) : null}
 
-        <View style={{ marginTop: 12 }}>
-          <UnderlineTabs
-            tabs={POSTER_TABS.map((x, i) => `${x} (${counts[i]})`)}
+        <View style={{ marginTop: 14 }}>
+          <PillTabs
+            tabs={POSTER_TABS.map((x, i) => ({ label: x, count: counts[i] }))}
             active={tab}
             onPick={(i) => {
               setNeeds(false);
@@ -222,7 +271,16 @@ function MyPosted() {
           />
         </View>
 
-        <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
+        <SwipeTabs
+          index={tab}
+          count={POSTER_TABS.length}
+          onChange={(i) => {
+            setNeeds(false);
+            setTab(i);
+          }}
+          style={{ flex: 0 }}
+        >
+        <View style={{ paddingHorizontal: 20, paddingTop: 4, minHeight: 320 }}>
           {shown === null ? (
             [0, 1].map((i) => <Shimmer key={i} height={110} style={{ marginTop: 12 }} />)
           ) : shown.length === 0 ? (
@@ -234,18 +292,21 @@ function MyPosted() {
               onAction={() => go('aiPost')}
             />
           ) : (
-            shown.map((task, i) => (
+            <Grid>
+            {shown.map((task, i) => (
               <PostedCard
                 key={task.id}
                 task={task}
                 index={i}
                 quotes={quotes.get(task.id) ?? 0}
-                onOpen={() => go('taskManage', { taskId: task.id })}
+                onOpen={() => openPostedTask(task, go)}
                 onMenu={() => setMenu(task)}
               />
-            ))
+            ))}
+            </Grid>
           )}
         </View>
+        </SwipeTabs>
       </ScrollView>
 
       <BottomSheet visible={menu !== null} onClose={() => setMenu(null)} title={menu?.title}>
@@ -256,15 +317,36 @@ function MyPosted() {
             {['OPEN', 'LOCKED', 'TASK_STARTED', 'OVERDUE'].includes(menu.status) ? (
               <MenuRow
                 icon="close"
-                label={closing ? 'Closing…' : 'Close task'}
-                sub={menu.status === 'OPEN' ? 'Stop taking quotes' : 'Cancels the job; escrow is refunded minus any fine'}
+                label="Close task"
+                sub={menu.status === 'OPEN' ? 'Stop taking offers' : 'Cancels the job; payment is refunded minus any fine'}
                 danger
-                onPress={() => void close(menu)}
+                onPress={() => {
+                  const m = menu;
+                  setMenu(null);
+                  setConfirmClose(m);
+                }}
               />
             ) : null}
           </>
         ) : null}
       </BottomSheet>
+
+      <ConfirmDialog
+        visible={confirmClose !== null}
+        danger
+        icon="close"
+        title="Close this task?"
+        message={
+          confirmClose?.status === 'OPEN'
+            ? `“${confirmClose.title}” will be taken down and workers can no longer send offers for it. This can’t be undone.`
+            : `“${confirmClose?.title ?? ''}” will be cancelled and the worker taken off it. Any payment is refunded minus any fine. This can’t be undone.`
+        }
+        confirmLabel="Yes, close task"
+        cancelLabel="Keep it"
+        busy={closing}
+        onCancel={() => setConfirmClose(null)}
+        onConfirm={() => confirmClose && void close(confirmClose)}
+      />
     </Screen>
   );
 }
@@ -289,45 +371,107 @@ function PostedCard({
   const badge = statusBadge(task);
   const left = task.status === 'OPEN' ? timeLeft(task.due_at) : null;
   const preview = descriptionPreview(task.description, task.title);
+  const tones = {
+    accent: t.colors.accent,
+    gold: t.colors.gold,
+    signal: t.colors.signal,
+    blue: t.colors.blue,
+    neutral: t.colors.muted,
+  } as const;
+  const stripe = tones[badge.tone];
+
+  // What the poster should do next, in words, so the card says more than a status.
+  const next: { label: string; tone: string } | null = service
+    ? null
+    : task.status === 'OPEN'
+      ? quotes > 0
+        ? { label: `${quotes} offer${quotes === 1 ? '' : 's'} in · select one`, tone: t.colors.accentDeep }
+        : { label: 'Waiting for offers', tone: t.colors.blue }
+      : task.status === 'LOCKED' && !task.funded_at
+        ? { label: 'Pay to start', tone: t.colors.signalDeep }
+        : task.status === 'LOCKED'
+          ? { label: 'Waiting for the worker to start', tone: t.colors.accentDeep }
+        : task.status === 'WORK_DONE'
+          ? { label: 'Review the work and release', tone: t.colors.goldInk }
+          : task.status === 'TASK_STARTED'
+            ? { label: 'Work underway · track it', tone: t.colors.goldInk }
+            : null;
+
   return (
     <FadeIn duration={340} delay={Math.min(index, 6) * 60} translateY={8} style={{ marginTop: 12 }}>
       <Pressy
         containsControls
         onPress={onOpen}
         scaleTo={0.985}
-        style={{ flexDirection: 'row', gap: 12, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, padding: 13 }}
+        style={{
+          backgroundColor: t.colors.surface,
+          borderWidth: 1,
+          borderColor: t.colors.line,
+          borderRadius: 18,
+          overflow: 'hidden',
+          shadowColor: '#000',
+          shadowOpacity: 0.04,
+          shadowRadius: 10,
+          shadowOffset: { width: 0, height: 3 },
+          elevation: 1,
+        }}
       >
-        <View style={{ width: 46, height: 46, borderRadius: 12, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name={categoryIcon(task.category)} size={22} color={t.colors.accentDeep} strokeWidth={1.7} />
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <RNText style={tx('600', 11, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>{categoryLabel(task)}</RNText>
-            <Badge label={task.assignment_mode === 'auto' ? 'Auto' : 'Bid'} tone="neutral" />
-            <Badge label={badge.label} tone={badge.tone} />
-            <View style={{ flex: 1 }} />
-            <Pressable onPress={onMenu} hitSlop={10} accessibilityRole="button" accessibilityLabel="Task options">
-              <Icon name="dots" size={18} color={t.colors.muted} strokeWidth={2.4} />
-            </Pressable>
+        <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: stripe }} />
+        <View style={{ flexDirection: 'row', gap: 12, padding: 14, paddingLeft: 16 }}>
+          <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={categoryIcon(task.category)} size={21} color={t.colors.accentDeep} strokeWidth={1.8} />
           </View>
-          <RNText style={tx('700', 15, t.colors.ink, { marginTop: 5 })} numberOfLines={2}>{task.title}</RNText>
-          {preview ? (
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 17 })} numberOfLines={2}>
-              {preview}
-            </RNText>
-          ) : null}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 9, flexWrap: 'wrap' }}>
-            <RNText style={tx('800', 15, t.colors.ink)}>{rupees((task.locked_minor ?? task.benchmark_minor) / 100)}</RNText>
-            {left ? <RNText style={tx('600', 11, left === 'overdue' ? t.colors.signal : t.colors.goldInk)}>{left}</RNText> : null}
-            {task.status === 'OPEN' && !service ? (
-              <RNText style={tx('600', 11, quotes > 0 ? t.colors.accentDeep : t.colors.blue)}>
-                {quotes > 0 ? `${quotes} quote${quotes === 1 ? '' : 's'}` : 'Needs providers'}
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Badge label={badge.label} tone={badge.tone} />
+              <RNText style={tx('600', 11, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>
+                {categoryLabel(task)} · {task.assignment_mode === 'auto' ? 'Auto-hire' : 'Offers'}
+              </RNText>
+              <View style={{ flex: 1 }} />
+              <Pressable onPress={onMenu} hitSlop={12} accessibilityRole="button" accessibilityLabel="Task options">
+                <Icon name="dots" size={18} color={t.colors.muted} strokeWidth={2.4} />
+              </Pressable>
+            </View>
+            <RNText style={tx('800', 16, t.colors.ink, { marginTop: 7, letterSpacing: -0.2 })} numberOfLines={2}>{task.title}</RNText>
+            {preview ? (
+              <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4, lineHeight: 18 })} numberOfLines={2}>
+                {preview}
               </RNText>
             ) : null}
-            {task.funded_at && task.status !== 'COMPLETED' && task.status !== 'AUTO_COMPLETED' ? (
-              <RNText style={tx('600', 11, t.colors.goldInk)}>Escrow held</RNText>
-            ) : null}
           </View>
+        </View>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            paddingHorizontal: 16,
+            paddingVertical: 11,
+            borderTopWidth: 1,
+            borderTopColor: t.colors.line,
+            backgroundColor: t.colors.surface2,
+          }}
+        >
+          <RNText style={tx('800', 16, t.colors.ink)}>{rupees((task.locked_minor ?? task.benchmark_minor) / 100)}</RNText>
+          {left ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name="clock" size={12} color={left === 'overdue' ? t.colors.signal : t.colors.goldInk} />
+              <RNText style={tx('600', 11.5, left === 'overdue' ? t.colors.signal : t.colors.goldInk)}>{left}</RNText>
+            </View>
+          ) : null}
+          {task.funded_at && task.status !== 'COMPLETED' && task.status !== 'AUTO_COMPLETED' ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name="lock" size={12} color={t.colors.accentDeep} />
+              <RNText style={tx('600', 11.5, t.colors.accentDeep)}>Held safely</RNText>
+            </View>
+          ) : null}
+          <View style={{ flex: 1 }} />
+          {next ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 1 }}>
+              <RNText style={tx('700', 12, next.tone, { flexShrink: 1 })} numberOfLines={1}>{next.label}</RNText>
+              <Icon name="chevronRight" size={14} color={next.tone} />
+            </View>
+          ) : null}
         </View>
       </Pressy>
     </FadeIn>
@@ -336,7 +480,7 @@ function PostedCard({
 
 // --------------------------------------------------------------- worker -----
 
-const WORKER_TABS = ['Active', 'Quotes', 'Done', 'Saved', 'My gigs'] as const;
+const WORKER_TABS = ['Active', 'Offers', 'Done', 'Saved', 'My services'] as const;
 
 function MyWork() {
   const t = useTheme();
@@ -436,7 +580,7 @@ function MyWork() {
         </View>
 
         <View style={{ marginTop: 16 }}>
-          <UnderlineTabs tabs={WORKER_TABS.map((x, i) => `${x} (${counts[i]})`)} active={tab} onPick={setTab} />
+          <PillTabs tabs={WORKER_TABS.map((x, i) => ({ label: x, count: counts[i] }))} active={tab} onPick={setTab} />
         </View>
 
         <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
@@ -446,9 +590,9 @@ function MyWork() {
             listings.length === 0 ? (
               <EmptyState
                 icon="tag"
-                title="No gigs listed yet"
-                body="Offer what you do — “I will design your logo, from ₹800” — and posters can hire you straight from it."
-                actionLabel="List a gig"
+                title="No services listed yet"
+                body="Offer what you do — “I will design your logo, from ₹800” — and customers can hire you straight from it."
+                actionLabel="Offer a service"
                 onAction={() => go('listing')}
               />
             ) : (
@@ -464,7 +608,7 @@ function MyWork() {
                   style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: t.colors.accentBorder }}
                 >
                   <Icon name="plus" size={15} color={t.colors.accentDeep} />
-                  <RNText style={tx('700', 13, t.colors.accentDeep)}>List another gig</RNText>
+                  <RNText style={tx('700', 13, t.colors.accentDeep)}>Offer another service</RNText>
                 </Pressable>
               </>
             )
@@ -487,8 +631,8 @@ function MyWork() {
           ) : list.length === 0 ? (
             <EmptyState
               icon="briefcase"
-              title={tab === 0 ? 'No active tasks' : tab === 1 ? 'No pending quotes' : 'Nothing finished yet'}
-              body={tab === 0 ? 'Accept tasks from the feed to start working and earning.' : undefined}
+              title={tab === 0 ? 'No active tasks' : tab === 1 ? 'No pending offers' : 'Nothing finished yet'}
+              body={tab === 0 ? 'Pick tasks from Explore to start working and earning.' : undefined}
               actionLabel="Browse tasks"
               onAction={() => go('explore')}
             />
@@ -509,7 +653,7 @@ function MyWork() {
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
                     <RNText style={tx('400', 12, t.colors.muted, { flex: 1 })}>{row.meta}</RNText>
-                    {tab === 1 ? <RNText style={tx('700', 12, t.colors.purpleDeep)}>Edit quote ›</RNText> : null}
+                    {tab === 1 ? <RNText style={tx('700', 12, t.colors.purpleDeep)}>Edit offer ›</RNText> : null}
                   </View>
                 </Pressy>
               </FadeIn>

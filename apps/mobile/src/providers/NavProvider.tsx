@@ -30,6 +30,7 @@ export type ScreenName =
   | 'review'
   | 'profile'
   | 'analytics'
+  | 'spending'
   // Second wave: AI posting, explore, my tasks and the account surfaces.
   | 'aiPost'
   | 'explore'

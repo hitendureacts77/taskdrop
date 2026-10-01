@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Icon } from '../components/Icon';
 import {
   View,
   Text as RNText,
@@ -26,6 +27,7 @@ import { taskToFeedRow } from '../lib/openTask';
 import type { TaskWithPoster } from '../data/api';
 import { signedMediaUrls } from '../lib/media';
 import { adAuctionRanks, recordAdImpression, recordAdClick } from '../data/api';
+import { Grid } from '../components/kit';
 
 /**
  * Home feed — pixel parity with docs/design/_design_markup.html lines 35-139
@@ -99,7 +101,7 @@ function liveToFeedRow(task: LiveTask, worker: boolean): FeedRow {
     id: task.id,
     sponsored: false,
     adRank: 0,
-    who: task.poster?.display_name ?? (worker ? 'Poster' : 'Tasker'),
+    who: task.poster?.display_name ?? (worker ? 'Customer' : 'Worker'),
     // A new account genuinely has no rating; a dash says so without faking 0.0.
     rating:
       task.poster && task.poster.poster_rating_count > 0
@@ -221,7 +223,7 @@ function SponsoredMark({ t }: { t: Theme }) {
       <Svg width={11} height={11} viewBox="0 0 24 24" fill="none">
         <Path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" fill={t.colors.accentDeep} />
       </Svg>
-      <RNText style={tx('800', 9, t.colors.accentDeep, { letterSpacing: 1.62 })}>SPONSORED</RNText>
+      <RNText style={tx('800', 9, t.colors.accentDeep, { letterSpacing: 1.62 })}>PROMOTED</RNText>
     </View>
   );
 }
@@ -246,7 +248,7 @@ const FeedCard = memo(function FeedCard({
   mediaUrl?: string | null;
   t: Theme;
 }) {
-  const priceLabel = worker ? 'THEIR QUOTE' : 'THEIR RATE';
+  const priceLabel = worker ? 'THEIR OFFER' : 'THEIR RATE';
   return (
     <FadeIn duration={400} delay={index * 70} translateY={10} style={{ marginTop: 12 }}>
       <Pressy containsControls
@@ -274,7 +276,7 @@ const FeedCard = memo(function FeedCard({
               flexShrink: 0,
             }}
           >
-            <RNText style={tx('400', 15, t.colors.muted)}>☺</RNText>
+            <Icon name="user" size={17} color={t.colors.muted} />
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
@@ -338,7 +340,7 @@ const FeedCard = memo(function FeedCard({
               paddingHorizontal: 15,
             }}
           >
-            <RNText style={tx('600', 13, t.colors.muted)}>Counter</RNText>
+            <RNText style={tx('600', 13, t.colors.muted)}>Suggest price</RNText>
           </Pressy>
           <Pressy
             onPress={onAccept}
@@ -535,9 +537,9 @@ export function HomeScreen() {
 
     // Sample rows have ids like "w1"; only a real task can be quoted on.
     if (!/^[0-9a-f-]{36}$/i.test(row.id)) {
-      return flash('This is a sample card — open a real task to quote');
+      return flash('This is a sample card — open a real task to send an offer');
     }
-    if (!userId) return flash('Sign in to send a quote');
+    if (!userId) return flash('Sign in to send an offer');
     if (quoting) return;
 
     setQuoting(row.id);
@@ -548,11 +550,11 @@ export function HomeScreen() {
         priceMinor: row.amountMinor,
         timeLimitMinutes: 240,
       });
-      celebrate('Quote sent at ' + formatINR(row.amountMinor));
+      celebrate('Offer sent at ' + formatINR(row.amountMinor));
       go('orders');
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Could not send that quote';
-      flash(/duplicate|unique/i.test(msg) ? 'You have already quoted on this task' : msg);
+      const msg = e instanceof Error ? e.message : 'Could not send that offer';
+      flash(/duplicate|unique/i.test(msg) ? 'You have already sent an offer for this task' : msg);
     } finally {
       setQuoting(null);
     }
@@ -573,7 +575,7 @@ export function HomeScreen() {
               <RNText style={tx('800', 17, t.colors.ink, { letterSpacing: -0.34, flex: 1 })}>Services near you</RNText>
               <RNText style={tx('500', 12, t.colors.muted)}>{loading ? '' : `${feed.length} offered`}</RNText>
             </View>
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>Gigs workers offer — tap one to see it and hire</RNText>
+            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>Services workers offer — tap one to see it and hire</RNText>
             {loading ? (
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
                 {[0, 1].map((i) => (
@@ -723,12 +725,12 @@ export function HomeScreen() {
                     })}
                   >
                     {filter !== null
-                      ? `No ${FILTER_LABELS[filter]?.toLowerCase()} tasks open right now. The pillar chips are optional — clear it to see everything.`
+                      ? `No ${FILTER_LABELS[filter]?.toLowerCase()} tasks open right now. The category filters are optional — clear them to see everything.`
                       : searching
                         ? 'Try a broader search, or clear the filters.'
                         : worker
                           ? 'Pull down to refresh, or check back soon.'
-                          : 'Workers’ service listings show up here. Meanwhile, post a request and workers will quote on it.'}
+                          : 'Workers’ services show up here. Meanwhile, post a request and workers will send offers.'}
                   </RNText>
                   <Pressy
                     onPress={() =>
@@ -754,6 +756,7 @@ export function HomeScreen() {
                   </Pressy>
                 </View>
               ) : null}
+              <Grid>
               {feed.map((row, i) => (
                 <FeedCard
                   key={row.id}
@@ -767,6 +770,7 @@ export function HomeScreen() {
                   t={t}
                 />
               ))}
+              </Grid>
             </View>
 
             {/* Worker-only. These rows are urgent *requests*, which is work a
@@ -779,6 +783,7 @@ export function HomeScreen() {
                 <RNText style={tx('800', 19, t.colors.ink, { letterSpacing: -0.38, marginTop: 10 })}>
                   Urgent requests
                 </RNText>
+                <Grid>
                 {urgentRows.map((row) => (
                   <FadeIn key={row.id} duration={400} translateY={10} style={{ marginTop: 12 }}>
                     <Pressy
@@ -805,7 +810,7 @@ export function HomeScreen() {
                             flexShrink: 0,
                           }}
                         >
-                          <RNText style={tx('400', 13, t.colors.muted)}>☺</RNText>
+                          <Icon name="user" size={14} color={t.colors.muted} />
                         </View>
                         <RNText style={tx('700', 13, t.colors.ink)}>{row.who}</RNText>
                         <RNText style={tx('400', 12, t.colors.muted)}>
@@ -833,6 +838,7 @@ export function HomeScreen() {
                     </Pressy>
                   </FadeIn>
                 ))}
+                </Grid>
               </View>
             )}
           </>

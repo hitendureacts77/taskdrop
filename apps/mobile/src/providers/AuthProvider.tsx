@@ -114,6 +114,38 @@ async function exchangeCodeForSessionWithRetry(code: string, attempts = 3, delay
   return last!;
 }
 
+/**
+ * Codes already sent for redemption. A Google code is single-use, and on
+ * native it can reach the app twice -- through the auth session's result and
+ * through the deep link that reopens the app -- so whichever path sees it
+ * first claims it, synchronously, before anything is awaited.
+ */
+const claimedCodes = new Set<string>();
+
+/** The one-time code from a Google return link, if this is one. */
+function authCodeFrom(url: string | null | undefined): string | null {
+  if (!url || !url.includes('auth-callback')) return null;
+  try {
+    return new URL(url).searchParams.get('code');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Redeem a Google return link once. Resolves with the signed-in user's
+ * creation time, or null when another path already claimed this code.
+ */
+async function redeemAuthUrl(url: string): Promise<{ createdAt: string | undefined } | null> {
+  const code = authCodeFrom(url);
+  if (!code) throw new Error('Google did not return a code');
+  if (claimedCodes.has(code)) return null;
+  claimedCodes.add(code);
+  const { data, error } = await exchangeCodeForSessionWithRetry(code);
+  if (error) throw new Error(error.message);
+  return { createdAt: data.user?.created_at };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
@@ -175,15 +207,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       }
+      // Native cold start from Google's return link (Expo Go can reload the
+      // app on the way back): sign in before the first screen is chosen, so
+      // it opens signed in rather than on the splash.
+      if (Platform.OS !== 'web') {
+        const initial = await Linking.getInitialURL().catch(() => null);
+        if (authCodeFrom(initial)) {
+          try {
+            const redeemed = await redeemAuthUrl(initial!);
+            if (redeemed && alive) {
+              const { data } = await supabase.auth.getUser();
+              setPostAuthRoute(await postSignInRoute(data.user?.id ?? ''));
+            }
+          } catch (e) {
+            console.error('[auth] Google return link failed:', e);
+          }
+        }
+      }
       const { data } = await supabase.auth.getSession();
       if (!alive) return;
       setSession(data.session);
       setReady(true);
     })();
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+
+    // Native: Google's return link can reopen the app on its own -- Android
+    // closes the sign-in tab as the app comes forward, and Expo Go may even
+    // reload the app -- so the link is also caught here, not only as the
+    // auth session's result. redeemAuthUrl makes sure a code is spent once.
+    const onLink = (url: string | null) => {
+      if (!authCodeFrom(url)) return;
+      redeemAuthUrl(url!).catch((e) => console.error('[auth] Google return link failed:', e));
+    };
+    const linkSub = Platform.OS === 'web' ? null : Linking.addEventListener('url', ({ url }) => onLink(url));
+
     return () => {
       alive = false;
       sub.subscription.unsubscribe();
+      linkSub?.remove();
     };
   }, []);
 
@@ -232,16 +293,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw new Error(error.message);
     if (!data?.url) throw new Error('Could not start Google sign-in');
 
-    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-    if (result.type !== 'success' || !('url' in result)) {
+    // On Android the tab often reports "dismiss" even when Google finished:
+    // the return link reopens the app and closes the tab on the way. So the
+    // link is also listened for directly while the tab is open.
+    let linked: string | null = null;
+    const linkSub = Linking.addEventListener('url', ({ url }) => {
+      if (authCodeFrom(url)) linked = url;
+    });
+    let returnedUrl: string | null = null;
+    try {
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      if (result.type === 'success' && 'url' in result) returnedUrl = result.url;
+      // The link can land a moment after the tab reports back.
+      for (let i = 0; !returnedUrl && !linked && i < 15; i++) await new Promise((r) => setTimeout(r, 200));
+      returnedUrl = returnedUrl ?? linked;
+    } finally {
+      linkSub.remove();
+    }
+
+    if (!returnedUrl) {
+      // The provider-level listener may already have redeemed it.
+      const { data: now } = await supabase.auth.getSession();
+      if (now.session) return;
       throw new Error('Sign-in was cancelled');
     }
-    // Same bare-code requirement as the web path above.
-    const returnedCode = new URL(result.url).searchParams.get('code');
-    if (!returnedCode) throw new Error('Google did not return a code');
-    const { data: exchanged, error: exchangeError } = await exchangeCodeForSessionWithRetry(returnedCode);
-    if (exchangeError) throw new Error(exchangeError.message);
-    if (intent === 'signup' && existedBefore(exchanged.user?.created_at)) setNotice(EXISTING_GOOGLE);
+    const redeemed = await redeemAuthUrl(returnedUrl);
+    if (!redeemed) {
+      // Claimed by the provider-level listener; wait for it to finish.
+      for (let i = 0; i < 25; i++) {
+        const { data: now } = await supabase.auth.getSession();
+        if (now.session) return;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      throw new Error('Could not finish Google sign-in. Please try again.');
+    }
+    if (intent === 'signup' && existedBefore(redeemed.createdAt)) setNotice(EXISTING_GOOGLE);
   }, []);
 
   const signOut = useCallback(async () => {

@@ -68,8 +68,8 @@ export function CreateScreen() {
         </RNText>
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21 })}>
           {worker
-            ? 'Pick a pillar. Posters find your listing through it.'
-            : 'Pick a pillar. It decides who sees your request first.'}
+            ? 'Pick a category. Customers find your service through it.'
+            : 'Pick a category. It decides who sees your request first.'}
         </RNText>
 
         <View style={{ marginTop: 24 }}>

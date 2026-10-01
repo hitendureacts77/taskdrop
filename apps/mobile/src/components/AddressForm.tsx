@@ -6,7 +6,6 @@ import {
   ScrollView,
   TextInput,
   KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useTheme } from '../providers/ThemeProvider';
@@ -184,7 +183,7 @@ export function AddressForm({
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: t.colors.bg }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
     >
       {/* The pin stays in view, so it is obvious which building is being
           described — and one tap goes back to move it. */}

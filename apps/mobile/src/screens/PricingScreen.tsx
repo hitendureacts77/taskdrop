@@ -32,29 +32,24 @@ export function PricingScreen() {
         {
           icon: 'briefcase',
           title: `${pct(fees.posterFee)} when you hire`,
-          body: 'Added on top of the quote you accept, paid into escrow with it. Nothing is charged for posting.',
+          body: 'Added on top of the offer you accept, and paid together with it. Nothing is charged for posting.',
           highlight: !worker,
         },
         {
           icon: 'wallet',
           title: `${pct(fees.commission)} when you earn`,
-          body: 'Taken from the job’s price when the poster releases payment. Quoting is always free.',
+          body: 'Taken from the job’s price when the customer releases payment. Making offers is always free.',
           highlight: worker,
         },
         {
           icon: 'lock',
-          title: 'Escrow on every job',
-          body: 'The poster’s money is held safely until they approve the work, then released to the worker.',
+          title: 'Safe payment on every job',
+          body: 'The customer’s money is held safely until they approve the work, then released to the worker.',
         },
         {
           icon: 'clock',
-          title: `Earnings clear in ${fees.clearingDays} days`,
+          title: `Earnings reach your wallet in ${fees.clearingDays} days`,
           body: 'After that they are yours to withdraw to UPI or your bank, with no withdrawal fee.',
-        },
-        {
-          icon: 'sparkle',
-          title: `${fees.aiDaily} AI drafts a day, free`,
-          body: 'The assistant that writes your posts. When they run out, the quick writer still works.',
         },
       ]
     : [];
@@ -81,7 +76,7 @@ export function PricingScreen() {
               }}
             >
               <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={r.icon} size={18} color={r.icon === 'sparkle' ? t.colors.ai : t.colors.accentDeep} />
+                <Icon name={r.icon} size={18} color={t.colors.accentDeep} />
               </View>
               <View style={{ flex: 1 }}>
                 <RNText style={tx('800', 15, t.colors.ink)}>{r.title}</RNText>

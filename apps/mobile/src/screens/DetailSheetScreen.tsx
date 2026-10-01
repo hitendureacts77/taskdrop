@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Icon } from '../components/Icon';
 import { View, Text as RNText, Pressable, Animated, ScrollView, type TextStyle } from 'react-native';
 import { formatINR } from '../components/ui';
 import { AmountField } from '../components/AmountField';
@@ -36,7 +37,7 @@ export function DetailSheetScreen() {
   const worker = mode === 'worker';
   const row = (params.row ?? {}) as SheetRow;
 
-  const who = row.who ?? (worker ? 'Poster 9014' : 'Tasker 3315');
+  const who = row.who ?? (worker ? 'Customer 9014' : 'Worker 3315');
   const rating = row.rating ?? (worker ? '4.8' : '4.9');
   const whoMeta = row.whoMeta ?? (worker ? '31 requests posted · 3.2 km away' : '61 jobs done · 4 km away');
   const title = row.title ?? (worker ? 'Vintage 35mm film camera' : 'Bespoke carpentry and joinery');
@@ -64,12 +65,12 @@ export function DetailSheetScreen() {
 
   const blocked = !worker && !by;
   const cta = worker
-    ? 'Send quote'
+    ? 'Send offer'
     : blocked
       ? 'Set a completion date and time'
       : quote === asked
-        ? 'Accept and fund escrow'
-        : 'Send counter and fund escrow';
+        ? 'Accept and pay'
+        : 'Suggest your price and pay';
 
   // Only a real task has a uuid; the design sample rows do not.
   const realId = row.id && /^[0-9a-f-]{36}$/i.test(row.id) ? row.id : null;
@@ -82,8 +83,8 @@ export function DetailSheetScreen() {
       // anything. The worker believed they had quoted and the poster never saw
       // a thing -- the worst possible failure for a marketplace, because it is
       // silent on both sides.
-      if (!realId) return flash('This is a sample card — open a real task to quote');
-      if (!userId) return flash('Sign in to send a quote');
+      if (!realId) return flash('This is a sample card — open a real task to send an offer');
+      if (!userId) return flash('Sign in to send an offer');
       setBusy(true);
       try {
         await placeBid({
@@ -92,12 +93,12 @@ export function DetailSheetScreen() {
           priceMinor: quote,
           timeLimitMinutes: 240,
         });
-        celebrate(`Quote sent · ${formatINR(quote)}`);
+        celebrate(`Offer sent · ${formatINR(quote)}`);
         go('orders');
       } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Could not send the quote';
+        const msg = e instanceof Error ? e.message : 'Could not send the offer';
         // The unique index on (task_id, worker_id) is the "one quote per task" rule.
-        flash(/duplicate|unique/i.test(msg) ? 'You have already quoted on this task' : msg);
+        flash(/duplicate|unique/i.test(msg) ? 'You have already sent an offer for this task' : msg);
       } finally {
         setBusy(false);
       }
@@ -163,7 +164,7 @@ export function DetailSheetScreen() {
                 justifyContent: 'center',
               }}
             >
-              <RNText style={tx('400', 16, t.colors.muted)}>☺</RNText>
+              <Icon name="user" size={18} color={t.colors.muted} />
             </View>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
@@ -191,7 +192,7 @@ export function DetailSheetScreen() {
             }}
           >
             <View style={{ flex: 1, paddingVertical: 14 }}>
-              {label(worker ? 'THEIR QUOTE' : 'THEIR RATE')}
+              {label(worker ? 'THEIR OFFER' : 'THEIR RATE')}
               <RNText style={tx('800', 20, t.colors.accentDeep, { marginTop: 4 })}>
                 {formatINR(asked)}
               </RNText>
@@ -202,7 +203,7 @@ export function DetailSheetScreen() {
             </View>
           </View>
 
-          {label('YOUR QUOTE', { marginTop: 20 })}
+          {label('YOUR OFFER', { marginTop: 20 })}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 12 }}>
             <StepBtn sign="−" onPress={() => setQuote((q) => Math.max(STEP, q - STEP))} />
             <View style={{ flex: 1, alignItems: 'center' }}>
@@ -277,8 +278,8 @@ export function DetailSheetScreen() {
 
           <RNText style={tx('400', 12, t.colors.muted, { marginTop: 12, lineHeight: 18 })}>
             {worker
-              ? 'One quote per task. Contacts stay masked until the task starts.'
-              : 'Your quote goes to this worker. They can lock it and start.'}
+              ? 'One offer per task. Phone numbers stay hidden until the work starts.'
+              : 'Your offer goes to this worker. They can accept it and start.'}
           </RNText>
         </ScrollView>
 

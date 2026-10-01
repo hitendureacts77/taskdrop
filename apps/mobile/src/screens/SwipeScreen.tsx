@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Icon } from '../components/Icon';
 import {
   View,
   Text as RNText,
@@ -160,8 +161,8 @@ export function SwipeScreen() {
       <FadeIn>
         <View style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 28 }}>
           <View style={{ paddingTop: 6 }}>
-            <Pressable onPress={back} hitSlop={10}>
-              <RNText style={tx('400', 20, t.colors.ink)}>←</RNText>
+            <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
+              <Icon name="back" size={20} color={t.colors.ink} />
             </Pressable>
           </View>
 
@@ -169,7 +170,7 @@ export function SwipeScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: t.colors.accent }} />
               <RNText style={tx('700', 10, t.colors.accentDeep, { letterSpacing: 1.6 })}>
-                QUOTE LOCKED · ESCROW FUNDED
+                OFFER ACCEPTED · PAYMENT HELD SAFELY
               </RNText>
             </View>
             <RNText style={tx('800', 29, t.colors.ink, { letterSpacing: -1.02, marginTop: 14, lineHeight: 35 })}>

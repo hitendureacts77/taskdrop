@@ -7,6 +7,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "taskdrop",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F1012"
+    },
     "ios": {
       "supportsTablet": true
     },
@@ -21,8 +26,18 @@
       "package": "com.taskdrop.app",
       "versionCode": 1,
       "usesCleartextTraffic": false,
+      "softwareKeyboardLayoutMode": "resize",
       "permissions": [
-        "POST_NOTIFICATIONS"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS"
+      ],
+      "blockedPermissions": [
+        "android.permission.ACCESS_BACKGROUND_LOCATION"
       ]
     },
     "web": {
@@ -46,15 +61,14 @@
         "expo-image-picker",
         {
           "photosPermission": "TaskDrop uses your photos so you can show a worker the job before they quote.",
-          "cameraPermission": false,
-          "microphonePermission": false
+          "cameraPermission": "TaskDrop uses your camera so you can photograph or film the job for a worker.",
+          "microphonePermission": "TaskDrop records sound with a video of the job so workers can hear the problem."
         }
       ],
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "TaskDrop uses your location to show jobs near you and to set where a job is.",
-          "isAndroidBackgroundLocationEnabled": false
+          "locationAlwaysAndWhenInUsePermission": "TaskDrop uses your location to show jobs near you and to set where a job is.",          "isAndroidBackgroundLocationEnabled": false
         }
       ],
       "expo-web-browser",
@@ -64,6 +78,11 @@
           "color": "#0E8F72"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "08aa002b-4eea-4952-a62a-ec9245e77953"
+      }
+    }
   }
 }

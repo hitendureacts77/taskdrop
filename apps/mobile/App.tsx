@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -36,10 +36,18 @@ function Routes() {
       <SessionWatch />
       <PresenceBeat />
       <WebShell>
-        <View style={{ flex: 1 }}>
+        {/* Android draws edge to edge since SDK 53, so the window no longer
+            shrinks for the keyboard and a focused field could sit under it.
+            One wrapper here lifts every screen; the ScrollViews inside then
+            bring the focused field into view themselves. */}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior="padding"
+          enabled={Platform.OS !== 'web'}
+        >
           <ScreenHost />
           <Overlays />
-        </View>
+        </KeyboardAvoidingView>
       </WebShell>
     </NavProvider>
     </RoleTheme>

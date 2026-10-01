@@ -47,6 +47,16 @@ function VideoIcon({ color }: { color: string }) {
   );
 }
 
+function GalleryIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Rect x={3.5} y={4.5} width={17} height={15} rx={2.5} stroke={color} strokeWidth={1.7} />
+      <Circle cx={9} cy={9.5} r={1.6} stroke={color} strokeWidth={1.5} />
+      <Path d="m4 17 5-4.5 4 3.5 3-2.5 4.5 3.8" stroke={color} strokeWidth={1.7} strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 function PlayBadge({ color, onSurface }: { color: string; onSurface: string }) {
   return (
     <View
@@ -81,13 +91,16 @@ export function MediaAttach({
   const t = useTheme();
   const [state, setState] = useState<State>({ phase: 'empty' });
   const [error, setError] = useState<string | null>(null);
+  // Which kind's "camera or gallery?" choice is open, if any.
+  const [asking, setAsking] = useState<'image' | 'video' | null>(null);
 
-  const choose = async (kind: 'image' | 'video') => {
+  const choose = async (kind: 'image' | 'video', source: 'library' | 'camera') => {
     setError(null);
+    setAsking(null);
     try {
       // Straight off the press, with nothing awaited first: a browser blocks a
       // file dialog that is not tied to the gesture, and does so silently.
-      const picked = await pickMedia(kind);
+      const picked = await pickMedia(kind, source);
       if (!picked) return;
 
       setState({ phase: 'working', uri: picked.uri, kind });
@@ -114,30 +127,67 @@ export function MediaAttach({
     setError(null);
   };
 
-  const addButton = (kind: 'image' | 'video', label: string, icon: React.ReactNode) => (
-    <Pressable
-      onPress={() => void choose(kind)}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => ({
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        paddingVertical: 14,
-        borderRadius: 12,
-        backgroundColor: t.colors.surface,
-        borderWidth: 1,
-        borderColor: t.colors.line,
-        borderStyle: 'dashed',
-        transform: [{ scale: pressed ? 0.98 : 1 }],
-      })}
-    >
-      {icon}
-      <RNText style={tx('700', 13, t.colors.ink)}>{label}</RNText>
-    </Pressable>
-  );
+  const addButton = (kind: 'image' | 'video', label: string, icon: React.ReactNode) => {
+    const open = asking === kind;
+    return (
+      <Pressable
+        onPress={() => setAsking(open ? null : kind)}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ expanded: open }}
+        style={({ pressed }) => ({
+          flex: 1,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          paddingVertical: 14,
+          borderRadius: 12,
+          backgroundColor: open ? t.colors.accentSoft : t.colors.surface,
+          borderWidth: 1,
+          borderColor: open ? t.colors.accent : t.colors.line,
+          borderStyle: open ? 'solid' : 'dashed',
+          transform: [{ scale: pressed ? 0.98 : 1 }],
+        })}
+      >
+        {icon}
+        <RNText style={tx('700', 13, t.colors.ink)}>{label}</RNText>
+      </Pressable>
+    );
+  };
+
+  const sourceButton = (kind: 'image' | 'video', source: 'camera' | 'library') => {
+    const label =
+      source === 'camera' ? (kind === 'video' ? 'Record video' : 'Take photo') : 'Choose from gallery';
+    return (
+      <Pressable
+        key={source}
+        onPress={() => void choose(kind, source)}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        style={({ pressed }) => ({
+          flex: 1,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          paddingVertical: 12,
+          borderRadius: 12,
+          backgroundColor: source === 'camera' ? t.colors.accent : t.colors.surface,
+          borderWidth: source === 'camera' ? 0 : 1,
+          borderColor: t.colors.line,
+          transform: [{ scale: pressed ? 0.98 : 1 }],
+        })}
+      >
+        {source === 'camera' ? (
+          kind === 'video' ? <VideoIcon color={t.colors.onAccent} /> : <CameraIcon color={t.colors.onAccent} />
+        ) : (
+          <GalleryIcon color={t.colors.accentDeep} />
+        )}
+        <RNText style={tx('700', 13, source === 'camera' ? t.colors.onAccent : t.colors.ink)}>{label}</RNText>
+      </Pressable>
+    );
+  };
 
   if (state.phase === 'empty') {
     return (
@@ -146,9 +196,14 @@ export function MediaAttach({
           {addButton('image', 'Add photo', <CameraIcon color={t.colors.accentDeep} />)}
           {addButton('video', 'Add video', <VideoIcon color={t.colors.accentDeep} />)}
         </View>
+        {asking && (
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+            {sourceButton(asking, 'camera')}
+            {sourceButton(asking, 'library')}
+          </View>
+        )}
         <RNText style={tx('400', 11, t.colors.muted, { marginTop: 8, lineHeight: 16 })}>
-          One photo, or a video up to {MEDIA.MAX_VIDEO_SECONDS}s. Workers quote far more
-          accurately when they can see the job.
+          One photo, or a video up to {MEDIA.MAX_VIDEO_SECONDS}s. Workers price far more accurately when they can see the job.
         </RNText>
         {error && (
           <RNText style={tx('600', 12, t.colors.signal, { marginTop: 8, lineHeight: 17 })}>
@@ -246,14 +301,22 @@ export function MediaAttach({
       </View>
 
       {!working && (
-        <Pressable
-          onPress={() => void choose(kind)}
-          accessibilityRole="button"
-          accessibilityLabel="Replace this attachment"
-          style={{ marginTop: 9, alignSelf: 'flex-start' }}
-        >
-          <RNText style={tx('700', 13, t.colors.accentDeep)}>Replace</RNText>
-        </Pressable>
+        <View style={{ flexDirection: 'row', gap: 18, marginTop: 9 }}>
+          <Pressable
+            onPress={() => void choose(kind, 'camera')}
+            accessibilityRole="button"
+            accessibilityLabel={kind === 'video' ? 'Record a new video' : 'Take a new photo'}
+          >
+            <RNText style={tx('700', 13, t.colors.accentDeep)}>{kind === 'video' ? 'Record again' : 'Retake'}</RNText>
+          </Pressable>
+          <Pressable
+            onPress={() => void choose(kind, 'library')}
+            accessibilityRole="button"
+            accessibilityLabel="Replace from gallery"
+          >
+            <RNText style={tx('700', 13, t.colors.accentDeep)}>Replace from gallery</RNText>
+          </Pressable>
+        </View>
       )}
 
       {error && (

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable } from 'react-native';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { Badge, Field, PrimaryButton, TopBar, UnderlineTabs } from '../components/kit';
+import { Badge, ConfirmDialog, Field, PrimaryButton, SwipeTabs, TopBar, UnderlineTabs } from '../components/kit';
+import { nameCarriesContact } from '../lib/mask';
 import { tx } from '../components/primitives';
 import { useTheme, useThemeControls } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -18,7 +19,7 @@ import {
   verificationState,
 } from '../data/extras';
 
-// Fees live on their own page (Profile → How fees work), not in settings.
+// Fees live on their own page (Help & support → How fees work), not in settings.
 const TABS = ['You', 'Sign-in', 'App'];
 
 /**
@@ -39,6 +40,7 @@ export function AccountScreen() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [free, setFree] = useState<boolean | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [pw, setPw] = useState('');
@@ -73,6 +75,9 @@ export function AccountScreen() {
     if (!userId) return;
     if (!name.trim()) return flash('Add a display name');
     if (username.trim() && !handleOk) return flash('Usernames are 3–20 characters: a–z, 0–9 and _');
+    if (nameCarriesContact(name) || nameCarriesContact(username)) {
+      return flash('Names and usernames can’t contain a phone number or email. Contacts are shared once a task starts.');
+    }
     setSavingProfile(true);
     try {
       await updateProfile(userId, { displayName: name.trim() });
@@ -108,6 +113,7 @@ export function AccountScreen() {
     <Screen padded={false}>
       <TopBar title="Account & settings" onBack={back} />
       <UnderlineTabs tabs={TABS} active={tab} onPick={setTab} />
+      <SwipeTabs index={tab} count={TABS.length} onChange={setTab}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
         {tab === 0 ? (
           <>
@@ -157,7 +163,7 @@ export function AccountScreen() {
               <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
                 {profile?.username
                   ? `Set a password to sign in as @${profile.username} without an SMS code.`
-                  : 'Pick a username on the Profile tab first — you sign in with it.'}
+                  : 'Pick a username on the You tab first — you sign in with it.'}
               </RNText>
               <Field label="New password" value={pw} onChangeText={setPw} secureTextEntry style={{ marginTop: 14 }} autoCapitalize="none" />
               <Field
@@ -187,7 +193,7 @@ export function AccountScreen() {
               </View>
             </View>
             <Pressable
-              onPress={() => void signOut().finally(() => reset('splash'))}
+              onPress={() => setConfirmSignOut(true)}
               accessibilityRole="button"
               style={{ ...card, flexDirection: 'row', alignItems: 'center', gap: 10 }}
             >
@@ -244,7 +250,7 @@ export function AccountScreen() {
                     }}
                   >
                     <RNText style={tx('600', 13, mode === m ? t.colors.ink : t.colors.muted)}>
-                      {m === 'poster' ? 'Post' : 'Earn'}
+                      {m === 'poster' ? 'Hire' : 'Earn'}
                     </RNText>
                   </Pressable>
                 ))}
@@ -253,6 +259,21 @@ export function AccountScreen() {
           </>
         ) : null}
       </ScrollView>
+      </SwipeTabs>
+      <ConfirmDialog
+        visible={confirmSignOut}
+        danger
+        icon="logout"
+        title="Sign out of TaskDrop?"
+        message="You’ll need your phone number or Google account to sign back in. Your tasks and wallet stay safe."
+        confirmLabel="Sign out"
+        cancelLabel="Stay signed in"
+        onCancel={() => setConfirmSignOut(false)}
+        onConfirm={() => {
+          setConfirmSignOut(false);
+          void signOut().finally(() => reset('splash'));
+        }}
+      />
     </Screen>
   );
 }

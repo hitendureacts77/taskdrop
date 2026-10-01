@@ -8,7 +8,7 @@ import { secret } from "../_shared/secrets.ts";
  *   create-link -> opens a Razorpay Payment Link for either funding a task's
  *                  escrow or topping the wallet up, and records it in payments.
  *   sync        -> re-reads the link from Razorpay and settles our side:
- *                  a paid top-up credits the wallet balance.
+ *                  a paid top-up becomes task credits (never withdrawable).
  *   refund-escrow -> sends a cancelled task's escrow back to the poster.
  *                  How much is owed is decided in Postgres, never by the
  *                  caller, and the refund is written down only after Razorpay
@@ -151,6 +151,23 @@ Deno.serve(async (req: Request) => {
         reference_id: `${purpose}-${userId.slice(0, 8)}-${Date.now()}`,
         notify: { sms: false, email: false },
         reminder_enable: false,
+        // Ask for UPI explicitly, first, alongside the rest. Checkout otherwise
+        // falls back to the account's defaults, which left UPI off the list.
+        // (UPI must also be enabled for the account in the Razorpay dashboard.)
+        options: {
+          checkout: {
+            method: { upi: "1", card: "1", netbanking: "1", wallet: "1" },
+            config: {
+              display: {
+                blocks: {
+                  upi: { name: "Pay with UPI", instruments: [{ method: "upi" }] },
+                },
+                sequence: ["block.upi"],
+                preferences: { show_default_blocks: true },
+              },
+            },
+          },
+        },
         ...(body.returnUrl ? { callback_url: body.returnUrl, callback_method: "get" } : {}),
       }),
     });
@@ -224,18 +241,13 @@ Deno.serve(async (req: Request) => {
       if (fundErr) console.error("could not fund task", row.task_id, fundErr.message);
     }
 
-    // A settled top-up becomes spendable balance. Escrow holds are attached to
-    // the assignment when the quote is locked, so nothing to move here.
+    // A settled top-up becomes task credits: spendable on tasks, never
+    // withdrawable. credit_topup is idempotent per payment, so this and the
+    // webhook can both call it. Escrow holds are attached to the assignment
+    // when the quote is locked, so nothing to move here.
     if (paid && row.purpose === "topup") {
-      const { data: w } = await admin
-        .from("wallets")
-        .select("balance_minor")
-        .eq("user_id", userId)
-        .single();
-      await admin
-        .from("wallets")
-        .update({ balance_minor: (w?.balance_minor ?? 0) + row.amount_minor })
-        .eq("user_id", userId);
+      const { error: creditErr } = await admin.rpc("credit_topup", { p_payment_id: row.id });
+      if (creditErr) console.error("could not credit top-up", row.id, creditErr.message);
     }
 
     // Settling the payment and funding the task are two different things, and
@@ -271,9 +283,32 @@ Deno.serve(async (req: Request) => {
     if (dueErr) return json({ error: dueErr.message }, 400);
 
     const due = Array.isArray(dueRows) ? dueRows[0] : dueRows;
-    const amount = Number(due?.due_minor ?? 0);
-    if (!due?.payment_id || amount <= 0) {
+    if (!due?.payment_id || Number(due?.due_minor ?? 0) <= 0) {
       return json({ ok: true, refundedMinor: 0, reason: due?.reason ?? "Nothing to refund" });
+    }
+
+    // The poster's button and the admin panel can both ask at the same moment.
+    // Claim the payment first, then re-read what is owed: a second caller
+    // either finds the claim taken or sees the first refund already recorded,
+    // so the same money is never sent back twice (migration 062).
+    const { data: claimed, error: claimErr } = await admin.rpc("claim_escrow_refund", {
+      p_payment_id: due.payment_id,
+    });
+    if (claimErr) return json({ error: claimErr.message }, 500);
+    if (!claimed) {
+      return json({ error: "A refund for this payment is already being sent. Check again in a few minutes." }, 409);
+    }
+    const releaseClaim = () => admin.rpc("release_escrow_refund_claim", { p_payment_id: due.payment_id });
+
+    const { data: freshRows, error: freshErr } = await asUser.rpc("escrow_refund_due", {
+      p_task_id: taskId,
+    });
+    const fresh = Array.isArray(freshRows) ? freshRows[0] : freshRows;
+    const amount = Number(fresh?.due_minor ?? 0);
+    if (freshErr || !fresh?.payment_id || fresh.payment_id !== due.payment_id || amount <= 0) {
+      await releaseClaim();
+      if (freshErr) return json({ error: freshErr.message }, 400);
+      return json({ ok: true, refundedMinor: 0, reason: fresh?.reason ?? "Nothing to refund" });
     }
 
     // An older payment was recorded before we stored the payment id. Read it
@@ -300,6 +335,7 @@ Deno.serve(async (req: Request) => {
       }
     }
     if (!payId) {
+      await releaseClaim();
       return json(
         { error: "Could not find the Razorpay payment behind this escrow. Refund it from the dashboard." },
         502,
@@ -317,6 +353,7 @@ Deno.serve(async (req: Request) => {
     });
     const refund = await res.json();
     if (!res.ok) {
+      await releaseClaim();
       return json({ error: refund?.error?.description ?? "Razorpay refused the refund" }, 502);
     }
 
@@ -329,8 +366,12 @@ Deno.serve(async (req: Request) => {
     });
     if (recErr) {
       console.error("REFUND SENT BUT NOT RECORDED", taskId, refund.id, recErr.message);
+      // Keep the claim forever so nobody can send it again until a person has
+      // recorded this refund by hand and cleared payments.refund_claimed_at.
+      await admin.from("payments").update({ refund_claimed_at: "infinity" }).eq("id", due.payment_id);
       return json({ error: "The refund was sent but not recorded. Tell support before retrying." }, 500);
     }
+    await releaseClaim();
 
     return json({ ok: true, refundedMinor: amount, refundRef: refund.id ?? null });
   }

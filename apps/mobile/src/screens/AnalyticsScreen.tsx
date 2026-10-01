@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Icon } from '../components/Icon';
 import { View, Text as RNText, Pressable } from 'react-native';
 import Svg, { Rect, Line } from 'react-native-svg';
 import { Screen, formatINR } from '../components/ui';
@@ -191,11 +192,11 @@ export function AnalyticsScreen() {
     <Screen padded={false} scroll onRefresh={() => void load(days)} refreshing={loading && !!stats}>
       <View style={{ paddingHorizontal: 20, paddingTop: 6 }}>
         <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
-          <RNText style={tx('400', 20, t.colors.ink)}>←</RNText>
+          <Icon name="back" size={20} color={t.colors.ink} />
         </Pressable>
 
         <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.72, marginTop: 14 })}>
-          {worker ? 'My earnings and gigs' : 'My spending and requests'}
+          {worker ? 'My earnings and jobs' : 'My spending and requests'}
         </RNText>
 
         {/* The person's own numbers, first, because they are the ones they
@@ -223,18 +224,18 @@ export function AnalyticsScreen() {
                 {mine.role === 'worker'
                   ? `${formatINR(mine.availableMinor)} ready to withdraw · ${formatINR(
                       mine.clearingMinor,
-                    )} still clearing`
-                  : `${formatINR(mine.escrowHeldMinor)} held in escrow right now`}
+                    )} still on the way`
+                  : `${formatINR(mine.escrowHeldMinor)} held safely right now`}
               </RNText>
             </View>
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
               {(mine.role === 'worker'
                 ? [
-                    { label: 'Quotes sent', value: String(mine.quotesPlaced) },
-                    { label: 'Quotes won', value: String(mine.quotesWon) },
-                    { label: 'Gigs in hand', value: String(mine.jobsLive) },
-                    { label: 'Gigs finished', value: String(mine.jobsDone) },
+                    { label: 'Offers sent', value: String(mine.quotesPlaced) },
+                    { label: 'Offers won', value: String(mine.quotesWon) },
+                    { label: 'Jobs in hand', value: String(mine.jobsLive) },
+                    { label: 'Jobs finished', value: String(mine.jobsDone) },
                     { label: 'Withdrawn', value: formatINR(mine.withdrawnMinor) },
                     {
                       label: 'Your rating',
@@ -246,7 +247,7 @@ export function AnalyticsScreen() {
                     { label: 'Still open', value: String(mine.open) },
                     { label: 'Being worked on', value: String(mine.live) },
                     { label: 'Finished', value: String(mine.completed) },
-                    { label: 'Quotes received', value: String(mine.quotesReceived) },
+                    { label: 'Offers received', value: String(mine.quotesReceived) },
                     {
                       label: 'Your rating',
                       value: mine.ratingCount > 0 ? `★ ${Number(mine.rating).toFixed(1)}` : '—',
@@ -345,8 +346,8 @@ export function AnalyticsScreen() {
                     {formatINR(stats.revenueMinor)}
                   </RNText>
                   <RNText style={tx('400', 12, t.colors.accentDeep, { marginTop: 4 })}>
-                    20% worker commission + 3% poster fee on {formatINR(stats.gmvMinor)} of
-                    completed work
+                    Commission from workers and fees from customers, on {formatINR(stats.gmvMinor)}{' '}
+                    of completed work
                   </RNText>
                 </View>
 
@@ -367,18 +368,18 @@ export function AnalyticsScreen() {
                 <RNText
                   style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 24 })}
                 >
-                  MONEY IN FLIGHT
+                  MONEY IN PROGRESS
                 </RNText>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
                   <Stat
-                    label="HELD IN ESCROW"
+                    label="HELD SAFELY"
                     value={formatINR(stats.escrowHeldMinor)}
                     sub={`${stats.tasksLive} live ${stats.tasksLive === 1 ? 'task' : 'tasks'}`}
                     tone="gold"
                     t={t}
                   />
                   <Stat
-                    label="PAYOUTS PENDING"
+                    label="TRANSFERS PENDING"
                     value={formatINR(stats.payoutsPendingMinor)}
                     sub="Owed to workers"
                     t={t}
@@ -405,16 +406,16 @@ export function AnalyticsScreen() {
                     t={t}
                   />
                   <Stat
-                    label="GOT A QUOTE"
+                    label="GOT AN OFFER"
                     value={`${Math.round(stats.quotedRate * 100)}%`}
                     // The number that tells you whether supply is thin.
-                    sub={`${stats.quotesPlaced} quotes placed`}
+                    sub={`${stats.quotesPlaced} offers sent`}
                     t={t}
                   />
                   <Stat
-                    label="DISPUTES OPEN"
+                    label="OPEN COMPLAINTS"
                     value={String(stats.disputesOpen)}
-                    sub={stats.disputesOpen === 0 ? 'Nothing to settle' : 'Needs attention'}
+                    sub={stats.disputesOpen === 0 ? 'All clear' : 'Needs attention'}
                     tone={stats.disputesOpen > 0 ? 'gold' : 'plain'}
                     t={t}
                   />

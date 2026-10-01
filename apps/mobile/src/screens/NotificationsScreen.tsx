@@ -17,7 +17,7 @@ import {
   type NotificationSide,
 } from '../data/extras';
 import { attachPosters, getTask, listMyAssignments } from '../data/api';
-import { openRow, workerAssignmentRow } from '../lib/taskRows';
+import { openPostedTask, openRow, workerAssignmentRow } from '../lib/taskRows';
 import { taskToFeedRow } from '../lib/openTask';
 import { useApp } from '../providers/AppStateProvider';
 
@@ -123,7 +123,7 @@ export function NotificationsScreen() {
       // Your own request: its page, with quotes, progress and the worker.
       if (task.poster_id === userId) {
         setMode('poster');
-        return go('taskManage', { taskId: task.id });
+        return openPostedTask(task, go);
       }
       // Work you're doing: straight to where it stands (start, in progress,
       // waiting on approval...). Otherwise the post itself.
@@ -151,7 +151,7 @@ export function NotificationsScreen() {
         }
       />
       <RNText style={tx('500', 12, t.colors.muted, { paddingHorizontal: 20, marginBottom: 6 })}>
-        {mode === 'worker' ? 'Alerts about work you quoted on or are doing' : 'Alerts about the tasks you posted'}
+        {mode === 'worker' ? 'Alerts about work you sent an offer for or are doing' : 'Alerts about the tasks you posted'}
       </RNText>
       <UnderlineTabs tabs={[`Unread (${unread.length})`, 'All']} active={tab} onPick={setTab} />
       <ScrollView
@@ -165,7 +165,7 @@ export function NotificationsScreen() {
           <EmptyState
             icon="bell"
             title={tab === 0 ? 'No unread notifications' : 'No notifications yet'}
-            body={tab === 0 ? 'You’re all caught up. New ones will appear here.' : 'Quotes, payments and messages show up here.'}
+            body={tab === 0 ? 'You’re all caught up. New ones will appear here.' : 'Offers, payments and messages show up here.'}
           />
         ) : (
           shown.map((n, i) => (

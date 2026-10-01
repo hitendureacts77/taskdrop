@@ -12,8 +12,7 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://wjxvingpfbfvkfqhrguj.supabase.co"
       }
-    },
-    "production": {
+    },    "production": {
       "distribution": "store",
       "android": {
         "buildType": "app-bundle"

@@ -22,12 +22,12 @@ test('poster escrow charge adds the 3% service fee', () => {
   assert.equal(posterEscrowCharge(RS_1000), 103_000);
 });
 
-test('worker net payout deducts the 20% commission', () => {
-  assert.equal(workerNetPayout(RS_1000), 80_000);
+test('worker net payout deducts the 10% commission', () => {
+  assert.equal(workerNetPayout(RS_1000), 90_000);
 });
 
-test('platform revenue = 20% commission + 3% poster fee', () => {
-  assert.equal(platformRevenue(RS_1000), 23_000);
+test('platform revenue = 10% commission + 3% poster fee', () => {
+  assert.equal(platformRevenue(RS_1000), 13_000);
 });
 
 test('post-start cancel fine is 5% of the locked value', () => {
@@ -35,8 +35,8 @@ test('post-start cancel fine is 5% of the locked value', () => {
 });
 
 test('rounding stays integer for odd amounts', () => {
-  // ₹333.33 -> 33333 paise; 20% = 6666.6 -> 6667 (rounded), net 26666
-  assert.equal(workerNetPayout(33_333), 26_666);
+  // ₹333.33 -> 33333 paise; 90% = 29999.7 -> 30000 (rounded)
+  assert.equal(workerNetPayout(33_333), 30_000);
   assert.equal(Number.isInteger(workerNetPayout(33_333)), true);
 });
 

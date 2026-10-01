@@ -8,7 +8,6 @@ import {
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
@@ -217,7 +216,7 @@ export function PayoutDestinationSheet({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
       >
         <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Close" />
         <View
@@ -349,7 +348,7 @@ export function PayoutDestinationSheet({
                     <Pressable
                       onPress={() => void save()}
                       accessibilityRole="button"
-                      accessibilityLabel="Save this payout account"
+                      accessibilityLabel="Save this bank or UPI account"
                       style={({ pressed }) => ({
                         flex: 1,
                         backgroundColor: t.colors.accent,

@@ -8,16 +8,17 @@ import { useAuth } from '../providers/AuthProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { getProfile, getWallet, type Profile } from '../data/api';
 import {
-  aiCreditsToday,
   countUnreadFor,
   subscribeToNotifications,
 } from '../data/extras';
 import { signedMediaUrl } from '../lib/media';
 import { Icon, type IconName } from './Icon';
 import { FeedbackSheet } from './FeedbackSheet';
-import { Badge, rupees } from './kit';
+import { PayoutDestinationSheet } from './PayoutDestinationSheet';
+import { Badge, ConfirmDialog, rupees } from './kit';
 import { tx } from './primitives';
 import { levelFor } from '../lib/levels';
+import { useLayout } from '../lib/layout';
 
 /**
  * The bar across the top of every tab: brand, the Post / Earn switch, and the
@@ -86,6 +87,7 @@ export function AppHeader() {
   }, [userId]);
 
   const worker = mode === 'worker';
+  const { desktop } = useLayout();
 
   const iconBtn = (name: IconName, label: string, onPress: () => void, badge?: number) => (
     <Pressable
@@ -127,7 +129,10 @@ export function AppHeader() {
   return (
     <>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 6 }}>
-        {/* The logo is the way home from anywhere, as on most apps. */}
+        {/* The logo is the way home from anywhere, as on most apps. On desktop
+            the sidebar carries the logo and the Post/Earn switch instead. */}
+        {!desktop ? (
+        <>
         <Pressable onPress={() => reset('home')} accessibilityRole="link" accessibilityLabel="TaskDrop home" hitSlop={6}>
           <RNText style={tx('800', 20, t.colors.ink, { letterSpacing: -0.6 })}>
             taskdrop<RNText style={tx('800', 20, t.colors.accent)}>.</RNText>
@@ -142,7 +147,7 @@ export function AppHeader() {
                 onPress={() => void switchMode(m)}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: on }}
-                accessibilityLabel={m === 'poster' ? 'Post mode' : 'Earn mode'}
+                accessibilityLabel={m === 'poster' ? 'Hire mode' : 'Earn mode'}
                 style={{
                   paddingVertical: 5,
                   paddingHorizontal: 11,
@@ -150,11 +155,13 @@ export function AppHeader() {
                   backgroundColor: on ? (m === 'poster' ? t.colors.accent : t.colors.purpleDeep) : 'transparent',
                 }}
               >
-                <RNText style={tx('700', 12, on ? '#FFFFFF' : t.colors.muted)}>{m === 'poster' ? 'Post' : 'Earn'}</RNText>
+                <RNText style={tx('700', 12, on ? '#FFFFFF' : t.colors.muted)}>{m === 'poster' ? 'Hire' : 'Earn'}</RNText>
               </Pressable>
             );
           })}
         </View>
+        </>
+        ) : null}
         <View style={{ flex: 1 }} />
         {iconBtn('bell', 'Notifications', () => go('notifications'), unread)}
         {iconBtn('chat', 'Messages', () => go('inbox'))}
@@ -194,8 +201,9 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
   const { flash } = useActions();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
-  const [ai, setAi] = useState<{ used: number; limit: number } | null>(null);
   const [feedback, setFeedback] = useState(false);
+  const [accounts, setAccounts] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   const slide = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -211,12 +219,12 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
   useEffect(() => {
     if (!visible || !userId) return;
     let alive = true;
-    void Promise.all([getProfile(userId), getWallet(), aiCreditsToday()])
-      .then(([p, w, a]) => {
+    void Promise.all([getProfile(userId), getWallet()])
+      .then(([p, w]) => {
         if (!alive) return;
         setProfile(p);
-        setBalance(w?.balance_minor ?? 0);
-        setAi(a);
+        // Credits plus earnings: everything this person can spend on a task.
+        setBalance((w?.balance_minor ?? 0) + (w?.credits_minor ?? 0));
       })
       .catch(() => {});
     return () => {
@@ -329,8 +337,12 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
               {row('wallet', 'Wallet', balance !== null ? `Balance ${rupees(balance / 100)}` : 'Balance and payments', () =>
                 open(() => go('wallet')),
               )}
+              {row('card', 'Bank & UPI accounts', 'Where your earnings are sent', () => {
+                onClose();
+                setAccounts(true);
+              })}
               {row('card', 'How fees work', 'What TaskDrop takes, and when', () => open(() => go('pricing')))}
-              {row('gavel', 'My disputes', 'Track issue resolutions', () => open(() => go('disputes')))}
+              {row('gavel', 'My complaints', 'See problems you reported', () => open(() => go('disputes')))}
               {row('settings', 'Settings', 'Account, security and preferences', () => open(() => go('account')))}
 
               <View style={{ height: 1, backgroundColor: t.colors.line, marginVertical: 10 }} />
@@ -341,26 +353,6 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
                 setFeedback(true);
               })}
 
-              {ai ? (
-                <View style={{ marginTop: 14, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 12, padding: 12 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Icon name="sparkle" size={14} color={t.colors.ai} />
-                    <RNText style={tx('700', 12, t.colors.ink, { flex: 1 })}>AI credits today</RNText>
-                    <RNText style={tx('700', 12, t.colors.ink)}>
-                      {Math.max(0, ai.limit - ai.used)}/{ai.limit}
-                    </RNText>
-                  </View>
-                  <View style={{ height: 5, borderRadius: 999, backgroundColor: t.colors.line, marginTop: 8, overflow: 'hidden' }}>
-                    <View
-                      style={{
-                        width: `${Math.max(0, Math.min(100, ((ai.limit - ai.used) / ai.limit) * 100))}%`,
-                        height: 5,
-                        backgroundColor: t.colors.ai,
-                      }}
-                    />
-                  </View>
-                </View>
-              ) : null}
 
               <Pressable
                 onPress={() => {
@@ -390,6 +382,24 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
         </Animated.View>
       </Modal>
       <FeedbackSheet visible={feedback} onClose={() => setFeedback(false)} />
+      <PayoutDestinationSheet visible={accounts} onClose={() => setAccounts(false)} onChanged={() => {}} />
+      <ConfirmDialog
+        visible={confirmSignOut}
+        danger
+        icon="logout"
+        title="Sign out of TaskDrop?"
+        message="You’ll need your phone number or Google account to sign back in. Your tasks and wallet stay safe."
+        confirmLabel="Sign out"
+        cancelLabel="Stay signed in"
+        onCancel={() => setConfirmSignOut(false)}
+        onConfirm={() => {
+          setConfirmSignOut(false);
+          onClose();
+          void signOut()
+            .catch(() => flash('Could not sign out'))
+            .finally(() => reset('splash'));
+        }}
+      />
     </>
   );
 }

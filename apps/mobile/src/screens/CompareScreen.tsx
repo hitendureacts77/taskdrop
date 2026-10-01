@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Icon } from '../components/Icon';
 import {
   View,
   Text as RNText,
@@ -9,7 +10,8 @@ import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
-import { listBidsForTask, lockBid, getTask, type Task } from '../data/api';
+import { listBidsForTask, lockBid, getTask, WalletShortError, type Task } from '../data/api';
+import { AddFundsSheet } from '../components/AddFundsSheet';
 import { formatDeadline } from '../components/DateTimeSheet';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskDescription } from '../components/TaskDescription';
@@ -34,6 +36,20 @@ function jobsLabel(n: number): string {
 }
 
 /** The pillar as a poster would name it, not as the column spells it. */
+/** Plain words for the task's state, instead of the raw database code. */
+const STATUS_LABEL: Record<string, string> = {
+  OPEN: 'OPEN',
+  LOCKED: 'OFFER CHOSEN',
+  TASK_STARTED: 'IN PROGRESS',
+  OVERDUE: 'RUNNING LATE',
+  WORK_DONE: 'READY TO CHECK',
+  REVISION_REQUESTED: 'CHANGES ASKED',
+  COMPLETED: 'DONE',
+  AUTO_COMPLETED: 'DONE',
+  CANCELLED: 'CANCELLED',
+  DISPUTED: 'PROBLEM REPORTED',
+};
+
 const PILLAR_LABEL: Record<string, string> = {
   services: 'SERVICES',
   procurement: 'GOODS & PRODUCTS',
@@ -46,11 +62,13 @@ const PILLAR_LABEL: Record<string, string> = {
 export function CompareScreen() {
   const t = useTheme();
   const { params, go, back } = useNav();
-  const { flash } = useActions();
+  const { flash, celebrate } = useActions();
   const [sortLow, setSortLow] = useState(true);
   const [picked, setPicked] = useState<string | null>(null);
   const [rows, setRows] = useState<Quote[] | null>(null);
   const [busy, setBusy] = useState(false);
+  // What the wallet is short by when an offer cannot be paid for yet.
+  const [shortBy, setShortBy] = useState<number | null>(null);
   const [task, setTask] = useState<Task | null>(null);
 
 
@@ -86,7 +104,7 @@ export function CompareScreen() {
         setRows(
           bids.map((b) => ({
             bidId: b.id,
-            who: b.profiles?.display_name ?? 'Tasker',
+            who: b.profiles?.display_name ?? 'Worker',
             rating: Number(b.profiles?.worker_rating_avg ?? 0) || 0,
             pro: false,
             meta: jobsLabel(b.profiles?.worker_rating_count ?? 0),
@@ -117,8 +135,8 @@ export function CompareScreen() {
   // Sample navigation has no task behind it, so fall back to the design copy.
   const quoteCount = rows?.length ?? sorted.length;
   const headerLine = task
-    ? task.status + ' · ' + quoteCount + (quoteCount === 1 ? ' QUOTE' : ' QUOTES')
-    : 'OPEN · ' + quoteCount + (quoteCount === 1 ? ' QUOTE' : ' QUOTES');
+    ? (STATUS_LABEL[task.status] ?? 'OPEN') + ' · ' + quoteCount + (quoteCount === 1 ? ' OFFER' : ' OFFERS')
+    : 'OPEN · ' + quoteCount + (quoteCount === 1 ? ' OFFER' : ' OFFERS');
   const completeBy = task
     ? formatDeadline(new Date(new Date(task.created_at).getTime() + task.time_limit_minutes * 60_000))
     : '9 Sep, 6 PM';
@@ -130,9 +148,11 @@ export function CompareScreen() {
       setBusy(true);
       try {
         await lockBid(pickRow.bidId);
-        go('escrow', { priceMinor: pickRow.priceMinor, title, who: pickRow.who, taskId, by: completeBy });
+        celebrate(`${pickRow.who} is hired · paid from your wallet`);
+        if (taskId) go('taskManage', { taskId });
       } catch (e) {
-        flash(e instanceof Error ? e.message : 'Could not lock that quote');
+        if (e instanceof WalletShortError) setShortBy(e.shortMinor);
+        else flash(e instanceof Error ? e.message : 'Could not choose that offer');
       } finally {
         setBusy(false);
       }
@@ -141,7 +161,7 @@ export function CompareScreen() {
     // No bid id means this is a sample quote. Sending someone to a payment
     // screen for it would take real money against an assignment that was never
     // created.
-    flash('That is a sample quote — pick a real one from your requests');
+    flash('That is a sample offer — pick a real one from your requests');
   };
 
   return (
@@ -151,8 +171,8 @@ export function CompareScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable onPress={back} hitSlop={10}>
-          <RNText style={tx('400', 20, t.colors.ink)}>←</RNText>
+        <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
+          <Icon name="back" size={20} color={t.colors.ink} />
         </Pressable>
 
         <RNText style={tx('700', 10, t.colors.blue, { letterSpacing: 1.6, marginTop: 16 })}>
@@ -204,7 +224,7 @@ export function CompareScreen() {
           }}
         >
           <View>
-            <RNText style={tx('400', 10, t.colors.muted, { letterSpacing: 1.4 })}>BENCHMARK</RNText>
+            <RNText style={tx('400', 10, t.colors.muted, { letterSpacing: 1.4 })}>BUDGET</RNText>
             <RNText style={tx('800', 19, t.colors.accentDeep, { marginTop: 4 })}>{formatINR(benchMinor)}</RNText>
           </View>
           <View>
@@ -214,7 +234,7 @@ export function CompareScreen() {
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
-          <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54 })}>INCOMING QUOTES</RNText>
+          <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54 })}>INCOMING OFFERS</RNText>
           {sorted.length > 1 && (
             <Pressable onPress={() => setSortLow((v) => !v)}>
               <RNText style={tx('700', 12, t.colors.accentDeep)}>
@@ -251,7 +271,7 @@ export function CompareScreen() {
                       flexShrink: 0,
                     }}
                   >
-                    <RNText style={tx('400', 14, t.colors.muted)}>☺</RNText>
+                    <Icon name="user" size={15} color={t.colors.muted} />
                     {row.bidId ? <AvatarPresence lastSeen={row.lastSeen} ring={t.colors.surface} /> : null}
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
@@ -308,10 +328,10 @@ export function CompareScreen() {
               padding: 18,
             }}
           >
-            <RNText style={tx('700', 15, t.colors.ink)}>No quotes yet</RNText>
+            <RNText style={tx('700', 15, t.colors.ink)}>No offers yet</RNText>
             <RNText style={tx('400', 13, t.colors.muted, { marginTop: 6, lineHeight: 20 })}>
-              Your request is live and taskers nearby can see it. Quotes land here as
-              they come in, and nothing is charged until you lock one.
+              Your request is live and workers nearby can see it. Offers land here as
+              they come in, and nothing is charged until you choose one.
             </RNText>
           </View>
         )}
@@ -329,20 +349,20 @@ export function CompareScreen() {
               padding: 15,
               opacity: 0.85,
             }}
-            accessibilityLabel="Example of a quote"
+            accessibilityLabel="Example of an offer"
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View style={{ backgroundColor: t.colors.goldSoft, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
                 <RNText style={tx('800', 10, t.colors.goldInk, { letterSpacing: 0.8 })}>EXAMPLE</RNText>
               </View>
-              <RNText style={tx('400', 12, t.colors.muted)}>How a quote will appear</RNText>
+              <RNText style={tx('400', 12, t.colors.muted)}>How an offer will appear</RNText>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: 12 }}>
               <View style={{ width: 38, height: 38, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
                 <RNText style={tx('800', 15, '#FFFFFF')}>R</RNText>
               </View>
               <View style={{ flex: 1 }}>
-                <RNText style={tx('700', 14, t.colors.ink)}>A tasker near you</RNText>
+                <RNText style={tx('700', 14, t.colors.ink)}>A worker near you</RNText>
                 <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>★ 4.8 · 23 jobs done · 2.1 km away</RNText>
               </View>
               <RNText style={tx('800', 17, t.colors.accentDeep)}>
@@ -363,7 +383,7 @@ export function CompareScreen() {
       <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
         {!pickRow ? (
           <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', lineHeight: 18 })}>
-            Nothing to lock yet. You will get a notification when the first quote arrives.
+            Nothing to choose yet. You will get a notification when the first offer arrives.
           </RNText>
         ) : (
         <>
@@ -382,14 +402,29 @@ export function CompareScreen() {
             elevation: 6,
           }}
         >
-          <RNText style={tx('700', 16, t.colors.onAccent)}>Lock quote · {formatINR(pickRow.priceMinor)}</RNText>
+          <RNText style={tx('700', 16, t.colors.onAccent)}>Choose offer · {formatINR(pickRow.priceMinor)}</RNText>
         </Pressy>
         <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10, lineHeight: 18 })}>
-          Names and contacts unmask when the task starts.
+          Names and phone numbers are shared once the work starts.
         </RNText>
         </>
         )}
       </View>
+      <AddFundsSheet
+        visible={shortBy !== null}
+        initialMinor={shortBy ?? undefined}
+        reason={
+          shortBy !== null && pickRow
+            ? `Your wallet is ${formatINR(shortBy)} short for ${pickRow.who}’s offer. Add at least that much, and the offer is chosen as soon as the money arrives.`
+            : undefined
+        }
+        onClose={() => setShortBy(null)}
+        flash={flash}
+        onFunded={() => {
+          setShortBy(null);
+          void handleLock();
+        }}
+      />
     </Screen>
   );
 }

@@ -11,6 +11,7 @@ import {
   getProfile,
   getWallet,
   getEscrowHeld,
+  listPayouts,
   listWalletActivity,
   settleClearedEarnings,
   type WalletEvent,
@@ -19,7 +20,7 @@ import { Pressy, tx } from '../components/primitives';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
-import { Pill, SectionTitle, UnderlineTabs } from '../components/kit';
+import { Pill, SectionTitle, TopBar, UnderlineTabs } from '../components/kit';
 import { MoneyBars, type MoneyBar } from '../components/MoneyBars';
 import { countMyReferrals, feesSince, platformFees } from '../data/extras';
 
@@ -43,14 +44,58 @@ function SlideIn({ delay, children }: { delay: number; children: React.ReactNode
   );
 }
 
-export function WalletScreen() {
+/**
+ * `insights` is the poster's spending view (chart, fees, periods), opened from
+ * the profile menu. The Wallet tab itself shows a poster only what they have:
+ * the balance and what is held in escrow, not a running total of spend.
+ */
+/** Mirrors the 'min_withdraw_minor' setting request_withdrawal enforces. */
+export const MIN_WITHDRAW_MINOR = 10000;
+
+/** "8074413313@ybl" -> "80••••3313@ybl": enough to recognise, not to read off a screen. */
+function maskDigits(text: string): string {
+  return text.replace(/\d{8,}/g, (d) => d.slice(0, 2) + '••••' + d.slice(-4));
+}
+
+export function WalletScreen({ insights = false }: { insights?: boolean } = {}) {
   const t = useTheme();
-  const { go } = useNav();
+  const { go, back } = useNav();
   const { mode } = useMode();
   const { balance, escrow, clearing, flash, celebrate } = useApp();
   const { userId } = useAuth();
   const focusTick = useFocusTick();
-  const [live, setLive] = useState<{ balance: number; escrow: number; clearing: number } | null>(null);
+  // One wallet since migration 066: `balance` holds what was added, earned and
+  // refunded, all withdrawable. `credits` is always 0 now and is only summed in
+  // so a wallet read mid-migration never under-reports.
+  type Live = {
+    credits: number;
+    balance: number;
+    escrow: number;
+    earningEscrow: number;
+    pending: number;
+    clearing: number;
+  };
+  const [live, setLive] = useState<Live | null>(null);
+
+  const loadLive = async (): Promise<Live | null> => {
+    const [w, held, owed, payouts] = await Promise.all([
+      getWallet(),
+      getEscrowHeld('poster'),
+      getEscrowHeld('worker'),
+      listPayouts(50).catch(() => []),
+    ]);
+    if (!w) return null;
+    return {
+      credits: w.credits_minor ?? 0,
+      balance: w.balance_minor,
+      clearing: w.clearing_minor,
+      escrow: held,
+      earningEscrow: owed,
+      pending: payouts
+        .filter((p) => p.status === 'requested' || p.status === 'processing')
+        .reduce((n, p) => n + p.amount_minor, 0),
+    };
+  };
 
   // Real wallet for the signed-in user; the in-memory figures are the fallback
   // until it loads (or when signed out).
@@ -61,15 +106,15 @@ export function WalletScreen() {
     // this screen reads as "my money is stuck".
     settleClearedEarnings()
       .catch(() => {})
-      .then(() => Promise.all([getWallet(), getEscrowHeld('poster')]))
-      .then(([w, held]) => {
-        if (!alive || !w) return;
-        setLive({ balance: w.balance_minor, escrow: held, clearing: w.clearing_minor });
+      .then(loadLive)
+      .then((l) => {
+        if (alive && l) setLive(l);
       })
       .catch(() => {});
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusTick]);
 
   // Adding money lives in its own sheet: it has to ask how much, and it has
@@ -79,14 +124,8 @@ export function WalletScreen() {
   const onFunded = async (amountMinor: number) => {
     setAddingFunds(false);
     try {
-      const w = await getWallet();
-      if (w) {
-        setLive((p) => ({
-          ...(p ?? { escrow: 0, clearing: 0, balance: 0 }),
-          balance: w.balance_minor,
-          clearing: w.clearing_minor,
-        }));
-      }
+      const l = await loadLive();
+      if (l) setLive(l);
     } catch {
       /* the celebrate below is still true; the figure refreshes on next load */
     }
@@ -96,9 +135,10 @@ export function WalletScreen() {
   // Never substitute local state for the server's answer: this is the screen
   // that tells someone how much money they have, and a plausible wrong number
   // is worse here than an honest blank.
-  const shown = live ?? { balance, escrow, clearing };
+  const shown: Live = live ?? { credits: 0, balance, escrow, earningEscrow: 0, pending: 0, clearing };
   const loaded = live !== null;
   const worker = mode === 'worker';
+  const showCharts = worker || insights;
 
   // Real money events for this account. Nothing here is illustrative: the
   // previous three rows showed a payout and an escrow hold that never existed.
@@ -111,12 +151,8 @@ export function WalletScreen() {
     setRefreshing(true);
     try {
       await settleClearedEarnings().catch(() => {});
-      const [w, held, rows] = await Promise.all([
-        getWallet(),
-        getEscrowHeld('poster'),
-        listWalletActivity(userId, 200),
-      ]);
-      if (w) setLive({ balance: w.balance_minor, clearing: w.clearing_minor, escrow: held });
+      const [l, rows] = await Promise.all([loadLive(), listWalletActivity(userId, 200)]);
+      if (l) setLive(l);
       setLedger(rows);
     } catch {
       /* keep what is on screen */
@@ -177,15 +213,9 @@ export function WalletScreen() {
   // Each side sees its own money: a worker what they earned and withdrew, a
   // poster what they spent and added. Setting the two against each other
   // produced a "net" that read as a loss for anyone who only ever hires.
-  const mine = useMemo(
-    () =>
-      ledger.filter((l) =>
-        worker
-          ? l.kind === 'clearing' || l.kind === 'payout' || l.kind === 'incoming'
-          : l.kind === 'escrow' || l.kind === 'released' || l.kind === 'topup',
-      ),
-    [ledger, worker],
-  );
+  // The transaction list is the whole wallet in both modes, as on Kardoh; only
+  // the chart stays per side.
+  const mine = ledger;
   const inPeriod = useMemo(
     () => mine.filter((l) => !since || new Date(l.at).getTime() >= since.getTime()),
     [mine, since],
@@ -237,8 +267,10 @@ export function WalletScreen() {
       }
     }
     for (const l of mine) {
-      // Earnings for a worker, spending (not top-ups) for a poster.
-      if (worker ? l.kind !== 'clearing' : l.kind !== 'released' && l.kind !== 'escrow') continue;
+      // Earnings for a worker, spending for a poster. Money still held is not
+      // spent yet -- it comes back if the job is cancelled -- so only released
+      // payments count.
+      if (worker ? l.kind !== 'clearing' : l.kind !== 'released') continue;
       const at = new Date(l.at).getTime();
       const hit = out.find((x) => at >= x.from && at <= x.to);
       if (hit) hit.value += l.amountMinor / 100;
@@ -247,20 +279,29 @@ export function WalletScreen() {
   }, [mine, period, worker]);
 
   const periodTotal = inPeriod
-    .filter((l) => (worker ? l.kind === 'clearing' : l.kind === 'escrow' || l.kind === 'released'))
+    .filter((l) => (worker ? l.kind === 'clearing' : l.kind === 'released'))
     .reduce((n, l) => n + l.amountMinor, 0);
   const held = ledger.filter((l) => l.kind === 'escrow');
+  // The "held" figure at the top is the sum of the held rows listed below it,
+  // so the two can never disagree. Until the list loads, the server total.
+  const heldMinor = ledgerLoading ? shown.escrow : held.reduce((n, l) => n + l.amountMinor, 0);
 
-  const TX_TABS = worker ? ['All', 'Earnings', 'Withdrawals'] : ['All', 'Spending', 'Money added'];
+  const available = shown.balance + shown.credits;
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+  const periodEarned = ledger
+    .filter((l) => l.kind === 'clearing' && new Date(l.at).getTime() >= monthStart)
+    .reduce((n, l) => n + l.amountMinor, 0);
+
+  const TX_TABS = ['All', 'Earnings', 'Spending', 'Withdrawals'];
   const [txTab, setTxTab] = useState(0);
-  useEffect(() => setTxTab(0), [worker]);
   const TX_FIRST = 7;
   const [txAll, setTxAll] = useState(false);
   useEffect(() => setTxAll(false), [txTab, worker, period]);
   const txRows = inPeriod.filter((l) => {
     if (txTab === 0) return true;
-    if (worker) return txTab === 1 ? l.kind === 'clearing' || l.kind === 'incoming' : l.kind === 'payout';
-    return txTab === 1 ? l.kind === 'escrow' || l.kind === 'released' : l.kind === 'topup';
+    if (txTab === 1) return l.kind === 'clearing' || l.kind === 'incoming';
+    if (txTab === 2) return l.kind === 'escrow' || l.kind === 'released';
+    return l.kind === 'payout';
   });
 
   const shareCode = async () => {
@@ -297,75 +338,77 @@ export function WalletScreen() {
 
   return (
     <Screen padded={false}>
-      <AppHeader />
+      {insights ? <TopBar title="Spending insights" onBack={back} /> : <AppHeader />}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 16 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />}
       >
+        {!insights ? (
+        <>
         {/* The money that matters to this side, big, with the part that is
             not spendable yet beside it. */}
         <View
           style={{
-            backgroundColor: worker ? t.colors.purpleDeep : t.colors.accentDeep,
+            backgroundColor: t.colors.hero,
             borderRadius: 20,
             padding: 18,
           }}
         >
-          <RNText style={tx('600', 13, 'rgba(255,255,255,0.8)')}>
-            {worker ? 'Ready to withdraw' : 'Wallet balance'}
-          </RNText>
+          {/* One wallet, the same in both modes: what was added, earned or
+              refunded is all here, spendable on tasks and withdrawable. */}
+          <RNText style={tx('600', 13, 'rgba(255,255,255,0.8)')}>Available</RNText>
           <RNText style={tx('800', 40, '#FFFFFF', { letterSpacing: -1.4, marginTop: 4 })}>
-            {loaded ? formatINR(shown.balance) : '—'}
+            {loaded ? formatINR(shown.balance + shown.credits) : '—'}
           </RNText>
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-            <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 12, padding: 10 }}>
-              <RNText style={tx('500', 11, 'rgba(255,255,255,0.8)')}>
-                {worker ? `Clearing · ${7} days` : 'Held in escrow'}
-              </RNText>
-              <RNText style={tx('800', 16, '#FFFFFF', { marginTop: 3 })}>
-                {formatINR(worker ? shown.clearing : shown.escrow)}
-              </RNText>
-            </View>
-            <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 12, padding: 10 }}>
-              <RNText style={tx('500', 11, 'rgba(255,255,255,0.8)')}>
-                {worker ? 'Earned' : 'Spent'} · {period.toLowerCase()}
-              </RNText>
-              <RNText style={tx('800', 16, '#FFFFFF', { marginTop: 3 })}>{formatINR(periodTotal)}</RNText>
-            </View>
-          </View>
+          <RNText style={tx('500', 12, 'rgba(255,255,255,0.85)', { marginTop: 6, lineHeight: 18 })}>
+            Amount frozen in ongoing tasks {formatINR(heldMinor + shown.earningEscrow)}
+            {'\n'}Payouts requested to your personal bank {formatINR(shown.pending)}
+          </RNText>
+          {periodEarned > 0 ? (
+            <RNText style={tx('700', 12, '#FFFFFF', { marginTop: 4 })}>
+              +{formatINR(periodEarned)} earned this month
+            </RNText>
+          ) : null}
         </View>
 
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-          {worker ? (
-            <Pressy
-              onPress={() => go('withdraw')}
-              style={{ flex: 1, backgroundColor: t.colors.purpleDeep, borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}
-            >
-              <RNText style={tx('700', 15, '#FFFFFF')}>Withdraw</RNText>
-            </Pressy>
-          ) : (
-            <>
-              <Pressy
-                onPress={() => setAddingFunds(true)}
-                style={{ flex: 1, backgroundColor: t.colors.accent, borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}
-              >
-                <RNText style={tx('700', 15, t.colors.onAccent)}>Add money</RNText>
-              </Pressy>
-              {shown.balance > 0 ? (
-                <Pressy
-                  onPress={() => go('withdraw')}
-                  style={{ flex: 1, borderWidth: 1, borderColor: t.colors.line, borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}
-                >
-                  <RNText style={tx('700', 15, t.colors.ink)}>Withdraw</RNText>
-                </Pressy>
-              ) : null}
-            </>
-          )}
+          <Pressy
+            onPress={() => setAddingFunds(true)}
+            style={{ flex: 1, backgroundColor: t.colors.accent, borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}
+          >
+            <RNText style={tx('700', 15, t.colors.onAccent)}>+ Add money</RNText>
+          </Pressy>
+          <Pressy
+            onPress={() =>
+              available >= MIN_WITHDRAW_MINOR
+                ? go('withdraw')
+                : flash(`You can withdraw once you have ${formatINR(MIN_WITHDRAW_MINOR)} available`)
+            }
+            style={{
+              flex: 1,
+              borderWidth: 1,
+              borderColor: available >= MIN_WITHDRAW_MINOR ? t.colors.accent : t.colors.line,
+              borderRadius: 999,
+              paddingVertical: 14,
+              alignItems: 'center',
+            }}
+          >
+            <RNText style={tx('700', 15, available >= MIN_WITHDRAW_MINOR ? t.colors.accentDeep : t.colors.muted)}>
+              Withdraw
+            </RNText>
+          </Pressy>
         </View>
+        <RNText style={tx('400', 12, t.colors.muted, { marginTop: 10, lineHeight: 17 })}>
+          Min. withdraw {formatINR(MIN_WITHDRAW_MINOR)} · UPI
+        </RNText>
+        </>
+        ) : null}
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 20, marginHorizontal: -20 }}>
+        {showCharts ? (
+        <>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: insights ? 4 : 20, marginHorizontal: -20 }}>
           <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20 }}>
             {PERIODS.map((p) => (
               <Pill key={p} label={p} active={period === p} onPress={() => setPeriod(p)} />
@@ -389,18 +432,23 @@ export function WalletScreen() {
             )}
           </View>
         </View>
+        </>
+        ) : null}
 
         {/* Pending money is a poster's concern: it is theirs, held until they
             approve the work. */}
-        {!worker && held.length > 0 ? (
+        {!worker && !insights && held.length > 0 ? (
           <View style={card}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Icon name="lock" size={16} color={t.colors.gold} />
-              <RNText style={tx('800', 14, t.colors.ink, { flex: 1 })}>Waiting for your approval</RNText>
+              <RNText style={tx('800', 14, t.colors.ink, { flex: 1 })}>Locked in tasks in progress</RNText>
               <RNText style={tx('600', 11, t.colors.goldInk)}>
                 {held.length} task{held.length === 1 ? '' : 's'}
               </RNText>
             </View>
+            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 17 })}>
+              Can’t be withdrawn until the task is done. It goes to the worker only when you approve the work, and comes back to you if the task is cancelled.
+            </RNText>
             {held.map((h) => (
               <View key={h.id} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
                 <RNText style={tx('500', 13, t.colors.ink, { flex: 1 })} numberOfLines={1}>
@@ -412,11 +460,12 @@ export function WalletScreen() {
           </View>
         ) : null}
 
+        {showCharts ? (
         <View style={{ ...card, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <Icon name="tag" size={16} color={t.colors.goldInk} />
           <View style={{ flex: 1 }}>
             <RNText style={tx('700', 13, t.colors.ink)}>
-              {worker ? 'Commission paid' : 'Service fees paid'} · {period.toLowerCase()}
+              {worker ? 'TaskDrop share paid' : 'TaskDrop fees paid'} · {period.toLowerCase()}
             </RNText>
             <Pressable onPress={() => go('pricing')} accessibilityRole="button">
               <RNText style={tx('600', 12, t.colors.accentDeep, { marginTop: 2 })}>How fees work ›</RNText>
@@ -424,6 +473,7 @@ export function WalletScreen() {
           </View>
           <RNText style={tx('800', 14, t.colors.ink)}>{feeMinor === null ? '–' : formatINR(feeMinor)}</RNText>
         </View>
+        ) : null}
 
         <SectionTitle title="Transactions" icon="list" style={{ marginTop: 24 }} />
         <View style={{ marginTop: 8, marginHorizontal: -20 }}>
@@ -434,7 +484,7 @@ export function WalletScreen() {
           <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, lineHeight: 20 })}>
             {mine.length === 0
               ? worker
-                ? 'Finish a gig and your earnings show up here.'
+                ? 'Finish a job and your earnings show up here.'
                 : 'Hire someone and what you pay shows up here.'
               : 'Nothing of this kind in this period.'}
           </RNText>
@@ -458,7 +508,7 @@ export function WalletScreen() {
                   {l.title}
                 </RNText>
                 <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>
-                  {new Date(l.at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} · {l.meta}
+                  {new Date(l.at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} · {maskDigits(l.meta)}
                 </RNText>
               </View>
               <RNText style={tx('700', 15, l.incoming ? t.colors.accentDeep : t.colors.ink)}>
@@ -490,7 +540,7 @@ export function WalletScreen() {
           </Pressable>
         ) : null}
 
-        {code ? (
+        {code && !insights ? (
           <View style={{ ...card, marginTop: 24, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Icon name="gift" size={20} color={t.colors.accentDeep} />
             <View style={{ flex: 1 }}>
@@ -522,4 +572,9 @@ export function WalletScreen() {
       />
     </Screen>
   );
+}
+
+/** The poster's spending chart, fees and periods, kept out of the Wallet tab. */
+export function SpendingScreen() {
+  return <WalletScreen insights />;
 }

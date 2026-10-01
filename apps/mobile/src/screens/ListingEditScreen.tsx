@@ -93,10 +93,10 @@ export function ListingEditScreen() {
       };
       if (loaded) await updateListing(loaded.id, input);
       else await createListing(userId, input);
-      celebrate(loaded ? 'Listing updated' : 'Your gig is live');
+      celebrate(loaded ? 'Service updated' : 'Your service is live');
       back();
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not save your listing');
+      flash(e instanceof Error ? e.message : 'Could not save your service');
     } finally {
       setBusy(false);
     }
@@ -107,7 +107,7 @@ export function ListingEditScreen() {
     setBusy(true);
     try {
       await removeListing(loaded.id);
-      flash('Listing taken down');
+      flash('Service taken down');
       back();
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not take it down');
@@ -119,7 +119,7 @@ export function ListingEditScreen() {
   if (loaded === undefined) {
     return (
       <Screen padded={false}>
-        <TopBar title="Edit listing" onBack={back} />
+        <TopBar title="Edit service" onBack={back} />
         <ActivityIndicator color={t.colors.accent} style={{ marginTop: 40 }} />
       </Screen>
     );
@@ -135,10 +135,10 @@ export function ListingEditScreen() {
 
   return (
     <Screen padded={false}>
-      <TopBar title={loaded ? 'Edit listing' : 'List a gig'} onBack={back} />
+      <TopBar title={loaded ? 'Edit service' : 'Offer a service'} onBack={back} />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
         <RNText style={tx('400', 13, t.colors.muted, { lineHeight: 19 })}>
-          Say what you’ll do and what it costs. Posters looking for this can hire you straight from it.
+          Say what you’ll do and what it costs. Customers looking for this can hire you straight from it.
         </RNText>
 
         {label('WHAT YOU’LL DO', 16)}
@@ -176,7 +176,7 @@ export function ListingEditScreen() {
             placeholder="500"
             left={<RNText style={tx('700', 15, t.colors.muted)}>₹</RNText>}
             error={price && priceNum < 50 ? 'At least ₹50' : null}
-            hint="What a basic order costs. You can agree a different price with each poster."
+            hint="What a basic order costs. You can agree a different price with each customer."
           />
         </View>
 
@@ -199,7 +199,7 @@ export function ListingEditScreen() {
           </Pressable>
         ) : null}
         <RNText style={tx('400', 11, t.colors.muted, { marginTop: 6 })}>
-          {remote ? 'Posters anywhere can hire you.' : 'Posters see only the area, never your exact location.'}
+          {remote ? 'Customers anywhere can hire you.' : 'Customers see only the area, never your exact location.'}
         </RNText>
 
         {label('USUALLY DELIVERS IN')}
@@ -218,7 +218,7 @@ export function ListingEditScreen() {
 
         {what.trim() ? (
           <>
-            {label('PREVIEW · HOW POSTERS SEE IT')}
+            {label('PREVIEW · HOW CUSTOMERS SEE IT')}
             <View style={{ marginTop: 10 }}>
               <ListingCard
                 task={preview ?? ({ id: 'preview', title, description: details, benchmark_minor: Math.round((priceNum || 0) * 100), time_limit_minutes: days * 1440, category, status: 'OPEN' } as Task)}
@@ -228,14 +228,14 @@ export function ListingEditScreen() {
           </>
         ) : null}
 
-        <PrimaryButton label={loaded ? 'Save changes' : 'Publish gig'} onPress={() => void save()} busy={busy} style={{ marginTop: 24 }} />
+        <PrimaryButton label={loaded ? 'Save changes' : 'Publish service'} onPress={() => void save()} busy={busy} style={{ marginTop: 24 }} />
         {missing ? (
           <RNText style={tx('500', 12, t.colors.muted, { marginTop: 8, textAlign: 'center' })}>{missing}</RNText>
         ) : null}
         {loaded ? (
           <Pressable onPress={() => void remove()} accessibilityRole="button" style={{ alignSelf: 'center', marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name="close" size={14} color={t.colors.signal} />
-            <RNText style={tx('700', 13, t.colors.signal)}>Take this listing down</RNText>
+            <RNText style={tx('700', 13, t.colors.signal)}>Take this service down</RNText>
           </Pressable>
         ) : null}
       </ScrollView>

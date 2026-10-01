@@ -3,7 +3,7 @@ import { View, Text as RNText, ScrollView, TextInput, Pressable, RefreshControl 
 import { Screen } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
-import { EmptyState, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../components/kit';
+import { EmptyState, Grid, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../components/kit';
 import { TrendingSection } from '../components/Trending';
 import { WorkCard, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
@@ -335,7 +335,7 @@ const FILTERS: { key: Filter; label: string; icon?: Parameters<typeof Pill>[0]['
   { key: 'quick_accept', label: 'Instant hire', icon: 'bolt' },
   { key: 'live', label: 'Due soon', icon: 'clock' },
   { key: 'quick_earn', label: 'Under ₹300', icon: 'wallet' },
-  { key: 'bid', label: 'Open to quotes', icon: 'gavel' },
+  { key: 'bid', label: 'Open to offers', icon: 'gavel' },
 ];
 
 const LOCAL_KM = 10;
@@ -473,8 +473,8 @@ function FindWork() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.purple} />}
       >
         <View style={{ alignItems: 'center', paddingHorizontal: 20, paddingTop: 10 }}>
-          <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Browse gigs</RNText>
-          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4 })}>Every open gig, filtered your way</RNText>
+          <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Browse jobs</RNText>
+          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4 })}>Every open job, filtered your way</RNText>
         </View>
         <SearchBox
           value={q}
@@ -486,7 +486,7 @@ function FindWork() {
           tone="purple"
         />
         <View style={{ marginTop: 16 }}>
-          <UnderlineTabs tabs={['Gigs', 'Busy now', 'How it works']} active={tab} onPick={setTab} />
+          <UnderlineTabs tabs={['Jobs', 'Busy now', 'How it works']} active={tab} onPick={setTab} />
         </View>
         <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
           {tab === 2 ? (
@@ -560,7 +560,8 @@ function FindWork() {
                   }}
                 />
               ) : (
-                shown.map((task, i) => (
+                <Grid>
+                {shown.map((task, i) => (
                   <WorkCard
                     key={task.id}
                     task={task}
@@ -570,7 +571,8 @@ function FindWork() {
                     onApply={() => setBidTask(task)}
                     onToggleSave={() => void toggleSave(task.id)}
                   />
-                ))
+                ))}
+                </Grid>
               )}
             </>
           )}

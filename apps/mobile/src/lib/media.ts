@@ -1,6 +1,8 @@
 import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { MEDIA } from '@taskdrop/rules';
+import { readBytes } from './readBytes';
 import { currentUserId, supabase } from './supabase';
 
 /**
@@ -63,21 +65,37 @@ function extensionFor(mimeType: string, fallback: string): string {
  * dialog that is not tied to a user gesture, and there is no error to catch
  * when it does — the dialog simply never appears.
  */
-export async function pickMedia(kind: 'image' | 'video'): Promise<PickedMedia | null> {
+export async function pickMedia(
+  kind: 'image' | 'video',
+  source: 'library' | 'camera' = 'library',
+): Promise<PickedMedia | null> {
   // The web picker is a plain <input type=file>, which needs no permission and
   // has none to ask for.
   if (Platform.OS !== 'web') {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      throw new MediaError('Photo access was declined. You can still post without a photo.');
+    if (source === 'camera') {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        throw new MediaError('Camera access was declined. You can pick from your gallery instead.');
+      }
+    } else {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        throw new MediaError('Photo access was declined. You can still post without a photo.');
+      }
     }
   }
 
-  const result = await ImagePicker.launchImageLibraryAsync({
+  const options: ImagePicker.ImagePickerOptions = {
     mediaTypes: kind === 'video' ? ['videos'] : ['images'],
     quality: 0.8,
     allowsMultipleSelection: false,
-  });
+    // The camera stops recording at the cap, so a clip can never be too long.
+    videoMaxDuration: MEDIA.MAX_VIDEO_SECONDS,
+  };
+  const result =
+    source === 'camera'
+      ? await ImagePicker.launchCameraAsync(options)
+      : await ImagePicker.launchImageLibraryAsync(options);
   if (result.canceled || !result.assets?.length) return null;
 
   const asset = result.assets[0]!;
@@ -107,17 +125,6 @@ export async function pickMedia(kind: 'image' | 'video'): Promise<PickedMedia | 
   return { kind, uri: asset.uri, mimeType, seconds, bytes };
 }
 
-/** The picked file's raw bytes, by whichever route this platform supports. */
-async function readBytes(uri: string): Promise<Uint8Array> {
-  if (Platform.OS === 'web') {
-    // Here the picker hands back a blob: or data: URI, which fetch reads fine.
-    const res = await fetch(uri);
-    return new Uint8Array(await res.arrayBuffer());
-  }
-  // expo-file-system is native-only, which is why this is not the web path.
-  const { File } = await import('expo-file-system');
-  return await new File(uri).bytes();
-}
 
 /**
  * Put the file in the bucket and return what the task row should store.
@@ -242,7 +249,6 @@ const DOC_TYPES = [
 
 /** Open the document picker (PDF, Word, Excel, PowerPoint, text). Straight off a press. */
 export async function pickDocument(): Promise<PickedDocument | null> {
-  const DocumentPicker = await import('expo-document-picker');
   const res = await DocumentPicker.getDocumentAsync({ type: DOC_TYPES, copyToCacheDirectory: true, multiple: false });
   if (res.canceled || !res.assets?.[0]) return null;
   const a = res.assets[0];

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Icon } from '../components/Icon';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen, Card, Button, formatINR } from '../components/ui';
 import { AmountField } from '../components/AmountField';
@@ -61,7 +62,7 @@ type Detail = {
 
 // Fallbacks mirror _design_source.jsx `fallbackDetail` (converted to paise).
 const FALLBACK_WORKER: Detail = {
-  who: 'Poster 9014',
+  who: 'Customer 9014',
   rating: '4.8',
   whoMeta: '31 requests posted · 3.2 km away',
   tag: 'PRODUCTS',
@@ -78,7 +79,7 @@ const FALLBACK_WORKER: Detail = {
 };
 
 const FALLBACK_POSTER: Detail = {
-  who: 'Tasker 3315',
+  who: 'Worker 3315',
   rating: '4.9',
   whoMeta: '61 jobs done · 4 km away',
   tag: 'SERVICES',
@@ -213,7 +214,7 @@ export function TaskDetailScreen() {
         if (!alive) return;
         const n = stats.requestsPosted;
         setOther({
-          name: stats.profile?.display_name ?? 'Poster',
+          name: stats.profile?.display_name ?? 'Customer',
           record: n + (n === 1 ? ' request posted' : ' requests posted'),
           rating: Number(stats.profile?.poster_rating_avg ?? 0),
           ratingCount: stats.profile?.poster_rating_count ?? 0,
@@ -236,7 +237,8 @@ export function TaskDetailScreen() {
   const mediaKind = live ? live.mediaKind : detail.mediaKind;
   const mediaSeconds = live ? live.mediaSeconds : detail.mediaSeconds;
 
-  const priceLabel = worker ? 'THEIR QUOTE' : 'THEIR RATE';
+  // A request carries the poster's budget; a service listing carries the worker's rate.
+  const priceLabel = worker ? 'BUDGET' : 'THEIR RATE';
   const delta = quote - detail.amountMinor;
   const deltaText =
     delta === 0 ? 'same as asked' : delta > 0 ? `+${formatINR(delta)} above` : `−${formatINR(-delta)} below`;
@@ -283,13 +285,13 @@ export function TaskDetailScreen() {
     { label: 'Distance', value: distanceValue },
   ];
 
-  const cta = worker ? 'Send a quote' : 'Send my quote';
+  const cta = worker ? 'Send an offer' : 'Send my offer';
 
   // The detailed bid: a proposal, hours and a delivery date on top of the
   // price. Same placeBid underneath, so the same checks apply.
   const [bidTask, setBidTask] = useState<Task | null>(null);
   const openBid = async () => {
-    if (!realId) return flash('This is a sample task — post a real one to quote on it');
+    if (!realId) return flash('This is a sample task — post a real one to send an offer');
     const task = await getTask(realId).catch(() => null);
     if (!task) return flash('This task is no longer available');
     setBidTask(task);
@@ -299,8 +301,8 @@ export function TaskDetailScreen() {
   const sendQuote = async () => {
     if (busy) return;
     if (worker) {
-      if (!realId) return flash('This is a sample task — post a real one to quote on it');
-      if (!userId) return flash('Sign in to send a quote');
+      if (!realId) return flash('This is a sample task — post a real one to send an offer');
+      if (!userId) return flash('Sign in to send an offer');
       setBusy(true);
       try {
         await placeBid({
@@ -309,12 +311,12 @@ export function TaskDetailScreen() {
           priceMinor: quote,
           timeLimitMinutes: 240,
         });
-        celebrate('Quote sent · ' + formatINR(quote));
+        celebrate('Offer sent · ' + formatINR(quote));
         go('orders');
       } catch (e) {
         // placeBid already turns a policy refusal into a sentence. Whatever it
         // is, it also means the quote box should not still be offered.
-        const msg = e instanceof Error ? e.message : 'Could not send the quote';
+        const msg = e instanceof Error ? e.message : 'Could not send the offer';
         setBlocked(msg);
         flash(msg);
       } finally {
@@ -329,8 +331,8 @@ export function TaskDetailScreen() {
     <Screen scroll padded={false}>
       <FadeIn style={{ paddingHorizontal: 20, paddingTop: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Pressable onPress={back} hitSlop={8}>
-            <RNText style={tx('400', 20, t.colors.ink)}>←</RNText>
+          <Pressable onPress={back} hitSlop={8} accessibilityRole="button" accessibilityLabel="Back">
+            <Icon name="back" size={20} color={t.colors.ink} />
           </Pressable>
           <Pressable
             onPress={() =>
@@ -345,8 +347,10 @@ export function TaskDetailScreen() {
               )
             }
             hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Share this task"
           >
-            <RNText style={tx('400', 18, t.colors.ink)}>↗</RNText>
+            <Icon name="share" size={18} color={t.colors.ink} />
           </Pressable>
         </View>
 
@@ -374,7 +378,7 @@ export function TaskDetailScreen() {
               justifyContent: 'center',
             }}
           >
-            <RNText style={tx('400', 16, t.colors.muted)}>☺</RNText>
+            <Icon name="user" size={18} color={t.colors.muted} />
             {other ? <AvatarPresence lastSeen={other.lastSeen} ring={t.colors.bg} /> : null}
           </View>
           <View style={{ flex: 1 }}>
@@ -454,7 +458,7 @@ export function TaskDetailScreen() {
         ))}
 
         <RNText style={tx('400', 12, t.colors.muted, { lineHeight: 18, marginTop: 13 })}>
-          Contacts stay masked until the task starts.
+          Phone numbers stay hidden until the work starts.
         </RNText>
 
         {worker && blocked ? (
@@ -463,11 +467,11 @@ export function TaskDetailScreen() {
              the person somewhere different to go next. */
           <Card style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
             <RNText style={tx('600', 13, t.colors.muted, { marginBottom: 8 })}>
-              {/already quoted/i.test(blocked) ? 'QUOTE SENT' : 'CLOSED FOR QUOTES'}
+              {/already quoted/i.test(blocked) ? 'OFFER SENT' : 'CLOSED FOR OFFERS'}
             </RNText>
             <RNText style={tx('600', 15, t.colors.ink, { lineHeight: 22 })}>{blocked}</RNText>
             <Button
-              label={/already quoted/i.test(blocked) ? 'Edit my quote' : 'Find another request'}
+              label={/already quoted/i.test(blocked) ? 'Edit my offer' : 'Find another request'}
               onPress={() => (/already quoted/i.test(blocked) ? void openBid() : go('explore'))}
               style={{ marginTop: t.spacing.lg }}
             />
@@ -475,11 +479,13 @@ export function TaskDetailScreen() {
         ) : (
         <Card style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
           <RNText style={tx('600', 13, t.colors.muted, { marginBottom: 10 })}>
-            {worker ? 'YOUR QUOTE' : 'YOUR OFFER'}
+            {worker ? 'YOUR OFFER' : 'YOUR OFFER'}
           </RNText>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Pressable
               onPress={() => setQuote((q) => Math.max(QUOTE_STEP_MINOR, q - QUOTE_STEP_MINOR))}
+              accessibilityRole="button"
+              accessibilityLabel="Lower your offer"
               style={{
                 width: 40,
                 height: 40,
@@ -489,7 +495,7 @@ export function TaskDetailScreen() {
                 justifyContent: 'center',
               }}
             >
-              <RNText style={tx('700', 16, t.colors.ink)}>−</RNText>
+              <Icon name="minus" size={18} color={t.colors.ink} strokeWidth={2.2} />
             </Pressable>
 
             <View style={{ flex: 1, alignItems: 'center' }}>
@@ -504,6 +510,8 @@ export function TaskDetailScreen() {
 
             <Pressable
               onPress={() => setQuote((q) => q + QUOTE_STEP_MINOR)}
+              accessibilityRole="button"
+              accessibilityLabel="Raise your offer"
               style={{
                 width: 40,
                 height: 40,
@@ -513,7 +521,7 @@ export function TaskDetailScreen() {
                 justifyContent: 'center',
               }}
             >
-              <RNText style={tx('700', 16, t.colors.ink)}>+</RNText>
+              <Icon name="plus" size={18} color={t.colors.ink} strokeWidth={2.2} />
             </Pressable>
           </View>
 
@@ -525,12 +533,12 @@ export function TaskDetailScreen() {
           />
           <RNText style={tx('500', 12, t.colors.muted, { marginTop: 10, textAlign: 'center' })}>
             {worker
-              ? 'One quote per task. Contacts stay masked until the task starts.'
-              : 'Your quote goes to this worker. They can lock it and start.'}
+              ? 'One offer per task. Phone numbers stay hidden until the work starts.'
+              : 'Your offer goes to this worker. They can accept it and start.'}
           </RNText>
           {worker && realId ? (
-            <Pressable onPress={() => void openBid()} style={{ alignSelf: 'center', marginTop: 12 }} accessibilityRole="button">
-              <RNText style={tx('700', 13, t.colors.purpleDeep)}>Or send a detailed bid with a proposal ›</RNText>
+            <Pressable onPress={() => void openBid()} style={{ alignSelf: 'center', marginTop: 12 }} accessibilityRole="button" accessibilityLabel="Send a detailed offer with a proposal">
+              <RNText style={tx('700', 13, t.colors.purpleDeep)}>Or send a detailed offer with a proposal ›</RNText>
             </Pressable>
           ) : null}
         </Card>

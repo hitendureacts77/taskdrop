@@ -42,7 +42,7 @@ import { FadeIn, Pressy, tx } from '../components/primitives';
  */
 
 
-const WORKER_TABS = ['Listings', 'Accepted', 'Pending', 'Closed'];
+const WORKER_TABS = ['Services', 'Accepted', 'Pending', 'Closed'];
 const POSTER_TABS = ['Open', 'Active', 'Done'];
 
 
@@ -278,7 +278,7 @@ export function OrdersScreen() {
 
   const openRow = (row: ViewRow) => openTaskRow(row, { go, flash, setOpenTask, startedOf });
 
-  const emptyLine = worker ? 'Quotes you send show up here.' : 'Requests you post show up here.';
+  const emptyLine = worker ? 'Offers you send show up here.' : 'Requests you post show up here.';
 
   return (
     <Screen scroll padded={false} onRefresh={refresh} refreshing={refreshing}>
@@ -291,7 +291,7 @@ export function OrdersScreen() {
             paddingBottom: 14,
           })}
         >
-          {worker ? 'My bids' : 'My requests'}
+          {worker ? 'My offers' : 'My requests'}
         </RNText>
 
         <OrderTabs tabs={tabNames} active={orderTab} onPick={setOrderTab} t={t} />
@@ -333,7 +333,7 @@ export function OrdersScreen() {
                 {emptyLine}
               </RNText>
               <Pressy onPress={() => go('home')} scaleTo={0.96} style={{ marginTop: 20 }}>
-                <RNText style={tx('700', 14, t.colors.ink, { textDecorationLine: 'underline' })}>Browse the feed</RNText>
+                <RNText style={tx('700', 14, t.colors.ink, { textDecorationLine: 'underline' })}>Browse jobs</RNText>
               </Pressy>
             </FadeIn>
           )}

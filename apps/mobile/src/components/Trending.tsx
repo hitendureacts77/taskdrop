@@ -31,7 +31,8 @@ export function TrendingSection({ onCategory }: { onCategory?: (category: string
   useEffect(() => {
     let alive = true;
     trendingCategories(8)
-      .then((r) => alive && setCats(r))
+      // A category with nothing open is not busy; leave it out.
+      .then((r) => alive && setCats(r.filter((c) => c.open_count > 0)))
       .catch(() => alive && setCats([]));
     platformHighlights()
       .then((r) => alive && setHl(r))
@@ -93,7 +94,7 @@ export function TrendingSection({ onCategory }: { onCategory?: (category: string
               ))}
       </View>
 
-      <SectionTitle title="Most trusted taskers" icon="trophy" style={{ marginTop: 26 }} />
+      <SectionTitle title="Most trusted workers" icon="trophy" style={{ marginTop: 26 }} />
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
         <Pill label="Top rated" icon="star" active={kind === 'top_rated'} onPress={() => setKind('top_rated')} />
         <Pill label="Most active" icon="trending" active={kind === 'most_active'} onPress={() => setKind('most_active')} />
@@ -153,8 +154,11 @@ function EarnerCard({ e }: { e: Earner }) {
         <RNText style={tx('800', 18, '#FFFFFF')}>{(e.display_name || '?').trim().charAt(0).toUpperCase()}</RNText>
       </View>
       <RNText style={tx('700', 12, t.colors.ink, { marginTop: 8 })} numberOfLines={1}>{name}</RNText>
-      <RNText style={tx('500', 11, t.colors.goldInk, { marginTop: 3 })}>
-        ★ {e.rating_count > 0 ? Number(e.rating).toFixed(1) : 'new'} ({e.jobs_done})
+      <RNText style={tx('600', 11, e.rating_count > 0 ? t.colors.goldInk : t.colors.muted, { marginTop: 3 })}>
+        {e.rating_count > 0 ? `★ ${Number(e.rating).toFixed(1)} · ${e.rating_count} review${e.rating_count === 1 ? '' : 's'}` : 'New worker'}
+      </RNText>
+      <RNText style={tx('400', 10, t.colors.muted, { marginTop: 2 })}>
+        {e.jobs_done} job{e.jobs_done === 1 ? '' : 's'} done
       </RNText>
       {e.skill ? (
         <View style={{ marginTop: 7, backgroundColor: t.colors.surface2, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>

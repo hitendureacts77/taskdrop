@@ -29,7 +29,7 @@ export function payoutTone(t: Theme, status: Payout['status']) {
     case 'cancelled':
       return { ink: t.colors.muted, bg: t.colors.surface2, label: 'Cancelled' };
     default:
-      return { ink: t.colors.purpleDeep, bg: t.colors.surface2, label: 'Requested' };
+      return { ink: t.colors.purpleDeep, bg: t.colors.surface2, label: 'Waiting to be sent' };
   }
 }
 
@@ -121,6 +121,12 @@ export function PayoutList({
             {p.status === 'paid' && p.reference ? (
               <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6, lineHeight: 17 })}>
                 Sent · reference {p.reference}
+              </RNText>
+            ) : null}
+
+            {p.status === 'requested' ? (
+              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6, lineHeight: 17 })}>
+                Reviewed and sent within 1 working day. You can cancel until then.
               </RNText>
             ) : null}
 

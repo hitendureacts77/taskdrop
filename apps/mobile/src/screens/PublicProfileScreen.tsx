@@ -148,7 +148,7 @@ export function PublicProfileScreen() {
             </View>
           </View>
           <RNText style={tx('700', 11, 'rgba(255,255,255,0.7)', { marginTop: 12, letterSpacing: 1 })}>
-            {asWorker ? 'WORKER PROFILE' : 'POSTER PROFILE'}
+            {asWorker ? 'WORKER PROFILE' : 'CUSTOMER PROFILE'}
           </RNText>
           {bioText ? <RNText style={tx('400', 13, 'rgba(255,255,255,0.88)', { marginTop: 6, lineHeight: 19 })}>{bioText}</RNText> : null}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 14 }}>
@@ -174,7 +174,7 @@ export function PublicProfileScreen() {
         <View style={{ flexDirection: 'row', marginHorizontal: 20, marginTop: 12, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, paddingVertical: 14 }}>
           {(asWorker
             ? [
-                ['Gigs done', String(stats?.jobsDone ?? '–')],
+                ['Jobs done', String(stats?.jobsDone ?? '–')],
                 ['Rating', rating.count > 0 ? `★ ${rating.avg.toFixed(1)}` : 'New'],
                 ['Reviews', String(rating.count)],
               ]

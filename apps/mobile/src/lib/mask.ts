@@ -62,6 +62,34 @@ export function findContactIssue(text: string): ContactIssue | null {
   return null;
 }
 
+/**
+ * The same rule for profiles, worded for them. A profile is public to everyone
+ * who quotes or is quoted, so it carries basics only; contacts are exchanged
+ * inside TaskDrop once a task is locked and under way.
+ */
+export function profileIssueMessage(issue: ContactIssue): string {
+  switch (issue) {
+    case 'phone':
+      return 'You can’t put a phone number on your profile. It’s shared automatically once a task starts.';
+    case 'email':
+      return 'You can’t put an email address on your profile. Talk in TaskDrop chat once you’re hired.';
+    case 'link':
+      return 'Links aren’t allowed on your profile. Share them in chat once a task is booked.';
+    case 'handle':
+      return 'Social handles and chat apps aren’t allowed on your profile. Use TaskDrop chat instead.';
+    case 'address':
+      return 'Don’t share your address here. Your area is enough — the exact spot is only shared for a booked task.';
+  }
+}
+
+/**
+ * Names and usernames are shown to strangers, so they must not smuggle a
+ * number out either: "@9876543210" is a phone number with an @ in front.
+ */
+export function nameCarriesContact(name: string): boolean {
+  return /\d{7,}/.test(name.replace(/[\s\-.]/g, '')) || /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(name);
+}
+
 export function contactIssueMessage(issue: ContactIssue): string {
   switch (issue) {
     case 'phone':

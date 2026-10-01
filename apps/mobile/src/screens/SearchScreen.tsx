@@ -352,7 +352,7 @@ export function SearchScreen() {
           </FadeIn>
         )}
 
-        <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 22 })}>PILLAR</RNText>
+        <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 22 })}>CATEGORY</RNText>
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 11 }}>
           {FILTER_LABELS.map((label, i) => (
             <FilterChip

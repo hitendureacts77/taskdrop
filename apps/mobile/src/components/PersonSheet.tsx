@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Icon } from './Icon';
 import { View, Text as RNText, Pressable, Modal, ScrollView, ActivityIndicator } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
@@ -98,7 +99,7 @@ export function PersonSheet({
                 justifyContent: 'center',
               }}
             >
-              <RNText style={tx('400', 20, t.colors.muted)}>☺</RNText>
+              <Icon name="user" size={22} color={t.colors.muted} />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <RNText style={tx('800', 19, t.colors.ink, { letterSpacing: -0.35 })}>{name}</RNText>

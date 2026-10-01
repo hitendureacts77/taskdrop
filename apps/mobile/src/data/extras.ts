@@ -1,4 +1,4 @@
-import { currentUserId, supabase } from '../lib/supabase';
+import { currentUserId, notExpired, supabase } from '../lib/supabase';
 import { distanceKm } from '@taskdrop/rules';
 import type { Tables, TablesUpdate } from '@taskdrop/db-types';
 import { primeProfile, type Task, type Profile } from './api';
@@ -286,7 +286,7 @@ export const publicProfileStats = (userId: string) =>
  */
 export async function recommendedTasks(skills: string[], limit = 10): Promise<Task[]> {
   const uid = await myId();
-  let q = supabase.from('tasks').select('*').eq('status', 'OPEN').eq('kind', 'request');
+  let q = supabase.from('tasks').select('*').eq('status', 'OPEN').or(notExpired()).eq('kind', 'request');
   if (uid) q = q.neq('poster_id', uid);
   const rows = unwrap(await q.order('created_at', { ascending: false }).limit(60));
   if (skills.length === 0) return rows.slice(0, limit);
@@ -324,24 +324,40 @@ export type Thread = {
 export async function listThreads(): Promise<Thread[]> {
   const uid = await myId();
   if (!uid) return [];
-  const rows = unwrap(
-    await supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(300),
-  );
+  // A thread exists from the moment someone is hired, not from the first
+  // message -- otherwise the inbox is empty exactly when a poster and a worker
+  // most need to talk. So: every task with messages, plus every live hire.
+  const LIVE = ['LOCKED', 'TASK_STARTED', 'OVERDUE', 'WORK_DONE', 'REVISION_REQUESTED', 'DISPUTED'] as const;
+  const [msgRes, postedRes, hiredRes] = await Promise.all([
+    supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(300),
+    supabase.from('tasks').select('id,title,status,updated_at').eq('poster_id', uid).in('status', LIVE),
+    supabase.from('assignments').select('task_id').eq('worker_id', uid).in('status', ['assigned', 'started']),
+  ]);
+  const rows = unwrap(msgRes);
   const latest = new Map<string, (typeof rows)[number]>();
   for (const m of rows) if (!latest.has(m.task_id)) latest.set(m.task_id, m);
-  if (latest.size === 0) return [];
+
+  const hiredIds = (hiredRes.data ?? []).map((a) => a.task_id);
+  const ids = new Set<string>([...latest.keys(), ...(postedRes.data ?? []).map((t) => t.id), ...hiredIds]);
+  if (ids.size === 0) return [];
   const tasks = unwrap(
-    await supabase.from('tasks').select('id,title,status').in('id', [...latest.keys()]),
+    await supabase.from('tasks').select('id,title,status,updated_at').in('id', [...ids]),
   );
   const byId = new Map(tasks.map((t) => [t.id, t]));
-  return [...latest.values()].map((m) => ({
-    taskId: m.task_id,
-    title: byId.get(m.task_id)?.title ?? 'Task',
-    status: byId.get(m.task_id)?.status ?? '',
-    lastBody: m.body,
-    lastAt: m.created_at,
-    lastFromMe: m.sender_id === uid,
-  }));
+
+  const threads: Thread[] = [...ids].map((id) => {
+    const m = latest.get(id);
+    const task = byId.get(id);
+    return {
+      taskId: id,
+      title: task?.title ?? 'Task',
+      status: task?.status ?? '',
+      lastBody: m ? (m.body.startsWith('::media::') ? '📷 Photo' : m.body) : '',
+      lastAt: m?.created_at ?? task?.updated_at ?? new Date().toISOString(),
+      lastFromMe: m ? m.sender_id === uid : false,
+    };
+  });
+  return threads.sort((x, y) => new Date(y.lastAt).getTime() - new Date(x.lastAt).getTime());
 }
 
 // ---------------------------------------------------------------- disputes --
@@ -450,7 +466,7 @@ export async function listActiveWorkers(limit = 12): Promise<Profile[]> {
 
 // ------------------------------------------------------------------ fees -----
 
-export type Fees = { commission: number; posterFee: number; aiDaily: number; clearingDays: number };
+export type Fees = { commission: number; posterFee: number; clearingDays: number };
 
 /** The live fee settings (readable by any signed-in user), with the
  *  @taskdrop/rules defaults if a key is missing. */
@@ -458,15 +474,14 @@ export async function platformFees(): Promise<Fees> {
   const { data } = await supabase
     .from('settings')
     .select('key,value')
-    .in('key', ['worker_commission_pct', 'poster_service_fee_pct', 'ai_daily_credits', 'clearing_period_days']);
+    .in('key', ['worker_commission_pct', 'poster_service_fee_pct', 'clearing_period_days']);
   const get = (k: string, d: number) => {
     const v = Number((data ?? []).find((r) => r.key === k)?.value);
     return Number.isFinite(v) ? v : d;
   };
   return {
-    commission: get('worker_commission_pct', 0.2),
+    commission: get('worker_commission_pct', 0.1),
     posterFee: get('poster_service_fee_pct', 0.03),
-    aiDaily: get('ai_daily_credits', 10),
     clearingDays: get('clearing_period_days', 7),
   };
 }
@@ -507,19 +522,6 @@ export async function feesSince(since: Date | null, commission: number): Promise
     commissionMinor += Math.round((t.locked_minor ?? 0) * commission);
   }
   return { serviceMinor, commissionMinor };
-}
-
-// ------------------------------------------------------------ AI meter -------
-
-/** Credits used today (IST) and the daily allowance. */
-export async function aiCreditsToday(): Promise<{ used: number; limit: number }> {
-  const uid = await myId();
-  const limitRow = await supabase.from('settings').select('value').eq('key', 'ai_daily_credits').maybeSingle();
-  const limit = Number(limitRow.data?.value ?? 10) || 10;
-  if (!uid) return { used: 0, limit };
-  const day = new Date(Date.now() + 5.5 * 3600000).toISOString().slice(0, 10);
-  const { data } = await supabase.from('ai_usage').select('used').eq('user_id', uid).eq('day', day).maybeSingle();
-  return { used: data?.used ?? 0, limit };
 }
 
 // ---------------------------------------------------------- password auth ---
@@ -582,7 +584,7 @@ export async function remoteTasks(limit = 5): Promise<Task[]> {
   let q = supabase
     .from('tasks')
     .select('*')
-    .eq('status', 'OPEN')
+    .eq('status', 'OPEN').or(notExpired())
     .eq('kind', 'request')
     .is('loc_lat', null);
   if (uid) q = q.neq('poster_id', uid);
@@ -595,7 +597,7 @@ export async function tasksNear(near: { lat: number; lng: number }, radiusKm: nu
   let q = supabase
     .from('tasks')
     .select('*')
-    .eq('status', 'OPEN')
+    .eq('status', 'OPEN').or(notExpired())
     .eq('kind', 'request')
     .not('loc_lat', 'is', null);
   if (uid) q = q.neq('poster_id', uid);
@@ -610,7 +612,7 @@ export async function tasksNear(near: { lat: number; lng: number }, radiusKm: nu
 /** Open requests flagged urgent, soonest deadline first. */
 export async function urgentTasks(limit = 3): Promise<Task[]> {
   const uid = await myId();
-  let q = supabase.from('tasks').select('*').eq('status', 'OPEN').eq('kind', 'request').eq('flag', 'urgent');
+  let q = supabase.from('tasks').select('*').eq('status', 'OPEN').or(notExpired()).eq('kind', 'request').eq('flag', 'urgent');
   if (uid) q = q.neq('poster_id', uid);
   return unwrap(await q.order('due_at', { ascending: true, nullsFirst: false }).limit(limit));
 }

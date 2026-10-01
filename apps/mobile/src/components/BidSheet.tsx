@@ -80,7 +80,7 @@ export function BidSheet({
           setHours(parsed.hours);
           setSavedDateLabel(parsed.dateLabel);
           setPrice(String(Math.round(mine.price_minor / 100)));
-          if (mine.is_locked) setBlocked('The poster accepted this quote, so it can no longer be changed.');
+          if (mine.is_locked) setBlocked('The customer accepted this offer, so it can no longer be changed.');
           return;
         }
         const verdict = await canQuoteOn(task.id, userId);
@@ -108,9 +108,9 @@ export function BidSheet({
   };
 
   const submit = async () => {
-    if (!userId) return flash('Sign in to send a quote');
+    if (!userId) return flash('Sign in to send an offer');
     if (!price.trim()) return flash('Enter your price');
-    if (pitch.trim().length < 10) return flash('Tell the poster a little about why you');
+    if (pitch.trim().length < 10) return flash('Tell the customer a little about why you');
     setBusy(true);
     try {
       const h = Number(hours);
@@ -126,15 +126,15 @@ export function BidSheet({
       if (existing) {
         await updateBid(existing.id, fields);
         onClose();
-        celebrate(`Quote updated · ${rupees(asked)}`);
+        celebrate(`Offer updated · ${rupees(asked)}`);
       } else {
         await placeBid({ taskId: task.id, workerId: userId, ...fields });
         onClose();
-        celebrate(auto ? 'You’re hired! The poster funds escrow next' : `Quote sent · ${rupees(asked)}`);
+        celebrate(auto ? 'You’re hired! The customer pays next' : `Offer sent · ${rupees(asked)}`);
       }
       onPlaced?.();
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not send your quote');
+      flash(e instanceof Error ? e.message : 'Could not send your offer');
     } finally {
       setBusy(false);
     }
@@ -147,11 +147,11 @@ export function BidSheet({
       <BottomSheet
         visible={visible && !showDate}
         onClose={onClose}
-        title={existing ? 'Edit your quote' : 'Send a quote'}
+        title={existing ? 'Edit your offer' : 'Send an offer'}
         subtitle={task.title}
         footer={
           <PrimaryButton
-            label={existing ? 'Save changes' : auto ? 'Take this job' : 'Send quote'}
+            label={existing ? 'Save changes' : auto ? 'Take this job' : 'Send offer'}
             onPress={() => void submit()}
             busy={busy}
             disabled={!ready}
@@ -163,7 +163,7 @@ export function BidSheet({
         ) : (
           <>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <RNText style={tx('600', 13, t.colors.muted)}>Poster’s budget</RNText>
+              <RNText style={tx('600', 13, t.colors.muted)}>Customer’s budget</RNText>
               <RNText style={tx('800', 14, t.colors.accentDeep)}>{rupees(budget)}</RNText>
               {existing && !existing.is_locked ? (
                 <RNText style={tx('600', 12, t.colors.purpleDeep, { marginLeft: 'auto' })}>
@@ -188,7 +188,7 @@ export function BidSheet({
               placeholder={`E.g. ${budget}`}
               left={<RNText style={tx('700', 15, t.colors.muted)}>₹</RNText>}
               error={priceError}
-              hint="Quote what the job is worth to you — above or below the budget."
+              hint="Offer what the job is worth to you — above or below the budget."
               editable={!blocked}
             />
 
@@ -261,7 +261,7 @@ export function BidSheet({
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 14, backgroundColor: t.colors.accentSoft, borderRadius: 10, padding: 12 }}>
                 <Icon name="bolt" size={16} color={t.colors.accentDeep} />
                 <RNText style={tx('500', 12, t.colors.accentDeep, { flex: 1, lineHeight: 17 })}>
-                  This poster hires instantly: a price at or under {rupees(budget)} gets you the job straight away.
+                  This customer hires instantly: a price at or under {rupees(budget)} gets you the job straight away.
                 </RNText>
               </View>
             ) : null}

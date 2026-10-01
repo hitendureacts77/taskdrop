@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable, Image, ActivityIndicator } from 'react-native';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { Badge, Field, Pill, PrimaryButton, TopBar, UnderlineTabs } from '../components/kit';
+import { Badge, Field, Pill, PrimaryButton, SwipeTabs, TopBar, UnderlineTabs } from '../components/kit';
 import { LocationSheet } from '../components/LocationSheet';
 import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
@@ -15,6 +15,7 @@ import { updateProfileExtras, verificationState } from '../data/extras';
 import { PresenceDot } from '../components/PresenceDot';
 import { pickMedia, signedMediaUrl, uploadMedia } from '../lib/media';
 import { levelFor, profileStrength } from '../lib/levels';
+import { findContactIssue, profileIssueMessage } from '../lib/mask';
 
 export const SKILL_OPTIONS = [
   'Repairs', 'Delivery', 'Errands', 'Sourcing', 'Local intel', 'Cleaning', 'Carpentry', 'Painting',
@@ -91,6 +92,8 @@ export function ProfileEditScreen() {
   // Posters have no Skills tab: their second tab is Status.
   const view = worker ? tab : tab === 1 ? 2 : 0;
   const words = bio.trim().split(/\s+/).filter(Boolean).length;
+  // Profiles are public: no phone, email, links, handles or door numbers.
+  const bioIssue = findContactIssue(bio);
 
   const choosePhoto = async () => {
     if (!userId || photoBusy) return;
@@ -112,6 +115,10 @@ export function ProfileEditScreen() {
 
   const save = async () => {
     if (!userId) return;
+    if (bioIssue) {
+      flash(profileIssueMessage(bioIssue));
+      return;
+    }
     setSaving(true);
     try {
       await updateProfile(userId, {
@@ -143,7 +150,7 @@ export function ProfileEditScreen() {
   return (
     <Screen padded={false}>
       <TopBar
-        title={worker ? 'My worker profile' : 'My poster profile'}
+        title={worker ? 'My worker profile' : 'My customer profile'}
         onBack={back}
         right={
           <Pressable onPress={() => go('publicProfile', { userId, role: worker ? 'worker' : 'poster' })} hitSlop={8} accessibilityRole="button">
@@ -151,6 +158,7 @@ export function ProfileEditScreen() {
           </Pressable>
         }
       />
+      <SwipeTabs index={tab} count={worker ? 3 : 2} onChange={setTab}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
         <View style={{ paddingHorizontal: 20 }}>
           <View style={{ ...card, marginTop: 0, alignItems: 'center' }}>
@@ -228,14 +236,15 @@ export function ProfileEditScreen() {
                 maxLength={500}
                 placeholder={
                   worker
-                    ? 'What you do, your experience, and why posters can count on you'
+                    ? 'What you do, your experience, and why customers can count on you'
                     : 'Who you are and the kind of tasks you usually post'
                 }
                 style={{ marginTop: 16 }}
+                error={bioIssue ? profileIssueMessage(bioIssue) : null}
                 hint={
                   worker
-                    ? `${bio.length}/500 characters · ${words} words${words < 50 ? ' (50+ recommended)' : ''} · shown to posters`
-                    : `${bio.length}/500 characters · shown to workers who quote on your tasks`
+                    ? `${bio.length}/500 characters · ${words} words${words < 50 ? ' (50+ recommended)' : ''} · shown to customers`
+                    : `${bio.length}/500 characters · shown to workers who send offers for your tasks`
                 }
               />
               <RNText style={tx('600', 11, t.colors.accentDeep, { letterSpacing: 1.3, marginTop: 18 })}>LOCATION</RNText>
@@ -305,7 +314,7 @@ export function ProfileEditScreen() {
                 <PresenceDot lastSeen={new Date().toISOString()} />
               </View>
               <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6, lineHeight: 18 })}>
-                Automatic, like a chat app. While you have TaskDrop open, posters see a green dot and
+                Automatic, like a chat app. While you have TaskDrop open, customers see a green dot and
                 “Active now” next to your name. When you close it, they see how long you’ve been away —
                 “Away · 20 min”. Nothing to switch on or off.
               </RNText>
@@ -320,8 +329,11 @@ export function ProfileEditScreen() {
           {view !== 2 ? <PrimaryButton label="Save profile" onPress={() => void save()} busy={saving} style={{ marginTop: 20 }} /> : null}
         </View>
       </ScrollView>
+      </SwipeTabs>
       <LocationSheet
         visible={showLoc}
+        // A profile shows an area, never a door: it is public.
+        askForDetails={false}
         onCancel={() => setShowLoc(false)}
         onPick={(picked) => {
           setPlace({ label: picked.label, lat: picked.lat, lng: picked.lng });

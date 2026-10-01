@@ -9,7 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
+  PanResponder,
   type TextInputProps,
   type ViewStyle,
   type StyleProp,
@@ -17,6 +17,7 @@ import {
 import { useTheme } from '../providers/ThemeProvider';
 import { Icon, type IconName } from './Icon';
 import { Pressy, tx } from './primitives';
+import { useLayout } from '../lib/layout';
 
 /**
  * The shared building blocks of the second-wave screens (explore, AI posting,
@@ -44,6 +45,7 @@ export function BottomSheet({
   maxHeight?: `${number}%`;
 }) {
   const t = useTheme();
+  const { desktop } = useLayout();
   const rise = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (!visible) {
@@ -54,23 +56,36 @@ export function BottomSheet({
     anim.start();
     return () => anim.stop();
   }, [visible, rise]);
-  const sheetY = rise.interpolate({ inputRange: [0, 1], outputRange: [420, 0] });
+  // A phone sheet rises from the bottom edge; on desktop it is a centred
+  // dialog that settles in from just below.
+  const sheetY = rise.interpolate({ inputRange: [0, 1], outputRange: [desktop ? 40 : 420, 0] });
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
       >
         <Animated.View
-          style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)', opacity: rise }}
+          style={{
+            flex: 1,
+            justifyContent: desktop ? 'center' : 'flex-end',
+            alignItems: desktop ? 'center' : 'stretch',
+            backgroundColor: 'rgba(0,0,0,0.45)',
+            opacity: rise,
+          }}
         >
-          <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Close" />
+          <Pressable
+            style={desktop ? { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 } : { flex: 1 }}
+            onPress={onClose}
+            accessibilityLabel="Close"
+          />
           <Animated.View
             style={{
               backgroundColor: t.colors.bg,
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
+              ...(desktop ? { borderRadius: 24, width: 560, maxWidth: '92%' as const } : null),
               paddingBottom: 20,
               maxHeight,
               transform: [{ translateY: sheetY }],
@@ -141,6 +156,7 @@ export function UnderlineTabs({
             key={label}
             onPress={() => onPick(i)}
             accessibilityRole="tab"
+            accessibilityLabel={label}
             accessibilityState={{ selected: on }}
             style={{ flex: 1, alignItems: 'center', paddingVertical: 11 }}
           >
@@ -155,6 +171,273 @@ export function UnderlineTabs({
         style={{ position: 'absolute', left, bottom: 0, height: 2, width: each, backgroundColor: t.colors.accent }}
       />
     </View>
+  );
+}
+
+/**
+ * A feed of cards: one column on a phone, two or three side by side on a
+ * desktop browser. On a phone it renders its children untouched, so wrapping
+ * a list in it changes nothing there.
+ */
+export function Grid({ children, gap = 14 }: { children: React.ReactNode; gap?: number }) {
+  const { columns } = useLayout();
+  if (columns === 1) return <>{children}</>;
+  const items = React.Children.toArray(children);
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -gap / 2 }}>
+      {items.map((child, i) => (
+        <View
+          key={React.isValidElement(child) && child.key != null ? child.key : i}
+          style={{ width: `${100 / columns}%`, paddingHorizontal: gap / 2 }}
+        >
+          {child}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/**
+ * Tabs as a row of pills with a count on each, scrolling sideways when they do
+ * not fit. Unlike the underline tabs, a long label never gets squeezed into
+ * "In progress (1)Complet…".
+ */
+export function PillTabs({
+  tabs,
+  active,
+  onPick,
+  inset = 20,
+}: {
+  tabs: { label: string; count?: number }[];
+  active: number;
+  onPick: (i: number) => void;
+  inset?: number;
+}) {
+  const t = useTheme();
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: inset, gap: 8 }}
+    >
+      {tabs.map((tab, i) => {
+        const on = i === active;
+        return (
+          <Pressable
+            key={tab.label}
+            onPress={() => onPick(i)}
+            accessibilityRole="tab"
+            accessibilityLabel={tab.count !== undefined ? `${tab.label}, ${tab.count}` : tab.label}
+            accessibilityState={{ selected: on }}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 7,
+              paddingVertical: 9,
+              paddingLeft: 15,
+              paddingRight: tab.count !== undefined ? 9 : 15,
+              borderRadius: 999,
+              backgroundColor: on ? t.colors.ink : t.colors.surface,
+              borderWidth: 1,
+              borderColor: on ? t.colors.ink : t.colors.line,
+              transform: [{ scale: pressed ? 0.96 : 1 }],
+            })}
+          >
+            <RNText style={tx('700', 13, on ? t.colors.bg : t.colors.ink)}>{tab.label}</RNText>
+            {tab.count !== undefined ? (
+              <View
+                style={{
+                  minWidth: 22,
+                  paddingHorizontal: 6,
+                  paddingVertical: 1,
+                  borderRadius: 999,
+                  alignItems: 'center',
+                  backgroundColor: on ? t.colors.accent : t.colors.surface2,
+                }}
+              >
+                <RNText style={tx('800', 11, on ? t.colors.onAccent : t.colors.muted)}>{tab.count}</RNText>
+              </View>
+            ) : null}
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+/**
+ * Swipe left or right to change tab, the way every native tab strip works.
+ *
+ * It wraps whatever the screen already renders for the active tab rather than
+ * mounting every tab side by side, so a screen keeps its own tab logic and only
+ * gains the gesture. Only a clearly sideways drag is taken: anything more
+ * vertical than horizontal is left to the ScrollView inside.
+ */
+export function SwipeTabs({
+  index,
+  count,
+  onChange,
+  children,
+  style,
+}: {
+  index: number;
+  count: number;
+  onChange: (next: number) => void;
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const x = useRef(new Animated.Value(0)).current;
+  const fade = x.interpolate({ inputRange: [-120, 0, 120], outputRange: [0.35, 1, 0.35], extrapolate: 'clamp' });
+  const state = useRef({ index, count, onChange });
+  state.current = { index, count, onChange };
+
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_e, g) => Math.abs(g.dx) > 16 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
+      onPanResponderMove: (_e, g) => {
+        const { index: i, count: n } = state.current;
+        // Resist at the ends, so there is feedback without a page to go to.
+        const atEdge = (g.dx > 0 && i === 0) || (g.dx < 0 && i === n - 1);
+        x.setValue(g.dx * (atEdge ? 0.12 : 0.4));
+      },
+      onPanResponderRelease: (_e, g) => {
+        const { index: i, count: n, onChange: change } = state.current;
+        const dir = g.dx < -60 || g.vx < -0.5 ? 1 : g.dx > 60 || g.vx > 0.5 ? -1 : 0;
+        const next = i + dir;
+        if (dir === 0 || next < 0 || next >= n) {
+          Animated.spring(x, { toValue: 0, useNativeDriver: true, friction: 7 }).start();
+          return;
+        }
+        Animated.timing(x, { toValue: -dir * 120, duration: 110, useNativeDriver: true }).start(() => {
+          change(next);
+          x.setValue(dir * 120);
+          Animated.spring(x, { toValue: 0, useNativeDriver: true, friction: 8, tension: 80 }).start();
+        });
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(x, { toValue: 0, useNativeDriver: true, friction: 7 }).start();
+      },
+    }),
+  ).current;
+
+  return (
+    <Animated.View {...pan.panHandlers} style={[{ flex: 1, opacity: fade, transform: [{ translateX: x }] }, style]}>
+      {children}
+    </Animated.View>
+  );
+}
+
+/**
+ * "Are you sure?" -- for the taps that cannot be taken back (closing a task,
+ * releasing money). A centred card rather than a sheet, so it reads as a
+ * question that has to be answered, not a menu.
+ */
+export function ConfirmDialog({
+  visible,
+  title,
+  message,
+  confirmLabel,
+  cancelLabel = 'Go back',
+  danger = false,
+  busy = false,
+  icon = 'shield',
+  onConfirm,
+  onCancel,
+}: {
+  visible: boolean;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  cancelLabel?: string;
+  danger?: boolean;
+  busy?: boolean;
+  icon?: IconName;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const t = useTheme();
+  const pop = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!visible) {
+      pop.setValue(0);
+      return;
+    }
+    const anim = Animated.spring(pop, { toValue: 1, useNativeDriver: true, friction: 8, tension: 110 });
+    anim.start();
+    return () => anim.stop();
+  }, [visible, pop]);
+  const scale = pop.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] });
+  const tone = danger ? t.colors.signal : t.colors.accent;
+  const toneSoft = danger ? t.colors.signalSoft : t.colors.accentSoft;
+
+  return (
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onCancel} statusBarTranslucent>
+      <Animated.View
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 28, opacity: pop }}
+      >
+        <Pressable style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} onPress={busy ? undefined : onCancel} />
+        <Animated.View
+          accessibilityRole="alert"
+          style={{
+            backgroundColor: t.colors.bg,
+            borderRadius: 24,
+            padding: 22,
+            transform: [{ scale }],
+            shadowColor: '#000',
+            shadowOpacity: 0.25,
+            shadowRadius: 24,
+            shadowOffset: { width: 0, height: 10 },
+            elevation: 12,
+          }}
+        >
+          <View
+            style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: toneSoft, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Icon name={icon} size={22} color={tone} strokeWidth={2} />
+          </View>
+          <RNText style={tx('800', 19, t.colors.ink, { marginTop: 14, letterSpacing: -0.3 })}>{title}</RNText>
+          <RNText style={tx('400', 14, t.colors.text, { marginTop: 8, lineHeight: 21 })}>{message}</RNText>
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
+            <Pressable
+              onPress={onCancel}
+              disabled={busy}
+              accessibilityRole="button"
+              style={({ pressed }) => ({
+                flex: 1,
+                paddingVertical: 14,
+                borderRadius: 999,
+                alignItems: 'center',
+                borderWidth: 1,
+                borderColor: t.colors.line,
+                transform: [{ scale: pressed ? 0.97 : 1 }],
+              })}
+            >
+              <RNText style={tx('700', 14, t.colors.ink)}>{cancelLabel}</RNText>
+            </Pressable>
+            <Pressable
+              onPress={onConfirm}
+              disabled={busy}
+              accessibilityRole="button"
+              style={({ pressed }) => ({
+                flex: 1.3,
+                paddingVertical: 14,
+                borderRadius: 999,
+                alignItems: 'center',
+                backgroundColor: tone,
+                opacity: busy ? 0.7 : 1,
+                transform: [{ scale: pressed ? 0.97 : 1 }],
+              })}
+            >
+              {busy ? (
+                <ActivityIndicator color={t.colors.onAccent} />
+              ) : (
+                <RNText style={tx('800', 14, t.colors.onAccent)}>{confirmLabel}</RNText>
+              )}
+            </Pressable>
+          </View>
+        </Animated.View>
+      </Animated.View>
+    </Modal>
   );
 }
 
