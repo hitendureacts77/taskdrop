@@ -261,7 +261,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const tokenHash = String(out.token_hash ?? '');
     if (!tokenHash) throw new Error('Could not start a session');
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'email' });
-    if (error) throw new Error(error.message);
+    // An admin can suspend an account; Supabase then answers "User is banned".
+    if (error) throw new Error(/banned/i.test(error.message) ? 'This account is suspended. Please contact TaskDrop support.' : error.message);
     return { isNew: out.isNew === true };
   }, []);
 
