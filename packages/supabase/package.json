@@ -17,6 +17,6 @@
     "@taskdrop/db-types": "*"
   },
   "devDependencies": {
-    "typescript": "^5.6.2"
+    "typescript": "^7.0.2"
   }
 }
