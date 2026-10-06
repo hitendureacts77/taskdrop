@@ -95,21 +95,12 @@ export function ProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
 
-  // Only surfaced to accounts that can actually open it, so nobody taps
-  // through to a refusal.
-  // Both sides get their own numbers, and the two names say whose money they
-  // are. "Your business" meant nothing in particular to either role.
-  const statsRow = worker
-    ? { icon: 'trending' as IconName, label: 'My earnings and jobs', go: 'analytics' as ScreenName }
-    : { icon: 'trending' as IconName, label: 'My spending and requests', go: 'analytics' as ScreenName };
-
-  const rows = [
-    // Everyone sees their own figures. Only the platform-wide ones are gated.
-    statsRow,
-    // A poster's spend chart lives here rather than on the Wallet tab.
-    ...(worker ? [] : [{ icon: 'wallet' as IconName, label: 'Spending insights', go: 'spending' as ScreenName }]),
-    ...(worker ? WORKER_ROWS : POSTER_ROWS),
-  ];
+  // A worker sees their earnings here. A customer's spending is deliberately
+  // not on the profile, where it would be in front of them every visit: it
+  // lives under Account & settings → App, for whoever goes looking.
+  const rows = worker
+    ? [{ icon: 'trending' as IconName, label: 'My earnings and jobs', go: 'analytics' as ScreenName }, ...WORKER_ROWS]
+    : POSTER_ROWS;
 
   // Poster and worker reputations are separate, so re-fetch when the mode flips.
   useEffect(() => {

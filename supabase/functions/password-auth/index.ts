@@ -12,8 +12,10 @@ import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
  * the client would, and hands back the session for supabase.auth.setSession().
  *
  * The account email is never returned, so a username cannot be turned into a
- * phone number. Failed attempts are throttled per username and per IP in
- * password_attempts (deny-all, service role only).
+ * phone number. Failed attempts are throttled per username and per IP, over
+ * 15 minutes and over a day, by password_sign_in_gate() (migration 088); when
+ * the gate cannot be reached the attempt is refused, never waved through. The
+ * owner is notified when their username locks (record_password_attempt).
  *
  * Public endpoint (verify_jwt = false): signing in cannot require a session.
  */
@@ -29,10 +31,6 @@ const json = (body: unknown, status = 200) =>
     status,
     headers: { ...CORS, "Content-Type": "application/json" },
   });
-
-const WINDOW_MIN = 15;
-const FAILS_PER_USERNAME = 8;
-const FAILS_PER_IP = 40;
 
 // One sentence for every failure that is the caller's fault, so the response
 // never reveals whether a username exists.
@@ -59,23 +57,34 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
     auth: { persistSession: false },
   });
-  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0]?.trim() || null;
+  // cf-connecting-ip cannot be forged (Cloudflare rejects a request that sets
+  // it); the platform rewrites x-forwarded-for, whose first entry is the
+  // fallback. true-client-ip / forwarded pass through from the caller: never
+  // trust them (verified against this project, audit F-08).
+  const ip =
+    (req.headers.get("cf-connecting-ip") ?? "").trim() ||
+    (req.headers.get("x-forwarded-for") ?? "").split(",")[0]?.trim() ||
+    null;
 
-  const since = new Date(Date.now() - WINDOW_MIN * 60_000).toISOString();
-  const [byName, byIp] = await Promise.all([
-    admin.from("password_attempts").select("id", { count: "exact", head: true })
-      .eq("username", username).eq("ok", false).gte("at", since),
-    ip
-      ? admin.from("password_attempts").select("id", { count: "exact", head: true })
-          .eq("ip", ip).eq("ok", false).gte("at", since)
-      : Promise.resolve({ count: 0 }),
-  ]);
-  if ((byName.count ?? 0) >= FAILS_PER_USERNAME || (byIp.count ?? 0) >= FAILS_PER_IP) {
-    return json({ error: `Too many attempts. Try again in ${WINDOW_MIN} minutes.` }, 429);
+  // Fail closed: if the counter cannot be read, no password is tried.
+  const { data: waitMin, error: gateErr } = await admin.rpc("password_sign_in_gate", {
+    p_username: username,
+    p_ip: ip,
+  });
+  if (gateErr) {
+    console.error("password-auth: gate unavailable", gateErr.message);
+    return json({ error: "Sign-in is busy. Try again in a minute." }, 503);
+  }
+  if (typeof waitMin === "number" && waitMin > 0) {
+    const wait = waitMin >= 60 ? `${Math.round(waitMin / 60)} hours` : `${waitMin} minutes`;
+    return json({ error: `Too many attempts. Try again in ${wait}, or sign in with your phone number.` }, 429);
   }
 
   const record = (ok: boolean) =>
-    admin.from("password_attempts").insert({ username, ip, ok }).then(() => {}, () => {});
+    admin.rpc("record_password_attempt", { p_username: username, p_ip: ip, p_ok: ok }).then(
+      ({ error }) => { if (error) console.error("password-auth: could not record attempt", error.message); },
+      () => {},
+    );
 
   const { data: profile } = await admin
     .from("profiles")

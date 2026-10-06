@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { secret } from "../_shared/secrets.ts";
+import { gatewayHeaders } from "../_shared/gateway.ts";
 
 /**
  * Razorpay money-in for TaskDrop.
@@ -22,7 +23,7 @@ import { secret } from "../_shared/secrets.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-region",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -273,7 +274,7 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_ANON_KEY")!,
       {
         auth: { persistSession: false },
-        global: { headers: { Authorization: `Bearer ${jwt}` } },
+        global: { headers: { Authorization: `Bearer ${jwt}`, ...(await gatewayHeaders()) } },
       },
     );
 

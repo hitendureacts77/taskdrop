@@ -41,6 +41,12 @@ const json = (body: unknown, status = 200) =>
     headers: { ...CORS, "Content-Type": "application/json" },
   });
 
+/** A server-side failure: logged in full, answered without table or provider details. */
+const failed = (step: string, err: { message?: string }) => {
+  console.error(`phone-auth: ${step} failed`, err?.message);
+  return json({ error: "Something went wrong. Try again in a moment." }, 500);
+};
+
 const CODE_TTL_MIN = 10;
 const MAX_ATTEMPTS = 5;
 const SEND_COOLDOWN_SEC = 60;
@@ -91,6 +97,39 @@ const TEST_PHONES = new Set(
     .map(normalise)
     .filter((p) => p.length === 10),
 );
+
+/** Constant-time comparison, so response time does not reveal how many leading digits matched. */
+function safeEqual(a: string, b: string): boolean {
+  const ea = new TextEncoder().encode(a);
+  const eb = new TextEncoder().encode(b);
+  let diff = ea.length ^ eb.length;
+  for (let i = 0; i < Math.max(ea.length, eb.length); i++) diff |= (ea[i] ?? 0) ^ (eb[i] ?? 0);
+  return diff === 0;
+}
+
+/**
+ * The caller's address, for the per-IP send budget. Cloudflare sets
+ * cf-connecting-ip and refuses any request that tries to supply it, so it cannot
+ * be forged; the platform also rewrites x-forwarded-for, whose first entry is the
+ * fallback. Never read true-client-ip or forwarded: both pass straight through
+ * from the caller (verified against this project, audit F-08).
+ */
+function clientIp(req: Request): string {
+  return (
+    (req.headers.get("cf-connecting-ip") ?? "").trim() ||
+    (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() ||
+    "unknown"
+  );
+}
+
+/** Admin accounts sign in with Google or a username, never a text code (migration 078). */
+const ADMIN_NO_SMS = "This number cannot sign in with a text code. Use Google or your username.";
+
+async function isAdminAccount(admin: ReturnType<typeof createClient>, email: string): Promise<boolean> {
+  const { data, error } = await admin.rpc("phone_account_is_admin", { p_email: email });
+  if (error) throw new Error("Could not check that number. Try again in a moment.");
+  return data === true;
+}
 
 /** A login code is a credential, so it comes from the CSPRNG, not Math.random. */
 function sixDigits(): string {
@@ -173,6 +212,37 @@ Deno.serve(async (req: Request) => {
 
   // ---- send ---------------------------------------------------------------
   if (body.action === "send") {
+    // A number on the allowlist, or a dev switch, skips the SMS gateway and
+    // gets its code back in the response instead of over the air.
+    const isTest = TEST_PHONES.has(phone);
+    const devForAll = await devCodesForAll(admin);
+    const skipSms = isTest || DEV_BYPASS || devForAll;
+
+    // Refuse rather than fall back to returning the code. An unconfigured
+    // server that answers with the OTP is worse than one that answers "not yet".
+    if (!skipSms && (!MSG91_AUTHKEY || !MSG91_TEMPLATE_ID)) {
+      return json({ error: "SMS is not set up on this server yet" }, 503);
+    }
+
+    // Per-IP budget first: it is the only check that survives an attacker
+    // rotating phone numbers, which is the attack that costs real money. It
+    // also runs before the account lookups below, which say whether a number
+    // has an account -- without it, anyone could test numbers as fast as they
+    // liked. Counted and checked in one statement (migration 088), and a
+    // limiter that cannot be reached refuses rather than lets everything by.
+    if (!skipSms) {
+      const { data: allowed, error: budgetErr } = await admin.rpc("hit_auth_send_ip", {
+        p_ip: clientIp(req),
+        p_max: SENDS_PER_IP_PER_WINDOW,
+        p_window_min: WINDOW_MIN,
+      });
+      if (budgetErr) {
+        console.error("phone-auth: send budget unavailable", budgetErr.message);
+        return json({ error: "Could not send a code right now. Try again in a minute." }, 503);
+      }
+      if (allowed !== true) return json({ error: "Too many codes requested. Try again later." }, 429);
+    }
+
     // Right door? Checked before a code is made, so nobody types a code only
     // to be told afterwards. Creating an account for a number that already
     // has one would silently sign them into it; signing in with a number that
@@ -187,43 +257,11 @@ Deno.serve(async (req: Request) => {
     if (body.mode === "signin" && !(await accountExists(email))) {
       return json({ error: "No account found for that number. Create one instead.", noAccount: true }, 404);
     }
-
-    // A number on the allowlist, or a dev switch, skips the SMS gateway and
-    // gets its code back in the response instead of over the air.
-    const isTest = TEST_PHONES.has(phone);
-    const devForAll = await devCodesForAll(admin);
-    const skipSms = isTest || DEV_BYPASS || devForAll;
-
-    // Refuse rather than fall back to returning the code. An unconfigured
-    // server that answers with the OTP is worse than one that answers "not yet".
-    if (!skipSms && (!MSG91_AUTHKEY || !MSG91_TEMPLATE_ID)) {
-      return json({ error: "SMS is not set up on this server yet" }, 503);
-    }
-
-    // Per-IP budget first: it is the only check that survives an attacker
-    // rotating phone numbers, which is the attack that costs real money.
-    if (!skipSms) {
-      const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
-      const { data: ipRow } = await admin
-        .from("auth_send_log")
-        .select("sends, window_started_at")
-        .eq("ip", ip)
-        .maybeSingle();
-
-      const ipFresh = !!ipRow && now - new Date(ipRow.window_started_at).getTime() < windowMs;
-      const ipSends = ipFresh ? ipRow!.sends : 0;
-      if (ipSends >= SENDS_PER_IP_PER_WINDOW) {
-        return json({ error: "Too many codes requested. Try again later." }, 429);
-      }
-
-      await admin.from("auth_send_log").upsert(
-        {
-          ip,
-          sends: ipSends + 1,
-          window_started_at: ipFresh ? ipRow!.window_started_at : new Date(now).toISOString(),
-        },
-        { onConflict: "ip" },
-      );
+    // No code is ever sent to an admin account (migration 078).
+    try {
+      if (await isAdminAccount(admin, email)) return json({ error: ADMIN_NO_SMS }, 403);
+    } catch (e) {
+      return json({ error: e instanceof Error ? e.message : "Could not check that number" }, 503);
     }
 
     const { data: prior } = await admin
@@ -263,7 +301,7 @@ Deno.serve(async (req: Request) => {
       },
       { onConflict: "phone" },
     );
-    if (error) return json({ error: error.message }, 500);
+    if (error) return failed("store code", error);
 
     if (skipSms) return json({ ok: true, devCode: code });
 
@@ -282,24 +320,34 @@ Deno.serve(async (req: Request) => {
   if (body.action === "verify") {
     const code = String(body.code ?? "").replace(/[^0-9]/g, "");
 
-    const { data: row, error: readErr } = await admin
-      .from("auth_codes")
-      .select("code, attempts, expires_at")
-      .eq("phone", phone)
-      .maybeSingle();
-    if (readErr) return json({ error: readErr.message }, 500);
-    if (!row) return json({ error: "Request a code first" }, 400);
+    // Count this guess and enforce the cap in ONE statement (migration 077).
+    // Reading the counter, comparing, then writing it back let concurrent guesses
+    // all see the same low number and run past MAX_ATTEMPTS.
+    const { data: taken, error: takeErr } = await admin.rpc("consume_auth_attempt", {
+      p_phone: phone,
+      p_max: MAX_ATTEMPTS,
+    });
+    if (takeErr) return failed("count guess", takeErr);
+    const row = (Array.isArray(taken) ? taken[0] : taken) as
+      | { out_code: string; out_expires: string; out_attempts: number }
+      | undefined;
 
-    if (new Date(row.expires_at).getTime() < Date.now()) {
-      await admin.from("auth_codes").delete().eq("phone", phone);
-      return json({ error: "That code expired. Request a new one." }, 400);
-    }
-    if (row.attempts >= MAX_ATTEMPTS) {
+    if (!row) {
+      // No row came back: either nothing was requested, or the cap is reached.
+      const { data: existing } = await admin
+        .from("auth_codes")
+        .select("attempts")
+        .eq("phone", phone)
+        .maybeSingle();
+      if (!existing) return json({ error: "Request a code first" }, 400);
       await admin.from("auth_codes").delete().eq("phone", phone);
       return json({ error: "Too many attempts. Request a new code." }, 429);
     }
-    if (row.code !== code) {
-      await admin.from("auth_codes").update({ attempts: row.attempts + 1 }).eq("phone", phone);
+    if (new Date(row.out_expires).getTime() < Date.now()) {
+      await admin.from("auth_codes").delete().eq("phone", phone);
+      return json({ error: "That code expired. Request a new one." }, 400);
+    }
+    if (!safeEqual(String(row.out_code), code)) {
       return json({ error: "That code is not right" }, 400);
     }
 
@@ -335,6 +383,17 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // And never a session for an admin account, even if the role was granted
+    // after the code was sent (migration 078).
+    try {
+      if (await isAdminAccount(admin, email)) {
+        await admin.from("auth_codes").delete().eq("phone", phone);
+        return json({ error: ADMIN_NO_SMS }, 403);
+      }
+    } catch (e) {
+      return json({ error: e instanceof Error ? e.message : "Could not check that number" }, 503);
+    }
+
     // Good code, and we are about to act on it - burn it.
     await admin.from("auth_codes").delete().eq("phone", phone);
 
@@ -349,14 +408,14 @@ Deno.serve(async (req: Request) => {
         user_metadata: { display_name: `Tasker ${phone.slice(-4)}`, phone },
       });
       if (created.error && !/already|registered|exists/i.test(created.error.message)) {
-        return json({ error: created.error.message }, 500);
+        return failed("create user", created.error);
       }
       isNew = !created.error;
     }
 
     // Mint a one-time token the client exchanges for a session.
     const link = await admin.auth.admin.generateLink({ type: "magiclink", email });
-    if (link.error) return json({ error: link.error.message }, 500);
+    if (link.error) return failed("mint link", link.error);
 
     return json({ ok: true, isNew, token_hash: link.data.properties?.hashed_token, email });
   }

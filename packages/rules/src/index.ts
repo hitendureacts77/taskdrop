@@ -277,3 +277,49 @@ export function addressTagLabel(details?: AddressDetails): string | null {
   if (details.tag === 'other') return clean(details.tagName) || 'Other';
   return details.tag === 'home' ? 'Home' : 'Work';
 }
+
+// --------------------------------------------------------------------- age ---
+
+/**
+ * The youngest anyone may be to hold an account. The server enforces the same
+ * number in public.record_birth_date (supabase/migrations/…_082_age_gate.sql);
+ * change both together. Never show this number on the sign-up screen: a
+ * neutral question ("When were you born?") is what keeps the answer honest.
+ *
+ * 18, not COPPA's 13: TaskDrop takes payments, pays people out and sends them
+ * to in-person jobs, minors cannot make binding contracts in India, and the
+ * DPDP Act needs verifiable parental consent for anyone under 18.
+ */
+export const MIN_SIGNUP_AGE = 18;
+
+/**
+ * A calendar date of birth from day / month / year as typed, or null when it is
+ * not a real date (31 February), is in the future, or is implausibly old.
+ * Returned at midnight UTC so it means the same day everywhere.
+ */
+export function parseBirthDate(day: string, month: string, year: string, today: Date = new Date()): Date | null {
+  const d = Number(day);
+  const m = Number(month);
+  const y = Number(year);
+  if (!Number.isInteger(d) || !Number.isInteger(m) || !Number.isInteger(y)) return null;
+  if (year.trim().length !== 4 || y < 1900) return null;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return null;
+  const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  return date.getTime() > todayUtc ? null : date;
+}
+
+/** Whole years old on `today`, birthdays counted on the day itself. */
+export function ageOn(birth: Date, today: Date = new Date()): number {
+  const y = today.getFullYear();
+  const m = today.getMonth();
+  const d = today.getDate();
+  let age = y - birth.getUTCFullYear();
+  if (m < birth.getUTCMonth() || (m === birth.getUTCMonth() && d < birth.getUTCDate())) age -= 1;
+  return age;
+}
+
+/** "2011-04-09": how a birth date travels to the server. */
+export function isoDay(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}

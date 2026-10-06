@@ -13,6 +13,10 @@ import {
   quickDeadlines,
   formatAddress,
   addressTagLabel,
+  MIN_SIGNUP_AGE,
+  parseBirthDate,
+  ageOn,
+  isoDay,
 } from './index.ts';
 
 // All amounts in minor units (paise). ₹1000 = 100000.
@@ -141,4 +145,36 @@ test('addressTagLabel names an "other" address, or falls back', () => {
   assert.equal(addressTagLabel({ line1: 'x', tag: 'other' }), 'Other');
   assert.equal(addressTagLabel({ line1: 'x' }), null);
   assert.equal(addressTagLabel(undefined), null);
+});
+
+test('parseBirthDate refuses dates that do not exist or have not happened', () => {
+  const today = new Date(2026, 9, 4);
+  assert.equal(parseBirthDate('31', '2', '2010', today), null);
+  assert.equal(parseBirthDate('29', '2', '2011', today), null);
+  assert.equal(isoDay(parseBirthDate('29', '2', '2012', today)!), '2012-02-29');
+  assert.equal(parseBirthDate('5', '10', '2026', today), null, 'tomorrow is not a birth date');
+  assert.equal(isoDay(parseBirthDate('4', '10', '2026', today)!), '2026-10-04');
+  assert.equal(parseBirthDate('1', '1', '1899', today), null);
+  assert.equal(parseBirthDate('1', '1', '95', today), null, 'a two-digit year is ambiguous');
+  assert.equal(parseBirthDate('', '1', '2000', today), null);
+  assert.equal(parseBirthDate('1', '13', '2000', today), null);
+});
+
+test('ageOn counts the birthday itself and not a day before', () => {
+  const birth = parseBirthDate('4', '10', '2013')!;
+  assert.equal(ageOn(birth, new Date(2026, 9, 3)), 12);
+  assert.equal(ageOn(birth, new Date(2026, 9, 4)), 13);
+  assert.equal(ageOn(birth, new Date(2026, 9, 5)), 13);
+  // A 29 February birthday turns a year older on 1 March in common years.
+  const leap = parseBirthDate('29', '2', '2012')!;
+  assert.equal(ageOn(leap, new Date(2025, 1, 28)), 12);
+  assert.equal(ageOn(leap, new Date(2025, 2, 1)), 13);
+});
+
+test('the minimum age is a real threshold', () => {
+  const today = new Date(2026, 9, 4);
+  const justOld = parseBirthDate('4', '10', String(2026 - MIN_SIGNUP_AGE), today)!;
+  const justYoung = parseBirthDate('5', '10', String(2026 - MIN_SIGNUP_AGE), today)!;
+  assert.ok(ageOn(justOld, today) >= MIN_SIGNUP_AGE);
+  assert.ok(ageOn(justYoung, today) < MIN_SIGNUP_AGE);
 });

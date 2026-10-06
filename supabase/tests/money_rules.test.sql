@@ -56,6 +56,12 @@ begin
   insert into public.wallets (user_id) values (v_poster), (v_worker), (v_worker2), (v_stranger)
   on conflict (user_id) do nothing;
 
+  -- lock_bid funds the task from the poster's wallet (migration 063), and a
+  -- withdrawal needs a saved destination (migration 026).
+  update public.wallets set balance_minor = 1000000 where user_id = v_poster;
+  insert into public.payout_destinations (user_id, kind, label, upi_id)
+  values (v_worker, 'upi', 'UPI', 'worker.test@okaxis');
+
   insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes)
   values (v_poster, 'services', 'Rules test task', 100000, 240)
   returning id into v_task;
@@ -131,6 +137,9 @@ begin
   end if;
 
   perform pg_temp.become(v_worker);
+  -- Proof of work is required before a task can be marked done (migration 057).
+  insert into public.task_proofs (task_id, worker_id, summary, files)
+  values (v_task, v_worker, 'Finished the work exactly as agreed', '[]'::jsonb);
   perform public.mark_work_done(v_task);
 
   -- ---- only the poster releases -----------------------------------------
@@ -149,9 +158,10 @@ begin
 
   -- ---- the commission split is exact ------------------------------------
   select clearing_minor into v_clearing from public.wallets where user_id = v_worker;
-  if v_clearing <> (v_locked * 80 / 100) then
-    raise exception 'FAIL: worker cleared %, expected % (80%% of %)',
-      v_clearing, v_locked * 80 / 100, v_locked;
+  -- The commission is a live setting (worker_commission_pct), not a constant.
+  if v_clearing <> round(v_locked * (1 - private.setting_num('worker_commission_pct', 0.20)))::bigint then
+    raise exception 'FAIL: worker cleared %, expected the locked amount % less the worker commission',
+      v_clearing, v_locked;
   end if;
 
   -- ---- a stranger cannot review -----------------------------------------

@@ -6,7 +6,7 @@ import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
-import { listMyDisputes } from '../data/extras';
+import { listDisputeReasons, listMyDisputes } from '../data/extras';
 import type { Task } from '../data/api';
 
 /**
@@ -19,11 +19,17 @@ export function DisputesScreen() {
   const { back, go } = useNav();
   const { userId } = useAuth();
   const [rows, setRows] = useState<Task[] | null>(null);
+  const [reasons, setReasons] = useState<Map<string, { reason: string; mine: boolean }>>(new Map());
 
   useEffect(() => {
     let alive = true;
     listMyDisputes()
-      .then((r) => alive && setRows(r))
+      .then(async (r) => {
+        if (!alive) return;
+        setRows(r);
+        const found = await listDisputeReasons(r.map((x) => x.id)).catch(() => new Map());
+        if (alive) setReasons(found);
+      })
       .catch(() => alive && setRows([]));
     return () => {
       alive = false;
@@ -54,6 +60,12 @@ export function DisputesScreen() {
               <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6 })}>
                 {rupees((task.locked_minor ?? task.benchmark_minor) / 100)} · {task.poster_id === userId ? 'You posted this' : 'You worked on this'} · opened {timeAgo(task.updated_at)}
               </RNText>
+              {reasons.get(task.id) ? (
+                <RNText style={tx('400', 12, t.colors.ink, { marginTop: 8, lineHeight: 17 })}>
+                  {reasons.get(task.id)!.mine ? 'You said: ' : 'They said: '}
+                  {reasons.get(task.id)!.reason}
+                </RNText>
+              ) : null}
               <Pressable onPress={() => go('help')} style={{ marginTop: 10 }} accessibilityRole="button">
                 <RNText style={tx('700', 13, t.colors.accentDeep)}>Add details for the team ›</RNText>
               </Pressable>

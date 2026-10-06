@@ -24,6 +24,7 @@ declare
   v_bid    uuid;
   v_status text;
   v_clear  bigint;
+  v_fine   bigint;
   v_failed boolean;
 begin
   insert into auth.users (id, instance_id, aud, role, email, encrypted_password,
@@ -38,6 +39,9 @@ begin
 
   insert into public.wallets (user_id) values (v_poster), (v_worker)
   on conflict (user_id) do nothing;
+
+  -- lock_bid funds the task from the poster's wallet (migration 063).
+  update public.wallets set balance_minor = 5000000 where user_id = v_poster;
 
   -- ---- an OPEN task costs nothing to withdraw ---------------------------
   insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes)
@@ -76,9 +80,21 @@ begin
   perform pg_temp.become(v_poster);
   perform public.cancel_task(v_task);
 
-  select clearing_minor into v_clear from public.wallets where user_id = v_worker;
-  if v_clear <> 10000 then
-    raise exception 'FAIL: worker got %, expected 10000 (5%% of 200000)', v_clear;
+  -- The worker is paid the post-start fine (settings.post_start_cancel_penalty_pct
+  -- of the locked 200000) straight into their withdrawable balance (migration 079)...
+  v_fine := round(200000 * private.setting_num('post_start_cancel_penalty_pct', 0.05))::bigint;
+  select balance_minor into v_clear from public.wallets where user_id = v_worker;
+  if v_clear <> v_fine then
+    raise exception 'FAIL: the worker was paid %, expected the % fine', v_clear, v_fine;
+  end if;
+
+  -- ...and money is conserved: the poster gets back everything else.
+  select balance_minor into v_clear from public.wallets where user_id = v_poster;
+  if v_clear <> 5000000 - v_fine then
+    raise exception 'FAIL: the poster''s wallet is %, expected % (everything but the fine)', v_clear, 5000000 - v_fine;
+  end if;
+  if (select penalty_or_refund_minor from public.cancellations_log where task_id = v_task and cancelled_by = 'poster') <> v_fine then
+    raise exception 'FAIL: the cancellation log does not record the fine';
   end if;
 
   -- ---- a worker stepping off hands the task back to the market ----------
@@ -105,6 +121,9 @@ begin
   perform public.lock_bid(v_bid);
   perform pg_temp.become(v_worker);
   perform public.start_task(v_task);
+  -- Proof of work is required before a task can be marked done (migration 057).
+  insert into public.task_proofs (task_id, worker_id, summary, files)
+  values (v_task, v_worker, 'Finished the work exactly as agreed', '[]'::jsonb);
   perform public.mark_work_done(v_task);
 
   perform pg_temp.become(v_poster);

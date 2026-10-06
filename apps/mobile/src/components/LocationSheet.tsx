@@ -13,6 +13,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useTheme } from '../providers/ThemeProvider';
+import { useAuth } from '../providers/AuthProvider';
+import { getProfile } from '../data/api';
 import { tx } from './primitives';
 import { MapPicker } from './MapPicker';
 import { AddressForm } from './AddressForm';
@@ -134,6 +136,7 @@ export function LocationSheet({
   askForDetails?: boolean;
 }) {
   const t = useTheme();
+  const { userId } = useAuth();
   const insets = useSafeAreaInsets();
   const provider = searchProvider();
 
@@ -216,7 +219,8 @@ export function LocationSheet({
     [nameThePin],
   );
 
-  const findMe = useCallback(async () => {
+  /** Resolves true when the map was moved to a real fix, false when it could not be. */
+  const findMe = useCallback(async (): Promise<boolean> => {
     setNote(null);
     setBlocked(false);
     setLocating(true);
@@ -229,14 +233,16 @@ export function LocationSheet({
       });
       if (place.lat !== null && place.lng !== null) {
         goTo({ lat: place.lat, lng: place.lng }, place.label);
-      } else {
-        setNote('Found you, but not precisely — drag the pin to the right spot');
+        return true;
       }
+      setNote('Found you, but not precisely — drag the pin to the right spot');
+      return false;
     } catch (e) {
       if (e instanceof LocationError && (e.kind === 'blocked' || e.kind === 'services-off')) {
         setBlocked(true);
       }
       setNote(e instanceof Error ? e.message : 'Could not read your location');
+      return false;
     } finally {
       setLocating(false);
     }
@@ -262,22 +268,35 @@ export function LocationSheet({
     setDetails(undefined);
 
     let alive = true;
+    let haveRecent = false;
     void loadRecentPlaces().then((r) => {
       if (!alive) return;
       setRecents(r);
       const last = r.find((p) => p.lat != null && p.lng != null);
       if (!last) return;
+      haveRecent = true;
       // The saved label already has the door details folded into it. Seed the
       // map with the plain area instead, or the next save would compose the
       // flat number on top of an address that already contains it.
       goTo({ lat: last.lat!, lng: last.lng! }, last.area ?? last.label);
       setDetails(last.details);
     });
-    void findMe();
+    void findMe().then((found) => {
+      // No fix and nothing remembered on this device: start at the area saved
+      // on the profile instead of the fallback, which is another city for most.
+      if (found || haveRecent || !alive || !userId) return;
+      void getProfile(userId)
+        .then((p) => {
+          if (alive && p?.loc_lat != null && p?.loc_lng != null) {
+            goTo({ lat: p.loc_lat, lng: p.loc_lng }, p.loc_label ?? undefined);
+          }
+        })
+        .catch(() => {});
+    });
     return () => {
       alive = false;
     };
-  }, [visible, goTo, findMe]);
+  }, [visible, goTo, findMe, userId]);
 
   // Live search. Debounced, and each run is tagged so a slow early response
   // cannot land after a faster later one and show results for a stale query.

@@ -10,23 +10,23 @@
 begin;
 
 create or replace function pg_temp.become(p_user uuid) returns void
-language plpgsql as $
+language plpgsql as $$
 begin
   perform set_config('request.jwt.claims', json_build_object('sub', p_user)::text, true);
   perform set_config('role', 'authenticated', true);
 end;
-$;
+$$;
 
 -- Whoever actually sends the money. payouts has only a SELECT policy, so no
 -- signed-in user can move a payout along -- that is deliberate, and it means
 -- the test has to step out of the user role to simulate an operator picking
 -- the payout up.
 create or replace function pg_temp.as_operator() returns void
-language plpgsql as $
+language plpgsql as $$
 begin
   perform set_config('role', 'postgres', true);
 end;
-$;
+$$;
 
 do $$
 declare
@@ -50,6 +50,10 @@ begin
   insert into public.wallets (user_id, balance_minor)
   values (v_me, 500000), (v_other, 0)
   on conflict (user_id) do update set balance_minor = excluded.balance_minor;
+
+  -- request_withdrawal needs a saved destination (migration 026).
+  insert into public.payout_destinations (user_id, kind, label, upi_id)
+  values (v_me, 'upi', 'UPI', 'withdrawer@okaxis');
 
   -- ---- requesting moves money out of the wallet -------------------------
   perform pg_temp.become(v_me);

@@ -4,6 +4,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { Screen, formatINR } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { EmptyState, Field } from '../components/kit';
+import { ReportProblemSheet } from '../components/ReportProblemSheet';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -78,6 +79,7 @@ export function ActiveScreen() {
   const [proofUrls, setProofUrls] = useState<Record<string, string>>({});
   const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState(false);
+  const [reporting, setReporting] = useState(false);
 
   // The worker's proof, before it is sent.
   const [summary, setSummary] = useState('');
@@ -469,7 +471,22 @@ export function ActiveScreen() {
             {worker ? 'Your earnings are on the way to your wallet.' : 'Thanks for using TaskDrop.'}
           </Note>
         ) : null}
+
+        {/* Either side can raise a problem while the job is under way; it freezes the payment for the team to decide. */}
+        {status === 'DISPUTED' ? (
+          <Note>A problem was reported on this job. TaskDrop is reviewing it and the payment stays on hold until it is decided.</Note>
+        ) : running || status === 'WORK_DONE' ? (
+          <Pressable
+            onPress={() => setReporting(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Report a problem"
+            style={{ alignSelf: 'center', marginTop: 18, padding: 8 }}
+          >
+            <RNText style={tx('700', 13, t.colors.signal)}>Report a problem</RNText>
+          </Pressable>
+        ) : null}
       </View>
+      <ReportProblemSheet taskId={task.id} visible={reporting} onClose={() => setReporting(false)} onReported={() => void load()} />
     </Screen>
   );
 }

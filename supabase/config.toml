@@ -26,3 +26,8 @@ verify_jwt = false
 
 [functions.password-auth]
 verify_jwt = false
+
+# api is the app's door for writes and money. It runs every operation as the
+# signed-in caller, so it needs a real session.
+[functions.api]
+verify_jwt = true

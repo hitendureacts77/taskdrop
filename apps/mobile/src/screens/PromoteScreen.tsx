@@ -266,9 +266,11 @@ export function PromoteScreen() {
           </RNText>
 
           <RNText style={tx('400', 12, t.colors.muted, { marginTop: 18, lineHeight: 18 })}>
-            You are charged once, up front, for the days you choose. Stopping early does not
-            refund the remaining days. The reach figure above is an estimate from how many
-            people browse your city, not a promise.
+            You are charged once, up front, for the days you choose, and it does not renew. You
+            only pay for what is delivered: if the campaign reaches fewer people than the budget
+            covers, or you stop it early, the rest comes back to your TaskDrop wallet when it
+            ends. The reach figure above is an estimate from how many people browse your city,
+            not a promise.
           </RNText>
 
           <Pressable
@@ -604,8 +606,12 @@ export function PromoteScreen() {
                 : `Start campaign · ₹${total.toLocaleString('en-IN')}`}
           </RNText>
         </Pressable>
-        <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10 })}>
-          Pause or stop any time. You are charged for days run.
+        {/* What settle_campaign (migration 046) actually does, next to the
+            button that charges: one payment, no renewal, undelivered reach
+            refunded to the wallet -- including when stopped early. */}
+        <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10, lineHeight: 17 })}>
+          One payment, up front. It does not renew. Stop any time: whatever isn’t delivered comes back to
+          your TaskDrop wallet when the campaign ends.
         </RNText>
       </View>
       {explainer}

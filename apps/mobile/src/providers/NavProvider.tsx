@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useMemo, useState, useCallback, useEffect } from 'react';
 import { BackHandler, Platform } from 'react-native';
+import { useSyncVersion } from './SyncProvider';
 
 /**
  * Lightweight screen navigator that mirrors the design's own tab-state model.
@@ -47,7 +48,11 @@ export type ScreenName =
   | 'publicProfile'
   | 'saved'
   | 'workerSetup'
-  | 'listing';
+  | 'listing'
+  // Public: reachable signed out, and by link (?page=copyright etc.).
+  | 'copyright'
+  | 'terms'
+  | 'privacy';
 
 export type NavParams = Record<string, unknown>;
 
@@ -136,11 +141,13 @@ export function ScreenScope({
 }
 
 /**
- * Goes up by one each time this tab comes back into view. Put it in a load
- * effect's dependencies to refresh quietly on return. 0 outside a tab.
+ * Goes up by one each time this tab comes back into view, and each time the
+ * server reports a change for the signed-in person (SyncProvider). Put it in a
+ * load effect's dependencies to refresh quietly on return or on a live change.
+ * 0 outside a tab. Both parts only ever increase, so the sum changes on any bump.
  */
 export function useFocusTick(): number {
-  return useContext(FocusCtx);
+  return useContext(FocusCtx) + useSyncVersion();
 }
 
 export function useNav() {

@@ -641,7 +641,7 @@ function MyWork() {
               <FadeIn key={`${row.taskId}-${i}`} duration={320} delay={Math.min(i, 6) * 60} translateY={8} style={{ marginTop: 12 }}>
                 <Pressy
                   onPress={() =>
-                    tab === 1 ? void editQuote(row.taskId) : openRow(row, { go, flash, setOpenTask, startedOf })
+                    tab === 1 && row.state === 'PENDING' ? void editQuote(row.taskId) : openRow(row, { go, flash, setOpenTask, startedOf })
                   }
                   scaleTo={0.985}
                   style={{ backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, padding: 14 }}
@@ -653,7 +653,7 @@ function MyWork() {
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
                     <RNText style={tx('400', 12, t.colors.muted, { flex: 1 })}>{row.meta}</RNText>
-                    {tab === 1 ? <RNText style={tx('700', 12, t.colors.purpleDeep)}>Edit offer ›</RNText> : null}
+                    {tab === 1 && row.state === 'PENDING' ? <RNText style={tx('700', 12, t.colors.purpleDeep)}>Edit offer ›</RNText> : null}
                   </View>
                 </Pressy>
               </FadeIn>

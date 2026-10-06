@@ -129,6 +129,21 @@ export function posterRow(task: Task, quoteCount = 0): ViewRow {
 
 /** A quote this worker sent that hasn't been locked yet. */
 export function workerBidRow(bid: Bid & { tasks: Task | null }): ViewRow {
+  // Once the poster has locked a worker -- this one or another -- the offer can
+  // no longer be changed, so it leaves the Offers tab instead of inviting an edit.
+  if (bid.is_locked || (bid.tasks && bid.tasks.status !== 'OPEN')) {
+    return {
+      taskId: bid.task_id,
+      bucket: 3,
+      state: bid.is_locked ? 'OFFER ACCEPTED' : 'NOT SELECTED',
+      tone: 'neutral',
+      title: bid.tasks?.title ?? 'Task',
+      priceLabel: formatINR(bid.price_minor),
+      priceMinor: bid.price_minor,
+      meta: bid.is_locked ? 'The customer accepted this offer' : 'The customer chose another worker',
+      act: null,
+    };
+  }
   return {
     taskId: bid.task_id,
     bucket: 2,

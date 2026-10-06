@@ -21,6 +21,9 @@ import { balance, giveBack, sendPayout, syncOpen, type XConfig } from "../_share
  *                             only after RazorpayX confirms it has no payout.
  *   balance     {}            admins: the RazorpayX account balance.
  *
+ * settings.payout_method ('manual' by default) decides whether "send" and
+ * "sync-mine" do anything; in manual mode an admin pays each withdrawal by hand.
+ *
  * Needs RAZORPAYX_ACCOUNT_NUMBER, and RAZORPAYX_KEY_ID / RAZORPAYX_KEY_SECRET
  * (or the Razorpay keys, if RazorpayX is on the same account). Without them it
  * says so and changes nothing: withdrawals wait, and can be paid by hand.
@@ -69,6 +72,14 @@ Deno.serve(async (req: Request) => {
     return json({ configured: false, note: "RazorpayX is not set up yet; the withdrawal waits." });
   }
   const cfg: XConfig = { account, keyId, keySecret };
+
+  // The admin's switch (Payouts page). Anything but an explicit 'razorpayx' means
+  // an admin pays by hand, so nothing is sent on a worker's behalf.
+  const { data: methodRow } = await admin.from("settings").select("value").eq("key", "payout_method").maybeSingle();
+  const method = methodRow?.value === "razorpayx" ? "razorpayx" : "manual";
+  if (method === "manual" && (body.action === "send" || body.action === "sync-mine")) {
+    return json({ configured: true, method, payouts: [], note: "Payouts are set to manual; an admin pays this withdrawal by hand." });
+  }
 
   switch (body.action) {
     case "send": {

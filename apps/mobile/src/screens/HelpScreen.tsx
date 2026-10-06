@@ -114,6 +114,38 @@ export function HelpScreen() {
           <RNText style={tx('600', 16, t.colors.muted)}>›</RNText>
         </Pressable>
 
+        <Pressable
+          onPress={() => go('copyright')}
+          accessibilityRole="button"
+          style={({ pressed }) => ({
+            marginTop: 10,
+            padding: 13,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: t.colors.line,
+            backgroundColor: t.colors.surface,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            opacity: pressed ? 0.8 : 1,
+          })}
+        >
+          <Icon name="flag" size={18} color={t.colors.accentDeep} />
+          <View style={{ flex: 1 }}>
+            <RNText style={tx('700', 13, t.colors.ink)}>Copyright & takedowns</RNText>
+            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Report work posted without permission</RNText>
+          </View>
+          <RNText style={tx('600', 16, t.colors.muted)}>›</RNText>
+        </Pressable>
+        <View style={{ flexDirection: 'row', gap: 18, marginTop: 12, paddingHorizontal: 4 }}>
+          <Pressable onPress={() => go('terms')} hitSlop={8} accessibilityRole="link">
+            <RNText style={tx('700', 13, t.colors.accentDeep)}>Terms of Service</RNText>
+          </Pressable>
+          <Pressable onPress={() => go('privacy')} hitSlop={8} accessibilityRole="link">
+            <RNText style={tx('700', 13, t.colors.accentDeep)}>Privacy Policy</RNText>
+          </Pressable>
+        </View>
+
         <RNText style={tx('800', 16, t.colors.ink, { marginTop: 26 })}>Your conversations</RNText>
         {tickets === null ? (
           <Shimmer height={64} style={{ marginTop: 12 }} />
@@ -208,12 +240,13 @@ export function TicketScreen() {
     }
   };
 
-  const s = STATUS[ticket?.status ?? 'waiting'] ?? STATUS.waiting!;
+  // No badge until the ticket has loaded, so it never flashes a status it doesn't have.
+  const s = ticket ? (STATUS[ticket.status] ?? STATUS.waiting!) : null;
 
   return (
     <Screen padded={false}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-        <TopBar title="Your conversation" onBack={back} right={<Badge label={s.label} tone={s.tone} />} />
+        <TopBar title="Your conversation" onBack={back} right={s ? <Badge label={s.label} tone={s.tone} /> : undefined} />
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16 }}>
           {messages === null ? (
             <Shimmer height={80} />

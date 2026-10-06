@@ -1,170 +1,88 @@
-import { currentUserId, notExpired, supabase } from '../lib/supabase';
-import { distanceKm } from '@taskdrop/rules';
-import type { Tables, TablesUpdate } from '@taskdrop/db-types';
+import { apiError } from '../lib/errors';
+import { callApi } from '../lib/gateway';
+import { currentUserId, supabase } from '../lib/supabase';
+import { subscribeLive } from '../lib/live';
+import type { Tables } from '@taskdrop/db-types';
 import { primeProfile, type Task, type Profile } from './api';
 
 /**
- * Reads and writes for the second-wave features: notifications, saved tasks,
- * help & support, feedback, referrals, explore / trending, public profiles,
- * the AI meter, presence and "go live".
- *
- * Same rules as api.ts: reads go through PostgREST and row-level security,
- * anything that changes state for someone else goes through an RPC that
- * checks the caller server-side (migration 048).
+ * The second-wave features: notifications, saved tasks, help & support,
+ * feedback, referrals, explore, public profiles, presence and sign-in extras.
+ * Each call is one named request to the server (supabase/functions/api).
  */
-
-function unwrap<T>(res: { data: T | null; error: { message: string } | null }): T {
-  if (res.error) throw new Error(res.error.message);
-  if (res.data === null) throw new Error('No data returned');
-  return res.data;
-}
 
 const myId = currentUserId;
 
-async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
-  // Every function here needs a signed-in caller; asking without one is a
-  // guaranteed 401 and a wasted round trip.
-  if (!(await myId())) throw new Error('Sign in first');
-  const { data, error } = await supabase.rpc(fn as never, args as never);
-  if (error) throw new Error(error.message);
-  return data as T;
+async function act<T>(op: string, args: Record<string, unknown> = {}, signedOutMessage = 'Sign in first'): Promise<T> {
+  if (!(await myId())) throw new Error(signedOutMessage);
+  return callApi<T>(op, args);
+}
+
+async function ask<T>(op: string, args: Record<string, unknown>, signedOut: T): Promise<T> {
+  if (!(await myId())) return signedOut;
+  return callApi<T>(op, args);
+}
+
+async function quietly<T>(op: string, args: Record<string, unknown>, fallback: T): Promise<T> {
+  try {
+    return await ask<T>(op, args, fallback);
+  } catch {
+    return fallback;
+  }
 }
 
 // ------------------------------------------------------------ notifications --
 
 export type Notification = Tables<'notifications'>;
 
-export async function listNotifications(limit = 50): Promise<Notification[]> {
-  const uid = await myId();
-  if (!uid) return [];
-  return unwrap(
-    await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', uid)
-      .order('created_at', { ascending: false })
-      .limit(limit),
-  );
-}
+export const listNotifications = (limit = 50) => ask<Notification[]>('listNotifications', { limit }, []);
 
-export async function countUnreadNotifications(): Promise<number> {
-  const uid = await myId();
-  if (!uid) return 0;
-  const { count, error } = await supabase
-    .from('notifications')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', uid)
-    .is('read_at', null);
-  if (error) return 0;
-  return count ?? 0;
-}
+export const countUnreadNotifications = () => quietly<number>('countUnreadNotifications', {}, 0);
 
-/**
- * Which side a notification belongs to: 'poster' if it is about a task this
- * person posted, 'worker' if about one they quoted on or are doing, 'both'
- * when it has no task (support replies, referrals).
- */
+/** Which side a notification belongs to: 'both' when it has no task. */
 export type NotificationSide = 'poster' | 'worker' | 'both';
 
 export async function notificationSides(rows: Notification[]): Promise<Map<string, NotificationSide>> {
-  const uid = await myId();
-  const out = new Map<string, NotificationSide>();
-  const taskIds = [...new Set(rows.map((r) => r.task_id).filter((x): x is string => Boolean(x)))];
-  const owner = new Map<string, string>();
-  if (taskIds.length) {
-    const { data } = await supabase.from('tasks').select('id, poster_id').in('id', taskIds);
-    for (const t of data ?? []) owner.set(t.id, t.poster_id);
-  }
-  for (const r of rows) {
-    if (!r.task_id) out.set(r.id, 'both');
-    else out.set(r.id, owner.get(r.task_id) === uid ? 'poster' : 'worker');
-  }
-  return out;
+  if (rows.length === 0) return new Map();
+  const sides = await ask<Record<string, NotificationSide>>(
+    'notificationSides',
+    { rows: rows.map((r) => ({ id: r.id, task_id: r.task_id })) },
+    {},
+  );
+  return new Map(Object.entries(sides));
 }
 
-/** Unread notifications for one side (plus those that belong to both). */
-export async function countUnreadFor(side: 'poster' | 'worker'): Promise<number> {
-  const uid = await myId();
-  if (!uid) return 0;
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('*')
-    .eq('user_id', uid)
-    .is('read_at', null)
-    .limit(200);
-  if (error || !data) return 0;
-  const sides = await notificationSides(data);
-  return data.filter((n) => {
-    const s = sides.get(n.id);
-    return s === side || s === 'both';
-  }).length;
-}
+export const countUnreadFor = (side: 'poster' | 'worker') => quietly<number>('countUnreadFor', { side }, 0);
 
 export async function markNotificationsRead(ids?: string[]): Promise<void> {
-  const uid = await myId();
-  if (!uid) return;
-  let q = supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('user_id', uid).is('read_at', null);
-  if (ids && ids.length) q = q.in('id', ids);
-  const { error } = await q;
-  if (error) throw new Error(error.message);
+  await ask('markNotificationsRead', { ids: ids ?? [] }, null);
 }
 
-let notifChannelSeq = 0;
-
 /**
- * New rows for this user, live. Returns an unsubscribe function.
- *
- * Each subscriber gets its own channel: supabase-js hands back the existing
- * channel for a repeated name, and the header, the bell screen and the push
- * bridge all listen at once.
+ * New notifications for this user, live. Returns an unsubscribe function. On
+ * each ping the row is fetched from the server.
  */
-export function subscribeToNotifications(userId: string, onInsert: (n: Notification) => void): () => void {
-  const channel = supabase
-    .channel(`notifications:${userId}:${++notifChannelSeq}`)
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
-      (payload) => onInsert(payload.new as Notification),
-    )
-    .subscribe();
-  return () => {
-    void supabase.removeChannel(channel);
-  };
+export function subscribeToNotifications(_userId: string, onInsert: (n: Notification) => void): () => void {
+  return subscribeLive((ping) => {
+    if (ping.kind !== 'notification' || !ping.id) return;
+    void ask<Notification | null>('getNotification', { id: ping.id }, null)
+      .then((n) => {
+        if (n) onInsert(n);
+      })
+      .catch(() => {});
+  });
 }
 
 // ------------------------------------------------------------- saved tasks --
 
 export async function listSavedTaskIds(): Promise<Set<string>> {
-  const uid = await myId();
-  if (!uid) return new Set();
-  const rows = unwrap(await supabase.from('saved_tasks').select('task_id').eq('user_id', uid));
-  return new Set(rows.map((r) => r.task_id));
+  return new Set(await ask<string[]>('listSavedTaskIds', {}, []));
 }
 
-/** Saved tasks that are still visible to this user (open, or theirs). */
-export async function listSavedTasks(): Promise<Task[]> {
-  const uid = await myId();
-  if (!uid) return [];
-  const rows = unwrap(
-    await supabase
-      .from('saved_tasks')
-      .select('task_id, created_at, tasks(*)')
-      .eq('user_id', uid)
-      .order('created_at', { ascending: false }),
-  );
-  return rows.map((r) => r.tasks as Task | null).filter((x): x is Task => Boolean(x));
-}
+export const listSavedTasks = () => ask<Task[]>('listSavedTasks', {}, []);
 
 export async function setSaved(taskId: string, saved: boolean): Promise<void> {
-  const uid = await myId();
-  if (!uid) throw new Error('Sign in to save tasks');
-  if (saved) {
-    const { error } = await supabase.from('saved_tasks').upsert({ user_id: uid, task_id: taskId });
-    if (error) throw new Error(error.message);
-  } else {
-    const { error } = await supabase.from('saved_tasks').delete().eq('user_id', uid).eq('task_id', taskId);
-    if (error) throw new Error(error.message);
-  }
+  await act('setSaved', { taskId, saved }, 'Sign in to save tasks');
 }
 
 // ---------------------------------------------------------- help & support --
@@ -182,61 +100,33 @@ export const TICKET_CATEGORIES: { key: TicketCategory; label: string }[] = [
   { key: 'other', label: 'Something else' },
 ];
 
-export async function listTickets(): Promise<Ticket[]> {
-  const uid = await myId();
-  if (!uid) return [];
-  return unwrap(
-    await supabase.from('support_tickets').select('*').eq('user_id', uid).order('updated_at', { ascending: false }),
-  );
-}
+export const listTickets = () => ask<Ticket[]>('listTickets', {}, []);
 
-export async function getTicket(id: string): Promise<{ ticket: Ticket; messages: TicketMessage[] } | null> {
-  const { data: ticket, error } = await supabase.from('support_tickets').select('*').eq('id', id).maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!ticket) return null;
-  const messages = unwrap(
-    await supabase.from('support_messages').select('*').eq('ticket_id', id).order('created_at'),
-  );
-  return { ticket, messages };
-}
+export const getTicket = (id: string) =>
+  act<{ ticket: Ticket; messages: TicketMessage[] } | null>('getTicket', { ticketId: id });
 
 export const openTicket = (category: TicketCategory, body: string, page?: string) =>
-  rpc<Ticket>('open_support_ticket', { p_category: category, p_body: body, p_page: page ?? null });
+  act<Ticket>('openTicket', { category, body, page: page ?? null });
 
-export const replyTicket = (ticketId: string, body: string) =>
-  rpc<TicketMessage>('reply_support_ticket', { p_ticket_id: ticketId, p_body: body });
+export const replyTicket = (ticketId: string, body: string) => act<TicketMessage>('replyTicket', { ticketId, body });
 
-export const resolveTicket = (ticketId: string) =>
-  rpc<Ticket>('resolve_support_ticket', { p_ticket_id: ticketId });
+export const resolveTicket = (ticketId: string) => act<Ticket>('resolveTicket', { ticketId });
 
 // ---------------------------------------------------------------- feedback --
 
 export type FeedbackKind = 'broken' | 'idea' | 'confusing' | 'praise';
 
 export async function sendFeedback(kind: FeedbackKind, body: string, page?: string): Promise<void> {
-  const uid = await myId();
-  if (!uid) throw new Error('Sign in to send feedback');
   const text = body.trim();
   if (text.length < 3) throw new Error('Write a little more first');
-  const { error } = await supabase.from('feedback').insert({ user_id: uid, kind, body: text, page: page ?? null });
-  if (error) throw new Error(error.message);
+  await act('sendFeedback', { kind, body: text, page: page ?? null }, 'Sign in to send feedback');
 }
 
 // --------------------------------------------------------------- referrals --
 
-export const applyReferralCode = (code: string) => rpc<boolean>('apply_referral_code', { p_code: code });
+export const applyReferralCode = (code: string) => act<boolean>('applyReferralCode', { code });
 
-/** How many people joined with this user's code. */
-export async function countMyReferrals(): Promise<number> {
-  const uid = await myId();
-  if (!uid) return 0;
-  const { count, error } = await supabase
-    .from('referrals')
-    .select('referred_id', { count: 'exact', head: true })
-    .eq('referrer_id', uid);
-  if (error) return 0;
-  return count ?? 0;
-}
+export const countMyReferrals = () => quietly<number>('countMyReferrals', {}, 0);
 
 // ------------------------------------------------------- explore / trending --
 
@@ -248,7 +138,7 @@ export type Highlights = {
   liveWorkers: number;
 };
 
-export const platformHighlights = () => rpc<Highlights>('platform_highlights');
+export const platformHighlights = () => act<Highlights>('platformHighlights');
 
 export type TrendingCategory = {
   category: string;
@@ -257,8 +147,7 @@ export type TrendingCategory = {
   avg_budget_minor: number;
 };
 
-export const trendingCategories = (limit = 8) =>
-  rpc<TrendingCategory[]>('trending_categories', { p_limit: limit });
+export const trendingCategories = (limit = 8) => act<TrendingCategory[]>('trendingCategories', { limit });
 
 export type EarnerKind = 'top_rated' | 'most_active' | 'new_talent';
 export type Earner = {
@@ -272,38 +161,13 @@ export type Earner = {
   skill: string | null;
 };
 
-export const topEarners = (kind: EarnerKind, limit = 10) =>
-  rpc<Earner[]>('top_earners', { p_kind: kind, p_limit: limit });
+export const topEarners = (kind: EarnerKind, limit = 10) => act<Earner[]>('topEarners', { kind, limit });
 
 export type PublicStats = { jobsDone: number; tasksPosted: number; tasksCompletedAsPoster: number };
-export const publicProfileStats = (userId: string) =>
-  rpc<PublicStats>('public_profile_stats', { p_user: userId });
+export const publicProfileStats = (userId: string) => act<PublicStats>('publicProfileStats', { userId });
 
-/**
- * Open tasks in the categories this worker has skills for. Skills are free
- * text on the profile, so the match is loose: a task counts if its category,
- * skills or title mention any of the worker's skills.
- */
-export async function recommendedTasks(skills: string[], limit = 10): Promise<Task[]> {
-  const uid = await myId();
-  let q = supabase.from('tasks').select('*').eq('status', 'OPEN').or(notExpired()).eq('kind', 'request');
-  if (uid) q = q.neq('poster_id', uid);
-  const rows = unwrap(await q.order('created_at', { ascending: false }).limit(60));
-  if (skills.length === 0) return rows.slice(0, limit);
-  const needles = skills.map((s) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()).filter(Boolean);
-  const score = (task: Task) => {
-    const hay = [task.title, task.category ?? '', (task.skills ?? []).join(' '), task.description]
-      .join(' ')
-      .toLowerCase()
-      .replace(/_/g, ' ');
-    return needles.reduce((n, s) => n + (hay.includes(s) ? 1 : 0), 0);
-  };
-  return rows
-    .map((task) => ({ task, s: score(task) }))
-    .sort((a, b) => b.s - a.s)
-    .map((x) => x.task)
-    .slice(0, limit);
-}
+/** Open tasks that match this worker's skills, best match first. */
+export const recommendedTasks = (skills: string[], limit = 10) => act<Task[]>('recommendedTasks', { skills, limit });
 
 // ----------------------------------------------------------------- inbox ----
 
@@ -316,219 +180,79 @@ export type Thread = {
   status: string;
 };
 
-/**
- * Every task conversation this user is part of, newest first. RLS already
- * limits messages to the two parties, so reading the latest page and grouping
- * by task is enough.
- */
-export async function listThreads(): Promise<Thread[]> {
-  const uid = await myId();
-  if (!uid) return [];
-  // A thread exists from the moment someone is hired, not from the first
-  // message -- otherwise the inbox is empty exactly when a poster and a worker
-  // most need to talk. So: every task with messages, plus every live hire.
-  const LIVE = ['LOCKED', 'TASK_STARTED', 'OVERDUE', 'WORK_DONE', 'REVISION_REQUESTED', 'DISPUTED'] as const;
-  const [msgRes, postedRes, hiredRes] = await Promise.all([
-    supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(300),
-    supabase.from('tasks').select('id,title,status,updated_at').eq('poster_id', uid).in('status', LIVE),
-    supabase.from('assignments').select('task_id').eq('worker_id', uid).in('status', ['assigned', 'started']),
-  ]);
-  const rows = unwrap(msgRes);
-  const latest = new Map<string, (typeof rows)[number]>();
-  for (const m of rows) if (!latest.has(m.task_id)) latest.set(m.task_id, m);
-
-  const hiredIds = (hiredRes.data ?? []).map((a) => a.task_id);
-  const ids = new Set<string>([...latest.keys(), ...(postedRes.data ?? []).map((t) => t.id), ...hiredIds]);
-  if (ids.size === 0) return [];
-  const tasks = unwrap(
-    await supabase.from('tasks').select('id,title,status,updated_at').in('id', [...ids]),
-  );
-  const byId = new Map(tasks.map((t) => [t.id, t]));
-
-  const threads: Thread[] = [...ids].map((id) => {
-    const m = latest.get(id);
-    const task = byId.get(id);
-    return {
-      taskId: id,
-      title: task?.title ?? 'Task',
-      status: task?.status ?? '',
-      lastBody: m ? (m.body.startsWith('::media::') ? '📷 Photo' : m.body) : '',
-      lastAt: m?.created_at ?? task?.updated_at ?? new Date().toISOString(),
-      lastFromMe: m ? m.sender_id === uid : false,
-    };
-  });
-  return threads.sort((x, y) => new Date(y.lastAt).getTime() - new Date(x.lastAt).getTime());
-}
+export const listThreads = () => ask<Thread[]>('listThreads', {}, []);
 
 // ---------------------------------------------------------------- disputes --
 
-/** Tasks this person is party to that are, or were, in dispute. */
-export async function listMyDisputes(): Promise<Task[]> {
-  const uid = await myId();
-  if (!uid) return [];
-  const [mine, worked] = await Promise.all([
-    supabase.from('tasks').select('*').eq('poster_id', uid).eq('status', 'DISPUTED'),
-    supabase.from('assignments').select('tasks(*)').eq('worker_id', uid),
-  ]);
-  if (mine.error) throw new Error(mine.error.message);
-  if (worked.error) throw new Error(worked.error.message);
-  const asWorker = (worked.data ?? [])
-    .map((r) => r.tasks as Task | null)
-    .filter((x): x is Task => Boolean(x) && x!.status === 'DISPUTED');
-  const all = [...(mine.data ?? []), ...asWorker];
-  const seen = new Set<string>();
-  return all.filter((x) => (seen.has(x.id) ? false : (seen.add(x.id), true)));
+export const listMyDisputes = () => ask<Task[]>('listMyDisputes', {}, []);
+
+export async function listDisputeReasons(taskIds: string[]): Promise<Map<string, { reason: string; mine: boolean }>> {
+  if (taskIds.length === 0) return new Map();
+  return new Map(Object.entries(await quietly<Record<string, { reason: string; mine: boolean }>>('listDisputeReasons', { taskIds }, {})));
 }
 
 // ------------------------------------------------------ profile & presence --
 
-/** Is this @handle free? Case-folded, same rule as the database check. */
+/** Is this @handle free? */
 export async function usernameAvailable(username: string): Promise<boolean> {
   const handle = username.trim().toLowerCase();
   if (!/^[a-z0-9_]{3,20}$/.test(handle)) return false;
-  const uid = await myId();
-  const { data, error } = await supabase.from('profiles').select('id').eq('username', handle).maybeSingle();
-  if (error) return false;
-  return !data || data.id === uid;
+  return quietly<boolean>('usernameAvailable', { username: handle }, false);
 }
 
 export type ProfileExtras = {
   username?: string | null;
-  /** The poster-side bio: who they are as someone hiring. */
   bio?: string | null;
-  /** The worker-side bio: what they do and why hire them. */
   workerBio?: string | null;
   languages?: string[];
   intent?: 'post' | 'earn' | 'both' | null;
-  /** Stamp the worker profile as complete. */
   workerOnboarded?: boolean;
 };
 
-export async function updateProfileExtras(userId: string, edits: ProfileExtras): Promise<Profile> {
-  const patch: TablesUpdate<'profiles'> = {};
-  if (edits.username !== undefined) patch.username = edits.username ? edits.username.trim().toLowerCase() : null;
-  if (edits.bio !== undefined) patch.bio = edits.bio?.trim() || null;
-  if (edits.workerBio !== undefined) patch.worker_bio = edits.workerBio?.trim() || null;
-  if (edits.workerOnboarded) patch.worker_onboarded_at = new Date().toISOString();
-  if (edits.languages !== undefined) patch.languages = edits.languages;
-  if (edits.intent !== undefined) patch.intent = edits.intent;
-  const { data, error } = await supabase.from('profiles').update(patch).eq('id', userId).select();
-  if (error) {
-    if (/profiles_username_key|duplicate/i.test(error.message)) throw new Error('That username is taken');
-    if (/profiles_username_format/i.test(error.message)) {
-      throw new Error('Usernames are 3–20 characters: lowercase letters, numbers and _');
-    }
-    throw new Error(error.message);
-  }
-  const row = (data ?? [])[0];
-  if (!row) throw new Error('Could not save your profile');
+export async function updateProfileExtras(_userId: string, edits: ProfileExtras): Promise<Profile> {
+  const row = await act<Profile>('updateProfileExtras', { ...edits });
   primeProfile(row);
   return row;
 }
 
 let lastPresence = 0;
 
-/**
- * Record that this person has TaskDrop open. Called about once a minute while
- * the app is in front (PresenceBeat); anything closer together than 45s is
- * skipped. Best-effort; never throws.
- */
-export async function touchPresence(userId: string): Promise<void> {
+/** Record that this person has TaskDrop open. At most every 45s; never throws. */
+export async function touchPresence(_userId: string): Promise<void> {
   if (Date.now() - lastPresence < 45_000) return;
   lastPresence = Date.now();
-  try {
-    await supabase.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', userId);
-  } catch {
-    /* presence is a nicety */
-  }
+  await quietly('touchPresence', {}, null);
 }
 
-/**
- * Workers who have been around lately, most recently active first: the ones
- * with TaskDrop open now at the top, then those who stepped away within the
- * last half hour. Only people who offer work (skills set). The caller is left
- * out so nobody sees themselves.
- */
-export async function listActiveWorkers(limit = 12): Promise<Profile[]> {
-  const uid = await myId();
-  let q = supabase
-    .from('profiles')
-    .select('*')
-    .gt('last_seen_at', new Date(Date.now() - 30 * 60_000).toISOString())
-    .not('onboarded_at', 'is', null)
-    // PostgREST wants the empty array literally: skills=neq.{}
-    .filter('skills', 'neq', '{}');
-  if (uid) q = q.neq('id', uid);
-  const { data, error } = await q.order('last_seen_at', { ascending: false }).limit(limit);
-  if (error) return [];
-  return data ?? [];
-}
+/** Workers around lately, most recently active first. */
+export const listActiveWorkers = (limit = 12) => quietly<Profile[]>('listActiveWorkers', { limit }, []);
 
 // ------------------------------------------------------------------ fees -----
 
-export type Fees = { commission: number; posterFee: number; clearingDays: number };
+export type Fees = {
+  commission: number;
+  posterFee: number;
+  clearingDays: number;
+  /** Paid to the worker when the customer cancels after work started. Absent from older servers. */
+  cancelFine?: number;
+};
 
-/** The live fee settings (readable by any signed-in user), with the
- *  @taskdrop/rules defaults if a key is missing. */
-export async function platformFees(): Promise<Fees> {
-  const { data } = await supabase
-    .from('settings')
-    .select('key,value')
-    .in('key', ['worker_commission_pct', 'poster_service_fee_pct', 'clearing_period_days']);
-  const get = (k: string, d: number) => {
-    const v = Number((data ?? []).find((r) => r.key === k)?.value);
-    return Number.isFinite(v) ? v : d;
-  };
-  return {
-    commission: get('worker_commission_pct', 0.1),
-    posterFee: get('poster_service_fee_pct', 0.03),
-    clearingDays: get('clearing_period_days', 7),
-  };
-}
+export const platformFees = () =>
+  quietly<Fees>('platformFees', {}, { commission: 0.1, posterFee: 0.03, clearingDays: 7, cancelFine: 0.05 });
 
-/**
- * Platform fees this person actually paid since `since`: the poster service
- * fee is what escrow held above the accepted quote on tasks they funded, and
- * the worker commission is the share of each completed job kept by TaskDrop.
- * Both come from the rows that moved the money, not from a percentage guess.
- */
-export async function feesSince(since: Date | null, commission: number): Promise<{ serviceMinor: number; commissionMinor: number }> {
-  const uid = await myId();
-  if (!uid) return { serviceMinor: 0, commissionMinor: 0 };
-  const iso = since?.toISOString() ?? '1970-01-01T00:00:00Z';
-  const [posted, worked] = await Promise.all([
-    supabase
-      .from('tasks')
-      .select('id, locked_minor, funded_at, assignments(escrow_minor)')
-      .eq('poster_id', uid)
-      .not('funded_at', 'is', null)
-      .gte('funded_at', iso),
-    supabase
-      .from('assignments')
-      .select('worker_id, tasks!inner(locked_minor, status, completed_at)')
-      .eq('worker_id', uid),
-  ]);
-  let serviceMinor = 0;
-  for (const t of posted.data ?? []) {
-    const escrows = (t.assignments as { escrow_minor: number }[] | null) ?? [];
-    const held = Math.max(0, ...escrows.map((a) => a.escrow_minor));
-    serviceMinor += Math.max(0, held - (t.locked_minor ?? 0));
-  }
-  let commissionMinor = 0;
-  for (const a of worked.data ?? []) {
-    const t = a.tasks as { locked_minor: number | null; status: string; completed_at: string | null } | null;
-    if (!t || !['COMPLETED', 'AUTO_COMPLETED'].includes(t.status)) continue;
-    if (t.completed_at && t.completed_at < iso) continue;
-    commissionMinor += Math.round((t.locked_minor ?? 0) * commission);
-  }
-  return { serviceMinor, commissionMinor };
-}
+/** Platform fees this person actually paid since `since`. */
+export const feesSince = (since: Date | null, commission: number) =>
+  ask<{ serviceMinor: number; commissionMinor: number }>(
+    'feesSince',
+    { since: since?.toISOString() ?? null, commission },
+    { serviceMinor: 0, commissionMinor: 0 },
+  );
 
 // ---------------------------------------------------------- password auth ---
 
 const PW_URL = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/password-auth`;
 
-/** Sign in with @username + password (see the password-auth function). */
+/** Sign in with @username + password. */
 export async function signInWithUsername(username: string, password: string): Promise<void> {
   const res = await fetch(PW_URL, {
     method: 'POST',
@@ -550,18 +274,33 @@ export async function signInWithUsername(username: string, password: string): Pr
     access_token: out.access_token,
     refresh_token: out.refresh_token,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw apiError(error);
 }
 
 /** Set or change the password for username sign-in. */
 export async function setPassword(password: string): Promise<void> {
   if (password.length < 8) throw new Error('Use at least 8 characters');
   const { error } = await supabase.auth.updateUser({ password });
-  if (error) throw new Error(error.message);
+  if (error) throw apiError(error);
 }
 
-/** Which sign-in methods this account has. Phone accounts sit on a
- *  placeholder email, so the provider tells us what is verified. */
+/** One thing that has to be settled before an account can be deleted. */
+export type DeletionBlocker = { code: string; message: string };
+
+/** What stands in the way of deleting this account, and whether some records stay (anonymised). */
+export const accountDeletionCheck = () =>
+  act<{ blockers: DeletionBlocker[]; keepsRecords: boolean }>('accountDeletionCheck');
+
+/**
+ * Delete this account for good (migration 087). The server signs it out
+ * everywhere, so only this device's copy of the session is left to clear.
+ */
+export async function deleteMyAccount(): Promise<void> {
+  await act('deleteMyAccount', { confirm: 'DELETE MY ACCOUNT' });
+  await supabase.auth.signOut({ scope: 'local' });
+}
+
+/** Which sign-in methods this account has. */
 export async function verificationState(): Promise<{ phone: boolean; email: boolean; google: boolean }> {
   const { data } = await supabase.auth.getUser();
   const u = data.user;
@@ -575,44 +314,9 @@ export async function verificationState(): Promise<{ phone: boolean; email: bool
 
 // ------------------------------------------------------------- remote work --
 
-/**
- * Open requests that can be done from anywhere: posted as "Remote", or with no
- * pin at all. Newest first, never your own.
- */
-export async function remoteTasks(limit = 5): Promise<Task[]> {
-  const uid = await myId();
-  let q = supabase
-    .from('tasks')
-    .select('*')
-    .eq('status', 'OPEN').or(notExpired())
-    .eq('kind', 'request')
-    .is('loc_lat', null);
-  if (uid) q = q.neq('poster_id', uid);
-  return unwrap(await q.order('created_at', { ascending: false }).limit(limit));
-}
+export const remoteTasks = (limit = 5) => act<Task[]>('remoteTasks', { limit });
 
-/** Open, pinned requests closest to a point, within a radius, nearest first. */
-export async function tasksNear(near: { lat: number; lng: number }, radiusKm: number, limit = 5): Promise<(Task & { km: number })[]> {
-  const uid = await myId();
-  let q = supabase
-    .from('tasks')
-    .select('*')
-    .eq('status', 'OPEN').or(notExpired())
-    .eq('kind', 'request')
-    .not('loc_lat', 'is', null);
-  if (uid) q = q.neq('poster_id', uid);
-  const rows = unwrap(await q.order('created_at', { ascending: false }).limit(200));
-  return rows
-    .map((task) => ({ ...task, km: distanceKm(near, { lat: task.loc_lat, lng: task.loc_lng }) ?? Infinity }))
-    .filter((x) => x.km <= radiusKm)
-    .sort((a, b) => a.km - b.km)
-    .slice(0, limit);
-}
+export const tasksNear = (near: { lat: number; lng: number }, radiusKm: number, limit = 5) =>
+  act<(Task & { km: number })[]>('tasksNear', { lat: near.lat, lng: near.lng, radiusKm, limit });
 
-/** Open requests flagged urgent, soonest deadline first. */
-export async function urgentTasks(limit = 3): Promise<Task[]> {
-  const uid = await myId();
-  let q = supabase.from('tasks').select('*').eq('status', 'OPEN').or(notExpired()).eq('kind', 'request').eq('flag', 'urgent');
-  if (uid) q = q.neq('poster_id', uid);
-  return unwrap(await q.order('due_at', { ascending: true, nullsFirst: false }).limit(limit));
-}
+export const urgentTasks = (limit = 3) => act<Task[]>('urgentTasks', { limit });

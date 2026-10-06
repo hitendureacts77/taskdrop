@@ -42,9 +42,10 @@ declare
     'platform_stats', 'request_revision', 'request_withdrawal',
     'set_default_payout_destination', 'start_promotion', 'start_task',
     'submit_review', 'settle_my_cleared_earnings', 'ad_auction',
-    'record_ad_impression', 'record_ad_click', 'my_campaign_stats',
+    'record_ad_impression', 'record_ad_click', 'my_campaign_stats', 'remove_listing',
     'escrow_refund_due', 'admin_payout_queue', 'admin_mark_payout',
-    'admin_resolve_dispute', 'admin_set_admin', 'platform_earnings'
+    'admin_resolve_dispute', 'admin_set_admin', 'platform_earnings',
+    'record_birth_date', 'admin_set_payout_method'
   ];
   -- Service role only. A grant here is the hole 047 closed.
   must_not_be_callable text[] := array[
@@ -103,7 +104,7 @@ declare
   v_bid      uuid;
   v_bid2     uuid;
   v_locked   bigint := 110000;   -- ₹1,100
-  v_net      bigint := 88000;    -- 80% of the above
+  v_net      bigint;             -- the locked amount less the live worker commission
   v_escrow   bigint;
   v_escrow2  bigint;
   v_pay      uuid;
@@ -126,6 +127,11 @@ begin
   insert into public.wallets (user_id) values (v_poster), (v_worker), (v_other)
   on conflict (user_id) do nothing;
 
+  -- lock_bid funds the task from the poster's wallet (migration 063), so the
+  -- poster needs a balance. The commission is read from settings, not assumed.
+  update public.wallets set balance_minor = 1000000 where user_id = v_poster;
+  v_net := round(v_locked * (1 - private.setting_num('worker_commission_pct', 0.20)))::bigint;
+
   -- Two tasks, one per worker, driven all the way to COMPLETED through the
   -- real RPCs so the clearing balances are real rather than hand-written.
   insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes)
@@ -142,29 +148,23 @@ begin
   perform public.lock_bid(v_bid);
   perform public.lock_bid(v_bid2);
 
-  -- Locking a quote is not paying for it (migration 028). Both tasks have to
-  -- be funded by a settled payment before any work can start.
-  select escrow_minor into v_escrow  from public.assignments where task_id = v_task;
-  select escrow_minor into v_escrow2 from public.assignments where task_id = v_task2;
+  -- lock_bid already took the escrow from the poster's wallet (migration 063),
+  -- so both tasks are funded and the workers can start.
+  if (select count(*) from public.tasks where id in (v_task, v_task2) and funded_at is not null) <> 2 then
+    raise exception 'FAIL: locking a funded quote did not mark the task funded';
+  end if;
 
-  perform pg_temp.as_admin();
-  insert into public.payments (user_id, task_id, purpose, amount_minor, provider_ref, status, paid_at)
-  values (v_poster, v_task,  'escrow', v_escrow,  'plink_sweep_a', 'paid', now())
-  returning id into v_pay;
-  insert into public.payments (user_id, task_id, purpose, amount_minor, provider_ref, status, paid_at)
-  values (v_poster, v_task2, 'escrow', v_escrow2, 'plink_sweep_b', 'paid', now())
-  returning id into v_pay2;
-
-  perform pg_temp.become(v_poster);
-  perform public.fund_task(v_task,  v_pay);
-  perform public.fund_task(v_task2, v_pay2);
-
+  -- Proof of work is required before a task can be marked done (migration 057).
   perform pg_temp.become(v_worker);
   perform public.start_task(v_task);
+  insert into public.task_proofs (task_id, worker_id, summary, files)
+  values (v_task, v_worker, 'Finished the work exactly as agreed', '[]'::jsonb);
   perform public.mark_work_done(v_task);
 
   perform pg_temp.become(v_other);
   perform public.start_task(v_task2);
+  insert into public.task_proofs (task_id, worker_id, summary, files)
+  values (v_task2, v_other, 'Finished the work exactly as agreed', '[]'::jsonb);
   perform public.mark_work_done(v_task2);
 
   perform pg_temp.become(v_poster);

@@ -1,3 +1,4 @@
+import { apiError } from '../lib/errors';
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
@@ -142,7 +143,7 @@ async function redeemAuthUrl(url: string): Promise<{ createdAt: string | undefin
   if (claimedCodes.has(code)) return null;
   claimedCodes.add(code);
   const { data, error } = await exchangeCodeForSessionWithRetry(code);
-  if (error) throw new Error(error.message);
+  if (error) throw apiError(error);
   return { createdAt: data.user?.created_at };
 }
 
@@ -262,7 +263,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!tokenHash) throw new Error('Could not start a session');
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'email' });
     // An admin can suspend an account; Supabase then answers "User is banned".
-    if (error) throw new Error(/banned/i.test(error.message) ? 'This account is suspended. Please contact TaskDrop support.' : error.message);
+    if (error) throw /banned/i.test(error.message) ? new Error('This account is suspended. Please contact TaskDrop support.') : apiError(error);
     return { isNew: out.isNew === true };
   }, []);
 
@@ -280,7 +281,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // A same-tab redirect to Google and back, same as any "Continue with
       // Google" button -- this app reloads from scratch when it lands.
       const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
-      if (error) throw new Error(error.message);
+      if (error) throw apiError(error);
       return;
     }
 
@@ -291,7 +292,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       provider: 'google',
       options: { redirectTo, skipBrowserRedirect: true },
     });
-    if (error) throw new Error(error.message);
+    if (error) throw apiError(error);
     if (!data?.url) throw new Error('Could not start Google sign-in');
 
     // On Android the tab often reports "dismiss" even when Google finished:

@@ -74,13 +74,23 @@ export function BidSheet({
         const mine = await getMyBid(task.id, userId);
         if (!alive) return;
         if (mine) {
+          // Once the poster has locked a worker, this offer is final. Don't open
+          // an edit form that can only refuse: say so and close.
+          if (mine.is_locked || task.status !== 'OPEN') {
+            flash(
+              mine.is_locked
+                ? 'The customer accepted this offer, so it can no longer be changed'
+                : 'The customer has already chosen a worker for this task',
+            );
+            onClose();
+            return;
+          }
           setExisting(mine);
           const parsed = parseMessage(mine.message);
           setPitch(parsed.pitch);
           setHours(parsed.hours);
           setSavedDateLabel(parsed.dateLabel);
           setPrice(String(Math.round(mine.price_minor / 100)));
-          if (mine.is_locked) setBlocked('The customer accepted this offer, so it can no longer be changed.');
           return;
         }
         const verdict = await canQuoteOn(task.id, userId);
@@ -165,7 +175,7 @@ export function BidSheet({
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <RNText style={tx('600', 13, t.colors.muted)}>Customer’s budget</RNText>
               <RNText style={tx('800', 14, t.colors.accentDeep)}>{rupees(budget)}</RNText>
-              {existing && !existing.is_locked ? (
+              {existing ? (
                 <RNText style={tx('600', 12, t.colors.purpleDeep, { marginLeft: 'auto' })}>
                   Sent · {rupees(existing.price_minor / 100)}
                 </RNText>

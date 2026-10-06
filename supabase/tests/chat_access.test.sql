@@ -40,6 +40,9 @@ begin
   insert into public.wallets (user_id) values (v_poster), (v_worker), (v_stranger)
   on conflict (user_id) do nothing;
 
+  -- lock_bid funds the task from the poster's wallet (migration 063).
+  update public.wallets set balance_minor = 1000000 where user_id = v_poster;
+
   insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes)
   values (v_poster, 'services', 'Chat access test', 100000, 240)
   returning id into v_task;

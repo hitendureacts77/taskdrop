@@ -3,7 +3,33 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { MEDIA } from '@taskdrop/rules';
 import { readBytes } from './readBytes';
-import { currentUserId, supabase } from './supabase';
+import { currentUserId } from './supabase';
+import { callApi } from './gateway';
+
+/**
+ * Ask the server where a new file goes, then send the bytes there. The server
+ * picks the bucket and the path; this side only knows the one-time URL.
+ */
+async function putFile(purpose: 'task' | 'proof', ext: string, body: ArrayBuffer | Uint8Array | Blob, contentType: string): Promise<string> {
+  let target: { path: string; url: string };
+  try {
+    target = await callApi<{ path: string; url: string }>('createUpload', { purpose, ext });
+  } catch (e) {
+    throw new MediaError(e instanceof Error ? e.message : 'Could not upload that file. Please try again.');
+  }
+  let res: Response;
+  try {
+    res = await fetch(target.url, {
+      method: 'PUT',
+      headers: { 'content-type': contentType, 'x-upsert': 'false', 'cache-control': 'max-age=3600' },
+      body: body as BodyInit,
+    });
+  } catch {
+    throw new MediaError('Could not reach TaskDrop. Check your connection and try again.');
+  }
+  if (!res.ok) throw new MediaError('Could not upload that file. Please try again.');
+  return target.path;
+}
 
 /**
  * Attaching a photo or a video to a task.
@@ -18,8 +44,6 @@ import { currentUserId, supabase } from './supabase';
  * expo-file-system does not exist on web, and React Native's fetch does not
  * reliably read a file:// URI. So each platform uses the thing that works.
  */
-
-const BUCKET = 'task-media';
 
 /** Matches the bucket's own limit, so a reject happens before the upload. */
 const MAX_BYTES = 50 * 1024 * 1024;
@@ -143,19 +167,14 @@ export async function uploadMedia(picked: PickedMedia): Promise<TaskMedia> {
   }
 
   const ext = extensionFor(picked.mimeType, picked.kind === 'video' ? 'mp4' : 'jpg');
-  const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
-
-  const { error } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, body, { contentType: picked.mimeType, upsert: false });
-  if (error) throw new MediaError(error.message);
+  const path = await putFile('task', ext, body, picked.mimeType);
 
   return { kind: picked.kind, path, seconds: picked.seconds };
 }
 
 /** Best effort — a file left behind is untidy, not broken. */
 export async function removeMedia(path: string): Promise<void> {
-  await supabase.storage.from(BUCKET).remove([path]);
+  await callApi('removeMedia', { path }).catch(() => {});
 }
 
 /** An hour is long enough to look at a task and short enough not to be shared. */
@@ -183,10 +202,11 @@ export async function signedMediaUrl(path: string): Promise<string | null> {
   const inFlight = pending.get(path);
   if (inFlight) return inFlight;
   const p = (async () => {
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, SIGNED_URL_SECONDS);
-    if (error || !data?.signedUrl) return null;
-    signed.set(path, { url: data.signedUrl, at: Date.now() });
-    return data.signedUrl;
+    const urls = await callApi<Record<string, string>>('signMedia', { paths: [path] }).catch(() => ({}) as Record<string, string>);
+    const url = urls[path];
+    if (!url) return null;
+    signed.set(path, { url, at: Date.now() });
+    return url;
   })().finally(() => pending.delete(path));
   pending.set(path, p);
   return p;
@@ -215,14 +235,16 @@ export async function signedMediaUrls(paths: string[]): Promise<Record<string, s
   }
   if (missing.length === 0) return out;
 
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(missing, SIGNED_URL_SECONDS);
-  if (error || !data) return out;
+  let urls: Record<string, string>;
+  try {
+    urls = await callApi<Record<string, string>>('signMedia', { paths: missing });
+  } catch {
+    return out;
+  }
   const now = Date.now();
-  for (const row of data) {
-    if (row.path && row.signedUrl) {
-      out[row.path] = row.signedUrl;
-      signed.set(row.path, { url: row.signedUrl, at: now });
-    }
+  for (const [p, url] of Object.entries(urls)) {
+    out[p] = url;
+    signed.set(p, { url, at: now });
   }
   return out;
 }
@@ -272,8 +294,6 @@ export async function uploadProofFile(
   }
   const fromName = picked.name?.split('.').pop()?.toLowerCase();
   const ext = kind === 'file' ? (fromName && fromName.length <= 5 ? fromName : 'pdf') : extensionFor(picked.mimeType, kind === 'video' ? 'mp4' : 'jpg');
-  const path = `${userId}/proof-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const { error } = await supabase.storage.from(BUCKET).upload(path, body, { contentType: picked.mimeType, upsert: false });
-  if (error) throw new MediaError(error.message);
+  const path = await putFile('proof', ext, body, picked.mimeType);
   return { path, kind, name: picked.name ?? (kind === 'image' ? 'Photo' : kind === 'video' ? 'Video' : 'Document') };
 }

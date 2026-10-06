@@ -2,13 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Pressable } from 'react-native';
 import { Screen, Text, Card, Row, Button, Divider, formatINR } from '../components/ui';
 import { TaskDescription } from '../components/TaskDescription';
+import { ReportProblemSheet } from '../components/ReportProblemSheet';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
 import {
   confirmRelease as confirmReleaseOnServer,
   requestRevision,
-  openDispute,
   getTaskDetail,
   type TaskDetail,
 } from '../data/api';
@@ -63,6 +63,7 @@ export function ConfirmScreen() {
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
   const [busy, setBusy] = useState(false);
   const [detail, setDetail] = useState<TaskDetail | null>(null);
+  const [reporting, setReporting] = useState(false);
 
   useEffect(() => {
     if (!taskId) return;
@@ -105,20 +106,10 @@ export function ConfirmScreen() {
     }
   };
 
-  const raiseDispute = async () => {
+  const startDispute = () => {
     if (busy) return;
     if (!taskId) return flash('This is a sample task');
-    setBusy(true);
-    try {
-      await openDispute(taskId);
-      // Escrow is frozen, not moved — an admin resolves it from here.
-      celebrate('Problem reported · payment is on hold');
-      go('orders');
-    } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not report the problem');
-    } finally {
-      setBusy(false);
-    }
+    setReporting(true);
   };
   const handleConfirm = async () => {
     if (busy) return;
@@ -204,13 +195,22 @@ export function ConfirmScreen() {
       />
 
       <Pressable
-        onPress={raiseDispute}
+        onPress={startDispute}
+        accessibilityRole="button"
+        accessibilityLabel="Report a problem"
         style={{ marginTop: t.spacing.lg, alignItems: 'center', padding: t.spacing.sm }}
       >
         <Text variant="label" color="signal">
           Report a problem
         </Text>
       </Pressable>
+
+      <ReportProblemSheet
+        taskId={taskId}
+        visible={reporting}
+        onClose={() => setReporting(false)}
+        onReported={() => go('orders')}
+      />
     </Screen>
   );
 }

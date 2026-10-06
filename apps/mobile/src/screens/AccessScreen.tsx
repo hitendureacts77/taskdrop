@@ -20,6 +20,10 @@ import { AuthError, useAuth } from '../providers/AuthProvider';
 import { postSignInRoute } from '../data/api';
 import { supabase } from '../lib/supabase';
 import { signInWithUsername } from '../data/extras';
+import { MIN_SIGNUP_AGE, ageOn, parseBirthDate } from '@taskdrop/rules';
+import { BirthDateField, EMPTY_BIRTH_DATE, type BirthDateParts } from '../components/BirthDateField';
+import { TurnedAway } from '../components/AgeGate';
+import { recordBirthDate, turnAwayThisDevice, turnedAwayOnThisDevice } from '../data/age';
 
 /**
  * The way in: one screen for new and returning people alike.
@@ -30,11 +34,15 @@ import { signInWithUsername } from '../data/extras';
  * and, if the server says there is no such account, quietly asks again as a
  * new one. The person only ever sees "text me a code".
  *
+ * A new person is asked when they were born before any code is texted, so
+ * nobody under MIN_SIGNUP_AGE gets an account -- or a text -- at all. The
+ * answer is recorded against the account once it exists (migration 082).
+ *
  * Google and @username + password stay available as the two quieter ways in.
  * Hiring or earning is chosen later, in setup -- not here.
  */
 
-type Stage = 'number' | 'code';
+type Stage = 'number' | 'birth' | 'code';
 type Door = 'signin' | 'signup';
 
 /** "9876543210" -> "98765 43210", the way people say a number aloud. */
@@ -46,11 +54,14 @@ export function AccessScreen() {
   const t = useTheme();
   const { go, reset } = useNav();
   const { celebrate, flash } = useActions();
-  const { requestCode, verifyCode, signInWithGoogle } = useAuth();
+  const { requestCode, verifyCode, signInWithGoogle, signOut } = useAuth();
 
   const [stage, setStage] = useState<Stage>('number');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
+  const [dob, setDob] = useState<BirthDateParts>(EMPTY_BIRTH_DATE);
+  const [birth, setBirth] = useState<Date | null>(null);
+  const [turnedAway, setTurnedAway] = useState(false);
   // Which door the server let us through. Decided when the code is sent and
   // reused to verify it, because only 'signup' may create an account.
   const [door, setDoor] = useState<Door>('signin');
@@ -99,10 +110,27 @@ export function AccessScreen() {
     else go('setup');
   };
 
+  // A code is on its way: show where to type it.
+  const codeSent = (used: Door, result: { devCode?: string }) => {
+    setDoor(used);
+    setStage('code');
+    setOtp('');
+    setResendAt(Date.now() + 60_000);
+    setNow(Date.now());
+    if (result.devCode) {
+      flash('Development code filled in');
+      setOtp(result.devCode);
+    } else {
+      flash(`Code sent to +91 ${spaced(phone)}`);
+      setTimeout(() => codeRef.current?.focus(), 250);
+    }
+  };
+
   /**
    * Ask as a returning member first. "No account" means a new person: ask
-   * again as one. The reverse ("already exists") can only happen if the number
-   * was registered a moment ago, and is handled the same way.
+   * when they were born, then ask again as one. The reverse ("already
+   * exists") can only happen if the number was registered a moment ago, and
+   * is handled the same way.
    */
   const sendCode = async () => {
     if (!numberReady) return flash('Enter a 10-digit mobile number');
@@ -115,21 +143,39 @@ export function AccessScreen() {
       } catch (e) {
         if (!(e instanceof AuthError) || !(e.noAccount || e.accountExists)) throw e;
         used = e.noAccount ? 'signup' : 'signin';
+        if (used === 'signup' && !birth) {
+          if (await turnedAwayOnThisDevice()) setTurnedAway(true);
+          else setStage('birth');
+          return;
+        }
         result = await requestCode(phone, used);
       }
-      setDoor(used);
-      setStage('code');
-      setOtp('');
-      setResendAt(Date.now() + 60_000);
-      setNow(Date.now());
-      if (result.devCode) {
-        flash('Development code filled in');
-        setOtp(result.devCode);
-      } else {
-        flash(`Code sent to +91 ${spaced(phone)}`);
-        setTimeout(() => codeRef.current?.focus(), 250);
-      }
+      codeSent(used, result);
     } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not send a code');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * The birth date, checked here before any code is sent. The server checks
+   * it again once the account exists, and has the final say.
+   */
+  const confirmBirth = async () => {
+    const date = parseBirthDate(dob.day, dob.month, dob.year);
+    if (!date) return flash('Enter a real date of birth');
+    if (ageOn(date) < MIN_SIGNUP_AGE) {
+      await turnAwayThisDevice();
+      setTurnedAway(true);
+      return;
+    }
+    setBirth(date);
+    setBusy(true);
+    try {
+      codeSent('signup', await requestCode(phone, 'signup'));
+    } catch (e) {
+      if (e instanceof AuthError && e.accountExists) setStage('number');
       flash(e instanceof Error ? e.message : 'Could not send a code');
     } finally {
       setBusy(false);
@@ -154,6 +200,15 @@ export function AccessScreen() {
     setBusy(true);
     try {
       await verifyCode(phone, otp, door);
+      // The new account answers the question it was asked before the code. If
+      // this cannot reach the server, AgeGate asks again after sign-in.
+      if (door === 'signup' && birth) {
+        if ((await recordBirthDate(birth).catch(() => null)) === 'blocked') {
+          await signOut().catch(() => {});
+          setTurnedAway(true);
+          return;
+        }
+      }
       celebrate(door === 'signin' ? 'Welcome back' : 'Number verified');
       await proceed();
     } catch (e) {
@@ -212,6 +267,11 @@ export function AccessScreen() {
   const heading =
     stage === 'number'
       ? { title: 'Get help nearby.\nOr earn nearby.', sub: 'All it takes is your mobile number. New or returning — we’ll know.' }
+      : stage === 'birth'
+      ? {
+          title: 'Nice to meet\nyou.',
+          sub: 'Before we text you a code: when were you born? We ask everyone who joins, and it’s never shown on your profile.',
+        }
       : {
           title: door === 'signin' ? 'Good to see\nyou again.' : 'Nice to meet\nyou.',
           sub:
@@ -219,6 +279,35 @@ export function AccessScreen() {
               ? 'Enter the code we just texted to sign in.'
               : 'Enter the code we just texted. Your account is made the moment it matches.',
         };
+
+  // Said where the account is made (the code button, and Google beside it), so
+  // agreeing is a clear act rather than a link in a footer.
+  const consent = (
+    <RNText style={tx('400', 12, t.colors.muted, { marginTop: 12, lineHeight: 18, textAlign: 'center' })}>
+      By continuing you agree to TaskDrop’s{' '}
+      <RNText onPress={() => go('terms')} accessibilityRole="link" style={tx('700', 12, t.colors.accentDeep)}>
+        Terms
+      </RNText>{' '}
+      and confirm you have read the{' '}
+      <RNText onPress={() => go('privacy')} accessibilityRole="link" style={tx('700', 12, t.colors.accentDeep)}>
+        Privacy Policy
+      </RNText>
+      .
+    </RNText>
+  );
+
+  if (turnedAway) {
+    return (
+      <TurnedAway
+        onDone={() => {
+          setTurnedAway(false);
+          setStage('number');
+          setPhone('');
+          setDob(EMPTY_BIRTH_DATE);
+        }}
+      />
+    );
+  }
 
   return (
     <Screen padded={false}>
@@ -321,6 +410,7 @@ export function AccessScreen() {
                 disabled={!numberReady}
                 style={{ marginTop: 26, borderRadius: 999 }}
               />
+              {consent}
 
               {/* The other two ways in, side by side and quieter. */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 26 }}>
@@ -380,6 +470,31 @@ export function AccessScreen() {
                   <RNText style={tx('700', 14, t.colors.ink)}>Username</RNText>
                 </Pressable>
               </View>
+            </>
+          ) : stage === 'birth' ? (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 22 }}>
+                <View style={{ backgroundColor: t.colors.goldSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
+                  <RNText style={tx('700', 12, t.colors.goldInk)}>New account</RNText>
+                </View>
+                <RNText style={tx('500', 13, t.colors.muted, { flex: 1 })} numberOfLines={1}>
+                  +91 {spaced(phone)}
+                </RNText>
+                <Pressable onPress={editNumber} hitSlop={8} accessibilityRole="button">
+                  <RNText style={tx('700', 13, t.colors.accentDeep)}>Change</RNText>
+                </Pressable>
+              </View>
+              <View style={{ marginTop: 26 }}>
+                <BirthDateField value={dob} onChange={setDob} onSubmit={() => void confirmBirth()} autoFocus />
+              </View>
+              <PrimaryButton
+                label={busy ? 'Sending…' : 'Text me a code'}
+                onPress={() => void confirmBirth()}
+                busy={busy}
+                disabled={!parseBirthDate(dob.day, dob.month, dob.year)}
+                style={{ marginTop: 26, borderRadius: 999 }}
+              />
+              {consent}
             </>
           ) : (
             <>
@@ -480,6 +595,19 @@ export function AccessScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 28 }}>
             <Icon name="shield" size={13} color={t.colors.muted} />
             <RNText style={tx('400', 12, t.colors.muted)}>One account for hiring and earning.</RNText>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 14, marginTop: 10 }}>
+            {(
+              [
+                ['terms', 'Terms'],
+                ['privacy', 'Privacy'],
+                ['copyright', 'Copyright'],
+              ] as const
+            ).map(([page, label]) => (
+              <Pressable key={page} onPress={() => go(page)} hitSlop={8} accessibilityRole="link">
+                <RNText style={tx('500', 12, t.colors.muted, { textDecorationLine: 'underline' })}>{label}</RNText>
+              </Pressable>
+            ))}
           </View>
         </View>
       </ScrollView>

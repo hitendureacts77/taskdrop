@@ -51,6 +51,11 @@ export function PricingScreen() {
           title: `Earnings reach your wallet in ${fees.clearingDays} days`,
           body: 'After that they are yours to withdraw to UPI or your bank, with no withdrawal fee.',
         },
+        {
+          icon: 'close',
+          title: `${pct(fees.cancelFine ?? 0.05)} if you cancel after work starts`,
+          body: 'Paid to the worker for the time they already put in; the rest of the job’s price comes back to you. Cancelling before work starts costs nothing.',
+        },
       ]
     : [];
 

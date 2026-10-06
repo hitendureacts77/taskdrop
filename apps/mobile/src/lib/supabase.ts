@@ -1,6 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LogBox } from 'react-native';
+import { FunctionRegion } from '@supabase/supabase-js';
 import { createBrowserClient } from '@taskdrop/supabase';
+import { sessionStorage } from './secureStorage';
 
 // Hermes has no WebCrypto, so supabase-js says (in development only) that the
 // OAuth code challenge falls back to "plain". The flow still works; the notice
@@ -10,8 +11,17 @@ LogBox.ignoreLogs(['WebCrypto API is not supported']);
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-// One typed client for the whole app, persisting the session in AsyncStorage.
-export const supabase = createBrowserClient(url, anonKey, { storage: AsyncStorage });
+// One typed client for the whole app, persisting the session in SecureStore on
+// a phone (Keystore-encrypted) and AsyncStorage on web.
+export const supabase = createBrowserClient(url, anonKey, { storage: sessionStorage });
+
+/**
+ * Where our server functions run: Mumbai, next to the database. Left to
+ * itself Supabase runs a function near the caller, so someone abroad would
+ * have every one of its database queries cross to Mumbai and back; pinned,
+ * there is one trip and the queries stay local.
+ */
+export const FUNCTIONS_REGION = FunctionRegion.ApSouth1;
 
 /**
  * The signed-in user's id, from the stored session -- no network.
@@ -25,13 +35,4 @@ export const supabase = createBrowserClient(url, anonKey, { storage: AsyncStorag
 export async function currentUserId(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   return data.session?.user.id ?? null;
-}
-
-/**
- * PostgREST filter for tasks still takeable: no deadline, or a deadline still
- * ahead. An open task whose deadline has passed stays on its poster's list,
- * but is no longer offered to workers with an Apply button.
- */
-export function notExpired(): string {
-  return `due_at.is.null,due_at.gt.${new Date().toISOString()}`;
 }

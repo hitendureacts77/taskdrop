@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
-import { supabase } from './supabase';
+import { callApi } from './gateway';
 
 type NotificationsModule = typeof import('expo-notifications');
 
@@ -95,11 +95,8 @@ export async function setupPush(): Promise<void> {
     // has no remote push at all, so this throws there; local still works.
     if (!Device.isDevice || !id) return;
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId: id });
-    const { error } = await supabase.rpc('register_push_token' as never, {
-      p_token: token,
-      p_platform: Platform.OS,
-    } as never);
-    if (!error) remoteRegistered = true;
+    await callApi('registerPushToken', { token, platform: Platform.OS });
+    remoteRegistered = true;
   } catch {
     /* local notifications still cover the app while it is open */
   }

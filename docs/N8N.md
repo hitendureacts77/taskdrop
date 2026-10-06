@@ -20,7 +20,8 @@ and, if you set a secret, `X-TaskDrop-Secret: <secret>`:
 
 | Event | When | `data` |
 |---|---|---|
-| `user.signed_up` | a new account is created | `user_id`, `name` |
+| `user.signed_up` | a new account passes the age check (migration 082) | `user_id`, `name` |
+| `user.deleted` | someone deletes their account in the app (migration 087). Remove them from anything n8n keeps (sheets, mailing lists) | `user_id` |
 | `support.opened` | someone sends a help request | `ticket_id`, `category`, `subject` (first 80 characters), `from` |
 | `withdrawal.requested` | a worker asks to withdraw | `payout_id`, `amount_rupees`, `name`, `via` (`razorpayx` or `manual`) |
 | `payout.failed` | a withdrawal fails and the money goes back | `payout_id`, `amount_rupees`, `name`, `reason` |

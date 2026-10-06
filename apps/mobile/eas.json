@@ -6,14 +6,17 @@
   "build": {
     "preview": {
       "distribution": "internal",
+      "environment": "preview",
       "android": {
         "buildType": "apk"
       },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://wjxvingpfbfvkfqhrguj.supabase.co"
       }
-    },    "production": {
+    },
+    "production": {
       "distribution": "store",
+      "environment": "production",
       "android": {
         "buildType": "app-bundle"
       },

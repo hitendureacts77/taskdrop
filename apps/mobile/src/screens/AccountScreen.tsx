@@ -13,6 +13,9 @@ import { useMode } from '../providers/ModeProvider';
 import { useSwitchMode } from '../lib/useSwitchMode';
 import { getProfile, updateProfile, type Profile } from '../data/api';
 import {
+  accountDeletionCheck,
+  deleteMyAccount,
+  type DeletionBlocker,
   setPassword,
   updateProfileExtras,
   usernameAvailable,
@@ -47,6 +50,12 @@ export function AccountScreen() {
   const [pw2, setPw2] = useState('');
   const [savingPw, setSavingPw] = useState(false);
   const [verify, setVerify] = useState<{ phone: boolean; email: boolean; google: boolean } | null>(null);
+  // Account deletion: checked first, so what is in the way shows on the card.
+  const [checkingDelete, setCheckingDelete] = useState(false);
+  const [blockers, setBlockers] = useState<DeletionBlocker[] | null>(null);
+  const [keepsRecords, setKeepsRecords] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -104,6 +113,34 @@ export function AccountScreen() {
       flash(e instanceof Error ? e.message : 'Could not set the password');
     } finally {
       setSavingPw(false);
+    }
+  };
+
+  const startDelete = async () => {
+    setCheckingDelete(true);
+    try {
+      const res = await accountDeletionCheck();
+      setBlockers(res.blockers);
+      setKeepsRecords(res.keepsRecords);
+      if (res.blockers.length === 0) setConfirmDelete(true);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not check your account');
+    } finally {
+      setCheckingDelete(false);
+    }
+  };
+
+  const doDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteMyAccount();
+      setConfirmDelete(false);
+      reset('splash');
+    } catch (e) {
+      setConfirmDelete(false);
+      flash(e instanceof Error ? e.message : 'Could not delete your account');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -200,6 +237,35 @@ export function AccountScreen() {
               <Icon name="logout" size={18} color={t.colors.signal} />
               <RNText style={tx('700', 14, t.colors.signal)}>Sign out on this device</RNText>
             </Pressable>
+            <View style={card}>
+              <RNText style={tx('800', 15, t.colors.ink)}>Delete account</RNText>
+              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
+                Removes your name, username, photo, location, saved payout details and sign-in methods, and signs you out
+                everywhere. Records of paid tasks and payments are kept, under “Deleted user”, because the law requires it.
+                This can’t be undone.
+              </RNText>
+              {blockers && blockers.length > 0 ? (
+                <View style={{ marginTop: 12, gap: 8 }} accessibilityLiveRegion="polite">
+                  <RNText style={tx('700', 13, t.colors.ink)}>Before you can delete your account:</RNText>
+                  {blockers.map((b) => (
+                    <RNText key={b.code} style={tx('400', 13, t.colors.text, { lineHeight: 19 })}>
+                      • {b.message}
+                    </RNText>
+                  ))}
+                </View>
+              ) : null}
+              <Pressable
+                onPress={() => void startDelete()}
+                disabled={checkingDelete}
+                accessibilityRole="button"
+                accessibilityState={{ busy: checkingDelete }}
+                style={({ pressed }) => ({ marginTop: 14, opacity: pressed || checkingDelete ? 0.6 : 1 })}
+              >
+                <RNText style={tx('700', 14, t.colors.signal)}>
+                  {checkingDelete ? 'Checking…' : blockers && blockers.length > 0 ? 'Check again' : 'Delete my account…'}
+                </RNText>
+              </Pressable>
+            </View>
           </>
         ) : null}
 
@@ -256,6 +322,38 @@ export function AccountScreen() {
                 ))}
               </View>
             </View>
+            {/* A customer's spending screens, kept here on purpose rather than on the
+                profile, so they aren't in front of them on every visit. */}
+            {mode !== 'worker' ? (
+              <View style={card}>
+                <RNText style={tx('800', 15, t.colors.ink)}>Spending</RNText>
+                {(
+                  [
+                    ['My spending and requests', 'analytics'],
+                    ['Spending insights', 'spending'],
+                  ] as const
+                ).map(([label, screen], i) => (
+                  <Pressable
+                    key={screen}
+                    onPress={() => go(screen)}
+                    accessibilityRole="button"
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 13,
+                      marginTop: i === 0 ? 4 : 0,
+                      borderTopWidth: i === 0 ? 0 : 1,
+                      borderTopColor: t.colors.line,
+                      opacity: pressed ? 0.7 : 1,
+                    })}
+                  >
+                    <RNText style={tx('600', 14, t.colors.ink)}>{label}</RNText>
+                    <Icon name="chevronRight" size={16} color={t.colors.muted} />
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
           </>
         ) : null}
       </ScrollView>
@@ -273,6 +371,24 @@ export function AccountScreen() {
           setConfirmSignOut(false);
           void signOut().finally(() => reset('splash'));
         }}
+      />
+      <ConfirmDialog
+        visible={confirmDelete}
+        danger
+        busy={deleting}
+        icon="close"
+        title="Delete your account for good?"
+        message={
+          'Your profile, photo, username, location and sign-in methods are removed and you’re signed out on every device. ' +
+          (keepsRecords
+            ? 'Your past paid tasks, messages and payment records stay, shown as “Deleted user”. '
+            : '') +
+          'Signing in again with the same number or Google account starts a new, empty account.'
+        }
+        confirmLabel="Delete account"
+        cancelLabel="Keep my account"
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={() => void doDelete()}
       />
     </Screen>
   );

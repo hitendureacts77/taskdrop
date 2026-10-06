@@ -57,6 +57,8 @@ import { PublicProfileScreen } from '../screens/PublicProfileScreen';
 import { SavedScreen } from '../screens/SavedScreen';
 import { WorkerSetupScreen } from '../screens/WorkerSetupScreen';
 import { ListingEditScreen } from '../screens/ListingEditScreen';
+import { CopyrightScreen } from '../screens/CopyrightScreen';
+import { PrivacyScreen, TermsScreen } from '../screens/LegalScreens';
 
 // Screens that show the bottom tab bar (the main app tabs).
 // search and orders are no longer tabs, but they keep the bar when reached.
@@ -70,6 +72,8 @@ const KEEP_ALIVE: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'profi
 
 // Desktop web: screens shown before sign-in, and screens given the wide column.
 const PRE_AUTH: ScreenName[] = ['splash', 'welcome', 'signup', 'setup'];
+// Pages anyone may read; signed out on desktop they get the sign-in frame.
+const PUBLIC: ScreenName[] = ['copyright', 'terms', 'privacy'];
 const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'search', 'orders', 'saved', 'wallet', 'spending', 'profile'];
 
 // Registry. Screens the agent team hasn't delivered yet fall back to Placeholder.
@@ -116,6 +120,9 @@ const REGISTRY: Partial<Record<ScreenName, React.ComponentType>> = {
   saved: SavedScreen,
   workerSetup: WorkerSetupScreen,
   listing: ListingEditScreen,
+  copyright: CopyrightScreen,
+  terms: TermsScreen,
+  privacy: PrivacyScreen,
 };
 
 export function ScreenHost() {
@@ -150,6 +157,7 @@ export function ScreenHost() {
   const handledLink = useRef(false);
   useEffect(() => {
     if (handledLink.current) return;
+    // (?page= links are handled by PublicPageLink, outside the age gate.)
     const id = incomingTaskId();
     if (!id) return;
     handledLink.current = true;
@@ -206,7 +214,7 @@ export function ScreenHost() {
 
   // Desktop web: sign-in screens get the split brand/form layout; the app gets
   // the sidebar (in place of the tab bar and the + button) and a centred column.
-  if (desktop && PRE_AUTH.includes(screen)) {
+  if (desktop && (PRE_AUTH.includes(screen) || (!userId && PUBLIC.includes(screen)))) {
     return <DesktopAuthFrame>{content}</DesktopAuthFrame>;
   }
   if (desktop) {
