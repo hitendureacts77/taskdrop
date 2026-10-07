@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4, 2026-10-07. The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -27,9 +27,14 @@ Version 4, 2026-10-07. The single source of truth for the upgrade. Part A is the
 2. **All upgrade work happens on `upgraded-plan-changes`**, in both repos.
    - Each phase gets a short branch, such as `upgrade/phase-1-sentry`, cut from `upgraded-plan-changes`.
    - It merges back through a pull request, after CI and a **CodeRabbit** review.
-3. **The old app keeps running for your testers**, on its current URLs and its current Supabase project, until the switch-over (Phase 9).
-4. **The app asks, the server decides.** Money, permissions, limits, prices and switches are always checked on the server.
-5. **Stage: testing only.** Fake data, you and about 10 testers, no customers. Customer launch (Phase 10) happens only when you decide.
+3. **The old app keeps running for your testers**, on its current URLs, until the switch-over (Phase 9).
+4. **One shared database until the switch-over.** The old app, the old admin and the upgrade all use the Supabase project `wjxvingpfbfvkfqhrguj`, and its server functions are shared too. Until Phase 9, every backend change must keep the old app and the old admin working:
+   - migrations only **add** (new tables, columns, functions); nothing old is dropped or renamed
+   - existing `api` operations keep the same inputs and responses; new behaviour goes in new operations or optional fields
+   - old functions the old app calls (`phone-auth`, `password-auth`, `razorpay`, …) keep working
+   - anything that can't be made compatible waits for Phase 9: the lockdown, retiring the old phone login, and dropping old code
+5. **The app asks, the server decides.** Money, permissions, limits, prices and switches are always checked on the server.
+6. **Stage: testing only.** Fake data, you and about 10 testers, no customers. Customer launch (Phase 10) happens only when you decide.
 
 ---
 
@@ -55,16 +60,16 @@ Version 4, 2026-10-07. The single source of truth for the upgrade. Part A is the
 
 | Phase | Backend | Web | Android | iOS | Admin |
 |---|---|---|---|---|---|
-| 0 | Beta project, CI, auto-deploy, seed | `taskdrop.in` on the upgrade | Beta build profile | Apple Developer enrollment | `admin.taskdrop.in`, CI |
+| 0 | Compatibility rules, CI, auto-deploy, seed | `taskdrop.in` on the upgrade | Beta build profile | Apple Developer enrollment | `admin.taskdrop.in`, CI |
 | 1 | Sentry in functions, health check | Sentry | Sentry, OTA updates, push fix | First TestFlight build, push | Sentry |
 | 2 | Bug fixes, slow queries | E2E tests, fixes | Fixes | iOS fixes | Every page checked |
-| 3 | Server rules, app controls, lockdown | No key in bundle, security headers | Control screens | Control screens | App controls page, gateway header |
+| 3 | Server rules, app controls | No key in bundle, security headers | Control screens | Control screens | App controls page, gateway header |
 | 4 | Phone auth, Apple, linking | Google/Apple browser sign-in | Google/Apple/phone | Native Apple sign-in | Sign-in methods, devices |
 | 5 | Inngest, outbox, webhooks | In-app notifications | Push via Inngest | Push via Inngest | Queued payouts, alerts |
 | 6 | `media` table, ImageKit signing | Uploads, images, CSP | Camera uploads, images | Camera/HEIC uploads, images | Images via signing |
 | 7 | Reports, blocks, admin actions | Report/block | Report/block | Report/block | Reports queue, actions, runbook |
 | 8 | — | Privacy and support pages | Play closed test | App Store review prep | Ready for reviewers |
-| 9 | Beta becomes main | Domains confirmed | Testers move | Testers move | Admin moves |
+| 9 | Lockdown, retire old code paths | Domains confirmed | Testers move | Testers move | Admin moves |
 | 10 | Production project | Production | Play release | App Store release | Production |
 
 ---
@@ -88,17 +93,17 @@ Version 4, 2026-10-07. The single source of truth for the upgrade. Part A is the
   - `supabase/functions/**`: caller identity checked, no secrets logged, webhooks verified and idempotent, errors reported to Sentry
   - `apps/mobile/**`: no secrets, no business decisions in the app, platform differences handled for web/Android/iOS
   - `taskdrop-admin` `src/**`: `requireAdmin` on every action, MFA gate on money actions, audit-log writes
+  - every repo, until Phase 9: flag anything that would break the old app or the old admin on the shared database (dropped or renamed tables, columns or functions, changed `api` inputs or responses)
 - [ ] Rule: every CodeRabbit comment is fixed or answered before merging
 
 **CI (GitHub Actions), on every pull request into `upgraded-plan-changes`**
 - [ ] User repo: typecheck, `npm test`, `api` function tests, SQL tests against a local Supabase started in CI
 - [ ] Admin repo: typecheck, build, and database types generated from Supabase, so they can't drift
 
-**Hosted beta environment (R5)**
-- [ ] **(You)** Create a second free Supabase project, `taskdrop-beta`
-- [ ] Apply all migrations to it, load the fake-data seed, set its secrets, deploy all functions
+**Shared test project (`wjxvingpfbfvkfqhrguj`)**
 - [ ] Auto-deploy on merge into `upgraded-plan-changes` (R2): migrations (`supabase db push`), functions, then the Inngest sync once it exists
-- [ ] The old project `wjxvingpfbfvkfqhrguj` gets no upgrade changes
+- [ ] Compatibility check in CI, run before every deploy: the old app's `api` operations still accept the same inputs and return the same fields (a contract test)
+- [ ] Before each deploy that changes the backend, a quick check on the old app: sign in, browse, post, chat
 
 **Local development (your PC)**
 - [ ] **(You)** Install Docker Desktop (with WSL 2)
@@ -109,7 +114,7 @@ Version 4, 2026-10-07. The single source of truth for the upgrade. Part A is the
   - tasks in every status
   - wallets with fake credits
 
-  The same command can reset the beta project, never production.
+  On the shared test project, a reset also changes what old-app testers see, so it only runs with your OK. It never runs on production.
 - [ ] README section: "Run TaskDrop locally"
 
 **Config in code**
@@ -119,21 +124,21 @@ Version 4, 2026-10-07. The single source of truth for the upgrade. Part A is the
 
 **Web**
 - [ ] **(You)** Buy `taskdrop.in` (Part B, section 8)
-- [ ] Vercel project `taskdrop`: assign `taskdrop.in` + `www` to the `upgraded-plan-changes` branch, with that branch's env vars pointing at the beta project
-- [ ] Beta project: site URL and redirect URLs for `taskdrop.in`; `EXPO_PUBLIC_APP_URL=https://taskdrop.in` on the upgrade branch
+- [ ] Vercel project `taskdrop`: assign `taskdrop.in` + `www` to the `upgraded-plan-changes` branch. The old production branch keeps its current URL.
+- [ ] Add `taskdrop.in` to the project's redirect URLs (adding to the list leaves the old URLs working); `EXPO_PUBLIC_APP_URL=https://taskdrop.in` on the upgrade branch
 - [ ] **(You)** `support@taskdrop.in` via free email forwarding
 
 **Android**
-- [ ] EAS build profile `beta` (Android APK), pointing at the beta project, with EAS Update channel `beta`. The first build happens in Phase 1.
-- [ ] **(You)** Restrict the Google Maps key to package `com.taskdrop.app` + signing SHA-1
+- [ ] EAS build profile `beta` (Android APK) with EAS Update channel `beta` (R1, confirmed). The first build happens in Phase 1.
+- [ ] **(You)** Restrict the Google Maps key: limit it to the Maps and Places APIs and set a daily quota. Use a separate Android key restricted to package `com.taskdrop.app` + signing SHA-1. The old web bundle keeps exposing the current key until Phase 9, so the restriction matters now.
 - [ ] **(You)** Back up the EAS keystore (`eas credentials`)
 
 **iOS**
 - [ ] **(You)** Enroll in the Apple Developer Program, $99/year. Approval can take days, and the first TestFlight build in Phase 1 needs it.
 
 **Admin**
-- [ ] Vercel admin project: assign `admin.taskdrop.in` to the `upgraded-plan-changes` branch, with env vars pointing at the beta project
-- [ ] Beta project redirect URL: `https://admin.taskdrop.in/auth/callback`
+- [ ] Vercel admin project: assign `admin.taskdrop.in` to the `upgraded-plan-changes` branch. The old admin keeps its current URL.
+- [ ] Add redirect URL `https://admin.taskdrop.in/auth/callback`
 - [ ] Admin `.env.example` and README updated for local and beta
 
 **You (other)**
@@ -141,11 +146,11 @@ Version 4, 2026-10-07. The single source of truth for the upgrade. Part A is the
 - [ ] Recruit at least 12 testers. Google Play requires a closed test with at least 12 testers before a production release.
 
 **Verify**
-- [ ] A test pull request into `upgraded-plan-changes` runs CI and gets a CodeRabbit review
-- [ ] Merging deploys to the beta project
-- [ ] `taskdrop.in` and `admin.taskdrop.in` load the upgrade branch against the beta project
+- [ ] A test pull request into `upgraded-plan-changes` runs CI (including the compatibility check) and gets a CodeRabbit review
+- [ ] Merging deploys to the shared test project
+- [ ] `taskdrop.in` and `admin.taskdrop.in` load the upgrade branch
 - [ ] The whole app (web in a browser, Android over Wi-Fi, admin) runs on your PC against the local stack
-- [ ] **The old app still works unchanged**, at its current URLs and on its current database
+- [ ] **The old app and old admin still work unchanged** at their current URLs
 
 ---
 
@@ -238,7 +243,7 @@ Version 4, 2026-10-07. The single source of truth for the upgrade. Part A is the
 - [ ] The core-flow checklist passes on TestFlight; failures are fixed
 
 **Admin**
-- [ ] Every admin page works against the beta project: users, tasks, payouts, refunds, disputes, support, CRM, copyright, money, reports, settings, security
+- [ ] Every admin page works against the shared test project: users, tasks, payouts, refunds, disputes, support, CRM, copyright, money, reports, settings, security
 - [ ] Failures are fixed
 
 **Verify**
@@ -277,7 +282,8 @@ Version 4, 2026-10-07. The single source of truth for the upgrade. Part A is the
   - [ ] An announcement banner (text, link, platforms, end date)
   - [ ] `api` enforces every switch, using the `x-taskdrop-platform` and `x-taskdrop-app-version` headers
   - [ ] Every change is written to `admin_audit_log`
-- [ ] Lockdown on the beta project, after the admin step below: run `supabase/lockdown/gateway_only.sql`
+  - [ ] Requests without the platform header (the old app) are treated as "old app": they still work, and the switches and minimum version can target them in Phase 9
+- [ ] The lockdown itself waits for Phase 9: on the shared database it would break the old admin, which calls the database directly
 
 **User app (all platforms)**
 - [ ] Platform and app-version headers sent on every `api` call
@@ -299,21 +305,18 @@ Version 4, 2026-10-07. The single source of truth for the upgrade. Part A is the
 
 **Admin**
 - [ ] New **App controls** page: every switch per platform, minimum versions, maintenance, banner
-- [ ] Before the lockdown:
-  - [ ] Set `API_GATEWAY_SECRET` in the admin env
+- [ ] Prepare for the lockdown (harmless before it runs):
+  - [ ] Set `API_GATEWAY_SECRET` in the upgraded admin's env
   - [ ] Send the `x-taskdrop-gateway` header from the admin's Supabase server client
-  - [ ] Redeploy
-- [ ] Raise the minimum app version, so testers update before the lockdown
+  - [ ] Redeploy the upgraded admin
 
 **Verify**
-- [ ] The web bundle contains no Google key
-- [ ] A bid containing a phone number sent straight to the API is rejected
+- [ ] The new web bundle contains no Google key
+- [ ] A bid containing a phone number sent straight to the API is rejected, on the old app too
 - [ ] Posting switched off for iOS only: refused on iPhone, even by direct API call; still works on web and Android
 - [ ] Maintenance mode for Android only shows the screen on Android only
-- [ ] An older build sees "Update the app" on Android and iOS
-- [ ] After the lockdown:
-  - [ ] A direct database call with the public key + a user token is refused
-  - [ ] Web, Android, iOS, admin and the E2E tests still work
+- [ ] An older upgraded build sees "Update the app" on Android and iOS
+- [ ] The old app and old admin still work
 
 ---
 
@@ -321,15 +324,16 @@ Version 4, 2026-10-07. The single source of truth for the upgrade. Part A is the
 
 **Backend**
 - [ ] **(You)** In Apple Developer: App ID with Sign in with Apple, a Services ID and a Sign in with Apple key
-- [ ] Enable Apple in Supabase Auth (beta project), with redirect URLs (`taskdrop://auth-callback`, `https://taskdrop.in`, localhost)
-- [ ] Phone login moves to Supabase's built-in phone auth, with a Send-SMS hook calling MSG91
+- [ ] Enable Apple in Supabase Auth, with redirect URLs (`taskdrop://auth-callback`, `https://taskdrop.in`, localhost) added to the existing list
+- [ ] The upgraded app's phone login uses Supabase's built-in phone auth, with a Send-SMS hook calling MSG91
 - [ ] Every existing protection kept:
   - throttles
   - birth date before the first code
   - admin numbers refused
   - test numbers with fixed codes
-- [ ] Test users migrated: the phone copied from each synthetic email into `auth.users.phone`
-- [ ] `task_contact_phone`, `verificationState` and the admin SMS block updated; the synthetic-email code retired
+- [ ] Test users migrated: the phone copied from each synthetic email into `auth.users.phone`. The synthetic email stays, so both the old and the new phone login find the same account.
+- [ ] `task_contact_phone`, `verificationState` and the admin SMS block read `auth.users.phone` first, then fall back to the synthetic email
+- [ ] The old `phone-auth` function stays deployed and working for the old app; it's retired in Phase 9
 - [ ] `password-auth` keeps username + password working, looking up the username and signing in with the account's phone or email
 - [ ] `handle_new_user` takes names from Google/Apple
 - [ ] Manual identity linking enabled
@@ -382,9 +386,10 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
   - functions run with `INNGEST_DEV=1`
   - the local database sends events to `host.docker.internal:8288`
 - [ ] **(You)** Create an Inngest Cloud free account
-  - [ ] Set `INNGEST_SIGNING_KEY` and `INNGEST_EVENT_KEY` on the beta project
-  - [ ] CI syncs the app URL on deploy
-- [ ] The Inngest event address and key live in Vault, so one migration works locally and on beta
+  - [ ] Set `INNGEST_SIGNING_KEY` and `INNGEST_EVENT_KEY` on the shared test project
+  - [ ] CI syncs the app URL `https://wjxvingpfbfvkfqhrguj.supabase.co/functions/v1/inngest` on deploy
+- [ ] The Inngest event address and key live in Vault, so one migration works locally and hosted
+- [ ] The jobs serve both apps, since they share the database. The old app sees the same results, just more reliably.
 
 **Backend: events out of the database**
 - [ ] `private.emit_event` writes to a new `private.outbox` in the same transaction
@@ -410,7 +415,8 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
   - [ ] record the event id in `webhook_events`
   - [ ] send an Inngest event
   - [ ] return 200 immediately
-- [ ] Tested locally with sample signed payloads, and on beta with Razorpay test mode
+- [ ] Tested locally with sample signed payloads, and on the test project with Razorpay test mode
+- [ ] `requestWithdrawal` keeps the same response shape, so the old app still shows the withdrawal correctly
 
 **Backend: housekeeping and n8n**
 - [ ] Missing prunes added in pg_cron: `auth_codes`, `auth_send_log`, `places_quota`, old notifications, sent outbox rows
@@ -434,7 +440,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [ ] `check-all`, `give-back` and `balance` still work
 
 **Verify**
-- [ ] Every function runs in the dev server, then in Inngest Cloud for beta
+- [ ] Every function runs in the dev server, then in Inngest Cloud for the test project
 - [ ] A forced failure (bad push token, RazorpayX test error) retries, then succeeds or lands in Sentry
 - [ ] A withdrawal request returns in under 1 second on web, Android and iOS
 - [ ] No old pg_cron job or n8n hook still does the same work
@@ -450,6 +456,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
   - `purpose` (task | avatar | proof | chat), `kind`, `bytes`
   - `status` (pending → attached → hidden → deleted), `created_at`
 - [ ] New uploads referenced as `media:<id>` in `tasks.media_path`, `profiles.avatar_url`, `task_proofs.files` and chat messages; old values still readable
+- [ ] The old app can still show new photos: `signMedia` accepts `media:<id>` and returns a URL in the old response shape. Old-app uploads keep working through Supabase Storage.
 - [ ] `createUpload` (`api/media.ts`) for images returns ImageKit params signed on the server:
   - token, expiry and HMAC-SHA1 signature
   - public key
@@ -575,19 +582,32 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 
 - [ ] Phases 0–8 done; the last tester round has no open serious issues
 - [ ] **(You)** Approve the switch-over
-- [ ] **Backend:** the beta project becomes the main test environment. The old project `wjxvingpfbfvkfqhrguj` is paused, not deleted, and kept for reference.
+- [ ] **Move everyone to the upgraded app:**
+  - [ ] **Android:** testers install the upgraded build; the old APK retires
+  - [ ] **iOS:** TestFlight continues on `main` (iOS only ever had the upgraded app)
+  - [ ] **Web:** the old Vercel URL redirects to `taskdrop.in`
+  - [ ] **Admin:** the old admin URL redirects to `admin.taskdrop.in`
+  - [ ] The old app (requests without the platform header) gets the "Update the app" screen, set from app controls
+- [ ] **Backend: lockdown**, now that the old admin is retired:
+  - [ ] The upgraded admin already sends the gateway header (Phase 3)
+  - [ ] Run `supabase/lockdown/gateway_only.sql`. It turns on `require_gateway` and removes `messages`/`notifications` from the realtime feed.
+- [ ] **Backend: retire old code paths:**
+  - [ ] Remove the old `phone-auth` function and the synthetic emails
+  - [ ] Remove the compatibility code kept for the old app
+  - [ ] Remove the old `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` from Google Cloud, now that no web bundle uses it
+  - [ ] Drop what nothing uses any more, in clean-up migrations
+  - [ ] Turn off the compatibility check in CI
 - [ ] **Repos:**
   - [ ] Create `main` from `upgraded-plan-changes` and make it the default branch
   - [ ] The old branches stay exactly as they are
   - [ ] CodeRabbit config moves to `main`
-- [ ] **Web:** `taskdrop.in` follows `main`; the old Vercel URLs retire
+- [ ] **Web:** `taskdrop.in` follows `main`
 - [ ] **Admin:** `admin.taskdrop.in` follows `main`
-- [ ] **Android:** testers install the upgraded build; the old APK retires
-- [ ] **iOS:** TestFlight continues on `main`
 
 **Verify**
 - [ ] Every tester is on the upgraded app on web, Android and iOS
 - [ ] Admin works on `admin.taskdrop.in`
+- [ ] After the lockdown, a direct database call with the public key + a user token is refused, while web, Android, iOS, admin and the E2E tests still work
 - [ ] The old branches are unchanged
 
 ---
@@ -598,7 +618,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [ ] **Backend:**
   - [ ] Production Supabase project on Pro ($25/month, backups); migrations from `main`, secrets from the inventory, functions deployed
   - [ ] Auth providers on, with production redirects
-  - [ ] Lockdown run (same steps as Phase 3)
+  - [ ] Lockdown run (same steps as Phase 9)
   - [ ] Inngest production environment, ImageKit `/prod`, Sentry production
   - [ ] Production deploys need your approval in CI
 - [ ] **(You)** Razorpay and RazorpayX live keys (business KYC + current account); MSG91 DLT templates
@@ -659,8 +679,10 @@ You started this because the app felt clumsy and parts weren't working as expect
 | Payments | Existing Razorpay escrow + RazorpayX payouts, audited not rewritten |
 | Promotion on iOS | Razorpay, with a per-platform switch to hide it on iOS if Apple objects |
 | Media | Images to ImageKit; videos and documents stay in Supabase Storage |
-| Background jobs | Inngest replaces n8n. Dev server on your PC; Inngest Cloud free plan for the hosted beta |
-| Expo / EAS | No EAS Hosting (web is on Vercel); EAS for app builds |
+| Background jobs | Inngest replaces n8n. Dev server on your PC; Inngest Cloud free plan for the hosted test project |
+| Expo / EAS | No EAS Hosting (web is on Vercel). EAS for app builds, and **EAS Update** for over-the-air updates to testers (R1) |
+| Database | **One shared test project** (`wjxvingpfbfvkfqhrguj`) for the old app and the upgrade until Phase 9; upgrade changes stay compatible with the old app |
+| Deploys | **Auto-deploy** to the shared test project on merge into `upgraded-plan-changes` (R2) |
 | Hosting now | Free plans (Vercel Hobby, Supabase free) while testing |
 | Admin control | The admin controls web, Android and iOS, enforced on the server |
 
@@ -668,12 +690,12 @@ You started this because the app felt clumsy and parts weren't working as expect
 
 | # | Recommendation | Why | Status |
 |---|---|---|---|
-| R1 | **EAS Update** for testers (over-the-air updates, not EAS Hosting) | App changes reach installed Android/iOS apps without rebuilding or reinstalling | **Confirm** |
-| R2 | **Auto-deploy** to the hosted beta on merge into `upgraded-plan-changes` | Testers always run the latest upgrade; nothing to forget | **Confirm** |
+| R1 | **EAS Update** for testers (over-the-air updates, not EAS Hosting) | App changes reach installed Android/iOS apps without rebuilding or reinstalling | **Confirmed** |
+| R2 | **Auto-deploy** to the test project on merge into `upgraded-plan-changes` | Testers always run the latest upgrade; nothing to forget | **Confirmed** |
 | R3 | **Ask a lawyer about the money flow now** | If the wallet or escrow needs a different setup (e.g. Razorpay Route), Phase 5 must be built that way | Your action, Phase 0 |
 | R4 | A **`media` table** for every uploaded file | Moderation, takedowns, deletion and cleanup need it | Phase 6 |
-| R5 | A **second free Supabase project (`taskdrop-beta`)** for the upgrade | Upgrade migrations never touch the database the old app uses, so the old app keeps working | **Confirm** |
-| A | At customer launch: a new **production** project on Supabase Pro ($25/month); the beta becomes staging | Clean production, safe staging | Deferred to Phase 10 |
+| R5 | A second free Supabase project for the upgrade | It would keep the old app's database untouched | **Not chosen.** The project is shared, under the compatibility rules (ground rule 4) |
+| A | At customer launch: a new **production** project on Supabase Pro ($25/month); the test project becomes staging | Clean production, safe staging | Deferred to Phase 10 |
 | D | **Vercel Pro** ($20/month) at customer launch | The free plan is non-commercial | Deferred to Phase 10 |
 | E | The admin app stays in **its own repo** | Already deployed; merging repos adds risk | Applies |
 
@@ -692,7 +714,7 @@ You started this because the app felt clumsy and parts weren't working as expect
                 │ HTTPS + user token + platform/version headers │
                 ▼                                              ▼
  ┌─────────────────────────────────────────────────────────────────────────────┐
- │ SUPABASE (beta project now; staging + production at customer launch)        │
+ │ SUPABASE (shared test project now; staging + production at customer launch) │
  │                                                                              │
  │ Edge Functions (server code, never shipped to users)                         │
  │  api ............ gateway for every app read/write: auth check, rate limits, │
@@ -769,27 +791,27 @@ You started this because the app felt clumsy and parts weren't working as expect
 
 ### 3.5 Environments
 
-| | Old app (untouched) | Upgrade: your PC | Upgrade: hosted beta |
+| | Old app (code untouched) | Upgrade: your PC | Upgrade: hosted beta |
 |---|---|---|---|
 | Code | `feature/first-push` (and the other old branches) | Phase branches | `upgraded-plan-changes` |
-| Supabase | `wjxvingpfbfvkfqhrguj` | Local Docker stack | `taskdrop-beta` (free, R5) |
+| Supabase | `wjxvingpfbfvkfqhrguj`, **shared** with the upgrade | Local Docker stack | `wjxvingpfbfvkfqhrguj`, **shared** (compatibility rules apply) |
 | Web | Current Vercel URL | `expo start` in a browser | `taskdrop.in` |
 | Android | Existing preview APK | Your phone over Wi-Fi | `beta` APK + EAS Update channel `beta` |
 | iOS | — | — (needs a build) | TestFlight internal + channel `beta` |
 | Admin | Current Vercel URL | `npm run dev` (port 3001) | `admin.taskdrop.in` |
-| Background jobs | pg_cron + n8n | Inngest dev server (`localhost:8288`) | Inngest Cloud free plan |
-| Images | Supabase Storage | ImageKit `/local` | ImageKit `/beta` |
+| Background jobs | Shared: pg_cron + n8n until Phase 5, then Inngest for both | Inngest dev server (`localhost:8288`) | Inngest Cloud free plan |
+| Images | Supabase Storage (can also show new ImageKit photos via `signMedia`) | ImageKit `/local` | ImageKit `/beta` |
 | Razorpay | Test keys | Test keys | Test keys |
 | Sentry | — | Off | `environment: beta` |
 
-After Phase 9 the old column is retired. At Phase 10, production is added and the beta becomes staging (`beta.taskdrop.in`). Free Supabase projects pause after about a week of inactivity; resume them from the dashboard.
+Because the database and functions are shared, a backend change deployed for the upgrade also runs for the old app. That's why ground rule 4 (compatibility) and the CI compatibility check exist. After Phase 9 the old column is retired. At Phase 10, production is added and the test project becomes staging (`beta.taskdrop.in`). Free Supabase projects pause after about a week of inactivity; resume them from the dashboard.
 
 ### 3.6 How a change reaches testers
 
 ```
 upgrade/phase-N-… branch → pull request into upgraded-plan-changes
-   → CI (typecheck, unit, SQL, api, Playwright E2E) + CodeRabbit review → fix or answer → merge
-   → auto-deploy (R2): migrations · functions · Inngest sync → taskdrop-beta
+   → CI (typecheck, unit, SQL, api, compatibility check, Playwright E2E) + CodeRabbit review → fix or answer → merge
+   → auto-deploy (R2): migrations · functions · Inngest sync → shared test project (wjxvingpfbfvkfqhrguj)
                        web + admin → taskdrop.in / admin.taskdrop.in (Vercel)
                        app JS/UI → EAS Update channel "beta" → Android + iPhone
    → native changes only: new EAS build (beta APK / TestFlight)
@@ -965,7 +987,7 @@ At the end of every phase:
 | Item | Cost | When |
 |---|---|---|
 | Domain `taskdrop.in` | ~$5–6/year | Phase 0 |
-| Supabase: old project + `taskdrop-beta` | Free | now |
+| Supabase (shared test project) | Free | now |
 | Vercel (web + admin) | Free (Hobby) while testing | now |
 | CodeRabbit | Free for public repos; private repos 14-day trial, then $24/developer/month (annual) | Phase 0 |
 | Apple Developer Program | $99/year | Phase 0 |
@@ -1021,10 +1043,12 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 | Google Play closed test (12+ testers, 14 days) | Android launch delay | Recruit in Phase 0; test in Phase 8 |
 | RazorpayX live needs KYC and a current account | Payout launch delay | Start KYC early; manual payout mode exists |
 | MSG91 DLT registration | OTP fails in production | Register before Phase 10 |
-| Moving phone login touches every sign-in | Testers locked out | Migrate test users; E2E sign-in test; sign-in switches |
+| **Shared database:** an upgrade deploy breaks the old app or old admin | Current testers blocked | Ground rule 4 (additive changes only), CI compatibility check, CodeRabbit rule, old-app check before each backend deploy; breaking changes wait for Phase 9 |
+| The old web bundle still exposes the Google Maps key until Phase 9 | Key misuse, bills | Restrict APIs and set a quota now (Phase 0); delete the key in Phase 9 |
+| Moving phone login touches every sign-in | Testers locked out | Old and new phone login both work until Phase 9; migrate test users; E2E sign-in test; sign-in switches |
 | CodeRabbit on private repos is paid after the trial | Cost | Decide after the trial; CI and Claude reviews still run |
 | CodeRabbit only auto-reviews the default branch unless configured | Pull requests not reviewed | `base_branches` setting (Phase 0) |
-| Free-tier limits (Supabase 2 free projects, Inngest, ImageKit, Sentry, EAS) | Throttling or a paused project | Check at sign-up; resume paused projects |
+| Free-tier limits (Supabase, Inngest, ImageKit, Sentry, EAS) | Throttling or a paused project | Check at sign-up; resume paused projects |
 | OpenStreetMap tile and search policies | Blocked at volume | Provider in Phase 8 |
 | Edge function time limits | Long jobs cut off | Long work runs as Inngest steps |
 | Inngest outage | Delayed jobs | Outbox + sweeper |
@@ -1050,3 +1074,10 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
   - **The first iOS TestFlight build moved from Phase 8 to Phase 1**, so every phase is checked on iPhone, not only at the end.
   - **iOS fixes moved to Phase 2.**
   - **New Phase 9, "Switch-over"**, moves testers to the upgraded app before any customer launch (now Phase 10).
+- **v4.1 (2026-10-07):** your answers.
+  - **R5 not chosen:** the old app and the upgrade **share** the Supabase project `wjxvingpfbfvkfqhrguj` until Phase 9. Added ground rule 4 (backend changes stay compatible), a CI compatibility check, a CodeRabbit rule and an old-app check before backend deploys.
+  - **Lockdown moved from Phase 3 to Phase 9**, because the old admin calls the database directly.
+  - **Old phone login and synthetic emails kept until Phase 9**, so the old app keeps signing in.
+  - **Maps key:** restrict it now, delete it in Phase 9.
+  - **R1 (EAS Update) and R2 (auto-deploy) confirmed.**
+  - **Push to GitHub:** not yet; the branch is on your PC only.
