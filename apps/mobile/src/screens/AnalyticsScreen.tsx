@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Icon } from '../components/Icon';
 import { View, Text as RNText, Pressable } from 'react-native';
 import Svg, { Rect, Line } from 'react-native-svg';
-import { Screen, formatINR } from '../components/ui';
+import { Screen, formatINR, cardSurface } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -43,10 +43,7 @@ function Stat({
       style={{
         flex: 1,
         minWidth: 140,
-        backgroundColor: t.colors.surface,
-        borderWidth: 1,
-        borderColor: t.colors.line,
-        borderRadius: 14,
+        ...cardSurface(t, 18),
         padding: 14,
       }}
     >

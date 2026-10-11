@@ -7,7 +7,7 @@ import {
   Animated,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { Screen, formatINR } from '../components/ui';
+import { Screen, formatINR, cardSurface } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -685,10 +685,7 @@ export function HomeScreen() {
               <View
                 key={i}
                 style={{
-                  backgroundColor: t.colors.surface,
-                  borderWidth: 1,
-                  borderColor: t.colors.line,
-                  borderRadius: 14,
+                  ...cardSurface(t, 18),
                   padding: 15,
                   marginTop: 12,
                 }}
@@ -705,10 +702,7 @@ export function HomeScreen() {
               {feed.length === 0 ? (
                 <View
                   style={{
-                    backgroundColor: t.colors.surface,
-                    borderWidth: 1,
-                    borderColor: t.colors.line,
-                    borderRadius: 14,
+                    ...cardSurface(t, 18),
                     padding: 22,
                     marginTop: 12,
                     alignItems: 'center',
@@ -791,10 +785,7 @@ export function HomeScreen() {
                       scaleTo={0.985}
                       label={`${row.title}, ${formatINR(row.amountMinor)}`}
                       style={{
-                        backgroundColor: t.colors.surface,
-                        borderWidth: 1,
-                        borderColor: t.colors.line,
-                        borderRadius: 14,
+                        ...cardSurface(t, 18),
                         padding: 15,
                       }}
                     >

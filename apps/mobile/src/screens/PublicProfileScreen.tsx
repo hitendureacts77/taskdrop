@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text as RNText, ScrollView, Image, Pressable } from 'react-native';
-import { Screen } from '../components/ui';
+import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { Badge, EmptyState, Shimmer, TopBar, timeAgo } from '../components/kit';
 import { tx } from '../components/primitives';
@@ -171,7 +171,7 @@ export function PublicProfileScreen() {
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', marginHorizontal: 20, marginTop: 12, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, paddingVertical: 14 }}>
+        <View style={{ flexDirection: 'row', marginHorizontal: 20, marginTop: 12, ...cardSurface(t, 18), paddingVertical: 14 }}>
           {(asWorker
             ? [
                 ['Jobs done', String(stats?.jobsDone ?? '–')],

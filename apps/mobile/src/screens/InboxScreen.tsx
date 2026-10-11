@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable, TextInput } from 'react-native';
-import { Screen } from '../components/ui';
+import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { EmptyState, Shimmer, TopBar, timeAgo } from '../components/kit';
 import { FadeIn, tx } from '../components/primitives';
@@ -43,10 +43,7 @@ export function InboxScreen() {
           alignItems: 'center',
           gap: 8,
           marginHorizontal: 20,
-          backgroundColor: t.colors.surface,
-          borderWidth: 1,
-          borderColor: t.colors.line,
-          borderRadius: 12,
+          ...cardSurface(t, 14),
           paddingHorizontal: 12,
         }}
       >

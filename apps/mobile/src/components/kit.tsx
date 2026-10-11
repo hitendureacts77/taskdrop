@@ -266,13 +266,13 @@ export function PillTabs({
               paddingLeft: 15,
               paddingRight: tab.count !== undefined ? 9 : 15,
               borderRadius: 999,
-              backgroundColor: on ? t.colors.accentSoft : t.colors.surface,
+              backgroundColor: on ? t.colors.ink : t.colors.surface,
               borderWidth: 1.5,
-              borderColor: on ? t.colors.accent : t.colors.line,
+              borderColor: on ? t.colors.ink : t.colors.line,
               transform: [{ scale: pressed ? 0.96 : 1 }],
             })}
           >
-            <RNText style={tx(on ? '800' : '600', 13, on ? t.colors.accentDeep : t.colors.text)}>{tab.label}</RNText>
+            <RNText style={tx(on ? '800' : '600', 13, on ? t.colors.bg : t.colors.text)}>{tab.label}</RNText>
             {tab.count !== undefined ? (
               <View
                 style={{
@@ -281,10 +281,10 @@ export function PillTabs({
                   paddingVertical: 1,
                   borderRadius: 999,
                   alignItems: 'center',
-                  backgroundColor: on ? t.colors.btn : t.colors.surface2,
+                  backgroundColor: on ? 'transparent' : t.colors.surface2,
                 }}
               >
-                <RNText style={tx('800', 11, on ? t.colors.onBtn : t.colors.muted)}>{tab.count}</RNText>
+                <RNText style={tx('800', 11, on ? t.colors.bg : t.colors.muted, { opacity: on ? 0.75 : 1 })}>{tab.count}</RNText>
               </View>
             ) : null}
           </Pressable>

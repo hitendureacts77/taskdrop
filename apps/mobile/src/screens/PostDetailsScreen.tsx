@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Icon } from '../components/Icon';
 import { View, Text as RNText, Pressable, ScrollView, TextInput, type TextStyle } from 'react-native';
-import { Screen } from '../components/ui';
+import { Screen, cardSurface } from '../components/ui';
 import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -168,10 +168,7 @@ export function PostDetailsScreen() {
   // cards below them. A bare underline reads as unfinished next to those, and
   // barely shows at all on the dark theme.
   const fieldBox = {
-    backgroundColor: t.colors.surface,
-    borderWidth: 1,
-    borderColor: t.colors.line,
-    borderRadius: 12,
+    ...cardSurface(t, 14),
     paddingHorizontal: 14,
     paddingVertical: 13,
   } as const;
@@ -280,10 +277,7 @@ export function PostDetailsScreen() {
           <View
             style={{
               flex: 1,
-              backgroundColor: t.colors.surface,
-              borderWidth: 1,
-              borderColor: t.colors.line,
-              borderRadius: 12,
+              ...cardSurface(t, 14),
               padding: 13,
             }}
           >
@@ -419,10 +413,7 @@ export function PostDetailsScreen() {
             justifyContent: 'space-between',
             marginTop: 18,
             padding: 14,
-            backgroundColor: t.colors.surface,
-            borderWidth: 1,
-            borderColor: t.colors.line,
-            borderRadius: 12,
+            ...cardSurface(t, 14),
           }}
         >
           <View style={{ flex: 1 }}>

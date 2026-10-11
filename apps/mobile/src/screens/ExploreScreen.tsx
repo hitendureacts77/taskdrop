@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text as RNText, ScrollView, TextInput, Pressable, RefreshControl } from 'react-native';
-import { Screen } from '../components/ui';
+import { Screen, cardSurface } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
 import { EmptyState, Grid, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../components/kit';
@@ -119,10 +119,7 @@ function ExploreIdeas() {
                         alignItems: 'center',
                         gap: 10,
                         marginTop: 10,
-                        backgroundColor: t.colors.surface,
-                        borderWidth: 1,
-                        borderColor: t.colors.line,
-                        borderRadius: 14,
+                        ...cardSurface(t, 18),
                         padding: 12,
                       }}
                     >
@@ -165,10 +162,7 @@ function ExploreIdeas() {
                       onPress={() => go('aiPost', { prompt: idea.prompt })}
                       scaleTo={0.98}
                       style={{
-                        backgroundColor: t.colors.surface,
-                        borderWidth: 1,
-                        borderColor: t.colors.line,
-                        borderRadius: 14,
+                        ...cardSurface(t, 18),
                         padding: 12,
                         minHeight: 118,
                       }}
@@ -218,10 +212,7 @@ export function TemplateGrid({
             scaleTo={0.98}
             label={x.title}
             style={{
-              backgroundColor: t.colors.surface,
-              borderWidth: 1,
-              borderColor: t.colors.line,
-              borderRadius: 14,
+              ...cardSurface(t, 18),
               padding: 12,
               minHeight: 112,
             }}
@@ -285,10 +276,7 @@ export function SearchBox({
           flexDirection: 'row',
           alignItems: 'center',
           gap: 8,
-          backgroundColor: t.colors.surface,
-          borderWidth: 1,
-          borderColor: t.colors.line,
-          borderRadius: 999,
+          ...cardSurface(t, 999),
           paddingLeft: 14,
           paddingRight: 5,
           paddingVertical: 5,

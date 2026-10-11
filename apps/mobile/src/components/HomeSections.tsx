@@ -154,8 +154,8 @@ function PostTop() {
                 paddingVertical: 12,
                 minHeight: 66,
                 backgroundColor: t.isDark ? 'rgba(10,12,14,0.55)' : '#FFFFFF',
-                borderWidth: issue ? 2 : t.isDark ? 1 : 0,
-                borderColor: issue ? t.colors.signal : 'rgba(255,255,255,0.2)',
+                borderWidth: issue || focused ? 2 : t.isDark ? 1 : 0,
+                borderColor: issue ? t.colors.signal : focused ? t.colors.accentBorder : 'rgba(255,255,255,0.2)',
               }}
             >
               <TextInput
@@ -179,7 +179,6 @@ function PostTop() {
                   ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
                 })}
               />
-              {!focused && !prompt ? <Caret /> : null}
             </View>
             {issue ? (
               <RNText style={tx('700', 12, '#FFE3D8', { marginTop: 8, lineHeight: 17 })}>{contactIssueMessage(issue)}</RNText>
@@ -815,30 +814,6 @@ function EarnTop() {
 }
 
 // ------------------------------------------------------------ v2 parts ------
-
-/** The composer's blinking caret, shown while the box is empty and idle. */
-function Caret() {
-  const t = useTheme();
-  const reduced = useReducedMotion();
-  const on = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    if (reduced) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(on, { toValue: 0, duration: 1, delay: 500, useNativeDriver: Platform.OS !== 'web' }),
-        Animated.timing(on, { toValue: 1, duration: 1, delay: 500, useNativeDriver: Platform.OS !== 'web' }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [on, reduced]);
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={{ position: 'absolute', left: 15, top: 14, width: 2, height: 18, borderRadius: 1, backgroundColor: t.colors.accent, opacity: on }}
-    />
-  );
-}
 
 /** Post · Offers · Pay · Approve, as a small numbered path. */
 function StepsMini() {

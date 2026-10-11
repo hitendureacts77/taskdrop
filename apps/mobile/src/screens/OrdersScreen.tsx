@@ -6,7 +6,7 @@ import {
   Animated,
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { Screen, formatINR } from '../components/ui';
+import { Screen, formatINR, cardSurface } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -120,10 +120,7 @@ function OrderCard({
         onPress={onOpen}
         scaleTo={0.985}
         style={{
-          backgroundColor: t.colors.surface,
-          borderWidth: 1,
-          borderColor: t.colors.line,
-          borderRadius: 14,
+          ...cardSurface(t, 18),
           padding: 15,
         }}
       >
@@ -313,10 +310,7 @@ export function OrdersScreen() {
               <View
                 key={i}
                 style={{
-                  backgroundColor: t.colors.surface,
-                  borderWidth: 1,
-                  borderColor: t.colors.line,
-                  borderRadius: 14,
+                  ...cardSurface(t, 18),
                   padding: 16,
                   marginTop: 12,
                   height: 86,

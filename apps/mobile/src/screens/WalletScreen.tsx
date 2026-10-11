@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text as RNText, Animated, ScrollView, RefreshControl, Pressable, Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { Screen, formatINR } from '../components/ui';
+import { Screen, formatINR, cardSurface } from '../components/ui';
+import { HeroCard } from '../components/Hero';
+import { CountUp } from '../components/CountUp';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -317,10 +319,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
 
   const card = {
     marginTop: 16,
-    backgroundColor: t.colors.surface,
-    borderWidth: 1,
-    borderColor: t.colors.line,
-    borderRadius: 14,
+    ...cardSurface(t, 18),
     padding: 14,
   } as const;
 
@@ -349,19 +348,19 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
         <>
         {/* The money that matters to this side, big, with the part that is
             not spendable yet beside it. */}
-        <View
-          style={{
-            backgroundColor: t.colors.hero,
-            borderRadius: 20,
-            padding: 18,
-          }}
-        >
+        <HeroCard radius={24} padding={20}>
           {/* One wallet, the same in both modes: what was added, earned or
               refunded is all here, spendable on tasks and withdrawable. */}
-          <RNText style={tx('600', 13, 'rgba(255,255,255,0.8)')}>Available</RNText>
-          <RNText style={tx('800', 40, '#FFFFFF', { letterSpacing: -1.4, marginTop: 4 })}>
-            {loaded ? formatINR(shown.balance + shown.credits) : '—'}
-          </RNText>
+          <RNText style={tx('700', 13, 'rgba(255,255,255,0.85)')}>Available</RNText>
+          {loaded ? (
+            <CountUp
+              value={shown.balance + shown.credits}
+              format={formatINR}
+              style={tx('800', 44, '#FFFFFF', { letterSpacing: -1.6, marginTop: 4, fontVariant: ['tabular-nums'] })}
+            />
+          ) : (
+            <RNText style={tx('800', 44, '#FFFFFF', { letterSpacing: -1.6, marginTop: 4 })}>—</RNText>
+          )}
           <RNText style={tx('500', 12, 'rgba(255,255,255,0.85)', { marginTop: 6, lineHeight: 18 })}>
             Amount frozen in ongoing tasks {formatINR(heldMinor + shown.earningEscrow)}
             {'\n'}Payouts requested to your personal bank {formatINR(shown.pending)}
@@ -371,14 +370,25 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
               +{formatINR(periodEarned)} earned this month
             </RNText>
           ) : null}
-        </View>
+        </HeroCard>
 
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
           <Pressy
             onPress={() => setAddingFunds(true)}
-            style={{ flex: 1, backgroundColor: t.colors.btn, borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}
+            style={{
+              flex: 1,
+              backgroundColor: t.colors.btn,
+              borderRadius: 999,
+              minHeight: 52,
+              justifyContent: 'center',
+              alignItems: 'center',
+              shadowColor: t.colors.btn,
+              shadowOpacity: t.isDark ? 0 : 0.3,
+              shadowRadius: 14,
+              shadowOffset: { width: 0, height: 8 },
+            }}
           >
-            <RNText style={tx('700', 15, t.colors.onAccent)}>+ Add money</RNText>
+            <RNText style={tx('700', 15, t.colors.onBtn)}>+ Add money</RNText>
           </Pressy>
           <Pressy
             onPress={() =>
@@ -388,10 +398,12 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
             }
             style={{
               flex: 1,
-              borderWidth: 1,
+              borderWidth: 1.5,
               borderColor: available >= MIN_WITHDRAW_MINOR ? t.colors.accent : t.colors.line,
+              backgroundColor: t.colors.surface,
               borderRadius: 999,
-              paddingVertical: 14,
+              minHeight: 52,
+              justifyContent: 'center',
               alignItems: 'center',
             }}
           >

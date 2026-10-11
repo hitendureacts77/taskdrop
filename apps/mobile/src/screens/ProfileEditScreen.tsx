@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable, Image, ActivityIndicator } from 'react-native';
-import { Screen } from '../components/ui';
+import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { Badge, Field, Pill, PrimaryButton, SwipeTabs, TopBar, UnderlineTabs } from '../components/kit';
 import { LocationSheet } from '../components/LocationSheet';
@@ -144,7 +144,7 @@ export function ProfileEditScreen() {
     else flash(`Pick up to ${max}`);
   };
 
-  const card = { backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, padding: 15, marginTop: 14 } as const;
+  const card = { ...cardSurface(t, 18), padding: 15, marginTop: 14 } as const;
   const barColor = strength.score >= 80 ? t.colors.accent : strength.score >= 50 ? t.colors.gold : t.colors.signal;
 
   return (

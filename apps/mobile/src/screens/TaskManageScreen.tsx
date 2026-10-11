@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable, RefreshControl } from 'react-native';
-import { Screen, formatINR } from '../components/ui';
+import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import {
   Badge,
@@ -216,7 +216,7 @@ export function TaskManageScreen() {
     }
   };
 
-  const card = { backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, padding: 15, marginTop: 12 } as const;
+  const card = { ...cardSurface(t, 18), padding: 15, marginTop: 12 } as const;
   const detailRow = (label: string, value: string) => (
     <View key={label} style={{ flexDirection: 'row', paddingVertical: 6 }}>
       <RNText style={tx('400', 13, t.colors.muted, { flex: 1 })}>{label}</RNText>

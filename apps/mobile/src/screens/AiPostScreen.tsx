@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, ScrollView, TextInput, Animated } from 'react-native';
-import { Screen, formatINR } from '../components/ui';
+import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import { AmountField } from '../components/AmountField';
 import { Slider } from '../components/Slider';
@@ -8,7 +8,6 @@ import { MediaAttach } from '../components/MediaAttach';
 import { LocationSheet, type PickedPlace } from '../components/LocationSheet';
 import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
 import { ConfirmDialog, Field, IconButton, PrimaryButton, rupees } from '../components/kit';
-import { cardSurface } from '../components/ui';
 import { useReducedMotion } from '../lib/motion';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskDescription } from '../components/TaskDescription';
@@ -863,7 +862,7 @@ export function AiPostScreen() {
     body = (
       <>
         {heading('Ready to post?', 'Check it over. Tap Edit on anything to change it.')}
-        <View style={{ marginTop: 20, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 20, overflow: 'hidden' }}>
+        <View style={{ marginTop: 20, ...cardSurface(t, 20), overflow: 'hidden' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: t.colors.accentSoft, paddingHorizontal: 16, paddingVertical: 9 }}>
             <RNText style={tx('700', 11, t.colors.accentDeep, { letterSpacing: 1.2, flex: 1 })}>AS WORKERS WILL SEE IT</RNText>
             <Pressable onPress={() => reopen('brief')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Edit your post">
@@ -886,7 +885,7 @@ export function AiPostScreen() {
           </View>
         </View>
 
-        <View style={{ marginTop: 12, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 4 }}>
+        <View style={{ marginTop: 12, ...cardSurface(t, 20), paddingHorizontal: 16, paddingVertical: 4 }}>
           {row('clock', 'Done by', `${whenKey === 'custom' ? 'A date you picked' : whenLabel} · ${formatDeadline(due)}`, 'when')}
           {divider}
           {row('tag', 'Budget', split ? `${rupees(budget ?? 0)} · in ${split} steps` : rupees(budget ?? 0), 'budget')}
@@ -896,7 +895,7 @@ export function AiPostScreen() {
           {row(mode === 'auto' ? 'bolt' : 'users', 'How you hire', hireLabel, 'providers')}
         </View>
 
-        <View style={{ marginTop: 12, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 20, padding: 16, gap: 8 }}>
+        <View style={{ marginTop: 12, ...cardSurface(t, 20), padding: 16, gap: 8 }}>
           <Row label="Task budget" value={rupees(budget ?? 0)} />
           <Row label={`TaskDrop fee (${Math.round(FEES.POSTER_SERVICE_FEE_PCT * 100)}%)`} value={rupees(feeRupees)} />
           <View style={{ height: 1, backgroundColor: t.colors.line }} />

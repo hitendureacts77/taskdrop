@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Pressable, Animated, Easing } from 'react-native';
+import { Pressable, Animated, Easing, Platform } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -61,11 +61,13 @@ export function CreateFab() {
           height: 76,
           alignItems: 'center',
           justifyContent: 'center',
-          shadowColor: t.colors.btn,
-          shadowOpacity: t.isDark ? 0.5 : 0.45,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: 12 },
-          elevation: 10,
+          // The shadow follows the drop's shape: a CSS drop-shadow on the web,
+          // the layer's own alpha on iOS. (Android elevation would draw a box.)
+          ...(Platform.OS === 'web'
+            ? ({ filter: `drop-shadow(0 12px 14px ${t.colors.btn}73)` } as object)
+            : Platform.OS === 'ios'
+              ? { shadowColor: t.colors.btn, shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 10 } }
+              : null),
           transform: [{ scale: pressed ? 0.92 : 1 }],
         })}
       >

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, Animated, Easing, Image, Linking, ActivityIndicator } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { Screen, formatINR } from '../components/ui';
+import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { EmptyState, Field } from '../components/kit';
 import { ReportProblemSheet } from '../components/ReportProblemSheet';
@@ -275,7 +275,7 @@ export function ActiveScreen() {
     </Pressable>
   );
 
-  const card = { marginTop: 16, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 16, padding: 15 } as const;
+  const card = { marginTop: 16, ...cardSurface(t, 18), padding: 15 } as const;
 
   // -------------------------------------------------------------- view -----
 
