@@ -7,6 +7,8 @@ import { useReducedMotion } from '../lib/motion';
 import { tx } from './primitives';
 
 const MODES = ['poster', 'worker'] as const;
+const COMPACT_W = 54;
+const COMPACT_H = 28;
 
 /**
  * The Hire / Earn switch (SYS-Motion "Mode switch"): the knob glides under
@@ -33,8 +35,12 @@ export function ModeSwitch({ full = false, stacked = false }: { full?: boolean; 
   }, [index, pos, reduced]);
 
   const pad = stacked ? 4 : 3;
-  const slotW = stacked ? size.w - pad * 2 : (size.w - pad * 2) / 2;
-  const slotH = stacked ? (size.h - pad * 2) / 2 : size.h - pad * 2;
+  // The header's compact switch has fixed halves, so it never depends on a
+  // measurement (a tab created while hidden measures 0 and lost its knob).
+  const compact = !full && !stacked;
+  const slotW = compact ? COMPACT_W : stacked ? size.w - pad * 2 : (size.w - pad * 2) / 2;
+  const slotH = compact ? COMPACT_H : stacked ? (size.h - pad * 2) / 2 : size.h - pad * 2;
+  const measured = compact || (size.w > 0 && size.h > 0);
 
   return (
     <View
@@ -48,7 +54,7 @@ export function ModeSwitch({ full = false, stacked = false }: { full?: boolean; 
         alignSelf: full || stacked ? 'stretch' : 'flex-start',
       }}
     >
-      {size.w > 0 ? (
+      {measured ? (
         <Animated.View
           pointerEvents="none"
           style={{
@@ -79,10 +85,11 @@ export function ModeSwitch({ full = false, stacked = false }: { full?: boolean; 
               flex: full || stacked ? 1 : undefined,
               alignItems: 'center',
               justifyContent: 'center',
-              paddingVertical: stacked ? 7 : full ? 9 : 6,
+              paddingVertical: stacked ? 7 : full ? 9 : 0,
+              height: compact ? COMPACT_H : undefined,
               paddingHorizontal: stacked ? 6 : full ? 13 : 0,
               // Equal halves, so the knob always fits the word under it.
-              width: !full && !stacked ? 54 : undefined,
+              width: compact ? COMPACT_W : undefined,
               minWidth: stacked ? 44 : undefined,
             }}
           >
