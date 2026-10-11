@@ -7,6 +7,7 @@ import {
   BottomSheet,
   ConfirmDialog,
   EmptyState,
+  IconButton,
   SwipeTabs,
   MenuRow,
   PrimaryButton,
@@ -38,6 +39,7 @@ import {
 } from '../data/api';
 import { openRow, posterRow } from '../lib/taskRows';
 import { statusBadge } from './MyTasksScreen';
+import { useLayout } from '../lib/layout';
 import { formatDeadline } from '../components/DateTimeSheet';
 import { FEES } from '@taskdrop/rules';
 import { AddFundsSheet } from '../components/AddFundsSheet';
@@ -70,6 +72,7 @@ function milestonesOf(v: unknown): Milestone[] {
  */
 export function TaskManageScreen() {
   const t = useTheme();
+  const { desktop, width } = useLayout();
   const { params, back, go } = useNav();
   const { flash, celebrate, setOpenTask, startedOf } = useApp();
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
@@ -224,291 +227,321 @@ export function TaskManageScreen() {
     </View>
   );
 
+  // Wide desktop (W4): Overview and the offers side by side, each under its
+  // own heading, in place of the tabs. Narrower screens keep the tabs.
+  const sideBySide = desktop && width >= 1280;
+  const offersLabel = task.status === 'OPEN' ? `Worker offers${bids.length ? ` (${bids.length})` : ''}` : 'Worker';
+  const overview = (
+    <>
+      <View style={card}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Icon name="list" size={16} color={t.colors.accentDeep} />
+          <RNText style={tx('800', 15, t.colors.ink)}>Task description</RNText>
+        </View>
+        <View style={{ marginTop: 12 }}>
+          <TaskDescription text={task.description} title={task.title} size="sm" />
+        </View>
+        {task.media_path ? (
+          <View style={{ marginTop: 12 }}>
+            <TaskMediaThumb
+              path={task.media_path}
+              kind={task.media_kind === 'video' ? 'video' : 'image'}
+              seconds={task.media_seconds}
+              size={84}
+            />
+          </View>
+        ) : null}
+      </View>
+
+      {milestones.length > 0 ? (
+        <View style={card}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Icon name="flag" size={16} color={t.colors.purple} />
+            <RNText style={tx('800', 15, t.colors.ink)}>Steps ({milestones.length})</RNText>
+          </View>
+          {milestones.map((m, i) => (
+            <View key={m.title} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, backgroundColor: t.colors.surface2, borderRadius: 10, padding: 11 }}>
+              <RNText style={tx('600', 13, t.colors.ink, { flex: 1 })}>{i + 1}. {m.title}</RNText>
+              <RNText style={tx('700', 12, t.colors.accentDeep)}>{rupees((base / 100) * (m.pct / 100))}</RNText>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      <View style={card}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Icon name="trending" size={16} color={t.colors.accentDeep} />
+          <RNText style={tx('800', 15, t.colors.ink)}>Activity timeline</RNText>
+        </View>
+        {events.map((e, i) => (
+          <FadeIn key={e.title + e.at} duration={300} delay={i * 40}>
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+              <View style={{ alignItems: 'center' }}>
+                <View style={{ width: 26, height: 26, borderRadius: 999, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name={e.icon} size={13} color={t.colors.accentDeep} strokeWidth={2} />
+                </View>
+                {i < events.length - 1 ? <View style={{ width: 1, flex: 1, backgroundColor: t.colors.line, marginTop: 3 }} /> : null}
+              </View>
+              <View style={{ flex: 1, paddingBottom: 2 }}>
+                <View style={{ flexDirection: 'row' }}>
+                  <RNText style={tx('700', 13, t.colors.ink, { flex: 1 })}>{e.title}</RNText>
+                  <RNText style={tx('400', 11, t.colors.muted)}>{timeAgo(e.at)}</RNText>
+                </View>
+                {e.body ? <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>{e.body}</RNText> : null}
+              </View>
+            </View>
+          </FadeIn>
+        ))}
+      </View>
+
+      <View style={card}>
+        <RNText style={tx('800', 15, t.colors.ink, { marginBottom: 4 })}>Task details</RNText>
+        {detailRow('Offers', String(bids.length))}
+        {detailRow('Budget', rupees(task.benchmark_minor / 100))}
+        {task.locked_minor ? detailRow('Accepted offer', rupees(task.locked_minor / 100)) : null}
+        {detailRow(
+          'Your payment',
+          task.funded_at ? `${formatINR(escrow)} held` : assignment ? `${formatINR(escrow)} due` : 'Paid when you accept an offer',
+        )}
+        {task.due_at ? detailRow('Target date', formatDeadline(new Date(task.due_at)) + (left ? ` · ${left}` : '')) : null}
+        {detailRow('Category', categoryLabel(task))}
+        {task.difficulty ? detailRow('Difficulty', task.difficulty.charAt(0).toUpperCase() + task.difficulty.slice(1)) : null}
+        {detailRow('Assignment', task.assignment_mode === 'auto' ? 'Auto-hire' : 'See offers')}
+        {detailRow('Location', task.loc_label ?? 'Not set')}
+        {(task.skills ?? []).length > 0 ? (
+          <View style={{ marginTop: 8 }}>
+            <RNText style={tx('400', 13, t.colors.muted)}>Skills required</RNText>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
+              {task.skills.map((s) => (
+                <View key={s} style={{ borderWidth: 1, borderColor: t.colors.line, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
+                  <RNText style={tx('600', 11, t.colors.text)}>{s}</RNText>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+      </View>
+    </>
+  );
+  const offers = (
+    <>
+      {worker ? (
+        <View style={card}>
+          <RNText style={tx('600', 11, t.colors.muted, { letterSpacing: 1.2 })}>WORKER</RNText>
+          <Pressable
+            onPress={() => go('publicProfile', { userId: worker.id })}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}
+            accessibilityRole="button"
+          >
+            <View style={{ width: 42, height: 42, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
+              <RNText style={tx('800', 16, '#FFFFFF')}>{worker.display_name.charAt(0).toUpperCase()}</RNText>
+            </View>
+            <View style={{ flex: 1 }}>
+              <RNText style={tx('700', 15, t.colors.ink)}>{worker.display_name}</RNText>
+              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
+                {worker.worker_rating_count > 0
+                  ? `★ ${Number(worker.worker_rating_avg).toFixed(1)} · ${worker.worker_rating_count} reviews`
+                  : 'New worker'}
+              </RNText>
+            </View>
+            <Icon name="chevronRight" size={16} color={t.colors.muted} />
+          </Pressable>
+          <Pressable
+            onPress={() => go('chat', { taskId: task.id, title: task.title })}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, borderWidth: 1, borderColor: t.colors.line, borderRadius: 12, paddingVertical: 11 }}
+            accessibilityRole="button"
+          >
+            <Icon name="chat" size={16} color={t.colors.ink} />
+            <RNText style={tx('700', 14, t.colors.ink)}>Message</RNText>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {task.status === 'OPEN' ? (
+        bids.length === 0 ? (
+          <EmptyState icon="users" title="No offers yet" body="Workers nearby will see your task. You’ll get a notification when an offer comes in." />
+        ) : (
+          <>
+            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 14, lineHeight: 17 })}>
+              {bids.length === 1
+                ? 'One worker has sent an offer. Select it now, or wait for more.'
+                : `${bids.length} workers have sent offers. Filter them, then select the one you want.`}
+            </RNText>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginTop: 12, marginHorizontal: -20 }}
+              contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
+            >
+              {QUOTE_FILTERS.map((f) => {
+                const on = quoteFilter === f.key;
+                return (
+                  <Pressable
+                    key={f.key}
+                    onPress={() => setQuoteFilter(f.key)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                      paddingVertical: 8,
+                      paddingHorizontal: 13,
+                      borderRadius: 999,
+                      backgroundColor: on ? t.colors.ink : t.colors.surface,
+                      borderWidth: 1,
+                      borderColor: on ? t.colors.ink : t.colors.line,
+                      transform: [{ scale: pressed ? 0.95 : 1 }],
+                    })}
+                  >
+                    {f.key === 'newest' ? <Icon name="filter" size={13} color={on ? t.colors.bg : t.colors.muted} /> : null}
+                    <RNText style={tx('700', 12, on ? t.colors.bg : t.colors.ink)}>{f.label}</RNText>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            {visibleBids.length === 0 ? (
+              <View style={[card, { alignItems: 'center', paddingVertical: 22 }]}>
+                <RNText style={tx('700', 14, t.colors.ink)}>No offers within your budget yet</RNText>
+                <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, textAlign: 'center' })}>
+                  Try another filter, or wait for more offers to come in.
+                </RNText>
+              </View>
+            ) : null}
+            {visibleBids.map((b, i) => {
+              const who = b.profiles;
+              const name = who?.username ? '@' + who.username : (who?.display_name ?? 'Worker');
+              const diff = b.price_minor - task.benchmark_minor;
+              return (
+                <FadeIn key={b.id} duration={300} delay={Math.min(i, 6) * 50}>
+                  <View style={card}>
+                    <Pressable
+                      onPress={() => who && go('publicProfile', { userId: who.id })}
+                      accessibilityRole="button"
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}
+                    >
+                      <View>
+                        <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
+                          <RNText style={tx('800', 15, '#FFFFFF')}>{(who?.display_name || '?').charAt(0).toUpperCase()}</RNText>
+                        </View>
+                        <AvatarPresence lastSeen={who?.last_seen_at} ring={t.colors.surface} />
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <RNText style={tx('700', 14, t.colors.ink)} numberOfLines={1}>{name}</RNText>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                          <RNText style={tx('600', 11, who && who.worker_rating_count > 0 ? t.colors.goldInk : t.colors.muted)}>
+                            {who && who.worker_rating_count > 0 ? `★ ${Number(who.worker_rating_avg).toFixed(1)} (${who.worker_rating_count})` : 'New worker'}
+                          </RNText>
+                          <PresenceLabel lastSeen={who?.last_seen_at} />
+                        </View>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <RNText style={tx('800', 17, t.colors.ink)}>{rupees(b.price_minor / 100)}</RNText>
+                        <RNText style={tx('600', 10, diff > 0 ? t.colors.goldInk : t.colors.accentDeep, { marginTop: 1 })}>
+                          {diff === 0 ? 'Your budget' : diff > 0 ? `${rupees(diff / 100)} over budget` : `${rupees(-diff / 100)} under budget`}
+                        </RNText>
+                      </View>
+                    </Pressable>
+                    {b.message ? (
+                      <View style={{ marginTop: 11, backgroundColor: t.colors.surface2, borderRadius: 10, padding: 11 }}>
+                        <RNText style={tx('400', 13, t.colors.text, { lineHeight: 19 })} numberOfLines={4}>“{b.message}”</RNText>
+                      </View>
+                    ) : null}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
+                      <View style={{ flex: 1 }}>
+                        <RNText style={tx('400', 11, t.colors.muted)}>Offered {timeAgo(b.created_at)}</RNText>
+                        <RNText style={tx('600', 11, t.colors.text, { marginTop: 2 })}>
+                          Done in ~{Math.max(1, Math.round(b.time_limit_minutes / 60))} hr{Math.round(b.time_limit_minutes / 60) === 1 ? '' : 's'}
+                        </RNText>
+                      </View>
+                      <Pressable
+                        onPress={() => setSelecting({ bidId: b.id, name, priceMinor: b.price_minor })}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Select ${name}'s quote of ${rupees(b.price_minor / 100)}`}
+                        style={({ pressed }) => ({
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          paddingVertical: 10,
+                          paddingHorizontal: 16,
+                          borderRadius: 999,
+                          backgroundColor: t.colors.btn,
+                          transform: [{ scale: pressed ? 0.96 : 1 }],
+                        })}
+                      >
+                        <Icon name="check" size={14} color={t.colors.onAccent} strokeWidth={2.4} />
+                        <RNText style={tx('800', 13, t.colors.onAccent)}>Choose this offer</RNText>
+                      </Pressable>
+                    </View>
+                  </View>
+                </FadeIn>
+              );
+            })}
+          </>
+        )
+      ) : !worker ? (
+        <EmptyState icon="briefcase" title="No one is on this task" />
+      ) : null}
+    </>
+  );
+  const colHead = (icon: IconName, label: string) => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18 }}>
+      <Icon name={icon} size={17} color={t.colors.accentDeep} />
+      <RNText style={tx('800', 16, t.colors.ink, { letterSpacing: -0.3 })}>{label}</RNText>
+    </View>
+  );
+
   return (
     <Screen padded={false}>
       <TopBar
         title={task.title}
         onBack={back}
-        right={
-          <Pressable onPress={() => setMenu(true)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Task options">
-            <Icon name="dots" size={20} color={t.colors.ink} strokeWidth={2.4} />
-          </Pressable>
-        }
+        right={<IconButton icon="dots" label="Task options" onPress={() => setMenu(true)} />}
       />
       <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 20, marginTop: -4 }}>
         <Badge label={badge.label} tone={badge.tone} />
         <Badge label={task.assignment_mode === 'auto' ? 'Auto-hire' : 'Choose from offers'} tone="neutral" />
       </View>
-      <View style={{ marginTop: 10 }}>
-        {/* While the task is open the second tab is where quotes land; once
-            someone is hired it is where that worker is. */}
-        <UnderlineTabs
-          tabs={['Overview', task.status === 'OPEN' ? `Worker offers${bids.length ? ` (${bids.length})` : ''}` : 'Worker']}
-          active={tab}
-          onPick={setTab}
-        />
-      </View>
+      {sideBySide ? null : (
+        <View style={{ marginTop: 10 }}>
+          {/* While the task is open the second tab is where quotes land; once
+              someone is hired it is where that worker is. */}
+          <UnderlineTabs
+            tabs={['Overview', task.status === 'OPEN' ? `Worker offers${bids.length ? ` (${bids.length})` : ''}` : 'Worker']}
+            active={tab}
+            onPick={setTab}
+          />
+        </View>
+      )}
 
-      <SwipeTabs index={tab} count={2} onChange={setTab}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />}
-      >
-        {tab === 0 ? (
-          <>
-            <View style={card}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Icon name="list" size={16} color={t.colors.accentDeep} />
-                <RNText style={tx('800', 15, t.colors.ink)}>Task description</RNText>
-              </View>
-              <View style={{ marginTop: 12 }}>
-                <TaskDescription text={task.description} title={task.title} size="sm" />
-              </View>
-              {task.media_path ? (
-                <View style={{ marginTop: 12 }}>
-                  <TaskMediaThumb
-                    path={task.media_path}
-                    kind={task.media_kind === 'video' ? 'video' : 'image'}
-                    seconds={task.media_seconds}
-                    size={84}
-                  />
-                </View>
-              ) : null}
+      {sideBySide ? (
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />}
+        >
+          <View style={{ flexDirection: 'row', gap: 20, alignItems: 'flex-start' }}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              {colHead('list', 'Overview')}
+              {overview}
             </View>
-
-            {milestones.length > 0 ? (
-              <View style={card}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Icon name="flag" size={16} color={t.colors.purple} />
-                  <RNText style={tx('800', 15, t.colors.ink)}>Steps ({milestones.length})</RNText>
-                </View>
-                {milestones.map((m, i) => (
-                  <View key={m.title} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, backgroundColor: t.colors.surface2, borderRadius: 10, padding: 11 }}>
-                    <RNText style={tx('600', 13, t.colors.ink, { flex: 1 })}>{i + 1}. {m.title}</RNText>
-                    <RNText style={tx('700', 12, t.colors.accentDeep)}>{rupees((base / 100) * (m.pct / 100))}</RNText>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-
-            <View style={card}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Icon name="trending" size={16} color={t.colors.accentDeep} />
-                <RNText style={tx('800', 15, t.colors.ink)}>Activity timeline</RNText>
-              </View>
-              {events.map((e, i) => (
-                <FadeIn key={e.title + e.at} duration={300} delay={i * 40}>
-                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
-                    <View style={{ alignItems: 'center' }}>
-                      <View style={{ width: 26, height: 26, borderRadius: 999, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                        <Icon name={e.icon} size={13} color={t.colors.accentDeep} strokeWidth={2} />
-                      </View>
-                      {i < events.length - 1 ? <View style={{ width: 1, flex: 1, backgroundColor: t.colors.line, marginTop: 3 }} /> : null}
-                    </View>
-                    <View style={{ flex: 1, paddingBottom: 2 }}>
-                      <View style={{ flexDirection: 'row' }}>
-                        <RNText style={tx('700', 13, t.colors.ink, { flex: 1 })}>{e.title}</RNText>
-                        <RNText style={tx('400', 11, t.colors.muted)}>{timeAgo(e.at)}</RNText>
-                      </View>
-                      {e.body ? <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>{e.body}</RNText> : null}
-                    </View>
-                  </View>
-                </FadeIn>
-              ))}
+            <View style={{ flex: 1, minWidth: 0 }}>
+              {colHead('users', offersLabel)}
+              {offers}
             </View>
-
-            <View style={card}>
-              <RNText style={tx('800', 15, t.colors.ink, { marginBottom: 4 })}>Task details</RNText>
-              {detailRow('Offers', String(bids.length))}
-              {detailRow('Budget', rupees(task.benchmark_minor / 100))}
-              {task.locked_minor ? detailRow('Accepted offer', rupees(task.locked_minor / 100)) : null}
-              {detailRow(
-                'Your payment',
-                task.funded_at ? `${formatINR(escrow)} held` : assignment ? `${formatINR(escrow)} due` : 'Paid when you accept an offer',
-              )}
-              {task.due_at ? detailRow('Target date', formatDeadline(new Date(task.due_at)) + (left ? ` · ${left}` : '')) : null}
-              {detailRow('Category', categoryLabel(task))}
-              {task.difficulty ? detailRow('Difficulty', task.difficulty.charAt(0).toUpperCase() + task.difficulty.slice(1)) : null}
-              {detailRow('Assignment', task.assignment_mode === 'auto' ? 'Auto-hire' : 'See offers')}
-              {detailRow('Location', task.loc_label ?? 'Not set')}
-              {(task.skills ?? []).length > 0 ? (
-                <View style={{ marginTop: 8 }}>
-                  <RNText style={tx('400', 13, t.colors.muted)}>Skills required</RNText>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
-                    {task.skills.map((s) => (
-                      <View key={s} style={{ borderWidth: 1, borderColor: t.colors.line, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
-                        <RNText style={tx('600', 11, t.colors.text)}>{s}</RNText>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ) : null}
-            </View>
-          </>
-        ) : (
-          <>
-            {worker ? (
-              <View style={card}>
-                <RNText style={tx('600', 11, t.colors.muted, { letterSpacing: 1.2 })}>WORKER</RNText>
-                <Pressable
-                  onPress={() => go('publicProfile', { userId: worker.id })}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}
-                  accessibilityRole="button"
-                >
-                  <View style={{ width: 42, height: 42, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
-                    <RNText style={tx('800', 16, '#FFFFFF')}>{worker.display_name.charAt(0).toUpperCase()}</RNText>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <RNText style={tx('700', 15, t.colors.ink)}>{worker.display_name}</RNText>
-                    <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
-                      {worker.worker_rating_count > 0
-                        ? `★ ${Number(worker.worker_rating_avg).toFixed(1)} · ${worker.worker_rating_count} reviews`
-                        : 'New worker'}
-                    </RNText>
-                  </View>
-                  <Icon name="chevronRight" size={16} color={t.colors.muted} />
-                </Pressable>
-                <Pressable
-                  onPress={() => go('chat', { taskId: task.id, title: task.title })}
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, borderWidth: 1, borderColor: t.colors.line, borderRadius: 12, paddingVertical: 11 }}
-                  accessibilityRole="button"
-                >
-                  <Icon name="chat" size={16} color={t.colors.ink} />
-                  <RNText style={tx('700', 14, t.colors.ink)}>Message</RNText>
-                </Pressable>
-              </View>
-            ) : null}
-
-            {task.status === 'OPEN' ? (
-              bids.length === 0 ? (
-                <EmptyState icon="users" title="No offers yet" body="Workers nearby will see your task. You’ll get a notification when an offer comes in." />
-              ) : (
-                <>
-                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 14, lineHeight: 17 })}>
-                    {bids.length === 1
-                      ? 'One worker has sent an offer. Select it now, or wait for more.'
-                      : `${bids.length} workers have sent offers. Filter them, then select the one you want.`}
-                  </RNText>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={{ marginTop: 12, marginHorizontal: -20 }}
-                    contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
-                  >
-                    {QUOTE_FILTERS.map((f) => {
-                      const on = quoteFilter === f.key;
-                      return (
-                        <Pressable
-                          key={f.key}
-                          onPress={() => setQuoteFilter(f.key)}
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: on }}
-                          style={({ pressed }) => ({
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 6,
-                            paddingVertical: 8,
-                            paddingHorizontal: 13,
-                            borderRadius: 999,
-                            backgroundColor: on ? t.colors.ink : t.colors.surface,
-                            borderWidth: 1,
-                            borderColor: on ? t.colors.ink : t.colors.line,
-                            transform: [{ scale: pressed ? 0.95 : 1 }],
-                          })}
-                        >
-                          {f.key === 'newest' ? <Icon name="filter" size={13} color={on ? t.colors.bg : t.colors.muted} /> : null}
-                          <RNText style={tx('700', 12, on ? t.colors.bg : t.colors.ink)}>{f.label}</RNText>
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
-                  {visibleBids.length === 0 ? (
-                    <View style={[card, { alignItems: 'center', paddingVertical: 22 }]}>
-                      <RNText style={tx('700', 14, t.colors.ink)}>No offers within your budget yet</RNText>
-                      <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, textAlign: 'center' })}>
-                        Try another filter, or wait for more offers to come in.
-                      </RNText>
-                    </View>
-                  ) : null}
-                  {visibleBids.map((b, i) => {
-                    const who = b.profiles;
-                    const name = who?.username ? '@' + who.username : (who?.display_name ?? 'Worker');
-                    const diff = b.price_minor - task.benchmark_minor;
-                    return (
-                      <FadeIn key={b.id} duration={300} delay={Math.min(i, 6) * 50}>
-                        <View style={card}>
-                          <Pressable
-                            onPress={() => who && go('publicProfile', { userId: who.id })}
-                            accessibilityRole="button"
-                            style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}
-                          >
-                            <View>
-                              <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
-                                <RNText style={tx('800', 15, '#FFFFFF')}>{(who?.display_name || '?').charAt(0).toUpperCase()}</RNText>
-                              </View>
-                              <AvatarPresence lastSeen={who?.last_seen_at} ring={t.colors.surface} />
-                            </View>
-                            <View style={{ flex: 1, minWidth: 0 }}>
-                              <RNText style={tx('700', 14, t.colors.ink)} numberOfLines={1}>{name}</RNText>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                                <RNText style={tx('600', 11, who && who.worker_rating_count > 0 ? t.colors.goldInk : t.colors.muted)}>
-                                  {who && who.worker_rating_count > 0 ? `★ ${Number(who.worker_rating_avg).toFixed(1)} (${who.worker_rating_count})` : 'New worker'}
-                                </RNText>
-                                <PresenceLabel lastSeen={who?.last_seen_at} />
-                              </View>
-                            </View>
-                            <View style={{ alignItems: 'flex-end' }}>
-                              <RNText style={tx('800', 17, t.colors.ink)}>{rupees(b.price_minor / 100)}</RNText>
-                              <RNText style={tx('600', 10, diff > 0 ? t.colors.goldInk : t.colors.accentDeep, { marginTop: 1 })}>
-                                {diff === 0 ? 'Your budget' : diff > 0 ? `${rupees(diff / 100)} over budget` : `${rupees(-diff / 100)} under budget`}
-                              </RNText>
-                            </View>
-                          </Pressable>
-                          {b.message ? (
-                            <View style={{ marginTop: 11, backgroundColor: t.colors.surface2, borderRadius: 10, padding: 11 }}>
-                              <RNText style={tx('400', 13, t.colors.text, { lineHeight: 19 })} numberOfLines={4}>“{b.message}”</RNText>
-                            </View>
-                          ) : null}
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
-                            <View style={{ flex: 1 }}>
-                              <RNText style={tx('400', 11, t.colors.muted)}>Offered {timeAgo(b.created_at)}</RNText>
-                              <RNText style={tx('600', 11, t.colors.text, { marginTop: 2 })}>
-                                Done in ~{Math.max(1, Math.round(b.time_limit_minutes / 60))} hr{Math.round(b.time_limit_minutes / 60) === 1 ? '' : 's'}
-                              </RNText>
-                            </View>
-                            <Pressable
-                              onPress={() => setSelecting({ bidId: b.id, name, priceMinor: b.price_minor })}
-                              accessibilityRole="button"
-                              accessibilityLabel={`Select ${name}'s quote of ${rupees(b.price_minor / 100)}`}
-                              style={({ pressed }) => ({
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                gap: 6,
-                                paddingVertical: 10,
-                                paddingHorizontal: 16,
-                                borderRadius: 999,
-                                backgroundColor: t.colors.btn,
-                                transform: [{ scale: pressed ? 0.96 : 1 }],
-                              })}
-                            >
-                              <Icon name="check" size={14} color={t.colors.onAccent} strokeWidth={2.4} />
-                              <RNText style={tx('800', 13, t.colors.onAccent)}>Choose this offer</RNText>
-                            </Pressable>
-                          </View>
-                        </View>
-                      </FadeIn>
-                    );
-                  })}
-                </>
-              )
-            ) : !worker ? (
-              <EmptyState icon="briefcase" title="No one is on this task" />
-            ) : null}
-          </>
-        )}
-      </ScrollView>
-      </SwipeTabs>
+          </View>
+        </ScrollView>
+      ) : (
+        <SwipeTabs index={tab} count={2} onChange={setTab}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />}
+        >
+          {tab === 0 ? overview : offers}
+        </ScrollView>
+        </SwipeTabs>
+      )}
 
       {primary ? (
         <View style={{ paddingHorizontal: 20, paddingBottom: 16, paddingTop: 6 }}>

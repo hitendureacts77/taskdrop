@@ -74,7 +74,7 @@ const KEEP_ALIVE: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'profi
 const PRE_AUTH: ScreenName[] = ['splash', 'welcome', 'signup', 'setup'];
 // Pages anyone may read; signed out on desktop they get the sign-in frame.
 const PUBLIC: ScreenName[] = ['copyright', 'terms', 'privacy'];
-const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'search', 'orders', 'saved', 'wallet', 'spending', 'profile'];
+const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'search', 'orders', 'saved', 'wallet', 'spending', 'profile', 'inbox', 'taskManage'];
 
 // Registry. Screens the agent team hasn't delivered yet fall back to Placeholder.
 const REGISTRY: Partial<Record<ScreenName, React.ComponentType>> = {

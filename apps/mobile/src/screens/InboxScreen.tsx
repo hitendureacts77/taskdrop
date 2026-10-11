@@ -5,7 +5,9 @@ import { Icon } from '../components/Icon';
 import { EmptyState, Shimmer, TopBar, timeAgo } from '../components/kit';
 import { FadeIn, tx } from '../components/primitives';
 import { useTheme, ring } from '../providers/ThemeProvider';
-import { useNav } from '../providers/NavProvider';
+import { ScreenScope, useNav } from '../providers/NavProvider';
+import { useLayout } from '../lib/layout';
+import { ChatScreen } from './ChatScreen';
 import { listThreads, type Thread } from '../data/extras';
 
 /**
@@ -17,6 +19,10 @@ export function InboxScreen() {
   const { back, go } = useNav();
   const [threads, setThreads] = useState<Thread[] | null>(null);
   const [q, setQ] = useState('');
+  // Desktop (W6): the inbox on the left and the open conversation beside it.
+  // A phone keeps opening the conversation as its own page.
+  const { desktop } = useLayout();
+  const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -34,8 +40,12 @@ export function InboxScreen() {
     return threads.filter((x) => (x.title + ' ' + x.lastBody).toLowerCase().includes(needle));
   }, [threads, q]);
 
-  return (
-    <Screen padded={false}>
+  const split = desktop && (threads?.length ?? 0) > 0;
+  // Nothing opens until a thread is picked: opening one marks it read.
+  const open = split ? (threads!.find((x) => x.taskId === openId) ?? null) : null;
+
+  const list = (
+    <>
       <TopBar title="Messages" subtitle="Open a thread to read and reply" onBack={back} />
       <View {...ring}
         style={{
@@ -69,15 +79,21 @@ export function InboxScreen() {
           shown.map((th, i) => (
             <FadeIn key={th.taskId} duration={280} delay={Math.min(i, 8) * 30}>
               <Pressable
-                onPress={() => go('chat', { taskId: th.taskId, title: th.title })}
+                onPress={() => (split ? setOpenId(th.taskId) : go('chat', { taskId: th.taskId, title: th.title }))}
                 accessibilityRole="button"
-                style={({ pressed }) => ({
+                accessibilityState={split ? { selected: open?.taskId === th.taskId } : undefined}
+                style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
                   flexDirection: 'row',
                   gap: 12,
                   alignItems: 'center',
                   paddingVertical: 13,
-                  borderBottomWidth: 1,
+                  paddingHorizontal: split ? 12 : 0,
+                  borderRadius: split ? 16 : 0,
+                  borderBottomWidth: split ? 0 : 1,
                   borderBottomColor: t.colors.line,
+                  marginTop: split ? 4 : 0,
+                  backgroundColor:
+                    split && open?.taskId === th.taskId ? t.colors.accentSoft : split && hovered ? t.colors.surface2 : 'transparent',
                   opacity: pressed ? 0.7 : 1,
                 })}
               >
@@ -101,6 +117,26 @@ export function InboxScreen() {
           ))
         )}
       </ScrollView>
-    </Screen>
+    </>
   );
+
+  if (split) {
+    return (
+      <Screen padded={false}>
+        <View style={{ flex: 1, flexDirection: 'row' }}>
+          <View style={{ width: 360, borderRightWidth: 1, borderRightColor: t.colors.line }}>{list}</View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            {open ? (
+              <ScreenScope key={open.taskId} params={{ taskId: open.taskId, title: open.title }} focus={0}>
+                <ChatScreen />
+              </ScreenScope>
+            ) : (
+              <EmptyState icon="chat" title="Messages" body="Open a thread to read and reply" style={{ flex: 1, justifyContent: 'center' }} />
+            )}
+          </View>
+        </View>
+      </Screen>
+    );
+  }
+  return <Screen padded={false}>{list}</Screen>;
 }

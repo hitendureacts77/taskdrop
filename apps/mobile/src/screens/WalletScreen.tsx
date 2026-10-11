@@ -3,6 +3,7 @@ import { View, Text as RNText, Animated, ScrollView, RefreshControl, Pressable, 
 import * as Clipboard from 'expo-clipboard';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { HeroCard } from '../components/Hero';
+import { useLayout } from '../lib/layout';
 import { CountUp } from '../components/CountUp';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
@@ -61,6 +62,7 @@ function maskDigits(text: string): string {
 
 export function WalletScreen({ insights = false }: { insights?: boolean } = {}) {
   const t = useTheme();
+  const { desktop } = useLayout();
   const { go, back } = useNav();
   const { mode } = useMode();
   const { balance, escrow, clearing, flash, celebrate } = useApp();
@@ -335,6 +337,250 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
   const chartColor = worker ? t.colors.purple : t.colors.accent;
   const feeMinor = fees ? (worker ? fees.commissionMinor : fees.serviceMinor) : null;
 
+  // Desktop (W5): the balance and its cards on the left, transactions on the
+  // right. A phone keeps the one column, in the same order as before.
+  const twoCol = desktop && !insights;
+  const summary = (
+    <>
+          {!insights ? (
+          <>
+          {/* The money that matters to this side, big, with the part that is
+              not spendable yet beside it. */}
+          <HeroCard radius={24} padding={20}>
+            {/* One wallet, the same in both modes: what was added, earned or
+                refunded is all here, spendable on tasks and withdrawable. */}
+            <RNText style={tx('700', 13, 'rgba(255,255,255,0.85)')}>Available</RNText>
+            {loaded ? (
+              <CountUp
+                value={shown.balance + shown.credits}
+                format={formatINR}
+                style={tx('800', 44, '#FFFFFF', { letterSpacing: -1.6, marginTop: 4, fontVariant: ['tabular-nums'] })}
+              />
+            ) : (
+              <RNText style={tx('800', 44, '#FFFFFF', { letterSpacing: -1.6, marginTop: 4 })}>—</RNText>
+            )}
+            <RNText style={tx('500', 12, 'rgba(255,255,255,0.85)', { marginTop: 6, lineHeight: 18 })}>
+              Amount frozen in ongoing tasks {formatINR(heldMinor + shown.earningEscrow)}
+              {'\n'}Payouts requested to your personal bank {formatINR(shown.pending)}
+            </RNText>
+            {periodEarned > 0 ? (
+              <RNText style={tx('700', 12, '#FFFFFF', { marginTop: 4 })}>
+                +{formatINR(periodEarned)} earned this month
+              </RNText>
+            ) : null}
+          </HeroCard>
+  
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+            <Pressy
+              onPress={() => setAddingFunds(true)}
+              style={{
+                flex: 1,
+                backgroundColor: t.colors.btn,
+                borderRadius: 999,
+                minHeight: 52,
+                justifyContent: 'center',
+                alignItems: 'center',
+                shadowColor: t.colors.btn,
+                shadowOpacity: t.isDark ? 0 : 0.3,
+                shadowRadius: 14,
+                shadowOffset: { width: 0, height: 8 },
+              }}
+            >
+              <RNText style={tx('700', 15, t.colors.onBtn)}>+ Add money</RNText>
+            </Pressy>
+            <Pressy
+              onPress={() =>
+                available >= MIN_WITHDRAW_MINOR
+                  ? go('withdraw')
+                  : flash(`You can withdraw once you have ${formatINR(MIN_WITHDRAW_MINOR)} available`)
+              }
+              style={{
+                flex: 1,
+                borderWidth: 1.5,
+                borderColor: available >= MIN_WITHDRAW_MINOR ? t.colors.accent : t.colors.line,
+                backgroundColor: t.colors.surface,
+                borderRadius: 999,
+                minHeight: 52,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <RNText style={tx('700', 15, available >= MIN_WITHDRAW_MINOR ? t.colors.accentDeep : t.colors.muted)}>
+                Withdraw
+              </RNText>
+            </Pressy>
+          </View>
+          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 10, lineHeight: 17 })}>
+            Min. withdraw {formatINR(MIN_WITHDRAW_MINOR)} · UPI
+          </RNText>
+          </>
+          ) : null}
+  
+          {showCharts ? (
+          <>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: insights ? 4 : 20, marginHorizontal: -20 }}>
+            <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20 }}>
+              {PERIODS.map((p) => (
+                <Pill key={p} label={p} active={period === p} onPress={() => setPeriod(p)} />
+              ))}
+            </View>
+          </ScrollView>
+  
+          <View style={card}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Icon name="trending" size={16} color={chartColor} />
+              <RNText style={tx('800', 14, t.colors.ink, { flex: 1 })}>{worker ? 'Your earnings' : 'Your spending'}</RNText>
+              <RNText style={tx('800', 14, chartColor)}>{formatINR(periodTotal)}</RNText>
+            </View>
+            <View style={{ marginTop: 12 }}>
+              {periodTotal > 0 ? (
+                <MoneyBars bars={bars} color={chartColor} verb={worker ? 'earned' : 'spent'} />
+              ) : (
+                <RNText style={tx('400', 12, t.colors.muted, { paddingVertical: 18, textAlign: 'center' })}>
+                  {worker ? 'Nothing earned in this period yet.' : 'Nothing spent in this period.'}
+                </RNText>
+              )}
+            </View>
+          </View>
+          </>
+          ) : null}
+  
+          {/* Pending money is a poster's concern: it is theirs, held until they
+              approve the work. */}
+          {!worker && !insights && held.length > 0 ? (
+            <View style={card}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Icon name="lock" size={16} color={t.colors.gold} />
+                <RNText style={tx('800', 14, t.colors.ink, { flex: 1 })}>Locked in tasks in progress</RNText>
+                <RNText style={tx('600', 11, t.colors.goldInk)}>
+                  {held.length} task{held.length === 1 ? '' : 's'}
+                </RNText>
+              </View>
+              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 17 })}>
+                Can’t be withdrawn until the task is done. It goes to the worker only when you approve the work, and comes back to you if the task is cancelled.
+              </RNText>
+              {held.map((h) => (
+                <View key={h.id} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+                  <RNText style={tx('500', 13, t.colors.ink, { flex: 1 })} numberOfLines={1}>
+                    {h.meta.split(' · ')[0]}
+                  </RNText>
+                  <RNText style={tx('700', 13, t.colors.goldInk)}>{formatINR(h.amountMinor)}</RNText>
+                </View>
+              ))}
+            </View>
+          ) : null}
+  
+          {showCharts ? (
+          <View style={{ ...card, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Icon name="tag" size={16} color={t.colors.goldInk} />
+            <View style={{ flex: 1 }}>
+              <RNText style={tx('700', 13, t.colors.ink)}>
+                {worker ? 'TaskDrop share paid' : 'TaskDrop fees paid'} · {period.toLowerCase()}
+              </RNText>
+              <Pressable onPress={() => go('pricing')} accessibilityRole="button">
+                <RNText style={tx('600', 12, t.colors.accentDeep, { marginTop: 2 })}>How fees work ›</RNText>
+              </Pressable>
+            </View>
+            <RNText style={tx('800', 14, t.colors.ink)}>{feeMinor === null ? '–' : formatINR(feeMinor)}</RNText>
+          </View>
+          ) : null}
+    </>
+  );
+  const transactions = (
+    <>
+          <SectionTitle title="Transactions" icon="list" style={{ marginTop: twoCol ? 4 : 24 }} />
+          <View style={{ marginTop: 8, marginHorizontal: -20 }}>
+            <UnderlineTabs tabs={TX_TABS} active={txTab} onPick={setTxTab} />
+          </View>
+  
+          {!ledgerLoading && txRows.length === 0 && (
+            <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, lineHeight: 20 })}>
+              {mine.length === 0
+                ? worker
+                  ? 'Finish a job and your earnings show up here.'
+                  : 'Hire someone and what you pay shows up here.'
+                : 'Nothing of this kind in this period.'}
+            </RNText>
+          )}
+  
+          {(txAll ? txRows : txRows.slice(0, TX_FIRST)).map((l, i) => (
+            <SlideIn key={l.id} delay={Math.min(i, 8) * 50}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  paddingVertical: 15,
+                  borderBottomWidth: 1,
+                  borderBottomColor: t.colors.line,
+                }}
+              >
+                <View style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: dotFor(l.kind) }} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <RNText style={tx('600', 15, t.colors.ink)} numberOfLines={1}>
+                    {l.title}
+                  </RNText>
+                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>
+                    {new Date(l.at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} · {maskDigits(l.meta)}
+                  </RNText>
+                </View>
+                <RNText style={tx('700', 15, l.incoming ? t.colors.accentDeep : t.colors.ink)}>
+                  {l.incoming ? '+' : ''}
+                  {formatINR(l.amountMinor)}
+                </RNText>
+              </View>
+            </SlideIn>
+          ))}
+  
+          {txRows.length > TX_FIRST ? (
+            <Pressable
+              onPress={() => setTxAll((v) => !v)}
+              accessibilityRole="button"
+              style={({ pressed }) => ({
+                alignSelf: 'center',
+                marginTop: 12,
+                paddingVertical: 8,
+                paddingHorizontal: 16,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: t.colors.line,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <RNText style={tx('700', 12, t.colors.accentDeep)}>
+                {txAll ? 'Show less' : `Show ${txRows.length - TX_FIRST} more`}
+              </RNText>
+            </Pressable>
+          ) : null}
+    </>
+  );
+  const referral = (
+    <>
+          {code && !insights ? (
+            <View style={{ ...card, marginTop: 24, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Icon name="gift" size={20} color={t.colors.accentDeep} />
+              <View style={{ flex: 1 }}>
+                <RNText style={tx('700', 13, t.colors.ink)}>Bring a friend to TaskDrop</RNText>
+                <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
+                  Your code {code} · {joined} joined so far
+                </RNText>
+              </View>
+              <Pressable
+                onPress={() => void Clipboard.setStringAsync(code).then(() => flash('Code copied'))}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Copy referral code"
+              >
+                <Icon name="copy" size={19} color={t.colors.accentDeep} />
+              </Pressable>
+              <Pressable onPress={() => void shareCode()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Share invite">
+                <Icon name="share" size={19} color={t.colors.accentDeep} />
+              </Pressable>
+            </View>
+          ) : null}
+    </>
+  );
+
   return (
     <Screen padded={false}>
       {insights ? <TopBar title="Spending insights" onBack={back} /> : <AppHeader />}
@@ -344,236 +590,21 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />}
       >
-        {!insights ? (
-        <>
-        {/* The money that matters to this side, big, with the part that is
-            not spendable yet beside it. */}
-        <HeroCard radius={24} padding={20}>
-          {/* One wallet, the same in both modes: what was added, earned or
-              refunded is all here, spendable on tasks and withdrawable. */}
-          <RNText style={tx('700', 13, 'rgba(255,255,255,0.85)')}>Available</RNText>
-          {loaded ? (
-            <CountUp
-              value={shown.balance + shown.credits}
-              format={formatINR}
-              style={tx('800', 44, '#FFFFFF', { letterSpacing: -1.6, marginTop: 4, fontVariant: ['tabular-nums'] })}
-            />
-          ) : (
-            <RNText style={tx('800', 44, '#FFFFFF', { letterSpacing: -1.6, marginTop: 4 })}>—</RNText>
-          )}
-          <RNText style={tx('500', 12, 'rgba(255,255,255,0.85)', { marginTop: 6, lineHeight: 18 })}>
-            Amount frozen in ongoing tasks {formatINR(heldMinor + shown.earningEscrow)}
-            {'\n'}Payouts requested to your personal bank {formatINR(shown.pending)}
-          </RNText>
-          {periodEarned > 0 ? (
-            <RNText style={tx('700', 12, '#FFFFFF', { marginTop: 4 })}>
-              +{formatINR(periodEarned)} earned this month
-            </RNText>
-          ) : null}
-        </HeroCard>
-
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-          <Pressy
-            onPress={() => setAddingFunds(true)}
-            style={{
-              flex: 1,
-              backgroundColor: t.colors.btn,
-              borderRadius: 999,
-              minHeight: 52,
-              justifyContent: 'center',
-              alignItems: 'center',
-              shadowColor: t.colors.btn,
-              shadowOpacity: t.isDark ? 0 : 0.3,
-              shadowRadius: 14,
-              shadowOffset: { width: 0, height: 8 },
-            }}
-          >
-            <RNText style={tx('700', 15, t.colors.onBtn)}>+ Add money</RNText>
-          </Pressy>
-          <Pressy
-            onPress={() =>
-              available >= MIN_WITHDRAW_MINOR
-                ? go('withdraw')
-                : flash(`You can withdraw once you have ${formatINR(MIN_WITHDRAW_MINOR)} available`)
-            }
-            style={{
-              flex: 1,
-              borderWidth: 1.5,
-              borderColor: available >= MIN_WITHDRAW_MINOR ? t.colors.accent : t.colors.line,
-              backgroundColor: t.colors.surface,
-              borderRadius: 999,
-              minHeight: 52,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <RNText style={tx('700', 15, available >= MIN_WITHDRAW_MINOR ? t.colors.accentDeep : t.colors.muted)}>
-              Withdraw
-            </RNText>
-          </Pressy>
-        </View>
-        <RNText style={tx('400', 12, t.colors.muted, { marginTop: 10, lineHeight: 17 })}>
-          Min. withdraw {formatINR(MIN_WITHDRAW_MINOR)} · UPI
-        </RNText>
-        </>
-        ) : null}
-
-        {showCharts ? (
-        <>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: insights ? 4 : 20, marginHorizontal: -20 }}>
-          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20 }}>
-            {PERIODS.map((p) => (
-              <Pill key={p} label={p} active={period === p} onPress={() => setPeriod(p)} />
-            ))}
-          </View>
-        </ScrollView>
-
-        <View style={card}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Icon name="trending" size={16} color={chartColor} />
-            <RNText style={tx('800', 14, t.colors.ink, { flex: 1 })}>{worker ? 'Your earnings' : 'Your spending'}</RNText>
-            <RNText style={tx('800', 14, chartColor)}>{formatINR(periodTotal)}</RNText>
-          </View>
-          <View style={{ marginTop: 12 }}>
-            {periodTotal > 0 ? (
-              <MoneyBars bars={bars} color={chartColor} verb={worker ? 'earned' : 'spent'} />
-            ) : (
-              <RNText style={tx('400', 12, t.colors.muted, { paddingVertical: 18, textAlign: 'center' })}>
-                {worker ? 'Nothing earned in this period yet.' : 'Nothing spent in this period.'}
-              </RNText>
-            )}
-          </View>
-        </View>
-        </>
-        ) : null}
-
-        {/* Pending money is a poster's concern: it is theirs, held until they
-            approve the work. */}
-        {!worker && !insights && held.length > 0 ? (
-          <View style={card}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Icon name="lock" size={16} color={t.colors.gold} />
-              <RNText style={tx('800', 14, t.colors.ink, { flex: 1 })}>Locked in tasks in progress</RNText>
-              <RNText style={tx('600', 11, t.colors.goldInk)}>
-                {held.length} task{held.length === 1 ? '' : 's'}
-              </RNText>
+        {twoCol ? (
+          <View style={{ flexDirection: 'row', gap: 24, alignItems: 'flex-start' }}>
+            <View style={{ width: 420 }}>
+              {summary}
+              {referral}
             </View>
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 17 })}>
-              Can’t be withdrawn until the task is done. It goes to the worker only when you approve the work, and comes back to you if the task is cancelled.
-            </RNText>
-            {held.map((h) => (
-              <View key={h.id} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-                <RNText style={tx('500', 13, t.colors.ink, { flex: 1 })} numberOfLines={1}>
-                  {h.meta.split(' · ')[0]}
-                </RNText>
-                <RNText style={tx('700', 13, t.colors.goldInk)}>{formatINR(h.amountMinor)}</RNText>
-              </View>
-            ))}
+            <View style={{ flex: 1, minWidth: 0 }}>{transactions}</View>
           </View>
-        ) : null}
-
-        {showCharts ? (
-        <View style={{ ...card, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Icon name="tag" size={16} color={t.colors.goldInk} />
-          <View style={{ flex: 1 }}>
-            <RNText style={tx('700', 13, t.colors.ink)}>
-              {worker ? 'TaskDrop share paid' : 'TaskDrop fees paid'} · {period.toLowerCase()}
-            </RNText>
-            <Pressable onPress={() => go('pricing')} accessibilityRole="button">
-              <RNText style={tx('600', 12, t.colors.accentDeep, { marginTop: 2 })}>How fees work ›</RNText>
-            </Pressable>
-          </View>
-          <RNText style={tx('800', 14, t.colors.ink)}>{feeMinor === null ? '–' : formatINR(feeMinor)}</RNText>
-        </View>
-        ) : null}
-
-        <SectionTitle title="Transactions" icon="list" style={{ marginTop: 24 }} />
-        <View style={{ marginTop: 8, marginHorizontal: -20 }}>
-          <UnderlineTabs tabs={TX_TABS} active={txTab} onPick={setTxTab} />
-        </View>
-
-        {!ledgerLoading && txRows.length === 0 && (
-          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, lineHeight: 20 })}>
-            {mine.length === 0
-              ? worker
-                ? 'Finish a job and your earnings show up here.'
-                : 'Hire someone and what you pay shows up here.'
-              : 'Nothing of this kind in this period.'}
-          </RNText>
+        ) : (
+          <>
+            {summary}
+            {transactions}
+            {referral}
+          </>
         )}
-
-        {(txAll ? txRows : txRows.slice(0, TX_FIRST)).map((l, i) => (
-          <SlideIn key={l.id} delay={Math.min(i, 8) * 50}>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-                paddingVertical: 15,
-                borderBottomWidth: 1,
-                borderBottomColor: t.colors.line,
-              }}
-            >
-              <View style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: dotFor(l.kind) }} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <RNText style={tx('600', 15, t.colors.ink)} numberOfLines={1}>
-                  {l.title}
-                </RNText>
-                <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>
-                  {new Date(l.at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} · {maskDigits(l.meta)}
-                </RNText>
-              </View>
-              <RNText style={tx('700', 15, l.incoming ? t.colors.accentDeep : t.colors.ink)}>
-                {l.incoming ? '+' : ''}
-                {formatINR(l.amountMinor)}
-              </RNText>
-            </View>
-          </SlideIn>
-        ))}
-
-        {txRows.length > TX_FIRST ? (
-          <Pressable
-            onPress={() => setTxAll((v) => !v)}
-            accessibilityRole="button"
-            style={({ pressed }) => ({
-              alignSelf: 'center',
-              marginTop: 12,
-              paddingVertical: 8,
-              paddingHorizontal: 16,
-              borderRadius: 999,
-              borderWidth: 1,
-              borderColor: t.colors.line,
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <RNText style={tx('700', 12, t.colors.accentDeep)}>
-              {txAll ? 'Show less' : `Show ${txRows.length - TX_FIRST} more`}
-            </RNText>
-          </Pressable>
-        ) : null}
-
-        {code && !insights ? (
-          <View style={{ ...card, marginTop: 24, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Icon name="gift" size={20} color={t.colors.accentDeep} />
-            <View style={{ flex: 1 }}>
-              <RNText style={tx('700', 13, t.colors.ink)}>Bring a friend to TaskDrop</RNText>
-              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
-                Your code {code} · {joined} joined so far
-              </RNText>
-            </View>
-            <Pressable
-              onPress={() => void Clipboard.setStringAsync(code).then(() => flash('Code copied'))}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Copy referral code"
-            >
-              <Icon name="copy" size={19} color={t.colors.accentDeep} />
-            </Pressable>
-            <Pressable onPress={() => void shareCode()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Share invite">
-              <Icon name="share" size={19} color={t.colors.accentDeep} />
-            </Pressable>
-          </View>
-        ) : null}
       </ScrollView>
 
       <AddFundsSheet
