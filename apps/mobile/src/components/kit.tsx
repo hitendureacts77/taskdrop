@@ -150,7 +150,10 @@ export function BottomSheet({
   );
 }
 
-/** Tabs with a sliding underline, as on the orders screen. */
+/**
+ * Tabs with a sliding underline (v2): left-aligned labels at their own width,
+ * 24 apart, and a 2.5px accent bar that glides to the one chosen.
+ */
 export function UnderlineTabs({
   tabs,
   active,
@@ -163,42 +166,65 @@ export function UnderlineTabs({
   inset?: number;
 }) {
   const t = useTheme();
-  const [width, setWidth] = useState(0);
-  const track = Math.max(0, width - inset * 2);
-  const each = tabs.length ? track / tabs.length : 0;
-  const left = useRef(new Animated.Value(inset)).current;
+  const [spots, setSpots] = useState<{ x: number; w: number }[]>([]);
+  const left = useRef(new Animated.Value(0)).current;
+  const width = useRef(new Animated.Value(0)).current;
+  const placed = useRef(false);
   useEffect(() => {
-    const anim = Animated.timing(left, { toValue: inset + each * active, duration: 280, useNativeDriver: false });
+    const spot = spots[active];
+    if (!spot) return;
+    if (!placed.current) {
+      // First layout: put the bar in place without a slide.
+      left.setValue(spot.x);
+      width.setValue(spot.w);
+      placed.current = true;
+      return;
+    }
+    const anim = Animated.parallel([
+      Animated.timing(left, { toValue: spot.x, duration: 280, useNativeDriver: false }),
+      Animated.timing(width, { toValue: spot.w, duration: 280, useNativeDriver: false }),
+    ]);
     anim.start();
     return () => anim.stop();
-  }, [active, each, left, inset]);
+  }, [active, spots, left, width]);
 
   return (
-    <View
-      style={{ flexDirection: 'row', paddingHorizontal: inset }}
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-    >
-      {tabs.map((label, i) => {
-        const on = active === i;
-        return (
-          <Pressable
-            key={label}
-            onPress={() => onPick(i)}
-            accessibilityRole="tab"
-            accessibilityLabel={label}
-            accessibilityState={{ selected: on }}
-            style={{ flex: 1, alignItems: 'center', paddingVertical: 11 }}
-          >
-            <RNText style={tx(on ? '800' : '600', 14, on ? t.colors.ink : t.colors.muted)} numberOfLines={1}>
-              {label}
-            </RNText>
-          </Pressable>
-        );
-      })}
-      <View style={{ position: 'absolute', left: inset, right: inset, bottom: 0, height: 1, backgroundColor: t.colors.line }} />
-      <Animated.View
-        style={{ position: 'absolute', left, bottom: -0.5, height: 2.5, borderRadius: 3, width: each, backgroundColor: t.colors.accent }}
-      />
+    <View style={{ marginHorizontal: inset }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
+        <View style={{ flexDirection: 'row', gap: 24, flexGrow: 1 }}>
+          {tabs.map((label, i) => {
+            const on = active === i;
+            return (
+              <Pressable
+                key={label}
+                onPress={() => onPick(i)}
+                onLayout={(e) => {
+                  const { x, width: w } = e.nativeEvent.layout;
+                  setSpots((cur) => {
+                    if (cur[i]?.x === x && cur[i]?.w === w) return cur;
+                    const next = [...cur];
+                    next[i] = { x, w };
+                    return next;
+                  });
+                }}
+                accessibilityRole="tab"
+                accessibilityLabel={label}
+                accessibilityState={{ selected: on }}
+                style={{ paddingVertical: 12 }}
+              >
+                <RNText style={tx(on ? '800' : '600', 14, on ? t.colors.ink : t.colors.muted)} numberOfLines={1}>
+                  {label}
+                </RNText>
+              </Pressable>
+            );
+          })}
+          <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 1, backgroundColor: t.colors.line }} />
+          <Animated.View
+            pointerEvents="none"
+            style={{ position: 'absolute', left, bottom: 0, height: 2.5, borderRadius: 3, width, backgroundColor: t.colors.accent }}
+          />
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -503,23 +529,20 @@ export function Field({
   // Multiline boxes grow with their text, so the whole thing is always
   // visible instead of hiding behind a scrollbar inside the box.
   const [contentH, setContentH] = useState(0);
+  const inputRef = useRef<TextInput>(null);
+  // v2 field: the label sits inside the box, over the value; tapping
+  // anywhere in the box puts the cursor in the input.
   return (
     <View style={style}>
-      {label ? (
-        <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginBottom: 8 })}>
-          {label.toUpperCase()}
-        </RNText>
-      ) : null}
-      <View
+      <Pressable
+        onPress={() => inputRef.current?.focus()}
+        accessible={false}
         style={{
-          flexDirection: 'row',
-          alignItems: input.multiline ? 'flex-start' : 'center',
-          gap: 10,
           backgroundColor: t.colors.surface,
           borderRadius: 14,
           borderWidth: 1.5,
           borderColor: error ? t.colors.signal : focused ? t.colors.accent : t.colors.line,
-          paddingVertical: input.multiline ? 12 : 13,
+          paddingVertical: label ? 11 : input.multiline ? 12 : 13,
           paddingHorizontal: 14,
           // The v2 focus ring (web): a soft halo of the accent around the box.
           ...(Platform.OS === 'web' && (focused || error)
@@ -527,8 +550,16 @@ export function Field({
             : null),
         }}
       >
+        {label ? (
+          <RNText style={tx('700', 11, focused ? t.colors.accentDeep : t.colors.muted, { letterSpacing: 1, marginBottom: 5 })}>
+            {label.toUpperCase()}
+          </RNText>
+        ) : null}
+        <View style={{ flexDirection: 'row', alignItems: input.multiline ? 'flex-start' : 'center', gap: 10 }}>
         {left}
         <TextInput
+          ref={inputRef}
+          accessibilityLabel={input.accessibilityLabel ?? label}
           placeholderTextColor={t.colors.muted}
           {...input}
           onFocus={(e) => {
@@ -551,7 +582,8 @@ export function Field({
           ]}
         />
         {right}
-      </View>
+        </View>
+      </Pressable>
       {error ? (
         <RNText style={tx('500', 12, t.colors.signalDeep, { marginTop: 6 })}>{error}</RNText>
       ) : hint ? (
@@ -1025,12 +1057,12 @@ export function MenuRow({
           width: 36,
           height: 36,
           borderRadius: 11,
-          backgroundColor: danger ? t.colors.signalSoft : t.colors.accentSoft,
+          backgroundColor: danger ? t.colors.signalSoft : t.colors.surface2,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <Icon name={icon} size={18} color={danger ? t.colors.signalDeep : t.colors.accentDeep} strokeWidth={1.8} />
+        <Icon name={icon} size={18} color={danger ? t.colors.signalDeep : t.colors.ink} strokeWidth={1.8} />
       </View>
       <View style={{ flex: 1 }}>
         <RNText style={tx('600', 15, danger ? t.colors.signalDeep : t.colors.ink)}>{label}</RNText>

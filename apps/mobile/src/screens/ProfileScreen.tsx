@@ -11,6 +11,9 @@ import { signedMediaUrl } from '../lib/media';
 import { tx } from '../components/primitives';
 import { Icon, type IconName } from '../components/Icon';
 import { ConfirmDialog } from '../components/kit';
+import { AppHeader } from '../components/AppHeader';
+import { HeroBackground } from '../components/Hero';
+import { Ripples } from '../components/Ripples';
 
 function SlideIn({ delay, children }: { delay: number; children: React.ReactNode }) {
   const v = useRef(new Animated.Value(0)).current;
@@ -71,8 +74,9 @@ export function ProfileScreen() {
   const switchMode = useSwitchMode();
 
   const worker = mode === 'worker';
-  // The header band takes the side's colour: deep blue for earning, deep green for posting.
-  const band = worker ? (t.isDark ? '#0C1A4D' : '#1E3A8A') : t.isDark ? '#062B1E' : '#0B3D2C';
+  // The header band takes the side's colour (the hero gradient): blue for
+  // earning, jade for posting.
+  const band = t.colors.heroMid;
 
   // Mode slider: "Post a Request" left, "Find Work" right.
   const slide = useRef(new Animated.Value(worker ? 1 : 0)).current;
@@ -148,9 +152,23 @@ export function ProfileScreen() {
 
   return (
     <Screen padded={false}>
+      <AppHeader />
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {/* Band header */}
-        <View style={{ backgroundColor: band, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 26 }}>
+        <View
+          style={{
+            paddingHorizontal: 20,
+            paddingTop: 20,
+            paddingBottom: 26,
+            borderBottomLeftRadius: 28,
+            borderBottomRightRadius: 28,
+            overflow: 'hidden',
+          }}
+        >
+          <HeroBackground radius={0} />
+          <View pointerEvents="none" style={{ position: 'absolute', right: -30, top: -40, width: 180, height: 180, alignItems: 'center', justifyContent: 'center' }}>
+            <Ripples color="rgba(255,255,255,0.35)" size={180} count={2} duration={4200} />
+          </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
             <View
               style={{
@@ -172,9 +190,9 @@ export function ProfileScreen() {
               )}
             </View>
             {/* You have the app open, so you're active -- shown the way others see it. */}
-            <View style={{ position: 'absolute', left: 50, top: 48, width: 15, height: 15, borderRadius: 999, backgroundColor: '#22C55E', borderWidth: 2.5, borderColor: band }} />
+            <View style={{ position: 'absolute', left: 50, top: 48, width: 15, height: 15, borderRadius: 999, backgroundColor: '#4ADE9A', borderWidth: 2.5, borderColor: band }} />
             <View>
-              <RNText style={tx('800', 21, '#FFFFFF', { letterSpacing: -0.42 })} numberOfLines={1}>
+              <RNText style={tx('800', 22, '#FFFFFF', { letterSpacing: -0.5 })} numberOfLines={1}>
                 {displayName}
               </RNText>
               <RNText style={tx('400', 13, 'rgba(255,255,255,0.78)', { marginTop: 4 })}>
@@ -186,14 +204,14 @@ export function ProfileScreen() {
         </View>
 
         <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 }}>
-          <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54 })}>MODE</RNText>
+          <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>MODE</RNText>
           <View
             style={{
               flexDirection: 'row',
               gap: 8,
               marginTop: 11,
               backgroundColor: t.colors.surface2,
-              borderRadius: 12,
+              borderRadius: 14,
               padding: 4,
               position: 'relative',
             }}
@@ -205,8 +223,12 @@ export function ProfileScreen() {
                 bottom: 4,
                 width: '50%',
                 left: slide.interpolate({ inputRange: [0, 1], outputRange: ['0%', '50%'] }),
-                backgroundColor: t.colors.bg,
-                borderRadius: 9,
+                backgroundColor: t.colors.surface,
+                borderRadius: 10,
+                shadowColor: '#000',
+                shadowOpacity: t.isDark ? 0 : 0.08,
+                shadowRadius: 4,
+                shadowOffset: { width: 0, height: 1 },
               }}
             />
             {(['poster', 'worker'] as const).map((m) => {
@@ -234,8 +256,8 @@ export function ProfileScreen() {
               marginTop: 22,
             }}
           >
-            <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54 })}>THEME</RNText>
-            <RNText style={tx('400', 11, t.colors.muted)}>{themeNote}</RNText>
+            <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>THEME</RNText>
+            <RNText style={tx('400', 12, t.colors.muted)}>{themeNote}</RNText>
           </View>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 11 }}>
             {(['system', 'light', 'dark'] as const).map((p) => {
@@ -246,16 +268,16 @@ export function ProfileScreen() {
                   onPress={() => setPref(p)}
                   style={({ pressed }) => ({
                     flex: 1,
-                    borderRadius: 10,
+                    borderRadius: 999,
                     paddingVertical: 10,
-                    backgroundColor: on ? t.colors.accentSoft : 'transparent',
-                    borderWidth: 1,
+                    backgroundColor: on ? t.colors.accentSoft : t.colors.surface,
+                    borderWidth: 1.5,
                     borderColor: on ? t.colors.accent : t.colors.line,
                     transform: [{ scale: pressed ? 0.96 : 1 }],
                   })}
                 >
                   <RNText
-                    style={tx('600', 13, on ? t.colors.ink : t.colors.muted, { textAlign: 'center' })}
+                    style={tx(on ? '700' : '600', 13, on ? t.colors.accentDeep : t.colors.text, { textAlign: 'center' })}
                   >
                     {p === 'system' ? 'System' : p === 'light' ? 'Light' : 'Dark'}
                   </RNText>
@@ -264,7 +286,7 @@ export function ProfileScreen() {
             })}
           </View>
 
-          <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 22 })}>
+          <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 24, marginBottom: 4 })}>
             MY TASKDROP
           </RNText>
           {rows.map((r) => (
@@ -294,10 +316,10 @@ export function ProfileScreen() {
                   backgroundColor: r.go === 'splash' ? t.colors.signalSoft : t.colors.surface2,
                 }}
               >
-                <Icon name={r.icon} size={18} color={r.go === 'splash' ? t.colors.signal : t.colors.ink} strokeWidth={1.8} />
+                <Icon name={r.go === 'splash' ? 'back' : r.icon} size={18} color={r.go === 'splash' ? t.colors.signalDeep : t.colors.ink} strokeWidth={1.8} />
               </View>
               <RNText
-                style={tx('600', 16, r.go === 'splash' ? t.colors.signal : t.colors.ink, { flex: 1 })}
+                style={tx('600', 15.5, r.go === 'splash' ? t.colors.signalDeep : t.colors.ink, { flex: 1 })}
               >
                 {r.label}
               </RNText>
@@ -305,7 +327,7 @@ export function ProfileScreen() {
             </Pressable>
           ))}
 
-          <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 22 })}>
+          <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 24 })}>
             {worker ? 'WORKER REVIEWS' : 'CUSTOMER REVIEWS'}
           </RNText>
           {reviews.length === 0 && (
