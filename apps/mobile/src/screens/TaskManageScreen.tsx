@@ -348,11 +348,11 @@ export function TaskManageScreen() {
           </Pressable>
           <Pressable
             onPress={() => go('chat', { taskId: task.id, title: task.title })}
-            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, borderWidth: 1, borderColor: t.colors.line, borderRadius: 12, paddingVertical: 11 }}
+            style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, borderWidth: 1.5, borderColor: t.colors.accentBorder, backgroundColor: t.colors.accentSoft, borderRadius: 999, minHeight: 46, transform: [{ scale: pressed ? 0.97 : 1 }] })}
             accessibilityRole="button"
           >
-            <Icon name="chat" size={16} color={t.colors.ink} />
-            <RNText style={tx('700', 14, t.colors.ink)}>Message</RNText>
+            <Icon name="chat" size={16} color={t.colors.accentDeep} />
+            <RNText style={tx('700', 14, t.colors.accentDeep)}>Message</RNText>
           </Pressable>
         </View>
       ) : null}
