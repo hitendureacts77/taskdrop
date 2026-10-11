@@ -7,8 +7,12 @@ import {
   TextInput,
   ActivityIndicator,
   Animated,
+  Platform,
 } from 'react-native';
 import { Drop, Ripples } from '../components/Ripples';
+import { HeroBackground } from '../components/Hero';
+import { FloatCard } from '../components/BrandArt';
+import { useLayout } from '../lib/layout';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { BottomSheet, Field, PrimaryButton } from '../components/kit';
@@ -52,6 +56,7 @@ function spaced(digits: string): string {
 
 export function AccessScreen() {
   const t = useTheme();
+  const { desktop } = useLayout();
   const { go, reset } = useNav();
   const { celebrate, flash } = useActions();
   const { requestCode, verifyCode, signInWithGoogle, signOut } = useAuth();
@@ -310,50 +315,56 @@ export function AccessScreen() {
   }
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} style={desktop ? { backgroundColor: t.colors.surface } : undefined}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 22 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* The picture: the droplet with its ripples, on the brand colour. */}
-        <View
-          style={{
-            height: 230,
-            backgroundColor: t.colors.hero,
-            borderBottomLeftRadius: 36,
-            borderBottomRightRadius: 36,
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
-          }}
-        >
-          <Ripples color="rgba(255,255,255,0.9)" size={360} />
+        {/* The picture: the droplet with its ripples on the brand gradient,
+            and what goes out when a task drops -- one nearby, one remote.
+            On desktop the brand panel beside the form carries it instead. */}
+        {desktop ? null : (
           <View
             style={{
-              width: 78,
-              height: 78,
-              borderRadius: 78,
-              backgroundColor: '#FFFFFF',
+              height: 290,
+              borderBottomLeftRadius: 36,
+              borderBottomRightRadius: 36,
               alignItems: 'center',
               justifyContent: 'center',
-              shadowColor: '#000',
-              shadowOpacity: 0.18,
-              shadowRadius: 18,
-              shadowOffset: { width: 0, height: 8 },
-              elevation: 6,
+              overflow: 'hidden',
             }}
           >
-            <Drop size={44} fill={t.colors.hero} tick="#FFFFFF" />
+            <HeroBackground radius={0} />
+            <Ripples color="rgba(255,255,255,0.75)" size={420} count={4} duration={4000} />
+            <View
+              style={{
+                width: 108,
+                height: 108,
+                borderRadius: 108,
+                backgroundColor: '#FFFFFF',
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: '#000',
+                shadowOpacity: 0.2,
+                shadowRadius: 22,
+                shadowOffset: { width: 0, height: 10 },
+                elevation: 8,
+              }}
+            >
+              <Drop size={56} fill={t.colors.heroMid} tick="#FFFFFF" />
+            </View>
+            <FloatCard icon="globe" tone="ai" title="Logo design · Remote" sub="from ₹1,500" style={{ top: 66, right: 16 }} />
+            <FloatCard icon="pin" title="Plumber · 1.2 km" sub="3 offers in 9 min" delay={900} style={{ top: 198, left: 16 }} />
+            <RNText style={tx('800', 22, '#FFFFFF', { letterSpacing: -0.8, position: 'absolute', top: 24, left: 22 })}>
+              taskdrop<RNText style={{ color: '#7FE3C4' }}>.</RNText>
+            </RNText>
           </View>
-          <RNText style={tx('800', 22, '#FFFFFF', { letterSpacing: -0.8, position: 'absolute', top: 18, left: 22 })}>
-            taskdrop<RNText style={{ color: '#7FE3C4' }}>.</RNText>
-          </RNText>
-        </View>
+        )}
 
-        <View style={{ flex: 1, paddingHorizontal: 22, paddingTop: 26 }}>
-          <RNText style={tx('800', 30, t.colors.ink, { letterSpacing: -1.1, lineHeight: 35 })}>{heading.title}</RNText>
+        <View style={{ flex: 1, paddingHorizontal: 22, paddingTop: desktop ? 30 : 28 }}>
+          <RNText style={tx('800', 32, t.colors.ink, { letterSpacing: -1.2, lineHeight: 36 })}>{heading.title}</RNText>
           <RNText style={tx('400', 14, t.colors.muted, { marginTop: 10, lineHeight: 21 })}>{heading.sub}</RNText>
 
           {stage === 'number' ? (
@@ -538,12 +549,13 @@ export function AccessScreen() {
                             borderRadius: 46,
                             alignItems: 'center',
                             justifyContent: 'center',
-                            backgroundColor: v ? t.colors.accent : t.colors.bg,
+                            backgroundColor: v ? t.colors.btn : t.colors.bg,
                             borderWidth: 2,
-                            borderColor: v ? t.colors.accent : next ? t.colors.accent : t.colors.line,
+                            borderColor: v ? t.colors.btn : next ? t.colors.accent : t.colors.line,
+                            ...(next && Platform.OS === 'web' ? ({ boxShadow: `0 0 0 4px ${t.colors.accentSoft}` } as object) : null),
                           }}
                         >
-                          <RNText style={tx('800', 19, v ? t.colors.onAccent : t.colors.muted)}>{v || '·'}</RNText>
+                          <RNText style={tx('800', 19, v ? t.colors.onBtn : t.colors.muted)}>{v || '·'}</RNText>
                         </View>
                       );
                     })}
