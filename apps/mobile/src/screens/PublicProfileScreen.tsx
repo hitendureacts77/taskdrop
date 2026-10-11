@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text as RNText, ScrollView, Image, Pressable } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
+import { HeroBackground, heroStops } from '../components/Hero';
 import { Icon } from '../components/Icon';
 import { Badge, EmptyState, Shimmer, TopBar, timeAgo } from '../components/kit';
 import { tx } from '../components/primitives';
@@ -120,12 +121,13 @@ export function PublicProfileScreen() {
         <View
           style={{
             marginHorizontal: 20,
-            // Worker profiles in the Earn blue, poster profiles in the Post green.
-            backgroundColor: asWorker ? (t.isDark ? '#0C1A4D' : '#1E3A8A') : t.isDark ? '#062B1E' : '#0B3D2C',
-            borderRadius: 18,
-            padding: 18,
+            borderRadius: 24,
+            padding: 20,
+            overflow: 'hidden',
           }}
         >
+          {/* Worker profiles in the Earn blue, poster profiles in the Hire jade. */}
+          <HeroBackground radius={24} tone={asWorker ? 'earn' : 'hire'} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <View>
               <View style={{ width: 70, height: 70, borderRadius: 999, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)' }}>
@@ -136,7 +138,7 @@ export function PublicProfileScreen() {
                 )}
               </View>
               {/* Status on the picture itself, like a chat app. */}
-              <AvatarPresence lastSeen={self ? new Date().toISOString() : p.last_seen_at} ring={asWorker ? '#1E3A8A' : '#0B3D2C'} />
+              <AvatarPresence lastSeen={self ? new Date().toISOString() : p.last_seen_at} ring={heroStops(t, asWorker ? 'earn' : 'hire')[1]} />
             </View>
             <View style={{ flex: 1 }}>
               <RNText style={tx('800', 19, '#FFFFFF')} numberOfLines={1}>{p.display_name}</RNText>
@@ -159,7 +161,7 @@ export function PublicProfileScreen() {
                   width: 8,
                   height: 8,
                   borderRadius: 999,
-                  backgroundColor: self || presence.online ? '#22C55E' : 'transparent',
+                  backgroundColor: self || presence.online ? '#4ADE9A' : 'transparent',
                   borderWidth: self || presence.online ? 0 : 1.5,
                   borderColor: 'rgba(255,255,255,0.7)',
                 }}

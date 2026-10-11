@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Icon } from '../components/Icon';
+import { IconButton } from '../components/kit';
 import { View, ScrollView, Pressable } from 'react-native';
 import { Screen, Text, Row, Button, Avatar, formatINR } from '../components/ui';
 import { AvatarPresence } from '../components/PresenceDot';
@@ -92,9 +92,7 @@ export function MyQuotesScreen() {
   return (
     <Screen>
       <View style={{ flex: 1 }}>
-        <Pressable onPress={back} hitSlop={10} style={{ paddingTop: 8 }} accessibilityRole="button" accessibilityLabel="Back">
-          <Icon name="back" size={22} color={t.colors.ink} />
-        </Pressable>
+        <IconButton icon="back" label="Back" onPress={back} />
 
         <Text variant="h1" style={{ marginTop: 16 }}>
           Work for you

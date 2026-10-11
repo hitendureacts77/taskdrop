@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Icon } from '../components/Icon';
+import { IconButton } from '../components/kit';
 import { View, Text as RNText, Pressable } from 'react-native';
 import Svg, { Rect, Line } from 'react-native-svg';
 import { Screen, formatINR, cardSurface } from '../components/ui';
@@ -188,9 +188,7 @@ export function AnalyticsScreen() {
   return (
     <Screen padded={false} scroll onRefresh={() => void load(days)} refreshing={loading && !!stats}>
       <View style={{ paddingHorizontal: 20, paddingTop: 6 }}>
-        <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
-          <Icon name="back" size={20} color={t.colors.ink} />
-        </Pressable>
+        <IconButton icon="back" label="Back" onPress={back} />
 
         <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.72, marginTop: 14 })}>
           {worker ? 'My earnings and jobs' : 'My spending and requests'}

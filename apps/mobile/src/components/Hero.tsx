@@ -12,8 +12,21 @@ import { Drop, Ripples } from './Ripples';
  */
 let gradientSeq = 0;
 
-export function HeroBackground({ radius = 26 }: { radius?: number }) {
+/** A hero in a fixed side's colour, whatever mode the viewer is in. */
+export type HeroTone = 'mode' | 'hire' | 'earn';
+const STOPS = {
+  hire: { light: ['#0D8A6F', '#0A6F58', '#064A3B'], dark: ['#0E8F72', '#0B5E4B', '#06372C'] },
+  earn: { light: ['#4069F2', '#2F5BEA', '#1A3BA8'], dark: ['#3A62E8', '#2547BD', '#152C7A'] },
+} as const;
+
+export function heroStops(t: ReturnType<typeof useTheme>, tone: HeroTone): readonly [string, string, string] {
+  if (tone === 'mode') return [t.colors.heroFrom, t.colors.heroMid, t.colors.heroTo];
+  return STOPS[tone][t.isDark ? 'dark' : 'light'];
+}
+
+export function HeroBackground({ radius = 26, tone = 'mode' }: { radius?: number; tone?: HeroTone }) {
   const t = useTheme();
+  const [from, mid, to] = heroStops(t, tone);
   // Each gradient needs its own id: two heroes on one web page would
   // otherwise both point at whichever <linearGradient> the browser found first.
   const [id] = useState(() => `heroGrad${++gradientSeq}`);
@@ -22,9 +35,9 @@ export function HeroBackground({ radius = 26 }: { radius?: number }) {
       <Svg width="100%" height="100%" preserveAspectRatio="none">
         <Defs>
           <LinearGradient id={id} x1="0" y1="0" x2="0.85" y2="1">
-            <Stop offset="0" stopColor={t.colors.heroFrom} />
-            <Stop offset="0.55" stopColor={t.colors.heroMid} />
-            <Stop offset="1" stopColor={t.colors.heroTo} />
+            <Stop offset="0" stopColor={from} />
+            <Stop offset="0.55" stopColor={mid} />
+            <Stop offset="1" stopColor={to} />
           </LinearGradient>
         </Defs>
         <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id})`} />

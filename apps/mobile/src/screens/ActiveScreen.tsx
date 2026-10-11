@@ -3,7 +3,7 @@ import { View, Text as RNText, Pressable, Animated, Easing, Image, Linking, Acti
 import Svg, { Circle } from 'react-native-svg';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { EmptyState, Field } from '../components/kit';
+import { EmptyState, Field, IconButton } from '../components/kit';
 import { ReportProblemSheet } from '../components/ReportProblemSheet';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { useTheme } from '../providers/ThemeProvider';
@@ -143,9 +143,7 @@ export function ActiveScreen() {
     return (
       <Screen padded={false}>
         <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
-          <Pressable onPress={back} hitSlop={10}>
-            <Icon name="back" size={20} color={t.colors.ink} />
-          </Pressable>
+          <IconButton icon="back" label="Back" onPress={back} />
         </View>
         <EmptyState icon="briefcase" title="This job isn’t available" body="Open it again from My Work or My Tasks." />
       </Screen>
@@ -283,9 +281,7 @@ export function ActiveScreen() {
     <Screen scroll padded={false}>
       <View style={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 28 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
-            <Icon name="back" size={20} color={t.colors.ink} />
-          </Pressable>
+          <IconButton icon="back" label="Back" onPress={back} />
           <RNText style={tx('700', 17, t.colors.ink, { flex: 1 })} numberOfLines={1}>{task.title}</RNText>
           {/* Lists open in-progress tasks straight here; the overview (quotes,
               timeline, details) stays one tap away for the poster. */}
@@ -312,7 +308,7 @@ export function ActiveScreen() {
                 cx={100}
                 cy={100}
                 r={RING_R}
-                stroke={overdue ? t.colors.signal : doneAt ? '#22C55E' : t.colors.accent}
+                stroke={overdue ? t.colors.signal : doneAt ? t.colors.online : t.colors.accent}
                 strokeWidth={10}
                 strokeLinecap="round"
                 strokeDasharray={RING_C}
