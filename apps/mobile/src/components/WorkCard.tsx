@@ -9,6 +9,8 @@ import { descriptionPreview } from './TaskDescription';
 import { PresenceDot } from './PresenceDot';
 import { presenceOf } from '../lib/presence';
 import { roughPlace } from '../lib/place';
+import { cardSurface } from './ui';
+import { fontFamilyFor } from '../theme';
 
 const CATEGORY_ICON: Record<string, IconName> = {
   'Home Services': 'home',
@@ -72,21 +74,22 @@ export const WorkCard = memo(function WorkCard({
         containsControls
         onPress={onOpen}
         scaleTo={0.985}
-        style={{
-          flexDirection: 'row',
-          gap: 12,
-          backgroundColor: t.colors.surface,
-          borderWidth: 1,
-          borderColor: live ? t.colors.signal : t.colors.line,
-          borderRadius: 14,
-          padding: 13,
-        }}
+        style={[
+          cardSurface(t),
+          {
+            flexDirection: 'row',
+            gap: 12,
+            // Urgent work keeps a coral edge, softened into the line.
+            borderColor: live ? t.colors.signal : t.colors.line,
+            padding: 14,
+          },
+        ]}
       >
         <View
           style={{
-            width: 46,
-            height: 46,
-            borderRadius: 12,
+            width: 44,
+            height: 44,
+            borderRadius: 13,
             backgroundColor: t.colors.accentSoft,
             alignItems: 'center',
             justifyContent: 'center',
@@ -110,20 +113,20 @@ export const WorkCard = memo(function WorkCard({
                 accessibilityRole="button"
                 accessibilityLabel={saved ? 'Remove from saved' : 'Save for later'}
               >
-                <Icon name="bookmark" size={18} color={saved ? t.colors.accent : t.colors.muted} strokeWidth={saved ? 2.6 : 1.8} />
+                <Icon name="bookmark" size={18} color={saved ? t.colors.accentDeep : t.colors.muted} strokeWidth={saved ? 2.6 : 1.8} />
               </Pressable>
             ) : null}
           </View>
-          <RNText style={tx('700', 15, t.colors.ink, { marginTop: 5 })} numberOfLines={2}>
+          <RNText style={tx('800', 15, t.colors.ink, { marginTop: 6, letterSpacing: -0.2, lineHeight: 20 })} numberOfLines={2}>
             {task.title}
           </RNText>
           {preview ? (
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 17 })} numberOfLines={2}>
+            <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4, lineHeight: 18 })} numberOfLines={2}>
               {preview}
             </RNText>
           ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 9 }}>
-            <RNText style={tx('800', 16, t.colors.accentDeep)}>{rupees(task.benchmark_minor / 100)}</RNText>
+            <RNText style={tx('800', 17, t.colors.accentDeep, { fontVariant: ['tabular-nums'], letterSpacing: -0.3 })}>{rupees(task.benchmark_minor / 100)}</RNText>
             {left ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                 <Icon name="clock" size={12} color={left === 'overdue' ? t.colors.signal : t.colors.gold} strokeWidth={2} />
@@ -137,8 +140,8 @@ export const WorkCard = memo(function WorkCard({
               </View>
             ) : task.loc_lat === null ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Icon name="compass" size={12} color={t.colors.blue} strokeWidth={2} />
-                <RNText style={tx('600', 11, t.colors.blue)}>Remote</RNText>
+                <Icon name="globe" size={12} color={t.colors.aiInk} strokeWidth={2} />
+                <RNText style={tx('700', 11, t.colors.aiInk)}>Remote</RNText>
               </View>
             ) : task.loc_label ? (
               <RNText style={tx('400', 11, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>
@@ -152,7 +155,7 @@ export const WorkCard = memo(function WorkCard({
             <RNText style={tx('400', 11, t.colors.muted, { flex: 1 })} numberOfLines={1}>
               {task.poster?.username ? '@' + task.poster.username : (task.poster?.display_name ?? 'someone')}
               {' · '}
-              <RNText style={{ color: presence.online ? '#16A34A' : t.colors.muted, fontWeight: presence.online ? '600' : '400' }}>
+              <RNText style={{ color: presence.online ? t.colors.online : t.colors.muted, fontFamily: presence.online ? fontFamilyFor('600') : undefined }}>
                 {presence.label}
               </RNText>
               {rating ? ` · ★ ${rating}` : ''} · posted {timeAgo(task.created_at)}
@@ -160,9 +163,9 @@ export const WorkCard = memo(function WorkCard({
             <Pressy
               onPress={onApply}
               label={`Apply for ${task.title}`}
-              style={{ backgroundColor: t.colors.purpleDeep, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 16 }}
+              style={{ backgroundColor: t.colors.btn, borderRadius: 999, height: 32, justifyContent: 'center', paddingHorizontal: 16 }}
             >
-              <RNText style={tx('700', 12, '#FFFFFF')}>Apply</RNText>
+              <RNText style={tx('700', 12, t.colors.onBtn)}>Apply</RNText>
             </Pressy>
           </View>
         </View>

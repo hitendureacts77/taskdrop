@@ -206,7 +206,7 @@ export function ReviewScreen() {
           onPress={submit}
           style={({ pressed }) => [
             {
-              backgroundColor: t.colors.accent,
+              backgroundColor: t.colors.btn,
               borderRadius: 999,
               paddingVertical: 16,
               alignItems: 'center',

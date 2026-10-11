@@ -391,7 +391,7 @@ export function CompareScreen() {
           onPress={handleLock}
           scaleTo={0.96}
           style={{
-            backgroundColor: t.colors.accent,
+            backgroundColor: t.colors.btn,
             borderRadius: 999,
             paddingVertical: 16,
             alignItems: 'center',

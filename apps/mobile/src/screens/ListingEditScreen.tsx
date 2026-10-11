@@ -130,7 +130,7 @@ export function ListingEditScreen() {
     : null;
 
   const label = (s: string, top = 20) => (
-    <RNText style={tx('600', 11, t.colors.accentDeep, { letterSpacing: 1.3, marginTop: top })}>{s}</RNText>
+    <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: top })}>{s}</RNText>
   );
 
   return (
@@ -189,7 +189,7 @@ export function ListingEditScreen() {
           <Pressable
             onPress={() => setPickArea(true)}
             accessibilityRole="button"
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, padding: 13, borderRadius: 12, borderWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface2 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, padding: 13, borderRadius: 14, borderWidth: 1.5, borderColor: t.colors.line, backgroundColor: t.colors.surface }}
           >
             <Icon name="pin" size={16} color={t.colors.accentDeep} />
             <RNText style={tx('500', 14, area ? t.colors.ink : t.colors.muted, { flex: 1 })} numberOfLines={1}>

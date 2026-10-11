@@ -247,11 +247,11 @@ export function ProfileEditScreen() {
                     : `${bio.length}/500 characters · shown to workers who send offers for your tasks`
                 }
               />
-              <RNText style={tx('600', 11, t.colors.accentDeep, { letterSpacing: 1.3, marginTop: 18 })}>LOCATION</RNText>
+              <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 18 })}>LOCATION</RNText>
               <Pressable
                 onPress={() => setShowLoc(true)}
                 accessibilityRole="button"
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface2 }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8, padding: 14, borderRadius: 14, borderWidth: 1.5, borderColor: t.colors.line, backgroundColor: t.colors.surface }}
               >
                 <Icon name="pin" size={17} color={t.colors.accentDeep} />
                 <RNText style={tx('400', 14, place ? t.colors.ink : t.colors.muted, { flex: 1 })} numberOfLines={2}>
@@ -260,7 +260,7 @@ export function ProfileEditScreen() {
                 <RNText style={tx('700', 13, t.colors.accentDeep)}>{place ? 'Change' : 'Set'}</RNText>
               </Pressable>
               <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6 })}>This helps match you with local tasks.</RNText>
-              <RNText style={tx('600', 11, t.colors.accentDeep, { letterSpacing: 1.3, marginTop: 18 })}>LANGUAGES</RNText>
+              <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 18 })}>LANGUAGES</RNText>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
                 {LANGUAGES.map((l) => (
                   <Pill key={l} label={l} active={langs.includes(l)} onPress={() => toggle(langs, setLangs, l, 6)} />

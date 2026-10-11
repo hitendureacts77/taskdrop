@@ -376,7 +376,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
           <Pressy
             onPress={() => setAddingFunds(true)}
-            style={{ flex: 1, backgroundColor: t.colors.accent, borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}
+            style={{ flex: 1, backgroundColor: t.colors.btn, borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}
           >
             <RNText style={tx('700', 15, t.colors.onAccent)}>+ Add money</RNText>
           </Pressy>

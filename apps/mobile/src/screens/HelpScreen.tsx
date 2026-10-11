@@ -68,7 +68,7 @@ export function HelpScreen() {
     <Screen padded={false}>
       <TopBar title="Help & support" onBack={back} />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
-        <RNText style={tx('600', 11, t.colors.accentDeep, { letterSpacing: 1.3 })}>WHAT DO YOU NEED HELP WITH?</RNText>
+        <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>WHAT DO YOU NEED HELP WITH?</RNText>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
           {TICKET_CATEGORIES.map((c) => (
             <Pill key={c.key} label={c.label} active={category === c.key} onPress={() => setCategory(c.key)} />

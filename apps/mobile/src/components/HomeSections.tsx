@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, TextInput } from 'react-native';
+import { View, Text as RNText, Pressable, TextInput, Animated, Easing, Platform } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { openPostedTask } from '../lib/taskRows';
@@ -37,13 +37,18 @@ import { Badge, BottomSheet, Grid, SectionTitle, Shimmer, rupees, timeLeft } fro
 import { WorkCard, categoryIcon } from './WorkCard';
 import { BidSheet } from './BidSheet';
 import { LiveWorkers } from './LiveWorkers';
-import { Rail } from './Rail';
+import { Rail, useRailItemWidth } from './Rail';
+import { HeroCard } from './Hero';
+import { Drop, Ripples } from './Ripples';
+import { cardSurface } from './ui';
+import { useLayout } from '../lib/layout';
+import { useReducedMotion } from '../lib/motion';
+import type { IconName } from './Icon';
 import { HowItWorks } from './HowItWorks';
 import { LocationSheet, type PickedPlace } from './LocationSheet';
 import { resolveCurrentPlace } from '../lib/location';
 import { roughPlace } from '../lib/place';
 import { Pressy, tx } from './primitives';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 /** The top of the home screen, above the existing feed. */
 export function HomeSections() {
@@ -60,6 +65,9 @@ export function HomeSections() {
  */
 function PostTop() {
   const t = useTheme();
+  // The wide composer gets its picture beside it (W2).
+  const { desktop } = useLayout();
+  const wideHero = desktop;
   const { go, screen } = useNav();
   const { flash } = useActions();
   const { userId } = useAuth();
@@ -127,151 +135,143 @@ function PostTop() {
         flush
       />
 
-      {/* The composer: the card itself is where you type. Sending opens the
-          step-by-step flow with these words, which asks the quick questions,
-          writes the post and checks it with you. */}
-      <View
-        style={{
-          marginTop: 6,
-          borderRadius: 22,
-          overflow: 'hidden',
-          borderWidth: 1,
-          borderColor: issue ? t.colors.signal : focused ? t.colors.accent : t.colors.line,
-          backgroundColor: t.colors.surface,
-          shadowColor: t.colors.accent,
-          shadowOpacity: focused ? 0.22 : 0.1,
-          shadowRadius: 18,
-          shadowOffset: { width: 0, height: 6 },
-          elevation: 3,
-        }}
-      >
-        <Svg style={{ position: 'absolute', top: 0, left: 0, right: 0 }} width="100%" height={150} preserveAspectRatio="none">
-          <Defs>
-            <LinearGradient id="composerGlow" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor={t.colors.accent} stopOpacity={0.2} />
-              <Stop offset="0.55" stopColor={t.colors.accent} stopOpacity={0.04} />
-              <Stop offset="1" stopColor={t.colors.accent} stopOpacity={0} />
-            </LinearGradient>
-          </Defs>
-          <Rect x="0" y="0" width="100%" height="150" fill="url(#composerGlow)" />
-        </Svg>
-        <View style={{ paddingHorizontal: 18, paddingTop: 18, paddingBottom: 14 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Icon name="edit" size={13} color={t.colors.accentDeep} />
-            <RNText style={tx('700', 11, t.colors.accentDeep, { letterSpacing: 0.6 })}>WE WRITE THE POST FOR YOU</RNText>
-          </View>
-          <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.6, marginTop: 8 })}>Drop a task</RNText>
-          <TextInput
-            value={prompt}
-            onChangeText={setPrompt}
-            onSubmitEditing={submit}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            placeholder="What do you need done? E.g. service my scooter this week"
-            placeholderTextColor={t.colors.muted}
-            multiline
-            blurOnSubmit
-            returnKeyType="send"
-            style={tx('400', 16, t.colors.ink, {
-              minHeight: 56,
-              maxHeight: 120,
-              padding: 0,
-              marginTop: 10,
-              lineHeight: 23,
-              textAlignVertical: 'top',
-            })}
-          />
-          {issue ? (
-            <RNText style={tx('600', 12, t.colors.signalDeep, { marginTop: 8, lineHeight: 17 })}>
-              {contactIssueMessage(issue)}
-            </RNText>
-          ) : null}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-            <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-              {quick.slice(0, 2).map((x) => (
-                <Pressable
-                  key={x.key}
-                  onPress={() => go('aiPost', { prompt: x.prompt })}
-                  accessibilityRole="button"
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 5,
-                    borderRadius: 999,
-                    backgroundColor: t.colors.surface2,
-                    paddingVertical: 6,
-                    paddingHorizontal: 10,
-                  }}
-                >
-                  <Icon name={x.icon} size={12} color={t.colors.accentDeep} />
-                  <RNText style={tx('600', 11, t.colors.text)}>{x.title}</RNText>
-                </Pressable>
-              ))}
+      {/* The composer, on the v2 hero: the card itself is where you type.
+          Sending opens the step-by-step flow with these words, which asks the
+          quick questions, writes the post and checks it with you. */}
+      <HeroCard style={{ marginTop: 10 }} padding={wideHero ? 30 : 20}>
+        <View style={{ flexDirection: 'row', gap: 28 }}>
+          <View style={{ flex: 1.25 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Icon name="edit" size={13} color="rgba(255,255,255,0.85)" />
+              <RNText style={tx('700', 11, 'rgba(255,255,255,0.85)', { letterSpacing: 1.3 })}>WE WRITE THE POST FOR YOU</RNText>
             </View>
-            {voice.supported ? (
+            <RNText style={tx('800', wideHero ? 36 : 28, '#FFFFFF', { letterSpacing: -0.9, marginTop: 8 })}>Drop a task</RNText>
+            <View
+              style={{
+                marginTop: 14,
+                borderRadius: 16,
+                paddingHorizontal: 15,
+                paddingVertical: 12,
+                minHeight: 66,
+                backgroundColor: t.isDark ? 'rgba(10,12,14,0.55)' : '#FFFFFF',
+                borderWidth: issue ? 2 : t.isDark ? 1 : 0,
+                borderColor: issue ? t.colors.signal : 'rgba(255,255,255,0.2)',
+              }}
+            >
+              <TextInput
+                value={prompt}
+                onChangeText={setPrompt}
+                onSubmitEditing={submit}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                placeholder="What do you need done? E.g. service my scooter this week"
+                placeholderTextColor={t.isDark ? 'rgba(213,217,221,0.75)' : t.colors.muted}
+                multiline
+                blurOnSubmit
+                returnKeyType="send"
+                accessibilityLabel="What do you need done?"
+                style={tx('400', 15, t.isDark ? '#F2F3F1' : t.colors.ink, {
+                  minHeight: 44,
+                  maxHeight: 120,
+                  padding: 0,
+                  lineHeight: 22,
+                  textAlignVertical: 'top',
+                  ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
+                })}
+              />
+              {!focused && !prompt ? <Caret /> : null}
+            </View>
+            {issue ? (
+              <RNText style={tx('700', 12, '#FFE3D8', { marginTop: 8, lineHeight: 17 })}>{contactIssueMessage(issue)}</RNText>
+            ) : null}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
+              <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {quick.slice(0, 2).map((x) => (
+                  <Pressable
+                    key={x.key}
+                    onPress={() => go('aiPost', { prompt: x.prompt })}
+                    accessibilityRole="button"
+                    style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                      height: 32,
+                      borderRadius: 999,
+                      backgroundColor: hovered ? 'rgba(255,255,255,0.26)' : 'rgba(255,255,255,0.16)',
+                      paddingHorizontal: 12,
+                      transform: [{ scale: pressed ? 0.96 : 1 }],
+                    })}
+                  >
+                    <Icon name={x.icon} size={13} color="#FFFFFF" />
+                    <RNText style={tx('600', 12.5, '#FFFFFF')}>{x.title}</RNText>
+                  </Pressable>
+                ))}
+              </View>
+              {voice.supported ? (
+                <Pressable
+                  onPress={voice.toggle}
+                  accessibilityRole="button"
+                  accessibilityLabel="Voice typing"
+                  style={({ pressed }) => ({
+                    width: 44,
+                    height: 44,
+                    borderRadius: 999,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: voice.listening ? t.colors.signalSoft : 'rgba(255,255,255,0.16)',
+                    transform: [{ scale: pressed ? 0.94 : 1 }],
+                  })}
+                >
+                  <Icon name="mic" size={18} color={voice.listening ? t.colors.signalDeep : '#FFFFFF'} />
+                </Pressable>
+              ) : null}
               <Pressable
-                onPress={voice.toggle}
+                onPress={submit}
                 accessibilityRole="button"
-                accessibilityLabel="Voice typing"
-                style={{
-                  width: 40,
-                  height: 40,
+                accessibilityLabel="Continue"
+                style={({ pressed }) => ({
+                  width: 44,
+                  height: 44,
                   borderRadius: 999,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: voice.listening ? t.colors.signalSoft : t.colors.surface2,
-                }}
+                  backgroundColor: '#FFFFFF',
+                  opacity: prompt.trim().length >= 3 && !issue ? 1 : 0.85,
+                  transform: [{ scale: pressed ? 0.94 : 1 }],
+                })}
               >
-                <Icon name="mic" size={18} color={voice.listening ? t.colors.signal : t.colors.muted} />
+                <Icon name="send" size={18} color={t.colors.heroMid} strokeWidth={2} />
               </Pressable>
-            ) : null}
-            <Pressable
-              onPress={submit}
-              accessibilityRole="button"
-              accessibilityLabel="Continue"
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 999,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: prompt.trim().length >= 3 && !issue ? t.colors.accent : t.colors.surface2,
-              }}
-            >
-              <Icon
-                name="send"
-                size={17}
-                color={prompt.trim().length >= 3 && !issue ? t.colors.onAccent : t.colors.muted}
-                strokeWidth={2}
-              />
-            </Pressable>
+            </View>
           </View>
+          {wideHero ? <HeroArt /> : null}
         </View>
-      </View>
+      </HeroCard>
 
       <Pressable
         onPress={() => setHowOpen(true)}
         accessibilityRole="button"
-        style={({ pressed }) => ({
-          marginTop: 12,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 10,
-          backgroundColor: t.colors.surface,
-          borderWidth: 1,
-          borderColor: t.colors.line,
-          borderRadius: 14,
-          paddingVertical: 11,
-          paddingHorizontal: 14,
-          opacity: pressed ? 0.8 : 1,
-        })}
+        accessibilityLabel="How TaskDrop works"
+        style={({ pressed }) => [
+          cardSurface(t),
+          {
+            marginTop: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            paddingVertical: 13,
+            paddingHorizontal: 15,
+            transform: [{ scale: pressed ? 0.985 : 1 }],
+          },
+        ]}
       >
-        <View style={{ width: 30, height: 30, borderRadius: 999, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="help" size={16} color={t.colors.accentDeep} />
+        <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="help" size={17} color={t.colors.accentDeep} />
         </View>
         <View style={{ flex: 1 }}>
-          <RNText style={tx('700', 13, t.colors.ink)}>How TaskDrop works</RNText>
-          <RNText style={tx('400', 11, t.colors.muted, { marginTop: 1 })}>Post, get offers, pay safely, approve — in pictures</RNText>
+          <RNText style={tx('800', 14, t.colors.ink)}>How TaskDrop works</RNText>
+          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>Post, get offers, pay safely, approve — in pictures</RNText>
+          <StepsMini />
         </View>
         <Icon name="chevronRight" size={16} color={t.colors.muted} />
       </Pressable>
@@ -290,40 +290,10 @@ function PostTop() {
             style={{ marginTop: 24 }}
           />
           <View style={{ marginTop: 10 }}>
-            <Rail>
-              {active.map((task) => {
-                const b = statusBadge(task);
-                const left = timeLeft(task.due_at);
-                return (
-                  <Pressy
-                    key={task.id}
-                    onPress={() => openPostedTask(task, go)}
-                    scaleTo={0.98}
-                    style={{
-                      width: 200,
-                      backgroundColor: t.colors.surface,
-                      borderWidth: 1,
-                      borderColor: t.colors.line,
-                      borderRadius: 14,
-                      padding: 12,
-                    }}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Icon name={categoryIcon(task.category)} size={16} color={t.colors.accentDeep} />
-                      <Badge label={b.label} tone={b.tone} />
-                    </View>
-                    <RNText style={tx('700', 13, t.colors.ink, { marginTop: 8 })} numberOfLines={2}>
-                      {task.title}
-                    </RNText>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                      <RNText style={tx('800', 13, t.colors.accentDeep)}>{rupees(task.benchmark_minor / 100)}</RNText>
-                      {left && task.status === 'OPEN' ? (
-                        <RNText style={tx('500', 11, t.colors.goldInk)}>{left}</RNText>
-                      ) : null}
-                    </View>
-                  </Pressy>
-                );
-              })}
+            <Rail min={220}>
+              {active.map((task) => (
+                <PublishedCard key={task.id} task={task} onPress={() => openPostedTask(task, go)} />
+              ))}
             </Rail>
           </View>
         </>
@@ -340,41 +310,9 @@ function PostTop() {
         style={{ marginTop: 24 }}
       />
       <View style={{ marginTop: 12 }}>
-        <Rail step={300}>
+        <Rail step={300} min={160}>
           {TEMPLATES.slice(0, 8).map((x) => (
-            <Pressy
-              key={x.key}
-              onPress={() => go('aiPost', { prompt: x.prompt })}
-              scaleTo={0.97}
-              label={x.title}
-              style={{
-                width: 138,
-                backgroundColor: t.colors.surface,
-                borderWidth: 1,
-                borderColor: t.colors.line,
-                borderRadius: 16,
-                padding: 12,
-              }}
-            >
-              <View
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 10,
-                  backgroundColor: t.colors.accentSoft,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Icon name={x.icon} size={17} color={t.colors.accentDeep} />
-              </View>
-              <RNText style={tx('700', 13, t.colors.ink, { marginTop: 10 })} numberOfLines={1}>
-                {x.title}
-              </RNText>
-              <RNText style={tx('400', 11, t.colors.muted, { marginTop: 3, lineHeight: 15 })} numberOfLines={2}>
-                {x.sub}
-              </RNText>
-            </Pressy>
+            <IdeaCard key={x.key} icon={x.icon} title={x.title} sub={x.sub} onPress={() => go('aiPost', { prompt: x.prompt })} />
           ))}
         </Rail>
       </View>
@@ -383,50 +321,35 @@ function PostTop() {
       {trending.length > 0 ? (
         <>
           <SectionTitle title="Busy on TaskDrop" icon="trending" style={{ marginTop: 24 }} />
-          <View
-            style={{
-              marginTop: 10,
-              backgroundColor: t.colors.surface,
-              borderWidth: 1,
-              borderColor: t.colors.line,
-              borderRadius: 14,
-              paddingHorizontal: 12,
-            }}
-          >
+          <View style={[cardSurface(t, 20), { marginTop: 12, paddingHorizontal: 14 }]}>
             {trending.map((c, i) => (
               <Pressable
                 key={c.category}
                 onPress={() => go('aiPost', { prompt: `I need help with ${c.category.toLowerCase()}: ` })}
                 accessibilityRole="button"
-                style={{
+                style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: 10,
-                  paddingVertical: 11,
+                  gap: 12,
+                  paddingVertical: 13,
                   borderTopWidth: i === 0 ? 0 : 1,
                   borderTopColor: t.colors.line,
-                }}
+                  opacity: pressed ? 0.75 : 1,
+                })}
               >
-                <Icon name={categoryIcon(c.category)} size={16} color={t.colors.accentDeep} />
+                <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name={categoryIcon(c.category)} size={16} color={t.colors.accentDeep} />
+                </View>
                 <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <RNText style={tx('600', 13, t.colors.ink)} numberOfLines={1}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+                    <RNText style={tx('700', 14, t.colors.ink, { flexShrink: 1 })} numberOfLines={1}>
                       {c.category}
                     </RNText>
-                    <RNText style={tx('500', 11, t.colors.muted)}>
+                    <RNText style={tx('500', 12, t.colors.muted, { fontVariant: ['tabular-nums'] })}>
                       {c.open_count} open · ~{rupees(c.avg_budget_minor / 100)}
                     </RNText>
                   </View>
-                  <View style={{ height: 4, borderRadius: 999, backgroundColor: t.colors.surface2, marginTop: 6 }}>
-                    <View
-                      style={{
-                        height: 4,
-                        borderRadius: 999,
-                        width: `${Math.max(8, Math.round((c.open_count / busiest) * 100))}%`,
-                        backgroundColor: t.colors.accent,
-                      }}
-                    />
-                  </View>
+                  <GrowBar pct={Math.max(8, Math.round((c.open_count / busiest) * 100))} delay={i * 90} />
                 </View>
               </Pressable>
             ))}
@@ -471,26 +394,26 @@ function AreaBar({
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
         marginHorizontal: flush ? 0 : 20,
-        marginTop: 6,
+        marginTop: 4,
         paddingVertical: 6,
+        gap: 10,
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      <View style={{ width: 30, height: 30, borderRadius: 999, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name="pin" size={16} color={t.colors.accentDeep} />
+      <View style={{ width: 36, height: 36, borderRadius: 999, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name="pin" size={17} color={t.colors.accentDeep} />
       </View>
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <RNText style={tx('800', 15, t.colors.ink)} numberOfLines={1}>
+          <RNText style={tx('800', 16, t.colors.ink, { letterSpacing: -0.2 })} numberOfLines={1}>
             {areaName ?? 'Set your location'}
           </RNText>
           <View style={{ transform: [{ rotate: '90deg' }] }}>
             <Icon name="chevronRight" size={14} color={t.colors.ink} />
           </View>
         </View>
-        <RNText style={tx('400', 11, t.colors.muted)} numberOfLines={1}>
+        <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 1 })} numberOfLines={1}>
           {sub(area, areaName)}
         </RNText>
       </View>
@@ -639,10 +562,11 @@ function EarnTop() {
           borderRadius: 999,
           borderWidth: 1,
           borderColor: t.colors.line,
+          backgroundColor: t.colors.surface,
           opacity: pressed ? 0.7 : 1,
         })}
       >
-        <RNText style={tx('700', 12, t.colors.purpleDeep)}>
+        <RNText style={tx('700', 12.5, t.colors.accentDeep)}>
           {showAll[key] ? 'Show less' : `Show ${total - FIRST} more`}
         </RNText>
       </Pressable>
@@ -673,64 +597,53 @@ function EarnTop() {
         onPress={() => setPickPlace(true)}
       />
 
-      <View style={{ paddingHorizontal: 20, marginTop: 6 }}>
+      <View style={{ paddingHorizontal: 20, marginTop: 8 }}>
         {/* Where you stand, in one card: level, jobs on the go, availability. */}
-        <View style={{ backgroundColor: t.colors.purpleDeep, borderRadius: 18, padding: 16, overflow: 'hidden' }}>
-          <View
-            style={{
-              position: 'absolute',
-              right: -30,
-              top: -30,
-              width: 120,
-              height: 120,
-              borderRadius: 999,
-              backgroundColor: 'rgba(255,255,255,0.08)',
-            }}
-          />
-          <RNText style={tx('600', 12, 'rgba(255,255,255,0.75)')}>Find your next job</RNText>
+        <HeroCard radius={24} padding={18} watermark={false} ringSize={200}>
+          <RNText style={tx('700', 12, 'rgba(255,255,255,0.82)')}>Find your next job</RNText>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginTop: 6 }}>
             <View style={{ flex: 1 }}>
-              <RNText style={tx('800', 20, '#FFFFFF', { letterSpacing: -0.4 })}>{level.name}</RNText>
+              <RNText style={tx('800', 26, '#FFFFFF', { letterSpacing: -0.7 })}>{level.name}</RNText>
               <View
                 style={{
-                  height: 5,
+                  height: 6,
                   borderRadius: 999,
-                  backgroundColor: 'rgba(255,255,255,0.22)',
-                  marginTop: 8,
+                  backgroundColor: 'rgba(255,255,255,0.25)',
+                  marginTop: 10,
                   overflow: 'hidden',
                 }}
               >
-                <View style={{ height: 5, width: `${Math.round(level.progress * 100)}%`, backgroundColor: '#FFFFFF' }} />
+                <GrowBar pct={Math.round(level.progress * 100)} color="#FFFFFF" track="transparent" flush />
               </View>
-              <RNText style={tx('400', 11, 'rgba(255,255,255,0.8)', { marginTop: 6 })}>
+              <RNText style={tx('500', 12, 'rgba(255,255,255,0.85)', { marginTop: 8 })}>
                 {level.next
                   ? `${level.jobsToGo} job${level.jobsToGo === 1 ? '' : 's'}${level.ratingShort ? ` + ★ ${level.next.rating}` : ''} to ${level.next.name}`
                   : 'Highest level'}
               </RNText>
             </View>
-            <View style={{ alignItems: 'center' }}>
-              <RNText style={tx('800', 22, '#FFFFFF')}>{w?.jobsLive ?? 0}</RNText>
-              <RNText style={tx('500', 11, 'rgba(255,255,255,0.8)')}>on the go</RNText>
+            <View style={{ alignItems: 'center', minWidth: 64 }}>
+              <RNText style={tx('800', 30, '#FFFFFF', { fontVariant: ['tabular-nums'] })}>{w?.jobsLive ?? 0}</RNText>
+              <RNText style={tx('600', 11.5, 'rgba(255,255,255,0.85)')}>on the go</RNText>
             </View>
           </View>
           <Pressy
             onPress={() => setHowOpen(true)}
             style={{
-              marginTop: 14,
+              marginTop: 16,
               flexDirection: 'row',
               alignItems: 'center',
               gap: 8,
-              backgroundColor: 'rgba(255,255,255,0.14)',
+              backgroundColor: 'rgba(255,255,255,0.16)',
               borderRadius: 999,
-              paddingVertical: 9,
+              height: 36,
               paddingHorizontal: 14,
               alignSelf: 'flex-start',
             }}
           >
             <Icon name="help" size={14} color="#FFFFFF" />
-            <RNText style={tx('700', 12, '#FFFFFF')}>How TaskDrop works</RNText>
+            <RNText style={tx('700', 12.5, '#FFFFFF')}>How TaskDrop works</RNText>
           </Pressy>
-        </View>
+        </HeroCard>
       </View>
 
       {/* Search lives on Browse jobs; tapping here goes straight there. */}
@@ -738,27 +651,27 @@ function EarnTop() {
         onPress={() => go('explore', { focusSearch: Date.now() })}
         accessibilityRole="search"
         accessibilityLabel="Search jobs"
-        style={({ pressed }) => ({
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 8,
-          marginHorizontal: 20,
-          marginTop: 14,
-          backgroundColor: t.colors.surface,
-          borderWidth: 1,
-          borderColor: pressed ? t.colors.purple : t.colors.line,
-          borderRadius: 999,
-          paddingLeft: 14,
-          paddingRight: 5,
-          paddingVertical: 5,
-        })}
+        style={({ pressed }) => [
+          cardSurface(t, 999),
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 9,
+            marginHorizontal: 20,
+            marginTop: 14,
+            borderColor: pressed ? t.colors.accent : t.colors.line,
+            paddingLeft: 15,
+            paddingRight: 5,
+            paddingVertical: 5,
+          },
+        ]}
       >
-        <Icon name="search" size={16} color={t.colors.muted} />
-        <RNText style={tx('400', 14, t.colors.muted, { flex: 1, paddingVertical: 7 })} numberOfLines={1}>
+        <Icon name="search" size={17} color={t.colors.muted} />
+        <RNText style={tx('400', 14, t.colors.muted, { flex: 1, paddingVertical: 8 })} numberOfLines={1}>
           Search jobs: data entry, logo, tutoring…
         </RNText>
-        <View style={{ width: 34, height: 34, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="search" size={16} color="#FFFFFF" strokeWidth={2} />
+        <View style={{ width: 38, height: 38, borderRadius: 999, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="search" size={17} color={t.colors.onBtn} strokeWidth={2} />
         </View>
       </Pressable>
 
@@ -800,33 +713,25 @@ function EarnTop() {
                   onPress={() => setRadius(km)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: radius === km }}
-                  style={{
-                    paddingVertical: 6,
-                    paddingHorizontal: 12,
+                  style={({ pressed }) => ({
+                    paddingVertical: 8,
+                    paddingHorizontal: 14,
                     borderRadius: 999,
-                    borderWidth: 1,
+                    borderWidth: 1.5,
                     borderColor: radius === km ? t.colors.accent : t.colors.line,
-                    backgroundColor: radius === km ? t.colors.accentSoft : 'transparent',
-                  }}
+                    backgroundColor: radius === km ? t.colors.accentSoft : t.colors.surface,
+                    transform: [{ scale: pressed ? 0.94 : 1 }],
+                  })}
                 >
-                  <RNText style={tx('700', 12, radius === km ? t.colors.accentDeep : t.colors.muted)}>{km} km</RNText>
+                  <RNText style={tx(radius === km ? '700' : '600', 13, radius === km ? t.colors.accentDeep : t.colors.text)}>{km} km</RNText>
                 </Pressable>
               ))}
             </View>
             {near === null ? (
               <Shimmer height={110} style={{ marginTop: 12 }} />
             ) : near.length === 0 ? (
-              <View
-                style={{
-                  marginTop: 12,
-                  backgroundColor: t.colors.surface,
-                  borderWidth: 1,
-                  borderColor: t.colors.line,
-                  borderRadius: 14,
-                  padding: 14,
-                }}
-              >
-                <RNText style={tx('600', 13, t.colors.ink)}>No jobs within {radius} km yet</RNText>
+              <View style={[cardSurface(t), { marginTop: 12, padding: 16 }]}>
+                <RNText style={tx('700', 14, t.colors.ink)}>No jobs within {radius} km yet</RNText>
                 <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4 })}>
                   {radius < 50 ? 'Widen the radius, or try remote work below.' : 'Try remote work below, or another area.'}
                 </RNText>
@@ -849,8 +754,8 @@ function EarnTop() {
               backgroundColor: t.colors.accentSoft,
               borderWidth: 1,
               borderColor: t.colors.accentBorder,
-              borderRadius: 14,
-              padding: 14,
+              borderRadius: 18,
+              padding: 16,
             }}
           >
             <Icon name="pin" size={20} color={t.colors.accentDeep} />
@@ -892,7 +797,7 @@ function EarnTop() {
           style={{ alignSelf: 'center', marginTop: 18, marginBottom: 20 }}
           accessibilityRole="button"
         >
-          <RNText style={tx('700', 13, t.colors.purpleDeep)}>See every open job ›</RNText>
+          <RNText style={tx('700', 13, t.colors.accentDeep)}>See every open job ›</RNText>
         </Pressable>
       </View>
       <BottomSheet visible={howOpen} onClose={() => setHowOpen(false)} title="How TaskDrop works" subtitle="Earning, step by step">
@@ -905,6 +810,211 @@ function EarnTop() {
         onCancel={() => setPickPlace(false)}
         onPick={(p) => void choosePlace(p)}
       />
+    </View>
+  );
+}
+
+// ------------------------------------------------------------ v2 parts ------
+
+/** The composer's blinking caret, shown while the box is empty and idle. */
+function Caret() {
+  const t = useTheme();
+  const reduced = useReducedMotion();
+  const on = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (reduced) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(on, { toValue: 0, duration: 1, delay: 500, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(on, { toValue: 1, duration: 1, delay: 500, useNativeDriver: Platform.OS !== 'web' }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [on, reduced]);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{ position: 'absolute', left: 15, top: 14, width: 2, height: 18, borderRadius: 1, backgroundColor: t.colors.accent, opacity: on }}
+    />
+  );
+}
+
+/** Post · Offers · Pay · Approve, as a small numbered path. */
+function StepsMini() {
+  const t = useTheme();
+  const steps = ['Post', 'Offers', 'Pay', 'Approve'];
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+      {steps.map((s, i) => (
+        <View key={s} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          {i > 0 ? <View style={{ width: 10, height: 1.5, backgroundColor: t.colors.line }} /> : null}
+          <View style={{ width: 17, height: 17, borderRadius: 999, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}>
+            <RNText style={tx('800', 9, t.colors.onBtn)}>{i + 1}</RNText>
+          </View>
+          <RNText style={tx('700', 10.5, t.colors.accentDeep)}>{s}</RNText>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** A bar that grows to its value on view (SYS-Motion "bars fill 700 ms"). */
+function GrowBar({
+  pct,
+  delay = 0,
+  color,
+  track,
+  flush = false,
+}: {
+  pct: number;
+  delay?: number;
+  color?: string;
+  track?: string;
+  /** Already inside a track (fills it edge to edge, no top margin). */
+  flush?: boolean;
+}) {
+  const t = useTheme();
+  const reduced = useReducedMotion();
+  const grow = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+  useEffect(() => {
+    if (reduced) {
+      grow.setValue(1);
+      return;
+    }
+    const anim = Animated.timing(grow, {
+      toValue: 1,
+      duration: 1100,
+      delay: 120 + delay,
+      easing: Easing.bezier(0.65, 0, 0.35, 1),
+      useNativeDriver: false,
+    });
+    anim.start();
+    return () => anim.stop();
+  }, [grow, reduced, delay]);
+  const width = grow.interpolate({ inputRange: [0, 1], outputRange: ['0%', `${Math.max(0, Math.min(100, pct))}%`] });
+  return (
+    <View
+      style={{
+        height: 6,
+        borderRadius: 999,
+        backgroundColor: track ?? t.colors.surface2,
+        marginTop: flush ? 0 : 8,
+        overflow: 'hidden',
+      }}
+    >
+      <Animated.View style={{ height: 6, borderRadius: 999, width, backgroundColor: color ?? t.colors.accent, opacity: color ? 1 : 0.9 }} />
+    </View>
+  );
+}
+
+/** One of "Your published tasks". */
+function PublishedCard({ task, onPress }: { task: Task; onPress: () => void }) {
+  const t = useTheme();
+  const width = useRailItemWidth(200);
+  const b = statusBadge(task);
+  const left = timeLeft(task.due_at);
+  return (
+    <Pressy onPress={onPress} scaleTo={0.98} label={task.title} style={[cardSurface(t), { width, padding: 14 }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name={categoryIcon(task.category)} size={15} color={t.colors.accentDeep} />
+        </View>
+        <Badge label={b.label} tone={b.tone} />
+      </View>
+      <RNText style={tx('700', 15, t.colors.ink, { marginTop: 12, lineHeight: 20, letterSpacing: -0.2 })} numberOfLines={2}>
+        {task.title}
+      </RNText>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+        <RNText style={tx('800', 18, t.colors.accentDeep, { fontVariant: ['tabular-nums'], letterSpacing: -0.3 })}>
+          {rupees(task.benchmark_minor / 100)}
+        </RNText>
+        {left && task.status === 'OPEN' ? <RNText style={tx('600', 11, t.colors.goldInk)}>{left}</RNText> : null}
+      </View>
+    </Pressy>
+  );
+}
+
+/** One of "Start from an idea". */
+function IdeaCard({ icon, title, sub, onPress }: { icon: IconName; title: string; sub: string; onPress: () => void }) {
+  const t = useTheme();
+  const width = useRailItemWidth(150);
+  return (
+    <Pressy onPress={onPress} scaleTo={0.97} label={title} style={[cardSurface(t), { width, padding: 14 }]}>
+      <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={icon} size={18} color={t.colors.accentDeep} />
+      </View>
+      <RNText style={tx('800', 14, t.colors.ink, { marginTop: 12, letterSpacing: -0.2 })} numberOfLines={1}>
+        {title}
+      </RNText>
+      <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3, lineHeight: 17 })} numberOfLines={2}>
+        {sub}
+      </RNText>
+    </Pressy>
+  );
+}
+
+/**
+ * The wide composer's picture: the drop at the centre of its ripples, with
+ * people around it -- a task going out to whoever can do it.
+ */
+function HeroArt() {
+  const t = useTheme();
+  const people = [
+    { k: 'R', x: 8, y: 22, on: true },
+    { k: 'A', x: 82, y: 30, on: true },
+    { k: 'K', x: 14, y: 70, on: false },
+    { k: 'S', x: 74, y: 78, on: false },
+  ];
+  return (
+    <View
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={{ flex: 0.75, minHeight: 230, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <View style={{ width: 220, height: 220, alignItems: 'center', justifyContent: 'center' }}>
+        <Ripples color="rgba(255,255,255,0.45)" size={220} count={3} duration={3800} />
+        <View style={{ position: 'absolute', width: 116, height: 116, borderRadius: 999, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)' }} />
+        <Drop size={74} fill="#FFFFFF" tick={t.colors.heroMid} />
+      </View>
+      {people.map((p) => (
+        <View
+          key={p.k}
+          style={{
+            position: 'absolute',
+            left: `${p.x}%`,
+            top: `${p.y}%`,
+            width: 38,
+            height: 38,
+            borderRadius: 999,
+            backgroundColor: '#FFFFFF',
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#000',
+            shadowOpacity: 0.2,
+            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 4 },
+          }}
+        >
+          <RNText style={tx('800', 15, t.colors.purple)}>{p.k}</RNText>
+          {p.on ? (
+            <View
+              style={{
+                position: 'absolute',
+                right: -1,
+                bottom: -1,
+                width: 11,
+                height: 11,
+                borderRadius: 999,
+                backgroundColor: '#4ADE9A',
+                borderWidth: 2,
+                borderColor: '#FFFFFF',
+              }}
+            />
+          ) : null}
+        </View>
+      ))}
     </View>
   );
 }

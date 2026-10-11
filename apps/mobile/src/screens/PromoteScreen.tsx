@@ -279,7 +279,7 @@ export function PromoteScreen() {
             accessibilityLabel="Close"
             style={({ pressed }) => ({
               marginTop: 20,
-              backgroundColor: t.colors.accent,
+              backgroundColor: t.colors.btn,
               borderRadius: 999,
               paddingVertical: 14,
               alignItems: 'center',
@@ -586,7 +586,7 @@ export function PromoteScreen() {
         <Pressable
           onPress={() => void (pending ? activate() : start())}
           style={({ pressed }) => ({
-            backgroundColor: t.colors.accent,
+            backgroundColor: t.colors.btn,
             borderRadius: 999,
             paddingVertical: 16,
             alignItems: 'center',

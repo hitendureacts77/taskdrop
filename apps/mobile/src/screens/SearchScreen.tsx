@@ -395,7 +395,7 @@ export function SearchScreen() {
           onPress={applyFilters}
           style={{
             marginTop: 22,
-            backgroundColor: t.colors.accent,
+            backgroundColor: t.colors.btn,
             borderRadius: 999,
             paddingVertical: 16,
             alignItems: 'center',

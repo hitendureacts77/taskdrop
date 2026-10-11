@@ -385,7 +385,7 @@ export function WithdrawScreen() {
         <Pressy
           onPress={doWithdraw}
           style={{
-            backgroundColor: t.colors.accent,
+            backgroundColor: t.colors.btn,
             borderRadius: 999,
             paddingVertical: 16,
             alignItems: 'center',

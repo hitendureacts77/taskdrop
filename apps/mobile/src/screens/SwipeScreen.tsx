@@ -247,7 +247,7 @@ export function SwipeScreen() {
                   width: KNOB,
                   height: KNOB,
                   borderRadius: KNOB / 2,
-                  backgroundColor: t.colors.accent,
+                  backgroundColor: t.colors.btn,
                   alignItems: 'center',
                   justifyContent: 'center',
                   transform: [{ translateX: knobX }],

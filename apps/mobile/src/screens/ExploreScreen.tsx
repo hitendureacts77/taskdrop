@@ -134,7 +134,7 @@ function ExploreIdeas() {
                       </View>
                       <Pressy
                         onPress={() => go('aiPost', { similar: p })}
-                        style={{ backgroundColor: t.colors.accent, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 }}
+                        style={{ backgroundColor: t.colors.btn, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 }}
                       >
                         <RNText style={tx('700', 12, t.colors.onAccent)}>Use this</RNText>
                       </Pressy>

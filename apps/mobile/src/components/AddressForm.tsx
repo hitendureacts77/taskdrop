@@ -344,7 +344,7 @@ export function AddressForm({
           accessibilityRole="button"
           accessibilityLabel="Save this address"
           style={({ pressed }) => ({
-            backgroundColor: t.colors.accent,
+            backgroundColor: t.colors.btn,
             borderRadius: 999,
             paddingVertical: 15,
             alignItems: 'center',

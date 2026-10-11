@@ -121,7 +121,7 @@ export function EscrowScreen() {
           </RNText>
           <Pressy
             onPress={() => go('orders')}
-            style={{ marginTop: 22, backgroundColor: t.colors.accent, borderRadius: 999, paddingVertical: 15, alignItems: 'center' }}
+            style={{ marginTop: 22, backgroundColor: t.colors.btn, borderRadius: 999, paddingVertical: 15, alignItems: 'center' }}
           >
             <RNText style={tx('700', 15, t.colors.onAccent)}>Go to my requests</RNText>
           </Pressy>
@@ -219,7 +219,7 @@ export function EscrowScreen() {
           onPress={() => (enough || balanceMinor === null ? void pay() : setShortBy(totalMinor - (balanceMinor ?? 0)))}
           scaleTo={0.96}
           style={{
-            backgroundColor: t.colors.accent,
+            backgroundColor: t.colors.btn,
             borderRadius: 999,
             paddingVertical: 16,
             alignItems: 'center',

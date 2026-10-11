@@ -488,7 +488,7 @@ export function TaskManageScreen() {
                                 paddingVertical: 10,
                                 paddingHorizontal: 16,
                                 borderRadius: 999,
-                                backgroundColor: t.colors.accent,
+                                backgroundColor: t.colors.btn,
                                 transform: [{ scale: pressed ? 0.96 : 1 }],
                               })}
                             >

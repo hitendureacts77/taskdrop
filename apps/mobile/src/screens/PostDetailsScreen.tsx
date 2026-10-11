@@ -506,7 +506,7 @@ export function PostDetailsScreen() {
         <Pressable
           onPress={publish}
           style={({ pressed }) => ({
-            backgroundColor: t.colors.accent,
+            backgroundColor: t.colors.btn,
             borderRadius: 999,
             paddingVertical: 16,
             alignItems: 'center',
