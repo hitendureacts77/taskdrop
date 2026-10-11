@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, TextInput } from 'react-native';
+import { View, Text as RNText, Pressable, ScrollView, TextInput, Animated } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import { AmountField } from '../components/AmountField';
@@ -7,7 +7,9 @@ import { Slider } from '../components/Slider';
 import { MediaAttach } from '../components/MediaAttach';
 import { LocationSheet, type PickedPlace } from '../components/LocationSheet';
 import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
-import { ConfirmDialog, Field, PrimaryButton, rupees } from '../components/kit';
+import { ConfirmDialog, Field, IconButton, PrimaryButton, rupees } from '../components/kit';
+import { cardSurface } from '../components/ui';
+import { useReducedMotion } from '../lib/motion';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskDescription } from '../components/TaskDescription';
 import { roughPlace } from '../lib/place';
@@ -328,7 +330,7 @@ export function AiPostScreen() {
 
   const heading = (text: string, sub?: string) => (
     <>
-      <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.8, lineHeight: 31 })}>{text}</RNText>
+      <RNText style={tx('800', 27, t.colors.ink, { letterSpacing: -0.8, lineHeight: 32 })}>{text}</RNText>
       {sub ? <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21 })}>{sub}</RNText> : null}
     </>
   );
@@ -370,7 +372,11 @@ export function AiPostScreen() {
       accessibilityLabel={`${head}. ${sub}`}
       style={({ pressed }) => ({
         width: wide ? '100%' : '48.5%',
-        padding: 14,
+        padding: 15,
+        shadowColor: t.colors.shadow,
+        shadowOpacity: on || t.isDark ? 0 : 0.05,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
         borderRadius: 18,
         borderWidth: 1.5,
         borderColor: on ? t.colors.accent : t.colors.line,
@@ -384,12 +390,12 @@ export function AiPostScreen() {
             width: 34,
             height: 34,
             borderRadius: 12,
-            backgroundColor: on ? t.colors.accent : t.colors.surface2,
+            backgroundColor: on ? t.colors.btn : t.colors.surface2,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Icon name={icon} size={17} color={on ? t.colors.onAccent : t.colors.muted} strokeWidth={2} />
+          <Icon name={icon} size={17} color={on ? t.colors.onBtn : t.colors.muted} strokeWidth={2} />
         </View>
         <View
           style={{
@@ -411,15 +417,7 @@ export function AiPostScreen() {
   );
 
   const card = (children: React.ReactNode, extra?: { borderColor?: string }) => (
-    <View
-      style={{
-        backgroundColor: t.colors.surface,
-        borderWidth: 1,
-        borderColor: extra?.borderColor ?? t.colors.line,
-        borderRadius: 20,
-        padding: 16,
-      }}
-    >
+    <View style={[cardSurface(t, 20), { borderColor: extra?.borderColor ?? t.colors.line, padding: 16 }]}>
       {children}
     </View>
   );
@@ -726,20 +724,7 @@ export function AiPostScreen() {
                         }}
                       />
                     </View>
-                    <View
-                      style={{
-                        position: 'absolute',
-                        top: -4,
-                        left: `${posOf(amount) * 100}%`,
-                        marginLeft: -9,
-                        width: 18,
-                        height: 18,
-                        borderRadius: 18,
-                        backgroundColor: verdict.color,
-                        borderWidth: 3,
-                        borderColor: t.colors.surface,
-                      }}
-                    />
+                    <MeterPin pos={posOf(amount)} color={verdict.color} />
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
                     <RNText style={tx('500', 11, t.colors.muted)}>
@@ -953,19 +938,17 @@ export function AiPostScreen() {
 
   return (
     <Screen padded={false}>
-      <View style={{ paddingTop: 6, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: t.colors.line }}>
+      <View style={{ paddingTop: 8, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: t.colors.line }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 }}>
-          <Pressable onPress={leave} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
-            <Icon name="close" size={22} color={t.colors.ink} />
-          </Pressable>
-          <RNText style={tx('800', 16, t.colors.ink, { flex: 1 })}>Post a request</RNText>
+          <IconButton icon="close" label="Close" onPress={leave} />
+          <RNText style={tx('800', 17, t.colors.ink, { flex: 1, letterSpacing: -0.3 })}>Post a request</RNText>
           <RNText style={tx('600', 12, t.colors.muted)}>
             {stepNo} of {steps.length}
           </RNText>
         </View>
 
         {/* The path: every step by name. Done ones show a tick and can be reopened. */}
-        <View style={{ flexDirection: 'row', marginTop: 14, paddingHorizontal: 6 }}>
+        <View style={{ flexDirection: 'row', marginTop: 14, paddingHorizontal: 6, width: '100%', maxWidth: 720, alignSelf: 'center' }}>
           {steps.map((p, i) => {
             const here = p === phase;
             const done = !here && at(p) <= reached;
@@ -979,26 +962,15 @@ export function AiPostScreen() {
                 accessibilityLabel={`${STEP_LABEL[p]}${here ? ', current step' : done ? ', done. Tap to change' : ''}`}
                 style={{ flex: 1, alignItems: 'center' }}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', height: 28 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', height: 32 }}>
                   <View style={{ flex: 1, height: 2, backgroundColor: i === 0 ? 'transparent' : at(p) <= reached ? t.colors.accent : t.colors.line }} />
-                  <View
-                    style={{
-                      width: here ? 28 : 24,
-                      height: here ? 28 : 24,
-                      borderRadius: 28,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: here ? t.colors.accent : done ? t.colors.accentSoft : t.colors.bg,
-                      borderWidth: here ? 0 : 1.5,
-                      borderColor: done ? t.colors.accent : t.colors.line,
-                    }}
-                  >
+                  <StepDot here={here} done={done}>
                     {done ? (
                       <Icon name="check" size={12} color={t.colors.accentDeep} strokeWidth={2.8} />
                     ) : (
-                      <RNText style={tx('800', 11, here ? t.colors.onAccent : t.colors.muted)}>{i + 1}</RNText>
+                      <RNText style={tx('800', 11, here ? t.colors.onBtn : t.colors.muted)}>{i + 1}</RNText>
                     )}
-                  </View>
+                  </StepDot>
                   <View
                     style={{
                       flex: 1,
@@ -1022,11 +994,11 @@ export function AiPostScreen() {
       <ScrollView
         ref={scrollRef}
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 22, paddingBottom: 28 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28, width: '100%', maxWidth: 680, alignSelf: 'center' }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <FadeIn key={phase} translateY={10} duration={220}>
+        <FadeIn key={phase} translateY={14} duration={320}>
           {body}
         </FadeIn>
       </ScrollView>
@@ -1036,10 +1008,14 @@ export function AiPostScreen() {
           flexDirection: 'row',
           gap: 10,
           paddingHorizontal: 20,
-          paddingTop: 10,
+          paddingTop: 12,
           paddingBottom: 14,
           borderTopWidth: 1,
           borderTopColor: t.colors.line,
+          backgroundColor: t.colors.bg,
+          width: '100%',
+          maxWidth: 720,
+          alignSelf: 'center',
         }}
       >
         {phase !== 'what' ? (
@@ -1048,10 +1024,12 @@ export function AiPostScreen() {
             accessibilityRole="button"
             accessibilityLabel="Back"
             style={({ pressed }) => ({
-              paddingHorizontal: 18,
+              paddingHorizontal: 20,
+              minHeight: 52,
               borderRadius: 999,
               borderWidth: 1.5,
               borderColor: t.colors.line,
+              backgroundColor: t.colors.surface,
               alignItems: 'center',
               justifyContent: 'center',
               flexDirection: 'row',
@@ -1117,5 +1095,84 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
       <RNText style={tx(strong ? '700' : '400', 13, strong ? t.colors.ink : t.colors.muted, { flex: 1 })}>{label}</RNText>
       <RNText style={tx(strong ? '800' : '600', strong ? 15 : 13, t.colors.ink)}>{value}</RNText>
     </View>
+  );
+}
+
+/**
+ * A dot on the step path: done ones are a soft tick, the current one is the
+ * filled dot with a soft halo that pops in as you arrive (SYS-Motion "the
+ * active dot grows").
+ */
+function StepDot({ here, done, children }: { here: boolean; done: boolean; children: React.ReactNode }) {
+  const t = useTheme();
+  const reduced = useReducedMotion();
+  const pop = useRef(new Animated.Value(here ? 0 : 1)).current;
+  useEffect(() => {
+    if (!here || reduced) {
+      pop.setValue(1);
+      return;
+    }
+    pop.setValue(0);
+    const anim = Animated.spring(pop, { toValue: 1, useNativeDriver: true, friction: 5, tension: 160 });
+    anim.start();
+    return () => anim.stop();
+  }, [here, pop, reduced]);
+  const scale = pop.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] });
+  return (
+    <Animated.View style={{ alignItems: 'center', justifyContent: 'center', transform: [{ scale }] }}>
+      {here ? (
+        <View style={{ position: 'absolute', width: 40, height: 40, borderRadius: 40, backgroundColor: t.colors.accentSoft }} />
+      ) : null}
+      <View
+        style={{
+          width: here ? 30 : 24,
+          height: here ? 30 : 24,
+          borderRadius: 30,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: here ? t.colors.btn : done ? t.colors.accentSoft : t.colors.bg,
+          borderWidth: here ? 0 : 1.5,
+          borderColor: done ? t.colors.accent : t.colors.line,
+        }}
+      >
+        {children}
+      </View>
+    </Animated.View>
+  );
+}
+
+/** The fair-price meter's dot: it springs to where the amount sits. */
+function MeterPin({ pos, color }: { pos: number; color: string }) {
+  const t = useTheme();
+  const reduced = useReducedMotion();
+  const at = useRef(new Animated.Value(reduced ? pos : 0)).current;
+  useEffect(() => {
+    if (reduced) {
+      at.setValue(pos);
+      return;
+    }
+    const anim = Animated.spring(at, { toValue: pos, useNativeDriver: false, friction: 6, tension: 90 });
+    anim.start();
+    return () => anim.stop();
+  }, [pos, at, reduced]);
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        top: -5,
+        left: at.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+        marginLeft: -10,
+        width: 20,
+        height: 20,
+        borderRadius: 20,
+        backgroundColor: color,
+        borderWidth: 3,
+        borderColor: t.colors.surface,
+        shadowColor: color,
+        shadowOpacity: 0.5,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 3 },
+      }}
+    />
   );
 }

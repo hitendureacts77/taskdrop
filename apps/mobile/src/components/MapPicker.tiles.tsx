@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
+import { Ripples } from './Ripples';
+import { useReducedMotion } from '../lib/motion';
 
 /**
  * A drag-the-map location picker, the way Swiggy and Zomato do it: the pin is
@@ -201,7 +203,20 @@ export function MapPicker({
     setSize({ w: Math.round(width), h: Math.round(measured) });
   };
 
-  const pinLift = lift.interpolate({ inputRange: [0, 1], outputRange: [0, -10] });
+  // v2: the pin drops onto the map when it opens, with a ring spreading
+  // from where it lands.
+  const reduced = useReducedMotion();
+  const landed = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+  useEffect(() => {
+    if (reduced) return;
+    const anim = Animated.spring(landed, { toValue: 1, useNativeDriver: true, friction: 6, tension: 60 });
+    anim.start();
+    return () => anim.stop();
+  }, [landed, reduced]);
+  const pinLift = Animated.add(
+    lift.interpolate({ inputRange: [0, 1], outputRange: [0, -10] }),
+    landed.interpolate({ inputRange: [0, 1], outputRange: [-120, 0] }),
+  );
   const shadowScale = lift.interpolate({ inputRange: [0, 1], outputRange: [1, 0.6] });
 
   return (
@@ -243,18 +258,25 @@ export function MapPicker({
             justifyContent: 'center',
           }}
         >
-          <Animated.View style={{ alignItems: 'center', transform: [{ translateY: pinLift }] }}>
+          <View style={{ position: 'absolute', top: '50%', left: '50%', width: 0, height: 0, alignItems: 'center', justifyContent: 'center' }}>
+            <Ripples color={t.colors.accent} size={120} count={2} duration={2400} peak={0.7} />
+          </View>
+          <Animated.View style={{ alignItems: 'center', opacity: landed, transform: [{ translateY: pinLift }] }}>
             <View
               style={{
-                width: 22,
-                height: 22,
+                width: 26,
+                height: 26,
                 borderRadius: 999,
-                backgroundColor: t.colors.accent,
+                backgroundColor: t.colors.btn,
                 borderWidth: 3,
                 borderColor: '#FFFFFF',
+                shadowColor: '#000',
+                shadowOpacity: 0.25,
+                shadowRadius: 6,
+                shadowOffset: { width: 0, height: 3 },
               }}
             />
-            <View style={{ width: 2, height: 12, backgroundColor: t.colors.accent }} />
+            <View style={{ width: 2.5, height: 13, backgroundColor: t.colors.btn }} />
           </Animated.View>
           {/* A shadow that tightens as the pin lifts, so a drag reads as a lift. */}
           <Animated.View

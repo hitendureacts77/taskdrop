@@ -173,7 +173,7 @@ export function MediaAttach({
           gap: 8,
           paddingVertical: 12,
           borderRadius: 12,
-          backgroundColor: source === 'camera' ? t.colors.accent : t.colors.surface,
+          backgroundColor: source === 'camera' ? t.colors.btn : t.colors.surface,
           borderWidth: source === 'camera' ? 0 : 1,
           borderColor: t.colors.line,
           transform: [{ scale: pressed ? 0.98 : 1 }],
