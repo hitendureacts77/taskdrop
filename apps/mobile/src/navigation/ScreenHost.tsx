@@ -9,7 +9,7 @@ import { roughPlace } from '../lib/place';
 import { BottomTabBar } from '../components/BottomTabBar';
 import { SideNav } from '../components/SideNav';
 import { DesktopAuthFrame } from '../components/DesktopAuthFrame';
-import { NARROW_CONTENT, WIDE_CONTENT, useLayout } from '../lib/layout';
+import { NARROW_CONTENT, TABLET_CONTENT, WIDE_CONTENT, useLayout } from '../lib/layout';
 import { FadeIn } from '../components/primitives';
 import { CreateFab } from '../components/CreateFab';
 import { SplashScreen } from '../screens/SplashScreen';
@@ -74,7 +74,7 @@ const KEEP_ALIVE: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'profi
 const PRE_AUTH: ScreenName[] = ['splash', 'welcome', 'signup', 'setup'];
 // Pages anyone may read; signed out on desktop they get the sign-in frame.
 const PUBLIC: ScreenName[] = ['copyright', 'terms', 'privacy'];
-const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'search', 'orders', 'saved', 'wallet', 'spending', 'profile'];
+const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'search', 'orders', 'saved', 'wallet', 'spending', 'profile', 'inbox', 'taskManage'];
 
 // Registry. Screens the agent team hasn't delivered yet fall back to Placeholder.
 const REGISTRY: Partial<Record<ScreenName, React.ComponentType>> = {
@@ -129,7 +129,7 @@ export function ScreenHost() {
   const t = useTheme();
   const { screen, params, go } = useNav();
   const { userId } = useAuth();
-  const { desktop } = useLayout();
+  const { desktop, tablet } = useLayout();
   const Comp = REGISTRY[screen];
 
   // Which tabs are alive, with the params each last had and how many times it
@@ -204,8 +204,9 @@ export function ScreenHost() {
           );
         })}
         {KEEP_ALIVE.includes(screen) ? null : (
-          // A screen opened on top eases in rather than snapping into place.
-          <FadeIn key={screen} duration={220} translateY={10} style={{ flex: 1 }}>
+          // A screen opened on top eases in rather than snapping into place
+          // (SYS-Motion "screen push": a short rise plus a fade).
+          <FadeIn key={screen} duration={320} translateY={14} style={{ flex: 1 }}>
             {Comp ? <Comp /> : <Placeholder name={screen} />}
           </FadeIn>
         )}
@@ -216,6 +217,17 @@ export function ScreenHost() {
   // the sidebar (in place of the tab bar and the + button) and a centred column.
   if (desktop && (PRE_AUTH.includes(screen) || (!userId && PUBLIC.includes(screen)))) {
     return <DesktopAuthFrame>{content}</DesktopAuthFrame>;
+  }
+  // Tablet web: the icon rail in place of the tab bar, content centred.
+  if (tablet && !PRE_AUTH.includes(screen) && (userId || !PUBLIC.includes(screen))) {
+    return (
+      <View style={{ flex: 1, flexDirection: 'row', backgroundColor: t.colors.bg }}>
+        <SideNav rail />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <View style={{ flex: 1, width: '100%', maxWidth: TABLET_CONTENT }}>{content}</View>
+        </View>
+      </View>
+    );
   }
   if (desktop) {
     return (

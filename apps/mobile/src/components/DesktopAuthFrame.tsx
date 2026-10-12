@@ -1,12 +1,17 @@
 import { View, Text as RNText } from 'react-native';
-import { Drop, Ripples } from './Ripples';
+import { useTheme } from '../providers/ThemeProvider';
+import { light } from '../theme';
+import { HeroBackground } from './Hero';
+import { FallingDrop, FloatCard } from './BrandArt';
+import { Icon } from './Icon';
+import { Drop } from './Ripples';
 import { tx } from './primitives';
 
 /**
- * Desktop web, before sign-in: the brand on the left, the app's own sign-in
- * screen on the right at the width it was designed for. On a phone that
- * screen is the whole screen; here it sits beside a panel that says what
- * TaskDrop is -- the droplet and its ripples, and the three moves of a job.
+ * Desktop web, before sign-in (W1): the brand on the left, the app's own
+ * sign-in screen on the right in a card at the width it was designed for.
+ * The brand half says what TaskDrop is -- the drop falling onto its ripples,
+ * what goes out when a task drops, and the three moves of a job.
  */
 const PATH: { n: string; title: string; body: string }[] = [
   { n: '1', title: 'Say it', body: 'One sentence is enough. We write the post.' },
@@ -15,58 +20,92 @@ const PATH: { n: string; title: string; body: string }[] = [
 ];
 
 export function DesktopAuthFrame({ children }: { children: React.ReactNode }) {
+  const t = useTheme();
+  // The brand half is always the jade gradient, in both themes.
   return (
-    <View style={{ flex: 1, flexDirection: 'row', backgroundColor: '#0F1012' }}>
-      <View style={{ flex: 1, padding: 56, justifyContent: 'space-between', overflow: 'hidden', backgroundColor: '#0A6F58' }}>
-        {/* The droplet and its ripples, large, low in the corner. */}
-        <View
-          pointerEvents="none"
-          style={{ position: 'absolute', right: -270, bottom: -270, width: 720, height: 720, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Ripples color="rgba(255,255,255,0.55)" size={720} />
-          <View style={{ width: 120, height: 120, borderRadius: 120, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}>
-            <Drop size={64} fill="#FFFFFF" tick="#0A6F58" />
-          </View>
+    <View style={{ flex: 1, flexDirection: 'row', backgroundColor: t.colors.bg }}>
+      <View style={{ flex: 1, paddingHorizontal: 44, paddingVertical: 40, justifyContent: 'space-between', overflow: 'hidden' }}>
+        <HeroBackground radius={0} />
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Drop size={34} fill="#FFFFFF" tick={light.heroMid} />
+          <RNText style={tx('800', 26, '#FFFFFF', { letterSpacing: -0.9 })}>
+            taskdrop<RNText style={tx('800', 26, '#7FE3C4')}>.</RNText>
+          </RNText>
         </View>
 
-        <RNText style={tx('800', 30, '#FFFFFF', { letterSpacing: -1 })}>
-          taskdrop<RNText style={tx('800', 30, '#7FE3C4')}>.</RNText>
-        </RNText>
-
-        <View style={{ maxWidth: 560 }}>
-          <RNText style={tx('800', 54, '#FFFFFF', { letterSpacing: -2, lineHeight: 58 })}>
+        <View style={{ maxWidth: 640 }}>
+          <RNText style={tx('800', 54, '#FFFFFF', { letterSpacing: -2.4, lineHeight: 56 })}>
             Drop a task.{'\n'}Watch it ripple{'\n'}to people nearby.
           </RNText>
-          <View style={{ flexDirection: 'row', gap: 14, marginTop: 44 }}>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 28 }}>
             {PATH.map((p) => (
               <View
                 key={p.n}
-                style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 18, padding: 16 }}
+                style={{
+                  flex: 1,
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.16)',
+                  borderRadius: 18,
+                  padding: 16,
+                }}
               >
-                <View style={{ width: 28, height: 28, borderRadius: 28, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
-                  <RNText style={tx('800', 14, '#0A6F58')}>{p.n}</RNText>
+                <View style={{ width: 20, height: 20, borderRadius: 6, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
+                  <RNText style={tx('800', 11, light.heroMid)}>{p.n}</RNText>
                 </View>
-                <RNText style={tx('800', 16, '#FFFFFF', { marginTop: 12 })}>{p.title}</RNText>
-                <RNText style={tx('400', 13, 'rgba(255,255,255,0.78)', { marginTop: 4, lineHeight: 19 })}>{p.body}</RNText>
+                <RNText style={tx('800', 16, '#FFFFFF', { marginTop: 12, letterSpacing: -0.3 })}>{p.title}</RNText>
+                <RNText style={tx('400', 13, 'rgba(255,255,255,0.8)', { marginTop: 4, lineHeight: 20 })}>{p.body}</RNText>
               </View>
             ))}
           </View>
         </View>
 
-        <RNText style={tx('500', 13, 'rgba(255,255,255,0.6)')}>One account for hiring and earning</RNText>
+        {/* The drop falling onto its ripples, with what goes out around it. */}
+        <View style={{ height: 300, maxWidth: 640, alignItems: 'center', justifyContent: 'flex-end' }}>
+          <FallingDrop />
+          <FloatCard icon="wrench" title="Plumber · 1.2 km" sub="3 offers in 9 min" style={{ left: 0, top: 40 }} />
+          <FloatCard icon="globe" tone="ai" title="Logo design · Remote" sub="from ₹1,500" delay={1100} style={{ right: 0, top: 96 }} />
+          <View
+            style={{
+              position: 'absolute',
+              left: 50,
+              bottom: 30,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              borderRadius: 999,
+              paddingVertical: 8,
+              paddingHorizontal: 14,
+              backgroundColor: 'rgba(255,255,255,0.12)',
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.3)',
+            }}
+          >
+            <Icon name="lock" size={13} color="#FFFFFF" />
+            <RNText style={tx('700', 13, '#FFFFFF')}>Payment held safely until you approve</RNText>
+          </View>
+        </View>
+
+        <RNText style={tx('500', 14, 'rgba(255,255,255,0.78)')}>One account for hiring and earning</RNText>
       </View>
 
-      <View style={{ width: 520, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
         <View
           style={{
             width: '100%',
             maxWidth: 440,
             height: '100%',
-            maxHeight: 860,
+            maxHeight: 700,
             borderRadius: 28,
             overflow: 'hidden',
             borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.08)',
+            borderColor: t.colors.line,
+            backgroundColor: t.colors.surface,
+            shadowColor: '#000',
+            shadowOpacity: t.isDark ? 0 : 0.1,
+            shadowRadius: 40,
+            shadowOffset: { width: 0, height: 20 },
           }}
         >
           {children}

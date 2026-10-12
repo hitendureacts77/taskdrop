@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { IconButton } from '../components/kit';
 import { Icon } from '../components/Icon';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen, Card, Button, formatINR } from '../components/ui';
@@ -331,10 +332,10 @@ export function TaskDetailScreen() {
     <Screen scroll padded={false}>
       <FadeIn style={{ paddingHorizontal: 20, paddingTop: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Pressable onPress={back} hitSlop={8} accessibilityRole="button" accessibilityLabel="Back">
-            <Icon name="back" size={20} color={t.colors.ink} />
-          </Pressable>
-          <Pressable
+          <IconButton icon="back" label="Back" onPress={back} />
+          <IconButton
+            icon="share"
+            label="Share this task"
             onPress={() =>
               share.start(
                 realId && taskUrl(realId)
@@ -346,12 +347,7 @@ export function TaskDetailScreen() {
                   : null,
               )
             }
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Share this task"
-          >
-            <Icon name="share" size={18} color={t.colors.ink} />
-          </Pressable>
+          />
         </View>
 
         <Pressable
@@ -370,15 +366,15 @@ export function TaskDetailScreen() {
         >
           <View
             style={{
-              width: 40,
-              height: 40,
+              width: 44,
+              height: 44,
               borderRadius: 999,
-              backgroundColor: t.colors.surface2,
+              backgroundColor: t.colors.btn,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Icon name="user" size={18} color={t.colors.muted} />
+            <RNText style={tx('800', 17, t.colors.onBtn)}>{(displayName || '?').trim().charAt(0).toUpperCase()}</RNText>
             {other ? <AvatarPresence lastSeen={other.lastSeen} ring={t.colors.bg} /> : null}
           </View>
           <View style={{ flex: 1 }}>
@@ -395,13 +391,13 @@ export function TaskDetailScreen() {
               </View>
             ) : null}
           </View>
-          <RNText style={tx('400', 16, t.colors.muted)}>›</RNText>
+          <Icon name="chevronRight" size={16} color={t.colors.muted} />
         </Pressable>
 
         <RNText style={tx('700', 10, tagInk(t, detail.tag), { letterSpacing: 1.6, marginTop: 16 })}>
           {detail.tag}
         </RNText>
-        <RNText style={tx('800', 23, t.colors.ink, { letterSpacing: -0.69, marginTop: 9 })}>{detail.title}</RNText>
+        <RNText style={tx('800', 25, t.colors.ink, { letterSpacing: -0.7, marginTop: 8, lineHeight: 30 })}>{detail.title}</RNText>
         {body ? (
           <View style={{ marginTop: 14 }}>
             <TaskDescription text={body} title={detail.title} />
@@ -412,7 +408,7 @@ export function TaskDetailScreen() {
             with a glyph in them — a picture of a photo, not the photo. */}
         {mediaPath && (
           <View style={{ marginTop: 16, height: 210 }}>
-            <TaskMediaThumb path={mediaPath} kind={mediaKind} seconds={mediaSeconds} radius={14} />
+            <TaskMediaThumb path={mediaPath} kind={mediaKind} seconds={mediaSeconds} radius={20} />
           </View>
         )}
 
@@ -427,16 +423,16 @@ export function TaskDetailScreen() {
           }}
         >
           <View style={{ flex: 1, paddingVertical: 14 }}>
-            <RNText style={tx('400', 10, t.colors.muted, { letterSpacing: 1.4 })}>{priceLabel}</RNText>
-            <RNText style={tx('800', 20, t.colors.accentDeep, { marginTop: 4 })}>{formatINR(detail.amountMinor)}</RNText>
+            <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>{priceLabel}</RNText>
+            <RNText style={tx('800', 22, t.colors.accentDeep, { marginTop: 4, fontVariant: ['tabular-nums'], letterSpacing: -0.4 })}>{formatINR(detail.amountMinor)}</RNText>
           </View>
           {/* Only shown when there is a real deadline. A worker's service listing
               has none — the poster sets it when engaging — so the column is
               omitted rather than showing a placeholder. */}
           {detail.by ? (
             <View style={{ flex: 1, paddingVertical: 14 }}>
-              <RNText style={tx('400', 10, t.colors.muted, { letterSpacing: 1.4 })}>COMPLETE BY</RNText>
-              <RNText style={tx('700', 20, t.colors.ink, { marginTop: 4 })}>{detail.by}</RNText>
+              <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>COMPLETE BY</RNText>
+              <RNText style={tx('700', 20, t.colors.ink, { marginTop: 4, letterSpacing: -0.3 })}>{detail.by}</RNText>
             </View>
           ) : null}
         </View>
@@ -478,7 +474,7 @@ export function TaskDetailScreen() {
           </Card>
         ) : (
         <Card style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
-          <RNText style={tx('600', 13, t.colors.muted, { marginBottom: 10 })}>
+          <RNText style={tx('700', 11, t.colors.muted, { marginBottom: 10, letterSpacing: 1.2 })}>
             {worker ? 'YOUR OFFER' : 'YOUR OFFER'}
           </RNText>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -486,14 +482,17 @@ export function TaskDetailScreen() {
               onPress={() => setQuote((q) => Math.max(QUOTE_STEP_MINOR, q - QUOTE_STEP_MINOR))}
               accessibilityRole="button"
               accessibilityLabel="Lower your offer"
-              style={{
+              style={({ pressed }) => ({
                 width: 40,
                 height: 40,
                 borderRadius: 999,
-                backgroundColor: t.colors.surface2,
+                borderWidth: 1.5,
+                borderColor: t.colors.line,
+                backgroundColor: t.colors.surface,
                 alignItems: 'center',
                 justifyContent: 'center',
-              }}
+                transform: [{ scale: pressed ? 0.92 : 1 }],
+              })}
             >
               <Icon name="minus" size={18} color={t.colors.ink} strokeWidth={2.2} />
             </Pressable>
@@ -503,7 +502,7 @@ export function TaskDetailScreen() {
                 rupees={Math.round(quote / 100)}
                 onChangeRupees={(r) => setQuote((r ?? 0) * 100)}
                 min={1}
-                style={tx('800', 30, t.colors.ink, { letterSpacing: -0.5 })}
+                style={tx('800', 34, t.colors.ink, { letterSpacing: -0.8 })}
               />
               <RNText style={tx('500', 12, deltaColor, { marginTop: 2 })}>{deltaText}</RNText>
             </View>
@@ -512,14 +511,17 @@ export function TaskDetailScreen() {
               onPress={() => setQuote((q) => q + QUOTE_STEP_MINOR)}
               accessibilityRole="button"
               accessibilityLabel="Raise your offer"
-              style={{
+              style={({ pressed }) => ({
                 width: 40,
                 height: 40,
                 borderRadius: 999,
-                backgroundColor: t.colors.surface2,
+                borderWidth: 1.5,
+                borderColor: t.colors.line,
+                backgroundColor: t.colors.surface,
                 alignItems: 'center',
                 justifyContent: 'center',
-              }}
+                transform: [{ scale: pressed ? 0.92 : 1 }],
+              })}
             >
               <Icon name="plus" size={18} color={t.colors.ink} strokeWidth={2.2} />
             </Pressable>
@@ -538,7 +540,7 @@ export function TaskDetailScreen() {
           </RNText>
           {worker && realId ? (
             <Pressable onPress={() => void openBid()} style={{ alignSelf: 'center', marginTop: 12 }} accessibilityRole="button" accessibilityLabel="Send a detailed offer with a proposal">
-              <RNText style={tx('700', 13, t.colors.purpleDeep)}>Or send a detailed offer with a proposal ›</RNText>
+              <RNText style={tx('700', 13, t.colors.accentDeep)}>Or send a detailed offer with a proposal ›</RNText>
             </Pressable>
           ) : null}
         </Card>

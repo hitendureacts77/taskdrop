@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable, TextInput, RefreshControl } from 'react-native';
-import { Screen, formatINR } from '../components/ui';
+import { Screen, cardSurface, formatINR } from '../components/ui';
+import { HeroCard } from '../components/Hero';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
 import { Badge, BottomSheet, ConfirmDialog, EmptyState, Grid, MenuRow, Pill, PillTabs, Shimmer, StatTile, SwipeTabs, rupees, timeLeft } from '../components/kit';
@@ -179,17 +180,8 @@ function MyPosted() {
         {/* One summary card rather than four tiles: what is running, what is
             waiting on me, what is done. Spending lives in Wallet → Insights. */}
         <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
-          <View
-            style={{
-              borderRadius: 22,
-              padding: 18,
-              backgroundColor: t.colors.hero,
-              overflow: 'hidden',
-            }}
-          >
-            <View style={{ position: 'absolute', right: -40, top: -50, width: 160, height: 160, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.07)' }} />
-            <View style={{ position: 'absolute', right: 30, bottom: -60, width: 120, height: 120, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.05)' }} />
-            <RNText style={tx('600', 12, 'rgba(255,255,255,0.75)', { letterSpacing: 0.3 })}>Your tasks at a glance</RNText>
+          <HeroCard radius={24} padding={20} watermark={false} ringSize={180}>
+            <RNText style={tx('700', 12.5, 'rgba(255,255,255,0.82)')}>Your tasks at a glance</RNText>
             <View style={{ flexDirection: 'row', marginTop: 12 }}>
               {[
                 { value: (counts[0] ?? 0) + (counts[1] ?? 0), label: 'Active' },
@@ -197,7 +189,7 @@ function MyPosted() {
                 { value: counts[2] ?? 0, label: 'Completed' },
               ].map((m, i) => (
                 <View key={m.label} style={{ flex: 1, borderLeftWidth: i ? 1 : 0, borderLeftColor: 'rgba(255,255,255,0.15)', paddingLeft: i ? 14 : 0 }}>
-                  <RNText style={tx('800', 26, '#FFFFFF', { letterSpacing: -0.6 })}>{m.value}</RNText>
+                  <RNText style={tx('800', 30, '#FFFFFF', { letterSpacing: -0.6, fontVariant: ['tabular-nums'] })}>{m.value}</RNText>
                   <RNText style={tx('600', 12, 'rgba(255,255,255,0.75)', { marginTop: 1 })}>{m.label}</RNText>
                 </View>
               ))}
@@ -217,7 +209,7 @@ function MyPosted() {
                   paddingVertical: 11,
                   paddingHorizontal: 14,
                   borderRadius: 14,
-                  backgroundColor: 'rgba(255,255,255,0.14)',
+                  backgroundColor: 'rgba(255,255,255,0.16)',
                   transform: [{ scale: pressed ? 0.98 : 1 }],
                 })}
               >
@@ -228,7 +220,7 @@ function MyPosted() {
                 <Icon name="chevronRight" size={16} color="#FFFFFF" />
               </Pressable>
             ) : null}
-          </View>
+          </HeroCard>
         </View>
 
         <View {...ring}
@@ -238,14 +230,11 @@ function MyPosted() {
             gap: 8,
             marginHorizontal: 20,
             marginTop: 16,
-            backgroundColor: t.colors.surface,
-            borderWidth: 1,
-            borderColor: t.colors.line,
-            borderRadius: 12,
-            paddingHorizontal: 12,
+            ...cardSurface(t, 16),
+            paddingHorizontal: 14,
           }}
         >
-          <Icon name="search" size={16} color={t.colors.muted} />
+          <Icon name="search" size={17} color={t.colors.muted} />
           <TextInput
             value={q}
             onChangeText={setQ}
@@ -403,18 +392,7 @@ function PostedCard({
         containsControls
         onPress={onOpen}
         scaleTo={0.985}
-        style={{
-          backgroundColor: t.colors.surface,
-          borderWidth: 1,
-          borderColor: t.colors.line,
-          borderRadius: 18,
-          overflow: 'hidden',
-          shadowColor: '#000',
-          shadowOpacity: 0.04,
-          shadowRadius: 10,
-          shadowOffset: { width: 0, height: 3 },
-          elevation: 1,
-        }}
+        style={[cardSurface(t, 20), { overflow: 'hidden' }]}
       >
         <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: stripe }} />
         <View style={{ flexDirection: 'row', gap: 12, padding: 14, paddingLeft: 16 }}>
@@ -452,7 +430,7 @@ function PostedCard({
             backgroundColor: t.colors.surface2,
           }}
         >
-          <RNText style={tx('800', 16, t.colors.ink)}>{rupees((task.locked_minor ?? task.benchmark_minor) / 100)}</RNText>
+          <RNText style={tx('800', 17, t.colors.ink, { fontVariant: ['tabular-nums'], letterSpacing: -0.3 })}>{rupees((task.locked_minor ?? task.benchmark_minor) / 100)}</RNText>
           {left ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Icon name="clock" size={12} color={left === 'overdue' ? t.colors.signal : t.colors.goldInk} />
@@ -644,7 +622,7 @@ function MyWork() {
                     tab === 1 && row.state === 'PENDING' ? void editQuote(row.taskId) : openRow(row, { go, flash, setOpenTask, startedOf })
                   }
                   scaleTo={0.985}
-                  style={{ backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, padding: 14 }}
+                  style={{ ...cardSurface(t, 18), padding: 14 }}
                 >
                   <RNText style={tx('700', 10, toneInk(row.tone, t.colors), { letterSpacing: 1.4 })}>{row.state}</RNText>
                   <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 7 }}>
@@ -653,7 +631,7 @@ function MyWork() {
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
                     <RNText style={tx('400', 12, t.colors.muted, { flex: 1 })}>{row.meta}</RNText>
-                    {tab === 1 && row.state === 'PENDING' ? <RNText style={tx('700', 12, t.colors.purpleDeep)}>Edit offer ›</RNText> : null}
+                    {tab === 1 && row.state === 'PENDING' ? <RNText style={tx('700', 12, t.colors.accentDeep)}>Edit offer ›</RNText> : null}
                   </View>
                 </Pressy>
               </FadeIn>

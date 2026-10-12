@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../components/Icon';
 import { View, Text as RNText, TextInput, Pressable, Animated, ScrollView } from 'react-native';
-import { Screen } from '../components/ui';
+import { Screen, cardSurface } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -185,10 +185,7 @@ export function ReviewScreen() {
           placeholderTextColor={t.colors.muted}
           multiline
           style={{
-            backgroundColor: t.colors.surface,
-            borderWidth: 1,
-            borderColor: t.colors.line,
-            borderRadius: 12,
+            ...cardSurface(t, 14),
             padding: 14,
             marginTop: 11,
             minHeight: 88,
@@ -206,7 +203,7 @@ export function ReviewScreen() {
           onPress={submit}
           style={({ pressed }) => [
             {
-              backgroundColor: t.colors.accent,
+              backgroundColor: t.colors.btn,
               borderRadius: 999,
               paddingVertical: 16,
               alignItems: 'center',

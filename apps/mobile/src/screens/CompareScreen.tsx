@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { IconButton } from '../components/kit';
 import { Icon } from '../components/Icon';
 import {
   View,
@@ -171,9 +172,7 @@ export function CompareScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
-          <Icon name="back" size={20} color={t.colors.ink} />
-        </Pressable>
+        <IconButton icon="back" label="Back" onPress={back} />
 
         <RNText style={tx('700', 10, t.colors.blue, { letterSpacing: 1.6, marginTop: 16 })}>
           {headerLine}
@@ -391,7 +390,7 @@ export function CompareScreen() {
           onPress={handleLock}
           scaleTo={0.96}
           style={{
-            backgroundColor: t.colors.accent,
+            backgroundColor: t.colors.btn,
             borderRadius: 999,
             paddingVertical: 16,
             alignItems: 'center',

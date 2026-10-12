@@ -278,7 +278,7 @@ export function AddFundsSheet({
                 accessibilityLabel="Continue to payment"
                 style={({ pressed }) => ({
                   marginTop: 20,
-                  backgroundColor: t.colors.accent,
+                  backgroundColor: t.colors.btn,
                   borderRadius: 999,
                   paddingVertical: 15,
                   alignItems: 'center',
@@ -343,7 +343,7 @@ export function AddFundsSheet({
                 accessibilityLabel="Reopen the payment page"
                 style={({ pressed }) => ({
                   marginTop: 18,
-                  backgroundColor: t.colors.accent,
+                  backgroundColor: t.colors.btn,
                   borderRadius: 999,
                   paddingVertical: 15,
                   alignItems: 'center',

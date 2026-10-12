@@ -688,7 +688,7 @@ export function LocationSheet({
             accessibilityLabel="Confirm this location"
             style={({ pressed }) => ({
               marginTop: 14,
-              backgroundColor: t.colors.accent,
+              backgroundColor: t.colors.btn,
               borderRadius: 999,
               paddingVertical: 15,
               alignItems: 'center',

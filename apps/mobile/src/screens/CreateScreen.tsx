@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text as RNText, Pressable, Animated, ScrollView } from 'react-native';
-import { Screen } from '../components/ui';
+import { Screen, cardSurface } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -78,10 +78,7 @@ export function CreateScreen() {
               <Pressable
                 onPress={() => go('postDetails', { pillar: i })}
                 style={({ pressed }) => ({
-                  backgroundColor: t.colors.surface,
-                  borderWidth: 1,
-                  borderColor: t.colors.line,
-                  borderRadius: 16,
+                  ...cardSurface(t, 18),
                   padding: 18,
                   marginBottom: 12,
                   transform: [{ scale: pressed ? 0.985 : 1 }],

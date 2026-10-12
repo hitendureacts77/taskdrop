@@ -389,7 +389,7 @@ export function DateTimeSheet({
                             borderRadius: 999,
                             alignItems: 'center',
                             justifyContent: 'center',
-                            backgroundColor: selected ? t.colors.accent : 'transparent',
+                            backgroundColor: selected ? t.colors.btn : 'transparent',
                             borderWidth: !selected && isToday ? 1 : 0,
                             borderColor: t.colors.accent,
                             opacity: isPast ? 0.28 : 1,
@@ -424,7 +424,7 @@ export function DateTimeSheet({
                           paddingVertical: 12,
                           borderRadius: 18,
                           alignItems: 'center',
-                          backgroundColor: on ? t.colors.accent : t.colors.surface,
+                          backgroundColor: on ? t.colors.btn : t.colors.surface,
                           borderWidth: 1,
                           borderColor: on ? t.colors.accent : t.colors.line,
                           shadowColor: t.colors.accent,
@@ -550,7 +550,7 @@ export function DateTimeSheet({
                     borderRadius: 12,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: inPast ? t.colors.signal : t.colors.accent,
+                    backgroundColor: inPast ? t.colors.signal : t.colors.btn,
                   }}
                 >
                   <ClockIcon color={t.colors.onAccent} />
@@ -597,7 +597,7 @@ export function DateTimeSheet({
                 borderRadius: 999,
                 paddingVertical: 15,
                 alignItems: 'center',
-                backgroundColor: inPast ? t.colors.surface2 : t.colors.accent,
+                backgroundColor: inPast ? t.colors.surface2 : t.colors.btn,
                 transform: [{ scale: pressed ? 0.97 : 1 }],
               })}
             >

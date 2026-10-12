@@ -84,7 +84,7 @@ export function Overlays() {
                 width: 82,
                 height: 82,
                 borderRadius: 999,
-                backgroundColor: t.colors.accent,
+                backgroundColor: t.colors.btn,
                 alignItems: 'center',
                 justifyContent: 'center',
                 shadowColor: t.colors.accent,

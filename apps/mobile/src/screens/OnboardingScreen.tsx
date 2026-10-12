@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable, Image, ActivityIndicator, Animated } from 'react-native';
 import { Screen } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
-import { Field, Pill, PrimaryButton } from '../components/kit';
+import { Field, IconButton, Pill, PrimaryButton } from '../components/kit';
+import { Ripples } from '../components/Ripples';
 import { LocationSheet } from '../components/LocationSheet';
 import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
@@ -149,20 +150,20 @@ export function OnboardingScreen() {
           flexDirection: 'row',
           alignItems: 'center',
           gap: 12,
-          padding: 15,
+          padding: 16,
           marginTop: 10,
-          borderRadius: 14,
+          borderRadius: 18,
           borderWidth: 1.5,
           borderColor: on ? t.colors.accent : t.colors.line,
           backgroundColor: on ? t.colors.accentSoft : t.colors.surface,
         }}
       >
-        <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: on ? t.colors.surface : t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={icon} size={20} color={t.colors.accentDeep} />
         </View>
         <View style={{ flex: 1 }}>
-          <RNText style={tx('700', 15, t.colors.ink)}>{title}</RNText>
-          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3, lineHeight: 17 })}>{sub}</RNText>
+          <RNText style={tx('800', 15, t.colors.ink)}>{title}</RNText>
+          <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 3, lineHeight: 17 })}>{sub}</RNText>
         </View>
         {on ? <Icon name="check" size={18} color={t.colors.accentDeep} strokeWidth={2.4} /> : null}
       </Wrapper>
@@ -207,7 +208,7 @@ export function OnboardingScreen() {
     const ok = /^[a-z0-9_]{3,20}$/.test(username) && !nameCarriesContact(username);
     body = (
       <>
-        <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.6 })}>Pick a username</RNText>
+        <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.7 })}>Pick a username</RNText>
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21 })}>
           It’s how people find you, and you can sign in with it once you set a password.
         </RNText>
@@ -245,7 +246,7 @@ export function OnboardingScreen() {
   if (step === 2) {
     body = (
       <>
-        <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.6 })}>What brings you here?</RNText>
+        <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.7 })}>What brings you here?</RNText>
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8 })}>You can switch between posting and earning any time.</RNText>
         {bigCard('briefcase', 'Get things done', 'Post tasks and pick someone to do them', 'post')}
         {bigCard('wallet', 'Earn money', 'Find tasks near you and send offers', 'earn')}
@@ -266,7 +267,7 @@ export function OnboardingScreen() {
   if (step === 3) {
     body = (
       <>
-        <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.6 })}>What are you good at?</RNText>
+        <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.7 })}>What are you good at?</RNText>
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8 })}>Pick up to 8 — we’ll recommend matching tasks.</RNText>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 18 }}>
           {SKILL_OPTIONS.map((s) => (
@@ -289,7 +290,7 @@ export function OnboardingScreen() {
   if (step === 4) {
     body = (
       <>
-        <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.6 })}>About you</RNText>
+        <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.7 })}>About you</RNText>
         <Pressable onPress={() => void choosePhoto()} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 18 }} accessibilityRole="button">
           <View style={{ width: 64, height: 64, borderRadius: 999, overflow: 'hidden', backgroundColor: t.colors.surface2, borderWidth: 1, borderStyle: avatar ? 'solid' : 'dashed', borderColor: t.colors.accent, alignItems: 'center', justifyContent: 'center' }}>
             {avatar ? <Image source={{ uri: avatar }} style={{ width: 64, height: 64 }} /> : <Icon name="plus" size={22} color={t.colors.accent} />}
@@ -300,16 +301,16 @@ export function OnboardingScreen() {
             ) : null}
           </View>
           <View style={{ flex: 1 }}>
-            <RNText style={tx('700', 15, t.colors.ink)}>{avatar ? 'Change photo' : 'Add a photo'}</RNText>
+            <RNText style={tx('800', 15, t.colors.ink)}>{avatar ? 'Change photo' : 'Add a photo'}</RNText>
             <RNText style={tx('500', 12, t.colors.accentDeep, { marginTop: 3 })}>Profiles with photos get more replies</RNText>
           </View>
         </Pressable>
         <Field label="Display name" value={name} onChangeText={setName} maxLength={40} style={{ marginTop: 18 }} placeholder="Your name" />
-        <RNText style={tx('600', 11, t.colors.accentDeep, { letterSpacing: 1.3, marginTop: 16 })}>LOCATION</RNText>
+        <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 16 })}>LOCATION</RNText>
         <Pressable
           onPress={() => setShowLoc(true)}
           accessibilityRole="button"
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface2 }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8, padding: 14, borderRadius: 14, borderWidth: 1.5, borderColor: t.colors.line, backgroundColor: t.colors.surface }}
         >
           <Icon name="pin" size={17} color={t.colors.accentDeep} />
           <RNText style={tx('400', 14, place ? t.colors.ink : t.colors.muted, { flex: 1 })} numberOfLines={2}>
@@ -318,7 +319,7 @@ export function OnboardingScreen() {
           <RNText style={tx('700', 13, t.colors.accentDeep)}>{place ? 'Change' : 'Find me'}</RNText>
         </Pressable>
         <Field label="Short bio (optional)" value={bio} onChangeText={setBio} multiline maxLength={500} style={{ marginTop: 16 }} placeholder="A line or two about you" />
-        <RNText style={tx('600', 11, t.colors.accentDeep, { letterSpacing: 1.3, marginTop: 16 })}>LANGUAGES</RNText>
+        <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 16 })}>LANGUAGES</RNText>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
           {LANGUAGES.map((l) => (
             <Pill key={l} label={l} active={langs.includes(l)} onPress={() => toggle(langs, setLangs, l, 6)} />
@@ -351,10 +352,14 @@ export function OnboardingScreen() {
   if (step === 5) {
     body = (
       <View style={{ alignItems: 'center', paddingTop: 30 }}>
-        <View style={{ width: 84, height: 84, borderRadius: 999, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="check" size={40} color={t.colors.accentDeep} strokeWidth={2.4} />
+        {/* The one celebration: a check with ripples going out from it. */}
+        <View style={{ width: 120, height: 120, alignItems: 'center', justifyContent: 'center' }}>
+          <Ripples color={t.colors.accent} size={160} count={3} duration={2600} />
+          <View style={{ width: 96, height: 96, borderRadius: 999, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="check" size={38} color={t.colors.accentDeep} strokeWidth={2.4} />
+          </View>
         </View>
-        <RNText style={tx('800', 24, t.colors.ink, { marginTop: 18, textAlign: 'center' })}>You’re all set{name ? `, ${name.split(' ')[0]}` : ''}!</RNText>
+        <RNText style={tx('800', 26, t.colors.ink, { marginTop: 18, textAlign: 'center', letterSpacing: -0.7 })}>You’re all set{name ? `, ${name.split(' ')[0]}` : ''}!</RNText>
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21, textAlign: 'center' })}>
           {intent === 'earn'
             ? 'Find a task near you and send your first offer.'
@@ -370,15 +375,13 @@ export function OnboardingScreen() {
       <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           {step > 0 && step < STEPS.length - 1 ? (
-            <Pressable onPress={prev} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
-              <Icon name="back" size={22} color={t.colors.ink} />
-            </Pressable>
+            <IconButton icon="back" label="Back" onPress={prev} />
           ) : null}
           <RNText style={tx('600', 13, t.colors.muted, { flex: 1 })}>
             Step {step + 1} of {STEPS.length} · {STEPS[step]}
           </RNText>
         </View>
-        <View style={{ height: 4, borderRadius: 999, backgroundColor: t.colors.line, marginTop: 12, overflow: 'hidden' }}>
+        <View style={{ height: 4, borderRadius: 999, backgroundColor: t.colors.surface2, marginTop: 12, overflow: 'hidden' }}>
           <Animated.View
             style={{
               height: 4,

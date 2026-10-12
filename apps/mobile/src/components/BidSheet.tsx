@@ -221,7 +221,7 @@ export function BidSheet({
               </View>
             ) : null}
 
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14, alignItems: 'flex-end' }}>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14, alignItems: 'stretch' }}>
               <Field
                 label="Hours (optional)"
                 style={{ flex: 1 }}
@@ -240,12 +240,12 @@ export function BidSheet({
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: 8,
-                  borderWidth: 1,
+                  borderWidth: 1.5,
                   borderColor: dateText ? t.colors.accent : t.colors.line,
-                  backgroundColor: t.colors.surface2,
-                  borderRadius: 12,
+                  backgroundColor: dateText ? t.colors.accentSoft : t.colors.surface,
+                  borderRadius: 14,
                   paddingVertical: 13,
-                  paddingHorizontal: 12,
+                  paddingHorizontal: 14,
                 }}
               >
                 <Icon name="clock" size={16} color={dateText ? t.colors.accentDeep : t.colors.muted} />

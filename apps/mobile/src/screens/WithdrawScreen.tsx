@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Icon } from '../components/Icon';
+import { IconButton } from '../components/kit';
 import { View, Text as RNText, Pressable, ScrollView, TextInput } from 'react-native';
-import { Screen, formatINR } from '../components/ui';
+import { Screen, formatINR, cardSurface } from '../components/ui';
 import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -184,9 +184,7 @@ export function WithdrawScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
-            <Icon name="back" size={20} color={t.colors.ink} />
-          </Pressable>
+          <IconButton icon="back" label="Back" onPress={back} />
           <RNText style={tx('700', 17, t.colors.ink)}>Withdraw</RNText>
         </View>
 
@@ -289,10 +287,7 @@ export function WithdrawScreen() {
             alignItems: 'center',
             gap: 13,
             marginTop: 11,
-            backgroundColor: t.colors.surface,
-            borderWidth: 1,
-            borderColor: t.colors.line,
-            borderRadius: 12,
+            ...cardSurface(t, 14),
             padding: 14,
           }}
         >
@@ -385,7 +380,7 @@ export function WithdrawScreen() {
         <Pressy
           onPress={doWithdraw}
           style={{
-            backgroundColor: t.colors.accent,
+            backgroundColor: t.colors.btn,
             borderRadius: 999,
             paddingVertical: 16,
             alignItems: 'center',

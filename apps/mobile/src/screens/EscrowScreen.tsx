@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { IconButton } from '../components/kit';
 import { Icon } from '../components/Icon';
-import { View, Text as RNText, Pressable, Animated, ScrollView } from 'react-native';
+import { View, Text as RNText, Animated, ScrollView } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
@@ -110,9 +111,7 @@ export function EscrowScreen() {
       <Screen padded={false}>
         <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-            <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
-              <Icon name="back" size={20} color={t.colors.ink} />
-            </Pressable>
+            <IconButton icon="back" label="Back" onPress={back} />
             <RNText style={tx('700', 17, t.colors.ink)}>Pay for this task</RNText>
           </View>
           <RNText style={tx('800', 20, t.colors.ink, { marginTop: 40, letterSpacing: -0.4 })}>Nothing to pay for yet</RNText>
@@ -121,7 +120,7 @@ export function EscrowScreen() {
           </RNText>
           <Pressy
             onPress={() => go('orders')}
-            style={{ marginTop: 22, backgroundColor: t.colors.accent, borderRadius: 999, paddingVertical: 15, alignItems: 'center' }}
+            style={{ marginTop: 22, backgroundColor: t.colors.btn, borderRadius: 999, paddingVertical: 15, alignItems: 'center' }}
           >
             <RNText style={tx('700', 15, t.colors.onAccent)}>Go to my requests</RNText>
           </Pressy>
@@ -138,9 +137,7 @@ export function EscrowScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
-            <Icon name="back" size={20} color={t.colors.ink} />
-          </Pressable>
+          <IconButton icon="back" label="Back" onPress={back} />
           <RNText style={tx('700', 17, t.colors.ink)}>Pay for this task</RNText>
         </View>
 
@@ -219,7 +216,7 @@ export function EscrowScreen() {
           onPress={() => (enough || balanceMinor === null ? void pay() : setShortBy(totalMinor - (balanceMinor ?? 0)))}
           scaleTo={0.96}
           style={{
-            backgroundColor: t.colors.accent,
+            backgroundColor: t.colors.btn,
             borderRadius: 999,
             paddingVertical: 16,
             alignItems: 'center',

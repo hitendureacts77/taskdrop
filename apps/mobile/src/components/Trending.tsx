@@ -15,6 +15,7 @@ import { Icon } from './Icon';
 import { Pill, SectionTitle, Shimmer, rupees } from './kit';
 import { categoryIcon } from './WorkCard';
 import { tx } from './primitives';
+import { cardSurface } from './ui';
 
 /**
  * The "Trending" tab: which categories are busy, who is doing the work, and
@@ -73,10 +74,7 @@ export function TrendingSection({ onCategory }: { onCategory?: (category: string
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: 10,
-                    backgroundColor: t.colors.surface,
-                    borderWidth: 1,
-                    borderColor: t.colors.line,
-                    borderRadius: 14,
+                    ...cardSurface(t, 18),
                     padding: 12,
                     opacity: pressed ? 0.8 : 1,
                   })}
@@ -113,7 +111,7 @@ export function TrendingSection({ onCategory }: { onCategory?: (category: string
       </ScrollView>
 
       <SectionTitle title="TaskDrop this week" icon="bolt" style={{ marginTop: 26 }} />
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 12, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, paddingVertical: 14 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 12, ...cardSurface(t, 18), paddingVertical: 14 }}>
         {[
           { label: 'Active now', value: hl?.activeNow, color: t.colors.accentDeep },
           { label: 'Active today', value: hl?.activeToday, color: t.colors.purpleDeep },
@@ -142,10 +140,7 @@ function EarnerCard({ e }: { e: Earner }) {
       style={({ pressed }) => ({
         width: 130,
         alignItems: 'center',
-        backgroundColor: t.colors.surface,
-        borderWidth: 1,
-        borderColor: t.colors.line,
-        borderRadius: 14,
+        ...cardSurface(t, 18),
         padding: 12,
         opacity: pressed ? 0.8 : 1,
       })}

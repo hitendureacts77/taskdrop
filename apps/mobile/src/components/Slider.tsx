@@ -80,7 +80,7 @@ export function Slider({
       // below a usable touch target on its own.
       style={{ paddingVertical: 14, marginTop: 2 }}
     >
-      <View style={{ height: 3, backgroundColor: t.colors.line, borderRadius: 2 }}>
+      <View style={{ height: 6, backgroundColor: t.colors.surface2, borderRadius: 6 }}>
         <View
           style={{
             position: 'absolute',
@@ -89,7 +89,7 @@ export function Slider({
             bottom: 0,
             width: `${clamped * 100}%`,
             backgroundColor: t.colors.accent,
-            borderRadius: 2,
+            borderRadius: 6,
           }}
         />
         <View
@@ -97,14 +97,16 @@ export function Slider({
           style={{
             position: 'absolute',
             left: `${clamped * 100}%`,
-            top: -7,
-            width: 17,
-            height: 17,
-            marginLeft: -8.5,
+            top: -8,
+            width: 22,
+            height: 22,
+            marginLeft: -11,
             borderRadius: 999,
-            backgroundColor: t.colors.accent,
-            shadowColor: t.colors.accent,
-            shadowOpacity: 0.4,
+            backgroundColor: t.colors.surface,
+            borderWidth: 2,
+            borderColor: t.colors.accent,
+            shadowColor: t.colors.shadow,
+            shadowOpacity: 0.18,
             shadowRadius: 8,
             shadowOffset: { width: 0, height: 3 },
             elevation: 3,

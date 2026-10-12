@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { BottomSheet, MenuRow } from '../components/kit';
+import { BottomSheet, MenuRow, IconButton } from '../components/kit';
 import { AvatarPresence } from '../components/PresenceDot';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -262,9 +262,7 @@ export function ChatScreen() {
             borderBottomColor: t.colors.line,
           }}
         >
-          <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back" style={round}>
-            <Icon name="back" size={20} color={t.colors.ink} />
-          </Pressable>
+          <IconButton icon="back" label="Back" onPress={back} />
           <Pressable
             onPress={() => other && go('publicProfile', { userId: other.id, role: mode === 'worker' ? 'poster' : 'worker' })}
             accessibilityRole="button"

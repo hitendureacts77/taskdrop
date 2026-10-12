@@ -4,7 +4,6 @@ import {
   Text as RNText,
   Pressable,
   Animated,
-  StyleSheet,
   ScrollView,
   RefreshControl,
   type ViewStyle,
@@ -51,7 +50,7 @@ export function Screen({
   const t = useTheme();
   const inner: StyleProp<ViewStyle> = [
     { flex: 1, backgroundColor: t.colors.bg },
-    padded && { paddingHorizontal: t.spacing.lg },
+    padded && { paddingHorizontal: t.spacing.gutter },
     style,
   ];
   if (scroll) {
@@ -60,13 +59,18 @@ export function Screen({
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={[
-            padded && { paddingHorizontal: t.spacing.lg },
+            padded && { paddingHorizontal: t.spacing.gutter },
             { paddingBottom: t.spacing.xxl },
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             onRefresh ? (
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.colors.accent} />
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={t.colors.accent}
+                colors={[t.colors.accent]}
+              />
             ) : undefined
           }
         >
@@ -114,6 +118,24 @@ export function Text({
   );
 }
 
+/**
+ * The v2 card surface: white on the warm ground with a 1px line and a soft
+ * drop shadow in light; border only in dark, where shadows read as smudges.
+ */
+export function cardSurface(t: Theme, radius: number = t.radius.lg): ViewStyle {
+  return {
+    backgroundColor: t.colors.surface,
+    borderColor: t.colors.line,
+    borderWidth: 1,
+    borderRadius: radius,
+    shadowColor: t.colors.shadow,
+    shadowOpacity: t.isDark ? 0 : 0.07,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: t.isDark ? 0 : 1,
+  };
+}
+
 export function Card({
   children,
   style,
@@ -124,13 +146,7 @@ export function Card({
   onPress?: () => void;
 }) {
   const t = useTheme();
-  const s: StyleProp<ViewStyle> = {
-    backgroundColor: t.colors.surface,
-    borderColor: t.colors.line,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: t.radius.lg,
-    padding: t.spacing.lg,
-  };
+  const s: StyleProp<ViewStyle> = [cardSurface(t), { padding: t.spacing.lg }];
   if (onPress) {
     return <PressableCard baseStyle={s} onPress={onPress} style={style}>{children}</PressableCard>;
   }
@@ -176,21 +192,28 @@ export function Button({
   style?: StyleProp<ViewStyle>;
 }) {
   const t = useTheme();
+  // v2 buttons: 52 tall, pill, 15/700. Primary sits on the deep shade so
+  // white text keeps 4.5:1; secondary is the soft accent tint.
   const bg =
     variant === 'primary'
-      ? t.colors.accent
+      ? t.colors.btn
       : variant === 'danger'
-        ? t.colors.signal
+        ? t.colors.signalDeep
         : variant === 'secondary'
-          ? t.colors.surface2
+          ? t.colors.accentSoft
           : 'transparent';
   const fg =
-    variant === 'primary' || variant === 'danger'
-      ? t.colors.onAccent
-      : variant === 'secondary'
-        ? t.colors.ink
-        : t.colors.accent;
-  const { scale, onPressIn, onPressOut } = usePressScale();
+    variant === 'primary'
+      ? t.colors.onBtn
+      : variant === 'danger'
+        ? t.isDark
+          ? '#1A0C06'
+          : '#FFFFFF'
+        : variant === 'secondary'
+          ? t.colors.accentDeep
+          : t.colors.ink;
+  const off = Boolean(disabled) && variant === 'primary';
+  const { scale, onPressIn, onPressOut } = usePressScale(t.motion.pressScale);
   return (
     <AnimatedPressable
       onPress={onPress}
@@ -202,21 +225,26 @@ export function Button({
       accessibilityState={{ disabled: Boolean(disabled) }}
       style={[
         {
-          backgroundColor: bg,
-          borderRadius: t.radius.md,
+          backgroundColor: off ? t.colors.surface2 : bg,
+          borderRadius: t.radius.pill,
+          minHeight: 52,
           paddingVertical: 14,
-          paddingHorizontal: t.spacing.lg,
+          paddingHorizontal: 22,
           alignItems: 'center',
           justifyContent: 'center',
-          borderWidth: variant === 'ghost' ? StyleSheet.hairlineWidth : 0,
-          borderColor: t.colors.accent,
-          opacity: disabled ? 0.5 : 1,
+          borderWidth: variant === 'ghost' ? 1.5 : 0,
+          borderColor: t.colors.line,
+          opacity: disabled && !off ? 0.5 : 1,
+          shadowColor: t.colors.btn,
+          shadowOpacity: variant === 'primary' && !off && !t.isDark ? 0.3 : 0,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 8 },
           transform: [{ scale }],
         },
         style,
       ]}
     >
-      <RNText style={{ color: fg, fontSize: 15, fontFamily: fontFamilyFor('700') }}>{label}</RNText>
+      <RNText style={{ color: off ? t.colors.muted : fg, fontSize: 15, fontFamily: fontFamilyFor('700') }}>{label}</RNText>
     </AnimatedPressable>
   );
 }
@@ -234,14 +262,14 @@ export function Chip({
   onPress?: () => void;
 }) {
   const t = useTheme();
-  const toneColor =
-    tone === 'gold' ? t.colors.gold : tone === 'signal' ? t.colors.signal : t.colors.accent;
-  const bg = active
-    ? tone === 'neutral'
-      ? t.colors.ink
-      : toneColor
-    : t.colors.surface2;
-  const fg = active ? t.colors.onAccent : t.colors.text;
+  // v2 chip: an outlined pill; selected takes the tone's border and soft
+  // fill. "neutral" selected is the inked pill the filter rows use.
+  const toneColor = tone === 'gold' ? t.colors.gold : tone === 'signal' ? t.colors.signal : t.colors.accent;
+  const toneSoft = tone === 'gold' ? t.colors.goldSoft : tone === 'signal' ? t.colors.signalSoft : t.colors.accentSoft;
+  const toneInk = tone === 'gold' ? t.colors.goldInk : tone === 'signal' ? t.colors.signalDeep : t.colors.accentDeep;
+  const bg = active ? (tone === 'neutral' ? t.colors.ink : toneSoft) : t.colors.surface;
+  const fg = active ? (tone === 'neutral' ? t.colors.bg : toneInk) : t.colors.text;
+  const border = active ? (tone === 'neutral' ? t.colors.ink : toneColor) : t.colors.line;
   const { scale, onPressIn, onPressOut } = usePressScale(0.94);
   return (
     <AnimatedPressable
@@ -254,19 +282,19 @@ export function Chip({
       style={{
         backgroundColor: bg,
         borderRadius: t.radius.pill,
-        paddingVertical: 7,
+        paddingVertical: 8,
         paddingHorizontal: 13,
-        borderWidth: active ? 0 : StyleSheet.hairlineWidth,
-        borderColor: t.colors.line,
+        borderWidth: 1.5,
+        borderColor: border,
         transform: [{ scale }],
       }}
     >
-      <RNText style={{ color: fg, fontSize: 13, fontFamily: fontFamilyFor('600') }}>{label}</RNText>
+      <RNText style={{ color: fg, fontSize: 13, fontFamily: fontFamilyFor(active ? '700' : '600') }}>{label}</RNText>
     </AnimatedPressable>
   );
 }
 
-export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
+export function Avatar({ name, size = 40, online }: { name: string; size?: number; online?: boolean }) {
   const t = useTheme();
   const initials = name
     .split(' ')
@@ -285,9 +313,24 @@ export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
         justifyContent: 'center',
       }}
     >
-      <RNText style={{ color: t.colors.accentDeep, fontWeight: '700', fontSize: size * 0.36 }}>
+      <RNText style={{ color: t.colors.accentDeep, fontFamily: fontFamilyFor('800'), fontSize: size * 0.36 }}>
         {initials}
       </RNText>
+      {online ? (
+        <View
+          style={{
+            position: 'absolute',
+            right: -1,
+            bottom: -1,
+            width: Math.max(10, Math.round(size * 0.28)),
+            height: Math.max(10, Math.round(size * 0.28)),
+            borderRadius: 999,
+            backgroundColor: t.colors.online,
+            borderWidth: 2,
+            borderColor: t.colors.surface,
+          }}
+        />
+      ) : null}
     </View>
   );
 }
@@ -316,7 +359,7 @@ export function Row({
 
 export function Divider() {
   const t = useTheme();
-  return <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: t.colors.line }} />;
+  return <View style={{ height: 1, backgroundColor: t.colors.line }} />;
 }
 
 /** Format minor units (paise) as ₹ currency. */

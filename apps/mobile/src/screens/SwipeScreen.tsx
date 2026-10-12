@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Icon } from '../components/Icon';
+import { IconButton } from '../components/kit';
 import {
   View,
   Text as RNText,
-  Pressable,
   Animated,
   PanResponder,
   type GestureResponderEvent,
@@ -161,9 +160,7 @@ export function SwipeScreen() {
       <FadeIn>
         <View style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 28 }}>
           <View style={{ paddingTop: 6 }}>
-            <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
-              <Icon name="back" size={20} color={t.colors.ink} />
-            </Pressable>
+            <IconButton icon="back" label="Back" onPress={back} />
           </View>
 
           <View style={{ flex: 1, justifyContent: 'center' }}>
@@ -247,7 +244,7 @@ export function SwipeScreen() {
                   width: KNOB,
                   height: KNOB,
                   borderRadius: KNOB / 2,
-                  backgroundColor: t.colors.accent,
+                  backgroundColor: t.colors.btn,
                   alignItems: 'center',
                   justifyContent: 'center',
                   transform: [{ translateX: knobX }],

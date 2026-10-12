@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   PanResponder,
+  Platform,
   type TextInputProps,
   type ViewStyle,
   type StyleProp,
@@ -18,6 +19,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { Icon, type IconName } from './Icon';
 import { Pressy, tx } from './primitives';
 import { useLayout } from '../lib/layout';
+import { LOOP_NATIVE, useReducedMotion } from '../lib/motion';
 
 /**
  * The shared building blocks of the second-wave screens (explore, AI posting,
@@ -45,20 +47,24 @@ export function BottomSheet({
   maxHeight?: `${number}%`;
 }) {
   const t = useTheme();
-  const { desktop } = useLayout();
+  const { desktop, tablet } = useLayout();
+  const dialog = desktop || tablet;
   const rise = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (!visible) {
       rise.setValue(0);
       return;
     }
-    const anim = Animated.spring(rise, { toValue: 1, useNativeDriver: true, friction: 9, tension: 70 });
+    // Phone: a spring rise from the bottom edge (SYS-Motion "sheet", 380 ms).
+    // Wider screens: a centred dialog that scales and fades in.
+    const anim = dialog
+      ? Animated.timing(rise, { toValue: 1, duration: 260, useNativeDriver: true })
+      : Animated.spring(rise, { toValue: 1, useNativeDriver: true, friction: 10, tension: 68 });
     anim.start();
     return () => anim.stop();
-  }, [visible, rise]);
-  // A phone sheet rises from the bottom edge; on desktop it is a centred
-  // dialog that settles in from just below.
-  const sheetY = rise.interpolate({ inputRange: [0, 1], outputRange: [desktop ? 40 : 420, 0] });
+  }, [visible, rise, dialog]);
+  const sheetY = rise.interpolate({ inputRange: [0, 1], outputRange: [dialog ? 12 : 520, 0] });
+  const sheetScale = rise.interpolate({ inputRange: [0, 1], outputRange: [dialog ? 0.94 : 1, 1] });
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
@@ -69,41 +75,64 @@ export function BottomSheet({
         <Animated.View
           style={{
             flex: 1,
-            justifyContent: desktop ? 'center' : 'flex-end',
-            alignItems: desktop ? 'center' : 'stretch',
-            backgroundColor: 'rgba(0,0,0,0.45)',
+            justifyContent: dialog ? 'center' : 'flex-end',
+            alignItems: dialog ? 'center' : 'stretch',
+            backgroundColor: 'rgba(8,10,12,0.5)',
             opacity: rise,
           }}
         >
           <Pressable
-            style={desktop ? { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 } : { flex: 1 }}
+            style={dialog ? { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 } : { flex: 1 }}
             onPress={onClose}
             accessibilityLabel="Close"
           />
           <Animated.View
             style={{
               backgroundColor: t.colors.bg,
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              ...(desktop ? { borderRadius: 24, width: 560, maxWidth: '92%' as const } : null),
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              ...(dialog ? { borderRadius: 28, width: 560, maxWidth: '92%' as const } : null),
               paddingBottom: 20,
               maxHeight,
-              transform: [{ translateY: sheetY }],
+              shadowColor: '#000',
+              shadowOpacity: 0.25,
+              shadowRadius: 30,
+              shadowOffset: { width: 0, height: -6 },
+              elevation: 16,
+              transform: [{ translateY: sheetY }, { scale: sheetScale }],
             }}
           >
-            <View style={{ paddingTop: 12, alignItems: 'center' }}>
-              <View style={{ width: 38, height: 4, borderRadius: 999, backgroundColor: t.colors.line }} />
-            </View>
+            {dialog ? (
+              <View style={{ height: 10 }} />
+            ) : (
+              <View style={{ paddingTop: 12, alignItems: 'center' }}>
+                <View style={{ width: 40, height: 4, borderRadius: 999, backgroundColor: t.colors.line }} />
+              </View>
+            )}
             {title ? (
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 20, paddingTop: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 20, paddingTop: 14 }}>
                 <View style={{ flex: 1 }}>
-                  <RNText style={tx('800', 20, t.colors.ink, { letterSpacing: -0.4 })}>{title}</RNText>
+                  <RNText style={tx('800', 21, t.colors.ink, { letterSpacing: -0.5 })}>{title}</RNText>
                   {subtitle ? (
                     <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4, lineHeight: 19 })}>{subtitle}</RNText>
                   ) : null}
                 </View>
-                <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
-                  <Icon name="close" size={20} color={t.colors.muted} />
+                <Pressable
+                  onPress={onClose}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close"
+                  style={({ pressed }) => ({
+                    width: 34,
+                    height: 34,
+                    borderRadius: 999,
+                    backgroundColor: t.colors.surface2,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transform: [{ scale: pressed ? 0.92 : 1 }],
+                  })}
+                >
+                  <Icon name="close" size={17} color={t.colors.text} />
                 </Pressable>
               </View>
             ) : null}
@@ -121,7 +150,10 @@ export function BottomSheet({
   );
 }
 
-/** Tabs with a sliding underline, as on the orders screen. */
+/**
+ * Tabs with a sliding underline (v2): left-aligned labels at their own width,
+ * 24 apart, and a 2.5px accent bar that glides to the one chosen.
+ */
 export function UnderlineTabs({
   tabs,
   active,
@@ -134,42 +166,65 @@ export function UnderlineTabs({
   inset?: number;
 }) {
   const t = useTheme();
-  const [width, setWidth] = useState(0);
-  const track = Math.max(0, width - inset * 2);
-  const each = tabs.length ? track / tabs.length : 0;
-  const left = useRef(new Animated.Value(inset)).current;
+  const [spots, setSpots] = useState<{ x: number; w: number }[]>([]);
+  const left = useRef(new Animated.Value(0)).current;
+  const width = useRef(new Animated.Value(0)).current;
+  const placed = useRef(false);
   useEffect(() => {
-    const anim = Animated.timing(left, { toValue: inset + each * active, duration: 280, useNativeDriver: false });
+    const spot = spots[active];
+    if (!spot) return;
+    if (!placed.current) {
+      // First layout: put the bar in place without a slide.
+      left.setValue(spot.x);
+      width.setValue(spot.w);
+      placed.current = true;
+      return;
+    }
+    const anim = Animated.parallel([
+      Animated.timing(left, { toValue: spot.x, duration: 280, useNativeDriver: false }),
+      Animated.timing(width, { toValue: spot.w, duration: 280, useNativeDriver: false }),
+    ]);
     anim.start();
     return () => anim.stop();
-  }, [active, each, left, inset]);
+  }, [active, spots, left, width]);
 
   return (
-    <View
-      style={{ flexDirection: 'row', paddingHorizontal: inset }}
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-    >
-      {tabs.map((label, i) => {
-        const on = active === i;
-        return (
-          <Pressable
-            key={label}
-            onPress={() => onPick(i)}
-            accessibilityRole="tab"
-            accessibilityLabel={label}
-            accessibilityState={{ selected: on }}
-            style={{ flex: 1, alignItems: 'center', paddingVertical: 11 }}
-          >
-            <RNText style={tx(on ? '700' : '600', 13, on ? t.colors.ink : t.colors.muted)} numberOfLines={1}>
-              {label}
-            </RNText>
-          </Pressable>
-        );
-      })}
-      <View style={{ position: 'absolute', left: inset, right: inset, bottom: 0, height: 2, backgroundColor: t.colors.line }} />
-      <Animated.View
-        style={{ position: 'absolute', left, bottom: 0, height: 2, width: each, backgroundColor: t.colors.accent }}
-      />
+    <View style={{ marginHorizontal: inset }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
+        <View style={{ flexDirection: 'row', gap: 24, flexGrow: 1 }}>
+          {tabs.map((label, i) => {
+            const on = active === i;
+            return (
+              <Pressable
+                key={label}
+                onPress={() => onPick(i)}
+                onLayout={(e) => {
+                  const { x, width: w } = e.nativeEvent.layout;
+                  setSpots((cur) => {
+                    if (cur[i]?.x === x && cur[i]?.w === w) return cur;
+                    const next = [...cur];
+                    next[i] = { x, w };
+                    return next;
+                  });
+                }}
+                accessibilityRole="tab"
+                accessibilityLabel={label}
+                accessibilityState={{ selected: on }}
+                style={{ paddingVertical: 12 }}
+              >
+                <RNText style={tx(on ? '800' : '600', 14, on ? t.colors.ink : t.colors.muted)} numberOfLines={1}>
+                  {label}
+                </RNText>
+              </Pressable>
+            );
+          })}
+          <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 1, backgroundColor: t.colors.line }} />
+          <Animated.View
+            pointerEvents="none"
+            style={{ position: 'absolute', left, bottom: 0, height: 2.5, borderRadius: 3, width, backgroundColor: t.colors.accent }}
+          />
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -238,12 +293,12 @@ export function PillTabs({
               paddingRight: tab.count !== undefined ? 9 : 15,
               borderRadius: 999,
               backgroundColor: on ? t.colors.ink : t.colors.surface,
-              borderWidth: 1,
+              borderWidth: 1.5,
               borderColor: on ? t.colors.ink : t.colors.line,
               transform: [{ scale: pressed ? 0.96 : 1 }],
             })}
           >
-            <RNText style={tx('700', 13, on ? t.colors.bg : t.colors.ink)}>{tab.label}</RNText>
+            <RNText style={tx(on ? '800' : '600', 13, on ? t.colors.bg : t.colors.text)}>{tab.label}</RNText>
             {tab.count !== undefined ? (
               <View
                 style={{
@@ -252,10 +307,10 @@ export function PillTabs({
                   paddingVertical: 1,
                   borderRadius: 999,
                   alignItems: 'center',
-                  backgroundColor: on ? t.colors.accent : t.colors.surface2,
+                  backgroundColor: on ? 'transparent' : t.colors.surface2,
                 }}
               >
-                <RNText style={tx('800', 11, on ? t.colors.onAccent : t.colors.muted)}>{tab.count}</RNText>
+                <RNText style={tx('800', 11, on ? t.colors.bg : t.colors.muted, { opacity: on ? 0.75 : 1 })}>{tab.count}</RNText>
               </View>
             ) : null}
           </Pressable>
@@ -366,22 +421,26 @@ export function ConfirmDialog({
     anim.start();
     return () => anim.stop();
   }, [visible, pop]);
-  const scale = pop.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] });
-  const tone = danger ? t.colors.signal : t.colors.accent;
+  const scale = pop.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] });
+  const tone = danger ? t.colors.signalDeep : t.colors.btn;
+  const toneIcon = danger ? t.colors.signal : t.colors.accent;
+  const onTone = danger ? (t.isDark ? '#1A0C06' : '#FFFFFF') : t.colors.onBtn;
   const toneSoft = danger ? t.colors.signalSoft : t.colors.accentSoft;
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onCancel} statusBarTranslucent>
       <Animated.View
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 28, opacity: pop }}
+        style={{ flex: 1, backgroundColor: 'rgba(8,10,12,0.5)', justifyContent: 'center', alignItems: 'center', padding: 28, opacity: pop }}
       >
         <Pressable style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} onPress={busy ? undefined : onCancel} />
         <Animated.View
           accessibilityRole="alert"
           style={{
             backgroundColor: t.colors.bg,
-            borderRadius: 24,
+            borderRadius: 26,
             padding: 22,
+            width: '100%',
+            maxWidth: 440,
             transform: [{ scale }],
             shadowColor: '#000',
             shadowOpacity: 0.25,
@@ -391,9 +450,9 @@ export function ConfirmDialog({
           }}
         >
           <View
-            style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: toneSoft, alignItems: 'center', justifyContent: 'center' }}
+            style={{ width: 52, height: 52, borderRadius: 17, backgroundColor: toneSoft, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Icon name={icon} size={22} color={tone} strokeWidth={2} />
+            <Icon name={icon} size={24} color={toneIcon} strokeWidth={2} />
           </View>
           <RNText style={tx('800', 19, t.colors.ink, { marginTop: 14, letterSpacing: -0.3 })}>{title}</RNText>
           <RNText style={tx('400', 14, t.colors.text, { marginTop: 8, lineHeight: 21 })}>{message}</RNText>
@@ -404,10 +463,12 @@ export function ConfirmDialog({
               accessibilityRole="button"
               style={({ pressed }) => ({
                 flex: 1,
+                minHeight: 50,
                 paddingVertical: 14,
                 borderRadius: 999,
                 alignItems: 'center',
-                borderWidth: 1,
+                justifyContent: 'center',
+                borderWidth: 1.5,
                 borderColor: t.colors.line,
                 transform: [{ scale: pressed ? 0.97 : 1 }],
               })}
@@ -420,18 +481,20 @@ export function ConfirmDialog({
               accessibilityRole="button"
               style={({ pressed }) => ({
                 flex: 1.3,
+                minHeight: 50,
                 paddingVertical: 14,
                 borderRadius: 999,
                 alignItems: 'center',
+                justifyContent: 'center',
                 backgroundColor: tone,
                 opacity: busy ? 0.7 : 1,
                 transform: [{ scale: pressed ? 0.97 : 1 }],
               })}
             >
               {busy ? (
-                <ActivityIndicator color={t.colors.onAccent} />
+                <ActivityIndicator color={onTone} />
               ) : (
-                <RNText style={tx('800', 14, t.colors.onAccent)}>{confirmLabel}</RNText>
+                <RNText style={tx('800', 14, onTone)}>{confirmLabel}</RNText>
               )}
             </Pressable>
           </View>
@@ -466,28 +529,37 @@ export function Field({
   // Multiline boxes grow with their text, so the whole thing is always
   // visible instead of hiding behind a scrollbar inside the box.
   const [contentH, setContentH] = useState(0);
+  const inputRef = useRef<TextInput>(null);
+  // v2 field: the label sits inside the box, over the value; tapping
+  // anywhere in the box puts the cursor in the input.
   return (
     <View style={style}>
-      {label ? (
-        <RNText style={tx('600', 11, t.colors.accentDeep, { letterSpacing: 1.3, marginBottom: 8 })}>
-          {label.toUpperCase()}
-        </RNText>
-      ) : null}
-      <View
+      <Pressable
+        onPress={() => inputRef.current?.focus()}
+        accessible={false}
         style={{
-          flexDirection: 'row',
-          alignItems: input.multiline ? 'flex-start' : 'center',
-          gap: 10,
-          backgroundColor: t.colors.surface2,
-          borderRadius: 12,
-          borderWidth: 1,
+          backgroundColor: t.colors.surface,
+          borderRadius: 14,
+          borderWidth: 1.5,
           borderColor: error ? t.colors.signal : focused ? t.colors.accent : t.colors.line,
-          paddingVertical: input.multiline ? 12 : 13,
+          paddingVertical: label ? 11 : input.multiline ? 12 : 13,
           paddingHorizontal: 14,
+          // The v2 focus ring (web): a soft halo of the accent around the box.
+          ...(Platform.OS === 'web' && (focused || error)
+            ? ({ boxShadow: `0 0 0 4px ${error ? t.colors.signalSoft : t.colors.accentSoft}` } as object)
+            : null),
         }}
       >
+        {label ? (
+          <RNText style={tx('700', 11, focused ? t.colors.accentDeep : t.colors.muted, { letterSpacing: 1, marginBottom: 5 })}>
+            {label.toUpperCase()}
+          </RNText>
+        ) : null}
+        <View style={{ flexDirection: 'row', alignItems: input.multiline ? 'flex-start' : 'center', gap: 10 }}>
         {left}
         <TextInput
+          ref={inputRef}
+          accessibilityLabel={input.accessibilityLabel ?? label}
           placeholderTextColor={t.colors.muted}
           {...input}
           onFocus={(e) => {
@@ -510,7 +582,8 @@ export function Field({
           ]}
         />
         {right}
-      </View>
+        </View>
+      </Pressable>
       {error ? (
         <RNText style={tx('500', 12, t.colors.signalDeep, { marginTop: 6 })}>{error}</RNText>
       ) : hint ? (
@@ -537,15 +610,30 @@ export function SectionTitle({
   badge?: string;
 }) {
   const t = useTheme();
+  // v2 section head: the icon sits on a small tinted tile, 18/800 title, and
+  // the action is a plain accent link on the right.
   return (
-    <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 8 }, style]}>
-      {icon ? <Icon name={icon} size={17} color={t.colors.accentDeep} strokeWidth={1.9} /> : null}
-      <RNText style={tx('800', 17, t.colors.ink, { letterSpacing: -0.34, flexShrink: 1 })}>{title}</RNText>
-      {badge ? <Badge label={badge} tone="gold" /> : null}
+    <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 10 }, style]}>
+      {icon ? (
+        <View
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 10,
+            backgroundColor: t.colors.accentSoft,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon name={icon} size={16} color={t.colors.accentDeep} strokeWidth={1.9} />
+        </View>
+      ) : null}
+      <RNText style={tx('800', 18, t.colors.ink, { letterSpacing: -0.35, flexShrink: 1 })}>{title}</RNText>
+      {badge ? <Badge label={badge} tone="signal" /> : null}
       <View style={{ flex: 1 }} />
       {action && onAction ? (
         <Pressable onPress={onAction} hitSlop={8} accessibilityRole="button">
-          <RNText style={tx('700', 13, t.colors.accentDeep)}>{action} ›</RNText>
+          <RNText style={tx('700', 13, t.colors.accentDeep)}>{action}</RNText>
         </Pressable>
       ) : null}
     </View>
@@ -561,23 +649,33 @@ export function toneColors(t: ReturnType<typeof useTheme>, tone: Tone) {
     case 'signal':
       return { fg: t.colors.signalDeep, bg: t.colors.signalSoft };
     case 'blue':
-      return { fg: t.colors.blue, bg: t.colors.surface2 };
+      return { fg: t.isDark ? t.colors.blue : '#2A6CB8', bg: t.colors.purpleSoft };
     case 'purple':
-      return { fg: t.colors.purpleDeep, bg: t.colors.surface2 };
+      return { fg: t.isDark ? '#9DB4FF' : t.colors.purple, bg: t.colors.purpleSoft };
     case 'neutral':
-      return { fg: t.colors.muted, bg: t.colors.surface2 };
+      return { fg: t.colors.text, bg: t.colors.surface2 };
     default:
       return { fg: t.colors.accentDeep, bg: t.colors.accentSoft };
   }
 }
 
-/** A small status label. */
+/** A small status label: says what is happening in words, not just colour. */
 export function Badge({ label, tone = 'accent' }: { label: string; tone?: Tone }) {
   const t = useTheme();
   const c = toneColors(t, tone);
   return (
-    <View style={{ backgroundColor: c.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, alignSelf: 'flex-start' }}>
-      <RNText style={tx('700', 10, c.fg, { letterSpacing: 0.6 })}>{label.toUpperCase()}</RNText>
+    <View
+      style={{
+        backgroundColor: c.bg,
+        borderRadius: 7,
+        minHeight: 21,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        alignSelf: 'flex-start',
+        justifyContent: 'center',
+      }}
+    >
+      <RNText style={tx('800', 10, c.fg, { letterSpacing: 0.5 })}>{label.toUpperCase()}</RNText>
     </View>
   );
 }
@@ -607,21 +705,27 @@ export function StatTile({
           backgroundColor: t.colors.surface,
           borderWidth: 1,
           borderColor: t.colors.line,
-          borderRadius: 14,
-          padding: 13,
+          borderRadius: 18,
+          padding: 14,
+          shadowColor: t.colors.shadow,
+          shadowOpacity: t.isDark ? 0 : 0.06,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 6 },
         },
         style,
       ]}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-        <View style={{ width: 26, height: 26, borderRadius: 8, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name={icon} size={15} color={c.fg} strokeWidth={2} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name={icon} size={16} color={c.fg} strokeWidth={2} />
         </View>
         <RNText style={tx('600', 12, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>
           {label}
         </RNText>
       </View>
-      <RNText style={tx('800', 20, t.colors.ink, { marginTop: 9, letterSpacing: -0.4 })}>{value}</RNText>
+      <RNText style={tx('800', 21, t.colors.ink, { marginTop: 10, letterSpacing: -0.5, fontVariant: ['tabular-nums'] })}>
+        {value}
+      </RNText>
     </View>
   );
 }
@@ -645,20 +749,21 @@ export function Pill({
     <Pressy
       onPress={onPress}
       label={label}
+      scaleTo={0.94}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
         backgroundColor: active ? t.colors.accentSoft : t.colors.surface,
-        borderWidth: 1,
+        borderWidth: 1.5,
         borderColor: active ? t.colors.accent : t.colors.line,
         borderRadius: 999,
-        paddingVertical: 7,
-        paddingHorizontal: 12,
+        paddingVertical: 8,
+        paddingHorizontal: 13,
       }}
     >
-      {icon ? <Icon name={icon} size={13} color={active ? t.colors.accentDeep : t.colors.muted} strokeWidth={2} /> : null}
-      <RNText style={tx('600', 12, active ? t.colors.accentDeep : t.colors.text)} numberOfLines={1}>
+      {icon ? <Icon name={icon} size={14} color={active ? t.colors.accentDeep : t.colors.muted} strokeWidth={2} /> : null}
+      <RNText style={tx(active ? '700' : '600', 13, active ? t.colors.accentDeep : t.colors.text)} numberOfLines={1}>
         {label}
         {typeof count === 'number' ? ` (${count})` : ''}
       </RNText>
@@ -684,8 +789,10 @@ export function PrimaryButton({
 }) {
   const t = useTheme();
   const off = disabled || busy;
-  const bg = tone === 'signal' ? t.colors.signal : tone === 'quiet' ? t.colors.surface2 : t.colors.accent;
-  const fg = tone === 'quiet' ? t.colors.ink : t.colors.onAccent;
+  // v2: a 52-tall pill on the deep shade (white text 4.5:1+), lifted by a
+  // soft shadow of its own colour in light.
+  const bg = tone === 'signal' ? t.colors.signalDeep : tone === 'quiet' ? t.colors.surface : t.colors.btn;
+  const fg = tone === 'quiet' ? t.colors.ink : tone === 'signal' ? (t.isDark ? '#1A0C06' : '#FFFFFF') : t.colors.onBtn;
   return (
     <Pressable
       onPress={off ? undefined : onPress}
@@ -694,13 +801,20 @@ export function PrimaryButton({
       accessibilityState={{ disabled: Boolean(off) }}
       style={({ pressed }) => [
         {
-          borderRadius: 12,
+          borderRadius: 999,
+          minHeight: 52,
           paddingVertical: 15,
+          paddingHorizontal: 20,
           alignItems: 'center',
+          justifyContent: 'center',
           backgroundColor: disabled ? t.colors.surface2 : bg,
-          borderWidth: tone === 'quiet' ? 1 : 0,
+          borderWidth: tone === 'quiet' ? 1.5 : 0,
           borderColor: t.colors.line,
-          transform: [{ scale: pressed && !off ? 0.97 : 1 }],
+          shadowColor: bg,
+          shadowOpacity: !disabled && tone !== 'quiet' && !t.isDark ? 0.32 : 0,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 8 },
+          transform: [{ scale: pressed && !off ? t.motion.pressScale : 1 }],
         },
         style,
       ]}
@@ -710,6 +824,64 @@ export function PrimaryButton({
       ) : (
         <RNText style={tx('700', 15, disabled ? t.colors.muted : fg)}>{label}</RNText>
       )}
+    </Pressable>
+  );
+}
+
+/** The 40×40 rounded-square icon button from the v2 header. */
+export function IconButton({
+  icon,
+  label,
+  onPress,
+  badge,
+  size = 40,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  badge?: number;
+  size?: number;
+}) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={badge ? `${label}, ${badge} unread` : label}
+      hitSlop={4}
+      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
+        width: size,
+        height: size,
+        borderRadius: 13,
+        borderWidth: 1,
+        borderColor: hovered ? t.colors.accentBorder : t.colors.line,
+        backgroundColor: t.colors.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+        transform: [{ scale: pressed ? 0.94 : 1 }],
+      })}
+    >
+      <Icon name={icon} size={20} color={t.colors.ink} strokeWidth={1.8} />
+      {badge ? (
+        <View
+          style={{
+            position: 'absolute',
+            top: -5,
+            right: -5,
+            minWidth: 18,
+            height: 18,
+            paddingHorizontal: 4,
+            borderRadius: 999,
+            backgroundColor: t.colors.signalDeep,
+            borderWidth: 2,
+            borderColor: t.colors.bg,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <RNText style={tx('800', 9, '#FFFFFF')}>{badge > 9 ? '9+' : badge}</RNText>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -728,10 +900,8 @@ export function TopBar({
 }) {
   const t = useTheme();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
-      <Pressable onPress={onBack} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
-        <Icon name="back" size={22} color={t.colors.ink} />
-      </Pressable>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}>
+      <IconButton icon="back" label="Back" onPress={onBack} />
       <View style={{ flex: 1 }}>
         <RNText style={tx('800', 20, t.colors.ink, { letterSpacing: -0.5 })} numberOfLines={1}>
           {title}
@@ -747,7 +917,10 @@ export function TopBar({
   );
 }
 
-/** Centered illustration-free empty state. */
+/**
+ * Empty state: a soft drop with a faint ripple behind the icon, the title and
+ * one line of what to do next (SYS-Components "Nothing here yet").
+ */
 export function EmptyState({
   icon,
   title,
@@ -766,49 +939,84 @@ export function EmptyState({
   const t = useTheme();
   return (
     <View style={[{ alignItems: 'center', paddingVertical: 36, paddingHorizontal: 16 }, style]}>
-      <View
-        style={{
-          width: 64,
-          height: 64,
-          borderRadius: 999,
-          backgroundColor: t.colors.accentSoft,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Icon name={icon} size={28} color={t.colors.accentDeep} strokeWidth={1.7} />
+      <View style={{ width: 96, height: 96, alignItems: 'center', justifyContent: 'center' }}>
+        <View
+          style={{
+            position: 'absolute',
+            width: 96,
+            height: 96,
+            borderRadius: 999,
+            borderWidth: 1.5,
+            borderColor: t.colors.accentBorder,
+            opacity: 0.6,
+          }}
+        />
+        <View
+          style={{
+            width: 68,
+            height: 68,
+            borderRadius: 999,
+            backgroundColor: t.colors.accentSoft,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon name={icon} size={28} color={t.colors.accentDeep} strokeWidth={1.7} />
+        </View>
       </View>
-      <RNText style={tx('800', 16, t.colors.ink, { marginTop: 14, textAlign: 'center' })}>{title}</RNText>
+      <RNText style={tx('800', 17, t.colors.ink, { marginTop: 14, textAlign: 'center', letterSpacing: -0.3 })}>{title}</RNText>
       {body ? (
-        <RNText style={tx('400', 13, t.colors.muted, { marginTop: 6, lineHeight: 19, textAlign: 'center' })}>{body}</RNText>
+        <RNText style={tx('400', 13, t.colors.muted, { marginTop: 6, lineHeight: 19, textAlign: 'center', maxWidth: 320 })}>{body}</RNText>
       ) : null}
       {actionLabel && onAction ? (
         <Pressy
           onPress={onAction}
-          style={{ marginTop: 16, backgroundColor: t.colors.accent, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 18 }}
+          style={{ marginTop: 18, backgroundColor: t.colors.btn, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 20 }}
         >
-          <RNText style={tx('700', 13, t.colors.onAccent)}>{actionLabel}</RNText>
+          <RNText style={tx('700', 14, t.colors.onBtn)}>{actionLabel}</RNText>
         </Pressy>
       ) : null}
     </View>
   );
 }
 
-/** A pulsing placeholder block while something loads. */
+/** A shimmering placeholder block while something loads. */
 export function Shimmer({ height, style }: { height: number; style?: StyleProp<ViewStyle> }) {
   const t = useTheme();
-  const opacity = useRef(new Animated.Value(0.45)).current;
+  const reduced = useReducedMotion();
+  const sweep = useRef(new Animated.Value(0)).current;
+  const [w, setW] = useState(0);
   useEffect(() => {
+    if (reduced) return;
     const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 1, duration: 575, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.45, duration: 575, useNativeDriver: true }),
-      ]),
+      Animated.timing(sweep, { toValue: 1, duration: 1300, useNativeDriver: LOOP_NATIVE }),
     );
     loop.start();
     return () => loop.stop();
-  }, [opacity]);
-  return <Animated.View style={[{ height, borderRadius: 12, backgroundColor: t.colors.surface2, opacity }, style]} />;
+  }, [sweep, reduced]);
+  const band = Math.max(80, w * 0.45);
+  return (
+    <View
+      onLayout={(e) => setW(e.nativeEvent.layout.width)}
+      style={[{ height, borderRadius: 16, backgroundColor: t.colors.surface2, overflow: 'hidden' }, style]}
+    >
+      {w > 0 && !reduced ? (
+        <Animated.View
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            width: band,
+            backgroundColor: t.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.65)',
+            transform: [
+              { translateX: sweep.interpolate({ inputRange: [0, 1], outputRange: [-band, w + band] }) },
+              { skewX: '-18deg' },
+            ],
+          }}
+        />
+      ) : null}
+    </View>
+  );
 }
 
 /** A tappable settings/menu row. */
@@ -833,7 +1041,7 @@ export function MenuRow({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => ({
+      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 14,
@@ -841,13 +1049,23 @@ export function MenuRow({
         borderBottomWidth: 1,
         borderBottomColor: t.colors.line,
         opacity: pressed ? 0.7 : 1,
+        backgroundColor: hovered ? t.colors.surface2 : 'transparent',
       })}
     >
-      <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: danger ? t.colors.signalSoft : t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name={icon} size={18} color={danger ? t.colors.signal : t.colors.ink} strokeWidth={1.8} />
+      <View
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 11,
+          backgroundColor: danger ? t.colors.signalSoft : t.colors.surface2,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Icon name={icon} size={18} color={danger ? t.colors.signalDeep : t.colors.ink} strokeWidth={1.8} />
       </View>
       <View style={{ flex: 1 }}>
-        <RNText style={tx('600', 15, danger ? t.colors.signal : t.colors.ink)}>{label}</RNText>
+        <RNText style={tx('600', 15, danger ? t.colors.signalDeep : t.colors.ink)}>{label}</RNText>
         {sub ? <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>{sub}</RNText> : null}
       </View>
       {right ?? <Icon name="chevronRight" size={16} color={t.colors.muted} />}

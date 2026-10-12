@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable } from 'react-native';
-import { Screen } from '../components/ui';
+import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { Badge, ConfirmDialog, Field, PrimaryButton, SwipeTabs, TopBar, UnderlineTabs } from '../components/kit';
 import { nameCarriesContact } from '../lib/mask';
@@ -144,7 +144,7 @@ export function AccountScreen() {
     }
   };
 
-  const card = { backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, padding: 15, marginTop: 14 } as const;
+  const card = { ...cardSurface(t, 18), padding: 15, marginTop: 14 } as const;
 
   return (
     <Screen padded={false}>

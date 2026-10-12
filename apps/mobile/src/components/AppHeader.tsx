@@ -3,7 +3,6 @@ import { View, Text as RNText, Pressable, Animated, Modal, ScrollView, Image } f
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
-import { useSwitchMode } from '../lib/useSwitchMode';
 import { useAuth } from '../providers/AuthProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { getProfile, getWallet, type Profile } from '../data/api';
@@ -15,7 +14,8 @@ import { signedMediaUrl } from '../lib/media';
 import { Icon, type IconName } from './Icon';
 import { FeedbackSheet } from './FeedbackSheet';
 import { PayoutDestinationSheet } from './PayoutDestinationSheet';
-import { Badge, ConfirmDialog, rupees } from './kit';
+import { Badge, ConfirmDialog, IconButton, rupees } from './kit';
+import { ModeSwitch } from './ModeSwitch';
 import { tx } from './primitives';
 import { levelFor } from '../lib/levels';
 import { useLayout } from '../lib/layout';
@@ -37,8 +37,6 @@ export function AppHeader() {
   const { mode } = useMode();
   const modeRef = useRef(mode);
   modeRef.current = mode;
-  // Earn needs a worker profile first; this opens setup when it is missing.
-  const switchMode = useSwitchMode();
   const { userId } = useAuth();
   const same = last.userId === userId;
   const [unread, setUnreadState] = useState(same ? last.unread : 0);
@@ -86,105 +84,74 @@ export function AppHeader() {
     };
   }, [userId]);
 
-  const worker = mode === 'worker';
-  const { desktop } = useLayout();
-
-  const iconBtn = (name: IconName, label: string, onPress: () => void, badge?: number) => (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={badge ? `${label}, ${badge} unread` : label}
-      hitSlop={6}
-      style={({ pressed }) => ({
-        width: 36,
-        height: 36,
-        borderRadius: 999,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: pressed ? t.colors.surface2 : 'transparent',
-      })}
-    >
-      <Icon name={name} size={21} color={t.colors.ink} strokeWidth={1.8} />
-      {badge ? (
-        <View
-          style={{
-            position: 'absolute',
-            top: 3,
-            right: 2,
-            minWidth: 16,
-            height: 16,
-            paddingHorizontal: 4,
-            borderRadius: 999,
-            backgroundColor: t.colors.signal,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <RNText style={tx('800', 9, '#FFFFFF')}>{badge > 9 ? '9+' : badge}</RNText>
-        </View>
-      ) : null}
-    </Pressable>
-  );
+  const { desktop, tablet } = useLayout();
 
   return (
     <>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 6 }}>
-        {/* The logo is the way home from anywhere, as on most apps. On desktop
-            the sidebar carries the logo and the Post/Earn switch instead. */}
-        {!desktop ? (
-        <>
-        <Pressable onPress={() => reset('home')} accessibilityRole="link" accessibilityLabel="TaskDrop home" hitSlop={6}>
-          <RNText style={tx('800', 20, t.colors.ink, { letterSpacing: -0.6 })}>
-            taskdrop<RNText style={tx('800', 20, t.colors.accent)}>.</RNText>
-          </RNText>
-        </Pressable>
-        <View style={{ flexDirection: 'row', backgroundColor: t.colors.surface2, borderRadius: 999, padding: 3, marginLeft: 4 }}>
-          {(['poster', 'worker'] as const).map((m) => {
-            const on = mode === m;
-            return (
-              <Pressable
-                key={m}
-                onPress={() => void switchMode(m)}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={m === 'poster' ? 'Hire mode' : 'Earn mode'}
-                style={{
-                  paddingVertical: 5,
-                  paddingHorizontal: 11,
-                  borderRadius: 999,
-                  backgroundColor: on ? (m === 'poster' ? t.colors.accent : t.colors.purpleDeep) : 'transparent',
-                }}
-              >
-                <RNText style={tx('700', 12, on ? '#FFFFFF' : t.colors.muted)}>{m === 'poster' ? 'Hire' : 'Earn'}</RNText>
-              </Pressable>
-            );
-          })}
-        </View>
-        </>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          paddingHorizontal: desktop || tablet ? 32 : 16,
+          paddingTop: desktop || tablet ? 16 : 10,
+          paddingBottom: 8,
+        }}
+      >
+        {/* The logo is the way home from anywhere, as on most apps. On wider
+            screens the side menu carries the logo and the Hire/Earn switch. */}
+        {!desktop && !tablet ? (
+          <>
+            <Pressable onPress={() => reset('home')} accessibilityRole="link" accessibilityLabel="TaskDrop home" hitSlop={6}>
+              <RNText style={tx('800', 21, t.colors.ink, { letterSpacing: -0.6 })}>
+                taskdrop<RNText style={tx('800', 21, t.colors.accent)}>.</RNText>
+              </RNText>
+            </Pressable>
+            <View style={{ marginLeft: 4 }}>
+              <ModeSwitch />
+            </View>
+          </>
         ) : null}
         <View style={{ flex: 1 }} />
-        {iconBtn('bell', 'Notifications', () => go('notifications'), unread)}
-        {iconBtn('chat', 'Messages', () => go('inbox'))}
+        <IconButton icon="bell" label="Notifications" onPress={() => go('notifications')} badge={unread} />
+        <IconButton icon="chat" label="Messages" onPress={() => go('inbox')} />
         <Pressable
           onPress={() => setDrawer(true)}
           accessibilityRole="button"
           accessibilityLabel="Account menu"
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 999,
-            marginLeft: 2,
-            overflow: 'hidden',
-            backgroundColor: worker ? t.colors.purpleDeep : t.colors.accent,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+          style={({ pressed }) => ({ marginLeft: 2, transform: [{ scale: pressed ? 0.94 : 1 }] })}
         >
-          {avatar ? (
-            <Image source={{ uri: avatar }} style={{ width: 32, height: 32 }} />
-          ) : (
-            <RNText style={tx('800', 14, '#FFFFFF')}>{initial}</RNText>
-          )}
+          <View
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 999,
+              overflow: 'hidden',
+              backgroundColor: t.colors.btn,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {avatar ? (
+              <Image source={{ uri: avatar }} style={{ width: 36, height: 36 }} />
+            ) : (
+              <RNText style={tx('800', 14, t.colors.onBtn)}>{initial}</RNText>
+            )}
+          </View>
+          {/* Presence is automatic: the app is open, so this person is active now. */}
+          <View
+            style={{
+              position: 'absolute',
+              right: -1,
+              bottom: -1,
+              width: 12,
+              height: 12,
+              borderRadius: 999,
+              backgroundColor: t.colors.online,
+              borderWidth: 2,
+              borderColor: t.colors.bg,
+            }}
+          />
         </Pressable>
       </View>
       <AccountDrawer visible={drawer} onClose={() => setDrawer(false)} />
@@ -196,7 +163,6 @@ export function AppHeader() {
 export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const t = useTheme();
   const { go, reset } = useNav();
-  const { mode } = useMode();
   const { userId, signOut } = useAuth();
   const { flash } = useActions();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -237,7 +203,6 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
     fn();
   };
 
-  const worker = mode === 'worker';
   const level = levelFor(profile?.worker_rating_count ?? 0, Number(profile?.worker_rating_avg ?? 0));
 
   const row = (icon: IconName, label: string, sub: string, onPress: () => void, right?: React.ReactNode) => (
@@ -256,8 +221,8 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
     >
       <Icon name={icon} size={19} color={t.colors.ink} strokeWidth={1.8} />
       <View style={{ flex: 1 }}>
-        <RNText style={tx('600', 14, t.colors.ink)}>{label}</RNText>
-        <RNText style={tx('400', 11, t.colors.muted, { marginTop: 1 })}>{sub}</RNText>
+        <RNText style={tx('700', 15, t.colors.ink)}>{label}</RNText>
+        <RNText style={tx('400', 12, t.colors.muted, { marginTop: 1 })}>{sub}</RNText>
       </View>
       {right}
     </Pressable>
@@ -266,7 +231,7 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
   return (
     <>
       <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-        <Animated.View style={{ flex: 1, flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.4)', opacity: slide }}>
+        <Animated.View style={{ flex: 1, flexDirection: 'row', backgroundColor: 'rgba(8,10,12,0.5)', opacity: slide }}>
           <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Close menu" />
           <Animated.View
             style={{
@@ -279,28 +244,26 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
             <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 44 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <RNText style={tx('800', 18, t.colors.ink)}>Profile</RNText>
-                <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
-                  <Icon name="close" size={20} color={t.colors.muted} />
-                </Pressable>
+                <IconButton icon="close" label="Close" onPress={onClose} />
               </View>
 
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 18 }}>
                 <View
                   style={{
-                    width: 48,
-                    height: 48,
+                    width: 56,
+                    height: 56,
                     borderRadius: 999,
-                    backgroundColor: worker ? t.colors.purpleDeep : t.colors.accent,
+                    backgroundColor: t.colors.btn,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  <RNText style={tx('800', 19, '#FFFFFF')}>
+                  <RNText style={tx('800', 22, t.colors.onBtn)}>
                     {(profile?.display_name ?? '?').trim().charAt(0).toUpperCase()}
                   </RNText>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <RNText style={tx('800', 16, t.colors.ink)} numberOfLines={1}>
+                  <RNText style={tx('800', 18, t.colors.ink, { letterSpacing: -0.3 })} numberOfLines={1}>
                     {profile?.display_name ?? 'Your account'}
                   </RNText>
                   <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
@@ -319,8 +282,9 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
                   marginTop: 14,
                   borderWidth: 1,
                   borderColor: t.colors.line,
-                  borderRadius: 12,
-                  paddingVertical: 11,
+                  backgroundColor: t.colors.surface,
+                  borderRadius: 16,
+                  paddingVertical: 12,
                   flexDirection: 'row',
                   justifyContent: 'center',
                   gap: 8,
@@ -341,8 +305,8 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
                 onClose();
                 setAccounts(true);
               })}
-              {row('card', 'How fees work', 'What TaskDrop takes, and when', () => open(() => go('pricing')))}
-              {row('gavel', 'My complaints', 'See problems you reported', () => open(() => go('disputes')))}
+              {row('tag', 'How fees work', 'What TaskDrop takes, and when', () => open(() => go('pricing')))}
+              {row('flag', 'My complaints', 'See problems you reported', () => open(() => go('disputes')))}
               {row('settings', 'Settings', 'Account, security and preferences', () => open(() => go('account')))}
 
               <View style={{ height: 1, backgroundColor: t.colors.line, marginVertical: 10 }} />
@@ -364,18 +328,18 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
                 accessibilityRole="button"
                 style={({ pressed }) => ({
                   marginTop: 18,
-                  borderWidth: 1,
+                  borderWidth: 1.5,
                   borderColor: t.colors.signal,
-                  borderRadius: 12,
-                  paddingVertical: 12,
+                  borderRadius: 999,
+                  paddingVertical: 13,
                   flexDirection: 'row',
                   justifyContent: 'center',
                   gap: 8,
                   opacity: pressed ? 0.7 : 1,
                 })}
               >
-                <Icon name="logout" size={17} color={t.colors.signal} />
-                <RNText style={tx('700', 14, t.colors.signal)}>Sign out</RNText>
+                <Icon name="back" size={17} color={t.colors.signalDeep} />
+                <RNText style={tx('700', 15, t.colors.signalDeep)}>Sign out</RNText>
               </Pressable>
             </ScrollView>
           </Animated.View>

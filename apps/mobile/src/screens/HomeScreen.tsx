@@ -7,7 +7,7 @@ import {
   Animated,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { Screen, formatINR } from '../components/ui';
+import { Screen, formatINR, cardSurface } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -27,7 +27,7 @@ import { taskToFeedRow } from '../lib/openTask';
 import type { TaskWithPoster } from '../data/api';
 import { signedMediaUrls } from '../lib/media';
 import { adAuctionRanks, recordAdImpression, recordAdClick } from '../data/api';
-import { Grid } from '../components/kit';
+import { Grid, Shimmer } from '../components/kit';
 
 /**
  * Home feed — pixel parity with docs/design/_design_markup.html lines 35-139
@@ -345,7 +345,7 @@ const FeedCard = memo(function FeedCard({
           <Pressy
             onPress={onAccept}
             style={{
-              backgroundColor: t.colors.accent,
+              backgroundColor: t.colors.btn,
               borderRadius: 999,
               paddingVertical: 10,
               paddingHorizontal: 16,
@@ -570,23 +570,23 @@ export function HomeScreen() {
         {searching ? null : <HomeSections />}
         {!worker && !searching ? (
           // What workers offer, as gig cards in a row that pages sideways.
-          <View style={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 20 }}>
+          <View style={{ paddingHorizontal: 20, paddingTop: 30, paddingBottom: 110 }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-              <RNText style={tx('800', 17, t.colors.ink, { letterSpacing: -0.34, flex: 1 })}>Services near you</RNText>
-              <RNText style={tx('500', 12, t.colors.muted)}>{loading ? '' : `${feed.length} offered`}</RNText>
+              <RNText style={tx('800', 18, t.colors.ink, { letterSpacing: -0.35, flex: 1 })}>Services near you</RNText>
+              <RNText style={tx('600', 12, t.colors.accentDeep)}>{loading ? '' : `${feed.length} offered`}</RNText>
             </View>
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>Services workers offer — tap one to see it and hire</RNText>
+            <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4 })}>Services workers offer — tap one to see it and hire</RNText>
             {loading ? (
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
                 {[0, 1].map((i) => (
-                  <View key={i} style={{ width: 240, height: 210, borderRadius: 16, backgroundColor: t.colors.surface2 }} />
+                  <Shimmer key={i} height={230} style={{ width: 240, borderRadius: 20 }} />
                 ))}
               </View>
             ) : feed.length === 0 ? (
               <RNText style={tx('400', 13, t.colors.muted, { marginTop: 12 })}>No services listed nearby yet.</RNText>
             ) : (
               <View style={{ marginTop: 12 }}>
-                <Rail step={250}>
+                <Rail step={250} min={260}>
                   {(liveTasks ?? [])
                     .filter((task) => feed.some((row) => row.id === task.id))
                     .map((task) => (
@@ -685,10 +685,7 @@ export function HomeScreen() {
               <View
                 key={i}
                 style={{
-                  backgroundColor: t.colors.surface,
-                  borderWidth: 1,
-                  borderColor: t.colors.line,
-                  borderRadius: 14,
+                  ...cardSurface(t, 18),
                   padding: 15,
                   marginTop: 12,
                 }}
@@ -705,10 +702,7 @@ export function HomeScreen() {
               {feed.length === 0 ? (
                 <View
                   style={{
-                    backgroundColor: t.colors.surface,
-                    borderWidth: 1,
-                    borderColor: t.colors.line,
-                    borderRadius: 14,
+                    ...cardSurface(t, 18),
                     padding: 22,
                     marginTop: 12,
                     alignItems: 'center',
@@ -738,7 +732,7 @@ export function HomeScreen() {
                     }
                     style={{
                       marginTop: 15,
-                      backgroundColor: t.colors.accent,
+                      backgroundColor: t.colors.btn,
                       borderRadius: 999,
                       paddingVertical: 11,
                       paddingHorizontal: 20,
@@ -791,10 +785,7 @@ export function HomeScreen() {
                       scaleTo={0.985}
                       label={`${row.title}, ${formatINR(row.amountMinor)}`}
                       style={{
-                        backgroundColor: t.colors.surface,
-                        borderWidth: 1,
-                        borderColor: t.colors.line,
-                        borderRadius: 14,
+                        ...cardSurface(t, 18),
                         padding: 15,
                       }}
                     >

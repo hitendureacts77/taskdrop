@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { View, Pressable, Text as RNText, StyleSheet } from 'react-native';
+import { View, Pressable, Text as RNText, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav, type ScreenName } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -14,6 +15,7 @@ export function BottomTabBar() {
   const { screen, go } = useNav();
   const { mode } = useMode();
   const { userId } = useAuth();
+  const insets = useSafeAreaInsets();
 
   // How many things are actually waiting on this person. Re-read whenever they
   // move around the app, which is the moment the answer can have changed.
@@ -42,18 +44,20 @@ export function BottomTabBar() {
     <View
       style={{
         flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: t.colors.surface,
+        alignItems: 'flex-start',
+        // v2: a frosted bar on the web; a solid surface on native.
+        backgroundColor: Platform.OS === 'web' ? (t.isDark ? 'rgba(22,25,28,0.92)' : 'rgba(255,255,255,0.92)') : t.colors.surface,
+        ...(Platform.OS === 'web' ? ({ backdropFilter: 'blur(16px)' } as object) : null),
         borderTopColor: t.colors.line,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        paddingTop: 12,
-        paddingHorizontal: 14,
-        paddingBottom: 20,
+        borderTopWidth: 1,
+        paddingTop: 8,
+        paddingHorizontal: 6,
+        paddingBottom: Math.max(insets.bottom, 12),
       }}
     >
       {tabs.map((tab) => {
         const active = screen === tab.key;
-        const color = active ? t.colors.ink : t.colors.muted;
+        const color = active ? t.colors.accentDeep : t.colors.muted;
         return (
           <Pressable
             key={tab.key}
@@ -68,28 +72,35 @@ export function BottomTabBar() {
             style={({ pressed }) => ({
               alignItems: 'center',
               flex: 1,
-              gap: 5,
-              paddingVertical: 4,
-              transform: [{ scale: pressed ? 0.96 : 1 }],
+              gap: 4,
+              paddingVertical: 2,
+              minHeight: 48,
+              transform: [{ scale: pressed ? 0.94 : 1 }],
             })}
           >
             <View
               style={{
-                transform: [{ translateY: active ? -2 : 0 }, { scale: active ? 1.06 : 1 }],
+                paddingVertical: 4,
+                paddingHorizontal: 16,
+                borderRadius: 12,
+                backgroundColor: active ? t.colors.accentSoft : 'transparent',
+                transform: [{ translateY: active ? -1 : 0 }],
               }}
             >
-              <Icon name={tab.icon} size={23} color={color} strokeWidth={1.7} />
+              <Icon name={tab.icon} size={22} color={color} strokeWidth={active ? 2 : 1.8} />
               {tab.key === 'myTasks' && waiting > 0 && (
                 <View
                   style={{
                     position: 'absolute',
                     top: -4,
-                    right: -9,
-                    minWidth: 16,
-                    height: 16,
+                    right: 4,
+                    minWidth: 18,
+                    height: 18,
                     borderRadius: 999,
                     paddingHorizontal: 4,
-                    backgroundColor: t.colors.accent,
+                    backgroundColor: t.colors.signalDeep,
+                    borderWidth: 2,
+                    borderColor: t.colors.surface,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
@@ -97,7 +108,7 @@ export function BottomTabBar() {
                   <RNText
                     style={{
                       fontSize: 10,
-                      color: t.colors.onAccent,
+                      color: '#FFFFFF',
                       fontFamily: fontFamilyFor('800'),
                     }}
                   >
@@ -106,7 +117,7 @@ export function BottomTabBar() {
                 </View>
               )}
             </View>
-            <RNText style={{ fontSize: 9, color, fontFamily: fontFamilyFor('600') }}>
+            <RNText style={{ fontSize: 11, color, fontFamily: fontFamilyFor(active ? '700' : '600') }} numberOfLines={1}>
               {tab.label}
             </RNText>
           </Pressable>

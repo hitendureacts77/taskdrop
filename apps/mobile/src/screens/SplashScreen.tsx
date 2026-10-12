@@ -1,85 +1,178 @@
 import { useEffect, useRef } from 'react';
-import { View, Text as RNText, Pressable, Animated } from 'react-native';
+import { View, Text as RNText, Pressable, Animated, Easing } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { Screen } from '../components/ui';
-import { useTheme } from '../providers/ThemeProvider';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNav } from '../providers/NavProvider';
 import { tx } from '../components/primitives';
+import { dark } from '../theme';
+import { useReducedMotion } from '../lib/motion';
 
+/** The four rings the drop sends out, from the design's splash (ST01). */
+const RINGS = [
+  { size: 180, width: 2.5, alpha: 0.85 },
+  { size: 300, width: 2, alpha: 0.6 },
+  { size: 440, width: 1.5, alpha: 0.38 },
+  { size: 600, width: 1, alpha: 0.22 },
+];
+
+/** Milliseconds, on one clock: the drop lands at 1000 and the rings go out. */
+const LAND = 1000;
+const RING_STEP = 220;
+
+/**
+ * The splash (SYS-Motion "The drop"): the drop falls for a second, squashes
+ * on impact, glows, and four rings spread out at 220 ms steps; the wordmark
+ * and tagline rise in after it. The splash is always the dark brand ground,
+ * as the app opens in dark. Reduce Motion shows the still mark instead.
+ */
 export function SplashScreen() {
-  const t = useTheme();
   const { reset } = useNav();
+  const reduced = useReducedMotion();
 
-  const pop = useRef(new Animated.Value(0)).current;
-  const rise = useRef(new Animated.Value(0)).current;
+  const clock = useRef(new Animated.Value(0)).current;
+  const fallY = useRef(new Animated.Value(-300)).current;
+  const sx = useRef(new Animated.Value(0.86)).current;
+  const sy = useRef(new Animated.Value(1.14)).current;
 
   useEffect(() => {
-    const a = Animated.timing(pop, { toValue: 1, duration: 500, useNativeDriver: true });
-    const b = Animated.timing(rise, { toValue: 1, duration: 500, delay: 100, useNativeDriver: true });
-    a.start();
-    b.start();
+    if (reduced) {
+      clock.setValue(4000);
+      fallY.setValue(0);
+      sx.setValue(1);
+      sy.setValue(1);
+      return;
+    }
+    const t = (v: Animated.Value, toValue: number, duration: number, easing = Easing.bezier(0.2, 0.8, 0.3, 1)) =>
+      Animated.timing(v, { toValue, duration, easing, useNativeDriver: true });
+    const fall = Animated.sequence([
+      Animated.parallel([
+        t(fallY, 0, LAND, Easing.bezier(0.55, 0, 1, 0.45)),
+        t(sy, 1.16, LAND, Easing.linear),
+      ]),
+      // Impact: wide and flat, then a little rebound, then still.
+      Animated.parallel([t(fallY, 5, 250), t(sx, 1.16, 250), t(sy, 0.82, 250)]),
+      Animated.parallel([t(fallY, -3, 350), t(sx, 0.97, 350), t(sy, 1.04, 350)]),
+      Animated.parallel([t(fallY, 0, 400), t(sx, 1, 400), t(sy, 1, 400)]),
+    ]);
+    const time = Animated.timing(clock, { toValue: 4000, duration: 4000, easing: Easing.linear, useNativeDriver: true });
+    fall.start();
+    time.start();
     return () => {
-      a.stop();
-      b.stop();
+      fall.stop();
+      time.stop();
     };
-  }, [pop, rise]);
+  }, [reduced, clock, fallY, sx, sy]);
 
   // The design continues on tap, but a splash with no affordance reads as a
-  // hung app — so move on once the mark has finished drawing. Tapping still
-  // skips ahead.
+  // hung app -- so move on once the drop has landed and the rings are out.
+  // Tapping still skips ahead.
   useEffect(() => {
-    const id = setTimeout(() => reset('welcome'), 1600);
+    const id = setTimeout(() => reset('welcome'), 2600);
     return () => clearTimeout(id);
   }, [reset]);
 
+  const ringEase = Easing.bezier(0.15, 0.6, 0.3, 1);
+  const rise = (at: number) => ({
+    opacity: clock.interpolate({ inputRange: [at, at + 600], outputRange: [0, 1], extrapolate: 'clamp' }),
+    transform: [
+      {
+        translateY: clock.interpolate({
+          inputRange: [at, at + 600],
+          outputRange: [12, 0],
+          extrapolate: 'clamp',
+          easing: Easing.bezier(0.2, 0.8, 0.2, 1),
+        }),
+      },
+    ],
+  });
+
   return (
-    <Screen padded={false}>
-      <Pressable onPress={() => reset('welcome')} style={{ flex: 1 }}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: dark.bg }}>
+      <Pressable onPress={() => reset('welcome')} style={{ flex: 1, overflow: 'hidden' }} accessibilityLabel="Continue">
+        {/* The stage: everything is centred on the point where the drop lands. */}
+        <View pointerEvents="none" style={{ position: 'absolute', left: '50%', top: '45%', width: 0, height: 0 }}>
+          {/* The glow of the splash. */}
           <Animated.View
             style={{
-              opacity: pop,
-              transform: [{ scale: pop.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0.6, 1.08, 1] }) }],
+              position: 'absolute',
+              left: -130,
+              top: -130,
+              width: 260,
+              height: 260,
+              borderRadius: 999,
+              backgroundColor: dark.accent,
+              opacity: clock.interpolate({
+                inputRange: [LAND - 50, LAND + 50, 2500],
+                outputRange: [0, 0.22, 0],
+                extrapolate: 'clamp',
+              }),
+              transform: [
+                { scale: clock.interpolate({ inputRange: [LAND - 50, 2500], outputRange: [0.2, 1], extrapolate: 'clamp', easing: ringEase }) },
+              ],
+            }}
+          />
+          {RINGS.map((r, i) => {
+            const start = LAND - 50 + i * RING_STEP;
+            return (
+              <Animated.View
+                key={r.size}
+                style={{
+                  position: 'absolute',
+                  left: -r.size / 2,
+                  top: -r.size / 2,
+                  width: r.size,
+                  height: r.size,
+                  borderRadius: 999,
+                  borderWidth: r.width,
+                  borderColor: dark.accent,
+                  opacity: clock.interpolate({
+                    inputRange: [start, start + 200, start + 2800],
+                    outputRange: [0, r.alpha, 0],
+                    extrapolate: 'clamp',
+                  }),
+                  transform: [
+                    { scale: clock.interpolate({ inputRange: [start, start + 2800], outputRange: [0.15, 1], extrapolate: 'clamp', easing: ringEase }) },
+                  ],
+                }}
+              />
+            );
+          })}
+          {/* The drop, squashing from its base as it lands. */}
+          <Animated.View
+            style={{
+              position: 'absolute',
+              left: -36,
+              top: -46,
+              width: 72,
+              height: 92,
+              opacity: fallY.interpolate({ inputRange: [-300, -260, 0], outputRange: [0, 1, 1] }),
+              transform: [{ translateY: 46 }, { translateY: fallY }, { scaleX: sx }, { scaleY: sy }, { translateY: -46 }],
             }}
           >
-            <Svg width={72} height={72} viewBox="0 0 24 24" fill="none">
+            <Svg width={72} height={92} viewBox="4.5 2 15 20">
+              <Path d="M12 2.5c3.3 4.2 7 8.6 7 12.4a7 7 0 0 1-14 0c0-3.8 3.7-8.2 7-12.4z" fill={dark.accent} />
               <Path
-                d="M12 2.5c4.2 4.5 6.6 7.7 6.6 10.8A6.6 6.6 0 0 1 12 20a6.6 6.6 0 0 1-6.6-6.7C5.4 10.2 7.8 7 12 2.5Z"
-                fill={t.colors.accent}
-              />
-              <Path
-                d="M9.2 13.1l2.2 2.3 4-4.6"
-                stroke={t.colors.onAccent}
+                d="m8.8 15 2.2 2.2 4.4-4.6"
+                fill="none"
+                stroke={dark.bg}
                 strokeWidth={2}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
             </Svg>
           </Animated.View>
-
-          <Animated.View
-            style={{
-              opacity: rise,
-              transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
-            }}
-          >
-            <RNText style={tx('800', 38, t.colors.ink, { letterSpacing: -1.52 })}>
-              taskdrop<RNText style={{ color: t.colors.accent }}>.</RNText>
-            </RNText>
-          </Animated.View>
         </View>
 
-        <RNText
-          style={tx('400', 13, t.colors.muted, {
-            position: 'absolute',
-            bottom: 56,
-            width: '100%',
-            textAlign: 'center',
-          })}
-        >
-          Ask for anything. Someone gets it done for you.
-        </RNText>
+        <Animated.View style={[{ position: 'absolute', left: 0, right: 0, top: '45%', marginTop: 82, alignItems: 'center' }, rise(900)]}>
+          <RNText style={tx('800', 44, dark.ink, { letterSpacing: -2 })}>
+            taskdrop<RNText style={{ color: dark.accent }}>.</RNText>
+          </RNText>
+        </Animated.View>
+
+        <Animated.View style={[{ position: 'absolute', left: 24, right: 24, bottom: 64, alignItems: 'center' }, rise(1200)]}>
+          <RNText style={tx('400', 15, dark.muted, { textAlign: 'center' })}>Ask for anything. Someone gets it done for you.</RNText>
+        </Animated.View>
       </Pressable>
-    </Screen>
+    </SafeAreaView>
   );
 }

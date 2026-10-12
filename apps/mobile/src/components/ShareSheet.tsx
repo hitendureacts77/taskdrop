@@ -11,6 +11,7 @@ import {
   type Shareable,
   type ShareTargetId,
 } from '../lib/share';
+import { cardSurface } from './ui';
 
 /**
  * The share control.
@@ -156,10 +157,7 @@ export function ShareSheet({
               onPress={r.onPress}
               style={({ pressed }) => ({
                 marginTop: 12,
-                backgroundColor: t.colors.surface,
-                borderWidth: 1,
-                borderColor: t.colors.line,
-                borderRadius: 12,
+                ...cardSurface(t, 14),
                 padding: 14,
                 transform: [{ scale: pressed ? 0.985 : 1 }],
               })}

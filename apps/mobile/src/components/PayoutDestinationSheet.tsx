@@ -351,7 +351,7 @@ export function PayoutDestinationSheet({
                       accessibilityLabel="Save this bank or UPI account"
                       style={({ pressed }) => ({
                         flex: 1,
-                        backgroundColor: t.colors.accent,
+                        backgroundColor: t.colors.btn,
                         borderRadius: 999,
                         paddingVertical: 13,
                         alignItems: 'center',

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable } from 'react-native';
-import { Screen } from '../components/ui';
+import { Screen, cardSurface } from '../components/ui';
 import { Badge, EmptyState, Shimmer, StatTile, TopBar, rupees, timeAgo } from '../components/kit';
 import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
@@ -52,7 +52,7 @@ export function DisputesScreen() {
           <EmptyState icon="shield" title="No complaints" body="If something goes wrong on a task, report a problem from the task page. It will show up here." />
         ) : (
           rows.map((task) => (
-            <View key={task.id} style={{ marginTop: 12, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, padding: 14 }}>
+            <View key={task.id} style={{ marginTop: 12, ...cardSurface(t, 18), padding: 14 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <RNText style={tx('700', 14, t.colors.ink, { flex: 1 })} numberOfLines={2}>{task.title}</RNText>
                 <Badge label="With our team" tone="signal" />

@@ -10,6 +10,7 @@ import {
   type TextStyle,
 } from 'react-native';
 import { Screen } from '../components/ui';
+import { IconButton } from '../components/kit';
 import { Icon } from '../components/Icon';
 import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -279,7 +280,7 @@ export function PromoteScreen() {
             accessibilityLabel="Close"
             style={({ pressed }) => ({
               marginTop: 20,
-              backgroundColor: t.colors.accent,
+              backgroundColor: t.colors.btn,
               borderRadius: 999,
               paddingVertical: 14,
               alignItems: 'center',
@@ -301,9 +302,7 @@ export function PromoteScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
-            <Icon name="back" size={20} color={t.colors.ink} />
-          </Pressable>
+          <IconButton icon="back" label="Back" onPress={back} />
           <RNText style={tx('700', 17, t.colors.ink)}>
             {worker ? 'Promote this service' : 'Promote this task'}
           </RNText>
@@ -586,7 +585,7 @@ export function PromoteScreen() {
         <Pressable
           onPress={() => void (pending ? activate() : start())}
           style={({ pressed }) => ({
-            backgroundColor: t.colors.accent,
+            backgroundColor: t.colors.btn,
             borderRadius: 999,
             paddingVertical: 16,
             alignItems: 'center',
