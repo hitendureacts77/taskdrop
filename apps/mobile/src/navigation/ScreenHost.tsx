@@ -11,6 +11,7 @@ import { SideNav } from '../components/SideNav';
 import { DesktopAuthFrame } from '../components/DesktopAuthFrame';
 import { NARROW_CONTENT, TABLET_CONTENT, WIDE_CONTENT, useLayout } from '../lib/layout';
 import { FadeIn } from '../components/primitives';
+import { useKeyboardOpen } from '../lib/useKeyboardOpen';
 import { CreateFab } from '../components/CreateFab';
 import { SplashScreen } from '../screens/SplashScreen';
 import { HomeScreen } from '../screens/HomeScreen';
@@ -130,6 +131,7 @@ export function ScreenHost() {
   const { screen, params, go } = useNav();
   const { userId } = useAuth();
   const { desktop, tablet } = useLayout();
+  const keyboardOpen = useKeyboardOpen();
   const Comp = REGISTRY[screen];
 
   // Which tabs are alive, with the params each last had and how many times it
@@ -245,8 +247,8 @@ export function ScreenHost() {
   return (
     <View style={{ flex: 1, backgroundColor: t.colors.bg }}>
       {content}
-      {screen === 'home' && <CreateFab />}
-      {TABBED.includes(screen) && <BottomTabBar />}
+      {screen === 'home' && !keyboardOpen && <CreateFab />}
+      {TABBED.includes(screen) && !keyboardOpen && <BottomTabBar />}
     </View>
   );
 }

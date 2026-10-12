@@ -10,7 +10,7 @@ import {
   PlusJakartaSans_700Bold,
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { RoleTheme, ThemeProvider } from './src/providers/ThemeProvider';
+import { RoleTheme, ThemeProvider, useTheme } from './src/providers/ThemeProvider';
 import { ModeProvider, useMode } from './src/providers/ModeProvider';
 import { AppStateProvider } from './src/providers/AppStateProvider';
 import { AuthProvider, useAuth } from './src/providers/AuthProvider';
@@ -41,6 +41,12 @@ function ScreenBoundary({ home, children }: { home: 'home' | 'splash'; children:
   );
 }
 
+/** Status bar icons follow the app's own theme (light/dark/system), not the phone's. */
+function ThemedStatusBar() {
+  const t = useTheme();
+  return <StatusBar style={t.isDark ? 'light' : 'dark'} />;
+}
+
 /** Starts on the feed when a session is restored, otherwise at the splash. */
 function Routes() {
   const { ready, session, postAuthRoute } = useAuth();
@@ -51,7 +57,7 @@ function Routes() {
     // welcome screens keep the brand green.
     <RoleTheme worker={Boolean(session) && mode === 'worker'}>
     <NavProvider initial={postAuthRoute ?? (session ? 'home' : 'splash')}>
-      <StatusBar style="auto" />
+      <ThemedStatusBar />
       {/* No UI of their own: if one throws, the screen carries on without it. */}
       <ErrorBoundary silent>
         <PushBridge />
