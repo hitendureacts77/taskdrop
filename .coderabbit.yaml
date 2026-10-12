@@ -1,0 +1,61 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit reviews pull requests. It only reviews the default branch (main)
+# unless other base branches are listed here, which is why pull requests into
+# redesigned-2.0 were skipped ("Auto reviews are disabled on base/target
+# branches other than the default branch").
+language: en-US
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - '^redesigned-2\.0$'
+
+  path_instructions:
+    - path: 'supabase/migrations/**'
+      instructions: |
+        Row level security on every table. `security definer` functions set `search_path`.
+        Money changes are atomic. No grants to `anon`.
+        Migrations only add: flag any dropped or renamed table, column or function, because
+        the old app and the old admin share this database until Phase 9.
+        Background jobs use Inngest. Flag any new n8n hook or new pg_cron job (owner decision,
+        2026-10-12).
+    - path: 'supabase/functions/**'
+      instructions: |
+        The caller's identity is checked. No secrets are logged. Webhooks are verified and
+        idempotent. Errors are reported, not swallowed.
+        Existing `api` operations keep their inputs and responses.
+        Background jobs use Inngest. Flag any new n8n call (owner decision, 2026-10-12).
+    - path: 'apps/mobile/**'
+      instructions: |
+        No secrets in client code. No business decisions in the app: money, permissions,
+        limits and prices are checked on the server. Platform differences are handled for
+        web, Android and iOS. Colours come from `theme.ts` tokens, never raw hex in screens.
+        Respect reduced motion. Redesign changes are look and motion only: flag any change
+        to a feature, flow, section order, label meaning or API call.
+    - path: 'packages/**'
+      instructions: |
+        Shared by the app and the Edge Functions. Money constants live in `packages/rules`.
+        Schemas stay backward compatible.
+    - path: '.github/workflows/**'
+      instructions: |
+        No secrets echoed in logs. Pin third-party actions.
+    - path: 'docs/**'
+      instructions: |
+        `docs/UPGRADE_PLAN.md` is the single source of truth. Decisions that change must be
+        in its changelog.
+
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
+
+chat:
+  auto_reply: true

@@ -1081,6 +1081,10 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
   - **Maps key:** restrict it now, delete it in Phase 9.
   - **R1 (EAS Update) and R2 (auto-deploy) confirmed.**
   - **Push to GitHub:** not yet; the branch is on your PC only.
+- **v4.3 (2026-10-12):** background jobs and code review.
+  - **n8n is not used for any background job.** Inngest is the only tool for scheduled and retried work. Nothing new goes into n8n or pg_cron. The existing pg_cron jobs and the `n8n-*` hooks keep running (they only write to a log, because no n8n address is set) until Phase 5 replaces them; the n8n triggers, config and `automation_*` tables are then removed.
+  - Phase 5 is still "Not started": no Inngest code until you say "start Phase 5".
+  - **CodeRabbit:** `.coderabbit.yaml` added on `redesigned-2.0` with `base_branches: ^redesigned-2.0$` and the path rules above, because CodeRabbit only auto-reviews the default branch (`main`) unless told otherwise. Pull request #12 had been skipped for that reason.
 - **v4.2 (2026-10-12):** your branch decision.
   - **`redesigned-2.0` replaces `upgraded-plan-changes`** in both repos. Everything is merged and tested there (Vercel preview); you promote it to `main` by hand. Only `main` and `redesigned-2.0` stay on GitHub; phase branches are deleted once merged.
   - The Redesign v2 work (was `taskdrop-redesigned`), the staff-roles migration 089 and the Phase 1 Sentry work all live on `redesigned-2.0`.
