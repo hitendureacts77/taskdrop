@@ -7,14 +7,25 @@
 // runs on every build, and when it is not handed a key it *removes* the
 // manifest entry -- so setting `android.config.googleMaps.apiKey` alone left
 // installed builds with a blank map.
+//
+// It also adds the Sentry plugin, which uploads source maps and debug symbols
+// during native builds so crash stacks are readable. It needs SENTRY_AUTH_TOKEN
+// in the build environment (apps/mobile/.env.local on this machine, an EAS
+// secret for EAS builds); without one the upload is skipped and the build
+// still succeeds.
+const SENTRY = {
+  url: 'https://sentry.io/',
+  organization: 'hitendu',
+  project: 'taskdrop',
+};
+
 module.exports = ({ config }) => {
   const mapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-  if (!mapsKey) return config;
-  const plugins = (config.plugins ?? []).filter(
-    (p) => (Array.isArray(p) ? p[0] : p) !== 'react-native-maps',
-  );
-  return {
-    ...config,
-    plugins: [...plugins, ['react-native-maps', { androidGoogleMapsApiKey: mapsKey }]],
-  };
+  const plugins = (config.plugins ?? []).filter((p) => {
+    const name = Array.isArray(p) ? p[0] : p;
+    return name !== '@sentry/react-native/expo' && !(mapsKey && name === 'react-native-maps');
+  });
+  plugins.push(['@sentry/react-native/expo', SENTRY]);
+  if (mapsKey) plugins.push(['react-native-maps', { androidGoogleMapsApiKey: mapsKey }]);
+  return { ...config, plugins };
 };

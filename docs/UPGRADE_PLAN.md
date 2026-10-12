@@ -22,10 +22,10 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
 ## Ground rules
 
 1. **Old code is never altered.** The existing branches stay exactly as they are:
-   - user repo: `feature/first-push`, `master`, `claude/modest-albattani-3odt95`
+   - user repo: `main` (renamed from `feature/first-push` on 2026-10-11). `master` and `claude/modest-albattani-3odt95` were deleted on 2026-10-11; all their commits are in `main`.
    - admin repo: `main`
-2. **All upgrade work happens on `upgraded-plan-changes`**, in both repos.
-   - Each phase gets a short branch, such as `upgrade/phase-1-sentry`, cut from `upgraded-plan-changes`.
+2. **All upgrade work happens on `redesigned-2.0`**, in both repos (it replaced `upgraded-plan-changes` on 2026-10-12; read that name as `redesigned-2.0` throughout this plan). `main` is promoted from it by hand, by you, once it's tested.
+   - Each phase gets a short branch, such as `upgrade/phase-1-sentry`, cut from `redesigned-2.0` and deleted after it merges.
    - It merges back through a pull request, after CI and a **CodeRabbit** review.
 3. **The old app keeps running for your testers**, on its current URLs, until the switch-over (Phase 9).
 4. **One shared database until the switch-over.** The old app, the old admin and the upgrade all use the Supabase project `wjxvingpfbfvkfqhrguj`, and its server functions are shared too. Until Phase 9, every backend change must keep the old app and the old admin working:
@@ -164,7 +164,7 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
 - [ ] A `health` op on `api` for uptime checks
 
 **User app (all platforms)**
-- [ ] `@sentry/react-native` replaces `apps/mobile/src/lib/monitoring.ts`; pick the version that matches Expo SDK 57
+- [x] `@sentry/react-native` replaces `apps/mobile/src/lib/monitoring.ts`; pick the version that matches Expo SDK 57 (`~7.11.0`; DSN in `EXPO_PUBLIC_SENTRY_DSN`, auth token in `SENTRY_AUTH_TOKEN`; Sentry org `hitendu`, project `taskdrop`)
 - [ ] `reportError` (`lib/errors.ts`) stays the single entry point
 - [ ] API and network failures reported (they're ignored today)
 - [ ] User id only, no phone or email; about 10% performance traces; `environment` and `release` tags
@@ -793,7 +793,7 @@ You started this because the app felt clumsy and parts weren't working as expect
 
 | | Old app (code untouched) | Upgrade: your PC | Upgrade: hosted beta |
 |---|---|---|---|
-| Code | `feature/first-push` (and the other old branches) | Phase branches | `upgraded-plan-changes` |
+| Code | `main` (and the other old branches) | Phase branches | `upgraded-plan-changes` |
 | Supabase | `wjxvingpfbfvkfqhrguj`, **shared** with the upgrade | Local Docker stack | `wjxvingpfbfvkfqhrguj`, **shared** (compatibility rules apply) |
 | Web | Current Vercel URL | `expo start` in a browser | `taskdrop.in` |
 | Android | Existing preview APK | Your phone over Wi-Fi | `beta` APK + EAS Update channel `beta` |
@@ -863,7 +863,7 @@ upgrade/phase-N-… branch → pull request into upgraded-plan-changes
 **Repos**
 - User app + backend: `C:\complete taskdrop\taskdrop-claude-web` → GitHub `hitendureacts77/taskdrop`.
   - The newest work is commit 3d4bd72, on `claude/modest-albattani-3odt95` and now also on `upgraded-plan-changes`.
-  - The Vercel project `taskdrop` deploys `feature/first-push`, which is 8 commits behind. There is no `main`.
+  - The Vercel project `taskdrop` deploys `main` (renamed from `feature/first-push` on 2026-10-11).
 - Admin: `C:\complete taskdrop\taskdrop-admin` → GitHub `hitendureacts77/taskdrop-admin`, branch `main`, deployed to Vercel. Google + `admin` role login, MFA for money actions.
 
 **Known bugs**
@@ -1081,3 +1081,6 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
   - **Maps key:** restrict it now, delete it in Phase 9.
   - **R1 (EAS Update) and R2 (auto-deploy) confirmed.**
   - **Push to GitHub:** not yet; the branch is on your PC only.
+- **v4.2 (2026-10-12):** your branch decision.
+  - **`redesigned-2.0` replaces `upgraded-plan-changes`** in both repos. Everything is merged and tested there (Vercel preview); you promote it to `main` by hand. Only `main` and `redesigned-2.0` stay on GitHub; phase branches are deleted once merged.
+  - The Redesign v2 work (was `taskdrop-redesigned`), the staff-roles migration 089 and the Phase 1 Sentry work all live on `redesigned-2.0`.

@@ -1,13 +1,15 @@
 // Metro config for the TaskDrop monorepo: watch the workspace root so Metro can
 // resolve the shared @taskdrop/* packages, and read node_modules from both the
 // app and the root.
-const { getDefaultConfig } = require('expo/metro-config');
+// getSentryExpoConfig is Expo's default config plus a serializer that gives each
+// bundle a Debug ID, so Sentry can match crashes to uploaded source maps.
+const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 const path = require('path');
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
 
-const config = getDefaultConfig(projectRoot);
+const config = getSentryExpoConfig(projectRoot);
 
 config.watchFolders = [workspaceRoot];
 config.resolver.nodeModulesPaths = [
