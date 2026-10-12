@@ -84,7 +84,12 @@ export function AppHeader() {
     };
   }, [userId]);
 
-  const { desktop, tablet } = useLayout();
+  const { desktop, tablet, width } = useLayout();
+  // Phones under 380 points (many Androids are 360): a tighter header, so the
+  // avatar is never pushed off the edge.
+  const tight = !desktop && !tablet && width < 380;
+  const btn = tight ? 36 : 40;
+  const av = tight ? 34 : 36;
 
   return (
     <>
@@ -92,8 +97,8 @@ export function AppHeader() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          gap: 8,
-          paddingHorizontal: desktop || tablet ? 32 : 16,
+          paddingHorizontal: desktop || tablet ? 32 : tight ? 12 : 16,
+          gap: tight ? 6 : 8,
           paddingTop: desktop || tablet ? 16 : 10,
           paddingBottom: 8,
         }}
@@ -103,18 +108,18 @@ export function AppHeader() {
         {!desktop && !tablet ? (
           <>
             <Pressable onPress={() => reset('home')} accessibilityRole="link" accessibilityLabel="TaskDrop home" hitSlop={6}>
-              <RNText style={tx('800', 21, t.colors.ink, { letterSpacing: -0.6 })}>
-                taskdrop<RNText style={tx('800', 21, t.colors.accent)}>.</RNText>
+              <RNText style={tx('800', tight ? 19 : 21, t.colors.ink, { letterSpacing: -0.6 })}>
+                taskdrop<RNText style={tx('800', tight ? 19 : 21, t.colors.accent)}>.</RNText>
               </RNText>
             </Pressable>
             <View style={{ marginLeft: 4 }}>
-              <ModeSwitch />
+              <ModeSwitch narrow={tight} />
             </View>
           </>
         ) : null}
         <View style={{ flex: 1 }} />
-        <IconButton icon="bell" label="Notifications" onPress={() => go('notifications')} badge={unread} />
-        <IconButton icon="chat" label="Messages" onPress={() => go('inbox')} />
+        <IconButton icon="bell" label="Notifications" onPress={() => go('notifications')} badge={unread} size={btn} />
+        <IconButton icon="chat" label="Messages" onPress={() => go('inbox')} size={btn} />
         <Pressable
           onPress={() => setDrawer(true)}
           accessibilityRole="button"
@@ -123,8 +128,8 @@ export function AppHeader() {
         >
           <View
             style={{
-              width: 36,
-              height: 36,
+              width: av,
+              height: av,
               borderRadius: 999,
               overflow: 'hidden',
               backgroundColor: t.colors.btn,
@@ -133,7 +138,7 @@ export function AppHeader() {
             }}
           >
             {avatar ? (
-              <Image source={{ uri: avatar }} style={{ width: 36, height: 36 }} />
+              <Image source={{ uri: avatar }} style={{ width: av, height: av }} />
             ) : (
               <RNText style={tx('800', 14, t.colors.onBtn)}>{initial}</RNText>
             )}

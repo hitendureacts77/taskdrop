@@ -206,9 +206,10 @@ export function CompareScreen() {
         )}
 
         {task?.loc_label ? (
-          <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 12 })}>
-            📍 {task.loc_label}
-          </RNText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 }}>
+            <Icon name="pin" size={14} color={t.colors.accentDeep} />
+            <RNText style={tx('400', 12.5, t.colors.muted)}>{task.loc_label}</RNText>
+          </View>
         ) : null}
 
         <View
@@ -244,7 +245,7 @@ export function CompareScreen() {
         </View>
 
         {sorted.map((row, i) => {
-          const selected = row.who === picked;
+          const selected = row.who === pickRow?.who;
           return (
             <FadeIn key={row.who} duration={340} delay={i * 70} style={{ marginTop: 11 }}>
               <Pressy

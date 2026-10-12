@@ -119,10 +119,15 @@ export function Overlays() {
             left: 16,
             right: 16,
             bottom: 96,
-            backgroundColor: t.isDark ? '#F1F1F1' : '#16171A',
-            borderRadius: 14,
-            paddingVertical: 14,
-            paddingHorizontal: 16,
+            alignSelf: 'center',
+            maxWidth: 480,
+            // v2 toast: the inked bar in light; a raised surface with a hairline in dark.
+            backgroundColor: t.isDark ? t.colors.surface2 : t.colors.ink,
+            borderWidth: t.isDark ? 1 : 0,
+            borderColor: t.colors.line,
+            borderRadius: 16,
+            paddingVertical: 15,
+            paddingHorizontal: 18,
             opacity: toastO,
             transform: [{ translateY: toastY }],
             shadowColor: '#000',
@@ -134,7 +139,7 @@ export function Overlays() {
         >
           <RNText
             style={{
-              color: t.isDark ? '#16171A' : '#FFFFFF',
+              color: t.isDark ? t.colors.ink : t.colors.bg,
               fontSize: 14,
               fontFamily: fontFamilyFor('600'),
             }}

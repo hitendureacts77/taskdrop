@@ -247,7 +247,7 @@ export function ChatScreen() {
 
   return (
     <Screen padded={false}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={90}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={0}>
         {/* ---- header ---- */}
         <View
           style={{

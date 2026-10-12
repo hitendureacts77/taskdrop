@@ -30,9 +30,20 @@ export function HeroBackground({ radius = 26, tone = 'mode' }: { radius?: number
   // Each gradient needs its own id: two heroes on one web page would
   // otherwise both point at whichever <linearGradient> the browser found first.
   const [id] = useState(() => `heroGrad${++gradientSeq}`);
+  // Sized from layout in points: on Android a percentage-sized SVG keeps the
+  // height it first measured, leaving a flat strip once the card grows.
+  const [size, setSize] = useState({ w: 0, h: 0 });
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, borderRadius: radius, overflow: 'hidden' }}>
-      <Svg width="100%" height="100%" preserveAspectRatio="none">
+    <View
+      pointerEvents="none"
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        setSize((s) => (s.w === width && s.h === height ? s : { w: width, h: height }));
+      }}
+      style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, borderRadius: radius, overflow: 'hidden', backgroundColor: mid }}
+    >
+      {size.w > 0 ? (
+      <Svg width={size.w} height={size.h} preserveAspectRatio="none">
         <Defs>
           <LinearGradient id={id} x1="0" y1="0" x2="0.85" y2="1">
             <Stop offset="0" stopColor={from} />
@@ -40,8 +51,9 @@ export function HeroBackground({ radius = 26, tone = 'mode' }: { radius?: number
             <Stop offset="1" stopColor={to} />
           </LinearGradient>
         </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id})`} />
+        <Rect x="0" y="0" width={size.w} height={size.h} fill={`url(#${id})`} />
       </Svg>
+      ) : null}
     </View>
   );
 }

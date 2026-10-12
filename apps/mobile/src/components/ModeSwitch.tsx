@@ -16,7 +16,17 @@ const COMPACT_H = 28;
  * deep jade for Hire, blue for Earn. `full` stretches it to its container
  * (the desktop side menu); `stacked` is the tablet rail's vertical version.
  */
-export function ModeSwitch({ full = false, stacked = false }: { full?: boolean; stacked?: boolean }) {
+export function ModeSwitch({
+  full = false,
+  stacked = false,
+  narrow = false,
+}: {
+  full?: boolean;
+  stacked?: boolean;
+  /** Phones under 380 points wide: a slimmer header switch. */
+  narrow?: boolean;
+}) {
+  const halfW = narrow ? 46 : COMPACT_W;
   const t = useTheme();
   const { mode } = useMode();
   const switchMode = useSwitchMode();
@@ -38,7 +48,7 @@ export function ModeSwitch({ full = false, stacked = false }: { full?: boolean; 
   // The header's compact switch has fixed halves, so it never depends on a
   // measurement (a tab created while hidden measures 0 and lost its knob).
   const compact = !full && !stacked;
-  const slotW = compact ? COMPACT_W : stacked ? size.w - pad * 2 : (size.w - pad * 2) / 2;
+  const slotW = compact ? halfW : stacked ? size.w - pad * 2 : (size.w - pad * 2) / 2;
   const slotH = compact ? COMPACT_H : stacked ? (size.h - pad * 2) / 2 : size.h - pad * 2;
   const measured = compact || (size.w > 0 && size.h > 0);
 
@@ -89,11 +99,11 @@ export function ModeSwitch({ full = false, stacked = false }: { full?: boolean; 
               height: compact ? COMPACT_H : undefined,
               paddingHorizontal: stacked ? 6 : full ? 13 : 0,
               // Equal halves, so the knob always fits the word under it.
-              width: compact ? COMPACT_W : undefined,
+              width: compact ? halfW : undefined,
               minWidth: stacked ? 44 : undefined,
             }}
           >
-            <RNText style={tx(stacked ? '800' : '700', stacked ? 11 : full ? 13 : 12, on ? t.colors.onBtn : t.colors.muted)}>
+            <RNText style={tx(stacked ? '800' : '700', stacked || narrow ? 11 : full ? 13 : 12, on ? t.colors.onBtn : t.colors.muted)}>
               {label}
             </RNText>
           </Pressable>

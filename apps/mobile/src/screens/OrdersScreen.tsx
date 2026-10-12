@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text as RNText,
   Pressable,
-  Animated,
 } from 'react-native';
-import Svg, { Path, Circle } from 'react-native-svg';
+import { UnderlineTabs } from '../components/kit';
+import { Icon } from '../components/Icon';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -45,60 +45,6 @@ import { FadeIn, Pressy, tx } from '../components/primitives';
 const WORKER_TABS = ['Services', 'Accepted', 'Pending', 'Closed'];
 const POSTER_TABS = ['Open', 'Active', 'Done'];
 
-
-/** Tab row with a sliding underline, ~ markup lines 208-214 (underline calc in
- * `_design_source.jsx` lines 351-356: width (100%-40px)/n, left 20px + that*index). */
-function OrderTabs({
-  tabs,
-  active,
-  onPick,
-  t,
-}: {
-  tabs: string[];
-  active: number;
-  onPick: (i: number) => void;
-  t: Theme;
-}) {
-  const [width, setWidth] = useState(0);
-  const trackWidth = Math.max(0, width - 40);
-  const underlineWidth = tabs.length ? trackWidth / tabs.length : 0;
-  const left = useRef(new Animated.Value(20)).current;
-  useEffect(() => {
-    const anim = Animated.timing(left, {
-      toValue: 20 + underlineWidth * active,
-      duration: 300,
-      useNativeDriver: false,
-    });
-    anim.start();
-    return () => anim.stop();
-  }, [active, underlineWidth, left]);
-
-  return (
-    <View
-      style={{ flexDirection: 'row', paddingHorizontal: 20, position: 'relative' }}
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-    >
-      {tabs.map((label, i) => {
-        const isActive = active === i;
-        return (
-          <Pressable
-            key={label}
-            onPress={() => onPick(i)}
-            style={{ flex: 1, alignItems: 'center', paddingVertical: 11 }}
-          >
-            <RNText style={tx(isActive ? '700' : '600', 13, isActive ? t.colors.ink : t.colors.muted)}>
-              {label}
-            </RNText>
-          </Pressable>
-        );
-      })}
-      <View style={{ position: 'absolute', left: 20, right: 20, bottom: 0, height: 2, backgroundColor: t.colors.line }} />
-      <Animated.View
-        style={{ position: 'absolute', left, bottom: 0, height: 2, width: underlineWidth, backgroundColor: t.colors.ink }}
-      />
-    </View>
-  );
-}
 
 function OrderCard({
   row,
@@ -157,16 +103,15 @@ function OrderCard({
   );
 }
 
-/** Empty-state illustration copied from the markup's inline svg (lines 231-237) — no emoji. */
+/** The v2 empty state: a soft drop-tinted circle with a faint ripple ring. */
 function EmptyBoxIcon({ t }: { t: Theme }) {
   return (
-    <Svg width={120} height={96} viewBox="0 0 120 96" fill="none" opacity={0.75}>
-      <Path d="M30 40h44v40H30z" stroke={t.colors.muted} strokeWidth={2.2} strokeLinejoin="round" />
-      <Path d="M42 56h20" stroke={t.colors.muted} strokeWidth={2.2} strokeLinecap="round" />
-      <Path d="M34 40 42 26h20l8 14" stroke={t.colors.muted} strokeWidth={2.2} strokeLinejoin="round" />
-      <Circle cx={88} cy={66} r={8} stroke={t.colors.accent} strokeWidth={2.2} />
-      <Path d="M18 80h84" stroke={t.colors.muted} strokeWidth={2.2} strokeLinecap="round" />
-    </Svg>
+    <View style={{ width: 96, height: 96, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ position: 'absolute', width: 96, height: 96, borderRadius: 999, borderWidth: 1.5, borderColor: t.colors.accentBorder, opacity: 0.6 }} />
+      <View style={{ width: 68, height: 68, borderRadius: 999, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name="briefcase" size={28} color={t.colors.accentDeep} strokeWidth={1.7} />
+      </View>
+    </View>
   );
 }
 
@@ -291,7 +236,7 @@ export function OrdersScreen() {
           {worker ? 'My offers' : 'My requests'}
         </RNText>
 
-        <OrderTabs tabs={tabNames} active={orderTab} onPick={setOrderTab} t={t} />
+        <UnderlineTabs tabs={tabNames} active={orderTab} onPick={setOrderTab} />
 
         <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16 }}>
           {orderRows.map((row, i) => (
@@ -322,12 +267,16 @@ export function OrdersScreen() {
           {!loading && orderRows.length === 0 && (
             <FadeIn duration={400} style={{ paddingVertical: 70, alignItems: 'center' }}>
               <EmptyBoxIcon t={t} />
-              <RNText style={tx('800', 18, t.colors.ink, { marginTop: 20 })}>Nothing here yet</RNText>
+              <RNText style={tx('800', 18, t.colors.ink, { marginTop: 18, letterSpacing: -0.3 })}>Nothing here yet</RNText>
               <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21, textAlign: 'center' })}>
                 {emptyLine}
               </RNText>
-              <Pressy onPress={() => go('home')} scaleTo={0.96} style={{ marginTop: 20 }}>
-                <RNText style={tx('700', 14, t.colors.ink, { textDecorationLine: 'underline' })}>Browse jobs</RNText>
+              <Pressy
+                onPress={() => go('home')}
+                scaleTo={0.96}
+                style={{ marginTop: 20, backgroundColor: t.colors.btn, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 22 }}
+              >
+                <RNText style={tx('700', 14, t.colors.onBtn)}>Browse jobs</RNText>
               </Pressy>
             </FadeIn>
           )}

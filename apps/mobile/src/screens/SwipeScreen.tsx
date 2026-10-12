@@ -157,7 +157,7 @@ export function SwipeScreen() {
 
   return (
     <Screen padded={false}>
-      <FadeIn>
+      <FadeIn style={{ flex: 1 }}>
         <View style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 28 }}>
           <View style={{ paddingTop: 6 }}>
             <IconButton icon="back" label="Back" onPress={back} />
@@ -255,7 +255,7 @@ export function SwipeScreen() {
                   elevation: 4,
                 }}
               >
-                <RNText style={tx('800', 19, t.colors.onAccent)}>{released ? '✓' : '→'}</RNText>
+                <RNText style={tx('800', 19, t.colors.onBtn)}>{released ? '✓' : '→'}</RNText>
               </View>
               <RNText
                 style={tx('700', 15, t.colors.ink, {
