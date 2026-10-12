@@ -15,6 +15,22 @@ const RINGS = [
   { size: 600, width: 1, alpha: 0.22 },
 ];
 
+/**
+ * A value that follows an easing curve over a stretch of the clock. The
+ * native driver rejects `easing` inside an interpolation, so the curve is laid
+ * out as many straight segments instead.
+ */
+function eased(from: number, to: number, start: number, end: number, easing: (n: number) => number, steps = 12) {
+  const inputRange: number[] = [];
+  const outputRange: number[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const p = i / steps;
+    inputRange.push(start + (end - start) * p);
+    outputRange.push(from + (to - from) * easing(p));
+  }
+  return { inputRange, outputRange, extrapolate: 'clamp' as const };
+}
+
 /** Milliseconds, on one clock: the drop lands at 1000 and the rings go out. */
 const LAND = 1000;
 const RING_STEP = 220;
@@ -72,18 +88,10 @@ export function SplashScreen() {
   }, [reset]);
 
   const ringEase = Easing.bezier(0.15, 0.6, 0.3, 1);
+  const riseEase = Easing.bezier(0.2, 0.8, 0.2, 1);
   const rise = (at: number) => ({
     opacity: clock.interpolate({ inputRange: [at, at + 600], outputRange: [0, 1], extrapolate: 'clamp' }),
-    transform: [
-      {
-        translateY: clock.interpolate({
-          inputRange: [at, at + 600],
-          outputRange: [12, 0],
-          extrapolate: 'clamp',
-          easing: Easing.bezier(0.2, 0.8, 0.2, 1),
-        }),
-      },
-    ],
+    transform: [{ translateY: clock.interpolate(eased(12, 0, at, at + 600, riseEase)) }],
   });
 
   return (
@@ -107,7 +115,7 @@ export function SplashScreen() {
                 extrapolate: 'clamp',
               }),
               transform: [
-                { scale: clock.interpolate({ inputRange: [LAND - 50, 2500], outputRange: [0.2, 1], extrapolate: 'clamp', easing: ringEase }) },
+                { scale: clock.interpolate(eased(0.2, 1, LAND - 50, 2500, ringEase)) },
               ],
             }}
           />
@@ -131,7 +139,7 @@ export function SplashScreen() {
                     extrapolate: 'clamp',
                   }),
                   transform: [
-                    { scale: clock.interpolate({ inputRange: [start, start + 2800], outputRange: [0.15, 1], extrapolate: 'clamp', easing: ringEase }) },
+                    { scale: clock.interpolate(eased(0.15, 1, start, start + 2800, ringEase)) },
                   ],
                 }}
               />
