@@ -1,6 +1,6 @@
--- Admin live events (migrations 091, 091b): the feed fills itself, only admins
--- read it, no phone number or email reaches it, and nothing in it can block the
--- change that caused it.
+-- Admin live events (migrations 091, 091b, 091c): the feed fills itself, only
+-- admins read it, no phone number, email or location reaches it, and nothing in
+-- it can block the change that caused it.
 --
 -- Everything runs inside one transaction that is rolled back.
 --
@@ -56,8 +56,8 @@ begin
   where id in (v_admin, v_poster, v_worker);
   insert into public.user_roles (user_id, role) values (v_admin, 'admin') on conflict do nothing;
 
-  insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes)
-  values (v_poster, 'services', 'Live feed fixture job', 50000, 120)
+  insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, loc_label)
+  values (v_poster, 'services', 'Live feed fixture job', 50000, 120, '12, 4th Cross, Fixture Nagar')
   returning id into v_task;
   insert into public.bids (task_id, worker_id, price_minor, time_limit_minutes)
   values (v_task, v_worker, 45000, 120);
@@ -114,7 +114,7 @@ begin
 end;
 $$;
 
--- ---- 3. no phone number or email reaches the feed ---------------------------
+-- ---- 3. no phone number, email or location reaches the feed -----------------
 do $
 declare
   v_since bigint := (select v::bigint from fx where k = 'since');
@@ -134,6 +134,11 @@ begin
               where id > v_since
                 and (summary::text like '%9876543210%' or summary::text like '%@%' or summary ? 'phone' or summary ? 'email')) then
     raise exception 'FAIL: a phone number or email leaked into the feed';
+  end if;
+  -- A job's free-text location label (which can read like an address) stays out.
+  if exists (select 1 from public.admin_live_events
+              where id > v_since and (summary::text like '%Fixture Nagar%' or summary ? 'area' or summary ? 'loc_label')) then
+    raise exception 'FAIL: a job location leaked into the feed';
   end if;
   -- The same rule for names shown beside jobs and quotes.
   update public.profiles set display_name = 'Call 9876543210' where id = v_phone;

@@ -23,7 +23,8 @@
 -- feed is a nicety and must never block a user posting, quoting, paying or
 -- withdrawing. Events carry names, titles and amounts, never phone numbers,
 -- emails, bank details or locations. (091b stops a phone number or email that
--- the app copies into a brand-new profile's name from appearing as a name.)
+-- the app copies into a brand-new profile's name from appearing as a name; 091c
+-- removes the free-text job location this file originally included.)
 --
 -- Money amounts in events are for the feed's sentence only. Money screens
 -- re-read amounts from the server when an event arrives.
