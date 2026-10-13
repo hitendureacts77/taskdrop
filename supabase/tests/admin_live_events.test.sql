@@ -1,6 +1,6 @@
--- Admin live events (migrations 091, 091b, 091c): the feed fills itself, only
--- admins read it, no phone number, email or location reaches it, and nothing in
--- it can block the change that caused it.
+-- Admin live events (migrations 091 to 091d): the feed fills itself, only
+-- admins read it, no phone number, email or location reaches it, it keeps 30
+-- days, and nothing in it can block the change that caused it.
 --
 -- Everything runs inside one transaction that is rolled back.
 --
@@ -209,5 +209,68 @@ begin
   alter table public.admin_live_events drop constraint live_test_block;
 end;
 $$;
+
+-- ---- 6. it keeps 30 days: every 25th event prunes up to 500 older ones -------
+do $
+declare
+  v_task  uuid := (select v::uuid from fx where k = 'task');
+  v_old   integer;
+  v_new   integer;
+begin
+  -- 600 events from 31 days ago and 3 from 29 days ago, written directly (as
+  -- the owner) so they do not themselves trigger a prune.
+  insert into public.admin_live_events (kind, record_type, record_id, summary, created_at)
+  select 'old_test', 'task', v_task, '{}'::jsonb, now() - interval '31 days'
+  from generate_series(1, 600);
+  insert into public.admin_live_events (kind, record_type, record_id, summary, created_at)
+  select 'recent_test', 'task', v_task, '{}'::jsonb, now() - interval '29 days'
+  from generate_series(1, 3);
+
+  -- 25 consecutive events contain exactly one multiple of 25, so exactly one prune.
+  for i in 1..25 loop
+    perform private.admin_live('prune_test', 'task', v_task, null, '{}'::jsonb);
+  end loop;
+
+  select count(*) into v_old from public.admin_live_events where kind = 'old_test';
+  select count(*) into v_new from public.admin_live_events where kind in ('recent_test', 'prune_test');
+  if v_old <> 100 then
+    raise exception 'FAIL: one prune should remove at most 500 of the 600 old events (left %)', v_old;
+  end if;
+  if v_new <> 28 then
+    raise exception 'FAIL: recent events were pruned or the new ones went missing (found %)', v_new;
+  end if;
+
+  -- 25 more: another prune clears the rest, and still only the old ones.
+  for i in 1..25 loop
+    perform private.admin_live('prune_test', 'task', v_task, null, '{}'::jsonb);
+  end loop;
+  select count(*) into v_old from public.admin_live_events where kind = 'old_test';
+  select count(*) into v_new from public.admin_live_events where kind in ('recent_test', 'prune_test');
+  if v_old <> 0 then raise exception 'FAIL: a second prune should clear the remaining old events (left %)', v_old; end if;
+  if v_new <> 53 then raise exception 'FAIL: recent events were pruned (found %)', v_new; end if;
+end;
+$;
+
+-- ---- 7. a failing prune never loses the event or blocks the caller -----------
+do $
+declare
+  v_task uuid := (select v::uuid from fx where k = 'task');
+  v_n    integer;
+begin
+  insert into public.admin_live_events (kind, record_type, record_id, summary, created_at)
+  values ('old_test', 'task', v_task, '{}'::jsonb, now() - interval '40 days');
+  -- Make any delete fail.
+  create or replace function pg_temp.no_deletes() returns trigger language plpgsql as $f$
+  begin raise exception 'deletes are blocked'; end $f$;
+  create trigger live_test_no_delete before delete on public.admin_live_events
+    for each row execute function pg_temp.no_deletes();
+  for i in 1..25 loop
+    perform private.admin_live('failprune_test', 'task', v_task, null, '{}'::jsonb);
+  end loop;
+  select count(*) into v_n from public.admin_live_events where kind = 'failprune_test';
+  if v_n <> 25 then raise exception 'FAIL: a failing prune lost events (kept % of 25)', v_n; end if;
+  drop trigger live_test_no_delete on public.admin_live_events;
+end;
+$;
 
 rollback;

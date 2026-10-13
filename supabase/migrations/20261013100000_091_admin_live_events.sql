@@ -5,9 +5,9 @@
 --
 --   public.admin_live_events   one row per thing that happened (a sign-up, a
 --                              task posted, a quote, a status change, a
---                              withdrawal, a help request, ...). The 30-day
---                              prune is a Phase 5 Inngest job (AGENTS.md
---                              rule 8: no new pg_cron jobs).
+--                              withdrawal, a help request, ...). Kept 30 days:
+--                              091d makes the feed prune itself (AGENTS.md
+--                              rule 8 forbids a new pg_cron job).
 --   private.admin_live(...)    writes a row and broadcasts it on the private
 --                              Realtime channel 'admin:live', the same way 083
 --                              pings 'user:<id>' channels.
