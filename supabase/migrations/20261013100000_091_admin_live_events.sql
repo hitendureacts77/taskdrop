@@ -411,10 +411,12 @@ begin
                     where p.last_seen_at > now() - interval '3 minutes' and p.deleted_at is null),
     'online_workers', (select count(*) from public.profiles p
                         where p.last_seen_at > now() - interval '3 minutes' and p.deleted_at is null
-                          and exists (select 1 from public.user_roles r where r.user_id = p.id and r.role = 'worker')),
+                          and p.worker_onboarded_at is not null),
+    -- The same groups as the admin panel's Jobs filters (src/lib/data.ts).
     'open_tasks', (select count(*) from public.tasks t where t.status = 'OPEN'),
     'in_progress', (select count(*) from public.tasks t
-                     where t.status in ('LOCKED', 'TASK_STARTED', 'WORK_DONE', 'REVISION_REQUESTED')),
+                     where t.status in ('LOCKED', 'TASK_STARTED', 'OVERDUE', 'REVISION_REQUESTED')),
+    'waiting_approval', (select count(*) from public.tasks t where t.status = 'WORK_DONE'),
     'overdue', (select count(*) from public.tasks t
                  where t.status = 'OVERDUE'
                     or (t.status in ('LOCKED', 'TASK_STARTED', 'REVISION_REQUESTED') and t.due_at < now())),

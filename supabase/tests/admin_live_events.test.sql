@@ -159,7 +159,7 @@ begin
     if sqlerrm like 'FAIL:%' then raise; end if;
   end;
   c := public.admin_live_counters();
-  if not (c ? 'online_now' and c ? 'open_tasks' and c ? 'disputes_open' and c ? 'quotes_last_hour') then
+  if not (c ? 'online_now' and c ? 'open_tasks' and c ? 'waiting_approval' and c ? 'disputes_open' and c ? 'quotes_last_hour') then
     raise exception 'FAIL: the counters are incomplete: %', c;
   end if;
   if (c ->> 'signups_today')::int < 3 then raise exception 'FAIL: today''s sign-ups are undercounted: %', c; end if;
