@@ -1,5 +1,6 @@
--- Admin live events (migration 091): the feed fills itself, only admins read
--- it, and nothing in it can block the change that caused it.
+-- Admin live events (migrations 091, 091b): the feed fills itself, only admins
+-- read it, no phone number or email reaches it, and nothing in it can block the
+-- change that caused it.
 --
 -- Everything runs inside one transaction that is rolled back.
 --
@@ -48,12 +49,12 @@ begin
   select u.id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
          'live+' || u.id || '@taskdrop.test', '', now(), now(), now()
   from (values (v_admin), (v_poster), (v_worker)) as u(id);
-  insert into public.profiles (id, display_name) values
-    (v_admin, 'Live Admin'), (v_poster, 'Live Poster'), (v_worker, 'Live Worker')
-  on conflict (id) do nothing;
-  insert into public.user_roles (user_id, role) values
-    (v_admin, 'admin'), (v_worker, 'worker')
-  on conflict do nothing;
+  -- handle_new_user() has already made each profile (named after the email),
+  -- a poster and a worker role and a wallet; give them real names.
+  update public.profiles set display_name = case id
+    when v_admin then 'Live Admin' when v_poster then 'Live Poster' else 'Live Worker' end
+  where id in (v_admin, v_poster, v_worker);
+  insert into public.user_roles (user_id, role) values (v_admin, 'admin') on conflict do nothing;
 
   insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes)
   values (v_poster, 'services', 'Live feed fixture job', 50000, 120)
@@ -74,7 +75,8 @@ declare
   v_quote jsonb;
 begin
   if (select count(*) from public.admin_live_events
-       where id > v_since and kind = 'signup' and summary ->> 'who' like 'Live %') < 3 then
+       where id > v_since and kind = 'signup'
+         and record_id in (select v::uuid from fx where k in ('admin', 'poster', 'worker'))) <> 3 then
     raise exception 'FAIL: sign-ups are missing from the feed';
   end if;
   if not exists (select 1 from public.admin_live_events
@@ -112,17 +114,37 @@ begin
 end;
 $$;
 
--- ---- 3. no contact details ever reach the feed -------------------------------
-do $$
+-- ---- 3. no phone number or email reaches the feed ---------------------------
+do $
 declare
   v_since bigint := (select v::bigint from fx where k = 'since');
+  v_phone uuid := gen_random_uuid();
 begin
+  -- A phone sign-in: a synthetic email whose first half is the number, which
+  -- handle_new_user() copies into the profile name.
+  insert into auth.users (id, instance_id, aud, role, email, encrypted_password,
+                          email_confirmed_at, created_at, updated_at)
+  values (v_phone, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+          'p919876543210@phone.taskdrop.app', '', now(), now(), now());
+  if not exists (select 1 from public.admin_live_events
+                  where id > v_since and kind = 'signup' and record_id = v_phone and summary ->> 'who' is null) then
+    raise exception 'FAIL: a phone sign-up did not come through with no name';
+  end if;
   if exists (select 1 from public.admin_live_events
-              where id > v_since and (summary::text like '%@taskdrop.test%' or summary ? 'phone' or summary ? 'email')) then
-    raise exception 'FAIL: contact details leaked into the feed';
+              where id > v_since
+                and (summary::text like '%9876543210%' or summary::text like '%@%' or summary ? 'phone' or summary ? 'email')) then
+    raise exception 'FAIL: a phone number or email leaked into the feed';
+  end if;
+  -- The same rule for names shown beside jobs and quotes.
+  update public.profiles set display_name = 'Call 9876543210' where id = v_phone;
+  if private.admin_live_name(v_phone) is not null then
+    raise exception 'FAIL: a name holding a phone number was shown';
+  end if;
+  if private.admin_live_clean_name('Asha K') <> 'Asha K' or private.admin_live_clean_name('  Ravi  ') <> 'Ravi' then
+    raise exception 'FAIL: an ordinary name was changed';
   end if;
 end;
-$$;
+$;
 
 -- ---- 4. only admins read the feed and the counters ---------------------------
 do $$
