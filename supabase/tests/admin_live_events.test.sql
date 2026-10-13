@@ -1,4 +1,4 @@
--- Admin live events (migrations 091 to 091d): the feed fills itself, only
+-- Admin live events (migrations 091 to 091e): the feed fills itself, only
 -- admins read it, no phone number, email or location reaches it, it keeps 30
 -- days, and nothing in it can block the change that caused it.
 --
@@ -115,7 +115,7 @@ end;
 $$;
 
 -- ---- 3. no phone number, email or location reaches the feed -----------------
-do $
+do $$
 declare
   v_since bigint := (select v::bigint from fx where k = 'since');
   v_phone uuid := gen_random_uuid();
@@ -148,8 +148,17 @@ begin
   if private.admin_live_clean_name('Asha K') <> 'Asha K' or private.admin_live_clean_name('  Ravi  ') <> 'Ravi' then
     raise exception 'FAIL: an ordinary name was changed';
   end if;
+  -- Formatted numbers, with spaces, dashes, brackets and a country code.
+  if private.admin_live_clean_name('415-555-0123') is not null
+     or private.admin_live_clean_name('(415) 555 0123') is not null
+     or private.admin_live_clean_name('+91 98765 43210') is not null then
+    raise exception 'FAIL: a formatted phone number was shown as a name';
+  end if;
+  if private.admin_live_clean_name('Room 12') <> 'Room 12' then
+    raise exception 'FAIL: a name with a few digits was hidden';
+  end if;
 end;
-$;
+$$;
 
 -- ---- 4. only admins read the feed and the counters ---------------------------
 do $$
@@ -211,7 +220,7 @@ end;
 $$;
 
 -- ---- 6. it keeps 30 days: every 25th event prunes up to 500 older ones -------
-do $
+do $$
 declare
   v_task  uuid := (select v::uuid from fx where k = 'task');
   v_old   integer;
@@ -249,10 +258,10 @@ begin
   if v_old <> 0 then raise exception 'FAIL: a second prune should clear the remaining old events (left %)', v_old; end if;
   if v_new <> 53 then raise exception 'FAIL: recent events were pruned (found %)', v_new; end if;
 end;
-$;
+$$;
 
 -- ---- 7. a failing prune never loses the event or blocks the caller -----------
-do $
+do $$
 declare
   v_task uuid := (select v::uuid from fx where k = 'task');
   v_n    integer;
@@ -271,6 +280,6 @@ begin
   if v_n <> 25 then raise exception 'FAIL: a failing prune lost events (kept % of 25)', v_n; end if;
   drop trigger live_test_no_delete on public.admin_live_events;
 end;
-$;
+$$;
 
 rollback;
