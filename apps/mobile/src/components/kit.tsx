@@ -659,6 +659,42 @@ export function toneColors(t: ReturnType<typeof useTheme>, tone: Tone) {
   }
 }
 
+/**
+ * A dot in a soft halo. Design from 21st.dev "Status" (diceui): the halo only
+ * pulses for states that are waiting on someone (gold, signal), and never
+ * when the phone asks for reduced motion.
+ */
+function HaloDot({ color, pulse }: { color: string; pulse: boolean }) {
+  const reduced = useReducedMotion();
+  const beat = useRef(new Animated.Value(0)).current;
+  const live = pulse && !reduced;
+  useEffect(() => {
+    if (!live) {
+      beat.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(Animated.timing(beat, { toValue: 1, duration: 2000, useNativeDriver: LOOP_NATIVE }));
+    loop.start();
+    return () => loop.stop();
+  }, [live, beat]);
+  return (
+    <View style={{ width: 8, height: 8, alignItems: 'center', justifyContent: 'center' }} accessibilityElementsHidden importantForAccessibility="no">
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 14,
+          height: 14,
+          borderRadius: 7,
+          backgroundColor: color,
+          opacity: live ? beat.interpolate({ inputRange: [0, 0.75, 1], outputRange: [0.32, 0, 0] }) : 0.16,
+          transform: [{ scale: live ? beat.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.5] }) : 1 }],
+        }}
+      />
+      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
+    </View>
+  );
+}
+
 /** A small status label: says what is happening in words, not just colour. */
 export function Badge({ label, tone = 'accent' }: { label: string; tone?: Tone }) {
   const t = useTheme();
@@ -666,15 +702,21 @@ export function Badge({ label, tone = 'accent' }: { label: string; tone?: Tone }
   return (
     <View
       style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
         backgroundColor: c.bg,
-        borderRadius: 7,
-        minHeight: 21,
-        paddingHorizontal: 8,
-        paddingVertical: 3,
+        borderWidth: 1,
+        borderColor: `${c.fg}33`,
+        borderRadius: 999,
+        minHeight: 22,
+        paddingLeft: 7,
+        paddingRight: 9,
+        paddingVertical: 2,
         alignSelf: 'flex-start',
-        justifyContent: 'center',
       }}
     >
+      <HaloDot color={c.fg} pulse={tone === 'gold' || tone === 'signal'} />
       <RNText style={tx('800', 10, c.fg, { letterSpacing: 0.5 })}>{label.toUpperCase()}</RNText>
     </View>
   );
