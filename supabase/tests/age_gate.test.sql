@@ -182,20 +182,20 @@ begin
 end;
 $$;
 
--- ---- 8. n8n hears of a sign-up only once the age check has passed -----------
+-- ---- 8. Inngest hears of a sign-up only once the age check has passed --------
 do $$
 declare
   v_adult uuid := (select v::uuid from fx where k = 'adult');
   v_child uuid := (select v::uuid from fx where k = 'child');
   v_teen  uuid := (select v::uuid from fx where k = 'teen');
 begin
-  if not exists (select 1 from private.automation_log
-                  where kind = 'user.signed_up' and payload->'data'->>'user_id' = v_adult::text) then
+  if not exists (select 1 from private.outbox
+                  where kind = 'user.signed_up' and data->>'user_id' = v_adult::text) then
     raise exception 'FAIL: the adult''s sign-up was not announced after passing';
   end if;
-  if exists (select 1 from private.automation_log
-              where kind = 'user.signed_up' and payload->'data'->>'user_id' in (v_child::text, v_teen::text)) then
-    raise exception 'FAIL: an under-age sign-up was announced to n8n';
+  if exists (select 1 from private.outbox
+              where kind = 'user.signed_up' and data->>'user_id' in (v_child::text, v_teen::text)) then
+    raise exception 'FAIL: an under-age sign-up was announced to Inngest';
   end if;
 end;
 $$;

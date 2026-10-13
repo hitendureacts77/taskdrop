@@ -78,7 +78,7 @@ export const PRIVACY: LegalDoc = {
             'OpenStreetMap (Nominatim): place search and turning a map pin into an address. It receives the words you search or the pin’s position.',
             'Expo: delivers push notifications to your phone.',
             'Sentry: crash reports, if crash reporting is on.',
-            'n8n, the tool we use to alert our team (for example about a new help request). It receives names and amounts, never phone numbers, email addresses, bank details or UPI IDs.',
+            'Inngest, which runs our background jobs and alerts our team (for example about a new help request). It receives names and amounts, never phone numbers, email addresses, bank details or UPI IDs.',
           ],
         },
         'Our staff can see account and job details when they handle help requests, disputes, payouts and reports. Their actions on accounts and money are recorded in an audit log.',
