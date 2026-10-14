@@ -41,14 +41,26 @@ const text = (v: unknown, fallback = "someone") => {
   return s === "" ? fallback : s;
 };
 
+/**
+ * Text a person typed, or a provider wrote, that must never be copied into an
+ * alert or stored with it. The database no longer puts these in events (090);
+ * this is the second lock, for an event that was queued before that change.
+ */
+const FREE_TEXT_KEYS = ["subject", "reason", "title", "failure_note", "description", "message", "note"];
+
+/** The event's data with free-text fields removed, for storing beside an alert. */
+export function safeData(d: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(d).filter(([k]) => !FREE_TEXT_KEYS.includes(k)));
+}
+
 /** What the team should be told about an event, or null if it needs no alert. */
 export function alertFor(eventName: string, d: Record<string, unknown>): Alert | null {
   switch (eventName.replace(/^taskdrop\//, "")) {
     case "support.opened":
       return {
         kind: "support",
-        title: `New help request: ${text(d.subject, "(no subject)")}`,
-        body: `${text(d.from)} · ${text(d.category, "other")}`,
+        title: "New help request",
+        body: `${text(d.from)} · ${text(d.category, "other")}. Open Help requests to read it.`,
       };
     case "withdrawal.requested":
       return {
@@ -60,13 +72,13 @@ export function alertFor(eventName: string, d: Record<string, unknown>): Alert |
       return {
         kind: "payout_failed",
         title: `Payout failed: ${rupees(d.amount_rupees)}`,
-        body: `${text(d.name)}: ${text(d.reason, "no reason given")}`,
+        body: `${text(d.name)}. Open Payouts to see why.`,
       };
     case "dispute.opened":
       return {
         kind: "dispute",
-        title: `Dispute opened: ${text(d.title, "(untitled task)")}`,
-        body: `Poster: ${text(d.poster)}`,
+        title: "Dispute opened",
+        body: `Poster: ${text(d.poster)}. Open Disputes to decide.`,
       };
     default:
       return null;

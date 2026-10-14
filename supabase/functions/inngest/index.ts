@@ -6,6 +6,7 @@ import { captureServerError } from "../_shared/monitoring.ts";
 import {
   ALERT_EVENTS,
   alertFor,
+  safeData,
   call,
   digestAlert,
   type Digest,
@@ -90,7 +91,7 @@ const teamAlert = inngest.createFunction(
   async ({ event, step }) => {
     const alert = alertFor(event.name, event.data ?? {});
     if (!alert) return { skipped: true };
-    const id = await step.run("save alert", () => saveAlert(rpc, alert, event.data ?? {}));
+    const id = await step.run("save alert", () => saveAlert(rpc, alert, safeData(event.data ?? {})));
     return { alert: id };
   },
 );

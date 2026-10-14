@@ -421,7 +421,9 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 **Backend: housekeeping and n8n**
 - [ ] Missing prunes added in pg_cron: `auth_codes`, `auth_send_log`, `places_quota`, old notifications, sent outbox rows
 - [x] Every Inngest function reports its final failure to Sentry
-- [x] n8n removed: triggers, config, `automation_*` tables, the doc, the privacy-policy line
+- [x] n8n stopped: triggers swapped, digest job unscheduled, config no longer read, the doc and the privacy-policy line removed
+- [ ] n8n leftovers dropped at Phase 9 (`private.automation_*`, `private.send_daily_digest()`, the `n8n-log-prune` job): kept until then because migrations only add (`supabase/cutover/phase9_drop_n8n.sql`)
+- [x] Events and alerts carry no free text (help-request subject, job title, payout failure note); team alerts are pruned after 30 days
 
 **Web**
 - [ ] In-app notifications and the realtime pings still arrive (the web has no push)
@@ -596,6 +598,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
   - [ ] Remove the compatibility code kept for the old app
   - [ ] Remove the old `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` from Google Cloud, now that no web bundle uses it
   - [ ] Drop what nothing uses any more, in clean-up migrations
+  - [ ] Run `supabase/cutover/phase9_drop_n8n.sql`: drops the n8n leftovers (`private.automation_*`, `private.send_daily_digest()`, the `n8n-log-prune` job)
   - [ ] Turn off the compatibility check in CI
 - [ ] **Repos:**
   - [ ] Create `main` from `upgraded-plan-changes` and make it the default branch
@@ -854,7 +857,7 @@ upgrade/phase-N-… branch → pull request into upgraded-plan-changes
 | Chat-photo read policy, drop duplicate sweep, `payout_upi` fix | 2 |
 | Promotion price tiers; `app_controls` | 3 |
 | Phone in `auth.users.phone`; test users migrated | 4 |
-| `private.outbox`, `webhook_events`, push receipts; n8n dropped | 5 |
+| `private.outbox`, `webhook_events`, push receipts; n8n stopped (its leftovers dropped in Phase 9) | 5 |
 | `media` registry | 6 |
 | `reports`, `blocks`; admin task, promotion and content actions | 7 |
 

@@ -27,23 +27,27 @@ The outbox id **is** the Inngest event id, so an event that arrives twice (fast
 path and sweeper) is dropped as a duplicate. If Inngest is down, events wait in the
 outbox and go out when it is back; nothing is lost and the user's action never fails.
 
-Events carry names and amounts, never phone numbers, emails, bank details or UPI ids.
+Events carry ids, names, amounts and fixed categories, never phone numbers, emails, bank details or
+UPI ids, and never text a person typed (a help-request subject, a job title) or a provider's
+free-text failure note: events leave the database for a third party, and that text can hold
+anything. The team opens the linked page in the admin panel for the detail. The alert function
+also drops those fields from anything it stores, for an event queued before this rule.
 
 | Event | When | `data` |
 |---|---|---|
 | `taskdrop/user.signed_up` | a new account passes the age check | `user_id`, `name` |
 | `taskdrop/user.deleted` | someone deletes their account | `user_id`, `by_admin` |
-| `taskdrop/support.opened` | someone sends a help request | `ticket_id`, `category`, `subject` (80 chars), `from` |
+| `taskdrop/support.opened` | someone sends a help request | `ticket_id`, `category`, `from` |
 | `taskdrop/withdrawal.requested` | a worker asks to withdraw | `payout_id`, `amount_rupees`, `name`, `via` |
-| `taskdrop/payout.failed` | a withdrawal fails and the money goes back | `payout_id`, `amount_rupees`, `name`, `reason` |
-| `taskdrop/dispute.opened` | a job is disputed | `task_id`, `title`, `poster` |
+| `taskdrop/payout.failed` | a withdrawal fails and the money goes back | `payout_id`, `amount_rupees`, `name` |
+| `taskdrop/dispute.opened` | a job is disputed | `task_id`, `poster` |
 
 ## The functions (`supabase/functions/inngest/`)
 
 | Function | Trigger | Does |
 |---|---|---|
 | `outbox-sweeper` | every minute | re-sends unconfirmed outbox events, marks them sent |
-| `outbox-prune` | daily 04:15 IST | removes sent events older than 14 days |
+| `outbox-prune` | daily 04:15 IST | removes sent events older than 14 days, and team alerts older than 30 days |
 | `team-alert` | support / withdrawal / payout failed / dispute events | writes a message to `admin_alerts` |
 | `daily-digest` | daily 09:00 IST | writes the day's totals to `admin_alerts` |
 | `auto-complete-due` | every 15 min | calls `run_auto_complete_due()` |
@@ -108,11 +112,15 @@ Vault secret.
 - `npm test` runs the job logic (`supabase/functions/inngest/jobs.test.ts`).
 - `npm run test:db` runs `supabase/tests/outbox.test.sql`: events are queued with the
   change, carry no contact details, the sweeper sees only old unsent events, only the
-  service role can call the Inngest-facing functions, and every n8n object is gone.
+  service role can call the Inngest-facing functions, n8n has stopped without dropping anything
+  (its tables and digest function stay until Phase 9, ground rule 2), and no event or alert
+  carries free text.
 
 ## Not moved yet (still in the plan, Phase 5)
 
 Push notifications, withdrawal payouts with retries, stuck-payout reconciliation, refund
 retries, account-deletion file cleanup, the overdue-tasks cron, webhook hand-off and the
-missing prunes. Each is moved one at a time, with the old job removed in the same deploy
+missing prunes. The n8n leftovers (`private.automation_*`, `private.send_daily_digest()` and the
+`n8n-log-prune` job) are removed at Phase 9 by `supabase/cutover/phase9_drop_n8n.sql`, because the old
+app and old admin share this database until then and migrations only add. Each is moved one at a time, with the old job removed in the same deploy
 as its replacement. Do not add n8n calls or new pg_cron jobs while this is in progress.

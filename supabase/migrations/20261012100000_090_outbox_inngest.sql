@@ -13,14 +13,18 @@
 -- Nothing here can break the action that triggered it: emit_event() swallows its
 -- own errors, as the n8n version did.
 --
--- Events carry names and amounts, never phone numbers, emails, bank details or
--- UPI ids (unchanged from migration 080):
+-- Events carry ids, names, amounts and fixed categories, never phone numbers,
+-- emails, bank details or UPI ids, and never text a person typed (a help-request
+-- subject, a job title) or a provider's free-text failure note: those can hold
+-- anything, and events leave the database for a third party. The team opens the
+-- linked page for the detail. (Migration 080 sent subject, reason and title;
+-- the trigger functions below no longer do.)
 --   user.signed_up        { user_id, name }
 --   user.deleted          { user_id, by_admin }
---   support.opened        { ticket_id, category, subject, from }
+--   support.opened        { ticket_id, category, from }
 --   withdrawal.requested  { payout_id, amount_rupees, name, via }
---   payout.failed         { payout_id, amount_rupees, name, reason }
---   dispute.opened        { task_id, title, poster }
+--   payout.failed         { payout_id, amount_rupees, name }
+--   dispute.opened        { task_id, poster }
 --
 -- Where Inngest lives is one Vault secret, `inngest_event_url`, the full event
 -- URL including the event key, e.g. https://inn.gs/e/<EVENT_KEY>. Unset, events
@@ -129,10 +133,56 @@ revoke all on function private.emit_event(text, jsonb) from public, anon, authen
 
 -- ---------------------------------------------------------------- triggers --
 
--- The trigger functions (evt_support, evt_payout, evt_dispute) are unchanged
--- from migration 080; only the n8n_* trigger names go, replaced by evt_*.
--- evt_signup is not attached: record_birth_date announces a sign-up once the
--- age check has passed (migration 082).
+-- The three trigger functions are redefined to leave out free text (see the
+-- header): no help-request subject, no job title, no failure note.
+create or replace function private.evt_support() returns trigger
+language plpgsql security definer set search_path to 'public', 'private', 'pg_temp' as $fn$
+begin
+  perform private.emit_event('support.opened', jsonb_build_object(
+    'ticket_id', new.id,
+    'category', new.category,
+    'from', (select display_name from public.profiles where id = new.user_id)));
+  return new;
+exception when others then return new;
+end;
+$fn$;
+
+create or replace function private.evt_payout() returns trigger
+language plpgsql security definer set search_path to 'public', 'private', 'pg_temp' as $fn$
+begin
+  if tg_op = 'INSERT' then
+    perform private.emit_event('withdrawal.requested', jsonb_build_object(
+      'payout_id', new.id,
+      'amount_rupees', round(new.amount_minor / 100.0, 2),
+      'name', (select display_name from public.profiles where id = new.user_id),
+      'via', new.via));
+  elsif new.status::text = 'failed' and old.status::text is distinct from 'failed' then
+    perform private.emit_event('payout.failed', jsonb_build_object(
+      'payout_id', new.id,
+      'amount_rupees', round(new.amount_minor / 100.0, 2),
+      'name', (select display_name from public.profiles where id = new.user_id)));
+  end if;
+  return new;
+exception when others then return new;
+end;
+$fn$;
+
+create or replace function private.evt_dispute() returns trigger
+language plpgsql security definer set search_path to 'public', 'private', 'pg_temp' as $fn$
+begin
+  perform private.emit_event('dispute.opened', jsonb_build_object(
+    'task_id', new.id,
+    'poster', (select display_name from public.profiles where id = new.poster_id)));
+  return new;
+exception when others then return new;
+end;
+$fn$;
+revoke all on function private.evt_support(), private.evt_payout(), private.evt_dispute() from public, anon, authenticated;
+
+-- Only the n8n_* trigger NAMES go, replaced by evt_*: a trigger is not a table or
+-- column, nothing outside the database refers to one, and keeping both would
+-- send every event twice. evt_signup is not attached: record_birth_date
+-- announces a sign-up once the age check has passed (migration 082).
 
 drop trigger if exists n8n_signup on public.profiles;
 
@@ -158,19 +208,25 @@ create trigger evt_dispute after update of status on public.tasks
   for each row when (new.status::text = 'DISPUTED' and old.status::text is distinct from 'DISPUTED')
   execute function private.evt_dispute();
 
--- ---------------------------------------------------- n8n goes away entirely --
+-- ------------------------------------------------------------ n8n stops here --
 
+-- Ground rule 2: until Phase 9 the old app and old admin share this database,
+-- and migrations only ADD. So nothing n8n-related is dropped here. What stops:
+--   * the n8n daily digest job, because Inngest now sends the digest (leaving
+--     it would send two);
+--   * every event to n8n, because emit_event() no longer reads its config.
+-- What stays, inert, until the Phase 9 clean-up (supabase/cutover/phase9_drop_n8n.sql):
+--   * private.automation_config (empty) and private.automation_log (old event
+--     records), and private.send_daily_digest();
+--   * the n8n-log-prune job, so those old records still age out after 30 days.
+-- Nothing in the old app or old admin reads any of them (checked: the app, the
+-- admin on main and redesigned-2.0, and every function and view in the database).
 do $$
 begin
-  perform cron.unschedule(jobname) from cron.job where jobname in ('n8n-daily-digest', 'n8n-log-prune');
+  perform cron.unschedule(jobname) from cron.job where jobname = 'n8n-daily-digest';
 exception when others then
   null;
 end $$;
-
--- The only things that read these were the n8n sender and its digest.
-drop function if exists private.send_daily_digest();
-drop table if exists private.automation_log;
-drop table if exists private.automation_config;
 
 -- ------------------------------------------------------- service-role door --
 
@@ -246,7 +302,11 @@ begin
 end;
 $fn$;
 
-/** Sent events are kept two weeks for debugging, then dropped. */
+/**
+ * Housekeeping, run by Inngest. Sent events are kept two weeks for debugging;
+ * team alerts (which hold names and amounts) are kept 30 days, the same as the
+ * privacy policy says. Returns how many outbox rows it removed.
+ */
 create or replace function public.outbox_prune()
 returns integer
 language plpgsql
@@ -259,6 +319,7 @@ begin
   perform private.assert_service_caller();
   delete from private.outbox where sent_at is not null and sent_at < now() - interval '14 days';
   get diagnostics v_n = row_count;
+  delete from public.admin_alerts where created_at < now() - interval '30 days';
   return v_n;
 end;
 $fn$;

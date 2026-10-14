@@ -6,15 +6,15 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ALERT_EVENTS, alertFor, call, digestAlert, saveAlert, toEvents, type Rpc } from "./jobs.ts";
+import { ALERT_EVENTS, alertFor, call, digestAlert, safeData, saveAlert, toEvents, type Rpc } from "./jobs.ts";
 
 test("outbox rows become Inngest events keyed by the outbox id", () => {
   const events = toEvents([
-    { id: "a1", kind: "support.opened", data: { subject: "hi" }, created_at: "2026-10-12T00:00:00Z" },
+    { id: "a1", kind: "support.opened", data: { category: "payment" }, created_at: "2026-10-12T00:00:00Z" },
     { id: "b2", kind: "user.signed_up", data: undefined as never, created_at: "2026-10-12T00:00:01Z" },
   ]);
   assert.deepEqual(events, [
-    { id: "a1", name: "taskdrop/support.opened", data: { subject: "hi" } },
+    { id: "a1", name: "taskdrop/support.opened", data: { category: "payment" } },
     { id: "b2", name: "taskdrop/user.signed_up", data: {} },
   ]);
 });
@@ -33,17 +33,40 @@ test("alert wording carries the facts and survives missing fields", () => {
   assert.equal(w?.title, "Withdrawal requested: ₹12,500");
   assert.equal(w?.body, "Asha via UPI");
 
-  const f = alertFor("taskdrop/payout.failed", { amount_rupees: 499.5, name: "Ravi", reason: "Bad UPI id" });
+  const f = alertFor("taskdrop/payout.failed", { amount_rupees: 499.5, name: "Ravi" });
   assert.equal(f?.kind, "payout_failed");
-  assert.equal(f?.body, "Ravi: Bad UPI id");
+  assert.equal(f?.title, "Payout failed: ₹499.5");
+  assert.equal(f?.body, "Ravi. Open Payouts to see why.");
 
   const d = alertFor("taskdrop/dispute.opened", {});
-  assert.equal(d?.title, "Dispute opened: (untitled task)");
-  assert.equal(d?.body, "Poster: someone");
+  assert.equal(d?.title, "Dispute opened");
+  assert.equal(d?.body, "Poster: someone. Open Disputes to decide.");
 
-  const s = alertFor("taskdrop/support.opened", { subject: "Payment stuck", from: "Meera", category: "payment" });
-  assert.equal(s?.title, "New help request: Payment stuck");
-  assert.equal(s?.body, "Meera · payment");
+  const s = alertFor("taskdrop/support.opened", { from: "Meera", category: "payment" });
+  assert.equal(s?.title, "New help request");
+  assert.equal(s?.body, "Meera · payment. Open Help requests to read it.");
+});
+
+test("text a person typed never reaches an alert or its stored data, even from an old queued event", () => {
+  const old = {
+    subject: "Call me on 9876543210",
+    reason: "UPI id asha@okbank not found",
+    title: "Fix the flat at 12 Cross Road",
+    from: "Meera",
+    name: "Ravi",
+    poster: "Asha",
+    category: "payment",
+    amount_rupees: 100,
+    ticket_id: "t1",
+  };
+  for (const name of ["support.opened", "payout.failed", "dispute.opened"]) {
+    const a = alertFor("taskdrop/" + name, old);
+    assert.ok(a, name);
+    assert.doesNotMatch(`${a?.title} ${a?.body}`, /9876543210|asha@okbank|Cross Road|Call me|not found/, name);
+  }
+  const kept = safeData(old);
+  assert.deepEqual(Object.keys(kept).sort(), ["amount_rupees", "category", "from", "name", "poster", "ticket_id"]);
+  assert.doesNotMatch(JSON.stringify(kept), /9876543210|asha@okbank|Cross Road/);
 });
 
 test("the daily digest reads as totals", () => {
