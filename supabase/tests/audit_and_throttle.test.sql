@@ -30,12 +30,12 @@ $$;
 -- An admin session that has verified an authenticator code (migration 080 gates
 -- admin money/settings changes on aal2).
 create or replace function pg_temp.become_aal2(p_user uuid) returns void
-language plpgsql as $
+language plpgsql as $$
 begin
   perform set_config('request.jwt.claims', json_build_object('sub', p_user, 'role', 'authenticated', 'aal', 'aal2')::text, true);
   perform set_config('role', 'authenticated', true);
 end;
-$;
+$$;
 
 create or replace function pg_temp.as_owner() returns void
 language plpgsql as $$
