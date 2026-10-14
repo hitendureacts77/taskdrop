@@ -49,7 +49,7 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
 | 2 | Make it work (stabilize) | Not started |
 | 3 | Server decides everything | Not started |
 | 4 | Accounts and sign-in | Not started |
-| 5 | Background jobs (Inngest) | Not started |
+| 5 | Background jobs (Inngest) | In progress (outbox, alerts, n8n removal built; rest pending) |
 | 6 | Speed and media (ImageKit) | Not started |
 | 7 | Moderation and admin tools | Not started |
 | 8 | Store readiness | Not started |
@@ -380,7 +380,7 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
 Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route is advised, the payout items are built for Route.
 
 **Backend: setup**
-- [ ] Edge function `supabase/functions/inngest/` using `serve` from `inngest/edge`, `servePath: "/functions/v1/inngest"`, `verify_jwt = false`
+- [x] Edge function `supabase/functions/inngest/` using `serve` from `inngest/edge`, `servePath: "/functions/v1/inngest"`, `verify_jwt = false`
 - [ ] Your PC:
   - run `npx inngest-cli@latest dev -u http://127.0.0.1:54321/functions/v1/inngest` (UI at `localhost:8288`)
   - functions run with `INNGEST_DEV=1`
@@ -388,26 +388,26 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [ ] **(You)** Create an Inngest Cloud free account
   - [ ] Set `INNGEST_SIGNING_KEY` and `INNGEST_EVENT_KEY` on the shared test project
   - [ ] CI syncs the app URL `https://wjxvingpfbfvkfqhrguj.supabase.co/functions/v1/inngest` on deploy
-- [ ] The Inngest event address and key live in Vault, so one migration works locally and hosted
+- [x] The Inngest event address and key live in Vault, so one migration works locally and hosted
 - [ ] The jobs serve both apps, since they share the database. The old app sees the same results, just more reliably.
 
 **Backend: events out of the database**
-- [ ] `private.emit_event` writes to a new `private.outbox` in the same transaction
-- [ ] Fast path: pg_net posts each outbox event to Inngest immediately
-- [ ] Safety net: a one-minute sweeper re-sends anything unconfirmed. The outbox id is the event id, so duplicates are dropped.
+- [x] `private.emit_event` writes to a new `private.outbox` in the same transaction
+- [x] Fast path: pg_net posts each outbox event to Inngest immediately
+- [x] Safety net: a one-minute sweeper (an Inngest cron, so no new pg_cron job) re-sends anything unconfirmed. The outbox id is the event id, so duplicates are dropped.
 
 **Backend: move the work** (the old job is removed in the same deploy as its replacement)
-- [ ] `auto-complete-due` → Inngest cron
-- [ ] `settle-cleared-earnings` → hourly Inngest cron
-- [ ] `settle-finished-campaigns` → Inngest cron
-- [ ] `n8n-daily-digest` → Inngest cron
+- [ ] `auto-complete-due` → Inngest cron (built, off until `INNGEST_MONEY_JOBS=on`; cutover SQL in `supabase/cutover/`)
+- [ ] `settle-cleared-earnings` → Inngest cron (built every 5 min, off until cutover)
+- [ ] `settle-finished-campaigns` → Inngest cron (built, off until cutover)
+- [x] `n8n-daily-digest` → Inngest cron (`daily-digest`, writes to `admin_alerts`)
 - [ ] Push (pg_net trigger) → `notification.created`: send the Expo push, read receipts, remove dead tokens
 - [ ] Withdrawal → `withdrawal.requested`: payout with retries and an idempotency key, one at a time per user. `requestWithdrawal` returns immediately.
 - [ ] Stuck payouts → reconciliation every 15 minutes
 - [ ] Refund "sent but not recorded" → retrying function + Sentry fatal
 - [ ] Account deletion → `user.deleted`: delete storage files with retries (ImageKit added in Phase 6)
 - [ ] New: an overdue-tasks cron (`OVERDUE` from `due_at`)
-- [ ] n8n alerts (support, dispute, payout failed) → admin in-app notifications + Sentry
+- [x] n8n alerts (support, withdrawal, dispute, payout failed) → `admin_alerts` rows (Sentry on final failure)
 
 **Backend: webhooks**
 - [ ] `razorpay-webhook` and `razorpayx-webhook`:
@@ -420,8 +420,10 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 
 **Backend: housekeeping and n8n**
 - [ ] Missing prunes added in pg_cron: `auth_codes`, `auth_send_log`, `places_quota`, old notifications, sent outbox rows
-- [ ] Every Inngest function reports its final failure to Sentry
-- [ ] n8n removed: triggers, config, `automation_*` tables
+- [x] Every Inngest function reports its final failure to Sentry
+- [x] n8n stopped: triggers swapped, digest job unscheduled, config no longer read, the doc and the privacy-policy line removed
+- [ ] n8n leftovers dropped at Phase 9 (`private.automation_*`, `private.send_daily_digest()`, the `n8n-log-prune` job): kept until then because migrations only add (`supabase/cutover/phase9_drop_n8n.sql`)
+- [x] Events and alerts carry no free text (help-request subject, job title, payout failure note); team alerts are pruned after 30 days
 
 **Web**
 - [ ] In-app notifications and the realtime pings still arrive (the web has no push)
@@ -596,6 +598,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
   - [ ] Remove the compatibility code kept for the old app
   - [ ] Remove the old `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` from Google Cloud, now that no web bundle uses it
   - [ ] Drop what nothing uses any more, in clean-up migrations
+  - [ ] Run `supabase/cutover/phase9_drop_n8n.sql`: drops the n8n leftovers (`private.automation_*`, `private.send_daily_digest()`, the `n8n-log-prune` job)
   - [ ] Turn off the compatibility check in CI
 - [ ] **Repos:**
   - [ ] Create `main` from `upgraded-plan-changes` and make it the default branch
@@ -799,7 +802,7 @@ You started this because the app felt clumsy and parts weren't working as expect
 | Android | Existing preview APK | Your phone over Wi-Fi | `beta` APK + EAS Update channel `beta` |
 | iOS | — | — (needs a build) | TestFlight internal + channel `beta` |
 | Admin | Current Vercel URL | `npm run dev` (port 3001) | `admin.taskdrop.in` |
-| Background jobs | Shared: pg_cron + n8n until Phase 5, then Inngest for both | Inngest dev server (`localhost:8288`) | Inngest Cloud free plan |
+| Background jobs | Shared: Inngest for schedules, retries and outside calls (n8n removed); pg_cron only for the money sweeps until cutover | Inngest dev server (`localhost:8288`) | Inngest Cloud free plan |
 | Images | Supabase Storage (can also show new ImageKit photos via `signMedia`) | ImageKit `/local` | ImageKit `/beta` |
 | Razorpay | Test keys | Test keys | Test keys |
 | Sentry | — | Off | `environment: beta` |
@@ -854,7 +857,7 @@ upgrade/phase-N-… branch → pull request into upgraded-plan-changes
 | Chat-photo read policy, drop duplicate sweep, `payout_upi` fix | 2 |
 | Promotion price tiers; `app_controls` | 3 |
 | Phone in `auth.users.phone`; test users migrated | 4 |
-| `private.outbox`, `webhook_events`, push receipts; n8n dropped | 5 |
+| `private.outbox`, `webhook_events`, push receipts; n8n stopped (its leftovers dropped in Phase 9) | 5 |
 | `media` registry | 6 |
 | `reports`, `blocks`; admin task, promotion and content actions | 7 |
 
@@ -1081,6 +1084,12 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
   - **Maps key:** restrict it now, delete it in Phase 9.
   - **R1 (EAS Update) and R2 (auto-deploy) confirmed.**
   - **Push to GitHub:** not yet; the branch is on your PC only.
+- **v4.4 (2026-10-13):** Phase 5 started ("implement it and remove n8n, use Inngest").
+  - **Architecture: Postgres owns the rules and the money; Inngest owns schedules, retries and outside calls.** The bridge is an outbox (migration 090): `emit_event` writes `private.outbox` in the same transaction, pg_net pushes it straight away, and an Inngest cron re-sends anything unconfirmed. The outbox id is the Inngest event id, so duplicates are dropped.
+  - **n8n is removed**: its triggers, cron jobs, `private.automation_*` tables, `docs/N8N.md` and the privacy-policy line. (Ground rule 2 says "never drop"; these were private n8n-only objects the old app and admin never touched.)
+  - **Built:** the `inngest` Edge Function (outbox sweeper and prune, team alerts into the new `admin_alerts` table, 9:00 IST digest, Sentry on final failure) and the three money sweeps, which stay OFF (`INNGEST_MONEY_JOBS`) while pg_cron keeps running them. `supabase/cutover/inngest_money_jobs.sql` switches pg_cron off once Inngest is verified live. See `docs/INNGEST.md`.
+  - **Not live until you act:** create the Inngest Cloud account, set `INNGEST_SIGNING_KEY` and `INNGEST_EVENT_KEY`, add the `inngest_event_url` Vault secret, and say when to apply migration 090 and deploy.
+  - **Still to move, one at a time:** push, withdrawal payouts, reconciliation, refund retries, account-deletion file cleanup, overdue-tasks cron, webhook hand-off, missing prunes. No new pg_cron jobs meanwhile.
 - **v4.3 (2026-10-12):** background jobs and code review.
   - **n8n is not used for any background job.** Inngest is the only tool for scheduled and retried work. Nothing new goes into n8n or pg_cron. The existing pg_cron jobs and the `n8n-*` hooks keep running (they only write to a log, because no n8n address is set) until Phase 5 replaces them; the n8n triggers, config and `automation_*` tables are then removed.
   - Phase 5 is still "Not started": no Inngest code until you say "start Phase 5".
