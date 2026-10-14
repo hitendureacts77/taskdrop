@@ -1,0 +1,23 @@
+[
+  {
+    "id": "GHSA-vfj7-8cjw-p6xm",
+    "package": "braces",
+    "severity": "high",
+    "reason": "No patched release exists (braces 3.0.3 is the latest and is the vulnerable one). It reaches us only through micromatch inside Expo's CLI and the Metro bundler, which run on a developer or build machine to produce the app. It is not part of the shipped app or the web bundle. The flaw is a denial of service from deeply nested brace patterns in a glob the tool itself supplies. Re-check when braces publishes a fix.",
+    "reviewBy": "2026-12-13"
+  },
+  {
+    "id": "GHSA-86w9-cpqp-85rv",
+    "package": "node-forge",
+    "severity": "high",
+    "reason": "No patched release exists (node-forge 1.4.0 is the latest and is the vulnerable one). It reaches us only through @expo/cli and @expo/code-signing-certificates, which sign Expo development and update manifests on a developer or build machine. It is not part of the shipped app or the web bundle. Re-check when node-forge publishes a fix.",
+    "reviewBy": "2026-12-13"
+  },
+  {
+    "id": "GHSA-w5hq-g745-h8pq",
+    "package": "uuid",
+    "severity": "moderate",
+    "reason": "Patched in uuid 11.1.1, but the old copies come from @expo/ngrok (uuid 3, used only for `expo start --tunnel`) and xcode (uuid 7, used by iOS config plugins during a build). They need the old uuid API, so forcing 11 could break those build tools and there is no Android or iOS build on this machine to prove it does not. The flaw only matters when a caller passes a buffer to v3, v5 or v6, which these tools do not. Re-check when Expo updates those packages.",
+    "reviewBy": "2026-12-13"
+  }
+]
