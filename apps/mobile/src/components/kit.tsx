@@ -269,53 +269,60 @@ export function PillTabs({
   inset?: number;
 }) {
   const t = useTheme();
+  // Design from 21st.dev "Segmented Control Tabs" (cnippet-dev): a quiet track
+  // with the chosen tab lifted onto it as a raised white pill.
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: inset, gap: 8 }}
+      contentContainerStyle={{ paddingHorizontal: inset }}
     >
-      {tabs.map((tab, i) => {
-        const on = i === active;
-        return (
-          <Pressable
-            key={tab.label}
-            onPress={() => onPick(i)}
-            accessibilityRole="tab"
-            accessibilityLabel={tab.count !== undefined ? `${tab.label}, ${tab.count}` : tab.label}
-            accessibilityState={{ selected: on }}
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 7,
-              paddingVertical: 9,
-              paddingLeft: 15,
-              paddingRight: tab.count !== undefined ? 9 : 15,
-              borderRadius: 999,
-              backgroundColor: on ? t.colors.ink : t.colors.surface,
-              borderWidth: 1.5,
-              borderColor: on ? t.colors.ink : t.colors.line,
-              transform: [{ scale: pressed ? 0.96 : 1 }],
-            })}
-          >
-            <RNText style={tx(on ? '800' : '600', 13, on ? t.colors.bg : t.colors.text)}>{tab.label}</RNText>
-            {tab.count !== undefined ? (
-              <View
-                style={{
-                  minWidth: 22,
-                  paddingHorizontal: 6,
-                  paddingVertical: 1,
-                  borderRadius: 999,
-                  alignItems: 'center',
-                  backgroundColor: on ? 'transparent' : t.colors.surface2,
-                }}
-              >
-                <RNText style={tx('800', 11, on ? t.colors.bg : t.colors.muted, { opacity: on ? 0.75 : 1 })}>{tab.count}</RNText>
-              </View>
-            ) : null}
-          </Pressable>
-        );
-      })}
+      <View style={{ flexDirection: 'row', gap: 2, padding: 3, borderRadius: 999, backgroundColor: t.colors.surface2 }}>
+        {tabs.map((tab, i) => {
+          const on = i === active;
+          return (
+            <Pressable
+              key={tab.label}
+              onPress={() => onPick(i)}
+              accessibilityRole="tab"
+              accessibilityLabel={tab.count !== undefined ? `${tab.label}, ${tab.count}` : tab.label}
+              accessibilityState={{ selected: on }}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 7,
+                paddingVertical: 8,
+                paddingLeft: 15,
+                paddingRight: tab.count !== undefined ? 9 : 15,
+                borderRadius: 999,
+                backgroundColor: on ? (t.isDark ? t.colors.line : t.colors.surface) : 'transparent',
+                shadowColor: t.colors.shadow,
+                shadowOpacity: on && !t.isDark ? 0.12 : 0,
+                shadowRadius: 6,
+                shadowOffset: { width: 0, height: 2 },
+                elevation: on && !t.isDark ? 1 : 0,
+                transform: [{ scale: pressed ? 0.96 : 1 }],
+              })}
+            >
+              <RNText style={tx(on ? '800' : '600', 13, on ? t.colors.ink : t.colors.muted)}>{tab.label}</RNText>
+              {tab.count !== undefined ? (
+                <View
+                  style={{
+                    minWidth: 22,
+                    paddingHorizontal: 6,
+                    paddingVertical: 1,
+                    borderRadius: 999,
+                    alignItems: 'center',
+                    backgroundColor: on ? t.colors.accentSoft : 'transparent',
+                  }}
+                >
+                  <RNText style={tx('800', 11, on ? t.colors.accentDeep : t.colors.muted)}>{tab.count}</RNText>
+                </View>
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </View>
     </ScrollView>
   );
 }
@@ -659,6 +666,42 @@ export function toneColors(t: ReturnType<typeof useTheme>, tone: Tone) {
   }
 }
 
+/**
+ * A dot in a soft halo. Design from 21st.dev "Status" (diceui): the halo only
+ * pulses for states that are waiting on someone (gold, signal), and never
+ * when the phone asks for reduced motion.
+ */
+function HaloDot({ color, pulse }: { color: string; pulse: boolean }) {
+  const reduced = useReducedMotion();
+  const beat = useRef(new Animated.Value(0)).current;
+  const live = pulse && !reduced;
+  useEffect(() => {
+    if (!live) {
+      beat.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(Animated.timing(beat, { toValue: 1, duration: 2000, useNativeDriver: LOOP_NATIVE }));
+    loop.start();
+    return () => loop.stop();
+  }, [live, beat]);
+  return (
+    <View style={{ width: 8, height: 8, alignItems: 'center', justifyContent: 'center' }} accessibilityElementsHidden importantForAccessibility="no">
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 14,
+          height: 14,
+          borderRadius: 7,
+          backgroundColor: color,
+          opacity: live ? beat.interpolate({ inputRange: [0, 0.75, 1], outputRange: [0.32, 0, 0] }) : 0.16,
+          transform: [{ scale: live ? beat.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.5] }) : 1 }],
+        }}
+      />
+      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
+    </View>
+  );
+}
+
 /** A small status label: says what is happening in words, not just colour. */
 export function Badge({ label, tone = 'accent' }: { label: string; tone?: Tone }) {
   const t = useTheme();
@@ -666,15 +709,21 @@ export function Badge({ label, tone = 'accent' }: { label: string; tone?: Tone }
   return (
     <View
       style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
         backgroundColor: c.bg,
-        borderRadius: 7,
-        minHeight: 21,
-        paddingHorizontal: 8,
-        paddingVertical: 3,
+        borderWidth: 1,
+        borderColor: `${c.fg}33`,
+        borderRadius: 999,
+        minHeight: 22,
+        paddingLeft: 7,
+        paddingRight: 9,
+        paddingVertical: 2,
         alignSelf: 'flex-start',
-        justifyContent: 'center',
       }}
     >
+      <HaloDot color={c.fg} pulse={tone === 'gold' || tone === 'signal'} />
       <RNText style={tx('800', 10, c.fg, { letterSpacing: 0.5 })}>{label.toUpperCase()}</RNText>
     </View>
   );
