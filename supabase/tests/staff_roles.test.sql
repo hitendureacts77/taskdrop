@@ -38,11 +38,11 @@ $$;
 
 -- true when refused at all (direct table writes may stop at grants or RLS first).
 create or replace function pg_temp.refused(p_sql text) returns boolean
-language plpgsql as $
+language plpgsql as $$
 begin
   return pg_temp.try(p_sql) is not null;
 end;
-$;
+$$;
 
 create or replace function pg_temp.role_refused(p_sql text) returns boolean
 language plpgsql as $$

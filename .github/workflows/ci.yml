@@ -25,10 +25,11 @@ jobs:
 
       - run: npm run check
 
-      # Fails the build on a new advisory rather than letting them accumulate
-      # the way the current 10 moderates did.
+      # Fails on any new advisory at moderate or above, and on any critical one. The few
+      # that cannot be fixed yet are listed with a reason and a review date in
+      # audit-exceptions.json (scripts/audit-gate.mjs), instead of leaving CI red for good.
       - name: npm audit
-        run: npm audit --audit-level=moderate
+        run: npm run audit:gate
 
   database:
     name: money and access rules
