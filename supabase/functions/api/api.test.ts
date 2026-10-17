@@ -527,4 +527,36 @@ await t("a device is recorded from the headers, and registering a push token nev
   assert.ok((await runOp("registerPushToken", { token, platform: "android", installId: "install-abcdef12" }, ctx(j, { client }))).ok);
 });
 
+await t("reports and blocks pass the right ids to their SQL functions and refuse bad input", async () => {
+  const f = fake(() => ({ data: null, error: null }));
+  assert.ok((await runOp("reportContent", { targetType: "task", targetId: TASK, reason: " scam " }, ctx(f))).ok);
+  assert.deepEqual(f.calls[0].args, { p_type: "task", p_target: TASK, p_reason: "scam" });
+  assert.ok((await runOp("blockUser", { userId: OTHER }, ctx(f))).ok);
+  assert.deepEqual(f.calls[1].args, { p_user: OTHER });
+  assert.ok((await runOp("unblockUser", { userId: OTHER }, ctx(f))).ok);
+  for (const bad of [{ targetType: "message", targetId: TASK, reason: "x" }, { targetType: "user", targetId: "nope", reason: "x" }, { targetType: "user", targetId: OTHER, reason: "" }]) {
+    const r = await runOp("reportContent", bad, ctx(fake()));
+    assert.ok(!r.ok && r.error.code === "BAD_ARGS");
+  }
+  assert.equal(rateBucket("reportContent"), "write");
+});
+
+await t("the verified-phone switch refuses only a known unverified caller, and only for posting, offers and withdrawals", async () => {
+  const on = controlsWith({ require_phone_verified: true });
+  for (const op of ["createTask", "placeBid", "updateBid", "requestWithdrawal"]) {
+    const r = refusalFor(op, on, {}, { phoneVerified: false });
+    assert.ok(r && r.code === "PHONE_REQUIRED", op);
+    assert.equal(refusalFor(op, on, {}, { phoneVerified: true }), null, op + " verified");
+    assert.equal(refusalFor(op, on, {}, {}), null, op + " unknown");
+  }
+  for (const op of ["listOpenTasks", "sendMessage", "registerPushToken", "startPromotion"]) {
+    assert.equal(refusalFor(op, on, {}, { phoneVerified: false }), null, op + " is not gated");
+  }
+  assert.equal(refusalFor("createTask", controlsWith(), {}, { phoneVerified: false }), null, "switch off");
+  const f = fake(() => ({ data: null, error: null }));
+  const res = await runOp("createTask", {}, ctx(f, { controls: on, phoneVerified: false }));
+  assert.ok(!res.ok && res.error.code === "PHONE_REQUIRED");
+  assert.equal(f.calls.length, 0, "nothing reached the database");
+});
+
 console.log(`\n${passed} passed`);

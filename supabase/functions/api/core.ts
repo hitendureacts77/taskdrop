@@ -35,6 +35,8 @@ export type Ctx = {
   client?: Client;
   /** The admin panel's switches for this caller (migration 092); null when they could not be read. */
   controls?: Controls | null;
+  /** Whether the caller has a confirmed phone number; undefined when unknown. */
+  phoneVerified?: boolean;
   now?: () => Date;
 };
 

@@ -120,3 +120,34 @@ export async function saveAlert(rpc: Rpc, a: Alert, data: Record<string, unknown
     p_data: data,
   });
 }
+
+// ----------------------------------------------------------- reconciliation --
+
+/** A payment of ours that has a Razorpay payment link (see reconcile_provider_candidates). */
+export type ProviderPayment = { id: string; provider_ref: string; status: string; amount_minor: number; created_at: string };
+
+/** What Razorpay returns for a payment link, narrowed to what we compare. */
+export type ProviderLink = { status?: string; amount?: number } | null;
+
+export type ProviderMismatch = { payment: string; ref: string; ours: string; theirs: string; note: string };
+
+/**
+ * Whether our record of a payment agrees with Razorpay's payment link.
+ * Razorpay amounts are in paise, like ours. A link that is merely expired or
+ * cancelled while ours is still "created" is not a disagreement.
+ */
+export function compareProviderPayment(p: ProviderPayment, link: ProviderLink): ProviderMismatch | null {
+  const base = { payment: p.id, ref: p.provider_ref, ours: p.status };
+  if (!link) return { ...base, theirs: "not found", note: "Razorpay has no payment link with this id" };
+  const theirs = String(link.status ?? "unknown");
+  if (theirs === "paid" && p.status !== "paid") {
+    return { ...base, theirs, note: "Razorpay says paid but we do not" };
+  }
+  if (p.status === "paid" && theirs !== "paid") {
+    return { ...base, theirs, note: "We say paid but Razorpay does not" };
+  }
+  if (typeof link.amount === "number" && Number(link.amount) !== Number(p.amount_minor)) {
+    return { ...base, theirs, note: "The amount differs: Razorpay " + link.amount + ", ours " + p.amount_minor };
+  }
+  return null;
+}

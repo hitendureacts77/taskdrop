@@ -6,7 +6,7 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ALERT_EVENTS, alertFor, call, digestAlert, safeData, saveAlert, toEvents, type Rpc } from "./jobs.ts";
+import { ALERT_EVENTS, alertFor, call, compareProviderPayment, digestAlert, safeData, saveAlert, toEvents, type Rpc } from "./jobs.ts";
 
 test("outbox rows become Inngest events keyed by the outbox id", () => {
   const events = toEvents([
@@ -97,4 +97,16 @@ test("saveAlert passes the alert to record_admin_alert and returns its id", asyn
   const id = await saveAlert(ok, { kind: "dispute", title: "T", body: "B" }, { task_id: "x" });
   assert.equal(id, "alert-id");
   assert.deepEqual(seen, [["record_admin_alert", { p_kind: "dispute", p_title: "T", p_body: "B", p_data: { task_id: "x" } }]]);
+});
+
+test("our payment is compared with Razorpay's payment link", () => {
+  const ours = (status: string, amount_minor = 50000) => ({ id: "p1", provider_ref: "plink_1", status, amount_minor, created_at: "2026-10-17T00:00:00Z" });
+  assert.equal(compareProviderPayment(ours("paid"), { status: "paid", amount: 50000 }), null);
+  assert.equal(compareProviderPayment(ours("created"), { status: "created", amount: 50000 }), null);
+  assert.equal(compareProviderPayment(ours("created"), { status: "expired", amount: 50000 }), null, "expired is not a disagreement");
+  assert.equal(compareProviderPayment(ours("cancelled"), { status: "cancelled" }), null);
+  assert.match(compareProviderPayment(ours("created"), { status: "paid", amount: 50000 })?.note ?? "", /Razorpay says paid/);
+  assert.match(compareProviderPayment(ours("paid"), { status: "created", amount: 50000 })?.note ?? "", /We say paid/);
+  assert.match(compareProviderPayment(ours("paid"), { status: "paid", amount: 49900 })?.note ?? "", /amount differs/);
+  assert.equal(compareProviderPayment(ours("paid"), null)?.theirs, "not found");
 });

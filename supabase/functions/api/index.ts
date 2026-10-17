@@ -132,7 +132,9 @@ Deno.serve(async (req: Request) => {
     }
   };
 
-  const ctx = { db: db as unknown as Db, userId: userData.user.id, callFunction, removeOwnFiles, client, controls };
+  // A confirmed phone number is what "verified" means; Supabase leaves phone_confirmed_at empty otherwise.
+  const phoneVerified = Boolean(userData.user.phone_confirmed_at);
+  const ctx = { db: db as unknown as Db, userId: userData.user.id, callFunction, removeOwnFiles, client, controls, phoneVerified };
   const result = await runOp(body.op, body.args, ctx, (e) => {
     console.error(`api: op ${String(body.op)} failed`, e);
     // Finishes in the background after the response is sent.

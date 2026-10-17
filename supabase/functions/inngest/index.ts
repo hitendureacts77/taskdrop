@@ -3,14 +3,19 @@ import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { Inngest } from "npm:inngest@4.23.0";
 import { serve } from "npm:inngest@4.23.0/edge";
 import { captureServerError } from "../_shared/monitoring.ts";
+import { secret } from "../_shared/secrets.ts";
 import {
   ALERT_EVENTS,
   alertFor,
   safeData,
   call,
+  compareProviderPayment,
   digestAlert,
   type Digest,
   type OutboxRow,
+  type ProviderLink,
+  type ProviderMismatch,
+  type ProviderPayment,
   saveAlert,
   toEvents,
 } from "./jobs.ts";
@@ -106,6 +111,58 @@ const dailyDigest = inngest.createFunction(
   },
 );
 
+// --------------------------------------------------- rules and reconciliation --
+
+/**
+ * The automation rules an admin switched on (Admin → Rules): who needs a
+ * follow-up. The rules and the "once per person" guard live in Postgres
+ * (run_crm_rules); this only rings the bell on a schedule.
+ */
+const crmRules = inngest.createFunction(
+  { id: "crm-rules", triggers: [{ cron: "0 */3 * * *" }], concurrency: 1, onFailure: reportFailure("crm-rules") },
+  async ({ step }) => ({ created: await step.run("run rules", () => call<number>(rpc, "run_crm_rules")) }),
+);
+
+const RZP = "https://api.razorpay.com/v1";
+
+/**
+ * Every night at 2:30 India time: the money checks the database can do alone,
+ * then a comparison of the last three days' payments with Razorpay's own
+ * payment links. A difference leaves an alert for the team and a row on the
+ * Money check page. Never changes money; it only reports.
+ */
+const nightlyReconcile = inngest.createFunction(
+  { id: "nightly-reconcile", triggers: [{ cron: "TZ=Asia/Kolkata 30 2 * * *" }], concurrency: 1, onFailure: reportFailure("nightly-reconcile") },
+  async ({ step }) => {
+    const internal = await step.run("internal checks", () => call<{ run: string; mismatches: number }>(rpc, "run_reconciliation", { p_days: 3 }));
+
+    const provider = await step.run("compare with Razorpay", async () => {
+      const id = await secret("RAZORPAY_KEY_ID");
+      const key = await secret("RAZORPAY_KEY_SECRET");
+      if (!id || !key) return { skipped: "Razorpay is not configured" };
+      const rows = (await call<ProviderPayment[] | null>(rpc, "reconcile_provider_candidates", { p_days: 3 })) ?? [];
+      const headers = { Authorization: `Basic ${btoa(`${id}:${key}`)}` };
+      const mismatches: ProviderMismatch[] = [];
+      let failed = 0;
+      for (const p of rows) {
+        const res = await fetch(`${RZP}/payment_links/${encodeURIComponent(p.provider_ref)}`, { headers });
+        if (res.status === 404) {
+          const m = compareProviderPayment(p, null);
+          if (m) mismatches.push(m);
+        } else if (res.ok) {
+          const m = compareProviderPayment(p, (await res.json()) as ProviderLink);
+          if (m) mismatches.push(m);
+        } else {
+          failed++; // a Razorpay hiccup is not a mismatch; the next night looks again
+        }
+      }
+      const run = await call<string>(rpc, "record_provider_reconciliation", { p_checked: rows.length - failed, p_mismatches: mismatches.slice(0, 100) });
+      return { run, checked: rows.length - failed, mismatches: mismatches.length, unreachable: failed };
+    });
+    return { internal, provider };
+  },
+);
+
 // -------------------------------------------------------------- money sweeps --
 
 /**
@@ -132,6 +189,6 @@ const moneyJobs = Deno.env.get("INNGEST_MONEY_JOBS") === "on"
 
 Deno.serve(serve({
   client: inngest,
-  functions: [outboxSweeper, outboxPrune, teamAlert, dailyDigest, ...moneyJobs],
+  functions: [outboxSweeper, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile, ...moneyJobs],
   servePath: "/functions/v1/inngest",
 }));

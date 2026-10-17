@@ -50,6 +50,8 @@ also drops those fields from anything it stores, for an event queued before this
 | `outbox-prune` | daily 04:15 IST | removes sent events older than 14 days, and team alerts older than 30 days |
 | `team-alert` | support / withdrawal / payout failed / dispute events | writes a message to `admin_alerts` |
 | `daily-digest` | daily 09:00 IST | writes the day's totals to `admin_alerts` |
+| `crm-rules` | every 3 hours | calls `run_crm_rules()`: the automation rules an admin switched on (Admin → Rules) create follow-up tasks, once per rule per person |
+| `nightly-reconcile` | daily 02:30 IST | calls `run_reconciliation()` (our own money checks), then compares the last 3 days of payments with Razorpay payment links and saves both to `reconciliation_runs`; a difference leaves an `admin_alerts` row. Reports only, never changes money |
 | `auto-complete-due` | every 15 min | calls `run_auto_complete_due()` |
 | `settle-cleared-earnings` | every 5 min | calls `settle_cleared_earnings()` |
 | `settle-finished-campaigns` | hourly at :07 | calls `settle_finished_campaigns()` |
@@ -70,7 +72,7 @@ Nothing is live until these are done. You do 1, 2 and 4; they need your accounts
    ```bash
    supabase secrets set INNGEST_SIGNING_KEY=signkey-... INNGEST_EVENT_KEY=...
    ```
-3. Apply migration `090_outbox_inngest.sql` and deploy the function
+3. Migration `090_outbox_inngest.sql` and the `inngest` function are applied and deployed on the hosted test project (2026-10-18). If you rebuild elsewhere: apply the migration and deploy the function
    (`supabase functions deploy inngest --no-verify-jwt`). Done by an agent only when asked.
 4. In Inngest Cloud, **sync the app** with the URL
    `https://wjxvingpfbfvkfqhrguj.supabase.co/functions/v1/inngest`.

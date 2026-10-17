@@ -347,6 +347,16 @@ export const WRITE_OPS: Record<string, Op> = {
     return null;
   },
 
+  // ---- reports and blocks (migration 093) ----
+  /** Tell the team about a person or a task. One open report per person per thing. */
+  reportContent: rpcOp("report_content", (a) => ({
+    p_type: oneOf(a, "targetType", ["user", "task"]),
+    p_target: uuid(a, "targetId"),
+    p_reason: str(a, "reason", 500),
+  })),
+  blockUser: rpcOp("block_user", (a) => ({ p_user: uuid(a, "userId") })),
+  unblockUser: rpcOp("unblock_user", (a) => ({ p_user: uuid(a, "userId") })),
+
   // ---- saved tasks, notifications, feedback, support, referrals ----
   setSaved: async ({ db, userId }, a) => {
     const taskId = uuid(a, "taskId");

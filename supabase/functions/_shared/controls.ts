@@ -47,6 +47,8 @@ export type Controls = {
   withdrawals: boolean;
   promotions: boolean;
   chat_photos: boolean;
+  /** When on, posting, offers and withdrawals need a confirmed phone number (migration 097). */
+  require_phone_verified: boolean;
   banner_text: string | null;
   banner_level: "info" | "warning" | "critical" | null;
   banner_link: string | null;
@@ -82,7 +84,18 @@ const CHAT_MEDIA_PREFIX = "::media::";
 export const MAINTENANCE_FALLBACK = "TaskDrop is being updated. Please try again in a little while.";
 export const UPDATE_REQUIRED_MESSAGE = "Please update TaskDrop to keep using it.";
 
-export type Refusal = { message: string; code: "MAINTENANCE" | "UPDATE_REQUIRED" | "FEATURE_OFF"; details: string | null };
+export type Refusal = {
+  message: string;
+  code: "MAINTENANCE" | "UPDATE_REQUIRED" | "FEATURE_OFF" | "PHONE_REQUIRED";
+  details: string | null;
+};
+
+/** The operations that need a confirmed phone while `require_phone_verified` is on. */
+const PHONE_OPS = new Set(["createTask", "placeBid", "updateBid", "requestWithdrawal"]);
+export const PHONE_REQUIRED_MESSAGE = "Please confirm your phone number first. You can do it in Settings.";
+
+/** What the api knows about the caller, beyond the switches. */
+export type Caller = { phoneVerified?: boolean };
 
 export const featureOffMessage = (f: Feature) => `${FEATURE_WORDS[f]} is switched off for now. Please try again later.`;
 
@@ -93,7 +106,12 @@ export const featureOffMessage = (f: Feature) => `${FEATURE_WORDS[f]} is switche
  * it without parsing words. Missing controls (the lookup failed) never refuse:
  * an outage of the switches must not become an outage of the app.
  */
-export function refusalFor(op: unknown, controls: Controls | null, args: Record<string, unknown> = {}): Refusal | null {
+export function refusalFor(
+  op: unknown,
+  controls: Controls | null,
+  args: Record<string, unknown> = {},
+  caller: Caller = {},
+): Refusal | null {
   if (!controls || typeof op !== "string" || ALWAYS_ALLOWED.has(op)) return null;
   if (controls.maintenance) {
     return { message: controls.maintenance_message?.trim() || MAINTENANCE_FALLBACK, code: "MAINTENANCE", details: null };
@@ -105,6 +123,10 @@ export function refusalFor(op: unknown, controls: Controls | null, args: Record<
   if (op === "createUpload" && args.purpose === "chat") feature = "chat_photos";
   if (op === "sendMessage" && typeof args.body === "string" && args.body.startsWith(CHAT_MEDIA_PREFIX)) feature = "chat_photos";
   if (feature && !controls[feature]) return { message: featureOffMessage(feature), code: "FEATURE_OFF", details: feature };
+  // Only a known "no": if we could not tell whether the phone is confirmed, the request goes ahead.
+  if (controls.require_phone_verified && PHONE_OPS.has(op) && caller.phoneVerified === false) {
+    return { message: PHONE_REQUIRED_MESSAGE, code: "PHONE_REQUIRED", details: null };
+  }
   return null;
 }
 
@@ -133,6 +155,7 @@ export function parseControls(data: unknown): Controls | null {
     withdrawals: bool("withdrawals", true),
     promotions: bool("promotions", true),
     chat_photos: bool("chat_photos", true),
+    require_phone_verified: bool("require_phone_verified", false),
     banner_text: text("banner_text"),
     banner_level: level,
     banner_link: text("banner_link"),
@@ -161,6 +184,8 @@ export type AppConfig = {
     promotions: boolean;
     chatPhotos: boolean;
   };
+  /** True when posting, offers and withdrawals need a confirmed phone number. */
+  requirePhoneVerified: boolean;
   banner: { text: string; level: "info" | "warning" | "critical"; link: string | null } | null;
   /** How long the app may keep this before asking again. */
   ttlSeconds: number;
@@ -187,6 +212,7 @@ export function publicConfig(c: Controls, client: Client): AppConfig {
       promotions: c.promotions,
       chatPhotos: c.chat_photos,
     },
+    requirePhoneVerified: c.require_phone_verified,
     banner: c.banner_text ? { text: c.banner_text, level: c.banner_level ?? "info", link: c.banner_link } : null,
     ttlSeconds: CONFIG_TTL_SECONDS,
   };

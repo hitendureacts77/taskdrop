@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { IconButton } from '../components/kit';
+import { ReportSheet } from '../components/ReportSheet';
 import { Icon } from '../components/Icon';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen, Card, Button, formatINR } from '../components/ui';
@@ -150,6 +151,7 @@ export function TaskDetailScreen() {
   const share = useShare(flash);
   const [me, setMe] = useState<Profile | null>(null);
   const [showPerson, setShowPerson] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const [otherId, setOtherId] = useState<string | null>(null);
   const [other, setOther] = useState<{
     name: string;
@@ -333,6 +335,8 @@ export function TaskDetailScreen() {
       <FadeIn style={{ paddingHorizontal: 20, paddingTop: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <IconButton icon="back" label="Back" onPress={back} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+          {realId && otherId !== userId ? <IconButton icon="flag" label="Report this task" onPress={() => setReporting(true)} /> : null}
           <IconButton
             icon="share"
             label="Share this task"
@@ -348,6 +352,7 @@ export function TaskDetailScreen() {
               )
             }
           />
+          </View>
         </View>
 
         <Pressable
@@ -551,6 +556,14 @@ export function TaskDetailScreen() {
         visible={bidTask !== null}
         onClose={() => setBidTask(null)}
         onPlaced={() => go('myTasks')}
+      />
+      <ReportSheet
+        visible={reporting}
+        onClose={() => setReporting(false)}
+        targetType="task"
+        targetId={realId}
+        personId={otherId && otherId !== userId ? otherId : null}
+        personName={other?.name}
       />
       <ShareSheet visible={share.open} item={share.item} onClose={share.close} flash={flash} />
 

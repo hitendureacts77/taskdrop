@@ -47,7 +47,7 @@ export async function runOp(name: unknown, args: unknown, ctx: Ctx, onUnexpected
   const a = args && typeof args === "object" && !Array.isArray(args) ? (args as Record<string, unknown>) : {};
   // The admin panel's switches (maintenance, minimum version, feature off),
   // decided here on the server whatever the app shows.
-  const off = refusalFor(name, ctx.controls ?? null, a);
+  const off = refusalFor(name, ctx.controls ?? null, a, { phoneVerified: ctx.phoneVerified });
   if (off) return { ok: false, error: off };
   try {
     return { ok: true, data: (await op(ctx, a)) ?? null };
