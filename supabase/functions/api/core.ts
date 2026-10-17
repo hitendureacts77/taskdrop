@@ -5,6 +5,8 @@
  * No Deno imports on purpose, so everything under ./ can be exercised from Node.
  */
 
+import type { Client, Controls } from "../_shared/controls.ts";
+
 export type DbError = { message: string; code?: string | null; details?: string | null };
 export type DbResult = { data: unknown; error: DbError | null; count?: number | null };
 
@@ -29,6 +31,10 @@ export type Ctx = {
    * untidy, not broken.
    */
   removeOwnFiles?: (paths: string[]) => Promise<void>;
+  /** Which app is asking (platform and version from the request headers). */
+  client?: Client;
+  /** The admin panel's switches for this caller (migration 092); null when they could not be read. */
+  controls?: Controls | null;
   now?: () => Date;
 };
 

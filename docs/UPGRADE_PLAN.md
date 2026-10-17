@@ -266,8 +266,8 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
 - [ ] Fees: `feesSince` and `workerShareOfEscrow` (`api/reads.ts`) read live `settings`
 - [ ] `places-search` gains reverse lookup and the OpenStreetMap fallback
 - [ ] App controls:
-  - [ ] `app_controls` table and a public `app-config` function, cached about 60 s
-  - [ ] Switches, each per platform (web / Android / iOS):
+  - [x] `app_controls` table and a public `app-config` function, cached about 60 s (migration 092, `functions/app-config`; built, not yet applied or deployed)
+  - [x] Switches, each per platform (web / Android / iOS):
     - maintenance mode with a message
     - minimum app version
     - new sign-ups
@@ -278,17 +278,17 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
     - withdrawals
     - promotions
     - chat photos
-    - "require verified phone" (off)
-  - [ ] An announcement banner (text, link, platforms, end date)
-  - [ ] `api` enforces every switch, using the `x-taskdrop-platform` and `x-taskdrop-app-version` headers
-  - [ ] Every change is written to `admin_audit_log`
-  - [ ] Requests without the platform header (the old app) are treated as "old app": they still work, and the switches and minimum version can target them in Phase 9
+    - "require verified phone" (off) -- not built yet
+  - [x] An announcement banner (text, link, platforms, end date)
+  - [x] `api` enforces every switch, using the `x-taskdrop-platform` and `x-taskdrop-app-version` headers
+  - [x] Every change is written to `admin_audit_log`
+  - [x] Requests without the platform header (the old app) are treated as "old app": they still work, and the switches and minimum version can target them in Phase 9
 - [ ] The lockdown itself waits for Phase 9: on the shared database it would break the old admin, which calls the database directly
 
 **User app (all platforms)**
-- [ ] Platform and app-version headers sent on every `api` call
-- [ ] The app reads `app-config` at start-up and on the realtime ping
-- [ ] Maintenance screen, "Update the app" screen, announcement banner, and a message when a switch is off
+- [x] Platform and app-version headers sent on every `api` call
+- [x] The app reads `app-config` at start-up, on return to the foreground, every 5 minutes and right after a server refusal (no realtime ping: the user channel only exists once signed in)
+- [x] Maintenance screen, "Update the app" screen, announcement banner, and a message when a switch is off
 - [ ] Fee previews come from the `platformFees` op
 - [ ] Address search goes through `places-search`
 

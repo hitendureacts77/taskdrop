@@ -18,6 +18,7 @@ import { Icon } from '../components/Icon';
 import { BottomSheet, Field, PrimaryButton } from '../components/kit';
 import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
+import { useAppConfig } from '../components/AppGate';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { AuthError, useAuth } from '../providers/AuthProvider';
@@ -60,6 +61,8 @@ export function AccessScreen() {
   const { go, reset } = useNav();
   const { celebrate, flash } = useActions();
   const { requestCode, verifyCode, signInWithGoogle, signOut } = useAuth();
+  // Sign-in methods the admin panel has switched off are not offered (the server refuses them too, except Google).
+  const { features } = useAppConfig();
 
   const [stage, setStage] = useState<Stage>('number');
   const [phone, setPhone] = useState('');
@@ -424,12 +427,15 @@ export function AccessScreen() {
               {consent}
 
               {/* The other two ways in, side by side and quieter. */}
+              {features.signInGoogle || features.signInPassword ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 26 }}>
                 <View style={{ flex: 1, height: 1, backgroundColor: t.colors.line }} />
                 <RNText style={tx('500', 12, t.colors.muted)}>or use</RNText>
                 <View style={{ flex: 1, height: 1, backgroundColor: t.colors.line }} />
               </View>
+              ) : null}
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                {features.signInGoogle ? (
                 <Pressable
                   onPress={() => void googleSignIn()}
                   disabled={googleBusy}
@@ -459,6 +465,8 @@ export function AccessScreen() {
                     </>
                   )}
                 </Pressable>
+                ) : null}
+                {features.signInPassword ? (
                 <Pressable
                   onPress={() => setPwOpen(true)}
                   accessibilityRole="button"
@@ -480,6 +488,7 @@ export function AccessScreen() {
                   <RNText style={tx('800', 16, t.colors.accentDeep)}>@</RNText>
                   <RNText style={tx('700', 14, t.colors.ink)}>Username</RNText>
                 </Pressable>
+                ) : null}
               </View>
             </>
           ) : stage === 'birth' ? (

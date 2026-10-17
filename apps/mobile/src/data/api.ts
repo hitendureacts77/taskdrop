@@ -1,5 +1,6 @@
 import { ApiError, friendlyMessage } from '../lib/errors';
 import { callApi } from '../lib/gateway';
+import { clientHeaders } from '../lib/appInfo';
 import { FUNCTIONS_REGION, currentUserId, supabase } from '../lib/supabase';
 import { subscribeLive } from '../lib/live';
 import type { Tables, Enums } from '@taskdrop/db-types';
@@ -510,6 +511,7 @@ export async function createPaymentLink(input: {
 }): Promise<PaymentLink> {
   const { data, error } = await supabase.functions.invoke('razorpay', {
     region: FUNCTIONS_REGION,
+    headers: clientHeaders(),
     body: { action: 'create-link', ...input },
   });
   if (error) throw await functionError(error, 'Could not start the payment');

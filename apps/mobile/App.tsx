@@ -25,6 +25,7 @@ import { SessionWatch } from './src/components/SessionWatch';
 import { PresenceBeat } from './src/components/PresenceBeat';
 import { PublicPageLink } from './src/components/PublicPageLink';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { AppGate } from './src/components/AppGate';
 import { useNav } from './src/providers/NavProvider';
 
 /**
@@ -112,7 +113,10 @@ function AppRoot() {
           <ModeProvider initial="worker">
             <AppStateProvider>
               <SyncProvider>
-                <Routes />
+                {/* Maintenance, "update the app" and the announcement banner, from the admin panel. */}
+                <AppGate>
+                  <Routes />
+                </AppGate>
               </SyncProvider>
             </AppStateProvider>
           </ModeProvider>

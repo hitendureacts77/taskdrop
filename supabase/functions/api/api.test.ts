@@ -8,6 +8,9 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { OPS, RATE_LIMITS, rateBucket, runOp } from "./ops.ts";
+import {
+  ControlsCache, featureOffMessage, OPEN_CONFIG, parseControls, publicConfig, readClient, refusalFor, type Controls,
+} from "../_shared/controls.ts";
 import * as serverRules from "../_shared/rules.ts";
 import * as packageRules from "../../../packages/rules/src/index.ts";
 
@@ -377,6 +380,151 @@ await t("money and other writes get the tight rate limit, uploads the tightest",
   for (const op of ["listOpenTasks", "getWallet", "signMedia", "nope", undefined]) assert.equal(rateBucket(op), "read", String(op));
   assert.equal(rateBucket("createUpload"), "upload");
   assert.ok(RATE_LIMITS.upload < RATE_LIMITS.write && RATE_LIMITS.write < RATE_LIMITS.read);
+});
+
+// ------------------------------------------------------- app controls --
+
+/** Controls as get_app_controls would hand them back, with a few things changed. */
+const controlsWith = (patch: Record<string, unknown> = {}): Controls => parseControls({ platform: "android", ...patch })!;
+const headers = (h: Record<string, string>) => ({ get: (n: string) => h[n.toLowerCase()] ?? null });
+
+await t("the platform and app version come from the request headers; anything else is the old app", () => {
+  assert.deepEqual(readClient(headers({ "x-taskdrop-platform": "Android", "x-taskdrop-app-version": "1.2.0" })), { platform: "android", appVersion: "1.2.0" });
+  assert.deepEqual(readClient(headers({})), { platform: null, appVersion: null });
+  assert.deepEqual(readClient(headers({ "x-taskdrop-platform": "toaster", "x-taskdrop-app-version": "v1; drop table" })), { platform: null, appVersion: null });
+});
+
+await t("with everything on, nothing is refused", async () => {
+  const f = fake();
+  for (const op of ["createTask", "placeBid", "requestWithdrawal", "startPromotion", "sendMessage", "listOpenTasks"]) {
+    assert.equal(refusalFor(op, controlsWith()), null, op);
+  }
+  assert.equal(refusalFor("createTask", null), null, "unreadable switches never refuse");
+  const r = await runOp("touchPresence", {}, ctx(f, { controls: controlsWith() }));
+  assert.ok(r.ok);
+});
+
+await t("a switch that is off refuses its own operations with a typed error, and leaves the rest alone", async () => {
+  const cases: [string, string, Record<string, unknown>][] = [
+    ["posting", "createTask", { pillar: "x", title: "t", benchmarkMinor: 1, timeLimitMinutes: 1 }],
+    ["bidding", "placeBid", { taskId: TASK, priceMinor: 1, timeLimitMinutes: 1 }],
+    ["bidding", "updateBid", { bidId: BID, priceMinor: 1, timeLimitMinutes: 1 }],
+    ["withdrawals", "requestWithdrawal", { amountMinor: 500 }],
+    ["promotions", "startPromotion", { taskId: TASK, days: 3, amountMinor: 500 }],
+    ["chat_photos", "sendMessage", { taskId: TASK, body: "::media::" + UID + "/a.jpg" }],
+    ["chat_photos", "createUpload", { purpose: "chat", ext: "jpg" }],
+  ];
+  for (const [feature, op, args] of cases) {
+    const f = fake();
+    const r = await runOp(op, args, ctx(f, { controls: controlsWith({ [feature]: false }) }));
+    assert.ok(!r.ok, op);
+    if (!r.ok) {
+      assert.equal(r.error.code, "FEATURE_OFF", op);
+      assert.equal(r.error.details, feature, op);
+      assert.equal(r.error.message, featureOffMessage(feature as never), op);
+    }
+    assert.equal(f.calls.length, 0, `${op} reached the database although its switch is off`);
+  }
+  // other operations, and a plain text chat message, still work
+  const f = fake();
+  const text = await runOp("sendMessage", { taskId: TASK, body: "hello" }, ctx(f, { controls: controlsWith({ chat_photos: false }) }));
+  assert.ok(text.ok);
+  const bid = await runOp("placeBid", { taskId: TASK, priceMinor: 1, timeLimitMinutes: 1 }, ctx(fake(), { controls: controlsWith({ posting: false, withdrawals: false }) }));
+  assert.ok(bid.ok);
+  const up = await runOp("createUpload", { purpose: "task", ext: "jpg" }, ctx(fake(), { controls: controlsWith({ chat_photos: false }) }));
+  assert.ok(up.ok);
+});
+
+await t("money already in motion is never blocked by a switch", () => {
+  const off = controlsWith({ promotions: false, topups: false, withdrawals: false, posting: false, bidding: false });
+  for (const op of ["activatePromotion", "cancelPromotion", "lockBid", "payTaskFromWallet", "cancelWithdrawal", "cancelTask", "confirmRelease", "getWallet"]) {
+    assert.equal(refusalFor(op, off), null, op);
+  }
+});
+
+await t("maintenance refuses everything but bookkeeping, with the admin's words", async () => {
+  const c = controlsWith({ maintenance: true, maintenance_message: "Back at 6pm" });
+  for (const op of ["listOpenTasks", "getWallet", "createTask", "sendMessage", "signMedia"]) {
+    const r = await runOp(op, {}, ctx(fake(), { controls: c }));
+    assert.ok(!r.ok, op);
+    if (!r.ok) assert.deepEqual([r.error.code, r.error.message], ["MAINTENANCE", "Back at 6pm"], op);
+  }
+  for (const op of ["touchPresence", "recordDevice"]) assert.equal(refusalFor(op, c), null, op);
+  const plain = refusalFor("getWallet", controlsWith({ maintenance: true }));
+  assert.match(plain!.message, /being updated/);
+});
+
+await t("below the minimum version, everything but bookkeeping asks for an update", async () => {
+  const c = controlsWith({ update_required: true, min_version: "2.0.0" });
+  const r = await runOp("listOpenTasks", {}, ctx(fake(), { controls: c }));
+  assert.ok(!r.ok);
+  if (!r.ok) assert.deepEqual([r.error.code, r.error.details], ["UPDATE_REQUIRED", "2.0.0"]);
+  assert.equal(refusalFor("recordDevice", c), null);
+});
+
+await t("the public config has the shape the app and the admin preview read", () => {
+  const c = controlsWith({ bidding: false, banner_text: "Hello", banner_level: "warning", min_version: "1.5.0", update_required: true, update_url: "https://example.com/get" });
+  const cfg = publicConfig(c, { platform: "android", appVersion: "1.0.0" });
+  assert.deepEqual(cfg.update, { required: true, minVersion: "1.5.0", url: "https://example.com/get" });
+  assert.equal(cfg.features.bidding, false);
+  assert.equal(cfg.features.posting, true);
+  assert.deepEqual(cfg.banner, { text: "Hello", level: "warning", link: null });
+  assert.deepEqual(cfg.maintenance, { on: false, message: null });
+  assert.equal(cfg.ttlSeconds, 60);
+  assert.equal(OPEN_CONFIG.banner, null);
+  assert.ok(Object.values(OPEN_CONFIG.features).every(Boolean) && !OPEN_CONFIG.maintenance.on && !OPEN_CONFIG.update.required);
+  assert.equal(parseControls("nope"), null);
+});
+
+await t("controls are looked up once per half minute per kind of caller, and a failed refresh keeps the last answer", async () => {
+  let clock = 1_000_000, loads = 0, fail = false;
+  const cache = new ControlsCache(30_000, () => clock);
+  const load = async () => {
+    loads++;
+    if (fail) throw new Error("db down");
+    return controlsWith({ bidding: loads < 3 });
+  };
+  const android = { platform: "android", appVersion: "1.0.0" } as const;
+  const first = await cache.get(android, load);
+  await Promise.all([cache.get(android, load), cache.get(android, load)]);
+  assert.equal(loads, 1);
+  await cache.get({ platform: "ios", appVersion: "1.0.0" }, load);
+  assert.equal(loads, 2);
+  clock += 31_000;
+  fail = true;
+  const stale = await cache.get(android, load);
+  assert.equal(stale, first, "a failed refresh falls back to the last good answer");
+  assert.equal(await new ControlsCache(30_000).get(android, load), null, "no answer at all is null, which never refuses");
+});
+
+await t("a device is recorded from the headers, and registering a push token never fails because of it", async () => {
+  const f = fake(() => ({ data: null, error: null }));
+  const client = { platform: "android", appVersion: "1.4.0" } as const;
+  const r = await runOp("recordDevice", { installId: "install-abcdef12", platform: "web", osVersion: "Android 15" }, ctx(f, { client }));
+  assert.ok(r.ok);
+  assert.deepEqual(f.calls[0].args, { p_install_id: "install-abcdef12", p_platform: "android", p_app_version: "1.4.0", p_os_version: "Android 15", p_push: false });
+
+  // an old build with no headers says it itself; a bad id is refused
+  const g = fake();
+  assert.ok((await runOp("recordDevice", { installId: "install-abcdef12", platform: "ios", appVersion: "0.9.0" }, ctx(g))).ok);
+  assert.equal((g.calls[0].args as Record<string, unknown>).p_platform, "ios");
+  const bad1 = await runOp("recordDevice", { installId: "x", platform: "ios" }, ctx(fake()));
+  assert.ok(!bad1.ok && bad1.error.code === "BAD_ARGS");
+  assert.equal(rateBucket("recordDevice"), "write");
+
+  // the push token alone when the app sends no install id (an older build)
+  const token = "ExponentPushToken[abc]";
+  const h = fake(() => ({ data: null, error: null }));
+  assert.ok((await runOp("registerPushToken", { token, platform: "android" }, ctx(h))).ok);
+  assert.deepEqual(h.calls.map((c) => c.rpc), ["register_push_token"]);
+  // a newer build also records the device, as one with push
+  const i = fake(() => ({ data: null, error: null }));
+  assert.ok((await runOp("registerPushToken", { token, platform: "android", installId: "install-abcdef12" }, ctx(i, { client }))).ok);
+  assert.deepEqual(i.calls.map((c) => c.rpc), ["register_push_token", "record_device"]);
+  assert.equal((i.calls[1].args as Record<string, unknown>).p_push, true);
+  // ... and if the device record fails, the registration still succeeds
+  const j = fake((c) => (c.rpc === "record_device" ? { data: null, error: { message: "boom", code: "XX000" } } : { data: null, error: null }));
+  assert.ok((await runOp("registerPushToken", { token, platform: "android", installId: "install-abcdef12" }, ctx(j, { client }))).ok);
 });
 
 console.log(`\n${passed} passed`);

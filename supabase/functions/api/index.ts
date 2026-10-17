@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
+import { ControlsCache, PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient } from "../_shared/controls.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
 import { captureServerError } from "../_shared/monitoring.ts";
 import { type Db, RATE_LIMITS, rateBucket, runOp } from "./ops.ts";
@@ -24,9 +25,12 @@ import { type Db, RATE_LIMITS, rateBucket, runOp } from "./ops.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-region",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-region, " + PLATFORM_HEADER + ", " + VERSION_HEADER,
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+/** The admin panel's switches per platform and version, kept for half a minute per instance. */
+const controlsCache = new ControlsCache(30_000);
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
@@ -64,6 +68,18 @@ Deno.serve(async (req: Request) => {
   } catch {
     return refuse("Unknown request", "BAD_JSON", 400);
   }
+
+  // Which app is asking, and what the admin panel has switched off for it.
+  // If the switches cannot be read the request goes ahead (see refusalFor).
+  const client = readClient(req.headers);
+  const controls = await controlsCache.get(client, async () => {
+    const { data, error } = await db.rpc("get_app_controls", { p_platform: client.platform, p_version: client.appVersion });
+    if (error) {
+      console.error("api: app controls unavailable", error.message);
+      return null;
+    }
+    return parseControls(data);
+  });
 
   // The counter is written with the service key: a person must not be able to
   // reset or spend anyone else's budget. If the counter cannot be reached the
@@ -116,7 +132,7 @@ Deno.serve(async (req: Request) => {
     }
   };
 
-  const ctx = { db: db as unknown as Db, userId: userData.user.id, callFunction, removeOwnFiles };
+  const ctx = { db: db as unknown as Db, userId: userData.user.id, callFunction, removeOwnFiles, client, controls };
   const result = await runOp(body.op, body.args, ctx, (e) => {
     console.error(`api: op ${String(body.op)} failed`, e);
     // Finishes in the background after the response is sent.

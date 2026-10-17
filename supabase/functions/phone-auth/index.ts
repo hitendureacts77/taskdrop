@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
+import { signInRefusal } from "../_shared/signInSwitches.ts";
 
 /**
  * Phone sign-in for TaskDrop.
@@ -31,7 +32,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-taskdrop-platform, x-taskdrop-app-version",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -206,6 +207,13 @@ Deno.serve(async (req: Request) => {
 
   const phone = normalise(body.phone ?? "");
   if (phone.length !== 10) return json({ error: "Enter a 10-digit mobile number" }, 400);
+
+  // The admin panel's sign-in and sign-up switches (migration 092). A code
+  // already sent can still be used; a new one is not sent while its door is shut.
+  if (body.action === "send" || body.action === "verify") {
+    const refused = await signInRefusal(admin, req.headers, body.action === "send" && body.mode === "signup" ? "signup" : "phone");
+    if (refused) return json({ error: refused, switchedOff: true }, 403);
+  }
 
   const now = Date.now();
   const windowMs = WINDOW_MIN * 60_000;
