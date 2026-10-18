@@ -55,4 +55,20 @@ begin
 end;
 $$;
 
+-- 4. (migration 107) an admin cannot save a minimum version with a part over 6 digits.
+do $$
+declare
+  v_failed boolean := false;
+begin
+  begin
+    perform public.admin_set_app_control('web', '{"min_version": "99999999999"}'::jsonb, 'test');
+  exception when others then
+    v_failed := sqlerrm like 'min_version looks like%';
+  end;
+  if not v_failed then
+    raise exception 'FAIL: an overlong min_version was accepted (or refused for another reason)';
+  end if;
+end;
+$$;
+
 rollback;
