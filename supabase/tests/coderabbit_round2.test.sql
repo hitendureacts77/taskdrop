@@ -56,17 +56,34 @@ end;
 $$;
 
 -- 4. (migration 107) an admin cannot save a minimum version with a part over 6 digits.
+-- Run as a real full admin on the authenticated role, not as the SQL operator.
 do $$
 declare
+  v_admin  uuid := gen_random_uuid();
   v_failed boolean := false;
+  v_msg    text;
 begin
+  insert into auth.users (id, instance_id, aud, role, email, encrypted_password,
+                          email_confirmed_at, created_at, updated_at)
+  values (v_admin, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+          'minver+' || v_admin || '@taskdrop.test', '', now(), now(), now());
+  insert into public.profiles (id, display_name) values (v_admin, 'Min Version Admin') on conflict (id) do nothing;
+  insert into public.user_roles (user_id, role) values (v_admin, 'admin') on conflict do nothing;
+
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', v_admin, 'role', 'authenticated', 'aal', 'aal1')::text, true);
+  perform set_config('role', 'authenticated', true);
   begin
     perform public.admin_set_app_control('web', '{"min_version": "99999999999"}'::jsonb, 'test');
   exception when others then
-    v_failed := sqlerrm like 'min_version looks like%';
+    v_failed := true;
+    v_msg := sqlerrm;
   end;
-  if not v_failed then
-    raise exception 'FAIL: an overlong min_version was accepted (or refused for another reason)';
+  perform set_config('role', 'postgres', true);
+  perform set_config('request.jwt.claims', '', true);
+
+  if not v_failed or v_msg not like 'min_version looks like%' then
+    raise exception 'FAIL: an overlong min_version was accepted, or refused for another reason (%)', v_msg;
   end if;
 end;
 $$;
