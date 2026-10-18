@@ -36,7 +36,8 @@ also drops those fields from anything it stores, for an event queued before this
 | Event | When | `data` |
 |---|---|---|
 | `taskdrop/user.signed_up` | a new account passes the age check | `user_id`, `name` |
-| `taskdrop/user.deleted` | someone deletes their account | `user_id`, `by_admin` |
+| `taskdrop/user.updated` | a profile edit (name, username, photo, bios, skills, languages, intent, location, payout UPI, setup finished) or a change of sign-in email or phone, once the person has passed the age check | `user_id`, `changed` (field names only, never the new values) |
+| `taskdrop/user.deleted` | someone deletes their account, or an account is removed from auth outright | `user_id`, `by_admin` (`removed: true` for the outright case) |
 | `taskdrop/support.opened` | someone sends a help request | `ticket_id`, `category`, `from` |
 | `taskdrop/withdrawal.requested` | a worker asks to withdraw | `payout_id`, `amount_rupees`, `name`, `via` |
 | `taskdrop/payout.failed` | a withdrawal fails and the money goes back | `payout_id`, `amount_rupees`, `name` |
@@ -58,6 +59,10 @@ also drops those fields from anything it stores, for an event queued before this
 | `push-notification` | event `notification.created` | reads the message from the database, sends it to Expo, waits 15 minutes, reads Expo's receipts and forgets devices that are gone |
 | `account-files` | event `user.deleted` | removes whatever files of the deleted account are still in storage (the api function already tried once); empty when nothing is left |
 | `overdue-tasks` | every 10 min | calls `run_overdue_tasks()`: a started job past its due time becomes `OVERDUE`. Only the label changes; no money moves |
+| `user-created` | event `user.signed_up` | records the person in the `user_sync` ledger |
+| `user-updated` | event `user.updated` | counts the update and keeps which fields changed in the ledger |
+| `user-deleted` | event `user.deleted` | marks the person deleted in the ledger. Deleted is final: a late update or sign-up cannot revive them |
+| `user-sync-repair` | daily 03:10 IST | calls `user_sync_repair()`: adds anyone the ledger missed, marks deleted or removed accounts as deleted. Normally reports all zeros |
 | `housekeeping` | hourly at :17 | calls `run_housekeeping()`: removes expired sign-in codes, send and search counters, rate counters, password attempts older than 30 days, notifications older than 90 days |
 
 The three money sweeps are **off** until `INNGEST_MONEY_JOBS=on`, because pg_cron runs them
@@ -68,6 +73,27 @@ Push, `account-files`, `overdue-tasks` and `housekeeping` need migration 101. Pu
 switch (next section). `notification.created` holds ids and the kind only: the title and body
 are read by the Edge Function and handed to Expo, and Inngest keeps only counts and a one-way
 key per device.
+
+## People: created, updated, deleted
+
+Three events describe a person (`user.signed_up`, `user.updated`, `user.deleted`, above) and each has
+an Inngest function that writes `public.user_sync`: one row per person with `state` (`active` or
+`deleted`), when they were first seen, how many profile updates, the field names changed last, and
+when they were deleted. It holds no name, contact or any text, only ids, counts and field names. Admins
+can read it; only the service role writes it. It is what mail lists, a CRM or other integrations
+should read to know who exists.
+
+- **Created** is `user.signed_up`, sent when a new account passes the age check (migration 082), not at the
+  moment the auth row appears: nothing about a person leaves the database before we know they are 18+.
+- **Updated** is sent only for the columns listed above. The one-a-minute heartbeat, ratings and
+  `updated_at` never raise it, and neither does saving a value unchanged. Nothing is sent for someone
+  who has not passed the age check or whose account is deleted.
+- **Deleted** is sent by `delete_account()` (self or admin) and by a trigger when an account the ledger
+  knows is removed from auth directly (the dashboard, a clean-up script).
+- Events for one person run one at a time, the same event applied twice does nothing more, and the ledger
+  copes with them arriving out of order. `user_sync_repair()` runs nightly as a safety net.
+
+Migration 103; tested by `supabase/tests/user_sync.test.sql`.
 
 ## Moving push and the prunes
 

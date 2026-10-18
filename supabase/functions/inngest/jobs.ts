@@ -247,3 +247,40 @@ export function ownFiles(userId: string, paths: unknown): string[] {
   if (!Array.isArray(paths)) return [];
   return paths.filter((p): p is string => typeof p === "string" && p.startsWith(`${userId}/`) && !p.includes(".."));
 }
+
+// ------------------------------------------------------------------- people --
+
+/** The three events that describe a person's life, and what the database calls each. */
+export const USER_EVENTS = {
+  "taskdrop/user.signed_up": "signed_up",
+  "taskdrop/user.updated": "updated",
+  "taskdrop/user.deleted": "deleted",
+} as const;
+
+export type UserSyncArgs = {
+  p_user: string;
+  p_event: (typeof USER_EVENTS)[keyof typeof USER_EVENTS];
+  p_event_id: string | null;
+  p_fields: string[];
+  p_by_admin: boolean | null;
+};
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * What to hand user_sync_apply for a user event, or null when the event does
+ * not name a person. Only the person's id, which fields changed (names, never
+ * values) and whether an admin did it: that is all such an event carries.
+ */
+export function userSyncArgs(eventName: string, eventId: string | undefined, d: Record<string, unknown>): UserSyncArgs | null {
+  const kind = USER_EVENTS[eventName as keyof typeof USER_EVENTS];
+  const user = typeof d.user_id === "string" ? d.user_id : "";
+  if (!kind || !UUID.test(user)) return null;
+  return {
+    p_user: user.toLowerCase(),
+    p_event: kind,
+    p_event_id: eventId ?? null,
+    p_fields: Array.isArray(d.changed) ? d.changed.filter((f): f is string => typeof f === "string") : [],
+    p_by_admin: typeof d.by_admin === "boolean" ? d.by_admin : null,
+  };
+}

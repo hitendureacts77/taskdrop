@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   ALERT_EVENTS, alertFor, call, chunk, compareProviderPayment, deadKeys, digestAlert, expoReceipts, expoSend, ownFiles,
-  readTickets, safeData, saveAlert, toEvents, tokenKey, tokensForKeys, type Fetch, type Rpc,
+  readTickets, safeData, saveAlert, toEvents, tokenKey, tokensForKeys, userSyncArgs, USER_EVENTS, type Fetch, type Rpc,
 } from "./jobs.ts";
 
 test("outbox rows become Inngest events keyed by the outbox id", () => {
@@ -176,4 +176,30 @@ test("deleted-account files: only the person's own folder, never a path that cli
   );
   assert.deepEqual(ownFiles(uid, null), []);
   assert.deepEqual(chunk([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
+});
+
+test("people: each lifecycle event becomes the right ledger call, and nothing but ids and field names goes through", () => {
+  const uid = "11111111-1111-1111-1111-111111111111";
+  assert.deepEqual(
+    userSyncArgs("taskdrop/user.signed_up", "evt-1", { user_id: uid, name: "Asha" }),
+    { p_user: uid, p_event: "signed_up", p_event_id: "evt-1", p_fields: [], p_by_admin: null },
+  );
+  assert.deepEqual(
+    userSyncArgs("taskdrop/user.updated", "evt-2", { user_id: uid.toUpperCase(), changed: ["bio", 7, "skills"] }),
+    { p_user: uid, p_event: "updated", p_event_id: "evt-2", p_fields: ["bio", "skills"], p_by_admin: null },
+  );
+  assert.deepEqual(
+    userSyncArgs("taskdrop/user.deleted", undefined, { user_id: uid, by_admin: true }),
+    { p_user: uid, p_event: "deleted", p_event_id: null, p_fields: [], p_by_admin: true },
+  );
+  // the removed-from-auth case sends by_admin: null
+  assert.equal(userSyncArgs("taskdrop/user.deleted", "e", { user_id: uid, by_admin: null, removed: true })?.p_by_admin, null);
+});
+
+test("people: an event that does not name a person, or is not a user event, is skipped", () => {
+  assert.equal(userSyncArgs("taskdrop/user.updated", "e", {}), null);
+  assert.equal(userSyncArgs("taskdrop/user.updated", "e", { user_id: "not-a-uuid" }), null);
+  assert.equal(userSyncArgs("taskdrop/user.updated", "e", { user_id: 42 }), null);
+  assert.equal(userSyncArgs("taskdrop/support.opened", "e", { user_id: "11111111-1111-1111-1111-111111111111" }), null);
+  assert.deepEqual(Object.values(USER_EVENTS).sort(), ["deleted", "signed_up", "updated"]);
 });

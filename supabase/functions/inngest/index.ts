@@ -18,6 +18,8 @@ import {
   expoSend,
   ownFiles,
   type OutboxRow,
+  USER_EVENTS,
+  userSyncArgs,
   type ProviderLink,
   type ProviderMismatch,
   type ProviderPayment,
@@ -264,6 +266,44 @@ const housekeeping = inngest.createFunction(
   async ({ step }) => ({ removed: await step.run("tidy", () => call<Record<string, number>>(rpc, "run_housekeeping")) }),
 );
 
+// ------------------------------------------------------------------- people --
+
+/**
+ * A person's life in the app, kept in step with Postgres: signed up, changed
+ * something about their profile, deleted. Each event is written down in
+ * public.user_sync, a ledger with an id, a state and counts, never a name or a
+ * contact. The events say which fields changed, not what they were set to.
+ * One person's events run one at a time; the database also copes with them
+ * arriving out of order (deleted is final).
+ */
+function userFunction(id: string, eventName: keyof typeof USER_EVENTS) {
+  return inngest.createFunction(
+    {
+      id,
+      triggers: [{ event: eventName }],
+      retries: 5,
+      concurrency: { key: "event.data.user_id", limit: 1 },
+      onFailure: reportFailure(id),
+    },
+    async ({ event, step }) => {
+      const args = userSyncArgs(event.name, event.id, event.data ?? {});
+      if (!args) return { skipped: "no person" };
+      const result = await step.run("sync ledger", () => call<string>(rpc, "user_sync_apply", args));
+      return { user: args.p_user, result };
+    },
+  );
+}
+
+const userCreated = userFunction("user-created", "taskdrop/user.signed_up");
+const userUpdated = userFunction("user-updated", "taskdrop/user.updated");
+const userDeleted = userFunction("user-deleted", "taskdrop/user.deleted");
+
+/** Every night: puts the ledger right if an event was ever missed. Normally reports all zeros. */
+const userSyncRepair = inngest.createFunction(
+  { id: "user-sync-repair", triggers: [{ cron: "TZ=Asia/Kolkata 10 3 * * *" }], concurrency: 1, onFailure: reportFailure("user-sync-repair") },
+  async ({ step }) => ({ fixed: await step.run("repair", () => call<Record<string, number>>(rpc, "user_sync_repair")) }),
+);
+
 // -------------------------------------------------------------- money sweeps --
 
 /**
@@ -293,6 +333,7 @@ Deno.serve(serve({
   functions: [
     outboxSweeper, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile,
     pushNotification, accountFiles, overdueTasks, housekeeping,
+    userCreated, userUpdated, userDeleted, userSyncRepair,
     ...moneyJobs,
   ],
   servePath: "/functions/v1/inngest",
