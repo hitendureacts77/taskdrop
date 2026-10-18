@@ -161,7 +161,16 @@ const nightlyReconcile = inngest.createFunction(
       const mismatches: ProviderMismatch[] = [];
       let failed = 0;
       for (const p of rows) {
-        const res = await fetch(`${RZP}/payment_links/${encodeURIComponent(p.provider_ref)}`, { headers });
+        let res: Response;
+        try {
+          res = await fetch(`${RZP}/payment_links/${encodeURIComponent(p.provider_ref)}`, {
+            headers,
+            signal: AbortSignal.timeout(10_000),
+          });
+        } catch {
+          failed++; // a network error or timeout is not a mismatch; the next night looks again
+          continue;
+        }
         if (res.status === 404) {
           const m = compareProviderPayment(p, null);
           if (m) mismatches.push(m);

@@ -93,7 +93,8 @@ begin
   perform public.block_user(v_poster);
   if not private.is_blocking(v_worker, v_poster) then raise exception 'FAIL: block_user did not record the block'; end if;
   if private.has_assignment(v_task, v_worker) then raise exception 'FAIL: has_assignment is true for someone never assigned'; end if;
-  if (select polqual is null from pg_policy where polname = 'tasks_hide_blocked' and polrelid = 'public.tasks'::regclass) then
+  if not exists (select 1 from pg_policy where polname = 'tasks_hide_blocked'
+                  and polrelid = 'public.tasks'::regclass and polqual is not null) then
     raise exception 'FAIL: the tasks_hide_blocked policy is missing';
   end if;
   perform pg_temp.as_owner();

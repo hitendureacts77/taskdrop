@@ -96,7 +96,7 @@ begin
   -- ---- the merge ------------------------------------------------------------
   v_cfg := public.get_app_controls('android', '1.0.0');
   if (v_cfg ->> 'maintenance')::boolean or (v_cfg ->> 'update_required')::boolean
-     or not (v_cfg ->> 'bidding')::boolean or v_cfg -> 'banner_text' <> 'null'::jsonb then
+     or not (v_cfg ->> 'bidding')::boolean or v_cfg -> 'banner_text' is distinct from 'null'::jsonb then
     raise exception 'FAIL: the defaults are not all-on (%)', v_cfg;
   end if;
 
@@ -130,13 +130,13 @@ begin
   update public.app_controls set maintenance = true, maintenance_message = 'All down' where platform = 'all';
   update public.app_controls set maintenance_message = 'Android only' where platform = 'android';
   if not (public.get_app_controls('web', null) ->> 'maintenance')::boolean
-     or public.get_app_controls('web', null) ->> 'maintenance_message' <> 'All down' then
+     or public.get_app_controls('web', null) ->> 'maintenance_message' is distinct from 'All down' then
     raise exception 'FAIL: maintenance on All did not reach Web';
   end if;
   update public.app_controls set maintenance = false, maintenance_message = null where platform = 'all';
   update public.app_controls set maintenance = true where platform = 'android';
   if not (public.get_app_controls('android', null) ->> 'maintenance')::boolean
-     or public.get_app_controls('android', null) ->> 'maintenance_message' <> 'Android only'
+     or public.get_app_controls('android', null) ->> 'maintenance_message' is distinct from 'Android only'
      or (public.get_app_controls('ios', null) ->> 'maintenance')::boolean then
     raise exception 'FAIL: Android maintenance leaked, or lost its message';
   end if;
@@ -155,7 +155,7 @@ begin
   if (public.get_app_controls('android', null) ->> 'update_required')::boolean then
     raise exception 'FAIL: an unknown version was told to update';
   end if;
-  if public.get_app_controls('ios', '1.0.0') ->> 'min_version' <> '1.10.0' then
+  if public.get_app_controls('ios', '1.0.0') ->> 'min_version' is distinct from '1.10.0' then
     raise exception 'FAIL: the higher minimum version did not win';
   end if;
   update public.app_controls set min_version = null;
@@ -163,12 +163,12 @@ begin
   -- the banner: it ends, and the platform's own wins
   update public.app_controls set banner_text = 'For everyone', banner_level = 'info' where platform = 'all';
   update public.app_controls set banner_text = 'Web only', banner_level = 'warning' where platform = 'web';
-  if public.get_app_controls('web', null) ->> 'banner_text' <> 'Web only'
-     or public.get_app_controls('ios', null) ->> 'banner_text' <> 'For everyone' then
+  if public.get_app_controls('web', null) ->> 'banner_text' is distinct from 'Web only'
+     or public.get_app_controls('ios', null) ->> 'banner_text' is distinct from 'For everyone' then
     raise exception 'FAIL: banner choice is wrong';
   end if;
   update public.app_controls set banner_ends_at = now() - interval '1 minute' where platform = 'web';
-  if public.get_app_controls('web', null) ->> 'banner_text' <> 'For everyone' then
+  if public.get_app_controls('web', null) ->> 'banner_text' is distinct from 'For everyone' then
     raise exception 'FAIL: an ended banner still shows';
   end if;
   update public.app_controls set banner_text = null, banner_ends_at = null, banner_level = 'info';
@@ -203,14 +203,14 @@ begin
   end if;
   perform pg_temp.become(v_finance, 'aal2');
   v_cfg := public.admin_set_app_control('web', '{"withdrawals": false}', 'Razorpay X down');
-  if (v_cfg ->> 'withdrawals')::boolean or (v_cfg ->> 'updated_by')::uuid <> v_finance then
+  if (v_cfg ->> 'withdrawals')::boolean is distinct from false or (v_cfg ->> 'updated_by')::uuid is distinct from v_finance then
     raise exception 'FAIL: finance could not switch withdrawals off with a code (%)', v_cfg;
   end if;
 
   -- full admin: anything; money still needs the code, the rest does not
   perform pg_temp.become(v_full, 'aal1');
   v_cfg := public.admin_set_app_control('web', '{"bidding": false, "banner_text": "  Back at 6pm  ", "banner_level": "warning"}', 'planned work');
-  if (v_cfg ->> 'bidding')::boolean or v_cfg ->> 'banner_level' <> 'warning' then
+  if (v_cfg ->> 'bidding')::boolean is distinct from false or v_cfg ->> 'banner_level' is distinct from 'warning' then
     raise exception 'FAIL: a full admin could not change ordinary switches without a code (%)', v_cfg;
   end if;
   v_err := pg_temp.try('select public.admin_set_app_control(''web'', ''{"topups": false}'', null)');
@@ -240,13 +240,13 @@ begin
 
   -- text is trimmed, blank clears, a banner can end
   v_cfg := public.admin_set_app_control('web', '{"banner_text": "  Hello  ", "banner_ends_at": "2999-01-01T00:00:00Z", "min_version": "2.1"}', null);
-  if v_cfg ->> 'banner_text' <> 'Hello' then raise exception 'FAIL: banner text was not stored trimmed (%)', v_cfg; end if;
-  if public.get_app_controls('web', '2.0.9') ->> 'banner_text' <> 'Hello'
+  if v_cfg ->> 'banner_text' is distinct from 'Hello' then raise exception 'FAIL: banner text was not stored trimmed (%)', v_cfg; end if;
+  if public.get_app_controls('web', '2.0.9') ->> 'banner_text' is distinct from 'Hello'
      or not (public.get_app_controls('web', '2.0.9') ->> 'update_required')::boolean then
     raise exception 'FAIL: banner text or minimum version did not come through';
   end if;
   v_cfg := public.admin_set_app_control('web', '{"banner_text": "   ", "min_version": null, "banner_ends_at": null}', null);
-  if v_cfg -> 'banner_text' <> 'null'::jsonb or v_cfg -> 'min_version' <> 'null'::jsonb then
+  if v_cfg -> 'banner_text' is distinct from 'null'::jsonb or v_cfg -> 'min_version' is distinct from 'null'::jsonb then
     raise exception 'FAIL: blank text did not clear (%)', v_cfg;
   end if;
 

@@ -17,7 +17,8 @@ export type Platform = (typeof PLATFORMS)[number];
 /** Who is asking. A request with no (or an unknown) platform is the old app. */
 export type Client = { platform: Platform | null; appVersion: string | null };
 
-const VERSION = /^[0-9]+(\.[0-9]+){0,2}$/;
+// Each part must fit a Postgres int (version_lt casts to int[]); see migration 106.
+const VERSION = /^[0-9]{1,6}(\.[0-9]{1,6}){0,2}$/;
 
 export function readClient(headers: { get(name: string): string | null }): Client {
   const p = (headers.get(PLATFORM_HEADER) ?? "").trim().toLowerCase();

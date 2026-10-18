@@ -229,6 +229,8 @@ declare
   v_new   integer;
   v_out   jsonb;
 begin
+  -- Start from a known state so the 5,000-row batch reaches the test rows.
+  delete from public.admin_live_events where created_at < now() - interval '30 days';
   insert into public.admin_live_events (kind, record_type, record_id, summary, created_at)
   select 'old_test', 'task', v_task, '{}'::jsonb, now() - interval '31 days'
   from generate_series(1, 600);

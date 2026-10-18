@@ -33,7 +33,11 @@ const CORS = {
 };
 
 const reply = (body: unknown, cache: string, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": cache } });
+  new Response(JSON.stringify(body), {
+    status,
+    // The answer depends on who asks, so a shared cache must key on these headers too.
+    headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": cache, Vary: PLATFORM_HEADER + ", " + VERSION_HEADER },
+  });
 
 const cache = new ControlsCache(CONFIG_TTL_SECONDS * 1000);
 

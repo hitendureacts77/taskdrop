@@ -34,10 +34,15 @@ jobs:
   functions:
     name: Edge Functions type-check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
-      - uses: denoland/setup-deno@v2
+      # Pinned to a full commit (v2.0.5): this job runs third-party code.
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
         with:
           deno-version: v2.x
 
