@@ -24,14 +24,13 @@ reviews:
         Money changes are atomic. No grants to `anon`.
         Migrations only add: flag any dropped or renamed table, column or function, because
         the old app and the old admin share this database until Phase 9.
-        Background jobs use Inngest. Flag any new n8n hook or new pg_cron job (owner decision,
-        2026-10-12).
+        Background jobs use Inngest. Flag any new pg_cron job (owner decision, 2026-10-12).
     - path: 'supabase/functions/**'
       instructions: |
         The caller's identity is checked. No secrets are logged. Webhooks are verified and
         idempotent. Errors are reported, not swallowed.
         Existing `api` operations keep their inputs and responses.
-        Background jobs use Inngest. Flag any new n8n call (owner decision, 2026-10-12).
+        Background jobs use Inngest, not a second automation tool (owner decision, 2026-10-12).
     - path: 'apps/mobile/**'
       instructions: |
         No secrets in client code. No business decisions in the app: money, permissions,

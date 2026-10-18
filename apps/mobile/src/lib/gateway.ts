@@ -1,5 +1,7 @@
 import { FUNCTIONS_REGION, supabase } from './supabase';
 import { ApiError, apiError } from './errors';
+import { clientHeaders } from './appInfo';
+import { refreshAppConfig } from './appConfig';
 
 type Reply<T> =
   | { ok: true; data: T }
@@ -17,7 +19,13 @@ type Reply<T> =
  * through the same wording the rest of the app uses.
  */
 export async function callApi<T>(op: string, args: Record<string, unknown> = {}): Promise<T> {
-  const { data, error } = await supabase.functions.invoke('api', { body: { op, args }, region: FUNCTIONS_REGION });
+  // The platform and app version let the server apply the admin panel's
+  // per-platform switches (maintenance, minimum version, features off).
+  const { data, error } = await supabase.functions.invoke('api', {
+    body: { op, args },
+    region: FUNCTIONS_REGION,
+    headers: clientHeaders(),
+  });
 
   if (error) {
     const context = (error as { context?: unknown }).context;
@@ -28,7 +36,7 @@ export async function callApi<T>(op: string, args: Record<string, unknown> = {})
       try {
         const body = (await context.clone().json()) as Reply<T>;
         if (body && body.ok === false && body.error?.message) {
-          throw new ApiError(body.error.message, body.error.code ?? null, body.error.message, null);
+          throw refused(body.error);
         }
       } catch (e) {
         if (e instanceof ApiError) throw e;
@@ -42,7 +50,13 @@ export async function callApi<T>(op: string, args: Record<string, unknown> = {})
   if (!reply || typeof reply !== 'object' || !('ok' in reply)) throw apiError({ message: 'unreadable reply' });
   if (!reply.ok) {
     const { message, code, details } = reply.error;
-    throw new ApiError(message, code ?? null, message, details ?? null);
+    throw refused({ message, code, details });
   }
   return reply.data;
+}
+
+/** A refusal by the server, as an error. One caused by an admin switch also refreshes what the app shows. */
+function refused(e: { message: string; code?: string | null; details?: string | null }): ApiError {
+  if (e.code === 'MAINTENANCE' || e.code === 'UPDATE_REQUIRED' || e.code === 'FEATURE_OFF') void refreshAppConfig(true);
+  return new ApiError(e.message, e.code ?? null, e.message, e.details ?? null);
 }

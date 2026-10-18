@@ -3,6 +3,8 @@ import { useAuth } from '../providers/AuthProvider';
 import { useNav } from '../providers/NavProvider';
 import { subscribeToNotifications } from '../data/extras';
 import { onNotificationTap, setupPush, showLocal } from '../lib/push';
+import { appPlatform, appVersion, installId, osVersion } from '../lib/appInfo';
+import { callApi } from '../lib/gateway';
 
 /**
  * Puts TaskDrop's notifications on the phone: a quote arrived, you were
@@ -15,6 +17,10 @@ export function PushBridge() {
 
   useEffect(() => {
     if (!userId) return;
+    // Which platform, app version and OS this install runs, and that it was just seen (admin panel > Devices).
+    void installId()
+      .then((id) => callApi('recordDevice', { installId: id, platform: appPlatform, appVersion, osVersion: osVersion() }))
+      .catch(() => {});
     void setupPush();
     return subscribeToNotifications(userId, (n) => void showLocal(n));
   }, [userId]);

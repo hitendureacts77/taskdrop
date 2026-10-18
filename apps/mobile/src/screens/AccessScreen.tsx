@@ -18,9 +18,11 @@ import { Icon } from '../components/Icon';
 import { BottomSheet, Field, PrimaryButton } from '../components/kit';
 import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
+import { useAppConfig } from '../components/AppGate';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { AuthError, useAuth } from '../providers/AuthProvider';
+import { AppleSignInButton } from '../components/AppleSignInButton';
 import { postSignInRoute } from '../data/api';
 import { supabase } from '../lib/supabase';
 import { signInWithUsername } from '../data/extras';
@@ -59,7 +61,9 @@ export function AccessScreen() {
   const { desktop } = useLayout();
   const { go, reset } = useNav();
   const { celebrate, flash } = useActions();
-  const { requestCode, verifyCode, signInWithGoogle, signOut } = useAuth();
+  const { requestCode, verifyCode, signInWithGoogle, signInWithApple, signOut } = useAuth();
+  // Sign-in methods the admin panel has switched off are not offered (the server refuses them too, except Google).
+  const { features } = useAppConfig();
 
   const [stage, setStage] = useState<Stage>('number');
   const [phone, setPhone] = useState('');
@@ -72,6 +76,7 @@ export function AccessScreen() {
   const [door, setDoor] = useState<Door>('signin');
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [appleBusy, setAppleBusy] = useState(false);
   const [phoneFocused, setPhoneFocused] = useState(false);
   const [codeFocused, setCodeFocused] = useState(false);
 
@@ -245,6 +250,20 @@ export function AccessScreen() {
       flash(e instanceof Error ? e.message : 'Could not sign in with Google');
     } finally {
       setGoogleBusy(false);
+    }
+  };
+
+  const appleSignIn = async () => {
+    setAppleBusy(true);
+    try {
+      await signInWithApple();
+      await proceed();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Could not sign in with Apple';
+      // Closing Apple's sheet is a choice, not an error.
+      if (msg !== 'Sign-in was cancelled') flash(msg);
+    } finally {
+      setAppleBusy(false);
     }
   };
 
@@ -424,12 +443,20 @@ export function AccessScreen() {
               {consent}
 
               {/* The other two ways in, side by side and quieter. */}
+              {features.signInGoogle || features.signInPassword || (features.signInApple && Platform.OS === 'ios') ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 26 }}>
                 <View style={{ flex: 1, height: 1, backgroundColor: t.colors.line }} />
                 <RNText style={tx('500', 12, t.colors.muted)}>or use</RNText>
                 <View style={{ flex: 1, height: 1, backgroundColor: t.colors.line }} />
               </View>
+              ) : null}
+              {features.signInApple && Platform.OS === 'ios' ? (
+                <View style={{ marginTop: 14 }}>
+                  <AppleSignInButton onPress={() => void appleSignIn()} busy={appleBusy} />
+                </View>
+              ) : null}
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                {features.signInGoogle ? (
                 <Pressable
                   onPress={() => void googleSignIn()}
                   disabled={googleBusy}
@@ -459,6 +486,8 @@ export function AccessScreen() {
                     </>
                   )}
                 </Pressable>
+                ) : null}
+                {features.signInPassword ? (
                 <Pressable
                   onPress={() => setPwOpen(true)}
                   accessibilityRole="button"
@@ -480,6 +509,7 @@ export function AccessScreen() {
                   <RNText style={tx('800', 16, t.colors.accentDeep)}>@</RNText>
                   <RNText style={tx('700', 14, t.colors.ink)}>Username</RNText>
                 </Pressable>
+                ) : null}
               </View>
             </>
           ) : stage === 'birth' ? (

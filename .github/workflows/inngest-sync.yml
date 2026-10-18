@@ -1,0 +1,27 @@
+name: Inngest sync
+
+# Tells Inngest Cloud to re-read the list of functions from the deployed Edge
+# Function. Run it by hand after deploying the `inngest` function (or changing
+# a schedule), when the Inngest dashboard does not show a new function.
+# The request is signed by Inngest on the way back, so nothing secret is needed here,
+# and the job needs no repository access at all. The address is fixed in this file
+# so a run cannot be pointed at another host.
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  sync:
+    name: register functions
+    runs-on: ubuntu-latest
+    steps:
+      - name: PUT the function URL
+        env:
+          FUNCTION_URL: https://wjxvingpfbfvkfqhrguj.supabase.co/functions/v1/inngest
+        run: |
+          set -euo pipefail
+          out=$(curl --fail-with-body -sS -X PUT "$FUNCTION_URL")
+          echo "$out"
+          echo "$out" | grep -q "Successfully registered"

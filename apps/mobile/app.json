@@ -13,7 +13,13 @@
       "backgroundColor": "#0F1012"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.taskdrop.app",
+      "buildNumber": "1",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -73,6 +79,7 @@
         }
       ],
       "expo-web-browser",
+      "expo-apple-authentication",
       "expo-secure-store",
       [
         "expo-notifications",

@@ -1,5 +1,6 @@
 import { apiError } from '../lib/errors';
 import { callApi } from '../lib/gateway';
+import { clientHeaders } from '../lib/appInfo';
 import { currentUserId, supabase } from '../lib/supabase';
 import { subscribeLive } from '../lib/live';
 import type { Tables } from '@taskdrop/db-types';
@@ -259,6 +260,7 @@ export async function signInWithUsername(username: string, password: string): Pr
     headers: {
       apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
       'Content-Type': 'application/json',
+      ...clientHeaders(),
     },
     body: JSON.stringify({ username, password }),
   });

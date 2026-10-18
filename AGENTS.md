@@ -16,7 +16,7 @@ Tagline: "Ask for anything. Someone gets it done for you." Tasks are **local AND
 - **Expo has changed.** Before writing Expo code, read https://docs.expo.dev/versions/v57.0.0/ (see `apps/mobile/AGENTS.md`).
 - **Monorepo:** npm workspaces + Turborepo. `packages/rules` (money constants), `packages/schemas` (Zod, shared by app and Edge Functions), `packages/supabase` (client factory), `packages/db-types` (generated).
 - **Backend:** Supabase (Postgres, RLS, Edge Functions in Deno) in `supabase/`. Project ref `wjxvingpfbfvkfqhrguj`, region ap-south-1.
-- **Payments:** Razorpay escrow, RazorpayX payouts. **Background jobs:** Inngest only. Postgres owns the rules and money and writes events to an outbox; Inngest runs schedules, retries and outside calls (`supabase/functions/inngest/`, `docs/INNGEST.md`). n8n was removed (owner decision, 2026-10-12); the money sweeps stay on pg_cron until the Inngest cutover. **Images:** ImageKit; video and documents stay in Supabase Storage.
+- **Payments:** Razorpay escrow, RazorpayX payouts. **Background jobs:** Inngest only. Postgres owns the rules and money and writes events to an outbox; Inngest runs schedules, retries and outside calls (`supabase/functions/inngest/`, `docs/INNGEST.md`). The money sweeps stay on pg_cron until the Inngest cutover. Push, deleted-account file cleanup, overdue tasks and the prunes are built (migration 101) and switch over with `supabase/cutover/inngest_background_jobs.sql`. Payouts, refund retries and webhook hand-off wait for the lawyer's answer on the money flow. **Images:** ImageKit; video and documents stay in Supabase Storage.
 - **Sign-in:** phone OTP, Google, Apple, username + password.
 - **Admin app:** separate repo, `../taskdrop-admin` (Next.js 16, port 3001). It controls the user apps, enforced server-side.
 - Rejected, do not suggest: Clerk, Stripe, Pinecone, Flutter.
@@ -42,7 +42,7 @@ Run `npm run check` before calling anything done. Run `npm run test:db` for any 
 5. **Stage is testing only:** fake data, the owner plus ~10 testers, free plans. No real customer data until the owner decides to launch.
 6. **Secrets:** never read, print, commit or paste `.env` values. Use `.env.example` for shape. Never put a service-role or Razorpay secret key in client code.
 7. **Do not push, merge, deploy, or touch the hosted database without being asked.**
-8. **No n8n for background work.** Schedules, retries, digests and alerts are Inngest functions; events leave the database only through `private.emit_event` (the outbox). Do not add n8n calls or new pg_cron jobs. Phase 5 is under way: move one job at a time, removing the old job in the same deploy as its replacement.
+8. **Inngest only for background work.** Schedules, retries, digests and alerts are Inngest functions; events leave the database only through `private.emit_event` (the outbox). Do not add another automation tool or new pg_cron jobs. Phase 5 is under way: move one job at a time, removing the old job in the same deploy as its replacement.
 
 ## Product rules (keep in code, copy and design)
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
+import { BlockedPeopleCard } from '../components/BlockedPeopleCard';
 import { Badge, ConfirmDialog, Field, PrimaryButton, SwipeTabs, TopBar, UnderlineTabs } from '../components/kit';
 import { nameCarriesContact } from '../lib/mask';
 import { tx } from '../components/primitives';
@@ -354,6 +355,7 @@ export function AccountScreen() {
                 ))}
               </View>
             ) : null}
+            <BlockedPeopleCard style={card} />
           </>
         ) : null}
       </ScrollView>

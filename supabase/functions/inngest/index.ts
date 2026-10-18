@@ -3,16 +3,33 @@ import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { Inngest } from "npm:inngest@4.23.0";
 import { serve } from "npm:inngest@4.23.0/edge";
 import { captureServerError } from "../_shared/monitoring.ts";
+import { secret } from "../_shared/secrets.ts";
 import {
   ALERT_EVENTS,
   alertFor,
   safeData,
   call,
+  chunk,
+  compareProviderPayment,
+  deadKeys,
   digestAlert,
   type Digest,
+  expoReceipts,
+  expoSend,
+  ownFiles,
   type OutboxRow,
+  USER_EVENTS,
+  userSyncArgs,
+  type ProviderLink,
+  type ProviderMismatch,
+  type ProviderPayment,
+  type PushMessage,
+  readTickets,
   saveAlert,
+  STORAGE_BATCH,
   toEvents,
+  tokensForKeys,
+  type WaitingTicket,
 } from "./jobs.ts";
 
 /**
@@ -33,6 +50,7 @@ import {
  *   INNGEST_EVENT_KEY     lets this function send events
  *   INNGEST_MONEY_JOBS    "on" to let Inngest run the three money sweeps (default off)
  *   INNGEST_DEV           "1" when talking to a local `inngest-cli dev` server
+ *   INNGEST_PUSH_RECEIPT_WAIT  how long push waits before reading Expo's receipts (default "15m"; tests only)
  */
 
 const dev = Deno.env.get("INNGEST_DEV") === "1";
@@ -45,6 +63,9 @@ const inngest = new Inngest({
   // Edge Functions are short-lived; every step is its own request.
   checkpointing: false,
 });
+
+/** How long to wait before asking Expo whether a phone took a push. Only tests change this. */
+const receiptWait = Deno.env.get("INNGEST_PUSH_RECEIPT_WAIT") ?? "15m";
 
 const db = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -106,6 +127,212 @@ const dailyDigest = inngest.createFunction(
   },
 );
 
+// --------------------------------------------------- rules and reconciliation --
+
+/**
+ * The automation rules an admin switched on (Admin → Rules): who needs a
+ * follow-up. The rules and the "once per person" guard live in Postgres
+ * (run_crm_rules); this only rings the bell on a schedule.
+ */
+const crmRules = inngest.createFunction(
+  { id: "crm-rules", triggers: [{ cron: "0 */3 * * *" }], concurrency: 1, onFailure: reportFailure("crm-rules") },
+  async ({ step }) => ({ created: await step.run("run rules", () => call<number>(rpc, "run_crm_rules")) }),
+);
+
+const RZP = "https://api.razorpay.com/v1";
+
+/**
+ * Every night at 2:30 India time: the money checks the database can do alone,
+ * then a comparison of the last three days' payments with Razorpay's own
+ * payment links. A difference leaves an alert for the team and a row on the
+ * Money check page. Never changes money; it only reports.
+ */
+const nightlyReconcile = inngest.createFunction(
+  { id: "nightly-reconcile", triggers: [{ cron: "TZ=Asia/Kolkata 30 2 * * *" }], concurrency: 1, onFailure: reportFailure("nightly-reconcile") },
+  async ({ step }) => {
+    const internal = await step.run("internal checks", () => call<{ run: string; mismatches: number }>(rpc, "run_reconciliation", { p_days: 3 }));
+
+    const provider = await step.run("compare with Razorpay", async () => {
+      const id = await secret("RAZORPAY_KEY_ID");
+      const key = await secret("RAZORPAY_KEY_SECRET");
+      if (!id || !key) return { skipped: "Razorpay is not configured" };
+      const rows = (await call<ProviderPayment[] | null>(rpc, "reconcile_provider_candidates", { p_days: 3 })) ?? [];
+      const headers = { Authorization: `Basic ${btoa(`${id}:${key}`)}` };
+      const mismatches: ProviderMismatch[] = [];
+      let failed = 0;
+      for (const p of rows) {
+        let res: Response;
+        try {
+          res = await fetch(`${RZP}/payment_links/${encodeURIComponent(p.provider_ref)}`, {
+            headers,
+            signal: AbortSignal.timeout(10_000),
+          });
+        } catch {
+          failed++; // a network error or timeout is not a mismatch; the next night looks again
+          continue;
+        }
+        if (res.status === 404) {
+          const m = compareProviderPayment(p, null);
+          if (m) mismatches.push(m);
+        } else if (res.ok) {
+          const m = compareProviderPayment(p, (await res.json()) as ProviderLink);
+          if (m) mismatches.push(m);
+        } else {
+          failed++; // a Razorpay hiccup is not a mismatch; the next night looks again
+        }
+      }
+      const run = await call<string>(rpc, "record_provider_reconciliation", { p_checked: rows.length - failed, p_mismatches: mismatches.slice(0, 100) });
+      return { run, checked: rows.length - failed, mismatches: mismatches.length, unreachable: failed };
+    });
+    return { internal, provider };
+  },
+);
+
+// ------------------------------------------------------------- push, files, tidy --
+
+/**
+ * One notification, to every phone the person has signed in on. Postgres writes
+ * the event (the "push through Inngest" switch, supabase/cutover/) and holds the
+ * words; this reads them, hands them to Expo, and later asks Expo whether each
+ * device took the message, dropping devices that are gone.
+ *
+ * Inngest keeps what a step returns, so a step returns counts and one-way keys,
+ * never a token, a title or a body.
+ */
+const pushNotification = inngest.createFunction(
+  { id: "push-notification", triggers: [{ event: "taskdrop/notification.created" }], retries: 4, onFailure: reportFailure("push-notification") },
+  async ({ event, step }) => {
+    const notificationId = String(event.data?.notification_id ?? "");
+    const userId = String(event.data?.user_id ?? "");
+    if (!notificationId || !userId) return { skipped: "no notification" };
+
+    const sent = await step.run("send", async () => {
+      const messages = ((await call<PushMessage[] | null>(rpc, "push_job_load", { p_notification: notificationId })) ?? []).slice(0, 100);
+      if (messages.length === 0) return { sent: 0, failed: 0, gone: 0, waiting: [] as WaitingTicket[] };
+      const tickets = await expoSend(fetch, messages);
+      const { waiting, dead, failed } = await readTickets(messages, tickets);
+      if (dead.length > 0) {
+        try {
+          await call<number>(rpc, "push_remove_tokens", { p_tokens: dead });
+        } catch (e) {
+          // The message is already with Expo; retrying the step would send it twice.
+          await captureServerError(e, { job: "push-notification", stage: "remove dead tokens" });
+        }
+      }
+      return { sent: waiting.length, failed, gone: dead.length, waiting };
+    });
+
+    if (sent.waiting.length === 0) return { sent: sent.sent, failed: sent.failed, gone: sent.gone };
+
+    // Expo needs a few minutes before it can say whether a phone took the message.
+    await step.sleep("let Expo deliver", receiptWait);
+
+    const gone = await step.run("read receipts", async () => {
+      const receipts = await expoReceipts(fetch, sent.waiting.map((w) => w.id));
+      const keys = deadKeys(sent.waiting, receipts);
+      if (keys.length === 0) return 0;
+      const tokens = (await call<string[] | null>(rpc, "push_tokens_of", { p_user: userId })) ?? [];
+      const dead = await tokensForKeys(tokens, keys);
+      if (dead.length > 0) await call<number>(rpc, "push_remove_tokens", { p_tokens: dead });
+      return dead.length;
+    });
+    return { sent: sent.sent, failed: sent.failed, gone: sent.gone + gone };
+  },
+);
+
+/**
+ * A deleted account's leftover files in storage. The api function removes them
+ * the moment the account is deleted, once, best effort; this asks the database
+ * what is still there and removes it, with retries. It is a no-op when the first
+ * attempt got everything.
+ */
+const accountFiles = inngest.createFunction(
+  { id: "account-files", triggers: [{ event: "taskdrop/user.deleted" }], retries: 5, onFailure: reportFailure("account-files") },
+  async ({ event, step }) => {
+    const userId = String(event.data?.user_id ?? "");
+    if (!userId) return { skipped: "no account" };
+    const removed = await step.run("remove files", async () => {
+      const paths = ownFiles(userId, await call<string[] | null>(rpc, "deleted_account_files", { p_user: userId }));
+      for (const batch of chunk(paths, STORAGE_BATCH)) {
+        const { error } = await db.storage.from("task-media").remove(batch);
+        if (error) throw new Error(`storage remove: ${error.message}`);
+      }
+      return paths.length;
+    });
+    return { removed };
+  },
+);
+
+/** A job that was started and is past its time gets the OVERDUE label. Nothing else changes. */
+const overdueTasks = inngest.createFunction(
+  { id: "overdue-tasks", triggers: [{ cron: "*/10 * * * *" }], concurrency: 1, onFailure: reportFailure("overdue-tasks") },
+  async ({ step }) => ({ marked: await step.run("mark overdue", () => call<number>(rpc, "run_overdue_tasks")) }),
+);
+
+/** Counters, sign-in codes, old notifications, the admin live feed: records that have outlived their use. */
+const housekeeping = inngest.createFunction(
+  { id: "housekeeping", triggers: [{ cron: "17 * * * *" }], concurrency: 1, onFailure: reportFailure("housekeeping") },
+  async ({ step }) => ({ removed: await step.run("tidy", () => call<Record<string, number>>(rpc, "run_housekeeping")) }),
+);
+
+/**
+ * Watches the bridge itself: events left unsent for 15 minutes mean Inngest is
+ * not receiving them. Leaves one team alert, then stays quiet for six hours.
+ */
+const outboxWatchdog = inngest.createFunction(
+  { id: "outbox-watchdog", triggers: [{ cron: "*/10 * * * *" }], concurrency: 1, onFailure: reportFailure("outbox-watchdog") },
+  async ({ step }) => ({ checked: await step.run("check outbox", () => call<Record<string, unknown>>(rpc, "run_outbox_watchdog")) }),
+);
+
+/**
+ * Two reminders that need a clock: finished work waiting for the poster's
+ * approval (it is approved for them within 24 hours), and a started job that is
+ * due within the hour. Each goes out once per task and person, as an ordinary
+ * in-app notification (and push, when push is on). No money moves.
+ */
+const taskReminders = inngest.createFunction(
+  { id: "task-reminders", triggers: [{ cron: "*/15 * * * *" }], concurrency: 1, onFailure: reportFailure("task-reminders") },
+  async ({ step }) => ({ sent: await step.run("remind", () => call<Record<string, unknown>>(rpc, "run_task_reminders")) }),
+);
+
+// ------------------------------------------------------------------- people --
+
+/**
+ * A person's life in the app, kept in step with Postgres: signed up, changed
+ * something about their profile, deleted. Each event is written down in
+ * public.user_sync, a ledger with an id, a state and counts, never a name or a
+ * contact. The events say which fields changed, not what they were set to.
+ * One person's events run one at a time; the database also copes with them
+ * arriving out of order (deleted is final).
+ */
+function userFunction(id: string, eventName: keyof typeof USER_EVENTS) {
+  return inngest.createFunction(
+    {
+      id,
+      triggers: [{ event: eventName }],
+      retries: 5,
+      concurrency: { key: "event.data.user_id", limit: 1 },
+      onFailure: reportFailure(id),
+    },
+    async ({ event, step }) => {
+      const args = userSyncArgs(event.name, event.id, event.data ?? {});
+      if (!args) return { skipped: "no person" };
+      const result = await step.run("sync ledger", () => call<string>(rpc, "user_sync_apply", args));
+      return { user: args.p_user, result };
+    },
+  );
+}
+
+const userCreated = userFunction("user-created", "taskdrop/user.signed_up");
+const userUpdated = userFunction("user-updated", "taskdrop/user.updated");
+const userDeleted = userFunction("user-deleted", "taskdrop/user.deleted");
+
+/** Every night: puts the ledger right if an event was ever missed. Normally reports all zeros. */
+const userSyncRepair = inngest.createFunction(
+  { id: "user-sync-repair", triggers: [{ cron: "TZ=Asia/Kolkata 10 3 * * *" }], concurrency: 1, onFailure: reportFailure("user-sync-repair") },
+  async ({ step }) => ({ fixed: await step.run("repair", () => call<Record<string, number>>(rpc, "user_sync_repair")) }),
+);
+
 // -------------------------------------------------------------- money sweeps --
 
 /**
@@ -132,6 +359,11 @@ const moneyJobs = Deno.env.get("INNGEST_MONEY_JOBS") === "on"
 
 Deno.serve(serve({
   client: inngest,
-  functions: [outboxSweeper, outboxPrune, teamAlert, dailyDigest, ...moneyJobs],
+  functions: [
+    outboxSweeper, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile,
+    pushNotification, accountFiles, overdueTasks, housekeeping, outboxWatchdog, taskReminders,
+    userCreated, userUpdated, userDeleted, userSyncRepair,
+    ...moneyJobs,
+  ],
   servePath: "/functions/v1/inngest",
 }));

@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
+import { signInRefusal } from "../_shared/signInSwitches.ts";
 
 /**
  * Username + password sign-in.
@@ -22,7 +23,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-taskdrop-platform, x-taskdrop-app-version",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -57,6 +58,10 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
     auth: { persistSession: false },
   });
+  // The admin panel's password sign-in switch (migration 092).
+  const refused = await signInRefusal(admin, req.headers, "password");
+  if (refused) return json({ error: refused, switchedOff: true }, 403);
+
   // cf-connecting-ip cannot be forged (Cloudflare rejects a request that sets
   // it); the platform rewrites x-forwarded-for, whose first entry is the
   // fallback. true-client-ip / forwarded pass through from the caller: never

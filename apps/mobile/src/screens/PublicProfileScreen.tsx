@@ -16,6 +16,7 @@ import { presenceOf } from '../lib/presence';
 import { roughPlace } from '../lib/place';
 import { AvatarPresence } from '../components/PresenceDot';
 import { useMode } from '../providers/ModeProvider';
+import { ReportSheet } from '../components/ReportSheet';
 
 /**
  * Someone's profile as anyone else sees it. Opened on yourself, it is the
@@ -45,6 +46,7 @@ export function PublicProfileScreen() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [avatar, setAvatar] = useState<string | null>(null);
   const [verified, setVerified] = useState<{ phone: boolean; email: boolean } | null>(null);
+  const [reporting, setReporting] = useState(false);
 
   useEffect(() => {
     if (!id) return setP(null);
@@ -107,9 +109,23 @@ export function PublicProfileScreen() {
             <Pressable onPress={() => go('profileEdit')} hitSlop={8} accessibilityRole="button">
               <RNText style={tx('700', 13, t.colors.accentDeep)}>Edit profile</RNText>
             </Pressable>
-          ) : undefined
+          ) : (
+            <Pressable onPress={() => setReporting(true)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Report this person">
+              <RNText style={tx('700', 13, t.colors.muted)}>Report</RNText>
+            </Pressable>
+          )
         }
       />
+      {!self ? (
+        <ReportSheet
+          visible={reporting}
+          onClose={() => setReporting(false)}
+          targetType="user"
+          targetId={p.id}
+          personId={p.id}
+          personName={p.display_name}
+        />
+      ) : null}
       <ScrollView contentContainerStyle={{ paddingBottom: 28 }}>
         {self ? (
           <View style={{ marginHorizontal: 20, flexDirection: 'row', gap: 8, backgroundColor: t.colors.accentSoft, borderRadius: 10, padding: 11, marginBottom: 12 }}>

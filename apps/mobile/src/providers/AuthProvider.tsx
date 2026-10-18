@@ -5,6 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { clientHeaders } from '../lib/appInfo';
 import { postSignInRoute } from '../data/api';
 
 /**
@@ -50,6 +51,9 @@ type AuthCtx = {
    *  door was used: from "Create account", an account that already existed
    *  is signed in with a notice saying so. */
   signInWithGoogle: (intent?: 'signin' | 'signup') => Promise<void>;
+  /** Native "Sign in with Apple" (iOS only). Resolves once a session exists;
+   *  rejects with "Sign-in was cancelled" if the sheet is dismissed. */
+  signInWithApple: () => Promise<void>;
   /** A one-off message for the person, e.g. "account already exists". */
   notice: string | null;
   clearNotice: () => void;
@@ -75,7 +79,7 @@ export class AuthError extends Error {
 async function callFn(body: Record<string, unknown>) {
   const res = await fetch(FN_URL, {
     method: 'POST',
-    headers: { apikey: ANON, 'Content-Type': 'application/json' },
+    headers: { apikey: ANON, 'Content-Type': 'application/json', ...clientHeaders() },
     body: JSON.stringify(body),
   });
   const json = (await res.json()) as Record<string, unknown>;
@@ -332,6 +336,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (intent === 'signup' && existedBefore(redeemed.createdAt)) setNotice(EXISTING_GOOGLE);
   }, []);
 
+  const signInWithApple = useCallback(async () => {
+    if (Platform.OS !== 'ios') throw new Error('Sign in with Apple is only available on iPhone and iPad');
+    // Loaded here so Android and web bundles never touch the native module.
+    const AppleAuthentication = await import('expo-apple-authentication');
+    const Crypto = await import('expo-crypto');
+    // Apple gets the hash of a random nonce, Supabase gets the raw one, so a
+    // stolen token cannot be replayed against another sign-in.
+    const rawNonce = Crypto.randomUUID();
+    const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+    let credential;
+    try {
+      credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+        nonce: hashedNonce,
+      });
+    } catch (e) {
+      if ((e as { code?: string })?.code === 'ERR_REQUEST_CANCELED') throw new Error('Sign-in was cancelled');
+      throw e;
+    }
+    if (!credential.identityToken) throw new Error('Apple did not return a sign-in token. Please try again.');
+    const { error } = await supabase.auth.signInWithIdToken({
+      provider: 'apple',
+      token: credential.identityToken,
+      nonce: rawNonce,
+    });
+    if (error) throw /banned/i.test(error.message) ? new Error('This account is suspended. Please contact TaskDrop support.') : apiError(error);
+  }, []);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
   }, []);
@@ -345,11 +380,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       requestCode,
       verifyCode,
       signInWithGoogle,
+      signInWithApple,
       signOut,
       notice,
       clearNotice,
     }),
-    [session, ready, postAuthRoute, requestCode, verifyCode, signInWithGoogle, signOut, notice, clearNotice],
+    [session, ready, postAuthRoute, requestCode, verifyCode, signInWithGoogle, signInWithApple, signOut, notice, clearNotice],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

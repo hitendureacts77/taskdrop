@@ -1,5 +1,6 @@
 import { ApiError, friendlyMessage } from '../lib/errors';
 import { callApi } from '../lib/gateway';
+import { clientHeaders } from '../lib/appInfo';
 import { FUNCTIONS_REGION, currentUserId, supabase } from '../lib/supabase';
 import { subscribeLive } from '../lib/live';
 import type { Tables, Enums } from '@taskdrop/db-types';
@@ -510,6 +511,7 @@ export async function createPaymentLink(input: {
 }): Promise<PaymentLink> {
   const { data, error } = await supabase.functions.invoke('razorpay', {
     region: FUNCTIONS_REGION,
+    headers: clientHeaders(),
     body: { action: 'create-link', ...input },
   });
   if (error) throw await functionError(error, 'Could not start the payment');
@@ -594,5 +596,13 @@ export const submitProof = (input: {
   summary: string;
   files: import('../lib/media').ProofFile[];
 }) => act<Proof>('submitProof', { taskId: input.taskId, summary: input.summary.trim(), files: input.files });
+
+/** Report a person or a task to the team (migration 093). */
+export const reportContent = (targetType: 'user' | 'task', targetId: string, reason: string) =>
+  act<string | null>('reportContent', { targetType, targetId, reason: reason.trim() });
+export const blockUser = (userId: string) => act<null>('blockUser', { userId });
+export type BlockedUser = { id: string; name: string; blockedAt: string };
+export const listBlockedUsers = () => act<BlockedUser[]>('listBlockedUsers');
+export const unblockUser = (userId: string) => act<null>('unblockUser', { userId });
 
 export const getProof = (taskId: string) => quietly<Proof | null>('getProof', { taskId }, null);

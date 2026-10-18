@@ -1,5 +1,5 @@
 import {
-  type Args, type DbError, type Op, MONEY_MAX, OpError, bad, bool, int, isoOrNull, nowIso, numOrNull, oneOf,
+  type Args, type Ctx, type DbError, type Op, MONEY_MAX, OpError, bad, bool, int, isoOrNull, nowIso, numOrNull, oneOf,
   rows, rpcOp, str, strOrNull, strings, take, toOpError, uuid, uuidOrNull, uuids,
 } from "./core.ts";
 
@@ -29,6 +29,28 @@ function profileRefusal(err: DbError): OpError {
     return new OpError("Usernames are 3–20 characters: lowercase letters, numbers and _", "BAD_ARGS");
   }
   return toOpError(err);
+}
+
+const PUSH_PLATFORMS = ["ios", "android", "web", "windows", "macos"] as const;
+const INSTALL_ID = /^[A-Za-z0-9_-]{8,64}$/;
+
+/**
+ * Note which install this call came from (migration 092): platform and app
+ * version from the request headers, the rest from the app. The headers win
+ * over the arguments, so an old build that sends neither still records what
+ * it says about itself.
+ */
+async function noteDevice(ctx: Ctx, a: Args, push: boolean) {
+  const installId = str(a, "installId", 64, 8);
+  if (!INSTALL_ID.test(installId)) throw bad("installId");
+  const platform = ctx.client?.platform ?? oneOf(a, "platform", PUSH_PLATFORMS);
+  take(await ctx.db.rpc("record_device", {
+    p_install_id: installId,
+    p_platform: platform,
+    p_app_version: ctx.client?.appVersion ?? strOrNull(a, "appVersion", 32),
+    p_os_version: strOrNull(a, "osVersion", 64),
+    p_push: push,
+  }));
 }
 
 const taskOnly = (a: Args) => ({ p_task_id: uuid(a, "taskId") });
@@ -302,10 +324,38 @@ export const WRITE_OPS: Record<string, Op> = {
     return { deleted: true };
   },
 
-  registerPushToken: rpcOp("register_push_token", (a) => ({
-    p_token: str(a, "token", 300),
-    p_platform: oneOf(a, "platform", ["ios", "android", "web", "windows", "macos"]),
+  registerPushToken: async (ctx, a) => {
+    take(await ctx.db.rpc("register_push_token", {
+      p_token: str(a, "token", 300),
+      p_platform: oneOf(a, "platform", PUSH_PLATFORMS),
+    }));
+    // Which phone this is (platform, app version, OS, last seen). Newer
+    // builds say; older ones simply don't, and registering still works.
+    if (a.installId != null) {
+      try {
+        await noteDevice(ctx, a, true);
+      } catch {
+        /* a device record must never undo a registered token */
+      }
+    }
+    return null;
+  },
+
+  /** "This install is on this app version and OS, and was just seen." Once per start-up, on every platform. */
+  recordDevice: async (ctx, a) => {
+    await noteDevice(ctx, a, bool(a, "push"));
+    return null;
+  },
+
+  // ---- reports and blocks (migration 093) ----
+  /** Tell the team about a person or a task. One open report per person per thing. */
+  reportContent: rpcOp("report_content", (a) => ({
+    p_type: oneOf(a, "targetType", ["user", "task"]),
+    p_target: uuid(a, "targetId"),
+    p_reason: str(a, "reason", 500),
   })),
+  blockUser: rpcOp("block_user", (a) => ({ p_user: uuid(a, "userId") })),
+  unblockUser: rpcOp("unblock_user", (a) => ({ p_user: uuid(a, "userId") })),
 
   // ---- saved tasks, notifications, feedback, support, referrals ----
   setSaved: async ({ db, userId }, a) => {

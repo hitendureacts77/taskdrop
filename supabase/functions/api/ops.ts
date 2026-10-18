@@ -10,6 +10,7 @@
  * security and the SQL functions' own checks apply exactly as before.
  */
 
+import { refusalFor } from "../_shared/controls.ts";
 import { type Ctx, GENERIC, OpError, type Op } from "./core.ts";
 import { MEDIA_OPS } from "./media.ts";
 import { READ_OPS } from "./reads.ts";
@@ -44,6 +45,10 @@ export async function runOp(name: unknown, args: unknown, ctx: Ctx, onUnexpected
   const op = typeof name === "string" && Object.prototype.hasOwnProperty.call(OPS, name) ? OPS[name] : undefined;
   if (!op) return { ok: false, error: { message: "Unknown request", code: "UNKNOWN_OP", details: null } };
   const a = args && typeof args === "object" && !Array.isArray(args) ? (args as Record<string, unknown>) : {};
+  // The admin panel's switches (maintenance, minimum version, feature off),
+  // decided here on the server whatever the app shows.
+  const off = refusalFor(name, ctx.controls ?? null, a, { phoneVerified: ctx.phoneVerified });
+  if (off) return { ok: false, error: off };
   try {
     return { ok: true, data: (await op(ctx, a)) ?? null };
   } catch (e) {

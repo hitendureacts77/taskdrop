@@ -244,6 +244,20 @@ export const READ_OPS: Record<string, Op> = {
         .limit(limit(a, "limit", 3)),
     ),
 
+  /** The people the caller has blocked, newest first, so they can be unblocked (migration 093/097). */
+  listBlockedUsers: async (ctx) => {
+    const list = rows<{ blocked_id: string; created_at: string }>(
+      await ctx.db.from("blocks").select("blocked_id, created_at").eq("blocker_id", ctx.userId)
+        .order("created_at", { ascending: false }).limit(200),
+    );
+    const people = await profilesById(ctx, list.map((b) => b.blocked_id));
+    return list.map((b) => ({
+      id: b.blocked_id,
+      name: String(people.get(b.blocked_id)?.display_name ?? "Someone"),
+      blockedAt: b.created_at,
+    }));
+  },
+
   listSavedTaskIds: async (ctx) =>
     rows<{ task_id: string }>(await ctx.db.from("saved_tasks").select("task_id").eq("user_id", ctx.userId)).map(
       (r) => r.task_id,

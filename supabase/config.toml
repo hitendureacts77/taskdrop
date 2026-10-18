@@ -32,6 +32,13 @@ verify_jwt = false
 [functions.api]
 verify_jwt = true
 
+# app-config tells the app what the admin panel has switched (maintenance,
+# minimum version, banner, features). It is read before anyone has signed in
+# and holds nothing secret, so there is no JWT to check; the api function
+# enforces the same switches on every call.
+[functions.app-config]
+verify_jwt = false
+
 # Inngest calls this to run scheduled and event-driven jobs. It is not a user
 # session, so the platform JWT check is off; the function verifies Inngest's
 # own signature (INNGEST_SIGNING_KEY) on every request instead.

@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { secret } from "../_shared/secrets.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
+import { PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient, featureOffMessage } from "../_shared/controls.ts";
 
 /**
  * Razorpay money-in for TaskDrop.
@@ -23,7 +24,7 @@ import { gatewayHeaders } from "../_shared/gateway.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-region",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-region, " + PLATFORM_HEADER + ", " + VERSION_HEADER,
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -98,6 +99,17 @@ Deno.serve(async (req: Request) => {
   // ---- create-link --------------------------------------------------------
   if (body.action === "create-link") {
     const purpose = body.purpose === "topup" ? "topup" : "escrow";
+
+    // The admin panel's "top-ups" switch (migration 092), decided here: the
+    // money comes in through this function, not the api one. If the switches
+    // cannot be read the top-up goes ahead.
+    if (purpose === "topup") {
+      const client = readClient(req.headers);
+      const { data: cfg } = await admin.rpc("get_app_controls", { p_platform: client.platform, p_version: client.appVersion });
+      const controls = parseControls(cfg);
+      if (controls && !controls.topups) return json({ error: featureOffMessage("topups"), code: "FEATURE_OFF" }, 403);
+    }
+
     let amount = Math.round(Number(body.amountMinor ?? 0));
 
     // Escrow is priced here, from the assignment, and the number the client

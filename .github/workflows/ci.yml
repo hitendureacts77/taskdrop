@@ -31,6 +31,26 @@ jobs:
       - name: npm audit
         run: npm run audit:gate
 
+  functions:
+    name: Edge Functions type-check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Pinned to a full commit (v2.0.5): this job runs third-party code.
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
+        with:
+          deno-version: v2.x
+
+      # The Inngest function runs on Deno, which the Node unit tests do not cover.
+      # --node-modules-dir=none keeps Deno away from the repo's npm workspace.
+      - name: type-check the Inngest function
+        run: deno check --node-modules-dir=none supabase/functions/inngest/index.ts
+
   database:
     name: money and access rules
     runs-on: ubuntu-latest
