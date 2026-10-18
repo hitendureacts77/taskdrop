@@ -6,7 +6,6 @@ import {
   ScrollView,
   Pressable,
   KeyboardAvoidingView,
-  Image,
   ActivityIndicator,
   Linking,
   type ViewStyle,
@@ -30,7 +29,8 @@ import {
   type Message as DbMessage,
   type Profile,
 } from '../data/api';
-import { pickMedia, signedMediaUrl, uploadMedia, MediaError } from '../lib/media';
+import { imageSource, pickMedia, signedMediaUrl, uploadMedia, MediaError } from '../lib/media';
+import { Image } from 'expo-image';
 import { findContactIssue } from '../lib/mask';
 import { fontFamilyFor, type Theme } from '../theme';
 import { tx } from '../components/primitives';
@@ -92,7 +92,7 @@ function ChatPhoto({ path }: { path: string }) {
   return (
     <View style={{ width: 200, height: 150, backgroundColor: t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
       {url ? (
-        <Image source={{ uri: url }} style={{ width: 200, height: 150 }} resizeMode="cover" accessibilityLabel="Photo" />
+        <Image source={imageSource(url)} style={{ width: 200, height: 150 }} contentFit="cover" accessibilityLabel="Photo" />
       ) : (
         <ActivityIndicator color={t.colors.accent} />
       )}
@@ -207,7 +207,7 @@ export function ChatScreen() {
       const picked = await pickMedia('image', source);
       if (!picked) return;
       setUploading(true);
-      const uploaded = await uploadMedia(picked);
+      const uploaded = await uploadMedia(picked, 'chat');
       await post(CHAT_MEDIA_PREFIX + uploaded.path);
     } catch (e) {
       flash(e instanceof MediaError || e instanceof Error ? e.message : 'Could not send that photo');

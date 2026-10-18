@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { View, Text as RNText, Image, ActivityIndicator } from 'react-native';
+import { View, Text as RNText, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import Svg, { Path } from 'react-native-svg';
 import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
-import { signedMediaUrl } from '../lib/media';
+import { imageSource, signedMediaUrl } from '../lib/media';
 
 /**
  * The photo or video attached to a task, wherever it needs showing.
@@ -55,7 +56,7 @@ export function TaskMediaThumb({
     if (parentSigns || !path) return;
     let alive = true;
     setFailed(false);
-    void signedMediaUrl(path).then((signed) => {
+    void signedMediaUrl(path, size && size <= 100 ? 'thumb' : 'card').then((signed) => {
       if (!alive) return;
       if (signed) setResolved(signed);
       else setFailed(true);
@@ -99,8 +100,8 @@ export function TaskMediaThumb({
     <View style={box}>
       {kind === 'image' ? (
         <Image
-          source={{ uri: resolved }}
-          resizeMode="cover"
+          source={imageSource(resolved)}
+          contentFit="cover"
           style={{ width: '100%', height: '100%' }}
           accessibilityLabel="Photo attached to this request"
           onError={() => setFailed(true)}

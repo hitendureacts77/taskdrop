@@ -6,6 +6,7 @@
  */
 
 import type { Client, Controls } from "../_shared/controls.ts";
+import type { Fetch as ImageKitFetch, ImageKitConfig } from "../_shared/imagekit.ts";
 
 export type DbError = { message: string; code?: string | null; details?: string | null };
 export type DbResult = { data: unknown; error: DbError | null; count?: number | null };
@@ -31,6 +32,13 @@ export type Ctx = {
    * untidy, not broken.
    */
   removeOwnFiles?: (paths: string[]) => Promise<void>;
+  /**
+   * ImageKit, when its keys are configured; null or absent otherwise. Without it,
+   * pictures keep going to Supabase Storage exactly as before.
+   */
+  imagekit?: ImageKitConfig | null;
+  /** The fetch used to ask ImageKit about a file. Tests replace it. */
+  fetcher?: ImageKitFetch;
   /** Which app is asking (platform and version from the request headers). */
   client?: Client;
   /** The admin panel's switches for this caller (migration 092); null when they could not be read. */

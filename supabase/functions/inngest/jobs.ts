@@ -7,6 +7,8 @@
  * to run the sweeps it already has, and leaves messages for the team.
  */
 
+import { deleteFile, type Fetch as ImageKitFetch, findFileId, type ImageKitConfig } from "../_shared/imagekit.ts";
+
 /** The one database call shape these jobs need: supabase.rpc, narrowed. */
 export type Rpc = (
   name: string,
@@ -283,4 +285,42 @@ export function userSyncArgs(eventName: string, eventId: string | undefined, d: 
     p_fields: Array.isArray(d.changed) ? d.changed.filter((f): f is string => typeof f === "string") : [],
     p_by_admin: typeof d.by_admin === "boolean" ? d.by_admin : null,
   };
+}
+
+// ----------------------------------------------------------------- pictures --
+
+/** ImageKit files removed per batch; the database lists the next batch each time. */
+export const MEDIA_PURGE_BATCH = 50;
+
+/** A picture the database wants gone from ImageKit. The file id is empty when the upload was never finished. */
+export type PurgeRow = { id: string; provider_file_id: string | null; path: string };
+
+/**
+ * Removes one batch of pictures from ImageKit and tells the database which are
+ * gone. A picture that was never attached has no file id, so it is found by the
+ * exact path the server chose for it; if ImageKit has nothing there it counts as
+ * gone. A failure on one picture does not stop the others: the ones that went are
+ * recorded first, then this throws so Inngest retries the rest.
+ */
+export async function purgeMediaBatch(
+  rpc: Rpc,
+  cfg: ImageKitConfig,
+  fetcher: ImageKitFetch,
+): Promise<{ purged: number; more: boolean }> {
+  const batch = (await call<PurgeRow[] | null>(rpc, "media_purge_batch", { p_limit: MEDIA_PURGE_BATCH })) ?? [];
+  const done: string[] = [];
+  let failed = 0;
+  for (const row of batch) {
+    try {
+      const fileId = row.provider_file_id ?? (await findFileId(cfg, fetcher, row.path));
+      if (fileId) await deleteFile(cfg, fetcher, fileId);
+      done.push(row.id);
+    } catch (e) {
+      failed++;
+      console.error("media purge: could not remove", row.id, e instanceof Error ? e.message : e);
+    }
+  }
+  if (done.length > 0) await call<number>(rpc, "media_mark_purged", { p_ids: done });
+  if (failed > 0) throw new Error(`media purge: ${failed} of ${batch.length} pictures could not be removed`);
+  return { purged: done.length, more: batch.length === MEDIA_PURGE_BATCH };
 }

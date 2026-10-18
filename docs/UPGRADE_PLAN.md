@@ -50,7 +50,7 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
 | 3 | Server decides everything | Not started |
 | 4 | Accounts and sign-in | Not started |
 | 5 | Background jobs (Inngest) | In progress (outbox, alerts, push, prunes built; rest pending) |
-| 6 | Speed and media (ImageKit) | Not started |
+| 6 | Speed and media (ImageKit) | In progress (built on branch `phase-6-imagekit`; not applied or deployed; needs your ImageKit secrets and device tests) |
 | 7 | Moderation and admin tools | Not started |
 | 8 | Store readiness | Not started |
 | 9 | Switch-over to the upgraded app | Not started |
@@ -452,34 +452,34 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 ## Phase 6: Speed and media (ImageKit)
 
 **Backend**
-- [ ] **(You)** Create an ImageKit account. Folders: `/local`, `/beta`, later `/prod`.
-- [ ] New `media` table (R4):
+- [ ] **(You)** Create an ImageKit account. Folders: `/local`, `/beta`, later `/prod`. (Account exists; set the secrets and rotate the private key that was pasted into chat. See `docs/MEDIA.md`.)
+- [x] New `media` table (R4), migration 109, not yet applied:
   - `id`, `owner`, `provider` (imagekit | supabase), `provider_file_id`, `path`
   - `purpose` (task | avatar | proof | chat), `kind`, `bytes`
   - `status` (pending → attached → hidden → deleted), `created_at`
-- [ ] New uploads referenced as `media:<id>` in `tasks.media_path`, `profiles.avatar_url`, `task_proofs.files` and chat messages; old values still readable
-- [ ] The old app can still show new photos: `signMedia` accepts `media:<id>` and returns a URL in the old response shape. Old-app uploads keep working through Supabase Storage.
-- [ ] `createUpload` (`api/media.ts`) for images returns ImageKit params signed on the server:
+- [x] New uploads referenced as `media:<id>` in `tasks.media_path`, `profiles.avatar_url`, `task_proofs.files` and chat messages; old values still readable (the server checks the reference is the caller's own finished upload)
+- [x] The old app can still show new photos: `signMedia` accepts `media:<id>` and returns a URL in the old response shape. Old-app uploads keep working through Supabase Storage.
+- [x] `createUpload` (`api/media.ts`) for images returns ImageKit params signed on the server:
   - token, expiry and HMAC-SHA1 signature
   - public key
   - folder `/<env>/u/<uid>/`
   - allowed types and max size
-- [ ] Videos and documents keep Supabase signed uploads, also recorded in `media`
-- [ ] Attach: the server checks through the ImageKit API that the file exists in the caller's folder, then marks it attached
-- [ ] `signMedia`:
+- [x] Videos and documents keep Supabase signed uploads, also recorded in `media` (referred to by storage path, `attached` from the start)
+- [x] Attach (`attachMedia`): the server checks through the ImageKit API that the file exists at the exact path it chose, is private, is a picture and is under 15 MB, then marks it attached
+- [x] `signMedia`:
   - applies `private.can_read_task_media` plus chat participants
   - returns signed URLs at thumb, card and full sizes, auto WebP/AVIF
   - rounds expiry to the hour, so URLs can be cached
-- [ ] Inngest: pending media older than 24 h deleted; account deletion and takedowns act through `media.status`, and ImageKit files are deleted with retries
+- [x] Inngest: pending media older than 24 h deleted; account deletion acts through `media.status`, and ImageKit files are deleted with retries (`media-purge`, `account-files`). Takedowns still detach and keep the file; hiding and deleting by moderators is Phase 7.
 
 **User app (all platforms)**
-- [ ] `apps/mobile/src/lib/media.ts` uploads images to ImageKit
-- [ ] Each screen requests the right size
-- [ ] `expo-image` renders images, with a disk cache
+- [x] `apps/mobile/src/lib/media.ts` uploads images to ImageKit
+- [x] Each screen requests the right size (thumb for the header avatar and small tiles, card for the feed, profiles and chat, full to open a proof photo)
+- [x] `expo-image` renders images, with a disk cache (cached under the URL without its signature)
 - [ ] Slow long lists move to a virtualised list
 
 **Web**
-- [ ] CSP allows ImageKit (uploads and CDN)
+- [ ] CSP allows ImageKit (uploads and CDN): the user app has no CSP yet (Phase 3 `vercel.json` item); the directives to include are in `docs/MEDIA.md`
 - [ ] Upload from file picker and drag-and-drop works
 
 **Android**
@@ -1081,6 +1081,7 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
   - **Maps key:** restrict it now, delete it in Phase 9.
   - **R1 (EAS Update) and R2 (auto-deploy) confirmed.**
   - **Push to GitHub:** not yet; the branch is on your PC only.
+- **v4.9 (2026-10-19):** "implement it" (Phase 6, ImageKit). Built on branch `phase-6-imagekit`, branched from `inngest-all-jobs` because the clean-up jobs use that branch's Inngest setup and migration numbers. Migration 106 adds `public.media` and its functions (`media_begin`, `media_attach`, `media_resolve`, `media_discard`; server-only `media_expire_pending`, `media_account_deleted`, `media_purge_batch`, `media_mark_purged`) and extends the read rule to `media:<id>`. The api function gets `attachMedia`, ImageKit-aware `createUpload` and `signMedia`, and checks every saved reference is the caller's own; the `inngest` function gets `media-purge` and a new step in `account-files`; the app uploads pictures to ImageKit and shows them with expo-image at the right size. Without the ImageKit secrets everything falls back to Supabase Storage exactly as before. Decisions: only pictures use `media:<id>`; videos and documents keep their storage paths. **Not done:** the migration is unapplied and untested against a database (no Docker here; it parses and the SQL test is written); nothing deployed; device tests (HEIC, camera, Android, web), drag-and-drop upload and virtualised lists are open; the user app has no CSP to update yet. See `docs/MEDIA.md`.
 - **v4.7 (2026-10-18):** "Have the Inngest events and functions for users: created, updated, deleted, in sync with Supabase." Migration 103 adds `public.user_sync` (one row per person: state, counts, field names; no names or contact details), the new `user.updated` event (from profile edits and sign-in email or phone changes, field names only, only after the age check), a `user.deleted` event for accounts removed from auth outright, and `user_sync_apply` / `user_sync_repair`. Inngest functions `user-created`, `user-updated`, `user-deleted` (one person at a time) and a nightly `user-sync-repair`. Applied, deployed (function v4) and synced on the hosted test project; tested with a rolled-back SQL run and a live run through Inngest Cloud (sign-up, profile edit, email change, heartbeat ignored, self-delete, removal from auth). `user.signed_up` stays the "created" event on purpose: it fires after the age check.
 - **v4.8 (2026-10-18):** "Develop Inngest jobs wherever necessary, finish the Inngest setup, act on CodeRabbit." Migration 104 (CodeRabbit's open suggestions): the admin live feed hides a task title that holds a phone number (8+ digits) or an email; the four task-access helpers are no longer executable by signed-out visitors (PUBLIC revoked too); one payment per Razorpay payment link (unique partial index, no duplicates existed); the live feed's clean-up leaves the insert trigger and joins `housekeeping` (rows nobody else holds, 5,000 a run). Not changed, with reasons: `confirm_release` wallet guard (every profile gets a wallet at sign-up and none is missing). Migration 105 adds two Inngest jobs: `outbox-watchdog` (every 10 min; one team alert if events sit unsent for 15+ minutes) and `task-reminders` (every 15 min; poster told finished work is approved for them within 24 hours, worker told a job is due within the hour; once each). Setup: Inngest variables in `.env.example`, a Deno type-check job in CI, a manual "Inngest sync" workflow, Dependabot no longer proposes Expo/React Native major bumps (the app is on SDK 57), the audit-gate test helper keeps both advisories of one package. Applied, deployed (function v5) and synced on the hosted test project; SQL tests run rolled back. Payouts, refund retries and webhook hand-off still wait for R3.
 - **v4.9 (2026-10-18):** CodeRabbit's review of PR 28, acted on. Migration 106: an assigned worker keeps sight of a job a moderator hid; an overlong app version can no longer switch every control off (6 digits per part, in SQL and TypeScript; migration 107 applies the same limit to the minimum version an admin saves); `user_sync_apply` refuses a null event; `escrow_refund_due` applies the Sales money block only to other people's tasks; daily business numbers and the money check date finished jobs by `completed_at`. Also: `Vary` header on `app-config`, a network error or 10 s timeout on one Razorpay lookup is no longer a failed night, the Report sheet says "blocked" only when the block worked, CI and sync workflows get least-privilege tokens (Deno action pinned to a commit, the sync URL fixed), weak SQL assertions that could not fail now use `is distinct from`, staff email removed from HANDOFF. Not changed, with reasons: migration 102 keeps its drops (the owner ordered all n8n changes removed); the stage-pipeline query rewrite (test-sized data, revisit before launch); phone sign-in does not yet set `phone_confirmed_at` (the "require verified phone" switch is off; noted at the switch above, fix before turning it on).

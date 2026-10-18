@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { View, Text as RNText, ScrollView, Pressable, Image, ActivityIndicator } from 'react-native';
+import { View, Text as RNText, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { Badge, Field, Pill, PrimaryButton, SwipeTabs, TopBar, UnderlineTabs } from '../components/kit';
@@ -13,7 +14,7 @@ import { useMode } from '../providers/ModeProvider';
 import { getProfile, listReviewsAbout, updateProfile, type Profile } from '../data/api';
 import { updateProfileExtras, verificationState } from '../data/extras';
 import { PresenceDot } from '../components/PresenceDot';
-import { pickMedia, signedMediaUrl, uploadMedia } from '../lib/media';
+import { imageSource, pickMedia, signedMediaUrl, uploadMedia } from '../lib/media';
 import { levelFor, profileStrength } from '../lib/levels';
 import { findContactIssue, profileIssueMessage } from '../lib/mask';
 
@@ -75,7 +76,7 @@ export function ProfileEditScreen() {
       setReviews(r.length);
       setLastSeen(profile.last_seen_at);
       if (profile.avatar_url) {
-        const url = await signedMediaUrl(profile.avatar_url);
+        const url = await signedMediaUrl(profile.avatar_url, 'card');
         if (alive) setAvatar(url);
       }
     })();
@@ -102,7 +103,7 @@ export function ProfileEditScreen() {
       if (!picked) return;
       setAvatar(picked.uri);
       setPhotoBusy(true);
-      const stored = await uploadMedia(picked);
+      const stored = await uploadMedia(picked, 'avatar');
       const next = await updateProfile(userId, { avatarUrl: stored.path });
       setP(next);
       celebrate('Photo updated');
@@ -165,7 +166,7 @@ export function ProfileEditScreen() {
             <Pressable onPress={() => void choosePhoto()} accessibilityRole="button" accessibilityLabel="Change photo">
               <View style={{ width: 84, height: 84, borderRadius: 999, overflow: 'hidden', backgroundColor: t.colors.accent, alignItems: 'center', justifyContent: 'center' }}>
                 {avatar ? (
-                  <Image source={{ uri: avatar }} style={{ width: 84, height: 84 }} />
+                  <Image source={imageSource(avatar)} style={{ width: 84, height: 84 }} contentFit="cover" />
                 ) : (
                   <RNText style={tx('800', 32, '#FFFFFF')}>{(p?.display_name ?? '?').charAt(0).toUpperCase()}</RNText>
                 )}

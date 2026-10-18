@@ -12,6 +12,8 @@ import {
   ControlsCache, featureOffMessage, OPEN_CONFIG, parseControls, publicConfig, readClient, refusalFor, type Controls,
 } from "../_shared/controls.ts";
 import * as serverRules from "../_shared/rules.ts";
+import type { ImageKitConfig } from "../_shared/imagekit.ts";
+import { createHmac } from "node:crypto";
 import * as packageRules from "../../../packages/rules/src/index.ts";
 
 const UID = "11111111-1111-4111-8111-111111111111";
@@ -343,6 +345,200 @@ await t("signing many files is one call, answered as { path: url }", async () =>
   assert.ok(r.ok);
   assert.deepEqual(r.data, { "a/1.jpg": "https://x/sign/a/1.jpg", "a/2.jpg": "https://x/sign/a/2.jpg" });
   assert.equal(f.storageCalls.length, 1);
+});
+
+// Made-up keys for the test only; they open nothing.
+const IK: ImageKitConfig = { publicKey: "public_testkey", privateKey: "private_testkey", urlEndpoint: "https://ik.imagekit.io/demo", env: "local" };
+const MEDIA_ID = "55555555-5555-4555-8555-555555555555";
+const MEDIA_PATH = `/local/u/${UID}/${MEDIA_ID}.jpg`;
+
+await t("a picture upload gets a signed ImageKit token, a server-chosen path and a pending registry row", async () => {
+  const f = fake();
+  const r = await runOp("createUpload", { purpose: "task", kind: "image", mime: "image/jpeg", ext: "jpg" }, ctx(f, { imagekit: IK }));
+  assert.ok(r.ok);
+  const out = r.data as { provider: string; id: string; ref: string; upload: Record<string, unknown> };
+  assert.equal(out.provider, "imagekit");
+  assert.equal(out.ref, `media:${out.id}`);
+  const u = out.upload;
+  assert.equal(u.folder, `/local/u/${UID}`);
+  assert.equal(u.fileName, `${out.id}.jpg`);
+  assert.equal(u.publicKey, "public_testkey");
+  assert.equal(u.signature, createHmac("sha1", IK.privateKey).update(`${u.token}${u.expire}`).digest("hex"));
+  assert.ok(JSON.stringify(out).indexOf(IK.privateKey) < 0, "the private key must never be sent to the app");
+  assert.equal(f.storageCalls.length, 0, "nothing goes to Supabase Storage");
+  const begin = f.calls.find((c) => c.rpc === "media_begin")!;
+  assert.deepEqual(begin.args, {
+    p_id: out.id, p_provider: "imagekit", p_purpose: "task", p_kind: "image", p_mime: "image/jpeg", p_path: `/local/u/${UID}/${out.id}.jpg`,
+  });
+  for (const bad of [{ mime: "image/svg+xml" }, { mime: "application/pdf" }, {}]) {
+    const x = await runOp("createUpload", { purpose: "task", kind: "image", ...bad }, ctx(fake(), { imagekit: IK }));
+    assert.ok(!x.ok && x.error.code === "BAD_ARGS", JSON.stringify(bad));
+  }
+});
+
+await t("without ImageKit's keys, or for videos and documents, uploads go to Supabase as before and are recorded", async () => {
+  const noKeys = fake();
+  const a = await runOp("createUpload", { purpose: "task", kind: "image", mime: "image/jpeg", ext: "jpg" }, ctx(noKeys));
+  assert.ok(a.ok && typeof (a.data as { url?: string }).url === "string");
+  assert.equal(noKeys.storageCalls.length, 1);
+  const video = fake();
+  const b = await runOp("createUpload", { purpose: "task", kind: "video", ext: "mp4" }, ctx(video, { imagekit: IK }));
+  assert.ok(b.ok && (b.data as { path: string }).path.startsWith(`${UID}/`));
+  const rec = video.calls.find((c) => c.rpc === "media_begin")!.args as Record<string, unknown>;
+  assert.equal(rec.p_provider, "supabase");
+  assert.equal(rec.p_kind, "video");
+  // An old app sends no kind; it is worked out from the extension.
+  const old = fake();
+  await runOp("createUpload", { purpose: "proof", ext: "pdf" }, ctx(old));
+  assert.equal((old.calls.find((c) => c.rpc === "media_begin")!.args as Record<string, unknown>).p_kind, "file");
+  // A failed record must not fail the upload.
+  const broken = fake((c) => (c.rpc === "media_begin" ? { data: null, error: { message: "no such function" } } : { data: [], error: null }));
+  assert.ok((await runOp("createUpload", { purpose: "task", ext: "jpg" }, ctx(broken))).ok);
+});
+
+const pendingRow = { id: MEDIA_ID, path: MEDIA_PATH, provider: "imagekit", status: "pending", provider_file_id: null };
+const goodFile = { fileId: "f1", filePath: MEDIA_PATH, fileType: "image", size: 2_000_000, isPrivateFile: true };
+
+function ikFetch(details: Record<string, unknown> | null) {
+  const calls: { url: string; method: string }[] = [];
+  const fetcher = async (url: string, init?: { method?: string }) => {
+    const method = init?.method ?? "GET";
+    calls.push({ url, method });
+    if (method === "DELETE") return { ok: true, status: 204, json: async () => null };
+    return details
+      ? { ok: true, status: 200, json: async () => details }
+      : { ok: false, status: 404, json: async () => null };
+  };
+  return { fetcher, calls };
+}
+const attachDb = (row: Record<string, unknown> | null) =>
+  fake((c) => {
+    if (c.table === "media") return { data: row ? [row] : [], error: null };
+    if (c.rpc === "media_attach") return { data: `media:${MEDIA_ID}`, error: null };
+    return { data: null, error: null };
+  });
+
+await t("attaching checks with ImageKit that the file is the one we named, private, a picture and not too big", async () => {
+  const ik = ikFetch(goodFile);
+  const f = attachDb(pendingRow);
+  const r = await runOp("attachMedia", { id: MEDIA_ID, fileId: "f1" }, ctx(f, { imagekit: IK, fetcher: ik.fetcher }));
+  assert.ok(r.ok);
+  assert.deepEqual(r.data, { ref: `media:${MEDIA_ID}`, bytes: 2_000_000 });
+  assert.deepEqual(f.calls.find((c) => c.rpc === "media_attach")!.args, { p_id: MEDIA_ID, p_provider_file_id: "f1", p_bytes: 2_000_000 });
+  assert.equal(ik.calls[0].url, "https://api.imagekit.io/v1/files/f1/details");
+  const row = f.calls.find((c) => c.table === "media")!;
+  assert.deepEqual(steps(row, "eq"), [["id", MEDIA_ID], ["owner", UID]], "only the caller's own upload");
+});
+
+await t("a fileId that points somewhere else is refused and nothing is deleted", async () => {
+  const ik = ikFetch({ ...goodFile, filePath: `/local/u/${OTHER}/theirs.jpg` });
+  const f = attachDb(pendingRow);
+  const r = await runOp("attachMedia", { id: MEDIA_ID, fileId: "f1" }, ctx(f, { imagekit: IK, fetcher: ik.fetcher }));
+  assert.ok(!r.ok && r.error.code === "UPLOAD");
+  assert.ok(!ik.calls.some((c) => c.method === "DELETE"), "somebody else's file is never touched");
+  assert.ok(!f.calls.some((c) => c.rpc === "media_attach"));
+});
+
+await t("our own file that is not acceptable (not a picture, public, or too big) is removed and refused", async () => {
+  for (const bad of [{ fileType: "non-image" }, { isPrivateFile: false }, { size: 16 * 1024 * 1024 }, { size: 0 }]) {
+    const ik = ikFetch({ ...goodFile, ...bad });
+    const f = attachDb(pendingRow);
+    const r = await runOp("attachMedia", { id: MEDIA_ID, fileId: "f1" }, ctx(f, { imagekit: IK, fetcher: ik.fetcher }));
+    assert.ok(!r.ok && r.error.code === "UPLOAD", JSON.stringify(bad));
+    assert.ok(ik.calls.some((c) => c.method === "DELETE" && c.url.endsWith("/files/f1")), JSON.stringify(bad));
+    assert.ok(f.calls.some((c) => c.rpc === "media_discard"));
+    assert.ok(!f.calls.some((c) => c.rpc === "media_attach"));
+  }
+});
+
+await t("attaching twice is harmless; an unknown, someone else's or finished upload is refused", async () => {
+  const done = attachDb({ ...pendingRow, status: "attached", provider_file_id: "f1" });
+  const ik = ikFetch(goodFile);
+  const again = await runOp("attachMedia", { id: MEDIA_ID, fileId: "f1" }, ctx(done, { imagekit: IK, fetcher: ik.fetcher }));
+  assert.deepEqual(again.ok && again.data, { ref: `media:${MEDIA_ID}` });
+  assert.equal(ik.calls.length, 0, "nothing to ask ImageKit the second time");
+  const other = await runOp("attachMedia", { id: MEDIA_ID, fileId: "f2" }, ctx(done, { imagekit: IK, fetcher: ik.fetcher }));
+  assert.ok(!other.ok && other.error.code === "UPLOAD");
+  const none = await runOp("attachMedia", { id: MEDIA_ID, fileId: "f1" }, ctx(attachDb(null), { imagekit: IK, fetcher: ik.fetcher }));
+  assert.ok(!none.ok && none.error.code === "BAD_ARGS");
+  const off = await runOp("attachMedia", { id: MEDIA_ID, fileId: "f1" }, ctx(attachDb(pendingRow)));
+  assert.ok(!off.ok && off.error.code === "UPLOAD");
+  const junk = await runOp("attachMedia", { id: MEDIA_ID, fileId: "../etc" }, ctx(attachDb(pendingRow), { imagekit: IK, fetcher: ik.fetcher }));
+  assert.ok(!junk.ok && junk.error.code === "BAD_ARGS");
+  const gone = await runOp("attachMedia", { id: MEDIA_ID, fileId: "f1" }, ctx(attachDb(pendingRow), { imagekit: IK, fetcher: ikFetch(null).fetcher }));
+  assert.ok(!gone.ok && gone.error.code === "UPLOAD");
+});
+
+await t("signing a media ref returns a signed ImageKit URL at the size asked for; storage paths still work; unreadable refs are left out", async () => {
+  const mine = `media:${MEDIA_ID}`;
+  const theirs = "media:66666666-6666-4666-8666-666666666666";
+  const f = fake((c) => (c.rpc === "media_resolve"
+    ? { data: [{ ref: mine, provider: "imagekit", provider_file_id: "f1", path: MEDIA_PATH, kind: "image" }], error: null }
+    : { data: null, error: null }));
+  const r = await runOp("signMedia", { paths: [mine, theirs, "a/1.jpg"], size: "thumb" }, ctx(f, { imagekit: IK }));
+  assert.ok(r.ok);
+  const out = r.data as Record<string, string>;
+  assert.deepEqual(Object.keys(out).sort(), [mine, "a/1.jpg"].sort());
+  const expiry = Number(new URL(out[mine]).searchParams.get("ik-t"));
+  const rest = `tr:w-200,h-200,c-at_max,q-80,f-auto${MEDIA_PATH}`;
+  assert.equal(out[mine], `https://ik.imagekit.io/demo/${rest}?ik-t=${expiry}&ik-s=${createHmac("sha1", IK.privateKey).update(`${rest}${expiry}`).digest("hex")}`);
+  assert.deepEqual(f.calls.find((c) => c.rpc === "media_resolve")!.args, { p_refs: [mine, theirs] });
+  assert.equal(f.storageCalls.length, 1, "only the plain path goes to Supabase Storage");
+  // An old app sends no size and still gets a picture it can show.
+  const old = await runOp("signMedia", { paths: [mine] }, ctx(f, { imagekit: IK }));
+  assert.match((old.ok && (old.data as Record<string, string>)[mine]) || "", /tr:w-1600,h-1600/);
+  const badSize = await runOp("signMedia", { paths: [mine], size: "huge" }, ctx(f, { imagekit: IK }));
+  assert.ok(!badSize.ok && badSize.error.code === "BAD_ARGS");
+  // No ImageKit keys: refs cannot be shown, and nothing is asked of the database.
+  const none = fake();
+  const noKeys = await runOp("signMedia", { paths: [mine] }, ctx(none));
+  assert.deepEqual(noKeys.ok && noKeys.data, {});
+  assert.ok(!none.calls.some((c) => c.rpc === "media_resolve"));
+});
+
+await t("a media ref can only be saved on a record when it is the caller's own finished upload for that purpose", async () => {
+  const task = { pillar: "x", title: "Fix a tap", benchmarkMinor: 100, timeLimitMinutes: 60 };
+  const ref = `media:${MEDIA_ID}`;
+  const owned = fake((c) => (c.table === "media" ? { data: [{ id: MEDIA_ID }], error: null } : { data: [{ id: "t1" }], error: null }));
+  assert.ok((await runOp("createTask", { ...task, media: { kind: "image", path: ref } }, ctx(owned))).ok);
+  const q = owned.calls.find((c) => c.table === "media")!;
+  assert.deepEqual(steps(q, "eq"), [["id", MEDIA_ID], ["owner", UID], ["status", "attached"], ["kind", "image"]]);
+  assert.deepEqual(steps(q, "in"), [["purpose", ["task"]]]);
+  const notMine = fake((c) => (c.table === "media" ? { data: [], error: null } : { data: [{ id: "t1" }], error: null }));
+  const refused = await runOp("createTask", { ...task, media: { kind: "image", path: ref } }, ctx(notMine));
+  assert.ok(!refused.ok && refused.error.code === "BAD_ARGS");
+  assert.ok(!notMine.calls.some((c) => c.table === "tasks"), "the task is not saved");
+  const junk = await runOp("createTask", { ...task, media: { kind: "image", path: "media:not-a-uuid" } }, ctx(owned));
+  assert.ok(!junk.ok && junk.error.code === "BAD_ARGS");
+
+  const avatar = fake((c) => (c.table === "media" ? { data: [], error: null } : { data: [{ id: UID }], error: null }));
+  const a = await runOp("updateProfile", { avatarUrl: ref }, ctx(avatar));
+  assert.ok(!a.ok && a.error.code === "BAD_ARGS");
+  assert.ok(!avatar.calls.some((c) => c.table === "profiles"));
+
+  const proof = fake((c) => (c.table === "media" ? { data: [], error: null } : { data: [{ id: "p1" }], error: null }));
+  const p = await runOp("submitProof", { taskId: TASK, summary: "done", files: [{ path: ref, kind: "image", name: "Photo" }] }, ctx(proof));
+  assert.ok(!p.ok && p.error.code === "BAD_ARGS");
+
+  const chat = fake((c) => (c.table === "media" ? { data: [], error: null } : { data: { id: "m1" }, error: null }));
+  const m = await runOp("sendMessage", { taskId: TASK, body: `::media::${ref}` }, ctx(chat));
+  assert.ok(!m.ok && m.error.code === "BAD_ARGS");
+  assert.ok(!chat.calls.some((c) => c.table === "messages"));
+  // An ordinary message, and an old storage path, are untouched by all this.
+  const plain = fake();
+  assert.ok((await runOp("sendMessage", { taskId: TASK, body: "hello" }, ctx(plain))).ok);
+  assert.ok(!plain.calls.some((c) => c.table === "media"));
+});
+
+await t("removing a media ref asks the database to discard it; only the owner's unused pictures go", async () => {
+  const f = fake();
+  assert.ok((await runOp("removeMedia", { path: `media:${MEDIA_ID}` }, ctx(f))).ok);
+  assert.deepEqual(f.calls.find((c) => c.rpc === "media_discard")!.args, { p_ref: `media:${MEDIA_ID}` });
+  assert.equal(f.storageCalls.length, 0);
+});
+
+await t("attaching a picture counts against the upload limit", () => {
+  assert.equal(rateBucket("attachMedia"), "upload");
 });
 
 await t("a withdrawal is handed to the payout function after the debit", async () => {

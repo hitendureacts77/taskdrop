@@ -6,17 +6,73 @@ import { readBytes } from './readBytes';
 import { currentUserId } from './supabase';
 import { callApi } from './gateway';
 
+/** What a file is for. The server records it and checks it again before the file is attached to anything. */
+export type UploadPurpose = 'task' | 'proof' | 'avatar' | 'chat';
+
+/** Pictures go to ImageKit: the server hands over a signed, one-time upload token. */
+type ImageKitTarget = {
+  provider: 'imagekit';
+  id: string;
+  upload: {
+    url: string;
+    publicKey: string;
+    token: string;
+    expire: number;
+    signature: string;
+    folder: string;
+    fileName: string;
+    mime: string;
+    maxBytes: number;
+  };
+};
+/** Everything else (and pictures, when ImageKit is not set up) goes to Supabase Storage with a one-time URL. */
+type StorageTarget = { path: string; url: string };
+
+const isImageKit = (t: ImageKitTarget | StorageTarget): t is ImageKitTarget => (t as ImageKitTarget).provider === 'imagekit';
+
+/** The picture types the server accepts, from whatever the device reports. Null when it is something else. */
+function imageMimeFor(mimeType: string): string | null {
+  const m = mimeType.toLowerCase();
+  if (m === 'image/jpeg' || m === 'image/jpg') return 'image/jpeg';
+  if (m === 'image/png' || m === 'image/webp' || m === 'image/heic' || m === 'image/heif') return m;
+  return null;
+}
+
 /**
- * Ask the server where a new file goes, then send the bytes there. The server
- * picks the bucket and the path; this side only knows the one-time URL.
+ * Ask the server where a new file goes, then send it there, and return what
+ * to store on the record: "media:<id>" for a picture in ImageKit, a storage
+ * path for anything else. The server picks the folder, the name and the
+ * provider; this side only knows a one-time token or URL.
  */
-async function putFile(purpose: 'task' | 'proof', ext: string, body: ArrayBuffer | Uint8Array | Blob, contentType: string): Promise<string> {
-  let target: { path: string; url: string };
+async function storeFile(
+  purpose: UploadPurpose,
+  kind: 'image' | 'video' | 'file',
+  picked: { uri: string; mimeType: string },
+  ext: string,
+): Promise<string> {
+  const imageMime = kind === 'image' ? imageMimeFor(picked.mimeType) : null;
+  let target: ImageKitTarget | StorageTarget;
   try {
-    target = await callApi<{ path: string; url: string }>('createUpload', { purpose, ext });
+    target = await callApi<ImageKitTarget | StorageTarget>('createUpload', {
+      purpose,
+      ext,
+      // A picture of a type the server does not take for ImageKit is sent as before.
+      ...(imageMime ? { kind: 'image', mime: imageMime } : kind === 'image' ? {} : { kind }),
+    });
   } catch (e) {
     throw new MediaError(e instanceof Error ? e.message : 'Could not upload that file. Please try again.');
   }
+
+  if (isImageKit(target)) return putToImageKit(target, picked);
+
+  const body = await readBytes(picked.uri);
+  if (body.byteLength > MAX_BYTES) {
+    throw new MediaError(`That file is too big. The limit is ${MAX_BYTES / 1024 / 1024} MB.`);
+  }
+  return putToStorage(target, body, picked.mimeType);
+}
+
+async function putToStorage(target: StorageTarget, body: ArrayBuffer | Uint8Array | Blob, contentType: string): Promise<string> {
   let res: Response;
   try {
     res = await fetch(target.url, {
@@ -29,6 +85,53 @@ async function putFile(purpose: 'task' | 'proof', ext: string, body: ArrayBuffer
   }
   if (!res.ok) throw new MediaError('Could not upload that file. Please try again.');
   return target.path;
+}
+
+/**
+ * Upload a picture straight to ImageKit, then tell the server it is there so it
+ * can check with ImageKit and mark it usable. Returns the "media:<id>" reference.
+ */
+async function putToImageKit(target: ImageKitTarget, picked: { uri: string; mimeType: string }): Promise<string> {
+  const u = target.upload;
+  const form = new FormData();
+  if (Platform.OS === 'web') {
+    // The browser picker gives a blob: URL; the bytes become a file part.
+    const bytes = await readBytes(picked.uri);
+    if (bytes.byteLength > u.maxBytes) {
+      throw new MediaError(`That photo is too big. The limit is ${Math.round(u.maxBytes / 1024 / 1024)} MB.`);
+    }
+    form.append('file', new Blob([bytes as BlobPart], { type: u.mime }), u.fileName);
+  } else {
+    // React Native sends a file part straight from the file:// URI, so the photo
+    // never has to be loaded into memory. The cast is the documented RN shape,
+    // which the DOM typings do not know.
+    form.append('file', { uri: picked.uri, name: u.fileName, type: u.mime } as unknown as Blob);
+  }
+  form.append('fileName', u.fileName);
+  form.append('folder', u.folder);
+  form.append('publicKey', u.publicKey);
+  form.append('token', u.token);
+  form.append('expire', String(u.expire));
+  form.append('signature', u.signature);
+  form.append('useUniqueFileName', 'false');
+  form.append('isPrivateFile', 'true');
+
+  let res: Response;
+  try {
+    // No content-type header: fetch adds the multipart boundary itself.
+    res = await fetch(u.url, { method: 'POST', body: form });
+  } catch {
+    throw new MediaError('Could not reach TaskDrop. Check your connection and try again.');
+  }
+  const stored = res.ok ? ((await res.json().catch(() => null)) as { fileId?: string } | null) : null;
+  if (!stored?.fileId) throw new MediaError('Could not upload that photo. Please try again.');
+
+  try {
+    const attached = await callApi<{ ref: string }>('attachMedia', { id: target.id, fileId: stored.fileId });
+    return attached.ref;
+  } catch (e) {
+    throw new MediaError(e instanceof Error ? e.message : 'Could not upload that photo. Please try again.');
+  }
 }
 
 /**
@@ -157,17 +260,15 @@ export async function pickMedia(
  * exactly that: the first folder must be auth.uid(), so nobody can write into
  * anyone else's space.
  */
-export async function uploadMedia(picked: PickedMedia): Promise<TaskMedia> {
+export async function uploadMedia(picked: PickedMedia, purpose: UploadPurpose = 'task'): Promise<TaskMedia> {
   const userId = await currentUserId();
   if (!userId) throw new MediaError('Sign in before attaching a file.');
-
-  const body = await readBytes(picked.uri);
-  if (body.byteLength > MAX_BYTES) {
+  if (picked.bytes > MAX_BYTES) {
     throw new MediaError(`That file is too big. The limit is ${MAX_BYTES / 1024 / 1024} MB.`);
   }
 
   const ext = extensionFor(picked.mimeType, picked.kind === 'video' ? 'mp4' : 'jpg');
-  const path = await putFile('task', ext, body, picked.mimeType);
+  const path = await storeFile(purpose, picked.kind, picked, ext);
 
   return { kind: picked.kind, path, seconds: picked.seconds };
 }
@@ -177,6 +278,13 @@ export async function removeMedia(path: string): Promise<void> {
   await callApi('removeMedia', { path }).catch(() => {});
 }
 
+/**
+ * How big a picture to ask for. A thumbnail should not download a full photo:
+ * thumb for avatars and small tiles, card for feed cards and chat bubbles, full
+ * for looking at a picture properly. Files that are not pictures ignore it.
+ */
+export type ImageSize = 'thumb' | 'card' | 'full';
+
 /** An hour is long enough to look at a task and short enough not to be shared. */
 const SIGNED_URL_SECONDS = 60 * 60;
 
@@ -185,36 +293,41 @@ const SIGNED_URL_SECONDS = 60 * 60;
  * token each time, and a new token is a new URL -- so without this, every
  * visit to a screen re-downloaded every photo and avatar on it, and they
  * flickered in. The same URL lets the browser and the image cache keep them.
+ * A picture at one size and the same picture at another are different URLs, so
+ * they are cached separately.
  */
 const REUSE_MS = (SIGNED_URL_SECONDS - 10 * 60) * 1000;
 const signed = new Map<string, { url: string; at: number }>();
 const pending = new Map<string, Promise<string | null>>();
 
-function cached(path: string): string | null {
-  const hit = signed.get(path);
+const cacheKey = (path: string, size: ImageSize) => `${size}|${path}`;
+
+function cached(path: string, size: ImageSize): string | null {
+  const hit = signed.get(cacheKey(path, size));
   return hit && Date.now() - hit.at < REUSE_MS ? hit.url : null;
 }
 
 /** A viewable URL for one stored path, or null if it cannot be signed. */
-export async function signedMediaUrl(path: string): Promise<string | null> {
-  const hit = cached(path);
+export async function signedMediaUrl(path: string, size: ImageSize = 'card'): Promise<string | null> {
+  const hit = cached(path, size);
   if (hit) return hit;
-  const inFlight = pending.get(path);
+  const key = cacheKey(path, size);
+  const inFlight = pending.get(key);
   if (inFlight) return inFlight;
   const p = (async () => {
-    const urls = await callApi<Record<string, string>>('signMedia', { paths: [path] }).catch(() => ({}) as Record<string, string>);
+    const urls = await callApi<Record<string, string>>('signMedia', { paths: [path], size }).catch(() => ({}) as Record<string, string>);
     const url = urls[path];
     if (!url) return null;
-    signed.set(path, { url, at: Date.now() });
+    signed.set(key, { url, at: Date.now() });
     return url;
-  })().finally(() => pending.delete(path));
-  pending.set(path, p);
+  })().finally(() => pending.delete(key));
+  pending.set(key, p);
   return p;
 }
 
 /** The URL for a path if it is already signed, for a first paint with no wait. */
-export function peekSignedUrl(path: string | null | undefined): string | null {
-  return path ? cached(path) : null;
+export function peekSignedUrl(path: string | null | undefined, size: ImageSize = 'card'): string | null {
+  return path ? cached(path, size) : null;
 }
 
 /**
@@ -224,12 +337,12 @@ export function peekSignedUrl(path: string | null | undefined): string | null {
  * A list of tasks would otherwise make one request per thumbnail, which is the
  * difference between a feed that loads and a feed that crawls.
  */
-export async function signedMediaUrls(paths: string[]): Promise<Record<string, string>> {
+export async function signedMediaUrls(paths: string[], size: ImageSize = 'card'): Promise<Record<string, string>> {
   const wanted = [...new Set(paths.filter(Boolean))];
   const out: Record<string, string> = {};
   const missing: string[] = [];
   for (const p of wanted) {
-    const hit = cached(p);
+    const hit = cached(p, size);
     if (hit) out[p] = hit;
     else missing.push(p);
   }
@@ -237,16 +350,25 @@ export async function signedMediaUrls(paths: string[]): Promise<Record<string, s
 
   let urls: Record<string, string>;
   try {
-    urls = await callApi<Record<string, string>>('signMedia', { paths: missing });
+    urls = await callApi<Record<string, string>>('signMedia', { paths: missing, size });
   } catch {
     return out;
   }
   const now = Date.now();
   for (const [p, url] of Object.entries(urls)) {
     out[p] = url;
-    signed.set(p, { url, at: now });
+    signed.set(cacheKey(p, size), { url, at: now });
   }
   return out;
+}
+
+/**
+ * What to hand expo-image for a signed URL. The signature in the query string
+ * changes every hour but the picture does not, so the image is cached under the
+ * URL without its query: it survives a re-sign instead of downloading again.
+ */
+export function imageSource(url: string): { uri: string; cacheKey: string } {
+  return { uri: url, cacheKey: url.split('?')[0] };
 }
 
 // ---------------------------------------------------------- proof of work --
@@ -288,12 +410,8 @@ export async function uploadProofFile(
 ): Promise<ProofFile> {
   const userId = await currentUserId();
   if (!userId) throw new MediaError('Sign in before attaching a file.');
-  const body = await readBytes(picked.uri);
-  if (body.byteLength > MAX_BYTES) {
-    throw new MediaError(`That file is too big. The limit is ${MAX_BYTES / 1024 / 1024} MB.`);
-  }
   const fromName = picked.name?.split('.').pop()?.toLowerCase();
   const ext = kind === 'file' ? (fromName && fromName.length <= 5 ? fromName : 'pdf') : extensionFor(picked.mimeType, kind === 'video' ? 'mp4' : 'jpg');
-  const path = await putFile('proof', ext, body, picked.mimeType);
+  const path = await storeFile('proof', kind, picked, ext);
   return { path, kind, name: picked.name ?? (kind === 'image' ? 'Photo' : kind === 'video' ? 'Video' : 'Document') };
 }
