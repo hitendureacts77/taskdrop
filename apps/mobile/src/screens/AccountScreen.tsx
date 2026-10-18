@@ -241,9 +241,9 @@ export function AccountScreen() {
             <View style={card}>
               <RNText style={tx('800', 15, t.colors.ink)}>Delete account</RNText>
               <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
-                Removes your name, username, photo, location, saved payout details and sign-in methods, and signs you out
-                everywhere. Records of paid tasks and payments are kept, under “Deleted user”, because the law requires it.
-                This can’t be undone.
+                Removes your name, username, photo, location, chat messages, saved payout details and sign-in methods, and
+                signs you out everywhere. Records of paid tasks and payments are kept, under “Deleted user”, because the
+                law requires it. This can’t be undone.
               </RNText>
               {blockers && blockers.length > 0 ? (
                 <View style={{ marginTop: 12, gap: 8 }} accessibilityLiveRegion="polite">
@@ -381,9 +381,9 @@ export function AccountScreen() {
         icon="close"
         title="Delete your account for good?"
         message={
-          'Your profile, photo, username, location and sign-in methods are removed and you’re signed out on every device. ' +
+          'Your profile, photo, username, location, chat messages and sign-in methods are removed and you’re signed out on every device. ' +
           (keepsRecords
-            ? 'Your past paid tasks, messages and payment records stay, shown as “Deleted user”. '
+            ? 'Your past paid tasks and payment records stay, shown as “Deleted user”. '
             : '') +
           'Signing in again with the same number or Google account starts a new, empty account.'
         }
