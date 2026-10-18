@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
+import { logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
 import { handleWebhook } from "../_shared/razorpayx.ts";
 
@@ -38,5 +39,15 @@ Deno.serve(async (req: Request) => {
     req.headers.get("x-razorpay-signature") ?? "",
     await secret("RAZORPAYX_WEBHOOK_SECRET"),
   );
+  // 401 is a forged or misconfigured call, 5xx is a payout update we failed to
+  // write (RazorpayX will retry it), 2xx with a status is a real change.
+  if (out.status >= 500 || out.status === 401 || out.status === 503) {
+    await logServer(out.status >= 500 && out.status !== 503 ? "error" : "warn", "razorpayx-webhook", "webhook not applied", {
+      http_status: out.status,
+      reason: String(out.body.error ?? ""),
+    });
+  } else if (out.body.status) {
+    await logServer("info", "razorpayx-webhook", "payout status recorded", { status: String(out.body.status) });
+  }
   return json(out.body, out.status);
 });

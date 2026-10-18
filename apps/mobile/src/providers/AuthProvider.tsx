@@ -7,6 +7,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { clientHeaders } from '../lib/appInfo';
 import { postSignInRoute } from '../data/api';
+import { count, log } from '../lib/monitoring';
 
 /**
  * Real Supabase auth: phone OTP via the phone-auth Edge Function, or Google
@@ -225,7 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setPostAuthRoute(await postSignInRoute(data.user?.id ?? ''));
             }
           } catch (e) {
-            console.error('[auth] Google return link failed:', e);
+            log.error('Google return link failed', { error: e instanceof Error ? e.message : String(e) });
           }
         }
       }
@@ -242,7 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // auth session's result. redeemAuthUrl makes sure a code is spent once.
     const onLink = (url: string | null) => {
       if (!authCodeFrom(url)) return;
-      redeemAuthUrl(url!).catch((e) => console.error('[auth] Google return link failed:', e));
+      redeemAuthUrl(url!).catch((e) => log.error('Google return link failed', { error: e instanceof Error ? e.message : String(e) }));
     };
     const linkSub = Platform.OS === 'web' ? null : Linking.addEventListener('url', ({ url }) => onLink(url));
 
@@ -267,7 +268,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!tokenHash) throw new Error('Could not start a session');
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'email' });
     // An admin can suspend an account; Supabase then answers "User is banned".
-    if (error) throw /banned/i.test(error.message) ? new Error('This account is suspended. Please contact TaskDrop support.') : apiError(error);
+    if (error) {
+      log.warn('session exchange failed after a valid code', { banned: /banned/i.test(error.message), code: error.code ?? null });
+      throw /banned/i.test(error.message) ? new Error('This account is suspended. Please contact TaskDrop support.') : apiError(error);
+    }
+    log.info('signed in with phone code', { isNew: out.isNew === true });
+    count(out.isNew === true ? 'auth.signed_up' : 'auth.signed_in', { method: 'phone' });
     return { isNew: out.isNew === true };
   }, []);
 

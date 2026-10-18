@@ -4,6 +4,7 @@ import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { Badge, EmptyState, Field, Pill, PrimaryButton, Shimmer, TopBar, timeAgo } from '../components/kit';
 import { FeedbackSheet } from '../components/FeedbackSheet';
+import { bugReportsAvailable, showBugReport } from '../lib/monitoring';
 import { FadeIn, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -137,6 +138,31 @@ export function HelpScreen() {
           </View>
           <RNText style={tx('600', 16, t.colors.muted)}>›</RNText>
         </Pressable>
+        {bugReportsAvailable && (
+          <Pressable
+            onPress={showBugReport}
+            accessibilityRole="button"
+            style={({ pressed }) => ({
+              marginTop: 10,
+              padding: 13,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: t.colors.line,
+              backgroundColor: t.colors.surface,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 10,
+              opacity: pressed ? 0.8 : 1,
+            })}
+          >
+            <Icon name="help" size={18} color={t.colors.accentDeep} />
+            <View style={{ flex: 1 }}>
+              <RNText style={tx('700', 13, t.colors.ink)}>Report a bug</RNText>
+              <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Something broken in the app? Tell the developers</RNText>
+            </View>
+            <RNText style={tx('600', 16, t.colors.muted)}>›</RNText>
+          </Pressable>
+        )}
         <View style={{ flexDirection: 'row', gap: 18, marginTop: 12, paddingHorizontal: 4 }}>
           <Pressable onPress={() => go('terms')} hitSlop={8} accessibilityRole="link">
             <RNText style={tx('700', 13, t.colors.accentDeep)}>Terms of Service</RNText>

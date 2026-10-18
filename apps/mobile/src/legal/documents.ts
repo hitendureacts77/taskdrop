@@ -77,7 +77,7 @@ export const PRIVACY: LegalDoc = {
             'Google: Google sign-in, if you use it; place search, when we use Google Places; and voice typing on the web, which uses your browser’s speech service (Google’s, in Chrome).',
             'OpenStreetMap (Nominatim): place search and turning a map pin into an address. It receives the words you search or the pin’s position.',
             'Expo: delivers push notifications to your phone.',
-            'Sentry: crash reports, if crash reporting is on.',
+            'Sentry: crash reports, error logs and usage counts (for example, tasks posted), so we can find and fix problems. On phones it can also record how you move through the app, with all text, pictures and icons hidden; a name, address, amount or message is never in it. It is used only if monitoring is on.',
             'Inngest, which runs our background jobs and alerts our team (for example about a new help request). It receives names and amounts, never phone numbers, email addresses, bank details or UPI IDs.',
           ],
         },
