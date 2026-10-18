@@ -1,7 +1,7 @@
 # Background jobs: Inngest
 
 Background work (schedules, retries, alerts, calls to outside services) runs on
-**Inngest**. n8n is not used (owner decision, 2026-10-12).
+**Inngest** (owner decision, 2026-10-12).
 
 ## The split
 
@@ -137,14 +137,12 @@ Vault secret.
 - `npm test` runs the job logic (`supabase/functions/inngest/jobs.test.ts`).
 - `npm run test:db` runs `supabase/tests/outbox.test.sql`: events are queued with the
   change, carry no contact details, the sweeper sees only old unsent events, only the
-  service role can call the Inngest-facing functions, n8n has stopped without dropping anything
-  (its tables and digest function stay until Phase 9, ground rule 2), and no event or alert
-  carries free text.
+  service role can call the Inngest-facing functions, the old automation tool's leftovers
+  are gone (migration 102), and no event or alert carries free text.
 
 ## Not moved yet (still in the plan, Phase 5)
 
 Withdrawal payouts with retries, stuck-payout reconciliation, refund retries and webhook
-hand-off. They touch the money flow, so they wait for the lawyer's answer (R3). The n8n leftovers (`private.automation_*`, `private.send_daily_digest()` and the
-`n8n-log-prune` job) are removed at Phase 9 by `supabase/cutover/phase9_drop_n8n.sql`, because the old
-app and old admin share this database until then and migrations only add. Each is moved one at a time, with the old job removed in the same deploy
-as its replacement. Do not add n8n calls or new pg_cron jobs while this is in progress.
+hand-off. They touch the money flow, so they wait for the lawyer's answer (R3). Each is moved
+one at a time, with the old job removed in the same deploy as its replacement. Do not add new
+pg_cron jobs while this is in progress.

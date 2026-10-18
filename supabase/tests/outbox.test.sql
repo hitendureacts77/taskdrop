@@ -1,4 +1,4 @@
--- The outbox that feeds Inngest (migration 090), and the removal of n8n.
+-- The outbox that feeds Inngest (migration 090).
 --
 -- What is asserted:
 --   1. emit_event() writes a row in the caller's own transaction, and a help
@@ -9,8 +9,8 @@
 --   3. Only the service role can reach the Inngest-facing functions; a signed-in
 --      user, or anything carrying an anon/authenticated claim, cannot.
 --   4. admin_alerts is readable by admins only.
---   5. n8n has stopped (triggers swapped, digest job unscheduled) but nothing was
---      dropped: ground rule 2 keeps its tables and function until Phase 9.
+--   5. The old automation tool's tables, function, triggers and cron jobs are gone
+--      (migration 102).
 --   6. Events carry no free text: not a help-request subject, a job title or a
 --      payout failure note (they can hold anything, and events leave the database).
 --   7. Team alerts older than 30 days are pruned with the outbox; newer ones stay.
@@ -211,26 +211,20 @@ begin
 end;
 $$;
 
--- ---- 5. n8n has stopped, and nothing was dropped ---------------------------
+-- ---- 5. the old automation tool is gone --------------------------------------
 do $$
 begin
-  -- Ground rule 2: the tables and the digest function stay until Phase 9.
-  if to_regclass('private.automation_config') is null or to_regclass('private.automation_log') is null then
-    raise exception 'FAIL: an n8n table was dropped (ground rule 2: migrations only add)';
+  if to_regclass('private.automation_config') is not null or to_regclass('private.automation_log') is not null then
+    raise exception 'FAIL: an old automation table is still there';
   end if;
-  if to_regprocedure('private.send_daily_digest()') is null then
-    raise exception 'FAIL: private.send_daily_digest() was dropped (ground rule 2)';
+  if to_regprocedure('private.send_daily_digest()') is not null then
+    raise exception 'FAIL: private.send_daily_digest() is still there';
   end if;
   if exists (select 1 from pg_trigger where tgname like 'n8n\_%' escape '\' and not tgisinternal) then
-    raise exception 'FAIL: an n8n trigger is still attached';
+    raise exception 'FAIL: an old automation trigger is still attached';
   end if;
-  -- The digest now comes from Inngest, so the n8n one must not run as well...
-  if exists (select 1 from cron.job where jobname = 'n8n-daily-digest') then
-    raise exception 'FAIL: the n8n daily digest is still scheduled';
-  end if;
-  -- ...but the old log still ages out until it is dropped in Phase 9.
-  if not exists (select 1 from cron.job where jobname = 'n8n-log-prune') then
-    raise exception 'FAIL: the n8n log prune was unscheduled, so private.automation_log would never age out';
+  if exists (select 1 from cron.job where jobname like 'n8n-%') then
+    raise exception 'FAIL: an old automation cron job is still scheduled';
   end if;
   if not exists (select 1 from pg_trigger where tgname = 'evt_support' and not tgisinternal)
      or not exists (select 1 from pg_trigger where tgname = 'evt_payout_new' and not tgisinternal)
