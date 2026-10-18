@@ -89,6 +89,7 @@ declare
   v_msgs    jsonb;
   v_token   text := 'ExponentPushToken[testtesttesttesttest01]';
   v_before  bigint;
+  v_removed integer;
 begin
   insert into public.push_tokens (token, user_id, platform) values (v_token, v_user, 'android');
 
@@ -136,8 +137,13 @@ begin
   if public.push_tokens_of(v_user) <> array[v_token] then
     raise exception 'FAIL: push_tokens_of did not list the device';
   end if;
-  if public.push_remove_tokens(array[v_token]) <> 1
-     or exists (select 1 from public.push_tokens where token = v_token) then
+  -- Two statements on purpose: one statement would check "still there?" against
+  -- the snapshot taken before the function deleted it.
+  v_removed := public.push_remove_tokens(array[v_token]);
+  if v_removed <> 1 then
+    raise exception 'FAIL: push_remove_tokens removed % devices, expected 1', v_removed;
+  end if;
+  if exists (select 1 from public.push_tokens where token = v_token) then
     raise exception 'FAIL: push_remove_tokens did not forget the device';
   end if;
 end;

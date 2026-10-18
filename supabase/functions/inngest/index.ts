@@ -48,6 +48,7 @@ import {
  *   INNGEST_EVENT_KEY     lets this function send events
  *   INNGEST_MONEY_JOBS    "on" to let Inngest run the three money sweeps (default off)
  *   INNGEST_DEV           "1" when talking to a local `inngest-cli dev` server
+ *   INNGEST_PUSH_RECEIPT_WAIT  how long push waits before reading Expo's receipts (default "15m"; tests only)
  */
 
 const dev = Deno.env.get("INNGEST_DEV") === "1";
@@ -60,6 +61,9 @@ const inngest = new Inngest({
   // Edge Functions are short-lived; every step is its own request.
   checkpointing: false,
 });
+
+/** How long to wait before asking Expo whether a phone took a push. Only tests change this. */
+const receiptWait = Deno.env.get("INNGEST_PUSH_RECEIPT_WAIT") ?? "15m";
 
 const db = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -210,7 +214,7 @@ const pushNotification = inngest.createFunction(
     if (sent.waiting.length === 0) return { sent: sent.sent, failed: sent.failed, gone: sent.gone };
 
     // Expo needs a few minutes before it can say whether a phone took the message.
-    await step.sleep("let Expo deliver", "15m");
+    await step.sleep("let Expo deliver", receiptWait);
 
     const gone = await step.run("read receipts", async () => {
       const receipts = await expoReceipts(fetch, sent.waiting.map((w) => w.id));
