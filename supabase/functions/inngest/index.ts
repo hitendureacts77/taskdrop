@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { Inngest } from "npm:inngest@4.23.0";
 import { serve } from "npm:inngest@4.23.0/edge";
-import { captureServerError } from "../_shared/monitoring.ts";
+import { captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
 import {
   ALERT_EVENTS,
@@ -76,6 +76,10 @@ const rpc = (name: string, args?: Record<string, unknown>) => db.rpc(name, args)
 
 /** After the last retry, tell Sentry (if configured). */
 const reportFailure = (job: string) => async ({ error }: { error: unknown }) => {
+  await logServer("error", "inngest", "job failed after all retries", {
+    job,
+    error: error instanceof Error ? error.message : String(error),
+  });
   await captureServerError(error, { job });
 };
 

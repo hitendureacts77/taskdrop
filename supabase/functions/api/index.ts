@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { ControlsCache, PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient } from "../_shared/controls.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
-import { captureServerError } from "../_shared/monitoring.ts";
+import { background, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { type Db, RATE_LIMITS, rateBucket, runOp } from "./ops.ts";
 
 /**
@@ -75,7 +75,7 @@ Deno.serve(async (req: Request) => {
   const controls = await controlsCache.get(client, async () => {
     const { data, error } = await db.rpc("get_app_controls", { p_platform: client.platform, p_version: client.appVersion });
     if (error) {
-      console.error("api: app controls unavailable", error.message);
+      background(logServer("warn", "api", "app controls unavailable", { error: error.message }));
       return null;
     }
     return parseControls(data);
@@ -96,8 +96,9 @@ Deno.serve(async (req: Request) => {
       p_bucket: bucket,
       p_limit: RATE_LIMITS[bucket],
     });
-    if (rateErr) console.error("api: rate limiter unavailable", rateErr.message);
+    if (rateErr) background(logServer("warn", "api", "rate limiter unavailable", { error: rateErr.message }));
     else if (allowed === false) {
+      background(logServer("warn", "api", "rate limited", { op: String(body.op), bucket, user_id: userData.user.id }));
       return refuse("You are going too fast. Please wait a moment and try again.", "RATE_LIMITED", 429);
     }
   }
@@ -117,7 +118,7 @@ Deno.serve(async (req: Request) => {
         body: JSON.stringify(payload),
       });
     } catch (e) {
-      console.error(`api: ${name} hand-off failed`, e);
+      background(logServer("error", "api", "function hand-off failed", { target: name, error: e instanceof Error ? e.message : String(e) }));
     }
   };
 
@@ -128,7 +129,7 @@ Deno.serve(async (req: Request) => {
     if (!admin || mine.length === 0) return;
     for (let i = 0; i < mine.length; i += 100) {
       const { error } = await admin.storage.from("task-media").remove(mine.slice(i, i + 100));
-      if (error) console.error("api: could not remove files", error.message);
+      if (error) background(logServer("error", "api", "could not remove files", { error: error.message, user_id: userData.user.id }));
     }
   };
 
@@ -136,10 +137,9 @@ Deno.serve(async (req: Request) => {
   const phoneVerified = Boolean(userData.user.phone_confirmed_at);
   const ctx = { db: db as unknown as Db, userId: userData.user.id, callFunction, removeOwnFiles, client, controls, phoneVerified };
   const result = await runOp(body.op, body.args, ctx, (e) => {
-    console.error(`api: op ${String(body.op)} failed`, e);
-    // Finishes in the background after the response is sent.
-    const report = captureServerError(e, { op: String(body.op), fn: "api" });
-    (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime?.waitUntil?.(report);
+    // Both finish in the background after the response is sent.
+    background(logServer("error", "api", "op failed", { op: String(body.op), user_id: userData.user.id, error: e instanceof Error ? e.message : String(e) }));
+    background(captureServerError(e, { op: String(body.op), fn: "api" }));
   });
   return json(result);
 });

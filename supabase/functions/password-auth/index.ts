@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
+import { background, logServer } from "../_shared/monitoring.ts";
 import { signInRefusal } from "../_shared/signInSwitches.ts";
 
 /**
@@ -77,17 +78,19 @@ Deno.serve(async (req: Request) => {
     p_ip: ip,
   });
   if (gateErr) {
-    console.error("password-auth: gate unavailable", gateErr.message);
+    background(logServer("error", "password-auth", "sign-in gate unavailable", { error: gateErr.message }));
     return json({ error: "Sign-in is busy. Try again in a minute." }, 503);
   }
   if (typeof waitMin === "number" && waitMin > 0) {
+    // Someone is guessing passwords; the username stays out of the log.
+    background(logServer("warn", "password-auth", "locked out after too many attempts", { wait_minutes: waitMin }));
     const wait = waitMin >= 60 ? `${Math.round(waitMin / 60)} hours` : `${waitMin} minutes`;
     return json({ error: `Too many attempts. Try again in ${wait}, or sign in with your phone number.` }, 429);
   }
 
   const record = (ok: boolean) =>
     admin.rpc("record_password_attempt", { p_username: username, p_ip: ip, p_ok: ok }).then(
-      ({ error }) => { if (error) console.error("password-auth: could not record attempt", error.message); },
+      ({ error }) => { if (error) background(logServer("error", "password-auth", "could not record attempt", { error: error.message })); },
       () => {},
     );
 
