@@ -219,15 +219,16 @@ begin
 end;
 $$;
 
--- ---- 6. it keeps 30 days: every 25th event prunes up to 500 older ones -------
+-- ---- 6. it keeps 30 days: housekeeping (hourly, Inngest) removes older ones -
+-- Migration 104 moved the clean-up out of the insert; writing events no longer
+-- deletes anything, and run_housekeeping() does the trimming.
 do $$
 declare
   v_task  uuid := (select v::uuid from fx where k = 'task');
   v_old   integer;
   v_new   integer;
+  v_out   jsonb;
 begin
-  -- 600 events from 31 days ago and 3 from 29 days ago, written directly (as
-  -- the owner) so they do not themselves trigger a prune.
   insert into public.admin_live_events (kind, record_type, record_id, summary, created_at)
   select 'old_test', 'task', v_task, '{}'::jsonb, now() - interval '31 days'
   from generate_series(1, 600);
@@ -235,32 +236,28 @@ begin
   select 'recent_test', 'task', v_task, '{}'::jsonb, now() - interval '29 days'
   from generate_series(1, 3);
 
-  -- 25 consecutive events contain exactly one multiple of 25, so exactly one prune.
-  for i in 1..25 loop
-    perform private.admin_live('prune_test', 'task', v_task, null, '{}'::jsonb);
-  end loop;
-
-  select count(*) into v_old from public.admin_live_events where kind = 'old_test';
-  select count(*) into v_new from public.admin_live_events where kind in ('recent_test', 'prune_test');
-  if v_old <> 100 then
-    raise exception 'FAIL: one prune should remove at most 500 of the 600 old events (left %)', v_old;
-  end if;
-  if v_new <> 28 then
-    raise exception 'FAIL: recent events were pruned or the new ones went missing (found %)', v_new;
-  end if;
-
-  -- 25 more: another prune clears the rest, and still only the old ones.
-  for i in 1..25 loop
+  -- Writing 60 events (a prune used to fire every 25th) removes nothing.
+  for i in 1..60 loop
     perform private.admin_live('prune_test', 'task', v_task, null, '{}'::jsonb);
   end loop;
   select count(*) into v_old from public.admin_live_events where kind = 'old_test';
+  if v_old <> 600 then
+    raise exception 'FAIL: writing events deleted old ones by itself (left %)', v_old;
+  end if;
+
+  -- Housekeeping clears the old ones and only the old ones.
+  v_out := public.run_housekeeping();
+  select count(*) into v_old from public.admin_live_events where kind = 'old_test';
   select count(*) into v_new from public.admin_live_events where kind in ('recent_test', 'prune_test');
-  if v_old <> 0 then raise exception 'FAIL: a second prune should clear the remaining old events (left %)', v_old; end if;
-  if v_new <> 53 then raise exception 'FAIL: recent events were pruned (found %)', v_new; end if;
+  if v_old <> 0 then raise exception 'FAIL: housekeeping left % old events', v_old; end if;
+  if v_new <> 63 then raise exception 'FAIL: recent events were pruned or went missing (found %)', v_new; end if;
+  if (v_out->>'admin_live_events')::int < 600 then
+    raise exception 'FAIL: housekeeping did not report the events it removed: %', v_out;
+  end if;
 end;
 $$;
 
--- ---- 7. a failing prune never loses the event or blocks the caller -----------
+-- ---- 7. a blocked delete never loses an event or blocks the caller -----------
 do $$
 declare
   v_task uuid := (select v::uuid from fx where k = 'task');
@@ -277,7 +274,7 @@ begin
     perform private.admin_live('failprune_test', 'task', v_task, null, '{}'::jsonb);
   end loop;
   select count(*) into v_n from public.admin_live_events where kind = 'failprune_test';
-  if v_n <> 25 then raise exception 'FAIL: a failing prune lost events (kept % of 25)', v_n; end if;
+  if v_n <> 25 then raise exception 'FAIL: events were lost while deletes were blocked (kept % of 25)', v_n; end if;
   drop trigger live_test_no_delete on public.admin_live_events;
 end;
 $$;

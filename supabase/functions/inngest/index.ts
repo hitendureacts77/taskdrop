@@ -260,10 +260,30 @@ const overdueTasks = inngest.createFunction(
   async ({ step }) => ({ marked: await step.run("mark overdue", () => call<number>(rpc, "run_overdue_tasks")) }),
 );
 
-/** Counters, sign-in codes, old notifications: records that have outlived their use. */
+/** Counters, sign-in codes, old notifications, the admin live feed: records that have outlived their use. */
 const housekeeping = inngest.createFunction(
   { id: "housekeeping", triggers: [{ cron: "17 * * * *" }], concurrency: 1, onFailure: reportFailure("housekeeping") },
   async ({ step }) => ({ removed: await step.run("tidy", () => call<Record<string, number>>(rpc, "run_housekeeping")) }),
+);
+
+/**
+ * Watches the bridge itself: events left unsent for 15 minutes mean Inngest is
+ * not receiving them. Leaves one team alert, then stays quiet for six hours.
+ */
+const outboxWatchdog = inngest.createFunction(
+  { id: "outbox-watchdog", triggers: [{ cron: "*/10 * * * *" }], concurrency: 1, onFailure: reportFailure("outbox-watchdog") },
+  async ({ step }) => ({ checked: await step.run("check outbox", () => call<Record<string, unknown>>(rpc, "run_outbox_watchdog")) }),
+);
+
+/**
+ * Two reminders that need a clock: finished work waiting for the poster's
+ * approval (it is approved for them within 24 hours), and a started job that is
+ * due within the hour. Each goes out once per task and person, as an ordinary
+ * in-app notification (and push, when push is on). No money moves.
+ */
+const taskReminders = inngest.createFunction(
+  { id: "task-reminders", triggers: [{ cron: "*/15 * * * *" }], concurrency: 1, onFailure: reportFailure("task-reminders") },
+  async ({ step }) => ({ sent: await step.run("remind", () => call<Record<string, unknown>>(rpc, "run_task_reminders")) }),
 );
 
 // ------------------------------------------------------------------- people --
@@ -332,7 +352,7 @@ Deno.serve(serve({
   client: inngest,
   functions: [
     outboxSweeper, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile,
-    pushNotification, accountFiles, overdueTasks, housekeeping,
+    pushNotification, accountFiles, overdueTasks, housekeeping, outboxWatchdog, taskReminders,
     userCreated, userUpdated, userDeleted, userSyncRepair,
     ...moneyJobs,
   ],

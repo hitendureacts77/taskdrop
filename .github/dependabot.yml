@@ -9,6 +9,20 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    ignore:
+      # The app is on Expo SDK 57. Expo's packages move together with the SDK, so a
+      # major bump of any of them is the SDK upgrade, done by hand with
+      # `npx expo install --fix` and a native rebuild, never one package at a time.
+      - dependency-name: "expo"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "expo-*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@expo/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "babel-preset-expo"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-native"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
     groups:
       # Expo pins matching versions of many packages; updating them one by one
       # produces a pile of PRs that can each only fail.

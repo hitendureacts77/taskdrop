@@ -63,13 +63,15 @@ also drops those fields from anything it stores, for an event queued before this
 | `user-updated` | event `user.updated` | counts the update and keeps which fields changed in the ledger |
 | `user-deleted` | event `user.deleted` | marks the person deleted in the ledger. Deleted is final: a late update or sign-up cannot revive them |
 | `user-sync-repair` | daily 03:10 IST | calls `user_sync_repair()`: adds anyone the ledger missed, marks deleted or removed accounts as deleted. Normally reports all zeros |
-| `housekeeping` | hourly at :17 | calls `run_housekeeping()`: removes expired sign-in codes, send and search counters, rate counters, password attempts older than 30 days, notifications older than 90 days |
+| `housekeeping` | hourly at :17 | calls `run_housekeeping()`: removes expired sign-in codes, send and search counters, rate counters, password attempts older than 30 days, notifications older than 90 days, admin live-feed rows older than 30 days (only rows nobody else is holding) |
+| `outbox-watchdog` | every 10 min | calls `run_outbox_watchdog()`: events unsent for 15+ minutes mean the bridge to Inngest is broken (wrong key, function not deployed or synced). Leaves one team alert, then stays quiet for six hours |
+| `task-reminders` | every 15 min | calls `run_task_reminders()`: tells a poster that finished work will be approved for them within 24 hours, and a worker that a started job is due within the hour. Once per task and person, as an in-app notification (and push when push is on). No money moves |
 
 The three money sweeps are **off** until `INNGEST_MONEY_JOBS=on`, because pg_cron runs them
 today (see "Moving the money sweeps"). Every function reports its final failure to
 Sentry.
 
-Push, `account-files`, `overdue-tasks` and `housekeeping` need migration 101. Push also has a
+Push, `account-files`, `overdue-tasks` and `housekeeping` need migration 101; the live-feed clean-up inside `housekeeping` needs 104; `outbox-watchdog` and `task-reminders` need 105. Push also has a
 switch (next section). `notification.created` holds ids and the kind only: the title and body
 are read by the Edge Function and handed to Expo, and Inngest keeps only counts and a one-way
 key per device.
@@ -112,6 +114,13 @@ The web has no push; in-app notifications and live updates do not go through Inn
 Team messages land in `public.admin_alerts` (admins can read them, nobody else).
 The admin app's alerts view reads that table.
 
+## Where Inngest is not used, on purpose
+
+- **Rules and money.** Prices, fees, who is paid and balances stay in Postgres (RLS, RPCs). Inngest only rings the bell.
+- **Live updates and in-app notifications.** They go straight from Postgres (Realtime); a round trip through a third party would only add delay.
+- **Payouts, refund retries, stuck-payout checks and webhook hand-off.** They touch the money flow and wait for the lawyer's answer (R3).
+- **The admin live feed.** Rows are written by a database trigger inside the change itself; only its hourly clean-up is an Inngest job.
+
 ## Switching it on (hosted test project)
 
 Nothing is live until these are done. You do 1, 2 and 4; they need your accounts.
@@ -130,6 +139,8 @@ Nothing is live until these are done. You do 1, 2 and 4; they need your accounts
    select vault.create_secret('https://inn.gs/e/<YOUR_EVENT_KEY>', 'inngest_event_url');
    ```
    To change it later: `select vault.update_secret(id, '<new url>') from vault.secrets where name = 'inngest_event_url';`
+
+After a deploy that adds or changes a function or schedule, tell Inngest to re-read the list: run the **Inngest sync** workflow (GitHub → Actions → Run workflow), or `curl -X PUT https://wjxvingpfbfvkfqhrguj.supabase.co/functions/v1/inngest`. It answers `Successfully registered`.
 
 Until step 5, events still collect in the outbox; the sweeper sends them once the
 Event Key is set on the function. After step 5 they also go out instantly.
@@ -161,6 +172,8 @@ Vault secret.
 ## Tests
 
 - `npm test` runs the job logic (`supabase/functions/inngest/jobs.test.ts`).
+- `npm run test:db` also runs `supabase/tests/watchdog_reminders.test.sql` (live-feed titles, one payment per payment link, the watchdog and the reminders) and `supabase/tests/inngest_jobs.test.sql`.
+- CI type-checks the Inngest function with Deno (`deno check`), which the Node unit tests cannot do.
 - `npm run test:db` runs `supabase/tests/outbox.test.sql`: events are queued with the
   change, carry no contact details, the sweeper sees only old unsent events, only the
   service role can call the Inngest-facing functions, the old automation tool's leftovers

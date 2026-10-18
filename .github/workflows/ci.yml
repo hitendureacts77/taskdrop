@@ -31,6 +31,21 @@ jobs:
       - name: npm audit
         run: npm run audit:gate
 
+  functions:
+    name: Edge Functions type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # The Inngest function runs on Deno, which the Node unit tests do not cover.
+      # --node-modules-dir=none keeps Deno away from the repo's npm workspace.
+      - name: type-check the Inngest function
+        run: deno check --node-modules-dir=none supabase/functions/inngest/index.ts
+
   database:
     name: money and access rules
     runs-on: ubuntu-latest
