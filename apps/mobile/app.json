@@ -63,6 +63,7 @@
     },
     "plugins": [
       "expo-font",
+      "expo-router",
       "expo-asset",
       [
         "expo-image-picker",

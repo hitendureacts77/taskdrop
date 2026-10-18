@@ -61,7 +61,7 @@ Run `npm run check` before calling anything done. Run `npm run test:db` for any 
 - Type: Plus Jakarta Sans; money uses tabular figures. Use tokens from `apps/mobile/src/theme.ts`, never raw hex in screens.
 - Light, dark and System themes. Dark must be first-class.
 - One component set for all three platforms. Phone: 390x844 with the bottom tab bar. Web desktop: left side menu (`SideNav`).
-- Navigation today is custom: `BottomTabBar`, `SideNav`, `NavProvider`, `ScreenHost`. Do not introduce expo-router or react-navigation (including native tabs) without owner approval; see open decisions.
+- Navigation: the **iOS and Android** apps use Expo Router's native tabs (`expo-router/unstable-native-tabs`) for the five bottom tabs: the tabs are `src/app/(tabs)`, every other screen is the route `src/app/screen/[name]` in a native stack (`src/navigation/NativeRoot.tsx`), started from `index.ts`. Screens still call `useNav()` (`go`, `back`, `reset`, `params`); on phones that is `providers/NavProvider.native.tsx` on top of Expo Router, on web `NavProvider.tsx`. Object params travel in `navigation/navParams.ts`, not in the URL. The **web** build is unchanged and custom (`BottomTabBar`, `SideNav`, `ScreenHost`, started from `App.tsx`), and never loads expo-router. Do not extend expo-router or react-navigation beyond the tabs without owner approval.
 - Motion should respect reduced-motion settings.
 
 ## Code style
@@ -73,4 +73,4 @@ Run `npm run check` before calling anything done. Run `npm run test:db` for any 
 
 ## Open decisions (ask the owner, do not assume)
 
-- **Native tabs:** moving to Expo native tabs needs expo-router and a navigation rewrite, and web keeps its own side menu. Decide before any navigation work.
+- **Native tabs and headers, decided 2026-10-18:** the owner asked for native tabs on iOS and Android, then for every screen to be a native route and for native headers on the screens that use `TopBar` (`navigation/nativeHeader.ts` lists them; `TopBar` fills in the title and right-hand control, the web keeps its in-page row). Tested on an Android phone (tabs, pushes, Back, swipe-back, sign-out, Earn mode, headers); **not run on iOS**. Other pushed screens keep their own headers. Native headers for them would change the look: ask first.

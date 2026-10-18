@@ -12,7 +12,7 @@ import { LOOP_NATIVE, useReducedMotion } from '../lib/motion';
  * colour -- deep jade on Hire, blue on Earn -- and bobs gently. Posts a
  * request on Hire, offers a service on Earn, as the pill it replaces did.
  */
-export function CreateFab() {
+export function CreateFab({ bottom = 100 }: { bottom?: number }) {
   const t = useTheme();
   const { go } = useNav();
   const { mode } = useMode();
@@ -43,7 +43,7 @@ export function CreateFab() {
       style={{
         position: 'absolute',
         right: 18,
-        bottom: 100,
+        bottom,
         opacity: rise,
         transform: [
           { translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) },

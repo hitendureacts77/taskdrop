@@ -19,6 +19,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { Icon, type IconName } from './Icon';
 import { Pressy, tx } from './primitives';
 import { useLayout } from '../lib/layout';
+import { NativeHeader } from './NativeHeader';
 import { LOOP_NATIVE, useReducedMotion } from '../lib/motion';
 
 /**
@@ -948,6 +949,19 @@ export function TopBar({
   subtitle?: string;
 }) {
   const t = useTheme();
+  // Phones: the system header carries the back arrow, title and right-hand control; only the subtitle stays in the page.
+  if (Platform.OS !== 'web') {
+    return (
+      <>
+        <NativeHeader title={title} right={right} />
+        {subtitle ? (
+          <RNText style={tx('400', 12, t.colors.muted, { paddingHorizontal: 20, paddingBottom: 8 })} numberOfLines={1}>
+            {subtitle}
+          </RNText>
+        ) : null}
+      </>
+    );
+  }
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}>
       <IconButton icon="back" label="Back" onPress={onBack} />
