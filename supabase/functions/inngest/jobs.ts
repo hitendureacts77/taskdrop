@@ -151,3 +151,99 @@ export function compareProviderPayment(p: ProviderPayment, link: ProviderLink): 
   }
   return null;
 }
+
+// -------------------------------------------------------------------- push --
+
+const EXPO = "https://exp.host/--/api/v2/push";
+const EXPO_HEADERS = { "Content-Type": "application/json", Accept: "application/json" };
+
+export type Fetch = (url: string, init: { method: string; headers: Record<string, string>; body: string }) => Promise<{
+  ok: boolean;
+  status: number;
+  json(): Promise<unknown>;
+}>;
+
+/** One message for one device, as the database built it (push_job_load). */
+export type PushMessage = { to: string } & Record<string, unknown>;
+
+type ExpoError = { details?: { error?: string } };
+export type PushTicket = ({ status?: string; id?: string } & ExpoError) | undefined;
+export type PushReceipt = ({ status?: string } & ExpoError) | undefined;
+
+/** A ticket we are waiting on a receipt for; `key` stands in for the device token. */
+export type WaitingTicket = { id: string; key: string };
+
+export function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+/**
+ * A short, one-way stand-in for a device token. Inngest keeps what a step
+ * returns, so a step must never hand back a token itself; this lets a receipt
+ * be matched to a device later without doing that.
+ */
+export async function tokenKey(token: string): Promise<string> {
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+  return Array.from(hash.slice(0, 8), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Hands the messages to Expo. Throws on an HTTP error so Inngest retries the step. */
+export async function expoSend(f: Fetch, messages: PushMessage[]): Promise<PushTicket[]> {
+  const res = await f(`${EXPO}/send`, { method: "POST", headers: EXPO_HEADERS, body: JSON.stringify(messages) });
+  if (!res.ok) throw new Error(`Expo push send: HTTP ${res.status}`);
+  const body = (await res.json()) as { data?: unknown };
+  return Array.isArray(body?.data) ? (body.data as PushTicket[]) : [];
+}
+
+/** Asks Expo how the earlier sends went. Throws on an HTTP error so Inngest retries the step. */
+export async function expoReceipts(f: Fetch, ids: string[]): Promise<Record<string, PushReceipt>> {
+  const res = await f(`${EXPO}/getReceipts`, { method: "POST", headers: EXPO_HEADERS, body: JSON.stringify({ ids }) });
+  if (!res.ok) throw new Error(`Expo push receipts: HTTP ${res.status}`);
+  const body = (await res.json()) as { data?: unknown };
+  return body?.data && typeof body.data === "object" ? (body.data as Record<string, PushReceipt>) : {};
+}
+
+const gone = (r: { details?: { error?: string } } | undefined) => r?.details?.error === "DeviceNotRegistered";
+
+/**
+ * Sorts Expo's answer to a send, message by message (the tickets come back in
+ * the order the messages went). `dead` are tokens Expo already says are gone.
+ */
+export async function readTickets(messages: PushMessage[], tickets: PushTicket[]) {
+  const waiting: WaitingTicket[] = [];
+  const dead: string[] = [];
+  let failed = 0;
+  for (let i = 0; i < messages.length; i++) {
+    const t = tickets[i];
+    if (t?.status === "ok" && t.id) waiting.push({ id: t.id, key: await tokenKey(messages[i].to) });
+    else if (t?.status === "error" && gone(t)) dead.push(messages[i].to);
+    else failed++;
+  }
+  return { waiting, dead, failed };
+}
+
+/** Which of the waiting tickets Expo now says belong to a device that is gone. */
+export function deadKeys(waiting: WaitingTicket[], receipts: Record<string, PushReceipt>): string[] {
+  return waiting.filter((w) => receipts[w.id]?.status === "error" && gone(receipts[w.id])).map((w) => w.key);
+}
+
+/** The tokens, out of a person's current ones, that match the given keys. */
+export async function tokensForKeys(tokens: string[], keys: string[]): Promise<string[]> {
+  const wanted = new Set(keys);
+  const out: string[] = [];
+  for (const t of tokens) if (wanted.has(await tokenKey(t))) out.push(t);
+  return out;
+}
+
+// ---------------------------------------------------------- deleted accounts --
+
+/** Storage removes up to this many files per call. */
+export const STORAGE_BATCH = 100;
+
+/** Only paths inside the deleted person's own folder, with no way out of it. */
+export function ownFiles(userId: string, paths: unknown): string[] {
+  if (!Array.isArray(paths)) return [];
+  return paths.filter((p): p is string => typeof p === "string" && p.startsWith(`${userId}/`) && !p.includes(".."));
+}

@@ -55,10 +55,33 @@ also drops those fields from anything it stores, for an event queued before this
 | `auto-complete-due` | every 15 min | calls `run_auto_complete_due()` |
 | `settle-cleared-earnings` | every 5 min | calls `settle_cleared_earnings()` |
 | `settle-finished-campaigns` | hourly at :07 | calls `settle_finished_campaigns()` |
+| `push-notification` | event `notification.created` | reads the message from the database, sends it to Expo, waits 15 minutes, reads Expo's receipts and forgets devices that are gone |
+| `account-files` | event `user.deleted` | removes whatever files of the deleted account are still in storage (the api function already tried once); empty when nothing is left |
+| `overdue-tasks` | every 10 min | calls `run_overdue_tasks()`: a started job past its due time becomes `OVERDUE`. Only the label changes; no money moves |
+| `housekeeping` | hourly at :17 | calls `run_housekeeping()`: removes expired sign-in codes, send and search counters, rate counters, password attempts older than 30 days, notifications older than 90 days |
 
-The last three are **off** until `INNGEST_MONEY_JOBS=on`, because pg_cron runs them
+The three money sweeps are **off** until `INNGEST_MONEY_JOBS=on`, because pg_cron runs them
 today (see "Moving the money sweeps"). Every function reports its final failure to
 Sentry.
+
+Push, `account-files`, `overdue-tasks` and `housekeeping` need migration 101. Push also has a
+switch (next section). `notification.created` holds ids and the kind only: the title and body
+are read by the Edge Function and handed to Expo, and Inngest keeps only counts and a one-way
+key per device.
+
+## Moving push and the prunes
+
+Pushes keep going out the old way, straight from the database, until the settings row
+`push_via_inngest` is `true`. So nothing breaks while Inngest is being set up.
+
+1. Apply migration 101, redeploy the `inngest` function, and see the four new functions in the Inngest dashboard.
+2. Invoke `housekeeping` and `overdue-tasks` once each and see them green.
+3. Run `supabase/cutover/inngest_background_jobs.sql` by hand. It turns the switch on and unschedules the two old prune jobs.
+4. Try it on a phone: do something that notifies you and see a `push-notification` run and the buzz.
+
+To go back: `update public.settings set value = 'false' where key = 'push_via_inngest';` (at once, no deploy). The same file lists the two `cron.schedule` lines for the prunes.
+
+The web has no push; in-app notifications and live updates do not go through Inngest.
 
 Team messages land in `public.admin_alerts` (admins can read them, nobody else).
 The admin app's alerts view reads that table.
@@ -120,9 +143,8 @@ Vault secret.
 
 ## Not moved yet (still in the plan, Phase 5)
 
-Push notifications, withdrawal payouts with retries, stuck-payout reconciliation, refund
-retries, account-deletion file cleanup, the overdue-tasks cron, webhook hand-off and the
-missing prunes. The n8n leftovers (`private.automation_*`, `private.send_daily_digest()` and the
+Withdrawal payouts with retries, stuck-payout reconciliation, refund retries and webhook
+hand-off. They touch the money flow, so they wait for the lawyer's answer (R3). The n8n leftovers (`private.automation_*`, `private.send_daily_digest()` and the
 `n8n-log-prune` job) are removed at Phase 9 by `supabase/cutover/phase9_drop_n8n.sql`, because the old
 app and old admin share this database until then and migrations only add. Each is moved one at a time, with the old job removed in the same deploy
 as its replacement. Do not add n8n calls or new pg_cron jobs while this is in progress.

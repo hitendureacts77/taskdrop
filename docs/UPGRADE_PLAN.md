@@ -401,12 +401,12 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [ ] `settle-cleared-earnings` → Inngest cron (built every 5 min, off until cutover)
 - [ ] `settle-finished-campaigns` → Inngest cron (built, off until cutover)
 - [x] `n8n-daily-digest` → Inngest cron (`daily-digest`, writes to `admin_alerts`)
-- [ ] Push (pg_net trigger) → `notification.created`: send the Expo push, read receipts, remove dead tokens
+- [ ] Push (pg_net trigger) → `notification.created`: send the Expo push, read receipts, remove dead tokens (built; the trigger keeps the direct send until the `push_via_inngest` switch, `supabase/cutover/inngest_background_jobs.sql`)
 - [ ] Withdrawal → `withdrawal.requested`: payout with retries and an idempotency key, one at a time per user. `requestWithdrawal` returns immediately.
 - [ ] Stuck payouts → reconciliation every 15 minutes
 - [ ] Refund "sent but not recorded" → retrying function + Sentry fatal
-- [ ] Account deletion → `user.deleted`: delete storage files with retries (ImageKit added in Phase 6)
-- [ ] New: an overdue-tasks cron (`OVERDUE` from `due_at`)
+- [ ] Account deletion → `user.deleted`: delete storage files with retries (ImageKit added in Phase 6). Built, not yet applied. The api function still removes them at once; `account-files` finishes whatever it missed.
+- [ ] New: an overdue-tasks cron (`OVERDUE` from `due_at`), built, not yet applied
 - [x] n8n alerts (support, withdrawal, dispute, payout failed) → `admin_alerts` rows (Sentry on final failure)
 
 **Backend: webhooks**
@@ -419,7 +419,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [ ] `requestWithdrawal` keeps the same response shape, so the old app still shows the withdrawal correctly
 
 **Backend: housekeeping and n8n**
-- [ ] Missing prunes added in pg_cron: `auth_codes`, `auth_send_log`, `places_quota`, old notifications, sent outbox rows
+- [ ] Missing prunes added (in Inngest `housekeeping`, not pg_cron; built, not yet applied): `auth_codes`, `auth_send_log`, `places_quota`, notifications older than 90 days; sent outbox rows were already pruned by `outbox-prune`
 - [x] Every Inngest function reports its final failure to Sentry
 - [x] n8n stopped: triggers swapped, digest job unscheduled, config no longer read, the doc and the privacy-policy line removed
 - [ ] n8n leftovers dropped at Phase 9 (`private.automation_*`, `private.send_daily_digest()`, the `n8n-log-prune` job): kept until then because migrations only add (`supabase/cutover/phase9_drop_n8n.sql`)
@@ -1084,6 +1084,11 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
   - **Maps key:** restrict it now, delete it in Phase 9.
   - **R1 (EAS Update) and R2 (auto-deploy) confirmed.**
   - **Push to GitHub:** not yet; the branch is on your PC only.
+- **v4.5 (2026-10-18):** "I want Inngest to manage all my background jobs". Scope chosen: everything except the payout, webhook and refund jobs, which wait for the lawyer's answer on the money flow (R3).
+  - **Built (migration 101, `inngest` function, not applied or deployed):** `push-notification` (event `notification.created`: Expo send, receipts after 15 minutes, dead devices removed), `account-files` (event `user.deleted`: leftover storage files removed with retries), `overdue-tasks` (every 10 minutes: a started job past `due_at` becomes OVERDUE, no money moves), `housekeeping` (hourly: replaces the two pg_cron prunes and adds `auth_codes`, `auth_send_log`, `places_quota`, notifications older than 90 days).
+  - **Push has a switch.** The trigger still sends directly from the database until the settings row `push_via_inngest` is `true`, so phones keep buzzing while Inngest is set up. `supabase/cutover/inngest_background_jobs.sql` flips it and unschedules the two old prune jobs; one line puts it back.
+  - **Events carry no text:** `notification.created` holds ids and the kind only; the title and body are read by the Edge Function and never stored by Inngest. Device tokens are matched back by a one-way key.
+  - **Still on Postgres or the old path, waiting for R3:** withdrawal payouts with retries, stuck-payout reconciliation, refund retries, webhook hand-off. The three money sweeps stay on pg_cron until `INNGEST_MONEY_JOBS=on` and their own cutover.
 - **v4.4 (2026-10-13):** Phase 5 started ("implement it and remove n8n, use Inngest").
   - **Architecture: Postgres owns the rules and the money; Inngest owns schedules, retries and outside calls.** The bridge is an outbox (migration 090): `emit_event` writes `private.outbox` in the same transaction, pg_net pushes it straight away, and an Inngest cron re-sends anything unconfirmed. The outbox id is the Inngest event id, so duplicates are dropped.
   - **n8n is removed**: its triggers, cron jobs, `private.automation_*` tables, `docs/N8N.md` and the privacy-policy line. (Ground rule 2 says "never drop"; these were private n8n-only objects the old app and admin never touched.)

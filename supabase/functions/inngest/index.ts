@@ -9,15 +9,25 @@ import {
   alertFor,
   safeData,
   call,
+  chunk,
   compareProviderPayment,
+  deadKeys,
   digestAlert,
   type Digest,
+  expoReceipts,
+  expoSend,
+  ownFiles,
   type OutboxRow,
   type ProviderLink,
   type ProviderMismatch,
   type ProviderPayment,
+  type PushMessage,
+  readTickets,
   saveAlert,
+  STORAGE_BATCH,
   toEvents,
+  tokensForKeys,
+  type WaitingTicket,
 } from "./jobs.ts";
 
 /**
@@ -163,6 +173,93 @@ const nightlyReconcile = inngest.createFunction(
   },
 );
 
+// ------------------------------------------------------------- push, files, tidy --
+
+/**
+ * One notification, to every phone the person has signed in on. Postgres writes
+ * the event (the "push through Inngest" switch, supabase/cutover/) and holds the
+ * words; this reads them, hands them to Expo, and later asks Expo whether each
+ * device took the message, dropping devices that are gone.
+ *
+ * Inngest keeps what a step returns, so a step returns counts and one-way keys,
+ * never a token, a title or a body.
+ */
+const pushNotification = inngest.createFunction(
+  { id: "push-notification", triggers: [{ event: "taskdrop/notification.created" }], retries: 4, onFailure: reportFailure("push-notification") },
+  async ({ event, step }) => {
+    const notificationId = String(event.data?.notification_id ?? "");
+    const userId = String(event.data?.user_id ?? "");
+    if (!notificationId || !userId) return { skipped: "no notification" };
+
+    const sent = await step.run("send", async () => {
+      const messages = ((await call<PushMessage[] | null>(rpc, "push_job_load", { p_notification: notificationId })) ?? []).slice(0, 100);
+      if (messages.length === 0) return { sent: 0, failed: 0, gone: 0, waiting: [] as WaitingTicket[] };
+      const tickets = await expoSend(fetch, messages);
+      const { waiting, dead, failed } = await readTickets(messages, tickets);
+      if (dead.length > 0) {
+        try {
+          await call<number>(rpc, "push_remove_tokens", { p_tokens: dead });
+        } catch (e) {
+          // The message is already with Expo; retrying the step would send it twice.
+          await captureServerError(e, { job: "push-notification", stage: "remove dead tokens" });
+        }
+      }
+      return { sent: waiting.length, failed, gone: dead.length, waiting };
+    });
+
+    if (sent.waiting.length === 0) return { sent: sent.sent, failed: sent.failed, gone: sent.gone };
+
+    // Expo needs a few minutes before it can say whether a phone took the message.
+    await step.sleep("let Expo deliver", "15m");
+
+    const gone = await step.run("read receipts", async () => {
+      const receipts = await expoReceipts(fetch, sent.waiting.map((w) => w.id));
+      const keys = deadKeys(sent.waiting, receipts);
+      if (keys.length === 0) return 0;
+      const tokens = (await call<string[] | null>(rpc, "push_tokens_of", { p_user: userId })) ?? [];
+      const dead = await tokensForKeys(tokens, keys);
+      if (dead.length > 0) await call<number>(rpc, "push_remove_tokens", { p_tokens: dead });
+      return dead.length;
+    });
+    return { sent: sent.sent, failed: sent.failed, gone: sent.gone + gone };
+  },
+);
+
+/**
+ * A deleted account's leftover files in storage. The api function removes them
+ * the moment the account is deleted, once, best effort; this asks the database
+ * what is still there and removes it, with retries. It is a no-op when the first
+ * attempt got everything.
+ */
+const accountFiles = inngest.createFunction(
+  { id: "account-files", triggers: [{ event: "taskdrop/user.deleted" }], retries: 5, onFailure: reportFailure("account-files") },
+  async ({ event, step }) => {
+    const userId = String(event.data?.user_id ?? "");
+    if (!userId) return { skipped: "no account" };
+    const removed = await step.run("remove files", async () => {
+      const paths = ownFiles(userId, await call<string[] | null>(rpc, "deleted_account_files", { p_user: userId }));
+      for (const batch of chunk(paths, STORAGE_BATCH)) {
+        const { error } = await db.storage.from("task-media").remove(batch);
+        if (error) throw new Error(`storage remove: ${error.message}`);
+      }
+      return paths.length;
+    });
+    return { removed };
+  },
+);
+
+/** A job that was started and is past its time gets the OVERDUE label. Nothing else changes. */
+const overdueTasks = inngest.createFunction(
+  { id: "overdue-tasks", triggers: [{ cron: "*/10 * * * *" }], concurrency: 1, onFailure: reportFailure("overdue-tasks") },
+  async ({ step }) => ({ marked: await step.run("mark overdue", () => call<number>(rpc, "run_overdue_tasks")) }),
+);
+
+/** Counters, sign-in codes, old notifications: records that have outlived their use. */
+const housekeeping = inngest.createFunction(
+  { id: "housekeeping", triggers: [{ cron: "17 * * * *" }], concurrency: 1, onFailure: reportFailure("housekeeping") },
+  async ({ step }) => ({ removed: await step.run("tidy", () => call<Record<string, number>>(rpc, "run_housekeeping")) }),
+);
+
 // -------------------------------------------------------------- money sweeps --
 
 /**
@@ -189,6 +286,10 @@ const moneyJobs = Deno.env.get("INNGEST_MONEY_JOBS") === "on"
 
 Deno.serve(serve({
   client: inngest,
-  functions: [outboxSweeper, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile, ...moneyJobs],
+  functions: [
+    outboxSweeper, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile,
+    pushNotification, accountFiles, overdueTasks, housekeeping,
+    ...moneyJobs,
+  ],
   servePath: "/functions/v1/inngest",
 }));
