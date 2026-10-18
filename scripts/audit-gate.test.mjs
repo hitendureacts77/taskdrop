@@ -7,7 +7,15 @@ const adv = (id, name, severity, title = 'a flaw') => ({ name, severity, title, 
 /** A report shaped like `npm audit --json`: a vulnerable package, and one that is only affected through it. */
 const report = (...vias) => ({
   vulnerabilities: {
-    ...Object.fromEntries(vias.map((v) => [v.name, { name: v.name, severity: v.severity, via: [v] }])),
+    // Advisories for the same package share one entry, as npm audit reports them.
+    ...Object.fromEntries(
+      vias.reduce((entries, v) => {
+        const entry = entries.get(v.name) ?? { name: v.name, severity: v.severity, via: [] };
+        entry.via.push(v);
+        entries.set(v.name, entry);
+        return entries;
+      }, new Map()),
+    ),
     expo: { name: 'expo', severity: 'high', via: vias.map((v) => v.name) }, // only affected through the others
   },
 });
@@ -74,6 +82,7 @@ test('one excepted advisory does not excuse a different new one in the same pack
     [ok('GHSA-aaaa-aaaa-aaaa', 'braces')],
     NOW,
   );
+  assert.equal(r.accepted.length, 1);
   assert.equal(r.failures.length, 1);
   assert.match(r.failures[0], /GHSA-zzzz-zzzz-zzzz/);
 });

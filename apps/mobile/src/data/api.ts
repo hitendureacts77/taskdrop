@@ -3,6 +3,7 @@ import { callApi } from '../lib/gateway';
 import { clientHeaders } from '../lib/appInfo';
 import { FUNCTIONS_REGION, currentUserId, supabase } from '../lib/supabase';
 import { subscribeLive } from '../lib/live';
+import { count, log } from '../lib/monitoring';
 import type { Tables, Enums } from '@taskdrop/db-types';
 
 /**
@@ -281,7 +282,9 @@ export type NewTask = {
 
 export async function createTask(input: NewTask): Promise<Task> {
   const { posterId: _poster, ...rest } = input;
-  return act<Task>('createTask', { ...rest });
+  const task = await act<Task>('createTask', { ...rest });
+  count('task.posted');
+  return task;
 }
 
 export async function placeBid(input: {
@@ -514,10 +517,21 @@ export async function createPaymentLink(input: {
     headers: clientHeaders(),
     body: { action: 'create-link', ...input },
   });
-  if (error) throw await functionError(error, 'Could not start the payment');
+  if (error) {
+    log.error('payment link request failed', { purpose: input.purpose, taskId: input.taskId ?? null });
+    throw await functionError(error, 'Could not start the payment');
+  }
   const out = data as { paymentId?: string; url?: string; amountMinor?: number; error?: string };
-  if (out.error) throw new Error(out.error);
-  if (!out.paymentId || !out.url) throw new Error('Could not start the payment');
+  if (out.error) {
+    log.error('payment link refused', { purpose: input.purpose, taskId: input.taskId ?? null });
+    throw new Error(out.error);
+  }
+  if (!out.paymentId || !out.url) {
+    log.error('payment link reply had no link', { purpose: input.purpose, taskId: input.taskId ?? null });
+    throw new Error('Could not start the payment');
+  }
+  log.info('payment link opened', { purpose: input.purpose, taskId: input.taskId ?? null, paymentId: out.paymentId });
+  count('payment.link_opened', { purpose: input.purpose });
   return {
     paymentId: out.paymentId,
     url: out.url,
@@ -530,9 +544,15 @@ export async function refundEscrow(taskId: string): Promise<{ refundedMinor: num
     region: FUNCTIONS_REGION,
     body: { action: 'refund-escrow', taskId },
   });
-  if (error) throw await functionError(error, 'Could not start the refund');
+  if (error) {
+    log.error('refund request failed', { taskId });
+    throw await functionError(error, 'Could not start the refund');
+  }
   const out = data as { refundedMinor?: number; reason?: string; error?: string };
-  if (out.error) throw new Error(out.error);
+  if (out.error) {
+    log.error('refund refused', { taskId });
+    throw new Error(out.error);
+  }
   return { refundedMinor: Number(out.refundedMinor ?? 0), reason: out.reason };
 }
 
@@ -541,9 +561,17 @@ export async function syncPayment(paymentId: string): Promise<PaymentCheck> {
     region: FUNCTIONS_REGION,
     body: { action: 'sync', paymentId },
   });
-  if (error) throw await functionError(error, 'Could not check the payment');
+  if (error) {
+    log.error('payment check failed', { paymentId });
+    throw await functionError(error, 'Could not check the payment');
+  }
   const out = data as { status?: string; funded?: boolean; error?: string };
-  if (out.error) throw new Error(out.error);
+  if (out.error) {
+    log.error('payment check refused', { paymentId });
+    throw new Error(out.error);
+  }
+  // Paid but the task is not funded is the case a poster gets stuck on.
+  if (out.status === 'paid' && !out.funded) log.warn('payment paid but task not funded yet', { paymentId });
   return {
     status: (out.status as 'created' | 'paid' | 'cancelled') ?? 'created',
     funded: Boolean(out.funded),

@@ -47,9 +47,13 @@ export function ReportSheet({
     setBusy(true);
     try {
       await reportContent(targetType, targetId, reason);
-      if (block && personId) await blockUser(personId).catch(() => flash('Reported, but we could not block them'));
+      let blocked = false;
+      if (block && personId) {
+        blocked = await blockUser(personId).then(() => true, () => false);
+      }
       onClose();
-      celebrate(block && personId ? 'Reported and blocked' : 'Thanks, we will look into it');
+      if (block && personId && !blocked) flash('Reported, but we could not block them');
+      else celebrate(blocked ? 'Reported and blocked' : 'Thanks, we will look into it');
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not send the report');
     } finally {

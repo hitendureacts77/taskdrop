@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
+import { background, logServer } from "../_shared/monitoring.ts";
 import { signInRefusal } from "../_shared/signInSwitches.ts";
 
 /**
@@ -44,7 +45,7 @@ const json = (body: unknown, status = 200) =>
 
 /** A server-side failure: logged in full, answered without table or provider details. */
 const failed = (step: string, err: { message?: string }) => {
-  console.error(`phone-auth: ${step} failed`, err?.message);
+  background(logServer("error", "phone-auth", `${step} failed`, { step, error: err?.message }));
   return json({ error: "Something went wrong. Try again in a moment." }, 500);
 };
 
@@ -229,6 +230,7 @@ Deno.serve(async (req: Request) => {
     // Refuse rather than fall back to returning the code. An unconfigured
     // server that answers with the OTP is worse than one that answers "not yet".
     if (!skipSms && (!MSG91_AUTHKEY || !MSG91_TEMPLATE_ID)) {
+      background(logServer("error", "phone-auth", "SMS is not configured"));
       return json({ error: "SMS is not set up on this server yet" }, 503);
     }
 
@@ -245,10 +247,14 @@ Deno.serve(async (req: Request) => {
         p_window_min: WINDOW_MIN,
       });
       if (budgetErr) {
-        console.error("phone-auth: send budget unavailable", budgetErr.message);
+        background(logServer("error", "phone-auth", "send budget unavailable", { error: budgetErr.message }));
         return json({ error: "Could not send a code right now. Try again in a minute." }, 503);
       }
-      if (allowed !== true) return json({ error: "Too many codes requested. Try again later." }, 429);
+      if (allowed !== true) {
+        // Many of these in a row is someone trying numbers in bulk.
+        background(logServer("warn", "phone-auth", "per-IP code budget used up"));
+        return json({ error: "Too many codes requested. Try again later." }, 429);
+      }
     }
 
     // Right door? Checked before a code is made, so nobody types a code only
@@ -318,6 +324,7 @@ Deno.serve(async (req: Request) => {
     try {
       await sendSms(phone, code);
     } catch (e) {
+      background(logServer("error", "phone-auth", "SMS provider failed", { error: e instanceof Error ? e.message : String(e) }));
       return json({ error: e instanceof Error ? e.message : "Could not send the SMS" }, 502);
     }
 
@@ -349,6 +356,7 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
       if (!existing) return json({ error: "Request a code first" }, 400);
       await admin.from("auth_codes").delete().eq("phone", phone);
+      background(logServer("warn", "phone-auth", "code guess limit reached"));
       return json({ error: "Too many attempts. Request a new code." }, 429);
     }
     if (new Date(row.out_expires).getTime() < Date.now()) {

@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
+import { logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
 import { balance, giveBack, sendPayout, syncOpen, type XConfig } from "../_shared/razorpayx.ts";
 
@@ -87,7 +88,17 @@ Deno.serve(async (req: Request) => {
       const { data: p } = await admin.from("payouts").select("user_id").eq("id", body.payoutId).maybeSingle();
       if (!p) return json({ error: "That withdrawal does not exist" }, 404);
       if (p.user_id !== userId && !isAdmin) return json({ error: "That is not your withdrawal" }, 403);
-      return json({ configured: true, ...(await sendPayout(admin, cfg, body.payoutId)) });
+      const sent = await sendPayout(admin, cfg, body.payoutId);
+      // A payout that is not on its way or paid is one a person may need to look at.
+      const fine = sent.status === "paid" || sent.status === "processing";
+      await logServer(fine ? "info" : "warn", "razorpayx-payouts", "payout send attempted", {
+        payout_id: body.payoutId,
+        status: sent.status,
+        provider_status: sent.providerStatus,
+        note: sent.note ?? null,
+        by_admin: isAdmin && p.user_id !== userId,
+      });
+      return json({ configured: true, ...sent });
     }
     case "sync-mine":
       return json({ configured: true, payouts: await syncOpen(admin, cfg, userId, 10) });
@@ -98,7 +109,9 @@ Deno.serve(async (req: Request) => {
     case "give-back":
       if (!isAdmin) return json({ error: "Admins only" }, 403);
       if (!body.payoutId) return json({ error: "Which withdrawal?" }, 400);
-      return json({ configured: true, ...(await giveBack(admin, cfg, body.payoutId)) });
+      const back = await giveBack(admin, cfg, body.payoutId);
+      await logServer("info", "razorpayx-payouts", "admin gave a withdrawal back", { payout_id: body.payoutId, status: back.status, note: back.note ?? null });
+      return json({ configured: true, ...back });
     case "balance":
       if (!isAdmin) return json({ error: "Admins only" }, 403);
       return json({ configured: true, ...(await balance(cfg)) });

@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { secret } from "../_shared/secrets.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
+import { captureServerError, logServer } from "../_shared/monitoring.ts";
 import { PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient, featureOffMessage } from "../_shared/controls.ts";
 
 /**
@@ -59,6 +60,7 @@ Deno.serve(async (req: Request) => {
   const RZP_ID = await secret("RAZORPAY_KEY_ID");
   const RZP_SECRET = await secret("RAZORPAY_KEY_SECRET");
   if (!RZP_ID || !RZP_SECRET) {
+    await logServer("error", "razorpay", "Razorpay keys are not configured");
     return json(
       {
         error:
@@ -185,7 +187,10 @@ Deno.serve(async (req: Request) => {
       }),
     });
     const link = await res.json();
-    if (!res.ok) return json({ error: link?.error?.description ?? "Razorpay rejected the request" }, 502);
+    if (!res.ok) {
+      await logServer("error", "razorpay", "Razorpay rejected the payment link", { purpose, task_id: body.taskId ?? null, http_status: res.status, reason: link?.error?.description ?? null, user_id: userId });
+      return json({ error: link?.error?.description ?? "Razorpay rejected the request" }, 502);
+    }
 
     const { data: row, error } = await admin
       .from("payments")
@@ -199,7 +204,11 @@ Deno.serve(async (req: Request) => {
       })
       .select()
       .single();
-    if (error) return json({ error: error.message }, 500);
+    if (error) {
+      await logServer("error", "razorpay", "link created but payment row not saved", { link_id: link.id, purpose, error: error.message, user_id: userId });
+      return json({ error: error.message }, 500);
+    }
+    await logServer("info", "razorpay", "payment link created", { payment_id: row.id, purpose, task_id: body.taskId ?? null, amount_minor: amount, user_id: userId });
 
     // The amount is echoed back because the caller no longer decides it.
     return json({ ok: true, paymentId: row.id, url: link.short_url, amountMinor: amount });
@@ -226,7 +235,10 @@ Deno.serve(async (req: Request) => {
 
     const res = await fetch(`${RZP}/payment_links/${row.provider_ref}`, { headers: rzpHeaders(RZP_ID, RZP_SECRET) });
     const link = await res.json();
-    if (!res.ok) return json({ error: link?.error?.description ?? "Could not read the payment" }, 502);
+    if (!res.ok) {
+      await logServer("error", "razorpay", "could not read payment link", { payment_id: row.id, http_status: res.status, reason: link?.error?.description ?? null });
+      return json({ error: link?.error?.description ?? "Could not read the payment" }, 502);
+    }
 
     const paid = link.status === "paid";
     const status = paid ? "paid" : link.status === "cancelled" ? "cancelled" : "created";
@@ -251,7 +263,10 @@ Deno.serve(async (req: Request) => {
       const { error: fundErr } = await admin.rpc("fund_task_from_payment", {
         p_payment_id: row.id,
       });
-      if (fundErr) console.error("could not fund task", row.task_id, fundErr.message);
+      if (fundErr) {
+        await logServer("error", "razorpay", "paid but could not fund task", { payment_id: row.id, task_id: row.task_id, error: fundErr.message });
+        await captureServerError(fundErr, { fn: "razorpay", step: "fund_task" });
+      }
     }
 
     // A settled top-up becomes task credits: spendable on tasks, never
@@ -260,8 +275,12 @@ Deno.serve(async (req: Request) => {
     // when the quote is locked, so nothing to move here.
     if (paid && row.purpose === "topup") {
       const { error: creditErr } = await admin.rpc("credit_topup", { p_payment_id: row.id });
-      if (creditErr) console.error("could not credit top-up", row.id, creditErr.message);
+      if (creditErr) {
+        await logServer("error", "razorpay", "paid but could not credit top-up", { payment_id: row.id, error: creditErr.message });
+        await captureServerError(creditErr, { fn: "razorpay", step: "credit_topup" });
+      }
     }
+    if (paid) await logServer("info", "razorpay", "payment settled by app check", { payment_id: row.id, purpose: row.purpose });
 
     // Settling the payment and funding the task are two different things, and
     // the screen that asks needs the second one. Reporting only "paid" is how
@@ -349,6 +368,7 @@ Deno.serve(async (req: Request) => {
     }
     if (!payId) {
       await releaseClaim();
+      await logServer("error", "razorpay", "refund blocked: no Razorpay payment id", { task_id: taskId, payment_id: due.payment_id });
       return json(
         { error: "Could not find the Razorpay payment behind this escrow. Refund it from the dashboard." },
         502,
@@ -367,6 +387,7 @@ Deno.serve(async (req: Request) => {
     const refund = await res.json();
     if (!res.ok) {
       await releaseClaim();
+      await logServer("error", "razorpay", "Razorpay refused the refund", { task_id: taskId, payment_id: due.payment_id, amount_minor: amount, http_status: res.status, reason: refund?.error?.description ?? null });
       return json({ error: refund?.error?.description ?? "Razorpay refused the refund" }, 502);
     }
 
@@ -378,13 +399,16 @@ Deno.serve(async (req: Request) => {
       p_amount_minor: amount,
     });
     if (recErr) {
-      console.error("REFUND SENT BUT NOT RECORDED", taskId, refund.id, recErr.message);
+      // The worst case in this file: money has moved and our books do not say so.
+      await logServer("error", "razorpay", "REFUND SENT BUT NOT RECORDED", { task_id: taskId, payment_id: due.payment_id, refund_ref: refund.id ?? null, amount_minor: amount, error: recErr.message });
+      await captureServerError(recErr, { fn: "razorpay", step: "record_escrow_refund" });
       // Keep the claim forever so nobody can send it again until a person has
       // recorded this refund by hand and cleared payments.refund_claimed_at.
       await admin.from("payments").update({ refund_claimed_at: "infinity" }).eq("id", due.payment_id);
       return json({ error: "The refund was sent but not recorded. Tell support before retrying." }, 500);
     }
     await releaseClaim();
+    await logServer("info", "razorpay", "escrow refunded", { task_id: taskId, payment_id: due.payment_id, amount_minor: amount, refund_ref: refund.id ?? null });
 
     return json({ ok: true, refundedMinor: amount, refundRef: refund.id ?? null });
   }

@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
+import { captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
 
 /**
@@ -53,6 +54,7 @@ Deno.serve(async (req: Request) => {
 
   const SECRET = await secret("RAZORPAY_WEBHOOK_SECRET");
   if (!SECRET) {
+    await logServer("error", "razorpay-webhook", "webhook secret is not configured");
     return json(
       {
         error:
@@ -69,6 +71,7 @@ Deno.serve(async (req: Request) => {
   const sent = req.headers.get("x-razorpay-signature") ?? "";
   const expected = await signatureFor(raw, SECRET);
   if (!sent || !safeEqual(sent, expected)) {
+    await logServer("warn", "razorpay-webhook", "bad signature", { signed: Boolean(sent) });
     return json({ error: "Bad signature" }, 401);
   }
 
@@ -102,8 +105,14 @@ Deno.serve(async (req: Request) => {
     .select("*")
     .eq("provider_ref", link.id)
     .maybeSingle();
-  if (error) return json({ error: error.message }, 500);
-  if (!row) return json({ ok: true, ignored: "unknown payment link" });
+  if (error) {
+    await logServer("error", "razorpay-webhook", "could not look up payment", { link_id: link.id, error: error.message });
+    return json({ error: error.message }, 500);
+  }
+  if (!row) {
+    await logServer("warn", "razorpay-webhook", "payment link not in our records", { link_id: link.id, event: event.event ?? "unknown" });
+    return json({ ok: true, ignored: "unknown payment link" });
+  }
 
   // Razorpay retries until it gets a 2xx, so the same event can arrive twice.
   // Settling an already-settled payment must not credit the wallet again.
@@ -134,7 +143,10 @@ Deno.serve(async (req: Request) => {
     // Never fail the webhook over this: Razorpay would retry the whole event
     // and the payment is already settled. Log it and let the app fund on its
     // next poll instead.
-    if (fundErr) console.error("could not fund task", row.task_id, fundErr.message);
+    if (fundErr) {
+      await logServer("error", "razorpay-webhook", "paid but could not fund task", { payment_id: row.id, task_id: row.task_id, error: fundErr.message });
+      await captureServerError(fundErr, { fn: "razorpay-webhook", step: "fund_task" });
+    }
   }
 
   // A settled top-up becomes task credits: spendable on tasks, never
@@ -143,8 +155,12 @@ Deno.serve(async (req: Request) => {
   // quote is locked, so nothing to move for those.
   if (paid && row.purpose === "topup") {
     const { error: creditErr } = await admin.rpc("credit_topup", { p_payment_id: row.id });
-    if (creditErr) console.error("could not credit top-up", row.id, creditErr.message);
+    if (creditErr) {
+      await logServer("error", "razorpay-webhook", "paid but could not credit top-up", { payment_id: row.id, error: creditErr.message });
+      await captureServerError(creditErr, { fn: "razorpay-webhook", step: "credit_topup" });
+    }
   }
 
+  await logServer("info", "razorpay-webhook", "payment link updated", { payment_id: row.id, purpose: row.purpose, status });
   return json({ ok: true, status });
 });
