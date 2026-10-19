@@ -19,5 +19,12 @@
     "severity": "moderate",
     "reason": "Patched in uuid 11.1.1, but the old copies come from @expo/ngrok (uuid 3, used only for `expo start --tunnel`) and xcode (uuid 7, used by iOS config plugins during a build). They need the old uuid API, so forcing 11 could break those build tools and there is no Android or iOS build on this machine to prove it does not. The flaw only matters when a caller passes a buffer to v3, v5 or v6, which these tools do not. Re-check when Expo updates those packages.",
     "reviewBy": "2026-12-13"
+  },
+  {
+    "id": "GHSA-vcc3-ghjq-m6fr",
+    "package": "decode-uri-component",
+    "severity": "moderate",
+    "reason": "Fixed in decode-uri-component 0.5.0, but we cannot use it yet. The copy (0.2.2) comes from expo-router, which uses query-string 7 to read query strings in links and route paths in the phone apps (not the web build, which never loads expo-router). So it is in the shipped app: a hostile link with malformed percent-encoded text could make the app stall while it decodes, until it is closed. It cannot expose data or change anything. 0.5.0 is ES-module only and query-string 7 loads it with require(), and query-string 9 has no named exports, which expo-router calls (tried and backed out; it would break link and route parsing). Re-check when expo-router moves off query-string 7, and then drop this exception.",
+    "reviewBy": "2026-12-13"
   }
 ]
