@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { BottomSheet, MenuRow, IconButton } from '../components/kit';
+import { BackButton, BottomSheet, MenuRow, systemHeader } from '../components/kit';
 import { AvatarPresence } from '../components/PresenceDot';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -245,6 +245,55 @@ export function ChatScreen() {
     justifyContent: 'center',
   } as const;
 
+  // The person and the call button: in the system header on phones, in the page's top row on the web.
+  const person = (
+  <Pressable
+    onPress={() => other && go('publicProfile', { userId: other.id, role: mode === 'worker' ? 'poster' : 'worker' })}
+    accessibilityRole="button"
+    accessibilityLabel={`${counterpartyName}'s profile`}
+    style={systemHeader ? { flexDirection: 'row', alignItems: 'center', gap: 10, maxWidth: 230 } : { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}
+  >
+    <View>
+      <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
+        <RNText style={tx('800', 16, '#FFFFFF')}>{counterpartyName.charAt(0).toUpperCase()}</RNText>
+      </View>
+      <AvatarPresence lastSeen={other?.last_seen_at} ring={t.colors.surface} />
+    </View>
+    <View style={systemHeader ? undefined : { flex: 1, minWidth: 0 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <RNText style={tx('800', 15, t.colors.ink, { flexShrink: 1 })} numberOfLines={1}>
+          {counterpartyName}
+        </RNText>
+        {rating ? <RNText style={tx('600', 12, t.colors.goldInk)}>★ {rating}</RNText> : null}
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
+        <Icon name={contactsOpen ? 'check' : 'lock'} size={11} color={contactsOpen ? t.colors.accentDeep : t.colors.muted} />
+        <RNText style={tx('600', 11, contactsOpen ? t.colors.accentDeep : t.colors.muted)} numberOfLines={1}>
+          {contactsOpen ? 'Contacts unlocked' : 'Contacts unlock when work starts'}
+        </RNText>
+      </View>
+    </View>
+  </Pressable>
+  );
+  const callButton = (
+  <Pressable
+    onPress={() => void call()}
+    accessibilityRole="button"
+    accessibilityLabel={`Call ${counterpartyName}`}
+    style={({ pressed }) => ({
+      ...round,
+      backgroundColor: contactsOpen ? t.colors.accentSoft : t.colors.surface2,
+      transform: [{ scale: pressed ? 0.94 : 1 }],
+    })}
+  >
+    {calling ? (
+      <ActivityIndicator size="small" color={t.colors.accent} />
+    ) : (
+      <Icon name="phone" size={18} color={contactsOpen ? t.colors.accentDeep : t.colors.muted} />
+    )}
+  </Pressable>
+  );
+
   return (
     <Screen padded={false}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={0}>
@@ -262,50 +311,13 @@ export function ChatScreen() {
             borderBottomColor: t.colors.line,
           }}
         >
-          <IconButton icon="back" label="Back" onPress={back} />
-          <Pressable
-            onPress={() => other && go('publicProfile', { userId: other.id, role: mode === 'worker' ? 'poster' : 'worker' })}
-            accessibilityRole="button"
-            accessibilityLabel={`${counterpartyName}'s profile`}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}
-          >
-            <View>
-              <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
-                <RNText style={tx('800', 16, '#FFFFFF')}>{counterpartyName.charAt(0).toUpperCase()}</RNText>
-              </View>
-              <AvatarPresence lastSeen={other?.last_seen_at} ring={t.colors.surface} />
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <RNText style={tx('800', 15, t.colors.ink, { flexShrink: 1 })} numberOfLines={1}>
-                  {counterpartyName}
-                </RNText>
-                {rating ? <RNText style={tx('600', 12, t.colors.goldInk)}>★ {rating}</RNText> : null}
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
-                <Icon name={contactsOpen ? 'check' : 'lock'} size={11} color={contactsOpen ? t.colors.accentDeep : t.colors.muted} />
-                <RNText style={tx('600', 11, contactsOpen ? t.colors.accentDeep : t.colors.muted)} numberOfLines={1}>
-                  {contactsOpen ? 'Contacts unlocked' : 'Contacts unlock when work starts'}
-                </RNText>
-              </View>
-            </View>
-          </Pressable>
-          <Pressable
-            onPress={() => void call()}
-            accessibilityRole="button"
-            accessibilityLabel={`Call ${counterpartyName}`}
-            style={({ pressed }) => ({
-              ...round,
-              backgroundColor: contactsOpen ? t.colors.accentSoft : t.colors.surface2,
-              transform: [{ scale: pressed ? 0.94 : 1 }],
-            })}
-          >
-            {calling ? (
-              <ActivityIndicator size="small" color={t.colors.accent} />
-            ) : (
-              <Icon name="phone" size={18} color={contactsOpen ? t.colors.accentDeep : t.colors.muted} />
-            )}
-          </Pressable>
+          <BackButton onBack={back} titleView={person} right={callButton} />
+          {systemHeader ? null : (
+            <>
+              {person}
+              {callButton}
+            </>
+          )}
         </View>
 
         {/* ---- the task this thread is about ---- */}

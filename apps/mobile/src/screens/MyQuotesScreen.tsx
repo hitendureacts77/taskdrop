@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { IconButton } from '../components/kit';
+import { BackButton } from '../components/kit';
 import { View, ScrollView, Pressable } from 'react-native';
 import { Screen, Text, Row, Button, Avatar, formatINR } from '../components/ui';
 import { AvatarPresence } from '../components/PresenceDot';
@@ -92,7 +92,7 @@ export function MyQuotesScreen() {
   return (
     <Screen>
       <View style={{ flex: 1 }}>
-        <IconButton icon="back" label="Back" onPress={back} />
+        <BackButton onBack={back} />
 
         <Text variant="h1" style={{ marginTop: 16 }}>
           Work for you
