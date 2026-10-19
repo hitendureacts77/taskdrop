@@ -24,7 +24,7 @@
     "id": "GHSA-vcc3-ghjq-m6fr",
     "package": "decode-uri-component",
     "severity": "moderate",
-    "reason": "Fixed in decode-uri-component 0.5.0, but we cannot use it yet. The copy (0.2.2) comes from expo-router, which uses query-string 7 to read query strings in links and route paths in the phone apps (not the web build, which never loads expo-router). So it is in the shipped app: a hostile link with malformed percent-encoded text could make the app stall while it decodes, until it is closed. It cannot expose data or change anything. 0.5.0 is ES-module only and query-string 7 loads it with require(), and query-string 9 has no named exports, which expo-router calls (tried and backed out; it would break link and route parsing). Re-check when expo-router moves off query-string 7, and then drop this exception.",
+    "reason": "Fixed in decode-uri-component 0.5.0, but we cannot use it yet. The copy (0.2.2) is a transitive dependency of expo-router, which uses query-string 7 to read query strings when it matches links and route paths in the phone apps (not the web build, which never loads expo-router). No code of ours calls query-string or decode-uri-component, and we have not shown a link that triggers the slow decode; the flaw is a denial of service (slow decoding of malformed percent-encoded text), with no data exposure. 0.5.0 is ES-module only and query-string 7 loads it with require(), and query-string 9 has no named exports, which expo-router calls (tried and backed out; it would break link and route parsing). Re-check when expo-router moves off query-string 7 or a compatible fix ships, and then drop this exception.",
     "reviewBy": "2026-12-13"
   }
 ]
