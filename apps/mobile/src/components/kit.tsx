@@ -1043,6 +1043,32 @@ export function EmptyState({
   );
 }
 
+/**
+ * What a list shows when it could not be loaded (no connection, a server hiccup).
+ * Never show an EmptyState for that: "No tasks yet" tells a person with twenty
+ * tasks that they have none.
+ */
+export function LoadFailed({
+  onRetry,
+  title = 'Couldn’t load this',
+  style,
+}: {
+  onRetry: () => void;
+  title?: string;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <EmptyState
+      icon="refresh"
+      title={title}
+      body="Check your connection and try again."
+      actionLabel="Try again"
+      onAction={onRetry}
+      style={style}
+    />
+  );
+}
+
 /** A shimmering placeholder block while something loads. */
 export function Shimmer({ height, style }: { height: number; style?: StyleProp<ViewStyle> }) {
   const t = useTheme();

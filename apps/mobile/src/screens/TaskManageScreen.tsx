@@ -428,14 +428,15 @@ export function TaskManageScreen() {
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <RNText style={tx('700', 14, t.colors.ink)} numberOfLines={1}>{name}</RNText>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                        {/* Wraps: a long "Last seen 2 days ago" must drop to the next line, not run under the price. */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 6, marginTop: 2 }}>
                           <RNText style={tx('600', 11, who && who.worker_rating_count > 0 ? t.colors.goldInk : t.colors.muted)}>
                             {who && who.worker_rating_count > 0 ? `★ ${Number(who.worker_rating_avg).toFixed(1)} (${who.worker_rating_count})` : 'New worker'}
                           </RNText>
                           <PresenceLabel lastSeen={who?.last_seen_at} />
                         </View>
                       </View>
-                      <View style={{ alignItems: 'flex-end' }}>
+                      <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
                         <RNText style={tx('800', 17, t.colors.ink)}>{rupees(b.price_minor / 100)}</RNText>
                         <RNText style={tx('600', 10, diff > 0 ? t.colors.goldInk : t.colors.accentDeep, { marginTop: 1 })}>
                           {diff === 0 ? 'Your budget' : diff > 0 ? `${rupees(diff / 100)} over budget` : `${rupees(-diff / 100)} under budget`}
