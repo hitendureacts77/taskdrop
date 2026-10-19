@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../providers/ThemeProvider';
 import { fontFamilyFor, type Theme } from '../theme';
+import { NativeHeaderCtx } from '../navigation/nativeHeader';
 
 /** Animatable Pressable so a press can drive a native-thread scale/opacity
  *  tween directly on the touchable's own style, instead of the instant
@@ -28,6 +29,11 @@ function usePressScale(to = 0.96) {
   const onPressOut = () =>
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 6 }).start();
   return { scale, onPressIn, onPressOut };
+}
+
+/** Which edges Screen pads for the status bar: none under a system header, which already clears it. */
+function useTopEdge(): ['top'] | [] {
+  return React.useContext(NativeHeaderCtx) ? [] : ['top'];
 }
 
 /** Full-screen container with themed background + safe area. */
@@ -48,6 +54,7 @@ export function Screen({
   refreshing?: boolean;
 }) {
   const t = useTheme();
+  const topEdge = useTopEdge();
   const inner: StyleProp<ViewStyle> = [
     { flex: 1, backgroundColor: t.colors.bg },
     padded && { paddingHorizontal: t.spacing.gutter },
@@ -55,7 +62,7 @@ export function Screen({
   ];
   if (scroll) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: t.colors.bg }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: t.colors.bg }} edges={topEdge}>
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={[
@@ -80,7 +87,7 @@ export function Screen({
     );
   }
   return (
-    <SafeAreaView style={inner} edges={['top']}>
+    <SafeAreaView style={inner} edges={topEdge}>
       {children}
     </SafeAreaView>
   );
