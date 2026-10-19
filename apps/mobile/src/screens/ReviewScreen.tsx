@@ -86,7 +86,9 @@ export function ReviewScreen() {
 
   const fallback = FALLBACK_TASK[mode];
   const title = typeof params.title === 'string' ? params.title : (openTask?.title ?? fallback.title);
-  const price = openTask?.price ?? fallback.price;
+  // The amount of the task being reviewed, when the screen that opened this knows it;
+  // the sample price is only for a review opened with no task at all.
+  const price = typeof params.price === 'string' ? params.price : (openTask?.price ?? fallback.price);
 
   const reviewWho = mode === 'worker' ? 'the customer' : 'the worker';
 
