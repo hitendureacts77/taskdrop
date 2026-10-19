@@ -30,6 +30,17 @@ const IGNORED_CONTEXTS = new Set(['api']);
 /** Turn on in release builds that have a DSN. Development just logs. */
 const ENABLED = !__DEV__ && DSN.length > 0;
 
+/**
+ * Share of sessions recorded as a replay. 5% by default; a build can set
+ * EXPO_PUBLIC_SENTRY_REPLAY_RATE (0 to 1) to change it. The preview build sets 1,
+ * so a replay shows up at once while testing. Anything else falls back to 5%.
+ */
+function replaySessionRate(): number {
+  const raw = process.env.EXPO_PUBLIC_SENTRY_REPLAY_RATE;
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) && n >= 0 && n <= 1 ? n : 0.05;
+}
+
 /** Call once at startup, before the app registers. */
 export function installMonitoring(): void {
   if (ENABLED) {
@@ -47,11 +58,11 @@ export function installMonitoring(): void {
       enableMetrics: true,
       // Of the traced sessions, half also record where the time went (phones only).
       profilesSampleRate: 0.5,
-      // Session replay: 5% of sessions, and every session that hits an error.
-      // Everything on screen is masked (text, pictures, icons), so a replay
-      // shows the layout and the taps, never a name, address or amount.
-      // Phones only; the web build has no replay.
-      replaysSessionSampleRate: 0.05,
+      // Session replay: 5% of sessions (see replaySessionRate), and every
+      // session that hits an error. Everything on screen is masked (text,
+      // pictures, icons), so a replay shows the layout and the taps, never a
+      // name, address or amount. Phones only; the web build has no replay.
+      replaysSessionSampleRate: replaySessionRate(),
       replaysOnErrorSampleRate: 1.0,
       integrations:
         Platform.OS === 'web'
