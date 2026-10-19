@@ -94,18 +94,19 @@ async function putToStorage(target: StorageTarget, body: ArrayBuffer | Uint8Arra
 async function putToImageKit(target: ImageKitTarget, picked: { uri: string; mimeType: string }): Promise<string> {
   const u = target.upload;
   const form = new FormData();
+  const bytes = await readBytes(picked.uri);
+  if (bytes.byteLength > u.maxBytes) {
+    throw new MediaError(`That photo is too big. The limit is ${Math.round(u.maxBytes / 1024 / 1024)} MB.`);
+  }
   if (Platform.OS === 'web') {
     // The browser picker gives a blob: URL; the bytes become a file part.
-    const bytes = await readBytes(picked.uri);
-    if (bytes.byteLength > u.maxBytes) {
-      throw new MediaError(`That photo is too big. The limit is ${Math.round(u.maxBytes / 1024 / 1024)} MB.`);
-    }
     form.append('file', new Blob([bytes as BlobPart], { type: u.mime }), u.fileName);
   } else {
-    // React Native sends a file part straight from the file:// URI, so the photo
-    // never has to be loaded into memory. The cast is the documented RN shape,
-    // which the DOM typings do not know.
-    form.append('file', { uri: picked.uri, name: u.fileName, type: u.mime } as unknown as Blob);
+    // Expo's fetch (SDK 57) does not take React Native's { uri, name, type } part
+    // ("Unsupported FormDataPart implementation"). It accepts a Blob or any object
+    // with name, type and bytes(), so the bytes we just read go in as that. The
+    // cast is because the DOM typings do not know this shape.
+    form.append('file', { name: u.fileName, type: u.mime, bytes: async () => bytes } as unknown as Blob);
   }
   form.append('fileName', u.fileName);
   form.append('folder', u.folder);
