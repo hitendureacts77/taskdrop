@@ -473,6 +473,7 @@ export function ConfirmDialog({
                 flex: 1,
                 minHeight: 50,
                 paddingVertical: 14,
+                paddingHorizontal: 14,
                 borderRadius: 999,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -481,7 +482,7 @@ export function ConfirmDialog({
                 transform: [{ scale: pressed ? 0.97 : 1 }],
               })}
             >
-              <RNText style={tx('700', 14, t.colors.ink)}>{cancelLabel}</RNText>
+              <RNText style={tx('700', 14, t.colors.ink, { textAlign: 'center' })}>{cancelLabel}</RNText>
             </Pressable>
             <Pressable
               onPress={onConfirm}
@@ -491,6 +492,7 @@ export function ConfirmDialog({
                 flex: 1.3,
                 minHeight: 50,
                 paddingVertical: 14,
+                paddingHorizontal: 14,
                 borderRadius: 999,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -502,7 +504,7 @@ export function ConfirmDialog({
               {busy ? (
                 <ActivityIndicator color={onTone} />
               ) : (
-                <RNText style={tx('800', 14, onTone)}>{confirmLabel}</RNText>
+                <RNText style={tx('800', 14, onTone, { textAlign: 'center' })}>{confirmLabel}</RNText>
               )}
             </Pressable>
           </View>
