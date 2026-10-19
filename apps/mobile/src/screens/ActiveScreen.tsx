@@ -231,7 +231,7 @@ export function ActiveScreen() {
       celebrate('Payment released');
       await load();
       // Same as the Confirm screen: once the money is released, ask how it went.
-      go('review', { title: task.title ?? '', taskId: task.id });
+      go('review', { title: task.title ?? '', taskId: task.id, price: formatINR(escrowMinor) });
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not release payment');
     } finally {

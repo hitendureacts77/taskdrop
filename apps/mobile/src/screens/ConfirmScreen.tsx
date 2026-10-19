@@ -129,7 +129,7 @@ export function ConfirmScreen() {
       if (title) setDone(title, 2);
       // Not the worker's net — that figure is our commission made visible.
       celebrate('Payment released');
-      go('review', { title: title ?? '', taskId });
+      go('review', { title: title ?? '', taskId, ...(escrowMinor ? { price: formatINR(escrowMinor) } : {}) });
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not release the payment');
     } finally {
