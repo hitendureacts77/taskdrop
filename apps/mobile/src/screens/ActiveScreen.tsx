@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, Animated, Easing, Image, Linking, ActivityIndicator } from 'react-native';
+import { View, Text as RNText, Pressable, Animated, Easing, Linking, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import Svg, { Circle } from 'react-native-svg';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
@@ -24,6 +25,7 @@ import {
 import {
   pickDocument,
   pickMedia,
+  imageSource,
   signedMediaUrl,
   signedMediaUrls,
   uploadProofFile,
@@ -201,7 +203,8 @@ export function ActiveScreen() {
   };
 
   const openFile = async (f: ProofFile) => {
-    const url = proofUrls[f.path] ?? (await signedMediaUrl(f.path));
+    // The tile shows a small copy; opening a photo asks for the full-size one.
+    const url = await signedMediaUrl(f.path, 'full');
     if (url) void Linking.openURL(url);
   };
 
@@ -256,7 +259,7 @@ export function ActiveScreen() {
       style={{ width: 84, height: 84, borderRadius: 12, overflow: 'hidden', backgroundColor: t.colors.surface2, borderWidth: 1, borderColor: t.colors.line, alignItems: 'center', justifyContent: 'center', padding: 6 }}
     >
       {f.kind === 'image' && proofUrls[f.path] ? (
-        <Image source={{ uri: proofUrls[f.path] }} style={{ position: 'absolute', inset: 0 }} resizeMode="cover" />
+        <Image source={imageSource(proofUrls[f.path])} style={{ position: 'absolute', inset: 0 }} contentFit="cover" />
       ) : (
         <>
           <Icon name={f.kind === 'video' ? 'play' : 'list'} size={20} color={t.colors.accentDeep} />

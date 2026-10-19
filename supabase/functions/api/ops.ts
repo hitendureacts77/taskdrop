@@ -30,7 +30,7 @@ export type RateBucket = keyof typeof RATE_LIMITS;
 
 /** Which limit an operation counts against. Unknown names count as reads (they are refused anyway). */
 export function rateBucket(name: unknown): RateBucket {
-  if (name === "createUpload") return "upload";
+  if (name === "createUpload" || name === "attachMedia") return "upload";
   if (typeof name === "string" && Object.prototype.hasOwnProperty.call(WRITE_OPS, name)) return "write";
   if (name === "removeMedia") return "write";
   return "read";

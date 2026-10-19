@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { View, Text as RNText, ScrollView, Image, Pressable } from 'react-native';
+import { View, Text as RNText, ScrollView, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import { Screen, cardSurface } from '../components/ui';
 import { HeroBackground, heroStops } from '../components/Hero';
 import { Icon } from '../components/Icon';
@@ -10,7 +11,7 @@ import { useNav } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { getProfile, listReviewsAbout, type Profile, type Review } from '../data/api';
 import { publicProfileStats, verificationState, type PublicStats } from '../data/extras';
-import { signedMediaUrl } from '../lib/media';
+import { imageSource, signedMediaUrl } from '../lib/media';
 import { levelFor } from '../lib/levels';
 import { presenceOf } from '../lib/presence';
 import { roughPlace } from '../lib/place';
@@ -62,7 +63,7 @@ export function PublicProfileScreen() {
       setStats(s);
       setReviews(r);
       if (profile?.avatar_url) {
-        const url = await signedMediaUrl(profile.avatar_url);
+        const url = await signedMediaUrl(profile.avatar_url, 'card');
         if (alive) setAvatar(url);
       }
       if (self) setVerified(await verificationState());
@@ -148,7 +149,7 @@ export function PublicProfileScreen() {
             <View>
               <View style={{ width: 70, height: 70, borderRadius: 999, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)' }}>
                 {avatar ? (
-                  <Image source={{ uri: avatar }} style={{ width: 70, height: 70 }} />
+                  <Image source={imageSource(avatar)} style={{ width: 70, height: 70 }} contentFit="cover" />
                 ) : (
                   <RNText style={tx('800', 26, '#FFFFFF')}>{p.display_name.charAt(0).toUpperCase()}</RNText>
                 )}

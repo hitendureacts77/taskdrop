@@ -2,6 +2,7 @@ import {
   type Args, type Ctx, type DbError, type Op, MONEY_MAX, OpError, bad, bool, int, isoOrNull, nowIso, numOrNull, oneOf,
   rows, rpcOp, str, strOrNull, strings, take, toOpError, uuid, uuidOrNull, uuids,
 } from "./core.ts";
+import { assertOwnImage, isMediaRef } from "./media.ts";
 
 /**
  * Everything that changes something. The caller's id always comes from their
@@ -142,15 +143,18 @@ export const WRITE_OPS: Record<string, Op> = {
   },
 
   // ---- posts, quotes, proof and chat ----
-  createTask: async ({ db, userId }, a) => {
+  createTask: async (ctx, a) => {
+    const { db, userId } = ctx;
     const media = a.media as { kind?: unknown; path?: unknown; seconds?: unknown } | null | undefined;
     if (
       media != null &&
       (typeof media !== "object" || !["image", "video"].includes(String(media.kind)) ||
-        typeof media.path !== "string" || !media.path.startsWith(`${userId}/`))
+        typeof media.path !== "string" || !(isMediaRef(media.path) || media.path.startsWith(`${userId}/`)))
     ) {
       throw bad("media");
     }
+    // A picture in ImageKit is a "media:<id>" reference, and must be the poster's own finished upload.
+    if (media != null && isMediaRef(media.path)) await assertOwnImage(ctx, media.path, ["task"]);
     const milestones = a.milestones ?? [];
     if (!Array.isArray(milestones) || milestones.length > 50) throw bad("milestones");
     const row = {
@@ -234,13 +238,17 @@ export const WRITE_OPS: Record<string, Op> = {
     return row;
   },
 
-  submitProof: async ({ db, userId }, a) => {
+  submitProof: async (ctx, a) => {
+    const { db, userId } = ctx;
     const files = a.files ?? [];
     if (
       !Array.isArray(files) || files.length > 30 ||
       files.some((f) => !f || typeof f !== "object" || typeof (f as { path?: unknown }).path !== "string")
     ) {
       throw bad("files");
+    }
+    for (const f of files as { path: string }[]) {
+      if (isMediaRef(f.path)) await assertOwnImage(ctx, f.path, ["proof"]);
     }
     return rows(
       await db
@@ -250,11 +258,15 @@ export const WRITE_OPS: Record<string, Op> = {
     )[0] ?? null;
   },
 
-  sendMessage: async ({ db, userId }, a) => {
+  sendMessage: async (ctx, a) => {
+    const { db, userId } = ctx;
+    const body = str(a, "body", 10000);
+    // A chat photo kept in ImageKit is "::media::media:<id>", and must be the sender's own.
+    if (body.startsWith("::media::media:")) await assertOwnImage(ctx, body.slice("::media::".length), ["chat"]);
     return take(
       await db
         .from("messages")
-        .insert({ task_id: uuid(a, "taskId"), sender_id: userId, body: str(a, "body", 10000) })
+        .insert({ task_id: uuid(a, "taskId"), sender_id: userId, body })
         .select()
         .single(),
     );
@@ -269,7 +281,10 @@ export const WRITE_OPS: Record<string, Op> = {
     if (a.locLabel !== undefined) patch.loc_label = strOrNull(a, "locLabel", 200);
     if (a.locLat !== undefined) patch.loc_lat = numOrNull(a, "locLat");
     if (a.locLng !== undefined) patch.loc_lng = numOrNull(a, "locLng");
-    if (a.avatarUrl !== undefined) patch.avatar_url = strOrNull(a, "avatarUrl", 500);
+    if (a.avatarUrl !== undefined) {
+      patch.avatar_url = strOrNull(a, "avatarUrl", 500);
+      if (isMediaRef(patch.avatar_url)) await assertOwnImage(ctx, patch.avatar_url, ["avatar"]);
+    }
     if (a.payoutUpi !== undefined) patch.payout_upi = strOrNull(a, "payoutUpi", 100);
     if (bool(a, "onboarded")) patch.onboarded_at = nowIso(ctx);
     const row = rows(await ctx.db.from("profiles").update(patch).eq("id", ctx.userId).select(), profileRefusal)[0];

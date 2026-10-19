@@ -203,3 +203,77 @@ test("people: an event that does not name a person, or is not a user event, is s
   assert.equal(userSyncArgs("taskdrop/support.opened", "e", { user_id: "11111111-1111-1111-1111-111111111111" }), null);
   assert.deepEqual(Object.values(USER_EVENTS).sort(), ["deleted", "signed_up", "updated"]);
 });
+
+// ----------------------------------------------------------------- pictures --
+
+import { MEDIA_PURGE_BATCH, purgeMediaBatch } from "./jobs.ts";
+
+const IK = { publicKey: "public_t", privateKey: "private_t", urlEndpoint: "https://ik.imagekit.io/demo", env: "local" };
+
+/** A fake database that lists `rows` for the purge and records what was marked, and a fake ImageKit. */
+function purgeKit(
+  rows: { id: string; provider_file_id: string | null; path: string }[],
+  imagekit: (url: string, method: string) => number | { status: number; body: unknown },
+) {
+  const marked: string[][] = [];
+  const asked: string[] = [];
+  const rpc: Rpc = async (name, args) => {
+    if (name === "media_purge_batch") return { data: rows, error: null };
+    if (name === "media_mark_purged") {
+      marked.push((args as { p_ids: string[] }).p_ids);
+      return { data: (args as { p_ids: string[] }).p_ids.length, error: null };
+    }
+    return { data: null, error: { message: `unexpected ${name}` } };
+  };
+  const fetcher = async (url: string, init?: { method?: string }) => {
+    const method = init?.method ?? "GET";
+    asked.push(`${method} ${url.replace("https://api.imagekit.io/v1", "")}`);
+    const r = imagekit(url, method);
+    const status = typeof r === "number" ? r : r.status;
+    return { ok: status >= 200 && status < 300, status, json: async () => (typeof r === "number" ? null : r.body) };
+  };
+  return { rpc, fetcher, marked, asked };
+}
+
+test("pictures: a deleted picture is removed from ImageKit by its file id and then marked purged", async () => {
+  const kit = purgeKit([{ id: "m1", provider_file_id: "f1", path: "/local/u/x/m1.jpg" }], () => 204);
+  const r = await purgeMediaBatch(kit.rpc, IK, kit.fetcher);
+  assert.deepEqual(kit.asked, ["DELETE /files/f1"]);
+  assert.deepEqual(kit.marked, [["m1"]]);
+  assert.deepEqual(r, { purged: 1, more: false });
+});
+
+test("pictures: one that was never attached is found by its path; if ImageKit has nothing it counts as gone", async () => {
+  const rows = [
+    { id: "m1", provider_file_id: null, path: "/local/u/x/m1.jpg" },
+    { id: "m2", provider_file_id: null, path: "/local/u/x/m2.jpg" },
+  ];
+  const kit = purgeKit(rows, (url, method) => {
+    if (method === "DELETE") return 204;
+    return { status: 200, body: url.includes("m1.jpg") ? [{ fileId: "found", filePath: "/local/u/x/m1.jpg" }] : [] };
+  });
+  const r = await purgeMediaBatch(kit.rpc, IK, kit.fetcher);
+  assert.ok(kit.asked.some((a) => a === "DELETE /files/found"));
+  assert.equal(kit.asked.filter((a) => a.startsWith("DELETE")).length, 1, "nothing to delete for m2");
+  assert.deepEqual(kit.marked, [["m1", "m2"]]);
+  assert.equal(r.purged, 2);
+});
+
+test("pictures: a failure is retried later, and the pictures that did go are still recorded", async () => {
+  const rows = [
+    { id: "ok", provider_file_id: "f1", path: "/p1" },
+    { id: "bad", provider_file_id: "f2", path: "/p2" },
+  ];
+  const kit = purgeKit(rows, (url) => (url.endsWith("/files/f2") ? 500 : 204));
+  await assert.rejects(purgeMediaBatch(kit.rpc, IK, kit.fetcher), /1 of 2 pictures could not be removed/);
+  assert.deepEqual(kit.marked, [["ok"]]);
+});
+
+test("pictures: a full batch says there may be more; an empty one does nothing", async () => {
+  const many = Array.from({ length: MEDIA_PURGE_BATCH }, (_, i) => ({ id: `m${i}`, provider_file_id: `f${i}`, path: `/p${i}` }));
+  const full = purgeKit(many, () => 204);
+  assert.equal((await purgeMediaBatch(full.rpc, IK, full.fetcher)).more, true);
+  const none = purgeKit([], () => 204);
+  assert.deepEqual(await purgeMediaBatch(none.rpc, IK, none.fetcher), { purged: 0, more: false });
+  assert.deepEqual(none.marked, []);
+});

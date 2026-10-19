@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, Animated, ScrollView, Image } from 'react-native';
+import { View, Text as RNText, Pressable, Animated, ScrollView } from 'react-native';
+import { Image } from 'expo-image';
 import { Screen } from '../components/ui';
 import { useTheme, useThemeControls } from '../providers/ThemeProvider';
 import { useNav, type ScreenName, useFocusTick } from '../providers/NavProvider';
@@ -7,7 +8,7 @@ import { useMode } from '../providers/ModeProvider';
 import { useSwitchMode } from '../lib/useSwitchMode';
 import { useAuth } from '../providers/AuthProvider';
 import { getProfile, listReviewsAbout, type Profile, type Review } from '../data/api';
-import { signedMediaUrl } from '../lib/media';
+import { imageSource, signedMediaUrl } from '../lib/media';
 import { tx } from '../components/primitives';
 import { Icon, type IconName } from '../components/Icon';
 import { ConfirmDialog } from '../components/kit';
@@ -120,7 +121,7 @@ export function ProfileScreen() {
         setProfile(p);
         setReviews(r);
         if (p?.avatar_url) {
-          const url = await signedMediaUrl(p.avatar_url);
+          const url = await signedMediaUrl(p.avatar_url, 'card');
           if (alive) setAvatarUrl(url);
         } else {
           setAvatarUrl(null);
@@ -184,7 +185,7 @@ export function ProfileScreen() {
               }}
             >
               {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={{ width: '100%', height: '100%' }} />
+                <Image source={imageSource(avatarUrl)} style={{ width: '100%', height: '100%' }} contentFit="cover" />
               ) : (
                 <RNText style={tx('800', 23, '#FFFFFF')}>{initial}</RNText>
               )}
