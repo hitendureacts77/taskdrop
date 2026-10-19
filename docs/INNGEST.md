@@ -57,7 +57,8 @@ also drops those fields from anything it stores, for an event queued before this
 | `settle-cleared-earnings` | every 5 min | calls `settle_cleared_earnings()` |
 | `settle-finished-campaigns` | hourly at :07 | calls `settle_finished_campaigns()` |
 | `push-notification` | event `notification.created` | reads the message from the database, sends it to Expo, waits 15 minutes, reads Expo's receipts and forgets devices that are gone |
-| `account-files` | event `user.deleted` | removes whatever files of the deleted account are still in storage (the api function already tried once); empty when nothing is left |
+| `account-files` | event `user.deleted` | removes whatever files of the deleted account are still in storage (the api function already tried once); empty when nothing is left. Also marks the account's ImageKit pictures deleted (migration 109), except those a kept record still uses |
+| `media-purge` | every 10 min | marks pictures nobody finished uploading (pending for 24 h) as deleted, then removes deleted pictures from ImageKit in batches of 50, with retries. Waits, without failing, until the ImageKit secrets are set. See `docs/MEDIA.md` |
 | `overdue-tasks` | every 10 min | calls `run_overdue_tasks()`: a started job past its due time becomes `OVERDUE`. Only the label changes; no money moves |
 | `user-created` | event `user.signed_up` | records the person in the `user_sync` ledger |
 | `user-updated` | event `user.updated` | counts the update and keeps which fields changed in the ledger |
@@ -71,7 +72,7 @@ The three money sweeps are **off** until `INNGEST_MONEY_JOBS=on`, because pg_cro
 today (see "Moving the money sweeps"). Every function reports its final failure to
 Sentry.
 
-Push, `account-files`, `overdue-tasks` and `housekeeping` need migration 101; the live-feed clean-up inside `housekeeping` needs 104; `outbox-watchdog` and `task-reminders` need 105. Push also has a
+Push, `account-files`, `overdue-tasks` and `housekeeping` need migration 101; the live-feed clean-up inside `housekeeping` needs 104; `outbox-watchdog` and `task-reminders` need 105; `media-purge` and the picture step in `account-files` need 109. Push also has a
 switch (next section). `notification.created` holds ids and the kind only: the title and body
 are read by the Edge Function and handed to Expo, and Inngest keeps only counts and a one-way
 key per device.

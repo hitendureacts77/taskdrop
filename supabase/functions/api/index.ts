@@ -2,7 +2,9 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { ControlsCache, PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient } from "../_shared/controls.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
+import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
 import { background, captureServerError, logServer } from "../_shared/monitoring.ts";
+import { secret } from "../_shared/secrets.ts";
 import { type Db, RATE_LIMITS, rateBucket, runOp } from "./ops.ts";
 
 /**
@@ -28,6 +30,9 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-region, " + PLATFORM_HEADER + ", " + VERSION_HEADER,
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+/** The operations that sign or check ImageKit pictures. */
+const IMAGE_OPS = new Set(["createUpload", "attachMedia", "signMedia"]);
 
 /** The admin panel's switches per platform and version, kept for half a minute per instance. */
 const controlsCache = new ControlsCache(30_000);
@@ -135,7 +140,9 @@ Deno.serve(async (req: Request) => {
 
   // A confirmed phone number is what "verified" means; Supabase leaves phone_confirmed_at empty otherwise.
   const phoneVerified = Boolean(userData.user.phone_confirmed_at);
-  const ctx = { db: db as unknown as Db, userId: userData.user.id, callFunction, removeOwnFiles, client, controls, phoneVerified };
+  // Only the operations that handle pictures need ImageKit's keys.
+  const imagekit = IMAGE_OPS.has(String(body.op)) ? await imageKitConfig(secret) : null;
+  const ctx = { db: db as unknown as Db, userId: userData.user.id, callFunction, removeOwnFiles, client, controls, phoneVerified, imagekit };
   const result = await runOp(body.op, body.args, ctx, (e) => {
     // Both finish in the background after the response is sent.
     background(logServer("error", "api", "op failed", { op: String(body.op), user_id: userData.user.id, error: e instanceof Error ? e.message : String(e) }));

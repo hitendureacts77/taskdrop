@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, Animated, Modal, ScrollView, Image } from 'react-native';
+import { View, Text as RNText, Pressable, Animated, Modal, ScrollView } from 'react-native';
+import { Image } from 'expo-image';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -10,7 +11,7 @@ import {
   countUnreadFor,
   subscribeToNotifications,
 } from '../data/extras';
-import { signedMediaUrl } from '../lib/media';
+import { imageSource, signedMediaUrl } from '../lib/media';
 import { Icon, type IconName } from './Icon';
 import { FeedbackSheet } from './FeedbackSheet';
 import { PayoutDestinationSheet } from './PayoutDestinationSheet';
@@ -74,7 +75,7 @@ export function AppHeader() {
         if (!alive || !p) return;
         setInitial((p.display_name ?? '?').trim().charAt(0).toUpperCase() || '?');
         if (p.avatar_url) {
-          const url = await signedMediaUrl(p.avatar_url);
+          const url = await signedMediaUrl(p.avatar_url, 'thumb');
           if (alive) setAvatar(url);
         }
       })
@@ -138,7 +139,7 @@ export function AppHeader() {
             }}
           >
             {avatar ? (
-              <Image source={{ uri: avatar }} style={{ width: av, height: av }} />
+              <Image source={imageSource(avatar)} style={{ width: av, height: av }} contentFit="cover" />
             ) : (
               <RNText style={tx('800', 14, t.colors.onBtn)}>{initial}</RNText>
             )}

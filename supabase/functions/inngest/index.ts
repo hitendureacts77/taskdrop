@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { Inngest } from "npm:inngest@4.23.0";
 import { serve } from "npm:inngest@4.23.0/edge";
+import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
 import { captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
 import {
@@ -16,7 +17,9 @@ import {
   type Digest,
   expoReceipts,
   expoSend,
+  MEDIA_PURGE_BATCH,
   ownFiles,
+  purgeMediaBatch,
   type OutboxRow,
   USER_EVENTS,
   userSyncArgs,
@@ -51,6 +54,8 @@ import {
  *   INNGEST_MONEY_JOBS    "on" to let Inngest run the three money sweeps (default off)
  *   INNGEST_DEV           "1" when talking to a local `inngest-cli dev` server
  *   INNGEST_PUSH_RECEIPT_WAIT  how long push waits before reading Expo's receipts (default "15m"; tests only)
+ *   IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, IMAGEKIT_URL_ENDPOINT, IMAGEKIT_ENV
+ *                         ImageKit, for removing pictures (see docs/MEDIA.md); the media job waits without them
  */
 
 const dev = Deno.env.get("INNGEST_DEV") === "1";
@@ -263,7 +268,32 @@ const accountFiles = inngest.createFunction(
       }
       return paths.length;
     });
-    return { removed };
+    // Pictures kept in ImageKit: mark them deleted; media-purge removes them from ImageKit.
+    const pictures = await step.run("mark pictures", () => call<number>(rpc, "media_account_deleted", { p_user: userId }));
+    return { removed, pictures };
+  },
+);
+
+/**
+ * Pictures that are no longer wanted leave ImageKit. A picture is wanted gone
+ * when its upload was never finished (pending for a day), when its owner threw it
+ * away, or when its owner's account was deleted; the database marks those
+ * deleted, and this removes them, a batch at a time, with retries. Safe to run
+ * twice. Waits, without failing, until ImageKit's keys are set.
+ */
+const mediaPurge = inngest.createFunction(
+  { id: "media-purge", triggers: [{ cron: "*/10 * * * *" }], concurrency: 1, retries: 4, onFailure: reportFailure("media-purge") },
+  async ({ step }) => {
+    const expired = await step.run("expire unfinished uploads", () => call<number>(rpc, "media_expire_pending"));
+    const cfg = await imageKitConfig(secret);
+    if (!cfg) return { expired, skipped: "ImageKit is not configured" };
+    let purged = 0;
+    for (let i = 0; i < 10; i++) {
+      const r = await step.run(`remove batch ${i + 1}`, () => purgeMediaBatch(rpc, cfg, fetch as never));
+      purged += r.purged;
+      if (!r.more) break;
+    }
+    return { expired, purged, batch: MEDIA_PURGE_BATCH };
   },
 );
 
@@ -365,7 +395,7 @@ Deno.serve(serve({
   client: inngest,
   functions: [
     outboxSweeper, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile,
-    pushNotification, accountFiles, overdueTasks, housekeeping, outboxWatchdog, taskReminders,
+    pushNotification, accountFiles, mediaPurge, overdueTasks, housekeeping, outboxWatchdog, taskReminders,
     userCreated, userUpdated, userDeleted, userSyncRepair,
     ...moneyJobs,
   ],

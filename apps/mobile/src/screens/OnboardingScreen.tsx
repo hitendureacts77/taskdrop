@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, ScrollView, Pressable, Image, ActivityIndicator, Animated } from 'react-native';
+import { View, Text as RNText, ScrollView, Pressable, ActivityIndicator, Animated } from 'react-native';
+import { Image } from 'expo-image';
 import { Screen } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import { Field, IconButton, Pill, PrimaryButton } from '../components/kit';
@@ -14,7 +15,7 @@ import { useAuth } from '../providers/AuthProvider';
 import { getProfile, updateProfile } from '../data/api';
 import { applyReferralCode, updateProfileExtras, usernameAvailable } from '../data/extras';
 import { nameCarriesContact } from '../lib/mask';
-import { pickMedia, signedMediaUrl, uploadMedia } from '../lib/media';
+import { imageSource, pickMedia, signedMediaUrl, uploadMedia } from '../lib/media';
 import { LANGUAGES, SKILL_OPTIONS } from './ProfileEditScreen';
 
 const STEPS = ['Welcome', 'Username', 'Your intent', 'Skills', 'About you', 'Done'] as const;
@@ -62,7 +63,7 @@ export function OnboardingScreen() {
       if (p.loc_label) setPlace({ label: p.loc_label, lat: p.loc_lat, lng: p.loc_lng });
       if (p.avatar_url) {
         setAvatarPath(p.avatar_url);
-        setAvatar(await signedMediaUrl(p.avatar_url));
+        setAvatar(await signedMediaUrl(p.avatar_url, 'thumb'));
       }
     });
   }, [userId]);
@@ -106,7 +107,7 @@ export function OnboardingScreen() {
       if (!picked) return;
       setAvatar(picked.uri);
       setPhotoBusy(true);
-      const stored = await uploadMedia(picked);
+      const stored = await uploadMedia(picked, 'avatar');
       setAvatarPath(stored.path);
     } catch (e) {
       setAvatar(null);
@@ -293,7 +294,7 @@ export function OnboardingScreen() {
         <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.7 })}>About you</RNText>
         <Pressable onPress={() => void choosePhoto()} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 18 }} accessibilityRole="button">
           <View style={{ width: 64, height: 64, borderRadius: 999, overflow: 'hidden', backgroundColor: t.colors.surface2, borderWidth: 1, borderStyle: avatar ? 'solid' : 'dashed', borderColor: t.colors.accent, alignItems: 'center', justifyContent: 'center' }}>
-            {avatar ? <Image source={{ uri: avatar }} style={{ width: 64, height: 64 }} /> : <Icon name="plus" size={22} color={t.colors.accent} />}
+            {avatar ? <Image source={imageSource(avatar)} style={{ width: 64, height: 64 }} contentFit="cover" /> : <Icon name="plus" size={22} color={t.colors.accent} />}
             {photoBusy ? (
               <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.45)' }}>
                 <ActivityIndicator color="#FFFFFF" />
