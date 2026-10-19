@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { IconButton } from '../components/kit';
+import { BackButton } from '../components/kit';
 import {
   View,
   Text as RNText,
@@ -160,7 +160,7 @@ export function SwipeScreen() {
       <FadeIn style={{ flex: 1 }}>
         <View style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 28 }}>
           <View style={{ paddingTop: 6 }}>
-            <IconButton icon="back" label="Back" onPress={back} />
+            <BackButton onBack={back} />
           </View>
 
           <View style={{ flex: 1, justifyContent: 'center' }}>

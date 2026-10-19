@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { IconButton } from '../components/kit';
+import { BackButton, systemHeader } from '../components/kit';
 import { View, Text as RNText, Pressable, ScrollView, TextInput } from 'react-native';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { AmountField } from '../components/AmountField';
@@ -184,8 +184,8 @@ export function WithdrawScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <IconButton icon="back" label="Back" onPress={back} />
-          <RNText style={tx('700', 17, t.colors.ink)}>Withdraw</RNText>
+          <BackButton onBack={back} title="Withdraw" />
+          {systemHeader ? null : <RNText style={tx('700', 17, t.colors.ink)}>Withdraw</RNText>}
         </View>
 
         <RNText style={tx('400', 13, t.colors.muted, { marginTop: 24 })}>Amount</RNText>

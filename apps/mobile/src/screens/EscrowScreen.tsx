@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { IconButton } from '../components/kit';
+import { BackButton, systemHeader } from '../components/kit';
 import { Icon } from '../components/Icon';
 import { View, Text as RNText, Animated, ScrollView } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -111,8 +111,8 @@ export function EscrowScreen() {
       <Screen padded={false}>
         <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-            <IconButton icon="back" label="Back" onPress={back} />
-            <RNText style={tx('700', 17, t.colors.ink)}>Pay for this task</RNText>
+            <BackButton onBack={back} title="Pay for this task" />
+            {systemHeader ? null : <RNText style={tx('700', 17, t.colors.ink)}>Pay for this task</RNText>}
           </View>
           <RNText style={tx('800', 20, t.colors.ink, { marginTop: 40, letterSpacing: -0.4 })}>Nothing to pay for yet</RNText>
           <RNText style={tx('400', 14, t.colors.muted, { marginTop: 10, lineHeight: 21 })}>
@@ -137,8 +137,8 @@ export function EscrowScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <IconButton icon="back" label="Back" onPress={back} />
-          <RNText style={tx('700', 17, t.colors.ink)}>Pay for this task</RNText>
+          <BackButton onBack={back} title="Pay for this task" />
+          {systemHeader ? null : <RNText style={tx('700', 17, t.colors.ink)}>Pay for this task</RNText>}
         </View>
 
         <RNText style={tx('400', 13, t.colors.muted, { marginTop: 24 })}>Locked in the task until it is done</RNText>

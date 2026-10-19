@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { IconButton } from '../components/kit';
+import { BackButton } from '../components/kit';
 import { Icon } from '../components/Icon';
 import {
   View,
@@ -172,7 +172,7 @@ export function CompareScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}
         showsVerticalScrollIndicator={false}
       >
-        <IconButton icon="back" label="Back" onPress={back} />
+        <BackButton onBack={back} />
 
         <RNText style={tx('700', 10, t.colors.blue, { letterSpacing: 1.6, marginTop: 16 })}>
           {headerLine}

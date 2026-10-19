@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import Svg, { Circle } from 'react-native-svg';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { EmptyState, Field, IconButton } from '../components/kit';
+import { BackButton, EmptyState, Field, systemHeader } from '../components/kit';
 import { ReportProblemSheet } from '../components/ReportProblemSheet';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { useTheme } from '../providers/ThemeProvider';
@@ -145,7 +145,7 @@ export function ActiveScreen() {
     return (
       <Screen padded={false}>
         <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
-          <IconButton icon="back" label="Back" onPress={back} />
+          <BackButton onBack={back} />
         </View>
         <EmptyState icon="briefcase" title="This job isn’t available" body="Open it again from My Work or My Tasks." />
       </Screen>
@@ -280,26 +280,32 @@ export function ActiveScreen() {
 
   // -------------------------------------------------------------- view -----
 
+  // Lists open in-progress tasks straight here; the overview (quotes, timeline,
+  // details) stays one tap away for the poster. In the system header on phones.
+  const detailsButton = !worker ? (
+    <Pressable
+      onPress={() => go('taskManage', { taskId: task.id })}
+      hitSlop={10}
+      accessibilityRole="button"
+      accessibilityLabel="Task details"
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999, borderWidth: 1, borderColor: t.colors.line }}
+    >
+      <Icon name="list" size={13} color={t.colors.ink} />
+      <RNText style={tx('700', 12, t.colors.ink)}>Details</RNText>
+    </Pressable>
+  ) : null;
+
   return (
     <Screen scroll padded={false}>
       <View style={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 28 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <IconButton icon="back" label="Back" onPress={back} />
-          <RNText style={tx('700', 17, t.colors.ink, { flex: 1 })} numberOfLines={1}>{task.title}</RNText>
-          {/* Lists open in-progress tasks straight here; the overview (quotes,
-              timeline, details) stays one tap away for the poster. */}
-          {!worker ? (
-            <Pressable
-              onPress={() => go('taskManage', { taskId: task.id })}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel="Task details"
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999, borderWidth: 1, borderColor: t.colors.line }}
-            >
-              <Icon name="list" size={13} color={t.colors.ink} />
-              <RNText style={tx('700', 12, t.colors.ink)}>Details</RNText>
-            </Pressable>
-          ) : null}
+          <BackButton onBack={back} title={task.title} right={detailsButton} />
+          {systemHeader ? null : (
+            <>
+              <RNText style={tx('700', 17, t.colors.ink, { flex: 1 })} numberOfLines={1}>{task.title}</RNText>
+              {detailsButton}
+            </>
+          )}
         </View>
 
         {/* The clock: time left to the poster's deadline; frozen once done. */}

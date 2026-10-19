@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { IconButton } from '../components/kit';
+import { BackButton } from '../components/kit';
 import { View, Text as RNText, Pressable, ScrollView, TextInput, type TextStyle } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
 import { AmountField } from '../components/AmountField';
@@ -234,7 +234,7 @@ export function PostDetailsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <IconButton icon="back" label="Back" onPress={back} />
+          <BackButton onBack={back} />
         </View>
 
         <RNText style={tx('700', 10, t.colors.accentDeep, { letterSpacing: 1.6, marginTop: 16 })}>
