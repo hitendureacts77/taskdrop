@@ -1,4 +1,4 @@
--- 106 -- the media registry (Phase 6, R4): one row for every uploaded file.
+-- 109 -- the media registry (Phase 6, R4): one row for every uploaded file.
 --
 -- Why a table. Moderation, takedowns, account deletion and clean-up all need to
 -- answer "which files exist, whose are they, and are they still wanted?". Until

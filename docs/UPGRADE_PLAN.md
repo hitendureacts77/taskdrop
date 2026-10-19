@@ -453,7 +453,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 
 **Backend**
 - [ ] **(You)** Create an ImageKit account. Folders: `/local`, `/beta`, later `/prod`. (Account exists; set the secrets and rotate the private key that was pasted into chat. See `docs/MEDIA.md`.)
-- [x] New `media` table (R4), migration 109, not yet applied:
+- [x] New `media` table (R4), migration 109, applied on the hosted test project 2026-10-19:
   - `id`, `owner`, `provider` (imagekit | supabase), `provider_file_id`, `path`
   - `purpose` (task | avatar | proof | chat), `kind`, `bytes`
   - `status` (pending → attached → hidden → deleted), `created_at`

@@ -71,7 +71,7 @@ their storage path.
 
    `IMAGEKIT_ENV` is the top folder: `local`, `beta`, later `prod`. Never put these in `secrets.ts` (that file is for test
    keys only) or in an `EXPO_PUBLIC_` variable.
-4. Apply migration `109_media_registry.sql`, then deploy the `api` and `inngest` functions, then run the Inngest sync.
+4. Apply migration `109_media_registry.sql` (applied on the hosted test project 2026-10-19 as version 20261019042823), then deploy the `api` and `inngest` functions, then run the Inngest sync.
    Apply the migration **first**: the new functions call `media_begin` and `media_resolve`.
 5. Try it: post a task with a photo, open it from a second account, change the profile photo, send a chat photo.
 
