@@ -4,9 +4,6 @@
   "version": "0.0.0",
   "packageManager": "npm@10.9.8",
   "description": "TaskDrop — reverse-marketplace (Expo mobile + Next.js web + Supabase). Monorepo.",
-  "overrides": {
-    "query-string": "^9.5.1"
-  },
   "workspaces": [
     "packages/*",
     "apps/*"

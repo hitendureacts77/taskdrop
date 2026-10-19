@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useState } from 'react';
 import { useIsFocused } from 'expo-router';
 import { SafeAreaView } from 'react-native-screens/experimental';
 import { useTheme } from '../providers/ThemeProvider';
@@ -24,11 +24,11 @@ function Tab({ name }: { name: NativeTab }) {
   const t = useTheme();
   const params = useTabParams(name);
   const focused = useIsFocused();
-  const shown = useRef(false);
-  if (focused) shown.current = true;
+  const [shown, setShown] = useState(false);
+  if (focused && !shown) setShown(true);
 
   const Comp = REGISTRY[name];
-  if (!shown.current || !Comp) return null;
+  if (!shown || !Comp) return null;
   return (
     // The native tab bar floats over the bottom of the screen; this keeps the
     // content clear of it. The top is each screen's own (ui.tsx Screen).

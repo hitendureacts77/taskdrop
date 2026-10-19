@@ -20,7 +20,10 @@ export function useWaitingCount(refreshOn: unknown): number {
     let alive = true;
     countNeedsAttention(userId, mode === 'worker' ? 'worker' : 'poster')
       .then((n) => alive && setWaiting(n))
-      .catch(() => {});
+      .catch(() => {
+        // The badge is a hint: better none than the last person's or mode's count.
+        if (alive) setWaiting(0);
+      });
     return () => {
       alive = false;
     };
