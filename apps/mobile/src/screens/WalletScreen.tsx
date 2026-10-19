@@ -148,6 +148,8 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
   // previous three rows showed a payout and an escrow hold that never existed.
   const [ledger, setLedger] = useState<WalletEvent[]>([]);
   const [ledgerLoading, setLedgerLoading] = useState(true);
+  // The ledger could not be loaded (offline): say so instead of "nothing here yet".
+  const [ledgerFailed, setLedgerFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const refresh = async () => {
@@ -158,6 +160,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
       const [l, rows] = await Promise.all([loadLive(), listWalletActivity(userId, 200)]);
       if (l) setLive(l);
       setLedger(rows);
+      setLedgerFailed(false);
     } catch {
       /* keep what is on screen */
     } finally {
@@ -172,8 +175,12 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
     }
     let alive = true;
     listWalletActivity(userId, 200)
-      .then((rows) => alive && setLedger(rows))
-      .catch(() => alive && setLedger([]))
+      .then((rows) => {
+        if (!alive) return;
+        setLedger(rows);
+        setLedgerFailed(false);
+      })
+      .catch(() => alive && setLedgerFailed(true))
       .finally(() => alive && setLedgerLoading(false));
     return () => {
       alive = false;
@@ -493,7 +500,13 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
             <UnderlineTabs tabs={TX_TABS} active={txTab} onPick={setTxTab} />
           </View>
   
-          {!ledgerLoading && txRows.length === 0 && (
+          {!ledgerLoading && ledgerFailed && mine.length === 0 && (
+            <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, lineHeight: 20 })}>
+              Couldn’t load your transactions. Check your connection and pull down to try again.
+            </RNText>
+          )}
+  
+          {!ledgerLoading && !(ledgerFailed && mine.length === 0) && txRows.length === 0 && (
             <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, lineHeight: 20 })}>
               {mine.length === 0
                 ? worker

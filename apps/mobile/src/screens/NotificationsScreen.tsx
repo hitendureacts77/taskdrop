@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { Screen } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
-import { EmptyState, Shimmer, TopBar, UnderlineTabs, timeAgo } from '../components/kit';
+import { EmptyState, LoadFailed, Shimmer, TopBar, UnderlineTabs, timeAgo } from '../components/kit';
 import { FadeIn, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -60,16 +60,28 @@ export function NotificationsScreen() {
   const [sides, setSides] = useState<Map<string, NotificationSide>>(new Map());
   const [opening, setOpening] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const load = useCallback(async () => {
     const list = await listNotifications(80);
     setSides(await notificationSides(list));
     setAll(list);
+    setFailed(false);
   }, []);
 
+  // On failure keep what is on screen; with nothing yet, show the retry card, not "no notifications".
+  const loadOrFail = useCallback(
+    () =>
+      load().catch(() => {
+        setFailed(true);
+        setAll((prev) => prev ?? []);
+      }),
+    [load],
+  );
+
   useEffect(() => {
-    void load().catch(() => setAll([]));
-  }, [load]);
+    void loadOrFail();
+  }, [loadOrFail]);
 
   useEffect(() => {
     if (!userId) return;
@@ -88,7 +100,7 @@ export function NotificationsScreen() {
 
   const refresh = async () => {
     setRefreshing(true);
-    await load().catch(() => {});
+    await loadOrFail();
     setRefreshing(false);
   };
 
@@ -161,6 +173,8 @@ export function NotificationsScreen() {
       >
         {rows === null ? (
           [0, 1, 2].map((i) => <Shimmer key={i} height={64} style={{ marginTop: 12 }} />)
+        ) : shown.length === 0 && failed ? (
+          <LoadFailed onRetry={() => void loadOrFail()} />
         ) : shown.length === 0 ? (
           <EmptyState
             icon="bell"

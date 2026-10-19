@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable, TextInput, KeyboardAvoidingView } from 'react-native';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { Badge, EmptyState, Field, Pill, PrimaryButton, Shimmer, TopBar, timeAgo } from '../components/kit';
+import { Badge, EmptyState, Field, LoadFailed, Pill, PrimaryButton, Shimmer, TopBar, timeAgo } from '../components/kit';
 import { FeedbackSheet } from '../components/FeedbackSheet';
 import { bugReportsAvailable, showBugReport } from '../lib/monitoring';
 import { FadeIn, tx } from '../components/primitives';
@@ -41,11 +41,23 @@ export function HelpScreen() {
   const [busy, setBusy] = useState(false);
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [feedback, setFeedback] = useState(false);
+  const [failed, setFailed] = useState(false);
 
-  const load = useCallback(async () => setTickets(await listTickets()), []);
+  const load = useCallback(async () => {
+    setTickets(await listTickets());
+    setFailed(false);
+  }, []);
+  const loadOrFail = useCallback(
+    () =>
+      load().catch(() => {
+        setFailed(true);
+        setTickets((prev) => prev ?? []);
+      }),
+    [load],
+  );
   useEffect(() => {
-    void load().catch(() => setTickets([]));
-  }, [load]);
+    void loadOrFail();
+  }, [loadOrFail]);
 
   const send = async () => {
     setBusy(true);
@@ -175,6 +187,8 @@ export function HelpScreen() {
         <RNText style={tx('800', 16, t.colors.ink, { marginTop: 26 })}>Your conversations</RNText>
         {tickets === null ? (
           <Shimmer height={64} style={{ marginTop: 12 }} />
+        ) : tickets.length === 0 && failed ? (
+          <LoadFailed title="Couldn’t load your conversations" onRetry={() => void loadOrFail()} style={{ paddingVertical: 24 }} />
         ) : tickets.length === 0 ? (
           <EmptyState icon="help" title="No conversations yet" body="Anything you send the support team shows up here." style={{ paddingVertical: 24 }} />
         ) : (

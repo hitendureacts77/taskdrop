@@ -4,7 +4,7 @@ import { Screen, cardSurface, formatINR } from '../components/ui';
 import { HeroCard } from '../components/Hero';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
-import { Badge, BottomSheet, ConfirmDialog, EmptyState, Grid, MenuRow, Pill, PillTabs, Shimmer, StatTile, SwipeTabs, rupees, timeLeft } from '../components/kit';
+import { Badge, BottomSheet, ConfirmDialog, EmptyState, Grid, LoadFailed, MenuRow, Pill, PillTabs, Shimmer, StatTile, SwipeTabs, rupees, timeLeft } from '../components/kit';
 import { WorkCard, categoryIcon, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
 import { FadeIn, Pressy, tx } from '../components/primitives';
@@ -108,6 +108,9 @@ function MyPosted() {
   const [closing, setClosing] = useState(false);
   const [confirmClose, setConfirmClose] = useState<Task | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // True when the last load failed (offline, server hiccup): an empty list is then
+  // "could not load", not "you have no tasks".
+  const [failed, setFailed] = useState(false);
 
   const load = useCallback(async () => {
     if (!userId) {
@@ -120,15 +123,26 @@ function MyPosted() {
     const counts = await countBidsByTask(rows.filter((r) => r.status === 'OPEN').map((r) => r.id));
     setTasks(rows);
     setQuotes(counts);
+    setFailed(false);
   }, [userId, focusTick]);
 
+  // On failure keep whatever is already on screen; with nothing yet, show the retry card.
+  const loadOrFail = useCallback(
+    () =>
+      load().catch(() => {
+        setFailed(true);
+        setTasks((prev) => prev ?? []);
+      }),
+    [load],
+  );
+
   useEffect(() => {
-    void load().catch(() => setTasks([]));
-  }, [load]);
+    void loadOrFail();
+  }, [loadOrFail]);
 
   const refresh = async () => {
     setRefreshing(true);
-    await load().catch(() => {});
+    await loadOrFail();
     setRefreshing(false);
   };
 
@@ -272,6 +286,8 @@ function MyPosted() {
         <View style={{ paddingHorizontal: 20, paddingTop: 4, minHeight: 320 }}>
           {shown === null ? (
             [0, 1].map((i) => <Shimmer key={i} height={110} style={{ marginTop: 12 }} />)
+          ) : shown.length === 0 && failed ? (
+            <LoadFailed onRetry={() => void refresh()} />
           ) : shown.length === 0 ? (
             <EmptyState
               icon="list"
@@ -475,6 +491,7 @@ function MyWork() {
   const [stats, setStats] = useState<MyStats | null>(null);
   const [bidTask, setBidTask] = useState<Task | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const load = useCallback(async () => {
     if (!userId) {
@@ -498,15 +515,25 @@ function MyWork() {
     setStats(s);
     setSavedTasks(sv);
     setSavedIds(ids);
+    setFailed(false);
   }, [userId, focusTick]);
 
+  const loadOrFail = useCallback(
+    () =>
+      load().catch(() => {
+        setFailed(true);
+        setRows((prev) => prev ?? []);
+      }),
+    [load],
+  );
+
   useEffect(() => {
-    void load().catch(() => setRows([]));
-  }, [load]);
+    void loadOrFail();
+  }, [loadOrFail]);
 
   const refresh = async () => {
     setRefreshing(true);
-    await load().catch(() => {});
+    await loadOrFail();
     setRefreshing(false);
   };
 
@@ -564,6 +591,8 @@ function MyWork() {
         <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
           {rows === null ? (
             [0, 1].map((i) => <Shimmer key={i} height={90} style={{ marginTop: 12 }} />)
+          ) : failed && rows.length === 0 ? (
+            <LoadFailed onRetry={() => void refresh()} />
           ) : tab === 4 ? (
             listings.length === 0 ? (
               <EmptyState
