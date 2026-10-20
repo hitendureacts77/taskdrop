@@ -66,7 +66,12 @@ if (!wantsBackend) {
   } else {
     const f = spawnSync("git", ["fetch", "--depth=1", "origin", "main"], { stdio: "pipe", encoding: "utf8" });
     if (f.status === 0) {
-      spawnSync("git", ["update-ref", "refs/taskdrop/old-main", "FETCH_HEAD"]);
+      // Fail closed: a missing or stale pin would make the two old-app checks pass or fail against the wrong source.
+      const u = spawnSync("git", ["update-ref", "refs/taskdrop/old-main", "FETCH_HEAD"], { stdio: "pipe", encoding: "utf8" });
+      if (u.status !== 0) {
+        console.error(`[vercel-build] FAILED to pin the fetched main branch: ${(u.stderr || "").trim().split("\n").pop()}`);
+        process.exit(1);
+      }
       oldAppEnv = { OLD_APP_REF: "refs/taskdrop/old-main" };
     } else {
       warn(`Cannot fetch \`main\` here (${(f.stderr || "").trim().split("\n").pop()}). The old-app contract check and the old-app database check are SKIPPED on this build. Run them before merging: npm run test:contract and node scripts/check-old-app-db.mjs.`);
@@ -83,7 +88,7 @@ if (!wantsBackend) {
   note(`Inngest sync: PUT ${functionUrl}`);
   if (!dryRun) {
     try {
-      const res = await fetch(functionUrl, { method: "PUT" });
+      const res = await fetch(functionUrl, { method: "PUT", signal: AbortSignal.timeout(30_000) });
       const text = await res.text();
       console.log(text);
       if (!res.ok || !text.includes("Successfully registered")) warn("Inngest sync did not report success; the backend is deployed anyway. See docs/INNGEST.md.");

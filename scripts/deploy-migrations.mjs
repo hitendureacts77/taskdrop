@@ -20,7 +20,9 @@
  *   MIGRATION_HISTORY_FILE=history.txt node scripts/deploy-migrations.mjs --dry-run
  *        (lines of "<version> <name>" instead of asking the database; for tests)
  *
- * Never runs against anything but the URL it is given: point it at the test project only.
+ * Only the test project or localhost is accepted (scripts/lib/db.mjs); anything else is refused.
+ * A migration file must not carry its own begin/commit/rollback: this script wraps each file in a
+ * transaction, and a commit inside the file would make the file and its history row commit apart.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -46,6 +48,9 @@ async function readHistory() {
 /** `101_inngest_background_jobs` -> "101"; `051b_push_token` -> "051b"; names without a number -> null. */
 const numberOf = (name) => /^(\d+[a-z]?)_/.exec(name)?.[1] ?? null;
 
+/** Files that start or end a transaction themselves; they cannot be applied atomically with their history row. */
+export const ownsTransaction = (sql) => /^s*(begin|commit|rollback)s*;/im.test(sql);
+
 export function pending(files, history) {
   const newest = history.reduce((m, [v]) => (v > m ? v : m), "0");
   const seen = new Set(history.map(([, name]) => numberOf(name)).filter(Boolean));
@@ -62,6 +67,11 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (todo.length === 0) {
     console.log("ok  - the project already has every migration");
     process.exit(0);
+  }
+  const bad = todo.filter((m) => ownsTransaction(readFileSync(join(dir, m.file), "utf8")));
+  if (bad.length) {
+    console.error(`Refusing: ${bad.map((m) => m.file).join(", ")} start(s) or end(s) a transaction itself (begin/commit/rollback). Remove those statements; this script wraps each file in one transaction.`);
+    process.exit(1);
   }
   console.log(`${todo.length} new migration(s) for ${url ? describeTarget(url) : "(history file)"}:\n${todo.map((m) => "  " + m.file).join("\n")}`);
   if (dryRun) process.exit(0);

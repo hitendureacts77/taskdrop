@@ -20,10 +20,9 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
-import { describeTarget, withDb } from "./lib/db.mjs";
+import { describeTarget, TEST_PROJECT, targetKind, withDb } from "./lib/db.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const TEST_PROJECT = "wjxvingpfbfvkfqhrguj";
 const local = process.argv.includes("--local");
 
 /** DATABASE_URL from the environment, else from the `.env` file; the rest of that file is not read. */
@@ -43,16 +42,14 @@ if (!url) {
   process.exit(2);
 }
 const host = new URL(url).hostname;
-const username = decodeURIComponent(new URL(url).username);
-const isLocal = ["localhost", "127.0.0.1", "[::1]", "::1"].includes(host);
-// Direct host db.<ref>.supabase.co, or the pooler, where the user is postgres.<ref>.
-const isTestProject = host.includes(TEST_PROJECT) || username.endsWith(`.${TEST_PROJECT}`);
+const kind = targetKind(url); // "local", "test" (exact Supabase host/user for the test project) or null
+const isLocal = kind === "local";
 
 if (local && !isLocal) {
   console.error(`--local only runs on localhost; this URL points at ${host}. Nothing was changed.`);
   process.exit(1);
 }
-if (!isLocal && !isTestProject) {
+if (!kind) {
   console.error(`Refusing: ${host} is not the test project (${TEST_PROJECT}) or localhost. Nothing was changed.`);
   process.exit(1);
 }
