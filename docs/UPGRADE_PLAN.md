@@ -317,7 +317,7 @@ Version 4.18, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single sourc
 - [ ] Address search goes through `places-search`
 
 **Web**
-- [ ] `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` removed from the web build
+- [x] `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` removed from the web build. Done 2026-10-20: the app no longer reads it. Place search goes through the `places-search` function (server key `GOOGLE_MAPS_API_KEY`), and the Android map key is `EXPO_GOOGLE_MAPS_API_KEY`, a build-time EAS secret that never enters the JS bundle. The old web build on `main` still has the old key until Phase 9
 - [ ] `vercel.json`: SPA rewrites and security headers (CSP, HSTS, frame-ancestors, referrer policy)
 
 **Android**

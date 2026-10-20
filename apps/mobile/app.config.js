@@ -20,7 +20,10 @@ const SENTRY = {
 };
 
 module.exports = ({ config }) => {
-  const mapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+  // Deliberately not EXPO_PUBLIC_: that prefix inlines the value into the JS
+  // bundle. This one is only read here, at build time, for the Android manifest
+  // (an EAS secret for EAS builds, apps/mobile/.env on this machine).
+  const mapsKey = process.env.EXPO_GOOGLE_MAPS_API_KEY;
   const plugins = (config.plugins ?? []).filter((p) => {
     const name = Array.isArray(p) ? p[0] : p;
     return name !== '@sentry/react-native/expo' && !(mapsKey && name === 'react-native-maps');
