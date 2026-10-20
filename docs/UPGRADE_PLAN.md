@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.1, 2026-10-07 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.14, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -56,7 +56,7 @@ Version 4.1, 2026-10-07 (scope note 2026-10-20: iOS deferred). The single source
 
 | Phase | Name | Status |
 |---|---|---|
-| 0 | Foundations | In progress, 11 of 39 boxes ticked. Done: branch on GitHub, CI, CodeRabbit (app repo), branch protection, EAS `beta` profile, README rules, `taskdrop.in` bought. **Blocked on you:** connect the domain in Vercel and Spaceship DNS, `support@` forwarding, Maps key restriction, EAS keystore backup, lawyer question, 12 testers, OK to repair the migration history |
+| 0 | Foundations | In progress, 24 of 41 boxes ticked (3 deferred). Everything that can be built without you is built: CI and the old-app compatibility checks, auto-deploy, forward-only migrations, the seed and reset command, config and env files. **Blocked on you:** the two GitHub secrets, connect the domain in Vercel and Spaceship DNS (the Vercel connector is refused on your team, so the domain, branch assignment and `EXPO_PUBLIC_APP_URL` boxes stay open), run `add-redirect-urls --apply`, `support@` forwarding, Maps key restriction, EAS keystore backup, install CodeRabbit on the admin repo, lawyer question, 12 testers, OK for the first seed reset. The Verify boxes that need a pushed pull request wait for it |
 | 1 | See problems, ship fast | In progress, 1 of 22 boxes ticked |
 | 2 | Make it work (stabilize) | Not started, 0 of 18 boxes ticked |
 | 3 | Server decides everything | In progress, 10 of 36 boxes ticked |
@@ -100,40 +100,42 @@ Version 4.1, 2026-10-07 (scope note 2026-10-20: iOS deferred). The single source
 - [ ] **(You)** Sign up at coderabbit.ai with GitHub and install the CodeRabbit app on both repos. If they're private: a 14-day trial, then $24/developer/month billed annually; public repos are free.
 - [x] Turn on auto-review for pull requests into `redesigned-2.0`. Done in the app repo: `.coderabbit.yaml` lists `^redesigned-2\.0$` and CodeRabbit reviewed PRs 38 and 39 (2026-10-20)
   - It isn't the default branch, so it must be listed under `reviews.auto_review.base_branches` (`^upgraded-plan-changes$`), and check at setup that the setting takes effect.
-- [ ] Add `.coderabbit.yaml` on `redesigned-2.0` in both repos, with path instructions. The app repo has one; the admin repo's is in admin PR 18 (open):
+- [x] Add `.coderabbit.yaml` on `redesigned-2.0` in both repos, with path instructions. Done: the app repo's, and the admin repo's (admin PR 18, merged):
   - `supabase/migrations/**`: RLS on every table, `security definer` functions set `search_path`, money changes are atomic, no grants to `anon`
   - `supabase/functions/**`: caller identity checked, no secrets logged, webhooks verified and idempotent, errors reported to Sentry
   - `apps/mobile/**`: no secrets, no business decisions in the app, platform differences handled for web/Android/iOS
   - `taskdrop-admin` `src/**`: `requireAdmin` on every action, MFA gate on money actions, audit-log writes
   - every repo, until Phase 9: flag anything that would break the old app or the old admin on the shared database (dropped or renamed tables, columns or functions, changed `api` inputs or responses)
-- [ ] Rule: every CodeRabbit comment is fixed or answered before merging
+- [x] Rule: every CodeRabbit comment is fixed or answered before merging. Written in both READMEs and as a checkbox in the app repo's pull request template (`.github/pull_request_template.md`)
 
 **CI (GitHub Actions), on every pull request into `upgraded-plan-changes`**
 - [x] User repo: typecheck, lint, `npm test` (includes the `api` function tests), a Deno type-check of the Inngest function, and the SQL tests against a throwaway database that GitHub Actions starts for the run (not your cloud project). Running on every pull request (seen on PR 38, 2026-10-20)
-- [ ] Admin repo: typecheck, lint, audit and build already run on every pull request; still open: database types generated from Supabase, so they can't drift
+- [x] Admin repo: typecheck, lint, tests, audit and build run on every pull request, and a new job regenerates the database types from the live schema and fails if the committed file differs. It needs the `SUPABASE_ACCESS_TOKEN` secret in the admin repo and is skipped without it (see the **(You)** box below); its first real run is on the next admin pull request
 
 **Shared test project (`wjxvingpfbfvkfqhrguj`)**
-- [ ] Auto-deploy on merge into `upgraded-plan-changes` (R2): migrations (`supabase db push`), functions, then the Inngest sync once it exists
-- [ ] Compatibility check in CI, run before every deploy: the old app's `api` operations still accept the same inputs and return the same fields (a contract test)
-- [ ] Before each deploy that changes the backend, a quick check on the old app: sign in, browse, post, chat
-- [ ] **Align the migration history before using `supabase db push`.** Checked 2026-10-20: the repo files for 101 to 108 carry different version numbers from what the cloud recorded (101: repo `20261018140000`, cloud `20261018053324`; 108: repo `20261019120000`, cloud `20261018110017`), so `db push` would try to apply them again. The safer fix is to repair the cloud's history table to the repo's versions (metadata only; needs your OK). Renaming the repo files instead would put 101 to 107 before 097 to 100 on a fresh database, which could break it.
+- [x] Auto-deploy on merge into `redesigned-2.0` (R2): new migrations, Edge Functions, then the Inngest sync. Built as `.github/workflows/deploy-test.yml` (how it works: `docs/DEPLOY.md`). Migrations go through `scripts/deploy-migrations.mjs`, not `supabase db push` (see the history box below). It stops with a notice until the two secrets exist
+- [ ] **(You)** In the app repo on GitHub, open Settings, then Secrets and variables, then Actions, and add `SUPABASE_ACCESS_TOKEN` (supabase.com, Account, Access Tokens) and `TEST_DATABASE_URL` (Supabase, Connect, Session pooler string with the password filled in). Add the same `SUPABASE_ACCESS_TOKEN` to the admin repo
+- [x] Compatibility check in CI, run before every deploy: the old app's `api` operations still accept the same inputs and return the same fields. `npm run test:contract` runs the 100 operations the old app calls (read from `main`'s source) through `main`'s `api` and this branch's, on the same fake database; 74 reach an answer with sample arguments. It fails on a missing operation, refused arguments or lost fields (tried by removing an operation and by adding a required argument). A second check, `scripts/check-old-app-db.mjs`, confirms the tables, functions and function arguments the old app's server code uses still exist (24 tables, 28 functions; passes on the cloud project today). Both run in CI (jobs `compatibility` and `database`) and again inside the deploy workflow
+- [x] Before each deploy that changes the backend, a quick check on the old app: sign in, browse, post, chat. Ten-minute checklist in `docs/DEPLOY.md`, and a checkbox in the pull request template for any change under `supabase/**`
+- [x] **Migration history: decided not to repair it; deploy forward-only instead (2026-10-20).** The mismatch is far bigger than 101 to 108: 95 migrations carry other version numbers, 11 history rows have no repo file, and 6 repo files (018, 044, 060, 061, 062, 066_razorpayx_hardening) have no row. Those six are in the database under other names (their functions exist), which the admin README had wrongly called "not applied". Repairing would rewrite about 100 rows, and renaming the repo files could break a fresh database. Instead `scripts/deploy-migrations.mjs` treats everything up to the newest recorded version as applied and applies only newer files, each in one transaction, recording its own version. `supabase db push` is not used. Nothing in the cloud history was changed, so this needed no OK from you
 
 **Development on your PC (against the cloud test project, ground rule 8)**
 - [-] **(You)** Install Docker Desktop (with WSL 2). Not needed: we test on the cloud Supabase project.
 - [-] `supabase start` and `supabase functions serve` on your PC. Replaced by: the app and admin read the cloud project's URL and keys from git-ignored env files, and functions are deployed to the cloud project.
-- [ ] One command resets the **cloud test project** to the fake-data seed (only with your OK, ground rule 8):
+- [x] One command resets the **cloud test project** to the fake-data seed (only with your OK, ground rule 8). Built: `npm run seed:reset` (`scripts/reset-test-data.mjs` and `supabase/seed/test_data.sql`; details in `docs/DEPLOY.md`). It accepts only the test project or localhost, makes you type "reset", and touches only its four seed accounts. Tested by loading the seed in a transaction on the cloud project and rolling it back (12 tasks in 10 statuses, 4 profiles, 4 wallets, nothing left behind), and CI loads it twice on the throwaway database (`npm run test:seed`). It has not been run for real yet. It holds:
   - poster, worker and admin accounts
   - test phones with fixed codes
   - tasks in every status
   - wallets with fake credits
 
   On the shared test project, a reset also changes what old-app testers see, so it only runs with your OK. It never runs on production.
+- [ ] **(You)** Say "run the seed" (or run `npm run seed:reset` with `DATABASE_URL` set) when you want the first real reset
 - [x] README section: "Run TaskDrop against the cloud test project" (web, Android over USB, admin on port 3001)
 
 **Config in code**
-- [ ] Supabase auth settings in `supabase/config.toml`
-- [ ] Project ids and keys as env vars; `.env.example` files updated
-- [ ] Secrets inventory (Part B, section 7) checked against reality
+- [x] Supabase auth settings in `supabase/config.toml`: the `[auth]` redirect-address list (taskdrop.in, www, admin.taskdrop.in, localhost). The cloud project's other auth settings were set by hand and were not captured, so `supabase config push` must not be run; `scripts/add-redirect-urls.mjs` only ever adds addresses to the cloud's allow-list
+- [x] Project ids and keys as env vars; `.env.example` files updated in both repos (`SUPABASE_PROJECT_ID`, `DATABASE_URL`, `SUPABASE_ACCESS_TOKEN`, `EXPO_PUBLIC_APP_URL`, the Edge Function secret names). `db:types` reads the project id from the environment
+- [x] Secrets inventory (Part B, section 7) checked against the code and the `.env.example` files, and corrected (2026-10-20). Which secrets are actually *set* in Supabase and Vercel could not be read from here (the Vercel connector is refused on the team scope; `supabase secrets list` needs your login), so compare once with `supabase secrets list --project-ref wjxvingpfbfvkfqhrguj`
 
 **Web**
 - [x] **(You)** Buy `taskdrop.in`. **Bought on Spaceship.com** (you confirmed 2026-10-20; Part B, section 8)
@@ -157,8 +159,8 @@ Version 4.1, 2026-10-07 (scope note 2026-10-20: iOS deferred). The single source
 **Admin**
 - [ ] Vercel admin project: assign `admin.taskdrop.in` to the `upgraded-plan-changes` branch. The old admin keeps its current URL.
   - **(You)** In Spaceship DNS, add a `CNAME` for `admin` pointing to the value Vercel shows for the admin project (normally `cname.vercel-dns.com`).
-- [ ] Add redirect URL `https://admin.taskdrop.in/auth/callback`
-- [ ] Admin `.env.example` and README updated for local and beta (README done in admin PR 18; `.env.example` already points at the cloud project)
+- [ ] Add redirect URL `https://admin.taskdrop.in/auth/callback`. It is in `supabase/config.toml` already; **(You)** run `SUPABASE_ACCESS_TOKEN=... node scripts/add-redirect-urls.mjs --apply` once (it adds the addresses and removes nothing; without `--apply` it only shows what it would add)
+- [x] Admin `.env.example` and README updated for local and beta (README in admin PR 18, plus the types and migration notes; `.env.example` has the project id and Sentry environment)
 
 **You (other)**
 - [ ] Ask a lawyer about the money flow (R3; questions in Part B, section 10). The answer is needed before Phase 5.
@@ -168,7 +170,7 @@ Version 4.1, 2026-10-07 (scope note 2026-10-20: iOS deferred). The single source
 - [ ] A test pull request into `upgraded-plan-changes` runs CI (including the compatibility check) and gets a CodeRabbit review
 - [ ] Merging deploys to the shared test project
 - [ ] `taskdrop.in` and `admin.taskdrop.in` load the upgrade branch
-- [ ] The whole app (web in a browser, Android over USB or Wi-Fi, admin) runs on your PC against the cloud test project. Web and Android over USB checked 2026-10-20; the admin dev server is still to check
+- [x] The whole app (web in a browser, Android over USB or Wi-Fi, admin) runs on your PC against the cloud test project. Web and Android over USB checked 2026-10-20; the admin dev server on port 3001 checked the same day (login page 200, `/` redirects to `/login`)
 - [ ] **The old app and old admin still work unchanged** at their current URLs
 
 ---
@@ -1004,13 +1006,221 @@ At the end of every phase:
 
 | Where | What |
 |---|---|
+| **App bundle (public by design)**: `EXPO_PUBLIC_*` | Supabase URL and anon key, Sentry DSN, environment and replay rate, app URL, legal and copyright-agent display values; the Android-only Maps key, restricted. (`EXPO_PUBLIC_USE_RN_FETCH`, `_FOLDER` and `_PROJECT_ROOT` are build-tool switches.) **Nothing else.** |
+| **Supabase function secrets** (read by the code today) | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`; `RAZORPAYX_KEY_ID`, `RAZORPAYX_KEY_SECRET`, `RAZORPAYX_ACCOUNT_NUMBER`, `RAZORPAYX_WEBHOOK_SECRET` (`scripts/push-payment-secrets.sh`); `MSG91_AUTHKEY`, `MSG91_TEMPLATE_ID`; `TEST_PHONES`, `ALLOW_ANY_OTP` (test project only); `GOOGLE_MAPS_API_KEY` (server key for `places-search`); `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_URL_ENDPOINT`, `IMAGEKIT_ENV`; `INNGEST_SIGNING_KEY`, `INNGEST_EVENT_KEY`, `INNGEST_MONEY_JOBS` (plus optional `INNGEST_DEV`, `INNGEST_PUSH_RECEIPT_WAIT`); `SENTRY_DSN`, `SENTRY_ENVIRONMENT`; `API_GATEWAY_SECRET`. Supabase supplies `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` itself. **Planned, no code reads them yet:** Apple team id, key id, private key and Services ID (Phase 4, iOS-deferred) |
+| **Supabase Vault** (read by SQL) | `API_GATEWAY_SECRET`, Inngest event URL and key, existing app secrets (migration 037) |
+| **Admin (Vercel env, per branch)** | Read today: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `API_GATEWAY_SECRET`, `ADMIN_EMAIL`, `ADMIN_PHONE`, `ADMIN_SESSION_SECRET`, `ADMIN_IDLE_MINUTES`, `ADMIN_SESSION_HOURS`, `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_ENVIRONMENT`, `SENTRY_AUTH_TOKEN`, `SENTRY_PROJECT_URL`. **Planned (Phase 6):** ImageKit private key and endpoint |
+| **GitHub Actions secrets** | App repo: `SUPABASE_ACCESS_TOKEN` and `TEST_DATABASE_URL` (deploy workflow, set up in Phase 0), `EXPO_TOKEN` (EAS Update, Phase 1), Sentry auth token (source maps). Admin repo: `SUPABASE_ACCESS_TOKEN` (types check) |
+| **CodeRabbit** | AI review of every pull request: bugs, security, missing checks, against our path rules | Approving merges alone; CI and you still decide |
+| **Playwright** | Automated end-to-end tests of the core flows on the web build | Native-only behaviour (checked by hand on Android/iOS) |
+| **Uptime Robot** | Alerts when web, admin or API is down | Error details |
+| **Spaceship** | Owning `taskdrop.in` and its DNS | Hosting |
+
+### 3.4 Tools we're not using
+
+| Tool | Decision | Reason |
+|---|---|---|
+| Clerk | No | Supabase Auth already does phone, Google and Apple; RLS, the age gate and deletion depend on Supabase user ids |
+| Stripe | No | Razorpay is built for India and already integrated |
+| Cloudflare | Later | Vercel already gives CDN and SSL. Add later for DDoS/WAF/Turnstile; re-test per-IP throttles first (F-08) |
+| PostHog | Later | Useful once there are real users; needs consent and a privacy update |
+| Pinecone | No | No AI search. If ever needed, use `pgvector` in Supabase |
+| Resend | Later | Email isn't core; add for receipts or admin email alerts |
+| Flutter | No | Would mean rewriting everything in Dart |
+| Apper | No | Builds and hosts apps on its own platform |
+| EAS Hosting | No | Websites stay on Vercel |
+
+### 3.5 Environments
+
+| | Old app (code untouched) | Upgrade: your PC | Upgrade: hosted beta |
+|---|---|---|---|
+| Code | `main` (and the other old branches) | Phase branches | `upgraded-plan-changes` |
+| Supabase | `wjxvingpfbfvkfqhrguj`, **shared** with the upgrade | The same cloud project (no local stack) | `wjxvingpfbfvkfqhrguj`, **shared** (compatibility rules apply) |
+| Web | Current Vercel URL | `expo start` in a browser | `taskdrop.in` |
+| Android | Existing preview APK | Your phone over Wi-Fi | `beta` APK + EAS Update channel `beta` |
+| iOS | — | — (needs a build) | TestFlight internal + channel `beta` |
+| Admin | Current Vercel URL | `npm run dev` (port 3001) | `admin.taskdrop.in` |
+| Background jobs | Shared: Inngest for schedules, retries and outside calls; pg_cron only for the money sweeps until cutover | Inngest dev server (`localhost:8288`) | Inngest Cloud free plan |
+| Images | Supabase Storage (can also show new ImageKit photos via `signMedia`) | ImageKit `/local` | ImageKit `/beta` |
+| Razorpay | Test keys | Test keys | Test keys |
+| Sentry | — | Off | `environment: beta` |
+
+Because the database and functions are shared, a backend change deployed for the upgrade also runs for the old app. That's why ground rule 4 (compatibility) and the CI compatibility check exist. After Phase 9 the old column is retired. At Phase 10, production is added and the test project becomes staging (`beta.taskdrop.in`). Free Supabase projects pause after about a week of inactivity; resume them from the dashboard.
+
+### 3.6 How a change reaches testers
+
+```
+upgrade/phase-N-… branch → pull request into upgraded-plan-changes
+   → CI (typecheck, unit, SQL, api, compatibility check, Playwright E2E) + CodeRabbit review → fix or answer → merge
+   → auto-deploy (R2): migrations · functions · Inngest sync → shared test project (wjxvingpfbfvkfqhrguj)
+                       web + admin → taskdrop.in / admin.taskdrop.in (Vercel)
+                       app JS/UI → EAS Update channel "beta" → Android + iPhone
+   → native changes only: new EAS build (beta APK / TestFlight)
+   → tester round with the checklist (section 5)
+```
+
+### 3.7 Key flows after the upgrade
+
+- **Sign-in:**
+  - iPhone: Apple uses the native sheet.
+  - Elsewhere: Google and Apple use a browser flow.
+  - Phone uses a Supabase OTP; username + password goes through `password-auth`.
+  - Every method leads to the age gate and onboarding. More methods can be linked later.
+- **Post a task with a photo:**
+  1. `api` creates a pending `media` row and an ImageKit signature.
+  2. The app uploads straight to ImageKit.
+  3. `api` checks the file, the contact rule and the switches, then attaches it.
+  4. The task is saved.
+- **Pay escrow:**
+  1. The server computes the amount and creates a Razorpay link.
+  2. The webhook is verified and recorded once.
+  3. Inngest processes it, with retries.
+- **Withdraw:**
+  1. `api` records the request and returns at once.
+  2. Inngest sends the RazorpayX payout, with retries.
+  3. A 15-minute check catches stuck payouts.
+- **Notify:**
+  1. A database change writes a notification and an outbox row.
+  2. Inngest receives the event immediately; the sweeper re-sends it on failure.
+  3. Inngest sends the push to Android and iPhone; web shows it in-app.
+- **Admin switch:**
+  1. Admin flips "posting off on iOS"; the change is audited.
+  2. `app-config` and `api` pick it up within a minute.
+  3. The iPhone app shows a message, and `api` refuses iOS posts.
+
+### 3.8 Database changes (summary)
+
+| Change | Phase |
+|---|---|
+| Chat-photo read policy, drop duplicate sweep, `payout_upi` fix | 2 |
+| Promotion price tiers; `app_controls` | 3 |
+| Phone in `auth.users.phone`; test users migrated | 4 |
+| `private.outbox`, `webhook_events`, push receipts | 5 |
+| `media` registry | 6 |
+| `reports`, `blocks`; admin task, promotion and content actions | 7 |
+
+## 4. Where we are today (code scan, 2026-10-07)
+
+**Repos**
+- User app + backend: `C:\complete taskdrop\taskdrop-claude-web` → GitHub `hitendureacts77/taskdrop`.
+  - The newest work is commit 3d4bd72, on `claude/modest-albattani-3odt95` and now also on `upgraded-plan-changes`.
+  - The Vercel project `taskdrop` deploys `main` (renamed from `feature/first-push` on 2026-10-11).
+- Admin: `C:\complete taskdrop\taskdrop-admin` → GitHub `hitendureacts77/taskdrop-admin`, branch `main`, deployed to Vercel. Google + `admin` role login, MFA for money actions.
+
+**Known bugs**
+- Promotion checkout (`PromoteScreen.tsx:166`).
+- Chat photos for the recipient (policy 075).
+- The `payout_upi` mismatch.
+- Android push in builds (no FCM credentials).
+- Swallowed errors (`.catch(() => {})`) on money screens.
+
+**Server boundary**
+- The lockdown is off (`gateway_only.sql` never run): signed-in users can call 68 database functions directly.
+- The Google Maps key is in the web bundle (`location.ts:41`).
+- The contact rule runs in the app only.
+- Promotion prices are set by the app (`PromoteScreen.tsx:95-99`).
+- `feesSince` takes the commission from the app.
+
+**Background work**
+- pg_cron + pg_net, with no retries.
+- The earnings sweep runs twice.
+- Stuck payouts are never retried; withdrawals call RazorpayX inside the user's request.
+- No job marks tasks `OVERDUE`; push receipts are never read.
+
+**Media**
+- One private bucket, no resizing, videos up to 50 MB.
+- Orphaned files are never cleaned up.
+
+**Monitoring**
+- Sentry is hand-written: no native crashes, API errors ignored, no DSN in builds.
+- Payment functions only `console.error`.
+
+**Sign-in and platforms**
+- **Web:** works; Google sign-in.
+- **Android:** preview APK, no store release, Google sign-in.
+- **iOS:** no config, no build, no Apple sign-in.
+- Phone accounts use synthetic emails, and there's no account linking.
+- **No report or block feature.**
+
+**Tests**
+- Unit, `api` and 11 SQL test files exist.
+- No end-to-end tests, no CI, no code review tool.
+
+**Admin today**
+- Users (search, suspend, delete, notes, tags), payouts, refunds, disputes, support, CRM segments and broadcasts, copyright, money, reports, MFA.
+- 5 editable settings.
+
+## 5. Testing
+
+### 5.1 Quality bar (every pull request)
+
+- **Code:** typecheck clean in both repos.
+- **Tests:**
+  - unit tests, `api` tests and SQL tests pass
+  - new tables, policies and functions get SQL tests, and new `api` ops get tests
+- **E2E:** Playwright green (from Phase 2).
+- **Review:** CodeRabbit comments fixed or answered.
+- **Database:** Supabase security and performance advisors show no new warnings.
+- **Monitoring:** no new Sentry errors after the beta deploy.
+- **Privacy:** no secrets in the app bundle; no phone numbers or emails in Sentry or logs.
+- **This plan:** the boxes for the work are ticked.
+
+### 5.2 Core-flow checklist (by hand on Web, Android, iOS; Admin column for admin flows)
+
+| # | Flow | Web | Android | iOS |
+|---|---|---|---|---|
+| 1 | Sign-in: Google, Apple, phone, username + password; age gate; onboarding; link a method; sign out | ☐ | ☐ | ☐ |
+| 2 | Post a task: photo, video, map location, address search, deadline | ☐ | ☐ | ☐ |
+| 3 | Browse, search, filter, map view, save | ☐ | ☐ | ☐ |
+| 4 | Bid, edit bid, compare, lock | ☐ | ☐ | ☐ |
+| 5 | Fund from wallet; Razorpay test payment (card, UPI) | ☐ | ☐ | ☐ |
+| 6 | Start, chat (text + photo), proof, done, revision, confirm, auto-complete, review | ☐ | ☐ | ☐ |
+| 7 | Cancel before and after start (fine), dispute, refund | ☐ | ☐ | ☐ |
+| 8 | Top up, withdraw (manual + RazorpayX test), payout status | ☐ | ☐ | ☐ |
+| 9 | Notifications: in-app (all); push (Android, iOS) | ☐ | ☐ | ☐ |
+| 10 | Promotion: buy, placement, end, refund unspent | ☐ | ☐ | ☐ |
+| 11 | Profile edit, avatar, report, block, delete account | ☐ | ☐ | ☐ |
+| 12 | Maintenance screen, update screen, banner, switched-off messages | ☐ | ☐ | ☐ |
+
+**Admin checklist:**
+- sign-in with MFA
+- every app-control switch per platform
+- broadcast by platform
+- reports queue
+- dispute, payout, refund, copyright
+- task and promotion actions
+- settings
+- audit log
+
+### 5.3 Tester rounds
+
+At the end of every phase:
+- testers get the new version (EAS Update, or a new build) with a short "what to test" note
+- they report problems through the in-app support ticket, which lands in the admin support queue
+- serious issues are fixed before the next phase starts
+
+## 6. Performance targets (measured with Sentry from Phase 1)
+
+| Measure | Target |
+|---|---|
+| Home feed first screen, 4G, mid-range Android and iPhone | under 2 s |
+| Web home feed first load (4G) | under 3 s |
+| Feed thumbnail size | under 50 KB each |
+| `api` reads / writes, 95th percentile | under 500 ms / 800 ms |
+| Withdrawal request response | under 1 s |
+| Crash-free sessions (Android, iOS) | above 99.5% |
+
+## 7. Secrets and config inventory
+
+| Where | What |
+|---|---|
 | **App bundle (public by design)**: `EXPO_PUBLIC_*` | Supabase URL and anon key, Sentry DSN, app URL, legal and copyright-agent display values; the Android-only Maps key, restricted. **Nothing else.** |
 | **Supabase function secrets** | Razorpay key id, secret and webhook secret; RazorpayX secrets (see `scripts/push-payment-secrets.sh`); MSG91 key and template; Google Places server key; ImageKit private and public key and URL endpoint; Inngest signing and event keys; Sentry DSN; Apple team id, key id, private key and Services ID (token revocation) |
 | **Supabase Vault** (read by SQL) | `API_GATEWAY_SECRET`, Inngest event URL and key, existing app secrets (migration 037) |
 | **Admin (Vercel env, per branch)** | Supabase URL and anon key, service-role key, `ADMIN_SESSION_SECRET`, `API_GATEWAY_SECRET`, Sentry DSN, ImageKit private key and endpoint |
 | **GitHub Actions secrets** | Supabase access token and DB password (deploys), `EXPO_TOKEN` (EAS Update), Sentry auth token (source maps) |
 | **CodeRabbit** | No secrets; installed as a GitHub app |
-| **Your PC** (git-ignored) | `.env`, `apps/mobile/.env.local`, admin `.env.local`; all test keys. There is no local functions server, so no `supabase/functions/.env.local` |
+| **Your PC** (git-ignored) | `.env` (also `DATABASE_URL`, `SUPABASE_ACCESS_TOKEN` for the deploy and seed scripts), `apps/mobile/.env.local`, admin `.env.local`; all test keys. There is no local functions server, so no `supabase/functions/.env.local` |
 
 ## 8. Accounts and costs
 
@@ -1088,6 +1298,7 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
+- **v4.14 (2026-10-20):** Phase 0, everything that can be built without you. **Decision changed: no `supabase db push`.** The cloud's migration history disagrees with the repo far beyond 101 to 108 (95 migrations under other version numbers, 11 rows without a file, 6 files without a row, those six being in the database under other names), so instead of rewriting about 100 history rows, `scripts/deploy-migrations.mjs` applies only files newer than the newest recorded version. Added: the old-app compatibility checks (`npm run test:contract` and `scripts/check-old-app-db.mjs`, in CI and before every deploy), the deploy workflow (`deploy-test.yml`), the fake-data seed and `npm run seed:reset`, `docs/DEPLOY.md`, the pull request template with the CodeRabbit rule, the `[auth]` redirect list and `scripts/add-redirect-urls.mjs`, env-driven `db:types`, the admin repo's types-drift CI job, updated `.env.example` files and a corrected secrets inventory. The database scripts use the `pg` driver (new dev dependency) because the owner's PC has no `psql`. Open: the boxes that need your accounts (GitHub secrets, Vercel and DNS, Maps key, keystore, lawyer, testers) and the Verify boxes that need a pushed pull request.
 - **v4.13 (2026-10-20):** Phase 0, the boxes that don't need you. Branch protection on `main` and `redesigned-2.0` in both repos; EAS `beta` profile with channel `beta`; README rules and a "run against the cloud test project" section in both repos; `.coderabbit.yaml` for the admin repo (admin PR 18); `AGENTS.md` rule 4 changed from "local Docker stack first" to "the cloud project is the test environment". **Corrected:** migration 108 was already applied on the cloud (earlier entries said it wasn't). **Found, open:** migration version numbers for 101 to 108 differ between the repo and the cloud history, so `db push` is not safe yet. Also checked: DNS for `taskdrop.in` is not connected to Vercel yet, and the Vercel connector here has no access to your team, so the domain steps stay with you.
 - **v4.12 (2026-10-20):** three owner decisions. (1) **Supabase is tested directly in the cloud**: the hosted project is the test environment, with no local Supabase or Docker (new ground rule 8; Docker, `supabase start` and the local Inngest dev server marked `[-]`; CI keeps its throwaway database for SQL tests only). (2) **`taskdrop.in` is bought on Spaceship.com**; DNS check the same day: still on Spaceship's default addresses, not connected to Vercel, no `admin` record; the connection steps are now in Phase 0. (3) **Work goes phase by phase** (new ground rule 9); the Progress board now shows ticked boxes per phase and what is blocked on you.
 - **v4.11 (2026-10-20):** repo clean-up, merge and phone test. Both repos keep only `main` and `redesigned-2.0`, locally and on GitHub; Dependabot branches were deleted (it reopens them on its schedule, aimed at `main`). Everything outstanding was merged into `redesigned-2.0` by PR 38: migration 108 (account deletion also erases chat messages), native headers on the remaining pushed screens (the old PR 33), the legal drafts (`docs/LEGAL_AUDIT.md`, `docs/legal/`), the Support page, web file-drop upload and the Home/Explore polish. Checked on `redesigned-2.0`: typecheck, lint, 46 user-app and 85 admin unit tests, web and admin production builds, and an Android pass over USB in Expo Go (all five tabs, Earn mode, task detail, Messages, Help & support, Account & settings, Edit profile, Terms). **Correction (checked 2026-10-20):** migration 108 is already applied on the cloud test project; only its version number differs between the repo file (`20261019120000`) and the cloud history (`20261018110017`), see the new open box under Phase 0, Shared test project. **Not done:** the legal settings (`EXPO_PUBLIC_LEGAL_*`) and the lawyer review are still open, so Terms and Privacy show the draft banner; money flows, push notifications and the signed-in admin were not retested; iOS stays future scope.

@@ -51,11 +51,44 @@ jobs:
       - name: type-check the Inngest function
         run: deno check --node-modules-dir=none supabase/functions/inngest/index.ts
 
+  # Ground rule 4 (docs/UPGRADE_PLAN.md): until Phase 9 the old app (`main`) shares the database
+  # and the `api` function with the upgrade. This runs the operations the old app calls through
+  # both versions of `api` and fails if the new one refuses what the old accepted or answers with
+  # fewer fields. Its database half is a step of the `database` job below.
+  compatibility:
+    name: old app still works (api contract)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: old-main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run test:contract
+        env:
+          OLD_APP_DIR: ${{ github.workspace }}/old-main
+
   database:
     name: money and access rules
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: old-main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
       - uses: supabase/setup-cli@v1
         with:
@@ -72,6 +105,20 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
         run: npm run test:db
+
+      # The seed that resets the test project must load cleanly on a fresh database.
+      - name: load the fake-data seed
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: npm run test:seed
+
+      # Ground rule 4 (docs/UPGRADE_PLAN.md): the old app shares this database until Phase 9.
+      # Everything its server code reads and calls must still be here after our migrations.
+      - name: old app still has its tables and functions
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          OLD_APP_DIR: ${{ github.workspace }}/old-main
+        run: node scripts/check-old-app-db.mjs
 
       - name: stop
         if: always()
