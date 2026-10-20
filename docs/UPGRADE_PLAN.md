@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.14, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.15, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -56,7 +56,7 @@ Version 4.14, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single sourc
 
 | Phase | Name | Status |
 |---|---|---|
-| 0 | Foundations | In progress, 24 of 41 boxes ticked (3 deferred). Everything that can be built without you is built: CI and the old-app compatibility checks, auto-deploy, forward-only migrations, the seed and reset command, config and env files. **Blocked on you:** the two GitHub secrets, connect the domain in Vercel and Spaceship DNS (the Vercel connector is refused on your team, so the domain, branch assignment and `EXPO_PUBLIC_APP_URL` boxes stay open), run `add-redirect-urls --apply`, `support@` forwarding, Maps key restriction, EAS keystore backup, install CodeRabbit on the admin repo, lawyer question, 12 testers, OK for the first seed reset. The Verify boxes that need a pushed pull request wait for it |
+| 0 | Foundations | In progress, 29 of 40 boxes ticked (4 deferred). Built: CI and the old-app compatibility checks, auto-deploy, forward-only migrations, seed and reset, config and env files. Done in the browser 2026-10-20: `taskdrop.in` and `www` connected (Vercel and Spaceship DNS), redirect URLs added, `EXPO_PUBLIC_APP_URL` set. **Blocked on you:** the two GitHub secrets, `support@` forwarding, Maps key restriction, EAS keystore backup, install CodeRabbit on the admin repo, lawyer question, 12 testers, OK for the first seed reset. The Verify boxes that need a pushed pull request wait for it |
 | 1 | See problems, ship fast | In progress, 1 of 22 boxes ticked |
 | 2 | Make it work (stabilize) | Not started, 0 of 18 boxes ticked |
 | 3 | Server decides everything | In progress, 10 of 36 boxes ticked |
@@ -133,18 +133,18 @@ Version 4.14, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single sourc
 - [x] README section: "Run TaskDrop against the cloud test project" (web, Android over USB, admin on port 3001)
 
 **Config in code**
-- [x] Supabase auth settings in `supabase/config.toml`: the `[auth]` redirect-address list (taskdrop.in, www, admin.taskdrop.in, localhost). The cloud project's other auth settings were set by hand and were not captured, so `supabase config push` must not be run; `scripts/add-redirect-urls.mjs` only ever adds addresses to the cloud's allow-list
+- [x] Supabase auth settings in `supabase/config.toml`: the `[auth]` redirect-address list (taskdrop.in, www, the admin's Vercel callbacks, localhost). The cloud project's other auth settings were set by hand and were not captured, so `supabase config push` must not be run; `scripts/add-redirect-urls.mjs` only ever adds addresses to the cloud's allow-list
 - [x] Project ids and keys as env vars; `.env.example` files updated in both repos (`SUPABASE_PROJECT_ID`, `DATABASE_URL`, `SUPABASE_ACCESS_TOKEN`, `EXPO_PUBLIC_APP_URL`, the Edge Function secret names). `db:types` reads the project id from the environment
 - [x] Secrets inventory (Part B, section 7) checked against the code and the `.env.example` files, and corrected (2026-10-20). Which secrets are actually *set* in Supabase and Vercel could not be read from here (the Vercel connector is refused on the team scope; `supabase secrets list` needs your login), so compare once with `supabase secrets list --project-ref wjxvingpfbfvkfqhrguj`
 
 **Web**
 - [x] **(You)** Buy `taskdrop.in`. **Bought on Spaceship.com** (you confirmed 2026-10-20; Part B, section 8)
-- [ ] **(You)** Connect `taskdrop.in` to Vercel. Checked 2026-10-20: it still uses Spaceship's nameservers and points at Spaceship's default hosting addresses, not Vercel, and `admin.taskdrop.in` has no DNS record yet.
+- [x] **(You)** Connect `taskdrop.in` to Vercel. **Done 2026-10-20** (done through Chrome with your OK and your Spaceship sign-in). In Vercel, project `taskdrop`: `taskdrop.in` and `www.taskdrop.in` added with "Redirect apex to www" off. In Spaceship Advanced DNS (it had no records): `A @ 216.198.79.1` and `CNAME www 10023d03410c0f46.vercel-dns-017.com`. Vercel shows both as Valid Configuration and `taskdrop.in` loads the redesigned app
   - In Vercel, open the `taskdrop` project → Settings → Domains → add `taskdrop.in` and `www.taskdrop.in`. Vercel then shows the exact DNS records it wants.
   - In Spaceship, open `taskdrop.in` → DNS: remove the default parking records for `@` and `www`, then add what Vercel shows (normally an `A` record for `@` and a `CNAME` for `www` pointing to `cname.vercel-dns.com`).
   - Wait until Vercel shows a valid configuration and the HTTPS certificate. DNS can take from minutes to a few hours.
-- [ ] Vercel project `taskdrop`: assign `taskdrop.in` + `www` to the `upgraded-plan-changes` branch. The old production branch keeps its current URL.
-- [ ] Add `taskdrop.in` to the project's redirect URLs (adding to the list leaves the old URLs working); `EXPO_PUBLIC_APP_URL=https://taskdrop.in` on the upgrade branch
+- [x] Vercel project `taskdrop`: `taskdrop.in` + `www` assigned to the `redesigned-2.0` branch (environment Preview, branch `redesigned-2.0`). The old production domain `taskdrop-five.vercel.app` keeps its Production setting
+- [x] Add `taskdrop.in` to the project's redirect URLs (done 2026-10-20 in Supabase, Authentication, URL Configuration: `https://taskdrop.in/**` and `https://www.taskdrop.in/**` added, the 8 old entries untouched, 10 in total). `EXPO_PUBLIC_APP_URL=https://taskdrop.in` set in Vercel for Preview on `redesigned-2.0` only (not Production); it takes effect on the next deployment of that branch
 - [ ] **(You)** `support@taskdrop.in` via free email forwarding
 
 **Android**
@@ -157,9 +157,9 @@ Version 4.14, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single sourc
 - [-] **(You)** Enroll in the Apple Developer Program, $99/year. Approval can take days, and the first TestFlight build in Phase 1 needs it.
 
 **Admin**
-- [ ] Vercel admin project: assign `admin.taskdrop.in` to the `upgraded-plan-changes` branch. The old admin keeps its current URL.
+- [-] Vercel admin project: assign `admin.taskdrop.in` to the `redesigned-2.0` branch. **Dropped (owner decision 2026-10-20):** there is no admin subdomain; the admin stays on its Vercel addresses (`taskdrop-admin.vercel.app` and the preview address). Revisit when you want one. Read `admin.taskdrop.in` elsewhere in this plan as "the admin's Vercel address" until then
   - **(You)** In Spaceship DNS, add a `CNAME` for `admin` pointing to the value Vercel shows for the admin project (normally `cname.vercel-dns.com`).
-- [ ] Add redirect URL `https://admin.taskdrop.in/auth/callback`. It is in `supabase/config.toml` already; **(You)** run `SUPABASE_ACCESS_TOKEN=... node scripts/add-redirect-urls.mjs --apply` once (it adds the addresses and removes nothing; without `--apply` it only shows what it would add)
+- [x] Admin redirect URLs: the admin's Vercel callbacks (`taskdrop-admin.vercel.app`, `taskdrop-admin-hitenduteam.vercel.app`, `localhost:3001`) were already on the Supabase list (checked 2026-10-20), so nothing was needed for the admin. `supabase/config.toml` and `scripts/add-redirect-urls.mjs` still exist for later additions, and no token is needed now
 - [x] Admin `.env.example` and README updated for local and beta (README in admin PR 18, plus the types and migration notes; `.env.example` has the project id and Sentry environment)
 
 **You (other)**
@@ -169,7 +169,7 @@ Version 4.14, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single sourc
 **Verify**
 - [ ] A test pull request into `upgraded-plan-changes` runs CI (including the compatibility check) and gets a CodeRabbit review
 - [ ] Merging deploys to the shared test project
-- [ ] `taskdrop.in` and `admin.taskdrop.in` load the upgrade branch
+- [x] `taskdrop.in` loads the upgrade branch (checked 2026-10-20: serves the redesigned app, certificate issued). The admin has no domain of its own (see above)
 - [x] The whole app (web in a browser, Android over USB or Wi-Fi, admin) runs on your PC against the cloud test project. Web and Android over USB checked 2026-10-20; the admin dev server on port 3001 checked the same day (login page 200, `/` redirects to `/login`)
 - [ ] **The old app and old admin still work unchanged** at their current URLs
 
@@ -717,7 +717,7 @@ You started this because the app felt clumsy and parts weren't working as expect
 | Deploys | **Auto-deploy** to the shared test project on merge into `upgraded-plan-changes` (R2) |
 | Hosting now | Free plans (Vercel Hobby, Supabase free) while testing |
 | Supabase testing | **The cloud project is the test environment** (2026-10-20): test directly on `wjxvingpfbfvkfqhrguj`; no local Supabase or Docker. CI uses a throwaway database only to run the SQL tests |
-| Domain | **`taskdrop.in` is bought on Spaceship.com** (2026-10-20); the admin app uses `admin.taskdrop.in`. DNS stays at Spaceship |
+| Domain | **`taskdrop.in` is bought on Spaceship.com** (2026-10-20); the admin app has no subdomain for now and stays on its Vercel address (decided 2026-10-20). DNS stays at Spaceship; `A @` and `CNAME www` point at Vercel |
 | Admin control | The admin controls web, Android and iOS, enforced on the server |
 
 ### Recommendations
@@ -1298,6 +1298,7 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
+- **v4.15 (2026-10-20):** Phase 0, the domain work, done through Chrome with the owner's OK. `taskdrop.in` and `www` are connected to the Vercel project `taskdrop` on the `redesigned-2.0` branch, with the two DNS records added at Spaceship; both show Valid Configuration and `taskdrop.in` serves the redesigned app. `https://taskdrop.in/**` and `https://www.taskdrop.in/**` were added to Supabase's redirect URLs (old ones untouched), and `EXPO_PUBLIC_APP_URL=https://taskdrop.in` was set for Preview on `redesigned-2.0` only. **Decision: no `admin.taskdrop.in`;** the admin stays on its Vercel address, and its callbacks were already on the redirect list. The admin-domain boxes are deferred or done accordingly.
 - **v4.14 (2026-10-20):** Phase 0, everything that can be built without you. **Decision changed: no `supabase db push`.** The cloud's migration history disagrees with the repo far beyond 101 to 108 (95 migrations under other version numbers, 11 rows without a file, 6 files without a row, those six being in the database under other names), so instead of rewriting about 100 history rows, `scripts/deploy-migrations.mjs` applies only files newer than the newest recorded version. Added: the old-app compatibility checks (`npm run test:contract` and `scripts/check-old-app-db.mjs`, in CI and before every deploy), the deploy workflow (`deploy-test.yml`), the fake-data seed and `npm run seed:reset`, `docs/DEPLOY.md`, the pull request template with the CodeRabbit rule, the `[auth]` redirect list and `scripts/add-redirect-urls.mjs`, env-driven `db:types`, the admin repo's types-drift CI job, updated `.env.example` files and a corrected secrets inventory. The database scripts use the `pg` driver (new dev dependency) because the owner's PC has no `psql`. Open: the boxes that need your accounts (GitHub secrets, Vercel and DNS, Maps key, keystore, lawyer, testers) and the Verify boxes that need a pushed pull request.
 - **v4.13 (2026-10-20):** Phase 0, the boxes that don't need you. Branch protection on `main` and `redesigned-2.0` in both repos; EAS `beta` profile with channel `beta`; README rules and a "run against the cloud test project" section in both repos; `.coderabbit.yaml` for the admin repo (admin PR 18); `AGENTS.md` rule 4 changed from "local Docker stack first" to "the cloud project is the test environment". **Corrected:** migration 108 was already applied on the cloud (earlier entries said it wasn't). **Found, open:** migration version numbers for 101 to 108 differ between the repo and the cloud history, so `db push` is not safe yet. Also checked: DNS for `taskdrop.in` is not connected to Vercel yet, and the Vercel connector here has no access to your team, so the domain steps stay with you.
 - **v4.12 (2026-10-20):** three owner decisions. (1) **Supabase is tested directly in the cloud**: the hosted project is the test environment, with no local Supabase or Docker (new ground rule 8; Docker, `supabase start` and the local Inngest dev server marked `[-]`; CI keeps its throwaway database for SQL tests only). (2) **`taskdrop.in` is bought on Spaceship.com**; DNS check the same day: still on Spaceship's default addresses, not connected to Vercel, no `admin` record; the connection steps are now in Phase 0. (3) **Work goes phase by phase** (new ground rule 9); the Progress board now shows ticked boxes per phase and what is blocked on you.

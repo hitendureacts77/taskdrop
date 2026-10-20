@@ -7,7 +7,7 @@ How a change reaches the shared test project (`wjxvingpfbfvkfqhrguj`) and what p
 | Part | How it deploys | Trigger |
 |---|---|---|
 | Migrations, Edge Functions, Inngest sync | `.github/workflows/deploy-test.yml` | A merge into `redesigned-2.0` that touches `supabase/**` or `packages/**`, or **Run workflow** by hand |
-| Web (`taskdrop.in`) and admin (`admin.taskdrop.in`) | Vercel's GitHub link | Every push to `redesigned-2.0` |
+| Web (`taskdrop.in`) and admin (its Vercel address) | Vercel's GitHub link | Every push to `redesigned-2.0` |
 | App updates for phones | EAS Update, channel `beta` | Phase 1 |
 
 ## One-time setup (you)
