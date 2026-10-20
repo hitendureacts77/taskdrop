@@ -38,10 +38,10 @@ Run `npm run check` before calling anything done. Run `npm run test:db` for any 
 1. **The app asks, the server decides.** Money, permissions, limits, prices and switches are always checked on the server (RLS, RPCs, Edge Functions), never only in the client.
 2. **One shared database until Phase 9.** The old app, old admin and the upgrade share the Supabase project. Migrations only **add**; never drop or rename. Existing `api` operations keep their inputs and responses. Old functions (`phone-auth`, `password-auth`, `razorpay`, ...) keep working.
 3. **`main` is never altered by agents** (user and admin repos). All new work goes into **`redesigned-2.0`** (both repos), which Vercel deploys as a preview and where the owner tests it; the owner promotes it to `main` by hand. Use a short-lived branch per change, merged into `redesigned-2.0` by PR and then deleted: on GitHub only `main` and `redesigned-2.0` should exist. (`upgraded-plan-changes` and `taskdrop-redesigned` were retired on 2026-10-12.)
-4. **Backend changes are built against a local Supabase stack (Docker) first**, then deployed to the hosted test project.
+4. **The cloud Supabase project is the test environment** (owner decision, 2026-10-20). Backend changes are tested directly on the hosted project; there is no local Supabase stack and no Docker. CI starts a throwaway database only to run the SQL tests.
 5. **Stage is testing only:** fake data, the owner plus ~10 testers, free plans. No real customer data until the owner decides to launch.
 6. **Secrets:** never read, print, commit or paste `.env` values. Use `.env.example` for shape. Never put a service-role or Razorpay secret key in client code.
-7. **Do not push, merge, deploy, or touch the hosted database without being asked.**
+7. **Do not push, merge or deploy without being asked.** The hosted project is the test environment, so reads and tests there are fine and migrations or data changes happen when the owner has asked for that work; a wipe, reseed or reset needs an explicit OK.
 8. **Inngest only for background work.** Schedules, retries, digests and alerts are Inngest functions; events leave the database only through `private.emit_event` (the outbox). Do not add another automation tool or new pg_cron jobs. Phase 5 is under way: move one job at a time, removing the old job in the same deploy as its replacement.
 
 ## Product rules (keep in code, copy and design)

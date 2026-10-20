@@ -51,6 +51,20 @@ npm run db:types       # regenerate DB types after a schema change
 
 - Ref: `wjxvingpfbfvkfqhrguj` · Region: `ap-south-1` (Mumbai)
 - URL: https://wjxvingpfbfvkfqhrguj.supabase.co
+- **This cloud project is the test environment.** There is no local Supabase and no Docker: we test directly on it, with fake data only. It is **shared with the old app and old admin** until Phase 9, so a destructive change there affects their testers too: wipe, reseed and reset steps need the owner's OK.
+
+## Run TaskDrop against the cloud test project
+
+1. `npm install`
+2. Keys live in the git-ignored `.env` (names in `.env.example`) and `apps/mobile/.env.local`. Ask the owner for the values; never commit them.
+3. Web: `npm run web` (it prints the address). Android in Expo Go: `npm run android`, then scan the QR code, or over USB: start Metro on a port (for example 8091), run `adb reverse tcp:8091 tcp:8091`, and open `exp://localhost:8091` in Expo Go.
+4. Admin panel: it is its own repo (`taskdrop-admin`); `npm run dev` there serves http://localhost:3001 against the same cloud project.
+
+## Branches and pull requests
+
+Only `main` and `redesigned-2.0` exist, locally and on GitHub. All new work goes into `redesigned-2.0`; `main` is promoted by hand after testing.
+
+For each piece of work, cut a short branch from `redesigned-2.0` (for example `upgrade/phase-1-sentry`), open a pull request into `redesigned-2.0`, fix or answer every CI failure and CodeRabbit comment, merge, and delete the branch. The plan is `docs/UPGRADE_PLAN.md`; tick its boxes in the same pull request as the work.
 
 ## AI posting, explore and account features
 
