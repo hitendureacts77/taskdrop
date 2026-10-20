@@ -44,3 +44,27 @@ verify_jwt = false
 # own signature (INNGEST_SIGNING_KEY) on every request instead.
 [functions.inngest]
 verify_jwt = false
+
+# ---------------------------------------------------------------------------
+# Auth settings that the project needs, kept here so they are reviewed like code.
+#
+# The cloud project is the only Supabase there is (no local stack), and its auth settings were
+# set by hand in the dashboard. Do NOT run `supabase config push` for it: that sends every
+# [auth] value in this file and would replace settings we have not captured here. Changes go
+# in with `node scripts/add-redirect-urls.mjs --apply`, which only ever ADDS addresses to
+# the allow-list. `supabase db start` (CI) ignores this section.
+#
+# Where sign-in may send people back to after Google (or a magic link): the old app's address
+# stays on the list until Phase 9, so the old app and old admin keep working.
+# ---------------------------------------------------------------------------
+[auth]
+additional_redirect_urls = [
+  "https://taskdrop.in",
+  "https://taskdrop.in/**",
+  "https://www.taskdrop.in",
+  "https://www.taskdrop.in/**",
+  "https://taskdrop-admin.vercel.app/auth/callback",
+  "http://localhost:8081",
+  "http://localhost:8081/**",
+  "http://localhost:3001/auth/callback",
+]

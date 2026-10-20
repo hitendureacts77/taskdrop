@@ -66,6 +66,10 @@ Only `main` and `redesigned-2.0` exist, locally and on GitHub. All new work goes
 
 For each piece of work, cut a short branch from `redesigned-2.0` (for example `upgrade/phase-1-sentry`), open a pull request into `redesigned-2.0`, fix or answer every CI failure and CodeRabbit comment, merge, and delete the branch. The plan is `docs/UPGRADE_PLAN.md`; tick its boxes in the same pull request as the work.
 
+**Rule: every CodeRabbit comment is fixed or answered before merging.** A one-line reply saying why you are not changing something counts as answered. The pull request template has the checkbox.
+
+Until Phase 9 the old app shares the database and the `api` function with the upgrade, so the checks `npm run test:contract` and `node scripts/check-old-app-db.mjs` confirm the old app is still served. GitHub only stores the code; **Vercel runs every deploy**. A push to `redesigned-2.0` makes the Vercel build put the backend on the test project and then build the web app; how, and the Vercel environment variables to add, are in `docs/DEPLOY.md`. `npm run seed:reset` resets the fake test accounts and tasks (it asks first).
+
 ## AI posting, explore and account features
 
 Posting starts from **"What's on your mind?"**: one sentence becomes a task post
