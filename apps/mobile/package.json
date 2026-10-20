@@ -22,7 +22,7 @@
     "@taskdrop/rules": "*",
     "@taskdrop/schemas": "*",
     "@taskdrop/supabase": "*",
-    "babel-preset-expo": "~57.0.0",
+    "babel-preset-expo": "~58.0.17",
     "expo": "~57.0.21",
     "expo-asset": "~57.0.16",
     "expo-clipboard": "~57.0.2",
