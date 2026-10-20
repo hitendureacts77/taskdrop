@@ -49,7 +49,7 @@ async function readHistory() {
 const numberOf = (name) => /^(\d+[a-z]?)_/.exec(name)?.[1] ?? null;
 
 /** Files that start or end a transaction themselves; they cannot be applied atomically with their history row. */
-export const ownsTransaction = (sql) => /^s*(begin|commit|rollback)s*;/im.test(sql);
+export const ownsTransaction = (sql) => /^\s*(begin|commit|rollback)\s*;/im.test(sql);
 
 export function pending(files, history) {
   const newest = history.reduce((m, [v]) => (v > m ? v : m), "0");

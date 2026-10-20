@@ -18,6 +18,7 @@ console.log("ok  - deploy-migrations applies only new migrations");
 
 assert.equal(ownsTransaction("begin;\ncreate table t();\ncommit;"), true);
 assert.equal(ownsTransaction("create function f() returns void language plpgsql as $$\nbegin\n  null;\nend $$;"), false);
+assert.equal(ownsTransaction("create table t();\n  COMMIT ;\n"), true); // indented, upper case, space before the semicolon
 console.log("ok  - migration files that manage their own transaction are caught");
 
 const ref = "wjxvingpfbfvkfqhrguj";
