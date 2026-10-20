@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.17, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.18, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -56,7 +56,7 @@ Version 4.17, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single sourc
 
 | Phase | Name | Status |
 |---|---|---|
-| 0 | Foundations | In progress, 29 of 40 boxes ticked (4 deferred). Built: CI and the old-app compatibility checks, auto-deploy, forward-only migrations, seed and reset, config and env files. Done in the browser 2026-10-20: `taskdrop.in` and `www` connected (Vercel and Spaceship DNS), redirect URLs added, `EXPO_PUBLIC_APP_URL` set. **Blocked on you:** `support@` forwarding, Maps key restriction, EAS keystore backup, install CodeRabbit on the admin repo, lawyer question, 12 testers, OK for the first seed reset. The Verify boxes that need a pushed pull request wait for it |
+| 0 | Foundations | In progress, 32 of 45 boxes ticked, 4 deferred, 9 open. Built and verified: CI and the old-app compatibility checks (first real run on PR 41), CodeRabbit on both repos, auto-deploy, forward-only migrations, seed and reset, config and env files, `taskdrop.in` connected. **Open, all yours:** make `taskdrop.in` public (Vercel Authentication is on), `support@` forwarding, Maps key restriction, EAS keystore backup, lawyer question, 12 testers, OK for the first seed reset, the by-hand old-app checklist. **Open, mine:** confirm the first Vercel backend deploy after the merge |
 | 1 | See problems, ship fast | In progress, 1 of 22 boxes ticked |
 | 2 | Make it work (stabilize) | Not started, 0 of 18 boxes ticked |
 | 3 | Server decides everything | In progress, 10 of 36 boxes ticked |
@@ -97,7 +97,7 @@ Version 4.17, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single sourc
 - [x] Rule written into the README of both repos: phase branches `upgrade/phase-N-<name>` → pull request into `redesigned-2.0` (admin repo: PR 18)
 
 **AI code review (CodeRabbit)**
-- [ ] **(You)** Sign up at coderabbit.ai with GitHub and install the CodeRabbit app on both repos. If they're private: a 14-day trial, then $24/developer/month billed annually; public repos are free.
+- [x] **(You)** Sign up at coderabbit.ai with GitHub and install the CodeRabbit app on both repos. Done: it reviewed the app repo's PRs 38 to 41 and the admin repo's PR 19 (2026-10-20). If they're private: a 14-day trial, then $24/developer/month billed annually; public repos are free.
 - [x] Turn on auto-review for pull requests into `redesigned-2.0`. Done in the app repo: `.coderabbit.yaml` lists `^redesigned-2\.0$` and CodeRabbit reviewed PRs 38 and 39 (2026-10-20)
   - It isn't the default branch, so it must be listed under `reviews.auto_review.base_branches` (`^upgraded-plan-changes$`), and check at setup that the setting takes effect.
 - [x] Add `.coderabbit.yaml` on `redesigned-2.0` in both repos, with path instructions. Done: the app repo's, and the admin repo's (admin PR 18, merged):
@@ -145,6 +145,7 @@ Version 4.17, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single sourc
   - Wait until Vercel shows a valid configuration and the HTTPS certificate. DNS can take from minutes to a few hours.
 - [x] Vercel project `taskdrop`: `taskdrop.in` + `www` assigned to the `redesigned-2.0` branch (environment Preview, branch `redesigned-2.0`). The old production domain `taskdrop-five.vercel.app` keeps its Production setting
 - [x] Add `taskdrop.in` to the project's redirect URLs (done 2026-10-20 in Supabase, Authentication, URL Configuration: `https://taskdrop.in/**` and `https://www.taskdrop.in/**` added, the 8 old entries untouched, 10 in total). `EXPO_PUBLIC_APP_URL=https://taskdrop.in` set in Vercel; widened to All Environments at the owner's request (2026-10-20), so builds of `main` also read `https://taskdrop.in`; it takes effect on the next deployment
+- [ ] **(You)** Make `taskdrop.in` open to your testers. Found 2026-10-20: a visitor who is not signed in to Vercel is redirected to Vercel's login page (Vercel Authentication protects Preview deployments, and `taskdrop.in` is served by one). In Vercel, project `taskdrop`, Settings, Deployment Protection: turn Vercel Authentication off (or exempt the `taskdrop.in` domains), then check the site in a private window
 - [ ] **(You)** `support@taskdrop.in` via free email forwarding
 
 **Android**
@@ -167,11 +168,11 @@ Version 4.17, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single sourc
 - [ ] Recruit at least 12 testers. Google Play requires a closed test with at least 12 testers before a production release.
 
 **Verify**
-- [ ] A test pull request into `redesigned-2.0` runs the checks (including the compatibility check) and gets a CodeRabbit review
+- [x] A test pull request into `redesigned-2.0` runs the checks (including the compatibility check) and gets a CodeRabbit review. Done 2026-10-20 with the real Phase 0 PRs (app PR 41, admin PR 19): every job ran, CodeRabbit left 8 comments on PR 41 and 2 on PR 19, all fixed or answered. It also caught a real CI bug (the database job never installed dependencies), fixed in the same PR
 - [ ] A push to `redesigned-2.0` makes the Vercel build deploy to the shared test project (the build log shows migrations, functions, Inngest sync, then the web export). Also check the Vercel build can fetch `main`; if it cannot, the build warns and the two old-app checks must be run by hand
 - [x] `taskdrop.in` loads the upgrade branch (checked 2026-10-20: serves the redesigned app, certificate issued). The admin has no domain of its own (see above)
 - [x] The whole app (web in a browser, Android over USB or Wi-Fi, admin) runs on your PC against the cloud test project. Web and Android over USB checked 2026-10-20; the admin dev server on port 3001 checked the same day (login page 200, `/` redirects to `/login`)
-- [ ] **The old app and old admin still work unchanged** at their current URLs
+- [ ] **The old app and old admin still work unchanged** at their current URLs. Partly checked 2026-10-20: `taskdrop-five.vercel.app` and the old admin's login answer 200, and the `api` contract and old-app database checks pass in CI. The ten-minute by-hand checklist (sign in, browse, post, chat) in `docs/DEPLOY.md` is still yours
 
 ---
 
@@ -1089,6 +1090,7 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
+- **v4.18 (2026-10-20):** Phase 0, pull requests opened. The last local Phase 0 work went up as app PR 41 and admin PR 19, which also served as the first real run of the checks and of CodeRabbit (CodeRabbit is installed on both repos). Fixed from the reviews: the CI `database` job now installs dependencies; `scripts/lib/db.mjs` refuses any database but localhost or the exact test project (so a wrong `DATABASE_URL` can't reach production), and checks the server certificate when `DATABASE_CA_CERT` is set; `deploy-migrations` refuses files that manage their own transaction; the Vercel build fails closed if it can't pin `main` and times out the Inngest sync; the admin CI scopes the Supabase token to two steps and `db:types` reads `.env.local`. Plan: removed the duplicated sections 3.4 to 7 and corrected section 7. New open item: Vercel Authentication hides `taskdrop.in` from anyone not signed in to Vercel.
 - **v4.17 (2026-10-20):** Vercel variable scopes, second pass. Every variable in `taskdrop-admin` is now All Environments, including the new `ADMIN_EMAIL` and `ADMIN_PHONE`. In `taskdrop`, `EXPO_PUBLIC_APP_URL`, `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` and `EXPO_PUBLIC_SENTRY_DSN` are All Environments. Still open, owner steps: `API_GATEWAY_SECRET` in the admin project, `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` (delete and re-add as Config), and the Preview-only `EXPO_PUBLIC_SENTRY_ENVIRONMENT` row (delete so the Production row, value `production`, can be widened).
 - **v4.16 (2026-10-20):** Decision: **GitHub only stores the code; Vercel runs every deploy.** The GitHub deploy workflow (`deploy-test.yml`) and the manual Inngest-sync workflow are removed. New `scripts/vercel-build.mjs` plus `vercel.json` (on `redesigned-2.0` only, so `main`'s builds are unchanged) make the `taskdrop` Vercel build apply new migrations, deploy the Edge Functions, run the Inngest sync and then build the web app; a failed backend step fails the build. The two secrets move from GitHub to Vercel environment variables (Preview, branch `redesigned-2.0`). The admin repo's types-drift job stays but is skipped (no token in GitHub); run `npm run db:types` before admin pull requests. Pull request checks (tests, type-check, SQL tests, CodeRabbit) stay on GitHub because Vercel cannot run the SQL tests; they deploy nothing and hold no secrets. Open: the first real run on Vercel needs a push, and the build's fetch of `main` for the two old-app checks is untested there (it warns and skips if it fails). **Vercel variable scopes (owner decision: every variable on All Environments, none pinned to one environment or branch):** done in `taskdrop-admin` (all 6 variables) and for `SUPABASE_ACCESS_TOKEN` and `DATABASE_URL` in `taskdrop`. Still open in `taskdrop`: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` and `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` (stored as Secret, which Vercel refuses for `EXPO_PUBLIC_` names, so they must be deleted and re-created as Config); `EXPO_PUBLIC_SENTRY_DSN` and `EXPO_PUBLIC_SENTRY_ENVIRONMENT` (one row each for Preview and Production, values unreadable from here); `EXPO_PUBLIC_APP_URL` (pinned to Preview on `redesigned-2.0` on purpose; All Environments would point the old production build at `taskdrop.in`). The admin project also lacks `API_GATEWAY_SECRET`, `ADMIN_EMAIL`, `ADMIN_PHONE`, `NEXT_PUBLIC_SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_ENVIRONMENT`.
 - **v4.15 (2026-10-20):** Phase 0, the domain work, done through Chrome with the owner's OK. `taskdrop.in` and `www` are connected to the Vercel project `taskdrop` on the `redesigned-2.0` branch, with the two DNS records added at Spaceship; both show Valid Configuration and `taskdrop.in` serves the redesigned app. `https://taskdrop.in/**` and `https://www.taskdrop.in/**` were added to Supabase's redirect URLs (old ones untouched), and `EXPO_PUBLIC_APP_URL=https://taskdrop.in` was set for Preview on `redesigned-2.0` only. **Decision: no `admin.taskdrop.in`;** the admin stays on its Vercel address, and its callbacks were already on the redirect list. The admin-domain boxes are deferred or done accordingly.
