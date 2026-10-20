@@ -13,12 +13,14 @@
 #
 # You will be asked to sign in to Expo once, if you have not.
 #
-# These two are *publishable* keys and end up readable in the shipped bundle:
+# EXPO_PUBLIC_SUPABASE_* are *publishable* and end up readable in the shipped bundle:
 #   EXPO_PUBLIC_SUPABASE_ANON_KEY  -- safe by design; RLS is what protects data.
-#   EXPO_PUBLIC_GOOGLE_MAPS_API_KEY -- NOT protected by anything but the
-#       restrictions you set in Google Cloud Console. Restrict it to the
-#       Places API and to the com.taskdrop.app package, or anyone who unzips
-#       the APK can spend your quota.
+#
+# EXPO_GOOGLE_MAPS_API_KEY is pushed as an EAS *secret*, not plaintext. It is not
+# EXPO_PUBLIC_, so it never enters the JS bundle; app.config.js reads it at build
+# time for the Android manifest. It is still extractable from an APK's manifest,
+# so restrict it in Google Cloud Console to the Maps SDK for Android and the
+# com.taskdrop.app package + SHA-1.
 
 set -euo pipefail
 
@@ -34,8 +36,11 @@ read_var() {
   sed -n "s/^$1=//p" "$ENV_FILE" | tail -n 1 | tr -d '\r' | sed 's/[[:space:]]*$//'
 }
 
+PUBLIC_KEYS="EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY"
+SECRET_KEYS="EXPO_GOOGLE_MAPS_API_KEY"
+
 missing=0
-for key in EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_GOOGLE_MAPS_API_KEY; do
+for key in $PUBLIC_KEYS $SECRET_KEYS; do
   value="$(read_var "$key")"
   case "$value" in
     ""|your_*|"<"*)
@@ -57,19 +62,26 @@ fi
 cd apps/mobile
 
 echo
-echo "Pushing to EAS as plain-text build variables…"
-for key in EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_GOOGLE_MAPS_API_KEY; do
-  # --force overwrites an earlier value rather than failing on the second run.
+push_var() {
+  # $1 = name, $2 = visibility. --force overwrites an earlier value rather than
+  # failing on the second run.
   npx --yes eas-cli env:create \
     --scope project \
-    --name "$key" \
-    --value "$(cd ../.. && read_var() { sed -n "s/^$1=//p" "$ENV_FILE" | tail -n 1 | tr -d '\r'; }; read_var "$key")" \
-    --visibility plaintext \
+    --name "$1" \
+    --value "$(cd ../.. && read_var() { sed -n "s/^$1=//p" "$ENV_FILE" | tail -n 1 | tr -d '\r'; }; read_var "$1")" \
+    --visibility "$2" \
     --environment production \
     --environment preview \
     --non-interactive \
-    --force || echo "  (could not set $key — set it in the EAS dashboard)"
-done
+    --force || echo "  (could not set $1 — set it in the EAS dashboard)"
+}
+
+echo "Pushing to EAS as plain-text build variables…"
+for key in $PUBLIC_KEYS; do push_var "$key" plaintext; done
+
+echo
+echo "Pushing to EAS as secrets (never shown again, never in the JS bundle)…"
+for key in $SECRET_KEYS; do push_var "$key" secret; done
 
 echo
 echo "Done. Now build:"

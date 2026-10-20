@@ -1,13 +1,14 @@
 import { Platform, Linking } from 'react-native';
 import * as Location from 'expo-location';
+import { FUNCTIONS_REGION, supabase } from './supabase';
 
 /**
  * Everything the app knows about finding places, in one file.
  *
  * Place search goes through three providers, best first:
  *
- *   1. Google Places, when EXPO_PUBLIC_GOOGLE_MAPS_API_KEY is set. Best results
- *      and the one to use in production.
+ *   1. Google Places, through the places-search Edge Function when the server
+ *      has a key. Best results and the one to use in production.
  *   2. OpenStreetMap's Nominatim. No key, works on web and on device, and
  *      returns real coordinates — so the app is genuinely usable out of the box
  *      instead of "add a key first". Low volume only, per their usage policy.
@@ -38,11 +39,15 @@ export type PickedPlace = {
   details?: import("@taskdrop/rules").AddressDetails;
 };
 
-const MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
+/**
+ * Which provider answered the last place search, for wording the UI honestly.
+ * Google answers through the places-search Edge Function, so there is no key in
+ * the app to look at; it is "osm" until the server has actually returned results.
+ */
+let lastProvider: 'google' | 'osm' = 'osm';
 
-/** Which provider place search will use, for wording the UI honestly. */
 export function searchProvider(): 'google' | 'osm' {
-  return MAPS_KEY ? 'google' : 'osm';
+  return lastProvider;
 }
 
 // ---------------------------------------------------------------- current ---
@@ -260,11 +265,13 @@ export async function searchPlaces(query: string): Promise<PickedPlace[]> {
   const q = query.trim();
   if (q.length < 2) return [];
 
-  if (MAPS_KEY) {
-    const viaGoogle = await googlePlaces(q);
-    if (viaGoogle.length) return viaGoogle;
+  const viaGoogle = await googlePlaces(q);
+  if (viaGoogle.length) {
+    lastProvider = 'google';
+    return viaGoogle;
   }
 
+  lastProvider = 'osm';
   const viaOsm = await openStreetMap(q);
   if (viaOsm.length) return viaOsm;
 
@@ -281,43 +288,27 @@ export async function searchPlaces(query: string): Promise<PickedPlace[]> {
 }
 
 /**
- * Google Places. This is the *new* Places API, not the textsearch endpoint —
- * Google no longer enables the legacy one on new projects, so a key that works
- * fine will still answer REQUEST_DENIED there. Different shape too: a POST, the
- * key in a header rather than the query string, and an explicit field mask
- * (you are billed for the fields you ask for, so ask for three).
+ * Google Places, through the places-search Edge Function. The Google key lives
+ * on the server (signed-in callers only, rate limited), so nothing spendable
+ * ships in the web bundle or the APK. The function does the new Places API
+ * searchText call and answers { configured, places }.
  */
 async function googlePlaces(q: string): Promise<PickedPlace[]> {
   try {
-    const res = await withTimeout(
-      fetch('https://places.googleapis.com/v1/places:searchText', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': MAPS_KEY,
-          'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location',
-        },
-        body: JSON.stringify({ textQuery: q, maxResultCount: 6 }),
+    const { data, error } = await withTimeout(
+      supabase.functions.invoke('places-search', {
+        body: { q },
+        region: FUNCTIONS_REGION,
       }),
       8000,
     );
-    const json = (await res.json()) as {
-      places?: {
-        displayName?: { text?: string };
-        formattedAddress?: string;
-        location?: { latitude?: number; longitude?: number };
-      }[];
-    };
-    return (json.places ?? [])
-      .map((r) => ({
-        label: r.formattedAddress ?? r.displayName?.text ?? q,
-        lat: r.location?.latitude ?? null,
-        lng: r.location?.longitude ?? null,
-      }))
-      .filter((r) => r.lat !== null && r.lng !== null);
+    if (error) return [];
+    const out = data as { places?: PickedPlace[] } | null;
+    return (out?.places ?? []).filter((p) => p.lat !== null && p.lng !== null);
   } catch {
-    // A refused or misconfigured key is not a dead end — the chain falls
-    // through to OpenStreetMap, which needs no key at all.
+    // Signed out, offline, over the rate limit, or no key set on the server:
+    // not a dead end — the chain falls through to OpenStreetMap, which needs no
+    // key at all.
     return [];
   }
 }

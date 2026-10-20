@@ -20,7 +20,17 @@ const SENTRY = {
 };
 
 module.exports = ({ config }) => {
-  const mapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+  // Deliberately not EXPO_PUBLIC_: that prefix inlines the value into the JS
+  // bundle. This one is only read here, at build time, for the Android manifest
+  // (an EAS secret for EAS builds, apps/mobile/.env on this machine).
+  //
+  // Plugin options are copied into the public app config (Constants.expoConfig),
+  // which the web bundle includes, so the key is only handed over when this is a
+  // native Android build: an EAS Android build, or a local command naming android
+  // (`expo run:android`, `expo prebuild --platform android`). A web export never
+  // gets it, even if the variable happens to be set in that environment.
+  const androidBuild = process.env.EAS_BUILD_PLATFORM === 'android' || process.argv.some((a) => /android/i.test(a));
+  const mapsKey = androidBuild ? process.env.EXPO_GOOGLE_MAPS_API_KEY : undefined;
   const plugins = (config.plugins ?? []).filter((p) => {
     const name = Array.isArray(p) ? p[0] : p;
     return name !== '@sentry/react-native/expo' && !(mapsKey && name === 'react-native-maps');
