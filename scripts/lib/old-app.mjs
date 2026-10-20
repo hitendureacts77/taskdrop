@@ -10,7 +10,8 @@ import { dirname, join, resolve } from "node:path";
  *
  * Returns a folder holding `supabase/functions` and `apps/mobile/src` of the old app:
  * OLD_APP_DIR when set (CI checks `main` out there), otherwise `main` read out of this
- * repository's git history into a temp folder.
+ * repository's git history into a temp folder (OLD_APP_REF names the ref; default `main`,
+ * and `origin/main` on Vercel, where only the pushed branch is cloned).
  */
 export function oldAppDir(repo) {
   const given = process.env.OLD_APP_DIR;
@@ -18,14 +19,15 @@ export function oldAppDir(repo) {
     if (!existsSync(join(given, "supabase/functions/api/ops.ts"))) throw new Error(`OLD_APP_DIR=${given} has no supabase/functions/api/ops.ts`);
     return resolve(given);
   }
+  const ref = process.env.OLD_APP_REF || "main";
   const out = mkdtempSync(join(tmpdir(), "taskdrop-old-app-"));
   try {
-    const files = execFileSync("git", ["-C", repo, "ls-tree", "-r", "--name-only", "main", "supabase/functions", "apps/mobile/src"], { encoding: "utf8" })
+    const files = execFileSync("git", ["-C", repo, "ls-tree", "-r", "--name-only", ref, "supabase/functions", "apps/mobile/src"], { encoding: "utf8" })
       .split("\n")
       .filter((f) => /\.tsx?$/.test(f));
     for (const f of files) {
       mkdirSync(dirname(join(out, f)), { recursive: true });
-      writeFileSync(join(out, f), execFileSync("git", ["-C", repo, "show", `main:${f}`], { maxBuffer: 64 * 1024 * 1024 }));
+      writeFileSync(join(out, f), execFileSync("git", ["-C", repo, "show", `${ref}:${f}`], { maxBuffer: 64 * 1024 * 1024 }));
     }
   } catch {
     throw new Error("Cannot find the old app. Set OLD_APP_DIR to a checkout of `main`, or run this inside the repository so `main` can be read from git.");
