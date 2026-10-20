@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { IconButton } from '../components/kit';
+import { BackButton, IconButton, systemHeader } from '../components/kit';
 import { ReportSheet } from '../components/ReportSheet';
 import { Icon } from '../components/Icon';
 import { View, Text as RNText, Pressable } from 'react-native';
@@ -330,29 +330,34 @@ export function TaskDetailScreen() {
     go('escrow', { priceMinor: quote, title: detail.title, taskId: realId });
   };
 
+  // Report and share: in the system header on phones, in the page's top row on the web.
+  const actions = (
+    <View style={{ flexDirection: 'row', gap: 8 }}>
+      {realId && otherId !== userId ? <IconButton icon="flag" label="Report this task" onPress={() => setReporting(true)} /> : null}
+      <IconButton
+        icon="share"
+        label="Share this task"
+        onPress={() =>
+          share.start(
+            realId && taskUrl(realId)
+              ? {
+                  title: detail.title,
+                  message: `${detail.title} · ${formatINR(detail.amountMinor)} on TaskDrop`,
+                  url: taskUrl(realId)!,
+                }
+              : null,
+          )
+        }
+      />
+    </View>
+  );
+
   return (
     <Screen scroll padded={false}>
       <FadeIn style={{ paddingHorizontal: 20, paddingTop: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <IconButton icon="back" label="Back" onPress={back} />
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-          {realId && otherId !== userId ? <IconButton icon="flag" label="Report this task" onPress={() => setReporting(true)} /> : null}
-          <IconButton
-            icon="share"
-            label="Share this task"
-            onPress={() =>
-              share.start(
-                realId && taskUrl(realId)
-                  ? {
-                      title: detail.title,
-                      message: `${detail.title} · ${formatINR(detail.amountMinor)} on TaskDrop`,
-                      url: taskUrl(realId)!,
-                    }
-                  : null,
-              )
-            }
-          />
-          </View>
+          <BackButton onBack={back} right={actions} />
+          {systemHeader ? null : actions}
         </View>
 
         <Pressable

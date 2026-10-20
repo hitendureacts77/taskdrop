@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { View, Text as RNText, Pressable, Image, ActivityIndicator } from 'react-native';
+import { View, Text as RNText, Pressable, Image, ActivityIndicator, Platform } from 'react-native';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
-import { pickMedia, uploadMedia, removeMedia, MediaError, type TaskMedia } from '../lib/media';
+import { pickMedia, pickedFromFile, uploadMedia, removeMedia, MediaError, type PickedMedia, type TaskMedia } from '../lib/media';
+import { useFileDrop } from '../lib/useFileDrop';
 import { MEDIA } from '@taskdrop/rules';
 
 /**
@@ -17,6 +18,9 @@ import { MEDIA } from '@taskdrop/rules';
  * Removing an attachment deletes it from the bucket too. Otherwise every
  * discarded photo would sit there forever, still costing storage and still
  * readable by anyone signed in.
+ *
+ * On web a photo or video can also be dropped onto the area. That goes through
+ * the same checks and the same uploadMedia as a picked file.
  */
 
 function CameraIcon({ color }: { color: string }) {
@@ -94,16 +98,14 @@ export function MediaAttach({
   // Which kind's "camera or gallery?" choice is open, if any.
   const [asking, setAsking] = useState<'image' | 'video' | null>(null);
 
-  const choose = async (kind: 'image' | 'video', source: 'library' | 'camera') => {
+  const attach = async (pick: () => Promise<PickedMedia | null>) => {
     setError(null);
     setAsking(null);
     try {
-      // Straight off the press, with nothing awaited first: a browser blocks a
-      // file dialog that is not tied to the gesture, and does so silently.
-      const picked = await pickMedia(kind, source);
+      const picked = await pick();
       if (!picked) return;
 
-      setState({ phase: 'working', uri: picked.uri, kind });
+      setState({ phase: 'working', uri: picked.uri, kind: picked.kind });
       const uploaded = await uploadMedia(picked);
       setState({ phase: 'ready', uri: picked.uri, media: uploaded });
       onChange(uploaded);
@@ -118,6 +120,26 @@ export function MediaAttach({
             : 'Could not attach that file',
       );
     }
+  };
+
+  // Straight off the press, with nothing awaited first: a browser blocks a
+  // file dialog that is not tied to the gesture, and does so silently.
+  const choose = (kind: 'image' | 'video', source: 'library' | 'camera') =>
+    attach(() => pickMedia(kind, source));
+
+  const working = state.phase === 'working';
+  const { ref: dropRef, over } = useFileDrop({
+    enabled: !working,
+    onFile: (file) => void attach(() => pickedFromFile(file)),
+  });
+  const dropStyle = {
+    borderRadius: 14,
+    borderWidth: 2,
+    borderStyle: 'dashed' as const,
+    borderColor: over ? t.colors.accent : 'transparent',
+    backgroundColor: over ? t.colors.accentSoft : 'transparent',
+    padding: 4,
+    marginHorizontal: -4,
   };
 
   const clear = () => {
@@ -191,7 +213,7 @@ export function MediaAttach({
 
   if (state.phase === 'empty') {
     return (
-      <View style={{ marginTop: 11 }}>
+      <View ref={dropRef} style={{ marginTop: 11, ...dropStyle }}>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           {addButton('image', 'Add photo', <CameraIcon color={t.colors.accentDeep} />)}
           {addButton('video', 'Add video', <VideoIcon color={t.colors.accentDeep} />)}
@@ -203,7 +225,7 @@ export function MediaAttach({
           </View>
         )}
         <RNText style={tx('400', 11, t.colors.muted, { marginTop: 8, lineHeight: 16 })}>
-          One photo, or a video up to {MEDIA.MAX_VIDEO_SECONDS}s. Workers price far more accurately when they can see the job.
+          One photo, or a video up to {MEDIA.MAX_VIDEO_SECONDS}s. Workers price far more accurately when they can see the job.{Platform.OS === 'web' ? ' You can also drop a file here.' : ''}
         </RNText>
         {error && (
           <RNText style={tx('600', 12, t.colors.signal, { marginTop: 8, lineHeight: 17 })}>
@@ -214,12 +236,11 @@ export function MediaAttach({
     );
   }
 
-  const working = state.phase === 'working';
   const kind = working ? state.kind : state.media.kind;
   const seconds = state.phase === 'ready' ? state.media.seconds : undefined;
 
   return (
-    <View style={{ marginTop: 11 }}>
+    <View ref={dropRef} style={{ marginTop: 11, ...dropStyle }}>
       <View
         style={{
           height: 168,

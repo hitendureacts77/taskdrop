@@ -46,6 +46,7 @@ import { WorkerSetupScreen } from '../screens/WorkerSetupScreen';
 import { ListingEditScreen } from '../screens/ListingEditScreen';
 import { CopyrightScreen } from '../screens/CopyrightScreen';
 import { PrivacyScreen, TermsScreen } from '../screens/LegalScreens';
+import { SupportScreen } from '../screens/SupportScreen';
 
 
 // Registry. Screens the agent team hasn't delivered yet fall back to Placeholder.
@@ -95,4 +96,5 @@ export const REGISTRY: Partial<Record<ScreenName, ComponentType>> = {
   copyright: CopyrightScreen,
   terms: TermsScreen,
   privacy: PrivacyScreen,
+  support: SupportScreen,
 };

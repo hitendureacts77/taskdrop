@@ -15,7 +15,8 @@ import { useAuth } from '../providers/AuthProvider';
 import { getProfile, updateProfile } from '../data/api';
 import { applyReferralCode, updateProfileExtras, usernameAvailable } from '../data/extras';
 import { nameCarriesContact } from '../lib/mask';
-import { imageSource, pickMedia, signedMediaUrl, uploadMedia } from '../lib/media';
+import { imageSource, pickMedia, pickedFromFile, signedMediaUrl, uploadMedia, type PickedMedia } from '../lib/media';
+import { useFileDrop } from '../lib/useFileDrop';
 import { LANGUAGES, SKILL_OPTIONS } from './ProfileEditScreen';
 
 const STEPS = ['Welcome', 'Username', 'Your intent', 'Skills', 'About you', 'Done'] as const;
@@ -100,10 +101,11 @@ export function OnboardingScreen() {
     }
   };
 
-  const choosePhoto = async () => {
+  // The picker, or (on web) a photo dropped onto the photo row.
+  const choosePhoto = async (pick: () => Promise<PickedMedia | null> = () => pickMedia('image')) => {
     if (photoBusy) return;
     try {
-      const picked = await pickMedia('image');
+      const picked = await pick();
       if (!picked) return;
       setAvatar(picked.uri);
       setPhotoBusy(true);
@@ -116,6 +118,11 @@ export function OnboardingScreen() {
       setPhotoBusy(false);
     }
   };
+
+  const { ref: dropRef, over: dropOver } = useFileDrop({
+    enabled: !photoBusy,
+    onFile: (file) => void choosePhoto(() => pickedFromFile(file, 'image')),
+  });
 
   const toggle = (list: string[], set: (v: string[]) => void, v: string, max: number) =>
     list.includes(v) ? set(list.filter((x) => x !== v)) : list.length < max ? set([...list, v]) : flash(`Pick up to ${max}`);
@@ -292,7 +299,7 @@ export function OnboardingScreen() {
     body = (
       <>
         <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.7 })}>About you</RNText>
-        <Pressable onPress={() => void choosePhoto()} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 18 }} accessibilityRole="button">
+        <Pressable ref={dropRef} onPress={() => void choosePhoto()} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 18, padding: 6, marginHorizontal: -6, borderRadius: 14, borderWidth: 2, borderStyle: 'dashed', borderColor: dropOver ? t.colors.accent : 'transparent', backgroundColor: dropOver ? t.colors.accentSoft : 'transparent' }} accessibilityRole="button">
           <View style={{ width: 64, height: 64, borderRadius: 999, overflow: 'hidden', backgroundColor: t.colors.surface2, borderWidth: 1, borderStyle: avatar ? 'solid' : 'dashed', borderColor: t.colors.accent, alignItems: 'center', justifyContent: 'center' }}>
             {avatar ? <Image source={imageSource(avatar)} style={{ width: 64, height: 64 }} contentFit="cover" /> : <Icon name="plus" size={22} color={t.colors.accent} />}
             {photoBusy ? (

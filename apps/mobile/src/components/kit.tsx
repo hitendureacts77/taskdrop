@@ -938,6 +938,28 @@ export function IconButton({
   );
 }
 
+/** True on the phone apps, where a pushed screen's header (back arrow, title, right-hand control) is the system's. */
+export const systemHeader = Platform.OS !== 'web';
+
+/**
+ * The back arrow of a pushed screen that lays out its own title. Web: the in-page button. Phones: the system
+ * header carries it, with the optional title and right-hand control, so nothing is drawn in the page.
+ */
+export function BackButton({
+  onBack,
+  title = '',
+  right,
+  titleView,
+}: {
+  onBack: () => void;
+  title?: string;
+  right?: React.ReactNode;
+  titleView?: React.ReactNode;
+}) {
+  if (systemHeader) return <NativeHeader title={title} right={right} titleView={titleView} />;
+  return <IconButton icon="back" label="Back" onPress={onBack} />;
+}
+
 /** Back arrow + title row for pushed (non-tab) screens. */
 export function TopBar({
   title,

@@ -5,7 +5,9 @@ import {
   Pressable,
   Animated,
   ScrollView,
+  FlatList,
   RefreshControl,
+  type ListRenderItem,
   type ViewStyle,
   type TextStyle,
   type StyleProp,
@@ -13,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../providers/ThemeProvider';
 import { fontFamilyFor, type Theme } from '../theme';
+import { useLayout } from '../lib/layout';
 import { NativeHeaderCtx } from '../navigation/nativeHeader';
 
 /** Animatable Pressable so a press can drive a native-thread scale/opacity
@@ -88,6 +91,89 @@ export function Screen({
   }
   return (
     <SafeAreaView style={inner} edges={topEdge}>
+      {children}
+    </SafeAreaView>
+  );
+}
+
+/**
+ * A full-screen feed that only draws the cards near the viewport. Same frame as
+ * `<Screen scroll>` (safe area, pull-to-refresh, hidden scroll bar), with the
+ * header above the cards, an empty state, and a footer. Cards sit one to a row
+ * on a phone and two or three on a desktop browser, like `Grid`.
+ */
+export function ScreenList<T>({
+  data,
+  keyExtractor,
+  renderItem,
+  above,
+  header,
+  empty,
+  footer,
+  onRefresh,
+  refreshing = false,
+  tint,
+  gap = 14,
+  children,
+}: {
+  data: readonly T[];
+  keyExtractor: (item: T) => string;
+  renderItem: (info: Parameters<ListRenderItem<T>>[0]) => React.ReactElement | null;
+  /** Pinned above the list, outside the scroll. */
+  above?: React.ReactNode;
+  header?: React.ReactElement | null;
+  empty?: React.ReactElement | null;
+  footer?: React.ReactElement | null;
+  onRefresh?: () => void;
+  refreshing?: boolean;
+  /** Colour of the pull-to-refresh spinner; the accent by default. */
+  tint?: string;
+  gap?: number;
+  /** Drawn after the list: sheets and other overlays. */
+  children?: React.ReactNode;
+}) {
+  const t = useTheme();
+  const { columns } = useLayout();
+  const topEdge = useTopEdge();
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: t.colors.bg }} edges={topEdge}>
+      {above}
+      <FlatList
+        // FlatList cannot change its column count in place.
+        key={columns}
+        data={data}
+        keyExtractor={keyExtractor}
+        // Each card gets the page gutter and an equal share of the row, so a
+        // short last row does not stretch its card across the whole width.
+        renderItem={(info) => (
+          <View style={{ width: `${100 / columns}%`, paddingHorizontal: columns > 1 ? gap / 2 : 20 }}>
+            {renderItem(info)}
+          </View>
+        )}
+        numColumns={columns}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: t.spacing.xxl }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={header}
+        ListEmptyComponent={empty}
+        ListFooterComponent={footer}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        windowSize={7}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={tint ?? t.colors.accent}
+              colors={[tint ?? t.colors.accent]}
+            />
+          ) : undefined
+        }
+        // Cards bring their own top margin.
+        columnWrapperStyle={columns > 1 ? { paddingHorizontal: 20 - gap / 2 } : undefined}
+      />
       {children}
     </SafeAreaView>
   );

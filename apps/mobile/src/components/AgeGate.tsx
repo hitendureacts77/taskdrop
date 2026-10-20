@@ -16,7 +16,7 @@ import { ageStatus, onAgeStatus, recordBirthDate, type AgeStatus } from '../data
 
 // The way in, and pages anyone may read. AccessScreen asks new phone sign-ups
 // itself, before an account exists, so the gate stays out of its way.
-const OPEN: ScreenName[] = ['splash', 'welcome', 'signup', 'copyright', 'terms', 'privacy'];
+const OPEN: ScreenName[] = ['splash', 'welcome', 'signup', 'copyright', 'terms', 'privacy', 'support'];
 
 /**
  * Nobody signed in reaches the app until their account has answered the age

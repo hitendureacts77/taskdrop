@@ -10,7 +10,7 @@ import {
   type TextStyle,
 } from 'react-native';
 import { Screen } from '../components/ui';
-import { IconButton } from '../components/kit';
+import { BackButton, systemHeader } from '../components/kit';
 import { Icon } from '../components/Icon';
 import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -302,10 +302,12 @@ export function PromoteScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <IconButton icon="back" label="Back" onPress={back} />
-          <RNText style={tx('700', 17, t.colors.ink)}>
-            {worker ? 'Promote this service' : 'Promote this task'}
-          </RNText>
+          <BackButton onBack={back} title={worker ? 'Promote this service' : 'Promote this task'} />
+          {systemHeader ? null : (
+            <RNText style={tx('700', 17, t.colors.ink)}>
+              {worker ? 'Promote this service' : 'Promote this task'}
+            </RNText>
+          )}
         </View>
 
         <View style={{ marginTop: 14 }}>

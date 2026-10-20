@@ -253,6 +253,39 @@ export async function pickMedia(
   return { kind, uri: asset.uri, mimeType, seconds, bytes };
 }
 
+/**
+ * A file dropped onto the page (web only), checked the same way the picker's
+ * result is, so it can go through uploadMedia like any other. `wanted` is what
+ * the drop area takes; anything else gets a plain-language error.
+ */
+export async function pickedFromFile(file: File, wanted: 'image' | 'video' | 'any' = 'any'): Promise<PickedMedia> {
+  const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : null;
+  if (!kind || (wanted !== 'any' && kind !== wanted)) {
+    throw new MediaError(wanted === 'image' ? 'Drop a photo here.' : wanted === 'video' ? 'Drop a video here.' : 'Drop a photo or a video here.');
+  }
+  if (file.size > MAX_BYTES) {
+    throw new MediaError(`That file is ${(file.size / 1024 / 1024).toFixed(0)} MB. The limit is ${MAX_BYTES / 1024 / 1024} MB.`);
+  }
+  const uri = URL.createObjectURL(file);
+  let seconds: number | undefined;
+  if (kind === 'video') {
+    seconds = await new Promise<number | undefined>((resolve) => {
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.onloadedmetadata = () => resolve(Number.isFinite(v.duration) ? Math.round(v.duration) : undefined);
+      v.onerror = () => resolve(undefined);
+      v.src = uri;
+    });
+    if (seconds != null && seconds > MEDIA.MAX_VIDEO_SECONDS) {
+      URL.revokeObjectURL(uri);
+      throw new MediaError(`That video is ${seconds}s. Keep it to ${MEDIA.MAX_VIDEO_SECONDS}s or under.`);
+    }
+    // Same rule as the picker: an unknown length counts as the cap.
+    if (seconds == null) seconds = MEDIA.MAX_VIDEO_SECONDS;
+  }
+  return { kind, uri, mimeType: file.type, seconds, bytes: file.size };
+}
+
 
 /**
  * Put the file in the bucket and return what the task row should store.

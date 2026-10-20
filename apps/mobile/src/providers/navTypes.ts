@@ -48,6 +48,7 @@ export type ScreenName =
   // Public: reachable signed out, and by link (?page=copyright etc.).
   | 'copyright'
   | 'terms'
-  | 'privacy';
+  | 'privacy'
+  | 'support';
 
 export type NavParams = Record<string, unknown>;
