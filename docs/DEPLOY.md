@@ -16,7 +16,7 @@ GitHub only stores the code. **Vercel runs every deploy.** There is no GitHub Ac
 
 ## One-time setup (you)
 
-In Vercel, open the `taskdrop` project, then Settings, then Environment Variables. Add these two with **only Preview ticked**, and set the branch to `redesigned-2.0`:
+In Vercel, open the `taskdrop` project, then Settings, then Environment Variables. Add these two (type Secret). They are set to **All Environments** (Production, Preview on any branch, Development) at the owner's request. The build script still deploys the backend only for Preview builds of `redesigned-2.0`; the wider scope only means every build, including the old app's builds from `main`, can read the database password and token:
 
 | Name | Value |
 |---|---|

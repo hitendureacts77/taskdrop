@@ -18,8 +18,9 @@
  * clones the pushed branch, so the script fetches `main` first; if that fails it says so loudly and
  * skips those two checks instead of blocking every deploy.
  *
- * Needs these in Vercel -> `taskdrop` -> Settings -> Environment Variables, environment Preview,
- * branch `redesigned-2.0` (docs/DEPLOY.md). Without them the backend step is skipped with a notice:
+ * Needs these in Vercel -> `taskdrop` -> Settings -> Environment Variables (set to All Environments;
+ * this script only uses them for Preview builds of `redesigned-2.0`; docs/DEPLOY.md). Without them the
+ * backend step is skipped with a notice:
  *   SUPABASE_ACCESS_TOKEN   deploys Edge Functions (supabase.com -> Account -> Access Tokens)
  *   DATABASE_URL            the test project's Session pooler connection string, with its password
  *
