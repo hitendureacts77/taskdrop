@@ -129,7 +129,7 @@ Version 4.18, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single sourc
   - wallets with fake credits
 
   On the shared test project, a reset also changes what old-app testers see, so it only runs with your OK. It never runs on production.
-- [ ] **(You)** Say "run the seed" (or run `npm run seed:reset` with `DATABASE_URL` set) when you want the first real reset
+- [x] **(You)** Say "run the seed" (or run `npm run seed:reset` with `DATABASE_URL` set) when you want the first real reset. Done 2026-10-20 at your request ("do all these"), run through the Supabase connector with the same SQL, since no `DATABASE_URL` is stored on this PC. First load, so nothing was deleted: 4 accounts, 12 tasks in 10 statuses; the 19 other accounts and 57 other tasks were untouched. **It broke sign-in for about 15 minutes:** the seed left NULL in four `auth.users` token columns, GoTrue's admin user list then answered 500, and `phone-auth`'s account lookup uses it. Found by the old-app checklist, patched by hand, and fixed in the seed and its check (PR 54)
 - [x] README section: "Run TaskDrop against the cloud test project" (web, Android over USB, admin on port 3001)
 
 **Config in code**
@@ -146,12 +146,12 @@ Version 4.18, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single sourc
 - [x] Vercel project `taskdrop`: `taskdrop.in` + `www` assigned to the `redesigned-2.0` branch (environment Preview, branch `redesigned-2.0`). The old production domain `taskdrop-five.vercel.app` keeps its Production setting
 - [x] Add `taskdrop.in` to the project's redirect URLs (done 2026-10-20 in Supabase, Authentication, URL Configuration: `https://taskdrop.in/**` and `https://www.taskdrop.in/**` added, the 8 old entries untouched, 10 in total). `EXPO_PUBLIC_APP_URL=https://taskdrop.in` set in Vercel; widened to All Environments at the owner's request (2026-10-20), so builds of `main` also read `https://taskdrop.in`; it takes effect on the next deployment
 - [ ] **(You)** Make `taskdrop.in` open to your testers. Found 2026-10-20: a visitor who is not signed in to Vercel is redirected to Vercel's login page (Vercel Authentication protects Preview deployments, and `taskdrop.in` is served by one). In Vercel, project `taskdrop`, Settings, Deployment Protection: turn Vercel Authentication off (or exempt the `taskdrop.in` domains), then check the site in a private window
-- [ ] **(You)** `support@taskdrop.in` via free email forwarding
+- [ ] **(You)** `support@taskdrop.in` via free email forwarding. Spaceship (signed in) has the forwarding panel ready; it only needs the address to forward to
 
 **Android**
 - [x] EAS build profile `beta` (Android APK) with EAS Update channel `beta` (R1, confirmed), in `apps/mobile/eas.json`. Adding `expo-updates` and the first build happen in Phase 1.
-- [ ] **(You)** Restrict the Google Maps key: limit it to the Maps and Places APIs and set a daily quota. Use a separate Android key restricted to package `com.taskdrop.app` + signing SHA-1. The old web bundle keeps exposing the current key until Phase 9, so the restriction matters now.
-- [ ] **(You)** Back up the EAS keystore (`eas credentials`)
+- [ ] **(You)** Restrict the Google Maps key (blocked 2026-10-20: Google Cloud now refuses the `hitendureacts@gmail.com` account until two-step verification is on, a security setting only you can change; the other signed-in Google accounts have no key. The Android SHA-1 for the restriction is on Expo, project `taskdrop`, Credentials, `com.taskdrop.app`): limit it to the Maps and Places APIs and set a daily quota. Use a separate Android key restricted to package `com.taskdrop.app` + signing SHA-1. The old web bundle keeps exposing the current key until Phase 9, so the restriction matters now.
+- [ ] **(You)** Back up the EAS keystore (`eas credentials`). Checked 2026-10-20: one Android upload keystore (JKS, uploaded 6 Oct) exists for `com.taskdrop.app`; it has not been downloaded because that needs your OK on where to save it. No FCM key is stored yet
 
 **iOS**
 - ⏸ **Future scope (deferred 2026-10-20).** iOS waits until Android and the admin are done; the boxes below are marked `[-]` and don't block this phase.
@@ -164,15 +164,15 @@ Version 4.18, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single sourc
 - [x] Admin `.env.example` and README updated for local and beta (README in admin PR 18, plus the types and migration notes; `.env.example` has the project id and Sentry environment)
 
 **You (other)**
-- [ ] Ask a lawyer about the money flow (R3; questions in Part B, section 10). The answer is needed before Phase 5.
-- [ ] Recruit at least 12 testers. Google Play requires a closed test with at least 12 testers before a production release.
+- [ ] **(You)** Ask a lawyer about the money flow (R3; questions in Part B, section 10). The answer is needed before Phase 5. Brief ready to send: `docs/LAWYER_BRIEF.md` (facts from the code, 12 questions, what to attach); correct its money-holding paragraph if the Razorpay setup differs
+- [ ] **(You)** Recruit at least 12 testers. Google Play requires a closed test with at least 12 testers before a production release. Kit ready: `docs/TESTER_RECRUITMENT.md` (message, sign-up sheet, Play Console steps, what to test)
 
 **Verify**
 - [x] A test pull request into `redesigned-2.0` runs the checks (including the compatibility check) and gets a CodeRabbit review. Done 2026-10-20 with the real Phase 0 PRs (app PR 41, admin PR 19): every job ran, CodeRabbit left 8 comments on PR 41 and 2 on PR 19, all fixed or answered. It also caught a real CI bug (the database job never installed dependencies), fixed in the same PR
-- [x] A push to `redesigned-2.0` makes the Vercel build deploy to the shared test project. Done 2026-10-20 with the merge of PR 41 (merge commit ac77679, merged 16:23 UTC): the Vercel build finished successfully and all 11 Edge Functions on the project show an update time of 16:24:37 UTC. The build runs its steps in order and fails on any error, so the old-app contract check, the old-app database check and the migration step (none pending) passed before the functions went out, and `main` was fetchable. Not seen: the build log itself (the Vercel connector is refused on the team, and the built-in browser isn't signed in to Vercel), so whether the Inngest sync reported success is unconfirmed. It only warns, and the Inngest keys are still yours to set (Phase 5)
+- [x] A push to `redesigned-2.0` makes the Vercel build deploy to the shared test project. Done 2026-10-20 with the merge of PR 41 (merge commit ac77679, merged 16:23 UTC): the Vercel build finished successfully and all 11 Edge Functions on the project show an update time of 16:24:37 UTC. The build runs its steps in order and fails on any error, so the old-app contract check, the old-app database check and the migration step (none pending) passed before the functions went out, and `main` was fetchable. Not seen: the build log itself (the Vercel connector is refused on the team, and the built-in browser isn't signed in to Vercel), and the Inngest sync was confirmed separately by calling it (2026-10-20, "Successfully registered"). The deploy guard also accepted the stored `DATABASE_URL`, since the build got as far as deploying the functions
 - [x] `taskdrop.in` loads the upgrade branch (checked 2026-10-20: serves the redesigned app, certificate issued). The admin has no domain of its own (see above)
 - [x] The whole app (web in a browser, Android over USB or Wi-Fi, admin) runs on your PC against the cloud test project. Web and Android over USB checked 2026-10-20; the admin dev server on port 3001 checked the same day (login page 200, `/` redirects to `/login`)
-- [ ] **The old app and old admin still work unchanged** at their current URLs. Partly checked 2026-10-20: `taskdrop-five.vercel.app` and the old admin's login answer 200, and the `api` contract and old-app database checks pass in CI. The ten-minute by-hand checklist (sign in, browse, post, chat) in `docs/DEPLOY.md` is still yours
+- [x] **The old app and old admin still work unchanged** at their current URLs. Done 2026-10-20 by hand on `taskdrop-five.vercel.app`: sign in with a test phone, feed and task detail, post a request and see it in My Tasks, a second account sends a quote, chat message sent (`docs/DEPLOY.md` steps 1 to 3). Not done: step 4, the old admin's dashboard and tasks list, because that needs your admin login (its login page answers 200). The check found the seed bug above; after the fix everything passed. Partly checked 2026-10-20: `taskdrop-five.vercel.app` and the old admin's login answer 200, and the `api` contract and old-app database checks pass in CI. The ten-minute by-hand checklist (sign in, browse, post, chat) in `docs/DEPLOY.md` is still yours
 
 ---
 
