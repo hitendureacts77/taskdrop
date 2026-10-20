@@ -27,6 +27,7 @@ export const NATIVE_HEADER_SCREENS: readonly ScreenName[] = [
   'pricing',
   'privacy',
   'promote',
+  'support',
   'terms',
   'profileEdit',
   'publicProfile',

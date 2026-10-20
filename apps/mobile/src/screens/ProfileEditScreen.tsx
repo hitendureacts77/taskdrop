@@ -14,7 +14,8 @@ import { useMode } from '../providers/ModeProvider';
 import { getProfile, listReviewsAbout, updateProfile, type Profile } from '../data/api';
 import { updateProfileExtras, verificationState } from '../data/extras';
 import { PresenceDot } from '../components/PresenceDot';
-import { imageSource, pickMedia, signedMediaUrl, uploadMedia } from '../lib/media';
+import { imageSource, pickMedia, pickedFromFile, signedMediaUrl, uploadMedia, type PickedMedia } from '../lib/media';
+import { useFileDrop } from '../lib/useFileDrop';
 import { levelFor, profileStrength } from '../lib/levels';
 import { findContactIssue, profileIssueMessage } from '../lib/mask';
 
@@ -96,10 +97,11 @@ export function ProfileEditScreen() {
   // Profiles are public: no phone, email, links, handles or door numbers.
   const bioIssue = findContactIssue(bio);
 
-  const choosePhoto = async () => {
+  // The picker, or (on web) a photo dropped onto the profile card.
+  const choosePhoto = async (pick: () => Promise<PickedMedia | null> = () => pickMedia('image')) => {
     if (!userId || photoBusy) return;
     try {
-      const picked = await pickMedia('image');
+      const picked = await pick();
       if (!picked) return;
       setAvatar(picked.uri);
       setPhotoBusy(true);
@@ -113,6 +115,11 @@ export function ProfileEditScreen() {
       setPhotoBusy(false);
     }
   };
+
+  const { ref: dropRef, over: dropOver } = useFileDrop({
+    enabled: !photoBusy,
+    onFile: (file) => void choosePhoto(() => pickedFromFile(file, 'image')),
+  });
 
   const save = async () => {
     if (!userId) return;
@@ -162,7 +169,7 @@ export function ProfileEditScreen() {
       <SwipeTabs index={tab} count={worker ? 3 : 2} onChange={setTab}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
         <View style={{ paddingHorizontal: 20 }}>
-          <View style={{ ...card, marginTop: 0, alignItems: 'center' }}>
+          <View ref={dropRef} style={{ ...card, marginTop: 0, alignItems: 'center', ...(dropOver ? { borderColor: t.colors.accent, borderStyle: 'dashed' as const, backgroundColor: t.colors.accentSoft } : null) }}>
             <Pressable onPress={() => void choosePhoto()} accessibilityRole="button" accessibilityLabel="Change photo">
               <View style={{ width: 84, height: 84, borderRadius: 999, overflow: 'hidden', backgroundColor: t.colors.accent, alignItems: 'center', justifyContent: 'center' }}>
                 {avatar ? (

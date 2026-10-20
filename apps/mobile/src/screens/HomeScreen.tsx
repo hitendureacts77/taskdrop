@@ -7,7 +7,7 @@ import {
   Animated,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { Screen, formatINR, cardSurface } from '../components/ui';
+import { Screen, ScreenList, formatINR, cardSurface } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -250,7 +250,7 @@ const FeedCard = memo(function FeedCard({
 }) {
   const priceLabel = worker ? 'THEIR OFFER' : 'THEIR RATE';
   return (
-    <FadeIn duration={400} delay={index * 70} translateY={10} style={{ marginTop: 12 }}>
+    <FadeIn duration={400} delay={Math.min(index, 8) * 70} translateY={10} style={{ marginTop: 12 }}>
       <Pressy containsControls
         onPress={onOpen}
         scaleTo={0.985}
@@ -560,50 +560,13 @@ export function HomeScreen() {
     }
   };
 
-  return (
-    <Screen scroll padded={false} onRefresh={refresh} refreshing={refreshing}>
+  // The flat feed (search results) is a virtualised list: only the cards near
+  // the viewport are drawn. Everything else keeps the plain scrolling page.
+  if (searching) {
+    const header = (
       <FadeIn duration={260}>
         <AppHeader />
-        {/* A worker's home is sectioned (skills, near you, remote, needed
-            today) in HomeSections. The flat feed below is for posters, and
-            for either side's search results. */}
-        {searching ? null : <HomeSections />}
-        {!worker && !searching ? (
-          // What workers offer, as gig cards in a row that pages sideways.
-          <View style={{ paddingHorizontal: 20, paddingTop: 30, paddingBottom: 110 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-              <RNText style={tx('800', 18, t.colors.ink, { letterSpacing: -0.35, flex: 1 })}>Services near you</RNText>
-              <RNText style={tx('600', 12, t.colors.accentDeep)}>{loading ? '' : `${feed.length} offered`}</RNText>
-            </View>
-            <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4 })}>Services workers offer — tap one to see it and hire</RNText>
-            {loading ? (
-              <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
-                {[0, 1].map((i) => (
-                  <Shimmer key={i} height={230} style={{ width: 240, borderRadius: 20 }} />
-                ))}
-              </View>
-            ) : feed.length === 0 ? (
-              <RNText style={tx('400', 13, t.colors.muted, { marginTop: 12 })}>No services listed nearby yet.</RNText>
-            ) : (
-              <View style={{ marginTop: 12 }}>
-                <Rail step={250} min={260}>
-                  {(liveTasks ?? [])
-                    .filter((task) => feed.some((row) => row.id === task.id))
-                    .map((task) => (
-                      <ListingCard
-                        key={task.id}
-                        task={task as unknown as TaskWithPoster}
-                        width={240}
-                        onPress={() => go('taskDetail', { row: taskToFeedRow(task as unknown as TaskWithPoster) })}
-                      />
-                    ))}
-                </Rail>
-              </View>
-            )}
-          </View>
-        ) : searching ? (
         <>
-
         <View
           style={{
             flexDirection: 'row',
@@ -679,27 +642,47 @@ export function HomeScreen() {
           </View>
         ) : null}
 
-        {loading ? (
-          <View style={{ paddingHorizontal: 20 }}>
-            {[0, 1, 2].map((i) => (
-              <View
-                key={i}
-                style={{
-                  ...cardSurface(t, 18),
-                  padding: 15,
-                  marginTop: 12,
-                }}
-              >
-                <ShimmerBar width="52%" height={13} t={t} />
-                <ShimmerBar width="84%" height={17} marginTop={13} t={t} />
-                <ShimmerBar width="38%" height={13} marginTop={13} t={t} />
-              </View>
-            ))}
-          </View>
-        ) : (
-          <>
+          {loading ? (
+            <View style={{ paddingHorizontal: 20 }}>
+              {[0, 1, 2].map((i) => (
+                <View
+                  key={i}
+                  style={{
+                    ...cardSurface(t, 18),
+                    padding: 15,
+                    marginTop: 12,
+                  }}
+                >
+                  <ShimmerBar width="52%" height={13} t={t} />
+                  <ShimmerBar width="84%" height={17} marginTop={13} t={t} />
+                  <ShimmerBar width="38%" height={13} marginTop={13} t={t} />
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </>
+      </FadeIn>
+    );
+    return (
+      <ScreenList
+        data={loading ? [] : feed}
+        keyExtractor={(row) => row.id}
+        renderItem={({ item, index }) => (
+          <FeedCard
+            row={item}
+            index={index}
+            worker={worker}
+            onOpen={() => openRow(item)}
+            onCounter={() => openRow(item)}
+            onAccept={() => void onAccept(item)}
+            mediaUrl={item.mediaPath ? (mediaUrls[item.mediaPath] ?? null) : undefined}
+            t={t}
+          />
+        )}
+        header={header}
+        empty={
+          loading ? null : (
             <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
-              {feed.length === 0 ? (
                 <View
                   style={{
                     ...cardSurface(t, 18),
@@ -749,30 +732,16 @@ export function HomeScreen() {
                     </RNText>
                   </Pressy>
                 </View>
-              ) : null}
-              <Grid>
-              {feed.map((row, i) => (
-                <FeedCard
-                  key={row.id}
-                  row={row}
-                  index={i}
-                  worker={worker}
-                  onOpen={() => openRow(row)}
-                  onCounter={() => openRow(row)}
-                  onAccept={() => void onAccept(row)}
-                  mediaUrl={row.mediaPath ? (mediaUrls[row.mediaPath] ?? null) : undefined}
-                  t={t}
-                />
-              ))}
-              </Grid>
             </View>
-
-            {/* Worker-only. These rows are urgent *requests*, which is work a
-                worker can pick up — but on the poster's side they were being
-                relabelled "Free right now", as though other people's urgent
-                jobs were available workers. A poster has no use for a list of
-                someone else's requests. */}
-            {worker && urgentRows.length > 0 && (
+          )
+        }
+        footer={
+          loading || !worker || urgentRows.length === 0 ? null : (
+            /* Worker-only. These rows are urgent *requests*, which is work a
+               worker can pick up — but on the poster's side they were being
+               relabelled "Free right now", as though other people's urgent
+               jobs were available workers. A poster has no use for a list of
+               someone else's requests. */
               <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
                 <RNText style={tx('800', 19, t.colors.ink, { letterSpacing: -0.38, marginTop: 10 })}>
                   Urgent requests
@@ -831,10 +800,55 @@ export function HomeScreen() {
                 ))}
                 </Grid>
               </View>
+          )
+        }
+        onRefresh={refresh}
+        refreshing={refreshing}
+      />
+    );
+  }
+
+  return (
+    <Screen scroll padded={false} onRefresh={refresh} refreshing={refreshing}>
+      <FadeIn duration={260}>
+        <AppHeader />
+        {/* A worker's home is sectioned (skills, near you, remote, needed
+            today) in HomeSections. The Rail below is the poster's. Search
+            results are the virtualised list above. */}
+        <HomeSections />
+        {!worker ? (
+          // What workers offer, as gig cards in a row that pages sideways.
+          <View style={{ paddingHorizontal: 20, paddingTop: 30, paddingBottom: 110 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+              <RNText style={tx('800', 18, t.colors.ink, { letterSpacing: -0.35, flex: 1 })}>Services near you</RNText>
+              <RNText style={tx('600', 12, t.colors.accentDeep)}>{loading ? '' : `${feed.length} offered`}</RNText>
+            </View>
+            <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4 })}>Services workers offer — tap one to see it and hire</RNText>
+            {loading ? (
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+                {[0, 1].map((i) => (
+                  <Shimmer key={i} height={230} style={{ width: 240, borderRadius: 20 }} />
+                ))}
+              </View>
+            ) : feed.length === 0 ? (
+              <RNText style={tx('400', 13, t.colors.muted, { marginTop: 12 })}>No services listed nearby yet.</RNText>
+            ) : (
+              <View style={{ marginTop: 12 }}>
+                <Rail step={250} min={260}>
+                  {(liveTasks ?? [])
+                    .filter((task) => feed.some((row) => row.id === task.id))
+                    .map((task) => (
+                      <ListingCard
+                        key={task.id}
+                        task={task as unknown as TaskWithPoster}
+                        width={240}
+                        onPress={() => go('taskDetail', { row: taskToFeedRow(task as unknown as TaskWithPoster) })}
+                      />
+                    ))}
+                </Rail>
+              </View>
             )}
-          </>
-        )}
-        </>
+          </View>
         ) : null}
       </FadeIn>
     </Screen>

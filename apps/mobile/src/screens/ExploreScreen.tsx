@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text as RNText, ScrollView, TextInput, Pressable, RefreshControl } from 'react-native';
-import { Screen, cardSurface } from '../components/ui';
+import { View, Text as RNText, ScrollView, TextInput, Pressable } from 'react-native';
+import { Screen, ScreenList, cardSurface } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
-import { EmptyState, Grid, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../components/kit';
+import { EmptyState, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../components/kit';
 import { TrendingSection } from '../components/Trending';
 import { WorkCard, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
@@ -452,14 +452,25 @@ function FindWork() {
   };
 
   return (
-    <Screen padded={false}>
-      <AppHeader />
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 32 }}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.purple} />}
-      >
+    <ScreenList
+      above={<AppHeader />}
+      tint={t.colors.purple}
+      data={tab === 0 && shown ? shown : []}
+      keyExtractor={(task) => task.id}
+      renderItem={({ item: task, index: i }) => (
+        <WorkCard
+          task={task}
+          index={i}
+          saved={saved.has(task.id)}
+          onOpen={() => open(task)}
+          onApply={() => setBidTask(task)}
+          onToggleSave={() => void toggleSave(task.id)}
+        />
+      )}
+      onRefresh={() => void refresh()}
+      refreshing={refreshing}
+      header={
+        <>
         <View style={{ alignItems: 'center', paddingHorizontal: 20, paddingTop: 10 }}>
           <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Browse jobs</RNText>
           <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4 })}>Every open job, filtered your way</RNText>
@@ -547,26 +558,14 @@ function FindWork() {
                     setQuery('');
                   }}
                 />
-              ) : (
-                <Grid>
-                {shown.map((task, i) => (
-                  <WorkCard
-                    key={task.id}
-                    task={task}
-                    index={i}
-                    saved={saved.has(task.id)}
-                    onOpen={() => open(task)}
-                    onApply={() => setBidTask(task)}
-                    onToggleSave={() => void toggleSave(task.id)}
-                  />
-                ))}
-                </Grid>
-              )}
+              ) : null}
             </>
           )}
         </View>
-      </ScrollView>
+        </>
+      }
+    >
       <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void refresh()} />
-    </Screen>
+    </ScreenList>
   );
 }

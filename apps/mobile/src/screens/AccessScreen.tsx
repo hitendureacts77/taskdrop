@@ -644,6 +644,7 @@ export function AccessScreen() {
                 ['terms', 'Terms'],
                 ['privacy', 'Privacy'],
                 ['copyright', 'Copyright'],
+                ['support', 'Support'],
               ] as const
             ).map(([page, label]) => (
               <Pressable key={page} onPress={() => go(page)} hitSlop={8} accessibilityRole="link">

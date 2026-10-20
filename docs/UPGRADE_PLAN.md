@@ -1,10 +1,10 @@
 # TaskDrop upgrade plan
 
-Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.1, 2026-10-07 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
-- `- [ ]` is open, `- [x]` is done. Tick items as they're completed, in the same pull request as the work.
+- `- [ ]` is open, `- [x]` is done, `- [-]` is **deferred to future scope** (not forgotten, not needed now). Tick items as they're completed, in the same pull request as the work.
 - **(You)** marks the items only you can do: accounts, payments, approvals, testing with real people.
 - Every phase has to-dos for each part of TaskDrop:
 
@@ -13,10 +13,10 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
 | **Backend** | Supabase: database, SQL, edge functions, Inngest functions |
 | **Web** | The user app in a browser (`taskdrop.in`) |
 | **Android** | The user app on Android phones |
-| **iOS** | The user app on iPhones |
+| **iOS** | The user app on iPhones. **Future scope (deferred 2026-10-20)** |
 | **Admin** | The admin web app (`admin.taskdrop.in`) |
 
-  A phase is done when every box, including its **Verify** boxes, is ticked.
+  A phase is done when every box, including its **Verify** boxes, is ticked or deferred (`[-]`).
 - **Nothing is implemented until you say "start Phase N".**
 
 ## Ground rules
@@ -34,13 +34,20 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
    - old functions the old app calls (`phone-auth`, `password-auth`, `razorpay`, …) keep working
    - anything that can't be made compatible waits for Phase 9: the lockdown, retiring the old phone login, and dropping old code
 5. **The app asks, the server decides.** Money, permissions, limits, prices and switches are always checked on the server.
-6. **Stage: testing only.** Fake data, you and about 10 testers, no customers. Customer launch (Phase 10) happens only when you decide.
+6. **Current focus: web, Android and the admin app. iOS is future scope (decided 2026-10-20).** Nothing iOS gets built, enrolled for or tested until you say "start iOS".
+   - Every iOS section below is marked `[-]` (deferred). The work stays in this plan so nothing is lost.
+   - In any other box that mentions iOS, iPhone, TestFlight or the App Store, read that part as skipped; it doesn't block the phase. The same goes for **Sign in with Apple** and the Apple Developer account ($99/year), which only the iOS work needs; web and Android sign in with Google, phone and username + password for now.
+   - Nothing in the code is removed: the app still builds for iOS, and the iOS-only code paths stay.
+   - Full list of what waits: Part B, section 12 "Future scope: iOS".
+7. **Stage: testing only.** Fake data, you and about 10 testers, no customers. Customer launch (Phase 10) happens only when you decide.
 
 ---
 
 # Part A: To-do list
 
 ## Progress board
+
+> iOS items in every phase are deferred (`[-]`). A phase is complete when all its backend, web, Android, admin, You and Verify boxes are ticked.
 
 | Phase | Name | Status |
 |---|---|---|
@@ -58,7 +65,7 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
 
 ## Coverage: what each phase changes
 
-| Phase | Backend | Web | Android | iOS | Admin |
+| Phase | Backend | Web | Android | iOS (future scope) | Admin |
 |---|---|---|---|---|---|
 | 0 | Compatibility rules, CI, auto-deploy, seed | `taskdrop.in` on the upgrade | Beta build profile | Apple Developer enrollment | `admin.taskdrop.in`, CI |
 | 1 | Sentry in functions, health check | Sentry | Sentry, OTA updates, push fix | First TestFlight build, push | Sentry |
@@ -134,7 +141,8 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
 - [ ] **(You)** Back up the EAS keystore (`eas credentials`)
 
 **iOS**
-- [ ] **(You)** Enroll in the Apple Developer Program, $99/year. Approval can take days, and the first TestFlight build in Phase 1 needs it.
+- ⏸ **Future scope (deferred 2026-10-20).** iOS waits until Android and the admin are done; the boxes below are marked `[-]` and don't block this phase.
+- [-] **(You)** Enroll in the Apple Developer Program, $99/year. Approval can take days, and the first TestFlight build in Phase 1 needs it.
 
 **Admin**
 - [ ] Vercel admin project: assign `admin.taskdrop.in` to the `upgraded-plan-changes` branch. The old admin keeps its current URL.
@@ -179,16 +187,17 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
 - [ ] Source maps uploaded from EAS
 
 **iOS**
-- [ ] `app.json` → `ios`:
+- ⏸ **Future scope (deferred 2026-10-20).** iOS waits until Android and the admin are done; the boxes below are marked `[-]` and don't block this phase.
+- [-] `app.json` → `ios`:
   - `bundleIdentifier: com.taskdrop.app`, `buildNumber`, `supportsTablet: false`
   - permission texts for location (when in use), camera, photos and microphone
   - `ITSAppUsesNonExemptEncryption: false`
   - `LSApplicationQueriesSchemes` for the UPI apps
   - drop the "Always" location permission
-- [ ] `eas.json`: iOS `beta` profile; `build:ios` script
-- [ ] **(You)** App Store Connect app record. APNs key added through EAS.
-- [ ] First TestFlight internal build (Sentry, `expo-updates`, push)
-- [ ] **(You)** Add iPhone testers to TestFlight internal testing
+- [-] `eas.json`: iOS `beta` profile; `build:ios` script
+- [-] **(You)** App Store Connect app record. APNs key added through EAS.
+- [-] First TestFlight internal build (Sentry, `expo-updates`, push)
+- [-] **(You)** Add iPhone testers to TestFlight internal testing
 
 **Admin**
 - [ ] `@sentry/nextjs` (server actions, route handlers, browser), as its own Sentry project
@@ -237,10 +246,11 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
 - [ ] The core-flow checklist passes on the `beta` APK; failures are fixed
 
 **iOS**
-- [ ] Swipe-back navigation (`NavProvider.tsx`)
-- [ ] UPI payment links (`PaymentSheet.tsx`)
-- [ ] Clear the stored session on first launch after a reinstall (the Keychain keeps it)
-- [ ] The core-flow checklist passes on TestFlight; failures are fixed
+- ⏸ **Future scope (deferred 2026-10-20).** iOS waits until Android and the admin are done; the boxes below are marked `[-]` and don't block this phase.
+- [-] Swipe-back navigation (`NavProvider.tsx`)
+- [-] UPI payment links (`PaymentSheet.tsx`)
+- [-] Clear the stored session on first launch after a reinstall (the Keychain keeps it)
+- [-] The core-flow checklist passes on TestFlight; failures are fixed
 
 **Admin**
 - [ ] Every admin page works against the shared test project: users, tasks, payouts, refunds, disputes, support, CRM, copyright, money, reports, settings, security
@@ -301,7 +311,8 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
 - [ ] Control screens checked on the APK
 
 **iOS**
-- [ ] Control screens checked on TestFlight. The iOS map is Apple Maps, so no key is needed.
+- ⏸ **Future scope (deferred 2026-10-20).** iOS waits until Android and the admin are done; the boxes below are marked `[-]` and don't block this phase.
+- [-] Control screens checked on TestFlight. The iOS map is Apple Maps, so no key is needed.
 
 **Admin**
 - [ ] New **App controls** page: every switch per platform, minimum versions, maintenance, banner
@@ -313,7 +324,7 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
 **Verify**
 - [ ] The new web bundle contains no Google key
 - [ ] A bid containing a phone number sent straight to the API is rejected, on the old app too
-- [ ] Posting switched off for iOS only: refused on iPhone, even by direct API call; still works on web and Android
+- [-] Posting switched off for iOS only: refused on iPhone, even by direct API call; still works on web and Android
 - [ ] Maintenance mode for Android only shows the screen on Android only
 - [ ] An older upgraded build sees "Update the app" on Android and iOS
 - [ ] The old app and old admin still work
@@ -323,8 +334,8 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
 ## Phase 4: Accounts and sign-in
 
 **Backend**
-- [ ] **(You)** In Apple Developer: App ID with Sign in with Apple, a Services ID and a Sign in with Apple key
-- [ ] Enable Apple in Supabase Auth, with redirect URLs (`taskdrop://auth-callback`, `https://taskdrop.in`, localhost) added to the existing list
+- [-] **(You)** In Apple Developer: App ID with Sign in with Apple, a Services ID and a Sign in with Apple key
+- [-] Enable Apple in Supabase Auth, with redirect URLs (`taskdrop://auth-callback`, `https://taskdrop.in`, localhost) added to the existing list
 - [ ] The upgraded app's phone login uses Supabase's built-in phone auth, with a Send-SMS hook calling MSG91
 - [ ] Every existing protection kept:
   - throttles
@@ -337,7 +348,7 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
 - [ ] `password-auth` keeps username + password working, looking up the username and signing in with the account's phone or email
 - [ ] `handle_new_user` takes names from Google/Apple
 - [ ] Manual identity linking enabled
-- [ ] Account deletion revokes the Apple token for Apple users (App Store rule; check Apple's current rules when building)
+- [-] Account deletion revokes the Apple token for Apple users (App Store rule; check Apple's current rules when building)
 
 **User app (all platforms)**
 - [ ] `expo-crypto` added; PKCE uses S256 (`lib/supabase.ts`)
@@ -352,8 +363,9 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
 - [ ] Google and Apple sign-in through the browser flow; phone; username + password
 
 **iOS**
-- [ ] Apple sign-in native: `expo-apple-authentication` → `signInWithIdToken` with an `expo-crypto` nonce; `usesAppleSignIn: true`
-- [ ] Google sign-in through the browser flow; phone; username + password
+- ⏸ **Future scope (deferred 2026-10-20).** iOS waits until Android and the admin are done; the boxes below are marked `[-]` and don't block this phase.
+- [-] Apple sign-in native: `expo-apple-authentication` → `signInWithIdToken` with an `expo-crypto` nonce; `usesAppleSignIn: true`
+- [-] Google sign-in through the browser flow; phone; username + password
 
 **Admin**
 - [ ] User page: sign-in methods (phone / Google / Apple), devices with platform and app version, last seen
@@ -368,10 +380,10 @@ Version 4.1, 2026-10-07. The single source of truth for the upgrade. Part A is t
   |---|---|---|---|---|
   | Web | [ ] | [ ] | [ ] | [ ] |
   | Android | [ ] | [ ] | [ ] | [ ] |
-  | iOS | [ ] | [ ] | [ ] | [ ] |
+  | iOS (later) | [-] | [-] | [-] | [-] |
 - [ ] Existing test users still sign in with their phone
 - [ ] Linking a second method works; no duplicate accounts
-- [ ] Deleting an Apple account revokes its token
+- [-] Deleting an Apple account revokes its token
 
 ---
 
@@ -433,8 +445,9 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [ ] Tapping a push opens the right screen
 
 **iOS**
-- [ ] Push for every notification type arrives through Inngest
-- [ ] Tapping a push opens the right screen
+- ⏸ **Future scope (deferred 2026-10-20).** iOS waits until Android and the admin are done; the boxes below are marked `[-]` and don't block this phase.
+- [-] Push for every notification type arrives through Inngest
+- [-] Tapping a push opens the right screen
 
 **Admin**
 - [ ] Payout queue shows the "queued" state
@@ -488,8 +501,9 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [ ] Images load fast on mobile data
 
 **iOS**
-- [ ] Camera and library uploads work, including HEIC photos (check ImageKit converts them)
-- [ ] Images load fast
+- ⏸ **Future scope (deferred 2026-10-20).** iOS waits until Android and the admin are done; the boxes below are marked `[-]` and don't block this phase.
+- [-] Camera and library uploads work, including HEIC photos (check ImageKit converts them)
+- [-] Images load fast
 
 **Admin**
 - [ ] Copyright, user and task views show ImageKit images through server-side signing
@@ -527,7 +541,8 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [ ] Report and block work on the APK
 
 **iOS**
-- [ ] Report and block work on TestFlight. Apple requires this (guideline 1.2).
+- ⏸ **Future scope (deferred 2026-10-20).** iOS waits until Android and the admin are done; the boxes below are marked `[-]` and don't block this phase.
+- [-] Report and block work on TestFlight. Apple requires this (guideline 1.2).
 
 **Admin**
 - [ ] Reports queue:
@@ -544,7 +559,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 **Verify**
 - [ ] A reported message hidden from admin disappears for both users on web, Android and iOS
 - [ ] A blocked user can't contact the blocker on any platform
-- [ ] A broadcast to "iOS only" reaches only iPhones
+- [-] A broadcast to "iOS only" reaches only iPhones
 - [ ] Every action is in the audit log
 
 ---
@@ -552,7 +567,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 ## Phase 8: Store readiness
 
 **Web**
-- [ ] Privacy policy, terms and support pages live on `taskdrop.in`, needed by both stores
+- [ ] Privacy policy, terms and support pages live on `taskdrop.in`, needed by both stores. (Built 2026-10-19 as `?page=terms`, `?page=privacy`, `?page=support`, all public; text traced to code in `docs/LEGAL_AUDIT.md`. Open: the domain, `EXPO_PUBLIC_LEGAL_*` values, lawyer review.)
 - [ ] Map tiles (`MapPicker`) and the fallback search use a provider's free tier, or the volume is confirmed low. OpenStreetMap's public servers don't allow heavy commercial use.
 
 **Android**
@@ -561,21 +576,22 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [ ] **(You)** Closed test with at least 12 testers for 14 days (required before a production release)
 
 **iOS**
-- [ ] **(You)** App Store listing: screenshots, privacy labels, support and privacy URLs
-- [ ] Reviewer demo login (a test phone with a fixed code), plus review notes
-- [ ] Before review:
-  - [ ] Apple sign-in works
-  - [ ] report and block are live
-  - [ ] account deletion works
-  - [ ] the iOS promotion switch is ready
-- [ ] `submit.ios` in `eas.json`
+- ⏸ **Future scope (deferred 2026-10-20).** iOS waits until Android and the admin are done; the boxes below are marked `[-]` and don't block this phase.
+- [-] **(You)** App Store listing: screenshots, privacy labels, support and privacy URLs
+- [-] Reviewer demo login (a test phone with a fixed code), plus review notes
+- [-] Before review:
+  - [-] Apple sign-in works
+  - [-] report and block are live
+  - [-] account deletion works
+  - [-] the iOS promotion switch is ready
+- [-] `submit.ios` in `eas.json`
 
 **Admin**
 - [ ] Ready to handle reviewer reports within 24 hours; runbook checked
 
 **Verify**
 - [ ] On the Play closed test and on TestFlight: post → bid → pay → complete → withdraw works
-- [ ] Apple sign-in works on iPhone
+- [-] Apple sign-in works on iPhone
 - [ ] Push arrives on both platforms
 - [ ] An EAS Update installs on both
 
@@ -587,7 +603,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [ ] **(You)** Approve the switch-over
 - [ ] **Move everyone to the upgraded app:**
   - [ ] **Android:** testers install the upgraded build; the old APK retires
-  - [ ] **iOS:** TestFlight continues on `main` (iOS only ever had the upgraded app)
+  - [-] **iOS:** TestFlight continues on `main` (iOS only ever had the upgraded app)
   - [ ] **Web:** the old Vercel URL redirects to `taskdrop.in`
   - [ ] **Admin:** the old admin URL redirects to `admin.taskdrop.in`
   - [ ] The old app (requests without the platform header) gets the "Update the app" screen, set from app controls
@@ -628,7 +644,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [ ] **Web:** production on `taskdrop.in`; the beta moves to `beta.taskdrop.in`; Vercel Pro ($20/month)
 - [ ] **Admin:** production on `admin.taskdrop.in`; beta admin on `beta-admin.taskdrop.in`
 - [ ] **Android:** Play production release
-- [ ] **iOS:** App Store submission and release
+- [-] **iOS:** App Store submission and release
 - [ ] **Legal:**
   - [ ] **(You)** Register the DMCA agent (`EXPO_PUBLIC_COPYRIGHT_AGENT_*`)
   - [ ] `EXPO_PUBLIC_LEGAL_*` and the grievance-officer variables set
@@ -662,7 +678,7 @@ You started this because the app felt clumsy and parts weren't working as expect
 6. **Sign-in:** Google, Apple, phone OTP and username + password, with account linking.
 7. **Reliable background work:** Inngest.
 8. **Faster app:** ImageKit and query fixes.
-9. **Three platforms:** web, Android and iOS all tested in every phase.
+9. **Three platforms:** web and Android are tested in every phase now; iOS joins later (future scope, section 12).
 10. **Customers:** a customer launch when you decide.
 
 ## 2. Decisions
@@ -675,7 +691,7 @@ You started this because the app felt clumsy and parts weren't working as expect
 | Branch | All upgrade work on **`upgraded-plan-changes`**; old code never altered |
 | Code review | **CodeRabbit** AI review on every pull request, plus CI |
 | Stage | Testing only: fake data, you + ~10 testers, no customers |
-| Platforms | User app on web + Android + iOS (one Expo app); admin as a separate web app |
+| Platforms | User app on web + Android + iOS (one Expo app); admin as a separate web app. **iOS is future scope (2026-10-20): web, Android and admin first** |
 | Sign-in | Google, Apple, phone OTP, username + password. No separate email sign-in. Admin login unchanged |
 | Phone login | Supabase's built-in phone login with a Send-SMS hook to MSG91 |
 | Phone number | Optional; the "require verified phone" switch is off |
@@ -1057,6 +1073,8 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
+- **v4.10 (2026-10-20):** scope decision. **iOS is future scope**: focus is web, Android and the admin app. Every iOS section is marked `[-]` (deferred); Sign in with Apple and the Apple Developer account wait with it; a phase is done when its boxes are ticked or deferred. New Part B section 12 lists what waits. No code removed.
+
 - **v1–v2.2 (2026-10-07):**
   - first plan, then architecture, stack, environments and the admin control center
   - testing stage with fake data; built-in phone login; optional phone
@@ -1106,3 +1124,25 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 - **v4.2 (2026-10-12):** your branch decision.
   - **`redesigned-2.0` replaces `upgraded-plan-changes`** in both repos. Everything is merged and tested there (Vercel preview); you promote it to `main` by hand. Only `main` and `redesigned-2.0` stay on GitHub; phase branches are deleted once merged.
   - The Redesign v2 work (was `taskdrop-redesigned`), the staff-roles migration 089 and the Phase 1 Sentry work all live on `redesigned-2.0`.
+
+## 12. Future scope: iOS
+
+Decided 2026-10-20: focus is web, Android and the admin app. Everything below is kept, marked `[-]` in Part A, and picked up when you say "start iOS".
+
+| Phase | What waits |
+|---|---|
+| 0 | Apple Developer Program enrollment ($99/year) |
+| 1 | `app.json` iOS block, `eas.json` iOS `beta` profile, App Store Connect record + APNs key, first TestFlight build, iPhone testers |
+| 2 | Swipe-back, UPI links, Keychain session clean-up, core-flow checklist on TestFlight |
+| 3 | iOS control-screen checks; iOS-only posting switch test (the switch itself stays in app controls) |
+| 4 | Sign in with Apple (Apple Developer IDs/keys, Supabase Apple provider, native `expo-apple-authentication`, token revocation on account deletion) |
+| 5 | Push through Inngest on iPhone |
+| 6 | Camera/library uploads, HEIC, image speed on iPhone |
+| 7 | Report/block on TestFlight (Apple guideline 1.2); "iOS only" broadcast test |
+| 8 | App Store listing, reviewer demo login, `submit.ios`, Apple sign-in and promotion-switch readiness |
+| 9 | TestFlight tester move |
+| 10 | App Store submission and release |
+
+**Why it can wait:** the app is one Expo codebase, so iOS reuses the same screens; most of the cost is accounts, store setup and device testing. App controls already has an iOS platform switch, so nothing needs undoing later.
+
+**When iOS starts:** enroll first (approval takes days), then re-read the iOS sections of Phases 0 to 10 and turn `[-]` back into `[ ]`.

@@ -31,7 +31,7 @@ export function incomingTaskId(): string | null {
 }
 
 /** Public pages a link can open directly, signed in or not: ?page=<name>. */
-const PUBLIC_PAGES = ['copyright', 'terms', 'privacy'] as const;
+const PUBLIC_PAGES = ['copyright', 'terms', 'privacy', 'support'] as const;
 export type PublicPage = (typeof PUBLIC_PAGES)[number];
 
 /** The public page a visitor arrived for, if any. Web only. */
