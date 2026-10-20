@@ -75,9 +75,12 @@ await withDb(url, async (c) => {
     select (select count(*) from public.tasks where poster_id::text like '5eed0000%')::int as tasks,
            (select count(distinct status) from public.tasks where poster_id::text like '5eed0000%')::int as statuses,
            (select count(*) from auth.users where id::text like '5eed0000%')::int as users,
-           (select count(*) from public.wallets where user_id::text like '5eed0000%' and (balance_minor + credits_minor) > 0)::int as funded_wallets`);
+           (select count(*) from public.wallets where user_id::text like '5eed0000%' and (balance_minor + credits_minor) > 0)::int as funded_wallets,
+           -- NULL here makes GoTrue's admin user list answer 500, which breaks sign-in for everyone.
+           (select count(*) from auth.users where id::text like '5eed0000%'
+              and (confirmation_token is null or recovery_token is null or email_change_token_new is null or email_change is null))::int as null_tokens`);
   const r = rows[0];
-  if (r.tasks !== 12 || r.statuses !== 10 || r.users !== 4 || r.funded_wallets !== 3) {
+  if (r.tasks !== 12 || r.statuses !== 10 || r.users !== 4 || r.funded_wallets !== 3 || r.null_tokens !== 0) {
     throw new Error(`The seed did not produce what it should: ${JSON.stringify(r)}`);
   }
   console.log(`ok  - ${r.users} accounts, ${r.tasks} tasks in ${r.statuses} statuses, ${r.funded_wallets} funded wallets`);
