@@ -56,7 +56,7 @@ Version 4.18, 2026-10-20 (scope note 2026-10-20: iOS deferred). The single sourc
 
 | Phase | Name | Status |
 |---|---|---|
-| 0 | Foundations | In progress, 33 of 45 boxes ticked, 4 deferred, 8 open. Built and verified: CI and the old-app compatibility checks (first real run on PR 41), CodeRabbit on both repos, auto-deploy, forward-only migrations, seed and reset, config and env files, `taskdrop.in` connected. **Open, all yours:** make `taskdrop.in` public (Vercel Authentication is on), `support@` forwarding, Maps key restriction, EAS keystore backup, lawyer question, 12 testers, OK for the first seed reset, the by-hand old-app checklist. The first Vercel backend deploy ran on the merge of PR 41 |
+| 0 | Foundations | In progress, 35 of 45 boxes ticked, 4 deferred, 6 open, all yours: make `taskdrop.in` public (Vercel Authentication is on), `support@` forwarding (needs the address to forward to), Maps key restriction (blocked: Google needs two-step verification on the account), EAS keystore backup (needs your OK on where to save it), the lawyer question (`docs/LAWYER_BRIEF.md` is ready to send) and the 12 testers (`docs/TESTER_RECRUITMENT.md` is the kit). Done 2026-10-20: CI and the old-app compatibility checks, CodeRabbit on both repos, the first Vercel backend deploy, the first seed load, the by-hand old-app checklist (admin step excepted) |
 | 1 | See problems, ship fast | In progress, 1 of 22 boxes ticked |
 | 2 | Make it work (stabilize) | Not started, 0 of 18 boxes ticked |
 | 3 | Server decides everything | In progress, 10 of 36 boxes ticked |
