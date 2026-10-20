@@ -31,12 +31,16 @@ delete from auth.users where id in (
 
 -- ----------------------------------------------------------------- people ----
 -- The new-user trigger gives each one a profile, a wallet and the poster and worker roles.
+-- The four token columns are '' and not NULL on purpose: GoTrue's admin user list (which
+-- phone-auth uses to look a number up) answers 500 if any row has NULL there, and that breaks
+-- sign-in for every account, not just these.
 insert into auth.users (id, instance_id, aud, role, email, email_confirmed_at,
-                        raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+                        raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+                        confirmation_token, recovery_token, email_change_token_new, email_change)
 select v.id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', v.email, now(),
        '{"provider":"email","providers":["email"]}'::jsonb,
        jsonb_build_object('display_name', v.name) || case when v.phone is null then '{}'::jsonb else jsonb_build_object('phone', v.phone) end,
-       now(), now()
+       now(), now(), '', '', '', ''
 from (values
   ('5eed0000-0000-4000-8000-000000000001'::uuid, 'Asha (seed poster)',  'p9990000001@phone.taskdrop.app', '9990000001'),
   ('5eed0000-0000-4000-8000-000000000002'::uuid, 'Ravi (seed worker)',  'p9990000002@phone.taskdrop.app', '9990000002'),
