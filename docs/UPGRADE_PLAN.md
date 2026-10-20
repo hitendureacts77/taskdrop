@@ -27,6 +27,7 @@ Version 4.1, 2026-10-07 (scope note 2026-10-20: iOS deferred). The single source
 2. **All upgrade work happens on `redesigned-2.0`**, in both repos (it replaced `upgraded-plan-changes` on 2026-10-12; read that name as `redesigned-2.0` throughout this plan). `main` is promoted from it by hand, by you, once it's tested.
    - Each phase gets a short branch, such as `upgrade/phase-1-sentry`, cut from `redesigned-2.0` and deleted after it merges.
    - It merges back through a pull request, after CI and a **CodeRabbit** review.
+   - Only `main` and `redesigned-2.0` stay on GitHub and on your PC (decided 2026-10-20). A phase branch lives only until its pull request merges. Your PC has two folders, `Taskdrop user` and `Taskdrop administrator`, and no extra clones or worktrees.
 3. **The old app keeps running for your testers**, on its current URLs, until the switch-over (Phase 9).
 4. **One shared database until the switch-over.** The old app, the old admin and the upgrade all use the Supabase project `wjxvingpfbfvkfqhrguj`, and its server functions are shared too. Until Phase 9, every backend change must keep the old app and the old admin working:
    - migrations only **add** (new tables, columns, functions); nothing old is dropped or renamed
@@ -40,6 +41,10 @@ Version 4.1, 2026-10-07 (scope note 2026-10-20: iOS deferred). The single source
    - Nothing in the code is removed: the app still builds for iOS, and the iOS-only code paths stay.
    - Full list of what waits: Part B, section 12 "Future scope: iOS".
 7. **Stage: testing only.** Fake data, you and about 10 testers, no customers. Customer launch (Phase 10) happens only when you decide.
+8. **Supabase: the cloud project is the test environment (decided 2026-10-20).** We test directly on the hosted project `wjxvingpfbfvkfqhrguj`; whatever is in the cloud now is treated as testing. No local Supabase and no Docker on your PC.
+   - Fake data only. A destructive step (wipe, reseed, reset) still runs only with your OK, and never on production.
+   - The one throwaway database is in CI: GitHub Actions starts a temporary one inside each run to execute the SQL tests. It never touches the cloud project.
+9. **Order of work: phase by phase (decided 2026-10-20).** We go 0 → 10 in order. A phase is closed when every box is ticked or deferred (`[-]`). If a box waits on something only you can do, work continues on that phase's other boxes, and the blocker is listed on the Progress board.
 
 ---
 
@@ -51,17 +56,17 @@ Version 4.1, 2026-10-07 (scope note 2026-10-20: iOS deferred). The single source
 
 | Phase | Name | Status |
 |---|---|---|
-| 0 | Foundations | In progress |
-| 1 | See problems, ship fast | Not started |
-| 2 | Make it work (stabilize) | Not started |
-| 3 | Server decides everything | Not started |
-| 4 | Accounts and sign-in | Not started |
-| 5 | Background jobs (Inngest) | In progress (outbox, alerts, push, prunes built; rest pending) |
-| 6 | Speed and media (ImageKit) | In progress (built on branch `phase-6-imagekit`; not applied or deployed; needs your ImageKit secrets and device tests) |
-| 7 | Moderation and admin tools | Not started |
-| 8 | Store readiness | Not started |
-| 9 | Switch-over to the upgraded app | Not started |
-| 10 | Customer launch (later, when you decide) | Not started |
+| 0 | Foundations | In progress, 6 of 38 boxes ticked. Done: branch on GitHub, CI on both repos, `taskdrop.in` bought. **Blocked on you:** connect the domain in Vercel and Spaceship DNS, `support@` forwarding, Maps key restriction, EAS keystore backup, lawyer question, 12 testers |
+| 1 | See problems, ship fast | In progress, 1 of 22 boxes ticked |
+| 2 | Make it work (stabilize) | Not started, 0 of 18 boxes ticked |
+| 3 | Server decides everything | In progress, 10 of 36 boxes ticked |
+| 4 | Accounts and sign-in | Not started, 0 of 21 boxes ticked |
+| 5 | Background jobs (Inngest) | In progress, 11 of 42 boxes ticked (outbox, alerts, push, prunes built; Inngest Cloud keys are yours to set) |
+| 6 | Speed and media (ImageKit) | In progress, 13 of 24 boxes ticked (merged; migration 109 applied 2026-10-19; off until your ImageKit keys are set; device tests open) |
+| 7 | Moderation and admin tools | Not started, 0 of 23 boxes ticked |
+| 8 | Store readiness | Not started, 0 of 9 boxes ticked |
+| 9 | Switch-over to the upgraded app | Not started, 0 of 26 boxes ticked |
+| 10 | Customer launch (later, when you decide) | Not started, 0 of 27 boxes ticked |
 
 ## Coverage: what each phase changes
 
@@ -87,7 +92,7 @@ Version 4.1, 2026-10-07 (scope note 2026-10-20: iOS deferred). The single source
 - [x] This plan written as one file with to-dos for every phase
 - [x] Branch `upgraded-plan-changes` created in the user repo from the newest work (commit 3d4bd72)
 - [x] Branch `upgraded-plan-changes` created in the admin repo from `main`
-- [ ] Push `upgraded-plan-changes` to GitHub in both repos **(You: approve the push)**
+- [x] Push the upgrade branch to GitHub in both repos. Done; the branch is now `redesigned-2.0` in both repos (2026-10-20)
 - [ ] Protect the old branches on GitHub so nothing merges into them by accident
 - [ ] Rule written into the README: phase branches `upgrade/phase-N-<name>` → pull request into `upgraded-plan-changes`
 
@@ -95,7 +100,7 @@ Version 4.1, 2026-10-07 (scope note 2026-10-20: iOS deferred). The single source
 - [ ] **(You)** Sign up at coderabbit.ai with GitHub and install the CodeRabbit app on both repos. If they're private: a 14-day trial, then $24/developer/month billed annually; public repos are free.
 - [ ] Turn on auto-review for pull requests into `upgraded-plan-changes`
   - It isn't the default branch, so it must be listed under `reviews.auto_review.base_branches` (`^upgraded-plan-changes$`), and check at setup that the setting takes effect.
-- [ ] Add `.coderabbit.yaml` on `upgraded-plan-changes`, with path instructions:
+- [ ] Add `.coderabbit.yaml` on `redesigned-2.0` in both repos, with path instructions (the user repo has one; the admin repo has none as of 2026-10-20):
   - `supabase/migrations/**`: RLS on every table, `security definer` functions set `search_path`, money changes are atomic, no grants to `anon`
   - `supabase/functions/**`: caller identity checked, no secrets logged, webhooks verified and idempotent, errors reported to Sentry
   - `apps/mobile/**`: no secrets, no business decisions in the app, platform differences handled for web/Android/iOS
@@ -104,25 +109,25 @@ Version 4.1, 2026-10-07 (scope note 2026-10-20: iOS deferred). The single source
 - [ ] Rule: every CodeRabbit comment is fixed or answered before merging
 
 **CI (GitHub Actions), on every pull request into `upgraded-plan-changes`**
-- [ ] User repo: typecheck, `npm test`, `api` function tests, SQL tests against a local Supabase started in CI
-- [ ] Admin repo: typecheck, build, and database types generated from Supabase, so they can't drift
+- [x] User repo: typecheck, lint, `npm test` (includes the `api` function tests), a Deno type-check of the Inngest function, and the SQL tests against a throwaway database that GitHub Actions starts for the run (not your cloud project). Running on every pull request (seen on PR 38, 2026-10-20)
+- [ ] Admin repo: typecheck, lint, audit and build already run on every pull request; still open: database types generated from Supabase, so they can't drift
 
 **Shared test project (`wjxvingpfbfvkfqhrguj`)**
 - [ ] Auto-deploy on merge into `upgraded-plan-changes` (R2): migrations (`supabase db push`), functions, then the Inngest sync once it exists
 - [ ] Compatibility check in CI, run before every deploy: the old app's `api` operations still accept the same inputs and return the same fields (a contract test)
 - [ ] Before each deploy that changes the backend, a quick check on the old app: sign in, browse, post, chat
 
-**Local development (your PC)**
-- [ ] **(You)** Install Docker Desktop (with WSL 2)
-- [ ] `supabase start` and `supabase functions serve`, using a git-ignored `supabase/functions/.env.local` with test keys
-- [ ] One command resets the local database to the fake-data seed:
+**Development on your PC (against the cloud test project, ground rule 8)**
+- [-] **(You)** Install Docker Desktop (with WSL 2). Not needed: we test on the cloud Supabase project.
+- [-] `supabase start` and `supabase functions serve` on your PC. Replaced by: the app and admin read the cloud project's URL and keys from git-ignored env files, and functions are deployed to the cloud project.
+- [ ] One command resets the **cloud test project** to the fake-data seed (only with your OK, ground rule 8):
   - poster, worker and admin accounts
   - test phones with fixed codes
   - tasks in every status
   - wallets with fake credits
 
   On the shared test project, a reset also changes what old-app testers see, so it only runs with your OK. It never runs on production.
-- [ ] README section: "Run TaskDrop locally"
+- [ ] README section: "Run TaskDrop against the cloud test project" (web, Android over USB, admin on port 3001)
 
 **Config in code**
 - [ ] Supabase auth settings in `supabase/config.toml`
@@ -130,7 +135,11 @@ Version 4.1, 2026-10-07 (scope note 2026-10-20: iOS deferred). The single source
 - [ ] Secrets inventory (Part B, section 7) checked against reality
 
 **Web**
-- [ ] **(You)** Buy `taskdrop.in` (Part B, section 8)
+- [x] **(You)** Buy `taskdrop.in`. **Bought on Spaceship.com** (you confirmed 2026-10-20; Part B, section 8)
+- [ ] **(You)** Connect `taskdrop.in` to Vercel. Checked 2026-10-20: it still uses Spaceship's nameservers and points at Spaceship's default hosting addresses, not Vercel, and `admin.taskdrop.in` has no DNS record yet.
+  - In Vercel, open the `taskdrop` project → Settings → Domains → add `taskdrop.in` and `www.taskdrop.in`. Vercel then shows the exact DNS records it wants.
+  - In Spaceship, open `taskdrop.in` → DNS: remove the default parking records for `@` and `www`, then add what Vercel shows (normally an `A` record for `@` and a `CNAME` for `www` pointing to `cname.vercel-dns.com`).
+  - Wait until Vercel shows a valid configuration and the HTTPS certificate. DNS can take from minutes to a few hours.
 - [ ] Vercel project `taskdrop`: assign `taskdrop.in` + `www` to the `upgraded-plan-changes` branch. The old production branch keeps its current URL.
 - [ ] Add `taskdrop.in` to the project's redirect URLs (adding to the list leaves the old URLs working); `EXPO_PUBLIC_APP_URL=https://taskdrop.in` on the upgrade branch
 - [ ] **(You)** `support@taskdrop.in` via free email forwarding
@@ -146,6 +155,7 @@ Version 4.1, 2026-10-07 (scope note 2026-10-20: iOS deferred). The single source
 
 **Admin**
 - [ ] Vercel admin project: assign `admin.taskdrop.in` to the `upgraded-plan-changes` branch. The old admin keeps its current URL.
+  - **(You)** In Spaceship DNS, add a `CNAME` for `admin` pointing to the value Vercel shows for the admin project (normally `cname.vercel-dns.com`).
 - [ ] Add redirect URL `https://admin.taskdrop.in/auth/callback`
 - [ ] Admin `.env.example` and README updated for local and beta
 
@@ -157,7 +167,7 @@ Version 4.1, 2026-10-07 (scope note 2026-10-20: iOS deferred). The single source
 - [ ] A test pull request into `upgraded-plan-changes` runs CI (including the compatibility check) and gets a CodeRabbit review
 - [ ] Merging deploys to the shared test project
 - [ ] `taskdrop.in` and `admin.taskdrop.in` load the upgrade branch
-- [ ] The whole app (web in a browser, Android over Wi-Fi, admin) runs on your PC against the local stack
+- [ ] The whole app (web in a browser, Android over USB or Wi-Fi, admin) runs on your PC against the cloud test project. Web and Android over USB checked 2026-10-20; the admin dev server is still to check
 - [ ] **The old app and old admin still work unchanged** at their current URLs
 
 ---
@@ -235,7 +245,7 @@ Version 4.1, 2026-10-07 (scope note 2026-10-20: iOS deferred). The single source
 - [ ] Swallowed errors (`.catch(() => {})`) on money screens now show a message and report to Sentry
 
 **Web**
-- [ ] Playwright end-to-end tests on the web build against the local stack, run in CI:
+- [ ] Playwright end-to-end tests on the web build against the cloud test project (test accounts only), run in CI:
   - sign-in with a test phone
   - the wallet-funded money path: post → bid → lock → fund → start → proof → done → confirm → review → withdraw request
   - cancel with a fine
@@ -393,7 +403,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 
 **Backend: setup**
 - [x] Edge function `supabase/functions/inngest/` using `serve` from `inngest/edge`, `servePath: "/functions/v1/inngest"`, `verify_jwt = false`
-- [ ] Your PC:
+- [-] Your PC: an Inngest dev server against a local Supabase. Not needed now; we use Inngest Cloud with the cloud test project (ground rule 8). The lines below apply only if a local stack is ever added.
   - run `npx inngest-cli@latest dev -u http://127.0.0.1:54321/functions/v1/inngest` (UI at `localhost:8288`)
   - functions run with `INNGEST_DEV=1`
   - the local database sends events to `host.docker.internal:8288`
@@ -698,11 +708,13 @@ You started this because the app felt clumsy and parts weren't working as expect
 | Payments | Existing Razorpay escrow + RazorpayX payouts, audited not rewritten |
 | Promotion on iOS | Razorpay, with a per-platform switch to hide it on iOS if Apple objects |
 | Media | Images to ImageKit; videos and documents stay in Supabase Storage |
-| Background jobs | Inngest. Dev server on your PC; Inngest Cloud free plan for the hosted test project |
+| Background jobs | Inngest Cloud free plan with the cloud test project (no local dev server needed) |
 | Expo / EAS | No EAS Hosting (web is on Vercel). EAS for app builds, and **EAS Update** for over-the-air updates to testers (R1) |
 | Database | **One shared test project** (`wjxvingpfbfvkfqhrguj`) for the old app and the upgrade until Phase 9; upgrade changes stay compatible with the old app |
 | Deploys | **Auto-deploy** to the shared test project on merge into `upgraded-plan-changes` (R2) |
 | Hosting now | Free plans (Vercel Hobby, Supabase free) while testing |
+| Supabase testing | **The cloud project is the test environment** (2026-10-20): test directly on `wjxvingpfbfvkfqhrguj`; no local Supabase or Docker. CI uses a throwaway database only to run the SQL tests |
+| Domain | **`taskdrop.in` is bought on Spaceship.com** (2026-10-20); the admin app uses `admin.taskdrop.in`. DNS stays at Spaceship |
 | Admin control | The admin controls web, Android and iOS, enforced on the server |
 
 ### Recommendations
@@ -812,7 +824,7 @@ You started this because the app felt clumsy and parts weren't working as expect
 | | Old app (code untouched) | Upgrade: your PC | Upgrade: hosted beta |
 |---|---|---|---|
 | Code | `main` (and the other old branches) | Phase branches | `upgraded-plan-changes` |
-| Supabase | `wjxvingpfbfvkfqhrguj`, **shared** with the upgrade | Local Docker stack | `wjxvingpfbfvkfqhrguj`, **shared** (compatibility rules apply) |
+| Supabase | `wjxvingpfbfvkfqhrguj`, **shared** with the upgrade | The same cloud project (no local stack) | `wjxvingpfbfvkfqhrguj`, **shared** (compatibility rules apply) |
 | Web | Current Vercel URL | `expo start` in a browser | `taskdrop.in` |
 | Android | Existing preview APK | Your phone over Wi-Fi | `beta` APK + EAS Update channel `beta` |
 | iOS | — | — (needs a build) | TestFlight internal + channel `beta` |
@@ -1003,12 +1015,12 @@ At the end of every phase:
 
 | Item | Cost | When |
 |---|---|---|
-| Domain `taskdrop.in` | ~$5–6/year | Phase 0 |
+| Domain `taskdrop.in` | ~$5–6/year. **Already bought on Spaceship.com**; keep auto-renew on | done |
 | Supabase (shared test project) | Free | now |
 | Vercel (web + admin) | Free (Hobby) while testing | now |
 | CodeRabbit | Free for public repos; private repos 14-day trial, then $24/developer/month (annual) | Phase 0 |
 | Apple Developer Program | $99/year | Phase 0 |
-| Docker Desktop | Free for personal and small-business use | Phase 0 |
+| Docker Desktop | Not needed (we test on the cloud Supabase project) | n/a |
 | Sentry, Uptime Robot, EAS Build and Update | Free tiers to start; check limits | Phase 1 |
 | Inngest | Dev server free; Inngest Cloud free plan | Phase 5 |
 | ImageKit | Free tier to start; check limits | Phase 6 |
@@ -1020,6 +1032,8 @@ At the end of every phase:
 | DMCA agent | ~$6 every 3 years | Phase 10 |
 
 ### Domain: where to buy `taskdrop.in`
+
+**Bought on Spaceship.com (you confirmed 2026-10-20), so the comparison below is history.** DNS stays at Spaceship; connect it to Vercel as described in Phase 0, Web.
 
 Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); availability of `taskdrop.in` not checked.
 
@@ -1073,6 +1087,8 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
+- **v4.12 (2026-10-20):** three owner decisions. (1) **Supabase is tested directly in the cloud**: the hosted project is the test environment, with no local Supabase or Docker (new ground rule 8; Docker, `supabase start` and the local Inngest dev server marked `[-]`; CI keeps its throwaway database for SQL tests only). (2) **`taskdrop.in` is bought on Spaceship.com**; DNS check the same day: still on Spaceship's default addresses, not connected to Vercel, no `admin` record; the connection steps are now in Phase 0. (3) **Work goes phase by phase** (new ground rule 9); the Progress board now shows ticked boxes per phase and what is blocked on you.
+- **v4.11 (2026-10-20):** repo clean-up, merge and phone test. Both repos keep only `main` and `redesigned-2.0`, locally and on GitHub; Dependabot branches were deleted (it reopens them on its schedule, aimed at `main`). Everything outstanding was merged into `redesigned-2.0` by PR 38: migration 108 (account deletion also erases chat messages), native headers on the remaining pushed screens (the old PR 33), the legal drafts (`docs/LEGAL_AUDIT.md`, `docs/legal/`), the Support page, web file-drop upload and the Home/Explore polish. Checked on `redesigned-2.0`: typecheck, lint, 46 user-app and 85 admin unit tests, web and admin production builds, and an Android pass over USB in Expo Go (all five tabs, Earn mode, task detail, Messages, Help & support, Account & settings, Edit profile, Terms). **Not done:** migration 108 is not applied to the hosted database (it sorts before the applied 109, so use `supabase db push --include-all`); the legal settings (`EXPO_PUBLIC_LEGAL_*`) and the lawyer review are still open, so Terms and Privacy show the draft banner; money flows, push notifications and the signed-in admin were not retested; iOS stays future scope.
 - **v4.10 (2026-10-20):** scope decision. **iOS is future scope**: focus is web, Android and the admin app. Every iOS section is marked `[-]` (deferred); Sign in with Apple and the Apple Developer account wait with it; a phase is done when its boxes are ticked or deferred. New Part B section 12 lists what waits. No code removed.
 
 - **v1–v2.2 (2026-10-07):**
