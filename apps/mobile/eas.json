@@ -17,6 +17,20 @@
         "EXPO_PUBLIC_SENTRY_REPLAY_RATE": "1"
       }
     },
+    "beta": {
+      "distribution": "internal",
+      "environment": "preview",
+      "channel": "beta",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://wjxvingpfbfvkfqhrguj.supabase.co",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://599a574f9339e096caaae5ca5d36aa82@o4512219654389760.ingest.us.sentry.io/4512219688009728",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "beta",
+        "EXPO_PUBLIC_SENTRY_REPLAY_RATE": "1"
+      }
+    },
     "production": {
       "distribution": "store",
       "environment": "production",
