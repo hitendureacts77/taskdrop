@@ -51,7 +51,7 @@ npm run db:types       # regenerate DB types after a schema change
 
 - Ref: `wjxvingpfbfvkfqhrguj` · Region: `ap-south-1` (Mumbai)
 - URL: https://wjxvingpfbfvkfqhrguj.supabase.co
-- **This cloud project is the test environment.** There is no local Supabase and no Docker: we test directly on it, with fake data only. Destructive steps (wipe, reseed) need the owner's OK.
+- **This cloud project is the test environment.** There is no local Supabase and no Docker: we test directly on it, with fake data only. It is **shared with the old app and old admin** until Phase 9, so a destructive change there affects their testers too: wipe, reseed and reset steps need the owner's OK.
 
 ## Run TaskDrop against the cloud test project
 
