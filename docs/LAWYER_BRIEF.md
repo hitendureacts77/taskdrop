@@ -12,12 +12,12 @@ An online marketplace in India (₹, UPI). A person posts a task in plain words 
 
 | Step | What happens | Where it is decided |
 |---|---|---|
-| 1 | The poster chooses an offer. They pay the **offer price + a 3% service fee** through **Razorpay**. | Server only; constants in `packages/rules` |
+| 1 | The poster chooses an offer. They pay the **offer price + a service fee** through **Razorpay**. The fee is **3% by default**; the live value is the admin-editable setting `poster_service_fee_pct`, so it can change. | Server only; default in `packages/rules`, live value in the `settings` table |
 | 2 | The money is **held** (the code calls it escrow) while the work is done. The worker sees it is protected. | Postgres rules + Razorpay webhook |
 | 3 | The worker submits proof of work. The poster has **3 days** to approve, ask for a revision, or report a problem. If they do nothing the task **auto-completes**. | Scheduled job |
 | 4 | On completion the worker is credited the price **minus an admin-set commission (currently 10%)**. Earnings sit as "clearing" for **7 days**, then become available. | Postgres |
 | 5 | The worker **withdraws** to UPI or a bank account through **RazorpayX payouts**, after giving a legal name and PAN. Minimum ₹100. | RazorpayX + `payout_profiles` |
-| 6 | Cancelling **after work has started** costs the poster a **5% fine**; the rest is refunded. Before work starts, a cancel is refunded in full. | Postgres |
+| 6 | Cancelling **after work has started, for the normal reason**, costs the poster a **5% fine**; the rest is refunded. Cancelling because the worker is overdue is a separate case that the rules do not fine (ask the owner to confirm how it behaves before relying on this). Before work starts, a cancel is refunded in full. | Postgres |
 | 7 | Disputes are decided by TaskDrop staff in an admin panel, who can release to the worker or refund the poster. | Admin panel, audit-logged |
 
 Other things that matter for the questions below:
@@ -32,11 +32,11 @@ Other things that matter for the questions below:
 **A. RBI and payments (the main one)**
 1. Does holding the poster's money until approval, and then crediting a **withdrawable wallet**, make TaskDrop a prepaid payment instrument issuer, a payment aggregator, or neither? Does the wallet need RBI authorisation?
 2. If authorisation is needed, what is the smallest structure that avoids it: for example Razorpay's marketplace product (Route) holding the funds and splitting payouts, with TaskDrop only instructing it? What would change in the product (wallet, credits, 7-day clearing)?
-3. Is a **5% cancellation fine** and a **7-day clearing delay** acceptable, and how should they be disclosed?
+3. Is a **5% cancellation fine** (normal post-start cancels only) (normal post-start cancels only) and a **7-day clearing delay** acceptable, and how should they be disclosed?
 4. KYC: is name + PAN before the first withdrawal enough, or is more needed (for example for amounts above a threshold)?
 
 **B. Tax**
-5. **GST** on the 3% service fee and the worker commission: who charges it, at what rate, and what invoice does each side need?
+5. **GST** on the poster service fee (3% by default) and the worker commission: who charges it, at what rate, and what invoice does each side need?
 6. **TDS / TCS** for an e-commerce operator paying out to workers: does it apply, from what amount, and how is it reported? (`LEGAL_AUDIT.md` G14.)
 
 **C. Platform duties**
