@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.25, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.26, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -62,7 +62,7 @@ Version 4.25, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 | 3 | Server decides everything | In progress, 27 of 36 boxes ticked, 2 deferred, 9 open. All the code is done on branch `upgrade/phase-3-server-decides` (not pushed; migration 114 not applied). Open: `API_GATEWAY_SECRET` in the admin project and an admin redeploy (yours), the Maps key restriction (yours), the Phase 9 lockdown, and the checks that need an APK or a deployed build (control screens, Android-only maintenance, "Update the app", old app and old admin) |
 | 4 | Accounts and sign-in | In progress, 9 of 21 boxes ticked, 6 deferred, 12 open. Done on branch `upgrade/phase-4-accounts` (both repos, not pushed): server-side names for new accounts, S256 sign-in codes on phones, the onboarding fix, and the admin's sign-in card and "Sign out everywhere". **Not started on purpose:** Supabase's built-in phone auth with an SMS hook (replaces the working `phone-auth`; your call, see the box), the test-user phone migration that depends on it, and account linking. Left: "Allow manual linking" in Supabase (yours) and every Verify box (they need an APK and a sign-up on each platform) |
 | 5 | Background jobs (Inngest) | In progress, 12 of 42 boxes ticked, 3 deferred, 30 open. Added this session: the admin Alerts page (admin repo). **Everything else open here waits on something that is yours:** the Inngest Cloud account and its two keys (so nothing built can run or be checked), and the lawyer's answer on the money flow, which the plan and AGENTS.md say must come before the payout, refund-retry and webhook items are built. The built-but-unapplied jobs (push, overdue, prunes, account files, money sweeps) switch on with the cutover SQL in `supabase/cutover/` once the keys are set. Nothing in this phase was deployed |
-| 6 | Speed and media (ImageKit) | In progress, 13 of 24 boxes ticked (merged; migration 109 applied 2026-10-19; off until your ImageKit keys are set; device tests open) |
+| 6 | Speed and media (ImageKit) | In progress, 14 of 24 boxes ticked, 2 deferred, 10 open (merged; migration 109 applied 2026-10-19; **off until your ImageKit keys are set**, and every open box here needs them or a device: uploads to ImageKit, admin image views, phone checks, Verify). Only the web CSP box was closed this session |
 | 7 | Moderation and admin tools | Not started, 0 of 23 boxes ticked |
 | 8 | Store readiness | Not started, 0 of 9 boxes ticked |
 | 9 | Switch-over to the upgraded app | Not started, 0 of 26 boxes ticked |
@@ -507,7 +507,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [x] Slow long lists move to a virtualised list: Browse jobs (Explore, up to 60 results) and the Home search results use `ScreenList` (`components/ui.tsx`, a `FlatList`); the other lists are short and stay as they are
 
 **Web**
-- [ ] CSP allows ImageKit (uploads and CDN): the user app has no CSP yet (Phase 3 `vercel.json` item); the directives to include are in `docs/MEDIA.md`
+- [x] CSP allows ImageKit (uploads and CDN). The Phase 3 `vercel.json` CSP (report-only) lists `https://ik.imagekit.io` and `https://upload.imagekit.io` in `connect-src`, and images are allowed from any `https:` origin. Not seen live yet
 - [x] Drag-and-drop works on web (`useFileDrop`, `pickedFromFile`): the attach area on a post and the profile and onboarding photo pickers accept a dropped file and send it through `uploadMedia`; native is unchanged
 - [ ] Upload from file picker and drag-and-drop lands in ImageKit (needs migration 106 and the ImageKit secrets on the test project; until then the server hands out Supabase Storage uploads)
 
@@ -521,7 +521,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [-] Images load fast
 
 **Admin**
-- [ ] Copyright, user and task views show ImageKit images through server-side signing
+- [ ] Copyright, user and task views show ImageKit images through server-side signing. Not built: the admin panel shows no pictures at all today (only a "has media" flag), so this is a new feature, and it needs the ImageKit private key as a server secret in the admin Vercel project, which I do not enter. Waits for the ImageKit keys (see the first box)
 
 **Verify**
 - [ ] New photos are stored in ImageKit and recorded in `media`
@@ -1091,6 +1091,7 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
+- **v4.26 (2026-10-21):** Phase 6 reviewed: the web CSP box is closed by the Phase 3 `vercel.json`. Everything else open needs the ImageKit account keys or a phone. The admin has no image views to sign (new feature, needs the keys).
 - **v4.25 (2026-10-21):** Phase 5 reviewed. Only the admin Alerts page could be built without the Inngest keys or the lawyer's answer (admin repo, local). The payout queue, refund retries, webhook hand-off and the money-sweep cutover were deliberately not started: they change how real money moves and cannot be tried without Inngest Cloud.
 - **v4.24 (2026-10-21):** Phase 4, the safe boxes, on `upgrade/phase-4-accounts` in both repos (local, not pushed). New accounts take their name from Google/Apple (migration 115); phones use S256 sign-in codes (`lib/webcrypto.native.ts`); onboarding no longer offers an email or placeholder as a name; the admin gets a Sign-in card and a "Sign out everywhere" button (migration 116, admin repo). Sign-in switches have unit tests. **Deliberately not done:** replacing `phone-auth` with Supabase phone auth plus an SMS hook, the matching test-user migration, and Google/Apple account linking (needs manual linking switched on and a device). Migrations 115 and 116 are written and not applied.
 - **v4.23 (2026-10-21):** Phase 3, the code boxes, on `upgrade/phase-3-server-decides` (local, not pushed; it sits on the Phase 1 and 2 branches). The server now refuses contact details itself (`_shared/contacts.ts`, kept equal to the app's by a test) for quotes, proofs, posts, listings, names, bios and early chat. Promotion prices come from settings (migration 114). Fee figures read the live settings (`readFees`) and the app's previews use `platformFees` (`useFees`). `places-search` does reverse lookups and the OpenStreetMap fallback. `vercel.json` gets SPA rewrites and security headers (CSP in report-only). A fresh web export has no Google key. The admin already had the App controls page and the gateway header. Open for you: `API_GATEWAY_SECRET` in the admin project, the Maps key restriction, and the device and API checks (switches per platform, maintenance, minimum version) that need a deployed build.
