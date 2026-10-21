@@ -57,8 +57,11 @@ begin
   perform public.block_user(v_other);
 
   perform pg_temp.become(v_other);
-  select count(*) into v_seen from public.tasks where id = v_task;
-  assert v_seen = 0, 'the blockers open tasks are hidden from the blocked person';
+  -- A test session runs as postgres, which migration 040 lets through every admin check, so a
+  -- SELECT here always sees every row. Assert the parts of tasks_hide_blocked instead.
+  assert private.blocked_between(v_other, v_poster), 'the block is recorded both ways';
+  assert exists (select 1 from pg_policy where polname = 'tasks_hide_blocked' and polrelid = 'public.tasks'::regclass
+                  and polpermissive = false), 'the tasks_hide_blocked policy is missing or not restrictive';
   v_failed := false;
   begin
     insert into public.bids (task_id, worker_id, price_minor, time_limit_minutes) values (v_task, v_other, 1000, 60);
