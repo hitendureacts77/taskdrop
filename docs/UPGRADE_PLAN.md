@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.28, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.29, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -58,7 +58,7 @@ Version 4.28, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 |---|---|---|
 | 0 | Foundations | In progress, 36 of 46 boxes ticked, 4 deferred, 6 open, all yours: the old admin check (needs your login), make `taskdrop.in` public (Vercel Authentication is on), Maps key restriction (blocked: Google needs two-step verification on the account), a second copy of the EAS keystore backup (the first is on this PC), the lawyer question (`docs/LAWYER_BRIEF.md` is ready to send) and the 12 testers (`docs/TESTER_RECRUITMENT.md` is the kit). Done 2026-10-20: CI and the old-app compatibility checks, CodeRabbit on both repos, the first Vercel backend deploy, the first seed load, the by-hand old-app checklist (admin step excepted) |
 | 1 | See problems, ship fast | In progress, 11 of 22 boxes ticked, 5 deferred, 11 open: all the code is written (branch `upgrade/phase-1-sentry`, not yet pushed). Open on you: `SENTRY_AUTH_TOKEN` in Vercel for web source maps, the Firebase/FCM setup (`docs/FCM.md`) and then the one new `beta` APK, the Uptime Robot account, two more Sentry alerts, and every Verify box (they need the APK and the monitors) |
-| 2 | Make it work (stabilize) | In progress, 5 of 18 boxes ticked, 4 deferred. The four known backend bugs and the money-screen errors are done in code on branch `upgrade/phase-2-stabilize` (not pushed; migrations 110 to 113 are written but not applied). Left: your list of problems, the slow-query half, Playwright, the web, Android and admin checklists and all Verify boxes, which need a browser or phone session with you or a pushed build |
+| 2 | Make it work (stabilize) | In progress, 6 of 18 boxes ticked, 4 deferred, 12 open. The four known backend bugs, the money-screen errors and the Playwright suite are done (not pushed). Left, all needing you or a device: your list of problems, the per-operation speed half (needs real traffic in Sentry), the admin page check, the Android/web checklists in Safari and on a phone, and the Verify boxes |
 | 3 | Server decides everything | In progress, 27 of 36 boxes ticked, 2 deferred, 9 open. All the code is done on branch `upgrade/phase-3-server-decides` (not pushed; migration 114 not applied). Open: `API_GATEWAY_SECRET` in the admin project and an admin redeploy (yours), the Maps key restriction (yours), the Phase 9 lockdown, and the checks that need an APK or a deployed build (control screens, Android-only maintenance, "Update the app", old app and old admin) |
 | 4 | Accounts and sign-in | In progress, 9 of 21 boxes ticked, 6 deferred, 12 open. Done on branch `upgrade/phase-4-accounts` (both repos, not pushed): server-side names for new accounts, S256 sign-in codes on phones, the onboarding fix, and the admin's sign-in card and "Sign out everywhere". **Not started on purpose:** Supabase's built-in phone auth with an SMS hook (replaces the working `phone-auth`; your call, see the box), the test-user phone migration that depends on it, and account linking. Left: "Allow manual linking" in Supabase (yours) and every Verify box (they need an APK and a sign-up on each platform) |
 | 5 | Background jobs (Inngest) | In progress, 12 of 42 boxes ticked, 3 deferred, 30 open. Added this session: the admin Alerts page (admin repo). **Everything else open here waits on something that is yours:** the Inngest Cloud account and its two keys (so nothing built can run or be checked), and the lawyer's answer on the money flow, which the plan and AGENTS.md say must come before the payout, refund-retry and webhook items are built. The built-but-unapplied jobs (push, overdue, prunes, account files, money sweeps) switch on with the cutover SQL in `supabase/cutover/` once the keys are set. Nothing in this phase was deployed |
@@ -250,12 +250,12 @@ Version 4.28, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 - [x] Swallowed errors (`.catch(() => {})`) on money screens now show a message and report to Sentry. Wallet, Withdraw, Escrow (pay) and Confirm (release): a failed balance, price, payout-account or task read now reports through `reportError(e, 'money')` and shows a plain message; the best-effort earnings sweeps report without a message. Other screens' `.catch(() => {})` (feed, presence, ads) were left alone on purpose
 
 **Web**
-- [ ] Playwright end-to-end tests on the web build against the cloud test project (test accounts only), run in CI:
+- [x] Playwright end-to-end tests on the web build against the cloud test project (test accounts only), run in CI. Built 2026-10-21 (`playwright.config.ts`, `e2e/`, `npm run test:e2e`): 20 tests pass locally against the live test project, in Chromium at desktop and phone size. Sign-in goes through the real screen (the seed phones get the dev code); the money paths go through the real `api` function as the two seed accounts, with exact amounts checked against the live fee settings. "In CI" is `.github/workflows/e2e.yml`, started by hand after a deploy and needing two repository *variables* (the public URL and anon key, yours to set); it is not on every pull request because the tests need the code under test to be deployed and move fake money. What is covered:
   - sign-in with a test phone
   - the wallet-funded money path: post → bid → lock → fund → start → proof → done → confirm → review → withdraw request
   - cancel with a fine
   - dispute
-- [ ] The core-flow checklist (Part B, 5.2) passes in Chrome and Safari, on desktop and phone sizes
+- [ ] The core-flow checklist (Part B, 5.2) passes in Chrome and Safari, on desktop and phone sizes. Chromium at desktop and phone size is covered by the Playwright suite (sign-in, home, wallet, explore, legal pages, the money paths); Safari and a person looking at the screens are not
 
 **Android**
 - [ ] The core-flow checklist passes on the `beta` APK; failures are fixed
@@ -274,7 +274,7 @@ Version 4.28, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 **Verify**
 - [ ] The checklist passes on web, Android, iOS and admin
 - [ ] Your list is fixed or scheduled
-- [ ] Playwright is green in CI
+- [ ] Playwright is green in CI. Green locally on 2026-10-21 for 18 of 20: the other two (`e2e/rules.spec.ts`: the server refusing phone numbers, and the `health` check) fail on purpose until the Phase 1 and 3 code is deployed to the test project; they are the proof that it has not been. A run in GitHub Actions needs the two repository variables
 - [ ] The top slow queries are fixed
 
 ---
@@ -338,7 +338,7 @@ Version 4.28, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 
 **Verify**
 - [x] The new web bundle contains no Google key. Fresh `expo export -p web` on 2026-10-21: no `AIza` in any JavaScript file (the old `dist` from 6 October, which did contain one, was stale)
-- [x] A bid containing a phone number sent straight to the API is rejected, on the old app too. Same `api` function, so the old app gets it too. Proved in `api.test.ts` against the operation; not yet tried against the deployed function
+- [x] A bid containing a phone number sent straight to the API is rejected, on the old app too. Same `api` function, so the old app gets it too. Proved in `api.test.ts` against the operation. `e2e/rules.spec.ts` checks the deployed function and currently fails because it has not been deployed (2026-10-21), so re-run it after the merge
 - [-] Posting switched off for iOS only: refused on iPhone, even by direct API call; still works on web and Android
 - [ ] Maintenance mode for Android only shows the screen on Android only
 - [ ] An older upgraded build sees "Update the app" on Android and iOS
@@ -1091,6 +1091,7 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
+- **v4.29 (2026-10-21):** Playwright added (`e2e/`, `npm run test:e2e`, `.github/workflows/e2e.yml`): sign-in through the real screen, the wallet-funded money path, withdrawal and cancel, the post-start fine, a dispute, and the screens at desktop and phone size. 18 of 20 pass against the live test project; the other two prove the Phase 1 and 3 server code is not deployed yet. **Found by writing it:** the seed put the poster's Rs 5,000 in `credits_minor`, which nothing has spent since migration 066, so the seed poster could not pay for anything. The seed now uses `balance_minor` and the seed poster's wallet on the test project was fixed to match (a fake account, one row). Each test run creates a few `[e2e]` tasks and moves a few hundred fake rupees.
 - **v4.28 (2026-10-21):** Phases 8 to 10 reviewed, nothing built. Phase 8 needs store accounts, a 12-person closed test and devices; Phase 9 needs your approval and would retire the old app and admin; Phase 10 is "when you decide". One finding for Phase 8: the tile map and the fallback search depend on OpenStreetMap's public servers, which is fine for testing and not for launch.
 - **v4.27 (2026-10-21):** Phase 7, on `upgrade/phase-7-moderation` (both repos, local). Blocks are enforced in SQL (117); staff can hide a message or photo and fix a category (118); a chat message from the other person can be reported with a press and hold; the admin Reports queue shows reported message text with Hide / Show again; `docs/RUNBOOK.md` added. Left out on purpose: removing a review and cancelling a promotion with a refund (they touch ratings and money and need a design first). Migrations 117 and 118 are written, not applied.
 - **v4.26 (2026-10-21):** Phase 6 reviewed: the web CSP box is closed by the Phase 3 `vercel.json`. Everything else open needs the ImageKit account keys or a phone. The admin has no image views to sign (new feature, needs the keys).

@@ -33,3 +33,8 @@ npm-debug.log*
 db.types.tmp
 # Firebase config for Android push (kept out of git; see docs/FCM.md)
 google-services.json
+
+# Playwright
+e2e/.auth/
+test-results/
+playwright-report/
