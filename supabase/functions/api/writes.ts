@@ -3,6 +3,7 @@ import {
   rows, rpcOp, str, strOrNull, strings, take, toOpError, uuid, uuidOrNull, uuids,
 } from "./core.ts";
 import { assertOwnImage, isMediaRef } from "./media.ts";
+import { contactIssueMessage, findContactIssue, maskContacts, nameCarriesContact, profileIssueMessage } from "../_shared/contacts.ts";
 
 /**
  * Everything that changes something. The caller's id always comes from their
@@ -31,6 +32,40 @@ function profileRefusal(err: DbError): OpError {
   }
   return toOpError(err);
 }
+
+/**
+ * Contact details stay inside TaskDrop until the work starts. The app hides or
+ * refuses them as they are typed; these checks are the same rules on the
+ * server, so a request sent straight to the API cannot skip them. The wording
+ * and the patterns come from _shared/contacts.ts (a copy of the app's, kept in
+ * step by contacts.test.ts).
+ */
+const CONTACT_CODE = "CONTACT_DETAILS";
+
+/** A post, a service or a bio: any contact detail or address is refused, with the reason. */
+function refuseContacts(text: unknown, wording: "post" | "profile" = "post"): void {
+  if (typeof text !== "string" || text === "") return;
+  const issue = findContactIssue(text);
+  if (issue) throw new OpError(wording === "profile" ? profileIssueMessage(issue) : contactIssueMessage(issue), CONTACT_CODE);
+}
+
+/** A quote, a proof summary or a worker bio: anything the app would have hidden is refused. */
+function refuseHiddenContacts(text: unknown): void {
+  if (typeof text !== "string" || text === "") return;
+  if (maskContacts(text).masked) {
+    throw new OpError("Phone numbers, emails, links and chat handles can’t be shared here. They are shared automatically once a task starts.", CONTACT_CODE);
+  }
+}
+
+/** A name or username is shown to strangers, so it must not smuggle a number or an email out. */
+function refuseContactInName(name: unknown): void {
+  if (typeof name === "string" && nameCarriesContact(name)) {
+    throw new OpError("A name can’t contain a phone number or an email address.", CONTACT_CODE);
+  }
+}
+
+/** Statuses from which contacts are open to both sides in chat (the same list the chat screen uses). */
+const CONTACTS_OPEN = ["TASK_STARTED", "OVERDUE", "WORK_DONE", "REVISION_REQUESTED", "COMPLETED", "AUTO_COMPLETED", "DISPUTED"];
 
 const PUSH_PLATFORMS = ["ios", "android", "web", "windows", "macos"] as const;
 const INSTALL_ID = /^[A-Za-z0-9_-]{8,64}$/;
@@ -157,6 +192,8 @@ export const WRITE_OPS: Record<string, Op> = {
     if (media != null && isMediaRef(media.path)) await assertOwnImage(ctx, media.path, ["task"]);
     const milestones = a.milestones ?? [];
     if (!Array.isArray(milestones) || milestones.length > 50) throw bad("milestones");
+    refuseContacts(a.title);
+    refuseContacts(description(a));
     const row = {
       poster_id: userId,
       pillar: str(a, "pillar", 40),
@@ -183,6 +220,8 @@ export const WRITE_OPS: Record<string, Op> = {
   },
 
   updateListing: async ({ db }, a) => {
+    refuseContacts(a.title);
+    refuseContacts(description(a));
     const row = rows(
       await db
         .from("tasks")
@@ -205,6 +244,7 @@ export const WRITE_OPS: Record<string, Op> = {
   },
 
   placeBid: async ({ db, userId }, a) => {
+    refuseHiddenContacts(a.message);
     return rows(
       await db
         .from("bids")
@@ -221,6 +261,7 @@ export const WRITE_OPS: Record<string, Op> = {
   },
 
   updateBid: async ({ db }, a) => {
+    refuseHiddenContacts(a.message);
     const row = rows(
       await db
         .from("bids")
@@ -250,6 +291,7 @@ export const WRITE_OPS: Record<string, Op> = {
     for (const f of files as { path: string }[]) {
       if (isMediaRef(f.path)) await assertOwnImage(ctx, f.path, ["proof"]);
     }
+    refuseHiddenContacts(a.summary);
     return rows(
       await db
         .from("task_proofs")
@@ -263,6 +305,16 @@ export const WRITE_OPS: Record<string, Op> = {
     const body = str(a, "body", 10000);
     // A chat photo kept in ImageKit is "::media::media:<id>", and must be the sender's own.
     if (body.startsWith("::media::media:")) await assertOwnImage(ctx, body.slice("::media::".length), ["chat"]);
+    // Until the work starts, contact details stay inside TaskDrop. The task is only looked up when the text needs it.
+    if (!body.startsWith("::media::") && findContactIssue(body)) {
+      const t = rows(await db.from("tasks").select("status").eq("id", uuid(a, "taskId")))[0] as { status?: string } | undefined;
+      if (!t?.status || !CONTACTS_OPEN.includes(t.status)) {
+        throw new OpError(
+          "Phone numbers, emails, links, chat handles and addresses can’t be shared until the work starts. Keep talking here — it keeps your payment protected.",
+          CONTACT_CODE,
+        );
+      }
+    }
     return take(
       await db
         .from("messages")
@@ -276,7 +328,10 @@ export const WRITE_OPS: Record<string, Op> = {
   /** The setup/profile screen's fields. Only these columns, only your own row. */
   updateProfile: async (ctx, a) => {
     const patch: Record<string, unknown> = {};
-    if (a.displayName !== undefined) patch.display_name = str(a, "displayName", 80);
+    if (a.displayName !== undefined) {
+      refuseContactInName(a.displayName);
+      patch.display_name = str(a, "displayName", 80);
+    }
     if (a.skills !== undefined) patch.skills = strings(a, "skills");
     if (a.locLabel !== undefined) patch.loc_label = strOrNull(a, "locLabel", 200);
     if (a.locLat !== undefined) patch.loc_lat = numOrNull(a, "locLat");
@@ -298,10 +353,19 @@ export const WRITE_OPS: Record<string, Op> = {
     const patch: Record<string, unknown> = {};
     if (a.username !== undefined) {
       const u = strOrNull(a, "username", 40);
+      refuseContactInName(u);
       patch.username = u ? u.toLowerCase() : null;
     }
-    if (a.bio !== undefined) patch.bio = strOrNull(a, "bio", 2000);
-    if (a.workerBio !== undefined) patch.worker_bio = strOrNull(a, "workerBio", 2000);
+    if (a.bio !== undefined) {
+      const bio = strOrNull(a, "bio", 2000);
+      refuseContacts(bio, "profile");
+      patch.bio = bio;
+    }
+    if (a.workerBio !== undefined) {
+      const workerBio = strOrNull(a, "workerBio", 2000);
+      refuseHiddenContacts(workerBio);
+      patch.worker_bio = workerBio;
+    }
     if (bool(a, "workerOnboarded")) patch.worker_onboarded_at = nowIso(ctx);
     if (a.languages !== undefined) patch.languages = strings(a, "languages", 20, 40);
     if (a.intent !== undefined) patch.intent = a.intent == null ? null : oneOf(a, "intent", ["post", "earn", "both"]);

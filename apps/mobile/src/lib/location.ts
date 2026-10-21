@@ -238,6 +238,18 @@ export async function describeCoords(lat: number, lng: number): Promise<string> 
       /* fall through */
     }
   }
+  // The server looks the point up (places-search, which also keeps us inside
+  // OpenStreetMap's rules); asking OpenStreetMap directly is the fallback.
+  try {
+    const { data } = await withTimeout(
+      supabase.functions.invoke('places-search', { body: { lat, lng }, region: FUNCTIONS_REGION }),
+      8000,
+    );
+    const label = (data as { label?: string | null } | null)?.label;
+    if (label) return label;
+  } catch {
+    /* fall through */
+  }
   try {
     const res = await withTimeout(
       fetch(

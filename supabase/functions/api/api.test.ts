@@ -173,6 +173,47 @@ await t("the legacy payout_upi is never written (migration 073 closed the column
   assert.deepEqual(Object.keys(patch), ["display_name"]);
 });
 
+await t("contact details are refused on the server, whatever the app does (Phase 3)", async () => {
+  const PHONE = "call me on 98765 43210";
+  const refused = async (op: string, args: Record<string, unknown>, f = fake()) => {
+    const r = await runOp(op, args, ctx(f));
+    assert.equal(r.ok, false, op);
+    if (!r.ok) assert.equal(r.error.code, "CONTACT_DETAILS", op);
+    assert.equal(f.calls.length, 0, op + " must not reach the database");
+  };
+  await refused("placeBid", { taskId: TASK, priceMinor: 500, timeLimitMinutes: 60, message: PHONE });
+  await refused("updateBid", { bidId: BID, priceMinor: 500, timeLimitMinutes: 60, message: "mail me a@b.com" });
+  await refused("createTask", { pillar: "services", title: "Fix tap", benchmarkMinor: 100, timeLimitMinutes: 30, description: PHONE });
+  await refused("createTask", { pillar: "services", title: "Fix tap at flat 12B", benchmarkMinor: 100, timeLimitMinutes: 30 });
+  await refused("updateListing", { id: TASK, title: "Tap repair", description: "www.example.com", priceMinor: 100, deliveryDays: 1 });
+  await refused("submitProof", { taskId: TASK, summary: PHONE, files: [] });
+  await refused("updateProfile", { displayName: "98765 43210 ravi" });
+  await refused("updateProfileExtras", { bio: PHONE });
+  await refused("updateProfileExtras", { workerBio: PHONE });
+  await refused("updateProfileExtras", { username: "a@b.com" });
+  // Ordinary text goes through, and the app's own already-masked text is fine.
+  const f = fake(() => ({ data: [{ id: "row" }], error: null }));
+  const ok = await runOp("placeBid", { taskId: TASK, priceMinor: 500, timeLimitMinutes: 60, message: "Can do it tomorrow, ••• for details" }, ctx(f));
+  assert.equal(ok.ok, true);
+});
+
+await t("chat: contact details are refused until the work starts, and allowed after", async () => {
+  const early = fake((c) => (c.table === "tasks" ? { data: [{ status: "LOCKED" }], error: null } : { data: { id: "m" }, error: null }));
+  const r = await runOp("sendMessage", { taskId: TASK, body: "my number is 98765 43210" }, ctx(early));
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.equal(r.error.code, "CONTACT_DETAILS");
+  assert.equal(early.calls.some((c) => c.table === "messages"), false);
+
+  const started = fake((c) => (c.table === "tasks" ? { data: [{ status: "TASK_STARTED" }], error: null } : { data: { id: "m" }, error: null }));
+  const ok = await runOp("sendMessage", { taskId: TASK, body: "my number is 98765 43210" }, ctx(started));
+  assert.equal(ok.ok, true);
+
+  // Plain chat does not even look the task up.
+  const plain = fake(() => ({ data: { id: "m" }, error: null }));
+  await runOp("sendMessage", { taskId: TASK, body: "On my way" }, ctx(plain));
+  assert.deepEqual(plain.calls.map((c) => c.table), ["messages"]);
+});
+
 await t("the feed never offers the caller their own posts, nor expired ones", async () => {
   const f = fake(() => ({ data: [], error: null }));
   await runOp("listOpenTasks", { kind: "request" }, ctx(f));

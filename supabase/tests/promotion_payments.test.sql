@@ -1,4 +1,4 @@
--- Promotion payments (migrations 110 and 111).
+-- Promotion payments and prices (migrations 110, 111 and 114).
 --
 -- A campaign is switched on only by a settled payment that was made for a
 -- promotion, belongs to the caller and the campaign's task, covers the amount,
@@ -59,8 +59,18 @@ begin
   insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes)
   values (v_poster, 'services', 'promo two', 100000, 240) returning id into v_task2;
 
-  v_promo  := public.start_promotion(v_task, 3, 50000);
-  v_promo2 := public.start_promotion(v_task2, 3, 50000);
+  v_promo  := public.start_promotion(v_task, 3, 24000);
+  v_promo2 := public.start_promotion(v_task2, 3, 24000);
+
+  -- ---- the server's price list (migration 114) -----------------------------
+  v_failed := false;
+  begin perform public.start_promotion(v_task, 3, 12345);
+  exception when others then v_failed := true; end;
+  assert v_failed, 'a budget the server does not offer must be refused';
+  v_failed := false;
+  begin perform public.start_promotion(v_task, 5, 40000);
+  exception when others then v_failed := true; end;
+  assert v_failed, 'a length the server does not offer must be refused';
 
   -- ---- payments of the wrong kind or size are refused ---------------------
   perform pg_temp.as_operator();
@@ -69,7 +79,7 @@ begin
   insert into public.payments (user_id, task_id, purpose, amount_minor, provider_ref, status, paid_at)
   values (v_poster, v_task, 'escrow', 500000, 'plink_escrow', 'paid', now()) returning id into v_escrow;
   insert into public.payments (user_id, task_id, purpose, amount_minor, provider_ref, status, paid_at)
-  values (v_poster, v_task, 'promotion', 49999, 'plink_short', 'paid', now()) returning id into v_short;
+  values (v_poster, v_task, 'promotion', 23999, 'plink_short', 'paid', now()) returning id into v_short;
 
   perform pg_temp.become(v_poster);
   v_failed := false;
@@ -90,7 +100,7 @@ begin
   -- ---- the right payment does ---------------------------------------------
   perform pg_temp.as_operator();
   insert into public.payments (user_id, task_id, purpose, amount_minor, provider_ref, status, paid_at)
-  values (v_poster, v_task, 'promotion', 50000, 'plink_good', 'paid', now()) returning id into v_good;
+  values (v_poster, v_task, 'promotion', 24000, 'plink_good', 'paid', now()) returning id into v_good;
 
   perform pg_temp.become(v_poster);
   v_row := public.activate_promotion(v_promo.id, v_good);

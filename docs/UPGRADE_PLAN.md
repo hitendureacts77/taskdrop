@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.22, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.23, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -59,7 +59,7 @@ Version 4.22, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 | 0 | Foundations | In progress, 36 of 46 boxes ticked, 4 deferred, 6 open, all yours: the old admin check (needs your login), make `taskdrop.in` public (Vercel Authentication is on), Maps key restriction (blocked: Google needs two-step verification on the account), a second copy of the EAS keystore backup (the first is on this PC), the lawyer question (`docs/LAWYER_BRIEF.md` is ready to send) and the 12 testers (`docs/TESTER_RECRUITMENT.md` is the kit). Done 2026-10-20: CI and the old-app compatibility checks, CodeRabbit on both repos, the first Vercel backend deploy, the first seed load, the by-hand old-app checklist (admin step excepted) |
 | 1 | See problems, ship fast | In progress, 11 of 22 boxes ticked, 5 deferred, 11 open: all the code is written (branch `upgrade/phase-1-sentry`, not yet pushed). Open on you: `SENTRY_AUTH_TOKEN` in Vercel for web source maps, the Firebase/FCM setup (`docs/FCM.md`) and then the one new `beta` APK, the Uptime Robot account, two more Sentry alerts, and every Verify box (they need the APK and the monitors) |
 | 2 | Make it work (stabilize) | In progress, 5 of 18 boxes ticked, 4 deferred. The four known backend bugs and the money-screen errors are done in code on branch `upgrade/phase-2-stabilize` (not pushed; migrations 110 to 113 are written but not applied). Left: your list of problems, the slow-query half, Playwright, the web, Android and admin checklists and all Verify boxes, which need a browser or phone session with you or a pushed build |
-| 3 | Server decides everything | In progress, 10 of 36 boxes ticked |
+| 3 | Server decides everything | In progress, 27 of 36 boxes ticked, 2 deferred, 9 open. All the code is done on branch `upgrade/phase-3-server-decides` (not pushed; migration 114 not applied). Open: `API_GATEWAY_SECRET` in the admin project and an admin redeploy (yours), the Maps key restriction (yours), the Phase 9 lockdown, and the checks that need an APK or a deployed build (control screens, Android-only maintenance, "Update the app", old app and old admin) |
 | 4 | Accounts and sign-in | Not started, 0 of 21 boxes ticked |
 | 5 | Background jobs (Inngest) | In progress, 11 of 42 boxes ticked (outbox, alerts, push, prunes built; Inngest Cloud keys are yours to set) |
 | 6 | Speed and media (ImageKit) | In progress, 13 of 24 boxes ticked (merged; migration 109 applied 2026-10-19; off until your ImageKit keys are set; device tests open) |
@@ -282,15 +282,15 @@ Version 4.22, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 ## Phase 3: Server decides everything
 
 **Backend**
-- [ ] Contact-detail rule:
-  - [ ] `lib/mask.ts` rules move to `supabase/functions/_shared/`, with a sync test
-  - [ ] Enforced in `api/writes.ts`: `placeBid`, `updateBid`, `sendMessage`, `submitProof`, `createTask`, `updateListing`, `updateProfile`, `updateProfileExtras`
-- [ ] Promotion:
-  - [ ] Price tiers in `settings`, checked by `start_promotion`
-  - [ ] A `promotion` purpose in `razorpay` that computes the amount on the server
-- [ ] Fees: `feesSince` and `workerShareOfEscrow` (`api/reads.ts`) read live `settings`
-- [ ] `places-search` gains reverse lookup and the OpenStreetMap fallback
-- [ ] App controls:
+- [x] Contact-detail rule:
+  - [x] `lib/mask.ts` rules move to `supabase/functions/_shared/`, with a sync test. `_shared/contacts.ts` is a copy (an Edge Function is bundled from `supabase/functions` alone, like `_shared/rules.ts`); `contacts.test.ts` fails if the patterns or the answers differ from the app's
+  - [x] Enforced in `api/writes.ts`: `placeBid`, `updateBid`, `sendMessage`, `submitProof`, `createTask`, `updateListing`, `updateProfile`, `updateProfileExtras`. Refused with code `CONTACT_DETAILS` and the app's own wording. Same rules as the app, so the app and the old app (which hide or refuse them before sending) see no change. Chat is refused only until the work starts, and the task is looked up only when the text looks like a contact detail. Unit-tested in `api.test.ts`
+- [x] Promotion:
+  - [x] Price tiers in `settings`, checked by `start_promotion`. Migration 114: `promotion_daily_budgets_minor` (₹50, 80, 150, 300) and `promotion_durations_days` (1, 3, 7), the tiers both apps already show; the total must be exactly one budget times one length. Written, not applied
+  - [x] A `promotion` purpose in `razorpay` that computes the amount on the server (done in Phase 2, migrations 110 and 111)
+- [x] Fees: `feesSince` and `workerShareOfEscrow` (`api/reads.ts`) read live `settings`. One `readFees` reads the four fee settings; the wallet activity list, `feesSince` and `platformFees` all use it. `feesSince` no longer trusts the `commission` argument the app sends (still accepted, ignored)
+- [x] `places-search` gains reverse lookup and the OpenStreetMap fallback. `{lat, lng}` answers `{label}`; a text search with no Google key, a Google error or no Google result falls back to OpenStreetMap on the server (with a proper User-Agent, which OpenStreetMap requires and browsers cannot set). Replies keep the old `{configured, places}` shape and add `source`. Reverse lookup uses OpenStreetMap, not Google (Google's reverse lookup is the separate Geocoding API, which the restricted key does not cover). Not deployed or tried against the live services yet
+- [x] App controls:
   - [x] `app_controls` table and a public `app-config` function, cached about 60 s (migration 092, `functions/app-config`; built, not yet applied or deployed)
   - [x] Switches, each per platform (web / Android / iOS):
     - maintenance mode with a message
@@ -314,12 +314,12 @@ Version 4.22, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 - [x] Platform and app-version headers sent on every `api` call
 - [x] The app reads `app-config` at start-up, on return to the foreground, every 5 minutes and right after a server refusal (no realtime ping: the user channel only exists once signed in)
 - [x] Maintenance screen, "Update the app" screen, announcement banner, and a message when a switch is off
-- [ ] Fee previews come from the `platformFees` op
-- [ ] Address search goes through `places-search`
+- [x] Fee previews come from the `platformFees` op. New `lib/useFees.ts` (built-in rates until the op answers); used by the post preview (`AiPostScreen`), the offer-accept text and escrow (`TaskManageScreen`) and the release preview (`ConfirmScreen`). `EscrowScreen` keeps its local first paint, since it then shows the server's price
+- [x] Address search goes through `places-search`. Search already did (Phase 0 work); the point-to-name lookup (`describeCoords`) now does too, with a direct OpenStreetMap call only as the last fallback
 
 **Web**
 - [x] `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` removed from the web build. Done 2026-10-20: the app no longer reads it. Place search goes through the `places-search` function (server key `GOOGLE_MAPS_API_KEY`), and the Android map key is `EXPO_GOOGLE_MAPS_API_KEY`, a build-time EAS secret that never enters the JS bundle. The old web build on `main` still has the old key until Phase 9
-- [ ] `vercel.json`: SPA rewrites and security headers (CSP, HSTS, frame-ancestors, referrer policy)
+- [x] `vercel.json`: SPA rewrites and security headers (CSP, HSTS, frame-ancestors, referrer policy). Rewrite of every path to `/index.html` (files that exist are served first), HSTS, `nosniff`, referrer policy, permissions policy, `X-Frame-Options: DENY`, an enforced CSP of only `frame-ancestors`, `base-uri`, `object-src` and `form-action`, and the full CSP in **report-only** mode with violations sent to Sentry. Report-only on purpose: a wrong full CSP would break sign-in, payments or maps for everyone. After a week of clean reports it can be switched to enforcing. Not seen live yet; the first deploy shows it
 
 **Android**
 - [ ] The native map keeps only the restricted Android key
@@ -330,15 +330,15 @@ Version 4.22, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 - [-] Control screens checked on TestFlight. The iOS map is Apple Maps, so no key is needed.
 
 **Admin**
-- [ ] New **App controls** page: every switch per platform, minimum versions, maintenance, banner
+- [x] New **App controls** page: every switch per platform, minimum versions, maintenance, banner. Already in the admin repo on `redesigned-2.0` (Settings, App controls: `settings/controls`, `ControlsView`, `controls-actions.ts`)
 - [ ] Prepare for the lockdown (harmless before it runs):
-  - [ ] Set `API_GATEWAY_SECRET` in the upgraded admin's env
-  - [ ] Send the `x-taskdrop-gateway` header from the admin's Supabase server client
+  - [ ] **(You)** Set `API_GATEWAY_SECRET` in the upgraded admin's env (Vercel project `taskdrop-admin`; the value is the one in the Supabase secret of the same name, created by migration 083). I do not enter secrets
+  - [x] Send the `x-taskdrop-gateway` header from the admin's Supabase server client (already in `src/lib/supabase/server.ts`; it sends it when `API_GATEWAY_SECRET` is set)
   - [ ] Redeploy the upgraded admin
 
 **Verify**
-- [ ] The new web bundle contains no Google key
-- [ ] A bid containing a phone number sent straight to the API is rejected, on the old app too
+- [x] The new web bundle contains no Google key. Fresh `expo export -p web` on 2026-10-21: no `AIza` in any JavaScript file (the old `dist` from 6 October, which did contain one, was stale)
+- [x] A bid containing a phone number sent straight to the API is rejected, on the old app too. Same `api` function, so the old app gets it too. Proved in `api.test.ts` against the operation; not yet tried against the deployed function
 - [-] Posting switched off for iOS only: refused on iPhone, even by direct API call; still works on web and Android
 - [ ] Maintenance mode for Android only shows the screen on Android only
 - [ ] An older upgraded build sees "Update the app" on Android and iOS
@@ -1091,6 +1091,7 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
+- **v4.23 (2026-10-21):** Phase 3, the code boxes, on `upgrade/phase-3-server-decides` (local, not pushed; it sits on the Phase 1 and 2 branches). The server now refuses contact details itself (`_shared/contacts.ts`, kept equal to the app's by a test) for quotes, proofs, posts, listings, names, bios and early chat. Promotion prices come from settings (migration 114). Fee figures read the live settings (`readFees`) and the app's previews use `platformFees` (`useFees`). `places-search` does reverse lookups and the OpenStreetMap fallback. `vercel.json` gets SPA rewrites and security headers (CSP in report-only). A fresh web export has no Google key. The admin already had the App controls page and the gateway header. Open for you: `API_GATEWAY_SECRET` in the admin project, the Maps key restriction, and the device and API checks (switches per platform, maintenance, minimum version) that need a deployed build.
 - **v4.22 (2026-10-21):** Phase 2, the code-only boxes, on `upgrade/phase-2-stabilize` (local, not pushed). Promotion checkout fixed properly: payment purpose `promotion` (migration 110), a stricter `activate_promotion` (111), the `razorpay` function prices a campaign itself and `PromoteScreen` uses it. Chat photos sent as plain storage paths can be opened by the other person in the thread (112). The nightly copy of the earnings sweep is unscheduled (113). `updateProfile` no longer writes the locked `payout_upi` column. Money screens report and show a message when a read fails. Migrations 110 to 113 are untested against a database from here (no `psql`/Docker; CI runs the new SQL tests `promotion_payments` and `chat_photos`) and not applied. Not done: the Playwright suite (needs a decision on how CI gets test accounts without GitHub secrets), the device and admin checklists, per-operation speed work.
 - **v4.21 (2026-10-21):** Phase 1 code, on `upgrade/phase-1-sentry` (local, not pushed). Server: stack frames sent to Sentry properly, `fatal` level for the two NOT RECORDED money cases, `guarded()` on the handlers so any unexpected throw is reported, `places-search` monitored, and an unauthenticated `{"op":"health"}` on `api`. App: failed API calls are classified and unexpected ones reported, the signed-in user id (only) is attached, and `expo-updates` is added with the `appVersion` runtime policy. Build: the web export uploads its source maps and then deletes them; `app.config.js` takes `google-services.json` from an EAS file variable (`docs/FCM.md`). Admin already had Sentry. Not done, needs you: `SENTRY_AUTH_TOKEN` in Vercel, Firebase/FCM, the new APK, Uptime Robot, two Sentry alerts. Phase 0 is being finished in another session.
 - **v4.20 (2026-10-21):** `support@taskdrop.in` forwards to the owner's Gmail (Spaceship rule; MX records already in place; untested with a real email). The EAS upload keystore was downloaded to `C:\Users\naras\Documents\taskdrop-keystore-backup\@hitendureacts__taskdrop-keystore-backup.zip` on the owner's PC; a second copy elsewhere is still the owner's step.

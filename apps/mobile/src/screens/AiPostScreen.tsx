@@ -21,7 +21,7 @@ import { createTask, getProfile, type Task } from '../data/api';
 import type { TaskMedia } from '../lib/media';
 import { useVoiceInput } from '../lib/speech';
 import { contactIssueMessage, findContactIssue } from '../lib/mask';
-import { FEES } from '@taskdrop/rules';
+import { useFees } from '../lib/useFees';
 import {
   CATEGORIES,
   IDEAS,
@@ -272,7 +272,8 @@ export function AiPostScreen() {
   const canLeaveBrief =
     title.trim().length >= 4 && description.trim().length >= 10 && !titleIssue && !descIssue;
   const budgetOk = (budget ?? 0) >= 10;
-  const feeRupees = Math.round((budget ?? 0) * FEES.POSTER_SERVICE_FEE_PCT);
+  const fees = useFees();
+  const feeRupees = Math.round((budget ?? 0) * fees.posterFee);
 
   const milestones = useMemo(() => MILESTONE_PLANS[split] ?? [], [split]);
 
@@ -897,7 +898,7 @@ export function AiPostScreen() {
 
         <View style={{ marginTop: 12, ...cardSurface(t, 20), padding: 16, gap: 8 }}>
           <Row label="Task budget" value={rupees(budget ?? 0)} />
-          <Row label={`TaskDrop fee (${Math.round(FEES.POSTER_SERVICE_FEE_PCT * 100)}%)`} value={rupees(feeRupees)} />
+          <Row label={`TaskDrop fee (${Math.round(fees.posterFee * 100)}%)`} value={rupees(feeRupees)} />
           <View style={{ height: 1, backgroundColor: t.colors.line }} />
           <Row label="Held safely when you accept an offer" value={formatINR(Math.round((budget ?? 0) * 100) + feeRupees * 100)} strong />
           <RNText style={tx('400', 11, t.colors.muted, { lineHeight: 16 })}>

@@ -1,4 +1,4 @@
-import { FEES, distanceKm, workerNetPayout } from "../_shared/rules.ts";
+import { FEES, distanceKm } from "../_shared/rules.ts";
 import {
   type Args, type Ctx, type Op, MONEY_MAX, bad, countBy, int, isoOrNull, limit, notExpired, num, oneOf, rows,
   rpcOp, str, strings, take, uuid, uuids,
@@ -38,9 +38,32 @@ const kindArg = (a: Args) => oneOf(a, "kind", ["request", "service"], "request")
 /** A task still holding money: chosen and paid for, but not yet finished. */
 const IN_PROGRESS = new Set(["LOCKED", "TASK_STARTED", "OVERDUE", "WORK_DONE", "REVISION_REQUESTED", "DISPUTED"]);
 
+type LiveFees = { commission: number; posterFee: number; clearingDays: number; cancelFine: number };
+
+/**
+ * The fee settings as they are now (the admin can change them), with the
+ * built-in rules as the fallback when a key is missing or unreadable.
+ */
+async function readFees(ctx: Ctx): Promise<LiveFees> {
+  const res = await ctx.db.from("settings").select("key,value")
+    .in("key", ["worker_commission_pct", "poster_service_fee_pct", "clearing_period_days", "post_start_cancel_penalty_pct"]);
+  const list = (res.data ?? []) as { key: string; value: unknown }[];
+  const get = (k: string, d: number) => {
+    const v = Number(list.find((r) => r.key === k)?.value);
+    return Number.isFinite(v) ? v : d;
+  };
+  return {
+    commission: get("worker_commission_pct", FEES.WORKER_COMMISSION_PCT),
+    posterFee: get("poster_service_fee_pct", FEES.POSTER_SERVICE_FEE_PCT),
+    clearingDays: get("clearing_period_days", 7),
+    // The Terms point at How fees work for this one too.
+    cancelFine: get("post_start_cancel_penalty_pct", FEES.POST_START_CANCEL_PENALTY_PCT),
+  };
+}
+
 /** What reaches a worker from an escrow: the price (escrow less the poster's fee), less commission. */
-const workerShareOfEscrow = (escrowMinor: number) =>
-  workerNetPayout(Math.round(escrowMinor / (1 + FEES.POSTER_SERVICE_FEE_PCT)));
+const workerShareOfEscrow = (escrowMinor: number, fees: LiveFees) =>
+  Math.round(Math.round(escrowMinor / (1 + fees.posterFee)) * (1 - fees.commission));
 
 export const READ_OPS: Record<string, Op> = {
   // ------------------------------------------------------------- tasks ----
@@ -365,6 +388,7 @@ export const READ_OPS: Record<string, Op> = {
   /** What actually happened to the caller's money, newest first. */
   listWalletActivity: async (ctx, a) => {
     const uid = ctx.userId;
+    const fees = await readFees(ctx);
     const [asWorker, asPoster, payouts, payments] = await Promise.all([
       ctx.db.from("assignments").select("*, tasks(title)").eq("worker_id", uid),
       ctx.db.from("tasks")
@@ -381,13 +405,13 @@ export const READ_OPS: Record<string, Op> = {
       if (x.status === "released") {
         events.push({
           id: "w-" + x.id, kind: "clearing", title: "Earned", meta: title + " · added to your wallet",
-          amountMinor: workerShareOfEscrow(x.escrow_minor), incoming: true, at: x.updated_at,
+          amountMinor: workerShareOfEscrow(x.escrow_minor, fees), incoming: true, at: x.updated_at,
         });
       } else if (x.status === "started" || x.status === "assigned") {
         events.push({
           id: "w-" + x.id, kind: "incoming", title: "Coming to you",
           meta: title + (x.status === "started" ? " · in progress" : " · not started yet"),
-          amountMinor: workerShareOfEscrow(x.escrow_minor), incoming: false, at: x.updated_at,
+          amountMinor: workerShareOfEscrow(x.escrow_minor, fees), incoming: false, at: x.updated_at,
         });
       }
     }
@@ -458,27 +482,14 @@ export const READ_OPS: Record<string, Op> = {
   },
 
   /** The live fee settings, with the defaults when a key is missing. */
-  platformFees: async (ctx) => {
-    const res = await ctx.db.from("settings").select("key,value")
-      .in("key", ["worker_commission_pct", "poster_service_fee_pct", "clearing_period_days", "post_start_cancel_penalty_pct"]);
-    const list = (res.data ?? []) as { key: string; value: unknown }[];
-    const get = (k: string, d: number) => {
-      const v = Number(list.find((r) => r.key === k)?.value);
-      return Number.isFinite(v) ? v : d;
-    };
-    return {
-      commission: get("worker_commission_pct", FEES.WORKER_COMMISSION_PCT),
-      posterFee: get("poster_service_fee_pct", FEES.POSTER_SERVICE_FEE_PCT),
-      clearingDays: get("clearing_period_days", 7),
-      // The Terms point at How fees work for this one too.
-      cancelFine: get("post_start_cancel_penalty_pct", FEES.POST_START_CANCEL_PENALTY_PCT),
-    };
-  },
+  platformFees: (ctx) => readFees(ctx),
 
   /** Platform fees the caller actually paid since a date, from the rows that moved the money. */
   feesSince: async (ctx, a) => {
     const iso = isoOrNull(a, "since") ?? "1970-01-01T00:00:00Z";
-    const commission = num(a, "commission", 0, 1);
+    // The commission is read here, not taken from the app: an argument named
+    // "commission" is still accepted (the old app sends one) and ignored.
+    const { commission } = await readFees(ctx);
     const [posted, worked] = await Promise.all([
       ctx.db.from("tasks").select("id, locked_minor, funded_at, assignments(escrow_minor)").eq("poster_id", ctx.userId)
         .not("funded_at", "is", null).gte("funded_at", iso),

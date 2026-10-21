@@ -53,14 +53,19 @@ Deno.serve(guarded("places-search", async (req: Request) => {
   const { data: who } = await asCaller.auth.getUser();
   if (!who?.user) return json({ error: "Sign in first" }, 401);
 
-  let body: { q?: unknown };
+  let body: { q?: unknown; lat?: unknown; lng?: unknown };
   try {
     body = await req.json();
   } catch {
     return json({ error: "Bad request" }, 400);
   }
+
+  // Two questions: "where is this text" ({ q }) and "what is here" ({ lat, lng }).
+  const lat = typeof body.lat === "number" ? body.lat : NaN;
+  const lng = typeof body.lng === "number" ? body.lng : NaN;
+  const reverse = Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
   const q = String(body.q ?? "").trim();
-  if (q.length < 2 || q.length > 120) return json({ configured: true, places: [] });
+  if (!reverse && (q.length < 2 || q.length > 120)) return json({ configured: true, places: [] });
 
   const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
   const { data: within, error: quotaErr } = await admin.rpc("take_places_quota", {
@@ -75,8 +80,12 @@ Deno.serve(guarded("places-search", async (req: Request) => {
   }
   if (within !== true) return json({ error: "Too many searches. Try again in a few minutes." }, 429);
 
+  if (reverse) return json({ label: await osmReverse(lat, lng) });
+
   const key = await mapsKey(admin);
-  if (!key) return json({ configured: false, places: [] });
+  // No Google key, or Google has nothing: OpenStreetMap answers, from here, so
+  // the app does not have to call it (it refuses anonymous app traffic).
+  if (!key) return json({ configured: false, places: await osmSearch(q), source: "osm" });
 
   try {
     const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
@@ -91,7 +100,7 @@ Deno.serve(guarded("places-search", async (req: Request) => {
     if (!res.ok) {
       // A rejected key or an exhausted quota shows up here first.
       await logServer("error", "places-search", "Google rejected the search", { http_status: res.status });
-      return json({ configured: true, places: [] });
+      return json({ configured: true, places: await osmSearch(q), source: "osm" });
     }
     const out = (await res.json()) as {
       places?: {
@@ -107,10 +116,55 @@ Deno.serve(guarded("places-search", async (req: Request) => {
         lng: p.location?.longitude ?? null,
       }))
       .filter((p) => p.lat !== null && p.lng !== null);
-    return json({ configured: true, places });
+    if (places.length) return json({ configured: true, places, source: "google" });
+    return json({ configured: true, places: await osmSearch(q), source: "osm" });
   } catch (e) {
-    // Google unreachable: the app falls through to OpenStreetMap.
+    // Google unreachable: fall back to OpenStreetMap.
     await logServer("warn", "places-search", "Google unreachable", { error: e instanceof Error ? e.message : String(e) });
-    return json({ configured: true, places: [] });
+    return json({ configured: true, places: await osmSearch(q), source: "osm" });
   }
 }));
+
+// OpenStreetMap's Nominatim asks every client to identify itself and to stay
+// under about one request a second; the per-account budget above keeps us there.
+const OSM = { "User-Agent": "TaskDrop/1.0 (support@taskdrop.in)", "Accept-Language": "en" };
+
+async function osmSearch(q: string): Promise<{ label: string; lat: number; lng: number }[]> {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=in&q=${encodeURIComponent(q)}`, {
+      headers: OSM,
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) {
+      await logServer("warn", "places-search", "OpenStreetMap search refused", { http_status: res.status });
+      return [];
+    }
+    const list = (await res.json()) as { display_name?: string; name?: string; lat?: string; lon?: string }[];
+    return list
+      .map((r) => ({
+        // The full display_name is a mouthful; the first few parts read like an address.
+        label: r.display_name?.split(",").slice(0, 3).join(",").trim() || r.name || q,
+        lat: Number(r.lat),
+        lng: Number(r.lon),
+      }))
+      .filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng));
+  } catch (e) {
+    await logServer("warn", "places-search", "OpenStreetMap unreachable", { error: e instanceof Error ? e.message : String(e) });
+    return [];
+  }
+}
+
+/** A short name for a point (an area, not a door), or null when there is none. */
+async function osmReverse(lat: number, lng: number): Promise<string | null> {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&lat=${lat}&lon=${lng}`, {
+      headers: OSM,
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) return null;
+    const out = (await res.json()) as { display_name?: string; name?: string };
+    return out.name || out.display_name?.split(",").slice(0, 3).join(",").trim() || null;
+  } catch {
+    return null;
+  }
+}

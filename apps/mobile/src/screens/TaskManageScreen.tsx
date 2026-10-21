@@ -41,7 +41,7 @@ import { openRow, posterRow } from '../lib/taskRows';
 import { statusBadge } from './MyTasksScreen';
 import { useLayout } from '../lib/layout';
 import { formatDeadline } from '../components/DateTimeSheet';
-import { FEES } from '@taskdrop/rules';
+import { useFees } from '../lib/useFees';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 
 type QuoteFilter = 'newest' | 'cheapest' | 'budget' | 'rated' | 'fastest';
@@ -71,6 +71,7 @@ function milestonesOf(v: unknown): Milestone[] {
  * rules stay in the one place they already live.
  */
 export function TaskManageScreen() {
+  const fees = useFees();
   const t = useTheme();
   const { desktop, width } = useLayout();
   const { params, back, go } = useNav();
@@ -131,7 +132,7 @@ export function TaskManageScreen() {
   const row = posterRow(task, bids.length);
   const milestones = milestonesOf(task.milestones);
   const base = task.locked_minor ?? task.benchmark_minor;
-  const escrow = assignment?.escrow_minor ?? Math.round(base * (1 + FEES.POSTER_SERVICE_FEE_PCT));
+  const escrow = assignment?.escrow_minor ?? Math.round(base * (1 + fees.posterFee));
   const left = timeLeft(task.due_at);
 
   const events: Event[] = [
@@ -592,7 +593,7 @@ export function TaskManageScreen() {
         title={selecting ? `Select ${selecting.name}?` : ''}
         message={
           selecting
-            ? `${rupees(Math.round(selecting.priceMinor * (1 + FEES.POSTER_SERVICE_FEE_PCT)) / 100)} (the offer plus the ${Math.round(FEES.POSTER_SERVICE_FEE_PCT * 100)}% service fee) is taken from your wallet and locked in this task until it is done. If the task is cancelled or not completed, all of it comes back. Phone numbers are shared once the work starts.`
+            ? `${rupees(Math.round(selecting.priceMinor * (1 + fees.posterFee)) / 100)} (the offer plus the ${Math.round(fees.posterFee * 100)}% service fee) is taken from your wallet and locked in this task until it is done. If the task is cancelled or not completed, all of it comes back. Phone numbers are shared once the work starts.`
             : ''
         }
         confirmLabel="Choose and pay from wallet"
