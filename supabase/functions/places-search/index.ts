@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
+import { captureServerError, guarded, logServer } from "../_shared/monitoring.ts";
 
 /**
  * Place search for the app, so no Google key ships in the web bundle or APK.
@@ -40,7 +41,7 @@ async function mapsKey(admin: ReturnType<typeof createClient>): Promise<string> 
   return vaultKey;
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(guarded("places-search", async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
@@ -67,7 +68,11 @@ Deno.serve(async (req: Request) => {
     p_limit: LIMIT,
     p_window_minutes: WINDOW_MIN,
   });
-  if (quotaErr) return json({ error: "Try again in a moment" }, 503);
+  if (quotaErr) {
+    await logServer("error", "places-search", "search budget unavailable", { error: quotaErr.message });
+    await captureServerError(new Error(quotaErr.message), { fn: "places-search", step: "take_places_quota" });
+    return json({ error: "Try again in a moment" }, 503);
+  }
   if (within !== true) return json({ error: "Too many searches. Try again in a few minutes." }, 429);
 
   const key = await mapsKey(admin);
@@ -83,7 +88,11 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({ textQuery: q, maxResultCount: 6 }),
     });
-    if (!res.ok) return json({ configured: true, places: [] });
+    if (!res.ok) {
+      // A rejected key or an exhausted quota shows up here first.
+      await logServer("error", "places-search", "Google rejected the search", { http_status: res.status });
+      return json({ configured: true, places: [] });
+    }
     const out = (await res.json()) as {
       places?: {
         displayName?: { text?: string };
@@ -99,8 +108,9 @@ Deno.serve(async (req: Request) => {
       }))
       .filter((p) => p.lat !== null && p.lng !== null);
     return json({ configured: true, places });
-  } catch {
+  } catch (e) {
     // Google unreachable: the app falls through to OpenStreetMap.
+    await logServer("warn", "places-search", "Google unreachable", { error: e instanceof Error ? e.message : String(e) });
     return json({ configured: true, places: [] });
   }
-});
+}));

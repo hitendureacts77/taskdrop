@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.20, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.21, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -57,7 +57,7 @@ Version 4.20, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 | Phase | Name | Status |
 |---|---|---|
 | 0 | Foundations | In progress, 36 of 46 boxes ticked, 4 deferred, 6 open, all yours: the old admin check (needs your login), make `taskdrop.in` public (Vercel Authentication is on), Maps key restriction (blocked: Google needs two-step verification on the account), a second copy of the EAS keystore backup (the first is on this PC), the lawyer question (`docs/LAWYER_BRIEF.md` is ready to send) and the 12 testers (`docs/TESTER_RECRUITMENT.md` is the kit). Done 2026-10-20: CI and the old-app compatibility checks, CodeRabbit on both repos, the first Vercel backend deploy, the first seed load, the by-hand old-app checklist (admin step excepted) |
-| 1 | See problems, ship fast | In progress, 1 of 22 boxes ticked |
+| 1 | See problems, ship fast | In progress, 11 of 22 boxes ticked, 5 deferred, 11 open: all the code is written (branch `upgrade/phase-1-sentry`, not yet pushed). Open on you: `SENTRY_AUTH_TOKEN` in Vercel for web source maps, the Firebase/FCM setup (`docs/FCM.md`) and then the one new `beta` APK, the Uptime Robot account, two more Sentry alerts, and every Verify box (they need the APK and the monitors) |
 | 2 | Make it work (stabilize) | Not started, 0 of 18 boxes ticked |
 | 3 | Server decides everything | In progress, 10 of 36 boxes ticked |
 | 4 | Accounts and sign-in | Not started, 0 of 21 boxes ticked |
@@ -180,25 +180,25 @@ Version 4.20, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 ## Phase 1: See problems, ship fast
 
 **Backend**
-- [ ] `_shared/monitoring.ts` used in every function: `razorpay`, both webhooks, `razorpayx-payouts`, `phone-auth`, `password-auth`, `places-search`
-- [ ] Parsed stack frames
-- [ ] Unexpected database errors reported
-- [ ] "PAYOUT MADE BUT NOT RECORDED" and "REFUND SENT BUT NOT RECORDED" sent as fatal
-- [ ] A `health` op on `api` for uptime checks
+- [x] `_shared/monitoring.ts` used in every function: `razorpay`, both webhooks, `razorpayx-payouts`, `phone-auth`, `password-auth`, `places-search`. Done 2026-10-21 (branch `upgrade/phase-1-sentry`): `places-search` was the last without it; it now logs a rejected Google key, an unreachable Google and a broken search budget. Every handler except `app-config`, `inngest` and `razorpay-setup` is wrapped in `guarded()` (see the third box)
+- [x] Parsed stack frames. `captureServerError` now sends a real Sentry stack trace (function, file, line, column, in-app flag; `_shared/stack.ts`, tested in `stack.test.ts`) instead of the stack as a text blob
+- [x] Unexpected database errors reported. `guarded()` in `_shared/monitoring.ts` catches anything a handler throws, reports it with its stack and answers a plain 500; `phone-auth` `failed()`, the `password-auth` sign-in gate, the `places-search` budget and `api` ops also send database errors as issues, not only as log lines
+- [x] "PAYOUT MADE BUT NOT RECORDED" and "REFUND SENT BUT NOT RECORDED" sent as fatal. The payout case was only a `console.error`; both now send a `fatal`-level event (`captureServerError(..., "fatal")`) plus a log line
+- [x] A `health` op on `api` for uptime checks. `POST /functions/v1/api` with `{"op":"health"}` and the project's anon key as the bearer token answers before sign-in: 200 `{ok:true,data:{status:"ok",database:true}}`, or 503 when the database does not answer. Written, not yet deployed (the Vercel build deploys it when this branch is merged into `redesigned-2.0`)
 
 **User app (all platforms)**
 - [x] `@sentry/react-native` replaces `apps/mobile/src/lib/monitoring.ts`; pick the version that matches Expo SDK 57 (`~7.11.0`; DSN in `EXPO_PUBLIC_SENTRY_DSN`, auth token in `SENTRY_AUTH_TOKEN`; Sentry org `hitendu`, project `taskdrop`)
-- [ ] `reportError` (`lib/errors.ts`) stays the single entry point
-- [ ] API and network failures reported (they're ignored today)
-- [ ] User id only, no phone or email; about 10% performance traces; `environment` and `release` tags
-- [ ] `expo-updates` with a runtime-version policy (R1: EAS Update, not EAS Hosting)
+- [x] `reportError` (`lib/errors.ts`) stays the single entry point (checked: nothing else in the app calls Sentry's error API; the reporter is installed by `installMonitoring`)
+- [x] API and network failures reported (they're ignored today). `apiFailureKind` (`lib/errors.ts`, tested) sorts a failed call into offline, signed out, refused on purpose or unexpected. The first three only count in Sentry Metrics (`api.failed`, by kind); an unexpected one becomes a warning-level issue grouped by status and code, with no message text (database messages can quote values)
+- [x] User id only, no phone or email; about 10% performance traces; `environment` and `release` tags. The user id is set on sign-in and cleared on sign-out (`setMonitoringUser`); `sendDefaultPii` was already off, traces 10%, `environment` from `EXPO_PUBLIC_SENTRY_ENVIRONMENT`, `release` the app version
+- [x] `expo-updates` with a runtime-version policy (R1: EAS Update, not EAS Hosting). `expo-updates ~57.0.26` added; `app.json` has `runtimeVersion: {policy: "appVersion"}` and the update URL for project `08aa002b-…`; the `beta` build profile already uses channel `beta`. Takes effect in the next native build (the box under Android)
 
 **Web**
-- [ ] Sentry captures web errors, with readable stacks (source maps uploaded on deploy)
+- [ ] Sentry captures web errors, with readable stacks (source maps uploaded on deploy). Built 2026-10-21, waiting on you: the web export now makes source maps (`--source-maps`), and `scripts/upload-web-sourcemaps.mjs` (run by `scripts/vercel-build.mjs`) uploads them to Sentry and then deletes every `.map` so none is public. It needs **(You)** `SENTRY_AUTH_TOKEN` as a secret in the Vercel project `taskdrop` (the same token EAS has). Without it the build still passes with a warning and web stacks stay minified. Web errors already reach Sentry (TASKDROP-2)
 
 **Android**
-- [ ] FCM V1 credentials + `google-services.json` through EAS, which fixes push in builds
-- [ ] One new `beta` APK with all the native changes (Sentry native, `expo-updates`, FCM), installed by testers
+- [ ] **(You)** FCM V1 credentials + `google-services.json` through EAS, which fixes push in builds. Code side done 2026-10-21: `app.config.js` reads the file from the EAS file variable `GOOGLE_SERVICES_JSON` and `google-services.json` is git-ignored. Yours: create the Firebase project, upload the FCM V1 service-account key to Expo and add the file variable. Steps in `docs/FCM.md`
+- [ ] One new `beta` APK with all the native changes (Sentry native, `expo-updates`, FCM), installed by testers. Waits for the FCM box above, so the APK is built once. Not built yet
 - [ ] Source maps uploaded from EAS
 
 **iOS**
@@ -215,12 +215,12 @@ Version 4.20, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 - [-] **(You)** Add iPhone testers to TestFlight internal testing
 
 **Admin**
-- [ ] `@sentry/nextjs` (server actions, route handlers, browser), as its own Sentry project
+- [x] `@sentry/nextjs` (server actions, route handlers, browser), as its own Sentry project. Already in the admin repo on `redesigned-2.0` (admin PR 15; project `taskdrop-admin`, `src/instrumentation*.ts`, `global-error.tsx`; admin source maps upload with the token on Vercel, checked 2026-10-19)
 
 **Alerts**
-- [ ] **(You)** Create Sentry and Uptime Robot accounts
-- [ ] Sentry alerts: new issues, money fatals, error spikes
-- [ ] Uptime Robot: `api` health, `taskdrop.in`, `admin.taskdrop.in`
+- [ ] **(You)** Create Sentry and Uptime Robot accounts. The Sentry account exists (org `hitendu`, projects `taskdrop` and `taskdrop-admin`); the Uptime Robot account is still to make
+- [ ] Sentry alerts: new issues, money fatals, error spikes. One alert exists (new, escalating and regressed issues, emailed to you). Still to add in Sentry: an alert on `level:fatal` (the two NOT RECORDED cases) and one for an error spike. Not set up from here: Sentry's alert screens need your signed-in session
+- [ ] Uptime Robot: `api` health, `taskdrop.in`, `admin.taskdrop.in`. Waits for the account above and for the `health` op to be deployed. The api monitor is a POST to `https://wjxvingpfbfvkfqhrguj.supabase.co/functions/v1/api` with body `{"op":"health"}` and headers `Authorization: Bearer <anon key>`, `apikey: <anon key>`, `Content-Type: application/json` (POST and custom headers need a paid Uptime Robot plan; the free plan can watch `taskdrop.in` and the admin page only). There is no `admin.taskdrop.in`: use the admin's Vercel address
 
 **Verify**
 - [ ] A test error from web, Android, iOS, admin and each function appears in Sentry with a readable stack
@@ -1091,6 +1091,7 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
+- **v4.21 (2026-10-21):** Phase 1 code, on `upgrade/phase-1-sentry` (local, not pushed). Server: stack frames sent to Sentry properly, `fatal` level for the two NOT RECORDED money cases, `guarded()` on the handlers so any unexpected throw is reported, `places-search` monitored, and an unauthenticated `{"op":"health"}` on `api`. App: failed API calls are classified and unexpected ones reported, the signed-in user id (only) is attached, and `expo-updates` is added with the `appVersion` runtime policy. Build: the web export uploads its source maps and then deletes them; `app.config.js` takes `google-services.json` from an EAS file variable (`docs/FCM.md`). Admin already had Sentry. Not done, needs you: `SENTRY_AUTH_TOKEN` in Vercel, Firebase/FCM, the new APK, Uptime Robot, two Sentry alerts. Phase 0 is being finished in another session.
 - **v4.20 (2026-10-21):** `support@taskdrop.in` forwards to the owner's Gmail (Spaceship rule; MX records already in place; untested with a real email). The EAS upload keystore was downloaded to `C:\Users\naras\Documents\taskdrop-keystore-backup\@hitendureacts__taskdrop-keystore-backup.zip` on the owner's PC; a second copy elsewhere is still the owner's step.
 - **v4.19 (2026-10-20):** Phase 0, the owner items I could do. The first seed load ran on the test project and broke sign-in for about 15 minutes: the seed left NULL in four `auth.users` token columns, GoTrue's user list answered 500, and `phone-auth`'s account lookup uses it. The by-hand old-app checklist found it; the rows were patched and the seed plus its check fixed (PR 54). The Maps key now stays out of the JS bundle (PR 53; CodeRabbit caught that plugin options reach the public config, so the key is only handed over on Android builds). The Inngest sync was confirmed by calling it. Maps key restriction is blocked on Google's two-step-verification requirement for the account; the EAS keystore exists but is not downloaded; `support@` forwarding waits for a destination address; the old admin check needs the owner's login. New: `docs/LAWYER_BRIEF.md` and `docs/TESTER_RECRUITMENT.md`.
 - **v4.18 (2026-10-20):** Phase 0, pull requests opened. The last local Phase 0 work went up as app PR 41 and admin PR 19, which also served as the first real run of the checks and of CodeRabbit (CodeRabbit is installed on both repos). Fixed from the reviews: the CI `database` job now installs dependencies; `scripts/lib/db.mjs` refuses any database but localhost or the exact test project (so a wrong `DATABASE_URL` can't reach production), and checks the server certificate when `DATABASE_CA_CERT` is set; `deploy-migrations` refuses files that manage their own transaction; the Vercel build fails closed if it can't pin `main` and times out the Inngest sync; the admin CI scopes the Supabase token to two steps and `db:types` reads `.env.local`. The first Vercel backend deploy ran when PR 41 merged (all 11 functions redeployed, build green). Plan: removed the duplicated sections 3.4 to 7 and corrected section 7. New open item: Vercel Authentication hides `taskdrop.in` from anyone not signed in to Vercel.

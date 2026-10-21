@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
-import { background, logServer } from "../_shared/monitoring.ts";
+import { background, captureServerError, guarded, logServer } from "../_shared/monitoring.ts";
 import { signInRefusal } from "../_shared/signInSwitches.ts";
 
 /**
@@ -46,6 +46,7 @@ const json = (body: unknown, status = 200) =>
 /** A server-side failure: logged in full, answered without table or provider details. */
 const failed = (step: string, err: { message?: string }) => {
   background(logServer("error", "phone-auth", `${step} failed`, { step, error: err?.message }));
+  background(captureServerError(new Error(err?.message ?? `${step} failed`), { fn: "phone-auth", step }));
   return json({ error: "Something went wrong. Try again in a moment." }, 500);
 };
 
@@ -190,7 +191,7 @@ async function sendSms(phone: string, code: string): Promise<void> {
   }
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(guarded("phone-auth", async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   const admin = createClient(
@@ -437,4 +438,4 @@ Deno.serve(async (req: Request) => {
   }
 
   return json({ error: "Unknown action" }, 400);
-});
+}));

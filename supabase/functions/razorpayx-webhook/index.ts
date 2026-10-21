@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
-import { logServer } from "../_shared/monitoring.ts";
+import { guarded, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
 import { handleWebhook } from "../_shared/razorpayx.ts";
 
@@ -26,7 +26,7 @@ import { handleWebhook } from "../_shared/razorpayx.ts";
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
-Deno.serve(async (req: Request) => {
+Deno.serve(guarded("razorpayx-webhook", async (req: Request) => {
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
   const raw = await req.text();
@@ -50,4 +50,4 @@ Deno.serve(async (req: Request) => {
     await logServer("info", "razorpayx-webhook", "payout status recorded", { status: String(out.body.status) });
   }
   return json(out.body, out.status);
-});
+}));

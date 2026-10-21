@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Sentry from '@sentry/react-native';
-import { setErrorReporter } from './errors';
+import { apiFailureKind, setErrorReporter, type RawError } from './errors';
 
 /**
  * Crash reporting to Sentry, switched on by EXPO_PUBLIC_SENTRY_DSN.
@@ -23,9 +23,6 @@ import { setErrorReporter } from './errors';
  */
 
 const DSN = process.env.EXPO_PUBLIC_SENTRY_DSN ?? '';
-
-/** Expected failures (offline, a refused request) are not crashes and are not sent. */
-const IGNORED_CONTEXTS = new Set(['api']);
 
 /** Turn on in release builds that have a DSN. Development just logs. */
 const ENABLED = !__DEV__ && DSN.length > 0;
@@ -74,7 +71,11 @@ export function installMonitoring(): void {
 
   setErrorReporter((err, context) => {
     if (__DEV__) console.warn(`[error${context ? `:${context}` : ''}]`, err);
-    if (!ENABLED || (context && IGNORED_CONTEXTS.has(context))) return;
+    if (!ENABLED) return;
+    if (context === 'api') {
+      reportApiFailure(err as RawError);
+      return;
+    }
     try {
       const e = err instanceof Error ? err : new Error(typeof err === 'string' ? err : 'Non-error thrown');
       Sentry.captureException(e, {
@@ -85,6 +86,42 @@ export function installMonitoring(): void {
       /* reporting must never become the crash */
     }
   });
+}
+
+/**
+ * A failed call to the server. Offline, signed-out and on-purpose refusals
+ * (not enough money, a duplicate) are normal, so they only count in Metrics.
+ * Anything else is a bug worth seeing: it becomes a warning-level issue with
+ * the status and error code, grouped by them, and without the message text
+ * (database messages can quote values).
+ */
+function reportApiFailure(err: RawError): void {
+  try {
+    const kind = apiFailureKind(err);
+    if (kind !== 'unexpected') {
+      Sentry.metrics.count('api.failed', 1, { attributes: { kind } });
+      return;
+    }
+    const code = err.code ?? 'none';
+    const status = err.status ?? 0;
+    Sentry.captureException(new Error(`API call failed (status ${status}, code ${code})`), {
+      level: 'warning',
+      tags: { context: 'api', code, status: String(status) },
+      fingerprint: ['api-failure', code, String(status)],
+    });
+  } catch {
+    /* reporting must never become the crash */
+  }
+}
+
+/** Who is signed in, by id only: never a phone number, email or name. Call with null on sign-out. */
+export function setMonitoringUser(id: string | null): void {
+  if (!ENABLED) return;
+  try {
+    Sentry.setUser(id ? { id } : null);
+  } catch {
+    /* best effort */
+  }
 }
 
 type Attributes = Record<string, string | number | boolean | null | undefined>;

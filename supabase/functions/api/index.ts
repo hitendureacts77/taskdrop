@@ -3,7 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { ControlsCache, PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient } from "../_shared/controls.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
 import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
-import { background, captureServerError, logServer } from "../_shared/monitoring.ts";
+import { guarded, background, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
 import { type Db, RATE_LIMITS, rateBucket, runOp } from "./ops.ts";
 
@@ -43,7 +43,19 @@ const json = (body: unknown, status = 200) =>
 const refuse = (message: string, code: string, status: number) =>
   json({ ok: false, error: { message, code, details: null } }, status);
 
-Deno.serve(async (req: Request) => {
+/** 200 with { ok: true } when the database answers, 503 otherwise, so a monitor can alert on the status code. */
+async function health(url: string): Promise<Response> {
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  let database = false;
+  if (serviceKey) {
+    const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { error } = await admin.rpc("get_app_controls", { p_platform: "web", p_version: "0" });
+    database = !error;
+  }
+  return json({ ok: database, data: { status: database ? "ok" : "down", database } }, database ? 200 : 503);
+}
+
+Deno.serve(guarded("api", async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return refuse("Unknown request", "BAD_METHOD", 405);
 
@@ -63,6 +75,14 @@ Deno.serve(async (req: Request) => {
     global: { headers: { Authorization: `Bearer ${jwt}`, ...(await gatewayHeaders()) } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
+
+  // Uptime check: { "op": "health" } with the project's anon key as the bearer
+  // token (the gateway still wants a valid key). Answers before any sign-in and
+  // changes nothing; it only says whether the database answers.
+  if (req.headers.get("content-type")?.includes("json")) {
+    const peek = (await req.clone().json().catch(() => null)) as { op?: unknown } | null;
+    if (peek?.op === "health") return await health(url);
+  }
 
   const { data: userData, error: userErr } = await db.auth.getUser(jwt);
   if (userErr || !userData?.user) return refuse("Your session has expired. Please sign in again.", "UNAUTHENTICATED", 401);
@@ -149,4 +169,4 @@ Deno.serve(async (req: Request) => {
     background(captureServerError(e, { op: String(body.op), fn: "api" }));
   });
   return json(result);
-});
+}));

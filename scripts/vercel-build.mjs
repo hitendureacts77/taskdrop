@@ -99,3 +99,7 @@ if (!wantsBackend) {
 }
 
 must("web export", "npm", ["run", "web:export"]);
+
+// Readable stacks for web errors: send the source maps to Sentry, then delete them so they are never public.
+// A failure here is a warning: the site is fine without them, only Sentry's stacks are harder to read.
+if (!run("web source maps", "node", ["scripts/upload-web-sourcemaps.mjs"])) warn("Web source maps were not uploaded; web errors in Sentry will show minified stacks.");

@@ -37,5 +37,11 @@ module.exports = ({ config }) => {
   });
   plugins.push(['@sentry/react-native/expo', SENTRY]);
   if (mapsKey) plugins.push(['react-native-maps', { androidGoogleMapsApiKey: mapsKey }]);
-  return { ...config, plugins };
+  // Push on Android needs the Firebase app's google-services.json. It is kept out
+  // of git: on EAS it is a file environment variable (GOOGLE_SERVICES_JSON, whose
+  // value is the path to the file); on this machine point it at a local file.
+  // Without it the build still succeeds and push does not work (docs/FCM.md).
+  const googleServicesFile = process.env.GOOGLE_SERVICES_JSON;
+  const android = googleServicesFile ? { ...config.android, googleServicesFile } : config.android;
+  return { ...config, android, plugins };
 };

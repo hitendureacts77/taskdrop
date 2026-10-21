@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { secret } from "../_shared/secrets.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
-import { captureServerError, logServer } from "../_shared/monitoring.ts";
+import { guarded, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient, featureOffMessage } from "../_shared/controls.ts";
 
 /**
@@ -54,7 +54,7 @@ async function taskIsFunded(
   return Boolean(data?.funded_at);
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(guarded("razorpay", async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   const RZP_ID = await secret("RAZORPAY_KEY_ID");
@@ -401,7 +401,7 @@ Deno.serve(async (req: Request) => {
     if (recErr) {
       // The worst case in this file: money has moved and our books do not say so.
       await logServer("error", "razorpay", "REFUND SENT BUT NOT RECORDED", { task_id: taskId, payment_id: due.payment_id, refund_ref: refund.id ?? null, amount_minor: amount, error: recErr.message });
-      await captureServerError(recErr, { fn: "razorpay", step: "record_escrow_refund" });
+      await captureServerError(new Error(`REFUND SENT BUT NOT RECORDED: ${recErr.message}`), { fn: "razorpay", step: "record_escrow_refund", task_id: String(taskId) }, "fatal");
       // Keep the claim forever so nobody can send it again until a person has
       // recorded this refund by hand and cleared payments.refund_claimed_at.
       await admin.from("payments").update({ refund_claimed_at: "infinity" }).eq("id", due.payment_id);
@@ -414,4 +414,4 @@ Deno.serve(async (req: Request) => {
   }
 
   return json({ error: "Unknown action" }, 400);
-});
+}));
