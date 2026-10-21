@@ -72,22 +72,20 @@ begin
   assert v_failed, 'a reason is required';
   perform public.admin_hide_message(v_msg, 'abusive');
 
-  perform pg_temp.become(v_poster);
-  select count(*) into v_seen from public.messages where id = v_msg;
-  assert v_seen = 0, 'the sender no longer sees a hidden message';
-  perform pg_temp.become(v_worker);
-  select count(*) into v_seen from public.messages where id = v_msg;
-  assert v_seen = 0, 'the other person no longer sees it';
-  -- nothing is deleted: the row is still there for the admin panel (which reads with the service key)
+  -- A test session runs as postgres, which migration 040 lets through every admin check, so a
+  -- SELECT on messages always sees every row. Assert what messages_hide_moderated is built from.
   perform pg_temp.as_operator();
+  assert private.message_is_hidden(v_msg), 'the message is marked hidden';
+  assert exists (select 1 from pg_policy where polname = 'messages_hide_moderated' and polrelid = 'public.messages'::regclass
+                  and polpermissive = false), 'the messages_hide_moderated policy is missing or not restrictive';
+  -- nothing is deleted: the row is still there for the admin panel (which reads with the service key)
   select count(*) into v_seen from public.messages where id = v_msg;
   assert v_seen = 1, 'the message is hidden, not deleted';
   perform pg_temp.become(v_admin);
 
   perform public.admin_unhide_message(v_msg);
-  perform pg_temp.become(v_worker);
-  select count(*) into v_seen from public.messages where id = v_msg;
-  assert v_seen = 1, 'unhiding brings it back';
+  perform pg_temp.as_operator();
+  assert not private.message_is_hidden(v_msg), 'unhiding brings it back';
 
   -- photo
   perform pg_temp.become(v_admin);
