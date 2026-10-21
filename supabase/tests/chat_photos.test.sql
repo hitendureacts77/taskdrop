@@ -17,14 +17,14 @@ end;
 $$;
 
 create or replace function pg_temp.as_operator() returns void
-language plpgsql as $
+language plpgsql as $$
 begin
   perform set_config('request.jwt.claims', '', true);
   perform set_config('role', 'postgres', true);
 end;
-$;
+$$;
 
-do $
+do $$
 declare
   v_poster   uuid := gen_random_uuid();
   v_worker   uuid := gen_random_uuid();
