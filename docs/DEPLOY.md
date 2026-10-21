@@ -33,11 +33,12 @@ The same two values, saved as `DATABASE_URL=...` and `SUPABASE_ACCESS_TOKEN=...`
 2. **Old-app contract** (`npm run test:contract`). Runs every operation the old app calls through the `api` function of `main` and through this branch, against the same fake database. It fails if the new version refuses what the old one accepted, answers with fewer fields, or no longer knows an operation. Adding operations, optional arguments and extra fields is fine.
 3. **New migrations only** (`node scripts/deploy-migrations.mjs`). Not `supabase db push`: the cloud project's migration history was written by hand and disagrees with the repo's files (checked 2026-10-20: 95 migrations under other version numbers, 11 history rows with no file, 6 files with no row; the six files' changes are in the database under other names). `db push` would re-apply old files. The script treats everything up to the newest recorded version as applied, applies each newer file in its own transaction, and records it.
 4. **Old-app database check** (`node scripts/check-old-app-db.mjs`). Every table, function and function argument that the old app's server code uses must still exist.
-5. **Edge Functions** (`supabase functions deploy`). JWT settings per function come from `supabase/config.toml`.
-6. **Inngest sync.** A warning, not a failure, until the Inngest Cloud keys are set.
-7. **Web export** (`npm run web:export`).
+5. **Function secrets** (`node scripts/sync-function-secrets.mjs`). Copies the allow-listed Edge Function secrets from Vercel to Supabase (`INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `IMAGEKIT_*`, `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `GOOGLE_MAPS_API_KEY`), so Vercel is the one place to edit them. Only names are logged; a name Vercel does not hold is left as it is in Supabase; a failure stops the build (a stale signing key would break the jobs). Razorpay keys are not in the list: they live in Supabase Vault.
+6. **Edge Functions** (`supabase functions deploy`). JWT settings per function come from `supabase/config.toml`.
+7. **Inngest sync.** A warning, not a failure, until the Inngest Cloud keys are set.
+8. **Web export** (`npm run web:export`).
 
-A failed step 2 to 5 fails the build, so the web app is not published against a half-updated backend and the previous deployment stays live. Fix the cause and push again. Vercel's build log shows each step.
+A failed step 2, 3, 4, 5 or 6 fails the build, so the web app is not published against a half-updated backend and the previous deployment stays live. Fix the cause and push again. Vercel's build log shows each step.
 
 The unit, type and SQL tests that GitHub runs on pull requests (`.github/workflows/ci.yml`) are checks only: they deploy nothing and hold no secrets.
 
