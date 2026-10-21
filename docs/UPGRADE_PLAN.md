@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.27, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.28, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -64,9 +64,9 @@ Version 4.27, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 | 5 | Background jobs (Inngest) | In progress, 12 of 42 boxes ticked, 3 deferred, 30 open. Added this session: the admin Alerts page (admin repo). **Everything else open here waits on something that is yours:** the Inngest Cloud account and its two keys (so nothing built can run or be checked), and the lawyer's answer on the money flow, which the plan and AGENTS.md say must come before the payout, refund-retry and webhook items are built. The built-but-unapplied jobs (push, overdue, prunes, account files, money sweeps) switch on with the cutover SQL in `supabase/cutover/` once the keys are set. Nothing in this phase was deployed |
 | 6 | Speed and media (ImageKit) | In progress, 14 of 24 boxes ticked, 2 deferred, 10 open (merged; migration 109 applied 2026-10-19; **off until your ImageKit keys are set**, and every open box here needs them or a device: uploads to ImageKit, admin image views, phone checks, Verify). Only the web CSP box was closed this session |
 | 7 | Moderation and admin tools | In progress, 8 of 23 boxes ticked, 2 deferred, 15 open. Built on branch `upgrade/phase-7-moderation` (both repos, not pushed; migrations 117 and 118 not applied): blocks now stop contact, hide message / photo / category functions, report-a-message in chat, reported messages shown and hideable in the admin, the runbook. **Not built:** remove a review, cancel a promotion with refund (both touch ratings or money and need a design), a "warn" action, the promotion-tier form, change-category button, broadcasts by platform, the platform dashboard. Verify boxes need an APK/browser session |
-| 8 | Store readiness | Not started, 0 of 9 boxes ticked |
-| 9 | Switch-over to the upgraded app | Not started, 0 of 26 boxes ticked |
-| 10 | Customer launch (later, when you decide) | Not started, 0 of 27 boxes ticked |
+| 8 | Store readiness | Not started, 0 of 9 boxes ticked (reviewed 2026-10-21: every box is yours, needs a store account, a closed-test group or a device; the one code-side question, map tiles, is noted in its box) |
+| 9 | Switch-over to the upgraded app | Not started, 0 of 26 boxes ticked. **Deliberately not touched by the autonomous run (2026-10-21):** it needs your approval, it retires the old app and old admin, and the lockdown and clean-up migrations cannot be undone while testers are on the old app |
+| 10 | Customer launch (later, when you decide) | Not started, 0 of 27 boxes ticked. Not touched: ground rule 7 says it happens only when you decide |
 
 ## Coverage: what each phase changes
 
@@ -583,7 +583,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 
 **Web**
 - [ ] Privacy policy, terms and support pages live on `taskdrop.in`, needed by both stores. (Built 2026-10-19 as `?page=terms`, `?page=privacy`, `?page=support`, all public; text traced to code in `docs/LEGAL_AUDIT.md`. Open: the domain, `EXPO_PUBLIC_LEGAL_*` values, lawyer review.)
-- [ ] Map tiles (`MapPicker`) and the fallback search use a provider's free tier, or the volume is confirmed low. OpenStreetMap's public servers don't allow heavy commercial use.
+- [ ] Map tiles (`MapPicker`) and the fallback search use a provider's free tier, or the volume is confirmed low. OpenStreetMap's public servers don't allow heavy commercial use. **Checked 2026-10-21:** the web/tile map (`MapPicker.tiles.tsx`) loads tiles straight from `tile.openstreetmap.org`, and the fallback address search is OpenStreetMap's Nominatim (now called from the `places-search` function, one request per search, under the per-account budget). Fine for a dozen testers; not for launch. Needs a decision (a tile provider with a free tier, or Google Maps tiles) before the store builds
 
 **Android**
 - [ ] **(You)** Google Play Console app ($25 one-time, if not paid), store listing, screenshots, data-safety form
@@ -1091,6 +1091,7 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
+- **v4.28 (2026-10-21):** Phases 8 to 10 reviewed, nothing built. Phase 8 needs store accounts, a 12-person closed test and devices; Phase 9 needs your approval and would retire the old app and admin; Phase 10 is "when you decide". One finding for Phase 8: the tile map and the fallback search depend on OpenStreetMap's public servers, which is fine for testing and not for launch.
 - **v4.27 (2026-10-21):** Phase 7, on `upgrade/phase-7-moderation` (both repos, local). Blocks are enforced in SQL (117); staff can hide a message or photo and fix a category (118); a chat message from the other person can be reported with a press and hold; the admin Reports queue shows reported message text with Hide / Show again; `docs/RUNBOOK.md` added. Left out on purpose: removing a review and cancelling a promotion with a refund (they touch ratings and money and need a design first). Migrations 117 and 118 are written, not applied.
 - **v4.26 (2026-10-21):** Phase 6 reviewed: the web CSP box is closed by the Phase 3 `vercel.json`. Everything else open needs the ImageKit account keys or a phone. The admin has no image views to sign (new feature, needs the keys).
 - **v4.25 (2026-10-21):** Phase 5 reviewed. Only the admin Alerts page could be built without the Inngest keys or the lawyer's answer (admin repo, local). The payout queue, refund retries, webhook hand-off and the money-sweep cutover were deliberately not started: they change how real money moves and cannot be tried without Inngest Cloud.
