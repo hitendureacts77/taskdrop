@@ -9,9 +9,10 @@
  *   1. old-app contract         npm run test:contract         (needs `main`; see below)
  *   2. new migrations           scripts/deploy-migrations.mjs
  *   3. old-app database check   scripts/check-old-app-db.mjs  (needs `main`)
- *   4. Edge Functions           supabase functions deploy
- *   5. Inngest sync             warning only, until the Inngest Cloud keys are set
- *   6. web export               npm run web:export
+ *   4. function secrets         scripts/sync-function-secrets.mjs  (Vercel -> Supabase; a warning if it fails)
+ *   5. Edge Functions           supabase functions deploy
+ *   6. Inngest sync             warning only, until the Inngest Cloud keys are set
+ *   7. web export               npm run web:export
  *
  * A failed step 1-4 fails the build, so the web app is never published against a half-updated
  * backend (the previous deployment stays live). Steps 1 and 3 compare against `main`: Vercel only
@@ -81,6 +82,9 @@ if (!wantsBackend) {
   if (oldAppEnv) must("old-app contract", "npm", ["run", "test:contract"], oldAppEnv);
   must("apply new migrations", "node", ["scripts/deploy-migrations.mjs"]);
   if (oldAppEnv) must("old app still has its tables and functions", "node", ["scripts/check-old-app-db.mjs"], oldAppEnv);
+  // Edge Function secrets are kept in Vercel (one place to edit); copy the allow-listed ones across. A failure only warns:
+  // the functions keep the secrets they already have.
+  if (!run("function secrets", "node", ["scripts/sync-function-secrets.mjs"])) warn("Function secrets were not synced to Supabase; the functions keep the secrets they had. See scripts/sync-function-secrets.mjs.");
   must("deploy Edge Functions", "npx", ["--yes", "supabase@2", "functions", "deploy", "--project-ref", projectId, "--use-api"]);
 
   // Tell Inngest Cloud to re-read the function list (the request is signed on the way back, so no secret).
