@@ -102,7 +102,7 @@ begin
   perform pg_temp.become(v_worker);
   v_err := pg_temp.try(format(
     'insert into public.bids (task_id, worker_id, price_minor, time_limit_minutes) values (%L, %L, 5000, 30)', v_task, v_worker));
-  if v_err is null or v_err not like '%row-level security%' then
+  if v_err is null or (v_err not like '%row-level security%' and v_err not like '%cannot send an offer%') then
     raise exception 'FAIL: a blocker was able to bid on the blocked person''s job (%)', coalesce(v_err, 'no error');
   end if;
   perform public.unblock_user(v_poster);
@@ -115,7 +115,7 @@ begin
   if private.is_blocking(v_worker, v_poster) then raise exception 'FAIL: being blocked made the worker a blocker'; end if;
   v_err := pg_temp.try(format(
     'insert into public.bids (task_id, worker_id, price_minor, time_limit_minutes) values (%L, %L, 5000, 30)', v_task, v_worker));
-  if v_err is null or v_err not like '%row-level security%' then
+  if v_err is null or (v_err not like '%row-level security%' and v_err not like '%cannot send an offer%') then
     raise exception 'FAIL: a blocked person was able to bid (%)', coalesce(v_err, 'no error');
   end if;
 
