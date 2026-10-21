@@ -7,6 +7,7 @@ import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { reportError } from '../lib/errors';
 import { getTaskDetail, getWallet, payTaskFromWallet, WalletShortError } from '../data/api';
 import { posterEscrowCharge } from '@taskdrop/rules';
 import { Pressy, tx } from '../components/primitives';
@@ -70,11 +71,17 @@ export function EscrowScreen() {
         .then((d) => {
           if (alive && d?.assignment?.escrow_minor) setDueMinor(Number(d.assignment.escrow_minor));
         })
-        .catch(() => {});
+        .catch((e) => {
+          reportError(e, 'money');
+          flash('Could not check the price for this task');
+        });
     }
     void getWallet()
       .then((w) => alive && setBalanceMinor(w?.balance_minor ?? 0))
-      .catch(() => {});
+      .catch((e) => {
+        reportError(e, 'money');
+        flash('Could not load your wallet balance');
+      });
     return () => {
       alive = false;
     };

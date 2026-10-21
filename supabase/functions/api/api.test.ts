@@ -166,6 +166,13 @@ await t("profile edits only touch the caller's row, and only known columns", asy
   assert.deepEqual(steps(f.calls[0], "eq")[0], ["id", UID]);
 });
 
+await t("the legacy payout_upi is never written (migration 073 closed the column)", async () => {
+  const f = fake(() => ({ data: [{ id: UID }], error: null }));
+  await runOp("updateProfile", { displayName: "Ann", payoutUpi: "ann@upi" }, ctx(f));
+  const patch = steps(f.calls[0], "update")[0][0] as Record<string, unknown>;
+  assert.deepEqual(Object.keys(patch), ["display_name"]);
+});
+
 await t("the feed never offers the caller their own posts, nor expired ones", async () => {
   const f = fake(() => ({ data: [], error: null }));
   await runOp("listOpenTasks", { kind: "request" }, ctx(f));

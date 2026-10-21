@@ -164,9 +164,8 @@ export function PromoteScreen() {
       const totalMinor = total * 100;
       const promo = await startPromotion(taskId, days, totalMinor);
       const { paymentId, url } = await createPaymentLink({
-        purpose: 'escrow',
-        amountMinor: totalMinor,
-        taskId,
+        purpose: 'promotion',
+        promotionId: promo.id,
       });
       setPending({ promotionId: promo.id, paymentId });
       if (Platform.OS === 'web') await Linking.openURL(url);

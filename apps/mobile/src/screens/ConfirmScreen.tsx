@@ -6,6 +6,7 @@ import { ReportProblemSheet } from '../components/ReportProblemSheet';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { reportError } from '../lib/errors';
 import {
   confirmRelease as confirmReleaseOnServer,
   requestRevision,
@@ -70,7 +71,10 @@ export function ConfirmScreen() {
     let alive = true;
     getTaskDetail(taskId)
       .then((d) => alive && setDetail(d))
-      .catch(() => {});
+      .catch((e) => {
+        reportError(e, 'money');
+        flash('Could not load this task');
+      });
     return () => {
       alive = false;
     };

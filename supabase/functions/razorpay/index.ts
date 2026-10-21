@@ -86,9 +86,10 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
 
   let body: {
     action?: string;
-    purpose?: "escrow" | "topup";
+    purpose?: "escrow" | "topup" | "promotion";
     amountMinor?: number;
     taskId?: string | null;
+    promotionId?: string;
     paymentId?: string;
     returnUrl?: string;
   };
@@ -100,7 +101,9 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
 
   // ---- create-link --------------------------------------------------------
   if (body.action === "create-link") {
-    const purpose = body.purpose === "topup" ? "topup" : "escrow";
+    const purpose = body.purpose === "topup" ? "topup" : body.purpose === "promotion" ? "promotion" : "escrow";
+    // Which task the payment row is tied to. A promotion takes it from the campaign, not from the caller.
+    let paymentTaskId: string | null = body.taskId ?? null;
 
     // The admin panel's "top-ups" switch (migration 092), decided here: the
     // money comes in through this function, not the api one. If the switches
@@ -151,10 +154,27 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
       amount = Number(assignment.escrow_minor);
     }
 
+    // A promotion is priced from the campaign row start_promotion wrote, like
+    // escrow is priced from the assignment: the number the client sent is discarded.
+    if (purpose === "promotion") {
+      if (!body.promotionId) return json({ error: "Which campaign is this for?" }, 400);
+      const { data: promo, error: promoErr } = await admin
+        .from("task_promotions")
+        .select("id, user_id, task_id, status, amount_minor")
+        .eq("id", body.promotionId)
+        .maybeSingle();
+      if (promoErr) return json({ error: promoErr.message }, 500);
+      if (!promo) return json({ error: "That campaign no longer exists" }, 404);
+      if (promo.user_id !== userId) return json({ error: "That is not your campaign" }, 403);
+      if (promo.status !== "pending") return json({ error: "That campaign is no longer waiting for payment" }, 409);
+      amount = Number(promo.amount_minor);
+      paymentTaskId = promo.task_id;
+    }
+
     if (!Number.isFinite(amount) || amount <= 0) return json({ error: "Invalid amount" }, 400);
 
     const description =
-      purpose === "escrow" ? "TaskDrop escrow funding" : "TaskDrop wallet top-up";
+      purpose === "escrow" ? "TaskDrop escrow funding" : purpose === "promotion" ? "TaskDrop promotion" : "TaskDrop wallet top-up";
 
     const res = await fetch(`${RZP}/payment_links`, {
       method: "POST",
@@ -196,7 +216,7 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
       .from("payments")
       .insert({
         user_id: userId,
-        task_id: body.taskId ?? null,
+        task_id: paymentTaskId,
         purpose,
         amount_minor: amount,
         provider_ref: link.id,

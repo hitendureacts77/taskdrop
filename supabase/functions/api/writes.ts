@@ -285,7 +285,9 @@ export const WRITE_OPS: Record<string, Op> = {
       patch.avatar_url = strOrNull(a, "avatarUrl", 500);
       if (isMediaRef(patch.avatar_url)) await assertOwnImage(ctx, patch.avatar_url, ["avatar"]);
     }
-    if (a.payoutUpi !== undefined) patch.payout_upi = strOrNull(a, "payoutUpi", 100);
+    // No payoutUpi: migration 073 took the legacy column off the editable list
+    // (payout destinations replaced it), so writing it made the whole update fail.
+    // A caller that still sends it has the field ignored, like any other unknown one.
     if (bool(a, "onboarded")) patch.onboarded_at = nowIso(ctx);
     const row = rows(await ctx.db.from("profiles").update(patch).eq("id", ctx.userId).select(), profileRefusal)[0];
     if (!row) throw new OpError("Could not save your profile", "NOT_FOUND");

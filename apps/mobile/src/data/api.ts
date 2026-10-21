@@ -321,7 +321,6 @@ export type ProfileEdits = {
   locLng?: number | null;
   /** Storage path of the profile photo, never a URL. */
   avatarUrl?: string | null;
-  payoutUpi?: string | null;
   onboarded?: boolean;
 };
 
@@ -507,9 +506,11 @@ async function functionError(error: unknown, fallback: string): Promise<Error> {
 }
 
 export async function createPaymentLink(input: {
-  purpose: 'escrow' | 'topup';
+  purpose: 'escrow' | 'topup' | 'promotion';
   amountMinor?: number;
   taskId?: string | null;
+  /** For purpose 'promotion': the pending campaign from startPromotion. The server prices it. */
+  promotionId?: string;
   returnUrl?: string;
 }): Promise<PaymentLink> {
   const { data, error } = await supabase.functions.invoke('razorpay', {

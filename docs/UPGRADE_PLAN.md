@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.21, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.22, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -58,7 +58,7 @@ Version 4.21, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 |---|---|---|
 | 0 | Foundations | In progress, 36 of 46 boxes ticked, 4 deferred, 6 open, all yours: the old admin check (needs your login), make `taskdrop.in` public (Vercel Authentication is on), Maps key restriction (blocked: Google needs two-step verification on the account), a second copy of the EAS keystore backup (the first is on this PC), the lawyer question (`docs/LAWYER_BRIEF.md` is ready to send) and the 12 testers (`docs/TESTER_RECRUITMENT.md` is the kit). Done 2026-10-20: CI and the old-app compatibility checks, CodeRabbit on both repos, the first Vercel backend deploy, the first seed load, the by-hand old-app checklist (admin step excepted) |
 | 1 | See problems, ship fast | In progress, 11 of 22 boxes ticked, 5 deferred, 11 open: all the code is written (branch `upgrade/phase-1-sentry`, not yet pushed). Open on you: `SENTRY_AUTH_TOKEN` in Vercel for web source maps, the Firebase/FCM setup (`docs/FCM.md`) and then the one new `beta` APK, the Uptime Robot account, two more Sentry alerts, and every Verify box (they need the APK and the monitors) |
-| 2 | Make it work (stabilize) | Not started, 0 of 18 boxes ticked |
+| 2 | Make it work (stabilize) | In progress, 5 of 18 boxes ticked, 4 deferred. The four known backend bugs and the money-screen errors are done in code on branch `upgrade/phase-2-stabilize` (not pushed; migrations 110 to 113 are written but not applied). Left: your list of problems, the slow-query half, Playwright, the web, Android and admin checklists and all Verify boxes, which need a browser or phone session with you or a pushed build |
 | 3 | Server decides everything | In progress, 10 of 36 boxes ticked |
 | 4 | Accounts and sign-in | Not started, 0 of 21 boxes ticked |
 | 5 | Background jobs (Inngest) | In progress, 11 of 42 boxes ticked (outbox, alerts, push, prunes built; Inngest Cloud keys are yours to set) |
@@ -237,17 +237,17 @@ Version 4.21, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 - [ ] Each item becomes a GitHub issue, then is reproduced and fixed, or scheduled into a later phase
 
 **Backend: known bugs**
-- [ ] Chat photos can be opened by the recipient (storage policy 075)
-- [ ] The `payout_upi` write in `updateProfile` matches migration 073
-- [ ] Drop the duplicate 5-minute earnings sweep
-- [ ] Promotion checkout (`PromoteScreen.tsx:166` sends `purpose: 'escrow'`)
+- [x] Chat photos can be opened by the recipient (storage policy 075). Cause: policy 075 (and 109's rewrite) let a person open their own folder, avatars, task media and proofs, and 109 added the chat rule only for registry photos (`media:<id>`); a photo sent as a plain storage path was readable by the sender alone. Migration 112 adds the thread rule for those paths (plus an index), test `supabase/tests/chat_photos.test.sql`. Written, not applied: the Vercel build applies it when this is merged into `redesigned-2.0`
+- [x] The `payout_upi` write in `updateProfile` matches migration 073. 073 took `payout_upi` off the editable columns, so any `updateProfile` that carried `payoutUpi` failed as a whole. The op now ignores the field (the app never sent it; its type is removed); unit test added in `api.test.ts`
+- [x] Drop the duplicate 5-minute earnings sweep. Checked on the test project: `settle-cleared-often` (every 5 min) and `settle-cleared-earnings` (02:00 daily) both call `settle_cleared_earnings()`. Migration 113 unschedules the nightly copy; the 5-minute one stays until the Inngest cutover. Not applied yet (same as 112)
+- [x] Promotion checkout (`PromoteScreen.tsx:166` sends `purpose: 'escrow'`). It was worse than a wrong label: an open post has no locked quote, so the payment link was refused, and on a post that did have one the link would have been priced as the escrow and funded the task. Now: new payment purpose `promotion` (migration 110), the `razorpay` function prices it from the pending campaign (`promotionId`) instead of trusting the client, and `activate_promotion` (migration 111) accepts only a settled promotion payment of the caller's, for that task, covering the amount and not already used (before, any paid payment, even a top-up, switched a campaign on). Test `supabase/tests/promotion_payments.test.sql`. The old app keeps its (broken) promotion flow; it now gets a clear refusal instead of a misapplied payment. Run `npm run db:types` in the admin repo after migration 110 is applied
 
 **Backend: speed**
-- [ ] Find the 10 slowest `api` operations and queries, using Sentry traces and `pg_stat_statements`
+- [ ] Find the 10 slowest `api` operations and queries, using Sentry traces and `pg_stat_statements`. Half done 2026-10-21: `pg_stat_statements` on the test project, app-owned entries only: `settle_cleared_earnings()` 126 s total over 6,558 calls (19 ms each, the 5-minute cron plus the nightly copy, see above), `auto_complete_due()` 52 s over 2,453 calls, `api_rate_hit` 25,219 calls at 1.5 ms, `app_secrets()` 21,918 calls at 1.7 ms (about one per Edge Function start), `settle_finished_campaigns()` 16 s. Nothing slow per request; the rest of the top is Supabase's own tooling. Per-operation timings need real traffic in Sentry traces after the Phase 1 build is out, so this box stays open
 - [ ] Fix them with indexes, fewer round trips and pagination; measure against Part B, section 5
 
 **User app (all platforms)**
-- [ ] Swallowed errors (`.catch(() => {})`) on money screens now show a message and report to Sentry
+- [x] Swallowed errors (`.catch(() => {})`) on money screens now show a message and report to Sentry. Wallet, Withdraw, Escrow (pay) and Confirm (release): a failed balance, price, payout-account or task read now reports through `reportError(e, 'money')` and shows a plain message; the best-effort earnings sweeps report without a message. Other screens' `.catch(() => {})` (feed, presence, ads) were left alone on purpose
 
 **Web**
 - [ ] Playwright end-to-end tests on the web build against the cloud test project (test accounts only), run in CI:
@@ -1091,6 +1091,7 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
+- **v4.22 (2026-10-21):** Phase 2, the code-only boxes, on `upgrade/phase-2-stabilize` (local, not pushed). Promotion checkout fixed properly: payment purpose `promotion` (migration 110), a stricter `activate_promotion` (111), the `razorpay` function prices a campaign itself and `PromoteScreen` uses it. Chat photos sent as plain storage paths can be opened by the other person in the thread (112). The nightly copy of the earnings sweep is unscheduled (113). `updateProfile` no longer writes the locked `payout_upi` column. Money screens report and show a message when a read fails. Migrations 110 to 113 are untested against a database from here (no `psql`/Docker; CI runs the new SQL tests `promotion_payments` and `chat_photos`) and not applied. Not done: the Playwright suite (needs a decision on how CI gets test accounts without GitHub secrets), the device and admin checklists, per-operation speed work.
 - **v4.21 (2026-10-21):** Phase 1 code, on `upgrade/phase-1-sentry` (local, not pushed). Server: stack frames sent to Sentry properly, `fatal` level for the two NOT RECORDED money cases, `guarded()` on the handlers so any unexpected throw is reported, `places-search` monitored, and an unauthenticated `{"op":"health"}` on `api`. App: failed API calls are classified and unexpected ones reported, the signed-in user id (only) is attached, and `expo-updates` is added with the `appVersion` runtime policy. Build: the web export uploads its source maps and then deletes them; `app.config.js` takes `google-services.json` from an EAS file variable (`docs/FCM.md`). Admin already had Sentry. Not done, needs you: `SENTRY_AUTH_TOKEN` in Vercel, Firebase/FCM, the new APK, Uptime Robot, two Sentry alerts. Phase 0 is being finished in another session.
 - **v4.20 (2026-10-21):** `support@taskdrop.in` forwards to the owner's Gmail (Spaceship rule; MX records already in place; untested with a real email). The EAS upload keystore was downloaded to `C:\Users\naras\Documents\taskdrop-keystore-backup\@hitendureacts__taskdrop-keystore-backup.zip` on the owner's PC; a second copy elsewhere is still the owner's step.
 - **v4.19 (2026-10-20):** Phase 0, the owner items I could do. The first seed load ran on the test project and broke sign-in for about 15 minutes: the seed left NULL in four `auth.users` token columns, GoTrue's user list answered 500, and `phone-auth`'s account lookup uses it. The by-hand old-app checklist found it; the rows were patched and the seed plus its check fixed (PR 54). The Maps key now stays out of the JS bundle (PR 53; CodeRabbit caught that plugin options reach the public config, so the key is only handed over on Android builds). The Inngest sync was confirmed by calling it. Maps key restriction is blocked on Google's two-step-verification requirement for the account; the EAS keystore exists but is not downloaded; `support@` forwarding waits for a destination address; the old admin check needs the owner's login. New: `docs/LAWYER_BRIEF.md` and `docs/TESTER_RECRUITMENT.md`.
