@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.23, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.24, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -60,7 +60,7 @@ Version 4.23, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 | 1 | See problems, ship fast | In progress, 11 of 22 boxes ticked, 5 deferred, 11 open: all the code is written (branch `upgrade/phase-1-sentry`, not yet pushed). Open on you: `SENTRY_AUTH_TOKEN` in Vercel for web source maps, the Firebase/FCM setup (`docs/FCM.md`) and then the one new `beta` APK, the Uptime Robot account, two more Sentry alerts, and every Verify box (they need the APK and the monitors) |
 | 2 | Make it work (stabilize) | In progress, 5 of 18 boxes ticked, 4 deferred. The four known backend bugs and the money-screen errors are done in code on branch `upgrade/phase-2-stabilize` (not pushed; migrations 110 to 113 are written but not applied). Left: your list of problems, the slow-query half, Playwright, the web, Android and admin checklists and all Verify boxes, which need a browser or phone session with you or a pushed build |
 | 3 | Server decides everything | In progress, 27 of 36 boxes ticked, 2 deferred, 9 open. All the code is done on branch `upgrade/phase-3-server-decides` (not pushed; migration 114 not applied). Open: `API_GATEWAY_SECRET` in the admin project and an admin redeploy (yours), the Maps key restriction (yours), the Phase 9 lockdown, and the checks that need an APK or a deployed build (control screens, Android-only maintenance, "Update the app", old app and old admin) |
-| 4 | Accounts and sign-in | Not started, 0 of 21 boxes ticked |
+| 4 | Accounts and sign-in | In progress, 9 of 21 boxes ticked, 6 deferred, 12 open. Done on branch `upgrade/phase-4-accounts` (both repos, not pushed): server-side names for new accounts, S256 sign-in codes on phones, the onboarding fix, and the admin's sign-in card and "Sign out everywhere". **Not started on purpose:** Supabase's built-in phone auth with an SMS hook (replaces the working `phone-auth`; your call, see the box), the test-user phone migration that depends on it, and account linking. Left: "Allow manual linking" in Supabase (yours) and every Verify box (they need an APK and a sign-up on each platform) |
 | 5 | Background jobs (Inngest) | In progress, 11 of 42 boxes ticked (outbox, alerts, push, prunes built; Inngest Cloud keys are yours to set) |
 | 6 | Speed and media (ImageKit) | In progress, 13 of 24 boxes ticked (merged; migration 109 applied 2026-10-19; off until your ImageKit keys are set; device tests open) |
 | 7 | Moderation and admin tools | Not started, 0 of 23 boxes ticked |
@@ -351,7 +351,7 @@ Version 4.23, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 **Backend**
 - [-] **(You)** In Apple Developer: App ID with Sign in with Apple, a Services ID and a Sign in with Apple key
 - [-] Enable Apple in Supabase Auth, with redirect URLs (`taskdrop://auth-callback`, `https://taskdrop.in`, localhost) added to the existing list
-- [ ] The upgraded app's phone login uses Supabase's built-in phone auth, with a Send-SMS hook calling MSG91
+- [ ] The upgraded app's phone login uses Supabase's built-in phone auth, with a Send-SMS hook calling MSG91. **Not started, on purpose (2026-10-21):** it replaces the sign-in every tester uses today (`phone-auth`, working, with the age gate, throttles and test numbers) and the work cannot be tried here without sending real SMS or breaking sign-in on the shared database. It is a decision for you, not a task I should do unattended: say "start phone auth" when you are ready to test it with the owner phone, or drop it and keep `phone-auth`, which already has every protection listed below
 - [ ] Every existing protection kept:
   - throttles
   - birth date before the first code
@@ -359,16 +359,16 @@ Version 4.23, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
   - test numbers with fixed codes
 - [ ] Test users migrated: the phone copied from each synthetic email into `auth.users.phone`. The synthetic email stays, so both the old and the new phone login find the same account.
 - [ ] `task_contact_phone`, `verificationState` and the admin SMS block read `auth.users.phone` first, then fall back to the synthetic email
-- [ ] The old `phone-auth` function stays deployed and working for the old app; it's retired in Phase 9
-- [ ] `password-auth` keeps username + password working, looking up the username and signing in with the account's phone or email
-- [ ] `handle_new_user` takes names from Google/Apple
-- [ ] Manual identity linking enabled
+- [x] The old `phone-auth` function stays deployed and working for the old app; it's retired in Phase 9. Nothing was removed; it is now wrapped in `guarded()` (Phase 1) and reports unexpected database errors
+- [x] `password-auth` keeps username + password working, looking up the username and signing in with the account's phone or email. Unchanged in behaviour (only monitoring added in Phase 1)
+- [x] `handle_new_user` takes names from Google/Apple. Migration 115: `display_name`, then `full_name`, then `name` from the sign-in metadata, then the email's first part, except an Apple "Hide my email" address, then "New user". Phone accounts are named exactly as before. Test `supabase/tests/new_user_names.test.sql`. Written, not applied
+- [ ] Manual identity linking enabled. A Supabase Auth setting (Authentication, Sign In / Providers, "Allow manual linking"); I did not change the project's auth settings from here, and `supabase config push` must not be run (Phase 0). **(You)** switch it on in the dashboard when you want linking
 - [-] Account deletion revokes the Apple token for Apple users (App Store rule; check Apple's current rules when building)
 
 **User app (all platforms)**
-- [ ] `expo-crypto` added; PKCE uses S256 (`lib/supabase.ts`)
-- [ ] Onboarding doesn't prefill Apple relay emails as names (`OnboardingScreen.tsx:55`)
-- [ ] Account screen: shows linked methods; link Google/Apple (`linkIdentity`); add or verify a phone
+- [x] `expo-crypto` added; PKCE uses S256 (`lib/supabase.ts`). `expo-crypto` was already a dependency; `lib/webcrypto.native.ts` gives supabase-js the `crypto.subtle.digest` it needs on Hermes (it silently used "plain" before), imported from `lib/supabase.ts`; web is untouched. **Not yet seen on a phone:** check Google sign-in on the next APK and that no "WebCrypto not supported" line appears
+- [x] Onboarding doesn't prefill Apple relay emails as names (`OnboardingScreen.tsx:55`). Any name containing an @, the phone placeholder and "New user" are left blank for the person to fill in
+- [ ] Account screen: shows linked methods; link Google/Apple (`linkIdentity`); add or verify a phone. The screen already shows which methods are on the account (phone, Google, username + password). Linking is not built: it needs "manual linking" switched on (above) and a native browser round trip I cannot try here, so it waits for the next device session
 
 **Web**
 - [ ] Google and Apple sign-in through the browser flow (`providers/AuthProvider.tsx`)
@@ -383,10 +383,10 @@ Version 4.23, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 - [-] Google sign-in through the browser flow; phone; username + password
 
 **Admin**
-- [ ] User page: sign-in methods (phone / Google / Apple), devices with platform and app version, last seen
-- [ ] "Sign out everywhere"
-- [ ] The sign-in-method switches from Phase 3 are tested
-- [ ] Admin's own login stays Google + `admin` role + MFA
+- [x] User page: sign-in methods (phone / Google / Apple), devices with platform and app version, last seen. Admin repo, branch `upgrade/phase-4-accounts`: the Devices tab gets a Sign-in card (methods, last sign-in) next to the devices list that already showed platform, app version and last seen
+- [x] "Sign out everywhere". Migration 116 `admin_sign_out_everywhere` (admins only, full admin role, reason required, not yourself, audit-logged, ends sessions and refresh tokens, clears push tokens) and a confirmed button on the same tab; test `supabase/tests/admin_sign_out_everywhere.test.sql`. Written, not applied
+- [x] The sign-in-method switches from Phase 3 are tested. New `_shared/signInSwitches.test.ts` covers phone, password, sign-up, maintenance and "switches unreadable lets everyone in"; the Google switch only hides the button in the app (Google goes straight through Supabase), as the code says
+- [x] Admin's own login stays Google + `admin` role + MFA. Not touched in this phase; `requireAdmin` and the money MFA gate are as before
 
 **Verify**
 - [ ] New sign-up works with each method on each platform, and each passes the age gate:
@@ -1091,6 +1091,7 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
+- **v4.24 (2026-10-21):** Phase 4, the safe boxes, on `upgrade/phase-4-accounts` in both repos (local, not pushed). New accounts take their name from Google/Apple (migration 115); phones use S256 sign-in codes (`lib/webcrypto.native.ts`); onboarding no longer offers an email or placeholder as a name; the admin gets a Sign-in card and a "Sign out everywhere" button (migration 116, admin repo). Sign-in switches have unit tests. **Deliberately not done:** replacing `phone-auth` with Supabase phone auth plus an SMS hook, the matching test-user migration, and Google/Apple account linking (needs manual linking switched on and a device). Migrations 115 and 116 are written and not applied.
 - **v4.23 (2026-10-21):** Phase 3, the code boxes, on `upgrade/phase-3-server-decides` (local, not pushed; it sits on the Phase 1 and 2 branches). The server now refuses contact details itself (`_shared/contacts.ts`, kept equal to the app's by a test) for quotes, proofs, posts, listings, names, bios and early chat. Promotion prices come from settings (migration 114). Fee figures read the live settings (`readFees`) and the app's previews use `platformFees` (`useFees`). `places-search` does reverse lookups and the OpenStreetMap fallback. `vercel.json` gets SPA rewrites and security headers (CSP in report-only). A fresh web export has no Google key. The admin already had the App controls page and the gateway header. Open for you: `API_GATEWAY_SECRET` in the admin project, the Maps key restriction, and the device and API checks (switches per platform, maintenance, minimum version) that need a deployed build.
 - **v4.22 (2026-10-21):** Phase 2, the code-only boxes, on `upgrade/phase-2-stabilize` (local, not pushed). Promotion checkout fixed properly: payment purpose `promotion` (migration 110), a stricter `activate_promotion` (111), the `razorpay` function prices a campaign itself and `PromoteScreen` uses it. Chat photos sent as plain storage paths can be opened by the other person in the thread (112). The nightly copy of the earnings sweep is unscheduled (113). `updateProfile` no longer writes the locked `payout_upi` column. Money screens report and show a message when a read fails. Migrations 110 to 113 are untested against a database from here (no `psql`/Docker; CI runs the new SQL tests `promotion_payments` and `chat_photos`) and not applied. Not done: the Playwright suite (needs a decision on how CI gets test accounts without GitHub secrets), the device and admin checklists, per-operation speed work.
 - **v4.21 (2026-10-21):** Phase 1 code, on `upgrade/phase-1-sentry` (local, not pushed). Server: stack frames sent to Sentry properly, `fatal` level for the two NOT RECORDED money cases, `guarded()` on the handlers so any unexpected throw is reported, `places-search` monitored, and an unauthenticated `{"op":"health"}` on `api`. App: failed API calls are classified and unexpected ones reported, the signed-in user id (only) is attached, and `expo-updates` is added with the `appVersion` runtime policy. Build: the web export uploads its source maps and then deletes them; `app.config.js` takes `google-services.json` from an EAS file variable (`docs/FCM.md`). Admin already had Sentry. Not done, needs you: `SENTRY_AUTH_TOKEN` in Vercel, Firebase/FCM, the new APK, Uptime Robot, two Sentry alerts. Phase 0 is being finished in another session.

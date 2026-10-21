@@ -55,7 +55,12 @@ export function OnboardingScreen() {
     if (!userId) return;
     void getProfile(userId).then(async (p) => {
       if (!p) return;
-      setName(p.display_name && !/^p\d{10}$/.test(p.display_name) ? p.display_name : '');
+      // A phone account's placeholder name, or an email (an Apple "Hide my email" relay), is not a name to offer.
+      setName(
+        p.display_name && !/^p\d{10}$/.test(p.display_name) && !p.display_name.includes('@') && p.display_name !== 'New user'
+          ? p.display_name
+          : '',
+      );
       setUsername(p.username ?? '');
       setSkills(p.skills ?? []);
       setBio(p.bio ?? '');
