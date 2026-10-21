@@ -22,6 +22,7 @@ test('the list never holds a name Supabase refuses for function secrets', () => 
   assert.ok(SYNCED.every((n) => !n.startsWith('SUPABASE_')));
 });
 
-test('the env file is one NAME=value per line', () => {
-  assert.equal(envFileText({ A: '1', B: '2' }), 'A=1\nB=2\n');
+test('the env file is one NAME="value" per line, with quotes and backslashes escaped', () => {
+  assert.equal(envFileText({ A: '1', B: 'x #y' }), 'A="1"\nB="x #y"\n');
+  assert.equal(envFileText({ C: 'a"b\\c' }), 'C="a\\"b\\\\c"\n');
 });

@@ -45,8 +45,9 @@ export function pick(env) {
   return { send, missing };
 }
 
-/** The --env-file text: NAME=value per line (no quoting needed; values with a newline are never picked). */
-export const envFileText = (send) => Object.entries(send).map(([k, v]) => `${k}=${v}`).join("\n") + "\n";
+/** The --env-file text: NAME="value" per line, quoted so a # or a space in a value is not read as a comment or a split. */
+const quote = (v) => `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+export const envFileText = (send) => Object.entries(send).map(([k, v]) => `${k}=${quote(v)}`).join("\n") + "\n";
 
 function main() {
   const dryRun = process.argv.includes("--dry-run");
