@@ -775,10 +775,12 @@ await t("reports and blocks pass the right ids to their SQL functions and refuse
   const f = fake(() => ({ data: null, error: null }));
   assert.ok((await runOp("reportContent", { targetType: "task", targetId: TASK, reason: " scam " }, ctx(f))).ok);
   assert.deepEqual(f.calls[0].args, { p_type: "task", p_target: TASK, p_reason: "scam" });
+  assert.ok((await runOp("reportContent", { targetType: "message", targetId: TASK, reason: "rude" }, ctx(f))).ok);
+  assert.equal((f.calls[f.calls.length - 1].args as { p_type: string }).p_type, "message");
   assert.ok((await runOp("blockUser", { userId: OTHER }, ctx(f))).ok);
   assert.deepEqual(f.calls[1].args, { p_user: OTHER });
   assert.ok((await runOp("unblockUser", { userId: OTHER }, ctx(f))).ok);
-  for (const bad of [{ targetType: "message", targetId: TASK, reason: "x" }, { targetType: "user", targetId: "nope", reason: "x" }, { targetType: "user", targetId: OTHER, reason: "" }]) {
+  for (const bad of [{ targetType: "photo", targetId: TASK, reason: "x" }, { targetType: "user", targetId: "nope", reason: "x" }, { targetType: "user", targetId: OTHER, reason: "" }]) {
     const r = await runOp("reportContent", bad, ctx(fake()));
     assert.ok(!r.ok && r.error.code === "BAD_ARGS");
   }

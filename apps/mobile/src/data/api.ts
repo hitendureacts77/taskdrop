@@ -627,7 +627,7 @@ export const submitProof = (input: {
 }) => act<Proof>('submitProof', { taskId: input.taskId, summary: input.summary.trim(), files: input.files });
 
 /** Report a person or a task to the team (migration 093). */
-export const reportContent = (targetType: 'user' | 'task', targetId: string, reason: string) =>
+export const reportContent = (targetType: 'user' | 'task' | 'message' | 'review', targetId: string, reason: string) =>
   act<string | null>('reportContent', { targetType, targetId, reason: reason.trim() });
 export const blockUser = (userId: string) => act<null>('blockUser', { userId });
 export type BlockedUser = { id: string; name: string; blockedAt: string };

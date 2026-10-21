@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.26, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.27, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -63,7 +63,7 @@ Version 4.26, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 | 4 | Accounts and sign-in | In progress, 9 of 21 boxes ticked, 6 deferred, 12 open. Done on branch `upgrade/phase-4-accounts` (both repos, not pushed): server-side names for new accounts, S256 sign-in codes on phones, the onboarding fix, and the admin's sign-in card and "Sign out everywhere". **Not started on purpose:** Supabase's built-in phone auth with an SMS hook (replaces the working `phone-auth`; your call, see the box), the test-user phone migration that depends on it, and account linking. Left: "Allow manual linking" in Supabase (yours) and every Verify box (they need an APK and a sign-up on each platform) |
 | 5 | Background jobs (Inngest) | In progress, 12 of 42 boxes ticked, 3 deferred, 30 open. Added this session: the admin Alerts page (admin repo). **Everything else open here waits on something that is yours:** the Inngest Cloud account and its two keys (so nothing built can run or be checked), and the lawyer's answer on the money flow, which the plan and AGENTS.md say must come before the payout, refund-retry and webhook items are built. The built-but-unapplied jobs (push, overdue, prunes, account files, money sweeps) switch on with the cutover SQL in `supabase/cutover/` once the keys are set. Nothing in this phase was deployed |
 | 6 | Speed and media (ImageKit) | In progress, 14 of 24 boxes ticked, 2 deferred, 10 open (merged; migration 109 applied 2026-10-19; **off until your ImageKit keys are set**, and every open box here needs them or a device: uploads to ImageKit, admin image views, phone checks, Verify). Only the web CSP box was closed this session |
-| 7 | Moderation and admin tools | Not started, 0 of 23 boxes ticked |
+| 7 | Moderation and admin tools | In progress, 8 of 23 boxes ticked, 2 deferred, 15 open. Built on branch `upgrade/phase-7-moderation` (both repos, not pushed; migrations 117 and 118 not applied): blocks now stop contact, hide message / photo / category functions, report-a-message in chat, reported messages shown and hideable in the admin, the runbook. **Not built:** remove a review, cancel a promotion with refund (both touch ratings or money and need a design), a "warn" action, the promotion-tier form, change-category button, broadcasts by platform, the platform dashboard. Verify boxes need an APK/browser session |
 | 8 | Store readiness | Not started, 0 of 9 boxes ticked |
 | 9 | Switch-over to the upgraded app | Not started, 0 of 26 boxes ticked |
 | 10 | Customer launch (later, when you decide) | Not started, 0 of 27 boxes ticked |
@@ -535,19 +535,19 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 ## Phase 7: Moderation and admin tools
 
 **Backend**
-- [ ] `reports` table (task, message, review, person) and `blocks` table
-- [ ] Blocked users can't bid on, message or see each other's tasks, enforced in `api` and SQL
+- [x] `reports` table (task, message, review, person) and `blocks` table. Both exist since migration 093 (applied); `report_content`, `block_user` and `unblock_user` are the only ways to write them
+- [x] Blocked users can't bid on, message or see each other's tasks, enforced in `api` and SQL. Migration 117, in SQL so every caller (new app, old app, API) is covered: either side blocking refuses an offer on the other's task and a chat message to the other, and hides the other's OPEN tasks from the feed and search (a job already underway stays visible, and money is untouched). Test `supabase/tests/blocks_enforced.test.sql`. Written, not applied
 - [ ] Admin SQL functions:
-  - [ ] hide/unhide a listing, cancel a task with refund, change a task's category
-  - [ ] pause a promotion, cancel a promotion with refund
-  - [ ] hide a message or photo (`media.status = hidden`), remove a review
-- [ ] `worker_commission_pct` and promotion price tiers are editable settings
-- [ ] Every new admin action writes to `admin_audit_log`
+  - [x] hide/unhide a listing (093), cancel a task with refund (098), change a task's category (`admin_set_task_category`, 118)
+  - [ ] pause a promotion (done, 098), cancel a promotion with refund (not built: it moves money and needs its own review)
+  - [ ] hide a message or photo (`media.status = hidden`) done in 118 (`admin_hide_message`, `admin_hide_media` and their un-hide twins, test `supabase/tests/content_moderation.test.sql`); remove a review not built (a review feeds the ratings, so removing one means recomputing them: it needs a design)
+- [x] `worker_commission_pct` and promotion price tiers are editable settings. Commission has always been a `settings` row; the promotion tiers moved into `settings` in migration 114 (Phase 3). The admin page for the tiers is the Admin box below
+- [x] Every new admin action writes to `admin_audit_log`. Each function added here (and `admin_sign_out_everywhere` in Phase 4) calls `admin_log_event`, and the SQL tests check it
 
 **User app (all platforms)**
-- [ ] "Report" on tasks, messages, reviews and profiles
-- [ ] "Block" on profiles and chats; a blocked-users list in Account
-- [ ] Hidden content disappears for everyone
+- [ ] "Report" on tasks, messages, reviews and profiles. Tasks and profiles already had it; **messages** are new (press and hold a message or photo from the other person in a chat). Reviews have no report button yet: the server accepts the `review` kind, but no screen shows a review to report
+- [x] "Block" on profiles and chats; a blocked-users list in Account. The report sheet (on a profile, a task and now a chat message) offers "block them too"; Account has the blocked-people list (`BlockedPeopleCard`)
+- [x] Hidden content disappears for everyone. Hidden jobs (093), hidden messages (118) and hidden photos (109 plus 118) are removed by the database's own rules, so every screen and the old app honour them. A chat that is already open shows a hidden message until it refreshes
 
 **Web**
 - [ ] Report and block work in the browser
@@ -561,15 +561,15 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 
 **Admin**
 - [ ] Reports queue:
-  - see the reported content
-  - act on it: remove, hide, warn, suspend, delete
-  - aim to act within 24 hours
-- [ ] Task actions on the task page: hide/unhide, cancel with refund, change category
-- [ ] Promotion actions: pause; cancel with refund
-- [ ] Settings page: `worker_commission_pct` and promotion price tiers, behind the money MFA gate (`src/lib/actions.ts:276`)
+  - see the reported content (a reported message now shows its text; a job and a person link to their pages)
+  - act on it: hide a message (new), hide a job, suspend, delete (person page); **no "warn" action exists yet**
+  - aim to act within 24 hours (`docs/RUNBOOK.md`)
+- [ ] Task actions on the task page: hide/unhide, cancel with refund, change category. Hide/unhide and cancel with refund are on the task page already; change category has its database function (118) but no button yet
+- [ ] Promotion actions: pause; cancel with refund. Pause exists (Promotions page); cancel with refund is not built
+- [ ] Settings page: `worker_commission_pct` and promotion price tiers, behind the money MFA gate (`src/lib/actions.ts:276`). Commission is editable there already; the promotion tiers (now in `settings`, 114) have no form yet
 - [ ] Broadcasts target by platform (web / Android / iOS) and app version as well as segments, sent as push + in-app
 - [ ] Dashboard: users and active devices by platform and version; links to Sentry, Inngest and ImageKit
-- [ ] Runbook: what to do for a stuck payout, a failed refund, a report, a dispute, and maintenance mode
+- [x] Runbook: what to do for a stuck payout, a failed refund, a report, a dispute, and maintenance mode. `docs/RUNBOOK.md`, written from the admin pages and server code as they are today; someone who has used the admin should read it once and correct what differs (Phase 8 asks for that check)
 
 **Verify**
 - [ ] A reported message hidden from admin disappears for both users on web, Android and iOS
@@ -1091,6 +1091,7 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
+- **v4.27 (2026-10-21):** Phase 7, on `upgrade/phase-7-moderation` (both repos, local). Blocks are enforced in SQL (117); staff can hide a message or photo and fix a category (118); a chat message from the other person can be reported with a press and hold; the admin Reports queue shows reported message text with Hide / Show again; `docs/RUNBOOK.md` added. Left out on purpose: removing a review and cancelling a promotion with a refund (they touch ratings and money and need a design first). Migrations 117 and 118 are written, not applied.
 - **v4.26 (2026-10-21):** Phase 6 reviewed: the web CSP box is closed by the Phase 3 `vercel.json`. Everything else open needs the ImageKit account keys or a phone. The admin has no image views to sign (new feature, needs the keys).
 - **v4.25 (2026-10-21):** Phase 5 reviewed. Only the admin Alerts page could be built without the Inngest keys or the lawyer's answer (admin repo, local). The payout queue, refund retries, webhook hand-off and the money-sweep cutover were deliberately not started: they change how real money moves and cannot be tried without Inngest Cloud.
 - **v4.24 (2026-10-21):** Phase 4, the safe boxes, on `upgrade/phase-4-accounts` in both repos (local, not pushed). New accounts take their name from Google/Apple (migration 115); phones use S256 sign-in codes (`lib/webcrypto.native.ts`); onboarding no longer offers an email or placeholder as a name; the admin gets a Sign-in card and a "Sign out everywhere" button (migration 116, admin repo). Sign-in switches have unit tests. **Deliberately not done:** replacing `phone-auth` with Supabase phone auth plus an SMS hook, the matching test-user migration, and Google/Apple account linking (needs manual linking switched on and a device). Migrations 115 and 116 are written and not applied.
