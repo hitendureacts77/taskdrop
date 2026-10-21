@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
-import { background, logServer } from "../_shared/monitoring.ts";
+import { background, captureServerError, guarded, logServer } from "../_shared/monitoring.ts";
 import { signInRefusal } from "../_shared/signInSwitches.ts";
 
 /**
@@ -38,7 +38,7 @@ const json = (body: unknown, status = 200) =>
 // never reveals whether a username exists.
 const WRONG = "That username and password do not match";
 
-Deno.serve(async (req: Request) => {
+Deno.serve(guarded("password-auth", async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
@@ -79,6 +79,7 @@ Deno.serve(async (req: Request) => {
   });
   if (gateErr) {
     background(logServer("error", "password-auth", "sign-in gate unavailable", { error: gateErr.message }));
+    background(captureServerError(new Error(gateErr.message), { fn: "password-auth", step: "sign_in_gate" }));
     return json({ error: "Sign-in is busy. Try again in a minute." }, 503);
   }
   if (typeof waitMin === "number" && waitMin > 0) {
@@ -130,4 +131,4 @@ Deno.serve(async (req: Request) => {
     access_token: signedIn.session.access_token,
     refresh_token: signedIn.session.refresh_token,
   });
-});
+}));

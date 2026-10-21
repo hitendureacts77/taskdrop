@@ -69,8 +69,9 @@ export function friendlyMessage(err: RawError, fallback = GENERIC): string {
 
 /**
  * Where raw failures go. Dev builds print them so they can be fixed; release
- * builds stay quiet on the device. Point `setErrorReporter` at a crash service
- * (Sentry and the like) to collect them from real users.
+ * builds stay quiet on the device. `installMonitoring` (lib/monitoring.ts)
+ * points `setErrorReporter` at Sentry; every failure the app wants seen goes
+ * through `reportError`, nowhere else.
  */
 type Reporter = (err: unknown, context?: string) => void;
 
@@ -89,6 +90,24 @@ export function reportError(err: unknown, context?: string): void {
   } catch {
     // Reporting is best-effort; a broken reporter must not become a second crash.
   }
+}
+
+/**
+ * What kind of failed call this was, so monitoring can tell noise from a bug.
+ *   offline     the phone could not reach the server
+ *   signed_out  the session ended; the person just signs in again
+ *   refused     the server said no on purpose (not enough money, a duplicate,
+ *               not allowed): expected, and shown to the person as written
+ *   unexpected  anything else (a 5xx, a broken query): worth a look
+ */
+export type ApiFailureKind = 'offline' | 'signed_out' | 'refused' | 'unexpected';
+
+export function apiFailureKind(err: RawError): ApiFailureKind {
+  // friendlyMessage answers '' only for a failure it has no wording for.
+  const message = friendlyMessage(err, '');
+  if (message === OFFLINE) return 'offline';
+  if (message === SIGNED_OUT) return 'signed_out';
+  return message === '' ? 'unexpected' : 'refused';
 }
 
 /** Build the error to throw for a failed database or API call. */

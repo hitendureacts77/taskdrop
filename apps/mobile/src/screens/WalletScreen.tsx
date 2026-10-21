@@ -9,6 +9,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { reportError } from '../lib/errors';
 import { useAuth } from '../providers/AuthProvider';
 import {
   getProfile,
@@ -109,12 +110,15 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
     // the wallet before moving them shows them as still clearing -- which on
     // this screen reads as "my money is stuck".
     settleClearedEarnings()
-      .catch(() => {})
+      .catch((e) => reportError(e, 'money'))
       .then(loadLive)
       .then((l) => {
         if (alive && l) setLive(l);
       })
-      .catch(() => {});
+      .catch((e) => {
+        reportError(e, 'money');
+        flash('Could not refresh your wallet');
+      });
     return () => {
       alive = false;
     };
@@ -156,7 +160,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
     if (!userId) return;
     setRefreshing(true);
     try {
-      await settleClearedEarnings().catch(() => {});
+      await settleClearedEarnings().catch((e) => reportError(e, 'money'));
       const [l, rows] = await Promise.all([loadLive(), listWalletActivity(userId, 200)]);
       if (l) setLive(l);
       setLedger(rows);
@@ -215,7 +219,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
     void platformFees()
       .then((f) => feesSince(since, f.commission))
       .then((r) => alive && setFees(r))
-      .catch(() => {});
+      .catch((e) => reportError(e, 'money'));
     return () => {
       alive = false;
     };

@@ -7,7 +7,7 @@
 
 const HIDDEN = '•••';
 
-const PATTERNS: RegExp[] = [
+export const PATTERNS: RegExp[] = [
   // Emails.
   /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
   // Links and chat deep-links (wa.me, t.me, instagram.com/...).
@@ -36,7 +36,7 @@ export function maskContacts(text: string): { text: string; masked: boolean } {
 
 // A door-level address: flat/house/plot/door numbers, "12/3 5th cross",
 // "#45, 2nd main", a six-digit PIN code, or "my address is".
-const ADDRESS: RegExp[] = [
+export const ADDRESS: RegExp[] = [
   /\b(?:flat|house|h\s?\.?\s?no|door|plot|apartment|apt|block|shop)\s*(?:no\.?|number|#)?\s*[:#\-.]?\s*\d+[a-z]?\b/i,
   /#\s?\d+[a-z]?\s*,/i,
   /\b\d+\s*(?:st|nd|rd|th)?\s+(?:cross|main|street|lane|road|block|sector|phase)\b/i,

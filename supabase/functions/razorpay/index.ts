@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { secret } from "../_shared/secrets.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
-import { captureServerError, logServer } from "../_shared/monitoring.ts";
+import { guarded, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient, featureOffMessage } from "../_shared/controls.ts";
 
 /**
@@ -54,7 +54,7 @@ async function taskIsFunded(
   return Boolean(data?.funded_at);
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(guarded("razorpay", async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   const RZP_ID = await secret("RAZORPAY_KEY_ID");
@@ -86,9 +86,10 @@ Deno.serve(async (req: Request) => {
 
   let body: {
     action?: string;
-    purpose?: "escrow" | "topup";
+    purpose?: "escrow" | "topup" | "promotion";
     amountMinor?: number;
     taskId?: string | null;
+    promotionId?: string;
     paymentId?: string;
     returnUrl?: string;
   };
@@ -100,7 +101,9 @@ Deno.serve(async (req: Request) => {
 
   // ---- create-link --------------------------------------------------------
   if (body.action === "create-link") {
-    const purpose = body.purpose === "topup" ? "topup" : "escrow";
+    const purpose = body.purpose === "topup" ? "topup" : body.purpose === "promotion" ? "promotion" : "escrow";
+    // Which task the payment row is tied to. A promotion takes it from the campaign, not from the caller.
+    let paymentTaskId: string | null = body.taskId ?? null;
 
     // The admin panel's "top-ups" switch (migration 092), decided here: the
     // money comes in through this function, not the api one. If the switches
@@ -151,10 +154,27 @@ Deno.serve(async (req: Request) => {
       amount = Number(assignment.escrow_minor);
     }
 
+    // A promotion is priced from the campaign row start_promotion wrote, like
+    // escrow is priced from the assignment: the number the client sent is discarded.
+    if (purpose === "promotion") {
+      if (!body.promotionId) return json({ error: "Which campaign is this for?" }, 400);
+      const { data: promo, error: promoErr } = await admin
+        .from("task_promotions")
+        .select("id, user_id, task_id, status, amount_minor")
+        .eq("id", body.promotionId)
+        .maybeSingle();
+      if (promoErr) return json({ error: promoErr.message }, 500);
+      if (!promo) return json({ error: "That campaign no longer exists" }, 404);
+      if (promo.user_id !== userId) return json({ error: "That is not your campaign" }, 403);
+      if (promo.status !== "pending") return json({ error: "That campaign is no longer waiting for payment" }, 409);
+      amount = Number(promo.amount_minor);
+      paymentTaskId = promo.task_id;
+    }
+
     if (!Number.isFinite(amount) || amount <= 0) return json({ error: "Invalid amount" }, 400);
 
     const description =
-      purpose === "escrow" ? "TaskDrop escrow funding" : "TaskDrop wallet top-up";
+      purpose === "escrow" ? "TaskDrop escrow funding" : purpose === "promotion" ? "TaskDrop promotion" : "TaskDrop wallet top-up";
 
     const res = await fetch(`${RZP}/payment_links`, {
       method: "POST",
@@ -196,7 +216,7 @@ Deno.serve(async (req: Request) => {
       .from("payments")
       .insert({
         user_id: userId,
-        task_id: body.taskId ?? null,
+        task_id: paymentTaskId,
         purpose,
         amount_minor: amount,
         provider_ref: link.id,
@@ -401,7 +421,7 @@ Deno.serve(async (req: Request) => {
     if (recErr) {
       // The worst case in this file: money has moved and our books do not say so.
       await logServer("error", "razorpay", "REFUND SENT BUT NOT RECORDED", { task_id: taskId, payment_id: due.payment_id, refund_ref: refund.id ?? null, amount_minor: amount, error: recErr.message });
-      await captureServerError(recErr, { fn: "razorpay", step: "record_escrow_refund" });
+      await captureServerError(new Error(`REFUND SENT BUT NOT RECORDED: ${recErr.message}`), { fn: "razorpay", step: "record_escrow_refund", task_id: String(taskId) }, "fatal");
       // Keep the claim forever so nobody can send it again until a person has
       // recorded this refund by hand and cleared payments.refund_claimed_at.
       await admin.from("payments").update({ refund_claimed_at: "infinity" }).eq("id", due.payment_id);
@@ -414,4 +434,4 @@ Deno.serve(async (req: Request) => {
   }
 
   return json({ error: "Unknown action" }, 400);
-});
+}));

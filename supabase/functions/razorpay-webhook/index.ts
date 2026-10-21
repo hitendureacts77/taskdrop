@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
-import { captureServerError, logServer } from "../_shared/monitoring.ts";
+import { guarded, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
 
 /**
@@ -49,7 +49,7 @@ async function signatureFor(raw: string, secretValue: string): Promise<string> {
   return [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(guarded("razorpay-webhook", async (req: Request) => {
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
   const SECRET = await secret("RAZORPAY_WEBHOOK_SECRET");
@@ -163,4 +163,4 @@ Deno.serve(async (req: Request) => {
 
   await logServer("info", "razorpay-webhook", "payment link updated", { payment_id: row.id, purpose: row.purpose, status });
   return json({ ok: true, status });
-});
+}));

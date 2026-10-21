@@ -32,6 +32,7 @@ import {
 import { imageSource, pickMedia, signedMediaUrl, uploadMedia, MediaError } from '../lib/media';
 import { Image } from 'expo-image';
 import { findContactIssue } from '../lib/mask';
+import { ReportSheet } from '../components/ReportSheet';
 import { fontFamilyFor, type Theme } from '../theme';
 import { tx } from '../components/primitives';
 
@@ -113,6 +114,8 @@ export function ChatScreen() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [other, setOther] = useState<Profile | null>(null);
+  // The message being reported (long-press on one from the other person).
+  const [reporting, setReporting] = useState<string | null>(null);
   const [escrowMinor, setEscrowMinor] = useState<number | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [attachOpen, setAttachOpen] = useState(false);
@@ -387,17 +390,19 @@ export function ChatScreen() {
 
           {messages.map((m) => {
             const { style, textColor } = bubbleShape(t, m);
+            // Anything the other person sent can be reported: press and hold.
+            const report = m.who === 'them' ? () => setReporting(m.id) : undefined;
             if (m.kind === 'image') {
               return (
-                <View key={m.id} style={style}>
+                <Pressable key={m.id} style={style} onLongPress={report} delayLongPress={400} accessibilityHint={report ? 'Press and hold to report this photo' : undefined}>
                   <ChatPhoto path={m.path} />
-                </View>
+                </Pressable>
               );
             }
             return (
-              <View key={m.id} style={style}>
+              <Pressable key={m.id} style={style} onLongPress={report} delayLongPress={400} accessibilityHint={report ? 'Press and hold to report this message' : undefined}>
                 <RNText style={tx(m.who === 'me' ? '500' : '400', 14, textColor, { lineHeight: 20 })}>{m.text}</RNText>
-              </View>
+              </Pressable>
             );
           })}
           {uploading ? (
@@ -407,6 +412,15 @@ export function ChatScreen() {
             </View>
           ) : null}
         </ScrollView>
+
+        <ReportSheet
+          visible={reporting !== null}
+          onClose={() => setReporting(null)}
+          targetType="message"
+          targetId={reporting}
+          personId={other?.id ?? null}
+          personName={counterpartyName}
+        />
 
         {warning ? (
           <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: t.colors.signalSoft }}>

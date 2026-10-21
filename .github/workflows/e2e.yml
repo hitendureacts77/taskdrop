@@ -1,0 +1,48 @@
+name: End-to-end (test project)
+
+# Runs the Playwright suite in e2e/ against the TEST Supabase project, with the seed accounts and fake
+# money. Started by hand from the Actions tab, after a deploy, because it needs the code under test to
+# be on the test project (e2e/rules.spec.ts calls the deployed api function).
+#
+# It stores no secret: the two values below are the app's PUBLIC url and anon key, set once as
+# repository *variables* (Settings, Secrets and variables, Actions, Variables), never as secrets.
+# The tests refuse to run against any project but wjxvingpfbfvkfqhrguj (e2e/helpers.ts).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: Playwright on the web build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check the two variables are set
+        run: |
+          test -n "$EXPO_PUBLIC_SUPABASE_URL" && test -n "$EXPO_PUBLIC_SUPABASE_ANON_KEY" || { echo "::error::Set the repository variables EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY first."; exit 1; }
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Build the web app
+        run: npm run web:export
+
+      - run: npx playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7

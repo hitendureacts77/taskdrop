@@ -6,13 +6,14 @@ import { ReportProblemSheet } from '../components/ReportProblemSheet';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { reportError } from '../lib/errors';
+import { useFees } from '../lib/useFees';
 import {
   confirmRelease as confirmReleaseOnServer,
   requestRevision,
   getTaskDetail,
   type TaskDetail,
 } from '../data/api';
-import { workerNetPayout } from '@taskdrop/rules';
 
 /**
  * Poster flow: confirm work done → release escrow. Design parity with
@@ -59,7 +60,8 @@ export function ConfirmScreen() {
       ? params.priceMinor
       : parseRupeeStringToMinor(openTask?.price);
 
-  const releaseMinor = priceMinor === null ? 0 : workerNetPayout(priceMinor);
+  const fees = useFees();
+  const releaseMinor = priceMinor === null ? 0 : Math.round(priceMinor * (1 - fees.commission));
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
   const [busy, setBusy] = useState(false);
   const [detail, setDetail] = useState<TaskDetail | null>(null);
@@ -70,7 +72,10 @@ export function ConfirmScreen() {
     let alive = true;
     getTaskDetail(taskId)
       .then((d) => alive && setDetail(d))
-      .catch(() => {});
+      .catch((e) => {
+        reportError(e, 'money');
+        flash('Could not load this task');
+      });
     return () => {
       alive = false;
     };

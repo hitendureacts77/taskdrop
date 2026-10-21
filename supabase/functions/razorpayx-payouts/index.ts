@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
-import { logServer } from "../_shared/monitoring.ts";
+import { guarded, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
 import { balance, giveBack, sendPayout, syncOpen, type XConfig } from "../_shared/razorpayx.ts";
 
@@ -38,7 +38,7 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
-Deno.serve(async (req: Request) => {
+Deno.serve(guarded("razorpayx-payouts", async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
@@ -118,4 +118,4 @@ Deno.serve(async (req: Request) => {
     default:
       return json({ error: "Unknown action" }, 400);
   }
-});
+}));

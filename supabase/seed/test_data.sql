@@ -5,7 +5,7 @@
 -- wallets, payments, reviews: every table cascades from auth.users), then rebuilds them.
 -- It never touches any other account, so testers' own data survives a reset.
 --
---   Asha  (poster)   phone 9990000001   wallet credits Rs 5,000
+--   Asha  (poster)   phone 9990000001   Rs 5,000 available to spend
 --   Ravi  (worker)   phone 9990000002   Rs 2,000 available, Rs 1,000 clearing, a withdrawal waiting
 --   Meera (both)     phone 9990000003   Rs 500 available
 --   Test Admin       no phone, no password: sign in with Google or set a password yourself
@@ -78,8 +78,10 @@ update public.profiles set
 where id::text like '5eed0000-0000-4000-8000-00000000000%';
 
 update public.wallets set
-  credits_minor  = case user_id when '5eed0000-0000-4000-8000-000000000001' then 500000 else 0 end,
-  balance_minor  = case user_id when '5eed0000-0000-4000-8000-000000000002' then 200000
+  -- Since migration 066 there is one spendable pool, balance_minor; credits_minor stays 0.
+  credits_minor  = 0,
+  balance_minor  = case user_id when '5eed0000-0000-4000-8000-000000000001' then 500000
+                                when '5eed0000-0000-4000-8000-000000000002' then 200000
                                 when '5eed0000-0000-4000-8000-000000000003' then 50000 else 0 end,
   clearing_minor = case user_id when '5eed0000-0000-4000-8000-000000000002' then 100000 else 0 end,
   updated_at = now()

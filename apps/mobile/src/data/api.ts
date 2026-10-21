@@ -321,7 +321,6 @@ export type ProfileEdits = {
   locLng?: number | null;
   /** Storage path of the profile photo, never a URL. */
   avatarUrl?: string | null;
-  payoutUpi?: string | null;
   onboarded?: boolean;
 };
 
@@ -507,9 +506,11 @@ async function functionError(error: unknown, fallback: string): Promise<Error> {
 }
 
 export async function createPaymentLink(input: {
-  purpose: 'escrow' | 'topup';
+  purpose: 'escrow' | 'topup' | 'promotion';
   amountMinor?: number;
   taskId?: string | null;
+  /** For purpose 'promotion': the pending campaign from startPromotion. The server prices it. */
+  promotionId?: string;
   returnUrl?: string;
 }): Promise<PaymentLink> {
   const { data, error } = await supabase.functions.invoke('razorpay', {
@@ -626,7 +627,7 @@ export const submitProof = (input: {
 }) => act<Proof>('submitProof', { taskId: input.taskId, summary: input.summary.trim(), files: input.files });
 
 /** Report a person or a task to the team (migration 093). */
-export const reportContent = (targetType: 'user' | 'task', targetId: string, reason: string) =>
+export const reportContent = (targetType: 'user' | 'task' | 'message' | 'review', targetId: string, reason: string) =>
   act<string | null>('reportContent', { targetType, targetId, reason: reason.trim() });
 export const blockUser = (userId: string) => act<null>('blockUser', { userId });
 export type BlockedUser = { id: string; name: string; blockedAt: string };

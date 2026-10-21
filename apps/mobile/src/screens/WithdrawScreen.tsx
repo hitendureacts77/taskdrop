@@ -6,6 +6,7 @@ import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
+import { reportError } from '../lib/errors';
 import {
   getWallet,
   requestWithdrawal,
@@ -58,7 +59,7 @@ export function WithdrawScreen() {
     // Anything whose clearing period has elapsed is spendable, so sweep before
     // reading. This is the screen where the difference matters: without it a
     // worker is told to wait for money that cleared days ago.
-    await settleClearedEarnings().catch(() => {});
+    await settleClearedEarnings().catch((e) => reportError(e, 'money'));
     const [wallet, rows] = await Promise.allSettled([getWallet(), listPayouts()]);
     if (wallet.status === 'fulfilled' && wallet.value) {
       setAvailableMinor(wallet.value.balance_minor);
@@ -74,7 +75,10 @@ export function WithdrawScreen() {
         if (!alive) return;
         setDestination(list.find((d) => d.is_default) ?? list[0] ?? null);
       })
-      .catch(() => {});
+      .catch((e) => {
+        reportError(e, 'money');
+        flash('Could not load your saved payout account');
+      });
     // After the refresh, not beside it: refresh sweeps cleared earnings into
     // the balance, and pre-filling from a read that raced it offers the worker
     // less than they actually have.
@@ -87,7 +91,10 @@ export function WithdrawScreen() {
         // the user's number and must not be overwritten by a refresh.
         setRupees(Math.floor(w.balance_minor / 100));
       })
-      .catch(() => {});
+      .catch((e) => {
+        reportError(e, 'money');
+        flash('Could not load your balance. Check your connection and try again.');
+      });
     return () => {
       alive = false;
     };

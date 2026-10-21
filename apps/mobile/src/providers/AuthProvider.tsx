@@ -7,7 +7,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { clientHeaders } from '../lib/appInfo';
 import { postSignInRoute } from '../data/api';
-import { count, log } from '../lib/monitoring';
+import { count, log, setMonitoringUser } from '../lib/monitoring';
 
 /**
  * Real Supabase auth: phone OTP via the phone-auth Edge Function, or Google
@@ -233,9 +233,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data } = await supabase.auth.getSession();
       if (!alive) return;
       setSession(data.session);
+      setMonitoringUser(data.session?.user.id ?? null);
       setReady(true);
     })();
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+      // Sentry sees the account id only, so a report can be matched to a person without naming them.
+      setMonitoringUser(s?.user.id ?? null);
+    });
 
     // Native: Google's return link can reopen the app on its own -- Android
     // closes the sign-in tab as the app comes forward, and Expo Go may even

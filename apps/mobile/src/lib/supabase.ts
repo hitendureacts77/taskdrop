@@ -2,6 +2,8 @@ import { LogBox } from 'react-native';
 import { FunctionRegion } from '@supabase/supabase-js';
 import { createBrowserClient } from '@taskdrop/supabase';
 import { sessionStorage } from './secureStorage';
+// Gives supabase-js the WebCrypto digest it needs for S256 sign-in codes on phones (a no-op on web).
+import './webcrypto';
 
 // Hermes has no WebCrypto, so supabase-js says (in development only) that the
 // OAuth code challenge falls back to "plain". The flow still works; the notice

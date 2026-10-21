@@ -6,8 +6,10 @@ import { blockUser, reportContent } from '../data/api';
 import { BottomSheet, Field, PrimaryButton } from './kit';
 import { tx } from './primitives';
 
+const TITLES = { user: 'Report this person', task: 'Report this task', message: 'Report this message', review: 'Report this review' } as const;
+
 /**
- * Report a person or a task to the TaskDrop team (not a dispute: no payment is
+ * Report a person, a task, a message or a review to the TaskDrop team (not a dispute: no payment is
  * held). The team sees it in the admin panel's reports queue. Optionally block
  * the person at the same time.
  */
@@ -21,7 +23,7 @@ export function ReportSheet({
 }: {
   visible: boolean;
   onClose: () => void;
-  targetType: 'user' | 'task';
+  targetType: 'user' | 'task' | 'message' | 'review';
   targetId: string | null;
   /** Who to offer to block; omit to hide the option. */
   personId?: string | null;
@@ -65,7 +67,7 @@ export function ReportSheet({
     <BottomSheet
       visible={visible}
       onClose={() => !busy && onClose()}
-      title={targetType === 'user' ? 'Report this person' : 'Report this task'}
+      title={TITLES[targetType]}
       subtitle="The TaskDrop team reads every report. The other person is not told who reported."
       footer={<PrimaryButton label="Send report" onPress={() => void send()} busy={busy} disabled={reason.trim().length < 5} />}
     >

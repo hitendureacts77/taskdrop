@@ -1,4 +1,5 @@
 import { secret } from "./secrets.ts";
+import { parseStack } from "./stack.ts";
 
 /**
  * Sentry for the Edge Functions, if SENTRY_DSN is configured (as an Edge
@@ -39,23 +40,31 @@ async function send(d: Dsn, items: [Record<string, unknown>, Record<string, unkn
   });
 }
 
-/** Send an unexpected server error to Sentry. */
-export async function captureServerError(err: unknown, context: Record<string, string> = {}): Promise<void> {
+/**
+ * Send an unexpected server error to Sentry. Use `fatal` for the failures that
+ * mean money moved and the books do not know (a payout or refund made but not
+ * recorded): the alert rules page on that level.
+ */
+export async function captureServerError(
+  err: unknown,
+  context: Record<string, string> = {},
+  level: "error" | "fatal" = "error",
+): Promise<void> {
   try {
     const d = await dsn();
     if (!d) return;
     const id = crypto.randomUUID().replace(/-/g, "");
-    const e = err instanceof Error ? err : new Error(String(err));
+    const e = err instanceof Error ? err : new Error(typeof err === "object" && err !== null && "message" in err ? String((err as { message: unknown }).message) : String(err));
+    const frames = parseStack(e.stack);
     const event = {
       event_id: id,
       timestamp: Date.now() / 1000,
       platform: "javascript",
-      level: "error",
+      level,
       server_name: "edge-function",
       environment: environment(),
       tags: context,
-      exception: { values: [{ type: e.name, value: e.message }] },
-      extra: { stack: e.stack ?? null },
+      exception: { values: [{ type: e.name, value: e.message, ...(frames.length ? { stacktrace: { frames } } : {}) }] },
     };
     await send(d, [[{ type: "event" }, event]], id);
   } catch {
@@ -103,6 +112,30 @@ export async function logServer(level: LogLevel, fn: string, message: string, at
   } catch {
     // Monitoring is best-effort; it must never become the error.
   }
+}
+
+/**
+ * Wrap a function's request handler so anything it throws and does not catch
+ * is reported (with a readable stack) and answered with a plain 500, instead of
+ * vanishing into the function logs. Expected refusals are not exceptions and
+ * never reach this.
+ */
+export function guarded(fn: string, handler: (req: Request) => Promise<Response>): (req: Request) => Promise<Response> {
+  return async (req) => {
+    try {
+      return await handler(req);
+    } catch (e) {
+      console.error(`${fn}: unhandled`, e);
+      await Promise.all([
+        logServer("error", fn, "unhandled error", { error: e instanceof Error ? e.message : String(e) }),
+        captureServerError(e, { fn, step: "unhandled" }),
+      ]);
+      return new Response(JSON.stringify({ error: "Something went wrong. Please try again." }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
+    }
+  };
 }
 
 /** Let a send finish after the response has gone out, so it never slows a request down. */

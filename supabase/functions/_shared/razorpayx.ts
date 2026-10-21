@@ -28,6 +28,8 @@
  *   GET  /v1/transactions?count=1     the account balance after the last entry
  */
 
+import { captureServerError, logServer } from "./monitoring.ts";
+
 // deno-lint-ignore no-explicit-any
 type Db = any;
 
@@ -326,7 +328,12 @@ export async function sendPayout(admin: Db, cfg: XConfig, payoutId: string): Pro
 
   if (made.ok && made.data.id) {
     const { row: after, error } = await recordPayout(admin, row.id, { ...(made.data as XPayout), mode });
-    if (error) console.error("PAYOUT MADE BUT NOT RECORDED", row.id, made.data.id, error);
+    if (error) {
+      console.error("PAYOUT MADE BUT NOT RECORDED", row.id, made.data.id, error);
+      // Money left RazorpayX and the books do not know: page, do not just log.
+      await logServer("error", "razorpayx", "PAYOUT MADE BUT NOT RECORDED", { payout_id: row.id, razorpayx_id: String(made.data.id), error });
+      await captureServerError(new Error(`PAYOUT MADE BUT NOT RECORDED: ${error}`), { fn: "razorpayx", step: "record_payout", payout_id: String(row.id) }, "fatal");
+    }
     return summarise(after ?? row, row.id);
   }
   if (definite(made)) return refusedOrExisting(admin, cfg, row, xError(made, "RazorpayX refused the withdrawal"));

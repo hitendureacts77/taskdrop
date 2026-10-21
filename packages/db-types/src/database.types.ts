@@ -4163,7 +4163,7 @@ export type Database = {
       assignment_status: "assigned" | "started" | "released" | "refunded"
       cancel_reason: "normal" | "overdue"
       cancelled_by: "poster" | "worker"
-      payment_purpose: "escrow" | "topup"
+      payment_purpose: "escrow" | "topup" | "promotion"
       payment_status: "created" | "paid" | "failed" | "cancelled"
       payout_mode: "one_time" | "milestones"
       payout_status:
@@ -4316,7 +4316,7 @@ export const Constants = {
       assignment_status: ["assigned", "started", "released", "refunded"],
       cancel_reason: ["normal", "overdue"],
       cancelled_by: ["poster", "worker"],
-      payment_purpose: ["escrow", "topup"],
+      payment_purpose: ["escrow", "topup", "promotion"],
       payment_status: ["created", "paid", "failed", "cancelled"],
       payout_mode: ["one_time", "milestones"],
       payout_status: ["requested", "processing", "paid", "failed", "cancelled"],

@@ -8,7 +8,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "node scripts/web.mjs",
-    "web:export": "expo export -p web",
+    "web:export": "expo export -p web --source-maps",
     "typecheck": "tsc --noEmit",
     "build:apk": "npx eas-cli build --platform android --profile preview",
     "build:store": "npx eas-cli build --platform android --profile production"
@@ -42,6 +42,7 @@
     "expo-router": "~57.0.28",
     "expo-secure-store": "~57.0.4",
     "expo-status-bar": "~57.0.1",
+    "expo-updates": "~57.0.26",
     "expo-web-browser": "~57.0.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",

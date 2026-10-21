@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.21, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.30, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -57,16 +57,16 @@ Version 4.21, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 | Phase | Name | Status |
 |---|---|---|
 | 0 | Foundations | In progress, 37 of 46 boxes ticked, 6 deferred, 3 open, all yours: the Maps key restriction (blocked: Google needs two-step verification on `hitendureacts@gmail.com`), a second copy of the EAS keystore backup, and the 12 testers (your friends; `docs/TESTER_RECRUITMENT.md` is the kit). Dropped or deferred 2026-10-21: `support@` (use `hitendureacts@gmail.com` only) and the lawyer question (future scope). Done: CI and the old-app compatibility checks, CodeRabbit on both repos, the Vercel backend deploy, the seed load, the old-app and old-admin checks, `taskdrop.in` open to visitors |
-| 1 | See problems, ship fast | In progress, 1 of 22 boxes ticked |
-| 2 | Make it work (stabilize) | Not started, 0 of 18 boxes ticked |
-| 3 | Server decides everything | In progress, 10 of 36 boxes ticked |
-| 4 | Accounts and sign-in | Not started, 0 of 21 boxes ticked |
-| 5 | Background jobs (Inngest) | In progress, 11 of 42 boxes ticked (outbox, alerts, push, prunes built; Inngest Cloud keys are yours to set) |
-| 6 | Speed and media (ImageKit) | In progress, 13 of 24 boxes ticked (merged; migration 109 applied 2026-10-19; off until your ImageKit keys are set; device tests open) |
-| 7 | Moderation and admin tools | Not started, 0 of 23 boxes ticked |
-| 8 | Store readiness | Not started, 0 of 9 boxes ticked |
-| 9 | Switch-over to the upgraded app | Not started, 0 of 26 boxes ticked |
-| 10 | Customer launch (later, when you decide) | Not started, 0 of 27 boxes ticked |
+| 1 | See problems, ship fast | In progress, 11 of 22 boxes ticked, 5 deferred, 11 open: all the code is written (branch `upgrade/phase-1-sentry`, not yet pushed). Open on you: `SENTRY_AUTH_TOKEN` in Vercel for web source maps, the Firebase/FCM setup (`docs/FCM.md`) and then the one new `beta` APK, the Uptime Robot account, two more Sentry alerts, and every Verify box (they need the APK and the monitors) |
+| 2 | Make it work (stabilize) | In progress, 6 of 18 boxes ticked, 4 deferred, 12 open. The four known backend bugs, the money-screen errors and the Playwright suite are done (not pushed). Left, all needing you or a device: your list of problems, the per-operation speed half (needs real traffic in Sentry), the admin page check, the Android/web checklists in Safari and on a phone, and the Verify boxes |
+| 3 | Server decides everything | In progress, 27 of 36 boxes ticked, 2 deferred, 9 open. All the code is done on branch `upgrade/phase-3-server-decides` (not pushed; migration 114 not applied). Open: `API_GATEWAY_SECRET` in the admin project and an admin redeploy (yours), the Maps key restriction (yours), the Phase 9 lockdown, and the checks that need an APK or a deployed build (control screens, Android-only maintenance, "Update the app", old app and old admin) |
+| 4 | Accounts and sign-in | In progress, 9 of 21 boxes ticked, 6 deferred, 12 open. Done on branch `upgrade/phase-4-accounts` (both repos, not pushed): server-side names for new accounts, S256 sign-in codes on phones, the onboarding fix, and the admin's sign-in card and "Sign out everywhere". **Not started on purpose:** Supabase's built-in phone auth with an SMS hook (replaces the working `phone-auth`; your call, see the box), the test-user phone migration that depends on it, and account linking. Left: "Allow manual linking" in Supabase (yours) and every Verify box (they need an APK and a sign-up on each platform) |
+| 5 | Background jobs (Inngest) | In progress, 12 of 42 boxes ticked, 3 deferred, 30 open. Added this session: the admin Alerts page (admin repo). **Everything else open here waits on something that is yours:** the Inngest Cloud account and its two keys (so nothing built can run or be checked), and the lawyer's answer on the money flow, which the plan and AGENTS.md say must come before the payout, refund-retry and webhook items are built. The built-but-unapplied jobs (push, overdue, prunes, account files, money sweeps) switch on with the cutover SQL in `supabase/cutover/` once the keys are set. Nothing in this phase was deployed |
+| 6 | Speed and media (ImageKit) | In progress, 14 of 24 boxes ticked, 2 deferred, 10 open (merged; migration 109 applied 2026-10-19; **off until your ImageKit keys are set**, and every open box here needs them or a device: uploads to ImageKit, admin image views, phone checks, Verify). Only the web CSP box was closed this session |
+| 7 | Moderation and admin tools | In progress, 8 of 23 boxes ticked, 2 deferred, 15 open. Built on branch `upgrade/phase-7-moderation` (both repos, not pushed; migrations 117 and 118 not applied): blocks now stop contact, hide message / photo / category functions, report-a-message in chat, reported messages shown and hideable in the admin, the runbook. **Not built:** remove a review, cancel a promotion with refund (both touch ratings or money and need a design), a "warn" action, the promotion-tier form, change-category button, broadcasts by platform, the platform dashboard. Verify boxes need an APK/browser session |
+| 8 | Store readiness | Not started, 0 of 9 boxes ticked (reviewed 2026-10-21: every box is yours, needs a store account, a closed-test group or a device; the one code-side question, map tiles, is noted in its box) |
+| 9 | Switch-over to the upgraded app | Not started, 0 of 26 boxes ticked. **Deliberately not touched by the autonomous run (2026-10-21):** it needs your approval, it retires the old app and old admin, and the lockdown and clean-up migrations cannot be undone while testers are on the old app |
+| 10 | Customer launch (later, when you decide) | Not started, 0 of 27 boxes ticked. Not touched: ground rule 7 says it happens only when you decide |
 
 ## Coverage: what each phase changes
 
@@ -180,25 +180,25 @@ Version 4.21, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 ## Phase 1: See problems, ship fast
 
 **Backend**
-- [ ] `_shared/monitoring.ts` used in every function: `razorpay`, both webhooks, `razorpayx-payouts`, `phone-auth`, `password-auth`, `places-search`
-- [ ] Parsed stack frames
-- [ ] Unexpected database errors reported
-- [ ] "PAYOUT MADE BUT NOT RECORDED" and "REFUND SENT BUT NOT RECORDED" sent as fatal
-- [ ] A `health` op on `api` for uptime checks
+- [x] `_shared/monitoring.ts` used in every function: `razorpay`, both webhooks, `razorpayx-payouts`, `phone-auth`, `password-auth`, `places-search`. Done 2026-10-21 (branch `upgrade/phase-1-sentry`): `places-search` was the last without it; it now logs a rejected Google key, an unreachable Google and a broken search budget. Every handler except `app-config`, `inngest` and `razorpay-setup` is wrapped in `guarded()` (see the third box)
+- [x] Parsed stack frames. `captureServerError` now sends a real Sentry stack trace (function, file, line, column, in-app flag; `_shared/stack.ts`, tested in `stack.test.ts`) instead of the stack as a text blob
+- [x] Unexpected database errors reported. `guarded()` in `_shared/monitoring.ts` catches anything a handler throws, reports it with its stack and answers a plain 500; `phone-auth` `failed()`, the `password-auth` sign-in gate, the `places-search` budget and `api` ops also send database errors as issues, not only as log lines
+- [x] "PAYOUT MADE BUT NOT RECORDED" and "REFUND SENT BUT NOT RECORDED" sent as fatal. The payout case was only a `console.error`; both now send a `fatal`-level event (`captureServerError(..., "fatal")`) plus a log line
+- [x] A `health` op on `api` for uptime checks. `POST /functions/v1/api` with `{"op":"health"}` and the project's anon key as the bearer token answers before sign-in: 200 `{ok:true,data:{status:"ok",database:true}}`, or 503 when the database does not answer. Written, not yet deployed (the Vercel build deploys it when this branch is merged into `redesigned-2.0`)
 
 **User app (all platforms)**
 - [x] `@sentry/react-native` replaces `apps/mobile/src/lib/monitoring.ts`; pick the version that matches Expo SDK 57 (`~7.11.0`; DSN in `EXPO_PUBLIC_SENTRY_DSN`, auth token in `SENTRY_AUTH_TOKEN`; Sentry org `hitendu`, project `taskdrop`)
-- [ ] `reportError` (`lib/errors.ts`) stays the single entry point
-- [ ] API and network failures reported (they're ignored today)
-- [ ] User id only, no phone or email; about 10% performance traces; `environment` and `release` tags
-- [ ] `expo-updates` with a runtime-version policy (R1: EAS Update, not EAS Hosting)
+- [x] `reportError` (`lib/errors.ts`) stays the single entry point (checked: nothing else in the app calls Sentry's error API; the reporter is installed by `installMonitoring`)
+- [x] API and network failures reported (they're ignored today). `apiFailureKind` (`lib/errors.ts`, tested) sorts a failed call into offline, signed out, refused on purpose or unexpected. The first three only count in Sentry Metrics (`api.failed`, by kind); an unexpected one becomes a warning-level issue grouped by status and code, with no message text (database messages can quote values)
+- [x] User id only, no phone or email; about 10% performance traces; `environment` and `release` tags. The user id is set on sign-in and cleared on sign-out (`setMonitoringUser`); `sendDefaultPii` was already off, traces 10%, `environment` from `EXPO_PUBLIC_SENTRY_ENVIRONMENT`, `release` the app version
+- [x] `expo-updates` with a runtime-version policy (R1: EAS Update, not EAS Hosting). `expo-updates ~57.0.26` added; `app.json` has `runtimeVersion: {policy: "appVersion"}` and the update URL for project `08aa002b-…`; the `beta` build profile already uses channel `beta`. Takes effect in the next native build (the box under Android)
 
 **Web**
-- [ ] Sentry captures web errors, with readable stacks (source maps uploaded on deploy)
+- [ ] Sentry captures web errors, with readable stacks (source maps uploaded on deploy). Built 2026-10-21, waiting on you: the web export now makes source maps (`--source-maps`), and `scripts/upload-web-sourcemaps.mjs` (run by `scripts/vercel-build.mjs`) uploads them to Sentry and then deletes every `.map` so none is public. It needs **(You)** `SENTRY_AUTH_TOKEN` as a secret in the Vercel project `taskdrop` (the same token EAS has). Without it the build still passes with a warning and web stacks stay minified. Web errors already reach Sentry (TASKDROP-2)
 
 **Android**
-- [ ] FCM V1 credentials + `google-services.json` through EAS, which fixes push in builds
-- [ ] One new `beta` APK with all the native changes (Sentry native, `expo-updates`, FCM), installed by testers
+- [ ] **(You)** FCM V1 credentials + `google-services.json` through EAS, which fixes push in builds. Code side done 2026-10-21: `app.config.js` reads the file from the EAS file variable `GOOGLE_SERVICES_JSON` and `google-services.json` is git-ignored. Yours: create the Firebase project, upload the FCM V1 service-account key to Expo and add the file variable. Steps in `docs/FCM.md`
+- [ ] One new `beta` APK with all the native changes (Sentry native, `expo-updates`, FCM), installed by testers. Waits for the FCM box above, so the APK is built once. Not built yet
 - [ ] Source maps uploaded from EAS
 
 **iOS**
@@ -215,12 +215,12 @@ Version 4.21, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 - [-] **(You)** Add iPhone testers to TestFlight internal testing
 
 **Admin**
-- [ ] `@sentry/nextjs` (server actions, route handlers, browser), as its own Sentry project
+- [x] `@sentry/nextjs` (server actions, route handlers, browser), as its own Sentry project. Already in the admin repo on `redesigned-2.0` (admin PR 15; project `taskdrop-admin`, `src/instrumentation*.ts`, `global-error.tsx`; admin source maps upload with the token on Vercel, checked 2026-10-19)
 
 **Alerts**
-- [ ] **(You)** Create Sentry and Uptime Robot accounts
-- [ ] Sentry alerts: new issues, money fatals, error spikes
-- [ ] Uptime Robot: `api` health, `taskdrop.in`, `admin.taskdrop.in`
+- [ ] **(You)** Create Sentry and Uptime Robot accounts. The Sentry account exists (org `hitendu`, projects `taskdrop` and `taskdrop-admin`); the Uptime Robot account is still to make
+- [ ] Sentry alerts: new issues, money fatals, error spikes. One alert exists (new, escalating and regressed issues, emailed to you). Still to add in Sentry: an alert on `level:fatal` (the two NOT RECORDED cases) and one for an error spike. Not set up from here: Sentry's alert screens need your signed-in session
+- [ ] Uptime Robot: `api` health, `taskdrop.in`, `admin.taskdrop.in`. Waits for the account above and for the `health` op to be deployed. The api monitor is a POST to `https://wjxvingpfbfvkfqhrguj.supabase.co/functions/v1/api` with body `{"op":"health"}` and headers `Authorization: Bearer <anon key>`, `apikey: <anon key>`, `Content-Type: application/json` (POST and custom headers need a paid Uptime Robot plan; the free plan can watch `taskdrop.in` and the admin page only). There is no `admin.taskdrop.in`: use the admin's Vercel address
 
 **Verify**
 - [ ] A test error from web, Android, iOS, admin and each function appears in Sentry with a readable stack
@@ -237,25 +237,25 @@ Version 4.21, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 - [ ] Each item becomes a GitHub issue, then is reproduced and fixed, or scheduled into a later phase
 
 **Backend: known bugs**
-- [ ] Chat photos can be opened by the recipient (storage policy 075)
-- [ ] The `payout_upi` write in `updateProfile` matches migration 073
-- [ ] Drop the duplicate 5-minute earnings sweep
-- [ ] Promotion checkout (`PromoteScreen.tsx:166` sends `purpose: 'escrow'`)
+- [x] Chat photos can be opened by the recipient (storage policy 075). Cause: policy 075 (and 109's rewrite) let a person open their own folder, avatars, task media and proofs, and 109 added the chat rule only for registry photos (`media:<id>`); a photo sent as a plain storage path was readable by the sender alone. Migration 112 adds the thread rule for those paths (plus an index), test `supabase/tests/chat_photos.test.sql`. Written, not applied: the Vercel build applies it when this is merged into `redesigned-2.0`
+- [x] The `payout_upi` write in `updateProfile` matches migration 073. 073 took `payout_upi` off the editable columns, so any `updateProfile` that carried `payoutUpi` failed as a whole. The op now ignores the field (the app never sent it; its type is removed); unit test added in `api.test.ts`
+- [x] Drop the duplicate 5-minute earnings sweep. Checked on the test project: `settle-cleared-often` (every 5 min) and `settle-cleared-earnings` (02:00 daily) both call `settle_cleared_earnings()`. Migration 113 unschedules the nightly copy; the 5-minute one stays until the Inngest cutover. Not applied yet (same as 112)
+- [x] Promotion checkout (`PromoteScreen.tsx:166` sends `purpose: 'escrow'`). It was worse than a wrong label: an open post has no locked quote, so the payment link was refused, and on a post that did have one the link would have been priced as the escrow and funded the task. Now: new payment purpose `promotion` (migration 110), the `razorpay` function prices it from the pending campaign (`promotionId`) instead of trusting the client, and `activate_promotion` (migration 111) accepts only a settled promotion payment of the caller's, for that task, covering the amount and not already used (before, any paid payment, even a top-up, switched a campaign on). Test `supabase/tests/promotion_payments.test.sql`. The old app keeps its (broken) promotion flow; it now gets a clear refusal instead of a misapplied payment. Run `npm run db:types` in the admin repo after migration 110 is applied
 
 **Backend: speed**
-- [ ] Find the 10 slowest `api` operations and queries, using Sentry traces and `pg_stat_statements`
+- [ ] Find the 10 slowest `api` operations and queries, using Sentry traces and `pg_stat_statements`. Half done 2026-10-21: `pg_stat_statements` on the test project, app-owned entries only: `settle_cleared_earnings()` 126 s total over 6,558 calls (19 ms each, the 5-minute cron plus the nightly copy, see above), `auto_complete_due()` 52 s over 2,453 calls, `api_rate_hit` 25,219 calls at 1.5 ms, `app_secrets()` 21,918 calls at 1.7 ms (about one per Edge Function start), `settle_finished_campaigns()` 16 s. Nothing slow per request; the rest of the top is Supabase's own tooling. Per-operation timings need real traffic in Sentry traces after the Phase 1 build is out, so this box stays open
 - [ ] Fix them with indexes, fewer round trips and pagination; measure against Part B, section 5
 
 **User app (all platforms)**
-- [ ] Swallowed errors (`.catch(() => {})`) on money screens now show a message and report to Sentry
+- [x] Swallowed errors (`.catch(() => {})`) on money screens now show a message and report to Sentry. Wallet, Withdraw, Escrow (pay) and Confirm (release): a failed balance, price, payout-account or task read now reports through `reportError(e, 'money')` and shows a plain message; the best-effort earnings sweeps report without a message. Other screens' `.catch(() => {})` (feed, presence, ads) were left alone on purpose
 
 **Web**
-- [ ] Playwright end-to-end tests on the web build against the cloud test project (test accounts only), run in CI:
+- [x] Playwright end-to-end tests on the web build against the cloud test project (test accounts only), run in CI. Built 2026-10-21 (`playwright.config.ts`, `e2e/`, `npm run test:e2e`): 18 of 20 tests pass locally (the other two wait for the deploy) against the live test project, in Chromium at desktop and phone size. Sign-in goes through the real screen (the seed phones get the dev code); the money paths go through the real `api` function as the two seed accounts, with exact amounts checked against the live fee settings. "In CI" is `.github/workflows/e2e.yml`, started by hand after a deploy and needing two repository *variables* (the public URL and anon key, yours to set); it is not on every pull request because the tests need the code under test to be deployed and move fake money. What is covered:
   - sign-in with a test phone
   - the wallet-funded money path: post → bid → lock → fund → start → proof → done → confirm → review → withdraw request
   - cancel with a fine
   - dispute
-- [ ] The core-flow checklist (Part B, 5.2) passes in Chrome and Safari, on desktop and phone sizes
+- [ ] The core-flow checklist (Part B, 5.2) passes in Chrome and Safari, on desktop and phone sizes. Chromium at desktop and phone size is covered by the Playwright suite (sign-in, home, wallet, explore, legal pages, the money paths); Safari and a person looking at the screens are not
 
 **Android**
 - [ ] The core-flow checklist passes on the `beta` APK; failures are fixed
@@ -274,7 +274,7 @@ Version 4.21, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 **Verify**
 - [ ] The checklist passes on web, Android, iOS and admin
 - [ ] Your list is fixed or scheduled
-- [ ] Playwright is green in CI
+- [ ] Playwright is green in CI. Green locally on 2026-10-21 for 18 of 20: the other two (`e2e/rules.spec.ts`: the server refusing phone numbers, and the `health` check) fail on purpose until the Phase 1 and 3 code is deployed to the test project; they are the proof that it has not been. A run in GitHub Actions needs the two repository variables
 - [ ] The top slow queries are fixed
 
 ---
@@ -282,15 +282,15 @@ Version 4.21, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 ## Phase 3: Server decides everything
 
 **Backend**
-- [ ] Contact-detail rule:
-  - [ ] `lib/mask.ts` rules move to `supabase/functions/_shared/`, with a sync test
-  - [ ] Enforced in `api/writes.ts`: `placeBid`, `updateBid`, `sendMessage`, `submitProof`, `createTask`, `updateListing`, `updateProfile`, `updateProfileExtras`
-- [ ] Promotion:
-  - [ ] Price tiers in `settings`, checked by `start_promotion`
-  - [ ] A `promotion` purpose in `razorpay` that computes the amount on the server
-- [ ] Fees: `feesSince` and `workerShareOfEscrow` (`api/reads.ts`) read live `settings`
-- [ ] `places-search` gains reverse lookup and the OpenStreetMap fallback
-- [ ] App controls:
+- [x] Contact-detail rule:
+  - [x] `lib/mask.ts` rules move to `supabase/functions/_shared/`, with a sync test. `_shared/contacts.ts` is a copy (an Edge Function is bundled from `supabase/functions` alone, like `_shared/rules.ts`); `contacts.test.ts` fails if the patterns or the answers differ from the app's
+  - [x] Enforced in `api/writes.ts`: `placeBid`, `updateBid`, `sendMessage`, `submitProof`, `createTask`, `updateListing`, `updateProfile`, `updateProfileExtras`. Refused with code `CONTACT_DETAILS` and the app's own wording. Same rules as the app, so the app and the old app (which hide or refuse them before sending) see no change. Chat is refused only until the work starts, and the task is looked up only when the text looks like a contact detail. Unit-tested in `api.test.ts`
+- [x] Promotion:
+  - [x] Price tiers in `settings`, checked by `start_promotion`. Migration 114: `promotion_daily_budgets_minor` (₹50, 80, 150, 300) and `promotion_durations_days` (1, 3, 7), the tiers both apps already show; the total must be exactly one budget times one length. Written, not applied
+  - [x] A `promotion` purpose in `razorpay` that computes the amount on the server (done in Phase 2, migrations 110 and 111)
+- [x] Fees: `feesSince` and `workerShareOfEscrow` (`api/reads.ts`) read live `settings`. One `readFees` reads the four fee settings; the wallet activity list, `feesSince` and `platformFees` all use it. `feesSince` no longer trusts the `commission` argument the app sends (still accepted, ignored)
+- [x] `places-search` gains reverse lookup and the OpenStreetMap fallback. `{lat, lng}` answers `{label}`; a text search with no Google key, a Google error or no Google result falls back to OpenStreetMap on the server (with a proper User-Agent, which OpenStreetMap requires and browsers cannot set). Replies keep the old `{configured, places}` shape and add `source`. Reverse lookup uses OpenStreetMap, not Google (Google's reverse lookup is the separate Geocoding API, which the restricted key does not cover). Not deployed or tried against the live services yet
+- [x] App controls:
   - [x] `app_controls` table and a public `app-config` function, cached about 60 s (migration 092, `functions/app-config`; built, not yet applied or deployed)
   - [x] Switches, each per platform (web / Android / iOS):
     - maintenance mode with a message
@@ -314,12 +314,12 @@ Version 4.21, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 - [x] Platform and app-version headers sent on every `api` call
 - [x] The app reads `app-config` at start-up, on return to the foreground, every 5 minutes and right after a server refusal (no realtime ping: the user channel only exists once signed in)
 - [x] Maintenance screen, "Update the app" screen, announcement banner, and a message when a switch is off
-- [ ] Fee previews come from the `platformFees` op
-- [ ] Address search goes through `places-search`
+- [x] Fee previews come from the `platformFees` op. New `lib/useFees.ts` (built-in rates until the op answers); used by the post preview (`AiPostScreen`), the offer-accept text and escrow (`TaskManageScreen`) and the release preview (`ConfirmScreen`). `EscrowScreen` keeps its local first paint, since it then shows the server's price
+- [x] Address search goes through `places-search`. Search already did (Phase 0 work); the point-to-name lookup (`describeCoords`) now does too, with a direct OpenStreetMap call only as the last fallback
 
 **Web**
 - [x] `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` removed from the web build. Done 2026-10-20: the app no longer reads it. Place search goes through the `places-search` function (server key `GOOGLE_MAPS_API_KEY`), and the Android map key is `EXPO_GOOGLE_MAPS_API_KEY`, a build-time EAS secret that never enters the JS bundle. The old web build on `main` still has the old key until Phase 9
-- [ ] `vercel.json`: SPA rewrites and security headers (CSP, HSTS, frame-ancestors, referrer policy)
+- [x] `vercel.json`: SPA rewrites and security headers (CSP, HSTS, frame-ancestors, referrer policy). Rewrite of every path to `/index.html` (files that exist are served first), HSTS, `nosniff`, referrer policy, permissions policy, `X-Frame-Options: DENY`, an enforced CSP of only `frame-ancestors`, `base-uri`, `object-src` and `form-action`, and the full CSP in **report-only** mode with violations sent to Sentry. Report-only on purpose: a wrong full CSP would break sign-in, payments or maps for everyone. After a week of clean reports it can be switched to enforcing. Not seen live yet; the first deploy shows it
 
 **Android**
 - [ ] The native map keeps only the restricted Android key
@@ -330,15 +330,15 @@ Version 4.21, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 - [-] Control screens checked on TestFlight. The iOS map is Apple Maps, so no key is needed.
 
 **Admin**
-- [ ] New **App controls** page: every switch per platform, minimum versions, maintenance, banner
+- [x] New **App controls** page: every switch per platform, minimum versions, maintenance, banner. Already in the admin repo on `redesigned-2.0` (Settings, App controls: `settings/controls`, `ControlsView`, `controls-actions.ts`)
 - [ ] Prepare for the lockdown (harmless before it runs):
-  - [ ] Set `API_GATEWAY_SECRET` in the upgraded admin's env
-  - [ ] Send the `x-taskdrop-gateway` header from the admin's Supabase server client
+  - [ ] **(You)** Set `API_GATEWAY_SECRET` in the upgraded admin's env (Vercel project `taskdrop-admin`; the value is the one in the Supabase secret of the same name, created by migration 083). I do not enter secrets
+  - [x] Send the `x-taskdrop-gateway` header from the admin's Supabase server client (already in `src/lib/supabase/server.ts`; it sends it when `API_GATEWAY_SECRET` is set)
   - [ ] Redeploy the upgraded admin
 
 **Verify**
-- [ ] The new web bundle contains no Google key
-- [ ] A bid containing a phone number sent straight to the API is rejected, on the old app too
+- [x] The new web bundle contains no Google key. Fresh `expo export -p web` on 2026-10-21: no `AIza` in any JavaScript file (the old `dist` from 6 October, which did contain one, was stale)
+- [x] A bid containing a phone number sent straight to the API is rejected, on the old app too. Same `api` function, so the old app gets it too. Proved in `api.test.ts` against the operation. `e2e/rules.spec.ts` checks the deployed function and currently fails because it has not been deployed (2026-10-21), so re-run it after the merge
 - [-] Posting switched off for iOS only: refused on iPhone, even by direct API call; still works on web and Android
 - [ ] Maintenance mode for Android only shows the screen on Android only
 - [ ] An older upgraded build sees "Update the app" on Android and iOS
@@ -351,7 +351,7 @@ Version 4.21, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 **Backend**
 - [-] **(You)** In Apple Developer: App ID with Sign in with Apple, a Services ID and a Sign in with Apple key
 - [-] Enable Apple in Supabase Auth, with redirect URLs (`taskdrop://auth-callback`, `https://taskdrop.in`, localhost) added to the existing list
-- [ ] The upgraded app's phone login uses Supabase's built-in phone auth, with a Send-SMS hook calling MSG91
+- [ ] The upgraded app's phone login uses Supabase's built-in phone auth, with a Send-SMS hook calling MSG91. **Not started, on purpose (2026-10-21):** it replaces the sign-in every tester uses today (`phone-auth`, working, with the age gate, throttles and test numbers) and the work cannot be tried here without sending real SMS or breaking sign-in on the shared database. It is a decision for you, not a task I should do unattended: say "start phone auth" when you are ready to test it with the owner phone, or drop it and keep `phone-auth`, which already has every protection listed below
 - [ ] Every existing protection kept:
   - throttles
   - birth date before the first code
@@ -359,16 +359,16 @@ Version 4.21, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
   - test numbers with fixed codes
 - [ ] Test users migrated: the phone copied from each synthetic email into `auth.users.phone`. The synthetic email stays, so both the old and the new phone login find the same account.
 - [ ] `task_contact_phone`, `verificationState` and the admin SMS block read `auth.users.phone` first, then fall back to the synthetic email
-- [ ] The old `phone-auth` function stays deployed and working for the old app; it's retired in Phase 9
-- [ ] `password-auth` keeps username + password working, looking up the username and signing in with the account's phone or email
-- [ ] `handle_new_user` takes names from Google/Apple
-- [ ] Manual identity linking enabled
+- [x] The old `phone-auth` function stays deployed and working for the old app; it's retired in Phase 9. Nothing was removed; it is now wrapped in `guarded()` (Phase 1) and reports unexpected database errors
+- [x] `password-auth` keeps username + password working, looking up the username and signing in with the account's phone or email. Unchanged in behaviour (only monitoring added in Phase 1)
+- [x] `handle_new_user` takes names from Google/Apple. Migration 115: `display_name`, then `full_name`, then `name` from the sign-in metadata, then the email's first part, except an Apple "Hide my email" address, then "New user". Phone accounts are named exactly as before. Test `supabase/tests/new_user_names.test.sql`. Written, not applied
+- [ ] Manual identity linking enabled. A Supabase Auth setting (Authentication, Sign In / Providers, "Allow manual linking"); I did not change the project's auth settings from here, and `supabase config push` must not be run (Phase 0). **(You)** switch it on in the dashboard when you want linking
 - [-] Account deletion revokes the Apple token for Apple users (App Store rule; check Apple's current rules when building)
 
 **User app (all platforms)**
-- [ ] `expo-crypto` added; PKCE uses S256 (`lib/supabase.ts`)
-- [ ] Onboarding doesn't prefill Apple relay emails as names (`OnboardingScreen.tsx:55`)
-- [ ] Account screen: shows linked methods; link Google/Apple (`linkIdentity`); add or verify a phone
+- [x] `expo-crypto` added; PKCE uses S256 (`lib/supabase.ts`). `expo-crypto` was already a dependency; `lib/webcrypto.native.ts` gives supabase-js the `crypto.subtle.digest` it needs on Hermes (it silently used "plain" before), imported from `lib/supabase.ts`; web is untouched. **Not yet seen on a phone:** check Google sign-in on the next APK and that no "WebCrypto not supported" line appears
+- [x] Onboarding doesn't prefill Apple relay emails as names (`OnboardingScreen.tsx:55`). Any name containing an @, the phone placeholder and "New user" are left blank for the person to fill in
+- [ ] Account screen: shows linked methods; link Google/Apple (`linkIdentity`); add or verify a phone. The screen already shows which methods are on the account (phone, Google, username + password). Linking is not built: it needs "manual linking" switched on (above) and a native browser round trip I cannot try here, so it waits for the next device session
 
 **Web**
 - [ ] Google and Apple sign-in through the browser flow (`providers/AuthProvider.tsx`)
@@ -383,10 +383,10 @@ Version 4.21, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 - [-] Google sign-in through the browser flow; phone; username + password
 
 **Admin**
-- [ ] User page: sign-in methods (phone / Google / Apple), devices with platform and app version, last seen
-- [ ] "Sign out everywhere"
-- [ ] The sign-in-method switches from Phase 3 are tested
-- [ ] Admin's own login stays Google + `admin` role + MFA
+- [x] User page: sign-in methods (phone / Google / Apple), devices with platform and app version, last seen. Admin repo, branch `upgrade/phase-4-accounts`: the Devices tab gets a Sign-in card (methods, last sign-in) next to the devices list that already showed platform, app version and last seen
+- [x] "Sign out everywhere". Migration 116 `admin_sign_out_everywhere` (admins only, full admin role, reason required, not yourself, audit-logged, ends sessions and refresh tokens, clears push tokens) and a confirmed button on the same tab; test `supabase/tests/admin_sign_out_everywhere.test.sql`. Written, not applied
+- [x] The sign-in-method switches from Phase 3 are tested. New `_shared/signInSwitches.test.ts` covers phone, password, sign-up, maintenance and "switches unreadable lets everyone in"; the Google switch only hides the button in the app (Google goes straight through Supabase), as the code says
+- [x] Admin's own login stays Google + `admin` role + MFA. Not touched in this phase; `requireAdmin` and the money MFA gate are as before
 
 **Verify**
 - [ ] New sign-up works with each method on each platform, and each passes the age gate:
@@ -466,7 +466,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 
 **Admin**
 - [ ] Payout queue shows the "queued" state
-- [ ] New admin alerts view
+- [x] New admin alerts view. Admin repo, branch `upgrade/phase-5-inngest`: Alerts in the sidebar (People & jobs), unread / all, mark one or all read; reads `admin_alerts` (migration 090, already applied) behind `requireAdmin`
 - [ ] `check-all`, `give-back` and `balance` still work
 
 **Verify**
@@ -507,7 +507,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [x] Slow long lists move to a virtualised list: Browse jobs (Explore, up to 60 results) and the Home search results use `ScreenList` (`components/ui.tsx`, a `FlatList`); the other lists are short and stay as they are
 
 **Web**
-- [ ] CSP allows ImageKit (uploads and CDN): the user app has no CSP yet (Phase 3 `vercel.json` item); the directives to include are in `docs/MEDIA.md`
+- [x] CSP allows ImageKit (uploads and CDN). The Phase 3 `vercel.json` CSP (report-only) lists `https://ik.imagekit.io` and `https://upload.imagekit.io` in `connect-src`, and images are allowed from any `https:` origin. Not seen live yet
 - [x] Drag-and-drop works on web (`useFileDrop`, `pickedFromFile`): the attach area on a post and the profile and onboarding photo pickers accept a dropped file and send it through `uploadMedia`; native is unchanged
 - [ ] Upload from file picker and drag-and-drop lands in ImageKit (needs migration 106 and the ImageKit secrets on the test project; until then the server hands out Supabase Storage uploads)
 
@@ -521,7 +521,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [-] Images load fast
 
 **Admin**
-- [ ] Copyright, user and task views show ImageKit images through server-side signing
+- [ ] Copyright, user and task views show ImageKit images through server-side signing. Not built: the admin panel shows no pictures at all today (only a "has media" flag), so this is a new feature, and it needs the ImageKit private key as a server secret in the admin Vercel project, which I do not enter. Waits for the ImageKit keys (see the first box)
 
 **Verify**
 - [ ] New photos are stored in ImageKit and recorded in `media`
@@ -535,19 +535,19 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 ## Phase 7: Moderation and admin tools
 
 **Backend**
-- [ ] `reports` table (task, message, review, person) and `blocks` table
-- [ ] Blocked users can't bid on, message or see each other's tasks, enforced in `api` and SQL
+- [x] `reports` table (task, message, review, person) and `blocks` table. Both exist since migration 093 (applied); `report_content`, `block_user` and `unblock_user` are the only ways to write them
+- [x] Blocked users can't bid on, message or see each other's tasks, enforced in `api` and SQL. Migration 117, in SQL so every caller (new app, old app, API) is covered: either side blocking refuses an offer on the other's task and a chat message to the other, and hides the other's OPEN tasks from the feed and search (a job already underway stays visible, and money is untouched). Test `supabase/tests/blocks_enforced.test.sql`. Written, not applied
 - [ ] Admin SQL functions:
-  - [ ] hide/unhide a listing, cancel a task with refund, change a task's category
-  - [ ] pause a promotion, cancel a promotion with refund
-  - [ ] hide a message or photo (`media.status = hidden`), remove a review
-- [ ] `worker_commission_pct` and promotion price tiers are editable settings
-- [ ] Every new admin action writes to `admin_audit_log`
+  - [x] hide/unhide a listing (093), cancel a task with refund (098), change a task's category (`admin_set_task_category`, 118)
+  - [ ] pause a promotion (done, 098), cancel a promotion with refund (not built: it moves money and needs its own review)
+  - [ ] hide a message or photo (`media.status = hidden`) done in 118 (`admin_hide_message`, `admin_hide_media` and their un-hide twins, test `supabase/tests/content_moderation.test.sql`); remove a review not built (a review feeds the ratings, so removing one means recomputing them: it needs a design)
+- [x] `worker_commission_pct` and promotion price tiers are editable settings. Commission has always been a `settings` row; the promotion tiers moved into `settings` in migration 114 (Phase 3). The admin page for the tiers is the Admin box below
+- [x] Every new admin action writes to `admin_audit_log`. Each function added here (and `admin_sign_out_everywhere` in Phase 4) calls `admin_log_event`, and the SQL tests check it
 
 **User app (all platforms)**
-- [ ] "Report" on tasks, messages, reviews and profiles
-- [ ] "Block" on profiles and chats; a blocked-users list in Account
-- [ ] Hidden content disappears for everyone
+- [ ] "Report" on tasks, messages, reviews and profiles. Tasks and profiles already had it; **messages** are new (press and hold a message or photo from the other person in a chat). Reviews have no report button yet: the server accepts the `review` kind, but no screen shows a review to report
+- [x] "Block" on profiles and chats; a blocked-users list in Account. The report sheet (on a profile, a task and now a chat message) offers "block them too"; Account has the blocked-people list (`BlockedPeopleCard`)
+- [x] Hidden content disappears for everyone. Hidden jobs (093), hidden messages (118) and hidden photos (109 plus 118) are removed by the database's own rules, so every screen and the old app honour them. A chat that is already open shows a hidden message until it refreshes
 
 **Web**
 - [ ] Report and block work in the browser
@@ -561,15 +561,15 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 
 **Admin**
 - [ ] Reports queue:
-  - see the reported content
-  - act on it: remove, hide, warn, suspend, delete
-  - aim to act within 24 hours
-- [ ] Task actions on the task page: hide/unhide, cancel with refund, change category
-- [ ] Promotion actions: pause; cancel with refund
-- [ ] Settings page: `worker_commission_pct` and promotion price tiers, behind the money MFA gate (`src/lib/actions.ts:276`)
+  - see the reported content (a reported message now shows its text; a job and a person link to their pages)
+  - act on it: hide a message (new), hide a job, suspend, delete (person page); **no "warn" action exists yet**
+  - aim to act within 24 hours (`docs/RUNBOOK.md`)
+- [ ] Task actions on the task page: hide/unhide, cancel with refund, change category. Hide/unhide and cancel with refund are on the task page already; change category has its database function (118) but no button yet
+- [ ] Promotion actions: pause; cancel with refund. Pause exists (Promotions page); cancel with refund is not built
+- [ ] Settings page: `worker_commission_pct` and promotion price tiers, behind the money MFA gate (`src/lib/actions.ts:276`). Commission is editable there already; the promotion tiers (now in `settings`, 114) have no form yet
 - [ ] Broadcasts target by platform (web / Android / iOS) and app version as well as segments, sent as push + in-app
 - [ ] Dashboard: users and active devices by platform and version; links to Sentry, Inngest and ImageKit
-- [ ] Runbook: what to do for a stuck payout, a failed refund, a report, a dispute, and maintenance mode
+- [x] Runbook: what to do for a stuck payout, a failed refund, a report, a dispute, and maintenance mode. `docs/RUNBOOK.md`, written from the admin pages and server code as they are today; someone who has used the admin should read it once and correct what differs (Phase 8 asks for that check)
 
 **Verify**
 - [ ] A reported message hidden from admin disappears for both users on web, Android and iOS
@@ -583,7 +583,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 
 **Web**
 - [ ] Privacy policy, terms and support pages live on `taskdrop.in`, needed by both stores. (Built 2026-10-19 as `?page=terms`, `?page=privacy`, `?page=support`, all public; text traced to code in `docs/LEGAL_AUDIT.md`. Open: the domain, `EXPO_PUBLIC_LEGAL_*` values, lawyer review.)
-- [ ] Map tiles (`MapPicker`) and the fallback search use a provider's free tier, or the volume is confirmed low. OpenStreetMap's public servers don't allow heavy commercial use.
+- [ ] Map tiles (`MapPicker`) and the fallback search use a provider's free tier, or the volume is confirmed low. OpenStreetMap's public servers don't allow heavy commercial use. **Checked 2026-10-21:** the web/tile map (`MapPicker.tiles.tsx`) loads tiles straight from `tile.openstreetmap.org`, and the fallback address search is OpenStreetMap's Nominatim (now called from the `places-search` function, one request per search, under the per-account budget). Fine for a dozen testers; not for launch. Needs a decision (a tile provider with a free tier, or Google Maps tiles) before the store builds
 
 **Android**
 - [ ] **(You)** Google Play Console app ($25 one-time, if not paid), store listing, screenshots, data-safety form
@@ -1091,6 +1091,15 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
+- **v4.30 (2026-10-21):** Playwright added (`e2e/`, `npm run test:e2e`, `.github/workflows/e2e.yml`): sign-in through the real screen, the wallet-funded money path, withdrawal and cancel, the post-start fine, a dispute, and the screens at desktop and phone size. 18 of 20 pass against the live test project; the other two prove the Phase 1 and 3 server code is not deployed yet. **Found by writing it:** the seed put the poster's Rs 5,000 in `credits_minor`, which nothing has spent since migration 066, so the seed poster could not pay for anything. The seed now uses `balance_minor` and the seed poster's wallet on the test project was fixed to match (a fake account, one row). Each test run creates a few `[e2e]` tasks and moves a few hundred fake rupees.
+- **v4.29 (2026-10-21):** Phases 8 to 10 reviewed, nothing built. Phase 8 needs store accounts, a 12-person closed test and devices; Phase 9 needs your approval and would retire the old app and admin; Phase 10 is "when you decide". One finding for Phase 8: the tile map and the fallback search depend on OpenStreetMap's public servers, which is fine for testing and not for launch.
+- **v4.28 (2026-10-21):** Phase 7, on `upgrade/phase-7-moderation` (both repos, local). Blocks are enforced in SQL (117); staff can hide a message or photo and fix a category (118); a chat message from the other person can be reported with a press and hold; the admin Reports queue shows reported message text with Hide / Show again; `docs/RUNBOOK.md` added. Left out on purpose: removing a review and cancelling a promotion with a refund (they touch ratings and money and need a design first). Migrations 117 and 118 are written, not applied.
+- **v4.27 (2026-10-21):** Phase 6 reviewed: the web CSP box is closed by the Phase 3 `vercel.json`. Everything else open needs the ImageKit account keys or a phone. The admin has no image views to sign (new feature, needs the keys).
+- **v4.26 (2026-10-21):** Phase 5 reviewed. Only the admin Alerts page could be built without the Inngest keys or the lawyer's answer (admin repo, local). The payout queue, refund retries, webhook hand-off and the money-sweep cutover were deliberately not started: they change how real money moves and cannot be tried without Inngest Cloud.
+- **v4.25 (2026-10-21):** Phase 4, the safe boxes, on `upgrade/phase-4-accounts` in both repos (local, not pushed). New accounts take their name from Google/Apple (migration 115); phones use S256 sign-in codes (`lib/webcrypto.native.ts`); onboarding no longer offers an email or placeholder as a name; the admin gets a Sign-in card and a "Sign out everywhere" button (migration 116, admin repo). Sign-in switches have unit tests. **Deliberately not done:** replacing `phone-auth` with Supabase phone auth plus an SMS hook, the matching test-user migration, and Google/Apple account linking (needs manual linking switched on and a device). Migrations 115 and 116 are written and not applied.
+- **v4.24 (2026-10-21):** Phase 3, the code boxes, on `upgrade/phase-3-server-decides` (local, not pushed; it sits on the Phase 1 and 2 branches). The server now refuses contact details itself (`_shared/contacts.ts`, kept equal to the app's by a test) for quotes, proofs, posts, listings, names, bios and early chat. Promotion prices come from settings (migration 114). Fee figures read the live settings (`readFees`) and the app's previews use `platformFees` (`useFees`). `places-search` does reverse lookups and the OpenStreetMap fallback. `vercel.json` gets SPA rewrites and security headers (CSP in report-only). A fresh web export has no Google key. The admin already had the App controls page and the gateway header. Open for you: `API_GATEWAY_SECRET` in the admin project, the Maps key restriction, and the device and API checks (switches per platform, maintenance, minimum version) that need a deployed build.
+- **v4.23 (2026-10-21):** Phase 2, the code-only boxes, on `upgrade/phase-2-stabilize` (local, not pushed). Promotion checkout fixed properly: payment purpose `promotion` (migration 110), a stricter `activate_promotion` (111), the `razorpay` function prices a campaign itself and `PromoteScreen` uses it. Chat photos sent as plain storage paths can be opened by the other person in the thread (112). The nightly copy of the earnings sweep is unscheduled (113). `updateProfile` no longer writes the locked `payout_upi` column. Money screens report and show a message when a read fails. Migrations 110 to 113 are untested against a database from here (no `psql`/Docker; CI runs the new SQL tests `promotion_payments` and `chat_photos`) and not applied. Not done: the Playwright suite (needs a decision on how CI gets test accounts without GitHub secrets), the device and admin checklists, per-operation speed work.
+- **v4.22 (2026-10-21):** Phase 1 code, on `upgrade/phase-1-sentry` (local, not pushed). Server: stack frames sent to Sentry properly, `fatal` level for the two NOT RECORDED money cases, `guarded()` on the handlers so any unexpected throw is reported, `places-search` monitored, and an unauthenticated `{"op":"health"}` on `api`. App: failed API calls are classified and unexpected ones reported, the signed-in user id (only) is attached, and `expo-updates` is added with the `appVersion` runtime policy. Build: the web export uploads its source maps and then deletes them; `app.config.js` takes `google-services.json` from an EAS file variable (`docs/FCM.md`). Admin already had Sentry. Not done, needs you: `SENTRY_AUTH_TOKEN` in Vercel, Firebase/FCM, the new APK, Uptime Robot, two Sentry alerts. Phase 0 is being finished in another session.
 - **v4.21 (2026-10-21):** Owner answers. `taskdrop.in` opens for visitors and the old admin login works (both ticked). `support@taskdrop.in` is dropped: only `hitendureacts@gmail.com` is used, and the forwarding rule made the day before was deleted. The lawyer question moves to future scope (money-flow features stay off until it is answered). Testers: the owner is asking friends. The Maps key is not in any of the other three signed-in Google accounts, so it is under `hitendureacts@gmail.com`, which needs two-step verification before Google Cloud will open.
 - **v4.20 (2026-10-21):** `support@taskdrop.in` forwards to the owner's Gmail (Spaceship rule; MX records already in place; untested with a real email). The EAS upload keystore was downloaded to `C:\Users\naras\Documents\taskdrop-keystore-backup\@hitendureacts__taskdrop-keystore-backup.zip` on the owner's PC; a second copy elsewhere is still the owner's step.
 - **v4.19 (2026-10-20):** Phase 0, the owner items I could do. The first seed load ran on the test project and broke sign-in for about 15 minutes: the seed left NULL in four `auth.users` token columns, GoTrue's user list answered 500, and `phone-auth`'s account lookup uses it. The by-hand old-app checklist found it; the rows were patched and the seed plus its check fixed (PR 54). The Maps key now stays out of the JS bundle (PR 53; CodeRabbit caught that plugin options reach the public config, so the key is only handed over on Android builds). The Inngest sync was confirmed by calling it. Maps key restriction is blocked on Google's two-step-verification requirement for the account; the EAS keystore exists but is not downloaded; `support@` forwarding waits for a destination address; the old admin check needs the owner's login. New: `docs/LAWYER_BRIEF.md` and `docs/TESTER_RECRUITMENT.md`.
