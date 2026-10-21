@@ -48,14 +48,17 @@ async function readFees(ctx: Ctx): Promise<LiveFees> {
   const res = await ctx.db.from("settings").select("key,value")
     .in("key", ["worker_commission_pct", "poster_service_fee_pct", "clearing_period_days", "post_start_cancel_penalty_pct"]);
   const list = (res.data ?? []) as { key: string; value: unknown }[];
-  const get = (k: string, d: number) => {
-    const v = Number(list.find((r) => r.key === k)?.value);
-    return Number.isFinite(v) ? v : d;
+  // A missing, empty or out-of-range value is "unreadable": the built-in rule is used, not 0%.
+  const get = (k: string, d: number, max = 1) => {
+    const raw = list.find((r) => r.key === k)?.value;
+    if (raw === null || raw === undefined || (typeof raw === "string" && raw.trim() === "")) return d;
+    const v = Number(raw);
+    return Number.isFinite(v) && v >= 0 && v < max ? v : d;
   };
   return {
     commission: get("worker_commission_pct", FEES.WORKER_COMMISSION_PCT),
     posterFee: get("poster_service_fee_pct", FEES.POSTER_SERVICE_FEE_PCT),
-    clearingDays: get("clearing_period_days", 7),
+    clearingDays: get("clearing_period_days", 7, 366),
     // The Terms point at How fees work for this one too.
     cancelFine: get("post_start_cancel_penalty_pct", FEES.POST_START_CANCEL_PENALTY_PCT),
   };

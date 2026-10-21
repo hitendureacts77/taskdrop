@@ -66,7 +66,9 @@ declare
   v_other  uuid;
 begin
   select poster_id into v_poster from public.tasks where id = new.task_id;
-  select a.worker_id into v_worker from public.assignments a where a.task_id = new.task_id order by a.created_at desc limit 1;
+  select a.worker_id into v_worker from public.assignments a
+   where a.task_id = new.task_id and a.status in ('assigned', 'started', 'released')
+   order by a.created_at desc limit 1;
   v_other := case when new.sender_id = v_poster then v_worker else v_poster end;
   if private.blocked_between(new.sender_id, v_other) then
     raise exception 'You cannot message this person.' using errcode = '42501';

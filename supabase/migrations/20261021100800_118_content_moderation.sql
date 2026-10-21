@@ -110,7 +110,7 @@ set search_path = 'public', 'pg_temp'
 as $fn$
 begin
   perform private.require_people_staff();
-  update public.media set status = 'attached', hidden_at = null, updated_at = now()
+  update public.media set status = case when attached_at is null then 'pending' else 'attached' end, hidden_at = null, updated_at = now()
    where id = p_media and status = 'hidden';
   if not found then raise exception 'That file is not hidden'; end if;
   perform public.admin_log_event('media.unhide', p_media::text, null);

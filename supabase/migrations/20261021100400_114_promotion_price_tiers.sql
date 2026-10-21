@@ -35,6 +35,18 @@ begin
   if v_me is null then
     raise exception 'Not signed in';
   end if;
+  -- A setting an admin saved in the wrong shape falls back to the built-in tiers
+  -- instead of stopping every purchase with a raw cast error.
+  if jsonb_typeof(v_lengths) <> 'array' then
+    v_lengths := '[1, 3, 7]'::jsonb;
+  elsif exists (select 1 from jsonb_array_elements_text(v_lengths) e where e !~ '^[0-9]{1,4}$') then
+    v_lengths := '[1, 3, 7]'::jsonb;
+  end if;
+  if jsonb_typeof(v_budgets) <> 'array' then
+    v_budgets := '[5000, 8000, 15000, 30000]'::jsonb;
+  elsif exists (select 1 from jsonb_array_elements_text(v_budgets) e where e !~ '^[0-9]{1,12}$') then
+    v_budgets := '[5000, 8000, 15000, 30000]'::jsonb;
+  end if;
   if p_days is null or p_days < 1 or p_days > 30 then
     raise exception 'Choose between 1 and 30 days';
   end if;
