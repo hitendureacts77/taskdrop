@@ -48,6 +48,7 @@ export function PublicProfileScreen() {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [verified, setVerified] = useState<{ phone: boolean; email: boolean } | null>(null);
   const [reporting, setReporting] = useState(false);
+  const [reportingReview, setReportingReview] = useState<Review | null>(null);
 
   useEffect(() => {
     if (!id) return setP(null);
@@ -125,6 +126,16 @@ export function PublicProfileScreen() {
           targetId={p.id}
           personId={p.id}
           personName={p.display_name}
+        />
+      ) : null}
+      {!self ? (
+        <ReportSheet
+          visible={reportingReview !== null}
+          onClose={() => setReportingReview(null)}
+          targetType="review"
+          targetId={reportingReview?.id ?? null}
+          personId={reportingReview?.author_id ?? null}
+          personName={reportingReview?.author?.display_name}
         />
       ) : null}
       <ScrollView contentContainerStyle={{ paddingBottom: 28 }}>
@@ -242,6 +253,17 @@ export function PublicProfileScreen() {
                   <RNText style={tx('400', 11, t.colors.muted, { marginLeft: 'auto' })}>{timeAgo(r.created_at)}</RNText>
                 </View>
                 {r.comment ? <RNText style={tx('400', 13, t.colors.muted, { marginTop: 5, lineHeight: 19 })}>{r.comment}</RNText> : null}
+                {!self && r.author_id !== userId ? (
+                  <Pressable
+                    onPress={() => setReportingReview(r)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Report this review"
+                    style={{ alignSelf: 'flex-start', marginTop: 6 }}
+                  >
+                    <RNText style={tx('600', 12, t.colors.muted)}>Report</RNText>
+                  </Pressable>
+                ) : null}
               </View>
             ))
           )}
