@@ -1,5 +1,7 @@
 # Recruiting testers
 
+> **Future scope (owner decision 2026-10-22).** Recruiting is paused; this page is ready for when you restart it. Two of the "before you invite" items below are already done: web is open at `taskdrop.in`, and the push key and beta APK exist (APK link in `docs/FCM.md`).
+
 Plan box: Phase 0, "Recruit at least 12 testers". Google Play requires **personal developer accounts created after 13 November 2023** to run a closed test with **at least 12 testers opted in continuously for 14 days** before applying for production access (plan, Phase 8). If your Play account is an organisation account the rule may not apply to you; check in Play Console when you set it up, because Google has changed this before.
 
 You are the one who contacts people. This page gives you the message, the sign-up sheet and the steps, so it takes an afternoon.
