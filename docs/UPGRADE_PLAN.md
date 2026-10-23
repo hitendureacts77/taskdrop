@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.30, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.36, 2026-10-23 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -59,14 +59,14 @@ Version 4.30, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 | 0 | Foundations | In progress, 38 of 46 boxes ticked, 6 deferred, 2 open, all yours: the Maps key restriction (two-step verification is now on, so the account is unblocked; the restriction is a Google Cloud security setting and is yours) and the 12 testers (your friends; `docs/TESTER_RECRUITMENT.md` is the kit). Done 2026-10-22: the keystore second copy. Dropped or deferred 2026-10-21: `support@` (use `hitendureacts@gmail.com` only) and the lawyer question (future scope). Done: CI and the old-app compatibility checks, CodeRabbit on both repos, the Vercel backend deploy, the seed load, the old-app and old-admin checks, `taskdrop.in` open to visitors |
 | 1 | See problems, ship fast | In progress, 11 of 27 boxes ticked, 5 deferred, 11 open: all the code is written, merged (PR 59) and deployed on 2026-10-21. `SENTRY_AUTH_TOKEN` is reported set in Vercel (the next web build shows whether the source-map upload worked) and Firebase `taskdrop7` plus the EAS `GOOGLE_SERVICES_JSON` file variable exist. Open: confirm the FCM V1 key is in Expo Credentials (yours) and then the one new `beta` APK, the Uptime Robot account, two more Sentry alerts, and every Verify box (they need the APK and the monitors) |
 | 2 | Make it work (stabilize) | In progress, 6 of 22 boxes ticked, 4 deferred, 12 open. The four known backend bugs, the money-screen errors and the Playwright suite are done, merged and deployed (Playwright 20 of 20 on 2026-10-21). Left, all needing you or a device: your list of problems, the per-operation speed half (needs real traffic in Sentry), the admin page check, the Android/web checklists in Safari and on a phone, and the Verify boxes |
-| 3 | Server decides everything | In progress, 29 of 38 boxes ticked, 2 deferred, 7 open. All the code is done, merged (PR 59) and deployed; migration 114 is applied. Open: the Maps key restriction (yours; `API_GATEWAY_SECRET` is set and the admin redeployed 2026-10-21), the Phase 9 lockdown, and the checks that need an APK or a deployed build (control screens, Android-only maintenance, "Update the app", old app and old admin) |
+| 3 | Server decides everything | In progress, 29 of 47 boxes ticked, 2 deferred, 16 open. All the original code is done, merged (PR 59) and deployed; migration 114 is applied. Open: the Maps key restriction (yours; `API_GATEWAY_SECRET` is set and the admin redeployed 2026-10-21), the Phase 9 lockdown, the checks that need an APK or a deployed build (control screens, Android-only maintenance, "Update the app", old app and old admin), and the 9 "Keys, secrets and tokens" boxes added 2026-10-23 (Part B, section 7.1) |
 | 4 | Accounts and sign-in | In progress, 9 of 27 boxes ticked, 6 deferred, 12 open. Merged on 2026-10-21 (app PR 59, admin PR 20; migrations 115 and 116 applied): server-side names for new accounts, S256 sign-in codes on phones, the onboarding fix, and the admin's sign-in card and "Sign out everywhere". **Not started on purpose:** Supabase's built-in phone auth with an SMS hook (replaces the working `phone-auth`; your call, see the box), the test-user phone migration that depends on it, and account linking. Left: "Allow manual linking" in Supabase (yours) and every Verify box (they need an APK and a sign-up on each platform) |
 | 5 | Background jobs (Inngest) | In progress, 15 of 45 boxes ticked, 3 deferred, 27 open. The Inngest Cloud account exists and both keys are now Edge Function secrets (2026-10-21); the code is merged and deployed, and the function registers with Inngest Cloud. **The keys alone do not switch any job over:** the push, overdue, prune, account-file and money-sweep jobs stay off until the cutover SQL in `supabase/cutover/` is deliberately applied, and the money sweeps also need `INNGEST_MONEY_JOBS=on`. Still open, and why: the cutover and its verification (a deliberate step with you, one job at a time, nothing run yet), and the lawyer's answer on the money flow, which the plan and AGENTS.md say must come before the payout, refund-retry and webhook items are built. The admin Alerts page is built (admin repo) |
 | 6 | Speed and media (ImageKit) | In progress, 15 of 26 boxes ticked, 2 deferred, 9 open (merged; migration 109 applied 2026-10-19; the ImageKit keys are now Edge Function secrets on the test project (2026-10-21), so uploads can go to ImageKit; not yet tried end to end). Open: uploads from a browser and a phone, admin image views (new feature, needs the private key as a server secret in the admin project), the speed targets, Verify; and rotate the private key that was pasted into chat (yours) |
 | 7 | Moderation and admin tools | In progress, 8 of 25 boxes ticked, 2 deferred, 15 open. Merged on 2026-10-21 (app PR 59, admin PR 20; migrations 117 and 118 applied): blocks now stop contact, hide message / photo / category functions, report-a-message in chat, reported messages shown and hideable in the admin, the runbook. **Not built:** remove a review, cancel a promotion with refund (both touch ratings or money and need a design), a "warn" action, the promotion-tier form, change-category button, broadcasts by platform, the platform dashboard. Verify boxes need an APK/browser session |
 | 8 | Store readiness | Not started, 0 of 9 boxes ticked (reviewed 2026-10-21: every box is yours, needs a store account, a closed-test group or a device; the one code-side question, map tiles, is noted in its box) |
-| 9 | Switch-over to the upgraded app | Not started, 0 of 26 boxes ticked. **Deliberately not touched by the autonomous run (2026-10-21):** it needs your approval, it retires the old app and old admin, and the lockdown and clean-up migrations cannot be undone while testers are on the old app |
-| 10 | Customer launch (later, when you decide) | Not started, 0 of 27 boxes ticked. Not touched: ground rule 7 says it happens only when you decide |
+| 9 | Switch-over to the upgraded app | Not started, 0 of 27 boxes ticked. **Deliberately not touched by the autonomous run (2026-10-21):** it needs your approval, it retires the old app and old admin, and the lockdown and clean-up migrations cannot be undone while testers are on the old app |
+| 10 | Customer launch (later, when you decide) | Not started, 0 of 28 boxes ticked. Not touched: ground rule 7 says it happens only when you decide |
 
 ## Coverage: what each phase changes
 
@@ -75,7 +75,7 @@ Version 4.30, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 | 0 | Compatibility rules, CI, auto-deploy, seed | `taskdrop.in` on the upgrade | Beta build profile | Apple Developer enrollment | `admin.taskdrop.in`, CI |
 | 1 | Sentry in functions, health check | Sentry | Sentry, OTA updates, push fix | First TestFlight build, push | Sentry |
 | 2 | Bug fixes, slow queries | E2E tests, fixes | Fixes | iOS fixes | Every page checked |
-| 3 | Server rules, app controls | No key in bundle, security headers | Control screens | Control screens | App controls page, gateway header |
+| 3 | Server rules, app controls, key clean-up, App Check (monitor) | No key in bundle, security headers, App Check token | Control screens, App Check token | Control screens | App controls page, gateway header, own session key |
 | 4 | Phone auth, Apple, linking | Google/Apple browser sign-in | Google/Apple/phone | Native Apple sign-in | Sign-in methods, devices |
 | 5 | Inngest, outbox, webhooks | In-app notifications | Push via Inngest | Push via Inngest | Queued payouts, alerts |
 | 6 | `media` table, ImageKit signing | Uploads, images, CSP | Camera uploads, images | Camera/HEIC uploads, images | Images via signing |
@@ -309,6 +309,12 @@ Version 4.30, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
   - [x] Every change is written to `admin_audit_log`
   - [x] Requests without the platform header (the old app) are treated as "old app": they still work, and the switches and minimum version can target them in Phase 9
 - [ ] The lockdown itself waits for Phase 9: on the shared database it would break the old admin, which calls the database directly
+- [ ] **Keys, secrets and tokens** (added 2026-10-23; why and how in Part B, section 7.1):
+  - [ ] Remove the compiled-in Razorpay test keys (`COMPILED_IN` in `supabase/functions/_shared/secrets.ts`), so the functions read only Edge Function secrets and Vault. First check by name that `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` are set as secrets on the test project, or payments stop for the old app too
+  - [ ] **(You)** Rotate that Razorpay test key pair once no code uses it. Deleting it from the file is not enough: the old pair stays readable in the history of a public repository
+  - [ ] **(You)** Decide whether both repositories go private (cost: CodeRabbit, sections 8 and 10)
+  - [ ] **(You)** Supabase, Authentication settings: refresh-token rotation and reuse detection on, access tokens expire within an hour. Write the values here (they are settings, not secrets)
+  - [ ] `api` checks a Firebase App Check token (Play Integrity on Android, reCAPTCHA Enterprise on web) in **monitor mode**: it records a missing or failed check and refuses nothing. Requests without a token (the old app) keep working (ground rule 4); enforcement waits for Phase 9
 
 **User app (all platforms)**
 - [x] Platform and app-version headers sent on every `api` call
@@ -316,6 +322,7 @@ Version 4.30, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 - [x] Maintenance screen, "Update the app" screen, announcement banner, and a message when a switch is off
 - [x] Fee previews come from the `platformFees` op. New `lib/useFees.ts` (built-in rates until the op answers); used by the post preview (`AiPostScreen`), the offer-accept text and escrow (`TaskManageScreen`) and the release preview (`ConfirmScreen`). `EscrowScreen` keeps its local first paint, since it then shows the server's price
 - [x] Address search goes through `places-search`. Search already did (Phase 0 work); the point-to-name lookup (`describeCoords`) now does too, with a direct OpenStreetMap call only as the last fallback
+- [ ] The app gets a Firebase App Check token and sends it on every `api` call (Android: Play Integrity; web: reCAPTCHA Enterprise; iOS: App Attest, deferred with the rest of iOS). Read the Expo SDK 57 docs before choosing the library
 
 **Web**
 - [x] `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` removed from the web build. Done 2026-10-20: the app no longer reads it. Place search goes through the `places-search` function (server key `GOOGLE_MAPS_API_KEY`), and the Android map key is `EXPO_GOOGLE_MAPS_API_KEY`, a build-time EAS secret that never enters the JS bundle. The old web build on `main` still has the old key until Phase 9
@@ -335,6 +342,7 @@ Version 4.30, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
   - [x] **(You)** Set `API_GATEWAY_SECRET` in the upgraded admin's env (Vercel project `taskdrop-admin`; the value is the one in the Supabase secret of the same name, created by migration 083). Done by you on 2026-10-21 (I did not read or enter it)
   - [x] Send the `x-taskdrop-gateway` header from the admin's Supabase server client (already in `src/lib/supabase/server.ts`; it sends it when `API_GATEWAY_SECRET` is set)
   - [x] Redeploy the upgraded admin. Done 2026-10-21 16:54 UTC (admin PR 21), after the secret was saved
+- [ ] `src/middleware.ts` signs the admin session with `ADMIN_SESSION_SECRET` only, with no fallback to `SUPABASE_SERVICE_ROLE_KEY` (one key, one job). Check by name that the secret is set in Vercel first (section 7)
 
 **Verify**
 - [x] The new web bundle contains no Google key. Fresh `expo export -p web` on 2026-10-21: no `AIza` in any JavaScript file (the old `dist` from 6 October, which did contain one, was stale)
@@ -343,6 +351,7 @@ Version 4.30, 2026-10-21 (scope note 2026-10-20: iOS deferred). The single sourc
 - [ ] Maintenance mode for Android only shows the screen on Android only
 - [ ] An older upgraded build sees "Update the app" on Android and iOS
 - [ ] The old app and old admin still work
+- [ ] `docs/testing_checks.md` T2 (secrets and keys) and T11.2 to T11.5 (the Android build) pass, and the App Check log shows the upgraded web and Android apps passing
 
 ---
 
@@ -625,6 +634,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [ ] **Backend: lockdown**, now that the old admin is retired:
   - [ ] The upgraded admin already sends the gateway header (Phase 3)
   - [ ] Run `supabase/lockdown/gateway_only.sql`. It turns on `require_gateway` and removes `messages`/`notifications` from the realtime feed.
+  - [ ] `api` enforces App Check for money operations and for sending sign-in codes (Phase 3 ran it in monitor mode, because the old app cannot send the token). A failed check is a risk signal, never the only gate (section 7.1)
 - [ ] **Backend: retire old code paths:**
   - [ ] Remove the old `phone-auth` function and the synthetic emails
   - [ ] Remove the compatibility code kept for the old app
@@ -652,6 +662,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [ ] **Backend:**
   - [ ] Production Supabase project on Pro ($25/month, backups); migrations from `main`, secrets from the inventory, functions deployed
   - [ ] Auth providers on, with production redirects
+  - [ ] Test-only sign-in shortcuts off: `ALLOW_ANY_OTP` and `TEST_PHONES` are not set on the production project, and the `dev_otp_for_all` setting is false (section 7.1)
   - [ ] Lockdown run (same steps as Phase 9)
   - [ ] Inngest production environment, ImageKit `/prod`, Sentry production
   - [ ] Production deploys need your approval in CI
@@ -1017,6 +1028,35 @@ At the end of every phase:
 | **Vercel env, backend deploy** (project `taskdrop`, All Environments; the backend deploys only for Preview builds of `redesigned-2.0`) | `SUPABASE_ACCESS_TOKEN` and `DATABASE_URL` (the Vercel build deploys migrations and functions with them and runs the old-app compatibility checks, set up in Phase 0). Optional `DATABASE_CA_CERT` (Supabase root CA, PEM) turns on certificate checking for database connections. Later: `EXPO_TOKEN` if EAS Update runs from Vercel (Phase 1; otherwise from your PC), Sentry auth token (source maps). **GitHub holds no secrets** |
 | **Your PC** (git-ignored) | `.env` (also `DATABASE_URL`, `SUPABASE_ACCESS_TOKEN` for the deploy and seed scripts), `apps/mobile/.env.local`, admin `.env.local`; all test keys. There is no local functions server, so no `supabase/functions/.env.local` |
 
+### 7.1 How keys, secrets and tokens are protected
+
+Added 2026-10-23. The aim: protect TaskDrop's keys, environment variables and sign-in tokens.
+
+**The rule.** An Android app can be decompiled, and so can any app or web bundle, so any secret shipped inside it is public. Well-known Android apps do not hide secrets in the APK; they keep them off the phone. The industry-standard approach has three parts:
+
+1. **Backend proxy (the gold standard).** The app never calls an outside service with a secret key. It calls our own server, and the server makes the call.
+2. **Delegated authorization.** The server holds the secret keys and acts for the app, after checking who is asking and whether they may.
+3. **App-to-backend security.** The app proves who is asking with the signed-in user's token (OAuth-style sessions). The server can also check that the request comes from the genuine app on a genuine device, with an integrity check such as Firebase App Check.
+
+**How TaskDrop applies it**
+
+| Part | Today | Still open |
+|---|---|---|
+| Backend proxy | Every secret is read by server code: the Edge Functions (`api`, `razorpay`, `places-search`, `phone-auth`, `password-auth`, `inngest`…), SQL through Vault, and the admin's server code (section 7 table). Place search moved behind `places-search` in Phase 3. The app bundle holds only the public keys in section 3.2 | Test Razorpay keys are compiled into `supabase/functions/_shared/secrets.ts`. That is server code, so they never reach the app, but the file sits in a public repository, so "GitHub holds no secrets" above is not yet true. Phase 3 boxes: remove, then rotate |
+| Delegated authorization | Ground rule 5: the app asks, the server decides (RLS, RPC checks, `api` checks). The service-role key is used only on servers (the admin's `src/lib/supabase/service.ts` is `server-only`). The admin sends the gateway header | The admin's `middleware.ts` falls back to the service-role key when `ADMIN_SESSION_SECRET` is missing. Phase 3 Admin box |
+| App-to-backend security | The user's access token goes with every call. On phones the session is kept in `expo-secure-store` (Android Keystore). "Sign out everywhere" ends every session (Phase 4) | No app or device integrity check yet (Phase 3 monitor mode, Phase 9 enforcement). Token lifetime and refresh-token rotation not recorded (Phase 3, yours). Test-only sign-in shortcuts must be off in production (Phase 10) |
+
+**Rules that follow**
+- A name starting `EXPO_PUBLIC_` or `NEXT_PUBLIC_` is public. A secret never gets one of those names.
+- Secrets live in Supabase function secrets, Supabase Vault or Vercel env. Never in code, in GitHub or in the app.
+- Every key that has to ship in the app is restricted at its provider (package name and signing certificate, allowed APIs, a quota) and listed in section 3.2.
+- A key that has been in git, a log, a screenshot or a chat is **rotated**, not just deleted: git history keeps it.
+- App Check is a risk signal on top of user tokens and server checks, never the only gate: a rooted phone can defeat it.
+
+**How it is tested:** `docs/testing_checks.md`, T2 (secrets and keys) and T11 (the Android build).
+
+**Sources:** [React Native: Security](https://reactnative.dev/docs/security) · [ProAndroidDev: You can't hide secrets in your Android app](https://proandroiddev.com/you-cant-hide-secrets-in-your-android-app-here-s-what-to-do-instead-cce380fc1f82) · [CodePath: Storing Secret Keys in Android](https://guides.codepath.org/android/Storing-Secret-Keys-in-Android) · [Doppler: Secrets management for mobile app development](https://medium.com/dopplerhq/secrets-management-for-mobile-app-development-852029582106) · [r/androiddev: Handling secrets](https://www.reddit.com/r/androiddev/comments/1h2gzw9/handling_secrets/) · [Video](https://www.youtube.com/watch?v=bY0yvrAtbKM&t=242)
+
 ## 8. Accounts and costs
 
 | Item | Cost | When |
@@ -1089,10 +1129,12 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 | OpenStreetMap tile and search policies | Blocked at volume | Provider in Phase 8 |
 | Edge function time limits | Long jobs cut off | Long work runs as Inngest steps |
 | Inngest outage | Delayed jobs | Outbox + sweeper |
+| Test Razorpay keys sit in the history of a public repository | Anyone can use the test account (no real money moves) | Remove from code, then rotate (Phase 3, section 7.1) |
 | Per-platform switches rely on a header | A user could fake their platform | Platform switches are operational; global switches apply to all |
 
 ## 11. Changelog
 
+- **v4.36 (2026-10-23):** Added Part B, section 7.1, "How keys, secrets and tokens are protected": the backend-proxy rule, how TaskDrop applies it, and what is still open. New boxes: Phase 3 "Keys, secrets and tokens" (remove the compiled-in Razorpay test keys, then rotate them; decide on private repos; record token settings; App Check in monitor mode; the app sends the App Check token; the admin session key stops falling back to the service-role key; a Verify box pointing at `testing_checks.md` T2 and T11), Phase 9 (enforce App Check on money and sign-in codes) and Phase 10 (test-only sign-in shortcuts off). One new risk in section 10. Docs only; nothing built.
 - **v4.35 (2026-10-22):** Added `docs/testing_checks.md`, the pre-production test plan (phases T0 to T14), and linked it from section 5.
 - **v4.34 (2026-10-22):** Phase 7 admin work built (admin repo, `redesigned-2.0`, commit 681a61e): the Category card on the task page and the Devices and tools card on the dashboard. Found while checking the rest: the admin does not make commission editable (the plan said it did), and a promotion-tier form would let staff set tiers the app (which hard-codes them) offers but the server refuses. Both written next to their boxes; not built. Broadcast targeting needs a migration I cannot test from here, so it stays open.
 - **v4.33 (2026-10-22):** Looked through every phase for work that needs no account, key, device or approval. Only one box qualified: the Phase 7 "Report" button on reviews (`PublicProfileScreen.tsx`), now built and ticked. Everything else open is yours (Uptime Robot, Sentry alerts, testers, Play Console, store and money decisions, device checks), waits for traffic or keys (slow-query fixes, ImageKit and Inngest cutovers, phone login), is the admin repo (not attached to this session), or is held on purpose (Phase 9 lockdown and retiring the old app; Phase 10 launch). iOS stays deferred.
