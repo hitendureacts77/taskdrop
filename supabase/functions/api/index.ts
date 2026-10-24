@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
-import { ControlsCache, PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient } from "../_shared/controls.ts";
+import { APP_CHECK_HEADER, AppCheckLog, checkAppCheck } from "../_shared/appCheck.ts";
+import { ControlsCache,PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient } from "../_shared/controls.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
 import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
 import { guarded, background, captureServerError, logServer } from "../_shared/monitoring.ts";
@@ -33,7 +34,7 @@ import { type Db, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-region, " + PLATFORM_HEADER + ", " + VERSION_HEADER,
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-region, " + PLATFORM_HEADER + ", " + VERSION_HEADER + ", " + APP_CHECK_HEADER,
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -45,6 +46,9 @@ const controlsCache = new ControlsCache(30_000);
 
 /** People the limiter refused lately: their reads wait for the limiter instead of running beside it. */
 const limitedLately = new RecentlyLimited();
+
+/** Which App Check results were logged lately, so the log shows who passes without a line per request. */
+const appCheckLog = new AppCheckLog();
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
@@ -147,6 +151,14 @@ Deno.serve(guarded("api", async (req: Request) => {
   // Which app is asking, and what the admin panel has switched off for it.
   // If the switches cannot be read the request goes ahead (see refusalFor).
   const client = readClient(req.headers);
+  // App Check, monitor mode: record whether the request carries a real app's
+  // token. Nothing is refused, whatever the answer (the old app sends none).
+  background((async () => {
+    const result = await checkAppCheck(req.headers.get(APP_CHECK_HEADER), await secret("FIREBASE_PROJECT_NUMBER"));
+    if (appCheckLog.shouldLog(result, client.platform)) {
+      await logServer(result === "invalid" ? "warn" : "info", "api", "app check", { result, platform: client.platform, op: String(body.op) });
+    }
+  })().catch(() => {}));
   const controls = await controlsCache.get(client, async () => {
     const { data, error } = await db.rpc("get_app_controls", { p_platform: client.platform, p_version: client.appVersion });
     if (error) {

@@ -55,6 +55,10 @@ type AuthCtx = {
   /** Native "Sign in with Apple" (iOS only). Resolves once a session exists;
    *  rejects with "Sign-in was cancelled" if the sheet is dismissed. */
   signInWithApple: () => Promise<void>;
+  /** Add Google to the signed-in account (Supabase manual linking). On web the
+   *  page navigates away and comes back signed in to the same account with a
+   *  notice; on native it resolves once Google is linked. */
+  linkGoogle: () => Promise<void>;
   /** A one-off message for the person, e.g. "account already exists". */
   notice: string | null;
   clearNotice: () => void;
@@ -91,6 +95,7 @@ async function callFn(body: Record<string, unknown>) {
 const GOOGLE_INTENT_KEY = 'td:google-intent';
 const EXISTING_GOOGLE =
   'You already have a TaskDrop account with this Google ID, so we signed you in.';
+const GOOGLE_LINKED = 'Google is now linked to your account. You can sign in with it.';
 
 /** Made more than a minute ago: an account that existed before this sign-in. */
 function existedBefore(createdAt: string | undefined): boolean {
@@ -209,6 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               /* storage blocked: no notice, still signed in */
             }
             if (intent === 'signup' && existedBefore(data.user?.created_at)) setNotice(EXISTING_GOOGLE);
+            if (intent === 'link') setNotice(GOOGLE_LINKED);
             setPostAuthRoute(await postSignInRoute(data.user?.id ?? ''));
           }
         }
@@ -347,6 +353,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (intent === 'signup' && existedBefore(redeemed.createdAt)) setNotice(EXISTING_GOOGLE);
   }, []);
 
+  const linkGoogle = useCallback(async () => {
+    const isWeb = Platform.OS === 'web' && typeof window !== 'undefined';
+    const redirectTo = isWeb ? window.location.origin : Linking.createURL('auth-callback');
+    // Linking is a Supabase Auth setting ("Allow manual linking"); when it is
+    // off the server refuses, and the person gets a plain message.
+    const refused = (message: string) =>
+      /manual linking|already/i.test(message)
+        ? new Error(
+            /already/i.test(message)
+              ? 'That Google account is already used by another TaskDrop account.'
+              : 'Linking Google is not switched on yet. Please try again later.',
+          )
+        : null;
+
+    if (isWeb) {
+      try {
+        window.sessionStorage.setItem(GOOGLE_INTENT_KEY, 'link');
+      } catch {
+        /* storage blocked: no notice later, linking still works */
+      }
+      const { error } = await supabase.auth.linkIdentity({ provider: 'google', options: { redirectTo } });
+      if (error) throw refused(error.message) ?? apiError(error);
+      return;
+    }
+
+    const { data, error } = await supabase.auth.linkIdentity({
+      provider: 'google',
+      options: { redirectTo, skipBrowserRedirect: true },
+    });
+    if (error) throw refused(error.message) ?? apiError(error);
+    if (!data?.url) throw new Error('Could not start Google linking');
+
+    // Same return-link handling as signInWithGoogle: the tab may report
+    // "dismiss" even when Google finished, so the deep link is also watched.
+    let linked: string | null = null;
+    const linkSub = Linking.addEventListener('url', ({ url }) => {
+      if (authCodeFrom(url)) linked = url;
+    });
+    let returnedUrl: string | null = null;
+    try {
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      if (result.type === 'success' && 'url' in result) returnedUrl = result.url;
+      for (let i = 0; !returnedUrl && !linked && i < 15; i++) await new Promise((r) => setTimeout(r, 200));
+      returnedUrl = returnedUrl ?? linked;
+    } finally {
+      linkSub.remove();
+    }
+    if (!returnedUrl) throw new Error('Linking was cancelled');
+    await redeemAuthUrl(returnedUrl);
+    setNotice(GOOGLE_LINKED);
+  }, []);
+
   const signInWithApple = useCallback(async () => {
     if (Platform.OS !== 'ios') throw new Error('Sign in with Apple is only available on iPhone and iPad');
     // Loaded here so Android and web bundles never touch the native module.
@@ -392,11 +450,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       verifyCode,
       signInWithGoogle,
       signInWithApple,
+      linkGoogle,
       signOut,
       notice,
       clearNotice,
     }),
-    [session, ready, postAuthRoute, requestCode, verifyCode, signInWithGoogle, signInWithApple, signOut, notice, clearNotice],
+    [session, ready, postAuthRoute, requestCode, verifyCode, signInWithGoogle, signInWithApple, linkGoogle, signOut, notice, clearNotice],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

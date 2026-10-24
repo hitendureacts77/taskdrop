@@ -31,6 +31,7 @@ export const SYNCED = [
   "SENTRY_DSN",
   "SENTRY_ENVIRONMENT",
   "GOOGLE_MAPS_API_KEY",
+  "FIREBASE_PROJECT_NUMBER",
 ];
 
 /** Splits the allow-list into what is present in `env` and what is missing or blank. */

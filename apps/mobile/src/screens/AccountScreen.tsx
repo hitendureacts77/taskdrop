@@ -34,7 +34,7 @@ export function AccountScreen() {
   const t = useTheme();
   const { back, go, params } = useNav();
   const { flash, celebrate } = useActions();
-  const { userId, signOut } = useAuth();
+  const { userId, signOut, linkGoogle } = useAuth();
   const { reset } = useNav();
   const { pref, setPref } = useThemeControls();
   const { mode } = useMode();
@@ -50,6 +50,7 @@ export function AccountScreen() {
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
   const [savingPw, setSavingPw] = useState(false);
+  const [linking, setLinking] = useState(false);
   const [verify, setVerify] = useState<{ phone: boolean; email: boolean; google: boolean } | null>(null);
   // Account deletion: checked first, so what is in the way shows on the card.
   const [checkingDelete, setCheckingDelete] = useState(false);
@@ -80,6 +81,20 @@ export function AccountScreen() {
   }, [username, profile?.username]);
 
   const handleOk = /^[a-z0-9_]{3,20}$/.test(username.trim().toLowerCase());
+
+  // Add Google to this account. On web the page leaves and returns signed in
+  // to the same account; on native this resolves once Google is linked.
+  const linkGoogleAccount = async () => {
+    setLinking(true);
+    try {
+      await linkGoogle();
+      void verificationState().then(setVerify);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not link Google. Please try again.');
+    } finally {
+      setLinking(false);
+    }
+  };
 
   const saveProfile = async () => {
     if (!userId) return;
@@ -229,6 +244,14 @@ export function AccountScreen() {
                 <RNText style={tx('400', 13, t.colors.text)}>{verify?.google ? '✓' : '–'} Google</RNText>
                 <RNText style={tx('400', 13, t.colors.text)}>{profile?.username ? '✓' : '–'} Username and password</RNText>
               </View>
+              {verify && !verify.google ? (
+                <PrimaryButton
+                  label="Link Google"
+                  onPress={() => void linkGoogleAccount()}
+                  busy={linking}
+                  style={{ marginTop: 14 }}
+                />
+              ) : null}
             </View>
             <Pressable
               onPress={() => setConfirmSignOut(true)}

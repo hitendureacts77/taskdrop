@@ -1,6 +1,7 @@
 import { FUNCTIONS_REGION, supabase } from './supabase';
 import { ApiError, apiError } from './errors';
 import { clientHeaders } from './appInfo';
+import { appCheckHeaders } from './appCheck';
 import { refreshAppConfig } from './appConfig';
 import { log } from './monitoring';
 import { Batcher, type Reply as BatchReply } from './batcher';
@@ -29,7 +30,7 @@ async function callApiDirect<T>(op: string, args: Record<string, unknown> = {}):
   const { data, error } = await supabase.functions.invoke('api', {
     body: { op, args },
     region: FUNCTIONS_REGION,
-    headers: clientHeaders(),
+    headers: { ...clientHeaders(), ...(await appCheckHeaders()) },
   });
 
   if (error) {
