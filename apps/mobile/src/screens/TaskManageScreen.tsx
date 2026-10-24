@@ -8,6 +8,7 @@ import {
   ConfirmDialog,
   EmptyState,
   IconButton,
+  LoadFailed,
   SwipeTabs,
   MenuRow,
   PrimaryButton,
@@ -42,6 +43,7 @@ import { statusBadge } from './MyTasksScreen';
 import { useLayout } from '../lib/layout';
 import { formatDeadline } from '../components/DateTimeSheet';
 import { useFees } from '../lib/useFees';
+import { reportError } from '../lib/errors';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 
 type QuoteFilter = 'newest' | 'cheapest' | 'budget' | 'rated' | 'fastest';
@@ -84,6 +86,8 @@ export function TaskManageScreen() {
   const [closing, setClosing] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // The first load failed (not the same as a task that does not exist).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [quoteFilter, setQuoteFilter] = useState<QuoteFilter>('newest');
   const [selecting, setSelecting] = useState<{ bidId: string; name: string; priceMinor: number } | null>(null);
   const [locking, setLocking] = useState(false);
@@ -92,21 +96,46 @@ export function TaskManageScreen() {
 
   const load = useCallback(async () => {
     if (!taskId) return setDetail(null);
-    const [d, b] = await Promise.all([getTaskDetail(taskId), listBidsForTask(taskId).catch(() => [])]);
+    // Both or neither: a quotes list that quietly failed would read as "no quotes yet".
+    const [d, b] = await Promise.all([getTaskDetail(taskId), listBidsForTask(taskId)]);
     setDetail(d);
     setBids(b);
+    setLoadFailed(false);
   }, [taskId]);
 
   useEffect(() => {
-    void load().catch(() => setDetail(null));
+    void load().catch((e) => {
+      reportError(e, 'task-manage');
+      setLoadFailed(true);
+    });
   }, [load]);
 
   const refresh = async () => {
     setRefreshing(true);
-    await load().catch(() => {});
+    await load().catch((e) => {
+      reportError(e, 'task-manage');
+      flash('Couldn’t refresh. Pull down to try again.');
+    });
     setRefreshing(false);
   };
 
+  if (detail === undefined && loadFailed) {
+    return (
+      <Screen padded={false}>
+        <TopBar title="Task" onBack={back} />
+        <LoadFailed
+          title="Couldn’t load this task"
+          onRetry={() => {
+            setLoadFailed(false);
+            void load().catch((e) => {
+              reportError(e, 'task-manage');
+              setLoadFailed(true);
+            });
+          }}
+        />
+      </Screen>
+    );
+  }
   if (detail === undefined) {
     return (
       <Screen padded={false}>
@@ -175,7 +204,8 @@ export function TaskManageScreen() {
       await lockBid(pick.bidId);
       setSelecting(null);
       celebrate(`${pick.name} is hired · paid from your wallet`);
-      await load().catch(() => {});
+      // The hire went through; if the screen cannot refresh now, the next pull-down will.
+      await load().catch((e) => reportError(e, 'task-manage'));
     } catch (e) {
       if (e instanceof WalletShortError) {
         setSelecting(null);

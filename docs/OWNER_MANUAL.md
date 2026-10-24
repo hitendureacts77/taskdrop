@@ -196,7 +196,7 @@ Skip this. Safari testing, like everything iOS, waits until you say "start iOS".
 
 1. Click: open https://vercel.com and sign in.
 2. Click: open https://taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app
-3. Click: **Sign in with Google** → `hitendureacts@gmail.com` → type the 6-digit code from your authenticator app.
+3. Click: **Sign in with Google** → `hitendureacts@gmail.com`. (No authenticator code is asked; that is future scope, decided 2026-10-24.)
 4. Click each of these in the left menu, one at a time: **Users, Tasks, Payouts, Refunds, Disputes, Support, CRM, Copyright, Money, Reports, Settings, Security**.
 5. For each page, write: does it open, does it show data, is there a red error?
 6. Type to Claude: "Admin page check:" and paste your notes.
