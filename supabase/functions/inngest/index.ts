@@ -92,11 +92,12 @@ const reportFailure = (job: string) => async ({ error }: { error: unknown }) => 
 
 /**
  * Re-sends events the fast path (pg_net) did not get through. Runs every
- * minute. The outbox id is the event id, so one that did arrive is dropped as a
- * duplicate rather than run twice.
+ * five minutes (every minute used about half of the free plan's monthly runs on
+ * its own, and the watchdog only worries after 15). The outbox id is the event
+ * id, so one that did arrive is dropped as a duplicate rather than run twice.
  */
 const outboxSweeper = inngest.createFunction(
-  { id: "outbox-sweeper", triggers: [{ cron: "* * * * *" }], concurrency: 1, onFailure: reportFailure("outbox-sweeper") },
+  { id: "outbox-sweeper", triggers: [{ cron: "*/5 * * * *" }], concurrency: 1, onFailure: reportFailure("outbox-sweeper") },
   async ({ step }) => {
     const rows = await step.run("load unsent", () => call<OutboxRow[]>(rpc, "outbox_pending", { p_limit: 200 }));
     if (!rows || rows.length === 0) return { forwarded: 0 };

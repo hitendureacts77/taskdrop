@@ -20,7 +20,7 @@ or duplicate message; it cannot move money on its own.
 trigger / RPC  ->  private.emit_event()  ->  private.outbox   (same transaction)
                                          \->  pg_net POST to Inngest   (fast path, after commit)
 
-Inngest "outbox-sweeper" (every minute)  ->  outbox_pending()  -> re-sends anything not confirmed
+Inngest "outbox-sweeper" (every 5 minutes) ->  outbox_pending()  -> re-sends anything not confirmed
 ```
 
 The outbox id **is** the Inngest event id, so an event that arrives twice (fast
@@ -47,7 +47,7 @@ also drops those fields from anything it stores, for an event queued before this
 
 | Function | Trigger | Does |
 |---|---|---|
-| `outbox-sweeper` | every minute | re-sends unconfirmed outbox events, marks them sent |
+| `outbox-sweeper` | every 5 minutes | re-sends unconfirmed outbox events, marks them sent |
 | `outbox-prune` | daily 04:15 IST | removes sent events older than 14 days, and team alerts older than 30 days |
 | `team-alert` | support / withdrawal / payout failed / dispute events | writes a message to `admin_alerts` |
 | `daily-digest` | daily 09:00 IST | writes the day's totals to `admin_alerts` |
