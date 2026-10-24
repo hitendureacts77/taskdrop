@@ -1,12 +1,5 @@
 [
   {
-    "id": "GHSA-vfj7-8cjw-p6xm",
-    "package": "braces",
-    "severity": "high",
-    "reason": "No patched release exists (braces 3.0.3 is the latest and is the vulnerable one). It reaches us only through micromatch inside Expo's CLI and the Metro bundler, which run on a developer or build machine to produce the app. It is not part of the shipped app or the web bundle. The flaw is a denial of service from deeply nested brace patterns in a glob the tool itself supplies. Re-check when braces publishes a fix.",
-    "reviewBy": "2026-12-13"
-  },
-  {
     "id": "GHSA-86w9-cpqp-85rv",
     "package": "node-forge",
     "severity": "high",
@@ -25,6 +18,13 @@
     "package": "decode-uri-component",
     "severity": "moderate",
     "reason": "Fixed in decode-uri-component 0.5.0, but we cannot use it yet. The copy (0.2.2) is a transitive dependency of expo-router, which uses query-string 7 to read query strings when it matches links and route paths in the phone apps (not the web build, which never loads expo-router). No code of ours calls query-string or decode-uri-component, and we have not shown a link that triggers the slow decode; the flaw is a denial of service (slow decoding of malformed percent-encoded text), with no data exposure. 0.5.0 is ES-module only and query-string 7 loads it with require(), and query-string 9 has no named exports, which expo-router calls (tried and backed out; it would break link and route parsing). Re-check when expo-router moves off query-string 7 or a compatible fix ships, and then drop this exception.",
+    "reviewBy": "2026-12-13"
+  },
+  {
+    "id": "GHSA-mrhx-c7xc-m3w5",
+    "package": "zod",
+    "severity": "high",
+    "reason": "Our own copy is fixed: @taskdrop/schemas uses zod 4.6.7. The copy that is left (zod 3.25.76) is a dependency of @expo/cli, which asks for zod ^3.25.76; the advisory's only patched release is 4.6.6, and forcing zod 4 on Expo's CLI could break its dev server, which cannot be proved here without a full build. The CLI uses it only for its DevTools plugin and MCP extension schemas (DevToolsPlugin.schema.js, createMCPDevToolsExtensionSchema.js) on a developer or build machine; it is not part of the shipped app, the web bundle or any Edge Function. The flaw is a memory-exhaustion denial of service when validating oversized constrained collections. Re-check when @expo/cli moves to zod 4.",
     "reviewBy": "2026-12-13"
   }
 ]
