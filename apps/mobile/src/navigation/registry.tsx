@@ -49,7 +49,7 @@ import { PrivacyScreen, TermsScreen } from '../screens/LegalScreens';
 import { SupportScreen } from '../screens/SupportScreen';
 
 
-// Registry. Screens the agent team hasn't delivered yet fall back to Placeholder.
+// Registry. A name with no screen falls back to Placeholder (none today; registry.test.ts keeps it so).
 export const REGISTRY: Partial<Record<ScreenName, ComponentType>> = {
   splash: SplashScreen,
   home: HomeScreen,

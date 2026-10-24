@@ -65,25 +65,62 @@ export async function accessToken(page: Page): Promise<string> {
 
 export type ApiResult<T = unknown> = { ok: true; data: T } | { ok: false; error: { message: string; code: string } };
 
-/** One call to the app's single door, the `api` function, as a signed-in person, the way the web app makes it. */
+/** The ops that only read: asking again after a gateway timeout cannot do anything twice. */
+const READS = /^(get|list|count|platform|search|can|my|is|age)/;
+
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * One call to the app's single door, the `api` function, as a signed-in person, the way the web app makes it.
+ *
+ * A deploy takes the functions away for a few seconds and the gateway answers 502/503 (not our JSON). Such a
+ * call never reached the function, so it is asked again, up to 4 times; a 504 is repeated for reads only.
+ * If it still fails, the result is an ordinary `{ ok: false }` with the status, never a crash.
+ */
 export function apiAs(request: APIRequestContext, token: string) {
   return async function call<T = unknown>(op: string, args: Record<string, unknown> = {}): Promise<ApiResult<T>> {
-    const res = await request.post(`${SUPABASE_URL}/functions/v1/api`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        apikey: ANON_KEY,
-        "x-taskdrop-platform": "web",
-        "x-taskdrop-app-version": "1.0.0",
-      },
-      data: { op, args },
-    });
-    return (await res.json()) as ApiResult<T>;
+    let last: ApiResult<T> = { ok: false, error: { code: "NO_REPLY", message: "no reply" } };
+    for (let attempt = 0; attempt < 5; attempt++) {
+      if (attempt > 0) await wait(attempt * 2000);
+      const res = await request.post(`${SUPABASE_URL}/functions/v1/api`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          apikey: ANON_KEY,
+          "x-taskdrop-platform": "web",
+          "x-taskdrop-app-version": "1.0.0",
+        },
+        data: { op, args },
+      });
+      const body = (await res.json().catch(() => null)) as ApiResult<T> | null;
+      if (body && typeof body === "object" && "ok" in body) return body;
+      const status = res.status();
+      last = { ok: false, error: { code: `HTTP_${status}`, message: `the gateway answered ${status}, not the app's JSON` } };
+      const blip = status === 502 || status === 503 || (status === 504 && READS.test(op));
+      if (!blip) break;
+    }
+    return last;
   };
+}
+
+/** Wait until the backend answers its uptime check (a deploy may be under way), so a run does not start into the gap. */
+export async function waitForBackend(request: APIRequestContext, seconds = 90): Promise<void> {
+  const until = Date.now() + seconds * 1000;
+  for (;;) {
+    const res = await request
+      .post(`${SUPABASE_URL}/functions/v1/api`, {
+        headers: { Authorization: `Bearer ${ANON_KEY}`, apikey: ANON_KEY },
+        data: { op: "health" },
+      })
+      .catch(() => null);
+    if (res?.status() === 200) return;
+    if (Date.now() > until) throw new Error(`The backend did not answer its uptime check within ${seconds} s (status ${res?.status() ?? "none"}).`);
+    await wait(3000);
+  }
 }
 
 /** Unwrap a result that must have worked, with the server's own message if it did not. */
 export function must<T>(r: ApiResult<T>, what: string): T {
-  if (!r.ok) throw new Error(`${what}: ${r.error.code} ${r.error.message}`);
+  if (!r.ok) throw new Error(`${what}: ${r.error?.code ?? "?"} ${r.error?.message ?? "no message"}`);
   return r.data;
 }
 

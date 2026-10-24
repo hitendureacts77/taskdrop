@@ -38,12 +38,25 @@ function replaySessionRate(): number {
   return Number.isFinite(n) && n >= 0 && n <= 1 ? n : 0.05;
 }
 
+/**
+ * Which Sentry environment events belong to. A page served from this computer (local runs and the
+ * Playwright suite) is `development`, whatever the build says, so tests never fill the production board.
+ */
+function sentryEnvironment(): string {
+  if (Platform.OS === 'web' && typeof location !== 'undefined' && ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)) {
+    return 'development';
+  }
+  return process.env.EXPO_PUBLIC_SENTRY_ENVIRONMENT || 'production';
+}
+
 /** Call once at startup, before the app registers. */
 export function installMonitoring(): void {
   if (ENABLED) {
     Sentry.init({
       dsn: DSN,
-      environment: process.env.EXPO_PUBLIC_SENTRY_ENVIRONMENT || 'production',
+      environment: sentryEnvironment(),
+      // A request cancelled because the person left the page is not a failure.
+      beforeSend: (event) => (event.exception?.values?.some((v) => v.type === 'AbortError') ? null : event),
       release: Constants.expoConfig?.version ?? undefined,
       sendDefaultPii: false,
       // About 10% of sessions are traced for performance; errors are never sampled.

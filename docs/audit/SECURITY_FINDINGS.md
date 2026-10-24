@@ -248,6 +248,20 @@ step-up (F-11); mask by default.
   Fonts the panel loads. Caught by loading the built app in a browser; fixed by rendering every page
   dynamically and allowing exactly `fonts.googleapis.com` / `fonts.gstatic.com`.
 
+## Advisor review, 2026-10-24 (Phase 2, P2-9)
+
+Both Supabase advisors were re-run on the test project. Result: no ERROR. What each WARN or INFO means, and what was decided:
+
+| Advisor item | Count | Decision |
+|---|---|---|
+| `authenticated_security_definer_function_executable` | 112 | **Accepted, by design.** Signed-in people call these through `/rest/v1/rpc`. The list is an allow-list kept honest by `supabase/tests/rpc_surface.test.sql` (a new function stays private until someone adds it), and each function checks the caller inside (`auth.uid()`, `is_admin()`, `assert_money_staff()`). |
+| `anon_security_definer_function_executable` | 1 (`get_app_controls`) | **Accepted.** The app asks for the admin's switches (maintenance, minimum version) before anyone has signed in. It returns switches only. |
+| `rls_enabled_no_policy` | 7 (`private.api_rate`, `private.outbox`, `auth_codes`, `auth_send_log`, `password_attempts`, `places_quota`, `reconciliation_runs`) | **Accepted, intended.** RLS on and no policy means nobody but the service role (the Edge Functions) can read or write them. |
+| `auth_leaked_password_protection` | 1 | **Open, (You).** A Supabase Auth dashboard toggle (the check against HaveIBeenPwned). It may need a paid plan, so check the page before counting on it; same as F-18. Phone sign-in does not use passwords; only the username + password door does. |
+| `multiple_permissive_policies` | 11 | **Fixed**, migration 122: one read rule per table (own rows or staff), staff write rules split into insert, update and delete. Row counts for an owner, a stranger and an admin were identical before and after (taken on the test project, rolled back). |
+| `unindexed_foreign_keys` | 15 | **Fixed**, migration 122 (all on staff-side columns). |
+| `unused_index` | 18 | **Left on purpose.** The test project has no real traffic yet, so "unused" means "not exercised yet". Re-check after the speed targets in Phase 6 are measured with real use. |
+
 ## Not assessed (blocked)
 
 Release APK/AAB static and dynamic analysis (no release build was produced), Play Console readiness

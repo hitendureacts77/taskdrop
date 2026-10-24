@@ -4,11 +4,26 @@ import { clientHeaders } from './appInfo';
 import { appCheckHeaders } from './appCheck';
 import { refreshAppConfig } from './appConfig';
 import { log } from './monitoring';
-import { Batcher, type Reply as BatchReply } from './batcher';
+import { BATCHABLE_OPS, Batcher, type Reply as BatchReply } from './batcher';
+import { RETRY_DELAYS_MS, isTransient, retryWhile, type Failure } from './retry';
 
 type Reply<T> =
   | { ok: true; data: T }
   | { ok: false; error: { message: string; code?: string | null; details?: string | null } };
+
+/** What a failed call looked like from outside: the status, whether it was our own `{ ok: false }` reply, or no answer at all. */
+async function describeFailure(error: unknown): Promise<Failure> {
+  const context = (error as { context?: unknown }).context;
+  if (!(context instanceof Response)) return { network: true };
+  let ours = false;
+  try {
+    const body = (await context.clone().json()) as Reply<unknown>;
+    ours = !!body && body.ok === false && !!body.error?.message;
+  } catch {
+    /* not our JSON: a gateway page or an empty body */
+  }
+  return { status: context.status, ours };
+}
 
 /**
  * Ask the server to do something, by name.
@@ -27,11 +42,21 @@ type Reply<T> =
 async function callApiDirect<T>(op: string, args: Record<string, unknown> = {}): Promise<T> {
   // The platform and app version let the server apply the admin panel's
   // per-platform switches (maintenance, minimum version, features off).
-  const { data, error } = await supabase.functions.invoke('api', {
-    body: { op, args },
-    region: FUNCTIONS_REGION,
-    headers: { ...clientHeaders(), ...(await appCheckHeaders()) },
-  });
+  const invokeOnce = async () =>
+    supabase.functions.invoke('api', {
+      body: { op, args },
+      region: FUNCTIONS_REGION,
+      headers: { ...clientHeaders(), ...(await appCheckHeaders()) },
+    });
+
+  // A read that hits a blip (a deploy, a dropped connection) is asked again, twice, before it counts
+  // as a failure. A write is asked once: sending money or a bid twice is never worth the risk.
+  const isRead = op === 'batch' || BATCHABLE_OPS.has(op);
+  const { data, error } = await retryWhile(
+    invokeOnce,
+    async (r) => (r.error ? isTransient(await describeFailure(r.error)) : false),
+    isRead ? RETRY_DELAYS_MS : [],
+  );
 
   if (error) {
     const context = (error as { context?: unknown }).context;
