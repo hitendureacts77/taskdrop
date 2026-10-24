@@ -22,18 +22,15 @@ import {
   syncPayment,
   activatePromotion,
   promotableTasks,
+  promotionTiers,
+  budgetsForMode,
+  DEFAULT_PROMOTION_TIERS,
   type PromotableTask,
 } from '../data/api';
 import { formatINR } from '../components/ui';
 import { Linking, Platform } from 'react-native';
 import { PaymentSheet } from '../components/PaymentSheet';
 import { tx } from '../components/primitives';
-
-const DURATIONS = [
-  { label: '1 day', days: 1 },
-  { label: '3 days', days: 3 },
-  { label: '7 days', days: 7 },
-];
 
 export function PromoteScreen() {
   const t = useTheme();
@@ -90,11 +87,26 @@ export function PromoteScreen() {
 
 
   const worker = mode === 'worker';
-  const [budgetIdx, setBudgetIdx] = useState(1);
-  const [durIdx, setDurIdx] = useState(1);
+  const [budgetPick, setBudgetIdx] = useState(1);
+  const [durPick, setDurIdx] = useState(1);
   const [audienceOn, setAudienceOn] = useState(false);
 
-  const budgets = worker ? [50, 80, 150] : [80, 150, 300];
+  // The tiers staff set in the admin. The server refuses anything outside them, so
+  // the screen offers exactly these; until they load it shows what migration 114 seeds.
+  const [tiers, setTiers] = useState(DEFAULT_PROMOTION_TIERS);
+  useEffect(() => {
+    let alive = true;
+    void promotionTiers().then((v) => alive && setTiers(v));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const budgets = budgetsForMode(tiers.budgets, worker);
+  const DURATIONS = tiers.days.map((d) => ({ label: d === 1 ? '1 day' : `${d} days`, days: d }));
+  // A tier that was picked may have been removed since: stay on the nearest one that exists.
+  const budgetIdx = Math.min(budgetPick, budgets.length - 1);
+  const durIdx = Math.min(durPick, DURATIONS.length - 1);
   const budget = budgets[budgetIdx]!;
   const days = DURATIONS[durIdx]!.days;
   const total = budget * days;
@@ -102,7 +114,7 @@ export function PromoteScreen() {
   // Design's reach model: base band, narrowed to 55% when the audience filter is
   // on, scaled by the chosen budget relative to the middle tier.
   const base = worker ? [900, 1600] : [1800, 3400];
-  const scale = (audienceOn ? 0.55 : 1) * (budget / budgets[1]!);
+  const scale = (audienceOn ? 0.55 : 1) * (budget / (budgets[1] ?? budgets[0]!));
   const reach = base.map((n) => Math.round(n * scale).toLocaleString('en-IN'));
 
   const label = (s: string, extra?: TextStyle, color?: string) => (

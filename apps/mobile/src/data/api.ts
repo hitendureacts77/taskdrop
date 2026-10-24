@@ -417,6 +417,43 @@ export type PromotableTask = {
 
 export const promotableTasks = () => ask<PromotableTask[]>('promotableTasks', {}, []);
 
+/** Daily budgets in whole rupees and campaign lengths in days that `start_promotion` accepts. */
+export type PromotionTiers = { budgets: number[]; days: number[] };
+
+/** What migration 114 seeds, used until the settings load and whenever they look wrong. */
+export const DEFAULT_PROMOTION_TIERS: PromotionTiers = { budgets: [50, 80, 150, 300], days: [1, 3, 7] };
+
+const positiveInts = (v: unknown, divisor = 1): number[] | null => {
+  if (!Array.isArray(v) || v.length === 0 || v.length > 12) return null;
+  const out = v.map((n) => (typeof n === 'number' && Number.isInteger(n) && n > 0 && n % divisor === 0 ? n / divisor : NaN));
+  return out.some(Number.isNaN) ? null : [...new Set(out)].sort((a, b) => a - b);
+};
+
+/**
+ * The tiers the server will accept, from the `settings` rows staff edit in the admin (migration 114).
+ * The server still refuses anything outside them, so this only decides what the screen offers.
+ */
+export async function promotionTiers(): Promise<PromotionTiers> {
+  try {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('key, value')
+      .in('key', ['promotion_daily_budgets_minor', 'promotion_durations_days']);
+    if (error || !data) return DEFAULT_PROMOTION_TIERS;
+    const byKey = new Map(data.map((r) => [r.key, r.value] as const));
+    return {
+      budgets: positiveInts(byKey.get('promotion_daily_budgets_minor'), 100) ?? DEFAULT_PROMOTION_TIERS.budgets,
+      days: positiveInts(byKey.get('promotion_durations_days')) ?? DEFAULT_PROMOTION_TIERS.days,
+    };
+  } catch {
+    return DEFAULT_PROMOTION_TIERS;
+  }
+}
+
+/** Three budgets to show: the lowest three for people earning, the highest three for people hiring. */
+export const budgetsForMode = (budgets: number[], worker: boolean): number[] =>
+  budgets.length <= 3 ? budgets : worker ? budgets.slice(0, 3) : budgets.slice(-3);
+
 export type PosterStatsMine = {
   role: 'poster';
   spentMinor: number;
