@@ -74,6 +74,51 @@ export type Reply =
   | { ok: true; data: unknown }
   | { ok: false; error: { message: string; code: string; details: string | null } };
 
+/** Most calls one `batch` request may carry. */
+export const MAX_BATCH = 20;
+
+export type BatchCall = { op: string; args: Record<string, unknown> };
+
+/** The calls inside a `batch` request, or null when the arguments are not a usable list of them. */
+export function batchCalls(args: unknown): BatchCall[] | null {
+  const raw = args && typeof args === "object" ? (args as { calls?: unknown }).calls : undefined;
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_BATCH) return null;
+  const calls: BatchCall[] = [];
+  for (const c of raw) {
+    if (!c || typeof c !== "object" || typeof (c as { op?: unknown }).op !== "string") return null;
+    const a = (c as { args?: unknown }).args;
+    calls.push({ op: (c as { op: string }).op, args: a && typeof a === "object" && !Array.isArray(a) ? (a as Record<string, unknown>) : {} });
+  }
+  return calls;
+}
+
+/** How many requests a call counts against the limiter: one, or one per call inside a batch. */
+export function rateCost(name: unknown, args: unknown): number {
+  if (name !== "batch") return 1;
+  const raw = args && typeof args === "object" ? (args as { calls?: unknown }).calls : undefined;
+  return Array.isArray(raw) ? Math.max(1, Math.min(raw.length, MAX_BATCH)) : 1;
+}
+
+/**
+ * Several reads in one request: one sign-in check and one round trip for what
+ * the app would otherwise ask for one call at a time. Each call runs exactly as
+ * it would alone (the admin switches, its own checks, its own answer); a failed
+ * call does not spoil the others. Only reads may travel this way, so a money or
+ * upload operation can never hide in a batch.
+ */
+export async function runBatch(args: unknown, ctx: Ctx, onUnexpected: (e: unknown) => void = () => {}): Promise<Reply> {
+  const calls = batchCalls(args);
+  if (!calls) return { ok: false, error: { message: "Invalid calls", code: "BAD_ARGS", details: null } };
+  const replies = await Promise.all(
+    calls.map((c): Promise<Reply> =>
+      rateBucket(c.op) === "read"
+        ? runOp(c.op, c.args, ctx, onUnexpected)
+        : Promise.resolve({ ok: false, error: { message: "That cannot be sent in a batch", code: "NOT_BATCHABLE", details: null } })
+    ),
+  );
+  return { ok: true, data: replies };
+}
+
 /** Run one operation. Anything that is not an `OpError` is hidden behind a generic message. */
 export async function runOp(name: unknown, args: unknown, ctx: Ctx, onUnexpected: (e: unknown) => void = () => {}): Promise<Reply> {
   const op = typeof name === "string" && Object.prototype.hasOwnProperty.call(OPS, name) ? OPS[name] : undefined;

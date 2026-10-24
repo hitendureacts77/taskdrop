@@ -3,6 +3,7 @@ import { ApiError, apiError } from './errors';
 import { clientHeaders } from './appInfo';
 import { refreshAppConfig } from './appConfig';
 import { log } from './monitoring';
+import { Batcher, type Reply as BatchReply } from './batcher';
 
 type Reply<T> =
   | { ok: true; data: T }
@@ -18,8 +19,11 @@ type Reply<T> =
  * A refusal from the server arrives with its message already in plain words,
  * so it is used as-is. A transport failure (offline, expired session) goes
  * through the same wording the rest of the app uses.
+ *
+ * Reads asked for at the same moment travel together as one request (see
+ * ./batcher.ts); everything else goes out alone, exactly as before.
  */
-export async function callApi<T>(op: string, args: Record<string, unknown> = {}): Promise<T> {
+async function callApiDirect<T>(op: string, args: Record<string, unknown> = {}): Promise<T> {
   // The platform and app version let the server apply the admin panel's
   // per-platform switches (maintenance, minimum version, features off).
   const { data, error } = await supabase.functions.invoke('api', {
@@ -60,6 +64,14 @@ export async function callApi<T>(op: string, args: Record<string, unknown> = {})
   }
   return reply.data;
 }
+
+const batcher = new Batcher({
+  send: (calls) => callApiDirect<BatchReply[]>('batch', { calls }),
+  single: callApiDirect,
+  refuse: (error, op) => refused(error, op),
+});
+
+export const callApi = <T>(op: string, args: Record<string, unknown> = {}): Promise<T> => batcher.call<T>(op, args);
 
 /** Refusals worth a log line: the server broke, or the person is being held back. Ordinary rule refusals (not enough money, quote taken) are not. */
 const NOTABLE_REFUSALS = new Set(['INTERNAL', 'RATE_LIMITED', 'MAINTENANCE', 'UPDATE_REQUIRED', 'FEATURE_OFF', 'UNAUTHENTICATED']);
