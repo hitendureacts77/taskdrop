@@ -1,4 +1,4 @@
-import { ApiError, friendlyMessage } from '../lib/errors';
+import { ApiError, friendlyMessage, reportError } from '../lib/errors';
 import { callApi } from '../lib/gateway';
 import { clientHeaders } from '../lib/appInfo';
 import { FUNCTIONS_REGION, currentUserId, supabase } from '../lib/supabase';
@@ -176,8 +176,12 @@ export function forgetProfile(userId: string): void {
 export async function postSignInRoute(userId: string): Promise<'home' | 'setup'> {
   try {
     return (await getProfile(userId))?.onboarded_at ? 'home' : 'setup';
-  } catch {
-    return 'setup';
+  } catch (e) {
+    // Reads already retry on a blip (lib/retry.ts). If the profile still cannot be read, a returning
+    // person is far more likely than a new one, and putting them through onboarding again risks
+    // overwriting what they set up. A brand-new person who lands on Home can finish from Profile.
+    reportError(e, 'sign-in-route');
+    return 'home';
   }
 }
 

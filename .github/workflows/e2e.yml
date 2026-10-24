@@ -1,8 +1,15 @@
 name: End-to-end (test project)
 
 # Runs the Playwright suite in e2e/ against the TEST Supabase project, with the seed accounts and fake
-# money. Started by hand from the Actions tab, after a deploy, because it needs the code under test to
-# be on the test project (e2e/rules.spec.ts calls the deployed api function).
+# money. It runs after every push to redesigned-2.0 (a merged pull request) and can still be started by
+# hand from the Actions tab. It needs the code under test to be on the test project
+# (e2e/rules.spec.ts calls the deployed api function): the Vercel build deploys the functions while this
+# job installs and builds, and the suite starts by waiting for the `health` check and retries a gateway
+# blip, so a deploy still under way does not fail it.
+#
+# GitHub offers "Run workflow" and schedules only for workflow files on the default branch (main), so
+# those two do not exist for this file until redesigned-2.0 is promoted; the push trigger does, because
+# it uses the file on the branch that was pushed.
 #
 # It stores no secret: the two values below are the app's PUBLIC url and anon key, set once as
 # repository *variables* (Settings, Secrets and variables, Actions, Variables), never as secrets.
@@ -10,6 +17,16 @@ name: End-to-end (test project)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [redesigned-2.0]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+
+# One run at a time: the tests share the seed accounts and move their fake money.
+concurrency:
+  group: e2e-test-project
+  cancel-in-progress: false
 
 jobs:
   e2e:
