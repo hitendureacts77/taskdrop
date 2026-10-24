@@ -17,7 +17,8 @@ import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { useMode } from '../providers/ModeProvider';
-import { createTask, getProfile, type Task } from '../data/api';
+import { createTask, getProfile, getWallet, type Task } from '../data/api';
+import { AddFundsSheet } from '../components/AddFundsSheet';
 import type { TaskMedia } from '../lib/media';
 import { useVoiceInput } from '../lib/speech';
 import { contactIssueMessage, findContactIssue } from '../lib/mask';
@@ -172,6 +173,12 @@ export function AiPostScreen() {
   const [showLoc, setShowLoc] = useState(false);
   const [posting, setPosting] = useState(false);
 
+  // Auto-hire accepts an offer the moment it arrives, so the money has to be
+  // in the wallet already. `walletMinor` is what is there; `topUpMinor` is the
+  // shortfall being added when posting found the wallet short.
+  const [walletMinor, setWalletMinor] = useState<number | null>(null);
+  const [topUpMinor, setTopUpMinor] = useState<number | null>(null);
+
   // Start from where the poster lives: most jobs are near home.
   useEffect(() => {
     if (!userId) return;
@@ -277,11 +284,37 @@ export function AiPostScreen() {
 
   const milestones = useMemo(() => MILESTONE_PLANS[split] ?? [], [split]);
 
+  // What an auto-hire must have ready: the budget plus the service fee, since
+  // an offer at the full budget is accepted and paid for at once.
+  const autoNeedMinor = Math.round((budget ?? 0) * 100 * (1 + fees.posterFee));
+
+  useEffect(() => {
+    if (mode !== 'auto') return;
+    let alive = true;
+    void getWallet()
+      .then((w) => alive && setWalletMinor(w?.balance_minor ?? 0))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [mode, topUpMinor]);
+
   const post = async () => {
     if (!userId) return flash('Sign in to post a task');
     if (posting) return;
     setPosting(true);
     try {
+      if (mode === 'auto') {
+        // The server checks this too. Asking here first lets the poster add the
+        // money and carry on, instead of meeting a refusal.
+        const w = await getWallet();
+        const have = w?.balance_minor ?? 0;
+        setWalletMinor(have);
+        if (have < autoNeedMinor) {
+          setTopUpMinor(autoNeedMinor - have);
+          return;
+        }
+      }
       const minutes = Math.max(60, Math.round((due.getTime() - Date.now()) / 60000));
       const task = await createTask({
         posterId: userId,
@@ -429,7 +462,7 @@ export function AiPostScreen() {
   if (phase === 'what') {
     body = (
       <>
-        {heading('What do you need done?', 'Say it the way you’d tell a friend. We’ll ask a few quick things and write the post for you.')}
+        {heading('What do you need done?', 'Any small job, near you or online: an errand, a repair, a bit of cooking, help with a form. Say it the way you’d tell a friend. We’ll ask a few quick things and write the post for you.')}
         <View
           style={{
             marginTop: 20,
@@ -557,12 +590,17 @@ export function AiPostScreen() {
                       <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>{q.question}</RNText>
                     </View>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-                      {q.options.map((o) =>
-                        chip(o, given === o && !typed, () => {
-                          setOtherOpen((c) => ({ ...c, [q.question]: false }));
-                          setAnswer(q.question, given === o && !typed ? '' : o);
-                        }),
-                      )}
+                      {/* This screen adds its own "Something else" chip, the one that opens the
+                          text bar, so a canned option with the same name would only set a
+                          useless answer. */}
+                      {q.options
+                        .filter((o) => o !== OTHER)
+                        .map((o) =>
+                          chip(o, given === o && !typed, () => {
+                            setOtherOpen((c) => ({ ...c, [q.question]: false }));
+                            setAnswer(q.question, given === o && !typed ? '' : o);
+                          }),
+                        )}
                       {chip(OTHER, typed, () => {
                         setOtherOpen((c) => ({ ...c, [q.question]: !typed }));
                         if (q.options.includes(given) || typed) setAnswer(q.question, '');
@@ -570,13 +608,18 @@ export function AiPostScreen() {
                     </View>
                     {typed ? (
                       <Field
-                        style={{ marginTop: 10 }}
+                        label="Your own answer"
+                        style={{ marginTop: 12 }}
                         value={given}
                         onChangeText={(v) => setAnswer(q.question, v)}
-                        placeholder="Type your answer"
+                        placeholder="Type it here, in your own words"
                         autoFocus
                       />
-                    ) : null}
+                    ) : (
+                      <RNText style={tx('400', 12, t.colors.muted, { marginTop: 10 })}>
+                        None of these fit? Tap “{OTHER}” and type your own answer.
+                      </RNText>
+                    )}
                   </>,
                   given ? { borderColor: t.colors.accentBorder } : undefined,
                 )}
@@ -830,13 +873,41 @@ export function AiPostScreen() {
 
         {label('HOW DO YOU WANT TO HIRE?')}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          {choice('bids', mode === 'bids', () => setAssign('bids'), 'users', 'See offers', 'Compare offers and pick the one you like')}
+          {choice('bids', mode === 'bids', () => setAssign('bids'), 'users', 'See offers', 'Workers send offers or counteroffers. You pick one')}
           {choice('auto', mode === 'auto', () => setAssign('auto'), 'bolt', 'Auto-hire', `First offer at or under ${rupees(budget ?? 0)} is accepted`)}
         </View>
         {mode === 'auto' ? (
-          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 10, lineHeight: 17 })}>
-            You still pay before work starts, and TaskDrop holds it until you approve.
-          </RNText>
+          <View
+            style={{
+              marginTop: 12,
+              padding: 14,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: walletMinor !== null && walletMinor < autoNeedMinor ? t.colors.signal : t.colors.accentBorder,
+              backgroundColor: t.colors.accentSoft,
+            }}
+          >
+            <RNText style={tx('700', 13, t.colors.accentDeep)}>Keep enough in your wallet</RNText>
+            <RNText style={tx('400', 12, t.colors.accentDeep, { marginTop: 4, lineHeight: 18 })}>
+              The first offer at or under your budget is accepted straight away and paid from your wallet, so it has to
+              hold {rupees(Math.ceil(autoNeedMinor / 100))} (budget plus the {Math.round(fees.posterFee * 100)}% service
+              fee). TaskDrop holds it until you approve the work.
+            </RNText>
+            <RNText
+              style={tx(
+                '700',
+                13,
+                walletMinor !== null && walletMinor < autoNeedMinor ? t.colors.signalDeep : t.colors.accentDeep,
+                { marginTop: 8 },
+              )}
+            >
+              {walletMinor === null
+                ? 'Checking your wallet…'
+                : walletMinor >= autoNeedMinor
+                  ? `Your wallet: ${rupees(Math.floor(walletMinor / 100))} · enough`
+                  : `Your wallet: ${rupees(Math.floor(walletMinor / 100))} · add ${rupees(Math.ceil((autoNeedMinor - walletMinor) / 100))} to use auto-hire`}
+            </RNText>
+          </View>
         ) : null}
       </>
     );
@@ -1069,6 +1140,21 @@ export function AiPostScreen() {
           setShowLoc(false);
         }}
         askForDetails
+      />
+      <AddFundsSheet
+        visible={topUpMinor !== null}
+        initialMinor={topUpMinor ?? undefined}
+        reason={
+          topUpMinor !== null
+            ? `Auto-hire needs ${rupees(Math.ceil(autoNeedMinor / 100))} in your wallet to accept an offer the moment it arrives. You are ${rupees(Math.ceil(topUpMinor / 100))} short. Add that much and your task is posted.`
+            : undefined
+        }
+        onClose={() => setTopUpMinor(null)}
+        flash={flash}
+        onFunded={() => {
+          setTopUpMinor(null);
+          void post();
+        }}
       />
       <ConfirmDialog
         visible={confirmDiscard}

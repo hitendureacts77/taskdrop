@@ -102,7 +102,7 @@ export const WorkCard = memo(function WorkCard({
             <RNText style={tx('600', 11, t.colors.muted)} numberOfLines={1}>
               {categoryLabel(task)}
             </RNText>
-            <Badge label={task.assignment_mode === 'auto' ? 'Auto' : 'Offer'} tone={task.assignment_mode === 'auto' ? 'accent' : 'neutral'} />
+            <Badge label={task.assignment_mode === 'auto' ? 'Auto-hire' : 'Offer'} tone={task.assignment_mode === 'auto' ? 'accent' : 'neutral'} />
             {task.difficulty ? <Badge label={task.difficulty} tone="blue" /> : null}
             {live ? <Badge label="Urgent" tone="signal" /> : null}
             <View style={{ flex: 1 }} />

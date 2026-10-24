@@ -830,4 +830,30 @@ await t("the verified-phone switch refuses only a known unverified caller, and o
   assert.equal(f.calls.length, 0, "nothing reached the database");
 });
 
+await t("an auto-hire task cannot be posted unless the wallet covers the budget plus the fee", async () => {
+  const task = { pillar: "services", title: "Fix tap", benchmarkMinor: 10000, timeLimitMinutes: 30, assignmentMode: "auto" };
+  const withWallet = (balance: number) =>
+    fake((c) =>
+      c.table === "wallets" ? { data: { balance_minor: balance }, error: null }
+        : c.table === "settings" ? { data: [], error: null }
+        : { data: [{ id: "row" }], error: null });
+
+  const short = withWallet(10000);
+  const refused = await runOp("createTask", task, ctx(short));
+  assert.ok(!refused.ok);
+  if (!refused.ok) {
+    assert.equal(refused.error.message, "Not enough money in your wallet");
+    assert.equal(refused.error.details, "300", "short by the 3% fee on ₹100");
+  }
+  assert.ok(!short.calls.some((c) => c.table === "tasks"), "nothing was posted");
+
+  const enough = withWallet(10300);
+  assert.ok((await runOp("createTask", task, ctx(enough))).ok);
+  assert.ok(enough.calls.some((c) => c.table === "tasks"));
+
+  const bids = fake();
+  assert.ok((await runOp("createTask", { ...task, assignmentMode: "bids" }, ctx(bids))).ok, "see-offers tasks need no balance");
+  assert.ok(!bids.calls.some((c) => c.table === "wallets"));
+});
+
 console.log(`\n${passed} passed`);

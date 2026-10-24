@@ -15,6 +15,7 @@ import { tx } from './primitives';
 import { formatINR } from './ui';
 import { PaymentSheet } from './PaymentSheet';
 import { createPaymentLink, syncPayment } from '../data/api';
+import { paymentReturnUrl } from '../lib/links';
 
 /**
  * Adding money to the wallet.
@@ -136,7 +137,7 @@ export function AddFundsSheet({
 
     setBusy(true);
     try {
-      const { paymentId, url } = await createPaymentLink({ purpose: 'topup', amountMinor });
+      const { paymentId, url } = await createPaymentLink({ purpose: 'topup', amountMinor, returnUrl: paymentReturnUrl() });
       setPayment({ id: paymentId, url, amountMinor });
       setChecks(0);
       setPhase('waiting');

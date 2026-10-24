@@ -44,7 +44,7 @@ type LiveFees = { commission: number; posterFee: number; clearingDays: number; c
  * The fee settings as they are now (the admin can change them), with the
  * built-in rules as the fallback when a key is missing or unreadable.
  */
-async function readFees(ctx: Ctx): Promise<LiveFees> {
+export async function readFees(ctx: Ctx): Promise<LiveFees> {
   const res = await ctx.db.from("settings").select("key,value")
     .in("key", ["worker_commission_pct", "poster_service_fee_pct", "clearing_period_days", "post_start_cancel_penalty_pct"]);
   const list = (res.data ?? []) as { key: string; value: unknown }[];
