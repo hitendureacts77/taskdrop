@@ -469,7 +469,9 @@ The Phase 7 admin work is merged into `redesigned-2.0` of the admin repo (PRs 20
 
 1. Type to Claude, filled in: "Legal details for the Terms and Privacy pages: business or legal name …, address …, email hitendureacts@gmail.com, grievance officer name …, grievance officer email …, courts in (city) …"
 
-### ☐ 8.3 Set up the app in Google Play Console (1 to 2 hours, and Google may take days to check your ID)
+### ◐ 8.3 Set up the app in Google Play Console (1 to 2 hours, and Google may take days to check your ID)
+
+**Claude's part is done (2026-10-24):** every answer and the store texts are in `docs/PLAY_STORE.md`; the 512×512 icon and a plain 1024×500 feature graphic are in `docs/store/`. Still yours: steps 1 to 3 below, entering the answers (step 5), and phone screenshots (type "take the Play screenshots" with your phone plugged in). Skip steps 4 and 6; they are already done.
 
 1. Click: open https://play.google.com/console and sign in with the Google account that should own the app.
 2. If you have no developer account yet: choose **Personal**, pay the **$25**, and verify your identity with the ID document Google asks for.
@@ -482,7 +484,9 @@ The Phase 7 admin work is merged into `redesigned-2.0` of the admin repo (PRs 20
 6. Type to Claude: "Make the store listing: short and full description, a 512×512 icon, a 1024×500 feature graphic and phone screenshots."
 7. Click: **Grow users** → **Store presence** → **Main store listing** → paste the texts and upload the pictures Claude made → **Save**.
 
-### ☐ 8.4 Upload the store build
+### ◐ 8.4 Upload the store build (built 2026-10-24)
+
+The store build (AAB, version 1.0.0, versionCode 1, with the new drop icon) is ready: https://expo.dev/artifacts/eas/LG2lidySSxe5fii7qXA6MJY6eU2rxWl7Ue0H7ywxHVs.aab (build page: https://expo.dev/accounts/hitendureacts/projects/taskdrop/builds/cc681cd3-d5c4-4413-aba1-5ce7fc4f9905). Go straight to step 2.
 
 1. Type to Claude: "Build the store version (AAB)."
 2. Click: Claude gives you a download link. Download the `.aab` file.
