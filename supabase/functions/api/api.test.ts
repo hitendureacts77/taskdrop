@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { OPS, RATE_LIMITS, RecentlyLimited, rateBucket, runOp } from "./ops.ts";
+import { MAX_BATCH, OPS, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp } from "./ops.ts";
 import {
   ControlsCache, featureOffMessage, OPEN_CONFIG, parseControls, publicConfig, readClient, refusalFor, type Controls,
 } from "../_shared/controls.ts";
@@ -15,6 +15,7 @@ import * as serverRules from "../_shared/rules.ts";
 import type { ImageKitConfig } from "../_shared/imagekit.ts";
 import { createHmac } from "node:crypto";
 import * as packageRules from "../../../packages/rules/src/index.ts";
+import { BATCHABLE_OPS } from "../../../apps/mobile/src/lib/batcher.ts";
 
 const UID = "11111111-1111-4111-8111-111111111111";
 const OTHER = "99999999-9999-4999-8999-999999999999";
@@ -854,6 +855,72 @@ await t("an auto-hire task cannot be posted unless the wallet covers the budget 
   const bids = fake();
   assert.ok((await runOp("createTask", { ...task, assignmentMode: "bids" }, ctx(bids))).ok, "see-offers tasks need no balance");
   assert.ok(!bids.calls.some((c) => c.table === "wallets"));
+});
+
+// ------------------------------------------------------------------- batch --
+
+await t("a batch runs several reads at once and answers each in order", async () => {
+  const f = fake();
+  const res = await runBatch({ calls: [{ op: "getWallet" }, { op: "listMyTasks", args: { kind: "request" } }, { op: "nope" }] }, ctx(f));
+  assert.ok(res.ok);
+  const replies = res.data as Array<{ ok: boolean; error?: { code: string } }>;
+  assert.equal(replies.length, 3);
+  assert.ok(replies[0].ok && replies[1].ok);
+  assert.ok(!replies[2].ok && replies[2].error?.code === "UNKNOWN_OP", "an unknown name fails alone");
+  assert.deepEqual(f.calls.map((c) => c.table).sort(), ["tasks", "wallets"]);
+});
+
+await t("a batch never carries a write, an upload or another batch", async () => {
+  const f = fake();
+  const res = await runBatch({ calls: [{ op: "lockBid", args: { bidId: BID } }, { op: "createUpload" }, { op: "removeMedia", args: { path: "x" } }, { op: "batch", args: { calls: [{ op: "getWallet" }] } }] }, ctx(f));
+  assert.ok(res.ok);
+  const codes = (res.data as Array<{ error?: { code: string } }>).map((r) => r.error?.code);
+  assert.deepEqual(codes, ["NOT_BATCHABLE", "NOT_BATCHABLE", "NOT_BATCHABLE", "UNKNOWN_OP"]);
+  assert.equal(f.calls.length, 0, "nothing reached the database");
+});
+
+await t("a batch with no usable list of calls is refused whole", async () => {
+  const f = fake();
+  for (const args of [undefined, {}, { calls: [] }, { calls: "x" }, { calls: [null] }, { calls: [{ op: 5 }] }, { calls: Array.from({ length: MAX_BATCH + 1 }, () => ({ op: "getWallet" })) }]) {
+    const res = await runBatch(args, ctx(f));
+    assert.ok(!res.ok && res.error.code === "BAD_ARGS", JSON.stringify(args)?.slice(0, 40));
+  }
+  assert.equal(f.calls.length, 0);
+  const full = await runBatch({ calls: Array.from({ length: MAX_BATCH }, () => ({ op: "getWallet" })) }, ctx(fake()));
+  assert.ok(full.ok, "the largest allowed batch runs");
+});
+
+await t("each call in a batch meets the admin's switches on its own", async () => {
+  const f = fake();
+  const res = await runBatch({ calls: [{ op: "getWallet" }, { op: "listMyTasks" }] }, ctx(f, { controls: controlsWith({ maintenance: true }) }));
+  assert.ok(res.ok);
+  assert.ok((res.data as Array<{ ok: boolean; error?: { code: string } }>).every((r) => !r.ok && r.error?.code === "MAINTENANCE"));
+  assert.equal(f.calls.length, 0);
+});
+
+await t("one failing read does not spoil the rest of its batch", async () => {
+  const f = fake((c) => (c.table === "wallets" ? { data: null, error: { message: "boom", code: "XX000" } } : { data: [{ id: "row" }], error: null }));
+  const res = await runBatch({ calls: [{ op: "getWallet" }, { op: "listMyTasks" }] }, ctx(f));
+  assert.ok(res.ok);
+  const [wallet, tasks] = res.data as Array<{ ok: boolean }>;
+  assert.ok(!wallet.ok && tasks.ok);
+});
+
+await t("the app only batches operations the server treats as reads", () => {
+  for (const op of BATCHABLE_OPS) {
+    assert.ok(Object.prototype.hasOwnProperty.call(OPS, op), op + " exists on the server");
+    assert.equal(rateBucket(op), "read", op + " is a read");
+  }
+  assert.ok(BATCHABLE_OPS.size > 30);
+});
+
+await t("a batch counts against the limiter once per call, capped at the batch size", () => {
+  assert.equal(rateCost("getWallet", {}), 1);
+  assert.equal(rateCost("batch", { calls: [{}, {}, {}] }), 3);
+  assert.equal(rateCost("batch", { calls: Array.from({ length: 99 }, () => ({})) }), MAX_BATCH);
+  for (const args of [undefined, {}, { calls: "x" }, { calls: [] }]) assert.equal(rateCost("batch", args), 1);
+  assert.equal(rateBucket("batch"), "read");
+  assert.deepEqual(batchCalls({ calls: [{ op: "getWallet", args: [1] }] }), [{ op: "getWallet", args: {} }]);
 });
 
 console.log(`\n${passed} passed`);
