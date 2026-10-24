@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.44, 2026-10-24 (scope note 2026-10-20: iOS deferred; 2026-10-24: Safari testing deferred too). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.45, 2026-10-24 (tour guide added to Phase 8; ground rule 10: all new code goes to `redesigned-2.0`; scope note 2026-10-20: iOS deferred; 2026-10-24: Safari testing deferred too). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -45,6 +45,11 @@ Version 4.44, 2026-10-24 (scope note 2026-10-20: iOS deferred; 2026-10-24: Safar
    - Fake data only. A destructive step (wipe, reseed, reset) still runs only with your OK, and never on production.
    - The one throwaway database is in CI: GitHub Actions starts a temporary one inside each run to execute the SQL tests. It never touches the cloud project.
 9. **Order of work: phase by phase (decided 2026-10-20).** We go 0 → 10 in order. A phase is closed when every box is ticked or deferred (`[-]`). If a box waits on something only you can do, work continues on that phase's other boxes, and the blocker is listed on the Progress board.
+10. **Every new code change is pushed to `redesigned-2.0` (owner instruction 2026-10-24).** This covers all new code from here on, in both repos (user app and admin), including the tour guide, every phase's work and every fix.
+    - The route is the one in rule 2: a short phase or fix branch, merged into `redesigned-2.0` by pull request, then deleted. A direct push to `redesigned-2.0` is also fine when you tell me to.
+    - Code that exists only on a local branch or on your PC does not count as done. A box is ticked only when its code is on `redesigned-2.0` on GitHub, and a phase is closed only when all of its code is there.
+    - Never push to `main` (rule 1). You promote `redesigned-2.0` to `main` by hand.
+    - Pushing still happens only when you ask (`AGENTS.md` rule 7), so "push" here is a standing instruction for where code goes, not permission to push unasked. **Waiting to be pushed on 2026-10-24:** the user repo's local branches `fix/web-sourcemap-token`, `upgrade/phase-7-admin-tools` and the stacked `upgrade/phase-N-*` branches, and the admin repo's `upgrade/phase-7-admin-tools`. Tell me when to push them.
 
 ---
 
@@ -64,7 +69,7 @@ Version 4.44, 2026-10-24 (scope note 2026-10-20: iOS deferred; 2026-10-24: Safar
 | 5 | Background jobs (Inngest) | In progress, 15 of 45 boxes ticked, 3 deferred, 27 open. The Inngest Cloud account exists and both keys are now Edge Function secrets (2026-10-21); the code is merged and deployed, and the function registers with Inngest Cloud. **The keys alone do not switch any job over:** the push, overdue, prune, account-file and money-sweep jobs stay off until the cutover SQL in `supabase/cutover/` is deliberately applied, and the money sweeps also need `INNGEST_MONEY_JOBS=on`. Still open, and why: the cutover and its verification (a deliberate step with you, one job at a time, nothing run yet), and the lawyer's answer on the money flow, which the plan and AGENTS.md say must come before the payout, refund-retry and webhook items are built. The admin Alerts page is built (admin repo) |
 | 6 | Speed and media (ImageKit) | In progress, 15 of 26 boxes ticked, 2 deferred, 9 open (merged; migration 109 applied 2026-10-19; the ImageKit keys are now Edge Function secrets on the test project (2026-10-21), so uploads can go to ImageKit; not yet tried end to end). Open: uploads from a browser and a phone, admin image views (new feature, needs the private key as a server secret in the admin project), the speed targets, Verify; and rotate the private key that was pasted into chat (yours) |
 | 7 | Moderation and admin tools | In progress, 15 of 25 boxes ticked, 2 deferred, 8 open. Merged on 2026-10-21 (app PR 59, admin PR 20; migrations 117 and 118 applied): blocks now stop contact, hide message / photo / category functions, report-a-message in chat, reported messages shown and hideable in the admin, the runbook. Built 2026-10-22 to 2026-10-24: report a review, the change-category card, promotion tiers read from the server and editable in the admin, broadcasts by platform and app version (migration 119, applied), the Devices and tools dashboard card, a "warn" action (migration 120, applied; admin branch `upgrade/phase-7-admin-tools` not pushed) and remove a review (migration 121). Open: cancel a promotion with a full refund (a money policy choice; Stop already refunds the unused budget), the reports-queue box (warn covers reports about a person only), report and block in a browser and on the APK, the 3 Verify boxes, and the "Admin SQL functions" parent box (it waits on cancel with refund) |
-| 8 | Store readiness | Not started, 0 of 18 boxes ticked, 9 deferred (iOS), 9 open (reviewed 2026-10-21: every box is yours, needs a store account, a closed-test group or a device; the one code-side question, map tiles, is noted in its box). The closed test waits for the 12 testers, deferred in Phase 0 |
+| 8 | Store readiness | Not started, 0 of 29 boxes ticked, 10 deferred (iOS), 19 open. Added 2026-10-24: the **in-app tour guide** (11 boxes, 10 open and 1 deferred for iOS; design sign-off from you comes first). The older boxes were reviewed 2026-10-21: every one is yours, needs a store account, a closed-test group or a device; the one code-side question, map tiles, is noted in its box. The closed test waits for the 12 testers, deferred in Phase 0 |
 | 9 | Switch-over to the upgraded app | Not started, 0 of 28 boxes ticked, 1 deferred (iOS), 27 open. **Deliberately not touched by the autonomous run (2026-10-21):** it needs your approval, it retires the old app and old admin, and the lockdown and clean-up migrations cannot be undone while testers are on the old app |
 | 10 | Customer launch (later, when you decide) | Not started, 0 of 29 boxes ticked, 1 deferred (iOS), 28 open. Not touched: ground rule 7 says it happens only when you decide |
 
@@ -80,7 +85,7 @@ Version 4.44, 2026-10-24 (scope note 2026-10-20: iOS deferred; 2026-10-24: Safar
 | 5 | Inngest, outbox, webhooks | In-app notifications | Push via Inngest | Push via Inngest | Queued payouts, alerts |
 | 6 | `media` table, ImageKit signing | Uploads, images, CSP | Camera uploads, images | Camera/HEIC uploads, images | Images via signing |
 | 7 | Reports, blocks, admin actions | Report/block | Report/block | Report/block | Reports queue, actions, runbook |
-| 8 | — | Privacy and support pages | Play closed test | App Store review prep | Ready for reviewers |
+| 8 | — (tour needs none) | Privacy and support pages, tour guide | Play closed test, tour guide | App Store review prep, tour guide | Ready for reviewers |
 | 9 | Lockdown, retire old code paths | Domains confirmed | Testers move | Testers move | Admin moves |
 | 10 | Production project | Production | Play release | App Store release | Production |
 
@@ -316,7 +321,7 @@ Version 4.44, 2026-10-24 (scope note 2026-10-20: iOS deferred; 2026-10-24: Safar
   - [ ] **(You)** Rotate that Razorpay test key pair once no code uses it. Deleting it from the file is not enough: the old pair stays readable in the history of a public repository
   - [ ] **(You)** Decide whether both repositories go private (cost: CodeRabbit, sections 8 and 10)
   - [ ] **(You)** Supabase, Authentication settings: refresh-token rotation and reuse detection on, access tokens expire within an hour. Write the values here (they are settings, not secrets)
-  - [ ] `api` checks a Firebase App Check token (Play Integrity on Android, reCAPTCHA Enterprise on web) in **monitor mode**: it records a missing or failed check and refuses nothing. Requests without a token (the old app) keep working (ground rule 4); enforcement waits for Phase 9
+  - [ ] `api` checks a Firebase App Check token (Play Integrity on Android, reCAPTCHA Enterprise on web) in **monitor mode**: it records a missing or failed check and refuses nothing. Requests without a token (the old app) keep working (ground rule 4); enforcement waits for Phase 9 **Built 2026-10-24, off until `FIREBASE_PROJECT_NUMBER` is set:** `_shared/appCheck.ts` (RS256 check against Firebase's key list, 8 tests) is called from `api/index.ts`, logs `app check` with the result (invalid always, missing/valid once a minute per platform) and refuses nothing. Owner clicks: `docs/APP_CHECK.md`.
 
 **User app (all platforms)**
 - [x] Platform and app-version headers sent on every `api` call
@@ -324,7 +329,7 @@ Version 4.44, 2026-10-24 (scope note 2026-10-20: iOS deferred; 2026-10-24: Safar
 - [x] Maintenance screen, "Update the app" screen, announcement banner, and a message when a switch is off
 - [x] Fee previews come from the `platformFees` op. New `lib/useFees.ts` (built-in rates until the op answers); used by the post preview (`AiPostScreen`), the offer-accept text and escrow (`TaskManageScreen`) and the release preview (`ConfirmScreen`). `EscrowScreen` keeps its local first paint, since it then shows the server's price
 - [x] Address search goes through `places-search`. Search already did (Phase 0 work); the point-to-name lookup (`describeCoords`) now does too, with a direct OpenStreetMap call only as the last fallback
-- [ ] The app gets a Firebase App Check token and sends it on every `api` call (Android: Play Integrity; web: reCAPTCHA Enterprise; iOS: App Attest, deferred with the rest of iOS). Read the Expo SDK 57 docs before choosing the library
+- [ ] The app gets a Firebase App Check token and sends it on every `api` call (Android: Play Integrity; web: reCAPTCHA Enterprise; iOS: App Attest, deferred with the rest of iOS). Read the Expo SDK 57 docs before choosing the library **Web built 2026-10-24** (`lib/appCheck.web.ts`, reCAPTCHA Enterprise, sends nothing until the five `EXPO_PUBLIC_FIREBASE_*` / `EXPO_PUBLIC_RECAPTCHA_SITE_KEY` values exist). Android (Play Integrity via `@react-native-firebase/app-check`, needs `google-services.json` and a new APK) is not built.
 
 **Web**
 - [x] `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` removed from the web build. Done 2026-10-20: the app no longer reads it. Place search goes through the `places-search` function (server key `GOOGLE_MAPS_API_KEY`), and the Android map key is `EXPO_GOOGLE_MAPS_API_KEY`, a build-time EAS secret that never enters the JS bundle. The old web build on `main` still has the old key until Phase 9
@@ -332,7 +337,7 @@ Version 4.44, 2026-10-24 (scope note 2026-10-20: iOS deferred; 2026-10-24: Safar
 
 **Android**
 - [ ] The native map keeps only the restricted Android key
-- [ ] Control screens checked on the APK
+- [x] Control screens checked on the APK Done 2026-10-24 on the owner's phone (CPH2585): maintenance and "Time to update" both appeared, then cleared; they can take up to a minute because the app-config answer is cached for 60 s.
 
 **iOS**
 - ⏸ **Future scope (deferred 2026-10-20).** iOS waits until Android and the admin are done; the boxes below are marked `[-]` and don't block this phase.
@@ -350,8 +355,8 @@ Version 4.44, 2026-10-24 (scope note 2026-10-20: iOS deferred; 2026-10-24: Safar
 - [x] The new web bundle contains no Google key. Fresh `expo export -p web` on 2026-10-21: no `AIza` in any JavaScript file (the old `dist` from 6 October, which did contain one, was stale)
 - [x] A bid containing a phone number sent straight to the API is rejected, on the old app too. Same `api` function, so the old app gets it too. Proved in `api.test.ts` against the operation. `e2e/rules.spec.ts` checks the deployed function and passes since the merge (2026-10-21)
 - [-] Posting switched off for iOS only: refused on iPhone, even by direct API call; still works on web and Android
-- [ ] Maintenance mode for Android only shows the screen on Android only
-- [ ] An older upgraded build sees "Update the app" on Android (iOS: future scope)
+- [x] Maintenance mode for Android only shows the screen on Android only Done 2026-10-24: Android maintenance on, `get_app_controls('web')` stayed off.
+- [x] An older upgraded build sees "Update the app" on Android (iOS: future scope) Done 2026-10-24 with `min_version` 9.0.0 on the Android row (no button, since no update URL is set).
 - [ ] The old app and old admin still work
 - [ ] `docs/testing_checks.md` T2 (secrets and keys) and T11.2 to T11.5 (the Android build) pass, and the App Check log shows the upgraded web and Android apps passing
 
@@ -379,7 +384,7 @@ Version 4.44, 2026-10-24 (scope note 2026-10-20: iOS deferred; 2026-10-24: Safar
 **User app (all platforms)**
 - [x] `expo-crypto` added; PKCE uses S256 (`lib/supabase.ts`). `expo-crypto` was already a dependency; `lib/webcrypto.native.ts` gives supabase-js the `crypto.subtle.digest` it needs on Hermes (it silently used "plain" before), imported from `lib/supabase.ts`; web is untouched. **Not yet seen on a phone:** check Google sign-in on the next APK and that no "WebCrypto not supported" line appears
 - [x] Onboarding doesn't prefill Apple relay emails as names (`OnboardingScreen.tsx:55`). Any name containing an @, the phone placeholder and "New user" are left blank for the person to fill in
-- [ ] Account screen: shows linked methods; link Google/Apple (`linkIdentity`); add or verify a phone. The screen already shows which methods are on the account (phone, Google, username + password). Linking is not built: it needs "manual linking" switched on (above) and a native browser round trip I cannot try here, so it waits for the next device session
+- [ ] Account screen: shows linked methods; link Google/Apple (`linkIdentity`); add or verify a phone. The screen already shows which methods are on the account (phone, Google, username + password). Linking is not built: it needs "manual linking" switched on (above) and a native browser round trip I cannot try here, so it waits for the next device session **Link Google built 2026-10-24** (`AuthProvider.linkGoogle`, a button on Account → Sign-in methods; web redirect and native browser round trip). Untested: it needs "Allow manual linking" switched on (task 4.2 of the owner manual). Apple linking is iOS, deferred.
 
 **Web**
 - [ ] Google and Apple sign-in through the browser flow (`providers/AuthProvider.tsx`)
@@ -592,11 +597,36 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 
 ## Phase 8: Store readiness
 
+**User app (all platforms): tour guide** (added 2026-10-24, owner request)
+
+A guided tour a person starts from inside the app. It says what TaskDrop is, which icons to tap, and how a task goes from post to paid. It also helps store reviewers and new testers. It changes no existing screen's look or feature (product rule: redesign keeps every feature). New code only, on `redesigned-2.0` (ground rule 10). If you want testers to have it before the store work, say so and it moves to an earlier phase.
+- [ ] **(You)** Approve the tour's design first, before anything clickable is built (`AGENTS.md`: static design and animations are confirmed with you before a prototype). I show you: one still per step, the step list and wording below, and how each step's motion behaves. Also decide: does it start automatically once after onboarding (with a clear Skip), or only when someone picks it?
+- [ ] Entry points. A **"Take the app tour"** row in the account menu (`AppHeader.tsx`, next to "Help & support"), and a one-time offer after onboarding with Skip. The tour can be replayed any time. Skip and finish both work at every step; a person is never trapped in it
+- [ ] The tour's steps, in this order. Every label, icon and screen name is read from the live app source when the tour is built, never written from memory (the Home-order rule: never invent a section or a button that is not in the app). Draft:
+  - what TaskDrop is: "Ask for anything. Someone gets it done for you." Tasks can be local **or** remote, so no copy suggests local-only
+  - the **Hire / Earn** switch: one account does both, and the tabs rename themselves (My Tasks becomes My Work, Explore becomes Find work)
+  - the five bottom tabs on a phone (Home, Explore, My Tasks or My Work, Wallet, Profile) and the left menu on desktop web, one stop each: what is behind it and when to tap it
+  - the post button: how to describe a task in plain words (and the AI writer, if it is on), budget, photos, remote or in person
+  - offers and the poster's choice: compare offers, pick one, chat, and how the area name hides the exact address until work starts
+  - how the money is held: the poster pays the offer plus the service fee, TaskDrop holds it, the poster approves (or has 3 days to approve or report) and the worker is paid; earnings clear after 7 days, then withdraw to UPI or bank. Numbers come from `packages/rules` and the live fee settings, never typed into the tour
+  - the messages icon and the notification bell
+  - the account menu: Saved tasks, Wallet, Bank & UPI accounts, How fees work, Settings, **Help & support**, Send feedback
+  - last card: "You're set", with Post a task and Find work buttons, and where to replay the tour
+- [ ] One shared tour component for web, Android and (later) iOS, driven by a plain list of steps in code (a title, a line or two of copy, which part of the screen to point at). Rules it has to meet:
+  - on the web build it dims the screen and points a spotlight at the real tab or menu item; on phones the five tabs are drawn by the system (native tabs), so the tour cannot circle them exactly and instead shows an arrow card above the bar with the tab's icon and name. Checked when it is built, and the real answer written here
+  - Next, Back, Skip and "Step 3 of 9"; fully usable with a screen reader and the keyboard (web); respects the reduced-motion setting; light, dark and System themes; text from `theme.ts` tokens, no raw colours
+  - it shows both Hire and Earn wording, and never moves money or changes data (it is read-only, and it opens no screen that needs a signed-in action)
+  - strings sit in one file so the wording can be changed without touching layout
+- [ ] It remembers that the tour was seen so it is not offered again. Decision for you: per device is enough (no database change), or per account (an additive migration, so the old app is untouched, ground rule 4). Default if you don't say: per device
+- [ ] Tests: a unit test that the step list only points at screens and labels that exist (it fails if a tab is renamed and the tour is not updated), and a Playwright test on the web build (start the tour, step through it, skip it, replay it)
+
 **Web**
+- [ ] The tour works in Chrome at desktop size (spotlight on the left menu) and phone size, in light and dark
 - [ ] Privacy policy, terms and support pages live on `taskdrop.in`, needed by both stores. (Built 2026-10-19 as `?page=terms`, `?page=privacy`, `?page=support`, all public; text traced to code in `docs/LEGAL_AUDIT.md`. Open: the domain, `EXPO_PUBLIC_LEGAL_*` values, lawyer review.)
 - [ ] Map tiles (`MapPicker`) and the fallback search use a provider's free tier, or the volume is confirmed low. OpenStreetMap's public servers don't allow heavy commercial use. **Checked 2026-10-21:** the web/tile map (`MapPicker.tiles.tsx`) loads tiles straight from `tile.openstreetmap.org`, and the fallback address search is OpenStreetMap's Nominatim (now called from the `places-search` function, one request per search, under the per-account budget). Fine for a dozen testers; not for launch. Needs a decision (a tile provider with a free tier, or Google Maps tiles) before the store builds
 
 **Android**
+- [ ] The tour works on the `beta` APK: starts from the account menu and after onboarding, points at the right tabs, Skip and Back work, and it leaves the app in the state it found it
 - [ ] **(You)** Google Play Console app ($25 one-time, if not paid), store listing, screenshots, data-safety form
 - [ ] EAS `production`-style Android build (AAB) for the closed test
 - [ ] **(You)** Closed test with at least 12 testers for 14 days (required before a production release). *Blocked until the testers are recruited (deferred to future scope 2026-10-22).*
@@ -611,6 +641,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
   - [-] account deletion works
   - [-] the iOS promotion switch is ready
 - [-] `submit.ios` in `eas.json`
+- [-] The tour works on TestFlight (the shared component is built for it; it is only checked on a phone once iOS starts)
 
 **Admin**
 - [ ] Ready to handle reviewer reports within 24 hours; runbook checked
@@ -620,6 +651,8 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [-] Apple sign-in works on iPhone
 - [ ] Push arrives on both platforms
 - [ ] An EAS Update installs on both
+- [ ] A first-time tester, given only the app and no instructions, finishes the tour in about two minutes and can then name the Hire/Earn switch and where the money is held. Every step points at something that exists on web and Android
+- [ ] The tour code is on `redesigned-2.0` on GitHub in both repos where touched (ground rule 10), with the tour boxes ticked in the same pull request
 
 ---
 
@@ -734,6 +767,8 @@ You started this because the app felt clumsy and parts weren't working as expect
 | Supabase testing | **The cloud project is the test environment** (2026-10-20): test directly on `wjxvingpfbfvkfqhrguj`; no local Supabase or Docker. CI uses a throwaway database only to run the SQL tests |
 | Domain | **`taskdrop.in` is bought on Spaceship.com** (2026-10-20); the admin app has no subdomain for now and stays on its Vercel address (decided 2026-10-20). DNS stays at Spaceship; `A @` and `CNAME www` point at Vercel |
 | Admin control | The admin controls web, Android and iOS, enforced on the server |
+| Tour guide | **An in-app tour** (2026-10-24): a person can start it from the account menu and is offered it once after onboarding; it explains the app, which icons to tap and how a task and its money flow. Phase 8; design confirmed with you before it is built |
+| Where code goes | **Every new code change is pushed to `redesigned-2.0`** in both repos (2026-10-24, ground rule 10); never to `main` |
 
 ### Recommendations
 
@@ -1138,9 +1173,11 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
+- **v4.45 (2026-10-24):** Two owner instructions, docs only (no code changed, nothing pushed). **Tour guide:** added to Phase 8 as 11 boxes (design sign-off first, entry points, the step list, one shared component, remembering it was seen, tests, a web box, an Android box, an iOS box deferred, two Verify boxes). It starts from the account menu next to "Help & support" and is offered once after onboarding; it explains what TaskDrop is, the Hire/Earn switch, each tab, posting, offers, how the money is held and Help & support. Written from the live source: the tabs are Home, Explore, My Tasks or My Work, Wallet and Profile (`BottomTabBar.tsx`), and the account menu rows are in `AppHeader.tsx`. Open design point recorded in the box: on phones the tabs are native, so the tour cannot spotlight them exactly. **Ground rule 10:** every new code change is pushed to `redesigned-2.0` in both repos (by pull request, or direct when you say so), code that is only on a local branch is not done, and `main` is never touched; the local branches still waiting to be pushed are listed there. Phase 8 on the board is now 0 of 29 (10 deferred, 19 open). Part B section 2 has the two decisions.
 - **v4.44 (2026-10-24):** Phase 1 and 2 owner-manual work that Claude could do. **Found:** the last web build did not upload source maps, because the Vercel variable is `SENTRY_AUTH_TOKEN_TASKDROP_USERAPP` and the script read only `SENTRY_AUTH_TOKEN`; `scripts/upload-web-sourcemaps.mjs` now accepts both (commit `10f5165`, local branch `fix/web-sourcemap-token`, **not pushed**). **Confirmed:** the `beta` APK build uploaded its native source maps to Sentry, so the "Source maps uploaded from EAS" box is ticked (Phase 1 is now 17 of 28, 6 deferred, 5 open). **Done:** an over-the-air update was published to channel `beta` (group `166484f3`, from `d49d681`) with its source maps uploaded to Sentry by hand; whether the phone runs it is not confirmed (the owner's check in manual 1.6 step 4). **Also:** the Playwright suite passed 20 of 20 locally against the test project; GitHub cannot start `e2e.yml` because `main` doesn't have it (manual 2.5 rewritten). Not done: the Phase 1 test errors and push test (manual 1.6 steps 2 and 3), and everything in Phase 2 that needs the owner (2.1 list, 2.2 full job, 2.4 admin pages, 2.6 a week of use).
 
 - **v4.43 (2026-10-24):** scope decision. **Safari testing joins iOS in future scope.** Web is tested in Chrome (desktop and phone size) only for now. The Phase 2 Safari check is split off into its own deferred `[-]` box (Phase 2 is now 6 of 23, 5 deferred, 12 open). Verify and other boxes that listed iOS or iPhone now say "iOS: future scope" and no longer wait on it (Phases 1, 2, 3, 5, 6, 7, 9, 10). Part B 5.2 and section 12 say the same; owner manual task 2.3 moved to a "Future scope" section. No code changed.
+- **v4.43 (2026-10-24):** Owner asked to complete all phases of `docs/OWNER_MANUAL.md`, with pushes straight to `redesigned-2.0`. Claude-side work done: PR 69 merged (web source-map token); migrations 110 to 121 and all functions confirmed deployed; Inngest push and prune cutover confirmed live (money sweeps still deferred); App Check monitor built (server + web, off until Firebase values); Link Google on the Account screen; control screens tested on the phone; `docs/PLAY_STORE.md` (Play answers, listing text, store graphics); the app icons were still Expo's template artwork and were redrawn as the drop-and-check mark; Android store build (AAB) started. Phases 9 and 10 not started (they need Phases 0 to 8 done, the 14-day closed test, the lawyer, live Razorpay and the owner's approval).
 - **v4.42 (2026-10-24):** Phase 1 Sentry alerts (owner manual 1.2 and 1.3), done in your signed-in Chrome. `Money fatal`: project `taskdrop`, trigger "a new issue is created", filter "the event's level equals fatal", notifies you. `Error spike`: a Metric monitor on `taskdrop`, Errors dataset, `count()` over 1 hour, High priority above 20, with a connected alert that emails you. The Sentry alerts box is ticked, and Phase 1 is now 16 of 28 (6 deferred, 6 open). Sentry's new layout renamed things, so the manual's click steps were rewritten: alerts are under **Monitors → Alerts**, and "Critical" is now "High priority". The "is unresolved" filter Sentry adds by default was cleared so every error counts. Not checked: whether either alert actually sends an email (no fatal event or spike has happened since)
 - **v4.41 (2026-10-24):** Phase 1 Uptime Robot. You made the free Uptime Robot account and two monitors (`taskdrop.in` and `taskdrop-admin.vercel.app`, every 5 minutes, emailing you), so the accounts box is ticked. The monitors box is split in two: the web and admin monitors are ticked, and the `api` health monitor is deferred, because its POST with custom headers needs a paid plan. Phase 1 is now 15 of 28 (6 deferred, 7 open). The Verify box "The uptime monitors are green" stays open until the other Verify checks are done
 - **v4.41a (2026-10-24):** (UX fixes merged by another session before these version numbers were reconciled.) Owner feedback from a tester, four fixes. **Wording:** a worker who asks for a price other than the posted one now sees "Send a counteroffer" (task screen, offer sheet, Home card button); the posted price still says "Send an offer". **Something else:** every quick question's "Something else" chip opens a labelled text bar ("Your own answer") and a hint says so before it is tapped; canned "Something else" options in the question lists are dropped so the screen's own chip is the only one. **Auto-hire:** posting an auto-hire task now needs the wallet to hold the budget plus the service fee. The post flow shows the balance, offers "add money" for the shortfall and posts once it lands; the `api` operation `createTask` refuses an under-funded auto-hire with "Not enough money in your wallet" and the shortfall (test added). Workers' Find work filter and the card badge are both called "Auto-hire". Not changed: an offer that arrives after the poster's wallet has dropped below the budget still locks the worker and waits for payment (migration 063); closing that gap needs a database change and the owner's go-ahead. **Payments:** the payment link now carries a return address, so the web tab Razorpay opened closes itself (or falls back to the app) and the phone checkout sheet closes the moment Razorpay returns. Needs the `api` function deployed for the server check; the app changes ride the next web/APK build.

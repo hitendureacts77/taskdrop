@@ -96,14 +96,14 @@ In Sentry's new layout an error-count alert is a **Metric monitor**, and "Critic
 7. Click: **Create Monitor** (bottom right). The page shows "Monitor created", with Threshold **High above 20**.
 8. Type to Claude: "Both Sentry alerts are set: Money fatal and Error spike." (Claude already knows: it did them on 2026-10-24.)
 
-### ☐ 1.4 Web source maps (Claude checked 2026-10-24; one step left)
+### ◐ 1.4 Web source maps (fix merged 2026-10-24; upload still to be seen in a build log)
 
 Claude read the last web build's log (Vercel deployment of `d49d681`): **the upload did not happen.** The log says `SENTRY_AUTH_TOKEN is not set; nothing uploaded`, because the token in Vercel is named `SENTRY_AUTH_TOKEN_TASKDROP_USERAPP` and the script only looked for `SENTRY_AUTH_TOKEN`. Web errors in Sentry (for example TASKDROP-6) still show minified stacks (`?(index)`).
 
 Claude changed the script to accept that name. The change is committed on a local branch `fix/web-sourcemap-token`, **not pushed**. To finish:
 
-1. Type to Claude: "Push and merge the web source-map fix into redesigned-2.0."
-2. Wait for the next Vercel build of `taskdrop`. Type to Claude: "Check the web build uploaded source maps." Claude reads the build log for `Uploaded files to Sentry`.
+1. Done: the fix is merged into `redesigned-2.0` (PR 69) and has been built twice since.
+2. Left: Claude can't read Vercel build logs until you approve its Vercel connection. Click the link Claude gives you when you type: "Check the web build uploaded source maps." (Or open the latest `taskdrop` deployment on vercel.com and search the log for `Uploaded files to Sentry`.)
 
 (Nothing to click in Vercel: the variable name there stays as it is.)
 
@@ -219,10 +219,9 @@ Skip this. Safari testing, like everything iOS, waits until you say "start iOS".
 
 ## Phase 3: Server decides everything
 
-### ☐ 3.1 Deploy the latest changes
+### ☑ 3.1 Deploy the latest changes — done 2026-10-24
 
-1. Type to Claude: "Check the Phase 3 changes are deployed to the test project, and deploy them if not."
-2. Wait until Claude says it's done. Task 3.2 must come after this.
+Claude checked: every migration up to 121 is applied on the test project and all 11 Edge Functions are deployed (a push to `redesigned-2.0` does this by itself, see `docs/DEPLOY.md`). Task 3.2 can go ahead.
 
 ### ☐ 3.2 Change the Razorpay test keys (10 minutes)
 
@@ -255,12 +254,14 @@ Skip this. Safari testing, like everything iOS, waits until you say "start iOS".
 4. Click: find **Access token expiry** (in Authentication settings, or under **Project Settings** → **JWT Keys**) and set it to `3600` seconds. Click **Save**.
 5. Type to Claude: "Token settings: reuse detection on, reuse interval 10 seconds, access tokens expire after 3600 seconds."
 
-### ☐ 3.5 App Check
+### ◐ 3.5 App Check (code done 2026-10-24; your Firebase clicks left)
 
-1. Type to Claude: "Start App Check in monitor mode, and give me the Firebase clicks."
-2. Claude writes the code first, then gives you the exact Firebase and Google Cloud clicks. They depend on that code, so they aren't listed here.
+1. Done: the server check (monitor mode) and the web client are built and deployed, and both stay off until you finish step 2. Android (Play Integrity) waits for a registered Firebase app and a new APK.
+2. Click: follow `docs/APP_CHECK.md` (about 30 minutes, in the Firebase console), then type to Claude the values it lists. Claude puts them in Vercel.
 
-### ☐ 3.6 Test the control screens with your phone (15 minutes)
+### ☑ 3.6 Test the control screens with your phone — done 2026-10-24 (Claude, phone plugged in)
+
+Claude switched Android maintenance on for the test project, reopened TaskDrop on your phone and saw "We'll be right back" with the message; it then set the minimum version to 9.0.0 and saw "Time to update"; the web setting stayed off. Everything is switched back and the app opens normally. Notes: the app's answer is cached for about a minute, so a screen can take up to a minute to appear or clear; the "Time to update" screen has no button because no update link is set yet (set one in the admin when there is a store page). The steps below are what to do if you want to repeat it yourself.
 
 1. Click: plug in your phone.
 2. Type to Claude: "Test the control screens. My phone is plugged in."
@@ -310,7 +311,7 @@ Skip this. Safari testing, like everything iOS, waits until you say "start iOS".
 3. Click: **Save**.
 4. Type to Claude: "Manual linking is on. Build account linking."
 
-### ☐ 4.3 Test linking (after Claude builds it, 5 minutes)
+### ☐ 4.3 Test linking (built 2026-10-24: **Account → Sign-in methods → Link Google**; needs task 4.2 first; 5 minutes)
 
 1. Click (phone): sign in as Asha (`9990000001`).
 2. Click: **Account** → the sign-in methods card → link **Google** → pick a Google account.
@@ -333,11 +334,13 @@ Do this on the **website** (Chrome Incognito, https://taskdrop.in) and then the 
 
 ## Phase 5: Background jobs (Inngest)
 
-### ☐ 5.1 Decide about the money jobs
+### ☑ 5.1 Decide about the money jobs — deferred 2026-10-24
 
-1. Type to Claude: "Defer the Phase 5 money jobs (payouts, refund retries, webhooks) until the lawyer answers."
+The money jobs (payouts, refund retries, webhooks, and the three money sweeps) stay on their old route until the lawyer answers on the money flow. Nothing to do.
 
-### ☐ 5.2 Switch the jobs over, one at a time (spread over a few days)
+### ◐ 5.2 Switch the jobs over, one at a time (non-money jobs already switched; checked 2026-10-24)
+
+Claude checked the test project: push notifications already go through Inngest (`push_via_inngest` is on), the two prune jobs have moved, and the outbox has nothing waiting (43 events, 0 pending). Only the money sweeps are left on the old route, on purpose (task 5.1). Steps 2 below (look at the Inngest dashboard) are still yours.
 
 1. Type to Claude: "Start the Inngest cutover, one job at a time."
 2. After Claude switches each job:
@@ -415,9 +418,9 @@ Do this on the **website** (Chrome Incognito, https://taskdrop.in) and then the 
 
 ## Phase 7: Moderation
 
-### ☐ 7.1 Bring in the newest admin tools
+### ☑ 7.1 Bring in the newest admin tools — done
 
-1. Type to Claude: "Push and merge the Phase 7 admin branch."
+The Phase 7 admin work is merged into `redesigned-2.0` of the admin repo (PRs 20 and later), and migrations 116 to 121 are applied. Nothing to do.
 
 ### ☐ 7.2 Add the dashboard links (5 minutes)
 
@@ -460,7 +463,7 @@ Do this on the **website** (Chrome Incognito, https://taskdrop.in) and then the 
 
 ### ☐ 8.1 Decide on the map
 
-1. Simplest: Type to Claude "Keep OpenStreetMap while testing. Suggest a free map provider for the store version."
+1. Simplest: Type to Claude "Keep OpenStreetMap while testing. Suggest a free map provider for the store version." Claude's note (check each provider's current free limits before choosing): Android already uses Google Maps (restricted key, no tile problem); the weak spot is the web map and the address fallback, which use OpenStreetMap's public servers (not allowed at scale). Options: a tile provider whose free tier allows commercial use, or Google Maps on the web too. The decision can wait until before launch.
 
 ### ☐ 8.2 Give the legal details
 
