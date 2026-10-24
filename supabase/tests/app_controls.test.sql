@@ -303,8 +303,8 @@ begin
   if pg_temp.try('select public.record_device(''install-abcdef12'', ''toaster'', null, null, false)') is null then
     raise exception 'FAIL: an unknown platform was accepted';
   end if;
-  -- someone else sees none of it (a policy limits reads to the owner or staff); staff see all
-  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'app_devices' and policyname = 'app_devices_own_read' and qual like '%auth.uid%') then
+  -- someone else sees none of it (one policy limits reads to the owner or staff, migration 122); staff see all
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'app_devices' and policyname = 'app_devices_read' and qual like '%auth.uid%' and qual like '%is_admin%') then
     raise exception 'FAIL: the devices table is not limited to its owner by a row-level-security policy';
   end if;
   perform pg_temp.become(v_support);

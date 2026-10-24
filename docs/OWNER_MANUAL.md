@@ -237,10 +237,12 @@ Claude checked: every migration up to 121 is applied on the test project and all
 10. Click: open `.env.all-secrets` in Notepad, replace the two Razorpay values, and save.
 11. Type to Claude: "I changed the Razorpay test keys in Vault. Check a test payment still works."
 
-### ☐ 3.3 Decide: public or private repos
+### ☑ 3.3 Decide: public or private repos — decided 2026-10-24: keep both public
 
-1. To keep them public (free): Type to Claude "Keep both repos public."
-2. To make them private (CodeRabbit then costs about $24 a month):
+You chose to keep both repos public (free) for now. Nothing to do on GitHub. Going private is future scope: do option 2 below only when you decide to. Because the repos stay public, task 3.2 (new Razorpay test keys) is still needed.
+
+1. Keep them public (free): done.
+2. Future scope. To make them private (CodeRabbit then costs about $24 a month):
    1. Click: open https://github.com/hitendureacts77/taskdrop → **Settings** (top right of the repo).
    2. Click: scroll to the bottom, **Danger Zone** → **Change visibility** → **Make private** → confirm.
    3. Do the same for https://github.com/hitendureacts77/taskdrop-admin
