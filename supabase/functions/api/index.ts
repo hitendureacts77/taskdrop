@@ -106,6 +106,8 @@ Deno.serve(guarded("api", async (req: Request) => {
   } catch {
     return refuse("Unknown request", "BAD_JSON", 400);
   }
+  // "null", a number, a string or a list is valid JSON but not a request (it used to crash on body.op, Sentry TASKDROP-F).
+  if (body === null || typeof body !== "object" || Array.isArray(body)) return refuse("Unknown request", "BAD_JSON", 400);
 
   // The counter is written with the service key: a person must not be able to
   // reset or spend anyone else's budget. If the counter cannot be reached the
