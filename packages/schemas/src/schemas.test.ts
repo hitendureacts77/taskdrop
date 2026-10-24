@@ -43,6 +43,20 @@ test('taskMediaSchema requires duration for video and caps at 60s', () => {
   );
 });
 
+test('taskMediaSchema says why a video without a duration is refused', () => {
+  const r = taskMediaSchema.safeParse({ kind: 'video', storagePath: 'x' });
+  assert.equal(r.success, false);
+  assert.match(r.error?.issues[0]?.message ?? '', /requires durationSeconds/);
+});
+
+test('ids keep the plain uuid shape check (nil and non-v4 ids still pass)', () => {
+  const bid = { priceMinor: 100, timeLimitMinutes: 30 };
+  for (const taskId of ['00000000-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111']) {
+    assert.equal(createBidSchema.safeParse({ ...bid, taskId }).success, true, taskId);
+  }
+  assert.equal(createBidSchema.safeParse({ ...bid, taskId: '1111111-1111-1111-1111-111111111111' }).success, false);
+});
+
 test('createBidSchema requires a uuid task id', () => {
   assert.equal(
     createBidSchema.safeParse({ taskId: 'not-a-uuid', priceMinor: 100, timeLimitMinutes: 30 })

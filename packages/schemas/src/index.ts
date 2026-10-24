@@ -23,6 +23,11 @@ export const cancelReasonEnum = z.enum(CANCEL_REASON);
 export const pillarEnum = z.enum(['services', 'procurement', 'local_intel']);
 export type Pillar = z.infer<typeof pillarEnum>;
 
+/*
+ * Ids are Postgres uuids. z.guid() keeps the plain 8-4-4-4-12 shape check zod 3
+ * used for .uuid(); zod 4's z.uuid() also checks the version and variant bits.
+ */
+
 /** Money is always an integer in the smallest unit (paise/cents). */
 export const minorAmount = z.number().int().nonnegative();
 
@@ -44,7 +49,7 @@ export const taskMediaSchema = z
     durationSeconds: z.number().int().positive().max(MEDIA.MAX_VIDEO_SECONDS).optional(),
   })
   .refine((m) => m.kind !== 'video' || m.durationSeconds !== undefined, {
-    message: 'video media requires durationSeconds (<= 60s)',
+    error: 'video media requires durationSeconds (<= 60s)',
   });
 
 /** Create a task (Poster). Benchmark price + REQUIRED time limit. */
@@ -65,7 +70,7 @@ export type CreateTask = z.infer<typeof createTaskSchema>;
 
 /** A worker's quote — accept the posted price or counter on price and/or time. */
 export const createBidSchema = z.object({
-  taskId: z.string().uuid(),
+  taskId: z.guid(),
   priceMinor: minorAmount,
   timeLimitMinutes: z.number().int().positive().max(60 * 24 * 30),
   message: z.string().max(1000).optional(),
@@ -74,14 +79,14 @@ export type CreateBid = z.infer<typeof createBidSchema>;
 
 /** Poster locks a bid → escrow. Poster also chooses payout mode. */
 export const lockBidSchema = z.object({
-  bidId: z.string().uuid(),
+  bidId: z.guid(),
   payoutMode: payoutModeEnum.default('one_time'),
 });
 export type LockBid = z.infer<typeof lockBidSchema>;
 
 /** A cancellation event, as recorded in cancellations_log. */
 export const cancellationSchema = z.object({
-  taskId: z.string().uuid(),
+  taskId: z.guid(),
   cancelledBy: cancelledByEnum,
   reason: cancelReasonEnum,
   phase: z.enum(['before_start', 'after_start']),
@@ -90,7 +95,7 @@ export type Cancellation = z.infer<typeof cancellationSchema>;
 
 /** A role-scoped review (poster-role and worker-role are never merged). */
 export const reviewSchema = z.object({
-  taskId: z.string().uuid(),
+  taskId: z.guid(),
   aboutRole: z.enum(['poster', 'worker']),
   rating: z.number().int().min(1).max(5),
   comment: z.string().max(1000).optional(),
