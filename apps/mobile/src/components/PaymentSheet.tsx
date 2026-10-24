@@ -4,6 +4,7 @@ import { WebView, type WebViewNavigation } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../providers/ThemeProvider';
 import { Icon } from './Icon';
+import { isPaymentReturn } from '../lib/links';
 import { tx } from './primitives';
 
 /**
@@ -33,6 +34,13 @@ export function PaymentSheet({
 
   const external = (req: WebViewNavigation): boolean => {
     const u = req.url;
+    // Razorpay is done and is sending the payer back to TaskDrop. Close here
+    // instead of loading the whole web app inside the sheet; the screen that
+    // is waiting for the money picks it up from there.
+    if (isPaymentReturn(u)) {
+      onClose();
+      return false;
+    }
     if (/^https?:\/\//i.test(u) || u.startsWith('about:') || u.startsWith('data:') || u.startsWith('blob:')) return true;
     // upi://, intent://, tez://, phonepe://, paytmmp:// ... belong to other apps.
     let target = u;

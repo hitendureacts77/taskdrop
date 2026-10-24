@@ -30,6 +30,7 @@ import {
 import { formatINR } from '../components/ui';
 import { Linking, Platform } from 'react-native';
 import { PaymentSheet } from '../components/PaymentSheet';
+import { paymentReturnUrl } from '../lib/links';
 import { tx } from '../components/primitives';
 
 export function PromoteScreen() {
@@ -178,6 +179,7 @@ export function PromoteScreen() {
       const { paymentId, url } = await createPaymentLink({
         purpose: 'promotion',
         promotionId: promo.id,
+        returnUrl: paymentReturnUrl(),
       });
       setPending({ promotionId: promo.id, paymentId });
       if (Platform.OS === 'web') await Linking.openURL(url);

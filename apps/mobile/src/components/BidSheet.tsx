@@ -110,6 +110,8 @@ export function BidSheet({
   const priceError = price.trim() && (!Number.isFinite(asked) || asked < 10) ? 'Enter at least ₹10' : null;
   const ready = !blocked && pitch.trim().length >= 10 && price.trim() !== '' && !priceError;
   const auto = !existing && task.assignment_mode === 'auto' && asked > 0 && asked <= budget;
+  // A price other than the customer's budget is a counteroffer, and says so.
+  const countering = !existing && price.trim() !== '' && asked > 0 && asked !== budget;
 
   const onPitch = (v: string) => {
     const out = maskContacts(v);
@@ -140,7 +142,11 @@ export function BidSheet({
       } else {
         await placeBid({ taskId: task.id, workerId: userId, ...fields });
         onClose();
-        celebrate(auto ? 'You’re hired! The customer pays next' : `Offer sent · ${rupees(asked)}`);
+        celebrate(
+          auto
+            ? 'You’re hired! The customer pays next'
+            : `${countering ? 'Counteroffer' : 'Offer'} sent · ${rupees(asked)}`,
+        );
       }
       onPlaced?.();
     } catch (e) {
@@ -157,11 +163,11 @@ export function BidSheet({
       <BottomSheet
         visible={visible && !showDate}
         onClose={onClose}
-        title={existing ? 'Edit your offer' : 'Send an offer'}
+        title={existing ? 'Edit your offer' : countering ? 'Send a counteroffer' : 'Send an offer'}
         subtitle={task.title}
         footer={
           <PrimaryButton
-            label={existing ? 'Save changes' : auto ? 'Take this job' : 'Send offer'}
+            label={existing ? 'Save changes' : auto ? 'Take this job' : countering ? 'Send a counteroffer' : 'Send offer'}
             onPress={() => void submit()}
             busy={busy}
             disabled={!ready}
@@ -198,7 +204,7 @@ export function BidSheet({
               placeholder={`E.g. ${budget}`}
               left={<RNText style={tx('700', 15, t.colors.muted)}>₹</RNText>}
               error={priceError}
-              hint="Offer what the job is worth to you — above or below the budget."
+              hint="Offer what the job is worth to you. A price different from the budget is sent as a counteroffer."
               editable={!blocked}
             />
 
@@ -271,7 +277,7 @@ export function BidSheet({
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 14, backgroundColor: t.colors.accentSoft, borderRadius: 10, padding: 12 }}>
                 <Icon name="bolt" size={16} color={t.colors.accentDeep} />
                 <RNText style={tx('500', 12, t.colors.accentDeep, { flex: 1, lineHeight: 17 })}>
-                  This customer hires instantly: a price at or under {rupees(budget)} gets you the job straight away.
+                  This task is auto-hire: a price at or under {rupees(budget)} gets you the job straight away.
                 </RNText>
               </View>
             ) : null}

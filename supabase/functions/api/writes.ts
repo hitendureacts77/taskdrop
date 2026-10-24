@@ -3,6 +3,7 @@ import {
   rows, rpcOp, str, strOrNull, strings, take, toOpError, uuid, uuidOrNull, uuids,
 } from "./core.ts";
 import { assertOwnImage, isMediaRef } from "./media.ts";
+import { readFees } from "./reads.ts";
 import { contactIssueMessage, findContactIssue, maskContacts, nameCarriesContact, profileIssueMessage } from "../_shared/contacts.ts";
 
 /**
@@ -216,6 +217,18 @@ export const WRITE_OPS: Record<string, Op> = {
       milestones,
       kind: oneOf(a, "kind", ["request", "service"], "request"),
     };
+    // Auto-hire accepts an offer the moment it arrives and pays for it from the
+    // poster's wallet, so a poster who cannot cover it cannot post one. Said in
+    // the same words lockBid uses, so the app offers the same "add money" step.
+    if (row.assignment_mode === "auto") {
+      const { posterFee } = await readFees(ctx);
+      const need = Math.round(row.benchmark_minor * (1 + posterFee));
+      const wallet = take<{ balance_minor?: number } | null>(
+        await db.from("wallets").select("balance_minor").eq("user_id", userId).maybeSingle(),
+      );
+      const short = need - Number(wallet?.balance_minor ?? 0);
+      if (short > 0) throw new OpError("Not enough money in your wallet", "WALLET_SHORT", String(short));
+    }
     return rows(await db.from("tasks").insert(row).select())[0] ?? null;
   },
 

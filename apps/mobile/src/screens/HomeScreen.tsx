@@ -340,7 +340,7 @@ const FeedCard = memo(function FeedCard({
               paddingHorizontal: 15,
             }}
           >
-            <RNText style={tx('600', 13, t.colors.muted)}>Suggest price</RNText>
+            <RNText style={tx('600', 13, t.colors.muted)}>Counteroffer</RNText>
           </Pressy>
           <Pressy
             onPress={onAccept}

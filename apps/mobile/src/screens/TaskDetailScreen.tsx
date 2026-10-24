@@ -288,7 +288,10 @@ export function TaskDetailScreen() {
     { label: 'Distance', value: distanceValue },
   ];
 
-  const cta = worker ? 'Send an offer' : 'Send my offer';
+  // Asking for the posted price is an offer; asking for a different one is a
+  // counteroffer, and the button says which, so nobody wonders what it sends.
+  const countering = quote !== detail.amountMinor;
+  const cta = countering ? 'Send a counteroffer' : worker ? 'Send an offer' : 'Send my offer';
 
   // The detailed bid: a proposal, hours and a delivery date on top of the
   // price. Same placeBid underneath, so the same checks apply.
@@ -314,7 +317,7 @@ export function TaskDetailScreen() {
           priceMinor: quote,
           timeLimitMinutes: 240,
         });
-        celebrate('Offer sent · ' + formatINR(quote));
+        celebrate((countering ? 'Counteroffer sent · ' : 'Offer sent · ') + formatINR(quote));
         go('orders');
       } catch (e) {
         // placeBid already turns a policy refusal into a sentence. Whatever it
@@ -485,7 +488,7 @@ export function TaskDetailScreen() {
         ) : (
         <Card style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
           <RNText style={tx('700', 11, t.colors.muted, { marginBottom: 10, letterSpacing: 1.2 })}>
-            {worker ? 'YOUR OFFER' : 'YOUR OFFER'}
+            {countering ? 'YOUR COUNTEROFFER' : 'YOUR OFFER'}
           </RNText>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Pressable
@@ -545,12 +548,16 @@ export function TaskDetailScreen() {
           />
           <RNText style={tx('500', 12, t.colors.muted, { marginTop: 10, textAlign: 'center' })}>
             {worker
-              ? 'One offer per task. Phone numbers stay hidden until the work starts.'
+              ? countering
+                ? 'Not happy with the price? Name your own. The customer can accept it or pass. One per task.'
+                : 'One offer per task. Phone numbers stay hidden until the work starts.'
               : 'Your offer goes to this worker. They can accept it and start.'}
           </RNText>
           {worker && realId ? (
-            <Pressable onPress={() => void openBid()} style={{ alignSelf: 'center', marginTop: 12 }} accessibilityRole="button" accessibilityLabel="Send a detailed offer with a proposal">
-              <RNText style={tx('700', 13, t.colors.accentDeep)}>Or send a detailed offer with a proposal ›</RNText>
+            <Pressable onPress={() => void openBid()} style={{ alignSelf: 'center', marginTop: 12 }} accessibilityRole="button" accessibilityLabel={countering ? 'Send a detailed counteroffer with a proposal' : 'Send a detailed offer with a proposal'}>
+              <RNText style={tx('700', 13, t.colors.accentDeep)}>
+                {countering ? 'Or send a detailed counteroffer with a proposal ›' : 'Or send a detailed offer with a proposal ›'}
+              </RNText>
             </Pressable>
           ) : null}
         </Card>

@@ -320,7 +320,7 @@ const FILTERS: { key: Filter; label: string; icon?: Parameters<typeof Pill>[0]['
   { key: 'all', label: 'All', icon: 'list' },
   { key: 'local', label: 'Nearby', icon: 'pin' },
   { key: 'remote', label: 'Remote', icon: 'compass' },
-  { key: 'quick_accept', label: 'Instant hire', icon: 'bolt' },
+  { key: 'quick_accept', label: 'Auto-hire', icon: 'bolt' },
   { key: 'live', label: 'Due soon', icon: 'clock' },
   { key: 'quick_earn', label: 'Under ₹300', icon: 'wallet' },
   { key: 'bid', label: 'Open to offers', icon: 'gavel' },
