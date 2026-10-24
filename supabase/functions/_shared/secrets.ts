@@ -12,37 +12,15 @@ import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2.1
  *      is reachable from SQL, which means the project can be configured
  *      without a CLI login — useful when whoever is setting it up has database
  *      access but not a Supabase personal access token.
- *   3. COMPILED_IN below — test keys checked into this file, so a fresh
- *      checkout can take a payment without any setup. Never live keys.
+ *
+ * Nothing is compiled into the code any more (removed 2026-10-24, Phase 3,
+ * "Keys, secrets and tokens"): a key checked into a file stays readable in git
+ * history after the file is edited, so a missing secret now returns "" and the
+ * caller says so. Never add a value here, test key or not.
  *
  * Values are cached for the life of the isolate: these change about once a
  * year, and a Vault round trip on every webhook would be silly.
  */
-
-/**
- * Keys compiled into the function.
- *
- * Third and last in the order below, so an Edge Function secret or a Vault
- * entry still wins and these are only reached when neither is set. That
- * matters: rotating a key should not need a code change.
- *
- * These are RAZORPAY **TEST** keys, and they live in *server* code. Supabase
- * Edge Functions run on Supabase, not on anyone's phone, so nothing here ships
- * in the app bundle and no user can read it out of an APK.
- *
- * Two rules for whoever comes next:
- *
- *   1. A LIVE key secret must never be added here. It authorises refunds and
- *      reads every payment on the account, and a checked-in secret lives in
- *      git history forever, long after the file is edited. Live keys go in
- *      Vault or an Edge Function secret — both already take priority.
- *   2. Nothing from this map may be imported by apps/mobile. The bundle is
- *      readable by anyone who downloads the app.
- */
-const COMPILED_IN: Record<string, string> = {
-  RAZORPAY_KEY_ID: "rzp_test_TbzhiEFzl8BDjA",
-  RAZORPAY_KEY_SECRET: "3pc7JdRcskNwJ9y3orIhRah3",
-};
 
 const cache = new Map<string, string>();
 let vaultLoaded = false;
@@ -86,6 +64,5 @@ export async function secret(name: string): Promise<string> {
   await loadVault();
   const fromVault = cache.get(name);
   if (fromVault) return fromVault;
-  // Last resort, so a fresh checkout works without any setup at all.
-  return COMPILED_IN[name] ?? "";
+  return "";
 }
