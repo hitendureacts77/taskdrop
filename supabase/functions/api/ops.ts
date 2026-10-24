@@ -28,6 +28,40 @@ export const OPS: Record<string, Op> = { ...READ_OPS, ...WRITE_OPS, ...MEDIA_OPS
 export const RATE_LIMITS = { read: 300, write: 60, upload: 20 } as const;
 export type RateBucket = keyof typeof RATE_LIMITS;
 
+/**
+ * People the limiter refused a moment ago, remembered by this instance.
+ *
+ * A read normally runs while the limiter's own round trip is still out (a
+ * refused read changes nothing and its answer is dropped). Someone who is
+ * already over the limit loses that overlap, so a refused call does no work.
+ */
+export class RecentlyLimited {
+  private until = new Map<string, number>();
+
+  constructor(private windowMs = 60_000, private now: () => number = Date.now) {}
+
+  mark(userId: string): void {
+    if (this.until.size >= 500) this.prune();
+    this.until.set(userId, this.now() + this.windowMs);
+  }
+
+  has(userId: string): boolean {
+    const t = this.until.get(userId);
+    if (t === undefined) return false;
+    if (t <= this.now()) {
+      this.until.delete(userId);
+      return false;
+    }
+    return true;
+  }
+
+  private prune(): void {
+    for (const [id, t] of this.until) if (t <= this.now()) this.until.delete(id);
+    // Still full of live entries: forget them rather than grow without bound.
+    if (this.until.size >= 500) this.until.clear();
+  }
+}
+
 /** Which limit an operation counts against. Unknown names count as reads (they are refused anyway). */
 export function rateBucket(name: unknown): RateBucket {
   if (name === "createUpload" || name === "attachMedia") return "upload";

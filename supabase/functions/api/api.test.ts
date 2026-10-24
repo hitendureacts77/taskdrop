@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { OPS, RATE_LIMITS, rateBucket, runOp } from "./ops.ts";
+import { OPS, RATE_LIMITS, RecentlyLimited, rateBucket, runOp } from "./ops.ts";
 import {
   ControlsCache, featureOffMessage, OPEN_CONFIG, parseControls, publicConfig, readClient, refusalFor, type Controls,
 } from "../_shared/controls.ts";
@@ -624,6 +624,31 @@ await t("money and other writes get the tight rate limit, uploads the tightest",
   for (const op of ["listOpenTasks", "getWallet", "signMedia", "nope", undefined]) assert.equal(rateBucket(op), "read", String(op));
   assert.equal(rateBucket("createUpload"), "upload");
   assert.ok(RATE_LIMITS.upload < RATE_LIMITS.write && RATE_LIMITS.write < RATE_LIMITS.read);
+});
+
+await t("a person the limiter refused is remembered for a minute, then forgotten", () => {
+  let clock = 1_000;
+  const seen = new RecentlyLimited(60_000, () => clock);
+  assert.equal(seen.has(UID), false);
+  seen.mark(UID);
+  assert.equal(seen.has(UID), true);
+  assert.equal(seen.has(OTHER), false, "only that person");
+  clock += 59_999;
+  assert.equal(seen.has(UID), true);
+  clock += 1;
+  assert.equal(seen.has(UID), false, "expired");
+});
+
+await t("the refused-people list cannot grow without bound", () => {
+  let clock = 0;
+  const seen = new RecentlyLimited(60_000, () => clock);
+  for (let i = 0; i < 499; i++) seen.mark(`u${i}`);
+  clock += 60_000;
+  seen.mark("fresh");
+  assert.equal(seen.has("u0"), false, "stale entries are dropped first");
+  assert.equal(seen.has("fresh"), true);
+  for (let i = 0; i < 600; i++) seen.mark(`v${i}`);
+  assert.equal(seen.has("v599"), true, "the newest is kept");
 });
 
 // ------------------------------------------------------- app controls --
