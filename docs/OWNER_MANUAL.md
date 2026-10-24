@@ -307,14 +307,9 @@ Claude switched Android maintenance on for the test project, reopened TaskDrop o
 
 You asked Claude to complete Phases 4 and 5, so Claude took the simplest choice: **keep `phone-auth`** (it works and has every protection: throttles, birth date first, admin numbers refused, test numbers). The Supabase phone-auth boxes in the plan are marked dropped. To switch later, type "Start phone auth." (it needs MSG91 SMS and real SMS).
 
-### ☐ 4.2 Turn on account linking in Supabase (2 minutes) — yours
+### ☑ 4.2 Turn on account linking in Supabase — done 2026-10-24 (you switched it on; Claude rechecked)
 
-Claude checked on 2026-10-24: Supabase answers `manual_linking_disabled`, so it is **off**. This is a security setting, so Claude left it for you.
-
-1. Click: open https://supabase.com/dashboard/project/wjxvingpfbfvkfqhrguj → **Authentication** → **Sign In / Providers**.
-2. Click: turn on **Allow manual linking**.
-3. Click: **Save**.
-4. Type to Claude: "Manual linking is on." Claude reruns the check (`e2e/accounts.spec.ts`, the "manual linking" test) and tells you if it passes.
+Claude's check on 2026-10-24: after the first try did not save, Supabase now answers the app's "Link Google" request with Google's sign-in address (`e2e/accounts.spec.ts`, the "manual linking" test, passes). Nothing more to do here.
 
 ### ☐ 4.3 Test linking (built: **Account → Sign-in methods → Link Google**; needs task 4.2 first; 5 minutes) — yours (needs a real Google login)
 
