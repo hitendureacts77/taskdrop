@@ -1,7 +1,7 @@
-import { Linking, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Sentry from '@sentry/react-native';
-import { apiFailureKind, reportError, setErrorReporter, type RawError } from './errors';
+import { apiFailureKind, setErrorReporter, type RawError } from './errors';
 
 /**
  * Crash reporting to Sentry, switched on by EXPO_PUBLIC_SENTRY_DSN.
@@ -99,25 +99,6 @@ export function installMonitoring(): void {
       /* reporting must never become the crash */
     }
   });
-
-  verifyTrigger();
-}
-
-// TEMP (Phase 1 verify, remove after the check): opening the app through a link that
-// carries ?sentry-test=<token> reports one test error, to prove it reaches Sentry
-// with a readable stack. Web: add the query to the address. Android: taskdrop://?sentry-test=<token>.
-function sendVerifyError(url: string | null): void {
-  if (!url || !url.includes('sentry-test=24f566ba1ac46b67')) return;
-  reportError(new Error(`Sentry verify: test error from the ${Platform.OS} app`), 'fatal');
-}
-
-function verifyTrigger(): void {
-  try {
-    void Linking.getInitialURL().then(sendVerifyError);
-    Linking.addEventListener('url', (e) => sendVerifyError(e.url));
-  } catch {
-    /* best effort */
-  }
 }
 
 /**
