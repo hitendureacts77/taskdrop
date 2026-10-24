@@ -10,7 +10,8 @@ import {
   type TextStyle,
 } from 'react-native';
 import { Screen } from '../components/ui';
-import { BackButton, systemHeader } from '../components/kit';
+import { BackButton, LoadFailed, systemHeader } from '../components/kit';
+import { reportError } from '../lib/errors';
 import { Icon } from '../components/Icon';
 import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -52,8 +53,14 @@ export function PromoteScreen() {
     typeof params.taskId === 'string' ? params.taskId : null,
   );
 
+  // A list that failed to load is not an empty list: "Nothing open to promote" would tell
+  // someone with open posts that they have none.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let alive = true;
+    setLoadingMine(true);
+    setLoadFailed(false);
     void promotableTasks()
       .then((rows) => {
         if (!alive) return;
@@ -62,12 +69,15 @@ export function PromoteScreen() {
         // is obvious rather than presumptuous.
         setPickedId((cur) => cur ?? (rows.length === 1 ? rows[0]!.id : null));
       })
-      .catch(() => {})
+      .catch((e) => {
+        reportError(e, 'promote');
+        if (alive) setLoadFailed(true);
+      })
       .finally(() => alive && setLoadingMine(false));
     return () => {
       alive = false;
     };
-  }, []);
+  }, [attempt]);
 
   const taskId = pickedId;
   const picked = mine.find((m) => m.id === pickedId) ?? null;
@@ -329,6 +339,8 @@ export function PromoteScreen() {
               <ActivityIndicator size="small" color={t.colors.muted} />
               <RNText style={tx('400', 13, t.colors.muted)}>Finding your posts…</RNText>
             </View>
+          ) : loadFailed && !picked ? (
+            <LoadFailed title="Couldn’t load your posts" onRetry={() => setAttempt((n) => n + 1)} />
           ) : mine.length === 0 ? (
             <View
               style={{

@@ -1,6 +1,8 @@
 import { AppState } from 'react-native';
 import { appPlatform, appVersion } from './appInfo';
 import { reportError } from './errors';
+import { log } from './monitoring';
+import { isTransient, retryWhile } from './retry';
 
 /**
  * What the admin panel has switched for this app: maintenance, a newer
@@ -102,6 +104,13 @@ const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringif
 
 let inflight: Promise<void> | null = null;
 
+/** A fetch that never got an answer: no network, our own 8-second timeout, or the page being left. */
+function isReachFailure(e: unknown): boolean {
+  const name = e instanceof Error ? e.name : '';
+  const msg = e instanceof Error ? e.message : '';
+  return name === 'AbortError' || /network request failed|failed to fetch|fetch failed|load failed|networkerror|aborted/i.test(msg);
+}
+
 /** Ask again. `fresh` skips the browser's one-minute cache (used after a server refusal). */
 export function refreshAppConfig(fresh = false): Promise<void> {
   if (inflight) return inflight;
@@ -112,25 +121,40 @@ export function refreshAppConfig(fresh = false): Promise<void> {
       const q = new URLSearchParams({ forceFunctionRegion: 'ap-south-1' });
       if (appPlatform) q.set('platform', appPlatform);
       if (appVersion) q.set('version', appVersion);
-      const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), 8000);
-      try {
-        const res = await fetch(`${base}/functions/v1/app-config?${q}`, {
-          headers: { apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '' },
-          cache: fresh ? 'no-store' : 'default',
-          signal: ctl.signal,
-        });
-        if (!res.ok) return;
-        const next = normaliseConfig(await res.json());
-        if (!sameJson(next, current)) {
-          current = next;
-          for (const fn of [...listeners]) fn();
-        }
-      } finally {
-        clearTimeout(timer);
+      // One try, with the blip rule from retry.ts: a deploy or a dropped connection is asked again.
+      type Try = { res: Response } | { err: unknown };
+      const out = await retryWhile<Try>(
+        async () => {
+          const ctl = new AbortController();
+          const timer = setTimeout(() => ctl.abort(), 8000);
+          try {
+            return {
+              res: await fetch(`${base}/functions/v1/app-config?${q}`, {
+                headers: { apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '' },
+                cache: fresh ? 'no-store' : 'default',
+                signal: ctl.signal,
+              }),
+            };
+          } catch (err) {
+            return { err };
+          } finally {
+            clearTimeout(timer);
+          }
+        },
+        (r) => ('err' in r ? true : isTransient({ status: r.res.status })),
+      );
+      if ('err' in out) throw out.err;
+      if (!out.res.ok) return;
+      const next = normaliseConfig(await out.res.json());
+      if (!sameJson(next, current)) {
+        current = next;
+        for (const fn of [...listeners]) fn();
       }
     } catch (e) {
-      reportError(e, 'app-config');
+      // Not reaching the server (offline, a deploy, a page being left) is not an app bug: a log line, not an issue.
+      // Anything else (an unreadable answer) is.
+      if (isReachFailure(e)) log.warn('app config not reachable');
+      else reportError(e, 'app-config');
     } finally {
       inflight = null;
     }

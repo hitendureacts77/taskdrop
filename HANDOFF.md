@@ -12,9 +12,9 @@ Branch `redesigned-2.0`, both repos: app `C:\complete taskdrop\taskdrop-redesign
 - **Nothing is committed** in the app repo, and most of the admin repo (only commit `b671f46`). The user was asked whether to commit both on `redesigned-2.0` (no push); no answer yet.
 
 ## Owner steps still open
-1. **Authenticator:** admin panel -> Admin & configuration -> My security -> Set up authenticator app; scan the QR with Google/Microsoft Authenticator or 1Password; enter the 6-digit code. After that, the top-bar "Unlock money actions" chip takes a code per session (needed for money actions and adding staff).
+1. **Authenticator: DEFERRED (owner, 2026-10-24: "no need now"; future scope, see `docs/UPGRADE_PLAN.md` Part B, section 13). Skip this step.** Old instructions: admin panel -> Admin & configuration -> My security -> Set up authenticator app; scan the QR with Google/Microsoft Authenticator or 1Password; enter the 6-digit code. After that, the top-bar "Unlock money actions" chip takes a code per session (needed for money actions and adding staff).
 2. **Inngest keys** (`docs/INNGEST.md`): create an Inngest Cloud account and app `taskdrop`; copy the Signing Key and Event Key; run `supabase secrets set INNGEST_SIGNING_KEY=... INNGEST_EVENT_KEY=...`; sync the app at `https://wjxvingpfbfvkfqhrguj.supabase.co/functions/v1/inngest`; optionally `select vault.create_secret('https://inn.gs/e/<EVENT_KEY>','inngest_event_url');`. Until then `crm-rules` and `nightly-reconcile` don't run.
-3. **Second staff account (Sales tester):** add it to `ADMIN_EMAIL` as a comma-separated list (Vercel and local; agents must not read or edit `.env`). They sign in once with Google. Then, with your authenticator set up, add them under Team & access -> "+ Add admin" and pick Support/Finance/Sales/Viewer. Then check each role's screens.
+3. **Second staff account (Sales tester):** add it to `ADMIN_EMAIL` as a comma-separated list (Vercel and local; agents must not read or edit `.env`). They sign in once with Google. Then add them under Team & access -> "+ Add admin" and pick Support/Finance/Sales/Viewer. Then check each role's screens.
 4. Sentry card needs `SENTRY_PROJECT_URL`.
 
 ## Update 2026-10-18 (later)
