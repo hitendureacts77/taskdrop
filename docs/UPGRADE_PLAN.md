@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.40, 2026-10-24 (scope note 2026-10-20: iOS deferred). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.44, 2026-10-24 (scope note 2026-10-20: iOS deferred; 2026-10-24: Safari testing deferred too). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -13,7 +13,7 @@ Version 4.40, 2026-10-24 (scope note 2026-10-20: iOS deferred). The single sourc
 | **Backend** | Supabase: database, SQL, edge functions, Inngest functions |
 | **Web** | The user app in a browser (`taskdrop.in`) |
 | **Android** | The user app on Android phones |
-| **iOS** | The user app on iPhones. **Future scope (deferred 2026-10-20)** |
+| **iOS** | The user app on iPhones, and testing the web app in Safari. **Future scope (iOS deferred 2026-10-20, Safari 2026-10-24)** |
 | **Admin** | The admin web app (`admin.taskdrop.in`) |
 
   A phase is done when every box, including its **Verify** boxes, is ticked or deferred (`[-]`).
@@ -35,11 +35,11 @@ Version 4.40, 2026-10-24 (scope note 2026-10-20: iOS deferred). The single sourc
    - old functions the old app calls (`phone-auth`, `password-auth`, `razorpay`, …) keep working
    - anything that can't be made compatible waits for Phase 9: the lockdown, retiring the old phone login, and dropping old code
 5. **The app asks, the server decides.** Money, permissions, limits, prices and switches are always checked on the server.
-6. **Current focus: web, Android and the admin app. iOS is future scope (decided 2026-10-20).** Nothing iOS gets built, enrolled for or tested until you say "start iOS".
+6. **Current focus: web, Android and the admin app. iOS and Safari testing are future scope (iOS decided 2026-10-20, Safari 2026-10-24).** Nothing iOS gets built, enrolled for or tested, and the web app is not tested in Safari, until you say "start iOS". Web is tested in Chrome (desktop and phone size) only.
    - Every iOS section below is marked `[-]` (deferred). The work stays in this plan so nothing is lost.
-   - In any other box that mentions iOS, iPhone, TestFlight or the App Store, read that part as skipped; it doesn't block the phase. The same goes for **Sign in with Apple** and the Apple Developer account ($99/year), which only the iOS work needs; web and Android sign in with Google, phone and username + password for now.
+   - In any other box that mentions iOS, iPhone, Safari, TestFlight or the App Store, read that part as skipped; it doesn't block the phase. The same goes for **Sign in with Apple** and the Apple Developer account ($99/year), which only the iOS work needs; web and Android sign in with Google, phone and username + password for now.
    - Nothing in the code is removed: the app still builds for iOS, and the iOS-only code paths stay.
-   - Full list of what waits: Part B, section 12 "Future scope: iOS".
+   - Full list of what waits: Part B, section 12 "Future scope: iOS and Safari".
 7. **Stage: testing only.** Fake data, you and about 10 testers, no customers. Customer launch (Phase 10) happens only when you decide.
 8. **Supabase: the cloud project is the test environment (decided 2026-10-20).** We test directly on the hosted project `wjxvingpfbfvkfqhrguj`; whatever is in the cloud now is treated as testing. No local Supabase and no Docker on your PC.
    - Fake data only. A destructive step (wipe, reseed, reset) still runs only with your OK, and never on production.
@@ -52,29 +52,29 @@ Version 4.40, 2026-10-24 (scope note 2026-10-20: iOS deferred). The single sourc
 
 ## Progress board
 
-> iOS items in every phase are deferred (`[-]`). A phase is complete when all its backend, web, Android, admin, You and Verify boxes are ticked.
+> iOS items and Safari testing in every phase are deferred (`[-]`). A phase is complete when all its backend, web, Android, admin, You and Verify boxes are ticked.
 
 | Phase | Name | Status |
 |---|---|---|
 | 0 | Foundations | **Done**, 39 of 46 boxes ticked, 7 deferred, 0 open. Done 2026-10-22: the Maps key restriction and the keystore second copy. Deferred 2026-10-22: the 12 testers (future scope; `docs/TESTER_RECRUITMENT.md` is the kit, and Phase 8's closed test waits for them). Dropped or deferred 2026-10-21: `support@` (use `hitendureacts@gmail.com` only) and the lawyer question (future scope). Done: CI and the old-app compatibility checks, CodeRabbit on both repos, the Vercel backend deploy, the seed load, the old-app and old-admin checks, `taskdrop.in` open to visitors |
-| 1 | See problems, ship fast | In progress, 13 of 27 boxes ticked, 5 deferred, 9 open: all the code is written, merged (PR 59) and deployed on 2026-10-21. Done 2026-10-22: the FCM V1 key in Expo Credentials (push tested on your phone with the app closed) and the one new `beta` APK, installed on your phone. Open: the web source-map check (`SENTRY_AUTH_TOKEN` is set in Vercel; the next web build shows whether the upload worked), source maps from EAS, the Uptime Robot account and monitors, two more Sentry alerts (fatal, error spike), and the 4 Verify boxes |
-| 2 | Make it work (stabilize) | In progress, 6 of 22 boxes ticked, 4 deferred, 12 open. The four known backend bugs, the money-screen errors and the Playwright suite are done, merged and deployed (Playwright 20 of 20 on 2026-10-21). Left, all needing you or a device: your list of problems, the per-operation speed half (needs real traffic in Sentry), the admin page check, the Android/web checklists in Safari and on a phone, and the Verify boxes |
-| 3 | Server decides everything | In progress, 31 of 47 boxes ticked, 2 deferred, 14 open. All the original code is done, merged (PR 59) and deployed; migration 114 is applied. Done 2026-10-24, not yet deployed: the compiled-in Razorpay test keys are gone from the functions, and the admin signs its session with `ADMIN_SESSION_SECRET` only (admin commit 2e2eca9). Open: the Phase 9 lockdown; App Check (monitor mode in `api`, and the token from the app); yours: rotate the Razorpay test keys, decide on private repos, record the Supabase token settings; the checks that need an APK or a deployed build (Android map key, control screens, Android-only maintenance, "Update the app", old app and old admin, `docs/testing_checks.md` T2 and T11); and two parent boxes ("Keys, secrets and tokens", and the admin's "Prepare for the lockdown", whose three steps are all ticked) |
+| 1 | See problems, ship fast | In progress, 17 of 28 boxes ticked, 6 deferred, 5 open: all the code is written, merged (PR 59) and deployed on 2026-10-21. Done 2026-10-22: the FCM V1 key in Expo Credentials (push tested on your phone with the app closed) and the one new `beta` APK, installed on your phone. Done 2026-10-24: source maps from EAS (the `beta` APK build uploaded them; the update published that day too). Open: the web source-map box (**checked 2026-10-24: the last web build did NOT upload them**, because the Vercel variable is named `SENTRY_AUTH_TOKEN_TASKDROP_USERAPP`; the one-line script fix is committed on the local branch `fix/web-sourcemap-token`, not pushed) and the 4 Verify boxes. Done 2026-10-24: the Uptime Robot account and its web and admin monitors, and the two Sentry alerts (`Money fatal`, `Error spike`); the `api` health monitor is deferred (paid plan only) |
+| 2 | Make it work (stabilize) | In progress, 6 of 23 boxes ticked, 5 deferred, 12 open. The four known backend bugs, the money-screen errors and the Playwright suite are done, merged and deployed (Playwright 20 of 20 on 2026-10-21). Left, all needing you or a device: your list of problems, the per-operation speed half (needs real traffic in Sentry), the admin page check, the Android/web checklists in Chrome and on a phone (Safari is deferred to future scope, 2026-10-24), and the Verify boxes |
+| 3 | Server decides everything | In progress, 32 of 47 boxes ticked, 2 deferred, 13 open. All the original code is done, merged (PR 59) and deployed; migration 114 is applied. Done 2026-10-24, not yet deployed: the compiled-in Razorpay test keys are gone from the functions, and the admin signs its session with `ADMIN_SESSION_SECRET` only (admin commit 2e2eca9). Open: the Phase 9 lockdown; App Check (monitor mode in `api`, and the token from the app); yours: rotate the Razorpay test keys, decide on private repos, record the Supabase token settings; the checks that need an APK or a deployed build (Android map key, control screens, Android-only maintenance, "Update the app", old app and old admin, `docs/testing_checks.md` T2 and T11); and the "Keys, secrets and tokens" parent box |
 | 4 | Accounts and sign-in | In progress, 9 of 27 boxes ticked, 6 deferred, 12 open. Merged on 2026-10-21 (app PR 59, admin PR 20; migrations 115 and 116 applied): server-side names for new accounts, S256 sign-in codes on phones, the onboarding fix, and the admin's sign-in card and "Sign out everywhere". **Not started on purpose:** Supabase's built-in phone auth with an SMS hook (replaces the working `phone-auth`; your call, see the box), the test-user phone migration that depends on it, and account linking. Left: "Allow manual linking" in Supabase (yours) and every Verify box (they need an APK and a sign-up on each platform) |
 | 5 | Background jobs (Inngest) | In progress, 15 of 45 boxes ticked, 3 deferred, 27 open. The Inngest Cloud account exists and both keys are now Edge Function secrets (2026-10-21); the code is merged and deployed, and the function registers with Inngest Cloud. **The keys alone do not switch any job over:** the push, overdue, prune, account-file and money-sweep jobs stay off until the cutover SQL in `supabase/cutover/` is deliberately applied, and the money sweeps also need `INNGEST_MONEY_JOBS=on`. Still open, and why: the cutover and its verification (a deliberate step with you, one job at a time, nothing run yet), and the lawyer's answer on the money flow, which the plan and AGENTS.md say must come before the payout, refund-retry and webhook items are built. The admin Alerts page is built (admin repo) |
 | 6 | Speed and media (ImageKit) | In progress, 15 of 26 boxes ticked, 2 deferred, 9 open (merged; migration 109 applied 2026-10-19; the ImageKit keys are now Edge Function secrets on the test project (2026-10-21), so uploads can go to ImageKit; not yet tried end to end). Open: uploads from a browser and a phone, admin image views (new feature, needs the private key as a server secret in the admin project), the speed targets, Verify; and rotate the private key that was pasted into chat (yours) |
-| 7 | Moderation and admin tools | In progress, 14 of 25 boxes ticked, 2 deferred, 9 open. Merged on 2026-10-21 (app PR 59, admin PR 20; migrations 117 and 118 applied): blocks now stop contact, hide message / photo / category functions, report-a-message in chat, reported messages shown and hideable in the admin, the runbook. Built 2026-10-22 to 2026-10-24: report a review, the change-category card, promotion tiers read from the server and editable in the admin, broadcasts by platform and app version (migration 119, applied), the Devices and tools dashboard card, a "warn" action (migration 120, applied; admin branch `upgrade/phase-7-admin-tools` not pushed) and remove a review (migration 121). Open: cancel a promotion with a full refund (a money policy choice; Stop already refunds the unused budget), the reports-queue box (warn covers reports about a person only), report and block in a browser and on the APK, the 3 Verify boxes, and two admin-function boxes (their parent, and the hide-message / remove-review box, which reads as built but is not ticked) |
+| 7 | Moderation and admin tools | In progress, 15 of 25 boxes ticked, 2 deferred, 8 open. Merged on 2026-10-21 (app PR 59, admin PR 20; migrations 117 and 118 applied): blocks now stop contact, hide message / photo / category functions, report-a-message in chat, reported messages shown and hideable in the admin, the runbook. Built 2026-10-22 to 2026-10-24: report a review, the change-category card, promotion tiers read from the server and editable in the admin, broadcasts by platform and app version (migration 119, applied), the Devices and tools dashboard card, a "warn" action (migration 120, applied; admin branch `upgrade/phase-7-admin-tools` not pushed) and remove a review (migration 121). Open: cancel a promotion with a full refund (a money policy choice; Stop already refunds the unused budget), the reports-queue box (warn covers reports about a person only), report and block in a browser and on the APK, the 3 Verify boxes, and the "Admin SQL functions" parent box (it waits on cancel with refund) |
 | 8 | Store readiness | Not started, 0 of 18 boxes ticked, 9 deferred (iOS), 9 open (reviewed 2026-10-21: every box is yours, needs a store account, a closed-test group or a device; the one code-side question, map tiles, is noted in its box). The closed test waits for the 12 testers, deferred in Phase 0 |
 | 9 | Switch-over to the upgraded app | Not started, 0 of 28 boxes ticked, 1 deferred (iOS), 27 open. **Deliberately not touched by the autonomous run (2026-10-21):** it needs your approval, it retires the old app and old admin, and the lockdown and clean-up migrations cannot be undone while testers are on the old app |
 | 10 | Customer launch (later, when you decide) | Not started, 0 of 29 boxes ticked, 1 deferred (iOS), 28 open. Not touched: ground rule 7 says it happens only when you decide |
 
 ## Coverage: what each phase changes
 
-| Phase | Backend | Web | Android | iOS (future scope) | Admin |
+| Phase | Backend | Web | Android | iOS and Safari (future scope) | Admin |
 |---|---|---|---|---|---|
 | 0 | Compatibility rules, CI, auto-deploy, seed | `taskdrop.in` on the upgrade | Beta build profile | Apple Developer enrollment | `admin.taskdrop.in`, CI |
 | 1 | Sentry in functions, health check | Sentry | Sentry, OTA updates, push fix | First TestFlight build, push | Sentry |
-| 2 | Bug fixes, slow queries | E2E tests, fixes | Fixes | iOS fixes | Every page checked |
+| 2 | Bug fixes, slow queries | E2E tests, fixes | Fixes | iOS fixes; web in Safari | Every page checked |
 | 3 | Server rules, app controls, key clean-up, App Check (monitor) | No key in bundle, security headers, App Check token | Control screens, App Check token | Control screens | App controls page, gateway header, own session key |
 | 4 | Phone auth, Apple, linking | Google/Apple browser sign-in | Google/Apple/phone | Native Apple sign-in | Sign-in methods, devices |
 | 5 | Inngest, outbox, webhooks | In-app notifications | Push via Inngest | Push via Inngest | Queued payouts, alerts |
@@ -194,12 +194,12 @@ Version 4.40, 2026-10-24 (scope note 2026-10-20: iOS deferred). The single sourc
 - [x] `expo-updates` with a runtime-version policy (R1: EAS Update, not EAS Hosting). `expo-updates ~57.0.26` added; `app.json` has `runtimeVersion: {policy: "appVersion"}` and the update URL for project `08aa002b-…`; the `beta` build profile already uses channel `beta`. Takes effect in the next native build (the box under Android)
 
 **Web**
-- [ ] Sentry captures web errors, with readable stacks (source maps uploaded on deploy). Built 2026-10-21 (the token is now set, so what remains is checking one build's upload): the web export now makes source maps (`--source-maps`), and `scripts/upload-web-sourcemaps.mjs` (run by `scripts/vercel-build.mjs`) uploads them to Sentry and then deletes every `.map` so none is public. It needs **(You)** `SENTRY_AUTH_TOKEN` as a secret in the Vercel project `taskdrop` (the same token EAS has). Without it the build still passes with a warning and web stacks stay minified. Web errors already reach Sentry (TASKDROP-2) **2026-10-21:** you report `SENTRY_AUTH_TOKEN` is now set in Vercel; the next web build shows whether the upload worked.
+- [ ] Sentry captures web errors, with readable stacks (source maps uploaded on deploy). Built 2026-10-21 (the token is now set, so what remains is checking one build's upload): the web export now makes source maps (`--source-maps`), and `scripts/upload-web-sourcemaps.mjs` (run by `scripts/vercel-build.mjs`) uploads them to Sentry and then deletes every `.map` so none is public. It needs **(You)** the Sentry token as a secret in the Vercel project `taskdrop` (the same token EAS has). **Found 2026-10-24:** the last web build (`d49d681`) printed `SENTRY_AUTH_TOKEN is not set; nothing uploaded`: the variable exists in Vercel (production, preview and development) but is named `SENTRY_AUTH_TOKEN_TASKDROP_USERAPP`. `scripts/upload-web-sourcemaps.mjs` now accepts either name (commit `10f5165` on local branch `fix/web-sourcemap-token`, not pushed); after it is merged the next build should upload, and TASKDROP-6 (`?(index)`) shows what a minified stack looks like today. Without it the build still passes with a warning and web stacks stay minified. Web errors already reach Sentry (TASKDROP-2) **2026-10-21:** you report `SENTRY_AUTH_TOKEN` is now set in Vercel; the next web build shows whether the upload worked.
 
 **Android**
 - [x] **(You)** FCM V1 credentials + `google-services.json` through EAS, which fixes push in builds. **Done and tested 2026-10-22:** push moved to the `Taskdrop` Google Cloud project; the new FCM V1 key is in Expo Credentials (checked: project `project-a19d1da9-6903-4168-905`); on your phone (CPH2585) a test notification arrived with the app closed (Expo answered 200, Android showed it). It first failed because the Firebase key in `google-services.json` is the same key as the Maps key, which was restricted to Maps SDK for Android only (log: `API_KEY_SERVICE_BLOCKED` from Firebase Installations); with your OK I added Firebase Installations API and FCM Registration API to `taskdrop-android-maps` (still limited to `com.taskdrop.app` + SHA-1) and the token registered. Details in `docs/FCM.md`. Older state follows. Code side done 2026-10-21: `app.config.js` reads the file from the EAS file variable `GOOGLE_SERVICES_JSON` and `google-services.json` is git-ignored. Yours: create the Firebase project, upload the FCM V1 service-account key to Expo and add the file variable. Steps in `docs/FCM.md` **State 2026-10-21:** Firebase project `taskdrop7` exists and `GOOGLE_SERVICES_JSON` is an EAS secret file variable in preview and production (checked with `eas env:list`). Not verifiable from here: the FCM V1 key upload in Expo Credentials. The `beta` APK waits for that.
 - [x] One new `beta` APK with all the native changes (Sentry native, `expo-updates`, FCM), installed by testers. **Built 2026-10-22** (EAS build `af47d88d-21fb-4427-a6ce-a299cc073f75`, commit `525ee7c`, https://expo.dev/artifacts/eas/aBiNKC9br8NPJ0JheS7VjXdovDje1ELTMyU4PfM35FI.apk) and installed on the owner's phone, where push works. Testers install it once they are recruited (Phase 0 box)
-- [ ] Source maps uploaded from EAS
+- [x] Source maps uploaded from EAS. **Checked 2026-10-24** in the EAS log of the `beta` APK (build `af47d88d`): the Sentry Gradle step uploaded the maps for release `com.taskdrop.app@1.0.0+1` (`SENTRY_AUTH_TOKEN` is in the EAS `preview` environment). Over-the-air updates are not covered by that step: for the update published the same day (EAS update group `166484f3-937f-41c8-92f7-e6d06df5bb1e`, channel `beta`, runtime 1.0.0, from `d49d681`) Claude exported with `--source-maps` and uploaded them with `sentry-cli sourcemaps upload --debug-id-reference` (bundle debug id `6116d3f4-79c2-4a4a-83d0-cf100541f4e0`), then ran `eas update --skip-bundler`. Each future update needs the same two steps
 
 **iOS**
 - ⏸ **Future scope (deferred 2026-10-20).** iOS waits until Android and the admin are done; the boxes below are marked `[-]` and don't block this phase.
@@ -218,14 +218,15 @@ Version 4.40, 2026-10-24 (scope note 2026-10-20: iOS deferred). The single sourc
 - [x] `@sentry/nextjs` (server actions, route handlers, browser), as its own Sentry project. Already in the admin repo on `redesigned-2.0` (admin PR 15; project `taskdrop-admin`, `src/instrumentation*.ts`, `global-error.tsx`; admin source maps upload with the token on Vercel, checked 2026-10-19)
 
 **Alerts**
-- [ ] **(You)** Create Sentry and Uptime Robot accounts. The Sentry account exists (org `hitendu`, projects `taskdrop` and `taskdrop-admin`); the Uptime Robot account is still to make
-- [ ] Sentry alerts: new issues, money fatals, error spikes. One alert exists (new, escalating and regressed issues, emailed to you). Still to add in Sentry: an alert on `level:fatal` (the two NOT RECORDED cases) and one for an error spike. Not set up from here: Sentry's alert screens need your signed-in session
-- [ ] Uptime Robot: `api` health, `taskdrop.in`, `admin.taskdrop.in`. Waits for the account above and for the `health` op to be deployed. The api monitor is a POST to `https://wjxvingpfbfvkfqhrguj.supabase.co/functions/v1/api` with body `{"op":"health"}` and headers `Authorization: Bearer <anon key>`, `apikey: <anon key>`, `Content-Type: application/json` (POST and custom headers need a paid Uptime Robot plan; the free plan can watch `taskdrop.in` and the admin page only). There is no `admin.taskdrop.in`: use the admin's Vercel address
+- [x] **(You)** Create Sentry and Uptime Robot accounts. The Sentry account exists (org `hitendu`, projects `taskdrop` and `taskdrop-admin`); the Uptime Robot account (free plan) was made by you on 2026-10-24
+- [x] Sentry alerts: new issues, money fatals, error spikes. One alert already existed (new, escalating and regressed issues, emailed to you). **Done 2026-10-24 in your signed-in Chrome:** `Money fatal` (project `taskdrop`: when a new issue is created and the event's level equals fatal, notify you; this covers the two NOT RECORDED cases) and `Error spike` (a Metric monitor on `taskdrop`: Errors dataset, `count()` over 1 hour, High priority above 20, with a connected alert that emails you). Sentry's new layout has no Alerts menu any more: alerts live under **Monitors → Alerts → Create Alert**, and the spike rule is **Monitors → Create Monitor → Metric**
+- [x] Uptime Robot: `taskdrop.in` and the admin. **Done by you on 2026-10-24:** two HTTP(s) monitors on the free plan, `https://taskdrop.in` ("TaskDrop web") and `https://taskdrop-admin.vercel.app` ("TaskDrop admin"), every 5 minutes, emailing you
+- [-] Uptime Robot: the `api` health monitor. **Deferred (owner decision 2026-10-24):** it needs a POST with custom headers, which only a paid Uptime Robot plan allows. Earlier note: Waits for the account above and for the `health` op to be deployed. The api monitor is a POST to `https://wjxvingpfbfvkfqhrguj.supabase.co/functions/v1/api` with body `{"op":"health"}` and headers `Authorization: Bearer <anon key>`, `apikey: <anon key>`, `Content-Type: application/json` (POST and custom headers need a paid Uptime Robot plan; the free plan can watch `taskdrop.in` and the admin page only). There is no `admin.taskdrop.in`: use the admin's Vercel address
 
 **Verify**
-- [ ] A test error from web, Android, iOS, admin and each function appears in Sentry with a readable stack
-- [ ] An update published to channel `beta` appears on an Android phone and an iPhone without reinstalling
-- [ ] A push notification arrives on Android and on iPhone
+- [ ] A test error from web, Android, admin and each function appears in Sentry with a readable stack (iOS part: future scope)
+- [ ] An update published to channel `beta` appears on an Android phone without reinstalling (iPhone part: future scope)
+- [ ] A push notification arrives on Android (iPhone part: future scope)
 - [ ] The uptime monitors are green
 
 ---
@@ -255,7 +256,8 @@ Version 4.40, 2026-10-24 (scope note 2026-10-20: iOS deferred). The single sourc
   - the wallet-funded money path: post → bid → lock → fund → start → proof → done → confirm → review → withdraw request
   - cancel with a fine
   - dispute
-- [ ] The core-flow checklist (Part B, 5.2) passes in Chrome and Safari, on desktop and phone sizes. Chromium at desktop and phone size is covered by the Playwright suite (sign-in, home, wallet, explore, legal pages, the money paths); Safari and a person looking at the screens are not
+- [ ] The core-flow checklist (Part B, 5.2) passes in Chrome, on desktop and phone sizes. Chromium at desktop and phone size is covered by the Playwright suite (sign-in, home, wallet, explore, legal pages, the money paths); a person looking at the screens is not
+- [-] The same checklist passes in Safari (needs an iPhone or a Mac). **Future scope (deferred 2026-10-24)**, with iOS
 
 **Android**
 - [ ] The core-flow checklist passes on the `beta` APK; failures are fixed
@@ -272,9 +274,9 @@ Version 4.40, 2026-10-24 (scope note 2026-10-20: iOS deferred). The single sourc
 - [ ] Failures are fixed
 
 **Verify**
-- [ ] The checklist passes on web, Android, iOS and admin
+- [ ] The checklist passes on web (Chrome), Android and admin (iOS and Safari: future scope)
 - [ ] Your list is fixed or scheduled
-- [ ] Playwright is green in CI. Green locally 20 of 20 on 2026-10-21 after the deploy (it was 18 of 20 before: `e2e/rules.spec.ts` and the `health` check were the proof the Phase 1 and 3 code was not deployed). The two repository variables are set; the run in GitHub Actions (`e2e.yml`) still has to be started by hand
+- [ ] Playwright is green in CI. Green locally 20 of 20 on 2026-10-21 after the deploy (it was 18 of 20 before: `e2e/rules.spec.ts` and the `health` check were the proof the Phase 1 and 3 code was not deployed). The two repository variables are set. **2026-10-24:** green locally again, 20 of 20, against the deployed test project (`d49d681`). The run in GitHub Actions (`e2e.yml`) cannot be started yet: GitHub offers **Run workflow** only for workflow files on the default branch, and `main` has no `e2e.yml` (`gh workflow run` answers 404). It becomes possible when `redesigned-2.0` is promoted to `main`; the box stays open until it has run once in CI
 - [ ] The top slow queries are fixed
 
 ---
@@ -338,7 +340,7 @@ Version 4.40, 2026-10-24 (scope note 2026-10-20: iOS deferred). The single sourc
 
 **Admin**
 - [x] New **App controls** page: every switch per platform, minimum versions, maintenance, banner. Already in the admin repo on `redesigned-2.0` (Settings, App controls: `settings/controls`, `ControlsView`, `controls-actions.ts`)
-- [ ] Prepare for the lockdown (harmless before it runs):
+- [x] Prepare for the lockdown (harmless before it runs):
   - [x] **(You)** Set `API_GATEWAY_SECRET` in the upgraded admin's env (Vercel project `taskdrop-admin`; the value is the one in the Supabase secret of the same name, created by migration 083). Done by you on 2026-10-21 (I did not read or enter it)
   - [x] Send the `x-taskdrop-gateway` header from the admin's Supabase server client (already in `src/lib/supabase/server.ts`; it sends it when `API_GATEWAY_SECRET` is set)
   - [x] Redeploy the upgraded admin. Done 2026-10-21 16:54 UTC (admin PR 21), after the secret was saved
@@ -349,7 +351,7 @@ Version 4.40, 2026-10-24 (scope note 2026-10-20: iOS deferred). The single sourc
 - [x] A bid containing a phone number sent straight to the API is rejected, on the old app too. Same `api` function, so the old app gets it too. Proved in `api.test.ts` against the operation. `e2e/rules.spec.ts` checks the deployed function and passes since the merge (2026-10-21)
 - [-] Posting switched off for iOS only: refused on iPhone, even by direct API call; still works on web and Android
 - [ ] Maintenance mode for Android only shows the screen on Android only
-- [ ] An older upgraded build sees "Update the app" on Android and iOS
+- [ ] An older upgraded build sees "Update the app" on Android (iOS: future scope)
 - [ ] The old app and old admin still work
 - [ ] `docs/testing_checks.md` T2 (secrets and keys) and T11.2 to T11.5 (the Android build) pass, and the App Check log shows the upgraded web and Android apps passing
 
@@ -481,7 +483,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 **Verify**
 - [ ] Every function runs in the dev server, then in Inngest Cloud for the test project
 - [ ] A forced failure (bad push token, RazorpayX test error) retries, then succeeds or lands in Sentry
-- [ ] A withdrawal request returns in under 1 second on web, Android and iOS
+- [ ] A withdrawal request returns in under 1 second on web and Android (iOS: future scope)
 - [ ] No old pg_cron job still does the same work
 
 ---
@@ -534,7 +536,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 
 **Verify**
 - [ ] New photos are stored in ImageKit and recorded in `media`
-- [ ] The feed downloads thumbnails and meets the targets in Part B, section 5, on web, Android and iOS
+- [ ] The feed downloads thumbnails and meets the targets in Part B, section 5, on web and Android (iOS: future scope)
 - [ ] Users without access can't get a URL
 - [ ] Chat photos open for the recipient on every platform
 - [ ] Abandoned uploads are cleaned up after 24 h
@@ -549,7 +551,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [ ] Admin SQL functions:
   - [x] hide/unhide a listing (093), cancel a task with refund (098), change a task's category (`admin_set_task_category`, 118)
   - [ ] pause a promotion (done, 098), cancel a promotion with refund (not built: it moves money and needs its own review)
-  - [ ] hide a message or photo (`media.status = hidden`) done in 118 (`admin_hide_message`, `admin_hide_media` and their un-hide twins, test `supabase/tests/content_moderation.test.sql`); remove a review **built 2026-10-24** (migration 121: `admin_hide_review` / `admin_unhide_review`, a restrictive `reviews_hide_moderated` policy, and `private.recompute_ratings`, which `submit_review` now uses so a removed review stays out of the average; test `supabase/tests/hide_review.test.sql`; admin "Remove this review" on reports about a review). The review is kept, not deleted, so it can be put back
+  - [x] hide a message or photo (`media.status = hidden`) done in 118 (`admin_hide_message`, `admin_hide_media` and their un-hide twins, test `supabase/tests/content_moderation.test.sql`); remove a review **built 2026-10-24** (migration 121: `admin_hide_review` / `admin_unhide_review`, a restrictive `reviews_hide_moderated` policy, and `private.recompute_ratings`, which `submit_review` now uses so a removed review stays out of the average; test `supabase/tests/hide_review.test.sql`; admin "Remove this review" on reports about a review). The review is kept, not deleted, so it can be put back
 - [x] `worker_commission_pct` and promotion price tiers are editable settings. Commission has always been a `settings` row; the promotion tiers moved into `settings` in migration 114 (Phase 3). The admin page for the tiers is the Admin box below
 - [x] Every new admin action writes to `admin_audit_log`. Each function added here (and `admin_sign_out_everywhere` in Phase 4) calls `admin_log_event`, and the SQL tests check it
 
@@ -581,7 +583,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [x] Runbook: what to do for a stuck payout, a failed refund, a report, a dispute, and maintenance mode. `docs/RUNBOOK.md`, written from the admin pages and server code as they are today; someone who has used the admin should read it once and correct what differs (Phase 8 asks for that check)
 
 **Verify**
-- [ ] A reported message hidden from admin disappears for both users on web, Android and iOS
+- [ ] A reported message hidden from admin disappears for both users on web and Android (iOS: future scope)
 - [ ] A blocked user can't contact the blocker on any platform
 - [-] A broadcast to "iOS only" reaches only iPhones
 - [ ] Every action is in the audit log
@@ -649,9 +651,9 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [ ] **Admin:** `admin.taskdrop.in` follows `main`
 
 **Verify**
-- [ ] Every tester is on the upgraded app on web, Android and iOS
+- [ ] Every tester is on the upgraded app on web and Android (iOS: future scope)
 - [ ] Admin works on `admin.taskdrop.in`
-- [ ] After the lockdown, a direct database call with the public key + a user token is refused, while web, Android, iOS, admin and the E2E tests still work
+- [ ] After the lockdown, a direct database call with the public key + a user token is refused, while web, Android, admin and the E2E tests still work (iOS: future scope)
 - [ ] The old branches are unchanged
 
 ---
@@ -686,7 +688,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
   - [ ] E2E green
   - [ ] Sentry quiet for 7 days
   - [ ] Monitors green
-  - [ ] The full flow passes on web, Android, iOS and admin with live keys and small real amounts
+  - [ ] The full flow passes on web, Android and admin with live keys (iOS: future scope) and small real amounts
 
 ---
 
@@ -974,6 +976,8 @@ upgrade/phase-N-… branch → pull request into upgraded-plan-changes
 
 ### 5.2 Core-flow checklist (by hand on Web, Android, iOS; Admin column for admin flows)
 
+> **Now:** run it on web (Chrome) and Android. The iOS column and the Safari run are future scope (2026-10-24); leave them blank until you say "start iOS".
+
 | # | Flow | Web | Android | iOS |
 |---|---|---|---|---|
 | 1 | Sign-in: Google, Apple, phone, username + password; age gate; onboarding; link a method; sign out | ☐ | ☐ | ☐ |
@@ -1134,8 +1138,13 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
-- **v4.41 (2026-10-24):** Owner feedback from a tester, four fixes. **Wording:** a worker who asks for a price other than the posted one now sees "Send a counteroffer" (task screen, offer sheet, Home card button); the posted price still says "Send an offer". **Something else:** every quick question's "Something else" chip opens a labelled text bar ("Your own answer") and a hint says so before it is tapped; canned "Something else" options in the question lists are dropped so the screen's own chip is the only one. **Auto-hire:** posting an auto-hire task now needs the wallet to hold the budget plus the service fee. The post flow shows the balance, offers "add money" for the shortfall and posts once it lands; the `api` operation `createTask` refuses an under-funded auto-hire with "Not enough money in your wallet" and the shortfall (test added). Workers' Find work filter and the card badge are both called "Auto-hire". Not changed: an offer that arrives after the poster's wallet has dropped below the budget still locks the worker and waits for payment (migration 063); closing that gap needs a database change and the owner's go-ahead. **Payments:** the payment link now carries a return address, so the web tab Razorpay opened closes itself (or falls back to the app) and the phone checkout sheet closes the moment Razorpay returns. Needs the `api` function deployed for the server check; the app changes ride the next web/APK build.
-- **v4.40 (2026-10-24):** Progress board recounted from the boxes themselves (every `- [x]`, `- [ ]` and `- [-]` line in a phase, nested ones included; the Phase 4 sign-up table is not counted). Phase 0 is **done** (39 ticked, 7 deferred): the Maps key restriction was done on 2026-10-22 and the 12 testers were deferred the same day. Phase 1 is 13 of 27 (the FCM key and the `beta` APK), Phase 3 is 31 of 47 (the Razorpay compiled-in keys and `ADMIN_SESSION_SECRET`), Phase 7 is 14 of 25 (the 2026-10-22 to 10-24 admin tools). Phases 8, 9 and 10 now give the full total with the deferred iOS boxes (18, 28, 29), as the other rows do. Phases 2, 4, 5 and 6 were already right. No box was ticked or unticked; the version line also moves from 4.36 to 4.40
+- **v4.44 (2026-10-24):** Phase 1 and 2 owner-manual work that Claude could do. **Found:** the last web build did not upload source maps, because the Vercel variable is `SENTRY_AUTH_TOKEN_TASKDROP_USERAPP` and the script read only `SENTRY_AUTH_TOKEN`; `scripts/upload-web-sourcemaps.mjs` now accepts both (commit `10f5165`, local branch `fix/web-sourcemap-token`, **not pushed**). **Confirmed:** the `beta` APK build uploaded its native source maps to Sentry, so the "Source maps uploaded from EAS" box is ticked (Phase 1 is now 17 of 28, 6 deferred, 5 open). **Done:** an over-the-air update was published to channel `beta` (group `166484f3`, from `d49d681`) with its source maps uploaded to Sentry by hand; whether the phone runs it is not confirmed (the owner's check in manual 1.6 step 4). **Also:** the Playwright suite passed 20 of 20 locally against the test project; GitHub cannot start `e2e.yml` because `main` doesn't have it (manual 2.5 rewritten). Not done: the Phase 1 test errors and push test (manual 1.6 steps 2 and 3), and everything in Phase 2 that needs the owner (2.1 list, 2.2 full job, 2.4 admin pages, 2.6 a week of use).
+
+- **v4.43 (2026-10-24):** scope decision. **Safari testing joins iOS in future scope.** Web is tested in Chrome (desktop and phone size) only for now. The Phase 2 Safari check is split off into its own deferred `[-]` box (Phase 2 is now 6 of 23, 5 deferred, 12 open). Verify and other boxes that listed iOS or iPhone now say "iOS: future scope" and no longer wait on it (Phases 1, 2, 3, 5, 6, 7, 9, 10). Part B 5.2 and section 12 say the same; owner manual task 2.3 moved to a "Future scope" section. No code changed.
+- **v4.42 (2026-10-24):** Phase 1 Sentry alerts (owner manual 1.2 and 1.3), done in your signed-in Chrome. `Money fatal`: project `taskdrop`, trigger "a new issue is created", filter "the event's level equals fatal", notifies you. `Error spike`: a Metric monitor on `taskdrop`, Errors dataset, `count()` over 1 hour, High priority above 20, with a connected alert that emails you. The Sentry alerts box is ticked, and Phase 1 is now 16 of 28 (6 deferred, 6 open). Sentry's new layout renamed things, so the manual's click steps were rewritten: alerts are under **Monitors → Alerts**, and "Critical" is now "High priority". The "is unresolved" filter Sentry adds by default was cleared so every error counts. Not checked: whether either alert actually sends an email (no fatal event or spike has happened since)
+- **v4.41 (2026-10-24):** Phase 1 Uptime Robot. You made the free Uptime Robot account and two monitors (`taskdrop.in` and `taskdrop-admin.vercel.app`, every 5 minutes, emailing you), so the accounts box is ticked. The monitors box is split in two: the web and admin monitors are ticked, and the `api` health monitor is deferred, because its POST with custom headers needs a paid plan. Phase 1 is now 15 of 28 (6 deferred, 7 open). The Verify box "The uptime monitors are green" stays open until the other Verify checks are done
+- **v4.41a (2026-10-24):** (UX fixes merged by another session before these version numbers were reconciled.) Owner feedback from a tester, four fixes. **Wording:** a worker who asks for a price other than the posted one now sees "Send a counteroffer" (task screen, offer sheet, Home card button); the posted price still says "Send an offer". **Something else:** every quick question's "Something else" chip opens a labelled text bar ("Your own answer") and a hint says so before it is tapped; canned "Something else" options in the question lists are dropped so the screen's own chip is the only one. **Auto-hire:** posting an auto-hire task now needs the wallet to hold the budget plus the service fee. The post flow shows the balance, offers "add money" for the shortfall and posts once it lands; the `api` operation `createTask` refuses an under-funded auto-hire with "Not enough money in your wallet" and the shortfall (test added). Workers' Find work filter and the card badge are both called "Auto-hire". Not changed: an offer that arrives after the poster's wallet has dropped below the budget still locks the worker and waits for payment (migration 063); closing that gap needs a database change and the owner's go-ahead. **Payments:** the payment link now carries a return address, so the web tab Razorpay opened closes itself (or falls back to the app) and the phone checkout sheet closes the moment Razorpay returns. Needs the `api` function deployed for the server check; the app changes ride the next web/APK build.
+- **v4.40 (2026-10-24):** Progress board recounted from the boxes themselves (every `- [x]`, `- [ ]` and `- [-]` line in a phase, nested ones included; the Phase 4 sign-up table is not counted). Phase 0 is **done** (39 ticked, 7 deferred): the Maps key restriction was done on 2026-10-22 and the 12 testers were deferred the same day. Phase 1 is 13 of 27 (the FCM key and the `beta` APK), Phase 3 is 31 of 47 (the Razorpay compiled-in keys and `ADMIN_SESSION_SECRET`), Phase 7 is 14 of 25 (the 2026-10-22 to 10-24 admin tools). Phases 8, 9 and 10 now give the full total with the deferred iOS boxes (18, 28, 29), as the other rows do. Phases 2, 4, 5 and 6 were already right. Then, with your OK, two boxes whose work was already done were ticked: Phase 3's admin "Prepare for the lockdown" (all three steps ticked) and Phase 7's hide-a-message / remove-a-review (built in 118 and 121), so Phase 3 is 32 of 47 and Phase 7 is 15 of 25. Phase 7's "Admin SQL functions" parent stays open, since cancel a promotion with refund is not built. The version line also moves from 4.36 to 4.40
 - **v4.38 (2026-10-24):** More Phase 7 and Phase 3 work, plus what could not be done. **Built and merged:** promotion tiers now come from the server (`promotionTiers()` in the app; the Promote screen offers exactly what `start_promotion` accepts) and are editable in the admin Settings page behind the money MFA gate; removing a review (migration 121, test `hide_review.test.sql`, "Remove this review" in the reports queue; `submit_review` now recomputes ratings through `private.recompute_ratings` so a removed review stays out of the average). Migrations 119 to 121 are applied to the hosted test project. **Phase 3:** the compiled-in Razorpay test keys are removed from `secrets.ts` (code only, not yet redeployed). **Found, not changed:** on the test project `push_via_inngest` is already `true` and the two prune pg_cron jobs are already gone, so the background-jobs cutover (`supabase/cutover/inngest_background_jobs.sql`) has been applied; the three money sweeps are still on pg_cron, and their cutover needs the `INNGEST_MONEY_JOBS` Edge Function secret, which cannot be set from here (no Supabase CLI login). **Blocked from here:** Claude in Chrome was not connected, so the Sentry, Inngest, Expo and Uptime Robot dashboards were out of reach; the Vercel connector needs the owner to approve team access before environment variable names can be checked. Both repos were merged straight into `redesigned-2.0` at the owner's instruction (no pull requests).
 - **v4.40 (2026-10-24):** Fewer calls at app start, and one round trip fewer on `app-config` cold starts. **Measured first:** PR 65 (rate-limit write overlapped), same phone, same five cold starts of the installed APK, 65 `api` calls each: median 450 ms before and 414 ms after (about 8% better), average 473 and 563 ms, 95th percentile 724 and 1,227 ms, so the median improved and the tail got worse (the first calls after the deploy hit cold instances); not a clear win, and one round trip is a smaller part of the 450 ms than estimated. **Found:** loading Home on the web build makes 19 `api` calls in three waves (9 at 0.3 s, 4 at 1.7 s once the profile is back, 6 at 2.2 s: `attachPosters` five times and `signMedia`). **Changed:** (1) new read-only `batch` operation in the `api` function: up to 20 reads in one request, one sign-in check, each call run exactly as it would alone (admin switches and its own checks per call, a failed call does not spoil the rest), only operations the server treats as reads are accepted (writes, uploads, another batch are refused per call), and each call counts against the rate limit, so batching does not widen the budget. (2) the app (`lib/batcher.ts`, used by `lib/gateway.ts`) sends reads that are asked for within 10 ms of each other as one `batch` request; a lone call, and every write, goes out alone as before; an older server that answers "Unknown request" is detected and the calls are asked one by one for the rest of the session (checked live: the old server answers a batch with an error and Home loads normally, 20 of 20 end-to-end tests pass). (3) `app-config` reads the switches with the service key, which skips the Vault read a cold instance needed only to find the gateway header. **Not measured yet:** the server side of `batch` and the `app-config` change are only unit-tested and type-checked; they reach the hosted project when this merges. After the merge, re-run the Home load (expect about 5 requests instead of 19) and the phone cold starts, and compare `api` timings in the logs.
 - **v4.39 (2026-10-24):** zod 4. A new high advisory for zod (GHSA-mrhx-c7xc-m3w5, memory exhaustion on oversized collections; fixed only in 4.6.6) failed the audit gate on every branch. **Changed:** `@taskdrop/schemas` now uses zod 4.6.7 (nothing in the app or the Edge Functions imports it yet; it is used by its own tests). Ids use `z.guid()` so they keep the plain uuid shape check zod 3 had (zod 4's `z.uuid()` also checks version bits), and the video refinement uses `error:` instead of the deprecated `message:`; two tests added. **Exception added** for the one copy left, zod 3.25.76 inside `@expo/cli` (it pins `^3.25.76`, uses it only for DevTools plugin and MCP extension schemas on a build machine); review by 2026-12-13. The stale `braces` exception (advisory gone) is removed. **Checked:** `npm run check` (typecheck, lint and all unit tests), `npm run audit:gate` (4 advisories, all accepted), `npm run test:contract` (100 old-app operations served), `npm run web:export`, and `npm run test:e2e` against the hosted test project: 20 of 20 passed on a clean re-run (the first run had one money test fail on a single 503 from the `api` function in the minutes after PR 65's deploy; it passed on its own re-run and in the full re-run).
@@ -1219,15 +1228,15 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
   - **`redesigned-2.0` replaces `upgraded-plan-changes`** in both repos. Everything is merged and tested there (Vercel preview); you promote it to `main` by hand. Only `main` and `redesigned-2.0` stay on GitHub; phase branches are deleted once merged.
   - The Redesign v2 work (was `taskdrop-redesigned`), the staff-roles migration 089 and the Phase 1 Sentry work all live on `redesigned-2.0`.
 
-## 12. Future scope: iOS
+## 12. Future scope: iOS and Safari
 
-Decided 2026-10-20: focus is web, Android and the admin app. Everything below is kept, marked `[-]` in Part A, and picked up when you say "start iOS".
+Decided 2026-10-20 (iOS) and 2026-10-24 (Safari): focus is web (tested in Chrome), Android and the admin app. Everything below is kept, marked `[-]` in Part A, and picked up when you say "start iOS". Safari testing waits with iOS because it needs an iPhone or a Mac.
 
 | Phase | What waits |
 |---|---|
 | 0 | Apple Developer Program enrollment ($99/year) |
 | 1 | `app.json` iOS block, `eas.json` iOS `beta` profile, App Store Connect record + APNs key, first TestFlight build, iPhone testers |
-| 2 | Swipe-back, UPI links, Keychain session clean-up, core-flow checklist on TestFlight |
+| 2 | Swipe-back, UPI links, Keychain session clean-up, core-flow checklist on TestFlight and in Safari (owner manual 2.3) |
 | 3 | iOS control-screen checks; iOS-only posting switch test (the switch itself stays in app controls) |
 | 4 | Sign in with Apple (Apple Developer IDs/keys, Supabase Apple provider, native `expo-apple-authentication`, token revocation on account deletion) |
 | 5 | Push through Inngest on iPhone |
