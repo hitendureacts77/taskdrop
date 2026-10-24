@@ -8,6 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
   Animated,
+  AppState,
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +22,7 @@ import { AddressForm } from './AddressForm';
 import {
   resolveCurrentPlace,
   openLocationSettings,
+  askToTurnOnLocation,
   locationPermission,
   LocationError,
   searchPlaces,
@@ -168,14 +170,15 @@ export function LocationSheet({
   // Set when the OS will not ask again. That is the one case where a message
   // is useless on its own -- tapping the button again can never work, so the
   // way out has to be offered instead.
-  const [blocked, setBlocked] = useState(false);
+  const [blockedKind, setBlockedKind] = useState<'services-off' | 'blocked' | null>(null);
+  const blocked = blockedKind !== null;
 
   // Ask the OS on arrival rather than waiting for a tap to reveal it.
   useEffect(() => {
     if (!visible) return;
     let alive = true;
     void locationPermission().then(({ granted, canAskAgain }) => {
-      if (alive && !granted && !canAskAgain) setBlocked(true);
+      if (alive && !granted && !canAskAgain) setBlockedKind('blocked');
     });
     return () => {
       alive = false;
@@ -222,7 +225,7 @@ export function LocationSheet({
   /** Resolves true when the map was moved to a real fix, false when it could not be. */
   const findMe = useCallback(async (): Promise<boolean> => {
     setNote(null);
-    setBlocked(false);
+    setBlockedKind(null);
     setLocating(true);
     try {
       const place = await resolveCurrentPlace({
@@ -239,7 +242,7 @@ export function LocationSheet({
       return false;
     } catch (e) {
       if (e instanceof LocationError && (e.kind === 'blocked' || e.kind === 'services-off')) {
-        setBlocked(true);
+        setBlockedKind(e.kind);
       }
       setNote(e instanceof Error ? e.message : 'Could not read your location');
       return false;
@@ -247,6 +250,34 @@ export function LocationSheet({
       setLocating(false);
     }
   }, [goTo]);
+
+  /**
+   * The button was pressed while location is off. Do the fixing, not another failed lookup:
+   * on Android with the phone's location off, ask to turn it on right here; if that is refused
+   * or not possible, open the settings screen where it can be switched on.
+   */
+  const fixLocation = useCallback(async () => {
+    if (blockedKind === 'services-off' && (await askToTurnOnLocation()) === 'enabled') {
+      void findMe();
+      return;
+    }
+    const opened = await openLocationSettings(blockedKind ?? undefined);
+    if (!opened) {
+      // A browser will not let a page open its own permission settings, so say where the control actually is.
+      setNote(
+        'Allow Location for this site in your browser settings, then reload. Some in-app browsers cannot grant it at all — open the site in Chrome or Safari instead.',
+      );
+    }
+  }, [blockedKind, findMe]);
+
+  // Coming back from settings: look again, so switching location on there just works.
+  useEffect(() => {
+    if (!visible || !blocked || Platform.OS === 'web') return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void findMe();
+    });
+    return () => sub.remove();
+  }, [visible, blocked, findMe]);
 
   // Opening the screen starts by looking for you. That is the common case, and
   // waiting to be asked for permission to be helpful is a tap wasted. If it
@@ -577,9 +608,9 @@ export function LocationSheet({
         {/* ---- current location, sitting just above the address panel ---- */}
         {!panelOpen && (
           <Pressable
-            onPress={() => void findMe()}
+            onPress={() => void (blocked ? fixLocation() : findMe())}
             accessibilityRole="button"
-            accessibilityLabel="Move the map to my current location"
+            accessibilityLabel={blocked ? 'Turn on location' : 'Move the map to my current location'}
             style={({ pressed }) => ({
               position: 'absolute',
               right: 14,
@@ -607,7 +638,7 @@ export function LocationSheet({
               <CrosshairIcon color={t.colors.accentDeep} />
             )}
             <RNText style={tx('700', 13, blocked ? t.colors.signal : t.colors.accentDeep)}>
-              {locating ? 'Locating…' : blocked ? 'Location is off' : 'Use my location'}
+              {locating ? 'Locating…' : blocked ? 'Turn on location' : 'Use my location'}
             </RNText>
           </Pressable>
         )}
@@ -652,7 +683,7 @@ export function LocationSheet({
               {blocked && (
                 <Pressable
                   onPress={() => {
-                    void openLocationSettings().then((opened) => {
+                    void openLocationSettings(blockedKind ?? undefined).then((opened) => {
                       if (!opened) {
                         // A browser will not let a page open its own permission
                         // settings, so say where the control actually is.
