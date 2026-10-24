@@ -5,7 +5,7 @@ import { gatewayHeaders } from "../_shared/gateway.ts";
 import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
 import { guarded, background, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
-import { type Db, RATE_LIMITS, rateBucket, runOp } from "./ops.ts";
+import { type Db, RATE_LIMITS, RecentlyLimited, rateBucket, runOp } from "./ops.ts";
 
 /**
  * The app's one door to its data.
@@ -22,7 +22,9 @@ import { type Db, RATE_LIMITS, rateBucket, runOp } from "./ops.ts";
  * SQL functions' checks apply exactly as they do for a direct request.
  *
  * Each person gets a per-minute budget of reads, writes and uploads (see
- * RATE_LIMITS). Over it, the answer is 429 and nothing runs.
+ * RATE_LIMITS). Over it, the answer is 429 and nothing is returned. A write
+ * never starts; a read may already be running beside the counter (it changes
+ * nothing) and its answer is dropped.
  */
 
 const CORS = {
@@ -36,6 +38,9 @@ const IMAGE_OPS = new Set(["createUpload", "attachMedia", "signMedia"]);
 
 /** The admin panel's switches per platform and version, kept for half a minute per instance. */
 const controlsCache = new ControlsCache(30_000);
+
+/** People the limiter refused lately: their reads wait for the limiter instead of running beside it. */
+const limitedLately = new RecentlyLimited();
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
@@ -94,6 +99,45 @@ Deno.serve(guarded("api", async (req: Request) => {
     return refuse("Unknown request", "BAD_JSON", 400);
   }
 
+  // The counter is written with the service key: a person must not be able to
+  // reset or spend anyone else's budget. If the counter cannot be reached the
+  // request goes ahead -- an outage of the limiter must not become an outage
+  // of the app -- and the failure is logged.
+  const bucket = rateBucket(body.op);
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const admin = serviceKey
+    ? createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } })
+    : null;
+  /** The refusal to send, or null when the call may go ahead. Never rejects. */
+  const checkRate = async (): Promise<Response | null> => {
+    if (!admin) return null;
+    try {
+      const { data: allowed, error: rateErr } = await admin.rpc("api_rate_hit", {
+        p_user: userData.user.id,
+        p_bucket: bucket,
+        p_limit: RATE_LIMITS[bucket],
+      });
+      if (rateErr) {
+        background(logServer("warn", "api", "rate limiter unavailable", { error: rateErr.message }));
+        return null;
+      }
+      if (allowed === false) {
+        limitedLately.mark(userData.user.id);
+        background(logServer("warn", "api", "rate limited", { op: String(body.op), bucket, user_id: userData.user.id }));
+        return refuse("You are going too fast. Please wait a moment and try again.", "RATE_LIMITED", 429);
+      }
+    } catch (e) {
+      background(logServer("warn", "api", "rate limiter unavailable", { error: e instanceof Error ? e.message : String(e) }));
+    }
+    return null;
+  };
+  // Only a read runs while the counter is still being written: it changes
+  // nothing, and a refusal drops its answer. A write waits for the counter.
+  const overlap = bucket === "read" && !limitedLately.has(userData.user.id);
+  // Started now, so its round trip overlaps the switches' below (when this
+  // instance has to read them) and, for a read, the operation's own.
+  const rate = checkRate();
+
   // Which app is asking, and what the admin panel has switched off for it.
   // If the switches cannot be read the request goes ahead (see refusalFor).
   const client = readClient(req.headers);
@@ -105,27 +149,9 @@ Deno.serve(guarded("api", async (req: Request) => {
     }
     return parseControls(data);
   });
-
-  // The counter is written with the service key: a person must not be able to
-  // reset or spend anyone else's budget. If the counter cannot be reached the
-  // request goes ahead -- an outage of the limiter must not become an outage
-  // of the app -- and the failure is logged.
-  const bucket = rateBucket(body.op);
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const admin = serviceKey
-    ? createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } })
-    : null;
-  if (admin) {
-    const { data: allowed, error: rateErr } = await admin.rpc("api_rate_hit", {
-      p_user: userData.user.id,
-      p_bucket: bucket,
-      p_limit: RATE_LIMITS[bucket],
-    });
-    if (rateErr) background(logServer("warn", "api", "rate limiter unavailable", { error: rateErr.message }));
-    else if (allowed === false) {
-      background(logServer("warn", "api", "rate limited", { op: String(body.op), bucket, user_id: userData.user.id }));
-      return refuse("You are going too fast. Please wait a moment and try again.", "RATE_LIMITED", 429);
-    }
+  if (!overlap) {
+    const refused = await rate;
+    if (refused) return refused;
   }
 
   /** Another of our functions, as the caller. Best-effort: a failure here never fails the request. */
@@ -163,10 +189,12 @@ Deno.serve(guarded("api", async (req: Request) => {
   // Only the operations that handle pictures need ImageKit's keys.
   const imagekit = IMAGE_OPS.has(String(body.op)) ? await imageKitConfig(secret) : null;
   const ctx = { db: db as unknown as Db, userId: userData.user.id, callFunction, removeOwnFiles, client, controls, phoneVerified, imagekit };
-  const result = await runOp(body.op, body.args, ctx, (e) => {
+  const running = runOp(body.op, body.args, ctx, (e) => {
     // Both finish in the background after the response is sent.
     background(logServer("error", "api", "op failed", { op: String(body.op), user_id: userData.user.id, error: e instanceof Error ? e.message : String(e) }));
     background(captureServerError(e, { op: String(body.op), fn: "api" }));
   });
-  return json(result);
+  if (!overlap) return json(await running);
+  const [refused, result] = await Promise.all([rate, running]);
+  return refused ?? json(result);
 }));
