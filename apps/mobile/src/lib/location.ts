@@ -214,13 +214,39 @@ export async function resolveCurrentPlace(opts?: {
  * back. There is no equivalent on the web — a page cannot open its own
  * permission settings — which is why the copy differs there.
  */
-export async function openLocationSettings(): Promise<boolean> {
+export async function openLocationSettings(why?: 'services-off' | 'blocked'): Promise<boolean> {
   if (Platform.OS === 'web') return false;
   try {
+    // Location switched off for the whole phone lives on the system's Location screen, not on
+    // the app's own settings page; sending someone to the app page looks like nothing happened.
+    if (Platform.OS === 'android' && why === 'services-off') {
+      try {
+        await Linking.sendIntent('android.settings.LOCATION_SOURCE_SETTINGS');
+        return true;
+      } catch {
+        /* fall through to the app's settings page */
+      }
+    }
     await Linking.openSettings();
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Ask, inside the app, to turn the phone's location on. Android shows the system's own
+ * "turn on location" dialog; 'enabled' means the person said yes, so the caller can look again
+ * straight away. Anywhere that cannot ask (iPhone, web) answers 'unsupported' and the caller
+ * sends the person to settings instead.
+ */
+export async function askToTurnOnLocation(): Promise<'enabled' | 'declined' | 'unsupported'> {
+  if (Platform.OS !== 'android') return 'unsupported';
+  try {
+    await Location.enableNetworkProviderAsync();
+    return 'enabled';
+  } catch {
+    return 'declined';
   }
 }
 
