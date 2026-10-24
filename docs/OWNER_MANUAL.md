@@ -111,9 +111,9 @@ Claude changed the script to accept that name. The change is committed on a loca
 
 Nothing for you to do. Claude checked the EAS log of the `beta` APK (build `af47d88d`): the Sentry plugin uploaded its source maps (release `com.taskdrop.app@1.0.0+1`), because `SENTRY_AUTH_TOKEN` is set in the EAS `preview` environment. Updates sent over the air are a separate case: EAS doesn't upload their maps, so Claude uploads them by hand each time (it did for the update in task 1.6).
 
-### ☐ 1.6 Phase 1 test session with your phone (20 minutes)
+### ◐ 1.6 Phase 1 test session with your phone — Claude ran steps 2 to 4 on 2026-10-24; only the admin test error is left
 
-**State 2026-10-24:** Claude published the update (step 4 below) to the `beta` channel: EAS update group `166484f3-937f-41c8-92f7-e6d06df5bb1e`, from `redesigned-2.0` at `d49d681`, with its source maps uploaded to Sentry. Claude closed and reopened TaskDrop on your plugged-in phone twice, and it opened signed in, but Claude can't tell from outside the app whether the update is the version running. **Steps 2 and 3 (test errors, push) are not done yet.** While Claude was working, your phone showed another app (not TaskDrop); Claude took no more screenshots and deleted the one it had.
+**State 2026-10-24 (later):** Claude ran this with your phone plugged in. The test update reached the phone (Sentry shows its update id), test errors from web, Android and all 8 functions reached Sentry with readable stacks, a test push arrived (two test notifications may still sit in your phone's shade: swipe them away), and Uptime Robot shows both monitors Up. Not done: a test error from the admin. Details in the plan, v4.47.
 
 1. Click: plug your phone into the PC with the USB cable. If the phone asks "Allow USB debugging?", tap **Allow**.
 2. Type to Claude: "Run the Phase 1 verify. My phone is plugged in."
