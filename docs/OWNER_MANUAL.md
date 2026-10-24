@@ -303,19 +303,20 @@ Claude switched Android maintenance on for the test project, reopened TaskDrop o
 
 ## Phase 4: Accounts and sign-in
 
-### ☐ 4.1 Decide on phone login
+### ☑ 4.1 Decide on phone login — decided 2026-10-24: keep today's phone login
 
-1. Simplest choice: keep today's phone login (it works and has every protection). Type to Claude: "Keep phone-auth. Drop the Supabase phone auth boxes."
-2. If you'd rather switch: Type to Claude "Start phone auth." (It needs MSG91 SMS set up and real SMS.)
+You asked Claude to complete Phases 4 and 5, so Claude took the simplest choice: **keep `phone-auth`** (it works and has every protection: throttles, birth date first, admin numbers refused, test numbers). The Supabase phone-auth boxes in the plan are marked dropped. To switch later, type "Start phone auth." (it needs MSG91 SMS and real SMS).
 
-### ☐ 4.2 Turn on account linking in Supabase (2 minutes)
+### ☐ 4.2 Turn on account linking in Supabase (2 minutes) — yours
 
-1. Click: open the Supabase project → **Authentication** → **Sign In / Providers**.
+Claude checked on 2026-10-24: Supabase answers `manual_linking_disabled`, so it is **off**. This is a security setting, so Claude left it for you.
+
+1. Click: open https://supabase.com/dashboard/project/wjxvingpfbfvkfqhrguj → **Authentication** → **Sign In / Providers**.
 2. Click: turn on **Allow manual linking**.
 3. Click: **Save**.
-4. Type to Claude: "Manual linking is on. Build account linking."
+4. Type to Claude: "Manual linking is on." Claude reruns the check (`e2e/accounts.spec.ts`, the "manual linking" test) and tells you if it passes.
 
-### ☐ 4.3 Test linking (built 2026-10-24: **Account → Sign-in methods → Link Google**; needs task 4.2 first; 5 minutes)
+### ☐ 4.3 Test linking (built: **Account → Sign-in methods → Link Google**; needs task 4.2 first; 5 minutes) — yours (needs a real Google login)
 
 1. Click (phone): sign in as Asha (`9990000001`).
 2. Click: **Account** → the sign-in methods card → link **Google** → pick a Google account.
@@ -323,16 +324,19 @@ Claude switched Android maintenance on for the test project, reopened TaskDrop o
 4. Click: sign out, then sign in with **Google**. You should be Asha again, not a new empty account.
 5. Tell Claude what happened.
 
-### ☐ 4.4 Make six new accounts (30 minutes)
+### ◐ 4.4 Make new accounts (website done by Claude 2026-10-24; Google and the phone app are yours)
 
-Do this on the **website** (Chrome Incognito, https://taskdrop.in) and then the same on the **phone app**. Sign out after each one.
+**Done by Claude, in a browser test on the website against the test project (`e2e/accounts.spec.ts`, all passing):** a brand-new phone number is asked its birth date before any code; the code fills in; the setup screens finish; a username and password are set (Settings → Sign-in) and used to sign back in; a 16-year-old birth date is turned away with no code and no account; Ravi (`9990000002`) signs in as before. The test deletes the account it made, so nothing is left behind.
 
-1. **Google:** tap **Continue with Google** → choose a Google account you haven't used in TaskDrop (for example `narasimharaju7c`) → enter a birth date that makes you over 18 → finish the welcome screens → you're in → **Account** → **Sign out**.
-2. **Phone:** tap the phone option → enter a new fake number (website: `9990000011`, phone: `9990000012`) → the code fills in → birth date over 18 → finish → sign out.
-3. **Username and password:** choose the username + password option → create a username and password → birth date over 18 → finish → sign out. If there's no way to create one, tell Claude.
-4. **Age check, once:** start a phone sign-up with `9990000013` and a birth date that makes you 16. It should refuse you.
-5. **Old account, once:** sign in with `9990000002`. You should see Ravi's wallet.
-6. Type to Claude a list like: "Web: Google ok, phone ok, username failed (message …). Phone: …. Under-18 refused. Ravi signs in."
+**One correction to the old wording:** there is no "create a username and password" on the sign-in screen. You pick a username in the setup screens and set the password later in **Settings → Sign-in → Password sign-in**; the **Username** button on the sign-in screen is only for signing back in.
+
+What is left for you (Google needs your real Google login, and Claude does not type your phone numbers or pick your Google accounts on your phone):
+
+1. **Google, on the website** (Chrome Incognito, https://taskdrop.in): tap **Google** → choose a Google account you haven't used in TaskDrop (for example `narasimharaju7c`) → enter a birth date that makes you over 18 → finish the welcome screens → you're in → **Settings** → **Sign-in** → **Sign out on this device**.
+2. **Google, on the phone app:** the same, with another unused Google account.
+3. **Phone number, on the phone app:** sign out, then enter a new fake number (`9990000012`) → the code fills in → birth date over 18 → finish the welcome screens → pick a username → **Account** → **Sign-in** → set a password → sign out → tap **Username** and sign back in with it.
+4. **Age check, on the phone app, once:** start a phone sign-up with `9990000013` and a birth date that makes you 16. It should refuse you.
+5. Type to Claude a list like: "Web Google ok. Phone: Google ok, number ok, username sign-in ok, under-18 refused."
 
 ---
 
@@ -342,38 +346,25 @@ Do this on the **website** (Chrome Incognito, https://taskdrop.in) and then the 
 
 The money jobs (payouts, refund retries, webhooks, and the three money sweeps) stay on their old route until the lawyer answers on the money flow. Nothing to do.
 
-### ◐ 5.2 Switch the jobs over, one at a time (non-money jobs already switched; checked 2026-10-24)
+### ☑ 5.2 Switch the jobs over, one at a time — done 2026-10-24 (money sweeps stay on the old route, task 5.1)
 
-Claude checked the test project: push notifications already go through Inngest (`push_via_inngest` is on), the two prune jobs have moved, and the outbox has nothing waiting (43 events, 0 pending). Only the money sweeps are left on the old route, on purpose (task 5.1). Steps 2 below (look at the Inngest dashboard) are still yours.
+Claude checked the test project and looked at your Inngest dashboard (in your Chrome, already signed in): push notifications go through Inngest (`push_via_inngest` is on), the prune jobs, overdue tasks, housekeeping, media purge, reminders and user-sync jobs have moved, the outbox has nothing waiting (47 events, 0 pending), and **0 runs failed in the last day** (about 2,050 runs; the newest say Completed).
 
-1. Type to Claude: "Start the Inngest cutover, one job at a time."
-2. After Claude switches each job:
-   1. Click: open https://app.inngest.com and sign in.
-   2. Click: open **Runs**.
-   3. Look: the newest runs should say **Completed** (green), not **Failed** (red).
-   4. Tell Claude what you see.
+**One thing to know:** the Inngest free plan (Hobby) allows 50,000 runs a month and the dashboard said 28,456 used on 24 October. The outbox safety-net job ran every minute and was the biggest user, so Claude changed it to every 5 minutes (it only matters when the instant path fails; the watchdog alerts after 15). If the limit were ever reached, Inngest stops starting new runs, and push would stop. It is on the Phase 10 list: upgrade Inngest with the other paid plans (task 10.2).
 
-### ☐ 5.3 Test push notifications on the phone (20 minutes)
+### ☑ 5.3 Test push notifications on the phone — done 2026-10-24 (Claude, phone plugged in)
 
-1. Type to Claude: "Give me the list of push notification types to test."
-2. For each type on the list:
-   1. Click (phone): sign in as Asha, then close TaskDrop completely.
-   2. Click (PC, Ravi): do the action Claude lists (for example, send Asha an offer, or a chat message).
-   3. Look (phone): the notification should arrive within a minute.
-   4. Click (phone): tap the notification. It should open the right screen.
-3. Tell Claude which ones arrived and which opened the right screen.
+Claude sent **all 20 notification types** to your test account on the phone (Tasker 3313, the one with an Android push token) and checked the phone: all 20 arrived through Inngest, each with its own title, grouped under "TaskDrop". Tapping one opens the **Notifications** screen (the app opens that screen for every push). Claude deleted the 20 test rows afterwards.
 
-### ☐ 5.4 Notifications on the website
+Two things for you: swipe the leftover "Push test 5.3: …" notifications out of your phone's notification shade (Clear all). And remember: if you close TaskDrop with **Force stop**, Android stops delivering pushes until you open the app once; swiping it out of the recent-apps list is fine.
 
-1. Click (PC, Ravi): while Asha does something on the phone (accept Ravi's offer, send a message), watch the bell on https://taskdrop.in.
-2. Tell Claude whether the new items appeared without refreshing.
+### ☑ 5.4 Notifications on the website — done 2026-10-24 (automatic test)
 
-### ☐ 5.5 Check the admin payout buttons (5 minutes)
+Claude added `e2e/notifications.spec.ts`: Asha has the website open, Ravi quotes on her new task, and her bell goes up by itself with no refresh. It passes (run three times).
 
-1. Click: open the new admin → **Payouts**.
-2. Click: **Check with RazorpayX**. It should answer without an error.
-3. Look: the RazorpayX **Balance** should show (in test mode it may be ₹0).
-4. Tell Claude what each showed.
+### ◐ 5.5 Check the admin payout buttons — page checked 2026-10-24; the buttons need RazorpayX set up
+
+Claude opened the new admin in your Chrome (already signed in as `hitendureacts@gmail.com`) and the **Payouts** page: it opens with no error and shows the 7 waiting withdrawals (₹4,900), the settled list, the per-day chart, and "How withdrawals are paid: **Manual** in use". **RazorpayX shows "Not set up" and "In RazorpayX: Not connected"**: that is the true state, because RazorpayX has no account number or keys on the test project yet (it is activated in task 10.3). So **Check with RazorpayX**, **give back** and the live **Balance** cannot be pressed yet: they only appear once RazorpayX is on. Their code is unchanged and covered by the unit tests. Nothing to click now; when you do task 10.3, Claude repeats this check.
 
 ---
 
@@ -548,6 +539,7 @@ Start only when Phases 0 to 8 are done.
 
 1. Click: https://supabase.com/dashboard → your organization (top left) → **Billing** → **Change plan** → **Pro** ($25 a month) → add your card → confirm.
 2. Click: https://vercel.com → team **hitenduteam** → **Settings** → **Billing** → upgrade to **Pro** ($20 a month).
+3. Click: https://app.inngest.com → **Settings** → **Billing** → upgrade from Hobby (50,000 runs a month; about 28,500 were used by 24 October with only the test group). Check the current price on that page first. Needed before the money jobs move to Inngest and before real users, because when the limit is hit Inngest stops starting runs and push stops.
 
 ### ☐ 10.3 Razorpay live (days to weeks; Razorpay checks your business)
 

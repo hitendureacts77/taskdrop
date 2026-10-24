@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.50, 2026-10-24 (Phase 2 steps 1 to 3 built; Phase 2 audit and fix plan written; admin authenticator deferred to future scope; Phase 1 done; Phase 3 Razorpay-key rotation and private repos moved to future scope; tour guide added to Phase 8; ground rule 10: all new code goes to `redesigned-2.0`; scope note 2026-10-20: iOS deferred; 2026-10-24: Safari testing deferred too). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.51, 2026-10-24 (Phases 4 and 5 worked through, owner items left; Phase 2 steps 1 to 3 built; Phase 2 audit and fix plan written; admin authenticator deferred to future scope; Phase 1 done; Phase 3 Razorpay-key rotation and private repos moved to future scope; tour guide added to Phase 8; ground rule 10: all new code goes to `redesigned-2.0`; scope note 2026-10-20: iOS deferred; 2026-10-24: Safari testing deferred too). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -398,18 +398,18 @@ What was checked, so the list below is evidence and not a guess: `npm run check`
 **Backend**
 - [-] **(You)** In Apple Developer: App ID with Sign in with Apple, a Services ID and a Sign in with Apple key
 - [-] Enable Apple in Supabase Auth, with redirect URLs (`taskdrop://auth-callback`, `https://taskdrop.in`, localhost) added to the existing list
-- [ ] The upgraded app's phone login uses Supabase's built-in phone auth, with a Send-SMS hook calling MSG91. **Not started, on purpose (2026-10-21):** it replaces the sign-in every tester uses today (`phone-auth`, working, with the age gate, throttles and test numbers) and the work cannot be tried here without sending real SMS or breaking sign-in on the shared database. It is a decision for you, not a task I should do unattended: say "start phone auth" when you are ready to test it with the owner phone, or drop it and keep `phone-auth`, which already has every protection listed below
-- [ ] Every existing protection kept:
+- [-] The upgraded app's phone login uses Supabase's built-in phone auth, with a Send-SMS hook calling MSG91. **Not started, on purpose (2026-10-21):** it replaces the sign-in every tester uses today (`phone-auth`, working, with the age gate, throttles and test numbers) and the work cannot be tried here without sending real SMS or breaking sign-in on the shared database. It is a decision for you, not a task I should do unattended: say "start phone auth" when you are ready to test it with the owner phone, or drop it and keep `phone-auth`, which already has every protection listed below **Dropped 2026-10-24 (owner manual 4.1): `phone-auth` stays the phone login; type "Start phone auth" to reopen.**
+- [x] Every existing protection kept: Kept by keeping `phone-auth`, which has all four; e2e covers the birth date first and the 16-year-old refusal (`e2e/accounts.spec.ts`).
   - throttles
   - birth date before the first code
   - admin numbers refused
   - test numbers with fixed codes
-- [ ] Test users migrated: the phone copied from each synthetic email into `auth.users.phone`. The synthetic email stays, so both the old and the new phone login find the same account.
-- [ ] `task_contact_phone`, `verificationState` and the admin SMS block read `auth.users.phone` first, then fall back to the synthetic email
+- [-] Test users migrated: the phone copied from each synthetic email into `auth.users.phone`. The synthetic email stays, so both the old and the new phone login find the same account. **Dropped with the Supabase phone-auth switch (2026-10-24).**
+- [-] `task_contact_phone`, `verificationState` and the admin SMS block read `auth.users.phone` first, then fall back to the synthetic email **Dropped with the same switch.**
 - [x] The old `phone-auth` function stays deployed and working for the old app; it's retired in Phase 9. Nothing was removed; it is now wrapped in `guarded()` (Phase 1) and reports unexpected database errors
 - [x] `password-auth` keeps username + password working, looking up the username and signing in with the account's phone or email. Unchanged in behaviour (only monitoring added in Phase 1)
 - [x] `handle_new_user` takes names from Google/Apple. Migration 115: `display_name`, then `full_name`, then `name` from the sign-in metadata, then the email's first part, except an Apple "Hide my email" address, then "New user". Phone accounts are named exactly as before. Test `supabase/tests/new_user_names.test.sql`. Written, not applied
-- [ ] Manual identity linking enabled. A Supabase Auth setting (Authentication, Sign In / Providers, "Allow manual linking"); I did not change the project's auth settings from here, and `supabase config push` must not be run (Phase 0). **(You)** switch it on in the dashboard when you want linking
+- [ ] Manual identity linking enabled. A Supabase Auth setting (Authentication, Sign In / Providers, "Allow manual linking"); I did not change the project's auth settings from here, and `supabase config push` must not be run (Phase 0). **(You)** switch it on in the dashboard when you want linking **Checked 2026-10-24: Supabase answers `manual_linking_disabled`, so it is still off; the owner switches it on (manual 4.2). `e2e/accounts.spec.ts` has the check and goes green once it is on.**
 - [-] Account deletion revokes the Apple token for Apple users (App Store rule; check Apple's current rules when building)
 
 **User app (all platforms)**
@@ -419,7 +419,7 @@ What was checked, so the list below is evidence and not a guess: `npm run check`
 
 **Web**
 - [ ] Google and Apple sign-in through the browser flow (`providers/AuthProvider.tsx`)
-- [ ] Phone and username + password work
+- [x] Phone and username + password work Browser test 2026-10-24 (`e2e/accounts.spec.ts`): new number, birth date, setup, set password in Settings → Sign-in, sign out, sign in with the username; Ravi still signs in. The sign-in screen only signs in with a username; the password is set after sign-up.
 
 **Android**
 - [ ] Google and Apple sign-in through the browser flow; phone; username + password
@@ -440,10 +440,10 @@ What was checked, so the list below is evidence and not a guess: `npm run check`
 
   | | Google | Apple | Phone | Username + password |
   |---|---|---|---|---|
-  | Web | [ ] | [ ] | [ ] | [ ] |
+  | Web | [ ] | [-] | [x] | [x] |
   | Android | [ ] | [ ] | [ ] | [ ] |
   | iOS (later) | [-] | [-] | [-] | [-] |
-- [ ] Existing test users still sign in with their phone
+- [x] Existing test users still sign in with their phone (Ravi, in the e2e run)
 - [ ] Linking a second method works; no duplicate accounts
 - [-] Deleting an Apple account revokes its token
 
@@ -468,19 +468,19 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 **Backend: events out of the database**
 - [x] `private.emit_event` writes to a new `private.outbox` in the same transaction
 - [x] Fast path: pg_net posts each outbox event to Inngest immediately
-- [x] Safety net: a one-minute sweeper (an Inngest cron, so no new pg_cron job) re-sends anything unconfirmed. The outbox id is the event id, so duplicates are dropped.
+- [x] Safety net: a five-minute sweeper (an Inngest cron, so no new pg_cron job; was one minute until 2026-10-24, when it was using half the free plan's 50,000 monthly runs) re-sends anything unconfirmed. The outbox id is the event id, so duplicates are dropped.
 
 **Backend: move the work** (the old job is removed in the same deploy as its replacement)
 - [ ] `auto-complete-due` → Inngest cron (built, off until `INNGEST_MONEY_JOBS=on`; cutover SQL in `supabase/cutover/`)
 - [ ] `settle-cleared-earnings` → Inngest cron (built every 5 min, off until cutover)
 - [ ] `settle-finished-campaigns` → Inngest cron (built, off until cutover)
 - [x] Daily digest → Inngest cron (`daily-digest`, writes to `admin_alerts`)
-- [ ] Push (pg_net trigger) → `notification.created`: send the Expo push, read receipts, remove dead tokens (built; the trigger keeps the direct send until the `push_via_inngest` switch, `supabase/cutover/inngest_background_jobs.sql`)
+- [x] Push (pg_net trigger) → `notification.created`: send the Expo push, read receipts, remove dead tokens (built; the trigger keeps the direct send until the `push_via_inngest` switch, `supabase/cutover/inngest_background_jobs.sql`) **On since 2026-10-18 (`push_via_inngest` true); all 20 types reached the owner phone through it on 2026-10-24.**
 - [ ] Withdrawal → `withdrawal.requested`: payout with retries and an idempotency key, one at a time per user. `requestWithdrawal` returns immediately.
 - [ ] Stuck payouts → reconciliation every 15 minutes
 - [ ] Refund "sent but not recorded" → retrying function + Sentry fatal
-- [ ] Account deletion → `user.deleted`: delete storage files with retries (ImageKit added in Phase 6). Built, not yet applied. The api function still removes them at once; `account-files` finishes whatever it missed.
-- [ ] New: an overdue-tasks cron (`OVERDUE` from `due_at`), built, not yet applied
+- [x] Account deletion → `user.deleted`: delete storage files with retries (ImageKit added in Phase 6). Built, not yet applied. The api function still removes them at once; `account-files` finishes whatever it missed. **Applied and running: `user-deleted` and `account-files` runs Completed in Inngest on 2026-10-24.**
+- [x] New: an overdue-tasks cron (`OVERDUE` from `due_at`), built, not yet applied **Running every 10 minutes (Completed in Inngest, 2026-10-24).**
 - [x] Team alerts (support, withdrawal, dispute, payout failed) → `admin_alerts` rows (Sentry on final failure)
 
 **Backend: webhooks**
@@ -493,18 +493,18 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [ ] `requestWithdrawal` keeps the same response shape, so the old app still shows the withdrawal correctly
 
 **Backend: housekeeping**
-- [ ] Missing prunes added (in Inngest `housekeeping`, not pg_cron; built, not yet applied): `auth_codes`, `auth_send_log`, `places_quota`, notifications older than 90 days; sent outbox rows were already pruned by `outbox-prune`
+- [x] Missing prunes added (in Inngest `housekeeping`, not pg_cron; built, not yet applied): `auth_codes`, `auth_send_log`, `places_quota`, notifications older than 90 days; sent outbox rows were already pruned by `outbox-prune` **`housekeeping` runs hourly (Completed in Inngest, 2026-10-24).**
 - [x] Every Inngest function reports its final failure to Sentry
 - [x] The old automation tool is gone: its triggers, cron jobs, tables and function (migrations 090 and 102), its doc and the privacy-policy line
 - [x] Leftovers dropped (`private.automation_*`, `private.send_daily_digest()`, the log-prune job): migration 102, applied on the hosted test project 2026-10-18
 - [x] Events and alerts carry no free text (help-request subject, job title, payout failure note); team alerts are pruned after 30 days
 
 **Web**
-- [ ] In-app notifications and the realtime pings still arrive (the web has no push)
+- [x] In-app notifications and the realtime pings still arrive (the web has no push) **`e2e/notifications.spec.ts` (2026-10-24): the bell on an open page counts a new quote with no refresh.**
 
 **Android**
-- [ ] Push for every notification type arrives through Inngest
-- [ ] Tapping a push opens the right screen
+- [x] Push for every notification type arrives through Inngest **2026-10-24, owner phone over USB: all 20 types arrived.**
+- [x] Tapping a push opens the right screen **It opens Notifications for every type (that is what the app does); verified 2026-10-24.**
 
 **iOS**
 - ⏸ **Future scope (deferred 2026-10-20).** iOS waits until Android and the admin are done; the boxes below are marked `[-]` and don't block this phase.
@@ -512,9 +512,9 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 - [-] Tapping a push opens the right screen
 
 **Admin**
-- [ ] Payout queue shows the "queued" state
+- [ ] Payout queue shows the "queued" state **Needs RazorpayX switched on (owner manual 10.3): the Payouts page today says "Manual in use".**
 - [x] New admin alerts view. Admin repo, branch `upgrade/phase-5-inngest`: Alerts in the sidebar (People & jobs), unread / all, mark one or all read; reads `admin_alerts` (migration 090, already applied) behind `requireAdmin`
-- [ ] `check-all`, `give-back` and `balance` still work
+- [ ] `check-all`, `give-back` and `balance` still work **Not pressable until RazorpayX is set up (the page shows "Not set up"); repeat the check after owner manual 10.3.**
 
 **Verify**
 - [ ] Every function runs in the dev server, then in Inngest Cloud for the test project
@@ -1204,6 +1204,7 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 
 ## 11. Changelog
 
+- **v4.51 (2026-10-24):** Owner asked Claude to complete Phases 4 and 5 of the owner manual. **Phase 4:** phone login kept (`phone-auth`; the Supabase phone-auth boxes are `[-]`, owner manual 4.1). New `e2e/accounts.spec.ts` (web, test project): a new number is asked its birth date, signs up, finishes setup, sets a password in Settings → Sign-in and signs back in with the username; a 16-year-old is refused with no account; Ravi still signs in; the account the test made is deleted at the end. It also checks "Allow manual linking": Supabase answers `manual_linking_disabled`, so it is **off** and the owner has to switch it on (4.2); until then that test skips with the reason. The manual's old step "create a username and password at sign-in" was wrong (the screen only signs in; the password is set in Settings), and is corrected. **Phase 5:** checked in the owner's Inngest dashboard: 0 failed runs in the last day. **Found:** the Hobby plan allows 50,000 runs a month and 28,456 were used by 24 October; the outbox sweeper (every minute) was the biggest user, so it is now every 5 minutes (`supabase/functions/inngest/index.ts`, docs/INNGEST.md; the watchdog alerts at 15 minutes). Inngest billing is added to owner manual 10.2. Push: all 20 notification types sent to the owner phone's test account (Tasker 3313) all arrived through Inngest, and a tap opens Notifications; a first attempt failed only because the app had been force-stopped (Android drops pushes to a force-stopped app). New `e2e/notifications.spec.ts`: the bell on an open page counts a new quote with no refresh. Admin Payouts page opens cleanly; RazorpayX is "Not set up" on the test project, so check-all, give-back and balance wait for owner manual 10.3. **Left for the owner:** 4.2 (the Supabase switch), 4.3 and the Google and phone-app parts of 4.4 (a real Google login), clearing the 20 test notifications from the phone's shade.
 - **v4.50 (2026-10-24):** Phase 2 steps 1 to 3 built on branch `fix/phase-2-stabilize` (PR into `redesigned-2.0`). **Code:** reads retry twice on a gateway blip, writes never (`lib/retry.ts`, `lib/gateway.ts`, the `app-config` refresh); Sentry environment is `development` on localhost, aborts dropped, an unreachable config is a log line; "Couldn’t load. Try again" on the promote and manage-task screens; the placeholder says "This page isn’t available" and a test keeps every screen name registered; the Playwright helper retries gateway blips and waits for `health`. **Database (migrations 122 and 123, not yet applied, the Vercel build applies them on merge):** one read rule per table, 15 foreign-key indexes, and reconcile no longer flags a fully refunded payment; checked on the test project in rolled-back transactions. **Checked before building, so two findings were corrected:** sign-out is safe and `quietly()` only carries ad pings. **Merged with the Phase 1 verify work (v4.47):** the temporary Sentry trigger is already reverted on `redesigned-2.0`, so P2-3 is done. **Not done on purpose:** the Sentry clean-up in P2-2 (after deploy), the seed-data "known mismatch" marking in P2-8 (changes data). Checks: `npm run check` green, Playwright 21 of 21 against a rebuilt web export, new tests `retry.test.ts`, `registry.test.ts`, `policy_tidy.test.sql` (the SQL one run on the test project inside a rolled-back transaction; CI runs it for real).
 - **v4.49 (2026-10-24):** Phase 2 audit and fix plan. Docs only; no code changed and nothing pushed. Claude checked the code, the logs, Sentry, Vercel, the Supabase advisors, the Playwright suite and the owner's phone (details at the top of Phase 2) and wrote 16 findings, P2-1 to P2-16, in five steps. The ones that matter most: deploys cause a short 503 burst and the app does not retry (the Playwright money test failed once for this reason and passed on re-run); Playwright and local runs report to Sentry as `production`; a temporary Sentry trigger commit (`550d4a1`) is live on `redesigned-2.0`; several screens show a failed load as an empty screen. **Owner decision:** the admin authenticator is future scope ("no need now"); it is Part B, section 13, and P2-14 records it. Also corrected: ground rule 10 no longer lists local branches that do not exist. Waiting for "start Phase 2" before any fix is built.
 - **v4.48 (2026-10-24):** Two things. **(1) Phase 1 is done.** The admin test error was run: a temporary server route and client page in the admin repo (`1f1e7b5`), deployed as a preview, opened in the owner's signed-in Chrome; both errors reached Sentry project `taskdrop-admin` with readable stacks, then the trigger was reverted and pushed (`8ab9de3`, admin `redesigned-2.0`). The last Verify box is ticked; the Phase 1 board row now reads 22 of 28 ticked, 6 deferred, 0 open. A Vercel preview of the admin (`taskdrop-admin-3lqaokblf`) still carries the trigger until the next deploy replaces it; it needs a Vercel sign-in and the token is now meaningless once the code is gone. **(2) Owner instruction: Phase 3 tasks 3.2 and 3.3 are future scope.** Rotating the Razorpay test keys (manual 3.2) and the private-repo decision (manual 3.3) are marked `[-]` and moved out of the open list; the Phase 3 board row is recounted from the boxes (35 ticked, 4 deferred, 8 open; the old row said 32/2/13 and was stale). Consequence recorded in the risk table: the old test key pair stays readable in the public repo's history; it only opens the Razorpay test account.
