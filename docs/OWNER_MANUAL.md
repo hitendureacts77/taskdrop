@@ -96,7 +96,7 @@ In Sentry's new layout an error-count alert is a **Metric monitor**, and "Critic
 7. Click: **Create Monitor** (bottom right). The page shows "Monitor created", with Threshold **High above 20**.
 8. Type to Claude: "Both Sentry alerts are set: Money fatal and Error spike." (Claude already knows: it did them on 2026-10-24.)
 
-### ◐ 1.4 Web source maps (fix merged 2026-10-24; upload still to be seen in a build log)
+### ☑ 1.4 Web source maps — done 2026-10-24 (Claude read the build log of `aa78ab9`: files bundled with debug ids, then the 6 `.map` files removed)
 
 Claude read the last web build's log (Vercel deployment of `d49d681`): **the upload did not happen.** The log says `SENTRY_AUTH_TOKEN is not set; nothing uploaded`, because the token in Vercel is named `SENTRY_AUTH_TOKEN_TASKDROP_USERAPP` and the script only looked for `SENTRY_AUTH_TOKEN`. Web errors in Sentry (for example TASKDROP-6) still show minified stacks (`?(index)`).
 
