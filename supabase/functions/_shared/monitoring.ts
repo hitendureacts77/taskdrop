@@ -123,6 +123,8 @@ export async function logServer(level: LogLevel, fn: string, message: string, at
 export function guarded(fn: string, handler: (req: Request) => Promise<Response>): (req: Request) => Promise<Response> {
   return async (req) => {
     try {
+      // TEMP (Phase 1 verify, remove after the check): a request carrying this header throws on purpose.
+      if (req.headers.get("x-sentry-test") === "24f566ba1ac46b67") throw new Error(`Sentry verify: test error from ${fn}`);
       return await handler(req);
     } catch (e) {
       console.error(`${fn}: unhandled`, e);
