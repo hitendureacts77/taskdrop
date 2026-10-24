@@ -29,14 +29,19 @@ function maps(dir) {
   return out;
 }
 
+// The Vercel project stores the token as SENTRY_AUTH_TOKEN_TASKDROP_USERAPP (the
+// name its Sentry token was created under); the plain name is accepted too.
+const token = process.env.SENTRY_AUTH_TOKEN || process.env.SENTRY_AUTH_TOKEN_TASKDROP_USERAPP;
+
 let ok = false;
-if (!process.env.SENTRY_AUTH_TOKEN) {
+if (!token) {
   console.log("[sourcemaps] SENTRY_AUTH_TOKEN is not set; nothing uploaded.");
 } else {
   const cli = join("node_modules", ".bin", process.platform === "win32" ? "sentry-cli.cmd" : "sentry-cli");
   const r = spawnSync(cli, ["sourcemaps", "upload", "--org", "hitendu", "--project", "taskdrop", dist], {
     stdio: "inherit",
     shell: process.platform === "win32",
+    env: { ...process.env, SENTRY_AUTH_TOKEN: token },
   });
   ok = r.status === 0;
 }
