@@ -111,9 +111,9 @@ Claude changed the script to accept that name. The change is committed on a loca
 
 Nothing for you to do. Claude checked the EAS log of the `beta` APK (build `af47d88d`): the Sentry plugin uploaded its source maps (release `com.taskdrop.app@1.0.0+1`), because `SENTRY_AUTH_TOKEN` is set in the EAS `preview` environment. Updates sent over the air are a separate case: EAS doesn't upload their maps, so Claude uploads them by hand each time (it did for the update in task 1.6).
 
-### ◐ 1.6 Phase 1 test session with your phone — Claude ran steps 2 to 4 on 2026-10-24; only the admin test error is left
+### ☑ 1.6 Phase 1 test session with your phone — done 2026-10-24 (Claude, phone plugged in)
 
-**State 2026-10-24 (later):** Claude ran this with your phone plugged in. The test update reached the phone (Sentry shows its update id), test errors from web, Android and all 8 functions reached Sentry with readable stacks, a test push arrived (two test notifications may still sit in your phone's shade: swipe them away), and Uptime Robot shows both monitors Up. Not done: a test error from the admin. Details in the plan, v4.47.
+**State 2026-10-24 (later):** Claude ran this with your phone plugged in. The test update reached the phone (Sentry shows its update id), test errors from web, Android and all 8 functions reached Sentry with readable stacks, a test push arrived (two test notifications may still sit in your phone's shade: swipe them away), and Uptime Robot shows both monitors Up. The admin test error was run later the same day: server and browser errors reached Sentry project `taskdrop-admin` with readable stacks. Details in the plan, v4.47 and v4.48.
 
 1. Click: plug your phone into the PC with the USB cable. If the phone asks "Allow USB debugging?", tap **Allow**.
 2. Type to Claude: "Run the Phase 1 verify. My phone is plugged in."
@@ -223,7 +223,9 @@ Skip this. Safari testing, like everything iOS, waits until you say "start iOS".
 
 Claude checked: every migration up to 121 is applied on the test project and all 11 Edge Functions are deployed (a push to `redesigned-2.0` does this by itself, see `docs/DEPLOY.md`). Task 3.2 can go ahead.
 
-### ☐ 3.2 Change the Razorpay test keys (10 minutes)
+### ⏸ 3.2 Change the Razorpay test keys — future scope (owner decision 2026-10-24)
+
+Not needed now. The old test key pair is out of the code but stays readable in the public repo's history; it only opens the Razorpay test account, so no real money is at risk. Do the clicks below when you decide, and at the latest before real customers and live keys (Phase 10).
 
 1. Click: open https://dashboard.razorpay.com and sign in.
 2. Click: at the top, switch to **Test Mode**.
@@ -237,9 +239,11 @@ Claude checked: every migration up to 121 is applied on the test project and all
 10. Click: open `.env.all-secrets` in Notepad, replace the two Razorpay values, and save.
 11. Type to Claude: "I changed the Razorpay test keys in Vault. Check a test payment still works."
 
-### ☐ 3.3 Decide: public or private repos
+### ⏸ 3.3 Decide: public or private repos — future scope (owner decision 2026-10-24)
 
-1. To keep them public (free): Type to Claude "Keep both repos public."
+Both repos stay public (free) for now. Nothing to do on GitHub. Going private waits for a later decision; CodeRabbit would then cost about $24 a month.
+
+1. Keep them public (free): this is the current setting; nothing to do.
 2. To make them private (CodeRabbit then costs about $24 a month):
    1. Click: open https://github.com/hitendureacts77/taskdrop → **Settings** (top right of the repo).
    2. Click: scroll to the bottom, **Danger Zone** → **Change visibility** → **Make private** → confirm.
