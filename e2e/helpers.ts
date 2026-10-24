@@ -102,6 +102,28 @@ export function apiAs(request: APIRequestContext, token: string) {
   };
 }
 
+/**
+ * Finish what a test run left half-way, so the admin's queues do not fill up with fake jobs: an open, locked
+ * or started "[e2e" job is cancelled (the poster is refunded, less the fine once work started) and finished
+ * work is approved. A dispute stays: only an admin can decide it.
+ */
+export async function tidyE2eTasks(call: ReturnType<typeof apiAs>): Promise<number> {
+  const mine = await call<{ id: string; title: string; status: string }[]>("listMyTasks");
+  if (!mine.ok || !Array.isArray(mine.data)) return 0;
+  let n = 0;
+  for (const t of mine.data) {
+    if (!t.title.startsWith("[e2e")) continue;
+    if (["OPEN", "LOCKED", "TASK_STARTED"].includes(t.status)) {
+      await call("cancelTask", { taskId: t.id, reason: "End-to-end test cleanup." });
+      n++;
+    } else if (t.status === "WORK_DONE") {
+      await call("confirmRelease", { taskId: t.id });
+      n++;
+    }
+  }
+  return n;
+}
+
 /** Wait until the backend answers its uptime check (a deploy may be under way), so a run does not start into the gap. */
 export async function waitForBackend(request: APIRequestContext, seconds = 90): Promise<void> {
   const until = Date.now() + seconds * 1000;

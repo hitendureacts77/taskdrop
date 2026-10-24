@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type Browser } from "@playwright/test";
-import { ASHA, RAVI, accessToken, apiAs, must } from "./helpers";
+import { ASHA, RAVI, accessToken, apiAs, must, tidyE2eTasks } from "./helpers";
 
 /**
  * The money paths, through the app's single door (the `api` function) as the two seed accounts, signed in
@@ -8,7 +8,8 @@ import { ASHA, RAVI, accessToken, apiAs, must } from "./helpers";
  * screens themselves are covered in ui.spec.ts.
  *
  * Each run creates a few "[e2e]" tasks and moves a few hundred rupees of fake money. `npm run seed:reset`
- * puts the seed accounts back (only with the owner's OK).
+ * puts the seed accounts back (only with the owner's OK). What a run leaves half-way is cancelled or approved at
+ * the end (tidyE2eTasks); the dispute test leaves one disputed job, which only an admin can decide.
  */
 
 type Wallet = { balance_minor: number; clearing_minor: number };
@@ -66,6 +67,7 @@ test.beforeAll(async ({ browser, playwright }) => {
 });
 
 test.afterAll(async () => {
+  if (asha) await tidyE2eTasks(asha).catch(() => 0);
   await Promise.all(contexts.map((c) => c.close()));
 });
 
