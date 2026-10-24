@@ -5,7 +5,7 @@ import { gatewayHeaders } from "../_shared/gateway.ts";
 import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
 import { guarded, background, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
-import { type Db, RATE_LIMITS, RecentlyLimited, rateBucket, runOp } from "./ops.ts";
+import { type Db, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp } from "./ops.ts";
 
 /**
  * The app's one door to its data.
@@ -13,6 +13,10 @@ import { type Db, RATE_LIMITS, RecentlyLimited, rateBucket, runOp } from "./ops.
  *   POST /functions/v1/api   { "op": "listOpenTasks", "args": { ... } }
  *   ->  { "ok": true,  "data": ... }
  *   or  { "ok": false, "error": { "message", "code", "details" } }
+ *
+ * `{ "op": "batch", "args": { "calls": [{ "op", "args" }, ...] } }` runs up to
+ * MAX_BATCH reads at once and answers `data: [reply, ...]` in the same order,
+ * each reply shaped like the above. Each call counts against the limiter.
  *
  * What each `op` does lives in ./ops.ts and its neighbours, on the server. A
  * refusal (not enough money, quote not allowed) comes back as HTTP 200 with
@@ -112,16 +116,18 @@ Deno.serve(guarded("api", async (req: Request) => {
   const checkRate = async (): Promise<Response | null> => {
     if (!admin) return null;
     try {
-      const { data: allowed, error: rateErr } = await admin.rpc("api_rate_hit", {
-        p_user: userData.user.id,
-        p_bucket: bucket,
-        p_limit: RATE_LIMITS[bucket],
-      });
-      if (rateErr) {
-        background(logServer("warn", "api", "rate limiter unavailable", { error: rateErr.message }));
+      // A batch counts once per call inside it, so batching never widens the budget.
+      const hits = await Promise.all(
+        Array.from({ length: rateCost(body.op, body.args) }, () =>
+          admin.rpc("api_rate_hit", { p_user: userData.user.id, p_bucket: bucket, p_limit: RATE_LIMITS[bucket] })
+        ),
+      );
+      const failed = hits.find((h) => h.error);
+      if (failed?.error) {
+        background(logServer("warn", "api", "rate limiter unavailable", { error: failed.error.message }));
         return null;
       }
-      if (allowed === false) {
+      if (hits.some((h) => h.data === false)) {
         limitedLately.mark(userData.user.id);
         background(logServer("warn", "api", "rate limited", { op: String(body.op), bucket, user_id: userData.user.id }));
         return refuse("You are going too fast. Please wait a moment and try again.", "RATE_LIMITED", 429);
@@ -187,13 +193,16 @@ Deno.serve(guarded("api", async (req: Request) => {
   // A confirmed phone number is what "verified" means; Supabase leaves phone_confirmed_at empty otherwise.
   const phoneVerified = Boolean(userData.user.phone_confirmed_at);
   // Only the operations that handle pictures need ImageKit's keys.
-  const imagekit = IMAGE_OPS.has(String(body.op)) ? await imageKitConfig(secret) : null;
+  const isBatch = body.op === "batch";
+  const needsImageKit = isBatch ? (batchCalls(body.args) ?? []).some((c) => IMAGE_OPS.has(c.op)) : IMAGE_OPS.has(String(body.op));
+  const imagekit = needsImageKit ? await imageKitConfig(secret) : null;
   const ctx = { db: db as unknown as Db, userId: userData.user.id, callFunction, removeOwnFiles, client, controls, phoneVerified, imagekit };
-  const running = runOp(body.op, body.args, ctx, (e) => {
+  const onUnexpected = (e: unknown) => {
     // Both finish in the background after the response is sent.
     background(logServer("error", "api", "op failed", { op: String(body.op), user_id: userData.user.id, error: e instanceof Error ? e.message : String(e) }));
     background(captureServerError(e, { op: String(body.op), fn: "api" }));
-  });
+  };
+  const running = isBatch ? runBatch(body.args, ctx, onUnexpected) : runOp(body.op, body.args, ctx, onUnexpected);
   if (!overlap) return json(await running);
   const [refused, result] = await Promise.all([rate, running]);
   return refused ?? json(result);

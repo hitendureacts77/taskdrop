@@ -65,10 +65,16 @@ Deno.serve(async (req: Request) => {
   }
 
   const controls = await cache.get(client, async () => {
-    const db = createClient(url, anonKey, {
-      global: { headers: await gatewayHeaders() },
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    // What is read here is public and read-only. The service key is exempt from
+    // the gateway-only lockdown, so using it skips the Vault read a cold
+    // instance needs just to find the gateway header (one round trip fewer).
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const db = serviceKey
+      ? createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } })
+      : createClient(url, anonKey, {
+        global: { headers: await gatewayHeaders() },
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
     const { data, error } = await db.rpc("get_app_controls", { p_platform: client.platform, p_version: client.appVersion });
     if (error) {
       console.error("app-config: controls unavailable", error.message);
