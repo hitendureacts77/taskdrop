@@ -19,9 +19,15 @@ on:
   workflow_dispatch:
   push:
     branches: [redesigned-2.0]
-    paths-ignore:
-      - 'docs/**'
-      - '**/*.md'
+    # Only code the tests can tell something about; each run leaves one disputed job for an admin to decide.
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/**'
+      - 'supabase/**'
+      - 'e2e/**'
+      - 'playwright.config.ts'
+      - 'package.json'
+      - '.github/workflows/e2e.yml'
 
 # One run at a time: the tests share the seed accounts and move their fake money.
 concurrency:
