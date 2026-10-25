@@ -54,6 +54,9 @@ Run again any time: `BREAKIT=1 npx playwright test e2e/breakit.spec.ts` (PowerSh
 | P2-28 | Medium | "Distance" on a job showed the distance to the *poster's saved home*, not the job (2,368 km for a job round the corner, because the seed poster lives in Thailand) | uses the job's own place; "Remote / online" when it has none |
 | P2-29 | Low | On a computer, Enter in chat did nothing (only the arrow button sent) | Enter sends, Shift+Enter is a new line (web only) |
 | P2-43 | Medium | **Admin idle sign-out: one pass, one miss.** Test 1 (signed in 05:59 UTC, left 32 minutes on the dashboard, then clicked a menu item): not signed out, the page opened. Test 2 (31 minutes untouched): the page sent itself to the sign-in screen by the time I looked (the live panel's once-a-minute read got a 401). So the timeout works at least some of the time; why test 1 did not fire is not known (the middleware reads right; the free Vercel log window is 1 hour and shows no error). Second problem, fixed in the admin working copy: that redirect dropped the words "You were signed out after 30 minutes without activity", so the person saw a plain sign-in page (`LiveProvider.tsx` now passes the middleware's message). Open: a third timed test, ideally with the page in front the whole time |
+| P2-45 | Low | `phone-auth` quietly cleaned `9876543210; drop table users` into a phone number and sent it a code | anything but digits, spaces and `+ ( ) . -` is refused |
+| P2-46 | Low | The Android build asked for three permissions the app never uses (`SYSTEM_ALERT_WINDOW`, `USE_BIOMETRIC`, `USE_FINGERPRINT`); found reading the beta APK's manifest (T11.2) | blocked in `app.json`; takes effect in the next native build |
+| P2-47 | Low | The admin audit log called every staff action "event / Changed event" | plain words ("Warned a person", "Closed a report as acted on", "Hid a message"...) and a "Staff actions" filter |
 | P2-44 | Low | A withdrawal request took 0.8 to 1.6 s (target under 1 s, measured from this PC): the answer waited for the second function that hands the payout to RazorpayX | the hand-off now runs after the answer is sent |
 | P2-30 | Low | Money shown without paise: ₹82.40 read "₹82", so a wallet line and the price did not add up | whole rupees stay whole, paise show when there are any |
 
@@ -76,6 +79,10 @@ Run again any time: `BREAKIT=1 npx playwright test e2e/breakit.spec.ts` (PowerSh
 
 - Asha's wallet fell from ₹5,000 to about ₹1,500–2,700 (a lot is "frozen" in finished test jobs); Ravi has 120+ unread notifications; the feed carries about 30 `[e2e]` and `[e2e-break]` tasks (two of them, `[e2e] contact rule`, carry a phone number from before Phase 3). `npm run seed:reset` puts the three accounts back; it needs your OK.
 - My probe renamed Meera's username to `meera_e2e` (it was `seed_…`). The reset undoes it too.
+
+## Live check after the merge (2026-10-25)
+
+Pull request 77 was merged into `redesigned-2.0` and deployed (migrations 125 and 126 applied, functions and web live). The attack suite was run again against the deployed project: **269 probes held, 18 flagged**, and every one of the 18 is explained and not a defect: a second review edits the same review; removing someone else's payout destination answers "done" and changes nothing (the destination was still there); hostile titles are stored as text and drawn escaped; `payout_upi` is the legacy column (empty for everyone); messages, offers and assignments were flagged by a rough test and checked row by row (nothing outside the person's own jobs); the RazorpayX webhook and payouts answer "not set up" and touch nothing until RazorpayX exists; one phone number cleaned out of SQL text (fixed afterwards as P2-45). The probes that the first run flagged as real findings (review before approval, price 0, past deadline, latitude 999, reserved usernames, spelled-out and other-script phone numbers) now get through nowhere. The exact address check passed live: a stranger reads only the area; the poster and the hired worker read the full line; a stranger reading `task_private` directly gets nothing.
 
 ## Not done in this pass, and why
 

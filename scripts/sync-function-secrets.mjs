@@ -24,6 +24,7 @@ import { pathToFileURL } from "node:url";
 export const SYNCED = [
   "INNGEST_EVENT_KEY",
   "INNGEST_SIGNING_KEY",
+  "INNGEST_MONEY_JOBS", // "on" lets Inngest run the three money sweeps (supabase/cutover/inngest_money_jobs.sql); not a secret
   "IMAGEKIT_PUBLIC_KEY",
   "IMAGEKIT_PRIVATE_KEY",
   "IMAGEKIT_URL_ENDPOINT",
