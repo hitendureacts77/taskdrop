@@ -55,7 +55,7 @@ Claude checked everything in Phases 0 to 8 that can be checked without you (evid
 | # | What | Who | Time | Full clicks |
 |---|---|---|---|---|
 | 1 | **Fix Google sign-in.** It is down for everyone (the Google login key behind it was deleted). Phone-number and username sign-in still work. | You | 15 min | Task 0.1 |
-| 2 | **Phone session.** Unlock the phone, plug it in, say "install the new beta and run the phone checks". Claude installs the build, proves App Check on Android, publishes the update for the chat-photo viewer, runs the Android half of the job test, and merges the App Check PR. | You say go; Claude does it | 30 min | Tasks 2.2, 3.5, 6.3 |
+| 2 | **Phone session: done 2026-10-25 by Claude** (build `505485f8` installed; App Check proven on Android: the server logged `valid` for 74 calls from the phone; the update for the chat-photo viewer is on the phone and the full-size photo opens; App Check PR 84 merged). Still open from this step: the web App Check proof (needs one signed-in visit to taskdrop.in, so it waits for step 1), and a fresh Android job run. | Claude | done | Tasks 2.2, 3.5, 6.3 |
 | 3 | **Two values in the admin's Vercel project** (the ImageKit photo values), so the admin shows job photos. | You | 5 min | Task 6.4 |
 | 4 | **Admin idle sign-out test.** Needs step 1 first (a working admin login), then 31 minutes of waiting. | Claude, in your Chrome | 35 min, mostly waiting | Task 3.7 |
 | 5 | **Your decisions:** the map for the store version, the legal details, whether profiles may show a rounded place and "last seen", and the Razorpay test-link limit. | You, in the chat | 20 min | Tasks 8.1, 8.2 and the list under "Decisions" below |
