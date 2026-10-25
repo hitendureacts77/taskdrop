@@ -128,11 +128,24 @@ export async function runOp(name: unknown, args: unknown, ctx: Ctx, onUnexpected
   // decided here on the server whatever the app shows.
   const off = refusalFor(name, ctx.controls ?? null, a, { phoneVerified: ctx.phoneVerified });
   if (off) return { ok: false, error: off };
+  const started = performance.now();
   try {
     return { ok: true, data: (await op(ctx, a)) ?? null };
   } catch (e) {
     if (e instanceof OpError) return { ok: false, error: { message: e.message, code: e.code, details: e.details } };
     onUnexpected(e);
     return { ok: false, error: { message: GENERIC, code: "INTERNAL", details: null } };
+  } finally {
+    logIfSlow(String(name), performance.now() - started);
   }
+}
+
+/**
+ * An operation that takes a while leaves one line in the function's log ("api slow op ... 412 ms"), name and time
+ * only, never arguments. It is how the slowest operations are found (Supabase, Edge Functions, api, Logs) without
+ * guessing: the database answers in a couple of milliseconds, so the time is in what an operation does around it.
+ */
+export const SLOW_OP_MS = 150;
+function logIfSlow(name: string, ms: number): void {
+  if (ms >= SLOW_OP_MS) console.log(`api slow op ${name} ${Math.round(ms)} ms`);
 }
