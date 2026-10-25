@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { gzipSync } from "node:zlib";
 
 const root = resolve(fileURLToPath(new URL("../apps/mobile/dist", import.meta.url)));
 const port = Number(process.argv[2] || process.env.PORT || 8099);
@@ -23,6 +24,14 @@ createServer((req, res) => {
   const path = normalize(decodeURIComponent(new URL(req.url, "http://x").pathname)).replace(/^[\\/]+/, "");
   let file = join(root, path);
   if (!(file + sep).startsWith(root + sep) || !existsSync(file) || statSync(file).isDirectory()) file = join(root, "index.html");
-  res.writeHead(200, { "Content-Type": types[extname(file)] ?? "application/octet-stream" });
-  res.end(readFileSync(file));
+  // Compress text the way the real site does, so timings taken against this server mean something.
+  const type = types[extname(file)] ?? "application/octet-stream";
+  const body = readFileSync(file);
+  if (/gzip/.test(String(req.headers["accept-encoding"])) && /^(text\/|application\/json)/.test(type)) {
+    res.writeHead(200, { "Content-Type": type, "Content-Encoding": "gzip", Vary: "Accept-Encoding" });
+    res.end(gzipSync(body, { level: 6 }));
+    return;
+  }
+  res.writeHead(200, { "Content-Type": type });
+  res.end(body);
 }).listen(port, () => console.log(`serving ${root} on http://localhost:${port}`));
