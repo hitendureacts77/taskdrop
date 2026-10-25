@@ -25,8 +25,13 @@ function start() {
         import('@react-native-firebase/app'),
         import('@react-native-firebase/app-check'),
       ]);
+      // Play Integrity only approves an app Google Play recognizes, so a beta APK
+      // installed by hand is refused. Those builds get a Firebase debug token as an
+      // EAS environment variable (never committed; docs/APP_CHECK.md); store builds
+      // have none and use Play Integrity. Written out in full so Expo inlines it.
+      const debugToken = process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN;
       const provider = new lib.ReactNativeFirebaseAppCheckProvider();
-      provider.configure({ android: { provider: 'playIntegrity' } });
+      provider.configure({ android: debugToken ? { provider: 'debug', debugToken } : { provider: 'playIntegrity' } });
       const instance = await lib.initializeAppCheck(getApp(), { provider, isTokenAutoRefreshEnabled: true });
       return { getToken: lib.getToken, instance };
     } catch {
