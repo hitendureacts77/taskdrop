@@ -43,5 +43,11 @@ module.exports = ({ config }) => {
   // Without it the build still succeeds and push does not work (docs/FCM.md).
   const googleServicesFile = process.env.GOOGLE_SERVICES_JSON;
   const android = googleServicesFile ? { ...config.android, googleServicesFile } : config.android;
+  // App Check on Android (Play Integrity) goes through React Native Firebase.
+  // Its app plugin throws when there is no google-services.json, so it is only
+  // added to an Android build that has the file; any other build (web export,
+  // Expo Go, no secret) skips it and sends no App Check header (docs/APP_CHECK.md).
+  // Its app-check plugin only edits the iOS AppDelegate, so it is left out until iOS.
+  if (androidBuild && googleServicesFile) plugins.push('@react-native-firebase/app');
   return { ...config, android, plugins };
 };

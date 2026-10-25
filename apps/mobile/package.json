@@ -19,6 +19,8 @@
     "@firebase/app": "^0.16.2",
     "@firebase/app-check": "^0.13.1",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-firebase/app": "27.1.0",
+    "@react-native-firebase/app-check": "27.1.0",
     "@sentry/react-native": "~7.11.0",
     "@supabase/supabase-js": "^2.45.4",
     "@taskdrop/db-types": "*",
