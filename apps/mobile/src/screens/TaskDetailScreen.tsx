@@ -20,7 +20,7 @@ import {
   type Profile,
   type Task,
 } from '../data/api';
-import { distanceKm, formatDistance } from '@taskdrop/rules';
+import { PRICE_LIMITS, distanceKm, formatDistance } from '@taskdrop/rules';
 import { ShareSheet, useShare } from '../components/ShareSheet';
 import { taskUrl } from '../lib/links';
 import { type Theme } from '../theme';
@@ -98,6 +98,7 @@ const FALLBACK_POSTER: Detail = {
 };
 
 const QUOTE_STEP_MINOR = 5000; // ₹50
+const MIN_QUOTE_MINOR = PRICE_LIMITS.MIN_MINOR; // ₹20, the smallest offer
 
 function tagInk(t: Theme, tag: Detail['tag']): string {
   if (tag === 'SERVICES') return t.colors.accentDeep;
@@ -176,6 +177,9 @@ export function TaskDetailScreen() {
     mediaPath: string | null;
     mediaKind: 'image' | 'video' | null;
     mediaSeconds: number | null;
+    /** Where the job is (rounded for strangers by the database), not where the poster lives. */
+    lat: number | null;
+    lng: number | null;
   } | null>(null);
 
   useEffect(() => {
@@ -193,6 +197,8 @@ export function TaskDetailScreen() {
             mediaPath: td.task.media_path ?? null,
             mediaKind: kind === 'image' || kind === 'video' ? kind : null,
             mediaSeconds: td.task.media_seconds ?? null,
+            lat: td.task.loc_lat ?? null,
+            lng: td.task.loc_lng ?? null,
           });
         }
         if (worker) {
@@ -265,9 +271,12 @@ export function TaskDetailScreen() {
     formatDistance(
       distanceKm(
         { lat: me?.loc_lat ?? null, lng: me?.loc_lng ?? null },
-        { lat: other?.locLat ?? null, lng: other?.locLng ?? null },
+        // The job's own place. The poster's saved home is only a fallback for a task with no place
+        // (it said "2368 km" for a job round the corner when the poster's profile was elsewhere).
+        live ? { lat: live.lat, lng: live.lng } : { lat: other?.locLat ?? null, lng: other?.locLng ?? null },
       ),
     ) ??
+    (live && live.lat === null ? 'Remote / online' : null) ??
     other?.locLabel ??
     sampleDistance ??
     'Not shared';
@@ -309,6 +318,7 @@ export function TaskDetailScreen() {
     if (worker) {
       if (!realId) return flash('This is a sample task — post a real one to send an offer');
       if (!userId) return flash('Sign in to send an offer');
+      if (quote < MIN_QUOTE_MINOR) return flash(`The smallest offer is ${formatINR(MIN_QUOTE_MINOR)}`);
       setBusy(true);
       try {
         await placeBid({
@@ -492,7 +502,7 @@ export function TaskDetailScreen() {
           </RNText>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Pressable
-              onPress={() => setQuote((q) => Math.max(QUOTE_STEP_MINOR, q - QUOTE_STEP_MINOR))}
+              onPress={() => setQuote((q) => Math.max(MIN_QUOTE_MINOR, q - QUOTE_STEP_MINOR))}
               accessibilityRole="button"
               accessibilityLabel="Lower your offer"
               style={({ pressed }) => ({
@@ -514,7 +524,7 @@ export function TaskDetailScreen() {
               <AmountField
                 rupees={Math.round(quote / 100)}
                 onChangeRupees={(r) => setQuote((r ?? 0) * 100)}
-                min={1}
+                min={MIN_QUOTE_MINOR / 100}
                 style={tx('800', 34, t.colors.ink, { letterSpacing: -0.8 })}
               />
               <RNText style={tx('500', 12, deltaColor, { marginTop: 2 })}>{deltaText}</RNText>

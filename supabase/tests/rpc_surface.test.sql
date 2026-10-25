@@ -45,7 +45,7 @@ declare
     'record_ad_impression', 'record_ad_click', 'my_campaign_stats', 'remove_listing',
     'escrow_refund_due', 'admin_payout_queue', 'admin_mark_payout',
     'admin_resolve_dispute', 'admin_set_admin', 'platform_earnings',
-    'record_birth_date', 'admin_set_payout_method'
+    'record_birth_date', 'admin_set_payout_method', 'set_task_address'
   ];
   -- Service role only. A grant here is the hole 047 closed.
   must_not_be_callable text[] := array[

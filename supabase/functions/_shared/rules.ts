@@ -14,6 +14,10 @@ export const FEES = {
   POST_START_CANCEL_PENALTY_PCT: 0.05,
 } as const;
 
+export const PRICE_LIMITS = {
+  MIN_MINOR: 2000,
+} as const;
+
 export function workerNetPayout(lockedMinor: number): number {
   return Math.round(lockedMinor * (1 - FEES.WORKER_COMMISSION_PCT));
 }

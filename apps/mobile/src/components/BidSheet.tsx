@@ -4,6 +4,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { canQuoteOn, getMyBid, placeBid, updateBid, type Bid, type Task } from '../data/api';
+import { MIN_PRICE_INR } from '../lib/limits';
 import { maskContacts } from '../lib/mask';
 import { DateTimeSheet, formatDeadline } from './DateTimeSheet';
 import { BottomSheet, Field, PrimaryButton, rupees } from './kit';
@@ -107,7 +108,7 @@ export function BidSheet({
   if (!task) return null;
   const budget = Math.round(task.benchmark_minor / 100);
   const asked = Number(price);
-  const priceError = price.trim() && (!Number.isFinite(asked) || asked < 10) ? 'Enter at least ₹10' : null;
+  const priceError = price.trim() && (!Number.isFinite(asked) || asked < MIN_PRICE_INR) ? `Enter at least ₹${MIN_PRICE_INR}` : null;
   const ready = !blocked && pitch.trim().length >= 10 && price.trim() !== '' && !priceError;
   const auto = !existing && task.assignment_mode === 'auto' && asked > 0 && asked <= budget;
   // A price other than the customer's budget is a counteroffer, and says so.

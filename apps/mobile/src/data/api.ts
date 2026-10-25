@@ -110,6 +110,8 @@ export const getTask = (taskId: string) => act<Task | null>('getTask', { taskId 
 
 export type TaskDetail = {
   task: Task;
+  /** The typed address (flat, building, landmark). Only the poster and the person hired get it; everyone else gets null. */
+  address?: string | null;
   assignment: Assignment | null;
   poster: Profile | null;
   worker: Profile | null;

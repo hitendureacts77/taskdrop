@@ -1,9 +1,11 @@
 import {
-  type Args, type Ctx, type DbError, type Op, MONEY_MAX, OpError, bad, bool, int, isoOrNull, nowIso, numOrNull, oneOf,
+  type Args, type Ctx, type DbError, type Op, MONEY_MAX, OpError, bad, bool, coordOrNull, int, isoOrNull, nowIso, numOrNull, oneOf, priceMinor,
   rows, rpcOp, str, strOrNull, strings, take, toOpError, uuid, uuidOrNull, uuids,
 } from "./core.ts";
 import { assertOwnImage, isMediaRef } from "./media.ts";
 import { readFees } from "./reads.ts";
+import { roughPlace } from "../_shared/place.ts";
+import { PRICE_LIMITS } from "../_shared/rules.ts";
 import { contactIssueMessage, findContactIssue, maskContacts, nameCarriesContact, profileIssueMessage } from "../_shared/contacts.ts";
 
 /**
@@ -88,6 +90,39 @@ async function noteDevice(ctx: Ctx, a: Args, push: boolean) {
     p_os_version: strOrNull(a, "osVersion", 64),
     p_push: push,
   }));
+}
+
+/** Names that would pass for the team or the product. Found 2026-10-24: "admin", "support" and "taskdrop" were all free to take. */
+const RESERVED_USERNAMES = new Set([
+  "admin", "administrator", "support", "help", "taskdrop", "task_drop", "team", "staff", "moderator", "mod", "official",
+  "system", "root", "security", "billing", "payments", "payment", "wallet", "careers", "legal", "privacy", "terms",
+]);
+
+/** A deadline, or null. Not already past (a few minutes of clock difference are allowed), and not years away. */
+function dueAtOrNull(a: Args): string | null {
+  const iso = isoOrNull(a, "dueAt");
+  if (iso === null) return null;
+  const t = Date.parse(iso);
+  if (t < Date.now() - 5 * 60_000 || t > Date.now() + 3 * 365 * 86_400_000) throw bad("dueAt");
+  return iso;
+}
+
+/**
+ * A place typed with a door number ("Flat 402, Test Towers, Madhapur, Hyderabad") is two things: the area, which
+ * anyone may see, and the line itself, which only the poster and the person hired may. The label that goes into
+ * the public column is the area; the full line goes to the owner-only table (migration 126). Found 2026-10-24:
+ * the whole line was public to every signed-in person and only the screens hid it.
+ */
+export function splitPlace(raw: string | null): { label: string | null; address: string | null } {
+  if (raw === null) return { label: null, address: null };
+  const area = roughPlace(raw);
+  return { label: area, address: area === raw ? null : raw };
+}
+
+/** Keep the typed address in the owner-only table. Best-effort: the task is already saved with only its area public. */
+async function keepAddress(ctx: Ctx, taskId: unknown, address: string | null): Promise<void> {
+  if (typeof taskId !== "string") return;
+  await ctx.db.rpc("set_task_address", { p_task_id: taskId, p_address: address });
 }
 
 const taskOnly = (a: Args) => ({ p_task_id: uuid(a, "taskId") });
@@ -195,25 +230,27 @@ export const WRITE_OPS: Record<string, Op> = {
     if (!Array.isArray(milestones) || milestones.length > 50) throw bad("milestones");
     refuseContacts(a.title);
     refuseContacts(description(a));
+    const place = splitPlace(strOrNull(a, "locLabel", 200));
     const row = {
       poster_id: userId,
       pillar: str(a, "pillar", 40),
       title: str(a, "title", 300),
       description: description(a),
-      benchmark_minor: int(a, "benchmarkMinor", 0, MONEY_MAX),
+      // A request needs at least the smallest amount; a service listing may say "from 0" while it is being set up.
+      benchmark_minor: a.kind === "service" ? int(a, "benchmarkMinor", 0, MONEY_MAX) : priceMinor(a, "benchmarkMinor", PRICE_LIMITS.MIN_MINOR),
       time_limit_minutes: int(a, "timeLimitMinutes", 0, 10_000_000),
       flag: oneOf(a, "flag", ["none", "urgent", "unique"], "none"),
       media_kind: media?.kind ?? null,
       media_path: media?.path ?? null,
       media_seconds: typeof media?.seconds === "number" ? media.seconds : null,
-      loc_label: strOrNull(a, "locLabel", 200),
-      loc_lat: numOrNull(a, "locLat"),
-      loc_lng: numOrNull(a, "locLng"),
+      loc_label: place.label,
+      loc_lat: coordOrNull(a, "locLat", 90),
+      loc_lng: coordOrNull(a, "locLng", 180),
       category: strOrNull(a, "category", 100),
       skills: strings(a, "skills"),
       difficulty: a.difficulty == null ? null : oneOf(a, "difficulty", ["easy", "medium", "hard"]),
       assignment_mode: oneOf(a, "assignmentMode", ["bids", "auto"], "bids"),
-      due_at: isoOrNull(a, "dueAt"),
+      due_at: dueAtOrNull(a),
       milestones,
       kind: oneOf(a, "kind", ["request", "service"], "request"),
     };
@@ -229,10 +266,14 @@ export const WRITE_OPS: Record<string, Op> = {
       const short = need - Number(wallet?.balance_minor ?? 0);
       if (short > 0) throw new OpError("Not enough money in your wallet", "WALLET_SHORT", String(short));
     }
-    return rows(await db.from("tasks").insert(row).select())[0] ?? null;
+    const made = rows(await db.from("tasks").insert(row).select())[0] ?? null;
+    if (made && place.address) await keepAddress(ctx, (made as { id?: unknown }).id, place.address);
+    return made;
   },
 
-  updateListing: async ({ db }, a) => {
+  updateListing: async (ctx, a) => {
+    const { db } = ctx;
+    const place = splitPlace(strOrNull(a, "locLabel", 200));
     refuseContacts(a.title);
     refuseContacts(description(a));
     const row = rows(
@@ -244,15 +285,16 @@ export const WRITE_OPS: Record<string, Op> = {
           benchmark_minor: int(a, "priceMinor", 0, MONEY_MAX),
           time_limit_minutes: int(a, "deliveryDays", 0, 3650) * 1440,
           category: strOrNull(a, "category", 100),
-          loc_label: strOrNull(a, "locLabel", 200),
-          loc_lat: numOrNull(a, "locLat"),
-          loc_lng: numOrNull(a, "locLng"),
+          loc_label: place.label,
+          loc_lat: coordOrNull(a, "locLat", 90),
+          loc_lng: coordOrNull(a, "locLng", 180),
         })
         .eq("id", uuid(a, "id"))
         .eq("kind", "service")
         .select(),
     )[0];
     if (!row) throw new OpError("This service can no longer be edited", "NOT_FOUND");
+    await keepAddress(ctx, (row as { id?: unknown }).id, place.address);
     return row;
   },
 
@@ -264,7 +306,7 @@ export const WRITE_OPS: Record<string, Op> = {
         .insert({
           task_id: uuid(a, "taskId"),
           worker_id: userId,
-          price_minor: int(a, "priceMinor", 0, MONEY_MAX),
+          price_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR),
           time_limit_minutes: int(a, "timeLimitMinutes", 0, 10_000_000),
           message: strOrNull(a, "message", 2000),
         })
@@ -279,7 +321,7 @@ export const WRITE_OPS: Record<string, Op> = {
       await db
         .from("bids")
         .update({
-          price_minor: int(a, "priceMinor", 0, MONEY_MAX),
+          price_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR),
           time_limit_minutes: int(a, "timeLimitMinutes", 0, 10_000_000),
           message: strOrNull(a, "message", 2000),
         })
@@ -346,9 +388,10 @@ export const WRITE_OPS: Record<string, Op> = {
       patch.display_name = str(a, "displayName", 80);
     }
     if (a.skills !== undefined) patch.skills = strings(a, "skills");
-    if (a.locLabel !== undefined) patch.loc_label = strOrNull(a, "locLabel", 200);
-    if (a.locLat !== undefined) patch.loc_lat = numOrNull(a, "locLat");
-    if (a.locLng !== undefined) patch.loc_lng = numOrNull(a, "locLng");
+    // A saved place is public on a profile: the area only, never the door number.
+    if (a.locLabel !== undefined) patch.loc_label = splitPlace(strOrNull(a, "locLabel", 200)).label;
+    if (a.locLat !== undefined) patch.loc_lat = coordOrNull(a, "locLat", 90);
+    if (a.locLng !== undefined) patch.loc_lng = coordOrNull(a, "locLng", 180);
     if (a.avatarUrl !== undefined) {
       patch.avatar_url = strOrNull(a, "avatarUrl", 500);
       if (isMediaRef(patch.avatar_url)) await assertOwnImage(ctx, patch.avatar_url, ["avatar"]);
@@ -367,6 +410,7 @@ export const WRITE_OPS: Record<string, Op> = {
     if (a.username !== undefined) {
       const u = strOrNull(a, "username", 40);
       refuseContactInName(u);
+      if (u && RESERVED_USERNAMES.has(u.toLowerCase())) throw new OpError("That username is reserved. Pick another.", "DUPLICATE");
       patch.username = u ? u.toLowerCase() : null;
     }
     if (a.bio !== undefined) {

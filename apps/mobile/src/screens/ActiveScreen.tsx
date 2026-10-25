@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import Svg, { Circle } from 'react-native-svg';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { BackButton, EmptyState, Field, systemHeader } from '../components/kit';
+import { BackButton, ConfirmDialog, EmptyState, Field, systemHeader } from '../components/kit';
 import { ReportProblemSheet } from '../components/ReportProblemSheet';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { useTheme } from '../providers/ThemeProvider';
@@ -81,6 +81,8 @@ export function ActiveScreen() {
   const [proofUrls, setProofUrls] = useState<Record<string, string>>({});
   const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState(false);
+  // Releasing the money cannot be undone, so the button asks first (owner decision 2026-10-25).
+  const [confirmingRelease, setConfirmingRelease] = useState(false);
   const [reporting, setReporting] = useState(false);
 
   // The worker's proof, before it is sent.
@@ -368,6 +370,15 @@ export function ActiveScreen() {
           </View>
         </View>
 
+        {/* The exact address: only the customer and the person hired can read it (the database decides). */}
+        {detail?.address ? (
+          <View style={card}>
+            <RNText style={tx('600', 10, t.colors.muted, { letterSpacing: 1.2 })}>WHERE</RNText>
+            <RNText style={tx('700', 14, t.colors.ink, { marginTop: 4 })}>{detail.address}</RNText>
+            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Shared only with the person on this job</RNText>
+          </View>
+        ) : null}
+
         {/* The other person. */}
         <View style={{ ...card, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <View>
@@ -459,7 +470,7 @@ export function ActiveScreen() {
 
         {!worker && status === 'WORK_DONE' ? (
           <>
-            <PrimaryAction label="Approve and release payment" busy={busy} onPress={() => void approve()} />
+            <PrimaryAction label="Approve and release payment" busy={busy} onPress={() => setConfirmingRelease(true)} />
             <Pressable onPress={() => void askChanges()} disabled={busy} accessibilityRole="button" style={{ alignSelf: 'center', marginTop: 14 }}>
               <RNText style={tx('700', 13, t.colors.accentDeep)}>Ask for changes</RNText>
             </Pressable>
@@ -493,6 +504,20 @@ export function ActiveScreen() {
           </Pressable>
         ) : null}
       </View>
+      <ConfirmDialog
+        visible={confirmingRelease}
+        icon="shield"
+        title="Release the payment?"
+        message={`${formatINR(escrowMinor)} held for this job goes to the worker, and it cannot be taken back. Only do this if the work is done to your satisfaction. If something is wrong, ask for changes or report a problem instead.`}
+        confirmLabel="Yes, release payment"
+        cancelLabel="Not yet"
+        busy={busy}
+        onCancel={() => setConfirmingRelease(false)}
+        onConfirm={() => {
+          setConfirmingRelease(false);
+          void approve();
+        }}
+      />
       <ReportProblemSheet taskId={task.id} visible={reporting} onClose={() => setReporting(false)} onReported={() => void load()} />
     </Screen>
   );

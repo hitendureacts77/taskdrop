@@ -28,6 +28,10 @@ const SAMPLES = [
   "I can do it for ₹250000 by Friday",
   "Fix a leaking tap, 2 hours, tools needed",
   "Order 3 boxes of 12 on 2nd floor",
+  "nine eight seven six five four three two one zero",
+  "९८७६५४३२१०",
+  "9️⃣8️⃣7️⃣6️⃣5️⃣4️⃣3️⃣2️⃣1️⃣0️⃣",
+  "I need one or two people, three hours, four pm",
 ];
 
 test("the same text gets the same answer from both", () => {
@@ -44,4 +48,15 @@ test("a phone number, an email and a handle are caught; plain work is not", () =
   assert.equal(server.findContactIssue("Fix a leaking tap, 2 hours"), null);
   assert.equal(server.maskContacts("98765 43210 here").masked, true);
   assert.equal(server.maskContacts("98765 43210 here").text, "••• here");
+});
+
+test("a phone number written in other digits, emoji or words is caught; counting in words is not", () => {
+  for (const text of ["nine eight seven six five four three two one zero", "९८७६५४३२१०", "9️⃣8️⃣7️⃣6️⃣5️⃣4️⃣3️⃣2️⃣1️⃣0️⃣", "call ٩٨٧٦٥٤٣٢١٠", "９８７６５４３２１０"]) {
+    assert.equal(server.findContactIssue(text), "phone", text);
+    assert.equal(server.maskContacts(text).masked, true, text);
+  }
+  for (const text of ["I need one or two people, three hours, four pm", "2️⃣ people for 3️⃣ hours", "one two three"]) {
+    assert.equal(server.findContactIssue(text), null, text);
+  }
+  assert.equal(server.nameCarriesContact("९८७६५४३२१०"), true);
 });

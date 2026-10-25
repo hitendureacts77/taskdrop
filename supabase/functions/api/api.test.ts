@@ -133,12 +133,12 @@ await t("unknown and prototype op names are refused", async () => {
 
 await t("writes take the caller from the session, never from the request", async () => {
   let f = fake();
-  await runOp("placeBid", { taskId: TASK, workerId: OTHER, priceMinor: 500, timeLimitMinutes: 60, message: " hi " }, ctx(f));
+  await runOp("placeBid", { taskId: TASK, workerId: OTHER, priceMinor: 5000, timeLimitMinutes: 60, message: " hi " }, ctx(f));
   assert.equal(inserted(f.calls[0]).worker_id, UID);
   assert.equal(inserted(f.calls[0]).message, "hi");
 
   f = fake();
-  await runOp("createTask", { posterId: OTHER, pillar: "services", title: "Fix tap", benchmarkMinor: 100, timeLimitMinutes: 30 }, ctx(f));
+  await runOp("createTask", { posterId: OTHER, pillar: "services", title: "Fix tap", benchmarkMinor: 5000, timeLimitMinutes: 30 }, ctx(f));
   assert.equal(inserted(f.calls[0]).poster_id, UID);
 
   f = fake();
@@ -182,10 +182,10 @@ await t("contact details are refused on the server, whatever the app does (Phase
     if (!r.ok) assert.equal(r.error.code, "CONTACT_DETAILS", op);
     assert.equal(f.calls.length, 0, op + " must not reach the database");
   };
-  await refused("placeBid", { taskId: TASK, priceMinor: 500, timeLimitMinutes: 60, message: PHONE });
-  await refused("updateBid", { bidId: BID, priceMinor: 500, timeLimitMinutes: 60, message: "mail me a@b.com" });
-  await refused("createTask", { pillar: "services", title: "Fix tap", benchmarkMinor: 100, timeLimitMinutes: 30, description: PHONE });
-  await refused("createTask", { pillar: "services", title: "Fix tap at flat 12B", benchmarkMinor: 100, timeLimitMinutes: 30 });
+  await refused("placeBid", { taskId: TASK, priceMinor: 5000, timeLimitMinutes: 60, message: PHONE });
+  await refused("updateBid", { bidId: BID, priceMinor: 5000, timeLimitMinutes: 60, message: "mail me a@b.com" });
+  await refused("createTask", { pillar: "services", title: "Fix tap", benchmarkMinor: 5000, timeLimitMinutes: 30, description: PHONE });
+  await refused("createTask", { pillar: "services", title: "Fix tap at flat 12B", benchmarkMinor: 5000, timeLimitMinutes: 30 });
   await refused("updateListing", { id: TASK, title: "Tap repair", description: "www.example.com", priceMinor: 100, deliveryDays: 1 });
   await refused("submitProof", { taskId: TASK, summary: PHONE, files: [] });
   await refused("updateProfile", { displayName: "98765 43210 ravi" });
@@ -194,7 +194,7 @@ await t("contact details are refused on the server, whatever the app does (Phase
   await refused("updateProfileExtras", { username: "a@b.com" });
   // Ordinary text goes through, and the app's own already-masked text is fine.
   const f = fake(() => ({ data: [{ id: "row" }], error: null }));
-  const ok = await runOp("placeBid", { taskId: TASK, priceMinor: 500, timeLimitMinutes: 60, message: "Can do it tomorrow, ••• for details" }, ctx(f));
+  const ok = await runOp("placeBid", { taskId: TASK, priceMinor: 5000, timeLimitMinutes: 60, message: "Can do it tomorrow, ••• for details" }, ctx(f));
   assert.equal(ok.ok, true);
 });
 
@@ -278,7 +278,7 @@ await t("internal database wording never leaves the server", async () => {
 });
 
 await t("refused quotes and username clashes are worded for people", async () => {
-  const rls = await runOp("placeBid", { taskId: TASK, priceMinor: 1, timeLimitMinutes: 1 }, ctx(fake(() => ({ data: null, error: { message: 'new row violates row-level security policy for table "bids"', code: "42501" } }))));
+  const rls = await runOp("placeBid", { taskId: TASK, priceMinor: 2000, timeLimitMinutes: 1 }, ctx(fake(() => ({ data: null, error: { message: 'new row violates row-level security policy for table "bids"', code: "42501" } }))));
   assert.ok(!rls.ok && /your own request, or it is no longer open/.test(rls.error.message));
   const dup = await runOp("updateProfileExtras", { username: "ann" }, ctx(fake(() => ({ data: null, error: { message: 'duplicate key value violates unique constraint "profiles_username_key"', code: "23505" } }))));
   assert.ok(!dup.ok && dup.error.message === "That username is taken");
@@ -546,7 +546,7 @@ await t("signing a media ref returns a signed ImageKit URL at the size asked for
 });
 
 await t("a media ref can only be saved on a record when it is the caller's own finished upload for that purpose", async () => {
-  const task = { pillar: "x", title: "Fix a tap", benchmarkMinor: 100, timeLimitMinutes: 60 };
+  const task = { pillar: "x", title: "Fix a tap", benchmarkMinor: 5000, timeLimitMinutes: 60 };
   const ref = `media:${MEDIA_ID}`;
   const owned = fake((c) => (c.table === "media" ? { data: [{ id: MEDIA_ID }], error: null } : { data: [{ id: "t1" }], error: null }));
   assert.ok((await runOp("createTask", { ...task, media: { kind: "image", path: ref } }, ctx(owned))).ok);
@@ -699,7 +699,7 @@ await t("a switch that is off refuses its own operations with a typed error, and
   const f = fake();
   const text = await runOp("sendMessage", { taskId: TASK, body: "hello" }, ctx(f, { controls: controlsWith({ chat_photos: false }) }));
   assert.ok(text.ok);
-  const bid = await runOp("placeBid", { taskId: TASK, priceMinor: 1, timeLimitMinutes: 1 }, ctx(fake(), { controls: controlsWith({ posting: false, withdrawals: false }) }));
+  const bid = await runOp("placeBid", { taskId: TASK, priceMinor: 2000, timeLimitMinutes: 1 }, ctx(fake(), { controls: controlsWith({ posting: false, withdrawals: false }) }));
   assert.ok(bid.ok);
   const up = await runOp("createUpload", { purpose: "task", ext: "jpg" }, ctx(fake(), { controls: controlsWith({ chat_photos: false }) }));
   assert.ok(up.ok);
@@ -921,6 +921,72 @@ await t("a batch counts against the limiter once per call, capped at the batch s
   for (const args of [undefined, {}, { calls: "x" }, { calls: [] }]) assert.equal(rateCost("batch", args), 1);
   assert.equal(rateBucket("batch"), "read");
   assert.deepEqual(batchCalls({ calls: [{ op: "getWallet", args: [1] }] }), [{ op: "getWallet", args: {} }]);
+});
+
+await t("nonsense amounts, dates, places and reserved names are refused (break-it findings, 2026-10-24)", async () => {
+  const task = { pillar: "services", title: "Fix tap", benchmarkMinor: 5000, timeLimitMinutes: 30 };
+  const refused = async (op: string, args: Record<string, unknown>) => {
+    const f = fake();
+    const r = await runOp(op, args, ctx(f));
+    assert.equal(r.ok, false, op + " " + JSON.stringify(args));
+    if (!r.ok) assert.equal(r.error.code, "BAD_ARGS", op + " " + JSON.stringify(args));
+    assert.ok(f.calls.every((c) => c.steps.length === 0), op + " must not write anything");
+  };
+  // A request or an offer for nothing, or for a negative or fractional amount.
+  for (const priceMinor of [0, -1, 0.5, "100"]) await refused("placeBid", { taskId: TASK, priceMinor, timeLimitMinutes: 60 });
+  await refused("updateBid", { bidId: BID, priceMinor: 0, timeLimitMinutes: 60 });
+  // The smallest amount is ₹20 (owner decision 2026-10-25): ₹19.99 is refused with words a person can act on.
+  for (const priceMinor of [1, 1999]) {
+    const r = await runOp("placeBid", { taskId: TASK, priceMinor, timeLimitMinutes: 60 }, ctx(fake()));
+    assert.equal(r.ok, false, String(priceMinor));
+    if (!r.ok) assert.match(r.error.message, /smallest amount is ₹20/);
+  }
+  assert.equal((await runOp("placeBid", { taskId: TASK, priceMinor: 2000, timeLimitMinutes: 60 }, ctx(fake()))).ok, true, "exactly ₹20 is allowed");
+  assert.equal((await runOp("updateBid", { bidId: BID, priceMinor: 1999, timeLimitMinutes: 60 }, ctx(fake()))).ok, false);
+  assert.equal((await runOp("createTask", { ...task, benchmarkMinor: 1999 }, ctx(fake()))).ok, false);
+  assert.equal((await runOp("createTask", { ...task, benchmarkMinor: 2000 }, ctx(fake()))).ok, true);
+  assert.equal(packageRules.PRICE_LIMITS.MIN_MINOR, serverRules.PRICE_LIMITS.MIN_MINOR, "the server's copy of the minimum matches packages/rules");
+  await refused("createTask", { ...task, benchmarkMinor: 0 });
+  // A service listing may still start at zero while it is being set up.
+  const ok = await runOp("createTask", { ...task, benchmarkMinor: 0, kind: "service" }, ctx(fake()));
+  assert.equal(ok.ok, true);
+  // A deadline already gone, or years away; a place that is not on Earth.
+  await refused("createTask", { ...task, dueAt: "1999-01-01T00:00:00Z" });
+  await refused("createTask", { ...task, dueAt: "9999-12-31T00:00:00Z" });
+  await refused("createTask", { ...task, locLat: 999, locLng: 999 });
+  await refused("createTask", { ...task, locLat: 12, locLng: 181 });
+  await refused("updateProfile", { locLat: 91, locLng: 0 });
+  assert.equal((await runOp("createTask", { ...task, dueAt: new Date(Date.now() + 86_400_000).toISOString(), locLat: 17.45, locLng: 78.39 }, ctx(fake()))).ok, true);
+  // Names that pass for the team or the product.
+  for (const username of ["admin", "Support", "TASKDROP", "official"]) {
+    const f = fake();
+    const r = await runOp("updateProfileExtras", { username }, ctx(f));
+    assert.equal(r.ok, false, username);
+    assert.equal(f.calls.length, 0, username);
+  }
+  assert.equal((await runOp("updateProfileExtras", { username: "ravi_fixes" }, ctx(fake()))).ok, true);
+});
+
+await t("a typed door address stays private: only the area is published (P2-21, 2026-10-24)", async () => {
+  const f = fake();
+  const full = "Flat 402, Test Towers, Road 5, Near the park, Madhapur, Ward 104 Kondapur, Greater Hyderabad Municipal Corporation West Zone";
+  const r = await runOp("createTask", { pillar: "services", title: "Move a sofa", benchmarkMinor: 5000, timeLimitMinutes: 60, locLabel: full, locLat: 17.4506, locLng: 78.3928 }, ctx(f));
+  assert.equal(r.ok, true);
+  const insert = f.calls.find((c) => c.table === "tasks")!.steps.find(([n]) => n === "insert")![1][0] as { loc_label: string };
+  assert.equal(insert.loc_label, "Kondapur, Greater Hyderabad Municipal Corporation West Zone", "the public label is the area");
+  assert.ok(!/Flat 402|Test Towers/.test(JSON.stringify(insert)), "no door-level text in the published row");
+  const keep = f.calls.find((c) => c.rpc === "set_task_address");
+  assert.ok(keep, "the full line went to the owner-only table");
+  assert.deepEqual((keep!.args as Record<string, unknown>).p_address, full);
+  // A plain area, or no place, stores nothing private.
+  const g = fake();
+  await runOp("createTask", { pillar: "services", title: "Move a sofa", benchmarkMinor: 5000, timeLimitMinutes: 60, locLabel: "Madhapur, Hyderabad" }, ctx(g));
+  assert.equal(g.calls.some((c) => c.rpc === "set_task_address"), false);
+  // The same on a profile: the area only.
+  const h = fake();
+  await runOp("updateProfile", { locLabel: "2222, Ward 104 Kondapur" }, ctx(h));
+  const patch = h.calls.find((c) => c.table === "profiles")!.steps.find(([n]) => n === "update")![1][0] as { loc_label: string };
+  assert.equal(patch.loc_label, "Kondapur");
 });
 
 console.log(`\n${passed} passed`);

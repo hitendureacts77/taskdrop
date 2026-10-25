@@ -457,5 +457,7 @@ export function Divider() {
 
 /** Format minor units (paise) as ₹ currency. */
 export function formatINR(minor: number): string {
-  return '₹' + (minor / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  // Whole rupees stay whole; paise show when there are any. Rounding them away made ₹82.40 read "₹82" (found 2026-10-24).
+  const rupees = minor / 100;
+  return '₹' + rupees.toLocaleString('en-IN', Number.isInteger(rupees) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

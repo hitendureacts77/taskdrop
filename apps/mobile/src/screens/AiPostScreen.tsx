@@ -12,6 +12,7 @@ import { useReducedMotion } from '../lib/motion';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskDescription } from '../components/TaskDescription';
 import { roughPlace } from '../lib/place';
+import { MIN_PRICE_INR } from '../lib/limits';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
@@ -227,7 +228,7 @@ export function AiPostScreen() {
     setDescription(briefToDescription(b));
     setCategory(b.category);
     // Suggest the middle of the usual range; the poster sets the real figure.
-    setBudget((cur) => cur ?? Math.round((b.budgetMinInr + b.budgetMaxInr) / 2 / 10) * 10);
+    setBudget((cur) => cur ?? Math.max(MIN_PRICE_INR, Math.round((b.budgetMinInr + b.budgetMaxInr) / 2 / 10) * 10));
   };
 
   /** Ask -> Details. The questions are only asked again if the request changed. */
@@ -278,7 +279,7 @@ export function AiPostScreen() {
   const descIssue = findContactIssue(description);
   const canLeaveBrief =
     title.trim().length >= 4 && description.trim().length >= 10 && !titleIssue && !descIssue;
-  const budgetOk = (budget ?? 0) >= 10;
+  const budgetOk = (budget ?? 0) >= MIN_PRICE_INR;
   const fees = useFees();
   const feeRupees = Math.round((budget ?? 0) * fees.posterFee);
 
@@ -712,7 +713,7 @@ export function AiPostScreen() {
     const hi = brief?.budgetMaxInr ?? 2000;
     const amount = budget ?? 0;
     const presets = [...new Set([lo, Math.round((lo + hi) / 2 / 10) * 10, hi, 100, 300, 500, 1000])]
-      .filter((n) => n >= 10)
+      .filter((n) => n >= MIN_PRICE_INR)
       .sort((a, b) => a - b)
       .slice(0, 6);
     const sliderMax =
@@ -784,15 +785,15 @@ export function AiPostScreen() {
               </View>
               <View style={{ marginTop: 16 }}>
                 <Slider
-                  value={Math.min(budget ?? 10, sliderMax)}
-                  min={10}
+                  value={Math.min(budget ?? MIN_PRICE_INR, sliderMax)}
+                  min={MIN_PRICE_INR}
                   max={sliderMax}
                   step={10}
                   onChange={(v) => setBudget(Math.round(v))}
                   accessibilityLabel="Budget"
                 />
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-                  <RNText style={tx('400', 11, t.colors.muted)}>₹10</RNText>
+                  <RNText style={tx('400', 11, t.colors.muted)}>{rupees(MIN_PRICE_INR)}</RNText>
                   <RNText style={tx('400', 11, t.colors.muted)}>{rupees(sliderMax)}+ · type any amount</RNText>
                 </View>
               </View>

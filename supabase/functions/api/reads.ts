@@ -162,9 +162,15 @@ export const READ_OPS: Record<string, Op> = {
     );
     // A task can carry stale holds from workers who lost the race to start.
     const assignment = list.find((x) => x.status === "started" || x.status === "released") ?? list[0] ?? null;
-    const people = await profilesById(ctx, [task.poster_id, assignment?.worker_id]);
+    const [people, privateRow] = await Promise.all([
+      profilesById(ctx, [task.poster_id, assignment?.worker_id]),
+      // The typed address (migration 126): row-level security lets only the poster, the hired worker and staff read it.
+      // A failed read (migration not applied yet) is just "no address", never a failed task page.
+      ctx.db.from("task_private").select("address").eq("task_id", taskId).maybeSingle(),
+    ]);
     return {
       task,
+      address: (privateRow.data as { address?: string | null } | null)?.address ?? null,
       assignment,
       poster: people.get(task.poster_id) ?? null,
       worker: assignment ? (people.get(assignment.worker_id) ?? null) : null,
