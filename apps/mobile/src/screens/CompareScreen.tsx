@@ -405,7 +405,7 @@ export function CompareScreen() {
           <RNText style={tx('700', 16, t.colors.onAccent)}>Choose offer · {formatINR(pickRow.priceMinor)}</RNText>
         </Pressy>
         <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10, lineHeight: 18 })}>
-          Names and phone numbers are shared once the work starts.
+          Phone numbers are shared once the work starts.
         </RNText>
         </>
         )}

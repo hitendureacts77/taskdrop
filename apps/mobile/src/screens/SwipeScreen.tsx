@@ -4,6 +4,7 @@ import {
   View,
   Text as RNText,
   Animated,
+  Pressable,
   PanResponder,
   type GestureResponderEvent,
   type PanResponderGestureState,
@@ -97,6 +98,37 @@ export function SwipeScreen() {
     };
   }, []);
 
+  // Starting the job: reached by sliding all the way across, or by the plain button under the slider (the slider alone
+  // left out people who cannot drag: a keyboard, a mouse that slips, a screen reader; found 2026-10-25, P2-37).
+  const startNow = () => {
+    if (startedRef.current) return;
+    const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+    if (!taskId) {
+      // Sliding used to announce "contacts revealed" for a task that did
+      // not exist, and move on to the active screen regardless.
+      setProgress(0);
+      flash('This is a sample task — open a real one from your requests');
+      return;
+    }
+    setProgress(1);
+    setStarted(true);
+    startTask(title);
+    // First worker to reach TASK_STARTED wins; the server decides.
+    startTaskOnServer(taskId)
+      .then(() => {
+        celebrate('Task started · contacts revealed');
+        navTimeoutRef.current = setTimeout(() => go('active', params), 220);
+      })
+      .catch((e: unknown) => {
+        setStarted(false);
+        setProgress(0);
+        flash(e instanceof Error ? e.message : 'Could not start this task');
+      });
+  };
+  // The drag handler is created once; it reaches the latest startNow through this ref.
+  const startNowRef = useRef(startNow);
+  startNowRef.current = startNow;
+
   const maxTravelFor = (width: number) => Math.max(1, width - KNOB - TRACK_PAD * 2);
 
   const panResponder = useRef(
@@ -118,32 +150,8 @@ export function SwipeScreen() {
       },
       onPanResponderRelease: () => {
         if (startedRef.current) return;
-        if (progressRef.current > RELEASE_THRESHOLD) {
-          const taskId = typeof params.taskId === 'string' ? params.taskId : null;
-          if (!taskId) {
-            // Sliding used to announce "contacts revealed" for a task that did
-            // not exist, and move on to the active screen regardless.
-            setProgress(0);
-            flash('This is a sample task — open a real one from your requests');
-            return;
-          }
-          setProgress(1);
-          setStarted(true);
-          startTask(title);
-          // First worker to reach TASK_STARTED wins; the server decides.
-          startTaskOnServer(taskId)
-            .then(() => {
-              celebrate('Task started · contacts revealed');
-              navTimeoutRef.current = setTimeout(() => go('active', params), 220);
-            })
-            .catch((e: unknown) => {
-              setStarted(false);
-              setProgress(0);
-              flash(e instanceof Error ? e.message : 'Could not start this task');
-            });
-        } else {
-          setProgress(0);
-        }
+        if (progressRef.current > RELEASE_THRESHOLD) startNowRef.current();
+        else setProgress(0);
       },
     }),
   ).current;
@@ -269,6 +277,15 @@ export function SwipeScreen() {
               </RNText>
             </View>
             <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 13 })}>{hint}</RNText>
+            <Pressable
+              onPress={startNow}
+              disabled={started}
+              accessibilityRole="button"
+              accessibilityLabel="Start the task"
+              style={{ alignSelf: 'center', marginTop: 10, padding: 8 }}
+            >
+              <RNText style={tx('700', 13, t.colors.accentDeep)}>Or tap here to start</RNText>
+            </Pressable>
           </View>
         </View>
       </FadeIn>

@@ -207,6 +207,9 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
     return json({ error: "Expected a JSON body" }, 400);
   }
 
+  // A number may carry spaces, dashes, dots, brackets and a leading +; anything else (letters, SQL, "; drop table")
+  // is not a phone number and is refused instead of being quietly cleaned into one (break-it test, 2026-10-25).
+  if (/[^0-9\s+().-]/.test(String(body.phone ?? ""))) return json({ error: "Enter a 10-digit mobile number" }, 400);
   const phone = normalise(body.phone ?? "");
   if (phone.length !== 10) return json({ error: "Enter a 10-digit mobile number" }, 400);
 
