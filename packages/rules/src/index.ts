@@ -32,6 +32,11 @@ export const TIMING = {
   CLEARING_PERIOD_DAYS: 7,
 } as const;
 
+/** The smallest amount a task or an offer may carry (owner decision 2026-10-25: ₹20), in paise. */
+export const PRICE_LIMITS = {
+  MIN_MINOR: 2000,
+} as const;
+
 /** Media constraints. */
 export const MEDIA = {
   /** Max length of a feed / task showcase video, in seconds. */

@@ -154,6 +154,13 @@ export function numOrNull(a: Args, k: string): number | null {
   return v;
 }
 
+/** A latitude or longitude, or null: a number inside its real range. */
+export function coordOrNull(a: Args, k: string, limit: number): number | null {
+  const v = numOrNull(a, k);
+  if (v !== null && Math.abs(v) > limit) throw bad(k);
+  return v;
+}
+
 export function bool(a: Args, k: string, dflt = false): boolean {
   const v = a[k];
   if (v == null) return dflt;
@@ -179,6 +186,16 @@ export function isoOrNull(a: Args, k: string): string | null {
   const v = a[k];
   if (v == null) return null;
   if (typeof v !== "string" || Number.isNaN(Date.parse(v))) throw bad(k);
+  return v;
+}
+
+/**
+ * A price for a task or an offer: a whole number of paise, at least the smallest amount (₹20).
+ * Below that the answer says so in plain words, so the person can fix it.
+ */
+export function priceMinor(a: Args, k: string, min: number): number {
+  const v = int(a, k, 0, MONEY_MAX);
+  if (v < min) throw new OpError(`The smallest amount is ₹${min / 100}.`, "BAD_ARGS");
   return v;
 }
 

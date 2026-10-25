@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   Linking,
+  Platform,
   type ViewStyle,
 } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
@@ -463,6 +464,18 @@ export function ChatScreen() {
             placeholder="Type a message"
             placeholderTextColor={t.colors.muted}
             multiline
+            // On a computer, Enter sends and Shift+Enter makes a new line (it did nothing before).
+            onKeyPress={
+              Platform.OS === 'web'
+                ? (e) => {
+                    const k = e.nativeEvent as unknown as { key?: string; shiftKey?: boolean };
+                    if (k.key === 'Enter' && !k.shiftKey && draft.trim() && !sending) {
+                      e.preventDefault();
+                      void send();
+                    }
+                  }
+                : undefined
+            }
             style={{
               flex: 1,
               backgroundColor: t.colors.surface2,

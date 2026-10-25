@@ -5,6 +5,7 @@ import { expect, type APIRequestContext, type Page } from "@playwright/test";
 /** The seed accounts (supabase/seed/test_data.sql). Fake people, fake money. */
 export const ASHA = { phone: "9990000001", label: "Asha (poster)", state: "e2e/.auth/asha.json" };
 export const RAVI = { phone: "9990000002", label: "Ravi (worker)", state: "e2e/.auth/ravi.json" };
+export const MEERA = { phone: "9990000003", label: "Meera (stranger)", state: "e2e/.auth/meera.json" };
 
 function fromEnvFile(name: string): string {
   for (const f of ["apps/mobile/.env", "apps/mobile/.env.local"]) {

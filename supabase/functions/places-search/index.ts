@@ -20,7 +20,7 @@ import { captureServerError, guarded, logServer } from "../_shared/monitoring.ts
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-region",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -161,7 +161,10 @@ async function osmReverse(lat: number, lng: number): Promise<string | null> {
       headers: OSM,
       signal: AbortSignal.timeout(6000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      await logServer("warn", "places-search", "OpenStreetMap reverse lookup refused", { http_status: res.status });
+      return null;
+    }
     const out = (await res.json()) as { display_name?: string; name?: string };
     return out.name || out.display_name?.split(",").slice(0, 3).join(",").trim() || null;
   } catch {

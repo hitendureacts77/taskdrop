@@ -128,13 +128,17 @@ Nothing for you to do. Claude checked the EAS log of the `beta` APK (build `af47
 
 ## Phase 2: Make it work
 
-### ☐ 2.1 Write your list of problems (15 minutes)
+### ☑ 2.1 Write your list of problems — done 2026-10-25 by Claude (you asked Claude to break the app and write the list): `docs/PHASE2_PROBLEMS.md`
+
+**Result:** about 250 hostile calls, direct database attacks, forged webhooks, a random-tapping monkey and a full walk through every admin page. Money could not be doubled or lost; strangers could not touch other people's jobs. 24 problems found (one High: a job's exact address is public), 10 already fixed in the working copy and waiting for you to say "push". Your decisions are listed in the chat. The steps below are what to do if you also want to add your own items.
 
 1. Click: open Notepad on the PC (or Notes on the phone).
 2. Write one line per problem: the screen, what you did, what went wrong or felt slow. Example: `Wallet: tapped Withdraw, it spun for 10 seconds`.
 3. Type to Claude: "Here is my Phase 2 list. Make a GitHub issue for each and fix them:" and paste your list underneath.
 
-### ☐ 2.2 Run one full job on the phone and the PC (45 minutes)
+### ◐ 2.2 Run one full job on the phone and the PC — web half done 2026-10-25 by Claude; the Android phone half waits for the phone
+
+**Done on the web (phone-sized window as the poster, desktop window as the worker):** post with a photo and a place, offer, accept and pay from the wallet, slide to start, chat with a photo, proof photo, mark done, approve (steps 5 to 15), plus a withdrawal request and cancel. All worked. Not finished: the Razorpay top-up (step 18; Razorpay test mode has a 30-link limit that was used up, and the checkout offered no UPI: see P2-36), review stars, dispute, cancel-with-fine and promote by screen (the money paths are covered by the automatic tests). **Android phone:** the phone was unplugged during the run; plug it in and say "run the job on the phone".
 
 Follow the words on the screen when a button name differs slightly. Write down anything that goes wrong.
 
@@ -278,14 +282,16 @@ Claude switched Android maintenance on for the test project, reopened TaskDrop o
    2. Tell Claude.
 5. Claude switches everything back.
 
-### ☐ 3.7 Check the admin signs you out when idle (35 minutes, mostly waiting)
+### ⚠ 3.7 Check the admin signs you out when idle — Claude tried twice 2026-10-25: once it signed out by itself after about 30 minutes, once a click after 32 minutes still worked (P2-43)
 
 1. Click: sign in to the new admin (task 2.4, steps 1 to 3).
 2. Leave it alone for 31 minutes.
 3. Click: any item in the left menu. You should land on the sign-in page with "You were signed out after 30 minutes without activity".
 4. Tell Claude: "The admin idle sign-out works" (or what happened instead).
 
-### ☐ 3.8 Check the old app and old admin still work (10 minutes)
+### ☑ 3.8 Check the old app and old admin still work — done 2026-10-25 by Claude
+
+The old app signed in as Asha and Ravi, posted a task, got an offer, no errors; the old admin signed in with your account and showed the Dashboard and the new task among 140 jobs.
 
 1. Click: open Chrome Incognito → https://taskdrop-five.vercel.app → sign in with `9990000001`.
 2. Click: look at the feed, open any task.
@@ -376,7 +382,9 @@ Claude opened the new admin in your Chrome (already signed in as `hitendureacts@
 7. Click: in `.env.all-secrets` (Notepad), replace `IMAGEKIT_PRIVATE_KEY` and save.
 8. Type to Claude: "I changed the ImageKit private key in Vercel. Redeploy so it reaches Supabase."
 
-### ☐ 6.2 Upload photos four ways (15 minutes)
+### ◐ 6.2 Upload photos four ways — file picker and drag-and-drop done 2026-10-25 by Claude (web); camera and gallery on the phone left
+
+A post photo (picker), a dropped file, a chat photo and a proof photo all went to ImageKit and are recorded in `media` as attached.
 
 1. Click (PC, Asha in Chrome Incognito): **Post** → add a photo with **choose file** → post.
 2. Click (PC): post again, this time **drag** a photo from your desktop onto the photo box → post.
@@ -384,7 +392,9 @@ Claude opened the new admin in your Chrome (already signed in as `hitendureacts@
 4. Click (phone): post again with a photo from the **Gallery**.
 5. Type to Claude: "I uploaded 4 photos: file picker, drag and drop, camera and gallery. Check they reached ImageKit."
 
-### ☐ 6.3 Chat photo (5 minutes)
+### ◐ 6.3 Chat photo — web done 2026-10-25 by Claude; on the phone left
+
+Ravi sent a photo; the signed link opened for both Ravi and Asha (the image downloaded) and was refused for a stranger.
 
 1. Click (PC, Ravi): open a job that has started with Asha → chat → send a photo.
 2. Click (phone, Asha): open the chat → tap the photo. It should open full size.

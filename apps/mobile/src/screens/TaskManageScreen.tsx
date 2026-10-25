@@ -338,7 +338,7 @@ export function TaskManageScreen() {
         {detailRow('Category', categoryLabel(task))}
         {task.difficulty ? detailRow('Difficulty', task.difficulty.charAt(0).toUpperCase() + task.difficulty.slice(1)) : null}
         {detailRow('Assignment', task.assignment_mode === 'auto' ? 'Auto-hire' : 'See offers')}
-        {detailRow('Location', task.loc_label ?? 'Not set')}
+        {detailRow('Location', detail?.address ?? task.loc_label ?? 'Not set')}
         {(task.skills ?? []).length > 0 ? (
           <View style={{ marginTop: 8 }}>
             <RNText style={tx('400', 13, t.colors.muted)}>Skills required</RNText>

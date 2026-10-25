@@ -12,6 +12,25 @@
 
 const HIDDEN = '•••';
 
+// Digits written another way still make a phone number: Devanagari, Arabic-Indic or full-width digits,
+// keycap emoji (9️⃣), or eight or more spelled-out digits in a row ("nine eight seven six ...").
+// Found 2026-10-24 by the break-it test: all three got a phone number past the rule.
+const DIGIT_BLOCKS = [0x0660, 0x06f0, 0x0966, 0x09e6, 0x0a66, 0x0ae6, 0x0b66, 0x0be6, 0x0c66, 0x0ce6, 0x0d66, 0xff10];
+const DIGIT_WORDS: Record<string, string> = { zero: '0', one: '1', two: '2', three: '3', four: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9' };
+
+export function normalizeDigits(text: string): string {
+  return text
+    .replace(/(\d)️?⃣/g, '$1')
+    .replace(/\p{Nd}/gu, (d) => {
+      const cp = d.codePointAt(0) ?? 0;
+      const start = DIGIT_BLOCKS.filter((b) => b <= cp).pop();
+      return start === undefined || cp - start > 9 ? d : String(cp - start);
+    })
+    .replace(/\b(?:(?:zero|one|two|three|four|five|six|seven|eight|nine)\b[\s,.-]*){8,}/gi, (run) =>
+      (run.match(/zero|one|two|three|four|five|six|seven|eight|nine/gi) ?? []).map((w) => DIGIT_WORDS[w.toLowerCase()]).join(' '),
+    );
+}
+
 export const PATTERNS: RegExp[] = [
   // Emails.
   /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
@@ -27,7 +46,9 @@ export const PATTERNS: RegExp[] = [
 ];
 
 export function maskContacts(text: string): { text: string; masked: boolean } {
-  let out = text;
+  // Digits in another script or spelled out are read as digits when they make a phone number.
+  const plain = normalizeDigits(text);
+  let out = plain !== text && /(?:\+?\d[\s\-.()]*){8,}\d/.test(plain) ? plain : text;
   let masked = false;
   for (const re of PATTERNS) {
     out = out.replace(re, (m) => {
@@ -60,7 +81,7 @@ export type ContactIssue = 'phone' | 'email' | 'link' | 'handle' | 'address';
  */
 export function findContactIssue(text: string): ContactIssue | null {
   if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text)) return 'email';
-  if (/(?:\+?\d[\s\-.()]*){8,}\d/.test(text)) return 'phone';
+  if (/(?:\+?\d[\s\-.()]*){8,}\d/.test(normalizeDigits(text))) return 'phone';
   if (/\b(?:https?:\/\/|www\.)\S+/i.test(text) || /\b(?:wa\.me|t\.me|instagram\.com|facebook\.com|fb\.me|telegram\.me)\//i.test(text)) return 'link';
   if (/(?:^|\s)@[A-Za-z0-9_.]{3,}/.test(text) || /\b(?:whats\s?app|telegram|snapchat|call me on|ping me on)\b/i.test(text)) return 'handle';
   if (ADDRESS.some((re) => re.test(text))) return 'address';
@@ -92,7 +113,7 @@ export function profileIssueMessage(issue: ContactIssue): string {
  * number out either: "@9876543210" is a phone number with an @ in front.
  */
 export function nameCarriesContact(name: string): boolean {
-  return /\d{7,}/.test(name.replace(/[\s\-.]/g, '')) || /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(name);
+  return /\d{7,}/.test(normalizeDigits(name).replace(/[\s\-.]/g, '')) || /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(name);
 }
 
 export function contactIssueMessage(issue: ContactIssue): string {

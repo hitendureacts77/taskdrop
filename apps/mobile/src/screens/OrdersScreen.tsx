@@ -122,6 +122,9 @@ export function OrdersScreen() {
   const { flash, setOpenTask, startedOf } = useApp();
   const { userId } = useAuth();
   const [orderTab, setOrderTab] = useState(0);
+  // Until the person picks a tab, show the first one that has something in it: right after sending an offer
+  // the first tab (Services) is empty and read as "nothing here yet" while the offer sat under Pending.
+  const [pickedTab, setPickedTab] = useState(false);
 
   const worker = mode === 'worker';
 
@@ -184,6 +187,13 @@ export function OrdersScreen() {
     [allRows, worker, orderTab],
   );
 
+  useEffect(() => {
+    if (pickedTab || loading || allRows.length === 0) return;
+    if (allRows.some((r) => bucketOf(r, worker) === orderTab)) return;
+    const first = tabNames.findIndex((_, i) => allRows.some((r) => bucketOf(r, worker) === i));
+    if (first > 0) setOrderTab(first);
+  }, [pickedTab, loading, allRows, worker, orderTab, tabNames]);
+
   // Every tap carries the real task id so the next screen works on live data.
   const [cancelling, setCancelling] = useState<string | null>(null);
 
@@ -236,7 +246,7 @@ export function OrdersScreen() {
           {worker ? 'My offers' : 'My requests'}
         </RNText>
 
-        <UnderlineTabs tabs={tabNames} active={orderTab} onPick={setOrderTab} />
+        <UnderlineTabs tabs={tabNames} active={orderTab} onPick={(i) => { setPickedTab(true); setOrderTab(i); }} />
 
         <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16 }}>
           {orderRows.map((row, i) => (

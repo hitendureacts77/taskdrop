@@ -106,6 +106,8 @@ Deno.serve(guarded("api", async (req: Request) => {
   } catch {
     return refuse("Unknown request", "BAD_JSON", 400);
   }
+  // `null`, a list or a bare number is valid JSON but not a request (found 2026-10-24: `null` answered 500).
+  if (!body || typeof body !== "object" || Array.isArray(body)) return refuse("Unknown request", "BAD_JSON", 400);
 
   // The counter is written with the service key: a person must not be able to
   // reset or spend anyone else's budget. If the counter cannot be reached the
@@ -172,8 +174,17 @@ Deno.serve(guarded("api", async (req: Request) => {
     if (refused) return refused;
   }
 
-  /** Another of our functions, as the caller. Best-effort: a failure here never fails the request. */
-  const callFunction = async (name: string, payload: unknown) => {
+  /**
+   * Another of our functions, as the caller. Best-effort: a failure here never fails the request.
+   * It runs after the answer is sent, so the person is not kept waiting for a second function (a withdrawal
+   * request took 0.8 to 1.6 s with the hand-off to RazorpayX in front of the answer; the Phase 5 target is
+   * under 1 s). The request itself is already saved, and the hand-off can be repeated by an admin or the sweep.
+   */
+  const callFunction = (name: string, payload: unknown): Promise<void> => {
+    background(handOff(name, payload));
+    return Promise.resolve();
+  };
+  const handOff = async (name: string, payload: unknown) => {
     try {
       // Pinned next to the database, like every call the app makes.
       await fetch(`${url}/functions/v1/${name}?forceFunctionRegion=ap-south-1`, {
