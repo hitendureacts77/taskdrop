@@ -68,6 +68,8 @@ export function AccessScreen() {
   const [stage, setStage] = useState<Stage>('number');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
+  // Only set while the server is in test mode and returns the code; empty when it goes by SMS.
+  const [devCode, setDevCode] = useState('');
   const [dob, setDob] = useState<BirthDateParts>(EMPTY_BIRTH_DATE);
   const [birth, setBirth] = useState<Date | null>(null);
   const [turnedAway, setTurnedAway] = useState(false);
@@ -127,13 +129,10 @@ export function AccessScreen() {
     setOtp('');
     setResendAt(Date.now() + 60_000);
     setNow(Date.now());
-    if (result.devCode) {
-      flash('Development code filled in');
-      setOtp(result.devCode);
-    } else {
-      flash(`Code sent to +91 ${spaced(phone)}`);
-      setTimeout(() => codeRef.current?.focus(), 250);
-    }
+    // A test project hands the code back. It is shown in a box to be typed, not filled in.
+    setDevCode(result.devCode ?? '');
+    flash(result.devCode ? 'Test code shown below' : `Code sent to +91 ${spaced(phone)}`);
+    setTimeout(() => codeRef.current?.focus(), 250);
   };
 
   /**
@@ -607,6 +606,29 @@ export function AccessScreen() {
                   style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 46, opacity: 0 }}
                 />
               </Pressable>
+
+              {devCode ? (
+                <View
+                  style={{
+                    marginTop: 18,
+                    backgroundColor: t.colors.goldSoft,
+                    borderRadius: 14,
+                    paddingVertical: 10,
+                    paddingHorizontal: 14,
+                    alignItems: 'center',
+                  }}
+                >
+                  <RNText style={tx('600', 12, t.colors.goldInk)}>Test mode: no SMS is sent. Type this code.</RNText>
+                  <RNText
+                    testID="dev-code"
+                    accessibilityLabel="Test code"
+                    selectable
+                    style={tx('800', 24, t.colors.goldInk, { letterSpacing: 6, marginTop: 4 })}
+                  >
+                    {devCode}
+                  </RNText>
+                </View>
+              ) : null}
 
               <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 22 }}>
                 {busy ? (

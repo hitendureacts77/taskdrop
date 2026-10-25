@@ -34,7 +34,7 @@ If a screen doesn't look like the step says (a button has another name, or isn't
 
 ## Test accounts
 
-While testing, any phone number signs in and the code fills itself in. Use these three fake accounts; they already have fake money:
+While testing, any phone number signs in. The code is random each time and shown in a yellow "Test mode" box on the code screen; type it in. Use these three fake accounts; they already have fake money:
 
 | Name | Phone | Use it for |
 |---|---|---|
@@ -145,7 +145,7 @@ Follow the words on the screen when a button name differs slightly. Write down a
 **Sign in both people**
 
 1. Click (phone): open TaskDrop. If someone is signed in: **Account** tab → **Sign out**.
-2. Click (phone): sign in with phone `9990000001` (Asha). The code fills itself in.
+2. Click (phone): sign in with phone `9990000001` (Asha). Type the code shown in the "Test mode" box.
 3. Click (PC): open Chrome Incognito (Ctrl + Shift + N) and go to https://taskdrop.in
 4. Click (PC): sign in with phone `9990000002` (Ravi).
 
@@ -254,13 +254,11 @@ Both repos stay public (free) for now. Nothing to do on GitHub. Going private wa
    3. Do the same for https://github.com/hitendureacts77/taskdrop-admin
    4. Type to Claude: "Both repos are private now."
 
-### ☐ 3.4 Supabase sign-in token settings (5 minutes)
+### ☑ 3.4 Supabase sign-in token settings — done and verified 2026-10-25 (Claude, in your Chrome)
 
-1. Click: open the Supabase project → left menu **Authentication**.
-2. Click: under Configuration, **Sessions**.
-3. Click: turn on **Detect and revoke potentially compromised refresh tokens**. Leave the reuse interval at its default (10 seconds). Click **Save**.
-4. Click: find **Access token expiry** (in Authentication settings, or under **Project Settings** → **JWT Keys**) and set it to `3600` seconds. Click **Save**.
-5. Type to Claude: "Token settings: reuse detection on, reuse interval 10 seconds, access tokens expire after 3600 seconds."
+Checked on the live Supabase page (Authentication → Sessions, https://supabase.com/dashboard/project/wjxvingpfbfvkfqhrguj/auth/sessions): access token expiry 3600 seconds, reuse detection (**Detect and revoke potentially compromised refresh tokens**) on, reuse interval 10 seconds. Nothing is left for you to do.
+
+Notes for later: all three settings sit on that one page under **Access Tokens** and **Refresh Tokens** (scroll down). The session limits at the top (single session, time-box, inactivity timeout) are Pro-plan only and stay off. The Legacy JWT secret on the JWT Keys page is a master key: never copy or paste it anywhere. Owner decision 2026-10-25: no key rotation needed.
 
 ### ◐ 3.5 App Check (code done 2026-10-24; your Firebase clicks left)
 
@@ -327,7 +325,7 @@ Claude's check on 2026-10-24: after the first try did not save, Supabase now ans
 
 ### ◐ 4.4 Make new accounts (website done by Claude 2026-10-24; Google and the phone app are yours)
 
-**Done by Claude, in a browser test on the website against the test project (`e2e/accounts.spec.ts`, all passing):** a brand-new phone number is asked its birth date before any code; the code fills in; the setup screens finish; a username and password are set (Settings → Sign-in) and used to sign back in; a 16-year-old birth date is turned away with no code and no account; Ravi (`9990000002`) signs in as before. The test deletes the account it made, so nothing is left behind.
+**Done by Claude, in a browser test on the website against the test project (`e2e/accounts.spec.ts`, all passing):** a brand-new phone number is asked its birth date before any code; the test code is shown and typed in; the setup screens finish; a username and password are set (Settings → Sign-in) and used to sign back in; a 16-year-old birth date is turned away with no code and no account; Ravi (`9990000002`) signs in as before. The test deletes the account it made, so nothing is left behind.
 
 **One correction to the old wording:** there is no "create a username and password" on the sign-in screen. You pick a username in the setup screens and set the password later in **Settings → Sign-in → Password sign-in**; the **Username** button on the sign-in screen is only for signing back in.
 
@@ -335,7 +333,7 @@ What is left for you (Google needs your real Google login, and Claude does not t
 
 1. **Google, on the website** (Chrome Incognito, https://taskdrop.in): tap **Google** → choose a Google account you haven't used in TaskDrop (for example `narasimharaju7c`) → enter a birth date that makes you over 18 → finish the welcome screens → you're in → **Settings** → **Sign-in** → **Sign out on this device**.
 2. **Google, on the phone app:** the same, with another unused Google account.
-3. **Phone number, on the phone app:** sign out, then enter a new fake number (`9990000012`) → the code fills in → birth date over 18 → finish the welcome screens → pick a username → **Account** → **Sign-in** → set a password → sign out → tap **Username** and sign back in with it.
+3. **Phone number, on the phone app:** sign out, then enter a new fake number (`9990000012`) → type the code from the "Test mode" box → birth date over 18 → finish the welcome screens → pick a username → **Account** → **Sign-in** → set a password → sign out → tap **Username** and sign back in with it.
 4. **Age check, on the phone app, once:** start a phone sign-up with `9990000013` and a birth date that makes you 16. It should refuse you.
 5. Type to Claude a list like: "Web Google ok. Phone: Google ok, number ok, username sign-in ok, under-18 refused."
 
@@ -487,7 +485,7 @@ Warn, close report, hide message and hide job each have a row; the page now says
 4. Type to Claude: "Give me the Play Console answers: data safety, content rating, ads, app access, target audience." Claude drafts every answer from the code.
 5. Click: on the app's **Dashboard**, under **Set up your app**, open each item and enter Claude's answers:
    1. **Privacy policy:** `https://taskdrop.in/?page=privacy`
-   2. **App access:** "some functionality is restricted", with the test phone `9990000001` and the note "the code fills in automatically".
+   2. **App access:** "some functionality is restricted", with the test phone `9990000001` and the note "the 6-digit code is shown on screen in a Test mode box; type it in".
    3. **Ads**, **Content rating**, **Target audience** (18 and over), **Data safety**: as Claude drafted.
 6. Type to Claude: "Make the store listing: short and full description, a 512×512 icon, a 1024×500 feature graphic and phone screenshots."
 7. Click: **Grow users** → **Store presence** → **Main store listing** → paste the texts and upload the pictures Claude made → **Save**.

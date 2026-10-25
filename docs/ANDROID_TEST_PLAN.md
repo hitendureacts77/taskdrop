@@ -27,7 +27,7 @@ Mark each line pass / fail / not testable, with a screenshot for every fail.
 
 **A. Start and sign in**
 - Cold start shows the splash, no red box; app opens on Home.
-- Phone sign-in with a test number: the code is auto-filled (dev_otp_for_all is on). Age gate (18+) shows for a new account.
+- Phone sign-in with a test number: the code is shown in a "Test mode" box and typed in (dev_otp_for_all is on). Age gate (18+) shows for a new account.
 - Username + password sign-in; sign out and back in; Google button opens the account chooser (owner finishes).
 
 **B. Native tabs and navigation (PR 30)**

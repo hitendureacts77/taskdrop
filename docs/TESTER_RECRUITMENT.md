@@ -26,7 +26,7 @@ Aim for **15 people** so 12 still count if three drop out. A mix is best:
 
 > Hi! I'm building **taskdrop.**, an app where you ask for anything and someone gets it done for you. Tasks can be nearby (fix a tap) or online (write a logo brief). It's in testing and I'd love your help for **two weeks**. It takes about 10 minutes a day, and all money in it is fake.
 >
-> What I need: install it, make an account, post one task, send an offer on someone else's, and tell me what's confusing or broken. Use a phone number that no other tester uses (two people on one number share one account); a code fills in by itself.
+> What I need: install it, make an account, post one task, send an offer on someone else's, and tell me what's confusing or broken. Use a phone number that no other tester uses (two people on one number share one account); the sign-in code is shown on screen in a "Test mode" box; type it in.
 >
 > Reply with the **Gmail address you use on your Android phone** (and your phone model) and I'll send the install link.
 
