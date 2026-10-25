@@ -1,6 +1,6 @@
 # TaskDrop owner manual: what to click, phase by phase
 
-This is your part of `docs/UPGRADE_PLAN.md`, written as clicks. Do the tasks in order, top to bottom. Tick a task's box when you finish it.
+This is your part of `docs/UPGRADE_PLAN.md`, written as clicks. Start with **START HERE** below: it lists what is left, in order. Then open the task it points to. Tick a task's box when you finish it. Last updated 2026-10-25.
 
 ## How to read this manual
 
@@ -48,9 +48,57 @@ While testing, any phone number signs in. The code is random each time and shown
 
 ---
 
+## START HERE: what is left, in order (checked 2026-10-25)
+
+Claude checked everything in Phases 0 to 8 that can be checked without you (evidence: `docs/PHASE0_8_CHECK_2026-10-25.md`). **Phases 0, 1, 4, 5 (except RazorpayX) and 7 are finished.** What is left needs you (a login, a payment, a decision), your phone, or time. Do these in order; each one points to the full clicks lower down.
+
+| # | What | Who | Time | Full clicks |
+|---|---|---|---|---|
+| 1 | **Fix Google sign-in.** It is down for everyone (the Google login key behind it was deleted). Phone-number and username sign-in still work. | You | 15 min | Task 0.1 |
+| 2 | **Phone session.** Unlock the phone, plug it in, say "install the new beta and run the phone checks". Claude installs the build, proves App Check on Android, publishes the update for the chat-photo viewer, runs the Android half of the job test, and merges the App Check PR. | You say go; Claude does it | 30 min | Tasks 2.2, 3.5, 6.3 |
+| 3 | **Two values in the admin's Vercel project** (the ImageKit photo values), so the admin shows job photos. | You | 5 min | Task 6.4 |
+| 4 | **Admin idle sign-out test.** Needs step 1 first (a working admin login), then 31 minutes of waiting. | Claude, in your Chrome | 35 min, mostly waiting | Task 3.7 |
+| 5 | **Your decisions:** the map for the store version, the legal details, whether profiles may show a rounded place and "last seen", and the Razorpay test-link limit. | You, in the chat | 20 min | Tasks 8.1, 8.2 and the list under "Decisions" below |
+| 6 | **Google Play Console:** create the app, enter the answers, upload the store build. The store build file **expires on 2026-11-23**; after that say "build the store version again". | You | 1 to 2 hours (Google may take days to check your ID) | Tasks 8.3, 8.4 |
+| 7 | **Read the runbook** and the security checklist. | You | 30 min | Tasks 8.5, 3.9 |
+| 8 | **Mobile data speed test.** Switch Mobile data on in the phone's settings first. | You say go; Claude times it | 10 min | Task 6.5 |
+| 9 | **A week of normal use,** then ask Claude for the slow-screen check. | You | 1 week | Task 2.6 |
+| 10 | **The 12 testers** (14 days in Play closed testing). Only when you are ready. | You | 14 days | Task 8.6 |
+
+**Also open, no rush:** the RazorpayX payout buttons (need RazorpayX, task 10.3); deleting the unused `razorpay-setup` function (say "delete razorpay-setup" and Claude does it); the app tour design sign-off (Phase 8, not built yet); Uptime Robot: look once that both monitors are green. Key rotation (3.2, 6.1), Safari and iOS stay future scope.
+
+**Decisions waiting for you (answer in the chat, one line each):**
+
+1. Map for the store version (task 8.1): keep OpenStreetMap while testing, or choose a paid-friendly provider before launch.
+2. Legal details (task 8.2): business name, address, grievance officer name and email, courts city. The live Privacy page still shows no Grievance Officer name.
+3. Profiles show a rounded place and "last seen" to other people (P2-33): keep, or hide?
+4. Razorpay test mode allows 30 payment links and they are used up (P2-36). Claude cannot change Razorpay, so either wait for the limit to clear or accept that top-up is tested later.
+5. The Sales tester `hitendu7@gmail.com`: remove it, and seed admin roles for other staff, or leave as is.
+
+**Rules for the steps below:** the admin signs in only with `hitendureacts@gmail.com` (owner rule, 2026-10-25). In Google's account chooser, pick **hitendureacts**. If the chooser opens on `narasimharaju7c@gmail.com`, that account is a normal user, not an admin. In Chrome the right profile is the one at `/u/2`.
+
+---
+
 ## Phase 0: Foundations
 
-Done. Nothing to do.
+Phase 0 was done earlier. One new fix came up on 2026-10-25 (it was not part of Phase 0, but nothing else works well until it is done):
+
+### ☐ 0.1 Fix Google sign-in (15 minutes) — found 2026-10-25 (P2-50)
+
+**What is wrong:** tapping Google on the web, the Android app or the admin shows Google's "Error 401: deleted_client, The OAuth client was deleted". Supabase's Google sign-in still points at a Google login key (OAuth client) from one of the Google Cloud projects that was shut down on 2026-10-22. Claude confirmed this from outside the browser: asking Supabase for the Google login redirects to Google, and Google refuses it. Only you can fix it: it needs a new key made in your Google account and its secret entered in Supabase. This is a replacement for a deleted key, not a key rotation.
+
+1. Click: open https://console.cloud.google.com/?authuser=2 (the `/u/2` account is `hitendureacts@gmail.com`; if Google shows a chooser, pick **hitendureacts**).
+2. Click: at the top, open the project picker and choose the project named **Taskdrop**.
+3. Click: left menu (the ☰) → **APIs & Services** → **OAuth consent screen** (newer layout: **Google Auth Platform** → **Audience**). Look at **Publishing status**. If it says **Testing**, click **Publish app** → **Confirm**, so it says **In production**. (In Testing mode only listed test users can sign in and the login stops after 7 days.)
+4. Click: **APIs & Services** → **Credentials** → **Create credentials** → **OAuth client ID**.
+5. Click: Application type **Web application**. Name: `TaskDrop Supabase`.
+6. Click: under **Authorized redirect URIs** → **Add URI**, and paste exactly: `https://wjxvingpfbfvkfqhrguj.supabase.co/auth/v1/callback`
+7. Click: **Create**. A box shows the **Client ID** and **Client secret**. Keep this box open. Do not paste them in the chat.
+8. Click: open https://supabase.com/dashboard/project/wjxvingpfbfvkfqhrguj/auth/providers → **Google**.
+9. Click: switch **Enable Sign in with Google** on, paste the **Client ID** and **Client secret** from step 7, and click **Save**.
+10. Type to Claude: "Google sign-in is fixed. Test it on the web, the Android app and the admin."
+
+If the Google Cloud page looks different, send Claude a screenshot. Don't try to bring back the old shut-down project: a new key is faster.
 
 ---
 
@@ -198,7 +246,9 @@ Follow the words on the screen when a button name differs slightly. Write down a
 
 Skip this. Safari testing, like everything iOS, waits until you say "start iOS". Nothing to do now. The steps are kept in "Future scope: iOS and Safari" at the end of this manual. (The number 2.3 stays so the other task numbers don't change.)
 
-### ☐ 2.4 Check every admin page (20 minutes)
+### ☑ 2.4 Check every admin page — done 2026-10-25 by Claude in your Chrome (all 12 pages opened, data shown, no red errors)
+
+The steps are kept for a re-run. The admin accepts only `hitendureacts@gmail.com`, and Google sign-in must work first (task 0.1).
 
 1. Click: open https://vercel.com and sign in.
 2. Click: open https://taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app
@@ -270,7 +320,7 @@ Notes for later: all three settings sit on that one page under **Access Tokens**
 - Vercel holds the six App Check values; the web client and the Android client are merged into `redesigned-2.0`, and taskdrop.in serves a build that contains the web config (a bug that left it out was fixed in PR 83).
 - Android beta APKs use a Firebase **debug token** because Play Integrity refuses an APK installed by hand ("App attestation failed"). The token (`EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN`) is an EAS `preview` variable and is in `.env.all-secrets`; PR 84 (the code that uses it) is open and not merged.
 
-**Left:**
+**Left (this is step 2 of START HERE; the new beta build `505485f8` is finished and waits for you to unlock the phone and say go):**
 1. Claude: finish the Android test. The token the Firebase console generated (`beta apk 3`) is now set in EAS and a new beta APK is building; Claude installs it on the phone and reads the `api` log for `platform: android` `result: valid`.
 2. You: open https://taskdrop.in signed in and use it for a minute, then tell Claude. The log must show `platform: web` `result: valid` (no one has done this since the fix).
 3. You: in Firebase → App Check → `taskdrop Android` → ⋮ → **Manage debug tokens**, delete the two older tokens named `beta apk` when convenient (they are unused).
@@ -292,7 +342,7 @@ Claude switched Android maintenance on for the test project, reopened TaskDrop o
    2. Tell Claude.
 5. Claude switches everything back.
 
-### ⚠ 3.7 Check the admin signs you out when idle — Claude tried twice 2026-10-25: once it signed out by itself after about 30 minutes, once a click after 32 minutes still worked (P2-43)
+### ⚠ 3.7 Check the admin signs you out when idle — Claude tried twice 2026-10-25: once it signed out by itself after about 30 minutes, once a click after 32 minutes still worked (P2-43). A third timed run waits for the Google fix (task 0.1), because it needs a fresh admin login.
 
 1. Click: sign in to the new admin (task 2.4, steps 1 to 3).
 2. Leave it alone for 31 minutes.
@@ -389,15 +439,15 @@ Claude opened the new admin in your Chrome (already signed in as `hitendureacts@
 |---|---|
 | 6.1 Change the ImageKit key | ⏸ future scope: no key rotation |
 | 6.2 Upload photos four ways | ☑ done (web and phone) |
-| 6.3 Chat photo | ◐ works on web and phone; the full-size view is built but not on your phone yet |
-| 6.4 Photos in the admin | ◐ built and tested in code; needs your two Vercel values, then a push |
+| 6.3 Chat photo | ◐ works on web and phone; the full-size view is merged (app PR 85) but needs the phone update (START HERE step 2) |
+| 6.4 Photos in the admin | ◐ merged (admin PR 25); needs your two Vercel values (START HERE step 3) |
 | 6.5 Speed on mobile data | ⚠ not run: mobile data is off on your phone |
 
 **What Claude needs from you to finish (nothing else is open):**
 
 1. **Vercel, 2 values (6.4).** In project `taskdrop-admin` add `IMAGEKIT_PRIVATE_KEY` and `IMAGEKIT_URL_ENDPOINT`, copied from project `taskdrop` (clicks in 6.4). No key is changed. Do not paste them into the chat.
-2. **"Push" (6.3 and 6.4).** Say "push both Phase 6 branches". Claude then pushes `fix/chat-photo-fullsize` (app repo) and `feat/admin-photos` (admin repo) and opens one pull request for each into `redesigned-2.0`. Pushing is yours to say; Claude has not pushed anything.
-3. **"Send the phone update" (6.3).** After step 2 is merged, say "publish the update". Claude publishes an over-the-air update on the `beta` channel (a deploy), you open TaskDrop twice, and Claude checks on the phone that tapping a chat photo opens it full size.
+2. **"Push" (6.3 and 6.4): done.** Both branches were merged into `redesigned-2.0` (app PR 85, admin PR 25) on 2026-10-25.
+3. **"Send the phone update" (6.3).** The merge is done, so say "publish the update" (it is part of START HERE step 2). Claude publishes an over-the-air update on the `beta` channel (a deploy), you open TaskDrop twice, and Claude checks on the phone that tapping a chat photo opens it full size.
 4. **Mobile data and the cable (6.5).** Switch **Mobile data** on in the phone's settings, plug the phone in, and say "run the mobile data test". It uses a little of your data pack.
 5. **A look at the admin (6.4).** After the admin deploys, either open a job that has a photo (for example "Test camera photo phase 6") on the admin's **Jobs** page, or say "check the admin photos" and Claude looks in your Chrome.
 
@@ -436,7 +486,7 @@ Ravi sent a photo; the signed link opened for both Ravi and Asha (the image down
 2. Click (phone, Asha): open the chat → tap the photo. It should open full size.
 3. Tell Claude whether it opened.
 
-### ◐ 6.4 Photos in the admin — built 2026-10-25 on branch `feat/admin-photos` (admin repo, commit 2e1ecf4, not pushed); waits for your two Vercel values
+### ◐ 6.4 Photos in the admin — built and merged into `redesigned-2.0` of the admin repo (admin PR 25, 2026-10-25); waits for your two Vercel values (START HERE step 3)
 
 **What Claude built:** the admin's **Jobs** page now has a "Photos and files" card with the job's own photo and every proof file the worker sent (each opens full size in a new tab), and the **Copyright** page shows the job photo beside each complaint so staff can compare. The links are signed on the server with the same method the app uses (a test checks it against the app's own signer, byte for byte) and expire within two hours; the keys never reach the browser. Older uploads in Supabase Storage show too. The admin's security policy now allows images from ImageKit and the Supabase project. If the two values are missing, the card says "ImageKit is not set up for the admin yet" instead of breaking. The admin's 94 automatic tests, typecheck and lint pass. **Not yet seen on screen:** it needs the two values and a deploy first.
 
@@ -464,7 +514,10 @@ Claude turned Wi-Fi off to try it and found the phone has no internet without Wi
 
 The Phase 7 admin work is merged into `redesigned-2.0` of the admin repo (PRs 20 and later), and migrations 116 to 121 are applied. Nothing to do.
 
-### ☐ 7.2 Add the dashboard links (5 minutes)
+### ☑ 7.2 Add the dashboard links — done 2026-10-25 by Claude (both values are in the admin's Vercel project and a new admin build was started)
+
+The clicks are kept in case you need to redo them:
+
 
 1. Click: Vercel → project **taskdrop-admin** → **Settings** → **Environment Variables** → **Add New**.
 2. Click: Key `INNGEST_DASHBOARD_URL`, value `https://app.inngest.com`, environments: all → **Save**.
@@ -515,7 +568,7 @@ Warn, close report, hide message and hide job each have a row; the page now says
 
 1. Simplest: Type to Claude "Keep OpenStreetMap while testing. Suggest a free map provider for the store version." Claude's note (check each provider's current free limits before choosing): Android already uses Google Maps (restricted key, no tile problem); the weak spot is the web map and the address fallback, which use OpenStreetMap's public servers (not allowed at scale). Options: a tile provider whose free tier allows commercial use, or Google Maps on the web too. The decision can wait until before launch.
 
-### ☐ 8.2 Give the legal details
+### ☐ 8.2 Give the legal details — the Terms, Privacy and Support pages are live (checked 2026-10-25, all open); the Privacy page marks itself "Draft, under legal review" and shows no Grievance Officer name until you give these
 
 1. Type to Claude, filled in: "Legal details for the Terms and Privacy pages: business or legal name …, address …, email hitendureacts@gmail.com, grievance officer name …, grievance officer email …, courts in (city) …"
 
@@ -534,7 +587,7 @@ Warn, close report, hide message and hide job each have a row; the page now says
 6. Type to Claude: "Make the store listing: short and full description, a 512×512 icon, a 1024×500 feature graphic and phone screenshots."
 7. Click: **Grow users** → **Store presence** → **Main store listing** → paste the texts and upload the pictures Claude made → **Save**.
 
-### ◐ 8.4 Upload the store build (built 2026-10-24)
+### ◐ 8.4 Upload the store build (built 2026-10-24; **the download link expires on 2026-11-23**: after that, type "Build the store version (AAB)" and Claude makes a new one)
 
 The store build (AAB, version 1.0.0, versionCode 1, with the new drop icon) is ready: https://expo.dev/artifacts/eas/LG2lidySSxe5fii7qXA6MJY6eU2rxWl7Ue0H7ywxHVs.aab (build page: https://expo.dev/accounts/hitendureacts/projects/taskdrop/builds/cc681cd3-d5c4-4413-aba1-5ce7fc4f9905). Go straight to step 2.
 
