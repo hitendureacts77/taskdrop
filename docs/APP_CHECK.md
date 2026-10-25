@@ -7,8 +7,8 @@ Phase 3 of `docs/UPGRADE_PLAN.md`. App Check lets the server tell a request from
 | Part | State |
 |---|---|
 | Server: `supabase/functions/_shared/appCheck.ts`, called from `api/index.ts` | Built and tested (`appCheck.test.ts`). Does nothing until `FIREBASE_PROJECT_NUMBER` is set. |
-| Web: `apps/mobile/src/lib/appCheck.web.ts` (reCAPTCHA Enterprise) | Built. Sends nothing until the five public values below are in the web build. |
-| Android: Play Integrity | **Not built.** Needs `@react-native-firebase/app-check`, a `google-services.json` and a new APK, so it waits for the Firebase app to exist (step 4). |
+| Web: `apps/mobile/src/lib/appCheck.web.ts` (reCAPTCHA Enterprise) | Built. Firebase, reCAPTCHA and the Vercel values were set up on 2026-10-25; it sends a token from the next web build. |
+| Android: `apps/mobile/src/lib/appCheck.ts` (Play Integrity, `@react-native-firebase/app-check`) | Built, not yet in an APK. The app is registered in App Check with the EAS keystore's SHA-256. A new native build is needed (`eas build -p android --profile beta`, with the `GOOGLE_SERVICES_JSON` file variable already set). Release builds only: dev builds and Expo Go send no header. For a Play Store build, also add the Play Console app-signing SHA-256 under the Android app's Play Integrity settings. If the `api` log shows no token or `invalid` for Android, add the Firebase App Check API to the allowed APIs of the API key in `google-services.json` (see `docs/FCM.md`). |
 | iOS (App Attest) | Future scope with the rest of iOS. |
 
 ## Your clicks (about 30 minutes)
