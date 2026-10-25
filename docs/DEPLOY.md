@@ -75,7 +75,7 @@ SUPABASE_ACCESS_TOKEN=... node scripts/add-redirect-urls.mjs --apply   # add sig
 | Meera | 9990000003 | both | Rs 500 available |
 | Test Admin | none | admin | none; sign in with Google or set a password |
 
-Twelve tasks in all ten statuses (open, locked, started, overdue, work done, revision requested, completed, auto-completed, cancelled, disputed), local and remote, a request and a service listing. Sign-in codes: while the `dev_otp_for_all` setting is on (it is on the test project), any number gets a code that the app fills in. Once real SMS is set up, add the three numbers to the `phone-auth` secret `TEST_PHONES`.
+Twelve tasks in all ten statuses (open, locked, started, overdue, work done, revision requested, completed, auto-completed, cancelled, disputed), local and remote, a request and a service listing. Sign-in codes: while the `dev_otp_for_all` setting is on (it is on the test project), any number gets a random code that the app shows in a "Test mode" box to be typed in. Once real SMS is set up, add the three numbers to the `phone-auth` secret `TEST_PHONES`.
 
 The command accepts only the test project or localhost, always asks first, and also runs in CI against the throwaway database (`npm run test:seed`). It never runs on production.
 

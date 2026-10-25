@@ -29,9 +29,18 @@ if (!SUPABASE_URL.includes("wjxvingpfbfvkfqhrguj")) {
 }
 
 /**
+ * On the code screen of the test project: read the code the app shows in its "Test mode" box and type it
+ * into the code field, the way a person would. The app no longer fills it in.
+ */
+export async function typeTestCode(page: Page, timeout = 15_000): Promise<void> {
+  const code = (await page.getByTestId("dev-code").textContent({ timeout }))?.trim() ?? "";
+  await page.getByLabel("Six-digit code").fill(code);
+}
+
+/**
  * Sign in through the real sign-in screen with a seed phone. The test project hands the code back
- * and the app fills it in, so there is nothing to type. A code can be asked for once a minute per
- * number, so a refusal waits and tries again.
+ * and the app shows it in a box to be typed (see typeTestCode). A code can be asked for once a minute
+ * per number, so a refusal waits and tries again.
  */
 export async function signInWithPhone(page: Page, phone: string): Promise<void> {
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -43,6 +52,8 @@ export async function signInWithPhone(page: Page, phone: string): Promise<void> 
     await page.goto("/");
     await page.getByPlaceholder("98765 43210").fill(phone);
     await page.getByText("Text me a code").click();
+    // A refusal (the one-a-minute cooldown) shows no code box; the wait below then ends and it tries again.
+    await typeTestCode(page, 10_000).catch(() => null);
     const signedIn = page.getByText("Wallet").first();
     await Promise.race([signedIn.waitFor({ timeout: 30_000 }).catch(() => null), page.waitForTimeout(30_000)]);
     page.off("response", watch);

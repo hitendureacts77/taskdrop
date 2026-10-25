@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { ANON_KEY, RAVI, SUPABASE_URL, accessToken, apiAs, must } from "./helpers";
+import { ANON_KEY, RAVI, SUPABASE_URL, accessToken, apiAs, must, typeTestCode } from "./helpers";
 
 /**
  * Phase 4: sign-up and sign-in methods, on the web, against the cloud test project.
@@ -32,10 +32,11 @@ test("a new phone number is asked its birth date, signs up, sets a username and 
   const username = `e2e${phone.slice(4)}`;
   const password = `Pw-${phone}-ok`;
 
-  // Sign up: the number is new, so the birth date comes before any code; the dev code fills itself in.
+  // Sign up: the number is new, so the birth date comes before any code; the app shows the test code and it is typed in.
   await askForCode(page, phone);
   await expect(page.getByText("New account").first()).toBeVisible();
   await fillBirthDate(page, "15", "06", "1995");
+  await typeTestCode(page);
 
   // First-run setup: welcome, username, intent, skills, about you, done.
   await page.getByText("Let’s go →").click();
@@ -92,6 +93,7 @@ test("a number whose birth date makes the person 16 is turned away, with no code
 
 test("an existing account signs in with its phone and lands on its own wallet (Phase 4)", async ({ page }) => {
   await askForCode(page, RAVI.phone);
+  await typeTestCode(page);
   await expect(page.getByText("Wallet").first()).toBeVisible({ timeout: 30_000 });
 });
 

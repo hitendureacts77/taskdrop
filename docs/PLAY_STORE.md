@@ -21,7 +21,7 @@ Drafted 2026-10-24 from the code, for task 8.3 of `docs/OWNER_MANUAL.md`. Every 
 
 "All or some functionality is restricted." Instructions for Google's reviewer:
 
-> Sign in with phone number 9990000001 on the "Sign in" screen. The 6-digit code fills in automatically on this test build. No other credentials are needed. Switch between Hire and Earn with the mode switch on the Home screen.
+> Sign in with phone number 9990000001 on the "Sign in" screen. The 6-digit code is shown on screen in a "Test mode" box on this test build; type it in. No other credentials are needed. Switch between Hire and Earn with the mode switch on the Home screen.
 
 (This works only while the `dev_otp_for_all` test shortcut is on. Before the app goes to production, give the reviewer a number that works with real SMS or a fixed test number, and turn the shortcut off: Phase 10.)
 
