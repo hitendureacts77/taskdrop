@@ -9,14 +9,15 @@
  * reach the person. The SDK loads on first use, so it costs nothing until the
  * keys exist.
  */
-const env = process.env;
+// Each value is written out as process.env.EXPO_PUBLIC_*: Expo only inlines that
+// exact form at build time, not an aliased `const env = process.env`.
 const config = {
-  apiKey: env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  appId: env.EXPO_PUBLIC_FIREBASE_APP_ID,
-  projectId: env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  messagingSenderId: env.EXPO_PUBLIC_FIREBASE_SENDER_ID,
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_SENDER_ID,
 };
-const siteKey = env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY;
+const siteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY;
 const configured = Boolean(config.apiKey && config.appId && config.projectId && config.messagingSenderId && siteKey);
 
 type AppCheckModule = typeof import('@firebase/app-check');
