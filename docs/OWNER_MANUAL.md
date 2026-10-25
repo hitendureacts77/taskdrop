@@ -429,7 +429,9 @@ The Phase 7 admin work is merged into `redesigned-2.0` of the admin repo (PRs 20
 3. Click: **Add New** again. Key `IMAGEKIT_DASHBOARD_URL`, value `https://imagekit.io/dashboard`, environments: all → **Save**.
 4. Type to Claude: "The two dashboard links are set. Redeploy the admin."
 
-### ☐ 7.3 Report a message and hide it (10 minutes)
+### ☑ 7.3 Report a message and hide it — done 2026-10-25 by Claude (web, API and your Chrome); the phone is left
+
+Asha reported Ravi's "hello" in a job chat; the admin's Reports page showed the message with "Hide this message"; after hiding it neither person gets it back, and the admin offers "Show it in the chat again".
 
 1. Click (PC, Ravi): on a job that has started with Asha, send the chat message `test message to report`.
 2. Click (phone, Asha): open that chat → **press and hold** the message → **Report** → pick a reason → send.
@@ -438,20 +440,26 @@ The Phase 7 admin work is merged into `redesigned-2.0` of the admin repo (PRs 20
 5. Click (PC): refresh the chat. It should be gone there too.
 6. Tell Claude what you saw.
 
-### ☐ 7.4 Block someone (10 minutes)
+### ☑ 7.4 Block someone — done 2026-10-25 by Claude (web and API); the phone is left
+
+Ravi reported a job with "also block" in the browser: the blocked list shows the poster; a blocked person's offer and chat message are refused (the blocker can still write to them).
 
 1. Click (phone, Asha): open Ravi's profile → **Report** → tick **block them too** → send.
 2. Click (PC, Ravi): try to send Asha a chat message, and try to make an offer on one of Asha's open tasks. Both should be refused, and Asha's open tasks should be hidden from Ravi.
 3. Click (phone, Asha): **Account** → **Blocked people** → **Unblock** Ravi.
 4. Tell Claude what happened.
 
-### ☐ 7.5 Warn someone (5 minutes)
+### ☑ 7.5 Warn someone — done 2026-10-25 by Claude in your Chrome
+
+"Warn them" on a report about a person closed the report as acted on and wrote the audit row. The message went to a seed account.
 
 1. Click (phone, Asha): open Ravi's profile → **Report** → send (don't block this time).
 2. Click (new admin): **Reports** → open it → **Warn them**.
 3. Tell Claude whether Ravi got the warning.
 
-### ☐ 7.6 Check the audit log (2 minutes)
+### ☑ 7.6 Check the audit log — done 2026-10-25 by Claude in your Chrome
+
+Warn, close report, hide message and hide job each have a row; the page now says what each was in plain words ("Warned a person", "Closed a report as acted on") and has a "Staff actions" filter.
 
 1. Click (new admin): open the audit log (under **Security**).
 2. Look: the hide and warn you just did should be listed.
