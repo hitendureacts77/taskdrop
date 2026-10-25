@@ -34,6 +34,7 @@ import { imageSource, pickMedia, signedMediaUrl, uploadMedia, MediaError } from 
 import { Image } from 'expo-image';
 import { findContactIssue } from '../lib/mask';
 import { ReportSheet } from '../components/ReportSheet';
+import { PhotoViewer } from '../components/PhotoViewer';
 import { fontFamilyFor, type Theme } from '../theme';
 import { tx } from '../components/primitives';
 
@@ -84,6 +85,7 @@ function bubbleShape(t: Theme, m: Message): { style: ViewStyle; textColor: strin
 function ChatPhoto({ path }: { path: string }) {
   const t = useTheme();
   const [url, setUrl] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
   useEffect(() => {
     let alive = true;
     void signedMediaUrl(path).then((u) => alive && setUrl(u));
@@ -92,13 +94,22 @@ function ChatPhoto({ path }: { path: string }) {
     };
   }, [path]);
   return (
-    <View style={{ width: 200, height: 150, backgroundColor: t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-      {url ? (
-        <Image source={imageSource(url)} style={{ width: 200, height: 150 }} contentFit="cover" accessibilityLabel="Photo" />
-      ) : (
-        <ActivityIndicator color={t.colors.accent} />
-      )}
-    </View>
+    <>
+      <Pressable
+        onPress={() => setOpen(true)}
+        disabled={!url}
+        accessibilityRole="imagebutton"
+        accessibilityLabel="Open photo"
+        style={{ width: 200, height: 150, backgroundColor: t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}
+      >
+        {url ? (
+          <Image source={imageSource(url)} style={{ width: 200, height: 150 }} contentFit="cover" accessibilityLabel="Photo" />
+        ) : (
+          <ActivityIndicator color={t.colors.accent} />
+        )}
+      </Pressable>
+      <PhotoViewer path={path} visible={open} onClose={() => setOpen(false)} />
+    </>
   );
 }
 
