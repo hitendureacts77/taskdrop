@@ -12,6 +12,8 @@ Every step is one of three kinds:
 
 If a screen doesn't look like the step says (a button has another name, or isn't there), stop and send Claude a screenshot. Websites like Sentry and Google change their buttons from time to time.
 
+**No key rotation (owner decision, 2026-10-25):** no key is rotated or regenerated as of now. Key rotation (tasks 3.2 and 6.1) is **future scope** (⏸). Skip it.
+
 **Scope:** this manual covers the website (tested in Chrome), the Android app and the admin. **iOS and Safari testing are future scope** (iOS since 2026-10-20, Safari since 2026-10-24); they are collected at the end under "Future scope: iOS and Safari". Skip anything marked ⏸.
 
 ## Addresses you'll use
@@ -225,11 +227,11 @@ Skip this. Safari testing, like everything iOS, waits until you say "start iOS".
 
 ### ☑ 3.1 Deploy the latest changes — done 2026-10-24
 
-Claude checked: every migration up to 121 is applied on the test project and all 11 Edge Functions are deployed (a push to `redesigned-2.0` does this by itself, see `docs/DEPLOY.md`). Task 3.2 can go ahead.
+Claude checked: every migration up to 121 is applied on the test project and all 11 Edge Functions are deployed (a push to `redesigned-2.0` does this by itself, see `docs/DEPLOY.md`). (Task 3.2 is future scope: no keys are rotated now.)
 
-### ⏸ 3.2 Change the Razorpay test keys — future scope (owner decision 2026-10-24)
+### ⏸ 3.2 Change the Razorpay test keys — future scope (owner decision 2026-10-24, confirmed 2026-10-25: no key rotation)
 
-Not needed now. The old test key pair is out of the code but stays readable in the public repo's history; it only opens the Razorpay test account, so no real money is at risk. Do the clicks below when you decide, and at the latest before real customers and live keys (Phase 10).
+Not needed now. The old test key pair is out of the code but stays readable in the public repo's history; it only opens the Razorpay test account, so no real money is at risk. Do the clicks below only when you decide to.
 
 1. Click: open https://dashboard.razorpay.com and sign in.
 2. Click: at the top, switch to **Test Mode**.
@@ -260,10 +262,20 @@ Checked on the live Supabase page (Authentication → Sessions, https://supabase
 
 Notes for later: all three settings sit on that one page under **Access Tokens** and **Refresh Tokens** (scroll down). The session limits at the top (single session, time-box, inactivity timeout) are Pro-plan only and stay off. The Legacy JWT secret on the JWT Keys page is a master key: never copy or paste it anywhere. Owner decision 2026-10-25: no key rotation needed.
 
-### ◐ 3.5 App Check (code done 2026-10-24; your Firebase clicks left)
+### ◐ 3.5 App Check (built and set up 2026-10-25; live proof still open)
 
-1. Done: the server check (monitor mode) and the web client are built and deployed, and both stay off until you finish step 2. Android (Play Integrity) waits for a registered Firebase app and a new APK.
-2. Click: follow `docs/APP_CHECK.md` (about 30 minutes, in the Firebase console), then type to Claude the values it lists. Claude puts them in Vercel.
+**Done (2026-10-25):**
+- The server check (monitor mode) is on in the `api` function.
+- Firebase: the web app and the Android app are registered in App Check (web: reCAPTCHA Enterprise key for taskdrop.in and localhost; Android: Play Integrity with the EAS keystore SHA-256 `02:B6:21:92:…:C2:AB:3F`). The API key behind `google-services.json` now also allows the Firebase App Check API.
+- Vercel holds the six App Check values; the web client and the Android client are merged into `redesigned-2.0`, and taskdrop.in serves a build that contains the web config (a bug that left it out was fixed in PR 83).
+- Android beta APKs use a Firebase **debug token** because Play Integrity refuses an APK installed by hand ("App attestation failed"). The token (`EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN`) is an EAS `preview` variable and is in `.env.all-secrets`; PR 84 (the code that uses it) is open and not merged.
+
+**Left:**
+1. Claude: finish the Android test. The token the Firebase console generated (`beta apk 3`) is now set in EAS and a new beta APK is building; Claude installs it on the phone and reads the `api` log for `platform: android` `result: valid`.
+2. You: open https://taskdrop.in signed in and use it for a minute, then tell Claude. The log must show `platform: web` `result: valid` (no one has done this since the fix).
+3. You: in Firebase → App Check → `taskdrop Android` → ⋮ → **Manage debug tokens**, delete the two older tokens named `beta apk` when convenient (they are unused).
+4. Before a Play Store build: add the Play Console app-signing SHA-256 to the Android app's Play Integrity settings, and test once from a Play-installed copy (that is the only real Play Integrity test).
+5. Claude (after the tests): merge PR 84, tick this step, and then Phase 9 may switch enforcement on.
 
 ### ☑ 3.6 Test the control screens with your phone — done 2026-10-24 (Claude, phone plugged in)
 
@@ -315,7 +327,9 @@ You asked Claude to complete Phases 4 and 5, so Claude took the simplest choice:
 
 Claude's check on 2026-10-24: after the first try did not save, Supabase now answers the app's "Link Google" request with Google's sign-in address (`e2e/accounts.spec.ts`, the "manual linking" test, passes). Nothing more to do here.
 
-### ☐ 4.3 Test linking (built: **Account → Sign-in methods → Link Google**; needs task 4.2 first; 5 minutes) — yours (needs a real Google login)
+### ☑ 4.3 Test linking — done 2026-10-25 (you ran it with a real Google login: "Linking ok")
+
+Built: **Account → Sign-in methods → Link Google** (needed task 4.2 first). Steps kept for a re-run:
 
 1. Click (phone): sign in as Asha (`9990000001`).
 2. Click: **Account** → the sign-in methods card → link **Google** → pick a Google account.
@@ -323,13 +337,13 @@ Claude's check on 2026-10-24: after the first try did not save, Supabase now ans
 4. Click: sign out, then sign in with **Google**. You should be Asha again, not a new empty account.
 5. Tell Claude what happened.
 
-### ◐ 4.4 Make new accounts (website done by Claude 2026-10-24; Google and the phone app are yours)
+### ☑ 4.4 Make new accounts — done 2026-10-25 (website by Claude 2026-10-24; Google and the phone app by you: "Web Google ok. Phone: Google ok, number ok, username sign-in ok, under-18 refused")
 
 **Done by Claude, in a browser test on the website against the test project (`e2e/accounts.spec.ts`, all passing):** a brand-new phone number is asked its birth date before any code; the test code is shown and typed in; the setup screens finish; a username and password are set (Settings → Sign-in) and used to sign back in; a 16-year-old birth date is turned away with no code and no account; Ravi (`9990000002`) signs in as before. The test deletes the account it made, so nothing is left behind.
 
 **One correction to the old wording:** there is no "create a username and password" on the sign-in screen. You pick a username in the setup screens and set the password later in **Settings → Sign-in → Password sign-in**; the **Username** button on the sign-in screen is only for signing back in.
 
-What is left for you (Google needs your real Google login, and Claude does not type your phone numbers or pick your Google accounts on your phone):
+What you did (Google needs your real Google login, and Claude does not type your phone numbers or pick your Google accounts on your phone). All five steps are reported ok on 2026-10-25; kept for a re-run:
 
 1. **Google, on the website** (Chrome Incognito, https://taskdrop.in): tap **Google** → choose a Google account you haven't used in TaskDrop (for example `narasimharaju7c`) → enter a birth date that makes you over 18 → finish the welcome screens → you're in → **Settings** → **Sign-in** → **Sign out on this device**.
 2. **Google, on the phone app:** the same, with another unused Google account.
@@ -369,7 +383,27 @@ Claude opened the new admin in your Chrome (already signed in as `hitendureacts@
 
 ## Phase 6: Photos (ImageKit)
 
-### ☐ 6.1 Change the ImageKit private key (10 minutes)
+**Where Phase 6 stands (2026-10-25):**
+
+| Task | State |
+|---|---|
+| 6.1 Change the ImageKit key | ⏸ future scope: no key rotation |
+| 6.2 Upload photos four ways | ☑ done (web and phone) |
+| 6.3 Chat photo | ◐ works on web and phone; the full-size view is built but not on your phone yet |
+| 6.4 Photos in the admin | ◐ built and tested in code; needs your two Vercel values, then a push |
+| 6.5 Speed on mobile data | ⚠ not run: mobile data is off on your phone |
+
+**What Claude needs from you to finish (nothing else is open):**
+
+1. **Vercel, 2 values (6.4).** In project `taskdrop-admin` add `IMAGEKIT_PRIVATE_KEY` and `IMAGEKIT_URL_ENDPOINT`, copied from project `taskdrop` (clicks in 6.4). No key is changed. Do not paste them into the chat.
+2. **"Push" (6.3 and 6.4).** Say "push both Phase 6 branches". Claude then pushes `fix/chat-photo-fullsize` (app repo) and `feat/admin-photos` (admin repo) and opens one pull request for each into `redesigned-2.0`. Pushing is yours to say; Claude has not pushed anything.
+3. **"Send the phone update" (6.3).** After step 2 is merged, say "publish the update". Claude publishes an over-the-air update on the `beta` channel (a deploy), you open TaskDrop twice, and Claude checks on the phone that tapping a chat photo opens it full size.
+4. **Mobile data and the cable (6.5).** Switch **Mobile data** on in the phone's settings, plug the phone in, and say "run the mobile data test". It uses a little of your data pack.
+5. **A look at the admin (6.4).** After the admin deploys, either open a job that has a photo (for example "Test camera photo phase 6") on the admin's **Jobs** page, or say "check the admin photos" and Claude looks in your Chrome.
+
+### ⏸ 6.1 Change the ImageKit private key — future scope (owner decision 2026-10-25: no key rotation)
+
+Not needed now. The current ImageKit private key stays as it is. Do the clicks below only when you decide to. Phase 6 tasks 6.2 to 6.5 do not depend on it.
 
 1. Click: open https://imagekit.io/dashboard and sign in.
 2. Click: in the left menu, **Developer options**.
@@ -380,9 +414,11 @@ Claude opened the new admin in your Chrome (already signed in as `hitendureacts@
 7. Click: in `.env.all-secrets` (Notepad), replace `IMAGEKIT_PRIVATE_KEY` and save.
 8. Type to Claude: "I changed the ImageKit private key in Vercel. Redeploy so it reaches Supabase."
 
-### ◐ 6.2 Upload photos four ways — file picker and drag-and-drop done 2026-10-25 by Claude (web); camera and gallery on the phone left
+### ☑ 6.2 Upload photos four ways — done 2026-10-25 by Claude (web, then your phone plugged in)
 
 A post photo (picker), a dropped file, a chat photo and a proof photo all went to ImageKit and are recorded in `media` as attached.
+
+**Phone (installed `beta` APK, signed in as Asha):** a photo taken with **Take photo** (1.6 MB JPEG) and a picture chosen from **Choose from gallery** (a test picture Claude copied to the phone, so none of your own photos were used) both uploaded to ImageKit under `/beta/u/<Asha>/` and are marked attached; each task shows its photo. On the first camera try the post draft came back empty at step 1; that was another Claude session relaunching the app on the same phone at that minute, not an app fault (checked, so it is not logged as a problem). The second try kept the draft. The camera pictured your laptop. Test tasks left on Asha: "Test camera photo phase 6" and "Test carry a small sofa upstairs phase 6 photo test" (₹300 each, open, no offers).
 
 1. Click (PC, Asha in Chrome Incognito): **Post** → add a photo with **choose file** → post.
 2. Click (PC): post again, this time **drag** a photo from your desktop onto the photo box → post.
@@ -390,23 +426,31 @@ A post photo (picker), a dropped file, a chat photo and a proof photo all went t
 4. Click (phone): post again with a photo from the **Gallery**.
 5. Type to Claude: "I uploaded 4 photos: file picker, drag and drop, camera and gallery. Check they reached ImageKit."
 
-### ◐ 6.3 Chat photo — web done 2026-10-25 by Claude; on the phone left
+### ◐ 6.3 Chat photo — web and phone done 2026-10-25 by Claude; one thing fails: a chat photo does not open full size
 
 Ravi sent a photo; the signed link opened for both Ravi and Asha (the image downloaded) and was refused for a stranger.
+
+**Phone (Asha, beta APK):** the photo Ravi sent earlier shows in the chat on the phone, and a picture Asha sent from the phone (**+** → **Choose from gallery**) showed at once and is in `media` as a chat photo, attached. **Tapping a photo did nothing:** the code had no full-size view for chat photos (P2-49 in `docs/PHASE2_PROBLEMS.md`). Claude added one on branch `fix/chat-photo-fullsize` (app repo, commit 5aab2eb, not pushed): tap a photo, it opens full screen; tap anywhere, the cross or Back to close. It works in the web build at phone size. It is not on your phone yet, so step 2 will still do nothing there until the change is pushed, merged and sent as an update (items 2 and 3 in the list at the top of Phase 6).
 
 1. Click (PC, Ravi): open a job that has started with Asha → chat → send a photo.
 2. Click (phone, Asha): open the chat → tap the photo. It should open full size.
 3. Tell Claude whether it opened.
 
-### ☐ 6.4 Decide: photos in the admin
+### ◐ 6.4 Photos in the admin — built 2026-10-25 on branch `feat/admin-photos` (admin repo, commit 2e1ecf4, not pushed); waits for your two Vercel values
 
-1. If you don't need them now: Type to Claude "No photos in the admin for now."
-2. If you want them:
-   1. Click: Vercel → project **taskdrop-admin** → **Settings** → **Environment Variables** → **Add New**.
-   2. Click: Key `IMAGEKIT_PRIVATE_KEY`, value: the new key, environments: all → **Save**.
-   3. Type to Claude: "Build photo views in the admin. The ImageKit key is in the admin's Vercel project."
+**What Claude built:** the admin's **Jobs** page now has a "Photos and files" card with the job's own photo and every proof file the worker sent (each opens full size in a new tab), and the **Copyright** page shows the job photo beside each complaint so staff can compare. The links are signed on the server with the same method the app uses (a test checks it against the app's own signer, byte for byte) and expire within two hours; the keys never reach the browser. Older uploads in Supabase Storage show too. The admin's security policy now allows images from ImageKit and the Supabase project. If the two values are missing, the card says "ImageKit is not set up for the admin yet" instead of breaking. The admin's 94 automatic tests, typecheck and lint pass. **Not yet seen on screen:** it needs the two values and a deploy first.
 
-### ☐ 6.5 Speed on mobile data (5 minutes)
+No new key is made: copy the values the `taskdrop` project already has. (An earlier version of this manual asked for a third value, `IMAGEKIT_ENV`. It is not needed.)
+
+1. Click: Vercel → project **taskdrop** → **Settings** → **Environment Variables**, and open `IMAGEKIT_PRIVATE_KEY` and `IMAGEKIT_URL_ENDPOINT` (use the eye icon to show them; do not paste them into the chat).
+2. Click: Vercel → project **taskdrop-admin** → **Settings** → **Environment Variables** → **Add New**. Add these two, environments: all → **Save** each:
+   1. `IMAGEKIT_PRIVATE_KEY`: the same value as in `taskdrop`.
+   2. `IMAGEKIT_URL_ENDPOINT`: the same value as in `taskdrop` (it looks like `https://ik.imagekit.io/<your id>`).
+3. Type to Claude: "The two ImageKit values are in the admin's Vercel project. Push both Phase 6 branches."
+
+### ⚠ 6.5 Speed on mobile data (5 minutes) — not run 2026-10-25: mobile data is switched off on your phone
+
+Claude turned Wi-Fi off to try it and found the phone has no internet without Wi-Fi (Settings show mobile data **off**; only calling is connected). Claude turned Wi-Fi back on at once and did not switch mobile data on, because it uses your data pack. To run it: switch **Mobile data** on in the phone's settings, then say "run the mobile data test" with the phone plugged in; Claude times it.
 
 1. Click (phone): turn off Wi-Fi so you're on mobile data.
 2. Click: close TaskDrop and open it. Count the seconds until the Home pictures show.
@@ -557,7 +601,7 @@ Start only when Phases 0 to 8 are done.
 1. Click: https://dashboard.razorpay.com → **Activate account** → fill in business type, PAN, GST (if you have one), bank details (a current account), website `https://taskdrop.in` → upload the documents it asks for → **Submit**.
 2. Click: https://x.razorpay.com → activate RazorpayX with the same business and a current account.
 3. Wait for both approvals by email.
-4. Type to Claude: "Razorpay and RazorpayX are approved for live mode." Then put the live keys in Vault yourself, the same way as task 3.2.
+4. Type to Claude: "Razorpay and RazorpayX are approved for live mode." Then put the live keys in Vault yourself (the clicks are steps 6 to 10 of task 3.2; the live keys are brand new, so this is not a rotation).
 
 ### ☐ 10.4 SMS registration (DLT)
 

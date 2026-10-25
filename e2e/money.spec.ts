@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type Browser } from "@playwright/test";
-import { ASHA, RAVI, accessToken, apiAs, must } from "./helpers";
+import { ASHA, RAVI, accessToken, apiAs, must, tidyE2eTasks } from "./helpers";
 
 /**
  * The money paths, through the app's single door (the `api` function) as the two seed accounts, signed in
@@ -66,6 +66,7 @@ test.beforeAll(async ({ browser, playwright }) => {
 });
 
 test.afterAll(async () => {
+  if (asha) await tidyE2eTasks(asha).catch(() => 0);
   await Promise.all(contexts.map((c) => c.close()));
 });
 

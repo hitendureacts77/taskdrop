@@ -59,7 +59,7 @@ Run again any time: `BREAKIT=1 npx playwright test e2e/breakit.spec.ts` (PowerSh
 | P2-46 | Low | The Android build asked for three permissions the app never uses (`SYSTEM_ALERT_WINDOW`, `USE_BIOMETRIC`, `USE_FINGERPRINT`); found reading the beta APK's manifest (T11.2) | blocked in `app.json`; takes effect in the next native build |
 | P2-47 | Low | The admin audit log called every staff action "event / Changed event" | plain words ("Warned a person", "Closed a report as acted on", "Hid a message"...) and a "Staff actions" filter |
 | P2-44 | Low | A withdrawal request took 0.8 to 1.6 s (target under 1 s, measured from this PC): the answer waited for the second function that hands the payout to RazorpayX | the hand-off now runs after the answer is sent |
-| P2-30 | Low | Money shown without paise: ₹82.40 read "₹82", so a wallet line and the price did not add up | whole rupees stay whole, paise show when there are any |
+| P2-49 | Medium | **A chat photo cannot be opened full size on the phone.** Tapping the picture in a chat does nothing (found on the Android beta APK, Phase 6 task 6.3). `ChatPhoto` in `ChatScreen.tsx` is a plain 200x150 image with no tap handler; the signed `full` size exists but is never used there | fixed on branch `fix/chat-photo-fullsize` (commit 5aab2eb, not pushed): a photo opens in a full-screen viewer (`PhotoViewer.tsx`), tested on the web build at phone size; not yet on the phone, which needs a new build or update || P2-30 | Low | Money shown without paise: ₹82.40 read "₹82", so a wallet line and the price did not add up | whole rupees stay whole, paise show when there are any |
 
 ### Left as they are (written down)
 
