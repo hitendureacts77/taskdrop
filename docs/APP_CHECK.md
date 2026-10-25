@@ -20,6 +20,16 @@ Phase 3 of `docs/UPGRADE_PLAN.md`. App Check lets the server tell a request from
 5. **Give Claude the values.** Type to Claude: "App Check values: project number …, web apiKey …, appId …, projectId …, senderId …, reCAPTCHA site key …". The web config and the site key are public by design (they are in every web page). Claude puts them in Vercel's `taskdrop` project as `EXPO_PUBLIC_FIREBASE_API_KEY`, `EXPO_PUBLIC_FIREBASE_APP_ID`, `EXPO_PUBLIC_FIREBASE_PROJECT_ID`, `EXPO_PUBLIC_FIREBASE_SENDER_ID`, `EXPO_PUBLIC_RECAPTCHA_SITE_KEY` and `FIREBASE_PROJECT_NUMBER` (the last one reaches the Edge Functions through the build's secret sync).
 6. Do **not** turn on enforcement in the Firebase console. App Check enforcement there applies to Firebase products, not to our `api` function, and the monitor is ours.
 
+## Beta APKs: debug token (Android)
+
+Play Integrity only approves an app that Google Play recognizes, so an APK installed by hand fails with "App attestation failed" (403). For `beta` and `preview` builds the app uses a Firebase **debug token** instead:
+
+1. A random token is set as the EAS variable `EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN` in the `preview` environment (never in git; `production` has none, so store builds use Play Integrity).
+2. The same token is registered in Firebase: App Check → Apps → `taskdrop Android` → ⋮ → **Manage debug tokens** → **Add debug token** (name `beta apk`).
+3. To revoke it, delete it in that same dialog and remove the EAS variable; the beta APK then goes back to sending nothing.
+
+The token is inside the beta APK, so anyone holding the APK could use it. That is acceptable for a monitor-only check on a test project; never use one for enforcement. This tests the whole path (phone, token, `api` log) but not Play Integrity itself; that needs a build installed from Google Play, with the Play Console app-signing SHA-256 added to the Android app's Play Integrity settings.
+
 ## Checking it
 
 After the next web build, open https://taskdrop.in, use the app for a minute, then in Supabase → Logs → Edge Functions → `api` look for lines `app check` with `result: valid` and `platform: web`. `missing` means the web build has no keys yet; `invalid` is always logged and worth a look.
