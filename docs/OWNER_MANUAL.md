@@ -50,13 +50,13 @@ While testing, any phone number signs in. The code is random each time and shown
 
 ## START HERE: what is left, in order (checked 2026-10-25, rechecked 2026-10-26)
 
-**Update 2026-10-26:** Google sign-in is **fixed** (task 0.1): new Google key in Supabase, tested by Claude on the website and the admin (both signed in as `hitendureacts@gmail.com`). Left from it: the Android Google test (your phone) and the third admin idle sign-out test (task 3.7). The App Check PR 84 is now **merged**.
+**Update 2026-10-26:** Google sign-in is **fixed** (task 0.1): new Google key in Supabase, tested by Claude on the website and the admin (both signed in as `hitendureacts@gmail.com`). Also tested on the Android app. Left from it: the third admin idle sign-out test (task 3.7), which Claude started at 11:34 on 2026-10-26. The App Check PR 84 is now **merged**.
 
 Claude checked everything in Phases 0 to 8 that can be checked without you (evidence: `docs/PHASE0_8_CHECK_2026-10-25.md`). **Phases 0, 1, 4, 5 (except RazorpayX) and 7 are finished.** What is left needs you (a login, a payment, a decision), your phone, or time. Do these in order; each one points to the full clicks lower down.
 
 | # | What | Who | Time | Full clicks |
 |---|---|---|---|---|
-| 1 | ~~Fix Google sign-in~~ **Done 2026-10-26.** Only the Android Google check remains (on your phone: sign out, tap Google, pick `hitendureacts`). | You | 2 min | Task 0.1 |
+| 1 | ~~Fix Google sign-in~~ **Done 2026-10-26**, tested on web, admin and Android. | Done | - | Task 0.1 |
 | 2 | **Phone session: done 2026-10-25 by Claude** (build `505485f8` installed; App Check proven on Android: the server logged `valid` for 74 calls from the phone; the update for the chat-photo viewer is on the phone and the full-size photo opens; App Check PR 84 merged). Still open from this step: the web App Check proof (needs one signed-in visit to taskdrop.in, so it waits for step 1), and a fresh Android job run. | Claude | done | Tasks 2.2, 3.5, 6.3 |
 | 3 | **Two values in the admin's Vercel project** (the ImageKit photo values), so the admin shows job photos. | You | 5 min | Task 6.4 |
 | 4 | **Admin idle sign-out test.** Needs step 1 first (a working admin login), then 31 minutes of waiting. | Claude, in your Chrome | 35 min, mostly waiting | Task 3.7 |
@@ -85,9 +85,9 @@ Claude checked everything in Phases 0 to 8 that can be checked without you (evid
 
 Phase 0 was done earlier. One new fix came up on 2026-10-25 (it was not part of Phase 0, but nothing else works well until it is done):
 
-### ◐ 0.1 Fix Google sign-in — fixed 2026-10-26 (P2-50); Android check left
+### ☑ 0.1 Fix Google sign-in — done 2026-10-26 (P2-50), tested on web, admin and the Android app
 
-**Done 2026-10-26.** The Google Cloud project **Taskdrop** has the consent screen **In production** and a new Web client `TaskDrop Supabase`; its Client ID and secret are in `.env.all-secrets` and in Supabase (Authentication → Providers → Google). Claude tested Google sign-in on the website (taskdrop.in) and the admin: both signed in. **Left: the Android app** (you, on your phone). The steps below are kept for a re-run.
+**Done 2026-10-26.** The Google Cloud project **Taskdrop** has the consent screen **In production** and a new Web client `TaskDrop Supabase`; its Client ID and secret are in `.env.all-secrets` and in Supabase (Authentication → Providers → Google). Claude tested Google sign-in on the website (taskdrop.in), the admin and the installed Android app (signed out the seed account, Google, `hitendureacts`): all three signed in. Nothing is left here. The steps below are kept for a re-run.
 
 **What was wrong:** tapping Google on the web, the Android app or the admin shows Google's "Error 401: deleted_client, The OAuth client was deleted". Supabase's Google sign-in still points at a Google login key (OAuth client) from one of the Google Cloud projects that was shut down on 2026-10-22. Claude confirmed this from outside the browser: asking Supabase for the Google login redirects to Google, and Google refuses it. Only you can fix it: it needs a new key made in your Google account and its secret entered in Supabase. This is a replacement for a deleted key, not a key rotation.
 
