@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { guarded, captureServerError, logServer } from "../_shared/monitoring.ts";
+import { guardKey } from "../_shared/keyGuard.ts";
 import { secret } from "../_shared/secrets.ts";
 import { balance, giveBack, sendPayout, syncOpen, type XConfig } from "../_shared/razorpayx.ts";
 
@@ -72,6 +73,10 @@ Deno.serve(guarded("razorpayx-payouts", async (req: Request) => {
     // Not an error for the worker: the request stands and can be paid by hand.
     return json({ configured: false, note: "RazorpayX is not set up yet; the withdrawal waits." });
   }
+  // A live key in staging (or a test key in production) stops every action here,
+  // including the admin's balance and check calls, before anything is sent.
+  const wrongKey = await guardKey(admin, "razorpayx-payouts", keyId);
+  if (wrongKey) return json(wrongKey.body, wrongKey.status);
   const cfg: XConfig = { account, keyId, keySecret };
 
   // The admin's switch (Payouts page). Anything but an explicit 'razorpayx' means

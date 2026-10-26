@@ -255,6 +255,7 @@ export type Database = {
           banner_text: string | null
           bidding: boolean
           chat_photos: boolean
+          environment: string
           maintenance: boolean
           maintenance_message: string | null
           min_version: string | null
@@ -280,6 +281,7 @@ export type Database = {
           banner_text?: string | null
           bidding?: boolean
           chat_photos?: boolean
+          environment?: string
           maintenance?: boolean
           maintenance_message?: string | null
           min_version?: string | null
@@ -305,6 +307,7 @@ export type Database = {
           banner_text?: string | null
           bidding?: boolean
           chat_photos?: boolean
+          environment?: string
           maintenance?: boolean
           maintenance_message?: string | null
           min_version?: string | null

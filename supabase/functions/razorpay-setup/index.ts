@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
+import { guardKey } from "../_shared/keyGuard.ts";
 import { secret } from "../_shared/secrets.ts";
 
 /**
@@ -60,6 +61,9 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     { auth: { persistSession: false } },
   );
+
+  const wrongKey = await guardKey(admin, "razorpay-setup", RZP_ID);
+  if (wrongKey) return json(wrongKey.body, wrongKey.status);
 
   let body: { action?: string };
   try {

@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { secret } from "../_shared/secrets.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
+import { guardKey } from "../_shared/keyGuard.ts";
 import { guarded, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient, featureOffMessage } from "../_shared/controls.ts";
 
@@ -77,6 +78,11 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     { auth: { persistSession: false } },
   );
+
+  // A live key in staging (or a test key in production) stops every action here
+  // before anything is sent to Razorpay or written down.
+  const wrongKey = await guardKey(admin, "razorpay", RZP_ID);
+  if (wrongKey) return json(wrongKey.body, wrongKey.status);
 
   // Identify the caller from their JWT.
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
