@@ -1,6 +1,6 @@
 # TaskDrop owner manual: what to click, phase by phase
 
-This is your part of `docs/UPGRADE_PLAN.md`, written as clicks. Start with **START HERE** below: it lists what is left, in order. Then open the task it points to. Tick a task's box when you finish it. Last updated 2026-10-25.
+This is your part of `docs/UPGRADE_PLAN.md`, written as clicks. Start with **START HERE** below: it lists what is left, in order. Then open the task it points to. Tick a task's box when you finish it. Last updated 2026-10-26.
 
 ## How to read this manual
 
@@ -48,7 +48,9 @@ While testing, any phone number signs in. The code is random each time and shown
 
 ---
 
-## START HERE: what is left, in order (checked 2026-10-25)
+## START HERE: what is left, in order (checked 2026-10-25, rechecked 2026-10-26)
+
+**Recheck 2026-10-26:** nothing new has been built since 2026-10-25 18:16. Google sign-in is **still down** (Google still answers "OAuth client was deleted" for the key Supabase uses), so item 1 is still the first thing to do. The App Check PR 84 is now **merged** (it was shown as open before).
 
 Claude checked everything in Phases 0 to 8 that can be checked without you (evidence: `docs/PHASE0_8_CHECK_2026-10-25.md`). **Phases 0, 1, 4, 5 (except RazorpayX) and 7 are finished.** What is left needs you (a login, a payment, a decision), your phone, or time. Do these in order; each one points to the full clicks lower down.
 
@@ -318,14 +320,14 @@ Notes for later: all three settings sit on that one page under **Access Tokens**
 - The server check (monitor mode) is on in the `api` function.
 - Firebase: the web app and the Android app are registered in App Check (web: reCAPTCHA Enterprise key for taskdrop.in and localhost; Android: Play Integrity with the EAS keystore SHA-256 `02:B6:21:92:…:C2:AB:3F`). The API key behind `google-services.json` now also allows the Firebase App Check API.
 - Vercel holds the six App Check values; the web client and the Android client are merged into `redesigned-2.0`, and taskdrop.in serves a build that contains the web config (a bug that left it out was fixed in PR 83).
-- Android beta APKs use a Firebase **debug token** because Play Integrity refuses an APK installed by hand ("App attestation failed"). The token (`EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN`) is an EAS `preview` variable and is in `.env.all-secrets`; PR 84 (the code that uses it) is open and not merged.
+- Android beta APKs use a Firebase **debug token** because Play Integrity refuses an APK installed by hand ("App attestation failed"). The token (`EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN`) is an EAS `preview` variable and is in `.env.all-secrets`; PR 84 (the code that uses it) was merged into `redesigned-2.0` on 2026-10-25.
 
 **Left (this is step 2 of START HERE; the new beta build `505485f8` is finished and waits for you to unlock the phone and say go):**
 1. Claude: finish the Android test. The token the Firebase console generated (`beta apk 3`) is now set in EAS and a new beta APK is building; Claude installs it on the phone and reads the `api` log for `platform: android` `result: valid`.
 2. You: open https://taskdrop.in signed in and use it for a minute, then tell Claude. The log must show `platform: web` `result: valid` (no one has done this since the fix).
 3. You: in Firebase → App Check → `taskdrop Android` → ⋮ → **Manage debug tokens**, delete the two older tokens named `beta apk` when convenient (they are unused).
 4. Before a Play Store build: add the Play Console app-signing SHA-256 to the Android app's Play Integrity settings, and test once from a Play-installed copy (that is the only real Play Integrity test).
-5. Claude (after the tests): merge PR 84, tick this step, and then Phase 9 may switch enforcement on.
+5. Claude (after the tests): tick this step (PR 84 is already merged), and then Phase 9 may switch enforcement on.
 
 ### ☑ 3.6 Test the control screens with your phone — done 2026-10-24 (Claude, phone plugged in)
 
