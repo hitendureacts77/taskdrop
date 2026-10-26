@@ -437,7 +437,7 @@ Claude switched Android maintenance on for the test project, reopened TaskDrop o
    2. Tell Claude.
 5. Claude switches everything back.
 
-### ⚠ 3.7 Check the admin signs you out when idle — Claude tried twice 2026-10-25: once it signed out by itself after about 30 minutes, once a click after 32 minutes still worked (P2-43). A third timed run is now possible (Google sign-in is fixed, task 0.1): sign in to the admin, touch nothing for 35 minutes, then click.
+### ⚠ 3.7 Check the admin signs you out when idle — Claude tried twice 2026-10-25: once it signed out by itself after about 30 minutes, once a click after 32 minutes still worked (P2-43). Run 3 on 2026-10-26 was **void**: the Vercel log shows someone opened payout rows in the admin tab at 11:48 to 11:49 (not Claude), which restarted the 30-minute clock. **Run 4 (12:11 to 12:50 on 2026-10-26) did not sign out:** a click 39 minutes after the last one still loaded, with a 30-minute limit. Claude did not touch the tab; it could not prove nobody else did. The likely cause is in the admin code: some of Next's background page prefetches are counted as "you are active" (P2-43). Claude fixed it on 2026-10-26 (admin PR 26: every kind of Next prefetch is now ignored, and the admin logs what restarts the idle clock). **The fix is only in the upgrade admin** (`taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app`); the address `taskdrop-admin.vercel.app` is the old **main** admin, which stays as it is until you promote `redesigned-2.0` to `main` by hand. Runs 3 and 4 were on that old address. Run 5 is on the upgrade address. Until it passes, sign out yourself when you leave the admin.
 
 1. Click: sign in to the new admin (task 2.4, steps 1 to 3).
 2. Leave it alone for 31 minutes.
