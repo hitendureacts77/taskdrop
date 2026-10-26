@@ -175,8 +175,8 @@ The tour is **not built yet** on purpose: your rule is that the design is approv
 
 ### Claude's own open items (you only need to say "go")
 
-- "Push the idle fix": the admin fix for two open tabs keeping each other signed in (task 3.7, P2-43). After it, run the two-tab test once.
-- "Delete razorpay-setup": removes an unused function.
+- Idle fix: done (admin PR 27, merged). Still to do: the two-tab test once (task 3.7, P2-43), which needs you at the keyboard.
+- Old remote branches: removed 2026-10-26 (all were fully merged). Still to do: "recheck the Terms and Privacy staging notice in the app" and "check the other screens on my phone".
 - "Recheck the Terms and Privacy staging notice in the app", "check the other screens on my phone" and "remove the old remote branches" (`claude/staging-backend-4289e1`, `feat/staging-guard-rails-app`, `fix/staging-ribbon-gap` and the finished docs branch).
 - "Run the e2e tests again here" (task 2.5; the GitHub run waits for `main`, Phase 9).
 
@@ -205,7 +205,7 @@ Claude checked everything in Phases 0 to 8 that can be checked without you (evid
 | 11 | **The 12 testers** (14 days in Play closed testing). Only when you are ready. | You | 14 days | Task 8.6 |
 | 12 | **Staging exit gate**, then the switch-over (Phase 9). When every test above is done and the 12 testers have used the closed test for 14 days, type "Check the staging exit gate." **Production is a separate, later plan (Plan B below): it starts only when you say "I want to launch."** | You say go; Claude checks | 10 min | Plan A task A.4, Phase 9 |
 
-**Also open, no rush:** the RazorpayX payout buttons (need RazorpayX, task 10.3); deleting the unused `razorpay-setup` function (say "delete razorpay-setup" and Claude does it); the app tour design sign-off (Phase 8, not built yet). (Uptime Robot: checked by Claude 2026-10-26, both green.) Key rotation (3.2, 6.1), Safari and iOS stay future scope.
+**Also open, no rush:** the RazorpayX payout buttons (need RazorpayX, task 10.3); the app tour design sign-off (Phase 8, not built yet). (Uptime Robot: checked by Claude 2026-10-26, both green.) Key rotation (3.2, 6.1), Safari and iOS stay future scope.
 
 **Decisions waiting for you (answer in the chat, one line each):**
 

@@ -53,7 +53,7 @@ transaction that rolled back, **before** and **after** each fix. Migrations 073�
 | F-11 | No MFA / step-up / dual control for admins | **Open** — needs an enrolment UI and the owner's decision | — |
 | F-12 | Admin sent no security headers | **Fixed, proven in a browser** (nonce CSP, HSTS, frame-ancestors, …) | `middleware.ts`, `next.config.mjs`, `layout.tsx` |
 | F-13 | CRM export unaudited | **Fixed** (export refuses to run if the audit write fails) | `api/crm/export/route.ts` + 076 |
-| F-14 | `razorpay-setup` still deployed | **Open — owner** (no tool here deletes an edge function) | — |
+| F-14 | `razorpay-setup` still deployed | **Fixed 2026-10-26** (source removed in PR "Delete razorpay-setup", function deleted from the staging project) | — |
 | F-15 | Dev OTP bypass code path in prod function | **Open** — safe while SMS keys exist; remove once SMS is live | — |
 | F-16 | CORS `*` on browser-called functions | **Open** — needs the production web origin | — |
 | F-17 | OTP stored in plaintext | **Open (Low)** — compare is now constant-time | — |
@@ -185,7 +185,7 @@ step-up (F-11); mask by default.
 ## Low / Info / Config
 
 - **F-14 (Low)** `razorpay-setup` is deployed with `verify_jwt=false`. It is single-shot and inert once the
-  webhook exists, but it is dead weight with a service-role client — delete it after setup.
+  webhook exists, but it is dead weight with a service-role client. **Deleted 2026-10-26** (repo and staging project). The webhook is already registered; for production, register it in the Razorpay dashboard instead.
 - **F-15 (Low)** `phone-auth` still contains the `ALLOW_ANY_OTP` / `dev_otp_for_all` bypass paths. Both are
   locked off while MSG91 secrets exist and currently `false`, but a universal-takeover switch should not ship
   in the production artifact; also confirm `TEST_PHONES` is unset in production. The setting key is readable
