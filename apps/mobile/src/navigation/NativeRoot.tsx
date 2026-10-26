@@ -1,6 +1,10 @@
-import { useMemo } from 'react';
+import { useContext, useMemo } from 'react';
 import { KeyboardAvoidingView } from 'react-native';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavThemeProvider } from 'expo-router';
+// Not in react-native-screens' public exports. Metro resolves the package to its `src`, so this is the same
+// context object the native headers read.
+import { EdgeInsetApplicationContext } from 'react-native-screens/src/components/contexts/EdgeInsetApplicationContext';
+import { TopInsetUsedCtx } from '../components/topInsetUsed';
 import { useTheme } from '../providers/ThemeProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { AgeGate } from '../components/AgeGate';
@@ -26,6 +30,15 @@ export function NativeRoot() {
   const { session } = useAuth();
   const c = t.colors;
 
+  // While the staging ribbon or a banner sits above the app it has already used the status-bar gap. The system
+  // header adds that gap again unless told an ancestor applied it (the native SafeAreaView in `Screen` is handled
+  // by TopInsetUsedCtx; the headers are not).
+  const topUsed = useContext(TopInsetUsedCtx);
+  const edgeInsets = useMemo(
+    () => ({ topAlreadyApplied: topUsed, leftDisabled: false, rightDisabled: false, bottomDisabled: false }),
+    [topUsed],
+  );
+
   // Without this the navigator's own theme (white) flashes between screens.
   const navTheme = useMemo(() => {
     const base = t.isDark ? DarkTheme : DefaultTheme;
@@ -44,27 +57,29 @@ export function NativeRoot() {
       <ScreenBoundary home={session ? 'home' : 'splash'}>
         <AgeGate>
           <NavThemeProvider value={navTheme}>
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen
-                name="screen/[name]"
-                options={({ route }) => {
-                  const name = String((route.params as { name?: string } | undefined)?.name ?? '');
-                  return {
-                    gestureEnabled: !NO_BACK.includes(name),
-                    animation: FADE.includes(name) ? 'fade' : 'default',
-                    // The system header for screens with a TopBar (it fills in the title); the page's colours and type.
-                    headerShown: NATIVE_HEADER_SCREENS.includes(name as ScreenName),
-                    title: '',
-                    headerShadowVisible: false,
-                    headerBackButtonDisplayMode: 'minimal',
-                    headerStyle: { backgroundColor: c.bg },
-                    headerTintColor: c.ink,
-                    headerTitleStyle: { color: c.ink, fontFamily: fontFamilyFor('800'), fontSize: 18 },
-                  };
-                }}
-              />
-            </Stack>
+            <EdgeInsetApplicationContext.Provider value={edgeInsets}>
+              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen
+                  name="screen/[name]"
+                  options={({ route }) => {
+                    const name = String((route.params as { name?: string } | undefined)?.name ?? '');
+                    return {
+                      gestureEnabled: !NO_BACK.includes(name),
+                      animation: FADE.includes(name) ? 'fade' : 'default',
+                      // The system header for screens with a TopBar (it fills in the title); the page's colours and type.
+                      headerShown: NATIVE_HEADER_SCREENS.includes(name as ScreenName),
+                      title: '',
+                      headerShadowVisible: false,
+                      headerBackButtonDisplayMode: 'minimal',
+                      headerStyle: { backgroundColor: c.bg },
+                      headerTintColor: c.ink,
+                      headerTitleStyle: { color: c.ink, fontFamily: fontFamilyFor('800'), fontSize: 18 },
+                    };
+                  }}
+                />
+              </Stack>
+            </EdgeInsetApplicationContext.Provider>
           </NavThemeProvider>
         </AgeGate>
       </ScreenBoundary>
