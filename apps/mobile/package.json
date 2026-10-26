@@ -8,7 +8,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "node scripts/web.mjs",
-    "web:export": "expo export -p web --source-maps",
+    "web:export": "expo export -p web --source-maps && node scripts/web-env-guard.mjs",
     "typecheck": "tsc --noEmit",
     "build:apk": "npx eas-cli build --platform android --profile preview",
     "build:store": "npx eas-cli build --platform android --profile production"

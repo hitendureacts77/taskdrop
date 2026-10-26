@@ -3,6 +3,7 @@ import { appPlatform, appVersion } from './appInfo';
 import { reportError } from './errors';
 import { log } from './monitoring';
 import { isTransient, retryWhile } from './retry';
+import { parseEnvironment, type AppEnvironment } from './environment';
 
 /**
  * What the admin panel has switched for this app: maintenance, a newer
@@ -16,8 +17,13 @@ import { isTransient, retryWhile } from './retry';
  * an outage of the switches must not lock people out.
  *
  * Mirrors AppConfig in supabase/functions/_shared/controls.ts.
+ *
+ * `environment` says whether this is the staging copy (fake money, fake data) or
+ * production. Until the backend sends it, and for any value but "production", it
+ * is "staging" (see environment.ts).
  */
 export type AppConfig = {
+  environment: AppEnvironment;
   maintenance: { on: boolean; message: string | null };
   update: { required: boolean; minVersion: string | null; url: string | null };
   features: {
@@ -37,6 +43,7 @@ export type AppConfig = {
 };
 
 export const OPEN_CONFIG: AppConfig = {
+  environment: 'staging',
   maintenance: { on: false, message: null },
   update: { required: false, minVersion: null, url: null },
   features: {
@@ -69,6 +76,7 @@ export function normaliseConfig(raw: unknown): AppConfig {
   const b = r.banner && typeof r.banner === 'object' ? (r.banner as Record<string, unknown>) : null;
   const level = b?.level === 'warning' || b?.level === 'critical' ? b.level : 'info';
   return {
+    environment: parseEnvironment(r.environment),
     maintenance: { on: m.on === true, message: text(m.message) },
     update: { required: u.required === true, minVersion: text(u.minVersion), url: text(u.url) },
     features: {

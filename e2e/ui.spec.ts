@@ -21,6 +21,21 @@ test.describe("signed out", () => {
     await expect(page.getByText("Enter the code we just texted")).toHaveCount(0);
   });
 
+  test("the staging ribbon shows on the front door, and the staging site asks search engines to stay out", async ({ page, request }) => {
+    await page.goto("/");
+    await expect(page.getByText("Staging: fake money and fake data")).toBeVisible();
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+    const robots = await request.get("/robots.txt");
+    expect(await robots.text()).toMatch(/User-agent: \*\s+Disallow: \//);
+  });
+
+  test("Terms and Privacy carry the staging notice", async ({ page }) => {
+    for (const name of ["terms", "privacy"]) {
+      await page.goto(`/?page=${name}`);
+      await expect(page.getByText("staging copy of TaskDrop")).toBeVisible();
+    }
+  });
+
   test("the legal pages are public", async ({ page }) => {
     for (const name of ["terms", "privacy", "support"]) {
       await page.goto(`/?page=${name}`);

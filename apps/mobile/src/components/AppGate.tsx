@@ -3,7 +3,9 @@ import { Linking, Platform, Pressable, Text as RNText, View } from 'react-native
 import { SafeAreaInsetsContext, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAppConfig, refreshAppConfig, startAppConfig, subscribeAppConfig, type AppConfig } from '../lib/appConfig';
 import { useTheme } from '../providers/ThemeProvider';
+import { showStagingUi } from '../lib/environment';
 import { PrimaryButton } from './kit';
+import { StagingRibbon } from './StagingRibbon';
 import { tx } from './primitives';
 
 /** What the admin panel has switched for this app, live. */
@@ -20,23 +22,29 @@ export function useAppConfig(): AppConfig {
  */
 export function AppGate({ children }: { children: ReactNode }) {
   const cfg = useAppConfig();
+  const insets = useSafeAreaInsets();
   const [dismissed, setDismissed] = useState<string | null>(null);
   useEffect(() => startAppConfig(), []);
 
-  if (cfg.maintenance.on) return <Maintenance message={cfg.maintenance.message} />;
-  if (cfg.update.required) return <UpdateNeeded url={cfg.update.url} />;
-
-  const banner = cfg.banner && !(dismissed === cfg.banner.text && cfg.banner.level !== 'critical') ? cfg.banner : null;
+  const page = cfg.maintenance.on ? (
+    <Maintenance message={cfg.maintenance.message} />
+  ) : cfg.update.required ? (
+    <UpdateNeeded url={cfg.update.url} />
+  ) : null;
+  const banner =
+    !page && cfg.banner && !(dismissed === cfg.banner.text && cfg.banner.level !== 'critical') ? cfg.banner : null;
+  // The staging ribbon sits above everything, the maintenance and update pages included.
+  const ribbon = showStagingUi(cfg.environment);
+  // Whatever is on top has used the status-bar gap; the rows below must not leave it again.
+  const topUsed = ribbon || Boolean(banner);
   return (
     <View style={{ flex: 1 }}>
-      {banner ? <Banner banner={banner} onDismiss={() => setDismissed(banner.text)} /> : null}
-      {/* The banner has used the top of the screen; the app below must not leave the same gap again. */}
+      {ribbon ? <StagingRibbon topInset={insets.top} /> : null}
+      {banner ? <Banner banner={banner} onDismiss={() => setDismissed(banner.text)} topInset={ribbon ? 0 : insets.top} /> : null}
       <SafeAreaInsetsContext.Consumer>
         {(i) => (
-          <SafeAreaInsetsContext.Provider
-            value={banner && i ? { ...i, top: 0 } : i}
-          >
-            <View style={{ flex: 1 }}>{children}</View>
+          <SafeAreaInsetsContext.Provider value={topUsed && i ? { ...i, top: 0 } : i}>
+            <View style={{ flex: 1 }}>{page ?? children}</View>
           </SafeAreaInsetsContext.Provider>
         )}
       </SafeAreaInsetsContext.Consumer>
@@ -108,9 +116,17 @@ const BANNER = {
   critical: { bg: 'signalSoft', ink: 'signalDeep' },
 } as const;
 
-function Banner({ banner, onDismiss }: { banner: NonNullable<AppConfig['banner']>; onDismiss: () => void }) {
+function Banner({
+  banner,
+  onDismiss,
+  topInset,
+}: {
+  banner: NonNullable<AppConfig['banner']>;
+  onDismiss: () => void;
+  /** The status-bar gap, or 0 when the staging ribbon above has already used it. */
+  topInset: number;
+}) {
   const t = useTheme();
-  const insets = useSafeAreaInsets();
   const tone = BANNER[banner.level];
   const open = banner.link ? () => void Linking.openURL(banner.link!).catch(() => {}) : undefined;
   return (
@@ -118,7 +134,7 @@ function Banner({ banner, onDismiss }: { banner: NonNullable<AppConfig['banner']
       accessibilityRole="alert"
       style={{
         backgroundColor: t.colors[tone.bg],
-        paddingTop: insets.top + 8,
+        paddingTop: topInset + 8,
         paddingBottom: 8,
         paddingHorizontal: 16,
         flexDirection: 'row',
