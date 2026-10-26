@@ -1,6 +1,6 @@
 # TaskDrop owner manual: what to click, phase by phase
 
-This is your part of `docs/UPGRADE_PLAN.md`, written as clicks. There are **two plans** (your request, 2026-10-26): **Plan A, Alpha**, the published app and website with fake data and fake money, and **Plan B, Production**, real money and real things, later. Read "The two plans" section (after START HERE) once; it lists every payment production needs. Start with **START HERE** below: it lists what is left, in order. Then open the task it points to. Tick a task's box when you finish it. Last updated 2026-10-26.
+This is your part of `docs/UPGRADE_PLAN.md`, written as clicks. There are **two plans** (your request, 2026-10-26): **Plan A, Staging**, the published app and website with fake data and fake money, and **Plan B, Production**, real money and real things, later. Read "The two plans" section (after START HERE) once; it lists every payment production needs. Start with **START HERE** below: it lists what is left, in order. Then open the task it points to. Tick a task's box when you finish it. Last updated 2026-10-26.
 
 ## How to read this manual
 
@@ -60,7 +60,7 @@ Claude checked everything in Phases 0 to 8 that can be checked without you (evid
 |---|---|---|---|---|
 | 1 | ~~Fix Google sign-in~~ **Done 2026-10-26**, tested on web, admin and Android. | Done | - | Task 0.1 |
 | 2 | **Phone session: done 2026-10-25 by Claude** (build `505485f8` installed; App Check proven on Android: the server logged `valid` for 74 calls from the phone; the update for the chat-photo viewer is on the phone and the full-size photo opens; App Check PR 84 merged). The web App Check proof was done by Claude on 2026-10-26. Still open from this step: a fresh Android job run (task 2.2; plug in the phone and say "run the job on the phone"). | Claude | done | Tasks 2.2, 3.5, 6.3 |
-| 3 | **Alpha guard rails** (so the published app and website are clearly fake-money): the "Alpha: fake money and fake data" ribbon, the check that refuses a live payment key, `noindex`, the tester card, the alpha wording in Terms and Privacy. Type "Build the alpha guard rails." Claude builds, shows you the design first, and you approve. | Claude builds, you approve | 15 min of your time | Plan A, task A.1 |
+| 3 | **Staging guard rails** (so the published app and website are clearly fake-money): the "Staging: fake money and fake data" ribbon, the check that refuses a live payment key, `noindex`, the tester card, the staging wording in Terms and Privacy. Type "Build the staging guard rails." Claude builds, shows you the design first, and you approve. | Claude builds, you approve | 15 min of your time | Plan A, task A.1 |
 | 4 | **Two values in the admin's Vercel project** (the ImageKit photo values, copied from `.env.all-secrets`), so the admin shows job photos. | You | 5 min | Task 6.4 |
 | 5 | ~~Admin idle sign-out test.~~ **Run 5 passed 2026-10-26** on the upgrade admin (signed out after 30 idle minutes, with the message). A fix for two open admin tabs keeping each other alive is ready on a local branch; say "push the idle fix". | Claude | done | Task 3.7 |
 | 6 | **Your decisions:** the map for the store version, the legal details, whether profiles may show a rounded place and "last seen", and the Razorpay test-link limit. | You, in the chat | 20 min | Tasks 8.1, 8.2 and the list under "Decisions" below |
@@ -69,7 +69,7 @@ Claude checked everything in Phases 0 to 8 that can be checked without you (evid
 | 9 | **Mobile data speed test.** Switch Mobile data on in the phone's settings first. | You say go; Claude times it | 10 min | Task 6.5 |
 | 10 | **A week of normal use,** then ask Claude for the slow-screen check. | You | 1 week | Task 2.6 |
 | 11 | **The 12 testers** (14 days in Play closed testing). Only when you are ready. | You | 14 days | Task 8.6 |
-| 12 | **Alpha exit gate**, then the switch-over (Phase 9). When every test above is done and the 12 testers have used the closed test for 14 days, type "Check the alpha exit gate." **Production is a separate, later plan (Plan B below): it starts only when you say "I want to launch."** | You say go; Claude checks | 10 min | Plan A task A.4, Phase 9 |
+| 12 | **Staging exit gate**, then the switch-over (Phase 9). When every test above is done and the 12 testers have used the closed test for 14 days, type "Check the staging exit gate." **Production is a separate, later plan (Plan B below): it starts only when you say "I want to launch."** | You say go; Claude checks | 10 min | Plan A task A.4, Phase 9 |
 
 **Also open, no rush:** the RazorpayX payout buttons (need RazorpayX, task 10.3); deleting the unused `razorpay-setup` function (say "delete razorpay-setup" and Claude does it); the app tour design sign-off (Phase 8, not built yet). (Uptime Robot: checked by Claude 2026-10-26, both green.) Key rotation (3.2, 6.1), Safari and iOS stay future scope.
 
@@ -85,11 +85,11 @@ Claude checked everything in Phases 0 to 8 that can be checked without you (evid
 
 ---
 
-## The two plans: Alpha (fake money) now, Production (real money) later
+## The two plans: Staging (fake money) now, Production (real money) later
 
 Written 2026-10-26 from your request. The full detail is in `docs/UPGRADE_PLAN.md`, Part B, section 14. In short:
 
-| | **Plan A: Alpha (staging)** | **Plan B: Production** |
+| | **Plan A: Staging** | **Plan B: Production** |
 |---|---|---|
 | Money | **Fake.** Razorpay test keys, no RazorpayX, workers are "paid" by an admin marking it done by hand. Nothing touches a bank | **Real.** Razorpay and RazorpayX live keys, real UPI and bank |
 | Data | Fake. Three seed accounts and what testers make | Real customers, a brand-new empty database |
@@ -98,42 +98,46 @@ Written 2026-10-26 from your request. The full detail is in `docs/UPGRADE_PLAN.m
 | Cost | **Nothing monthly.** At most the Google Play account, $25 once | Real monthly costs, see "Where you pay" below |
 | Phases | 0 to 9 | 10 |
 
-**Four promises that keep alpha fake:** live payment keys are never put into the alpha project; every screen shows an "Alpha: fake money and fake data" ribbon; testers never type real addresses, ID numbers or bank details; nothing from alpha is copied into production.
+**Four promises that keep staging fake:** live payment keys are never put into the staging project; every screen shows an "Staging: fake money and fake data" ribbon; testers never type real addresses, ID numbers or bank details; nothing from staging is copied into production.
 
-### Plan A: Alpha, in order
+### Plan A: Staging, in order
 
 | # | Step | Who | Cost | Where |
 |---|---|---|---|---|
 | A.0 | Phases 0 to 7 work, Google sign-in works on web, admin and Android | Claude | 0 | **Done** (open items are in START HERE) |
-| A.1 | **Build the alpha guard rails** and approve their wording | Claude builds, you approve | 0 | Task A.1 below |
+| A.1 | **Build the staging guard rails** and approve their wording | Claude builds, you approve | 0 | Task A.1 below |
 | A.2 | **Finish the open tests:** admin photo values, idle test, your decisions, runbook, mobile-data test | You and Claude | 0 | START HERE items 4, 5, 6, 8 and 9 |
 | A.3 | **Publish the website, the Android app and the admin to testers** | You | **$25 once** (Play), nothing else | Task A.3 below, tasks 8.3 and 8.4 |
-| A.4 | **Alpha rounds, then the exit gate** (12 testers for 14 days, Sentry quiet 7 days, the whole fake job works on web, Android and admin) | You, testers, Claude | 0 | Task A.4 below, tasks 8.6, 2.6 |
+| A.4 | **Staging rounds, then the exit gate** (12 testers for 14 days, Sentry quiet 7 days, the whole fake job works on web, Android and admin) | You, testers, Claude | 0 | Task A.4 below, tasks 8.6, 2.6 |
 | A.5 | **Phase 9:** everyone moves to the upgraded app | You approve, Claude does | 0 | Phase 9 |
 
-### ☐ A.1 Build the alpha guard rails (you approve; 15 minutes of your time)
+### ☐ A.1 Build the staging guard rails (you approve; 15 minutes of your time)
 
-1. Type to Claude: "Build the alpha guard rails." Claude builds these and shows you each one before it goes live: the `environment` setting and the check that refuses a live payment key; the "Alpha: fake money and fake data" ribbon on the website, the Android app and the admin; the `noindex` setting so search engines skip the website; a "How alpha works" card shown once after sign-in; the "Alpha" notice in Terms and Privacy.
-2. Click: look at the pictures and the wording Claude sends (the ribbon, the card, the Terms notice). Reply **approved**, or tell Claude what to change.
-3. Tell Claude what you saw on the website, the phone and the admin after it is deployed.
+1. Type to Claude: "Build the staging guard rails." Claude builds these and shows you each one before it goes live: the `environment` setting and the check that refuses a live payment key; the "Staging: fake money and fake data" ribbon on the website, the Android app and the admin; the `noindex` setting so search engines skip the website; a "How staging works" card shown once after sign-in; the "Staging" notice in Terms and Privacy.
+   Claude's three helper sessions are building it (started 2026-10-26): the backend (the `environment` setting and the live-key check), the user app (ribbon, card, `noindex`, Terms and Privacy notice) and the admin ribbon. Each ends in a pull request that is **not merged** until you approve.
+   **Status 2026-10-26 (later): approved, merged and deployed.** Checked live by Claude: the website ribbon and `noindex`, the admin ribbon, and the backend setting. The Android update is published and Claude checked it on your phone (2026-10-26, 16:38): the ribbon shows, but there is an empty strip under it on the sign-in screen; Claude has the cause and a small fix ready to build. **Your part now:** unlock the phone, open TaskDrop, close it fully and open it again (the first open downloads the update, the second runs it), and look for the ribbon at the top; then sign in once and look for the "How staging works" card. Tell Claude what you see, or say "check my phone" with the screen unlocked and plugged in. Original pull requests: backend [taskdrop#94](https://github.com/hitendureacts77/taskdrop/pull/94), user app [taskdrop#95](https://github.com/hitendureacts77/taskdrop/pull/95) (screenshots in `docs/staging-guard-rails/` on that branch), admin [taskdrop-admin#28](https://github.com/hitendureacts77/taskdrop-admin/pull/28). Not yet checked on a real Android phone (the ribbon may leave a small gap under the status bar on screens with their own header); Claude checks that with your phone plugged in after you approve.
+2. Click: look at the pictures and the wording Claude sends (the ribbon, the card, the Terms notice). Nothing is live yet. Reply **approved**, or tell Claude what to change (for example "make the ribbon smaller" or "change the card text to ...").
+3. Type to Claude: "Approved. Merge the staging guard rails and deploy them." Claude merges the three pull requests, applies the new database step (one setting, nothing is removed), deploys the functions, the website and the admin, and tells you when it is done.
+4. Click: open https://taskdrop.in on your PC and the app on your phone. You should see the ribbon "Staging: fake money and fake data", and after signing in once, the "How staging works" card. Open the admin and look for the same ribbon.
+5. Tell Claude what you saw (a screenshot is fine). That finishes A.1.
 
-### ☐ A.3 Publish alpha to testers (1 to 2 hours; $25 once if you have no Play account)
+### ☐ A.3 Publish staging to testers (1 to 2 hours; $25 once if you have no Play account)
 
-1. **Website:** nothing to click. `taskdrop.in` is the alpha. Tell Claude: "Check the alpha website." Claude opens Terms, Privacy and Support and the ribbon.
-2. **Android, fastest:** Type to Claude: "Give me the alpha APK link." Send that link to your testers. They install the app from it. No Google review, no cost.
+1. **Website:** nothing to click. `taskdrop.in` is the staging. Tell Claude: "Check the staging website." Claude opens Terms, Privacy and Support and the ribbon.
+2. **Android, fastest:** Type to Claude: "Give me the staging APK link." Send that link to your testers. They install the app from it. No Google review, no cost.
 3. **Android, Google Play:** do tasks 8.3 and 8.4 (create the Play app, upload the store build). Upload it to **Internal testing** (up to 100 testers, no Google review, minutes) and also to **Closed testing**; the 14 days of closed testing start counting from the day 12 testers opt in.
-4. **Admin:** Type to Claude: "Add these people as admin staff:" and give names, emails and roles (Sales, Support, Finance, Viewer). Only people who run the alpha need this.
-5. **Tell your testers** (copy this): "This is an alpha. All money and all data are fake. Use the test accounts or your own Google login. Do not type a real address, ID number or bank account. Report problems to hitendureacts@gmail.com."
+4. **Admin:** Type to Claude: "Add these people as admin staff:" and give names, emails and roles (Sales, Support, Finance, Viewer). Only people who run the staging need this.
+5. **Tell your testers** (copy this): "This is a staging. All money and all data are fake. Use the test accounts or your own Google login. Do not type a real address, ID number or bank account. Report problems to hitendureacts@gmail.com."
 
-### ☐ A.4 Run alpha and pass the exit gate
+### ☐ A.4 Run staging and pass the exit gate
 
 1. Click: ask each tester to do the core-flow checklist (post, offer, pay, work, approve, review, withdraw). `docs/TESTER_RECRUITMENT.md` and `docs/ANDROID_TEST_PLAN.md` are the kits.
 2. Tell Claude the problems; Claude adds them to `docs/PHASE2_PROBLEMS.md` and fixes them.
-3. After two rounds with no serious open problem, 14 days of the closed test and 7 quiet days in Sentry, type to Claude: "Check the alpha exit gate." Claude replies with what is still open.
+3. After two rounds with no serious open problem, 14 days of the closed test and 7 quiet days in Sentry, type to Claude: "Check the staging exit gate." Claude replies with what is still open.
 
 ### Plan B: Production, in order (starts only when you say "I want to launch")
 
-Start the first four **early and in parallel**; they cost little and take days to weeks. Do not wait for alpha to finish to start the lawyer and the bank.
+Start the first four **early and in parallel**; they cost little and take days to weeks. Do not wait for staging to finish to start the lawyer and the bank.
 
 | # | Step | Who | **Pay?** | Task |
 |---|---|---|---|---|
@@ -146,8 +150,8 @@ Start the first four **early and in parallel**; they cost little and take days t
 | B.7 | **Turn on the paid plans:** Supabase Pro, Vercel Pro, Inngest paid | You | **$25 + $20 a month + Inngest (check price)** | 10.2 |
 | B.8 | **Build production** (new empty Supabase project, secrets, functions, Inngest production, ImageKit `/prod`, Sentry `production`, new Google redirect address) | Claude, with you for logins | Covered by B.7 | 10.7 |
 | B.9 | **Switch on the real-money parts, one at a time:** live keys (you put them into Vault yourself), RazorpayX **funded**, the money jobs, payouts, refunds | Claude builds and switches | **RazorpayX balance** (see below) | 10.3 steps 3 and 4, 10.7 |
-| B.10 | **Switch off every test shortcut:** the "any number signs in" code, `ALLOW_ANY_OTP`, `TEST_PHONES`, the alpha ribbon; switch the admin authenticator back on | Claude | 0 | 10.7 |
-| B.11 | **Domains:** production on `taskdrop.in` and `admin.taskdrop.in`; the alpha moves to `beta.taskdrop.in` | You and Claude | Domain renewal ~$6 a year | 10.7 |
+| B.10 | **Switch off every test shortcut:** the "any number signs in" code, `ALLOW_ANY_OTP`, `TEST_PHONES`, the staging ribbon; switch the admin authenticator back on | Claude | 0 | 10.7 |
+| B.11 | **Domains:** production on `taskdrop.in` and `admin.taskdrop.in`; the staging moves to `beta.taskdrop.in` | You and Claude | Domain renewal ~$6 a year | 10.7 |
 | B.12 | **One real ₹10 job** with your own UPI, finished from a second account, withdrawn to your bank | You | Real ₹10 plus fees | 10.8 |
 | B.13 | **Launch gate, then release on Google Play** | You | 0 | 10.9 |
 
@@ -159,23 +163,23 @@ Same Play app (`com.taskdrop.app`), two ways to publish into it. Detail: `docs/U
 |---|---|---|
 | Track | **Internal testing**, then **Closed testing** | **Production** |
 | Who sees it | Only the Gmail addresses you add. Not findable in the Play Store | Everyone |
-| Build file | The **alpha AAB** (test project, Razorpay test keys, ribbon on) | A **new production AAB** that Claude builds in Phase 10 (task 10.7) |
+| Build file | The **staging AAB** (test project, Razorpay test keys, ribbon on) | A **new production AAB** that Claude builds in Phase 10 (task 10.7) |
 | Starts | Now (tasks 8.3, 8.4, 8.6) | Only when you say "I want to launch" (task 10.9) |
 
 **Way 1, in order** (fake data; $25 once for the Play account):
 
 1. Do task 8.3 (create the app, enter the answers, listing).
-2. Do task 8.4: upload the alpha AAB to **Internal testing** first. Add your testers' Gmail addresses; they install from the private link within minutes.
+2. Do task 8.4: upload the staging AAB to **Internal testing** first. Add your testers' Gmail addresses; they install from the private link within minutes.
 3. Upload the same AAB to **Closed testing** and do task 8.6 (12 testers, 14 days). Do this early; the 14 days are what unlock Way 2.
 4. Leave **Production** alone. Nothing public exists until you create a Production release.
 
-**Way 2, in order** (only after "I want to launch", the lawyer's answer, and the alpha exit gate):
+**Way 2, in order** (only after "I want to launch", the lawyer's answer, and the staging exit gate):
 
 1. Claude builds the production AAB (Phase 10, task 10.7): new project, live keys, every test shortcut off, higher version number.
 2. Apply for production access in Play Console (it asks about the closed test) and update the content that changed: the **App access** instructions (the test number only works while the shortcut is on), the data-safety form, and the store text (remove "taskdrop. is in testing").
 3. Task 10.9: **Production** → **Create new release** → upload the production AAB → **Send for review**.
 
-**Never:** put the alpha AAB in the Production track, create a Production release before you say "I want to launch", or treat the 14-day closed test as a way to publish.
+**Never:** put the staging AAB in the Production track, create a Production release before you say "I want to launch", or treat the 14-day closed test as a way to publish.
 
 ### Where you pay for production (and why)
 
@@ -189,14 +193,14 @@ Same Play app (`com.taskdrop.app`), two ways to publish into it. Detail: `docs/U
 | **Supabase Pro** | The production project, with backups (free projects pause when idle) | $25 a month | Before real users |
 | **Vercel Pro** | The free plan is for non-commercial use | $20 a month per member | Before real users |
 | **Inngest paid plan** | The free plan allows 50,000 runs a month and stops when it is used up (about 28,500 were used by 24 October with only the testers) | Check its Billing page | Before real users |
-| **Google Play account** | Publishing the Android app | $25 once (already paid if you did A.3) | During alpha |
+| **Google Play account** | Publishing the Android app | $25 once (already paid if you did A.3) | During staging |
 | **DMCA agent** | Legal protection for uploaded photos | $6 per 3 years | B.6 |
 | **Google Maps / Places** | Maps and place search at real volume | Pay per use after the free credit; billing is already active with a ₹100 monthly alert, raise it when traffic starts | Before the store release |
 | **Domain `taskdrop.in`** | Already bought | About $6 a year; auto-renew on | Yearly |
-| Sentry, ImageKit, EAS, Uptime Robot | Free tiers cover alpha | Pay only if a limit warns | As needed |
+| Sentry, ImageKit, EAS, Uptime Robot | Free tiers cover staging | Pay only if a limit warns | As needed |
 | Apple Developer ($99 a year) | iOS only | **Future scope**, not in this launch | Later |
 
-**Alpha costs: $0 a month.** The only payment is the Google Play account, $25 once, and only if you publish through Play (the direct APK link is free).
+**Staging costs: $0 a month.** The only payment is the Google Play account, $25 once, and only if you publish through Play (the direct APK link is free).
 
 ---
 
@@ -730,7 +734,7 @@ The store build (AAB, version 1.0.0, versionCode 1, with the new drop icon) is r
 2. Click: Claude gives you a download link. Download the `.aab` file.
 3. Click: Play Console → **Test and release** → **Testing** → **Closed testing** → **Create track** (or open the existing one) → **Create new release**.
 4. Click: upload the `.aab` → **Next** → **Save** → **Send for review** (or **Start rollout**).
-5. **For the alpha (Plan A, task A.3):** do steps 3 and 4 twice, once under **Internal testing** (up to 100 testers, no Google review, ready in minutes, the fastest way to give testers the app) and once under **Closed testing** (its 14 days are required before Google allows production, so start them early). Both stay fake-money: the app uses Razorpay test mode.
+5. **For the staging (Plan A, task A.3):** do steps 3 and 4 twice, once under **Internal testing** (up to 100 testers, no Google review, ready in minutes, the fastest way to give testers the app) and once under **Closed testing** (its 14 days are required before Google allows production, so start them early). Both stay fake-money: the app uses Razorpay test mode.
 
 ### ☐ 8.5 Read the runbook (20 minutes)
 
@@ -775,7 +779,7 @@ Start only when Phases 0 to 8 are done.
 
 ## Phase 10: Customer launch (only when you decide)
 
-This is **Plan B: Production** (see "The two plans" above for the order and "Where you pay for production" for every payment). Real money, real customers, a **new** Supabase project. Nothing from alpha is copied over. The tasks below keep their numbers; follow the Plan B table for the order, and start the slow ones (10.0, 10.6, 10.3, 10.4) early and in parallel.
+This is **Plan B: Production** (see "The two plans" above for the order and "Where you pay for production" for every payment). Real money, real customers, a **new** Supabase project. Nothing from staging is copied over. The tasks below keep their numbers; follow the Plan B table for the order, and start the slow ones (10.0, 10.6, 10.3, 10.4) early and in parallel.
 
 ### ☐ 10.0 The business basics (first; days)
 
@@ -819,7 +823,7 @@ This is **Plan B: Production** (see "The two plans" above for the order and "Whe
 
 ### ☐ 10.7 Production
 
-1. Type to Claude: "Set up production." Claude builds a **new, empty** Supabase project (Pro plan, task 10.2), a production Inngest environment, ImageKit `/prod` and Sentry `production`, and asks you for the logins it cannot do alone. This also turns off every test shortcut (the "any phone number signs in" code, `ALLOW_ANY_OTP`, `TEST_PHONES`), removes the alpha ribbon, sets the `environment` setting to `production` (so a `rzp_test_` key is refused), turns the admin authenticator back on, and moves the alpha website to `beta.taskdrop.in`. Alpha accounts and data are not copied.
+1. Type to Claude: "Set up production." Claude builds a **new, empty** Supabase project (Pro plan, task 10.2), a production Inngest environment, ImageKit `/prod` and Sentry `production`, and asks you for the logins it cannot do alone. This also turns off every test shortcut (the "any phone number signs in" code, `ALLOW_ANY_OTP`, `TEST_PHONES`), removes the staging ribbon, sets the `environment` setting to `production` (so a `rzp_test_` key is refused), turns the admin authenticator back on, and moves the staging website to `beta.taskdrop.in`. Staging accounts and data are not copied.
 2. Click: Google Cloud Console → project **Taskdrop** → **Auth Platform** → **Clients** → `TaskDrop Supabase` → add the new Supabase project's address ending in `/auth/v1/callback` under **Authorized redirect URIs** → **Save**. (Claude gives you the exact address.)
 
 ### ☐ 10.8 One real job with real money (20 minutes)
@@ -830,7 +834,7 @@ This is **Plan B: Production** (see "The two plans" above for the order and "Whe
 
 ### ☐ 10.9 Release on Google Play
 
-This is Way 2 of "Google Play Console: the two ways" (Plan B). Use only the production AAB that Claude builds in task 10.7, never the alpha AAB.
+This is Way 2 of "Google Play Console: the two ways" (Plan B). Use only the production AAB that Claude builds in task 10.7, never the staging AAB.
 
 1. Click: Play Console → **Test and release** → **Production** → **Create new release** → choose the build Claude names → **Next** → **Save** → **Send for review**.
 2. Wait for Google's approval email. TaskDrop is then live.

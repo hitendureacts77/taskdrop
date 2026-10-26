@@ -1,6 +1,6 @@
 # TaskDrop upgrade plan
 
-Version 4.62, 2026-10-26 (**Staging (alpha, fake money) and Production (real money) plans written: Part B section 14**; Google sign-in fixed and tested on web, admin and Android; earlier: Phone session done; Phases 0-8 sweep and owner manual rewrite; Phase 2 pending items closed or scheduled; Google sign-in outage found; owner manual 4.3 and 4.4 ticked; earlier: Phase 5 cutover done: the three money sweeps run in Inngest and pg_cron has no jobs left; web home feed timed against the 3-second target, P2-48; earlier: second round: the merged pull request #77 deployed and re-attacked live, 269 probes held; P2-37 to P2-40 and P2-45 to P2-47 fixed; Phase 7 admin checks done in the owner's Chrome; Phase 5 money sweeps switched on in Vercel; earlier: break-it pass at the owner's request: 24 new findings P2-21 to P2-44 in `docs/PHASE2_PROBLEMS.md`, fixes merged in the same pull request; minimum price ₹20 and a confirm step before releasing money decided by the owner; owner-manual tasks 3.8, 6.2 and 6.3 checked by Claude; the admin idle sign-out passed once and missed once, P2-43; earlier: Phase 2 steps 4 and 5 done, admin speed and security fixed; Phase 2 P2-2 closed: Sentry clean-up done; Phases 4 and 5 worked through, owner items left; Phase 2 steps 1 to 3 built; Phase 2 audit and fix plan written; admin authenticator deferred to future scope; Phase 1 done; Phase 3 Razorpay-key rotation and private repos moved to future scope; tour guide added to Phase 8; ground rule 10: all new code goes to `redesigned-2.0`; scope note 2026-10-20: iOS deferred; 2026-10-24: Safari testing deferred too). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
+Version 4.62, 2026-10-26 (**Staging (fake money) and Production (real money) plans written: Part B section 14**; Google sign-in fixed and tested on web, admin and Android; earlier: Phone session done; Phases 0-8 sweep and owner manual rewrite; Phase 2 pending items closed or scheduled; Google sign-in outage found; owner manual 4.3 and 4.4 ticked; earlier: Phase 5 cutover done: the three money sweeps run in Inngest and pg_cron has no jobs left; web home feed timed against the 3-second target, P2-48; earlier: second round: the merged pull request #77 deployed and re-attacked live, 269 probes held; P2-37 to P2-40 and P2-45 to P2-47 fixed; Phase 7 admin checks done in the owner's Chrome; Phase 5 money sweeps switched on in Vercel; earlier: break-it pass at the owner's request: 24 new findings P2-21 to P2-44 in `docs/PHASE2_PROBLEMS.md`, fixes merged in the same pull request; minimum price ₹20 and a confirm step before releasing money decided by the owner; owner-manual tasks 3.8, 6.2 and 6.3 checked by Claude; the admin idle sign-out passed once and missed once, P2-43; earlier: Phase 2 steps 4 and 5 done, admin speed and security fixed; Phase 2 P2-2 closed: Sentry clean-up done; Phases 4 and 5 worked through, owner items left; Phase 2 steps 1 to 3 built; Phase 2 audit and fix plan written; admin authenticator deferred to future scope; Phase 1 done; Phase 3 Razorpay-key rotation and private repos moved to future scope; tour guide added to Phase 8; ground rule 10: all new code goes to `redesigned-2.0`; scope note 2026-10-20: iOS deferred; 2026-10-24: Safari testing deferred too). The single source of truth for the upgrade. Part A is the to-do list, phase by phase; Part B is the reference (architecture, decisions, testing, costs, risks).
 
 ## How to use this file
 
@@ -41,7 +41,7 @@ Version 4.62, 2026-10-26 (**Staging (alpha, fake money) and Production (real mon
    - Nothing in the code is removed: the app still builds for iOS, and the iOS-only code paths stay.
    - Full list of what waits: Part B, section 12 "Future scope: iOS and Safari".
 7. **Stage: testing only.** Fake data, you and about 10 testers, no customers. Customer launch (Phase 10) happens only when you decide.
-   - **Two plans (owner, 2026-10-26).** **Staging (alpha)** is the published app and website with fake data and **fake money** (Razorpay test keys, no RazorpayX, no real bank transfer); **Production** is later, on a separate Supabase project, with real money and real things. Part B section 14 holds both plans, the table of what is fake or real, and every payment production needs. No live payment key is ever put into the alpha project, and no alpha data moves into production.
+   - **Two plans (owner, 2026-10-26).** **Staging** is the published app and website with fake data and **fake money** (Razorpay test keys, no RazorpayX, no real bank transfer); **Production** is later, on a separate Supabase project, with real money and real things. Part B section 14 holds both plans, the table of what is fake or real, and every payment production needs. No live payment key is ever put into the staging project, and no staging data moves into production.
 8. **Supabase: the cloud project is the test environment (decided 2026-10-20).** We test directly on the hosted project `wjxvingpfbfvkfqhrguj`; whatever is in the cloud now is treated as testing. No local Supabase and no Docker on your PC.
    - Fake data only. A destructive step (wipe, reseed, reset) still runs only with your OK, and never on production.
    - The one throwaway database is in CI: GitHub Actions starts a temporary one inside each run to execute the SQL tests. It never touches the cloud project.
@@ -70,11 +70,11 @@ Version 4.62, 2026-10-26 (**Staging (alpha, fake money) and Production (real mon
 | 5 | Background jobs (Inngest) | In progress, 23 of 45 boxes ticked, 3 deferred, 19 open (the three money sweeps now run in Inngest and pg_cron is empty, 2026-10-25; what is left is the Razorpay and RazorpayX work the owner told me not to touch, and the Android check). The Inngest Cloud account exists and both keys are now Edge Function secrets (2026-10-21); the code is merged and deployed, and the function registers with Inngest Cloud. **The keys alone do not switch any job over:** the push, overdue, prune, account-file and money-sweep jobs stay off until the cutover SQL in `supabase/cutover/` is deliberately applied, and the money sweeps also need `INNGEST_MONEY_JOBS=on`. Still open, and why: the cutover and its verification (a deliberate step with you, one job at a time, nothing run yet), and the lawyer's answer on the money flow, which the plan and AGENTS.md say must come before the payout, refund-retry and webhook items are built. The admin Alerts page is built (admin repo) |
 | 6 | Speed and media (ImageKit) | In progress, 19 of 26 boxes ticked, 2 deferred, 5 open (web uploads, drag and drop, access and clean-up checked 2026-10-25; the phone and the admin images are left; merged; migration 109 applied 2026-10-19; the ImageKit keys are now Edge Function secrets on the test project (2026-10-21), so uploads can go to ImageKit; not yet tried end to end). Open: uploads from a browser and a phone, admin image views (new feature, needs the private key as a server secret in the admin project), the speed targets, Verify; and rotate the private key that was pasted into chat (yours) |
 | 7 | Moderation and admin tools | In progress, 15 of 25 boxes ticked, 2 deferred, 8 open. Merged on 2026-10-21 (app PR 59, admin PR 20; migrations 117 and 118 applied): blocks now stop contact, hide message / photo / category functions, report-a-message in chat, reported messages shown and hideable in the admin, the runbook. Built 2026-10-22 to 2026-10-24: report a review, the change-category card, promotion tiers read from the server and editable in the admin, broadcasts by platform and app version (migration 119, applied), the Devices and tools dashboard card, a "warn" action (migration 120, applied; admin branch `upgrade/phase-7-admin-tools` not pushed) and remove a review (migration 121). Open: cancel a promotion with a full refund (a money policy choice; Stop already refunds the unused budget), the reports-queue box (warn covers reports about a person only), report and block in a browser and on the APK, the 3 Verify boxes, and the "Admin SQL functions" parent box (it waits on cancel with refund) |
-| 8 | Store readiness | Not started, 2 of 29 boxes ticked (the legal pages and the AAB), 10 deferred (iOS), 17 open, plus **11 new "Alpha publish" boxes added 2026-10-26** (the fake-money guard rails and the publish steps, section 14). Added 2026-10-24: the **in-app tour guide** (11 boxes, 10 open and 1 deferred for iOS; design sign-off from you comes first). The older boxes were reviewed 2026-10-21: every one is yours, needs a store account, a closed-test group or a device; the one code-side question, map tiles, is noted in its box. The closed test waits for the 12 testers, deferred in Phase 0 |
+| 8 | Store readiness | Not started, 2 of 29 boxes ticked (the legal pages and the AAB), 10 deferred (iOS), 17 open, plus **11 new "Staging publish" boxes added 2026-10-26** (the fake-money guard rails and the publish steps, section 14). Added 2026-10-24: the **in-app tour guide** (11 boxes, 10 open and 1 deferred for iOS; design sign-off from you comes first). The older boxes were reviewed 2026-10-21: every one is yours, needs a store account, a closed-test group or a device; the one code-side question, map tiles, is noted in its box. The closed test waits for the 12 testers, deferred in Phase 0 |
 | 9 | Switch-over to the upgraded app | Not started, 0 of 28 boxes ticked, 1 deferred (iOS), 27 open. **Deliberately not touched by the autonomous run (2026-10-21):** it needs your approval, it retires the old app and old admin, and the lockdown and clean-up migrations cannot be undone while testers are on the old app |
 | 10 | Customer launch (later, when you decide) | Not started, 0 of 29 boxes ticked, 1 deferred (iOS), 28 open. Not touched: ground rule 7 says it happens only when you decide |
 
-**Which plan each phase belongs to (Part B, section 14):** Phases 0 to 9 are the **Staging (alpha) plan**: fake data, fake money, you and the testers. Phase 10 is the **Production plan**: real money, a new Supabase project, every payment in section 14.5. Phase 8 now also carries the **Alpha publish** boxes (the guard rails that keep alpha fake and the publish steps for web, Android and the admin).
+**Which plan each phase belongs to (Part B, section 14):** Phases 0 to 9 are the **Staging plan**: fake data, fake money, you and the testers. Phase 10 is the **Production plan**: real money, a new Supabase project, every payment in section 14.5. Phase 8 now also carries the **Staging publish** boxes (the guard rails that keep staging fake and the publish steps for web, Android and the admin).
 
 ## Coverage: what each phase changes
 
@@ -669,26 +669,26 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 
 ## Phase 8: Store readiness
 
-**Alpha publish (staging plan, added 2026-10-26, owner request; Part B section 14).** Publish the website, the Android app and the admin for alpha testing with fake data and fake money. These boxes keep alpha fake and make that visible to every tester. New code only, on `redesigned-2.0` (ground rule 10).
+**Staging publish (staging plan, added 2026-10-26, owner request; Part B section 14).** Publish the website, the Android app and the admin for staging testing with fake data and fake money. These boxes keep staging fake and make that visible to every tester. New code only, on `redesigned-2.0` (ground rule 10).
 
 *Backend*
-- [ ] An `environment` setting (`alpha` or `production`) in app controls, additive (ground rule 4); the money functions read it. In `alpha` they refuse a payment key that starts with `rzp_live_`; in `production` they refuse `rzp_test_`. A wrong key fails loudly instead of moving money. Tested in `test:db` and the function tests
-- [ ] Manual payout mode is the alpha way to pay workers: an admin marks a payout done by hand, no bank transfer. Confirmed with RazorpayX unset
+- [x] An `environment` setting (`staging` or `production`) in app controls, additive (ground rule 4); the money functions read it. In `staging` they refuse a payment key that starts with `rzp_live_`; in `production` they refuse `rzp_test_`. A wrong key fails loudly instead of moving money. Tested in `test:db` and the function tests
+- [x] Manual payout mode is the staging way to pay workers: an admin marks a payout done by hand, no bank transfer. Confirmed with RazorpayX unset
 
 *Web, Android and Admin*
-- [ ] A visible ribbon on every screen of the web app, the Android app and the admin: "Alpha: fake money and fake data". It reads the `environment` setting, so it disappears by itself in production. Light, dark and System themes; reduced-motion respected
-- [ ] The alpha website sends `noindex` (and `robots.txt` blocks crawlers) so search engines do not list it
-- [ ] A "How alpha works" card for testers (fake money, fake data, what to test, no real personal data, where to report problems), shown once after sign-in
-- [ ] Terms and Privacy carry an "Alpha" notice and make no compliance claim (`src/legal/documents.ts`; text approved by you)
+- [ ] A visible ribbon on every screen of the web app, the Android app and the admin: "Staging: fake money and fake data". It reads the `environment` setting, so it disappears by itself in production. Light, dark and System themes; reduced-motion respected
+- [x] The staging website sends `noindex` (and `robots.txt` blocks crawlers) so search engines do not list it
+- [ ] A "How staging works" card for testers (fake money, fake data, what to test, no real personal data, where to report problems), shown once after sign-in
+- [ ] Terms and Privacy carry an "Staging" notice and make no compliance claim (`src/legal/documents.ts`; text approved by you)
 
 *You*
-- [ ] **(You)** Approve the alpha wording and the ribbon (static design first, as always)
+- [x] **(You)** Approve the staging wording and the ribbon (static design first, as always)
 - [ ] **(You)** Publish: send testers the `beta` APK; make the Play Console app ($25 once, if not paid), upload the AAB to **Internal testing** and to **Closed testing**; invite the admin's staff (owner manual tasks 8.3, 8.4, 8.6)
 
 *Verify*
-- [ ] With the Razorpay test keys, a test checkout works; with a `rzp_live_` key set on the alpha project the money functions refuse to start (tried on a throwaway key name, never a real live key)
+- [ ] With the Razorpay test keys, a test checkout works; with a `rzp_live_` key set on the staging project the money functions refuse to start (tried on a throwaway key name, never a real live key)
 - [ ] The ribbon shows on web, Android and admin; `noindex` is in the page headers
-- [ ] A tester who is given only the link and the "How alpha works" card finishes a full fake job
+- [ ] A tester who is given only the link and the "How staging works" card finishes a full fake job
 
 **User app (all platforms): tour guide** (added 2026-10-24, owner request)
 
@@ -751,7 +751,7 @@ A guided tour a person starts from inside the app. It says what TaskDrop is, whi
 
 ## Phase 9: Switch-over to the upgraded app
 
-*Still the staging (alpha) plan (section 14): fake data and fake money. The alpha exit gate in section 14.3 is checked before this phase starts.*
+*Still the staging plan (section 14): fake data and fake money. The staging exit gate in section 14.3 is checked before this phase starts.*
 
 - [ ] Phases 0–8 done; the last tester round has no open serious issues
 - [ ] **(You)** Approve the switch-over
@@ -794,8 +794,8 @@ A guided tour a person starts from inside the app. It says what TaskDrop is, whi
 - [ ] **(You)** Decide to launch; confirm recommendations A and D
 - [ ] **(You)** The business basics first: legal entity, PAN, GST if you have one, a current bank account (section 14.4, P0)
 - [ ] **(You) Payments, in the order they are needed (section 14.5):** lawyer's fee (first); Razorpay and RazorpayX activation; DLT registration and MSG91 credits; DMCA agent ($6); then Supabase Pro ($25 a month), Vercel Pro ($20 a month) and Inngest's paid plan before any real user; the RazorpayX balance that pays workers out (how it is funded follows the lawyer's answer, R3)
-- [ ] The alpha ribbon is gone and the `environment` setting is `production`; the money functions refuse `rzp_test_` keys there (Phase 8 alpha boxes)
-- [ ] Production starts empty: no alpha accounts, tasks or wallets are copied over
+- [ ] The staging ribbon is gone and the `environment` setting is `production`; the money functions refuse `rzp_test_` keys there (Phase 8 staging boxes)
+- [ ] Production starts empty: no staging accounts, tasks or wallets are copied over
 - [ ] The admin authenticator is back on and `admin_require_mfa = true` (section 13)
 - [ ] **Backend:**
   - [ ] Production Supabase project on Pro ($25/month, backups); migrations from `main`, secrets from the inventory, functions deployed
@@ -855,7 +855,7 @@ You started this because the app felt clumsy and parts weren't working as expect
 | Branch | All upgrade work on **`upgraded-plan-changes`**; old code never altered |
 | Code review | **CodeRabbit** AI review on every pull request, plus CI |
 | Stage | Testing only: fake data, you + ~10 testers, no customers |
-| Two plans | **Staging (alpha) now, Production later** (2026-10-26): publish the app and website with fake data and fake money first (Razorpay test keys, no RazorpayX, manual payouts); real money and real things come in a separate production plan on a new Supabase project. See section 14 |
+| Two plans | **Staging now, Production later** (2026-10-26): publish the app and website with fake data and fake money first (Razorpay test keys, no RazorpayX, manual payouts); real money and real things come in a separate production plan on a new Supabase project. See section 14 |
 | Platforms | User app on web + Android + iOS (one Expo app); admin as a separate web app. **iOS is future scope (2026-10-20): web, Android and admin first** |
 | Sign-in | Google, Apple, phone OTP, username + password. No separate email sign-in. Admin login unchanged |
 | Phone login | Supabase's built-in phone login with a Send-SMS hook to MSG91 |
@@ -993,7 +993,7 @@ You started this because the app felt clumsy and parts weren't working as expect
 
 Because the database and functions are shared, a backend change deployed for the upgrade also runs for the old app. That's why ground rule 4 (compatibility) and the CI compatibility check exist. After Phase 9 the old column is retired. At Phase 10, production is added and the test project becomes staging (`beta.taskdrop.in`). Free Supabase projects pause after about a week of inactivity; resume them from the dashboard.
 
-**Staging and production (2026-10-26).** The "hosted beta" column above is the **staging (alpha)** environment: fake data, Razorpay test keys, no RazorpayX. **Production** is a separate set built in Phase 10 (new Supabase project, live keys, its own Vercel env, Inngest environment, ImageKit `/prod` and Sentry `production`). The two never share a database or a payment key. Section 14.1 has the full table.
+**Staging and production (2026-10-26).** The "hosted beta" column above is the **staging** environment: fake data, Razorpay test keys, no RazorpayX. **Production** is a separate set built in Phase 10 (new Supabase project, live keys, its own Vercel env, Inngest environment, ImageKit `/prod` and Sentry `production`). The two never share a database or a payment key. Section 14.1 has the full table.
 
 ### 3.6 How a change reaches testers
 
@@ -1204,7 +1204,7 @@ Added 2026-10-23. The aim: protect TaskDrop's keys, environment variables and si
 
 ## 8. Accounts and costs
 
-*Which of these you pay for alpha and which for production: section 14.5. Alpha costs nothing monthly; the only possible payment is the Play developer account ($25 once).*
+*Which of these you pay for staging and which for production: section 14.5. Staging costs nothing monthly; the only possible payment is the Play developer account ($25 once).*
 
 | Item | Cost | When |
 |---|---|---|
@@ -1278,15 +1278,16 @@ Prices for `.in` from tld-list.com on 2026-10-07 (USD, 1 year, incl. fees); avai
 | Inngest outage | Delayed jobs | Outbox + sweeper |
 | Test Razorpay keys sit in the history of a public repository | Anyone can use the test account (no real money moves) | Removed from code. Rotation is future scope (owner 2026-10-24): accepted for now because test keys move no real money; rotate before live keys (Phase 10) |
 | Per-platform switches rely on a header | A user could fake their platform | Platform switches are operational; global switches apply to all |
-| **Real money moves in alpha by mistake** (a live key is put into the alpha project) | Real charges with no legal setup | Rule: live keys only in production (section 14.2); the `environment` key check refuses them (Phase 8 alpha boxes) |
-| **The public alpha is found and used by strangers** (any phone number signs in, the test code is on screen) | Strangers create accounts; real personal data ends up in a fake-data system | Ribbon, `noindex`, "No real personal data" rule, invite-only link; the data is thrown away at launch |
-| **Alpha tested only with fake money** hides payout, KYC and bank problems | A surprise at the first real payment | The small real ₹10 job in the production plan (P11) before the public release |
+| **Real money moves in staging by mistake** (a live key is put into the staging project) | Real charges with no legal setup | Rule: live keys only in production (section 14.2); the `environment` key check refuses them (Phase 8 staging boxes) |
+| **The public staging is found and used by strangers** (any phone number signs in, the test code is on screen) | Strangers create accounts; real personal data ends up in a fake-data system | Ribbon, `noindex`, "No real personal data" rule, invite-only link; the data is thrown away at launch |
+| **Staging tested only with fake money** hides payout, KYC and bank problems | A surprise at the first real payment | The small real ₹10 job in the production plan (P11) before the public release |
 
 ## 11. Changelog
 
+- **v4.65 (2026-10-26):** **Staging guard rails merged and deployed (owner approved the wording, task A.1).** Backend PR 94 (migration 127 `environment` setting, applied by the Vercel build; the live `app-config` answers `"environment":"staging"`; payment-key guard in `razorpay`, `razorpay-setup`, `razorpayx-payouts` and the Inngest reconcile; manual payout test), app PR 95 (ribbon, "How staging works" card, web `noindex` + `robots.txt`, Staging notice in Terms and Privacy) and admin PR 28 (ribbon). Checked live: `taskdrop.in` shows the ribbon and sends `X-Robots-Tag: noindex, nofollow`; the admin sign-in page renders the ribbon. Android: update group `3dc53fe1` published to the `beta` channel (Sentry map uploaded); **checked on the owner's phone (CPH2585, installed beta APK) at 16:38**: the ribbon shows on the sign-in screen, but there is an extra empty strip the height of the status bar under it, because `Screen` (and `SplashScreen`) in `components/ui.tsx` use the native `SafeAreaView` top edge, which the `AppGate` context override does not reach. Fix planned: skip the top edge when the ribbon or banner is showing. The tester card was not seen (needs a sign-in). Boxes left open on purpose: ribbon on Android, tester card seen live, a live-key refusal tried on a throwaway project, the full fake job by a first-time tester.
 - **v4.64 (2026-10-26):** **Owner manual items Claude could finish alone (owner: "complete the owner's manual, whichever you can do").** App Check **proven on the web**: Claude signed in to `taskdrop.in` in Chrome, and the `api` log shows `valid` for all 18 web lines (0 `invalid`, 0 `missing`); with Android's 74 `valid` calls from 2026-10-25, both App Check boxes in Phase 3 are ticked. Web source maps rechecked in the Vercel build log of `a5181e7`. Uptime Robot: both monitors Up, 100%, 0 incidents. Security checklist (`docs/testing_checks.md`): T2.2, T2.3, T2.6 and T2.11 passed (the only history item is the old Razorpay **test** key pair, already accepted); the App Check debug token is only in the EAS `preview` environment. **Manual corrected:** task 6.4 said to copy the ImageKit values from the Vercel project `taskdrop`, which has none (the build log says "not set in Vercel"); the owner now copies them from `.env.all-secrets` or the ImageKit dashboard. Task 6.3 marked done. **P2-43:** admin idle run 5 passed; a two-tab cause of the earlier misses was found in `IdleGuard` and fixed on a local admin branch (not pushed).
-- **v4.63 (2026-10-26):** **Google Play Console written in as two ways (owner request).** New section 14.7: Way 1 = testing tracks (Internal and Closed testing) with the alpha AAB, fake data and fake money; Way 2 = the Production track with a separate Phase 10 AAB, real data and real money; five rules between them (never upload the alpha AAB to Production; Production is created only on "I want to launch"; the 14-day closed test is a gate, not a publish route; re-answer the changed store content first; the Internal track stays for staff). Owner manual has the matching clicks. Docs only; nothing built or published.
-- **v4.62 (2026-10-26):** **Two plans written (owner request: publish the app and website for alpha with fake data and fake money first, real money later).** New Part B section 14: the table of what is fake in alpha and real in production (14.1), the rules that keep alpha fake (14.2), the staging plan in order with an alpha exit gate (14.3), the production plan in order (14.4), every payment production needs and when (14.5), and the alpha build list (14.6). Phase 8 gained "Alpha publish" boxes (the `environment` key check, the alpha ribbon, `noindex`, the tester card, alpha Terms and Privacy wording); Phase 10 gained the business basics, the payments box and the empty-start and authenticator boxes; ground rule 7, decisions, section 3.5, section 8 and three risks point to the two plans. Owner manual has the matching clicks. **Also 2026-10-26:** Google sign-in fixed (a new Web client in the Google Cloud project Taskdrop, In production, pasted into Supabase by the owner) and tested by Claude on `taskdrop.in`, the admin and the installed Android app. No code changed; nothing is built until you say "start Phase 8" or "build the alpha guard rails".
+- **v4.63 (2026-10-26):** **Google Play Console written in as two ways (owner request).** New section 14.7: Way 1 = testing tracks (Internal and Closed testing) with the staging AAB, fake data and fake money; Way 2 = the Production track with a separate Phase 10 AAB, real data and real money; five rules between them (never upload the staging AAB to Production; Production is created only on "I want to launch"; the 14-day closed test is a gate, not a publish route; re-answer the changed store content first; the Internal track stays for staff). Owner manual has the matching clicks. Docs only; nothing built or published.
+- **v4.62 (2026-10-26):** **Two plans written (owner request: publish the app and website for staging with fake data and fake money first, real money later).** New Part B section 14: the table of what is fake in staging and real in production (14.1), the rules that keep staging fake (14.2), the staging plan in order with a staging exit gate (14.3), the production plan in order (14.4), every payment production needs and when (14.5), and the staging build list (14.6). Phase 8 gained "Staging publish" boxes (the `environment` key check, the staging ribbon, `noindex`, the tester card, staging Terms and Privacy wording); Phase 10 gained the business basics, the payments box and the empty-start and authenticator boxes; ground rule 7, decisions, section 3.5, section 8 and three risks point to the two plans. Owner manual has the matching clicks. **Also 2026-10-26:** Google sign-in fixed (a new Web client in the Google Cloud project Taskdrop, In production, pasted into Supabase by the owner) and tested by Claude on `taskdrop.in`, the admin and the installed Android app. No code changed; nothing is built until you say "start Phase 8" or "build the staging guard rails".
 - **v4.61 (2026-10-25):** Phone session done. Beta build `505485f8` (commit a92546e, debug token for beta builds) installed on the owner's phone; the `api` log shows `app check { result: "valid", platform: "android" }` for 74 calls from the phone, so the Android half of the App Check proof is done. PR 84 merged. Update group f0b7d18b (commit 0cb32c3, channel `beta`) is on the phone with readable Sentry maps uploaded; the chat-photo full-size viewer opens from a chat photo. **Still open:** web App Check proof (the live site has the key in its bundle, but the landing page makes no `api` call, so it needs one signed-in visit; the web log so far shows only `missing` from test runs), and the CSP (Report-Only today) will need `https://www.google.com` and `https://www.gstatic.com` in `script-src` and `frame-src` before it is enforced, or reCAPTCHA is blocked.
 - **v4.60 (2026-10-25):** Phases 0-8 sweep. Checked by Claude: every migration applied on the test project (latest 20261025100000), all 11 Edge Functions active, the web, admin and old app answer, the Terms, Privacy and Support pages are live, the Supabase sign-in token settings are right (ticked), the web export carries no secrets (only library comments and a key-prefix check mention `service_role` and `sb_secret_`), the AAB is built (ticked). Phase 5 payout, refund-retry and webhook boxes marked `[-]` (waiting for the lawyer, owner manual 5.1; no Razorpay changes). The owner manual has a new START HERE list in order, with task 0.1 (fix Google sign-in, P2-50) first. Evidence: `docs/PHASE0_8_CHECK_2026-10-25.md`. Admin sign-in is limited to `hitendureacts@gmail.com` (owner, 2026-10-25).
 - **v4.59 (2026-10-25):** Phase 2 pending items. **Closed:** the GitHub-issue box (kept in this file), P2-19 (e2e tidy-up, PR 76), the web look-through, P2-41 and P2-42 (accepted in writing), P2-49 (chat photo, PR 85). **Scheduled:** P2-31 into Phase 10 (already a box there), P2-32 into Phase 9 (new box), P2-48 and the `api` speed target into Phase 6 (new Verify box; `api` now logs slow operations). **Found: P2-50, Google sign-in is down for everyone** (the Supabase Google provider's OAuth client was deleted at Google; confirmed from outside the browser); it is the owner's to fix and is the first step of the new manual. Still open and why: P2-10 and the Android checklist (the phone must be unlocked and tested by hand), P2-33 and P2-36 (the owner's decisions), P2-43 (needs a working admin login, so P2-50 first).
@@ -1430,65 +1431,65 @@ Decided 2026-10-24 (owner: "keep the admin authenticator app for future scope, n
 
 **Before launch (Phase 10):** turn it back on, because real money moves. Set up the authenticator, set `admin_require_mfa` to `true`, re-run `admin_mfa.test.sql`, and test each money action with and without a code.
 
-## 14. The two plans: Staging (alpha, fake money) and Production (real money)
+## 14. The two plans: Staging (fake money) and Production (real money)
 
-Decided 2026-10-26 (owner: "launch the app with all fake data, only for alpha testing; no real money, all payments fake; test the published app and website first; later do everything with real money and real things"). This section is the single answer to "what is fake, what is real, and what do I pay for". Phases 0 to 9 stay as they are; this section says which part of them belongs to which plan.
+Decided 2026-10-26 (owner: "launch the app with all fake data, only for staging testing; no real money, all payments fake; test the published app and website first; later do everything with real money and real things"). This section is the single answer to "what is fake, what is real, and what do I pay for". Phases 0 to 9 stay as they are; this section says which part of them belongs to which plan.
 
-**The words.** *Staging* and *alpha* mean the same thing here: the published app and website that testers use, on the current Supabase project `wjxvingpfbfvkfqhrguj`, with fake data and fake money. *Production* is a separate set of accounts and projects that handle real customers and real money. They never share a database, a payment key or a secret.
+**The words.** *Staging* is the published app and website that testers use, on the current Supabase project `wjxvingpfbfvkfqhrguj`, with fake data and fake money. *Production* is a separate set of accounts and projects that handle real customers and real money. They never share a database, a payment key or a secret.
 
 | Plan | Phases | Money | Data | Who uses it |
 |---|---|---|---|---|
-| **Staging (alpha)** | 0 to 9, plus the alpha publish boxes in Phase 8 | Fake. Razorpay **test** keys only. No RazorpayX. Nothing reaches any bank | Fake (seed data and what testers make) | You and about 10 invited testers |
+| **Staging** | 0 to 9, plus the staging publish boxes in Phase 8 | Fake. Razorpay **test** keys only. No RazorpayX. Nothing reaches any bank | Fake (seed data and what testers make) | You and about 10 invited testers |
 | **Production** | 10 | Real. Razorpay and RazorpayX **live** keys, real UPI and bank accounts | Real customers, starting from an empty database | The public |
 
-### 14.1 What is fake in alpha and what becomes real in production
+### 14.1 What is fake in staging and what becomes real in production
 
-| Part | Alpha (now) | Production (later) | What changes |
+| Part | Staging (now) | Production (later) | What changes |
 |---|---|---|---|
-| Supabase project | `wjxvingpfbfvkfqhrguj`, free plan | A **new** project on Pro, empty, in ap-south-1 | New project, migrations from `main`, secrets set again. The alpha project stays as staging |
-| Data | Fake. May be wiped or reseeded (with your OK) | Real. Never wiped. Backups on | Alpha data is not carried over |
+| Supabase project | `wjxvingpfbfvkfqhrguj`, free plan | A **new** project on Pro, empty, in ap-south-1 | New project, migrations from `main`, secrets set again. The staging project stays as staging |
+| Data | Fake. May be wiped or reseeded (with your OK) | Real. Never wiped. Backups on | Staging data is not carried over |
 | Card, UPI and wallet top-up | Razorpay **test** mode: test cards and test UPI only; a real card is not charged | Razorpay **live** mode | Live keys after KYC; webhook registered on the production project |
 | Paying workers (withdraw) | Manual payout mode: an admin marks a payout done by hand; nothing leaves any bank | RazorpayX live payouts to workers' UPI and bank | RazorpayX activated and funded; payout and refund jobs switched on |
 | The money jobs (sweeps, refunds, payout retries) | Run on fake money only | Run on real money | `INNGEST_MONEY_JOBS` on in production only, after the lawyer's answer (R3) |
 | Phone sign-in code | Test shortcut: any number signs in and the code is shown on screen (`dev_otp_for_all`, owner decision 2026-10-11) | Real SMS through MSG91, DLT registered | Test shortcut off; `ALLOW_ANY_OTP` and `TEST_PHONES` not set |
 | Google, username sign-in | Real Google accounts (free), fake profiles | Same | Add the production redirect address to the Google client |
 | Admin | Staff roles on, authenticator **off** (future scope, section 13) | Authenticator on, `admin_require_mfa = true` | Turn it back on, re-run its test |
-| Web | `taskdrop.in` on Vercel Hobby | `taskdrop.in` on Vercel Pro; the alpha moves to `beta.taskdrop.in` | Pro plan, new Vercel env values, DNS change |
+| Web | `taskdrop.in` on Vercel Hobby | `taskdrop.in` on Vercel Pro; the staging moves to `beta.taskdrop.in` | Pro plan, new Vercel env values, DNS change |
 | Android | Direct `beta` APK, then Play **Internal testing** (and Closed testing for the 14-day rule) | Play **Production** release | Production build with production values |
 | Photos | ImageKit `/beta` | ImageKit `/prod` | New folder and keys |
 | Errors and jobs | Sentry `beta`, Inngest Hobby | Sentry `production`, Inngest production environment on a paid plan | New environments |
 | Legal pages | Draft, marked "under legal review"; no compliance claims | Reviewed by a lawyer, grievance officer and DMCA agent named | Phase 10 Legal boxes |
 | Support | `hitendureacts@gmail.com` | Same address or a real support inbox | Your call |
 
-### 14.2 Rules that keep alpha fake (nothing real can move)
+### 14.2 Rules that keep staging fake (nothing real can move)
 
-1. **Test keys only.** `RAZORPAY_KEY_ID` starts with `rzp_test_`. RazorpayX has no live keys anywhere in alpha. The live keys are made only in production (task 10.3) and go only into the production project.
-2. **Key check in the code (to build, Phase 8 alpha boxes).** The money functions read an `environment` setting (`alpha` or `production`). In `alpha` they refuse a key that starts with `rzp_live_`; in `production` they refuse `rzp_test_`. A wrong key then fails loudly instead of moving money.
-3. **Everyone can see it is fake.** A ribbon on every screen of the app, the website and the admin says "Alpha: fake money and fake data". The Razorpay screens already say TEST MODE.
-4. **No real personal data.** Testers use the three seed accounts (Asha, Ravi, Meera), their own Google account or a made-up username. They are told not to type a real address, ID number or bank account. Withdraw screens in alpha take made-up UPI ids.
-5. **Not indexed.** The alpha website sends `noindex` and `robots.txt` blocks search engines, so strangers do not land in it.
-6. **Terms and Privacy say "Alpha"**, with no claim of compliance, and no promise that data stays.
-7. **Alpha data is thrown away at launch.** Production starts from an empty new project. Nobody's alpha account, task or wallet moves over.
+1. **Test keys only.** `RAZORPAY_KEY_ID` starts with `rzp_test_`. RazorpayX has no live keys anywhere in staging. The live keys are made only in production (task 10.3) and go only into the production project.
+2. **Key check in the code (to build, Phase 8 staging boxes).** The money functions read an `environment` setting (`staging` or `production`). In `staging` they refuse a key that starts with `rzp_live_`; in `production` they refuse `rzp_test_`. A wrong key then fails loudly instead of moving money.
+3. **Everyone can see it is fake.** A ribbon on every screen of the app, the website and the admin says "Staging: fake money and fake data". The Razorpay screens already say TEST MODE.
+4. **No real personal data.** Testers use the three seed accounts (Asha, Ravi, Meera), their own Google account or a made-up username. They are told not to type a real address, ID number or bank account. Withdraw screens in staging take made-up UPI ids.
+5. **Not indexed.** The staging website sends `noindex` and `robots.txt` blocks search engines, so strangers do not land in it.
+6. **Terms and Privacy say "Staging"**, with no claim of compliance, and no promise that data stays.
+7. **Staging data is thrown away at launch.** Production starts from an empty new project. Nobody's staging account, task or wallet moves over.
 8. **Shared-database rules still apply** until Phase 9 (ground rule 4).
 
-### 14.3 Staging plan (alpha): in order
+### 14.3 Staging plan (staging): in order
 
-Cost for the whole alpha: **nothing monthly.** The only possible payment is the **Google Play developer account, $25 once**, and only if you publish the Android app through Play (the direct `beta` APK costs nothing). Everything else is on free plans (Supabase, Vercel Hobby, Inngest Hobby, Sentry, ImageKit, EAS, Uptime Robot, Firebase).
+Cost for the whole staging: **nothing monthly.** The only possible payment is the **Google Play developer account, $25 once**, and only if you publish the Android app through Play (the direct `beta` APK costs nothing). Everything else is on free plans (Supabase, Vercel Hobby, Inngest Hobby, Sentry, ImageKit, EAS, Uptime Robot, Firebase).
 
 | # | Step | Who | Pay? | Done when |
 |---|---|---|---|---|
 | S1 | Foundations, break-it pass and fixes (Phases 0 to 7) | Claude | No | Mostly done; the open items are in the owner manual's START HERE |
 | S2 | Google sign-in works on web, admin and Android | Claude | No | **Done 2026-10-26** |
-| S3 | **Alpha guard rails built** (Phase 8, "Alpha publish" boxes): the ribbon, the key check, `noindex`, the alpha wording in Terms and Privacy | Claude builds; you approve the wording | No | Boxes ticked and merged into `redesigned-2.0` |
+| S3 | **Staging guard rails built** (Phase 8, "Staging publish" boxes): the ribbon, the key check, `noindex`, the staging wording in Terms and Privacy | Claude builds; you approve the wording | No | Boxes ticked and merged into `redesigned-2.0` |
 | S4 | Finish the open test items: the admin photo values, the idle test, the decisions list, the mobile-data speed test | You and Claude | No | Owner manual START HERE items 3 to 8 |
-| S5 | **Publish the website:** `taskdrop.in` is the alpha. Check Terms, Privacy and Support open and show the Alpha notice | Claude | No | Checked live |
+| S5 | **Publish the website:** `taskdrop.in` is the staging. Check Terms, Privacy and Support open and show the Staging notice | Claude | No | Checked live |
 | S6 | **Publish the Android app:** send the `beta` APK link to testers now. Make the Play Console app, upload the AAB to **Internal testing** (up to 100 testers, no Google review) and to **Closed testing** for the 14-day rule | You | **$25 once** (Play) | Testers install from Play |
-| S7 | **Publish the admin** to the people who run alpha (you, and anyone you add as staff) | You | No | Staff roles checked |
-| S8 | **Recruit the testers:** 12 for the closed test (the 14 days run during alpha, so Play production can be applied for on day 15). `docs/TESTER_RECRUITMENT.md` is the kit | You | No | 12 testers opted in |
-| S9 | **Alpha rounds:** testers run the core-flow checklist (section 5.2) on web and Android with fake money; Sentry and the admin Alerts page are watched; problems go into `docs/PHASE2_PROBLEMS.md` | You, testers, Claude | No | Two rounds with no open serious issue |
-| S10 | **Alpha exit gate** (below), then Phase 9 (switch everyone to the upgraded app) | You approve | No | Gate passed |
+| S7 | **Publish the admin** to the people who run staging (you, and anyone you add as staff) | You | No | Staff roles checked |
+| S8 | **Recruit the testers:** 12 for the closed test (the 14 days run during staging, so Play production can be applied for on day 15). `docs/TESTER_RECRUITMENT.md` is the kit | You | No | 12 testers opted in |
+| S9 | **Staging rounds:** testers run the core-flow checklist (section 5.2) on web and Android with fake money; Sentry and the admin Alerts page are watched; problems go into `docs/PHASE2_PROBLEMS.md` | You, testers, Claude | No | Two rounds with no open serious issue |
+| S10 | **Staging exit gate** (below), then Phase 9 (switch everyone to the upgraded app) | You approve | No | Gate passed |
 
-**Alpha exit gate (all true before production work starts):** E2E tests green; Sentry quiet for 7 days; monitors green; the core flow passes on web, Android and admin with fake money (post, offer, pay, work, approve, review, withdraw by manual payout); account deletion, report and block work; push arrives on Android; the closed test has run 14 days with 12 testers; the lawyer has answered R3 (or you have decided to launch with the money jobs off and payouts by hand); nothing in the alpha list of guard rails is open.
+**Staging exit gate (all true before production work starts):** E2E tests green; Sentry quiet for 7 days; monitors green; the core flow passes on web, Android and admin with fake money (post, offer, pay, work, approve, review, withdraw by manual payout); account deletion, report and block work; push arrives on Android; the closed test has run 14 days with 12 testers; the lawyer has answered R3 (or you have decided to launch with the money jobs off and payouts by hand); nothing in the staging list of guard rails is open.
 
 ### 14.4 Production plan: in order
 
@@ -1503,19 +1504,19 @@ Do the steps in this order. The slow ones (bank account, Razorpay approval, SMS 
 | P4 | **Play production:** apply for production access once the 14-day closed test is done; fill the store listing and the data-safety form | You | (Play account already paid in S6) | Google may take days |
 | P5 | **Legal items:** register the DMCA agent; name the grievance officer; set the `EXPO_PUBLIC_LEGAL_*` values; after the lawyer, `EXPO_PUBLIC_LEGAL_REVIEWED=yes` | You | **DMCA agent $6 per 3 years** | Phase 10 Legal boxes |
 | P6 | **Paid plans on:** Supabase Pro, Vercel Pro, Inngest paid, and any other tool whose free limit is reached | You | **$25 + $20 + (Inngest, check price) a month** | Before any real user, because free plans pause, throttle or forbid commercial use |
-| P7 | **Build production:** a new Supabase project (Pro, ap-south-1), migrations from `main`, secrets from section 7, functions deployed, Inngest production environment, ImageKit `/prod`, Sentry `production`, Firebase App Check production keys, production Vercel env values, Google client redirect address added | Claude, with you for the logins | Covered by P6 | Empty database, no alpha data |
+| P7 | **Build production:** a new Supabase project (Pro, ap-south-1), migrations from `main`, secrets from section 7, functions deployed, Inngest production environment, ImageKit `/prod`, Sentry `production`, Firebase App Check production keys, production Vercel env values, Google client redirect address added | Claude, with you for the logins | Covered by P6 | Empty database, no staging data |
 | P8 | **Switch on the real-money parts, one at a time:** live Razorpay keys (webhook registered on the production project), RazorpayX live and **funded**, the money jobs (`INNGEST_MONEY_JOBS`), payouts, refunds | Claude builds and switches; you put the live keys into Vault yourself | RazorpayX balance (see 14.5) | The `environment` setting is `production` and the key check passes |
-| P9 | **Switch off every test shortcut:** `dev_otp_for_all` false; `ALLOW_ANY_OTP` and `TEST_PHONES` not set; the alpha ribbon gone; the admin authenticator on and `admin_require_mfa = true`; the lockdown SQL run | Claude | No | Each one has a test in Phase 10 |
-| P10 | **Domains:** production on `taskdrop.in` and `admin.taskdrop.in`; the alpha website moves to `beta.taskdrop.in` | You and Claude | Domain renewal, about $6 a year | DNS stays at Spaceship |
+| P9 | **Switch off every test shortcut:** `dev_otp_for_all` false; `ALLOW_ANY_OTP` and `TEST_PHONES` not set; the staging ribbon gone; the admin authenticator on and `admin_require_mfa = true`; the lockdown SQL run | Claude | No | Each one has a test in Phase 10 |
+| P10 | **Domains:** production on `taskdrop.in` and `admin.taskdrop.in`; the staging website moves to `beta.taskdrop.in` | You and Claude | Domain renewal, about $6 a year | DNS stays at Spaceship |
 | P11 | **One real job with a few rupees:** post a ₹10 job, pay with your own UPI, finish it from a second account, approve, withdraw to your own bank | You | Real ₹10 plus fees | Money must arrive |
 | P12 | **Launch gate:** E2E green, Sentry quiet 7 days, monitors green, rollback ready (Vercel rollback, EAS Update rollback, Supabase backups, written undo for each migration) | Claude | No | Phase 10 Launch gate |
 | P13 | **Release on Google Play production**; announce | You | No | The only step the public sees |
 
-Never in this plan: copying alpha accounts or data into production, putting live keys into the alpha project, or using the alpha project for real customers.
+Never in this plan: copying staging accounts or data into production, putting live keys into the staging project, or using the staging project for real customers.
 
 ### 14.5 Where you have to pay for production (and why)
 
-| Payment | Why it is needed | Amount (from this plan; check the provider's page when you pay) | When | Alpha? |
+| Payment | Why it is needed | Amount (from this plan; check the provider's page when you pay) | When | Staging? |
 |---|---|---|---|---|
 | **Supabase Pro** | Production project with backups; free projects pause after about a week idle | $25 a month | Before real users (P6) | No (free plan) |
 | **Vercel Pro** | The free Hobby plan is for non-commercial use | $20 a month per member | Before real users (P6) | No (Hobby) |
@@ -1525,26 +1526,26 @@ Never in this plan: copying alpha accounts or data into production, putting live
 | **Current bank account** | Razorpay and RazorpayX require a business current account | The bank's fees | P0 | No |
 | **MSG91 SMS** | Real sign-in codes to real phones | Per-SMS charge; credits bought in advance | P3 | No (test code shown on screen) |
 | **DLT registration** | Indian rules: sender name and the OTP template must be registered or SMS is blocked | One-time fee at the DLT portal | P3 | No |
-| **Google Play developer account** | Publishing the Android app | $25 once | S6, during alpha | **Yes, only if you publish through Play in alpha** |
+| **Google Play developer account** | Publishing the Android app | $25 once | S6, during staging | **Yes, only if you publish through Play in staging** |
 | **DMCA agent** | Legal protection for user-uploaded content | $6 per 3 years | P5 | No |
 | **Lawyer** | Money flow, Terms, Privacy, DPDP | A fee; get a quote | P1, first | No |
 | **Google Maps / Places** | Place search and map tiles at volume; OpenStreetMap's public servers are not for heavy commercial use | Pay per use after the free credit. Billing is already active on the Google Cloud project (a ₹100 monthly budget alert is set, `docs/FCM.md`); raise the alert and set quotas when real traffic starts | Before store release (task 8.1) | No (free tier, low volume) |
 | **Domain `taskdrop.in`** | Already bought | About $6 a year; keep auto-renew on | Yearly | Already paid |
-| **Sentry, ImageKit, EAS, Uptime Robot** | Free tiers cover alpha; production traffic may pass the limits | Check each plan when its limit nears (the `api` health monitor needs Uptime Robot's paid plan) | When a limit warns | No |
+| **Sentry, ImageKit, EAS, Uptime Robot** | Free tiers cover staging; production traffic may pass the limits | Check each plan when its limit nears (the `api` health monitor needs Uptime Robot's paid plan) | When a limit warns | No |
 | **CodeRabbit** | Only if the repos become private (future scope) | About $24 a month | Only then | No |
 | **Apple Developer Program** | iOS and Sign in with Apple | $99 a year | **Future scope** (not in this launch) | No |
 
 Free and needed in both plans: Google sign-in, Firebase (push, App Check), Sentry free alerts, GitHub public repos.
 
-### 14.6 Build list for the alpha publish (added to Phase 8)
+### 14.6 Build list for the staging publish (added to Phase 8)
 
-These are the new boxes in Phase 8, "Alpha publish". Nothing is built until you say "start Phase 8" (ground rule), except that you may say "build the alpha guard rails" to start them first.
+These are the new boxes in Phase 8, "Staging publish". Nothing is built until you say "start Phase 8" (ground rule), except that you may say "build the staging guard rails" to start them first.
 
 - The `environment` setting in app controls (additive, ground rule 4) and the key check in the money functions (14.2 rule 2)
-- The alpha ribbon in the app (web and Android) and the admin
-- `noindex` and `robots.txt` on the alpha website
-- Alpha wording in Terms and Privacy (approved by you)
-- A short "How alpha works" page or card for testers: fake money, fake data, what to test, where to report problems
+- The staging ribbon in the app (web and Android) and the admin
+- `noindex` and `robots.txt` on the staging website
+- Staging wording in Terms and Privacy (approved by you)
+- A short "How staging works" page or card for testers: fake money, fake data, what to test, where to report problems
 - A "report a problem" path for testers (the in-app feedback already exists; confirm it reaches you)
 
 ### 14.7 Google Play Console: two ways to publish (owner request 2026-10-26)
@@ -1555,14 +1556,14 @@ One Play app (`com.taskdrop.app`, a package name can exist only once in a develo
 |---|---|---|
 | Play track | **Internal testing** (up to 100 testers, no Google review, live in minutes) and **Closed testing** (invite-only; its 14 days with 12 opted-in testers are what unlock production) | **Production** (public) |
 | Who can see the app | Only the Gmail addresses you add. It is not findable in the Play Store | Everyone |
-| Which build | The **alpha AAB**: points at the current test Supabase project, Razorpay test keys, `dev_otp_for_all` on, alpha ribbon on (built 2026-10-24, link expires 2026-11-23) | A **new production AAB** built in Phase 10 (task 10.7): new Supabase project, live keys, every test shortcut off, no ribbon, a higher `versionCode` |
+| Which build | The **staging AAB**: points at the current test Supabase project, Razorpay test keys, `dev_otp_for_all` on, staging ribbon on (built 2026-10-24, link expires 2026-11-23) | A **new production AAB** built in Phase 10 (task 10.7): new Supabase project, live keys, every test shortcut off, no ribbon, a higher `versionCode` |
 | Store text | Ends with "taskdrop. is in testing"; reviewer sign-in `9990000001` with the on-screen code | The testing line removed; a reviewer number that works with real SMS or a fixed Play test number (the shortcut is off) |
-| Gate | Alpha guard rails (14.2, 14.6) | Alpha exit gate (14.3), lawyer answer (P1), launch gate (P12) |
+| Gate | Staging guard rails (14.2, 14.6) | Staging exit gate (14.3), lawyer answer (P1), launch gate (P12) |
 | Plan steps | S6, S8 (A.3, tasks 8.3, 8.4, 8.6) | P4, P13 (tasks 10.9; 8.3 for the listing and data-safety form) |
 
 **Rules between the two ways:**
 
-1. **Never upload the alpha AAB to the Production track.** It carries the test project address and test keys. Production gets only the Phase 10 build.
+1. **Never upload the staging AAB to the Production track.** It carries the test project address and test keys. Production gets only the Phase 10 build.
 2. **Production is never created until the owner says "I want to launch".** Leaving it empty keeps the app invisible to the public for as long as wanted.
 3. **The 14-day closed test is a gate for production, not a way to publish it.** Google, not us, approves each release; a testing release can be reviewed in minutes to days.
 4. **Before Way 2:** re-answer the content that changes (App access, store text, data-safety review against the final code), and have the lawyer's review done (P1) so the listing makes no compliance claim not backed by it.

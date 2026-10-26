@@ -17,6 +17,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { fontFamilyFor, type Theme } from '../theme';
 import { useLayout } from '../lib/layout';
 import { NativeHeaderCtx } from '../navigation/nativeHeader';
+import { useTopInsetEdges } from './topInsetUsed';
 
 /** Animatable Pressable so a press can drive a native-thread scale/opacity
  *  tween directly on the touchable's own style, instead of the instant
@@ -36,7 +37,8 @@ function usePressScale(to = 0.96) {
 
 /** Which edges Screen pads for the status bar: none under a system header, which already clears it. */
 function useTopEdge(): ['top'] | [] {
-  return React.useContext(NativeHeaderCtx) ? [] : ['top'];
+  const gapUsed = useTopInsetEdges().length === 0;
+  return React.useContext(NativeHeaderCtx) || gapUsed ? [] : ['top'];
 }
 
 /** Full-screen container with themed background + safe area. */
