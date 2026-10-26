@@ -50,6 +50,8 @@ While testing, any phone number signs in. The code is random each time and shown
 
 ## START HERE: what is left, in order (checked 2026-10-25, rechecked 2026-10-26)
 
+**Update 2026-10-26 (afternoon), what Claude finished without you:** the **admin idle sign-out test** (task 3.7, run 5 passed); the **web App Check proof** (task 3.5: 18 `valid` web calls, none failed, so App Check is proven on both web and Android); the **web source-map check** (task 1.4, rechecked in the Vercel build log); **Uptime Robot** (both monitors Up, 100% over the last 24 hours, 0 incidents); task **6.3** is marked done (the chat-photo update reached the phone on 2026-10-25). **Correction to step 4 (task 6.4):** the ImageKit values are not in the Vercel project `taskdrop`. Copy them from `.env.all-secrets` (both lines have values) or the ImageKit dashboard; the clicks are fixed.
+
 **Update 2026-10-26:** Google sign-in is **fixed** (task 0.1): new Google key in Supabase, tested by Claude on the website and the admin (both signed in as `hitendureacts@gmail.com`). Also tested on the Android app. Left from it: the third admin idle sign-out test (task 3.7), which Claude started at 11:34 on 2026-10-26. The App Check PR 84 is now **merged**.
 
 Claude checked everything in Phases 0 to 8 that can be checked without you (evidence: `docs/PHASE0_8_CHECK_2026-10-25.md`). **Phases 0, 1, 4, 5 (except RazorpayX) and 7 are finished.** What is left needs you (a login, a payment, a decision), your phone, or time. Do these in order; each one points to the full clicks lower down.
@@ -57,19 +59,19 @@ Claude checked everything in Phases 0 to 8 that can be checked without you (evid
 | # | What | Who | Time | Full clicks |
 |---|---|---|---|---|
 | 1 | ~~Fix Google sign-in~~ **Done 2026-10-26**, tested on web, admin and Android. | Done | - | Task 0.1 |
-| 2 | **Phone session: done 2026-10-25 by Claude** (build `505485f8` installed; App Check proven on Android: the server logged `valid` for 74 calls from the phone; the update for the chat-photo viewer is on the phone and the full-size photo opens; App Check PR 84 merged). Still open from this step: the web App Check proof (needs one signed-in visit to taskdrop.in, so it waits for step 1), and a fresh Android job run. | Claude | done | Tasks 2.2, 3.5, 6.3 |
+| 2 | **Phone session: done 2026-10-25 by Claude** (build `505485f8` installed; App Check proven on Android: the server logged `valid` for 74 calls from the phone; the update for the chat-photo viewer is on the phone and the full-size photo opens; App Check PR 84 merged). The web App Check proof was done by Claude on 2026-10-26. Still open from this step: a fresh Android job run (task 2.2; plug in the phone and say "run the job on the phone"). | Claude | done | Tasks 2.2, 3.5, 6.3 |
 | 3 | **Alpha guard rails** (so the published app and website are clearly fake-money): the "Alpha: fake money and fake data" ribbon, the check that refuses a live payment key, `noindex`, the tester card, the alpha wording in Terms and Privacy. Type "Build the alpha guard rails." Claude builds, shows you the design first, and you approve. | Claude builds, you approve | 15 min of your time | Plan A, task A.1 |
-| 4 | **Two values in the admin's Vercel project** (the ImageKit photo values), so the admin shows job photos. | You | 5 min | Task 6.4 |
-| 5 | **Admin idle sign-out test.** Claude started the third run at 11:34 on 2026-10-26 (the admin is signed in; nothing is touched for 35 minutes, then one click at about 12:10). | Claude, in your Chrome | 35 min, mostly waiting | Task 3.7 |
+| 4 | **Two values in the admin's Vercel project** (the ImageKit photo values, copied from `.env.all-secrets`), so the admin shows job photos. | You | 5 min | Task 6.4 |
+| 5 | ~~Admin idle sign-out test.~~ **Run 5 passed 2026-10-26** on the upgrade admin (signed out after 30 idle minutes, with the message). A fix for two open admin tabs keeping each other alive is ready on a local branch; say "push the idle fix". | Claude | done | Task 3.7 |
 | 6 | **Your decisions:** the map for the store version, the legal details, whether profiles may show a rounded place and "last seen", and the Razorpay test-link limit. | You, in the chat | 20 min | Tasks 8.1, 8.2 and the list under "Decisions" below |
-| 7 | **Google Play Console:** create the app, enter the answers, upload the store build. The store build file **expires on 2026-11-23**; after that say "build the store version again". | You | 1 to 2 hours (Google may take days to check your ID) | Tasks 8.3, 8.4 |
-| 8 | **Read the runbook** and the security checklist. | You | 30 min | Tasks 8.5, 3.9 |
+| 7 | **Google Play Console, Way 1 (testing, fake data):** create the app, enter the answers, upload the store build to Internal and Closed testing only (see "Google Play Console: the two ways"). The store build file **expires on 2026-11-23**; after that say "build the store version again". | You | 1 to 2 hours (Google may take days to check your ID) | Tasks 8.3, 8.4 |
+| 8 | **Read the runbook** and finish the security checklist (Claude's own T2 checks passed on 2026-10-26; the phone and "You" items are left). | You | 30 min | Tasks 8.5, 3.9 |
 | 9 | **Mobile data speed test.** Switch Mobile data on in the phone's settings first. | You say go; Claude times it | 10 min | Task 6.5 |
 | 10 | **A week of normal use,** then ask Claude for the slow-screen check. | You | 1 week | Task 2.6 |
 | 11 | **The 12 testers** (14 days in Play closed testing). Only when you are ready. | You | 14 days | Task 8.6 |
 | 12 | **Alpha exit gate**, then the switch-over (Phase 9). When every test above is done and the 12 testers have used the closed test for 14 days, type "Check the alpha exit gate." **Production is a separate, later plan (Plan B below): it starts only when you say "I want to launch."** | You say go; Claude checks | 10 min | Plan A task A.4, Phase 9 |
 
-**Also open, no rush:** the RazorpayX payout buttons (need RazorpayX, task 10.3); deleting the unused `razorpay-setup` function (say "delete razorpay-setup" and Claude does it); the app tour design sign-off (Phase 8, not built yet); Uptime Robot: look once that both monitors are green. Key rotation (3.2, 6.1), Safari and iOS stay future scope.
+**Also open, no rush:** the RazorpayX payout buttons (need RazorpayX, task 10.3); deleting the unused `razorpay-setup` function (say "delete razorpay-setup" and Claude does it); the app tour design sign-off (Phase 8, not built yet). (Uptime Robot: checked by Claude 2026-10-26, both green.) Key rotation (3.2, 6.1), Safari and iOS stay future scope.
 
 **Decisions waiting for you (answer in the chat, one line each):**
 
@@ -148,6 +150,32 @@ Start the first four **early and in parallel**; they cost little and take days t
 | B.11 | **Domains:** production on `taskdrop.in` and `admin.taskdrop.in`; the alpha moves to `beta.taskdrop.in` | You and Claude | Domain renewal ~$6 a year | 10.7 |
 | B.12 | **One real ₹10 job** with your own UPI, finished from a second account, withdrawn to your bank | You | Real ₹10 plus fees | 10.8 |
 | B.13 | **Launch gate, then release on Google Play** | You | 0 | 10.9 |
+
+### Google Play Console: the two ways
+
+Same Play app (`com.taskdrop.app`), two ways to publish into it. Detail: `docs/UPGRADE_PLAN.md` section 14.7; store answers: `docs/PLAY_STORE.md`.
+
+| | **Way 1: Testing (fake data, fake money)** | **Way 2: Production (real data, real money)** |
+|---|---|---|
+| Track | **Internal testing**, then **Closed testing** | **Production** |
+| Who sees it | Only the Gmail addresses you add. Not findable in the Play Store | Everyone |
+| Build file | The **alpha AAB** (test project, Razorpay test keys, ribbon on) | A **new production AAB** that Claude builds in Phase 10 (task 10.7) |
+| Starts | Now (tasks 8.3, 8.4, 8.6) | Only when you say "I want to launch" (task 10.9) |
+
+**Way 1, in order** (fake data; $25 once for the Play account):
+
+1. Do task 8.3 (create the app, enter the answers, listing).
+2. Do task 8.4: upload the alpha AAB to **Internal testing** first. Add your testers' Gmail addresses; they install from the private link within minutes.
+3. Upload the same AAB to **Closed testing** and do task 8.6 (12 testers, 14 days). Do this early; the 14 days are what unlock Way 2.
+4. Leave **Production** alone. Nothing public exists until you create a Production release.
+
+**Way 2, in order** (only after "I want to launch", the lawyer's answer, and the alpha exit gate):
+
+1. Claude builds the production AAB (Phase 10, task 10.7): new project, live keys, every test shortcut off, higher version number.
+2. Apply for production access in Play Console (it asks about the closed test) and update the content that changed: the **App access** instructions (the test number only works while the shortcut is on), the data-safety form, and the store text (remove "taskdrop. is in testing").
+3. Task 10.9: **Production** → **Create new release** → upload the production AAB → **Send for review**.
+
+**Never:** put the alpha AAB in the Production track, create a Production release before you say "I want to launch", or treat the 14-day closed test as a way to publish.
 
 ### Where you pay for production (and why)
 
@@ -248,7 +276,7 @@ Claude read the last web build's log (Vercel deployment of `d49d681`): **the upl
 Claude changed the script to accept that name. The change is committed on a local branch `fix/web-sourcemap-token`, **not pushed**. To finish:
 
 1. Done: the fix is merged into `redesigned-2.0` (PR 69) and has been built twice since.
-2. Left: Claude can't read Vercel build logs until you approve its Vercel connection. Click the link Claude gives you when you type: "Check the web build uploaded source maps." (Or open the latest `taskdrop` deployment on vercel.com and search the log for `Uploaded files to Sentry`.)
+2. ~~Left: check a build log.~~ Rechecked 2026-10-26 through the Vercel connection: the build of `a5181e7` (deployment `dpl_EYH7BHo5…`) bundled the same 6 scripts and 6 maps with debug ids, Sentry already had them ("Nothing to upload, all files are on the server"), and the build then removed the 6 `.map` files. Nothing left.
 
 (Nothing to click in Vercel: the variable name there stays as it is.)
 
@@ -407,7 +435,9 @@ Checked on the live Supabase page (Authentication → Sessions, https://supabase
 
 Notes for later: all three settings sit on that one page under **Access Tokens** and **Refresh Tokens** (scroll down). The session limits at the top (single session, time-box, inactivity timeout) are Pro-plan only and stay off. The Legacy JWT secret on the JWT Keys page is a master key: never copy or paste it anywhere. Owner decision 2026-10-25: no key rotation needed.
 
-### ◐ 3.5 App Check (built and set up 2026-10-25; live proof still open)
+### ☑ 3.5 App Check — proven on Android (2026-10-25) and the web (2026-10-26)
+
+**Web proof done 2026-10-26 by Claude:** signed in to https://taskdrop.in in your Chrome (Google, `hitendureacts`) and opened Wallet, My Work and Notifications. The `api` log shows `app check { result: "valid", platform: "web" }` on all 18 lines after that, with no `invalid` and no `missing`. Left for you, no rush: item 3 below (delete two unused debug tokens) and item 4 (before a Play Store build).
 
 **Done (2026-10-25):**
 - The server check (monitor mode) is on in the `api` function.
@@ -415,12 +445,12 @@ Notes for later: all three settings sit on that one page under **Access Tokens**
 - Vercel holds the six App Check values; the web client and the Android client are merged into `redesigned-2.0`, and taskdrop.in serves a build that contains the web config (a bug that left it out was fixed in PR 83).
 - Android beta APKs use a Firebase **debug token** because Play Integrity refuses an APK installed by hand ("App attestation failed"). The token (`EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN`) is an EAS `preview` variable and is in `.env.all-secrets`; PR 84 (the code that uses it) was merged into `redesigned-2.0` on 2026-10-25.
 
-**Left (this is step 2 of START HERE; the new beta build `505485f8` is finished and waits for you to unlock the phone and say go):**
-1. Claude: finish the Android test. The token the Firebase console generated (`beta apk 3`) is now set in EAS and a new beta APK is building; Claude installs it on the phone and reads the `api` log for `platform: android` `result: valid`.
-2. You: open https://taskdrop.in signed in and use it for a minute, then tell Claude. The log must show `platform: web` `result: valid` (no one has done this since the fix).
+**Left:**
+1. ~~Claude: finish the Android test.~~ Done 2026-10-25 (build `505485f8`, 74 `valid` calls).
+2. ~~Open https://taskdrop.in signed in.~~ Done 2026-10-26 by Claude (18 `valid` web calls).
 3. You: in Firebase → App Check → `taskdrop Android` → ⋮ → **Manage debug tokens**, delete the two older tokens named `beta apk` when convenient (they are unused).
 4. Before a Play Store build: add the Play Console app-signing SHA-256 to the Android app's Play Integrity settings, and test once from a Play-installed copy (that is the only real Play Integrity test).
-5. Claude (after the tests): tick this step (PR 84 is already merged), and then Phase 9 may switch enforcement on.
+5. ~~Claude: tick this step.~~ Ticked 2026-10-26 (plan Phase 3, both App Check boxes). Phase 9 may switch enforcement on.
 
 ### ☑ 3.6 Test the control screens with your phone — done 2026-10-24 (Claude, phone plugged in)
 
@@ -437,7 +467,11 @@ Claude switched Android maintenance on for the test project, reopened TaskDrop o
    2. Tell Claude.
 5. Claude switches everything back.
 
-### ⚠ 3.7 Check the admin signs you out when idle — Claude tried twice 2026-10-25: once it signed out by itself after about 30 minutes, once a click after 32 minutes still worked (P2-43). Run 3 on 2026-10-26 was **void**: the Vercel log shows someone opened payout rows in the admin tab at 11:48 to 11:49 (not Claude), which restarted the 30-minute clock. **Run 4 (12:11 to 12:50 on 2026-10-26) did not sign out:** a click 39 minutes after the last one still loaded, with a 30-minute limit. Claude did not touch the tab; it could not prove nobody else did. The likely cause is in the admin code: some of Next's background page prefetches are counted as "you are active" (P2-43). Claude fixed it on 2026-10-26 (admin PR 26: every kind of Next prefetch is now ignored, and the admin logs what restarts the idle clock). **The fix is only in the upgrade admin** (`taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app`); the address `taskdrop-admin.vercel.app` is the old **main** admin, which stays as it is until you promote `redesigned-2.0` to `main` by hand. Runs 3 and 4 were on that old address. Run 5 is on the upgrade address. Until it passes, sign out yourself when you leave the admin.
+### ☑ 3.7 Check the admin signs you out when idle — **run 5 passed 2026-10-26** on the upgrade admin
+
+**Run 5 (Claude, your Chrome, upgrade address with admin PR 26):** the admin was opened at 13:36:55 and not touched. At 14:08 the tab was on the sign-in page with "You were signed out after 30 minutes without activity. Sign in again." The admin's log shows no clock restart after 13:36:55, so nothing kept the session alive. **One more thing found:** when the idle time is up, each admin tab reloads itself, and the server counted that reload as activity. With **two** admin tabs open a few minutes apart, each tab's reload would restart the clock before the other ran out, so you would never be signed out. That may explain the earlier misses. Claude fixed it on the local admin branch `fix/admin-idle-guard-background-check` (the idle tab now asks the server in the background instead of reloading). It is **not pushed yet**: say "push the idle fix" and Claude opens the PR. After that, the old address `taskdrop-admin.vercel.app` still has the old code until you promote `redesigned-2.0` to `main`.
+
+Earlier history: Claude tried twice 2026-10-25: once it signed out by itself after about 30 minutes, once a click after 32 minutes still worked (P2-43). Run 3 on 2026-10-26 was **void**: the Vercel log shows someone opened payout rows in the admin tab at 11:48 to 11:49 (not Claude), which restarted the 30-minute clock. **Run 4 (12:11 to 12:50 on 2026-10-26) did not sign out:** a click 39 minutes after the last one still loaded, with a 30-minute limit. Claude did not touch the tab; it could not prove nobody else did. The likely cause is in the admin code: some of Next's background page prefetches are counted as "you are active" (P2-43). Claude fixed it on 2026-10-26 (admin PR 26: every kind of Next prefetch is now ignored, and the admin logs what restarts the idle clock). **The fix is only in the upgrade admin** (`taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app`); the address `taskdrop-admin.vercel.app` is the old **main** admin, which stays as it is until you promote `redesigned-2.0` to `main` by hand. Runs 3 and 4 were on that old address. Run 5 is on the upgrade address. Until it passes, sign out yourself when you leave the admin.
 
 1. Click: sign in to the new admin (task 2.4, steps 1 to 3).
 2. Leave it alone for 31 minutes.
@@ -456,9 +490,13 @@ The old app signed in as Asha and Ravi, posted a task, got an offer, no errors; 
 6. Click: open https://taskdrop-admin.vercel.app → sign in → open the **Dashboard**, then **Tasks**.
 7. Type to Claude: "The old app and old admin both work" (or what broke).
 
-### ☐ 3.9 The security checklist
+### ◐ 3.9 The security checklist — Claude's own T2 checks passed 2026-10-26
 
-1. Type to Claude: "Run testing_checks T2 and T11.2 to T11.5 with me." Claude tells you what to tap.
+**Done by Claude, no phone needed** (evidence in `docs/testing_checks.md`): T2.2 no secret under a public name; T2.3 the live website's code holds no secret (only the public Firebase web key, no Maps key, no source maps served); T2.6 the git history of both repos (one known item: the old Razorpay **test** keys, which you accepted on 2026-10-25); T2.11 the secrets file is ignored by git and EAS and is not on the website. Also checked: the App Check debug token is only in beta builds, never in the store build.
+
+**Left, with you:** T2.4 and T11.2 (the APK scan needs tools that are not on this PC; Claude can install them when you say so), T11.3 to T11.5 (phone plugged in), and the "You" items T2.5 (key restriction screenshots), T2.10 and T2.12 (two-step login on every account).
+
+1. Type to Claude: "Run testing_checks T11.2 to T11.5 with me. My phone is plugged in." Claude tells you what to tap.
 
 ---
 
@@ -534,15 +572,15 @@ Claude opened the new admin in your Chrome (already signed in as `hitendureacts@
 |---|---|
 | 6.1 Change the ImageKit key | ⏸ future scope: no key rotation |
 | 6.2 Upload photos four ways | ☑ done (web and phone) |
-| 6.3 Chat photo | ◐ works on web and phone; the full-size view is merged (app PR 85) but needs the phone update (START HERE step 2) |
-| 6.4 Photos in the admin | ◐ merged (admin PR 25); needs your two Vercel values (START HERE step 3) |
+| 6.3 Chat photo | ☑ done: the full-size view (app PR 85) reached the phone in update f0b7d18b on 2026-10-25 and opens |
+| 6.4 Photos in the admin | ◐ merged (admin PR 25); needs your two Vercel values (START HERE step 4) |
 | 6.5 Speed on mobile data | ⚠ not run: mobile data is off on your phone |
 
 **What Claude needs from you to finish (nothing else is open):**
 
-1. **Vercel, 2 values (6.4).** In project `taskdrop-admin` add `IMAGEKIT_PRIVATE_KEY` and `IMAGEKIT_URL_ENDPOINT`, copied from project `taskdrop` (clicks in 6.4). No key is changed. Do not paste them into the chat.
+1. **Vercel, 2 values (6.4).** In project `taskdrop-admin` add `IMAGEKIT_PRIVATE_KEY` and `IMAGEKIT_URL_ENDPOINT`, copied from your `.env.all-secrets` file or the ImageKit dashboard (clicks in 6.4; corrected 2026-10-26: the Vercel project `taskdrop` does **not** hold them). No key is changed. Do not paste them into the chat.
 2. **"Push" (6.3 and 6.4): done.** Both branches were merged into `redesigned-2.0` (app PR 85, admin PR 25) on 2026-10-25.
-3. **"Send the phone update" (6.3).** The merge is done, so say "publish the update" (it is part of START HERE step 2). Claude publishes an over-the-air update on the `beta` channel (a deploy), you open TaskDrop twice, and Claude checks on the phone that tapping a chat photo opens it full size.
+3. ~~"Send the phone update" (6.3).~~ Done 2026-10-25 (update f0b7d18b); a chat photo opens full size on the phone.
 4. **Mobile data and the cable (6.5).** Switch **Mobile data** on in the phone's settings, plug the phone in, and say "run the mobile data test". It uses a little of your data pack.
 5. **A look at the admin (6.4).** After the admin deploys, either open a job that has a photo (for example "Test camera photo phase 6") on the admin's **Jobs** page, or say "check the admin photos" and Claude looks in your Chrome.
 
@@ -571,7 +609,7 @@ A post photo (picker), a dropped file, a chat photo and a proof photo all went t
 4. Click (phone): post again with a photo from the **Gallery**.
 5. Type to Claude: "I uploaded 4 photos: file picker, drag and drop, camera and gallery. Check they reached ImageKit."
 
-### ◐ 6.3 Chat photo — web and phone done 2026-10-25 by Claude; one thing fails: a chat photo does not open full size
+### ☑ 6.3 Chat photo — done 2026-10-25 by Claude (web and phone; the full-size view reached the phone in update f0b7d18b and opens)
 
 Ravi sent a photo; the signed link opened for both Ravi and Asha (the image downloaded) and was refused for a stranger.
 
@@ -581,17 +619,19 @@ Ravi sent a photo; the signed link opened for both Ravi and Asha (the image down
 2. Click (phone, Asha): open the chat → tap the photo. It should open full size.
 3. Tell Claude whether it opened.
 
-### ◐ 6.4 Photos in the admin — built and merged into `redesigned-2.0` of the admin repo (admin PR 25, 2026-10-25); waits for your two Vercel values (START HERE step 3)
+### ◐ 6.4 Photos in the admin — built and merged into `redesigned-2.0` of the admin repo (admin PR 25, 2026-10-25); waits for your two Vercel values (START HERE step 4)
 
 **What Claude built:** the admin's **Jobs** page now has a "Photos and files" card with the job's own photo and every proof file the worker sent (each opens full size in a new tab), and the **Copyright** page shows the job photo beside each complaint so staff can compare. The links are signed on the server with the same method the app uses (a test checks it against the app's own signer, byte for byte) and expire within two hours; the keys never reach the browser. Older uploads in Supabase Storage show too. The admin's security policy now allows images from ImageKit and the Supabase project. If the two values are missing, the card says "ImageKit is not set up for the admin yet" instead of breaking. The admin's 94 automatic tests, typecheck and lint pass. **Not yet seen on screen:** it needs the two values and a deploy first.
 
-No new key is made: copy the values the `taskdrop` project already has. (An earlier version of this manual asked for a third value, `IMAGEKIT_ENV`. It is not needed.)
+No new key is made: copy the values the app already uses. (An earlier version of this manual asked for a third value, `IMAGEKIT_ENV`. It is not needed.)
 
-1. Click: Vercel → project **taskdrop** → **Settings** → **Environment Variables**, and open `IMAGEKIT_PRIVATE_KEY` and `IMAGEKIT_URL_ENDPOINT` (use the eye icon to show them; do not paste them into the chat).
-2. Click: Vercel → project **taskdrop-admin** → **Settings** → **Environment Variables** → **Add New**. Add these two, environments: all → **Save** each:
-   1. `IMAGEKIT_PRIVATE_KEY`: the same value as in `taskdrop`.
-   2. `IMAGEKIT_URL_ENDPOINT`: the same value as in `taskdrop` (it looks like `https://ik.imagekit.io/<your id>`).
-3. Type to Claude: "The two ImageKit values are in the admin's Vercel project. Push both Phase 6 branches."
+**Corrected 2026-10-26:** earlier versions said to copy them from the Vercel project `taskdrop`. Claude checked the variable names there (not the values): that project has **no** ImageKit values, and its build log says "not set in Vercel, left as they are in Supabase". Supabase does not show a secret's value once saved, so take them from one of these two places:
+
+1. Click: open `.env.all-secrets` in Notepad and find the lines `IMAGEKIT_PRIVATE_KEY=` and `IMAGEKIT_URL_ENDPOINT=`. (If they are empty there: https://imagekit.io/dashboard → **Developer options**: the **URL-endpoint** and the **Private key** (the eye or copy icon). Copy them; do not make a new key.)
+2. Click: Vercel → project **taskdrop-admin** → **Settings** → **Environment Variables** → **Add New**. Add these two, environments: all, tick **Sensitive** for the private key → **Save** each:
+   1. `IMAGEKIT_PRIVATE_KEY`: the private key (starts `private_`).
+   2. `IMAGEKIT_URL_ENDPOINT`: it looks like `https://ik.imagekit.io/<your id>`.
+3. Type to Claude: "The two ImageKit values are in the admin's Vercel project. Redeploy the admin and check the photos." (Both Phase 6 branches are already merged; a new admin build is needed so it reads the values.)
 
 ### ⚠ 6.5 Speed on mobile data (5 minutes) — not run 2026-10-25: mobile data is switched off on your phone
 
@@ -789,6 +829,8 @@ This is **Plan B: Production** (see "The two plans" above for the order and "Whe
 3. Tell Claude whether the money arrived.
 
 ### ☐ 10.9 Release on Google Play
+
+This is Way 2 of "Google Play Console: the two ways" (Plan B). Use only the production AAB that Claude builds in task 10.7, never the alpha AAB.
 
 1. Click: Play Console → **Test and release** → **Production** → **Create new release** → choose the build Claude names → **Next** → **Save** → **Send for review**.
 2. Wait for Google's approval email. TaskDrop is then live.
