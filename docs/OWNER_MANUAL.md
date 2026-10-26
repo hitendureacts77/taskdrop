@@ -48,30 +48,94 @@ While testing, any phone number signs in. The code is random each time and shown
 
 ---
 
-## YOUR TO-DO LIST: Phases 0 to 9 (what is still pending for you; updated 2026-10-26)
+## YOUR TO-DO LIST: Phases 0 to 9 (what is still pending for you; reordered 2026-10-26)
+
+**The order, and why.** The app comes first. You said you do not want the Android file (the AAB) built until the app and everything about staging are finished, because a file built early is out of date the moment anything changes. So this list has three parts:
+
+1. **Part 1, T1 to T7: finish the app and staging.** Decisions, keys, phone checks, the tour, staff, the runbook, a week of use. Nothing in Part 1 needs a store file.
+2. **Part 2, T8 to T11: the Play store.** Only after Part 1 is done. The AAB is built at the start of T10, from the final code, and uploaded the same day.
+3. **Part 3, T12: the switch-over.** Last.
 
 **Where things stand.** Phases 0, 1, 4, 5 (except RazorpayX), 7 and the staging guard rails (task A.1) are finished. Everything below is **yours**: a login, an ID, a decision, your phone, or just time. Claude cannot do these for you. Do them in this order; each has its own clicks. When one is done, tell Claude "done T3" (or whatever number) and Claude ticks it in this manual and in `docs/UPGRADE_PLAN.md`.
 
-**Google Play account (checked by Claude 2026-10-26):** it already exists. It is a **Personal** account named **NLNarasimhaRaju**, owned by **narasimharaju7c@gmail.com** (account ID 8373724576778921442). In Chrome it is the profile at `/u/0`, not `/u/2`. **No app is created in it yet**, and Google shows two banners that block publishing: **Verify your identity** and **Verify your contact phone number**. That is why T1 comes first. (The admin rule "sign in only as hitendureacts@gmail.com" is for the admin website. Play Console is a different thing and belongs to narasimharaju7c.)
+**The AAB that already exists (a draft, do not upload it).** On 2026-10-26 Claude built an early staging-store build (`cf96b86f`) and saved it at `C:\Users\naras\Downloads\taskdrop-staging-1.0.0.aab`. It is only a working draft and proof that the build works. Do **not** upload it. The one that goes to Google Play is built in T10, after the app is finished. The draft's file expires on 2026-11-25 anyway.
+
+**Google Play account (checked by Claude 2026-10-26):** it already exists. It is a **Personal** account named **NLNarasimhaRaju**, owned by **narasimharaju7c@gmail.com** (account ID 8373724576778921442). In Chrome it is the profile at `/u/0`, not `/u/2`. **No app is created in it yet**, and Google shows two banners that block publishing: **Verify your identity** and **Verify your contact phone number** (that is T8). (The admin rule "sign in only as hitendureacts@gmail.com" is for the admin website. Play Console is a different thing and belongs to narasimharaju7c.)
 
 | # | Task | Phase | Time | Blocks |
 |---|---|---|---|---|
-| T1 | Finish Google's identity and phone checks on the Play account | 8 | 15 min, then Google takes 1 to a few days | T2, T3, T6 |
-| T2 | Create the app in Play Console and enter the answers | 8 | 1 hour | T3 |
-| T3 | Upload the staging store build to Internal testing, then Closed testing | 8 | 30 min | T6 |
-| T4 | Answer five decisions in the chat | 8, 2 | 20 min | exit gate |
-| T5 | Two ImageKit values in the admin's Vercel project | 6 | 5 min | admin photos |
-| T6 | Recruit 12 testers and keep them in Closed testing for 14 days | 8 | 14 days | Phase 9 |
-| T7 | Phone checks with your phone plugged in (job on the phone, security checks, mobile data) | 2, 3, 6 | 45 min | exit gate |
-| T8 | Read the runbook | 8 | 20 min | exit gate |
-| T9 | Approve the app tour design | 8 | 10 min | the tour build |
-| T10 | Add your admin staff | A.3 | 10 min | staff access |
-| T11 | Use the app for a week, then ask for the slow-screen check | 2 | 1 week | exit gate |
+| | **Part 1: finish the app and staging** | | | |
+| T1 | Answer five decisions in the chat | 8, 2 | 20 min | the legal pages, the exit gate |
+| T2 | Two ImageKit values in the admin's Vercel project | 6 | 5 min | admin photos |
+| T3 | Approve the app tour design | 8 | 10 min | the tour build |
+| T4 | Add your admin staff | A.3 | 10 min | staff access |
+| T5 | Phone checks with your phone plugged in (job on the phone, security checks, mobile data) | 2, 3, 6 | 45 min | exit gate |
+| T6 | Read the runbook | 8 | 20 min | exit gate |
+| T7 | Use the app for a week, then ask for the slow-screen check; Claude then declares "the app is finished" | 2 | 1 week | T10 |
+| | **Part 2: the Play store (only after T7)** | | | |
+| T8 | Finish Google's identity and phone checks on the Play account | 8 | 15 min, then Google takes 1 to a few days | T9, T10, T11 |
+| T9 | Create the app in Play Console and enter the answers | 8 | 1 hour | T10 |
+| T10 | Build the final AAB, then upload it to Internal testing and Closed testing | 8 | 1 hour | T11 |
+| T11 | Recruit 12 testers and keep them in Closed testing for 14 days | 8 | 14 days | Phase 9 |
+| | **Part 3: the switch-over** | | | |
 | T12 | Phase 9: approve and run the switch-over | 9 | 1 hour | last |
 
-Things that are **not** yours to do now: key rotation (3.2, 6.1), Safari and iOS, RazorpayX and live Razorpay (Plan B, task 10.3), and the admin authenticator. They are future scope.
+Things that are **not** yours to do now: key rotation (3.2, 6.1), Safari and iOS, RazorpayX and live Razorpay (Plan B, task 10.3), the admin authenticator, and OneSignal push campaigns (F.3). They are future scope.
 
-### ☐ T1 Finish Google's checks on the Play account (Phase 8, task 8.3 steps 1 to 2)
+## Part 1: finish the app and staging
+
+### ☐ T1 Five decisions (answer in the chat, one line each) (tasks 8.1, 8.2 and Phase 2)
+
+1. **Map (8.1).** Reply: "Keep OpenStreetMap while testing." The decision about a paid-friendly provider can wait until before launch.
+2. **Legal details (8.2).** Type to Claude, filled in: "Legal details for the Terms and Privacy pages: business or legal name …, address …, email hitendureacts@gmail.com, grievance officer name …, grievance officer email …, courts in (city) …". Until you do, the Privacy page says "Draft, under legal review" and shows no Grievance Officer.
+3. **Profiles show a rounded place and "last seen" (P2-33).** Reply "keep" or "hide".
+4. **Razorpay test links (P2-36).** The test mode allows 30 payment links and they are used up, and the checkout offered no UPI. Either: (a) click: Razorpay dashboard → switch to **Test mode** (top) → **Payment Links** → cancel the old links, and check **Settings** → **Payment methods** has UPI on; or (b) reply "accept; top-up is tested later". Claude does not touch Razorpay.
+5. **Sales tester `hitendu7@gmail.com`.** Reply "remove it" or "leave it". (Tell Claude the staff you want instead in T4.)
+
+### ☐ T2 Two ImageKit values in the admin's Vercel project (task 6.4)
+
+So the admin's Jobs and Copyright pages show photos. No new key is made; you copy what the app already uses.
+
+1. Click: open `.env.all-secrets` in Notepad (in the `C:\complete taskdrop` folder) and find the lines `IMAGEKIT_PRIVATE_KEY=` and `IMAGEKIT_URL_ENDPOINT=`. If they are empty: https://imagekit.io/dashboard → **Developer options** → copy the **URL-endpoint** and the **Private key**. Do not create a new key.
+2. Click: Vercel → project **taskdrop-admin** → **Settings** → **Environment Variables** → **Add New**. Add `IMAGEKIT_PRIVATE_KEY` (starts `private_`; tick **Sensitive**) and `IMAGEKIT_URL_ENDPOINT` (looks like `https://ik.imagekit.io/<your id>`). Environments: all. **Save** each.
+3. Type to Claude: "The two ImageKit values are in the admin's Vercel project. Redeploy the admin and check the photos."
+
+### ☐ T3 Approve the app tour design (Phase 8)
+
+The tour is **not built yet** on purpose: your rule is that the design is approved before anything clickable is made. It is part of the app, so it has to be approved and built before the store file.
+
+1. Type to Claude: "Show me the tour design." Claude sends one still picture per step, the list of steps and the wording.
+2. Click: look at them. Reply **approved**, or say what to change (for example "shorter text" or "move the money step earlier").
+3. After approval, Claude builds it, tests it on web and on the phone, and merges it by pull request.
+
+### ☐ T4 Add your admin staff (task A.3 step 4)
+
+1. Type to Claude: "Add these people as admin staff:" and list each name, email and role (**Sales**, **Support**, **Finance** or **Viewer**). Only people who help run the staging need this.
+
+### ☐ T5 Phone checks (tasks 2.2, 3.9 and 6.5)
+
+Do these together in one sitting. Plug the phone into the PC and unlock it.
+
+1. **Job on the phone (2.2).** Type to Claude: "Run the job on the phone." Claude tells you what to tap as Asha (`9990000001`) while Ravi (`9990000002`) works on the PC.
+2. **Security checks (3.9).** Type to Claude: "Run testing_checks T11.2 to T11.5 with me. My phone is plugged in." For T2.5 take screenshots of the key restrictions in Google Cloud and send them. For T2.10 and T2.12 switch on two-step login on every account you own (Google, Supabase, Vercel, GitHub, Expo, Sentry, Razorpay) and tell Claude when done.
+3. **Mobile data speed (6.5).** First: phone **Settings** → **Mobile data** (or SIM) → turn on. Then type to Claude: "Run the mobile data test." (It uses a little of your data pack.) Turn it off again afterwards if you like.
+
+### ☐ T6 Read the runbook (task 8.5)
+
+1. Click: open `docs/RUNBOOK.md` in the repo folder and read it once (about 20 minutes).
+2. Tell Claude anything that is wrong or different from how you would really handle it.
+
+### ☐ T7 A week of normal use, then "the app is finished" (task 2.6, then A.4 for the app)
+
+1. Click: use the app normally for a week, on your phone and on the website.
+2. Type to Claude: "Check slow queries and slow operations in Sentry and fix the top ones."
+3. When T1 to T6 are done and the slow-screen fixes are in, type: "Check that the app and staging are finished." Claude checks that Sentry is quiet, no serious issue is open, the whole fake job works on web, Android and admin, and that the test data on screen is clean (so the Play screenshots look right). Claude replies "finished" or lists what is left. **Only after that reply do you start T10.**
+
+## Part 2: the Play store (only after T7 says "finished")
+
+### ☐ T8 Finish Google's checks on the Play account (Phase 8, task 8.3 steps 1 to 2)
+
+This does not involve the app file, and Google's check takes days. If you want to save time you may start it while Part 1 is going on. It is listed here because nothing in Play can start until it is done.
 
 Google will not let any app be published until both banners on the account home page are done.
 
@@ -80,11 +144,11 @@ Google will not let any app be published until both banners on the account home 
 3. Click: choose the type of ID Google lists, then upload a clear photo or scan of it. The name on it must match the name on the Play account. Do not edit or crop the document in a way that changes it; Google warns that this makes the check fail.
 4. Click: back on Home, next to **Verify your contact phone number** click **View details** and follow the steps (Google sends a code to your phone). If it also asks you to check an Android device, install the **Google Play Console** app from the Play Store on your phone, sign in as narasimharaju7c@gmail.com and approve.
 5. Wait. Google says the ID check can take several days. The two banners disappear when it is done.
-6. Tell Claude: "Play account is verified." (A screenshot of the Home page without the two banners is fine.)
+6. Tell Claude: "Play account is verified." (A screenshot of the Home page without the two banners is fine.) Claude last looked on 2026-10-26: both banners were still there.
 
-### ☐ T2 Create the app and enter the answers (Phase 8, tasks 8.3 and 8.2)
+### ☐ T9 Create the app and enter the answers (Phase 8, tasks 8.3 and 8.2)
 
-Do this after T1 shows verified. Everything is already written for you in `docs/PLAY_STORE.md`; the icon and the feature graphic are in `docs/store/` (`icon-512.png`, `feature-graphic.png`).
+Do this after T8 shows verified and T7 says "finished". Everything is already written for you in `docs/PLAY_STORE.md`; the icon and the feature graphic are in `docs/store/` (`icon-512.png`, `feature-graphic.png`).
 
 1. Click: Play Console → **Create app**. App name: `taskdrop`. Default language: **English (India)**. **App**. **Free**. Tick the declarations. **Create app**.
 2. Type to Claude: "Give me the Play Console answers: data safety, content rating, ads, app access, target audience." Claude sends every answer, copied from the code.
@@ -92,38 +156,24 @@ Do this after T1 shows verified. Everything is already written for you in `docs/
    1. **Privacy policy:** `https://taskdrop.in/?page=privacy`
    2. **App access:** "All or some functionality is restricted". Test phone `9990000001`, note: "the 6-digit code is shown on screen in a Test mode box; type it in".
    3. **Ads:** no ads. **Content rating:** answer the questionnaire as Claude says. **Target audience:** 18 and over. **Data safety:** as Claude drafted.
-4. Type to Claude: "Take the Play screenshots." (Plug your phone in and unlock it first. Claude takes them from the staging app.)
+4. Type to Claude: "Take the final Play screenshots." (Plug your phone in and unlock it first.) Claude takes them from the finished staging app and crops them to Play's size. A set of five drafts from 2026-10-26 is in `C:\Users\naras\Downloads\taskdrop-play-screenshots\`; they are from before the app was finished and two of them show leftover test rows ("Bsnsnms", "TEST:", "[e2e-phone]"), so do not use them for the real listing.
 5. Click: **Grow users** → **Store presence** → **Main store listing**. Paste the short and full descriptions from `docs/PLAY_STORE.md`, upload the icon, the feature graphic and the screenshots → **Save**.
 6. Optional: if you would rather not type these in, say "Fill the Play Console for me" and watch your Chrome. Claude types the answers into the forms. **You** click every declaration and every Save or Send for review.
 
-### ☐ T3 Upload the staging store build (Phase 8, task 8.4)
+### ☐ T10 Build the final AAB, then upload it (Phase 8, task 8.4)
 
-**Use the new build, not the old link.** The build made on 2026-10-24 is retired: it has no staging ribbon and no update channel, so testers on Google Play would never receive fixes. Claude made a new profile, `staging-store` (merged as taskdrop PR 99), and started the build on 2026-10-26: https://expo.dev/accounts/hitendureacts/projects/taskdrop/builds/cf96b86f-b6f7-4ff2-94b3-f93a8b8db9ca . It takes about 15 to 20 minutes and its file is kept 30 days (until 2026-11-25); after that say "Build the store version (AAB)" again. It uses the fake-money test project and is on the `beta` update channel, so later fixes reach testers without a new upload. Never put it in the **Production** track.
+Start this only when T7 has said "finished" and T8 shows verified.
 
-1. Click: open the build page above. When it says **Finished**, click **Download** and save the `.aab` file.
-2. Click: Play Console → your app → **Test and release** → **Testing** → **Internal testing** → **Create new release**. Upload the `.aab`. If Google asks about **Play App Signing**, accept it. **Next** → **Save** → **Start rollout**.
+**Why it is built now and not earlier.** A store file is a snapshot of the code on the day it is built. Building it last means it contains everything from Part 1. Claude uses the `staging-store` profile (merged as taskdrop PR 99): the fake-money test project, the `beta` update channel (so small fixes later reach testers without a new upload), and the staging ribbon. Never put it in the **Production** track.
+
+1. Type to Claude: "The app is finished. Build the store version (AAB)." Claude builds it from the final code (about 15 to 20 minutes), downloads it and tells you the file path. (Claude checks the build page for you; you do not need to open anything.)
+2. Click: Play Console → your app → **Test and release** → **Testing** → **Internal testing** → **Create new release**. Upload the `.aab` Claude gave you. If Google asks about **Play App Signing**, accept it. **Next** → **Save** → **Start rollout**.
 3. Click: **Testers** tab of Internal testing → **Create email list** → add the Gmail addresses of people who should try it first (up to 100) → **Save**. Copy the **opt-in link** and send it to them. They can install in minutes. There is no Google review for Internal testing.
 4. Click: **Testing** → **Closed testing** → **Create track** (any name, for example `staging testers`) → **Create new release** → upload the **same** `.aab` → **Save** → **Send for review**. Closed testing may take Google a day or more to approve.
 5. Click: in Play Console → **Setup** → **App signing**, copy the **SHA-256 certificate fingerprint** and send it to Claude. Claude adds it to the Android app's Play Integrity settings (task 3.5, step 4), so App Check works for Play-installed copies.
 6. Tell Claude: "The AAB is in Internal and Closed testing."
 
-### ☐ T4 Five decisions (answer in the chat, one line each) (tasks 8.1, 8.2 and Phase 2)
-
-1. **Map (8.1).** Reply: "Keep OpenStreetMap while testing." The decision about a paid-friendly provider can wait until before launch.
-2. **Legal details (8.2).** Type to Claude, filled in: "Legal details for the Terms and Privacy pages: business or legal name …, address …, email hitendureacts@gmail.com, grievance officer name …, grievance officer email …, courts in (city) …". Until you do, the Privacy page says "Draft, under legal review" and shows no Grievance Officer.
-3. **Profiles show a rounded place and "last seen" (P2-33).** Reply "keep" or "hide".
-4. **Razorpay test links (P2-36).** The test mode allows 30 payment links and they are used up, and the checkout offered no UPI. Either: (a) click: Razorpay dashboard → switch to **Test mode** (top) → **Payment Links** → cancel the old links, and check **Settings** → **Payment methods** has UPI on; or (b) reply "accept; top-up is tested later". Claude does not touch Razorpay.
-5. **Sales tester `hitendu7@gmail.com`.** Reply "remove it" or "leave it". (Tell Claude the staff you want instead in T10.)
-
-### ☐ T5 Two ImageKit values in the admin's Vercel project (task 6.4)
-
-So the admin's Jobs and Copyright pages show photos. No new key is made; you copy what the app already uses.
-
-1. Click: open `.env.all-secrets` in Notepad (in the `C:\complete taskdrop` folder) and find the lines `IMAGEKIT_PRIVATE_KEY=` and `IMAGEKIT_URL_ENDPOINT=`. If they are empty: https://imagekit.io/dashboard → **Developer options** → copy the **URL-endpoint** and the **Private key**. Do not create a new key.
-2. Click: Vercel → project **taskdrop-admin** → **Settings** → **Environment Variables** → **Add New**. Add `IMAGEKIT_PRIVATE_KEY` (starts `private_`; tick **Sensitive**) and `IMAGEKIT_URL_ENDPOINT` (looks like `https://ik.imagekit.io/<your id>`). Environments: all. **Save** each.
-3. Type to Claude: "The two ImageKit values are in the admin's Vercel project. Redeploy the admin and check the photos."
-
-### ☐ T6 Twelve testers for 14 days (task 8.6)
+### ☐ T11 Twelve testers for 14 days (task 8.6)
 
 Google requires this before it allows a production release. The 14 days count from the day 12 testers have opted in, and they must stay opted in the whole time. This cannot be sped up.
 
@@ -133,35 +183,7 @@ Google requires this before it allows a production release. The 14 days count fr
 4. Click: write the date the 12th person opted in. Count 14 days from it. Ask testers to open the app and do the core-flow checklist (`docs/ANDROID_TEST_PLAN.md`) at least a few times in those 14 days.
 5. Tell Claude: "The 14 days are done." Claude then checks the exit gate (task A.4): Sentry quiet for 7 days, no serious open issue, the whole fake job working on web, Android and admin.
 
-### ☐ T7 Phone checks (tasks 2.2, 3.9 and 6.5)
-
-Do these together in one sitting. Plug the phone into the PC and unlock it.
-
-1. **Job on the phone (2.2).** Type to Claude: "Run the job on the phone." Claude tells you what to tap as Asha (`9990000001`) while Ravi (`9990000002`) works on the PC.
-2. **Security checks (3.9).** Type to Claude: "Run testing_checks T11.2 to T11.5 with me. My phone is plugged in." For T2.5 take screenshots of the key restrictions in Google Cloud and send them. For T2.10 and T2.12 switch on two-step login on every account you own (Google, Supabase, Vercel, GitHub, Expo, Sentry, Razorpay) and tell Claude when done.
-3. **Mobile data speed (6.5).** First: phone **Settings** → **Mobile data** (or SIM) → turn on. Then type to Claude: "Run the mobile data test." (It uses a little of your data pack.) Turn it off again afterwards if you like.
-
-### ☐ T8 Read the runbook (task 8.5)
-
-1. Click: open `docs/RUNBOOK.md` in the repo folder and read it once (about 20 minutes).
-2. Tell Claude anything that is wrong or different from how you would really handle it.
-
-### ☐ T9 Approve the app tour design (Phase 8)
-
-The tour is **not built yet** on purpose: your rule is that the design is approved before anything clickable is made.
-
-1. Type to Claude: "Show me the tour design." Claude sends one still picture per step, the list of steps and the wording.
-2. Click: look at them. Reply **approved**, or say what to change (for example "shorter text" or "move the money step earlier").
-3. After approval, Claude builds it, tests it on web and on the phone, and merges it by pull request.
-
-### ☐ T10 Add your admin staff (task A.3 step 4)
-
-1. Type to Claude: "Add these people as admin staff:" and list each name, email and role (**Sales**, **Support**, **Finance** or **Viewer**). Only people who help run the staging need this.
-
-### ☐ T11 A week of normal use, then the slow-screen check (task 2.6)
-
-1. Click: use the app normally for a week, on your phone and on the website.
-2. Type to Claude: "Check slow queries and slow operations in Sentry and fix the top ones."
+## Part 3: the switch-over
 
 ### ☐ T12 Phase 9: the switch-over (tasks 9.1 to 9.4)
 
@@ -177,7 +199,7 @@ The tour is **not built yet** on purpose: your rule is that the design is approv
 
 - Idle fix: done (admin PR 27, merged). Still to do: the two-tab test once (task 3.7, P2-43), which needs you at the keyboard.
 - Old remote branches: removed 2026-10-26 (all were fully merged). Still to do: "recheck the Terms and Privacy staging notice in the app" and "check the other screens on my phone".
-- "Recheck the Terms and Privacy staging notice in the app", "check the other screens on my phone" and "remove the old remote branches" (`claude/staging-backend-4289e1`, `feat/staging-guard-rails-app`, `fix/staging-ribbon-gap` and the finished docs branch).
+- Staging notice and other screens on the phone: rechecked 2026-10-26 (update `be84c00a`). Terms and Privacy show the Staging box and the ribbon sits directly under the status bar with no gap; Help & support, Account & settings and My complaints also have no gap. Still unchecked on the phone: the other pushed screens (task page, chat, offers, withdrawals) and the signed-in admin pages.
 - "Run the e2e tests again here" (task 2.5; the GitHub run waits for `main`, Phase 9).
 
 ---
@@ -198,7 +220,7 @@ Claude checked everything in Phases 0 to 8 that can be checked without you (evid
 | 4 | **Two values in the admin's Vercel project** (the ImageKit photo values, copied from `.env.all-secrets`), so the admin shows job photos. | You | 5 min | Task 6.4 |
 | 5 | ~~Admin idle sign-out test.~~ **Run 5 passed 2026-10-26** on the upgrade admin (signed out after 30 idle minutes, with the message). A fix for two open admin tabs keeping each other alive is ready on a local branch; say "push the idle fix". | Claude | done | Task 3.7 |
 | 6 | **Your decisions:** the map for the store version, the legal details, whether profiles may show a rounded place and "last seen", and the Razorpay test-link limit. | You, in the chat | 20 min | Tasks 8.1, 8.2 and the list under "Decisions" below |
-| 7 | **Google Play Console, Way 1 (testing, fake data).** The Play account exists (narasimharaju7c@gmail.com, Personal) but needs Google's identity and phone checks first; see T1 to T3 in the to-do list above. Then create the app, enter the answers, upload the store build to Internal and Closed testing only (see "Google Play Console: the two ways"). Use the new `staging-store` build (started 2026-10-26, file kept until 2026-11-25); the 2026-10-24 build is retired. | You | 1 to 2 hours (Google may take days to check your ID) | Tasks 8.3, 8.4 |
+| 7 | **Google Play Console, Way 1 (testing, fake data).** The Play account exists (narasimharaju7c@gmail.com, Personal) but needs Google's identity and phone checks first; see T8 to T11 in the to-do list above. These come after the app is finished (T1 to T7): create the app, enter the answers, then build the final AAB and upload it to Internal and Closed testing only (see "Google Play Console: the two ways"). The AAB is built last, at T10, with the `staging-store` profile; the draft build of 2026-10-26 and the 2026-10-24 build are not uploaded. | You | 1 to 2 hours (Google may take days to check your ID) | Tasks 8.3, 8.4 |
 | 8 | **Read the runbook** and finish the security checklist (Claude's own T2 checks passed on 2026-10-26; the phone and "You" items are left). | You | 30 min | Tasks 8.5, 3.9 |
 | 9 | **Mobile data speed test.** Switch Mobile data on in the phone's settings first. | You say go; Claude times it | 10 min | Task 6.5 |
 | 10 | **A week of normal use,** then ask Claude for the slow-screen check. | You | 1 week | Task 2.6 |
@@ -847,7 +869,7 @@ Warn, close report, hide message and hide job each have a row; the page now says
 
 ### ◐ 8.3 Set up the app in Google Play Console (1 to 2 hours, and Google may take days to check your ID)
 
-**Status 2026-10-26:** your Play account already exists (Personal, narasimharaju7c@gmail.com, Chrome profile `/u/0`). Google still wants **Verify your identity** and **Verify your contact phone number**, and no app is created yet. Full clicks: tasks T1 and T2 in the to-do list at the top. **Claude's part is done (2026-10-24):** every answer and the store texts are in `docs/PLAY_STORE.md`; the 512×512 icon and a plain 1024×500 feature graphic are in `docs/store/`. Still yours: steps 1 to 3 below, entering the answers (step 5), and phone screenshots (type "take the Play screenshots" with your phone plugged in). Skip steps 4 and 6; they are already done.
+**Status 2026-10-26:** your Play account already exists (Personal, narasimharaju7c@gmail.com, Chrome profile `/u/0`). Google still wants **Verify your identity** and **Verify your contact phone number**, and no app is created yet. Full clicks: tasks T8 and T9 in the to-do list at the top (after the app is finished, T1 to T7). **Claude's part is done (2026-10-24):** every answer and the store texts are in `docs/PLAY_STORE.md`; the 512×512 icon and a plain 1024×500 feature graphic are in `docs/store/`. Still yours: steps 1 to 3 below, entering the answers (step 5), and final phone screenshots (type "take the final Play screenshots" with your phone plugged in, after the app is finished). Skip steps 4 and 6; they are already done.
 
 1. Click: open https://play.google.com/console and sign in with the Google account that should own the app.
 2. If you have no developer account yet: choose **Personal**, pay the **$25**, and verify your identity with the ID document Google asks for.
@@ -860,9 +882,9 @@ Warn, close report, hide message and hide job each have a row; the page now says
 6. Type to Claude: "Make the store listing: short and full description, a 512×512 icon, a 1024×500 feature graphic and phone screenshots."
 7. Click: **Grow users** → **Store presence** → **Main store listing** → paste the texts and upload the pictures Claude made → **Save**.
 
-### ◐ 8.4 Upload the store build (new build started 2026-10-26; file kept until 2026-11-25; after that, type "Build the store version (AAB)")
+### ◐ 8.4 Build the final store file and upload it (built last, at task T10, after the app is finished)
 
-**Retired 2026-10-26:** the 2026-10-24 build had no staging ribbon and no update channel. The new `staging-store` build (taskdrop PR 99, started 2026-10-26, kept until 2026-11-25) is on the build page https://expo.dev/accounts/hitendureacts/projects/taskdrop/builds/cf96b86f-b6f7-4ff2-94b3-f93a8b8db9ca ; the full clicks are task **T3** in the to-do list at the top. Steps 3 to 5 below still apply.
+**Order (owner, 2026-10-26):** the AAB is built only after the app and everything about staging are finished (to-do list T1 to T7), so the file holds the final code. Retired: the 2026-10-24 build (no staging ribbon, no update channel). A draft of the new `staging-store` profile (taskdrop PR 99) was built once on 2026-10-26 to prove it works; it is not uploaded. The full clicks are task **T10** in the to-do list at the top. Steps 3 to 5 below still apply.
 
 1. Type to Claude: "Build the store version (AAB)."
 2. Click: Claude gives you a download link. Download the `.aab` file.
