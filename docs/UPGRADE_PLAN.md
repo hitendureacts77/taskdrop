@@ -683,7 +683,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 
 *You*
 - [x] **(You)** Approve the staging wording and the ribbon (static design first, as always)
-- [ ] **(You)** Publish: send testers the `beta` APK; make the Play Console app (account exists, identity check pending, see owner manual T1), upload the new `staging-store` AAB to **Internal testing** and to **Closed testing**; invite the admin's staff (owner manual tasks 8.3, 8.4, 8.6)
+- [ ] **(You)** Publish: send testers the `beta` APK; make the Play Console app (account exists, identity check pending, see owner manual T8 and T9), then, **only after the app and staging are finished** (owner rule 2026-10-26: build the AAB last, owner manual T10), build the final `staging-store` AAB and upload it to **Internal testing** and to **Closed testing**; invite the admin's staff (owner manual tasks 8.3, 8.4, 8.6)
 
 *Verify*
 - [ ] With the Razorpay test keys, a test checkout works; with a `rzp_live_` key set on the staging project the money functions refuse to start (tried on a throwaway key name, never a real live key)
