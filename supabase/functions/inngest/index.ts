@@ -3,6 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { Inngest } from "npm:inngest@4.23.0";
 import { serve } from "npm:inngest@4.23.0/edge";
 import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
+import { guardKey } from "../_shared/keyGuard.ts";
 import { captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
 import {
@@ -166,6 +167,9 @@ const nightlyReconcile = inngest.createFunction(
       const id = await secret("RAZORPAY_KEY_ID");
       const key = await secret("RAZORPAY_KEY_SECRET");
       if (!id || !key) return { skipped: "Razorpay is not configured" };
+      // Read-only, but a wrong kind of key is still reported and not used.
+      const wrongKey = await guardKey(db, "inngest", id);
+      if (wrongKey) return { skipped: wrongKey.body.error };
       const rows = (await call<ProviderPayment[] | null>(rpc, "reconcile_provider_candidates", { p_days: 3 })) ?? [];
       const headers = { Authorization: `Basic ${btoa(`${id}:${key}`)}` };
       const mismatches: ProviderMismatch[] = [];

@@ -12,7 +12,11 @@ import { captureServerError } from "../_shared/monitoring.ts";
  *
  *   GET /functions/v1/app-config?platform=android&version=1.2.0
  *   (or the x-taskdrop-platform / x-taskdrop-app-version headers)
- *   ->  { platform, appVersion, maintenance, update, features, banner, ttlSeconds }
+ *   ->  { platform, appVersion, maintenance, update, features, requirePhoneVerified,
+ *         environment, banner, ttlSeconds }
+ *
+ * `environment` is "staging" (fake money; the apps and the admin show a ribbon)
+ * or "production". When the switches cannot be read it stays "staging".
  *
  * Public on purpose: the app asks before anyone has signed in (maintenance and
  * "update the app" must show on the sign-in screen too), and nothing here is
