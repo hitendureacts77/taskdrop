@@ -92,7 +92,8 @@ Do this after T1 shows verified. Everything is already written for you in `docs/
    1. **Privacy policy:** `https://taskdrop.in/?page=privacy`
    2. **App access:** "All or some functionality is restricted". Test phone `9990000001`, note: "the 6-digit code is shown on screen in a Test mode box; type it in".
    3. **Ads:** no ads. **Content rating:** answer the questionnaire as Claude says. **Target audience:** 18 and over. **Data safety:** as Claude drafted.
-4. Type to Claude: "Take the Play screenshots." (Plug your phone in and unlock it first. Claude takes them from the staging app.)
+4. **Screenshots are ready** (taken by Claude from your phone on 2026-10-26, cropped to 1080 x 2160 as Play requires): `C:Users
+arasDownloads	askdrop-play-screenshots` holds `1-home.png`, `2-explore.png`, `3-my-tasks.png`, `4-wallet.png`, `5-profile.png`. They come from a test account. **Use 1, 2 and 5 for the staging listing.** 3 and 4 show leftover test rows ("Bsnsnms", "TEST:", "[e2e-phone]"), so skip them, or ask Claude to clean the test data and retake them. Retake all of them before launch.
 5. Click: **Grow users** → **Store presence** → **Main store listing**. Paste the short and full descriptions from `docs/PLAY_STORE.md`, upload the icon, the feature graphic and the screenshots → **Save**.
 6. Optional: if you would rather not type these in, say "Fill the Play Console for me" and watch your Chrome. Claude types the answers into the forms. **You** click every declaration and every Save or Send for review.
 
@@ -100,7 +101,8 @@ Do this after T1 shows verified. Everything is already written for you in `docs/
 
 **Use the new build, not the old link.** The build made on 2026-10-24 is retired: it has no staging ribbon and no update channel, so testers on Google Play would never receive fixes. Claude made a new profile, `staging-store` (merged as taskdrop PR 99), and started the build on 2026-10-26: https://expo.dev/accounts/hitendureacts/projects/taskdrop/builds/cf96b86f-b6f7-4ff2-94b3-f93a8b8db9ca . It takes about 15 to 20 minutes and its file is kept 30 days (until 2026-11-25); after that say "Build the store version (AAB)" again. It uses the fake-money test project and is on the `beta` update channel, so later fixes reach testers without a new upload. Never put it in the **Production** track.
 
-1. Click: open the build page above. When it says **Finished**, click **Download** and save the `.aab` file.
+1. **The build finished and Claude already downloaded it:** `C:Users
+arasDownloads	askdrop-staging-1.0.0.aab` (about 90 MB, from build `cf96b86f`, checked 2026-10-26). You do not need to download anything. (If you ever want it again, open the build page above and click **Download**.)
 2. Click: Play Console → your app → **Test and release** → **Testing** → **Internal testing** → **Create new release**. Upload the `.aab`. If Google asks about **Play App Signing**, accept it. **Next** → **Save** → **Start rollout**.
 3. Click: **Testers** tab of Internal testing → **Create email list** → add the Gmail addresses of people who should try it first (up to 100) → **Save**. Copy the **opt-in link** and send it to them. They can install in minutes. There is no Google review for Internal testing.
 4. Click: **Testing** → **Closed testing** → **Create track** (any name, for example `staging testers`) → **Create new release** → upload the **same** `.aab` → **Save** → **Send for review**. Closed testing may take Google a day or more to approve.
@@ -177,7 +179,7 @@ The tour is **not built yet** on purpose: your rule is that the design is approv
 
 - Idle fix: done (admin PR 27, merged). Still to do: the two-tab test once (task 3.7, P2-43), which needs you at the keyboard.
 - Old remote branches: removed 2026-10-26 (all were fully merged). Still to do: "recheck the Terms and Privacy staging notice in the app" and "check the other screens on my phone".
-- "Recheck the Terms and Privacy staging notice in the app", "check the other screens on my phone" and "remove the old remote branches" (`claude/staging-backend-4289e1`, `feat/staging-guard-rails-app`, `fix/staging-ribbon-gap` and the finished docs branch).
+- Staging notice and other screens on the phone: rechecked 2026-10-26 (update `be84c00a`). Terms and Privacy show the Staging box and the ribbon sits directly under the status bar with no gap; Help & support, Account & settings and My complaints also have no gap. Still unchecked on the phone: the other pushed screens (task page, chat, offers, withdrawals) and the signed-in admin pages.
 - "Run the e2e tests again here" (task 2.5; the GitHub run waits for `main`, Phase 9).
 
 ---
