@@ -1,6 +1,6 @@
 # TaskDrop owner manual: what to click, phase by phase
 
-This is your part of `docs/UPGRADE_PLAN.md`, written as clicks. Start with **START HERE** below: it lists what is left, in order. Then open the task it points to. Tick a task's box when you finish it. Last updated 2026-10-26.
+This is your part of `docs/UPGRADE_PLAN.md`, written as clicks. There are **two plans** (your request, 2026-10-26): **Plan A, Alpha**, the published app and website with fake data and fake money, and **Plan B, Production**, real money and real things, later. Read "The two plans" section (after START HERE) once; it lists every payment production needs. Start with **START HERE** below: it lists what is left, in order. Then open the task it points to. Tick a task's box when you finish it. Last updated 2026-10-26.
 
 ## How to read this manual
 
@@ -58,14 +58,16 @@ Claude checked everything in Phases 0 to 8 that can be checked without you (evid
 |---|---|---|---|---|
 | 1 | ~~Fix Google sign-in~~ **Done 2026-10-26**, tested on web, admin and Android. | Done | - | Task 0.1 |
 | 2 | **Phone session: done 2026-10-25 by Claude** (build `505485f8` installed; App Check proven on Android: the server logged `valid` for 74 calls from the phone; the update for the chat-photo viewer is on the phone and the full-size photo opens; App Check PR 84 merged). Still open from this step: the web App Check proof (needs one signed-in visit to taskdrop.in, so it waits for step 1), and a fresh Android job run. | Claude | done | Tasks 2.2, 3.5, 6.3 |
-| 3 | **Two values in the admin's Vercel project** (the ImageKit photo values), so the admin shows job photos. | You | 5 min | Task 6.4 |
-| 4 | **Admin idle sign-out test.** Needs step 1 first (a working admin login), then 31 minutes of waiting. | Claude, in your Chrome | 35 min, mostly waiting | Task 3.7 |
-| 5 | **Your decisions:** the map for the store version, the legal details, whether profiles may show a rounded place and "last seen", and the Razorpay test-link limit. | You, in the chat | 20 min | Tasks 8.1, 8.2 and the list under "Decisions" below |
-| 6 | **Google Play Console:** create the app, enter the answers, upload the store build. The store build file **expires on 2026-11-23**; after that say "build the store version again". | You | 1 to 2 hours (Google may take days to check your ID) | Tasks 8.3, 8.4 |
-| 7 | **Read the runbook** and the security checklist. | You | 30 min | Tasks 8.5, 3.9 |
-| 8 | **Mobile data speed test.** Switch Mobile data on in the phone's settings first. | You say go; Claude times it | 10 min | Task 6.5 |
-| 9 | **A week of normal use,** then ask Claude for the slow-screen check. | You | 1 week | Task 2.6 |
-| 10 | **The 12 testers** (14 days in Play closed testing). Only when you are ready. | You | 14 days | Task 8.6 |
+| 3 | **Alpha guard rails** (so the published app and website are clearly fake-money): the "Alpha: fake money and fake data" ribbon, the check that refuses a live payment key, `noindex`, the tester card, the alpha wording in Terms and Privacy. Type "Build the alpha guard rails." Claude builds, shows you the design first, and you approve. | Claude builds, you approve | 15 min of your time | Plan A, task A.1 |
+| 4 | **Two values in the admin's Vercel project** (the ImageKit photo values), so the admin shows job photos. | You | 5 min | Task 6.4 |
+| 5 | **Admin idle sign-out test.** Claude started the third run at 11:34 on 2026-10-26 (the admin is signed in; nothing is touched for 35 minutes, then one click at about 12:10). | Claude, in your Chrome | 35 min, mostly waiting | Task 3.7 |
+| 6 | **Your decisions:** the map for the store version, the legal details, whether profiles may show a rounded place and "last seen", and the Razorpay test-link limit. | You, in the chat | 20 min | Tasks 8.1, 8.2 and the list under "Decisions" below |
+| 7 | **Google Play Console:** create the app, enter the answers, upload the store build. The store build file **expires on 2026-11-23**; after that say "build the store version again". | You | 1 to 2 hours (Google may take days to check your ID) | Tasks 8.3, 8.4 |
+| 8 | **Read the runbook** and the security checklist. | You | 30 min | Tasks 8.5, 3.9 |
+| 9 | **Mobile data speed test.** Switch Mobile data on in the phone's settings first. | You say go; Claude times it | 10 min | Task 6.5 |
+| 10 | **A week of normal use,** then ask Claude for the slow-screen check. | You | 1 week | Task 2.6 |
+| 11 | **The 12 testers** (14 days in Play closed testing). Only when you are ready. | You | 14 days | Task 8.6 |
+| 12 | **Alpha exit gate**, then the switch-over (Phase 9). When every test above is done and the 12 testers have used the closed test for 14 days, type "Check the alpha exit gate." **Production is a separate, later plan (Plan B below): it starts only when you say "I want to launch."** | You say go; Claude checks | 10 min | Plan A task A.4, Phase 9 |
 
 **Also open, no rush:** the RazorpayX payout buttons (need RazorpayX, task 10.3); deleting the unused `razorpay-setup` function (say "delete razorpay-setup" and Claude does it); the app tour design sign-off (Phase 8, not built yet); Uptime Robot: look once that both monitors are green. Key rotation (3.2, 6.1), Safari and iOS stay future scope.
 
@@ -78,6 +80,95 @@ Claude checked everything in Phases 0 to 8 that can be checked without you (evid
 5. The Sales tester `hitendu7@gmail.com`: remove it, and seed admin roles for other staff, or leave as is.
 
 **Rules for the steps below:** the admin signs in only with `hitendureacts@gmail.com` (owner rule, 2026-10-25). In Google's account chooser, pick **hitendureacts**. If the chooser opens on `narasimharaju7c@gmail.com`, that account is a normal user, not an admin. In Chrome the right profile is the one at `/u/2`.
+
+---
+
+## The two plans: Alpha (fake money) now, Production (real money) later
+
+Written 2026-10-26 from your request. The full detail is in `docs/UPGRADE_PLAN.md`, Part B, section 14. In short:
+
+| | **Plan A: Alpha (staging)** | **Plan B: Production** |
+|---|---|---|
+| Money | **Fake.** Razorpay test keys, no RazorpayX, workers are "paid" by an admin marking it done by hand. Nothing touches a bank | **Real.** Razorpay and RazorpayX live keys, real UPI and bank |
+| Data | Fake. Three seed accounts and what testers make | Real customers, a brand-new empty database |
+| Where | The Supabase project you have now, `taskdrop.in`, the Android app, the admin | A **new** Supabase project, new Vercel values, new Inngest, ImageKit and Sentry settings |
+| Who | You and about 10 invited testers | The public |
+| Cost | **Nothing monthly.** At most the Google Play account, $25 once | Real monthly costs, see "Where you pay" below |
+| Phases | 0 to 9 | 10 |
+
+**Four promises that keep alpha fake:** live payment keys are never put into the alpha project; every screen shows an "Alpha: fake money and fake data" ribbon; testers never type real addresses, ID numbers or bank details; nothing from alpha is copied into production.
+
+### Plan A: Alpha, in order
+
+| # | Step | Who | Cost | Where |
+|---|---|---|---|---|
+| A.0 | Phases 0 to 7 work, Google sign-in works on web, admin and Android | Claude | 0 | **Done** (open items are in START HERE) |
+| A.1 | **Build the alpha guard rails** and approve their wording | Claude builds, you approve | 0 | Task A.1 below |
+| A.2 | **Finish the open tests:** admin photo values, idle test, your decisions, runbook, mobile-data test | You and Claude | 0 | START HERE items 4, 5, 6, 8 and 9 |
+| A.3 | **Publish the website, the Android app and the admin to testers** | You | **$25 once** (Play), nothing else | Task A.3 below, tasks 8.3 and 8.4 |
+| A.4 | **Alpha rounds, then the exit gate** (12 testers for 14 days, Sentry quiet 7 days, the whole fake job works on web, Android and admin) | You, testers, Claude | 0 | Task A.4 below, tasks 8.6, 2.6 |
+| A.5 | **Phase 9:** everyone moves to the upgraded app | You approve, Claude does | 0 | Phase 9 |
+
+### ☐ A.1 Build the alpha guard rails (you approve; 15 minutes of your time)
+
+1. Type to Claude: "Build the alpha guard rails." Claude builds these and shows you each one before it goes live: the `environment` setting and the check that refuses a live payment key; the "Alpha: fake money and fake data" ribbon on the website, the Android app and the admin; the `noindex` setting so search engines skip the website; a "How alpha works" card shown once after sign-in; the "Alpha" notice in Terms and Privacy.
+2. Click: look at the pictures and the wording Claude sends (the ribbon, the card, the Terms notice). Reply **approved**, or tell Claude what to change.
+3. Tell Claude what you saw on the website, the phone and the admin after it is deployed.
+
+### ☐ A.3 Publish alpha to testers (1 to 2 hours; $25 once if you have no Play account)
+
+1. **Website:** nothing to click. `taskdrop.in` is the alpha. Tell Claude: "Check the alpha website." Claude opens Terms, Privacy and Support and the ribbon.
+2. **Android, fastest:** Type to Claude: "Give me the alpha APK link." Send that link to your testers. They install the app from it. No Google review, no cost.
+3. **Android, Google Play:** do tasks 8.3 and 8.4 (create the Play app, upload the store build). Upload it to **Internal testing** (up to 100 testers, no Google review, minutes) and also to **Closed testing**; the 14 days of closed testing start counting from the day 12 testers opt in.
+4. **Admin:** Type to Claude: "Add these people as admin staff:" and give names, emails and roles (Sales, Support, Finance, Viewer). Only people who run the alpha need this.
+5. **Tell your testers** (copy this): "This is an alpha. All money and all data are fake. Use the test accounts or your own Google login. Do not type a real address, ID number or bank account. Report problems to hitendureacts@gmail.com."
+
+### ☐ A.4 Run alpha and pass the exit gate
+
+1. Click: ask each tester to do the core-flow checklist (post, offer, pay, work, approve, review, withdraw). `docs/TESTER_RECRUITMENT.md` and `docs/ANDROID_TEST_PLAN.md` are the kits.
+2. Tell Claude the problems; Claude adds them to `docs/PHASE2_PROBLEMS.md` and fixes them.
+3. After two rounds with no serious open problem, 14 days of the closed test and 7 quiet days in Sentry, type to Claude: "Check the alpha exit gate." Claude replies with what is still open.
+
+### Plan B: Production, in order (starts only when you say "I want to launch")
+
+Start the first four **early and in parallel**; they cost little and take days to weeks. Do not wait for alpha to finish to start the lawyer and the bank.
+
+| # | Step | Who | **Pay?** | Task |
+|---|---|---|---|---|
+| B.1 | **The business basics:** legal entity, PAN, GST if you have one, a **current bank account** | You | Bank fees | 10.0 |
+| B.2 | **The lawyer:** send `docs/LAWYER_BRIEF.md`; get the money-flow answer (does the wallet need RBI authorisation; may TaskDrop hold escrow or must Razorpay Route do it), the Terms and Privacy review, DPDP | You | **Lawyer's fee** (ask for a quote) | 10.6 |
+| B.3 | **Razorpay and RazorpayX activation (KYC)** | You | **Per-payment and per-payout fees** | 10.3 |
+| B.4 | **SMS:** DLT registration, sender name, OTP template, MSG91 credits | You | **DLT fee (one time) + SMS credits** | 10.4 |
+| B.5 | **Play production access** (after the 14-day closed test): listing, data-safety form | You | (Play account already paid) | 8.3, 10.9 |
+| B.6 | **DMCA agent**, grievance officer, legal details in the app | You | **$6 per 3 years** | 10.5, 8.2 |
+| B.7 | **Turn on the paid plans:** Supabase Pro, Vercel Pro, Inngest paid | You | **$25 + $20 a month + Inngest (check price)** | 10.2 |
+| B.8 | **Build production** (new empty Supabase project, secrets, functions, Inngest production, ImageKit `/prod`, Sentry `production`, new Google redirect address) | Claude, with you for logins | Covered by B.7 | 10.7 |
+| B.9 | **Switch on the real-money parts, one at a time:** live keys (you put them into Vault yourself), RazorpayX **funded**, the money jobs, payouts, refunds | Claude builds and switches | **RazorpayX balance** (see below) | 10.3 steps 3 and 4, 10.7 |
+| B.10 | **Switch off every test shortcut:** the "any number signs in" code, `ALLOW_ANY_OTP`, `TEST_PHONES`, the alpha ribbon; switch the admin authenticator back on | Claude | 0 | 10.7 |
+| B.11 | **Domains:** production on `taskdrop.in` and `admin.taskdrop.in`; the alpha moves to `beta.taskdrop.in` | You and Claude | Domain renewal ~$6 a year | 10.7 |
+| B.12 | **One real ₹10 job** with your own UPI, finished from a second account, withdrawn to your bank | You | Real ₹10 plus fees | 10.8 |
+| B.13 | **Launch gate, then release on Google Play** | You | 0 | 10.9 |
+
+### Where you pay for production (and why)
+
+| Payment | Why you need it | Amount (check the page when you pay) | When |
+|---|---|---|---|
+| **Lawyer** | The money-flow answer decides how payouts and refunds are built; also Terms, Privacy, DPDP | A fee; ask for a quote | **First** (B.2) |
+| **Current bank account** | Razorpay and RazorpayX require one | The bank's fees | First (B.1) |
+| **Razorpay** (payments in) | Every real card or UPI payment by a poster, held in escrow | A fee per payment | After KYC approval (B.3) |
+| **RazorpayX** (payouts out) | Paying workers and refunds to their UPI or bank | A fee per payout, **and its balance must hold the money to pay out**. How the balance is funded depends on the lawyer's answer, so plan this working capital yourself | B.9 |
+| **MSG91 + DLT** | Real sign-in codes to real phones; without DLT registration the SMS is blocked | One-time DLT fee, then pay per SMS | B.4 |
+| **Supabase Pro** | The production project, with backups (free projects pause when idle) | $25 a month | Before real users |
+| **Vercel Pro** | The free plan is for non-commercial use | $20 a month per member | Before real users |
+| **Inngest paid plan** | The free plan allows 50,000 runs a month and stops when it is used up (about 28,500 were used by 24 October with only the testers) | Check its Billing page | Before real users |
+| **Google Play account** | Publishing the Android app | $25 once (already paid if you did A.3) | During alpha |
+| **DMCA agent** | Legal protection for uploaded photos | $6 per 3 years | B.6 |
+| **Google Maps / Places** | Maps and place search at real volume | Pay per use after the free credit; billing is already active with a ₹100 monthly alert, raise it when traffic starts | Before the store release |
+| **Domain `taskdrop.in`** | Already bought | About $6 a year; auto-renew on | Yearly |
+| Sentry, ImageKit, EAS, Uptime Robot | Free tiers cover alpha | Pay only if a limit warns | As needed |
+| Apple Developer ($99 a year) | iOS only | **Future scope**, not in this launch | Later |
+
+**Alpha costs: $0 a month.** The only payment is the Google Play account, $25 once, and only if you publish through Play (the direct APK link is free).
 
 ---
 
@@ -599,6 +690,7 @@ The store build (AAB, version 1.0.0, versionCode 1, with the new drop icon) is r
 2. Click: Claude gives you a download link. Download the `.aab` file.
 3. Click: Play Console → **Test and release** → **Testing** → **Closed testing** → **Create track** (or open the existing one) → **Create new release**.
 4. Click: upload the `.aab` → **Next** → **Save** → **Send for review** (or **Start rollout**).
+5. **For the alpha (Plan A, task A.3):** do steps 3 and 4 twice, once under **Internal testing** (up to 100 testers, no Google review, ready in minutes, the fastest way to give testers the app) and once under **Closed testing** (its 14 days are required before Google allows production, so start them early). Both stay fake-money: the app uses Razorpay test mode.
 
 ### ☐ 8.5 Read the runbook (20 minutes)
 
@@ -643,6 +735,15 @@ Start only when Phases 0 to 8 are done.
 
 ## Phase 10: Customer launch (only when you decide)
 
+This is **Plan B: Production** (see "The two plans" above for the order and "Where you pay for production" for every payment). Real money, real customers, a **new** Supabase project. Nothing from alpha is copied over. The tasks below keep their numbers; follow the Plan B table for the order, and start the slow ones (10.0, 10.6, 10.3, 10.4) early and in parallel.
+
+### ☐ 10.0 The business basics (first; days)
+
+1. Decide the legal entity that will own TaskDrop (sole proprietor, partnership, or company) and tell Claude, so the legal pages can name it (task 8.2).
+2. Get the documents Razorpay, RazorpayX and the SMS registration will ask for: PAN, GST number if you have one, address proof.
+3. Open a **current bank account** in that name. Razorpay and RazorpayX need it, and a bank charges its own fees.
+4. Tell Claude: "The business basics are ready." This is the first thing in Plan B: every later step waits on it.
+
 ### ☐ 10.1 Decide
 
 1. Type to Claude: "I want to launch."
@@ -678,7 +779,8 @@ Start only when Phases 0 to 8 are done.
 
 ### ☐ 10.7 Production
 
-1. Type to Claude: "Set up production." (This includes turning off the "any phone number signs in" test shortcut.)
+1. Type to Claude: "Set up production." Claude builds a **new, empty** Supabase project (Pro plan, task 10.2), a production Inngest environment, ImageKit `/prod` and Sentry `production`, and asks you for the logins it cannot do alone. This also turns off every test shortcut (the "any phone number signs in" code, `ALLOW_ANY_OTP`, `TEST_PHONES`), removes the alpha ribbon, sets the `environment` setting to `production` (so a `rzp_test_` key is refused), turns the admin authenticator back on, and moves the alpha website to `beta.taskdrop.in`. Alpha accounts and data are not copied.
+2. Click: Google Cloud Console → project **Taskdrop** → **Auth Platform** → **Clients** → `TaskDrop Supabase` → add the new Supabase project's address ending in `/auth/v1/callback` under **Authorized redirect URIs** → **Save**. (Claude gives you the exact address.)
 
 ### ☐ 10.8 One real job with real money (20 minutes)
 
