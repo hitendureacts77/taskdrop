@@ -1,11 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useContext, useEffect, useRef } from 'react';
 import { View, Text as RNText, Pressable, Animated, Easing } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { useNav } from '../providers/NavProvider';
+import { TopInsetUsedCtx } from '../components/topInsetUsed';
 import { tx } from '../components/primitives';
 import { dark } from '../theme';
 import { useReducedMotion } from '../lib/motion';
+
+/** Every edge but the top, for when the staging ribbon or a banner has already used the status-bar gap. */
+const SIDES_AND_BOTTOM: Edge[] = ['right', 'bottom', 'left'];
 
 /** The four rings the drop sends out, from the design's splash (ST01). */
 const RINGS = [
@@ -44,6 +48,7 @@ const RING_STEP = 220;
 export function SplashScreen() {
   const { reset } = useNav();
   const reduced = useReducedMotion();
+  const topUsed = useContext(TopInsetUsedCtx);
 
   const clock = useRef(new Animated.Value(0)).current;
   const fallY = useRef(new Animated.Value(-300)).current;
@@ -95,7 +100,7 @@ export function SplashScreen() {
   });
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: dark.bg }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: dark.bg }} edges={topUsed ? SIDES_AND_BOTTOM : undefined}>
       <Pressable onPress={() => reset('welcome')} style={{ flex: 1, overflow: 'hidden' }} accessibilityLabel="Continue">
         {/* The stage: everything is centred on the point where the drop lands. */}
         <View pointerEvents="none" style={{ position: 'absolute', left: '50%', top: '45%', width: 0, height: 0 }}>

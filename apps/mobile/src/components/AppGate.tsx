@@ -6,6 +6,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { showStagingUi } from '../lib/environment';
 import { PrimaryButton } from './kit';
 import { StagingRibbon } from './StagingRibbon';
+import { TopInsetUsedCtx } from './topInsetUsed';
 import { tx } from './primitives';
 
 /** What the admin panel has switched for this app, live. */
@@ -44,7 +45,9 @@ export function AppGate({ children }: { children: ReactNode }) {
       <SafeAreaInsetsContext.Consumer>
         {(i) => (
           <SafeAreaInsetsContext.Provider value={topUsed && i ? { ...i, top: 0 } : i}>
-            <View style={{ flex: 1 }}>{page ?? children}</View>
+            <TopInsetUsedCtx.Provider value={topUsed}>
+              <View style={{ flex: 1 }}>{page ?? children}</View>
+            </TopInsetUsedCtx.Provider>
           </SafeAreaInsetsContext.Provider>
         )}
       </SafeAreaInsetsContext.Consumer>
