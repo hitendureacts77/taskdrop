@@ -746,6 +746,20 @@ await t("the public config has the shape the app and the admin preview read", ()
   assert.equal(parseControls("nope"), null);
 });
 
+await t("the public config carries the environment, and staging whenever it is missing or unreadable", () => {
+  const client = { platform: "web", appVersion: null } as const;
+  assert.equal(publicConfig(controlsWith({ environment: "production" }), client).environment, "production");
+  assert.equal(publicConfig(controlsWith({ environment: "staging" }), client).environment, "staging");
+  for (const v of [undefined, null, "", "Production", "prod", 1, true]) {
+    assert.equal(parseControls({ environment: v })!.environment, "staging", String(v));
+  }
+  assert.equal(parseControls({})!.environment, "staging");
+  assert.equal(OPEN_CONFIG.environment, "staging");
+  // the answer the app reads keeps every field it had before
+  const cfg = publicConfig(controlsWith(), client);
+  assert.deepEqual(Object.keys(cfg).sort(), ["appVersion", "banner", "environment", "features", "maintenance", "platform", "requirePhoneVerified", "ttlSeconds", "update"]);
+});
+
 await t("controls are looked up once per half minute per kind of caller, and a failed refresh keeps the last answer", async () => {
   let clock = 1_000_000, loads = 0, fail = false;
   const cache = new ControlsCache(30_000, () => clock);

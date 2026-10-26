@@ -8,6 +8,8 @@
  * be exercised from Node.
  */
 
+import { type Environment, parseEnvironment } from "./keyMode.ts";
+
 export const PLATFORM_HEADER = "x-taskdrop-platform";
 export const VERSION_HEADER = "x-taskdrop-app-version";
 
@@ -50,6 +52,8 @@ export type Controls = {
   chat_photos: boolean;
   /** When on, posting, offers and withdrawals need a confirmed phone number (migration 097). */
   require_phone_verified: boolean;
+  /** Which kind of project this is (migration 127); anything unreadable counts as staging. */
+  environment: Environment;
   banner_text: string | null;
   banner_level: "info" | "warning" | "critical" | null;
   banner_link: string | null;
@@ -157,6 +161,7 @@ export function parseControls(data: unknown): Controls | null {
     promotions: bool("promotions", true),
     chat_photos: bool("chat_photos", true),
     require_phone_verified: bool("require_phone_verified", false),
+    environment: parseEnvironment(d.environment),
     banner_text: text("banner_text"),
     banner_level: level,
     banner_link: text("banner_link"),
@@ -187,6 +192,8 @@ export type AppConfig = {
   };
   /** True when posting, offers and withdrawals need a confirmed phone number. */
   requirePhoneVerified: boolean;
+  /** "staging" (fake money; the apps show the ribbon) or "production". Staging when it cannot be read. */
+  environment: Environment;
   banner: { text: string; level: "info" | "warning" | "critical"; link: string | null } | null;
   /** How long the app may keep this before asking again. */
   ttlSeconds: number;
@@ -214,12 +221,13 @@ export function publicConfig(c: Controls, client: Client): AppConfig {
       chatPhotos: c.chat_photos,
     },
     requirePhoneVerified: c.require_phone_verified,
+    environment: c.environment,
     banner: c.banner_text ? { text: c.banner_text, level: c.banner_level ?? "info", link: c.banner_link } : null,
     ttlSeconds: CONFIG_TTL_SECONDS,
   };
 }
 
-/** What the app uses when it cannot reach app-config: everything on. */
+/** What the app uses when it cannot reach app-config: everything on, and staging (the safe side on this project). */
 export const OPEN_CONFIG: AppConfig = publicConfig(parseControls({})!, { platform: null, appVersion: null });
 
 /**
