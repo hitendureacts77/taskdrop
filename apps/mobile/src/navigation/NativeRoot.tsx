@@ -5,6 +5,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { AgeGate } from '../components/AgeGate';
 import { Overlays } from '../components/Overlays';
+import { StagingWelcome } from '../components/StagingWelcome';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { ScreenBoundary } from '../AppProviders';
 import { fontFamilyFor } from '../theme';
@@ -69,6 +70,7 @@ export function NativeRoot() {
       </ScreenBoundary>
       <ErrorBoundary silent>
         <Overlays />
+        <StagingWelcome />
       </ErrorBoundary>
     </KeyboardAvoidingView>
   );

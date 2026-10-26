@@ -1,5 +1,7 @@
 import { company, contactLine } from './company';
 
+export { STAGING_NOTICE } from './stagingNotice';
+
 /**
  * The Terms of Service and Privacy Policy, as data for LegalPage.
  *

@@ -6,6 +6,7 @@ import { NavProvider } from './src/providers/NavProvider';
 import { ScreenHost } from './src/navigation/ScreenHost';
 import { AgeGate } from './src/components/AgeGate';
 import { Overlays } from './src/components/Overlays';
+import { StagingWelcome } from './src/components/StagingWelcome';
 import { WebShell } from './src/components/WebShell';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { AppProviders, Background, ScreenBoundary, ThemedStatusBar } from './src/AppProviders';
@@ -43,6 +44,7 @@ function Routes() {
           </ScreenBoundary>
           <ErrorBoundary silent>
             <Overlays />
+            <StagingWelcome />
           </ErrorBoundary>
         </KeyboardAvoidingView>
       </WebShell>

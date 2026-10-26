@@ -184,4 +184,6 @@ Note: several prunes (101) switch from pg_cron to Inngest at the cutover (`AGENT
 6. The Privacy Policy lists data about people who are not users (staff **leads**: name and contact). Decide whether that needs its own notice.
 7. Nothing here claims DMCA compliance, a registered copyright agent, or lawyer approval. The app shows a "Draft — under legal review" note until `EXPO_PUBLIC_LEGAL_REVIEWED=yes`.
 
+8. **Staging notice (2026-10-26).** While the app reports `environment: staging` (app-config), the Terms and Privacy pages show a "Staging" box above the document (`apps/mobile/src/legal/stagingNotice.ts`): this is a test copy, the money and data are fake, do not enter real personal information, and what is entered can be seen by the people who run and test it and erased at any time. It is not part of the reviewed text, it is not shown in production, and `npm run legal:export` leaves it out. It claims no compliance; `stagingNotice.test.ts` fails if a compliance word is added.
+
 **This is a draft prepared from the codebase. It must be reviewed by a qualified attorney before publication.**

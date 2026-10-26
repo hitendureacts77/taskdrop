@@ -5,28 +5,48 @@ import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { company, unset } from '../legal/company';
-import { PRIVACY, TERMS, type LegalDoc } from '../legal/documents';
+import { PRIVACY, STAGING_NOTICE, TERMS, type LegalDoc } from '../legal/documents';
+import { showStagingUi } from '../lib/environment';
+import { useAppConfig } from '../components/AppGate';
 
 /**
  * Terms of Service and Privacy Policy -- public, signed in or not, and linked
  * as ?page=terms and ?page=privacy. The text is in src/legal/documents.ts.
  */
 export function TermsScreen() {
-  return <LegalPage doc={TERMS} />;
+  return <LegalPage doc={TERMS} notice={STAGING_NOTICE.terms} />;
 }
 
 export function PrivacyScreen() {
-  return <LegalPage doc={PRIVACY} />;
+  return <LegalPage doc={PRIVACY} notice={STAGING_NOTICE.privacy} />;
 }
 
-function LegalPage({ doc }: { doc: LegalDoc }) {
+function LegalPage({ doc, notice }: { doc: LegalDoc; notice: string }) {
   const t = useTheme();
+  const { environment } = useAppConfig();
   const { back } = useNav();
 
   return (
     <Screen padded={false}>
       <TopBar title={doc.title} onBack={back} />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+        {showStagingUi(environment) ? (
+          // Staging only: says what this copy is. Not part of the reviewed text, and gone in production.
+          <View
+            accessibilityRole="alert"
+            style={{
+              padding: 14,
+              borderRadius: 14,
+              backgroundColor: t.colors.signalSoft,
+              borderWidth: 1,
+              borderColor: t.colors.signal,
+              marginBottom: 18,
+            }}
+          >
+            <RNText style={tx('800', 13, t.colors.signalDeep)}>{STAGING_NOTICE.heading}</RNText>
+            <RNText style={tx('500', 13, t.colors.ink, { marginTop: 4, lineHeight: 19 })}>{notice}</RNText>
+          </View>
+        ) : null}
         {!company.reviewed ? (
           // Until a lawyer signs off (EXPO_PUBLIC_LEGAL_REVIEWED=yes), say so.
           <View style={{ padding: 14, borderRadius: 14, backgroundColor: t.colors.goldSoft, marginBottom: 18 }}>
