@@ -5,6 +5,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { LOOP_NATIVE, useReducedMotion } from '../lib/motion';
+import { useTourTarget } from './tour/targets';
 
 /**
  * The drop button (SYS-Components "Drop button (floating post)"): the brand
@@ -17,6 +18,7 @@ export function CreateFab({ bottom = 100 }: { bottom?: number }) {
   const { go } = useNav();
   const { mode } = useMode();
   const reduced = useReducedMotion();
+  const tourRef = useTourTarget('fab');
   const worker = mode === 'worker';
 
   const rise = useRef(new Animated.Value(0)).current;
@@ -52,6 +54,8 @@ export function CreateFab({ bottom = 100 }: { bottom?: number }) {
       }}
     >
       <Pressable
+        ref={tourRef}
+        collapsable={false}
         onPress={() => go(worker ? 'listing' : 'aiPost')}
         accessibilityRole="button"
         accessibilityLabel={worker ? 'Offer a service' : 'Post a request'}

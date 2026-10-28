@@ -7,6 +7,7 @@ import { ScreenHost } from './src/navigation/ScreenHost';
 import { AgeGate } from './src/components/AgeGate';
 import { Overlays } from './src/components/Overlays';
 import { StagingWelcome } from './src/components/StagingWelcome';
+import { TourHost } from './src/components/tour/TourHost';
 import { WebShell } from './src/components/WebShell';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { AppProviders, Background, ScreenBoundary, ThemedStatusBar } from './src/AppProviders';
@@ -45,6 +46,7 @@ function Routes() {
           <ErrorBoundary silent>
             <Overlays />
             <StagingWelcome />
+            <TourHost />
           </ErrorBoundary>
         </KeyboardAvoidingView>
       </WebShell>

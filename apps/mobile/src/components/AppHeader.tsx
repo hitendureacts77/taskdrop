@@ -20,6 +20,9 @@ import { ModeSwitch } from './ModeSwitch';
 import { tx } from './primitives';
 import { levelFor } from '../lib/levels';
 import { useLayout } from '../lib/layout';
+import { TOUR_COPY } from '../lib/tour';
+import { startTour } from './tour/tourStore';
+import { useTourTarget } from './tour/targets';
 
 /**
  * The bar across the top of every tab: brand, the Post / Earn switch, and the
@@ -39,6 +42,7 @@ export function AppHeader() {
   const modeRef = useRef(mode);
   modeRef.current = mode;
   const { userId } = useAuth();
+  const toolsRef = useTourTarget('headerTools');
   const same = last.userId === userId;
   const [unread, setUnreadState] = useState(same ? last.unread : 0);
   const [drawer, setDrawer] = useState(false);
@@ -119,6 +123,8 @@ export function AppHeader() {
           </>
         ) : null}
         <View style={{ flex: 1 }} />
+        {/* One wrapper so the tour can light up the bell, messages and account menu together. */}
+        <View ref={toolsRef} collapsable={false} style={{ flexDirection: 'row', alignItems: 'center', gap: tight ? 6 : 8 }}>
         <IconButton icon="bell" label="Notifications" onPress={() => go('notifications')} badge={unread} size={btn} />
         <IconButton icon="chat" label="Messages" onPress={() => go('inbox')} size={btn} />
         <Pressable
@@ -159,6 +165,7 @@ export function AppHeader() {
             }}
           />
         </Pressable>
+        </View>
       </View>
       <AccountDrawer visible={drawer} onClose={() => setDrawer(false)} />
     </>
@@ -169,6 +176,7 @@ export function AppHeader() {
 export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const t = useTheme();
   const { go, reset } = useNav();
+  const { mode } = useMode();
   const { userId, signOut } = useAuth();
   const { flash } = useActions();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -318,6 +326,7 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
               <View style={{ height: 1, backgroundColor: t.colors.line, marginVertical: 10 }} />
 
               {row('help', 'Help & support', 'Stuck on a payment, task or your account', () => open(() => go('help')))}
+              {row('sparkle', TOUR_COPY.menuLabel, TOUR_COPY.menuSub, () => open(() => startTour(mode === 'worker' ? 'earn' : 'hire')))}
               {row('chat', 'Send feedback', 'Report a bug or suggest an improvement', () => {
                 onClose();
                 setFeedback(true);

@@ -1,0 +1,989 @@
+<title>TaskDrop Tour Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Clickable prototype of the approved tour (design v2). Phone centred, controls above it.
+   Tokens copied from apps/mobile/src/theme.ts (redesigned-2.0). */
+:root{
+  --bg:#F3F4F1;--surface:#FFFFFF;--surface2:#ECEEE9;--line:#E2E5DF;--ink:#121417;--text:#3F444A;--muted:#5F6368;
+  --accent:#0E8F72;--accentDeep:#0A6F58;--accentSoft:#E7F5EF;--gold:#E0A85A;--goldSoft:#FBF1E0;--goldInk:#8A5A12;
+  --signal:#E0724A;--purple:#2F5BEA;--purpleDeep:#1E40AF;--purpleSoft:#EAF0FE;--online:#12804A;
+  --btn:#0A6F58;--onBtn:#FFFFFF;--earnBtn:#1E40AF;--earnOn:#FFFFFF;--heroFrom:#0D8A6F;--heroTo:#064A3B;
+  --cardShadow:0 1px 2px rgba(18,20,23,.06),0 6px 18px rgba(18,20,23,.06);--cardBorder:transparent;
+  --pageBg:#E9EBE6;--pageInk:#121417;--pageMuted:#5F6368;--pageCard:#FFFFFF;--pageLine:#D9DDD5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1012;--surface:#16191C;--surface2:#1E2226;--line:#2A2F34;--ink:#F2F3F1;--text:#C9CDD2;--muted:#9AA0A6;
+    --accent:#2FBF96;--accentDeep:#57D1AE;--accentSoft:#12271F;--gold:#E0A85A;--goldSoft:#2A2216;--goldInk:#E8BE80;
+    --signal:#E0724A;--purple:#6B8CFF;--purpleDeep:#4F6FE8;--purpleSoft:#172036;--online:#4ADE9A;
+    --btn:#2FBF96;--onBtn:#04140D;--earnBtn:#6B8CFF;--earnOn:#0B1020;--heroFrom:#0E8F72;--heroTo:#06372C;
+    --cardShadow:none;--cardBorder:#2A2F34;
+    --pageBg:#08090B;--pageInk:#F2F3F1;--pageMuted:#9AA0A6;--pageCard:#14171A;--pageLine:#262B30;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1012;--surface:#16191C;--surface2:#1E2226;--line:#2A2F34;--ink:#F2F3F1;--text:#C9CDD2;--muted:#9AA0A6;
+  --accent:#2FBF96;--accentDeep:#57D1AE;--accentSoft:#12271F;--gold:#E0A85A;--goldSoft:#2A2216;--goldInk:#E8BE80;
+  --signal:#E0724A;--purple:#6B8CFF;--purpleDeep:#4F6FE8;--purpleSoft:#172036;--online:#4ADE9A;
+  --btn:#2FBF96;--onBtn:#04140D;--earnBtn:#6B8CFF;--earnOn:#0B1020;--heroFrom:#0E8F72;--heroTo:#06372C;
+  --cardShadow:none;--cardBorder:#2A2F34;
+  --pageBg:#08090B;--pageInk:#F2F3F1;--pageMuted:#9AA0A6;--pageCard:#14171A;--pageLine:#262B30;
+  color-scheme:dark;
+}
+@property --fill{syntax:'<number>';inherits:true;initial-value:0}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--pageBg);color:var(--pageInk);font:14px/1.5 'Plus Jakarta Sans',system-ui,sans-serif;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;
+  display:flex;flex-direction:column;align-items:center;overflow-x:hidden}
+.bar{width:100%;max-width:560px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 10px;margin-bottom:10px}
+.bar .nm{font-weight:800;font-size:15px;letter-spacing:-.3px;margin-right:auto}
+.bar .nm i{font-style:normal;color:var(--accent)}
+.bar .nm small{font-weight:700;font-size:10.5px;letter-spacing:.08em;color:var(--goldInk);background:var(--goldSoft);padding:2px 7px;border-radius:999px;margin-left:6px;vertical-align:2px}
+.seg{display:inline-flex;align-items:center;background:var(--pageCard);border:1px solid var(--pageLine);border-radius:999px;padding:3px}
+.seg span{font-size:11.5px;font-weight:700;color:var(--pageMuted);padding:0 6px 0 8px}
+.seg button,.rs{border:0;background:transparent;color:var(--pageMuted);font:700 13px 'Plus Jakarta Sans',system-ui,sans-serif;padding:7px 12px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--btn);color:var(--onBtn)}
+.seg button[data-a="earn"][aria-pressed="true"]{background:var(--earnBtn);color:var(--earnOn)}
+.rs{background:var(--pageCard);border:1px solid var(--pageLine);color:var(--pageInk)}
+.seg button:focus-visible,.rs:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.help{max-width:560px;text-align:center;color:var(--pageMuted);font-size:12.5px;margin:-2px 0 10px}
+.stagewrap{position:relative;flex:none}
+#stage{position:absolute;left:0;top:0;transform-origin:0 0}
+
+/* ---------- Phone (same as TOUR_DESIGN_V2.html) ---------- */
+.phone{width:380px;height:780px;border-radius:54px;padding:10px;background:#0A0B0C;box-shadow:0 30px 60px rgba(0,0,0,.25),inset 0 0 0 2px #2a2d31;
+  --acc:var(--accent);--accSoft:var(--accentSoft);--accBtn:var(--btn);--accOn:var(--onBtn);--heroA:var(--heroFrom);--heroB:var(--heroTo)}
+.bare .phone{width:360px;height:760px;padding:0;background:none;box-shadow:none;border-radius:26px}
+.bare .screen{border-radius:26px}
+.phone[data-mode="earn"]{--acc:var(--purple);--accSoft:var(--purpleSoft);--accBtn:var(--earnBtn);--accOn:var(--earnOn);--heroA:#2F5BEA;--heroB:#1A2F86}
+.screen{position:relative;width:360px;height:760px;border-radius:44px;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',system-ui,sans-serif;user-select:none;-webkit-tap-highlight-color:transparent}
+.screen svg{display:block}
+.tc{transition:background-color .25s,color .25s,border-color .25s}
+.phone[data-mode="hire"] .when-earn,.phone[data-mode="earn"] .when-hire{display:none}
+.tgt{cursor:pointer}
+
+.sb{height:36px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;font:700 13px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);position:relative}
+.sb::after{content:'';position:absolute;left:50%;top:9px;width:92px;height:24px;margin-left:-46px;background:#000;border-radius:14px}
+.bare .sb::after{display:none}
+.sb .bat i{display:block;width:22px;height:11px;border:1.5px solid var(--ink);border-radius:3px;position:relative}
+.sb .bat i::after{content:'';position:absolute;inset:1.5px;right:5px;background:var(--ink);border-radius:1px}
+
+.hd{position:absolute;top:36px;left:0;right:0;height:52px;display:flex;align-items:center;gap:8px;padding:0 12px 0 16px}
+.wm{font:800 19px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);letter-spacing:-.6px}
+.wm i{font-style:normal;color:var(--accent)}
+.ms{position:relative;display:inline-flex;background:var(--surface2);border-radius:999px;padding:3px;margin-left:2px}
+.ms b{position:relative;z-index:1;width:50px;text-align:center;font:800 12px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--muted);padding:5px 0;border-radius:999px;transition:color .25s}
+.ms .k{position:absolute;top:3px;bottom:3px;left:3px;width:50px;border-radius:999px;background:var(--accBtn);transition:left .25s cubic-bezier(.2,.8,.2,1),background-color .25s}
+.phone[data-mode="earn"] .ms .k{left:53px}
+.phone[data-mode="hire"] .ms b[data-m="hire"],.phone[data-mode="earn"] .ms b[data-m="earn"]{color:var(--accOn)}
+.tools{margin-left:auto;display:flex;align-items:center;gap:2px;padding:2px;border-radius:16px}
+.ic{width:34px;height:34px;display:grid;place-items:center;color:var(--ink);position:relative}
+.ic svg{width:21px;height:21px}
+.ic .bd{position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--signal);transform:scale(0);transition:transform .25s cubic-bezier(.2,1.6,.4,1)}
+.ic.has .bd{transform:scale(1)}
+.av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#E0A85A,#B4512C);color:#fff;font:800 13px 'Plus Jakarta Sans',system-ui,sans-serif;display:grid;place-items:center;position:relative;margin-left:2px}
+.av::after{content:'';position:absolute;right:-1px;bottom:-1px;width:9px;height:9px;border-radius:50%;background:var(--online);border:2px solid var(--bg)}
+
+.body{position:absolute;top:88px;left:0;right:0;bottom:64px;padding:2px 14px;overflow:hidden}
+.area{display:flex;align-items:center;gap:6px;font:700 12.5px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--muted);margin:4px 2px 10px}
+.area svg{width:14px;height:14px;color:var(--acc)}
+.hero{border-radius:22px;padding:16px;background:linear-gradient(135deg,var(--heroA),var(--heroB));color:#fff}
+.hero .eb{font:700 10.5px 'Plus Jakarta Sans',system-ui,sans-serif;letter-spacing:.12em;opacity:.85}
+.hero h4{font:800 26px 'Plus Jakarta Sans',system-ui,sans-serif;letter-spacing:-.9px;margin:6px 0 12px;color:#fff}
+.hero .in{background:#fff;color:#5F6368;border-radius:14px;padding:11px 12px;font:500 13px 'Plus Jakarta Sans',system-ui,sans-serif;display:flex;justify-content:space-between;align-items:center}
+.hero .in i{width:24px;height:24px;border-radius:50%;background:var(--accBtn);display:grid;place-items:center}
+.hero .in i svg{width:13px;height:13px;color:var(--accOn)}
+.hero .chips2{display:flex;gap:6px}
+.hero .chips2 span{background:rgba(255,255,255,.18);border-radius:999px;padding:6px 10px;font:700 12px 'Plus Jakarta Sans',system-ui,sans-serif}
+.how{margin-top:12px;background:var(--surface);border:1px solid var(--cardBorder);box-shadow:var(--cardShadow);border-radius:18px;padding:11px 12px;display:flex;gap:10px;align-items:center}
+.how .sq{width:36px;height:36px;border-radius:12px;background:var(--accSoft);display:grid;place-items:center;color:var(--acc)}
+.how .sq svg{width:20px;height:20px}
+.how b{display:block;font:800 13.5px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink)}
+.how span{font-size:11.5px;color:var(--muted)}
+.sec{font:800 15px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);margin:14px 2px 8px;letter-spacing:-.3px}
+.sec small{display:block;font:400 11.5px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--muted);letter-spacing:0;margin-top:1px}
+.row{background:var(--surface);border:1px solid var(--cardBorder);box-shadow:var(--cardShadow);border-radius:18px;padding:10px 12px;display:flex;gap:10px;align-items:center;margin-bottom:8px}
+.row .th{width:44px;height:44px;border-radius:12px;background:var(--surface2);flex:none;display:grid;place-items:center;color:var(--muted)}
+.row .th svg{width:20px;height:20px}
+.row .tx{flex:1;min-width:0}
+.row .tx b{display:block;font:700 13.5px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .tx span{font-size:11.5px;color:var(--muted)}
+.row .pr{font:800 14px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
+.tag{display:inline-block;font:800 9.5px 'Plus Jakarta Sans',system-ui,sans-serif;letter-spacing:.08em;color:var(--acc);margin-bottom:1px}
+.ex{display:inline-block;font:800 9.5px 'Plus Jakarta Sans',system-ui,sans-serif;letter-spacing:.08em;color:var(--goldInk);background:var(--goldSoft);padding:2px 6px;border-radius:6px;vertical-align:2px}
+
+.fab{position:absolute;right:16px;bottom:80px;width:58px;height:58px;border-radius:50%;background:var(--accBtn);color:var(--accOn);display:grid;place-items:center;box-shadow:0 8px 20px rgba(0,0,0,.22);animation:bob 1.6s ease-in-out infinite;z-index:5;transition:background-color .25s}
+.fab svg{width:28px;height:28px}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+
+.tabs{position:absolute;left:0;right:0;bottom:0;height:64px;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);z-index:6;padding-bottom:4px}
+.tabs.lift{z-index:33}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--muted);font:700 10.5px 'Plus Jakarta Sans',system-ui,sans-serif;transition:color .25s}
+.tab .pl{padding:3px 16px;border-radius:999px;transition:background-color .25s}
+.tab svg{width:21px;height:21px}
+.tab.act{color:var(--acc)}
+.tab.act .pl{background:var(--accSoft)}
+.tab .lbl i{font-style:normal;border-radius:6px;padding:0 3px}
+.tabs.flash .chg i{animation:chg 1.4s ease-out}
+@keyframes chg{0%{background:transparent}25%{background:var(--acc);color:var(--accOn)}100%{background:transparent}}
+.tabs.sweep .tab{animation:sweep 3.2s both}
+.tabs.sweep .tab:nth-child(2){animation-delay:.5s}.tabs.sweep .tab:nth-child(3){animation-delay:1s}.tabs.sweep .tab:nth-child(4){animation-delay:1.5s}.tabs.sweep .tab:nth-child(5){animation-delay:2s}
+@keyframes sweep{0%{color:var(--muted);transform:none}6%,14%{color:var(--acc);transform:translateY(-3px)}20%,100%{color:var(--muted);transform:none}}
+
+.scrim{position:absolute;inset:0;background:rgba(6,8,10,.62);opacity:0;transition:opacity .25s;z-index:30;pointer-events:none}
+.scrim.on{opacity:1}
+.ring{position:absolute;z-index:31;left:180px;top:380px;width:0;height:0;border:2.5px solid var(--acc);border-radius:14px;opacity:0;pointer-events:none;
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 28%,transparent),0 0 0 2000px rgba(6,8,10,.62);
+  transition:left .36s cubic-bezier(.2,.8,.2,1),top .36s cubic-bezier(.2,.8,.2,1),width .36s cubic-bezier(.2,.8,.2,1),height .36s cubic-bezier(.2,.8,.2,1),border-radius .36s,opacity .25s,border-color .25s}
+.ring.on{opacity:1}
+.ring::after{content:'';position:absolute;inset:-3px;border-radius:inherit;border:2px solid var(--acc);opacity:0}
+.ring.arrive::after{animation:halo .6s ease-out .36s 2}
+@keyframes halo{0%{opacity:.75;inset:-3px}100%{opacity:0;inset:-16px}}
+
+.coach{position:absolute;left:12px;right:12px;z-index:40;background:var(--surface);border:1px solid var(--cardBorder);border-radius:22px;padding:13px 15px 14px;box-shadow:0 18px 40px rgba(0,0,0,.28);opacity:0;transform:translateY(10px);transition:opacity .25s,transform .36s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.coach.on{opacity:1;transform:none;pointer-events:auto}
+.coach.top{top:98px}.coach.mid{top:300px}.coach.bottom{bottom:82px}
+.coach.swap .cin{animation:cswap .3s ease-out}
+.coach.shake{animation:shake .4s ease-in-out}
+@keyframes cswap{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+@keyframes shake{0%,100%{translate:0}20%{translate:-6px}40%{translate:6px}60%{translate:-4px}80%{translate:4px}}
+.cm{display:flex;align-items:center;gap:8px;font:700 11.5px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--muted)}
+.dots{display:flex;gap:4px}
+.dots i{width:6px;height:6px;border-radius:3px;background:var(--line);transition:width .36s cubic-bezier(.2,1.4,.4,1),background-color .25s}
+.dots i.past{background:color-mix(in srgb,var(--acc) 45%,var(--line))}
+.dots i.cur{width:18px;background:var(--acc)}
+.cm .sk{margin-left:auto;font:700 12.5px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--muted);padding:6px 2px 6px 10px;cursor:pointer}
+.coach h6{font:800 17px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);margin:7px 0 3px;letter-spacing:-.3px}
+.coach p{font:400 13.5px/1.45 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--text);margin:0}
+.cf{display:flex;align-items:center;justify-content:space-between;margin-top:10px;min-height:30px}
+.cta{display:inline-flex;align-items:center;gap:7px;font:800 13px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--acc);background:var(--accSoft);padding:6px 11px 6px 8px;border-radius:999px}
+.cta .tp{width:16px;height:16px;border-radius:50%;border:2px solid var(--acc);position:relative}
+.cta .tp::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--acc)}
+.cta .tp::before{content:'';position:absolute;inset:-2px;border-radius:50%;border:2px solid var(--acc);animation:tpp 1.2s ease-out 2}
+@keyframes tpp{from{opacity:.8;transform:scale(1)}to{opacity:0;transform:scale(2)}}
+.nb{margin-left:auto;background:var(--accBtn);color:var(--accOn);font:800 13px 'Plus Jakarta Sans',system-ui,sans-serif;padding:8px 18px;border-radius:999px}
+
+.finger{position:absolute;z-index:50;left:300px;top:840px;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:rgba(255,255,255,.38);border:2px solid rgba(255,255,255,.95);box-shadow:0 4px 14px rgba(0,0,0,.35);opacity:0;pointer-events:none;
+  transition:left .55s cubic-bezier(.3,.7,.2,1),top .55s cubic-bezier(.3,.7,.2,1),opacity .2s}
+.finger.on{opacity:1;animation:fh 1.1s ease-in-out .55s infinite}
+@keyframes fh{0%,100%{transform:scale(1)}50%{transform:scale(.76)}}
+.tr{position:absolute;z-index:55;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:color-mix(in srgb,var(--acc) 40%,transparent);pointer-events:none;animation:trp .45s ease-out forwards}
+@keyframes trp{to{transform:scale(3.2);opacity:0}}
+.pressed{filter:brightness(.9)}
+
+.toast{position:absolute;top:46px;left:50%;z-index:45;transform:translate(-50%,-14px);opacity:0;background:var(--ink);color:var(--bg);font:700 13px 'Plus Jakarta Sans',system-ui,sans-serif;padding:9px 14px 9px 10px;border-radius:999px;display:flex;align-items:center;gap:7px;white-space:nowrap;transition:opacity .25s,transform .36s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.toast i{width:20px;height:20px;border-radius:50%;background:var(--acc);display:grid;place-items:center}
+.toast i svg{width:12px;height:12px;color:#fff}
+
+.sheetbox{position:absolute;inset:0;z-index:20;pointer-events:none}
+.sheetbox.on{pointer-events:auto}
+.sheetbox .bk{position:absolute;inset:0;background:rgba(6,8,10,.45);opacity:0;transition:opacity .25s}
+.sheetbox .sh{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:26px 26px 0 0;padding:10px 20px 24px;transform:translateY(105%);transition:transform .36s cubic-bezier(.2,.8,.2,1),opacity .3s}
+.sheetbox.on .bk{opacity:1}.sheetbox.on .sh{transform:none}
+.grab{width:38px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px}
+.pbtn{height:50px;border-radius:999px;background:var(--accBtn);color:var(--accOn);font:800 15px 'Plus Jakarta Sans',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;transition:background-color .25s}
+.gbtn{height:44px;border-radius:999px;color:var(--muted);font:700 14px 'Plus Jakarta Sans',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.obtn{height:48px;border-radius:999px;border:1.5px solid var(--line);color:var(--ink);font:800 14.5px 'Plus Jakarta Sans',system-ui,sans-serif;display:flex;align-items:center;justify-content:center}
+.rv{opacity:0;transform:translateY(6px);transition:opacity .25s,transform .3s cubic-bezier(.2,.8,.2,1)}
+.rv.on{opacity:1;transform:none}
+.lab{font:700 10.5px 'Plus Jakarta Sans',system-ui,sans-serif;letter-spacing:.12em;color:var(--muted);margin:14px 0 6px}
+
+.logo{width:72px;height:72px;border-radius:50%;background:var(--accSoft);color:var(--acc);display:grid;place-items:center;margin:4px auto 12px;position:relative}
+.logo svg{width:38px;height:38px}
+.rip{position:absolute;inset:0;border-radius:50%;border:2px solid var(--acc);opacity:0}
+.on .rip{animation:rip 1.2s ease-out both}
+.on .rip:nth-child(2){animation-delay:.25s}.on .rip:nth-child(3){animation-delay:.5s}
+@keyframes rip{0%{opacity:.6;transform:scale(1)}100%{opacity:0;transform:scale(2.1)}}
+.start .sh h5,.done h5,.onb h5,.endc h5{font:800 21px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);text-align:center;margin:0 0 6px;letter-spacing:-.5px}
+.start .sh p,.done p,.endc p{font:400 13.5px/1.5 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--text);text-align:center;margin:0 6px 16px}
+.foot{font:500 11.5px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--muted);text-align:center;margin-top:6px}
+
+.post .sh,.job .sh{top:252px}
+.post.sent .sh{transform:translateY(30%) scale(.25);opacity:0;transition:transform .45s cubic-bezier(.5,0,.75,0),opacity .4s}
+.hrow{display:flex;align-items:center;gap:8px}
+.hrow b{font:800 18px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);letter-spacing:-.4px}
+.hrow .ex{margin-left:auto}
+.field{border:1.5px solid var(--acc);border-radius:14px;padding:12px 13px;min-height:50px;font:600 15px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);transition:border-color .25s}
+.field span::after{content:'';display:inline-block;width:2px;height:17px;background:var(--acc);margin-left:2px;vertical-align:-3px;animation:caret 1s steps(1) infinite}
+@keyframes caret{50%{opacity:0}}
+.kv{display:flex;justify-content:space-between;align-items:center;background:var(--surface2);border-radius:14px;padding:11px 13px;font:600 13.5px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--text);margin-top:10px}
+.kv b{font:800 15px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
+.chips{display:flex;gap:8px;border-radius:16px}
+.chip{flex:1;border:1.5px solid var(--line);border-radius:14px;padding:11px 8px;font:700 13px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);display:flex;align-items:center;justify-content:center;gap:6px;transition:background-color .25s,border-color .25s,color .25s}
+.chip svg{width:15px;height:15px}
+.chip.sel{border-color:var(--acc);background:var(--accSoft);color:var(--acc)}
+.priv{display:flex;align-items:center;gap:7px;font:500 12px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--muted);margin-top:10px;padding:6px 4px;border-radius:12px}
+.priv svg{width:14px;height:14px;color:var(--acc);flex:none}
+.priv b{color:var(--ink)}
+.sh .pbtn.bottom{position:absolute;left:20px;right:20px;bottom:22px}
+
+.panel{position:absolute;top:88px;left:0;right:0;bottom:0;background:var(--bg);z-index:20;padding:6px 14px;transform:translateX(105%);transition:transform .36s cubic-bezier(.2,.8,.2,1)}
+.panel.on{transform:none}
+.panel .pbtn.bottom{position:absolute;left:16px;right:16px;bottom:22px}
+.box{background:var(--surface);border:1px solid var(--cardBorder);box-shadow:var(--cardShadow);border-radius:18px;padding:12px 14px}
+.box .t{font:800 15px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);letter-spacing:-.3px;margin-top:2px}
+.box .m{font-size:12px;color:var(--muted);margin-top:2px}
+.of{display:flex;gap:10px;align-items:center;margin-bottom:8px;opacity:0;transform:translateX(40px);transition:opacity .3s,transform .36s cubic-bezier(.2,.8,.2,1),box-shadow .25s}
+.of.in{opacity:1;transform:none}
+.picked .of:not(.sel){opacity:.42}
+.of.sel{box-shadow:0 0 0 2px var(--acc)}
+.pa{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:#fff;font:800 15px 'Plus Jakarta Sans',system-ui,sans-serif;flex:none;position:relative}
+.of .tx{flex:1}
+.of .tx b{font:700 14px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink)}
+.pres{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted);margin-top:1px}
+.pres i{width:7px;height:7px;border-radius:50%;background:var(--online)}
+.pres i.td{background:var(--gold)}
+.of .pr{text-align:right;font:800 16px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
+.of .pr small{display:block;font:500 10.5px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--muted)}
+
+.vault .rows .rw{display:flex;justify-content:space-between;align-items:center;padding:9px 0;font:600 13.5px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--text);border-bottom:1px solid var(--line)}
+.vault .rows .rw:last-child{border-bottom:0}
+.vault .rows .rw b{font:800 14px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
+.vault .rows .rw.tot{color:var(--ink);font-weight:800}
+.vault .rows .rw.tot b{font-size:16px;color:var(--acc)}
+.safe{--fill:0;width:118px;height:118px;border-radius:50%;margin:18px auto 8px;background:conic-gradient(var(--acc) calc(var(--fill)*1%),var(--line) 0);display:grid;place-items:center;transition:--fill 1.1s cubic-bezier(.4,0,.2,1);position:relative}
+.vault.fill .safe{--fill:100}
+.vault.paid .safe{--fill:0}
+.safe .inner{width:100px;height:100px;border-radius:50%;background:var(--surface);display:grid;place-items:center;color:var(--acc)}
+.safe .inner svg{width:44px;height:44px;transition:transform .4s cubic-bezier(.2,1.6,.4,1)}
+.vault.fill .safe .inner svg{transform:scale(1.08)}
+.safe .ok{position:absolute;inset:9px;border-radius:50%;background:var(--accBtn);color:var(--accOn);display:grid;place-items:center;transform:scale(0);transition:transform .45s cubic-bezier(.2,1.6,.4,1) .2s}
+.safe .ok svg{width:46px;height:46px}
+.vault.paid .safe .ok{transform:scale(1)}
+.sl{text-align:center;font:800 15px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink)}
+.sl .af,.vault.paid .sl .b4{display:none}
+.vault.paid .sl .af{display:inline}
+.ss{text-align:center;font:500 12px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--muted);margin-top:1px}
+.coin{position:absolute;width:20px;height:20px;border-radius:50%;background:var(--gold);color:#5a3a06;font:800 11px 'Plus Jakarta Sans',system-ui,sans-serif;display:grid;place-items:center;opacity:0;box-shadow:0 2px 6px rgba(0,0,0,.2);pointer-events:none}
+.cin1{left:300px;top:118px}
+.vault.fill .cin1{animation:coinIn .8s cubic-bezier(.5,0,.6,1) both}
+.vault.fill .cin1.c2{animation-delay:.15s}.vault.fill .cin1.c3{animation-delay:.3s}
+@keyframes coinIn{0%{opacity:0;transform:none}15%{opacity:1}100%{opacity:0;transform:translate(-125px,100px) scale(.5)}}
+.cout{left:170px;top:217px}
+.vault.paid .cout{animation:coinOut .8s cubic-bezier(.5,0,.6,1) both}
+.vault.paid .cout.c2{animation-delay:.15s}.vault.paid .cout.c3{animation-delay:.3s}
+@keyframes coinOut{0%{opacity:0;transform:none}15%{opacity:1}100%{opacity:0;transform:translate(-144px,339px) scale(.6)}}
+.trk{display:flex;align-items:flex-start;margin:14px 4px 0;position:relative}
+.trk::before{content:'';position:absolute;left:16%;right:16%;top:9px;height:3px;background:var(--line);border-radius:2px}
+.trk .bar{position:absolute;left:16%;top:9px;height:3px;width:0;background:var(--acc);border-radius:2px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.vault.t2 .trk .bar{width:34%}.vault.t3 .trk .bar{width:68%}
+.nd{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;font:700 11px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--muted);position:relative;z-index:1;text-align:center}
+.nd i{width:21px;height:21px;border-radius:50%;background:var(--surface);border:2.5px solid var(--line);display:grid;place-items:center;transition:background-color .25s,border-color .25s}
+.nd i svg{width:11px;height:11px;color:var(--accOn);opacity:0;transition:opacity .2s}
+.vault.t1 .n1 i,.vault.t2 .n2 i,.vault.t3 .n3 i{background:var(--accBtn);border-color:var(--accBtn)}
+.vault.t1 .n1 i svg,.vault.t2 .n2 i svg,.vault.t3 .n3 i svg{opacity:1}
+.vault.t1 .n1,.vault.t2 .n2,.vault.t3 .n3{color:var(--ink)}
+.payee{position:absolute;left:16px;right:16px;bottom:86px;display:flex;align-items:center;gap:10px}
+.payee .tx b{display:block;font:800 14px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink)}
+.payee .tx span{font-size:12px;color:var(--muted)}
+.payee .tx .after{display:none;color:var(--acc);font-weight:700}
+.vault.paid .payee .tx .before{display:none}
+.vault.paid .payee .tx .after{display:inline}
+.vault.paid .payee .pa{animation:popin .5s cubic-bezier(.2,1.6,.4,1) .7s}
+@keyframes popin{0%{transform:scale(1)}50%{transform:scale(1.18)}100%{transform:scale(1)}}
+.wl{background:var(--accSoft)!important;color:var(--acc)!important}
+.wl svg{width:20px;height:20px}
+
+.banner{position:absolute;top:40px;left:10px;right:10px;z-index:21;display:flex;gap:10px;align-items:center;transform:translateY(-150%);transition:transform .4s cubic-bezier(.2,1.2,.4,1)}
+.banner.on{transform:none}
+.banner .tx b{display:block;font:800 13.5px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink)}
+.banner .tx span{font-size:11.5px;color:var(--muted)}
+.bub{max-width:78%;padding:9px 12px;border-radius:16px 16px 16px 4px;background:var(--surface);border:1px solid var(--cardBorder);box-shadow:var(--cardShadow);font:500 13px/1.4 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);margin-top:10px}
+.comp{position:absolute;left:14px;right:14px;bottom:20px;height:46px;border-radius:999px;background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;padding:0 16px;font:500 13px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--muted)}
+.lockl{display:flex;align-items:center;gap:7px;font:600 13px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);margin-top:4px}
+.lockl svg{width:15px;height:15px;color:var(--muted)}
+.stp{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+.stp i{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font:800 18px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);font-style:normal;cursor:pointer}
+.stp b{font:800 24px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
+
+.done{position:absolute;left:18px;right:18px;top:170px;z-index:41;background:var(--surface);border:1px solid var(--cardBorder);border-radius:26px;padding:24px 20px 18px;box-shadow:0 24px 50px rgba(0,0,0,.3);opacity:0;transform:scale(.94);transition:opacity .25s,transform .36s cubic-bezier(.2,1.3,.4,1);pointer-events:none}
+.done.on{opacity:1;transform:none;pointer-events:auto}
+.done .logo{background:var(--accBtn);color:var(--accOn)}
+.done .logo svg{width:36px;height:36px}
+.done.on .logo svg{animation:pop .55s cubic-bezier(.2,1.6,.4,1) .15s both}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+.done .pbtn{margin-bottom:9px}
+.done .both{display:none;margin-top:12px;text-align:center;font:800 13.5px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--purple);padding:6px}
+.done.showboth .both{display:block}
+
+/* Last onboarding screen (already in the app) and the prototype's own end card */
+.onb{position:absolute;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;padding:48px 22px 26px;transition:opacity .25s}
+.onb.gone{opacity:0;pointer-events:none}
+.onb .pg{height:4px;border-radius:2px;background:var(--accBtn)}
+.onb .mid{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center}
+.onb .logo{width:84px;height:84px;background:var(--accBtn);color:var(--accOn)}
+.onb h5{font-size:26px;letter-spacing:-.7px;margin-top:10px}
+.onb .note{font:600 11px 'Plus Jakarta Sans',system-ui,sans-serif;letter-spacing:.08em;color:var(--muted);text-align:center;margin-bottom:10px}
+.endc{position:absolute;inset:0;z-index:70;background:color-mix(in srgb,var(--bg) 92%,transparent);display:none;flex-direction:column;justify-content:center;padding:26px}
+.endc.on{display:flex}
+.endc .card{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:22px 18px 16px}
+.endc .ptag{display:block;width:max-content;margin:0 auto 10px;font:800 10px 'Plus Jakarta Sans',system-ui,sans-serif;letter-spacing:.1em;color:var(--goldInk);background:var(--goldSoft);padding:3px 8px;border-radius:999px}
+.endc .pbtn,.endc .obtn{cursor:pointer;margin-top:8px}
+
+@media (prefers-reduced-motion: reduce){
+  .screen *,.screen *::before,.screen *::after{animation:none!important}
+  .ring,.coach,.panel,.sheetbox .sh,.banner,.done,.rv,.of,.toast,.finger{transition-property:opacity!important;transition-duration:.12s!important}
+  .finger.on{opacity:1}
+}
+</style>
+
+<div class="bar">
+  <div class="nm">taskdrop<i>.</i> tour <small>PROTOTYPE</small></div>
+  <div class="seg" role="group" aria-label="Onboarding answer">
+    <span>Answer</span>
+    <button type="button" id="a-hire" data-a="hire" aria-pressed="true">Hire</button>
+    <button type="button" id="a-earn" data-a="earn" aria-pressed="false">Earn</button>
+    <button type="button" id="a-both" data-a="both" aria-pressed="false">Both</button>
+  </div>
+  <button type="button" class="rs" id="restart">Restart</button>
+</div>
+<p class="help" id="help">Tap what lights up. “Answer” is what the customer picked in onboarding. Nothing here is saved or sent anywhere.</p>
+<div class="stagewrap" id="stagewrap"><div id="stage"></div></div>
+
+<script>
+const FEE = 3, DAYS = 3, CLEAR = 7; // packages/rules: POSTER_SERVICE_FEE_PCT, REVIEW_WINDOW_DAYS, CLEARING_PERIOD_DAYS
+
+const I = {
+  home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  compass:'<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
+  orders:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM8.5 11h7M8.5 15h5"/>',
+  wallet:'<path d="M3 7h15a3 3 0 0 1 3 3v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7V6a2 2 0 0 1 2-2h11"/><circle cx="16.5" cy="14" r="1.2"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  bell:'<path d="M6 16v-5a6 6 0 1 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>',
+  chat:'<path d="M4 5h16v11H9l-5 4z"/>',
+  shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  drop:'<path d="M12 2.5S5 10.2 5 14.6a7 7 0 0 0 14 0C19 10.2 12 2.5 12 2.5z"/><path d="M9 14.6l2.2 2.2 4.3-4.4"/>',
+  area:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.6"/>',
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
+  lock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+  unlock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/>',
+  spark:'<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18"/>',
+  tool:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
+  arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>'
+};
+const ic = (n, sw = 2) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${I[n]}</svg>`;
+const inr = v => '₹' + v.toLocaleString('en-IN', Number.isInteger(v) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const OFFERS = [
+  { name: 'Meena', price: 550, color: '#7F77DD', pres: '<i class="td"></i>Active today', km: '2.1 km' },
+  { name: 'Ravi', price: 600, color: '#0E8F72', pres: '<i></i>Active now', km: '1.2 km' },
+  { name: 'Arjun', price: 650, color: '#E0724A', pres: '<i></i>Active now', km: '0.8 km' }
+];
+
+function phoneHTML(mode) {
+  return `<div class="phone" data-mode="${mode}"><div class="screen">
+  <div class="sb"><span>9:41</span><span class="bat"><i></i></span></div>
+  <header class="hd">
+    <span class="wm">taskdrop<i>.</i></span>
+    <div class="ms"><span class="k"></span><b data-m="hire">Hire</b><b data-m="earn">Earn</b></div>
+    <div class="tools"><span class="ic bell">${ic('bell')}<span class="bd"></span></span><span class="ic">${ic('chat')}</span><span class="av">A</span></div>
+  </header>
+  <div class="body">
+    <div class="area">${ic('area')} Indiranagar, Bengaluru</div>
+    <div class="when-hire">
+      <div class="hero tc"><div class="eb">WE WRITE THE POST FOR YOU</div><h4>Drop a task</h4><div class="in">What do you need done?<i>${ic('arrow', 2.6)}</i></div></div>
+      <div class="how"><span class="sq tc">${ic('drop')}</span><div><b>How TaskDrop works</b><span>Post, get offers, pay safely, approve — in pictures</span></div></div>
+      <div class="sec">Services near you</div>
+      <div class="row"><span class="th">${ic('spark')}</span><div class="tx"><span class="tag">SERVICES</span><b>Deep home cleaning</b><span>Kavya · 1.1 km</span></div><span class="pr">₹1,499</span></div>
+      <div class="row"><span class="th">${ic('tool')}</span><div class="tx"><span class="tag">SERVICES</span><b>AC service and gas top-up</b><span>Imran · 2.4 km</span></div><span class="pr">₹650</span></div>
+    </div>
+    <div class="when-earn">
+      <div class="hero tc"><div class="eb">FIND YOUR NEXT JOB</div><h4>Work near you</h4><div class="chips2"><span>Showing jobs near you</span><span>Remote too</span></div></div>
+      <div class="sec">Jobs near Indiranagar</div>
+      <div class="row job1"><span class="th">${ic('tool')}</span><div class="tx"><span class="ex">EXAMPLE</span><b>Fix my leaking kitchen tap</b><span>Indiranagar · 1.2 km</span></div><span class="pr">₹600</span></div>
+      <div class="row"><span class="th">${ic('orders')}</span><div class="tx"><b>Assemble a study table</b><span>HAL 2nd Stage · 2.0 km</span></div><span class="pr">₹800</span></div>
+      <div class="sec">Remote work<small>Work you can do from your phone or laptop</small></div>
+      <div class="row"><span class="th">${ic('globe')}</span><div class="tx"><b>Translate a menu into Kannada</b><span>Remote</span></div><span class="pr">₹900</span></div>
+    </div>
+  </div>
+  <div class="fab">${ic('drop', 2.2)}</div>
+  <nav class="tabs">
+    <div class="tab act"><span class="pl tc">${ic('home')}</span><span class="lbl">Home</span></div>
+    <div class="tab"><span class="pl">${ic('compass')}</span><span class="lbl chg"><i class="when-hire">Explore</i><i class="when-earn">Find work</i></span></div>
+    <div class="tab"><span class="pl">${ic('orders')}</span><span class="lbl chg"><i class="when-hire">My Tasks</i><i class="when-earn">My Work</i></span></div>
+    <div class="tab"><span class="pl">${ic('wallet')}</span><span class="lbl">Wallet</span></div>
+    <div class="tab"><span class="pl">${ic('user')}</span><span class="lbl">Profile</span></div>
+  </nav>
+
+  <div class="sheetbox start"><div class="bk"></div><div class="sh">
+    <div class="grab"></div>
+    <div class="logo">${ic('drop', 2)}<span class="rip"></span><span class="rip"></span><span class="rip"></span></div>
+    <h5>Take a 1-minute tour?</h5>
+    <p>Try TaskDrop with a pretend task. Nothing is posted and no money moves.</p>
+    <div class="pbtn go">Start the tour</div>
+    <div class="gbtn skipnow">Skip for now</div>
+    <div class="foot">Replay any time: tap your photo, then Take the app tour.</div>
+  </div></div>
+
+  <div class="sheetbox post"><div class="bk"></div><div class="sh">
+    <div class="grab"></div>
+    <div class="hrow"><b>Post a request</b><span class="ex">PRACTICE</span></div>
+    <div class="lab">WHAT DO YOU NEED?</div>
+    <div class="field"><span class="typed"></span></div>
+    <div class="kv rv budget">Budget<b>₹600</b></div>
+    <div class="rv where"><div class="lab">WHERE?</div>
+      <div class="chips"><div class="chip c-place">${ic('area')} At a place</div><div class="chip c-remote">${ic('globe')} Remote / online</div></div></div>
+    <div class="priv rv areaLine">${ic('lock')}<span class="al">Workers see only <b>Indiranagar</b> for now</span></div>
+    <div class="pbtn bottom postBtn">Post (practice)</div>
+  </div></div>
+
+  <div class="panel offers">
+    <div class="box"><div class="lab" style="margin:0 0 2px">YOUR TASK</div><div class="t">Fix my leaking kitchen tap</div><div class="m sum">Budget ₹600 · Indiranagar · At a place</div></div>
+    <div class="lab" style="margin-top:16px">INCOMING OFFERS</div>
+    ${OFFERS.map((o, i) => `<div class="box of of${i}" data-i="${i}"><span class="pa" style="background:${o.color}">${o.name[0]}</span><div class="tx"><b>${o.name}</b> <span class="ex">EXAMPLE</span><div class="pres">${o.pres} · <span class="km">${o.km}</span></div></div><div class="pr">${inr(o.price)}<small>offer</small></div></div>`).join('')}
+    <div class="pbtn bottom rv chooseBtn">Choose offer</div>
+  </div>
+
+  <div class="sheetbox job"><div class="bk"></div><div class="sh">
+    <div class="grab"></div>
+    <div class="hrow"><b>Fix my leaking kitchen tap</b></div>
+    <div class="m" style="font-size:12.5px;color:var(--muted);margin-top:4px"><span class="ex">EXAMPLE</span>&nbsp; Indiranagar · 1.2 km · At a place</div>
+    <p style="font-size:13.5px;line-height:1.45;color:var(--text);margin:12px 0 0">Water keeps dripping under the kitchen sink. Please bring your own tools.</p>
+    <div class="kv">Customer's budget<b>₹600</b></div>
+    <div class="lab">YOUR OFFER <span style="letter-spacing:0;font-weight:500">· tap − or + to change it</span></div>
+    <div class="stp"><i class="minus">−</i><b class="amt">₹600</b><i class="plus">+</i></div>
+    <div class="pbtn bottom sendBtn">Send offer · ₹600</div>
+  </div></div>
+
+  <div class="box banner"><span class="pa" style="background:#7F77DD">P</span><div class="tx"><b>Priya chose your offer</b><span>Fix my leaking kitchen tap · tap to open</span></div></div>
+
+  <div class="panel thread">
+    <div class="box" style="display:flex;gap:10px;align-items:center"><span class="pa" style="background:#7F77DD">P</span><div><div class="t" style="margin:0">Priya</div><div class="m th-sum" style="margin:0">Fix my leaking kitchen tap · ₹600</div></div></div>
+    <div class="box addr" style="margin-top:10px"><div class="lab" style="margin:0 0 2px">ADDRESS</div><div class="lockl">${ic('lock')} Indiranagar</div><div class="m">The exact address unlocks when the work starts</div></div>
+    <div class="bub rv b1">Hi Asha! The tap is under the kitchen sink. Can you come at 5?</div>
+    <div class="comp">Message</div>
+  </div>
+
+  <div class="panel vault">
+    <div class="lab v-lab" style="margin-top:6px"></div>
+    <div class="box rows">
+      <div class="rw rv r1"><span class="k1"></span><b class="v1"></b></div>
+      <div class="rw rv r2"><span class="k2"></span><b class="v2"></b></div>
+      <div class="rw tot rv r3"><span class="k3"></span><b class="v3"></b></div>
+    </div>
+    <div class="safe"><div class="inner">${ic('shield', 1.8)}</div><div class="ok">${ic('check', 2.6)}</div></div>
+    <div class="sl"><span class="b4">Held by TaskDrop</span><span class="af"></span></div>
+    <div class="ss"></div>
+    <div class="trk"><span class="bar"></span>
+      <div class="nd n1"><i>${ic('check', 3.4)}</i><span class="nd1"></span></div>
+      <div class="nd n2"><i>${ic('check', 3.4)}</i>Work started</div>
+      <div class="nd n3"><i>${ic('check', 3.4)}</i>Work done</div>
+    </div>
+    <div class="priv rv unl" style="justify-content:center">${ic('unlock')}<span class="unlt"></span></div>
+    <span class="coin cin1 c1">₹</span><span class="coin cin1 c2">₹</span><span class="coin cin1 c3">₹</span>
+    <span class="coin cout c1">₹</span><span class="coin cout c2">₹</span><span class="coin cout c3">₹</span>
+    <div class="payee"></div>
+    <div class="pbtn bottom rv actBtn"></div>
+  </div>
+
+  <div class="toast"><i>${ic('check', 3)}</i><span class="tt"></span></div>
+  <div class="scrim"></div>
+  <div class="ring"></div>
+  <div class="coach"><div class="cin"></div></div>
+  <div class="done">
+    <div class="logo">${ic('check', 2.8)}<span class="rip"></span><span class="rip"></span></div>
+    <h5>You're set!</h5>
+    <p class="d-p"></p>
+    <div class="pbtn d-1"></div>
+    <div class="obtn d-2"></div>
+    <div class="both">See the earning side · 30 s</div>
+    <div class="foot">See this again: tap your photo, then Take the app tour.</div>
+  </div>
+
+  <div class="onb">
+    <div class="pg"></div>
+    <div class="mid">
+      <div class="logo">${ic('check', 2.8)}</div>
+      <h5>You’re all set, Asha!</h5>
+    </div>
+    <div class="note">LAST ONBOARDING SCREEN (ALREADY IN THE APP)</div>
+    <div class="pbtn gobtn">Go to TaskDrop</div>
+  </div>
+
+  <div class="endc"><div class="card">
+    <span class="ptag">PROTOTYPE</span>
+    <h5 class="e-h"></h5>
+    <p class="e-p"></p>
+    <div class="pbtn e-again">Start again</div>
+    <div class="obtn e-other"></div>
+  </div></div>
+  <div class="finger"></div>
+</div></div>`;
+}
+
+const CANCEL = Symbol('cancel'), SKIP = Symbol('skip');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const S = { answer: 'hire', run: 0, waiting: null, p: null, bonus: false, chosen: 1, offer: 600, remote: false };
+
+function rectIn(p, el) {
+  const s = p.querySelector('.screen');
+  const a = s.getBoundingClientRect(), b = el.getBoundingClientRect();
+  const k = a.width / s.offsetWidth || 1;
+  return { x: (b.left - a.left) / k, y: (b.top - a.top) / k, w: b.width / k, h: b.height / k, k, a };
+}
+
+// The verbs every stop uses. tap() waits for the person to tap the lit-up thing;
+// side taps listed in `extras` (an offer stepper, a different offer) act without moving on.
+function api(p, id) {
+  const q = s => p.querySelector(s);
+  const live = () => { if (S.run !== id) throw CANCEL; };
+  const x = {
+    q,
+    rect: s => rectIn(p, q(s)),
+    async wait(ms) { await sleep(ms); live(); },
+    mode(m) { p.dataset.mode = m; },
+    on(s) { q(s).classList.add('on'); },
+    off(s) { q(s).classList.remove('on'); },
+    cls(s, c, v = true) { q(s).classList.toggle(c, v); },
+    spot(s, { pad = 6, r = 16 } = {}) {
+      const R = rectIn(p, q(s)), ring = q('.ring');
+      Object.assign(ring.style, { left: R.x - pad + 'px', top: R.y - pad + 'px', width: R.w + pad * 2 + 'px', height: R.h + pad * 2 + 'px', borderRadius: r + 'px' });
+      ring.classList.remove('arrive'); void ring.offsetWidth; ring.classList.add('on', 'arrive');
+    },
+    spotOff() { q('.ring').classList.remove('on', 'arrive'); },
+    scrim(v) { q('.scrim').classList.toggle('on', v); },
+    coach({ n, title, body, cta, next, pos = 'top' }) {
+      const total = S.bonus ? 3 : 5, k = S.bonus ? n - 1 : n;
+      const dots = Array.from({ length: total }, (_, i) => `<i class="${i + 1 < k ? 'past' : i + 1 === k ? 'cur' : ''}"></i>`).join('');
+      const c = q('.coach');
+      c.querySelector('.cin').innerHTML =
+        `<div class="cm">${S.bonus ? 'Earning side · ' : ''}Step ${k} of ${total} <span class="dots">${dots}</span><span class="sk" role="button">Skip</span></div>
+         <h6>${title}</h6><p>${body}</p>
+         <div class="cf">${cta ? `<span class="cta"><span class="tp"></span>${cta}</span>` : '<span></span>'}${next ? `<span class="nb" role="button">${next}</span>` : ''}</div>`;
+      c.className = 'coach on ' + pos;
+      void c.offsetWidth; c.classList.add('swap');
+    },
+    coachOff() { q('.coach').classList.remove('on'); },
+    toast(t) { q('.toast .tt').textContent = t; x.on('.toast'); },
+    toastOff() { x.off('.toast'); },
+    async type(s, text) {
+      const el = q(s);
+      for (let i = 1; i <= text.length; i++) { el.textContent = text.slice(0, i); await x.wait(45); }
+    },
+    point(s) {
+      const R = rectIn(p, q(s)), f = q('.finger');
+      f.style.left = R.x + R.w / 2 + 'px'; f.style.top = R.y + R.h / 2 + 'px';
+      f.classList.add('on');
+    },
+    tap(sel, extras = {}) {
+      live();
+      return new Promise((resolve, reject) => {
+        const els = [...p.querySelectorAll(sel)];
+        els.forEach(e => e.classList.add('tgt'));
+        const hintT = setTimeout(() => S.waiting && S.waiting.id === id && x.point(sel), 5000);
+        S.waiting = {
+          id, sel, extras, hint: () => x.point(sel),
+          done(v, err) {
+            clearTimeout(hintT);
+            els.forEach(e => e.classList.remove('tgt'));
+            q('.finger').classList.remove('on');
+            S.waiting = null;
+            err ? reject(err) : resolve(v);
+          }
+        };
+      });
+    }
+  };
+  return x;
+}
+
+const cap = s => s[0].toUpperCase() + s.slice(1);
+
+function fillVault(x, earn) {
+  const q = x.q;
+  if (earn) {
+    q('.v-lab').textContent = 'YOUR JOB';
+    q('.k1').textContent = 'Your offer'; q('.v1').textContent = inr(S.offer);
+    q('.k2').textContent = 'Priya paid'; q('.v2').textContent = '✓';
+    q('.k3').textContent = 'Held by TaskDrop'; q('.v3').textContent = inr(S.offer);
+    q('.sl .af').textContent = 'Paid to your wallet';
+    q('.ss').textContent = 'Safe before you start';
+    q('.nd1').textContent = 'You were chosen';
+    q('.unlt').innerHTML = 'Exact address unlocked: <b>12, 4th Cross, Indiranagar</b>';
+    q('.payee').innerHTML = `<span class="pa wl">${ic('wallet')}</span><div class="tx"><b>Your wallet</b><span class="before">Waiting for the work to be done</span><span class="after">Clears in ${CLEAR} days, then UPI or bank</span></div>`;
+    q('.actBtn').textContent = 'Mark as done';
+  } else {
+    const o = OFFERS[S.chosen], fee = Math.round(o.price * FEE) / 100;
+    q('.v-lab').textContent = 'PAYMENT';
+    q('.k1').textContent = `${o.name}'s offer`; q('.v1').textContent = inr(o.price);
+    q('.k2').textContent = `Service fee (${FEE}%)`; q('.v2').textContent = inr(fee);
+    q('.k3').textContent = 'Total held'; q('.v3').textContent = inr(Math.round((o.price + fee) * 100) / 100);
+    q('.sl .af').textContent = `Paid to ${o.name}`;
+    q('.ss').textContent = 'Released only when you approve';
+    q('.nd1').textContent = 'Offer chosen';
+    q('.unlt').textContent = S.remote ? `Remote job: no address needed` : `Exact address now shared with ${o.name}`;
+    q('.payee').innerHTML = `<span class="pa" style="background:${o.color}">${o.name[0]}</span><div class="tx"><b>${o.name}</b><span class="before">Waiting for your approval</span><span class="after">Paid ✓</span></div>`;
+    q('.actBtn').textContent = 'Approve';
+  }
+}
+
+// Stops. Each starts from where the previous one ended.
+const STOPS = {
+  async start(x) {
+    x.toast('Welcome to TaskDrop');
+    await x.wait(1500);
+    x.toastOff();
+    await x.wait(300);
+    x.on('.start');
+    await x.wait(400);
+    await x.tap('.start .go');
+    x.off('.start');
+    await x.wait(450);
+  },
+  async sides(x, base) {
+    const first = base === 'earn' ? 'hire' : 'earn';
+    x.spot('.ms', { pad: 5, r: 999 });
+    x.coach({ n: 1, title: 'One account, two sides', body: 'Hire when you need something done. Earn when you want to do the work.', cta: `Tap ${cap(first)}`, pos: 'top' });
+    await x.tap(`.ms b[data-m="${first}"]`);
+    x.mode(first);
+    x.cls('.tabs', 'lift'); x.cls('.tabs', 'flash');
+    x.coach({
+      n: 1,
+      title: first === 'earn' ? 'Now you’re earning' : 'Now you’re hiring',
+      body: first === 'earn'
+        ? 'The colour turns blue and the tabs rename themselves: My Tasks is now My Work.'
+        : 'The colour turns jade and the tabs rename themselves: My Work is now My Tasks.',
+      cta: `Tap ${cap(base)} to switch back`, pos: 'top'
+    });
+    await x.wait(400);
+    await x.tap(`.ms b[data-m="${base}"]`);
+    x.mode(base);
+    x.cls('.tabs', 'flash', false);
+    await x.wait(500);
+    x.cls('.tabs', 'lift', false);
+  },
+  async post(x) {
+    x.spot('.fab', { pad: 6, r: 999 });
+    x.coach({ n: 2, title: 'Ask for anything', body: 'Describe what you need in plain words. Someone gets it done for you.', cta: 'Tap the drop', pos: 'mid' });
+    await x.tap('.fab');
+    x.spotOff(); x.coachOff();
+    x.on('.post');
+    await x.wait(500);
+    await x.type('.post .typed', 'Fix my leaking kitchen tap');
+    await x.wait(250);
+    x.on('.post .budget');
+    await x.wait(250);
+    x.on('.post .where');
+    await x.wait(300);
+    x.spot('.post .chips', { pad: 6, r: 18 });
+    x.coach({ n: 2, title: 'Near you, or online', body: 'Pick “At a place” for help nearby, or “Remote / online” for work done from anywhere.', cta: 'Pick one', pos: 'top' });
+    const chip = await x.tap('.post .chip');
+    S.remote = chip.classList.contains('c-remote');
+    chip.classList.add('sel');
+    x.q('.post .al').innerHTML = S.remote ? 'Remote: anyone online can offer, <b>no address shared</b>' : 'Workers see only <b>Indiranagar</b> for now';
+    x.on('.post .areaLine');
+    await x.wait(300);
+    x.spot('.post .postBtn', { pad: 5, r: 999 });
+    x.coach({
+      n: 2, cta: 'Tap Post', pos: 'top',
+      title: S.remote ? 'Open to anyone, anywhere' : 'Your address stays private',
+      body: S.remote ? 'Remote tasks reach people online from anywhere. No address is ever shared.' : 'Workers see only your area name. The exact address unlocks when the work starts.'
+    });
+    await x.tap('.post .postBtn');
+    x.spotOff(); x.coachOff();
+    x.cls('.post', 'sent');
+    await x.wait(450);
+    x.off('.post');
+    x.toast('Posted. Offers are on the way');
+    await x.wait(1400);
+    x.toastOff();
+  },
+  async offers(x) {
+    if (S.remote) {
+      x.q('.offers .sum').textContent = 'Budget ₹600 · Remote / online';
+      x.q('.offers').querySelectorAll('.km').forEach(k => (k.textContent = 'Online'));
+    }
+    x.on('.offers');
+    await x.wait(400);
+    for (const i of [0, 1, 2]) { x.cls(`.offers .of${i}`, 'in'); await x.wait(450); }
+    // One ring round all three offers: any of them can be picked.
+    x.spot('.offers .of0', { pad: 0, r: 18 });
+    const R0 = x.rect('.offers .of0'), R2 = x.rect('.offers .of2');
+    Object.assign(x.q('.ring').style, { left: R0.x - 5 + 'px', top: R0.y - 5 + 'px', width: R0.w + 10 + 'px', height: R2.y + R2.h - R0.y + 10 + 'px', borderRadius: '22px' });
+    x.coach({ n: 3, title: 'Offers come to you', body: 'Compare the price and who’s active now, then pick the one you like.', cta: 'Tap an offer', pos: 'bottom' });
+    const card = await x.tap('.offers .of');
+    S.chosen = +card.dataset.i;
+    x.cls('.offers', 'picked'); card.classList.add('sel');
+    x.q('.offers .chooseBtn').textContent = `Choose offer · ${inr(OFFERS[S.chosen].price)}`;
+    x.on('.offers .chooseBtn');
+    await x.wait(300);
+  },
+  async money(x) {
+    const o = OFFERS[S.chosen];
+    x.spot('.offers .chooseBtn', { pad: 5, r: 999 });
+    x.coach({ n: 4, title: 'Your money is held safely', body: `You pay the offer plus a ${FEE}% service fee. TaskDrop holds it until you approve the work.`, cta: 'Tap Choose offer', pos: 'bottom' });
+    // Changing your mind is fine: tapping another offer picks it instead.
+    await x.tap('.offers .chooseBtn', {
+      '.offers .of': card => {
+        x.q('.offers .of.sel').classList.remove('sel');
+        card.classList.add('sel');
+        S.chosen = +card.dataset.i;
+        x.q('.offers .chooseBtn').textContent = `Choose offer · ${inr(OFFERS[S.chosen].price)}`;
+      }
+    });
+    fillVault(x, false);
+    x.spotOff(); x.coachOff();
+    x.off('.offers'); x.on('.vault');
+    await x.wait(400);
+    for (const r of ['.r1', '.r2', '.r3']) { x.on('.vault ' + r); await x.wait(160); }
+    await x.wait(200);
+    x.cls('.vault', 'fill');
+    await x.wait(1300);
+    x.cls('.vault', 't1'); await x.wait(700);
+    x.cls('.vault', 't2'); x.on('.vault .unl'); await x.wait(1100);
+    x.cls('.vault', 't3'); await x.wait(500);
+    x.on('.vault .actBtn');
+    x.spot('.vault .actBtn', { pad: 5, r: 999 });
+    const who = OFFERS[S.chosen].name;
+    x.coach({ n: 4, title: `${who} says the work is done`, body: `Happy with it? Approve to pay. You have ${DAYS} days to approve or report a problem.`, cta: 'Tap Approve', pos: 'top' });
+    await x.tap('.vault .actBtn');
+    x.spotOff(); x.coachOff();
+    x.cls('.vault', 'paid');
+    await x.wait(1700);
+    x.off('.vault');
+    await x.wait(350);
+  },
+  async find(x) {
+    x.spot('.job1', { pad: 4, r: 20 });
+    x.coach({ n: 2, title: 'Find work near you or online', body: 'Jobs from your area, plus remote work you can do from your phone or laptop.', cta: 'Tap a job', pos: 'top' });
+    await x.tap('.job1');
+    x.spotOff(); x.coachOff();
+    x.on('.job');
+    await x.wait(600);
+    x.spot('.job .sendBtn', { pad: 5, r: 999 });
+    x.coach({ n: 2, title: 'Name your price', body: 'Offer the customer’s budget, or change the amount first with − and +.', cta: 'Tap Send offer', pos: 'top' });
+    const step = d => () => {
+      S.offer = Math.min(1200, Math.max(300, S.offer + d));
+      x.q('.job .amt').textContent = inr(S.offer);
+      x.q('.job .sendBtn').textContent = `Send offer · ${inr(S.offer)}`;
+    };
+    await x.tap('.job .sendBtn', { '.job .minus': step(-50), '.job .plus': step(50) });
+    x.spotOff(); x.coachOff();
+    x.off('.job');
+    x.toast(`Offer sent at ${inr(S.offer)}`);
+    await x.wait(1500);
+    x.toastOff();
+  },
+  async picked(x) {
+    x.q('.thread .th-sum').textContent = `Fix my leaking kitchen tap · ${inr(S.offer)}`;
+    x.on('.banner'); x.cls('.bell', 'has');
+    await x.wait(500);
+    x.spot('.banner', { pad: 4, r: 20 });
+    x.coach({ n: 3, title: 'The customer picks you', body: 'You get an alert the moment it happens.', cta: 'Tap the alert', pos: 'mid' });
+    await x.tap('.banner');
+    x.spotOff(); x.coachOff();
+    x.off('.banner'); x.on('.thread');
+    await x.wait(500);
+    x.on('.thread .b1');
+    await x.wait(400);
+    x.spot('.thread .addr', { pad: 4, r: 20 });
+    x.coach({ n: 3, title: 'Now you can chat', body: 'Until the work starts, you see only the area name. The exact address unlocks then.', next: 'Next', pos: 'bottom' });
+    await x.tap('.coach .nb');
+    x.spotOff(); x.coachOff();
+    x.off('.thread');
+  },
+  async paid(x) {
+    fillVault(x, true);
+    x.on('.vault');
+    await x.wait(400);
+    for (const r of ['.r1', '.r2', '.r3']) { x.on('.vault ' + r); await x.wait(160); }
+    x.cls('.vault', 'fill'); x.cls('.vault', 't1');
+    await x.wait(900);
+    x.spot('.vault .safe', { pad: 6, r: 999 });
+    x.coach({ n: 4, title: 'The money is already held', body: 'Priya paid when she chose you, so you know it’s there before you start.', next: 'Next', pos: 'bottom' });
+    await x.tap('.coach .nb');
+    x.spotOff();
+    x.cls('.vault', 't2'); x.on('.vault .unl');
+    x.coachOff();
+    await x.wait(1100);
+    x.on('.vault .actBtn');
+    x.spot('.vault .actBtn', { pad: 5, r: 999 });
+    x.coach({ n: 4, title: 'Finished the job?', body: `Tell Priya it’s done. She approves it, or it is approved for you after ${DAYS} days.`, cta: 'Tap Mark as done', pos: 'top' });
+    await x.tap('.vault .actBtn');
+    x.spotOff(); x.coachOff();
+    x.cls('.vault', 't3');
+    x.toast('Priya approved the work');
+    await x.wait(900);
+    x.toastOff();
+    x.cls('.vault', 'paid');
+    await x.wait(1000);
+    x.spot('.vault .payee', { pad: 6, r: 18 });
+    x.coach({ n: 4, title: 'Paid to your wallet', body: `Earnings clear after ${CLEAR} days, then withdraw to UPI or bank. Fees are in How fees work.`, next: 'Next', pos: 'top' });
+    await x.tap('.coach .nb');
+    x.spotOff(); x.coachOff();
+    x.off('.vault');
+    await x.wait(350);
+  },
+  async around(x, base) {
+    x.spot('.hd .tools', { pad: 4, r: 18 });
+    x.coach({ n: 5, title: 'Everything else, one tap away', body: 'The bell shows what’s new. The chat icon opens your messages. Your photo opens settings, Help &amp; support, and this tour again.', next: 'Next', pos: 'top' });
+    await x.tap('.coach .nb');
+    x.spot('.tabs', { pad: 0, r: 4 });
+    x.cls('.tabs', 'lift'); x.cls('.tabs', 'sweep');
+    x.coach({
+      n: 5, title: 'Five tabs at the bottom', next: 'Got it', pos: 'bottom',
+      body: base === 'earn'
+        ? 'Home for what’s new, Find work for open jobs, My Work to track your jobs, Wallet for your earnings, Profile for you.'
+        : 'Home for what’s new, Explore for ideas, My Tasks to track your jobs, Wallet for your money, Profile for you.'
+    });
+    await x.tap('.coach .nb');
+    x.spotOff(); x.coachOff();
+    x.cls('.tabs', 'sweep', false); x.cls('.tabs', 'lift', false);
+  }
+};
+
+function resetPractice(p) {
+  // Fresh practice pieces for the earning-side extra, so nothing from the hiring run shows through.
+  p.querySelector('.vault').className = 'panel vault';
+  p.querySelectorAll('.vault .rv').forEach(e => e.classList.remove('on'));
+}
+
+async function finish(x, base) {
+  const earn = base === 'earn';
+  x.q('.d-p').textContent = earn ? 'Find work near you or online, or post something you need.' : 'Post what you need, or find work to do.';
+  x.q('.d-1').textContent = earn ? 'Find work' : 'Post a request';
+  x.q('.d-2').textContent = earn ? 'Post a request' : 'Find work';
+  x.cls('.done', 'showboth', S.answer === 'both' && !S.bonus);
+  x.scrim(true);
+  x.on('.done');
+  const hit = await x.tap(S.answer === 'both' && !S.bonus ? '.done .d-1, .done .d-2, .done .both' : '.done .d-1, .done .d-2');
+  if (hit.classList.contains('both')) return 'bonus';
+  x.off('.done'); x.scrim(false);
+  return hit.textContent;
+}
+
+function showEnd(p, title, body) {
+  const e = p.querySelector('.endc');
+  e.querySelector('.e-h').textContent = title;
+  e.querySelector('.e-p').textContent = body;
+  const next = { hire: 'earn', earn: 'both', both: 'hire' }[S.answer];
+  e.querySelector('.e-other').textContent = `Try the “${{ hire: 'Earn', earn: 'Both', both: 'Hire' }[S.answer]}” answer`;
+  e.querySelector('.e-other').dataset.next = next;
+  e.classList.add('on');
+}
+
+async function play() {
+  const id = ++S.run;
+  if (S.waiting) { S.waiting.done(null, CANCEL); }
+  S.bonus = false; S.chosen = 1; S.offer = 600; S.remote = false;
+  const base = S.answer === 'earn' ? 'earn' : 'hire';
+  const host = document.getElementById('stage');
+  host.innerHTML = phoneHTML(base);
+  const p = host.querySelector('.phone');
+  S.p = p;
+  wire(p);
+  const x = api(p, id);
+  try {
+    await x.tap('.onb .gobtn');
+    x.cls('.onb', 'gone');
+    await x.wait(300);
+    await STOPS.start(x);
+    await STOPS.sides(x, base);
+    if (base === 'hire') { await STOPS.post(x); await STOPS.offers(x); await STOPS.money(x); }
+    else { await STOPS.find(x); await STOPS.picked(x); await STOPS.paid(x); }
+    await STOPS.around(x, base);
+    let r = await finish(x, base);
+    if (r === 'bonus') {
+      x.off('.done'); x.scrim(false);
+      resetPractice(p);
+      S.bonus = true;
+      x.mode('earn');
+      x.toast('Switched to Earn for this part');
+      await x.wait(1400); x.toastOff();
+      await STOPS.find(x); await STOPS.picked(x); await STOPS.paid(x);
+      x.mode(base);
+      x.toast('Back to Hire, as you were');
+      await x.wait(1300); x.toastOff();
+      r = await finish(x, base);
+    }
+    showEnd(p, 'That’s the whole tour', `In the app, “${r}” would open now, in the mode the person started in. The tour is marked as seen on this device, so it isn't offered again. They can replay it from the photo menu.`);
+  } catch (e) {
+    if (e === CANCEL) return;
+    if (e !== SKIP) throw e;
+    p.dataset.mode = base;
+    ['.coach', '.ring', '.start', '.post', '.job', '.banner', '.offers', '.thread', '.vault', '.done', '.scrim', '.toast'].forEach(s => p.querySelector(s).classList.remove('on'));
+    showEnd(p, 'Tour skipped', 'The tour closes and the person stays on Home in the mode they started in. It is marked as seen on this device and can be replayed from the photo menu.');
+  }
+}
+
+function ripple(p, ev) {
+  const s = p.querySelector('.screen'), a = s.getBoundingClientRect(), k = a.width / s.offsetWidth || 1;
+  const d = document.createElement('span');
+  d.className = 'tr';
+  d.style.left = (ev.clientX - a.left) / k + 'px';
+  d.style.top = (ev.clientY - a.top) / k + 'px';
+  s.appendChild(d);
+  setTimeout(() => d.remove(), 500);
+}
+
+function nudge(p) {
+  const c = p.querySelector('.coach');
+  c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake');
+  if (S.waiting) S.waiting.hint();
+}
+
+function wire(p) {
+  p.querySelector('.screen').addEventListener('click', ev => {
+    ripple(p, ev);
+    const t = ev.target;
+    if (t.closest('.endc .e-again')) return play();
+    if (t.closest('.endc .e-other')) return setAnswer(t.closest('.e-other').dataset.next);
+    const w = S.waiting;
+    if (!w) return;
+    if (t.closest('.coach .sk, .start .skipnow')) return w.done(null, SKIP);
+    for (const [sel, fn] of Object.entries(w.extras)) {
+      const hit = t.closest(sel);
+      if (hit && !hit.matches(w.sel)) return fn(hit);
+    }
+    const hit = t.closest(w.sel);
+    if (hit) {
+      hit.classList.add('pressed');
+      setTimeout(() => hit.classList.remove('pressed'), 160);
+      return w.done(hit);
+    }
+    nudge(p);
+  });
+}
+
+addEventListener('keydown', ev => {
+  const w = S.waiting;
+  if (!w) return;
+  if (ev.key === 'Escape') w.done(null, SKIP);
+  if (ev.key === 'Enter' && !ev.target.closest('button')) { const el = S.p.querySelector(w.sel); if (el) w.done(el); }
+});
+
+function setAnswer(a) {
+  S.answer = a;
+  document.querySelectorAll('[data-a]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.a === a)));
+  play();
+}
+document.querySelectorAll('[data-a]').forEach(b => b.addEventListener('click', () => setAnswer(b.dataset.a)));
+document.getElementById('restart').addEventListener('click', () => play());
+
+function fit() {
+  const narrow = innerWidth < 560;
+  document.body.classList.toggle('bare', narrow);
+  document.getElementById('help').hidden = narrow;
+  const w = narrow ? 360 : 380, h = narrow ? 760 : 780;
+  const wrap = document.getElementById('stagewrap');
+  const availW = document.body.clientWidth - 32;
+  const top = wrap.getBoundingClientRect().top;
+  const availH = innerHeight - top - 12;
+  const k = Math.max(0.4, Math.min(availW / w, availH / h, 1.15));
+  document.getElementById('stage').style.transform = `scale(${k})`;
+  wrap.style.width = w * k + 'px';
+  wrap.style.height = h * k + 'px';
+}
+addEventListener('resize', fit);
+fit();
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { fit(); play(); });
+</script>
