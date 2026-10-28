@@ -600,7 +600,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
 
 **Android**
 - [ ] Camera and gallery uploads work
-- [ ] Images load fast on mobile data
+- [x] Images load fast on mobile data. Checked 2026-10-28 on the owner's phone (CPH2585) with Wi-Fi off: cold start to the Home layout about 2 s, signed-in Home data about 4 s, full Home about 6 s (screen captures every ~0.7 s over USB, so ±1 s)
 
 **iOS**
 - ⏸ **Future scope (deferred 2026-10-20).** iOS waits until Android and the admin are done; the boxes below are marked `[-]` and don't block this phase.
