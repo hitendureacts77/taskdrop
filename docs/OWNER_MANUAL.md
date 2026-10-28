@@ -84,7 +84,9 @@ Things that are **not** yours to do now: key rotation (3.2, 6.1), Safari and iOS
 
 ## Part 1: finish the app and staging
 
-### ☐ T1 Five decisions (answer in the chat, one line each) (tasks 8.1, 8.2 and Phase 2)
+### ☑ T1 Five decisions (answer in the chat, one line each) (tasks 8.1, 8.2 and Phase 2) — done 2026-10-28
+
+**Answered 2026-10-28:** 1 keep OpenStreetMap while testing; 2 legal details given (below); 3 keep (profiles keep the rounded place and "last seen"); 4 no Razorpay changes (top-up is tested later); 5 leave the Sales tester as is. **For 2:** Claude set `EXPO_PUBLIC_LEGAL_ENTITY` = Taskdrop, `EXPO_PUBLIC_LEGAL_ADDRESS` = C-602, Casarouge, Jubilee Garden, Road No. 8, Kondapur, Hyderabad, `EXPO_PUBLIC_LEGAL_EMAIL` = hitendureacts@gmail.com (also the grievance email until another is set) and `EXPO_PUBLIC_LEGAL_JURISDICTION` = Hyderabad in the Vercel project `taskdrop` (all environments) and started a rebuild of `redesigned-2.0`. **Moved to future scope (owner, 2026-10-28):** the **Grievance Officer name**, a separate grievance email, the address **PIN code** and `EXPO_PUBLIC_LEGAL_REVIEWED` wait for Phase 10 (task 10.6, the lawyer, and the Legal boxes in the plan). Until then the Privacy page shows no officer name, which is true and is how it reads today. The Android app shows the new details after its next build or update.
 
 1. **Map (8.1).** Reply: "Keep OpenStreetMap while testing." The decision about a paid-friendly provider can wait until before launch.
 2. **Legal details (8.2).** Type to Claude, filled in: "Legal details for the Terms and Privacy pages: business or legal name …, address …, email hitendureacts@gmail.com, grievance officer name …, grievance officer email …, courts in (city) …". Until you do, the Privacy page says "Draft, under legal review" and shows no Grievance Officer.
@@ -92,7 +94,7 @@ Things that are **not** yours to do now: key rotation (3.2, 6.1), Safari and iOS
 4. **Razorpay test links (P2-36).** The test mode allows 30 payment links and they are used up, and the checkout offered no UPI. Either: (a) click: Razorpay dashboard → switch to **Test mode** (top) → **Payment Links** → cancel the old links, and check **Settings** → **Payment methods** has UPI on; or (b) reply "accept; top-up is tested later". Claude does not touch Razorpay.
 5. **Sales tester `hitendu7@gmail.com`.** Reply "remove it" or "leave it". (Tell Claude the staff you want instead in T4.)
 
-### ☐ T2 Two ImageKit values in the admin's Vercel project (task 6.4)
+### ☑ T2 Two ImageKit values in the admin's Vercel project (task 6.4) — done 2026-10-28 (Claude redeployed the `redesigned-2.0` admin preview and checked in your Chrome: a job with two photos shows both, no "no ImageKit settings" notice; production `taskdrop-admin.vercel.app` not redeployed yet, it picks the values up on its next deploy)
 
 So the admin's Jobs and Copyright pages show photos. No new key is made; you copy what the app already uses.
 
@@ -100,15 +102,15 @@ So the admin's Jobs and Copyright pages show photos. No new key is made; you cop
 2. Click: Vercel → project **taskdrop-admin** → **Settings** → **Environment Variables** → **Add New**. Add `IMAGEKIT_PRIVATE_KEY` (starts `private_`; tick **Sensitive**) and `IMAGEKIT_URL_ENDPOINT` (looks like `https://ik.imagekit.io/<your id>`). Environments: all. **Save** each.
 3. Type to Claude: "The two ImageKit values are in the admin's Vercel project. Redeploy the admin and check the photos."
 
-### ☐ T3 Approve the app tour design (Phase 8)
+### ☑ T3 Approve the app tour design (Phase 8) — done 2026-10-28
 
-The tour is **not built yet** on purpose: your rule is that the design is approved before anything clickable is made. It is part of the app, so it has to be approved and built before the store file.
+**Approved 2026-10-28: design v2** (`docs/design/tour/TOUR_DESIGN_V2.html`, clickable reference `docs/design/tour/TOUR_PROTOTYPE.html`, which you tried on your phone: "it feels right"). Your decisions: it starts by itself once, right after onboarding; it is hands-on (five stops, each waits for a tap on the real lit-up control, with a pretend PRACTICE task from post to paid that saves nothing and moves no money); you flip the **real** Hire/Earn switch and the tour puts it back at the end; "tour seen" is remembered per device; it follows your onboarding answer, and "Both" gets a "See the earning side (30 s)" link. Plan v4.70 records it and the Phase 8 box is ticked.
 
-1. Type to Claude: "Show me the tour design." Claude sends one still picture per step, the list of steps and the wording.
-2. Click: look at them. Reply **approved**, or say what to change (for example "shorter text" or "move the money step earlier").
-3. After approval, Claude builds it, tests it on web and on the phone, and merges it by pull request.
+**Built 2026-10-28** ("start Phase 8"): branch `feat/app-tour`, pull request into `redesigned-2.0`, tested in Chrome (not yet on your phone). After the pull request is merged and the `beta` app is updated, try it on your phone: tap your photo, then **Take the app tour**.
 
-### ☐ T4 Add your admin staff (task A.3 step 4)
+### ☑ T4 Add your admin staff (task A.3 step 4) — done 2026-10-28 with dummy people
+
+**Done 2026-10-28 (owner: "add some dummy people by yourself"):** Claude added three fake staff accounts on the test project, all on `@seed.taskdrop.test` emails: Priya (`finance@`, Finance, alerts on), Kiran (`support@`, Support, alerts on), Neha (`viewer@`, Viewer, alerts off). With the seed Test Admin, `hitendureacts@gmail.com` (Admin) and `hitendu7@gmail.com` (Sales, left as is per T1), that is six staff. The dummy ones cannot sign in to the admin (it only admits real allow-listed emails); they exist so the Staff screen and the role limits can be looked at. Add real people any time with the sentence below.
 
 1. Type to Claude: "Add these people as admin staff:" and list each name, email and role (**Sales**, **Support**, **Finance** or **Viewer**). Only people who help run the staging need this.
 
@@ -859,11 +861,11 @@ Warn, close report, hide message and hide job each have a row; the page now says
 
 ## Phase 8: Store readiness
 
-### ☐ 8.1 Decide on the map
+### ☑ 8.1 Decide on the map — done 2026-10-28: keep OpenStreetMap while testing; a provider is chosen before launch
 
 1. Simplest: Type to Claude "Keep OpenStreetMap while testing. Suggest a free map provider for the store version." Claude's note (check each provider's current free limits before choosing): Android already uses Google Maps (restricted key, no tile problem); the weak spot is the web map and the address fallback, which use OpenStreetMap's public servers (not allowed at scale). Options: a tile provider whose free tier allows commercial use, or Google Maps on the web too. The decision can wait until before launch.
 
-### ☐ 8.2 Give the legal details — the Terms, Privacy and Support pages are live (checked 2026-10-25, all open); the Privacy page marks itself "Draft, under legal review" and shows no Grievance Officer name until you give these
+### ☑ 8.2 Give the legal details — done 2026-10-28 for staging: business name, address, email and courts city are set in Vercel (see T1). Grievance Officer name, PIN code and the lawyer review moved to future scope (Phase 10, task 10.6)
 
 1. Type to Claude, filled in: "Legal details for the Terms and Privacy pages: business or legal name …, address …, email hitendureacts@gmail.com, grievance officer name …, grievance officer email …, courts in (city) …"
 
@@ -1012,3 +1014,15 @@ Nothing here is needed now. Do it only after you tell Claude "start iOS". It nee
 
 1. Type to Claude: "Start iOS."
 2. Claude lists the Apple steps (Developer enrollment, App Store Connect, TestFlight testers, Sign in with Apple) as clicks, and this section grows then.
+
+## Future scope: OneSignal (push campaigns)
+
+Nothing here is needed now. Do it only after you tell Claude "start OneSignal". The plan item is `docs/UPGRADE_PLAN.md`, Part B, section 13.1.
+
+What it is for: sending **campaign** pushes (for example "no task posted in 7 days") from a dashboard, with segments, scheduling, automated journeys and open/click numbers. It is **not** needed to reach Android and iOS together, because the push we already send does that. The event notifications ("a helper accepted your task") stay on the current push system.
+
+### ⏸ F.3 Start OneSignal
+
+1. Type to Claude: "Start OneSignal."
+2. Claude lists the clicks: create the OneSignal account and app, link it to the Taskdrop Firebase project, then a new Android build with the OneSignal SDK. This section grows then.
+3. Before launch, the Terms, Privacy and Play data-safety form must name OneSignal, and the lawyer should see it (task 10.6).

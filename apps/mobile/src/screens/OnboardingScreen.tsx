@@ -5,6 +5,7 @@ import { Screen } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import { Field, IconButton, Pill, PrimaryButton } from '../components/kit';
 import { Ripples } from '../components/Ripples';
+import { requestTourOffer } from '../components/tour/tourStore';
 import { LocationSheet } from '../components/LocationSheet';
 import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
@@ -145,6 +146,8 @@ export function OnboardingScreen() {
       setMode(intent === 'earn' ? 'worker' : 'poster');
       reset('home');
       celebrate('Welcome to TaskDrop');
+      // Offered once, on Home, after the staging card (see components/tour).
+      requestTourOffer(intent);
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not finish setup');
     } finally {

@@ -10,6 +10,7 @@ import { useAuth } from '../providers/AuthProvider';
 import { AgeGate } from '../components/AgeGate';
 import { Overlays } from '../components/Overlays';
 import { StagingWelcome } from '../components/StagingWelcome';
+import { TourHost } from '../components/tour/TourHost';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { ScreenBoundary } from '../AppProviders';
 import { fontFamilyFor } from '../theme';
@@ -86,6 +87,7 @@ export function NativeRoot() {
       <ErrorBoundary silent>
         <Overlays />
         <StagingWelcome />
+        <TourHost />
       </ErrorBoundary>
     </KeyboardAvoidingView>
   );

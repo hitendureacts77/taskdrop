@@ -5,6 +5,7 @@ import { useMode } from '../providers/ModeProvider';
 import { useSwitchMode } from '../lib/useSwitchMode';
 import { useReducedMotion } from '../lib/motion';
 import { tx } from './primitives';
+import { useTourTarget } from './tour/targets';
 
 const MODES = ['poster', 'worker'] as const;
 const COMPACT_W = 54;
@@ -30,6 +31,7 @@ export function ModeSwitch({
   const t = useTheme();
   const { mode } = useMode();
   const switchMode = useSwitchMode();
+  const tourRef = useTourTarget('modeSwitch');
   const reduced = useReducedMotion();
   const index = mode === 'worker' ? 1 : 0;
   const [size, setSize] = useState({ w: 0, h: 0 });
@@ -54,6 +56,8 @@ export function ModeSwitch({
 
   return (
     <View
+      ref={tourRef}
+      collapsable={false}
       onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
       accessibilityRole="tablist"
       style={{
