@@ -212,6 +212,18 @@ export function limit(a: Args, k = "limit", dflt = 30, max = LIMIT_MAX): number 
 
 // ----------------------------------------------------------------- helpers --
 
+/**
+ * Who a signed-in token belongs to, from the result of `auth.getClaims(jwt)`; null when the token did not check
+ * out. getClaims verifies the signature here, against the project's cached public keys, so the sign-in check no
+ * longer costs a round trip to the auth service on every call (it still asks the service itself when the project
+ * signs with a shared secret). The anon key's token has no `sub`, so it never passes.
+ */
+export function callerFromClaims(res: { data: { claims?: { sub?: unknown } } | null; error: unknown } | null | undefined): string | null {
+  if (!res || res.error) return null;
+  const sub = res.data?.claims?.sub;
+  return typeof sub === "string" && UUID.test(sub) ? sub : null;
+}
+
 /** An operation that is a single SQL function call. */
 export function rpcOp(fn: string, build: (a: Args, ctx: Ctx) => Record<string, unknown> = () => ({})): Op {
   return async (ctx, a) => take(await ctx.db.rpc(fn, build(a, ctx)));

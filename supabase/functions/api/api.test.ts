@@ -11,6 +11,7 @@ import { MAX_BATCH, OPS, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, r
 import {
   ControlsCache, featureOffMessage, OPEN_CONFIG, parseControls, publicConfig, readClient, refusalFor, type Controls,
 } from "../_shared/controls.ts";
+import { callerFromClaims } from "./core.ts";
 import * as serverRules from "../_shared/rules.ts";
 import type { ImageKitConfig } from "../_shared/imagekit.ts";
 import { createHmac } from "node:crypto";
@@ -779,6 +780,26 @@ await t("controls are looked up once per half minute per kind of caller, and a f
   const stale = await cache.get(android, load);
   assert.equal(stale, first, "a failed refresh falls back to the last good answer");
   assert.equal(await new ControlsCache(30_000).get(android, load), null, "no answer at all is null, which never refuses");
+});
+
+await t("the caller comes from a checked token's claims; anything that did not check out is nobody", () => {
+  const ok = (claims: Record<string, unknown>) => callerFromClaims({ data: { claims }, error: null });
+  assert.equal(ok({ sub: UID, role: "authenticated" }), UID);
+  assert.equal(callerFromClaims({ data: { claims: { sub: UID } }, error: new Error("Invalid JWT signature") }), null, "a failed check");
+  assert.equal(callerFromClaims({ data: null, error: null }), null, "no answer");
+  assert.equal(callerFromClaims(null), null);
+  assert.equal(callerFromClaims(undefined), null);
+  assert.equal(ok({ role: "anon" }), null, "the anon key has no subject");
+  assert.equal(ok({ sub: "" }), null);
+  assert.equal(ok({ sub: 42 }), null);
+  assert.equal(ok({ sub: "not-a-uuid" }), null);
+});
+
+await t("api/index.ts checks the token with getClaims and asks the auth service only while the phone switch is on", () => {
+  const src = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+  assert.match(src, /callerFromClaims\(await db\.auth\.getClaims\(jwt\)\)/);
+  assert.equal((src.match(/auth\.getUser\(/g) ?? []).length, 1, "one getUser, and only for the phone check");
+  assert.match(src, /if \(controls\?\.require_phone_verified\) \{\s*const \{ data: userData, error: userErr \} = await db\.auth\.getUser\(jwt\)/);
 });
 
 await t("a device is recorded from the headers, and registering a push token never fails because of it", async () => {

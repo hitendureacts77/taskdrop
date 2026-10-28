@@ -6,6 +6,7 @@ import { gatewayHeaders } from "../_shared/gateway.ts";
 import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
 import { guarded, background, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
+import { callerFromClaims } from "./core.ts";
 import { type Db, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp } from "./ops.ts";
 
 /**
@@ -97,8 +98,11 @@ Deno.serve(guarded("api", async (req: Request) => {
     if (peek?.op === "health") return await health(url);
   }
 
-  const { data: userData, error: userErr } = await db.auth.getUser(jwt);
-  if (userErr || !userData?.user) return refuse("Your session has expired. Please sign in again.", "UNAUTHENTICATED", 401);
+  // Checked here against the project's cached public keys, not by asking the auth service on every call
+  // (P2-48: that round trip was a large part of the function's own time). The gateway has already
+  // verified the token (verify_jwt); this reads who it belongs to and that it has not expired.
+  const userId = callerFromClaims(await db.auth.getClaims(jwt));
+  if (!userId) return refuse("Your session has expired. Please sign in again.", "UNAUTHENTICATED", 401);
 
   let body: { op?: unknown; args?: unknown };
   try {
@@ -125,7 +129,7 @@ Deno.serve(guarded("api", async (req: Request) => {
       // A batch counts once per call inside it, so batching never widens the budget.
       const hits = await Promise.all(
         Array.from({ length: rateCost(body.op, body.args) }, () =>
-          admin.rpc("api_rate_hit", { p_user: userData.user.id, p_bucket: bucket, p_limit: RATE_LIMITS[bucket] })
+          admin.rpc("api_rate_hit", { p_user: userId, p_bucket: bucket, p_limit: RATE_LIMITS[bucket] })
         ),
       );
       const failed = hits.find((h) => h.error);
@@ -134,8 +138,8 @@ Deno.serve(guarded("api", async (req: Request) => {
         return null;
       }
       if (hits.some((h) => h.data === false)) {
-        limitedLately.mark(userData.user.id);
-        background(logServer("warn", "api", "rate limited", { op: String(body.op), bucket, user_id: userData.user.id }));
+        limitedLately.mark(userId);
+        background(logServer("warn", "api", "rate limited", { op: String(body.op), bucket, user_id: userId }));
         return refuse("You are going too fast. Please wait a moment and try again.", "RATE_LIMITED", 429);
       }
     } catch (e) {
@@ -145,7 +149,7 @@ Deno.serve(guarded("api", async (req: Request) => {
   };
   // Only a read runs while the counter is still being written: it changes
   // nothing, and a refusal drops its answer. A write waits for the counter.
-  const overlap = bucket === "read" && !limitedLately.has(userData.user.id);
+  const overlap = bucket === "read" && !limitedLately.has(userId);
   // Started now, so its round trip overlaps the switches' below (when this
   // instance has to read them) and, for a read, the operation's own.
   const rate = checkRate();
@@ -203,26 +207,33 @@ Deno.serve(guarded("api", async (req: Request) => {
   };
 
   /** The caller's own folder only, with the service role. Best-effort, like removeMedia. */
-  const ownFolder = `${userData.user.id}/`;
+  const ownFolder = `${userId}/`;
   const removeOwnFiles = async (paths: string[]) => {
     const mine = paths.filter((p) => p.startsWith(ownFolder) && !p.includes(".."));
     if (!admin || mine.length === 0) return;
     for (let i = 0; i < mine.length; i += 100) {
       const { error } = await admin.storage.from("task-media").remove(mine.slice(i, i + 100));
-      if (error) background(logServer("error", "api", "could not remove files", { error: error.message, user_id: userData.user.id }));
+      if (error) background(logServer("error", "api", "could not remove files", { error: error.message, user_id: userId }));
     }
   };
 
   // A confirmed phone number is what "verified" means; Supabase leaves phone_confirmed_at empty otherwise.
-  const phoneVerified = Boolean(userData.user.phone_confirmed_at);
+  // The token does not say, and only the "phone must be confirmed" switch uses the answer, so the auth
+  // service is asked only while that switch is on.
+  let phoneVerified: boolean | undefined;
+  if (controls?.require_phone_verified) {
+    const { data: userData, error: userErr } = await db.auth.getUser(jwt);
+    if (userErr || !userData?.user) return refuse("Your session has expired. Please sign in again.", "UNAUTHENTICATED", 401);
+    phoneVerified = Boolean(userData.user.phone_confirmed_at);
+  }
   // Only the operations that handle pictures need ImageKit's keys.
   const isBatch = body.op === "batch";
   const needsImageKit = isBatch ? (batchCalls(body.args) ?? []).some((c) => IMAGE_OPS.has(c.op)) : IMAGE_OPS.has(String(body.op));
   const imagekit = needsImageKit ? await imageKitConfig(secret) : null;
-  const ctx = { db: db as unknown as Db, userId: userData.user.id, callFunction, removeOwnFiles, client, controls, phoneVerified, imagekit };
+  const ctx = { db: db as unknown as Db, userId, callFunction, removeOwnFiles, client, controls, phoneVerified, imagekit };
   const onUnexpected = (e: unknown) => {
     // Both finish in the background after the response is sent.
-    background(logServer("error", "api", "op failed", { op: String(body.op), user_id: userData.user.id, error: e instanceof Error ? e.message : String(e) }));
+    background(logServer("error", "api", "op failed", { op: String(body.op), user_id: userId, error: e instanceof Error ? e.message : String(e) }));
     background(captureServerError(e, { op: String(body.op), fn: "api" }));
   };
   const running = isBatch ? runBatch(body.args, ctx, onUnexpected) : runOp(body.op, body.args, ctx, onUnexpected);
