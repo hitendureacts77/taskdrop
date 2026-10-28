@@ -11,7 +11,7 @@ import { MAX_BATCH, OPS, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, r
 import {
   ControlsCache, featureOffMessage, OPEN_CONFIG, parseControls, publicConfig, readClient, refusalFor, type Controls,
 } from "../_shared/controls.ts";
-import { callerFromClaims } from "./core.ts";
+import { StandingCache, callerFromClaims, standingOf } from "./core.ts";
 import * as serverRules from "../_shared/rules.ts";
 import type { ImageKitConfig } from "../_shared/imagekit.ts";
 import { createHmac } from "node:crypto";
@@ -793,6 +793,74 @@ await t("the caller comes from a checked token's claims; anything that did not c
   assert.equal(ok({ sub: "" }), null);
   assert.equal(ok({ sub: 42 }), null);
   assert.equal(ok({ sub: "not-a-uuid" }), null);
+});
+
+/** A service-role stand-in for the two lookups behind a person's standing. */
+function standingDb(o: { suspended?: boolean; deletedAt?: string | null; noProfile?: boolean; fail?: boolean }) {
+  const asked: string[] = [];
+  const q = (table: string, result: () => { data: unknown; error: unknown }) => {
+    const p: unknown = new Proxy(function () {}, {
+      get(_t, name) {
+        if (name === "then") return (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) => Promise.resolve(result()).then(res, rej);
+        if (name === "maybeSingle") return () => p;
+        return (...args: unknown[]) => {
+          asked.push(table + "." + String(name) + "(" + args.map(String).join(",") + ")");
+          return p;
+        };
+      },
+    });
+    return p;
+  };
+  const err = () => (o.fail ? { message: "db down" } : null);
+  return {
+    asked,
+    from: (table: string) =>
+      table === "user_suspensions"
+        ? q(table, () => ({ data: o.suspended ? [{ id: "s" }] : [], error: err() }))
+        : q(table, () => ({ data: o.noProfile ? null : { deleted_at: o.deletedAt ?? null }, error: err() })),
+  };
+}
+
+await t("a suspended or deleted person is refused even though their token still checks out; a normal one passes", async () => {
+  assert.equal(await standingOf(standingDb({}), UID), "ok", "a normal person passes");
+  const banned = standingDb({ suspended: true });
+  assert.equal(await standingOf(banned, UID), "suspended", "a token-valid but suspended person is refused");
+  assert.ok(banned.asked.includes("user_suspensions.is(lifted_at,null)"), "only an open suspension counts");
+  assert.ok(banned.asked.includes(`user_suspensions.eq(user_id,${UID})`));
+  assert.equal(await standingOf(standingDb({ deletedAt: "2026-10-27T00:00:00Z" }), UID), "deleted", "an account the person deleted");
+  assert.equal(await standingOf(standingDb({ noProfile: true }), UID), "deleted", "an auth user that is gone altogether");
+  assert.equal(await standingOf(standingDb({ suspended: true, deletedAt: "2026-10-27T00:00:00Z" }), UID), "deleted");
+  assert.equal(await standingOf(standingDb({ fail: true }), UID), null, "unreadable is not a verdict");
+});
+
+await t("standing is remembered for a few seconds only, so a ban bites quickly; unreadable answers are not kept", async () => {
+  let clock = 1_000_000, loads = 0, next: "ok" | "suspended" | null = "ok";
+  const cache = new StandingCache(5_000, () => clock);
+  const load = async () => (loads++, next);
+  assert.equal(await cache.get(UID, load), "ok");
+  await Promise.all([cache.get(UID, load), cache.get(UID, load)]);
+  assert.equal(loads, 1, "a burst of calls asks once");
+  next = "suspended";
+  clock += 4_000;
+  assert.equal(await cache.get(UID, load), "ok", "still the old answer inside the window");
+  clock += 1_500;
+  assert.equal(await cache.get(UID, load), "suspended", "a suspension is seen within 5 seconds");
+  assert.equal(await cache.get(OTHER, async () => "ok"), "ok", "each person has their own entry");
+  next = null;
+  clock += 6_000;
+  assert.equal(await cache.get(UID, load), null);
+  next = "ok";
+  assert.equal(await cache.get(UID, load), "ok", "an unreadable answer was not kept");
+  assert.equal(await cache.get(UID, async () => { throw new Error("boom"); }), "ok", "inside the window the kept answer is used");
+});
+
+await t("api/index.ts refuses a suspended or deleted caller with the sign-in-again 401, before any operation runs", () => {
+  const src = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+  assert.ok(src.includes("standingCache.get(userId, () => standingOf(admin, userId))"));
+  const refusal = src.indexOf('accountStanding === "suspended" || accountStanding === "deleted"');
+  const run = src.indexOf("const running =");
+  assert.ok(refusal > 0 && run > refusal, "the refusal comes before the operation starts");
+  assert.match(src.slice(refusal, refusal + 400), /UNAUTHENTICATED", 401/);
 });
 
 await t("api/index.ts checks the token with getClaims and asks the auth service only while the phone switch is on", () => {

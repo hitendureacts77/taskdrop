@@ -6,7 +6,7 @@ import { gatewayHeaders } from "../_shared/gateway.ts";
 import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
 import { guarded, background, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
-import { callerFromClaims } from "./core.ts";
+import { type Standing, StandingCache, callerFromClaims, standingOf } from "./core.ts";
 import { type Db, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp } from "./ops.ts";
 
 /**
@@ -47,6 +47,9 @@ const controlsCache = new ControlsCache(30_000);
 
 /** People the limiter refused lately: their reads wait for the limiter instead of running beside it. */
 const limitedLately = new RecentlyLimited();
+
+/** Whether a person is suspended or deleted, kept for 5 seconds per instance so a ban still bites quickly. */
+const standingCache = new StandingCache(5_000);
 
 /** Which App Check results were logged lately, so the log shows who passes without a line per request. */
 const appCheckLog = new AppCheckLog();
@@ -153,6 +156,11 @@ Deno.serve(guarded("api", async (req: Request) => {
   // Started now, so its round trip overlaps the switches' below (when this
   // instance has to read them) and, for a read, the operation's own.
   const rate = checkRate();
+  // A token stays valid after a suspension or a deletion (up to an hour), so the person's standing is read too.
+  // Asked now, beside the limiter and the switches, so it adds no round trip of its own to a call.
+  const standing = admin
+    ? standingCache.get(userId, () => standingOf(admin, userId))
+    : Promise.resolve<Standing | null>("ok");
 
   // Which app is asking, and what the admin panel has switched off for it.
   // If the switches cannot be read the request goes ahead (see refusalFor).
@@ -173,6 +181,14 @@ Deno.serve(guarded("api", async (req: Request) => {
     }
     return parseControls(data);
   });
+  const accountStanding = await standing;
+  if (accountStanding === "suspended" || accountStanding === "deleted") {
+    background(logServer("warn", "api", "refused: " + accountStanding + " account", { op: String(body.op), user_id: userId }));
+    return refuse("Your session has expired. Please sign in again.", "UNAUTHENTICATED", 401);
+  }
+  // If standing could not be read the request goes ahead, like an unreachable limiter: an outage of the check
+  // must not become an outage of the app (the operation itself still runs under the caller's row level security).
+  if (accountStanding === null) background(logServer("warn", "api", "account standing unavailable", { user_id: userId }));
   if (!overlap) {
     const refused = await rate;
     if (refused) return refused;

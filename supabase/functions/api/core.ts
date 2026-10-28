@@ -240,3 +240,62 @@ export function countBy<T>(list: T[], key: (x: T) => string): Record<string, num
   for (const x of list) out[key(x)] = (out[key(x)] ?? 0) + 1;
   return out;
 }
+
+// ---------------------------------------------------------- account standing --
+
+/** Whether a person whose token still checks out may use the api: a suspended or deleted account may not. */
+export type Standing = "ok" | "suspended" | "deleted";
+
+/** The slice of a service-role client that `standingOf` reads. */
+export interface StandingReader {
+  // deno-lint-ignore no-explicit-any
+  from(table: string): any;
+}
+
+/**
+ * Whether the person is suspended (an open row in user_suspensions, migration 071) or deleted (profiles.deleted_at,
+ * migrations 087 and 108; no profile row at all means the auth user is gone). Both also set auth.users.banned_until,
+ * but that column is not served by the data API and the token check above does not look at it, so this reads the
+ * public tables that go with it. Two indexed lookups, asked together. Null when it could not be read: the caller
+ * decides (the api lets the request go ahead, like the limiter, and logs it).
+ */
+export async function standingOf(db: StandingReader, userId: string): Promise<Standing | null> {
+  const [suspension, profile] = await Promise.all([
+    db.from("user_suspensions").select("id").eq("user_id", userId).is("lifted_at", null).limit(1),
+    db.from("profiles").select("deleted_at").eq("id", userId).maybeSingle(),
+  ]);
+  if (suspension.error || profile.error) return null;
+  if (!profile.data || profile.data.deleted_at) return "deleted";
+  return (suspension.data?.length ?? 0) > 0 ? "suspended" : "ok";
+}
+
+/**
+ * Standing per person, kept in the function instance for a few seconds so a burst of calls (a screen opening) asks
+ * once. Short on purpose: a suspension must bite within moments, not minutes. Unreadable answers are not kept.
+ */
+export class StandingCache {
+  private entries = new Map<string, { at: number; value: Standing }>();
+  private inflight = new Map<string, Promise<Standing | null>>();
+
+  constructor(private ttlMs: number, private now: () => number = Date.now) {}
+
+  get(userId: string, load: () => Promise<Standing | null>): Promise<Standing | null> {
+    const hit = this.entries.get(userId);
+    if (hit && this.now() - hit.at < this.ttlMs) return Promise.resolve(hit.value);
+    const pending = this.inflight.get(userId);
+    if (pending) return pending;
+    const p = load()
+      .catch(() => null)
+      .then((value) => {
+        this.inflight.delete(userId);
+        if (value) {
+          // Same guard as ControlsCache: the memo must not grow without bound.
+          if (this.entries.size >= 2000) this.entries.clear();
+          this.entries.set(userId, { at: this.now(), value });
+        }
+        return value;
+      });
+    this.inflight.set(userId, p);
+    return p;
+  }
+}
