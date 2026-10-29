@@ -187,7 +187,12 @@ export function TaskDetailScreen() {
     let alive = true;
     void (async () => {
       try {
-        const [mine, td] = await Promise.all([getProfile(userId), getTaskDetail(realId)]);
+        // Whether this worker may quote is asked beside the task, not after it: one round trip, not two.
+        const [mine, td, verdict] = await Promise.all([
+          getProfile(userId),
+          getTaskDetail(realId),
+          worker ? canQuoteOn(realId, userId) : null,
+        ]);
         if (!alive) return;
         setMe(mine);
         if (td?.task) {
@@ -201,9 +206,7 @@ export function TaskDetailScreen() {
             lng: td.task.loc_lng ?? null,
           });
         }
-        if (worker) {
-          const verdict = await canQuoteOn(realId, userId);
-          if (!alive) return;
+        if (verdict) {
           if (!verdict.allowed && verdict.code === 'own') {
             // Not a refusal — the wrong screen. Your own request has a poster
             // side, and what you want there is the quotes it has received.
