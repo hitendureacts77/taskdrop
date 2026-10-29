@@ -82,6 +82,38 @@ test('a reply that does not line up with its calls is not guessed at', async () 
   assert.deepEqual(log, ['batch:a,b', 'single:a', 'single:b']);
 });
 
+test('the same read asked twice at once goes out once; each caller gets its own copy', async () => {
+  const sent: { op: string; args: Args }[][] = [];
+  const { batcher } = rig({
+    send: async (calls) => {
+      sent.push(calls);
+      return calls.map((c) => ({ ok: true, data: { op: c.op, list: [3, 1, 2] } }) as Reply);
+    },
+  });
+  const [x, y, z, other] = await Promise.all([
+    batcher.call<{ list: number[] }>('a', { side: 'poster' }),
+    batcher.call<{ list: number[] }>('a', { side: 'poster' }),
+    batcher.call<{ list: number[] }>('a', { side: 'worker' }),
+    batcher.call<{ list: number[] }>('b'),
+  ]);
+  assert.deepEqual(sent, [[{ op: 'a', args: { side: 'poster' } }, { op: 'a', args: { side: 'worker' } }, { op: 'b', args: {} }]]);
+  assert.deepEqual(x, y);
+  assert.ok(z && other);
+  x.list.sort();
+  assert.deepEqual(y.list, [3, 1, 2]);
+});
+
+test('a refusal reaches every caller of a merged read, and one that ends up alone still goes as a single', async () => {
+  const { batcher, log } = rig({ send: async () => [{ ok: false, error: { message: 'No', code: 'FORBIDDEN' } }, { ok: true, data: 2 }] });
+  const out = await Promise.allSettled([batcher.call('a'), batcher.call('a'), batcher.call('b')]);
+  assert.ok(out[0]!.status === 'rejected' && out[1]!.status === 'rejected');
+  assert.ok(out[2]!.status === 'fulfilled' && out[2]!.value === 2);
+  const { batcher: lone, log: loneLog } = rig();
+  assert.deepEqual(await Promise.all([lone.call('a'), lone.call('a')]), ['a?', 'a?']);
+  assert.deepEqual(loneLog, ['single:a']);
+  assert.deepEqual(log, ['batch:a,b']);
+});
+
 test('a full batch leaves at once, and the overflow starts the next one', async () => {
   const { batcher, log } = rig({ max: 2 });
   const out = await Promise.all([batcher.call('a'), batcher.call('b'), batcher.call('c')]);
