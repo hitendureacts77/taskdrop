@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, TextInput, Animated, Easing, Platform } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
-import { useNav } from '../providers/NavProvider';
+import { useFocusTick, useNav } from '../providers/NavProvider';
 import { openPostedTask } from '../lib/taskRows';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
@@ -50,6 +50,31 @@ import { resolveCurrentPlace } from '../lib/location';
 import { roughPlace } from '../lib/place';
 import { Pressy, tx } from './primitives';
 
+/**
+ * Loads one of Home's sections when Home is in view and has not loaded for this focus tick: when it
+ * first shows, when it comes back and is due a refresh (useFocusTick, lib/freshness.ts), and after a
+ * live change. A load that failed, or was cut off by leaving Home, runs again the next time Home shows.
+ */
+function useHomeLoad(load: (alive: () => boolean) => Promise<unknown>) {
+  const { screen } = useNav();
+  const tick = useFocusTick();
+  const onHome = screen === 'home';
+  const done = useRef<{ load: unknown; tick: number } | null>(null);
+  useEffect(() => {
+    if (!onHome || (done.current?.load === load && done.current.tick === tick)) return;
+    let alive = true;
+    load(() => alive).then(
+      () => {
+        if (alive) done.current = { load, tick };
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, [onHome, tick, load]);
+}
+
 /** The top of the home screen, above the existing feed. */
 export function HomeSections() {
   const { mode } = useMode();
@@ -77,26 +102,28 @@ function PostTop() {
   const [place, setPlace] = useState<string | null>(null);
   const [pickPlace, setPickPlace] = useState(false);
 
-  useEffect(() => {
-    if (!userId || screen !== 'home') return;
-    let alive = true;
-    getProfile(userId)
-      .then((p) => alive && setPlace(p?.loc_label ?? null))
-      .catch(() => {});
-    listMyTasks(userId)
-      .then(
-        (rows) =>
-          alive &&
-          setActive(rows.filter((r) => !['COMPLETED', 'AUTO_COMPLETED', 'CANCELLED'].includes(r.status)).slice(0, 4)),
-      )
-      .catch(() => alive && setActive([]));
-    trendingCategories(5)
-      .then((r) => alive && setTrending(r.filter((c) => c.open_count > 0)))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [userId, screen]);
+  const loadTop = useCallback(
+    async (alive: () => boolean) => {
+      if (!userId) return;
+      await Promise.all([
+        getProfile(userId)
+          .then((p) => alive() && setPlace(p?.loc_label ?? null))
+          .catch(() => {}),
+        listMyTasks(userId)
+          .then(
+            (rows) =>
+              alive() &&
+              setActive(rows.filter((r) => !['COMPLETED', 'AUTO_COMPLETED', 'CANCELLED'].includes(r.status)).slice(0, 4)),
+          )
+          .catch(() => alive() && setActive([])),
+        trendingCategories(5)
+          .then((r) => alive() && setTrending(r.filter((c) => c.open_count > 0)))
+          .catch(() => {}),
+      ]);
+    },
+    [userId],
+  );
+  useHomeLoad(loadTop);
 
   // The same area a worker sets: where this poster's jobs usually are, and
   // the starting point of every post's location.
@@ -484,9 +511,7 @@ function EarnTop() {
     setUrgent(posted(urg));
   }, [userId]);
 
-  useEffect(() => {
-    if (screen === 'home') void load();
-  }, [load, screen]);
+  useHomeLoad(load);
 
   const askedLocation = useRef(false);
   useEffect(() => {

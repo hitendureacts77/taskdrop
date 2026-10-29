@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import type { Profile } from '../data/api';
 import { listActiveWorkers } from '../data/extras';
 import { presenceOf } from '../lib/presence';
+import { inFront, onBackInFront } from '../lib/inFront';
 import { AvatarPresence, PresenceDot } from './PresenceDot';
 import { SectionTitle } from './kit';
 import { tx } from './primitives';
@@ -23,16 +24,30 @@ export function LiveWorkers({ active }: { active: boolean }) {
   const t = useTheme();
   const { go } = useNav();
   const [workers, setWorkers] = useState<Profile[]>([]);
+  // When the list was last read. Coming back to Home inside the minute keeps it; the next read comes
+  // when the minute is up. Nobody looking (app or browser tab in the background) means no read until
+  // the app is back in front.
+  const readAt = useRef(0);
 
   useEffect(() => {
     if (!active) return;
     let alive = true;
-    const load = () => void listActiveWorkers().then((w) => alive && setWorkers(w));
-    load();
-    const id = setInterval(load, REFRESH_MS);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const due = () => Date.now() - readAt.current >= REFRESH_MS;
+    const tick = () => {
+      clearTimeout(timer);
+      if (due() && inFront()) {
+        readAt.current = Date.now();
+        void listActiveWorkers().then((w) => alive && setWorkers(w));
+      }
+      timer = setTimeout(tick, due() ? REFRESH_MS : REFRESH_MS - (Date.now() - readAt.current));
+    };
+    tick();
+    const off = onBackInFront(tick);
     return () => {
       alive = false;
-      clearInterval(id);
+      clearTimeout(timer);
+      off();
     };
   }, [active]);
 

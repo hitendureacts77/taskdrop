@@ -15,6 +15,7 @@ import { useKeyboardOpen } from '../lib/useKeyboardOpen';
 import { CreateFab } from '../components/CreateFab';
 import { Placeholder } from '../screens/Placeholder';
 import { REGISTRY } from './registry';
+import { isFresh, stamp, type Stamp } from '../lib/freshness';
 // Screens that show the bottom tab bar (the main app tabs).
 // search and orders are no longer tabs, but they keep the bar when reached.
 export const TABBED: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'profile', 'search', 'orders'];
@@ -43,7 +44,10 @@ export function ScreenHost() {
   // Which tabs are alive, with the params each last had and how many times it
   // has come back into view. Worked out during render, so a tab shows on the
   // same frame it is chosen. Everything is dropped when the user changes.
-  const kept = useRef(new Map<ScreenName, { params: NavParams; focus: number }>());
+  // Coming back only counts (and so refreshes the tab) when the tab is not
+  // fresh: loaded half a minute ago or more, or something changed since
+  // (lib/freshness.ts). Back from a quick look at a task, nothing is re-asked.
+  const kept = useRef(new Map<ScreenName, { params: NavParams; focus: number; loaded: Stamp }>());
   const prevScreen = useRef<ScreenName | null>(null);
   const keptFor = useRef(userId);
   if (keptFor.current !== userId) {
@@ -52,9 +56,13 @@ export function ScreenHost() {
   }
   if (KEEP_ALIVE.includes(screen)) {
     const cur = kept.current.get(screen);
-    const returning = prevScreen.current !== screen && cur !== undefined;
+    const returning = prevScreen.current !== screen && cur !== undefined && !isFresh(cur.loaded);
     if (!cur || cur.params !== params || returning) {
-      kept.current.set(screen, { params, focus: (cur?.focus ?? 0) + (returning ? 1 : 0) });
+      kept.current.set(screen, {
+        params,
+        focus: (cur?.focus ?? 0) + (returning ? 1 : 0),
+        loaded: !cur || returning ? stamp() : cur.loaded,
+      });
     }
   }
   prevScreen.current = screen;

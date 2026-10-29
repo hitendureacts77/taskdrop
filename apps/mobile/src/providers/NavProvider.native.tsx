@@ -4,6 +4,7 @@ import { useSyncVersion } from './SyncProvider';
 import type { NavParams, ScreenName } from './navTypes';
 import { TAB_ROUTE, isNativeTab, tabForPath } from '../navigation/nativeTabs';
 import { clearParams, putParams, setTabParams } from '../navigation/navParams';
+import { isFresh, stamp, type Stamp } from '../lib/freshness';
 
 export type { NavParams, ScreenName } from './navTypes';
 
@@ -51,7 +52,13 @@ export function ScreenScope({
   const focused = useIsFocused();
   const count = useRef(0);
   const was = useRef(focused);
-  if (focused && !was.current) count.current += 1;
+  // Coming back only counts when the screen is not fresh: loaded half a minute ago or more, or
+  // something changed since (lib/freshness.ts). Back from a quick look at a task, nothing is re-asked.
+  const loaded = useRef<Stamp>(stamp());
+  if (focused && !was.current && !isFresh(loaded.current)) {
+    count.current += 1;
+    loaded.current = stamp();
+  }
   was.current = focused;
   const value = useMemo<Scope>(() => ({ params, focus: count.current }), [params, focused]); // eslint-disable-line react-hooks/exhaustive-deps
   return <ScopeCtx.Provider value={value}>{children}</ScopeCtx.Provider>;

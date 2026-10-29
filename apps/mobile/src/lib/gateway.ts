@@ -6,6 +6,14 @@ import { refreshAppConfig } from './appConfig';
 import { log } from './monitoring';
 import { BATCHABLE_OPS, Batcher, type Reply as BatchReply } from './batcher';
 import { RETRY_DELAYS_MS, isTransient, retryWhile, type Failure } from './retry';
+import { noteChange } from './freshness';
+
+/**
+ * Writes that change nothing this person's screens show (their own presence, device and push
+ * records, ad counters). Every other write tells lib/freshness.ts that what was read may be out of date.
+ * settleClearedEarnings is told by its caller, and only when it actually moved money.
+ */
+const BOOKKEEPING = new Set(['touchPresence', 'recordDevice', 'registerPushToken', 'recordAdImpression', 'recordAdClick', 'settleClearedEarnings']);
 
 type Reply<T> =
   | { ok: true; data: T }
@@ -52,11 +60,16 @@ async function callApiDirect<T>(op: string, args: Record<string, unknown> = {}):
   // A read that hits a blip (a deploy, a dropped connection) is asked again, twice, before it counts
   // as a failure. A write is asked once: sending money or a bid twice is never worth the risk.
   const isRead = op === 'batch' || BATCHABLE_OPS.has(op);
+  const changes = !isRead && !BOOKKEEPING.has(op);
+  // Marked on the way out and on the way back: a screen shown in between asks the server again either way.
+  if (changes) noteChange();
   const { data, error } = await retryWhile(
     invokeOnce,
     async (r) => (r.error ? isTransient(await describeFailure(r.error)) : false),
     isRead ? RETRY_DELAYS_MS : [],
-  );
+  ).finally(() => {
+    if (changes) noteChange();
+  });
 
   if (error) {
     const context = (error as { context?: unknown }).context;

@@ -1,6 +1,7 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { reportError } from './errors';
+import { noteChange } from './freshness';
 
 /**
  * Live "something changed" pings on this person's own private channel.
@@ -34,6 +35,8 @@ async function open(): Promise<void> {
     .channel(`user:${uid}`, { config: { private: true } })
     .on('broadcast', { event: 'ping' }, ({ payload }) => {
       const ping = payload as Ping;
+      // Before any listener re-asks: nothing read before this ping may be reused (lib/freshness.ts).
+      noteChange();
       for (const fn of [...listeners]) {
         try {
           fn(ping);
@@ -61,6 +64,8 @@ function ensureOpen(): void {
 
 // A new sign-in gets its own channel; signing out closes it.
 supabase.auth.onAuthStateChange((event) => {
+  // Someone else's answers must never be reused for the next person.
+  if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') noteChange();
   if (event === 'SIGNED_OUT') {
     void close();
   } else if (event === 'SIGNED_IN' && listeners.size > 0) {

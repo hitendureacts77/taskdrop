@@ -3,6 +3,7 @@ import { callApi } from '../lib/gateway';
 import { clientHeaders } from '../lib/appInfo';
 import { currentUserId, supabase } from '../lib/supabase';
 import { subscribeLive } from '../lib/live';
+import { reuseWhileFresh } from '../lib/freshness';
 import type { Tables } from '@taskdrop/db-types';
 import { primeProfile, type Task, type Profile } from './api';
 
@@ -53,7 +54,12 @@ export async function notificationSides(rows: Notification[]): Promise<Map<strin
   return new Map(Object.entries(sides));
 }
 
-export const countUnreadFor = (side: 'poster' | 'worker') => quietly<number>('countUnreadFor', { side }, 0);
+/**
+ * The bell's count for one side. Every open header recounts on every screen change, so a count from
+ * moments ago, with no alert, write or sign-in since, is reused (lib/freshness.ts). A failure is never kept.
+ */
+export const countUnreadFor = (side: 'poster' | 'worker') =>
+  reuseWhileFresh(`countUnreadFor:${side}`, () => ask<number>('countUnreadFor', { side }, 0)).catch(() => 0);
 
 export async function markNotificationsRead(ids?: string[]): Promise<void> {
   await ask('markNotificationsRead', { ids: ids ?? [] }, null);
