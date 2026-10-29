@@ -453,6 +453,9 @@ function EarnTop() {
 
   const load = useCallback(async () => {
     if (!userId) return;
+    // Remote and urgent work do not depend on the profile, so they are asked for beside it.
+    const remoteAsked = remoteTasks(8).catch((): Task[] => []);
+    const urgentAsked = urgentTasks(6).catch((): Task[] => []);
     const [s, p, ids] = await Promise.all([
       myStats('worker').catch(() => null),
       getProfile(userId).catch(() => null),
@@ -470,13 +473,15 @@ function EarnTop() {
     });
     const [r, rem, urg] = await Promise.all([
       recommendedTasks(p?.skills ?? [], 8).catch(() => []),
-      remoteTasks(8).catch(() => []),
-      urgentTasks(6).catch(() => []),
+      remoteAsked,
+      urgentAsked,
     ]);
-    const [rp, remp, urgp] = await Promise.all([attachPosters(r), attachPosters(rem), attachPosters(urg)]);
-    setRecs(rp);
-    setRemote(remp);
-    setUrgent(urgp);
+    // One poster lookup for all three lists, each keeping its own order (a task no longer visible drops out).
+    const withPosters = new Map((await attachPosters([...r, ...rem, ...urg])).map((x) => [x.id, x]));
+    const posted = (list: Task[]) => list.flatMap((x) => withPosters.get(x.id) ?? []);
+    setRecs(posted(r));
+    setRemote(posted(rem));
+    setUrgent(posted(urg));
   }, [userId]);
 
   useEffect(() => {
