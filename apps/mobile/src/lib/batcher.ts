@@ -23,6 +23,10 @@ export const BATCHABLE_OPS: ReadonlySet<string> = new Set([
   'getEscrowHeld', 'listWalletActivity', 'listPayouts', 'listPayoutDestinations', 'listPromotions',
   'adAuctionRanks', 'platformFees', 'myStats', 'countNeedsAttention', 'listThreads', 'listMessages',
   'listNotifications', 'countUnreadNotifications', 'countUnreadFor', 'countMyReferrals', 'signMedia',
+  // Reads that used to leave on their own beside a batch (poster Home's workers and trends, the wallet's fees).
+  'listActiveWorkers', 'trendingCategories', 'platformHighlights', 'topEarners', 'feesSince', 'notificationSides',
+  'getNotification', 'getProof', 'listMyDisputes', 'listDisputeReasons', 'listBlockedUsers', 'usernameAvailable',
+  'listTickets', 'getTicket', 'accountDeletionCheck', 'platformStats',
 ]);
 
 export type Args = Record<string, unknown>;
