@@ -33,11 +33,16 @@ export function Slider({
   const [width, setWidth] = useState(0);
 
   // A drag reads these every frame; the PanResponder is built once and would
-  // otherwise close over the first render's values forever.
+  // otherwise close over the first render's values forever (the budget slider
+  // stopped at its first maximum because of this).
   const widthRef = useRef(0);
   widthRef.current = width;
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const rangeRef = useRef({ min, max, step });
+  rangeRef.current = { min, max, step };
+  // Where the finger came down, so the drag follows it from there.
+  const startX = useRef(0);
 
   const fraction = max === min ? 0 : (value - min) / (max - min);
   const clamped = Math.min(1, Math.max(0, fraction));
@@ -45,25 +50,31 @@ export function Slider({
   const emitFor = (x: number) => {
     const w = widthRef.current;
     if (w <= 0) return;
+    const r = rangeRef.current;
     const f = Math.min(1, Math.max(0, x / w));
-    const raw = min + f * (max - min);
-    const snapped = Math.round(raw / step) * step;
-    onChangeRef.current(Math.min(max, Math.max(min, snapped)));
+    const raw = r.min + f * (r.max - r.min);
+    const snapped = Math.round(raw / r.step) * r.step;
+    onChangeRef.current(Math.min(r.max, Math.max(r.min, snapped)));
   };
+
+  // Only a sideways drag moves the value. A touch that lands on the track
+  // while scrolling the page, or a tap, leaves it alone (owner, 2026-10-30:
+  // the price changed by accident while scrolling).
+  const sideways = (dx: number, dy: number) => Math.abs(dx) > 6 && Math.abs(dx) > Math.abs(dy) * 1.5;
 
   const pan = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onStartShouldSetPanResponderCapture: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponderCapture: () => true,
-      // An ancestor ScrollView must not steal a sideways drag on the track.
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_e, g) => sideways(g.dx, g.dy),
+      onMoveShouldSetPanResponderCapture: (_e, g) => sideways(g.dx, g.dy),
+      // Once a sideways drag has started, an ancestor ScrollView must not steal it.
       onPanResponderTerminationRequest: () => false,
       onShouldBlockNativeResponder: () => true,
-      // Tapping anywhere on the track jumps there, which is what people expect
-      // and what makes the control usable without a precise drag.
-      onPanResponderGrant: (e) => emitFor(e.nativeEvent.locationX),
-      onPanResponderMove: (e) => emitFor(e.nativeEvent.locationX),
+      onPanResponderGrant: (e, g) => {
+        startX.current = e.nativeEvent.locationX - g.dx;
+        emitFor(startX.current + g.dx);
+      },
+      onPanResponderMove: (_e, g) => emitFor(startX.current + g.dx),
     }),
   ).current;
 

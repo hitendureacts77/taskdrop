@@ -8,16 +8,14 @@ import { supabase } from '../lib/supabase';
  * once; the server records it and turns away anyone under MIN_SIGNUP_AGE.
  *
  * A pass is remembered on the device per account, so a signed-in launch does
- * not wait on the network to know it may show the app. A turn-away is
- * remembered per device for a while, so the answer cannot be changed by going
- * back and typing an older year.
+ * not wait on the network to know it may show the app. A turn-away is not
+ * remembered on the device: the next number typed is asked afresh (owner,
+ * 2026-10-30, removed the 30-day lock).
  */
 
 export type AgeStatus = 'ok' | 'needed';
 
 const OK_KEY = (userId: string) => `taskdrop.ageOk.${userId}`;
-const TURNED_AWAY_KEY = 'taskdrop.ageTurnedAway';
-const TURNED_AWAY_FOR_MS = 30 * 24 * 60 * 60 * 1000;
 
 const listeners = new Set<(userId: string, status: AgeStatus) => void>();
 
@@ -57,16 +55,5 @@ export async function recordBirthDate(birth: Date): Promise<'ok' | 'blocked'> {
     await rememberOk(auth.user.id);
     return 'ok';
   }
-  await turnAwayThisDevice();
   return 'blocked';
-}
-
-export async function turnAwayThisDevice(): Promise<void> {
-  await AsyncStorage.setItem(TURNED_AWAY_KEY, String(Date.now())).catch(() => {});
-}
-
-/** True when someone on this device was turned away by the age check recently. */
-export async function turnedAwayOnThisDevice(): Promise<boolean> {
-  const at = Number(await AsyncStorage.getItem(TURNED_AWAY_KEY).catch(() => null));
-  return Number.isFinite(at) && at > 0 && Date.now() - at < TURNED_AWAY_FOR_MS;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, TextInput, Animated } from 'react-native';
+import { View, Text as RNText, Pressable, ScrollView, TextInput, Animated, Keyboard } from 'react-native';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import { AmountField } from '../components/AmountField';
@@ -30,9 +30,11 @@ import {
   WHEN_OPTIONS,
   WRITING_STYLES,
   askBrief,
+  answersSayOnline,
   askQuestions,
   briefToDescription,
   dueFor,
+  linkedQuestions,
   pillarFor,
   type Answer,
   type Brief,
@@ -40,6 +42,7 @@ import {
   type WhenKey,
   type WritingStyle,
 } from '../lib/taskBrief';
+import { looksLikeGibberish } from '../lib/gibberish';
 
 /**
  * "What do you need done?" -> a posted task, one page per step.
@@ -165,6 +168,8 @@ export function AiPostScreen() {
 
   // Budget.
   const [budget, setBudget] = useState<number | null>(similar ? Math.round(similar.benchmark_minor / 100) : null);
+  // The last amount typed or tapped (not dragged): it sets how far the slider reaches.
+  const [scaleAmount, setScaleAmount] = useState(budget ?? 0);
   const [split, setSplit] = useState<0 | 2 | 3 | 4 | 5 | 6>(0);
 
   // Place and hiring.
@@ -235,6 +240,7 @@ export function AiPostScreen() {
   const fromAsk = () => {
     const req = prompt.trim();
     if (req.length < 5) return flash('Tell us a bit more about what you need');
+    if (looksLikeGibberish(req)) return flash('That doesn’t read like a task yet. Say what you need in a few real words.');
     if (askedFor !== req) {
       const qs = askQuestions(req);
       setQuestions(qs);
@@ -254,8 +260,11 @@ export function AiPostScreen() {
 
   /** Details -> Post. The post is only rewritten if the request or an answer changed. */
   const fromDetails = () => {
-    const given = answers.filter((a) => a.answer.trim());
+    const given = liveAnswers();
     if (!brief || writtenFrom !== JSON.stringify([prompt.trim(), given, style])) writeBrief(given);
+    // Work the answers place online starts as Remote on the Place step; hands-on work as At a place.
+    const online = answersSayOnline(given);
+    if (online !== null) setRemote(online);
     // A rewritten post is worth a look, even when coming back from Review.
     setPhase('brief');
   };
@@ -263,10 +272,21 @@ export function AiPostScreen() {
   const setAnswer = (question: string, value: string) =>
     setAnswers((cur) => [...cur.filter((a) => a.question !== question), { question, answer: value }]);
   const answerOf = (question: string) => answers.find((a) => a.question === question)?.answer ?? '';
+  // The questions as the earlier answers leave them, and only the answers that still apply to them.
+  const shownQuestions = linkedQuestions(questions, answers);
+  const liveAnswers = () =>
+    answers.filter((a) => {
+      if (!a.answer.trim()) return false;
+      const q = shownQuestions.find((x) => x.question === a.question);
+      if (!q) return false;
+      const original = questions.find((x) => x.question === a.question);
+      // An option an earlier answer took away no longer counts; a typed answer always does.
+      return q.options.includes(a.answer) || !original?.options.includes(a.answer);
+    });
 
   const restyle = (s: WritingStyle) => {
     setStyle(s);
-    writeBrief(answers.filter((a) => a.answer.trim()), s);
+    writeBrief(liveAnswers(), s);
   };
 
   const due = useMemo(
@@ -486,9 +506,7 @@ export function AiPostScreen() {
             style={tx('400', 17, t.colors.ink, { minHeight: 130, textAlignVertical: 'top', padding: 0, lineHeight: 24 })}
           />
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-            <RNText style={tx('500', 12, prompt.trim().length >= 5 ? t.colors.accentDeep : t.colors.muted)}>
-              {prompt.trim().length >= 5 ? 'Looks good' : 'A sentence is enough'}
-            </RNText>
+            <RNText style={tx('500', 12, t.colors.muted)}>{prompt.trim() ? '' : 'A sentence is enough'}</RNText>
             {voice.supported ? (
               <Pressable
                 onPress={voice.toggle}
@@ -564,7 +582,7 @@ export function AiPostScreen() {
             : 'Tap what fits — it helps workers price the job. Skip any you’re not sure about.',
         )}
         <View style={{ gap: 12, marginTop: 20 }}>
-          {questions.map((q, i) => {
+          {shownQuestions.map((q, i) => {
             const given = answerOf(q.question);
             const typed = !!otherOpen[q.question];
             return (
@@ -716,8 +734,26 @@ export function AiPostScreen() {
       .filter((n) => n >= MIN_PRICE_INR)
       .sort((a, b) => a - b)
       .slice(0, 6);
+    // The slider's end is set by the usual range and by amounts typed or tapped,
+    // never by the slider itself: an end that moved under the finger made the
+    // thumb jump. The scale is curved, so the usual range keeps fine steps
+    // while the far end still reaches well past it.
     const sliderMax =
-      SLIDER_STOPS.find((m) => m >= Math.max(hi * 2, amount * 1.25)) ?? Math.ceil((amount * 1.25) / 100000) * 100000;
+      SLIDER_STOPS.find((m) => m >= Math.max(hi * 5, scaleAmount * 1.25)) ??
+      Math.ceil((scaleAmount * 1.25) / 100000) * 100000;
+    const SLIDER_STEPS = 1000;
+    const toAmount = (p: number) => {
+      const raw = MIN_PRICE_INR + (sliderMax - MIN_PRICE_INR) * (p / SLIDER_STEPS) ** 2;
+      const unit = raw >= 10000 ? 500 : raw >= 2000 ? 50 : 10;
+      return Math.max(MIN_PRICE_INR, Math.round(raw / unit) * unit);
+    };
+    const toPos = (v: number) =>
+      Math.round(Math.sqrt(Math.min(1, Math.max(0, (v - MIN_PRICE_INR) / (sliderMax - MIN_PRICE_INR)))) * SLIDER_STEPS);
+    const pickAmount = (v: number | null) => {
+      Keyboard.dismiss();
+      setBudget(v);
+      setScaleAmount(v ?? 0);
+    };
 
     // Where the amount sits against the usual range, on a scale that runs
     // from half the low end to half again past the high end.
@@ -743,7 +779,10 @@ export function AiPostScreen() {
                 <View style={{ width: 230 }}>
                   <AmountField
                     rupees={budget}
-                    onChangeRupees={setBudget}
+                    onChangeRupees={(v) => {
+                      setBudget(v);
+                      setScaleAmount(v ?? 0);
+                    }}
                     min={10}
                     align="center"
                     placeholder="₹0"
@@ -781,15 +820,18 @@ export function AiPostScreen() {
               ) : null}
 
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 16 }}>
-                {presets.map((p) => chip(rupees(p), budget === p, () => setBudget(p)))}
+                {presets.map((p) => chip(rupees(p), budget === p, () => pickAmount(p)))}
               </View>
               <View style={{ marginTop: 16 }}>
                 <Slider
-                  value={Math.min(budget ?? MIN_PRICE_INR, sliderMax)}
-                  min={MIN_PRICE_INR}
-                  max={sliderMax}
-                  step={10}
-                  onChange={(v) => setBudget(Math.round(v))}
+                  value={toPos(budget ?? MIN_PRICE_INR)}
+                  min={0}
+                  max={SLIDER_STEPS}
+                  step={1}
+                  onChange={(p) => {
+                    Keyboard.dismiss();
+                    setBudget(toAmount(p));
+                  }}
                   accessibilityLabel="Budget"
                 />
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>

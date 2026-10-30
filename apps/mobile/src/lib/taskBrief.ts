@@ -1349,6 +1349,46 @@ export function askQuestions(prompt: string): QuickQuestion[] {
   return questionsFor(prompt).map((a) => ({ question: a.question, options: a.options.map(optLabel) }));
 }
 
+/**
+ * How one answer changes the questions after it (owner, 2026-10-30: "all the
+ * questions should be interconnected"). Work done online has no "where", and
+ * hands-on work cannot happen "Online".
+ */
+const ONLINE_ANSWERS = ['Online or computer work', 'Online', 'Remote is fine'];
+const IN_PERSON_ANSWERS = ['Hands-on work', 'Check something in person', 'Must come in person', 'At my home', 'At my office', 'Somewhere nearby'];
+const LINKS: { question: string; answers: string[]; hide?: string[]; drop?: Record<string, string[]> }[] = [
+  { question: 'What kind of help is this?', answers: ['Online or computer work'], hide: ['Where should it happen?'] },
+  {
+    question: 'What kind of help is this?',
+    answers: ['Hands-on work', 'Check something in person', 'Find or buy something'],
+    drop: { 'Where should it happen?': ['Online'] },
+  },
+];
+
+/** The questions as they stand after the answers given so far: some hidden, some with fewer options. */
+export function linkedQuestions(questions: QuickQuestion[], answers: Answer[]): QuickQuestion[] {
+  const hidden = new Set<string>();
+  const dropped: Record<string, Set<string>> = {};
+  for (const link of LINKS) {
+    const given = answers.find((a) => a.question === link.question)?.answer ?? '';
+    if (!link.answers.includes(given)) continue;
+    link.hide?.forEach((q) => hidden.add(q));
+    for (const [q, opts] of Object.entries(link.drop ?? {})) {
+      dropped[q] = new Set([...(dropped[q] ?? []), ...opts]);
+    }
+  }
+  return questions
+    .filter((q) => !hidden.has(q.question))
+    .map((q) => (dropped[q.question] ? { ...q, options: q.options.filter((o) => !dropped[q.question]!.has(o)) } : q));
+}
+
+/** Whether the answers say the job is done online (true), in person (false), or do not say (null). */
+export function answersSayOnline(answers: Answer[]): boolean | null {
+  if (answers.some((a) => ONLINE_ANSWERS.includes(a.answer))) return true;
+  if (answers.some((a) => IN_PERSON_ANSWERS.includes(a.answer))) return false;
+  return null;
+}
+
 /** The post: title, summary, checklist, category and a price range from the answers. */
 export function askBrief(prompt: string, answers: Answer[], style: WritingStyle): Brief {
   return writePost(prompt, answers, style);
