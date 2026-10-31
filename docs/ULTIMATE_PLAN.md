@@ -666,7 +666,7 @@ build the approved designs
 
 **Done when:** everything approved in 1.5 and the two features are merged and on your phone.
 
-**Built 31 Oct and merged into `redesigned-2.0` (pull requests 121 and 122). `npm run check` is green.** Not yet seen on a phone, and the app update is not published yet.
+**Built 31 Oct and merged into `redesigned-2.0` (pull requests 121 and 122). `npm run check` is green.** Not yet seen on a phone, and the app update is not published yet (**checked 31 Oct:** the newest update on channel `beta`, group `fe7f3305`, carries plan 1.3 and 1.4 only, so D1 to D10 are not on the phone yet).
 
 - **Built:** D1 birth-date wheels, D2 larger and sharper splash drop, D3 the Home card opens a full-screen composer with Next, D4 six category chips plus search, D5 the When step in order with its own pictures, D6 the Usual price card with a reason that now scales with quantities in the description ("5 pages", "3 hours"), D7 one offer card (Price only or Price + proposal), D8 posters green and workers blue on profiles, D9 the Explore list plus a Map view (you as a blue dot, jobs as green price tags, close ones joined into a number), D10 first step on Home (more air between sections, softer cards), the location ask for new sign-ups, and Drafts in My Tasks.
 - **Still to do:** D10 on the other screens, one at a time, each shown to you first. A server-side AI price estimate for D6 was not built: the estimate stays in the app.
@@ -724,6 +724,8 @@ build the approved designs
 - Wrote a test (`supabase/tests/notification_wording.test.sql`) that runs a task from offer to payment, a cancel with a fine, and a problem report, and checks every line above. It passed on the staging database and left nothing behind.
 - Changed the end-to-end test clean-up so test tasks no longer leave unread alerts on the test accounts.
 
+**Checked 31 Oct:** migration 128 is listed as applied on the staging database, so the new wording is live there.
+
 1. Use the staging app on your phone with two accounts: post a task, send an offer, pick it, and watch the alerts on each phone.
 2. TELL Claude: "done 1.7", or what still reads badly.
 
@@ -736,7 +738,7 @@ build the approved designs
 - [ ] Bugs B1 to B12 are fixed, or you have written "accept" for a Low one
 - [ ] Each design change D1 to D10 is built or dropped
 - [ ] Every notification reads clearly on your phone (1.7)
-- [ ] `npm run check` is green on `redesigned-2.0` (Claude reports this)
+- [x] `npm run check` is green on `redesigned-2.0` (Claude reports this). **Checked 31 Oct:** typecheck, lint and 62 tests passed (exit 0) on the code of `redesigned-2.0` at `ce62f5c`.
 
 ---
 
