@@ -33,6 +33,7 @@ import { Linking, Platform } from 'react-native';
 import { PaymentSheet } from '../components/PaymentSheet';
 import { paymentReturnUrl } from '../lib/links';
 import { tx } from '../components/primitives';
+import { KeyboardSafe } from '../components/KeyboardSafe';
 
 export function PromoteScreen() {
   const t = useTheme();
@@ -608,7 +609,7 @@ export function PromoteScreen() {
         </View>
       </ScrollView>
 
-      <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+      <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
         <Pressable
           onPress={() => void (pending ? activate() : start())}
           style={({ pressed }) => ({
@@ -639,7 +640,7 @@ export function PromoteScreen() {
           One payment, up front. It does not renew. Stop any time: whatever isn’t delivered comes back to
           your TaskDrop wallet when the campaign ends.
         </RNText>
-      </View>
+      </KeyboardSafe>
       {explainer}
       <PaymentSheet url={payUrl} visible={payUrl !== null} onClose={() => setPayUrl(null)} />
     </Screen>

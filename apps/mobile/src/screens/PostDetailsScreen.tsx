@@ -15,6 +15,7 @@ import { MapPicker } from '../components/MapPicker';
 import { MediaAttach } from '../components/MediaAttach';
 import type { TaskMedia } from '../lib/media';
 import { tx } from '../components/primitives';
+import { KeyboardSafe } from '../components/KeyboardSafe';
 
 /**
  * Placeholder text for the title and details fields.
@@ -491,7 +492,7 @@ export function PostDetailsScreen() {
         )}
       </ScrollView>
 
-      <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+      <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
         <Pressable
           onPress={publish}
           style={({ pressed }) => ({
@@ -511,7 +512,7 @@ export function PostDetailsScreen() {
             {promoteOn ? 'Publish & promote' : worker ? 'Publish service' : 'Post request'}
           </RNText>
         </Pressable>
-      </View>
+      </KeyboardSafe>
 
       <DateTimeSheet
         visible={showDate}

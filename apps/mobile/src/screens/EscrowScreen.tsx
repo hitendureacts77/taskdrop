@@ -12,6 +12,7 @@ import { getTaskDetail, getWallet, payTaskFromWallet, WalletShortError } from '.
 import { posterEscrowCharge } from '@taskdrop/rules';
 import { Pressy, tx } from '../components/primitives';
 import { AddFundsSheet } from '../components/AddFundsSheet';
+import { KeyboardSafe } from '../components/KeyboardSafe';
 
 /** Shield + checkmark; the check draws in over ~0.7s. Cleans up on unmount. */
 function ShieldCheck({ color }: { color: string }) {
@@ -218,7 +219,7 @@ export function EscrowScreen() {
         </View>
       </ScrollView>
 
-      <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+      <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
         <Pressy
           onPress={() => (enough || balanceMinor === null ? void pay() : setShortBy(totalMinor - (balanceMinor ?? 0)))}
           scaleTo={0.96}
@@ -241,7 +242,7 @@ export function EscrowScreen() {
         <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10 })}>
           Phone numbers are shared once the work starts.
         </RNText>
-      </View>
+      </KeyboardSafe>
 
       <AddFundsSheet
         visible={shortBy !== null}

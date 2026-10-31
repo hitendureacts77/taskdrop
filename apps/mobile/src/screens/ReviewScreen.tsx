@@ -9,6 +9,7 @@ import { useApp } from '../providers/AppStateProvider';
 import { submitReview } from '../data/api';
 import { fontFamilyFor } from '../theme';
 import { tx } from '../components/primitives';
+import { KeyboardSafe } from '../components/KeyboardSafe';
 
 /**
  * Ratings & review — pixel parity with docs/design/_design_markup.html lines
@@ -201,7 +202,7 @@ export function ReviewScreen() {
         />
       </ScrollView>
 
-      <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+      <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
         <Pressable
           onPress={submit}
           style={({ pressed }) => [
@@ -223,7 +224,7 @@ export function ReviewScreen() {
             {busy ? 'Posting…' : 'Submit review'}
           </RNText>
         </Pressable>
-      </View>
+      </KeyboardSafe>
     </Screen>
   );
 }

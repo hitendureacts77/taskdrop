@@ -12,6 +12,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
 import { MapPicker } from './MapPicker';
 import type { AddressDetails, AddressTag } from '../lib/location';
+import { useKeyboardClearance } from '../lib/useKeyboardClearance';
 
 /**
  * The half of an address a map cannot know.
@@ -180,6 +181,9 @@ export function AddressForm({
     </View>
   );
 
+  const saveBarRef = useRef<View>(null);
+  const saveBarLift = useKeyboardClearance(saveBarRef);
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: t.colors.bg }}
@@ -326,11 +330,13 @@ export function AddressForm({
       </ScrollView>
 
       <View
+        ref={saveBarRef}
         style={{
           position: 'absolute',
           left: 0,
           right: 0,
-          bottom: 0,
+          // Pinned bars ignore the keyboard-avoiding padding, so lift by what the keyboard still covers (plan task 1.8).
+          bottom: saveBarLift,
           paddingHorizontal: 20,
           paddingTop: 12,
           paddingBottom: bottomInset + 6,
