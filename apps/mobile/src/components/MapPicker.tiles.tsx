@@ -34,12 +34,12 @@ import { useReducedMotion } from '../lib/motion';
  * finger moved.
  */
 
-const TILE = 256;
+export const TILE = 256;
 const MIN_ZOOM = 3;
 const MAX_ZOOM = 18;
 
 /** lat/lng -> absolute pixel on the world map at this zoom. */
-function project(lat: number, lng: number, zoom: number): { x: number; y: number } {
+export function project(lat: number, lng: number, zoom: number): { x: number; y: number } {
   const scale = TILE * 2 ** zoom;
   const x = ((lng + 180) / 360) * scale;
   // Clamped, because the Mercator projection runs to infinity at the poles.
@@ -49,7 +49,7 @@ function project(lat: number, lng: number, zoom: number): { x: number; y: number
 }
 
 /** The inverse: absolute world pixel -> lat/lng. */
-function unproject(x: number, y: number, zoom: number): { lat: number; lng: number } {
+export function unproject(x: number, y: number, zoom: number): { lat: number; lng: number } {
   const scale = TILE * 2 ** zoom;
   const lng = (x / scale) * 360 - 180;
   const n = Math.PI - (2 * Math.PI * y) / scale;
@@ -57,9 +57,9 @@ function unproject(x: number, y: number, zoom: number): { lat: number; lng: numb
   return { lat, lng };
 }
 
-const TILE_HEADERS = { 'User-Agent': 'TaskDrop/1.0 (Android; com.taskdrop.app)' };
+export const TILE_HEADERS = { 'User-Agent': 'TaskDrop/1.0 (Android; com.taskdrop.app)' };
 
-function tileUrl(z: number, x: number, y: number): string {
+export function tileUrl(z: number, x: number, y: number): string {
   return `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
 }
 
