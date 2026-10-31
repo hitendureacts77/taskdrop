@@ -12,6 +12,7 @@ import { Field, IconButton, PrimaryButton, rupees } from '../components/kit';
 import { removeDraft, saveDraft } from '../lib/drafts';
 import { useReducedMotion } from '../lib/motion';
 import { FadeIn, Pressy, tx } from '../components/primitives';
+import { KeyboardSafe } from '../components/KeyboardSafe';
 import { TaskDescription } from '../components/TaskDescription';
 import { roughPlace } from '../lib/place';
 import { MIN_PRICE_INR } from '../lib/limits';
@@ -1228,7 +1229,7 @@ export function AiPostScreen() {
         </FadeIn>
       </ScrollView>
 
-      <View
+      <KeyboardSafe
         style={{
           flexDirection: 'row',
           gap: 10,
@@ -1303,7 +1304,7 @@ export function AiPostScreen() {
             style={{ flex: 1, borderRadius: 999 }}
           />
         )}
-      </View>
+      </KeyboardSafe>
 
       <DateTimeSheet
         visible={showDate}
