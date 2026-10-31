@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable, TextInput, KeyboardAvoidingView } from 'react-native';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
+import { KeyboardSafe } from '../components/KeyboardSafe';
 import { Badge, EmptyState, Field, LoadFailed, Pill, PrimaryButton, Shimmer, TopBar, timeAgo } from '../components/kit';
 import { FeedbackSheet } from '../components/FeedbackSheet';
 import { bugReportsAvailable, showBugReport } from '../lib/monitoring';
@@ -319,7 +320,7 @@ export function TicketScreen() {
           )}
         </ScrollView>
         {ticket && ticket.status !== 'resolved' ? (
-          <View style={{ paddingHorizontal: 20, paddingBottom: 14, paddingTop: 8, borderTopWidth: 1, borderTopColor: t.colors.line }}>
+          <KeyboardSafe style={{ paddingHorizontal: 20, paddingBottom: 14, paddingTop: 8, borderTopWidth: 1, borderTopColor: t.colors.line }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
               <TextInput
                 value={reply}
@@ -358,7 +359,7 @@ export function TicketScreen() {
             <Pressable onPress={() => void resolve()} style={{ alignSelf: 'center', marginTop: 10 }} accessibilityRole="button">
               <RNText style={tx('700', 13, t.colors.accentDeep)}>Mark as resolved</RNText>
             </Pressable>
-          </View>
+          </KeyboardSafe>
         ) : null}
       </KeyboardAvoidingView>
     </Screen>

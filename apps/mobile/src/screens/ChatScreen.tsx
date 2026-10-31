@@ -37,7 +37,7 @@ import { ReportSheet } from '../components/ReportSheet';
 import { PhotoViewer } from '../components/PhotoViewer';
 import { fontFamilyFor, type Theme } from '../theme';
 import { tx } from '../components/primitives';
-import { useKeyboardClearance } from '../lib/useKeyboardClearance';
+import { KeyboardSafe } from '../components/KeyboardSafe';
 
 /**
  * Per-task chat: header with the other person and a call button, the task
@@ -136,9 +136,6 @@ export function ChatScreen() {
   const [calling, setCalling] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
-  // The row holding the message box, and the lift it still needs when the keyboard covers it (Android).
-  const composerRef = useRef<View>(null);
-  const keyboardLift = useKeyboardClearance(composerRef);
 
   const contactsOpen = status !== null && OPEN_STATUSES.includes(status);
   const counterpartyName = other?.display_name ?? (mode === 'worker' ? 'The customer' : 'The worker');
@@ -449,20 +446,18 @@ export function ChatScreen() {
         ) : null}
 
         {/* ---- composer ---- */}
-        <View
+        <KeyboardSafe
           style={{
             backgroundColor: t.colors.surface,
             paddingHorizontal: 12,
             paddingTop: 10,
             paddingBottom: 18,
-            marginBottom: keyboardLift,
             borderTopWidth: 1,
             borderTopColor: t.colors.line,
             flexDirection: 'row',
             alignItems: 'flex-end',
             gap: 8,
           }}
-          ref={composerRef}
         >
           <Pressable
             onPress={() => setAttachOpen(true)}
@@ -523,7 +518,7 @@ export function ChatScreen() {
               <Icon name="send" size={18} color={draft.trim() ? t.colors.onAccent : t.colors.muted} />
             )}
           </Pressable>
-        </View>
+        </KeyboardSafe>
       </KeyboardAvoidingView>
 
       <BottomSheet visible={attachOpen} onClose={() => setAttachOpen(false)} title="Send a photo" subtitle="Show the job, a part, or the finished work.">

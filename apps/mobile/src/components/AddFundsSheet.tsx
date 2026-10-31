@@ -16,6 +16,7 @@ import { formatINR } from './ui';
 import { PaymentSheet } from './PaymentSheet';
 import { createPaymentLink, syncPayment } from '../data/api';
 import { paymentReturnUrl } from '../lib/links';
+import { useKeyboardClearance } from '../lib/useKeyboardClearance';
 
 /**
  * Adding money to the wallet.
@@ -173,6 +174,10 @@ export function AddFundsSheet({
     else setPayOpen(true);
   };
 
+  // Lifted by whatever the keyboard still covers (plan task 1.8).
+  const panelRef = useRef<View>(null);
+  const panelLift = useKeyboardClearance(panelRef);
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
@@ -181,6 +186,7 @@ export function AddFundsSheet({
       >
         <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Close" />
         <View
+          ref={panelRef}
           style={{
             backgroundColor: t.colors.bg,
             borderTopLeftRadius: 24,
@@ -188,6 +194,7 @@ export function AddFundsSheet({
             paddingHorizontal: 20,
             paddingTop: 18,
             paddingBottom: 28,
+            marginBottom: panelLift,
           }}
         >
           {phase === 'amount' ? (

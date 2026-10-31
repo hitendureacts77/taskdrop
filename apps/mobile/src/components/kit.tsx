@@ -8,6 +8,7 @@ import {
   Animated,
   TextInput,
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   PanResponder,
   Platform,
@@ -19,6 +20,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { Icon, type IconName } from './Icon';
 import { Pressy, tx } from './primitives';
 import { useLayout } from '../lib/layout';
+import { useKeyboardClearance } from '../lib/useKeyboardClearance';
 import { NativeHeader } from './NativeHeader';
 import { LOOP_NATIVE, useReducedMotion } from '../lib/motion';
 
@@ -64,6 +66,9 @@ export function BottomSheet({
     anim.start();
     return () => anim.stop();
   }, [visible, rise, dialog]);
+  // A sheet with a text box is lifted by whatever the keyboard still covers (plan task 1.8).
+  const panelRef = useRef<View>(null);
+  const panelLift = useKeyboardClearance(panelRef);
   const sheetY = rise.interpolate({ inputRange: [0, 1], outputRange: [dialog ? 12 : 520, 0] });
   const sheetScale = rise.interpolate({ inputRange: [0, 1], outputRange: [dialog ? 0.94 : 1, 1] });
 
@@ -88,12 +93,14 @@ export function BottomSheet({
             accessibilityLabel="Close"
           />
           <Animated.View
+            ref={panelRef}
             style={{
               backgroundColor: t.colors.bg,
               borderTopLeftRadius: 28,
               borderTopRightRadius: 28,
               ...(dialog ? { borderRadius: 28, width: 560, maxWidth: '92%' as const } : null),
               paddingBottom: 20,
+              marginBottom: panelLift,
               maxHeight,
               shadowColor: '#000',
               shadowOpacity: 0.25,
@@ -430,6 +437,10 @@ export function ConfirmDialog({
     return () => anim.stop();
   }, [visible, pop]);
   const scale = pop.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] });
+  // The question is centred, so an open keyboard would cover its buttons on a short phone (plan task 1.8).
+  useEffect(() => {
+    if (visible) Keyboard.dismiss();
+  }, [visible]);
   const tone = danger ? t.colors.signalDeep : t.colors.btn;
   const toneIcon = danger ? t.colors.signal : t.colors.accent;
   const onTone = danger ? (t.isDark ? '#1A0C06' : '#FFFFFF') : t.colors.onBtn;
