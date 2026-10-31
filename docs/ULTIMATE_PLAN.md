@@ -733,9 +733,9 @@ build the approved designs
 </details>
 
 <details id="t1-8" data-short="Keyboard hides content">
-<summary>[BOTH] <b>1.8</b> Keep content and alerts clear of the keyboard <small>· Built and merged 31 Oct, not yet tried on a phone · your time: 15 minutes</small></summary>
+<summary>[BOTH] <b>1.8</b> Keep content and alerts clear of the keyboard <small>· Built, published 31 Oct, pass 1 of 16 done · your time: 15 minutes</small></summary>
 
-**Built and merged 31 Oct (pull request 134, `npm run check` green).** Not run on a phone yet: your phone was unplugged, so the problem was not reproduced and the 16-spot pass was not done. Not published to testers.
+**Built and merged 31 Oct (pull request 134, `npm run check` green) and published to testers the same day** (EAS update group `ab7844e9-daef-4925-84ab-4563b21f52a7`, channel `beta`, from `7467777`, source maps uploaded). **Keyboard pass, started 31 Oct over USB:** spot 2 (the Drop a task composer) passes: with the keyboard open, the text box and the character counter sit above it and Next is visible. The pass then stopped because the phone locked itself (screen timeout) and unlocking needs your PIN, which Claude does not enter. Not checked: the other 15 spots, and a toast shown while the keyboard is open (it was not possible to trigger one reliably by typing over USB). The problem itself was never reproduced before the fix, so a pass is the only proof.
 
 - **One shared rule:** `useKeyboardClearance` (now also re-measures when something appears while the keyboard is already open) and `KeyboardSafe`, a bar that lifts only by what the keyboard still covers.
 - **Used by:** the chat message box (the chat-only helper is gone), the Post a request Back/Continue bar, the Help reply box, the shared bottom sheet (so every sheet built on it), Add money and the payout sheet.
