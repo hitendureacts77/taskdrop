@@ -4,7 +4,14 @@
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { apiFailureKind } from './errors.ts';
+import { ACCOUNT_CLOSED, apiFailureKind, friendlyMessage } from './errors.ts';
+
+test('a closed account is told so, not "no permission" or a blank (B6)', () => {
+  assert.equal(ACCOUNT_CLOSED, 'This account is closed. Contact support.');
+  assert.equal(friendlyMessage({ message: 'User is banned', code: 'user_banned', status: 403 }), ACCOUNT_CLOSED);
+  assert.equal(friendlyMessage({ message: 'User is banned' }), ACCOUNT_CLOSED);
+  assert.equal(apiFailureKind({ message: 'User is banned', code: 'user_banned', status: 403 }), 'refused');
+});
 
 test('no network is offline, not a bug', () => {
   assert.equal(apiFailureKind({ message: 'Network request failed' }), 'offline');

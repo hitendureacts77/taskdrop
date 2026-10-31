@@ -161,7 +161,7 @@ export function SwipeScreen() {
   const maxTravel = maxTravelFor(trackWidth);
   const knobX = progress * maxTravel;
   const labelOpacity = clamp(1 - progress * 1.6, 0, 1);
-  const hint = released ? 'Release to start' : 'Slide the handle all the way across.';
+  const hint = released ? 'Release to start' : 'Slide the handle all the way across, or tap Start.';
 
   return (
     <Screen padded={false}>
@@ -225,6 +225,13 @@ export function SwipeScreen() {
                 setTrackWidth(e.nativeEvent.layout.width);
               }}
               {...panResponder.panHandlers}
+              // A screen reader cannot drag: it hears this and double-tapping starts the job.
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Swipe to start"
+              accessibilityHint="Double-tap to start the job"
+              accessibilityActions={[{ name: 'activate' }]}
+              onAccessibilityAction={() => startNow()}
               style={{
                 height: 62,
                 borderRadius: 999,
@@ -277,14 +284,27 @@ export function SwipeScreen() {
               </RNText>
             </View>
             <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 13 })}>{hint}</RNText>
+            {/* The same start as the slider, for a keyboard, a screen reader or a finger that would rather tap. */}
             <Pressable
               onPress={startNow}
               disabled={started}
               accessibilityRole="button"
               accessibilityLabel="Start the task"
-              style={{ alignSelf: 'center', marginTop: 10, padding: 8 }}
+              accessibilityHint="Starts the job now, the same as sliding the handle across"
+              accessibilityState={{ disabled: started, busy: started }}
+              style={({ pressed }) => ({
+                marginTop: 12,
+                paddingVertical: 14,
+                borderRadius: 999,
+                alignItems: 'center',
+                borderWidth: 1,
+                borderColor: t.colors.accent,
+                backgroundColor: t.colors.surface,
+                opacity: started ? 0.6 : 1,
+                transform: [{ scale: pressed ? 0.98 : 1 }],
+              })}
             >
-              <RNText style={tx('700', 13, t.colors.accentDeep)}>Or tap here to start</RNText>
+              <RNText style={tx('700', 15, t.colors.accentDeep)}>{started ? 'Starting…' : 'Start'}</RNText>
             </Pressable>
           </View>
         </View>

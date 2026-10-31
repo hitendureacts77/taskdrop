@@ -244,7 +244,9 @@ export function AccessScreen() {
       await signInWithGoogle('signin');
       await proceed();
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not sign in with Google');
+      const msg = e instanceof Error ? e.message : 'Could not sign in with Google';
+      // Closing Google's page is a choice, not an error (same as Apple's sheet).
+      if (msg !== 'Sign-in was cancelled') flash(msg);
     } finally {
       setGoogleBusy(false);
     }
