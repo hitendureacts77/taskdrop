@@ -1,9 +1,16 @@
 [
   {
-    "id": "GHSA-86w9-cpqp-85rv",
-    "package": "node-forge",
-    "severity": "high",
-    "reason": "No patched release exists (node-forge 1.4.0 is the latest and is the vulnerable one). It reaches us only through @expo/cli and @expo/code-signing-certificates, which sign Expo development and update manifests on a developer or build machine. It is not part of the shipped app or the web bundle. Re-check when node-forge publishes a fix.",
+    "id": "GHSA-3g3m-2fjr-6pw4",
+    "package": "glob",
+    "severity": "moderate",
+    "reason": "Published 2026-10-30; fixed only in glob 14.0.2, a major version. The copy (13.0.6) comes from expo-updates, @expo/cli, @expo/config, @expo/config-plugins, @expo/fingerprint and @expo/metro-config, which run on a developer or build machine (expo start, export, prebuild, fingerprinting). glob reads the file system, so it is not in the phone app or the web bundle. The flaw needs a caller that cancels a glob with an AbortSignal; these tools do not. npm's only offered fix is an old expo-updates. Re-check when Expo moves to glob 14 (expected with SDK 58), then drop this exception.",
+    "reviewBy": "2026-12-13"
+  },
+  {
+    "id": "GHSA-g3hv-75wg-m249",
+    "package": "minimatch",
+    "severity": "moderate",
+    "reason": "Published 2026-10-30; fixed only in minimatch 11.0.1, a major version. The copy (10.2.6) is glob 13's, under the same Expo build tools as GHSA-3g3m-2fjr-6pw4 above, and runs only on a developer or build machine with our own project's patterns, never with input from users. The flaw is a slow match on crafted patterns (denial of service), with no data exposure. Re-check together with the glob exception above.",
     "reviewBy": "2026-12-13"
   },
   {
@@ -18,6 +25,13 @@
     "package": "decode-uri-component",
     "severity": "moderate",
     "reason": "Fixed in decode-uri-component 0.5.0, but we cannot use it yet. The copy (0.2.2) is a transitive dependency of expo-router, which uses query-string 7 to read query strings when it matches links and route paths in the phone apps (not the web build, which never loads expo-router). No code of ours calls query-string or decode-uri-component, and we have not shown a link that triggers the slow decode; the flaw is a denial of service (slow decoding of malformed percent-encoded text), with no data exposure. 0.5.0 is ES-module only and query-string 7 loads it with require(), and query-string 9 has no named exports, which expo-router calls (tried and backed out; it would break link and route parsing). Re-check when expo-router moves off query-string 7 or a compatible fix ships, and then drop this exception.",
+    "reviewBy": "2026-12-13"
+  },
+  {
+    "id": "GHSA-qr28-fpjm-wq7f",
+    "package": "decode-uri-component",
+    "severity": "high",
+    "reason": "Published 2026-10-30; no patched release exists (every version up to 0.5.0, the latest, is affected). npm's only suggested fix is expo-router 58, a major Expo SDK upgrade. It is the same copy as GHSA-vcc3-ghjq-m6fr above (0.2.2, via expo-router > query-string 7), used only to read query strings when expo-router matches links and route paths in the phone apps; the web build never loads expo-router and no code of ours calls it. The flaw is a denial of service (slow decoding of long percent-encoded runs), with no data exposure. Re-check when a fixed decode-uri-component ships or when moving to Expo SDK 58, and then drop this exception.",
     "reviewBy": "2026-12-13"
   },
   {
