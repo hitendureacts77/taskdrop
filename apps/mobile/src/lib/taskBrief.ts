@@ -1257,6 +1257,27 @@ function promptFactor(topic: Topic, t: string): number {
   return f;
 }
 
+/**
+ * How much a quantity in the request moves the price: "5 pages", "3 hours",
+ * "1000 words". Sub-linear, because the second page is cheaper than the first,
+ * and capped, so a typo like "500 pages" cannot run away. Only the biggest
+ * quantity counts, so "3 pages for 2 days" is not charged twice.
+ */
+const QUANTITY = /\b(\d{1,5})\s*(pages?|screens?|rooms?|bathrooms?|hours?|hrs?|days?|visits?|sessions?|classes|lessons?|items?|photos?|videos?|posts?|logos?|articles?|words)\b/g;
+export function quantityFactor(t: string, hasBhk = false): { factor: number; note: string } {
+  let best = { factor: 1, note: '' };
+  for (const m of t.matchAll(QUANTITY)) {
+    const n = Number(m[1]);
+    const unit = m[2]!;
+    if (!(n > 1) || (hasBhk && /^rooms?$/.test(unit))) continue;
+    const factor = /^words$/.test(unit)
+      ? Math.min(Math.max((n / 500) ** 0.8, 0.6), 8)
+      : Math.min(n ** 0.7, 8);
+    if (factor > best.factor) best = { factor, note: `Scaled for ${n} ${unit}.` };
+  }
+  return best;
+}
+
 /** For a request that matched no topic, the "what kind of help" answer still
  *  says where it belongs. */
 const FALLBACK_CATEGORY: Record<string, Category> = {
@@ -1296,7 +1317,8 @@ function writePost(prompt: string, answers: Answer[], style: WritingStyle): Brie
     REGULAR.test(t) || picked.some((a) => /\b(every|daily|weekly|weekday|ongoing|twice a week|a few days a week)\b/i.test(a.answer));
 
   // Price: the topic's usual range, moved by the answers and the request.
-  let factor = costFactor(topic, picked) * promptFactor(topic, t);
+  const qty = quantityFactor(t, /\b\d ?bhk\b/.test(t));
+  let factor = costFactor(topic, picked) * promptFactor(topic, t) * qty.factor;
   if (urgent) factor *= 1.25;
   const min = niceRupees(topic.budget[0] * factor);
   const max = Math.max(niceRupees(topic.budget[1] * factor), min + (min < 1000 ? 100 : 500));
@@ -1349,6 +1371,7 @@ function writePost(prompt: string, answers: Answer[], style: WritingStyle): Brie
     budgetWhy: [
       `Typical for ${topic.noun}.`,
       picked.length > 0 ? 'Adjusted for your answers.' : '',
+      qty.note,
       urgent ? 'Raised a little because it is urgent.' : '',
     ]
       .filter(Boolean)

@@ -4,6 +4,8 @@ import { Screen, ScreenList, cardSurface } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
 import { EmptyState, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../components/kit';
+import { JobsMap, type JobPin } from '../components/JobsMap';
+import { PersonTheme } from '../providers/ThemeProvider';
 import { TrendingSection } from '../components/Trending';
 import { WorkCard, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
@@ -342,6 +344,9 @@ function FindWork() {
   const [rows, setRows] = useState<TaskWithPoster[] | null>(null);
   const focusTick = useFocusTick();
   const [allCats, setAllCats] = useState(false);
+  // List or map of the jobs that match the filters, and the pin that is open.
+  const [view, setView] = useState<'list' | 'map'>('list');
+  const [pinId, setPinId] = useState<string | null>(null);
   const searchRef = useRef<TextInput>(null);
 
   // Arriving from the home search bar: start clean (no leftover filters that
@@ -517,12 +522,15 @@ function FindWork() {
                 ) : null}
               </View>
 
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 }}>
                 <RNText style={tx('700', 13, t.colors.ink, { flex: 1 })}>
                   {shown === null
                     ? 'Loading…'
                     : `${shown.length} ${shown.length === 1 ? 'job' : 'jobs'}${filter === 'local' && me.lat !== null ? ` within ${LOCAL_KM} km` : ''}${query ? ` for “${query}”` : ''}`}
                 </RNText>
+                {(['list', 'map'] as const).map((v) => (
+                  <Pill key={v} label={v === 'list' ? 'List' : 'Map'} icon={v === 'list' ? 'list' : 'pin'} active={view === v} onPress={() => setView(v)} />
+                ))}
                 {filter !== 'all' || cat !== null || query !== '' ? (
                   <Pressable
                     onPress={() => {
@@ -537,6 +545,17 @@ function FindWork() {
                   </Pressable>
                 ) : null}
               </View>
+              {view === 'map' && shown ? (
+                <PersonTheme role="poster">
+                  <JobsMapBlock
+                    rows={shown}
+                    me={me.lat !== null && me.lng !== null ? { lat: me.lat, lng: me.lng } : null}
+                    pinId={pinId}
+                    onPin={setPinId}
+                    onOpen={open}
+                  />
+                </PersonTheme>
+              ) : null}
               {filter === 'local' && me.lat === null ? (
                 <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6 })}>
                   Set your area on the home screen to see jobs within {LOCAL_KM} km.
@@ -567,5 +586,71 @@ function FindWork() {
     >
       <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void refresh()} />
     </ScreenList>
+  );
+}
+
+
+/** "₹900", "₹1.2k", "₹25k": short enough to sit on a map pin. */
+function priceTag(minor: number): string {
+  const r = Math.round(minor / 100);
+  if (r < 1000) return '₹' + r;
+  const k = r / 1000;
+  return '₹' + (k >= 10 || Number.isInteger(k) ? Math.round(k) : k.toFixed(1)) + 'k';
+}
+
+/** The map of the matching jobs, with the picked one's card underneath. Remote jobs have no place, so they are counted instead of pinned. */
+function JobsMapBlock({
+  rows,
+  me,
+  pinId,
+  onPin,
+  onOpen,
+}: {
+  rows: TaskWithPoster[];
+  me: { lat: number; lng: number } | null;
+  pinId: string | null;
+  onPin: (id: string | null) => void;
+  onOpen: (task: TaskWithPoster) => void;
+}) {
+  const t = useTheme();
+  const located = rows.filter((r) => r.loc_lat !== null && r.loc_lng !== null);
+  const remote = rows.length - located.length;
+  const pins: JobPin[] = located.map((r) => ({ id: r.id, lat: r.loc_lat as number, lng: r.loc_lng as number, label: priceTag(r.benchmark_minor) }));
+  const picked = located.find((r) => r.id === pinId) ?? null;
+  return (
+    <View style={{ marginTop: 12 }}>
+      <JobsMap me={me} pins={pins} selectedId={pinId} onSelect={onPin} />
+      {picked ? (
+        <Pressable
+          onPress={() => onOpen(picked)}
+          accessibilityRole="button"
+          accessibilityLabel={'Open ' + picked.title}
+          style={({ pressed }) => ({
+            marginTop: 10,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            padding: 14,
+            borderRadius: 16,
+            borderWidth: 1.5,
+            borderColor: t.colors.accent,
+            backgroundColor: t.colors.surface,
+            transform: [{ scale: pressed ? 0.985 : 1 }],
+          })}
+        >
+          <View style={{ flex: 1 }}>
+            <RNText numberOfLines={1} style={tx('700', 15, t.colors.ink)}>{picked.title}</RNText>
+            <RNText numberOfLines={1} style={tx('400', 12.5, t.colors.muted, { marginTop: 2 })}>{picked.loc_label ?? 'Nearby'}</RNText>
+          </View>
+          <RNText style={tx('800', 16, t.colors.accentDeep, { fontVariant: ['tabular-nums'] })}>{priceTag(picked.benchmark_minor)}</RNText>
+          <Icon name="chevronRight" size={16} color={t.colors.muted} />
+        </Pressable>
+      ) : (
+        <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 10 })}>
+          {located.length === 0 ? 'No job here has a place on the map.' : 'Tap a price tag to see the job.'}
+          {remote > 0 ? ' ' + remote + (remote === 1 ? ' remote job is' : ' remote jobs are') + ' in the list, not on the map.' : ''}
+        </RNText>
+      )}
+    </View>
   );
 }

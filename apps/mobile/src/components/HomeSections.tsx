@@ -232,7 +232,7 @@ function PostTop() {
             icon="briefcase"
             action="Manage"
             onAction={() => go('myTasks')}
-            style={{ marginTop: 24 }}
+            style={{ marginTop: 32 }}
           />
           <View style={{ marginTop: 10 }}>
             <Rail min={220}>
@@ -252,7 +252,7 @@ function PostTop() {
         icon="sparkle"
         action="See all"
         onAction={() => go('explore')}
-        style={{ marginTop: 24 }}
+        style={{ marginTop: 32 }}
       />
       <View style={{ marginTop: 12 }}>
         <Rail step={300} min={160}>
@@ -265,7 +265,7 @@ function PostTop() {
       {/* What is busy */}
       {trending.length > 0 ? (
         <>
-          <SectionTitle title="Busy on TaskDrop" icon="trending" style={{ marginTop: 24 }} />
+          <SectionTitle title="Busy on TaskDrop" icon="trending" style={{ marginTop: 32 }} />
           <View style={[cardSurface(t, 20), { marginTop: 12, paddingHorizontal: 14 }]}>
             {trending.map((c, i) => (
               <Pressable
@@ -627,7 +627,7 @@ function EarnTop() {
           icon="star"
           action="Edit skills"
           onAction={() => go('profileEdit')}
-          style={{ marginTop: 22 }}
+          style={{ marginTop: 32 }}
         />
         <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>
           {skills.length ? skills.slice(0, 3).join(' · ') : 'Add skills to your profile for sharper matches'}
@@ -647,7 +647,7 @@ function EarnTop() {
         <SectionTitle
           title={areaName ? `Jobs near ${areaName}` : 'Jobs near you'}
           icon="pin"
-          style={{ marginTop: 26 }}
+          style={{ marginTop: 32 }}
         />
         {place ? (
           <>
@@ -715,7 +715,7 @@ function EarnTop() {
         )}
 
         {/* 3. From anywhere */}
-        <SectionTitle title="Remote & online" icon="compass" style={{ marginTop: 26 }} />
+        <SectionTitle title="Remote & online" icon="compass" style={{ marginTop: 32 }} />
         <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>Work you can do from your phone or laptop</RNText>
         {remote === null ? (
           <Shimmer height={110} style={{ marginTop: 12 }} />
@@ -731,7 +731,7 @@ function EarnTop() {
         {/* 4. Needed today */}
         {urgent.length > 0 ? (
           <>
-            <SectionTitle title="Needed today" icon="bolt" badge="Urgent" style={{ marginTop: 26 }} />
+            <SectionTitle title="Needed today" icon="bolt" badge="Urgent" style={{ marginTop: 32 }} />
             <Grid>{firstFew('urgent', urgent).map((task, i) => card(task, i))}</Grid>
             {more('urgent', urgent.length)}
           </>
