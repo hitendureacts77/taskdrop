@@ -499,7 +499,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
   );
   const transactions = (
     <>
-          <SectionTitle title="Transactions" icon="list" style={{ marginTop: twoCol ? 4 : 24 }} />
+          <SectionTitle title="Transactions" icon="list" style={{ marginTop: twoCol ? 4 : 32 }} />
           <View style={{ marginTop: 8, marginHorizontal: -20 }}>
             <UnderlineTabs tabs={TX_TABS} active={txTab} onPick={setTxTab} />
           </View>
