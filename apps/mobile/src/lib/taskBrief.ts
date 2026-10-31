@@ -68,6 +68,8 @@ export type Brief = {
   difficulty: 'easy' | 'medium' | 'hard';
   budgetMinInr: number;
   budgetMaxInr: number;
+  /** One line on why the range is what it is, shown beside it. */
+  budgetWhy?: string;
 };
 
 
@@ -1344,6 +1346,13 @@ function writePost(prompt: string, answers: Answer[], style: WritingStyle): Brie
     difficulty,
     budgetMinInr: min,
     budgetMaxInr: max,
+    budgetWhy: [
+      `Typical for ${topic.noun}.`,
+      picked.length > 0 ? 'Adjusted for your answers.' : '',
+      urgent ? 'Raised a little because it is urgent.' : '',
+    ]
+      .filter(Boolean)
+      .join(' '),
   };
 }
 

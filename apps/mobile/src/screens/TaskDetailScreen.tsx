@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { BackButton, IconButton, systemHeader } from '../components/kit';
 import { ReportSheet } from '../components/ReportSheet';
 import { Icon } from '../components/Icon';
-import { View, Text as RNText, Pressable } from 'react-native';
+import { View, Text as RNText, Pressable, TextInput, Platform } from 'react-native';
+import { maskContacts } from '../lib/mask';
 import { Screen, Card, Button, formatINR } from '../components/ui';
 import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
@@ -300,7 +301,16 @@ export function TaskDetailScreen() {
   // Asking for the posted price is an offer; asking for a different one is a
   // counteroffer, and the button says which, so nobody wonders what it sends.
   const countering = quote !== detail.amountMinor;
-  const cta = countering ? 'Send a counteroffer' : worker ? 'Send an offer' : 'Send my offer';
+  // A worker chooses price only, or a price with a short proposal. The button
+  // always says what it sends, with the amount.
+  const [withProposal, setWithProposal] = useState(false);
+  const [proposal, setProposal] = useState('');
+  const proposalShort = withProposal && proposal.trim().length < 10;
+  const cta = worker
+    ? `${countering ? 'Send counteroffer' : 'Send offer'}${withProposal ? ' with proposal' : ''} · ${formatINR(quote)}`
+    : countering
+      ? 'Send a counteroffer'
+      : 'Send my offer';
 
   // The detailed bid: a proposal, hours and a delivery date on top of the
   // price. Same placeBid underneath, so the same checks apply.
@@ -319,6 +329,7 @@ export function TaskDetailScreen() {
       if (!realId) return flash('This is a sample task — post a real one to send an offer');
       if (!userId) return flash('Sign in to send an offer');
       if (quote < MIN_QUOTE_MINOR) return flash(`The smallest offer is ${formatINR(MIN_QUOTE_MINOR)}`);
+      if (proposalShort) return flash('Tell the customer a little about how you will do it');
       setBusy(true);
       try {
         await placeBid({
@@ -326,6 +337,7 @@ export function TaskDetailScreen() {
           workerId: userId,
           priceMinor: quote,
           timeLimitMinutes: 240,
+          ...(withProposal ? { message: maskContacts(proposal.trim()).text } : null),
         });
         celebrate((countering ? 'Counteroffer sent · ' : 'Offer sent · ') + formatINR(quote));
         go('orders');
@@ -500,6 +512,30 @@ export function TaskDetailScreen() {
           <RNText style={tx('700', 11, t.colors.muted, { marginBottom: 10, letterSpacing: 1.2 })}>
             {countering ? 'YOUR COUNTEROFFER' : 'YOUR OFFER'}
           </RNText>
+          {worker && realId ? (
+            <View style={{ flexDirection: 'row', backgroundColor: t.colors.surface2, borderRadius: 14, padding: 4, gap: 4, marginBottom: 14 }}>
+              {([['Price only', false], ['Price + proposal', true]] as const).map(([label, on]) => (
+                <Pressable
+                  key={label}
+                  onPress={() => setWithProposal(on)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: withProposal === on }}
+                  style={{
+                    flex: 1,
+                    height: 40,
+                    borderRadius: 11,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: withProposal === on ? t.colors.surface : 'transparent',
+                    borderWidth: withProposal === on ? 1 : 0,
+                    borderColor: t.colors.line,
+                  }}
+                >
+                  <RNText style={tx('700', 13.5, withProposal === on ? t.colors.ink : t.colors.muted)}>{label}</RNText>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Pressable
               onPress={() => setQuote((q) => Math.max(MIN_QUOTE_MINOR, q - QUOTE_STEP_MINOR))}
@@ -550,9 +586,40 @@ export function TaskDetailScreen() {
             </Pressable>
           </View>
 
+          {worker && withProposal ? (
+            <View style={{ marginTop: t.spacing.lg }}>
+              <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginBottom: 6 })}>YOUR PROPOSAL</RNText>
+              <View style={{ borderWidth: 1.5, borderColor: t.colors.accentBorder, backgroundColor: t.colors.surface, borderRadius: 14, padding: 12 }}>
+                <TextInput
+                  value={proposal}
+                  onChangeText={setProposal}
+                  multiline
+                  maxLength={500}
+                  placeholder="Say how you will do it and when you can start"
+                  placeholderTextColor={t.colors.muted}
+                  accessibilityLabel="Your proposal"
+                  style={tx('400', 14, t.colors.ink, {
+                    minHeight: 96,
+                    padding: 0,
+                    textAlignVertical: 'top',
+                    lineHeight: 20,
+                    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
+                  })}
+                />
+                <RNText style={tx('400', 11.5, t.colors.muted, { alignSelf: 'flex-end', marginTop: 4 })}>{proposal.length} / 500</RNText>
+              </View>
+            </View>
+          ) : (
+            worker && realId ? (
+              <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, textAlign: 'center' })}>
+                Quick. The customer sees your price and your profile.
+              </RNText>
+            ) : null
+          )}
+
           <Button
             label={busy ? 'Sending…' : cta}
-            disabled={busy}
+            disabled={busy || proposalShort}
             onPress={sendQuote}
             style={{ marginTop: t.spacing.lg }}
           />
@@ -563,13 +630,6 @@ export function TaskDetailScreen() {
                 : 'One offer per task. Phone numbers stay hidden until the work starts.'
               : 'Your offer goes to this worker. They can accept it and start.'}
           </RNText>
-          {worker && realId ? (
-            <Pressable onPress={() => void openBid()} style={{ alignSelf: 'center', marginTop: 12 }} accessibilityRole="button" accessibilityLabel={countering ? 'Send a detailed counteroffer with a proposal' : 'Send a detailed offer with a proposal'}>
-              <RNText style={tx('700', 13, t.colors.accentDeep)}>
-                {countering ? 'Or send a detailed counteroffer with a proposal ›' : 'Or send a detailed offer with a proposal ›'}
-              </RNText>
-            </Pressable>
-          ) : null}
         </Card>
         )}
       </FadeIn>

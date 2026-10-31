@@ -878,6 +878,21 @@ export function AiPostScreen() {
                 </View>
               ) : null}
 
+              {/* The usual price for what was written, with the reason beside it. */}
+              {brief ? (
+                <View style={{ marginTop: 16, backgroundColor: t.colors.aiSoft, borderRadius: 16, padding: 14 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Icon name="sparkle" size={13} color={t.colors.aiInk} />
+                    <RNText style={tx('700', 11, t.colors.aiInk, { letterSpacing: 0.9 })}>USUAL PRICE FOR THIS</RNText>
+                  </View>
+                  <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.5, marginTop: 6 })}>
+                    {rupees(lo)} to {rupees(hi)}
+                  </RNText>
+                  {brief.budgetWhy ? <RNText style={tx('400', 13, t.colors.text, { marginTop: 4, lineHeight: 19 })}>{brief.budgetWhy}</RNText> : null}
+                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 8 })}>Estimated from what you wrote. You set the final price.</RNText>
+                </View>
+              ) : null}
+
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 16 }}>
                 {presets.map((p) => chip(rupees(p), budget === p, () => pickAmount(p)))}
               </View>
