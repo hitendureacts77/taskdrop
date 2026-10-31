@@ -1,4 +1,4 @@
-import { apiError } from '../lib/errors';
+import { ACCOUNT_CLOSED, apiError } from '../lib/errors';
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
@@ -143,17 +143,56 @@ function authCodeFrom(url: string | null | undefined): string | null {
   }
 }
 
+/** Why a claimed code could not be redeemed, so the path that waited on another one can say so. */
+const failedCodes = new Map<string, Error>();
+
+/** The `error_description` / `error` Google's return link carries instead of a code, if any. */
+function returnErrorFrom(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    const hash = new URLSearchParams(u.hash.replace(/^#/, ''));
+    return (
+      u.searchParams.get('error_description') ?? u.searchParams.get('error') ??
+      hash.get('error_description') ?? hash.get('error')
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What to tell the person when Google comes back with an error instead of a
+ * code. null means they simply backed out, which needs no message.
+ */
+function googleReturnProblem(raw: string): string | null {
+  if (/banned/i.test(raw)) return ACCOUNT_CLOSED;
+  if (/access_denied|cancel/i.test(raw)) return null;
+  return 'Google sign-in did not finish. Please try again.';
+}
+
 /**
  * Redeem a Google return link once. Resolves with the signed-in user's
  * creation time, or null when another path already claimed this code.
  */
 async function redeemAuthUrl(url: string): Promise<{ createdAt: string | undefined } | null> {
   const code = authCodeFrom(url);
-  if (!code) throw new Error('Google did not return a code');
+  if (!code) {
+    const raw = returnErrorFrom(url);
+    if (raw) {
+      const problem = googleReturnProblem(raw);
+      throw new Error(problem ?? 'Sign-in was cancelled');
+    }
+    throw new Error('Google did not return a code');
+  }
   if (claimedCodes.has(code)) return null;
   claimedCodes.add(code);
   const { data, error } = await exchangeCodeForSessionWithRetry(code);
-  if (error) throw apiError(error);
+  if (error) {
+    const failure = apiError(error);
+    failedCodes.set(code, failure);
+    throw failure;
+  }
   return { createdAt: data.user?.created_at };
 }
 
@@ -193,6 +232,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // only place that ever sees a rejected redirect_to, a cancelled
           // consent, or a provider-side failure.
           console.error('[auth] Google sign-in returned an error:', oauthError);
+          // Said out loud (a closed account, a failure), except when the person just backed out.
+          const problem = googleReturnProblem(oauthError);
+          if (problem) setNotice(problem);
         } else if (code) {
           // exchangeCodeForSession posts this argument as-is as `auth_code`
           // -- it does not parse a URL, so this must be the bare code, not
@@ -204,6 +246,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const { error } = await exchangeCodeForSessionWithRetry(code);
           if (error) {
             console.error('[auth] exchangeCodeForSession failed:', error.code, error.message);
+            setNotice(apiError(error).message);
           } else if (alive) {
             const { data } = await supabase.auth.getUser();
             let intent: string | null = null;
@@ -233,6 +276,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           } catch (e) {
             log.error('Google return link failed', { error: e instanceof Error ? e.message : String(e) });
+            if (e instanceof Error) setNotice(e.message);
           }
         }
       }
@@ -281,7 +325,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // An admin can suspend an account; Supabase then answers "User is banned".
     if (error) {
       log.warn('session exchange failed after a valid code', { banned: /banned/i.test(error.message), code: error.code ?? null });
-      throw /banned/i.test(error.message) ? new Error('This account is suspended. Please contact TaskDrop support.') : apiError(error);
+      throw apiError(error);
     }
     log.info('signed in with phone code', { isNew: out.isNew === true });
     count(out.isNew === true ? 'auth.signed_up' : 'auth.signed_in', { method: 'phone' });
@@ -346,6 +390,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       for (let i = 0; i < 25; i++) {
         const { data: now } = await supabase.auth.getSession();
         if (now.session) return;
+        // The other path failed (a closed account, say): say why instead of waiting it out.
+        const failed = failedCodes.get(authCodeFrom(returnedUrl) ?? '');
+        if (failed) throw failed;
         await new Promise((r) => setTimeout(r, 200));
       }
       throw new Error('Could not finish Google sign-in. Please try again.');
@@ -433,7 +480,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       token: credential.identityToken,
       nonce: rawNonce,
     });
-    if (error) throw /banned/i.test(error.message) ? new Error('This account is suspended. Please contact TaskDrop support.') : apiError(error);
+    if (error) throw apiError(error);
   }, []);
 
   const signOut = useCallback(async () => {

@@ -27,6 +27,8 @@ const DENIED = 'You do not have permission to do that.';
 const DUPLICATE = 'That already exists.';
 const GONE = 'That is no longer available.';
 const INVALID = 'Please check what you entered and try again.';
+/** What a sign-in says when Supabase refuses a closed (deleted or suspended) account as "User is banned". */
+export const ACCOUNT_CLOSED = 'This account is closed. Contact support.';
 
 /** An error whose `message` is safe to show. The original stays on `raw`, never displayed. */
 export class ApiError extends Error {
@@ -51,6 +53,9 @@ export function friendlyMessage(err: RawError, fallback = GENERIC): string {
 
   // Written on purpose for the user by a SQL function.
   if (code === 'P0001') return raw;
+
+  // Before the 401/403 wording below: a closed account is refused with a 403.
+  if (code === 'user_banned' || /user is banned|account is banned/i.test(raw)) return ACCOUNT_CLOSED;
 
   if (/network request failed|failed to fetch|failed to send a request|fetch failed|load failed|networkerror|timed? ?out|econn|enotfound/i.test(raw)) {
     return OFFLINE;

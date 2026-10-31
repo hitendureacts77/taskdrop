@@ -155,19 +155,21 @@ export const READ_OPS: Record<string, Op> = {
   /** The task, the assignment holding its escrow, and both people, in one round trip. */
   getTaskDetail: async (ctx, a) => {
     const taskId = uuid(a, "taskId");
-    const task = take<Task | null>(await ctx.db.from("tasks").select("*").eq("id", taskId).maybeSingle());
-    if (!task) return null;
-    const list = rows<Row & { status: string; worker_id: string }>(
-      await ctx.db.from("assignments").select("*").eq("task_id", taskId).order("created_at", { ascending: false }),
-    );
-    // A task can carry stale holds from workers who lost the race to start.
-    const assignment = list.find((x) => x.status === "started" || x.status === "released") ?? list[0] ?? null;
-    const [people, privateRow] = await Promise.all([
-      profilesById(ctx, [task.poster_id, assignment?.worker_id]),
+    // The task, its holds and its typed address do not depend on each other: ask for all three at once
+    // (this answer is what a job screen waits on, so each round trip saved is a shorter grey wait, B11).
+    const [taskRes, assignmentsRes, privateRow] = await Promise.all([
+      ctx.db.from("tasks").select("*").eq("id", taskId).maybeSingle(),
+      ctx.db.from("assignments").select("*").eq("task_id", taskId).order("created_at", { ascending: false }),
       // The typed address (migration 126): row-level security lets only the poster, the hired worker and staff read it.
       // A failed read (migration not applied yet) is just "no address", never a failed task page.
       ctx.db.from("task_private").select("address").eq("task_id", taskId).maybeSingle(),
     ]);
+    const task = take<Task | null>(taskRes);
+    if (!task) return null;
+    const list = rows<Row & { status: string; worker_id: string }>(assignmentsRes);
+    // A task can carry stale holds from workers who lost the race to start.
+    const assignment = list.find((x) => x.status === "started" || x.status === "released") ?? list[0] ?? null;
+    const people = await profilesById(ctx, [task.poster_id, assignment?.worker_id]);
     return {
       task,
       address: (privateRow.data as { address?: string | null } | null)?.address ?? null,

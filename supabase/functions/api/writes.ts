@@ -349,7 +349,7 @@ export const WRITE_OPS: Record<string, Op> = {
     refuseHiddenContacts(a.summary);
     // The table wants at least 10 characters; say so in words instead of "check what you entered" (P2-40).
     if (typeof a.summary !== "string" || a.summary.trim().length < 10) {
-      throw new OpError("Say a little more about what you did (at least 10 characters).", "BAD_ARGS");
+      throw new OpError("Write at least 10 characters about what you did", "BAD_ARGS");
     }
     return rows(
       await db

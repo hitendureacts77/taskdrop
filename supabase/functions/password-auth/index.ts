@@ -122,6 +122,11 @@ Deno.serve(guarded("password-auth", async (req: Request) => {
     password,
   });
   if (signInErr || !signedIn.session) {
+    // A closed account is refused by GoTrue only once the password is right, so saying so
+    // gives nothing away about who has an account.
+    if (signInErr?.code === "user_banned") {
+      return json({ error: "This account is closed. Contact support." }, 403);
+    }
     await record(false);
     return json({ error: WRONG }, 401);
   }

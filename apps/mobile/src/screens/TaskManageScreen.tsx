@@ -141,7 +141,12 @@ export function TaskManageScreen() {
       <Screen padded={false}>
         <TopBar title="Task" onBack={back} />
         <View style={{ paddingHorizontal: 20, gap: 12 }}>
-          <Shimmer height={120} />
+          {/* The row you tapped already told us the title: show it now rather than a grey box. */}
+          {typeof params.title === 'string' && params.title ? (
+            <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.6 })}>{params.title}</RNText>
+          ) : (
+            <Shimmer height={60} />
+          )}
           <Shimmer height={200} />
         </View>
       </Screen>

@@ -161,7 +161,7 @@ export function ActiveScreen() {
   const overdue = !doneAt && remaining < 0;
 
   const steps = [
-    { label: 'Offer accepted', at: detail?.assignment?.created_at ?? task.funded_at ?? task.created_at, reached: Boolean(task.locked_bid_id) },
+    { label: 'Offer accepted', at: detail?.assignment?.created_at ?? task.funded_at ?? null, reached: Boolean(task.locked_bid_id) },
     { label: 'Payment held safely', at: task.funded_at, reached: Boolean(task.funded_at) },
     { label: 'Work started · contacts shared', at: task.started_at, reached: Boolean(task.started_at) },
     { label: 'Work done · proof sent', at: task.work_done_at, reached: Boolean(task.work_done_at) },
@@ -212,7 +212,7 @@ export function ActiveScreen() {
 
   const finishWork = async () => {
     if (!userId) return;
-    if (summary.trim().length < 10) return flash('Say what you did — a sentence or two');
+    if (summary.trim().length < 10) return flash('Write at least 10 characters about what you did');
     setBusy(true);
     try {
       await submitProof({ taskId: task.id, workerId: userId, summary: maskContacts(summary).text, files });
