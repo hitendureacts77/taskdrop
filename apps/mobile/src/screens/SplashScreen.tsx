@@ -150,25 +150,26 @@ export function SplashScreen() {
               />
             );
           })}
-          {/* The drop, squashing from its base as it lands. */}
+          {/* The drop, squashing from its base as it lands. Drawn large and as a vector so it stays crisp. */}
           <Animated.View
             style={{
               position: 'absolute',
-              left: -36,
-              top: -46,
-              width: 72,
-              height: 92,
+              left: -66,
+              top: -66,
+              width: 132,
+              height: 132,
               opacity: fallY.interpolate({ inputRange: [-300, -260, 0], outputRange: [0, 1, 1] }),
-              transform: [{ translateY: 46 }, { translateY: fallY }, { scaleX: sx }, { scaleY: sy }, { translateY: -46 }],
+              transform: [{ translateY: 62 }, { translateY: fallY }, { scaleX: sx }, { scaleY: sy }, { translateY: -62 }],
             }}
           >
-            <Svg width={72} height={92} viewBox="4.5 2 15 20">
-              <Path d="M12 2.5c3.3 4.2 7 8.6 7 12.4a7 7 0 0 1-14 0c0-3.8 3.7-8.2 7-12.4z" fill={dark.accent} />
+            <Svg width={132} height={132} viewBox="0 0 100 100">
+              <Path d="M50 5C62 22 82 40 82 62A32 32 0 0 1 18 62C18 40 38 22 50 5Z" fill={dark.accent} />
+              <Path d="M29 62c0-11 5-20 12-28" fill="none" stroke="#FFFFFF" strokeOpacity={0.35} strokeWidth={4} strokeLinecap="round" />
               <Path
-                d="m8.8 15 2.2 2.2 4.4-4.6"
+                d="M36 63l9 9 19-21"
                 fill="none"
                 stroke={dark.bg}
-                strokeWidth={2}
+                strokeWidth={7.5}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
@@ -176,8 +177,8 @@ export function SplashScreen() {
           </Animated.View>
         </View>
 
-        <Animated.View style={[{ position: 'absolute', left: 0, right: 0, top: '45%', marginTop: 82, alignItems: 'center' }, rise(900)]}>
-          <RNText style={tx('800', 44, dark.ink, { letterSpacing: -2 })}>
+        <Animated.View style={[{ position: 'absolute', left: 0, right: 0, top: '45%', marginTop: 104, alignItems: 'center' }, rise(900)]}>
+          <RNText style={tx('800', 48, dark.ink, { letterSpacing: -2 })}>
             taskdrop<RNText style={{ color: dark.accent }}>.</RNText>
           </RNText>
         </Animated.View>

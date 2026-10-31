@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, TextInput, Animated, Easing, Platform } from 'react-native';
+import { View, Text as RNText, Pressable, Animated, Easing } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { openPostedTask } from '../lib/taskRows';
@@ -28,8 +28,6 @@ import {
 } from '../data/extras';
 import { TEMPLATES } from '../lib/taskBrief';
 import { levelFor } from '../lib/levels';
-import { useVoiceInput } from '../lib/speech';
-import { contactIssueMessage, findContactIssue } from '../lib/mask';
 import { taskToFeedRow } from '../lib/openTask';
 import { statusBadge } from '../screens/MyTasksScreen';
 import { Icon } from './Icon';
@@ -113,17 +111,9 @@ function PostTop() {
 
   const quick = TEMPLATES.filter((x) => x.hot).slice(0, 4);
 
-  // The composer on the card: typed (or spoken) here, sent to the posting flow.
-  const [prompt, setPrompt] = useState('');
-  const [focused, setFocused] = useState(false);
-  const voice = useVoiceInput((text) => setPrompt((cur) => (cur ? cur + ' ' + text : text)), flash);
-  const issue = findContactIssue(prompt);
-  const submit = () => {
-    if (prompt.trim().length < 3) return flash('Tell us what you need done');
-    if (issue) return flash(contactIssueMessage(issue));
-    go('aiPost', { prompt: prompt.trim() });
-    setPrompt('');
-  };
+  // The card is a doorway: one tap opens the full-screen composer with the
+  // keyboard already up, like starting a quick post.
+  const openComposer = () => go('aiPost');
   const busiest = Math.max(1, ...trending.map((c) => c.open_count));
 
   return (
@@ -146,43 +136,32 @@ function PostTop() {
               <RNText style={tx('700', 11, 'rgba(255,255,255,0.85)', { letterSpacing: 1.3 })}>WE WRITE THE POST FOR YOU</RNText>
             </View>
             <RNText style={tx('800', wideHero ? 36 : 28, '#FFFFFF', { letterSpacing: -0.9, marginTop: 8 })}>Drop a task</RNText>
-            <View
-              style={{
+            <Pressable
+              onPress={openComposer}
+              accessibilityRole="button"
+              accessibilityLabel="What do you need done? Opens the new task screen"
+              style={({ pressed }) => ({
                 marginTop: 14,
                 borderRadius: 16,
                 paddingHorizontal: 15,
                 paddingVertical: 12,
-                minHeight: 66,
+                minHeight: 72,
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                gap: 10,
                 backgroundColor: t.isDark ? 'rgba(10,12,14,0.55)' : '#FFFFFF',
-                borderWidth: issue || focused ? 2 : t.isDark ? 1 : 0,
-                borderColor: issue ? t.colors.signal : focused ? t.colors.accentBorder : 'rgba(255,255,255,0.2)',
-              }}
+                borderWidth: t.isDark ? 1 : 0,
+                borderColor: 'rgba(255,255,255,0.2)',
+                transform: [{ scale: pressed ? 0.985 : 1 }],
+              })}
             >
-              <TextInput
-                value={prompt}
-                onChangeText={setPrompt}
-                onSubmitEditing={submit}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                placeholder="What do you need done? E.g. service my scooter this week"
-                placeholderTextColor={t.isDark ? 'rgba(213,217,221,0.75)' : t.colors.muted}
-                multiline
-                blurOnSubmit
-                returnKeyType="send"
-                accessibilityLabel="What do you need done?"
-                style={tx('400', 15, t.isDark ? '#F2F3F1' : t.colors.ink, {
-                  minHeight: 44,
-                  maxHeight: 120,
-                  padding: 0,
-                  lineHeight: 22,
-                  textAlignVertical: 'top',
-                  ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
-                })}
-              />
-            </View>
-            {issue ? (
-              <RNText style={tx('700', 12, '#FFE3D8', { marginTop: 8, lineHeight: 17 })}>{contactIssueMessage(issue)}</RNText>
-            ) : null}
+              <RNText style={tx('400', 15, t.isDark ? 'rgba(213,217,221,0.75)' : t.colors.muted, { flex: 1, lineHeight: 22 })}>
+                What do you need done? E.g. service my scooter this week
+              </RNText>
+              <View style={{ width: 38, height: 38, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: t.colors.btn }}>
+                <Icon name="edit" size={17} color={t.colors.onBtn} strokeWidth={2} />
+              </View>
+            </Pressable>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
               <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
                 {/* Said out loud, so the two chips read as examples to try rather than the only choices. */}
@@ -208,41 +187,6 @@ function PostTop() {
                   </Pressable>
                 ))}
               </View>
-              {voice.supported ? (
-                <Pressable
-                  onPress={voice.toggle}
-                  accessibilityRole="button"
-                  accessibilityLabel="Voice typing"
-                  style={({ pressed }) => ({
-                    width: 44,
-                    height: 44,
-                    borderRadius: 999,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: voice.listening ? t.colors.signalSoft : 'rgba(255,255,255,0.16)',
-                    transform: [{ scale: pressed ? 0.94 : 1 }],
-                  })}
-                >
-                  <Icon name="mic" size={18} color={voice.listening ? t.colors.signalDeep : '#FFFFFF'} />
-                </Pressable>
-              ) : null}
-              <Pressable
-                onPress={submit}
-                accessibilityRole="button"
-                accessibilityLabel="Continue"
-                style={({ pressed }) => ({
-                  width: 44,
-                  height: 44,
-                  borderRadius: 999,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#FFFFFF',
-                  opacity: prompt.trim().length >= 3 && !issue ? 1 : 0.85,
-                  transform: [{ scale: pressed ? 0.94 : 1 }],
-                })}
-              >
-                <Icon name="send" size={18} color={t.colors.heroMid} strokeWidth={2} />
-              </Pressable>
             </View>
           </View>
           {wideHero ? <HeroArt /> : null}

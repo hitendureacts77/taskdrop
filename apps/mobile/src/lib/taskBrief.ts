@@ -31,6 +31,16 @@ export const CATEGORIES = [
 ] as const;
 export type Category = (typeof CATEGORIES)[number];
 
+/** The few shown as chips on the post check; the rest are one search away. */
+export const TOP_CATEGORIES: readonly Category[] = [
+  'Home Services',
+  'Repairs & Maintenance',
+  'Errands & Delivery',
+  'Tech & Websites',
+  'Design & Creative',
+  'Tutoring & Education',
+];
+
 export function pillarFor(category: string): Pillar {
   if (category === 'Shopping & Sourcing') return 'procurement';
   if (category === 'Local Checks & Info') return 'local_intel';
@@ -58,6 +68,8 @@ export type Brief = {
   difficulty: 'easy' | 'medium' | 'hard';
   budgetMinInr: number;
   budgetMaxInr: number;
+  /** One line on why the range is what it is, shown beside it. */
+  budgetWhy?: string;
 };
 
 
@@ -1334,6 +1346,13 @@ function writePost(prompt: string, answers: Answer[], style: WritingStyle): Brie
     difficulty,
     budgetMinInr: min,
     budgetMaxInr: max,
+    budgetWhy: [
+      `Typical for ${topic.noun}.`,
+      picked.length > 0 ? 'Adjusted for your answers.' : '',
+      urgent ? 'Raised a little because it is urgent.' : '',
+    ]
+      .filter(Boolean)
+      .join(' '),
   };
 }
 

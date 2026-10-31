@@ -54,7 +54,12 @@ export type IconName =
   | 'users'
   | 'live'
   | 'globe'
-  | 'wrench';
+  | 'wrench'
+  | 'sun'
+  | 'calendar'
+  | 'calendarTwo'
+  | 'calendarWeek'
+  | 'calendarCheck';
 
 const STROKE: Partial<Record<IconName, string>> = {
   home: 'M4 10.6 12 4l8 6.6V20h-5v-6H9v6H4v-9.4Z',
@@ -105,6 +110,11 @@ const STROKE: Partial<Record<IconName, string>> = {
   users: 'M5.5 8a3 3 0 1 0 6 0 3 3 0 1 0-6 0M2.5 19a6 6 0 0 1 12 0M15 5.5a3 3 0 0 1 0 5.5M17.5 13.5a6 6 0 0 1 4 5.5',
   globe: 'M3.5 12a8.5 8.5 0 1 0 17 0 8.5 8.5 0 1 0-17 0M3.5 12h17M12 3.5c2.3 2.4 3.4 5.2 3.4 8.5s-1.1 6.1-3.4 8.5c-2.3-2.4-3.4-5.2-3.4-8.5S9.7 5.9 12 3.5Z',
   wrench: 'M14.5 4a4.5 4.5 0 0 0-4.2 6.1L4 16.4 7.6 20l6.3-6.3A4.5 4.5 0 0 0 20 9.5l-2.7 2.7-2.8-.7-.7-2.8L16.5 6A4.5 4.5 0 0 0 14.5 4Z',
+  sun: 'M8 12a4 4 0 1 0 8 0 4 4 0 1 0-8 0M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4',
+  calendar: 'M3.5 6.5h17v13.5h-17zM3.5 10.5h17M8 4v3M16 4v3',
+  calendarTwo: 'M3.5 6.5h17v13.5h-17zM3.5 10.5h17M8 4v3M16 4v3M8.5 15h.01M12 15h.01',
+  calendarWeek: 'M3.5 6.5h17v13.5h-17zM3.5 10.5h17M8 4v3M16 4v3M7.5 14h9M7.5 17.5h5',
+  calendarCheck: 'M3.5 6.5h17v13.5h-17zM3.5 10.5h17M8 4v3M16 4v3M9.5 15.5l2 2 3.5-3.5',
   live: 'M9.5 12a2.5 2.5 0 1 0 5 0 2.5 2.5 0 1 0-5 0M6.5 6.5a8 8 0 0 0 0 11M17.5 6.5a8 8 0 0 1 0 11',
 };
 

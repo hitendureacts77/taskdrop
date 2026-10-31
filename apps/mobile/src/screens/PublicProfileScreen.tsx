@@ -6,7 +6,7 @@ import { HeroBackground, heroStops } from '../components/Hero';
 import { Icon } from '../components/Icon';
 import { Badge, EmptyState, Shimmer, TopBar, timeAgo } from '../components/kit';
 import { tx } from '../components/primitives';
-import { useTheme } from '../providers/ThemeProvider';
+import { PersonTheme, useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { getProfile, listReviewsAbout, type Profile, type Review } from '../data/api';
@@ -23,7 +23,27 @@ import { ReportSheet } from '../components/ReportSheet';
  * Someone's profile as anyone else sees it. Opened on yourself, it is the
  * "preview as others see" view, with a way back to editing.
  */
+/** Which face of the account is shown: asked for, else the other side from yours. */
+function profileRole(params: Record<string, unknown>, self: boolean, mode: string): 'worker' | 'poster' {
+  if (params.role === 'worker' || params.role === 'poster') return params.role;
+  if (self) return mode === 'worker' ? 'worker' : 'poster';
+  return mode === 'worker' ? 'poster' : 'worker';
+}
+
+/** Posters wear green and workers wear blue here, whichever mode you are in. */
 export function PublicProfileScreen() {
+  const { params } = useNav();
+  const { userId } = useAuth();
+  const { mode } = useMode();
+  const id = typeof params.userId === 'string' ? params.userId : userId;
+  return (
+    <PersonTheme role={profileRole(params, id === userId, mode)}>
+      <PublicProfileBody />
+    </PersonTheme>
+  );
+}
+
+function PublicProfileBody() {
   const t = useTheme();
   const { back, params, go } = useNav();
   const { userId } = useAuth();
@@ -33,14 +53,7 @@ export function PublicProfileScreen() {
   // otherwise the other side from yours (a poster looks at workers, a worker
   // at posters), and your own preview shows the side you're on.
   const { mode } = useMode();
-  const role: 'worker' | 'poster' =
-    params.role === 'worker' || params.role === 'poster'
-      ? params.role
-      : self
-        ? mode
-        : mode === 'worker'
-          ? 'poster'
-          : 'worker';
+  const role = profileRole(params, self, mode);
   const asWorker = role === 'worker';
   const [p, setP] = useState<Profile | null | undefined>(undefined);
   const [stats, setStats] = useState<PublicStats | null>(null);
