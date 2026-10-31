@@ -31,6 +31,16 @@ export const CATEGORIES = [
 ] as const;
 export type Category = (typeof CATEGORIES)[number];
 
+/** The few shown as chips on the post check; the rest are one search away. */
+export const TOP_CATEGORIES: readonly Category[] = [
+  'Home Services',
+  'Repairs & Maintenance',
+  'Errands & Delivery',
+  'Tech & Websites',
+  'Design & Creative',
+  'Tutoring & Education',
+];
+
 export function pillarFor(category: string): Pillar {
   if (category === 'Shopping & Sourcing') return 'procurement';
   if (category === 'Local Checks & Info') return 'local_intel';

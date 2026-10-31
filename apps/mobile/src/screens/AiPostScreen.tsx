@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, TextInput, Animated, Keyboard } from 'react-native';
+import { View, Text as RNText, Pressable, ScrollView, TextInput, Animated, Keyboard, Platform } from 'react-native';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import { AmountField } from '../components/AmountField';
 import { Slider } from '../components/Slider';
 import { MediaAttach } from '../components/MediaAttach';
+import { CategoryPicker } from '../components/CategoryPicker';
 import { LocationSheet, type PickedPlace } from '../components/LocationSheet';
 import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
 import { ConfirmDialog, Field, IconButton, PrimaryButton, rupees } from '../components/kit';
@@ -25,7 +26,6 @@ import { useVoiceInput } from '../lib/speech';
 import { contactIssueMessage, findContactIssue } from '../lib/mask';
 import { useFees } from '../lib/useFees';
 import {
-  CATEGORIES,
   IDEAS,
   WHEN_OPTIONS,
   WRITING_STYLES,
@@ -82,6 +82,9 @@ const STEP_LABEL: Record<Phase, string> = {
 };
 
 const OTHER = 'Something else';
+
+/** One picture per "when" choice, so the rows tell apart at a glance. */
+const WHEN_ICONS: Record<WhenKey, IconName> = { now: 'bolt', today: 'sun', '2days': 'calendarTwo', week: 'calendarWeek' };
 
 function isTask(v: unknown): v is Task {
   return !!v && typeof v === 'object' && 'title' in v && 'benchmark_minor' in v;
@@ -141,7 +144,6 @@ export function AiPostScreen() {
   const [prompt, setPrompt] = useState(
     typeof params.prompt === 'string' ? params.prompt : similar ? similar.title : '',
   );
-  const [promptFocused, setPromptFocused] = useState(false);
 
   // Details: the quick questions, and which request they were asked for.
   const [questions, setQuestions] = useState<QuickQuestion[]>([]);
@@ -470,6 +472,75 @@ export function AiPostScreen() {
     </Pressable>
   );
 
+  /** One row of the "when" list: its own picture, the real deadline, a radio at the end. */
+  const whenRow = (
+    key: string,
+    index: number,
+    on: boolean,
+    onPress: () => void,
+    icon: IconName,
+    head: string,
+    sub: string,
+    urgent = false,
+    neutral = false,
+  ) => (
+    <FadeIn key={key} translateY={10} delay={Math.min(index, t.motion.staggerMax) * t.motion.stagger}>
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="radio"
+        accessibilityState={{ selected: on }}
+        accessibilityLabel={`${head}. ${sub}`}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 14,
+          minHeight: 68,
+          paddingVertical: 10,
+          paddingLeft: 12,
+          paddingRight: 16,
+          borderRadius: 18,
+          borderWidth: 1.5,
+          borderColor: on ? t.colors.accent : t.colors.line,
+          backgroundColor: on ? t.colors.accentSoft : t.colors.surface,
+          transform: [{ scale: pressed ? t.motion.pressScale : 1 }],
+        })}
+      >
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 14,
+            borderWidth: 3,
+            borderColor: on ? t.colors.accentSoft : t.colors.bg,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: urgent ? t.colors.signalSoft : neutral ? t.colors.surface2 : t.colors.accentSoft,
+          }}
+        >
+          <Icon name={icon} size={21} color={urgent ? t.colors.signalDeep : neutral ? t.colors.ink : t.colors.accentDeep} strokeWidth={2} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <RNText style={tx('700', 16, t.colors.ink)}>{head}</RNText>
+          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 2 })}>{sub}</RNText>
+        </View>
+        <View
+          style={{
+            width: 24,
+            height: 24,
+            borderRadius: 12,
+            borderWidth: 2,
+            borderColor: on ? t.colors.accent : t.colors.line,
+            backgroundColor: on ? t.colors.accent : 'transparent',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {on ? <Icon name="check" size={14} color={t.colors.onAccent} strokeWidth={3} /> : null}
+        </View>
+      </Pressable>
+    </FadeIn>
+  );
+
   const card = (children: React.ReactNode, extra?: { borderColor?: string }) => (
     <View style={[cardSurface(t, 20), { borderColor: extra?.borderColor ?? t.colors.line, padding: 16 }]}>
       {children}
@@ -483,53 +554,27 @@ export function AiPostScreen() {
   if (phase === 'what') {
     body = (
       <>
-        {heading('What do you need done?', 'Any small job, near you or online: an errand, a repair, a bit of cooking, help with a form. Say it the way you’d tell a friend. We’ll ask a few quick things and write the post for you.')}
-        <View
-          style={{
-            marginTop: 20,
-            backgroundColor: t.colors.surface,
-            borderWidth: 1.5,
-            borderColor: promptIssue ? t.colors.signal : promptFocused ? t.colors.accent : t.colors.line,
-            borderRadius: 20,
-            padding: 16,
-          }}
-        >
-          <TextInput
-            value={prompt}
-            onChangeText={setPrompt}
-            onFocus={() => setPromptFocused(true)}
-            onBlur={() => setPromptFocused(false)}
-            placeholder="E.g. Fix the side stand of my scooter at home"
-            placeholderTextColor={t.colors.muted}
-            multiline
-            autoFocus
-            style={tx('400', 17, t.colors.ink, { minHeight: 130, textAlignVertical: 'top', padding: 0, lineHeight: 24 })}
-          />
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-            <RNText style={tx('500', 12, t.colors.muted)}>{prompt.trim() ? '' : 'A sentence is enough'}</RNText>
-            {voice.supported ? (
-              <Pressable
-                onPress={voice.toggle}
-                accessibilityRole="button"
-                accessibilityLabel={voice.listening ? 'Stop voice typing' : 'Voice typing'}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  paddingVertical: 7,
-                  paddingHorizontal: 12,
-                  borderRadius: 999,
-                  backgroundColor: voice.listening ? t.colors.signalSoft : t.colors.surface2,
-                }}
-              >
-                <Icon name="mic" size={16} color={voice.listening ? t.colors.signal : t.colors.muted} />
-                <RNText style={tx('600', 12, voice.listening ? t.colors.signal : t.colors.muted)}>
-                  {voice.listening ? 'Listening…' : 'Speak'}
-                </RNText>
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
+        <TextInput
+          value={prompt}
+          onChangeText={setPrompt}
+          placeholder="What do you need done? E.g. fix the side stand of my scooter at home"
+          placeholderTextColor={t.colors.muted}
+          multiline
+          autoFocus
+          maxLength={1500}
+          accessibilityLabel="What do you need done?"
+          style={tx('500', 22, t.colors.ink, {
+            minHeight: 180,
+            textAlignVertical: 'top',
+            padding: 0,
+            lineHeight: 30,
+            letterSpacing: -0.3,
+            ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
+          })}
+        />
+        <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10, lineHeight: 19 })}>
+          Say it the way you would tell a friend. We turn it into a clear post, then ask only what is missing.
+        </RNText>
         {promptIssue ? (
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, backgroundColor: t.colors.signalSoft, borderRadius: 12, padding: 11 }}>
             <Icon name="shield" size={15} color={t.colors.signalDeep} />
@@ -678,9 +723,7 @@ export function AiPostScreen() {
           )}
         </View>
         {label('CATEGORY')}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {CATEGORIES.map((c) => chip(c, category === c, () => setCategory(c)))}
-        </View>
+        <CategoryPicker value={category} onChange={setCategory} />
         {!similar ? (
           <>
             {label('HOW IT SOUNDS')}
@@ -700,17 +743,33 @@ export function AiPostScreen() {
     body = (
       <>
         {heading('When should it be done by?', 'Workers plan their offers around this.')}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10, marginTop: 20 }}>
-          {WHEN_OPTIONS.map((o) =>
-            choice(o.key, whenKey === o.key, () => setWhenKey(o.key), o.key === 'now' ? 'bolt' : 'clock', o.label, `By ${formatDeadline(dueFor(o.key))}`),
+        <View style={{ marginTop: 20, rowGap: 10 }}>
+          {/* Soonest first, with a line joining the rows from urgent to relaxed. */}
+          <View
+            pointerEvents="none"
+            style={{ position: 'absolute', left: 34, top: 34, bottom: 34, width: 3, borderRadius: 2, backgroundColor: t.colors.line }}
+          />
+          {WHEN_OPTIONS.map((o, i) =>
+            whenRow(
+              o.key,
+              i,
+              whenKey === o.key,
+              () => setWhenKey(o.key),
+              WHEN_ICONS[o.key],
+              o.key === 'now' ? 'Right now' : o.key === '2days' ? 'In 2 days' : o.label,
+              o.key === 'now' ? 'Within 2 hours, marked urgent' : `By ${formatDeadline(dueFor(o.key))}`,
+              o.key === 'now',
+            ),
           )}
-          {choice(
+          {whenRow(
             'custom',
+            WHEN_OPTIONS.length,
             whenKey === 'custom',
             () => setShowDate(true),
-            'list',
-            'Pick a date',
-            whenKey === 'custom' && customDue ? `By ${formatDeadline(customDue)}` : 'Choose the day and time',
+            'calendarCheck',
+            'Pick a date and time',
+            whenKey === 'custom' && customDue ? `By ${formatDeadline(customDue)}` : 'Choose the day and the hour',
+            false,
             true,
           )}
         </View>
@@ -1028,6 +1087,8 @@ export function AiPostScreen() {
   // Details is left off the path once it is known the request has no questions.
   const steps = ORDER.filter((p) => p !== 'picks' || questions.length > 0 || askedFor === null);
   const stepNo = steps.indexOf(phase) + 1;
+  // The first screen is a quick-post composer: close, Next, a big field, the keyboard.
+  const composing = phase === 'what';
 
   // Changing an earlier step from further on goes straight back there.
   const returning = reached > at(phase) + 1;
@@ -1055,13 +1116,37 @@ export function AiPostScreen() {
       <View style={{ paddingTop: 8, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: t.colors.line }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 }}>
           <IconButton icon="close" label="Close" onPress={leave} />
-          <RNText style={tx('800', 17, t.colors.ink, { flex: 1, letterSpacing: -0.3 })}>Post a request</RNText>
-          <RNText style={tx('600', 12, t.colors.muted)}>
-            {stepNo} of {steps.length}
-          </RNText>
+          <RNText style={tx('800', 17, t.colors.ink, { flex: 1, letterSpacing: -0.3 })}>{composing ? 'New task' : 'Post a request'}</RNText>
+          {composing ? (
+            <Pressable
+              onPress={primary.onPress}
+              disabled={primary.disabled}
+              accessibilityRole="button"
+              accessibilityLabel="Next"
+              accessibilityState={{ disabled: !!primary.disabled }}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                height: 38,
+                paddingHorizontal: 16,
+                borderRadius: 999,
+                backgroundColor: primary.disabled ? t.colors.surface2 : t.colors.btn,
+                transform: [{ scale: pressed ? t.motion.pressScale : 1 }],
+              })}
+            >
+              <RNText style={tx('800', 14, primary.disabled ? t.colors.muted : t.colors.onBtn)}>Next</RNText>
+              <Icon name="send" size={15} color={primary.disabled ? t.colors.muted : t.colors.onBtn} strokeWidth={2.2} />
+            </Pressable>
+          ) : (
+            <RNText style={tx('600', 12, t.colors.muted)}>
+              {stepNo} of {steps.length}
+            </RNText>
+          )}
         </View>
 
         {/* The path: every step by name. Done ones show a tick and can be reopened. */}
+        {composing ? null : (
         <View style={{ flexDirection: 'row', marginTop: 14, paddingHorizontal: 6, width: '100%', maxWidth: 720, alignSelf: 'center' }}>
           {steps.map((p, i) => {
             const here = p === phase;
@@ -1103,6 +1188,7 @@ export function AiPostScreen() {
             );
           })}
         </View>
+        )}
       </View>
 
       <ScrollView
@@ -1132,6 +1218,34 @@ export function AiPostScreen() {
           alignSelf: 'center',
         }}
       >
+        {composing ? (
+          <>
+            {voice.supported ? (
+              <Pressable
+                onPress={voice.toggle}
+                accessibilityRole="button"
+                accessibilityLabel={voice.listening ? 'Stop voice typing' : 'Voice typing'}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  height: 40,
+                  paddingHorizontal: 14,
+                  borderRadius: 12,
+                  backgroundColor: voice.listening ? t.colors.signalSoft : t.colors.accentSoft,
+                  transform: [{ scale: pressed ? t.motion.pressScale : 1 }],
+                })}
+              >
+                <Icon name="mic" size={17} color={voice.listening ? t.colors.signalDeep : t.colors.accentDeep} />
+                <RNText style={tx('700', 13, voice.listening ? t.colors.signalDeep : t.colors.accentDeep)}>
+                  {voice.listening ? 'Listening…' : 'Speak'}
+                </RNText>
+              </Pressable>
+            ) : null}
+            <View style={{ flex: 1 }} />
+            <RNText style={tx('500', 12, t.colors.muted, { alignSelf: 'center' })}>{prompt.length} / 1500</RNText>
+          </>
+        ) : null}
         {phase !== 'what' ? (
           <Pressable
             onPress={stepBack}
@@ -1155,13 +1269,15 @@ export function AiPostScreen() {
             <RNText style={tx('700', 14, t.colors.ink)}>Back</RNText>
           </Pressable>
         ) : null}
-        <PrimaryButton
-          label={primary.label}
-          onPress={primary.onPress}
-          disabled={primary.disabled}
-          busy={primary.busy}
-          style={{ flex: 1, borderRadius: 999 }}
-        />
+        {composing ? null : (
+          <PrimaryButton
+            label={primary.label}
+            onPress={primary.onPress}
+            disabled={primary.disabled}
+            busy={primary.busy}
+            style={{ flex: 1, borderRadius: 999 }}
+          />
+        )}
       </View>
 
       <DateTimeSheet
