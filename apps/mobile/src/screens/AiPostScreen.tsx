@@ -8,7 +8,8 @@ import { MediaAttach } from '../components/MediaAttach';
 import { CategoryPicker } from '../components/CategoryPicker';
 import { LocationSheet, type PickedPlace } from '../components/LocationSheet';
 import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
-import { ConfirmDialog, Field, IconButton, PrimaryButton, rupees } from '../components/kit';
+import { Field, IconButton, PrimaryButton, rupees } from '../components/kit';
+import { removeDraft, saveDraft } from '../lib/drafts';
 import { useReducedMotion } from '../lib/motion';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskDescription } from '../components/TaskDescription';
@@ -135,6 +136,8 @@ export function AiPostScreen() {
   const { setMode } = useMode();
 
   const similar = isTask(params.similar) ? params.similar : null;
+  // Set when this request was picked up from Drafts, so posting it clears the draft.
+  const draftId = typeof params.draftId === 'string' ? params.draftId : null;
   const [phase, setPhase] = useState<Phase>(similar ? 'brief' : 'what');
   // The furthest step reached. Finished steps up to here can be reopened, and
   // a change to one of them comes back here afterwards.
@@ -358,6 +361,7 @@ export function AiPostScreen() {
         dueAt: due.toISOString(),
         milestones,
       });
+      if (draftId) void removeDraft(userId, draftId);
       setMode('poster');
       celebrate('Task posted');
       reset('myTasks');
@@ -375,8 +379,14 @@ export function AiPostScreen() {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [phase]);
 
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const leave = () => (reached === 0 && !prompt.trim() ? back() : setConfirmDiscard(true));
+  // Leaving with words typed keeps them as a draft, listed under Drafts in My Tasks.
+  const leave = () => {
+    if (userId && prompt.trim().length >= 3) {
+      void saveDraft(userId, prompt, draftId);
+      flash('Saved to Drafts in My Tasks');
+    }
+    back();
+  };
 
   // -------------------------------------------------------------- pieces ---
 
@@ -1328,20 +1338,6 @@ export function AiPostScreen() {
         onFunded={() => {
           setTopUpMinor(null);
           void post();
-        }}
-      />
-      <ConfirmDialog
-        visible={confirmDiscard}
-        danger
-        icon="close"
-        title="Discard this request?"
-        message="Your answers, post, deadline and budget will be lost. Nothing has been posted yet."
-        confirmLabel="Discard"
-        cancelLabel="Keep going"
-        onCancel={() => setConfirmDiscard(false)}
-        onConfirm={() => {
-          setConfirmDiscard(false);
-          back();
         }}
       />
     </Screen>

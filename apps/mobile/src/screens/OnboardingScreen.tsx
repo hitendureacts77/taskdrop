@@ -68,6 +68,9 @@ export function OnboardingScreen() {
       setLangs(p.languages ?? []);
       if (p.intent === 'post' || p.intent === 'earn' || p.intent === 'both') setIntent(p.intent);
       if (p.loc_label) setPlace({ label: p.loc_label, lat: p.loc_lat, lng: p.loc_lng });
+      // New sign-ups are asked for their area straight away. Setup only opens
+      // for an account that has not finished it, so returning members never see this.
+      else setShowLoc(true);
       if (p.avatar_url) {
         setAvatarPath(p.avatar_url);
         setAvatar(await signedMediaUrl(p.avatar_url, 'thumb'));

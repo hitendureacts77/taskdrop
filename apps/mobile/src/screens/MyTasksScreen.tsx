@@ -4,11 +4,12 @@ import { Screen, cardSurface, formatINR } from '../components/ui';
 import { HeroCard } from '../components/Hero';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
-import { Badge, BottomSheet, ConfirmDialog, EmptyState, Grid, LoadFailed, MenuRow, Pill, PillTabs, Shimmer, StatTile, SwipeTabs, rupees, timeLeft } from '../components/kit';
+import { Badge, BottomSheet, ConfirmDialog, EmptyState, Grid, LoadFailed, MenuRow, Pill, PillTabs, Shimmer, StatTile, SwipeTabs, rupees, timeAgo, timeLeft } from '../components/kit';
 import { WorkCard, categoryIcon, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { descriptionPreview } from '../components/TaskDescription';
+import { listDrafts, removeDraft, type PostDraft } from '../lib/drafts';
 import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -111,6 +112,16 @@ function MyPosted() {
   // True when the last load failed (offline, server hiccup): an empty list is then
   // "could not load", not "you have no tasks".
   const [failed, setFailed] = useState(false);
+  // Half-written posts kept on this device (see lib/drafts).
+  const [drafts, setDrafts] = useState<PostDraft[]>([]);
+  useEffect(() => {
+    if (!userId) return setDrafts([]);
+    let alive = true;
+    void listDrafts(userId).then((d) => alive && setDrafts(d));
+    return () => {
+      alive = false;
+    };
+  }, [userId, focusTick]);
 
   const load = useCallback(async () => {
     if (!userId) {
@@ -260,6 +271,38 @@ function MyPosted() {
         {needCount > 0 ? (
           <View style={{ flexDirection: 'row', paddingHorizontal: 20, marginTop: 10 }}>
             <Pill label="Needs providers" icon="users" count={needCount} active={needs} onPress={() => setNeeds(!needs)} />
+          </View>
+        ) : null}
+
+        {drafts.length > 0 ? (
+          <View style={{ paddingHorizontal: 20, marginTop: 16, gap: 8 }}>
+            <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>DRAFTS · {drafts.length}</RNText>
+            {drafts.map((d) => (
+              <View key={d.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, ...cardSurface(t, 16), paddingLeft: 14, paddingRight: 8 }}>
+                <Pressable
+                  onPress={() => go('aiPost', { prompt: d.prompt, draftId: d.id })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Continue draft: ${d.prompt}`}
+                  style={{ flex: 1, paddingVertical: 12 }}
+                >
+                  <RNText numberOfLines={2} style={tx('600', 14, t.colors.ink, { lineHeight: 20 })}>{d.prompt}</RNText>
+                  <RNText style={tx('500', 12, t.colors.accentDeep, { marginTop: 3 })}>Continue · {timeAgo(new Date(d.savedAt).toISOString())}</RNText>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    if (!userId) return;
+                    setDrafts((cur) => cur.filter((x) => x.id !== d.id));
+                    void removeDraft(userId, d.id);
+                  }}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete this draft"
+                  style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Icon name="close" size={16} color={t.colors.muted} />
+                </Pressable>
+              </View>
+            ))}
           </View>
         ) : null}
 

@@ -23,7 +23,7 @@ import {
   type TaskWithPoster,
 } from '../data/api';
 import { listSavedTaskIds, setSaved } from '../data/extras';
-import { IDEAS, TEMPLATES, TEMPLATE_TAGS, CATEGORIES, type TemplateTag } from '../lib/taskBrief';
+import { IDEAS, TEMPLATES, TEMPLATE_TAGS, CATEGORIES, TOP_CATEGORIES, type TemplateTag } from '../lib/taskBrief';
 import { taskToFeedRow } from '../lib/openTask';
 import { useVoiceInput } from '../lib/speech';
 import { distanceKm } from '@taskdrop/rules';
@@ -509,11 +509,11 @@ function FindWork() {
               </View>
               <RNText style={tx('600', 11, t.colors.muted, { marginTop: 14, letterSpacing: 0.6 })}>CATEGORY</RNText>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                {(allCats ? CATEGORIES : CATEGORIES.slice(0, 6)).map((c) => (
+                {(allCats ? [...CATEGORIES] : cat && !TOP_CATEGORIES.includes(cat as (typeof TOP_CATEGORIES)[number]) ? [cat, ...TOP_CATEGORIES] : [...TOP_CATEGORIES]).map((c) => (
                   <Pill key={c} label={c} active={cat === c} onPress={() => setCat(cat === c ? null : c)} />
                 ))}
-                {CATEGORIES.length > 6 ? (
-                  <Pill label={allCats ? 'Fewer' : `+${CATEGORIES.length - 6} more`} onPress={() => setAllCats((v) => !v)} />
+                {CATEGORIES.length > TOP_CATEGORIES.length ? (
+                  <Pill label={allCats ? 'Fewer' : `+${CATEGORIES.length - TOP_CATEGORIES.length} more`} onPress={() => setAllCats((v) => !v)} />
                 ) : null}
               </View>
 
@@ -521,7 +521,7 @@ function FindWork() {
                 <RNText style={tx('700', 13, t.colors.ink, { flex: 1 })}>
                   {shown === null
                     ? 'Loading…'
-                    : `${shown.length} ${shown.length === 1 ? 'result' : 'results'}${query ? ` for “${query}”` : ''}`}
+                    : `${shown.length} ${shown.length === 1 ? 'job' : 'jobs'}${filter === 'local' && me.lat !== null ? ` within ${LOCAL_KM} km` : ''}${query ? ` for “${query}”` : ''}`}
                 </RNText>
                 {filter !== 'all' || cat !== null || query !== '' ? (
                   <Pressable
