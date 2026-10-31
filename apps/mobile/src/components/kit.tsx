@@ -854,7 +854,7 @@ export function PrimaryButton({
       style={({ pressed }) => [
         {
           borderRadius: 999,
-          minHeight: 52,
+          minHeight: 54,
           paddingVertical: 15,
           paddingHorizontal: 20,
           alignItems: 'center',

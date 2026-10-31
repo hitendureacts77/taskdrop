@@ -92,7 +92,7 @@ export function TrendingSection({ onCategory }: { onCategory?: (category: string
               ))}
       </View>
 
-      <SectionTitle title="Most trusted workers" icon="trophy" style={{ marginTop: 26 }} />
+      <SectionTitle title="Most trusted workers" icon="trophy" style={{ marginTop: 32 }} />
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
         <Pill label="Top rated" icon="star" active={kind === 'top_rated'} onPress={() => setKind('top_rated')} />
         <Pill label="Most active" icon="trending" active={kind === 'most_active'} onPress={() => setKind('most_active')} />
@@ -110,7 +110,7 @@ export function TrendingSection({ onCategory }: { onCategory?: (category: string
         </View>
       </ScrollView>
 
-      <SectionTitle title="TaskDrop this week" icon="bolt" style={{ marginTop: 26 }} />
+      <SectionTitle title="TaskDrop this week" icon="bolt" style={{ marginTop: 32 }} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 12, ...cardSurface(t, 18), paddingVertical: 14 }}>
         {[
           { label: 'Active now', value: hl?.activeNow, color: t.colors.accentDeep },
