@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
-import { useNav } from '../providers/NavProvider';
+import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { listBidsForTask, lockBid, getTask, WalletShortError, type Task } from '../data/api';
 import { AddFundsSheet } from '../components/AddFundsSheet';
@@ -28,6 +28,8 @@ type Quote = {
   priceMinor: number;
   eta: string;
   lastSeen?: string | null;
+  /** True for the offer the poster chose. */
+  chosen?: boolean;
 };
 
 /** "no jobs yet" / "1 job" / "12 jobs" - never "1 jobs". */
@@ -71,7 +73,12 @@ export function CompareScreen() {
   // What the wallet is short by when an offer cannot be paid for yet.
   const [shortBy, setShortBy] = useState<number | null>(null);
   const [task, setTask] = useState<Task | null>(null);
-
+  // Set the moment an offer is chosen here, so Back from the task screen never
+  // shows this one as still open while the fresh copy is on its way.
+  const [lockedBidId, setLockedBidId] = useState<string | null>(null);
+  // Goes up each time this screen comes back into view, so what it shows is
+  // what the server says now, not what it knew before the offer was chosen.
+  const focusTick = useFocusTick();
 
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
   // The params paint the screen on the first frame; the fetched row replaces
@@ -89,7 +96,7 @@ export function CompareScreen() {
     return () => {
       alive = false;
     };
-  }, [taskId]);
+  }, [taskId, focusTick]);
 
   // Real quotes on this task. Without a task id (sample navigation) we keep the
   // design's example rows so the screen still reads correctly.
@@ -112,6 +119,7 @@ export function CompareScreen() {
             priceMinor: b.price_minor,
             eta: `${Math.round(b.time_limit_minutes / 60)} hrs`,
             lastSeen: b.profiles?.last_seen_at ?? null,
+            chosen: b.is_locked,
           })),
         );
       })
@@ -119,7 +127,7 @@ export function CompareScreen() {
     return () => {
       alive = false;
     };
-  }, [taskId]);
+  }, [taskId, focusTick]);
 
   // No invented quotes. An empty list is a true statement about a new
   // request; four imaginary taskers with ratings is not.
@@ -131,7 +139,10 @@ export function CompareScreen() {
     return list;
   }, [sortLow, source]);
 
-  const pickRow = sorted.find((r) => r.who === picked) ?? sorted[0];
+  // Once an offer is chosen the task is no longer OPEN: show that, not a live button.
+  const decided = lockedBidId !== null || (task != null && task.status !== 'OPEN');
+  const chosenRow = sorted.find((r) => r.chosen || (lockedBidId !== null && r.bidId === lockedBidId));
+  const pickRow = decided ? chosenRow : (sorted.find((r) => r.who === picked) ?? sorted[0]);
 
   // Sample navigation has no task behind it, so fall back to the design copy.
   const quoteCount = rows?.length ?? sorted.length;
@@ -143,12 +154,14 @@ export function CompareScreen() {
     : '9 Sep, 6 PM';
 
   const handleLock = async () => {
-    if (!pickRow || busy) return;
+    if (!pickRow || busy || decided) return;
     // Real quote -> lock it server-side (creates the assignment + escrow).
     if (pickRow.bidId) {
       setBusy(true);
       try {
         await lockBid(pickRow.bidId);
+        setLockedBidId(pickRow.bidId);
+        setTask((prev) => (prev ? { ...prev, status: 'LOCKED' } : prev));
         celebrate(`${pickRow.who} is hired · paid from your wallet`);
         if (taskId) go('taskManage', { taskId });
       } catch (e) {
@@ -246,10 +259,13 @@ export function CompareScreen() {
 
         {sorted.map((row, i) => {
           const selected = row.who === pickRow?.who;
+          const isChosen = decided && selected;
           return (
             <FadeIn key={row.who} duration={340} delay={i * 70} style={{ marginTop: 11 }}>
               <Pressy
-                onPress={() => setPicked(row.who)}
+                onPress={() => {
+                  if (!decided) setPicked(row.who);
+                }}
                 scaleTo={0.985}
                 style={{
                   backgroundColor: selected ? t.colors.accentSoft : t.colors.surface,
@@ -309,7 +325,9 @@ export function CompareScreen() {
                     }}
                   >
                     <View style={{ width: 5, height: 5, borderRadius: 999, backgroundColor: t.colors.accent }} />
-                    <RNText style={tx('700', 11, t.colors.accentDeep, { letterSpacing: 1.54 })}>SELECTED</RNText>
+                    <RNText style={tx('700', 11, t.colors.accentDeep, { letterSpacing: 1.54 })}>
+                      {isChosen ? 'CHOSEN' : 'SELECTED'}
+                    </RNText>
                   </View>
                 )}
               </Pressy>
@@ -381,7 +399,20 @@ export function CompareScreen() {
       </ScrollView>
 
       <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
-        {!pickRow ? (
+        {decided ? (
+        <>
+        <Pressy
+          onPress={() => taskId && go('taskManage', { taskId })}
+          scaleTo={0.96}
+          style={{ backgroundColor: t.colors.btn, borderRadius: 999, paddingVertical: 16, alignItems: 'center' }}
+        >
+          <RNText style={tx('700', 16, t.colors.onAccent)}>Offer chosen · View task</RNText>
+        </Pressy>
+        <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10, lineHeight: 18 })}>
+          {pickRow ? `${pickRow.who} is hired.` : 'An offer has been chosen.'} Phone numbers are shared once the work starts.
+        </RNText>
+        </>
+        ) : !pickRow ? (
           <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', lineHeight: 18 })}>
             Nothing to choose yet. You will get a notification when the first offer arrives.
           </RNText>

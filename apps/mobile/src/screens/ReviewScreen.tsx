@@ -114,7 +114,8 @@ export function ReviewScreen() {
         await submitReview(taskId, stars, body);
       }
       celebrate('Review posted');
-      go('orders');
+      // My Tasks is a tab, so the bar stays; 'orders' is a pushed screen with none on phones.
+      go('myTasks');
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not post that review');
     } finally {
