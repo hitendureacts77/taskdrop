@@ -147,7 +147,10 @@ export const IDEAS: Idea[] = [
  *                  a kitchen clean-up.
  *  3. questions    each topic's own questions, minus any the request already
  *                  answers ("2 BHK", "my scooter"), plus "where?" for on-site
- *                  work when no place was given. Never more than four.
+ *                  work when no place was given. Always three or four: when
+ *                  the request answers most of them, general questions
+ *                  (job size, what matters most, access or updates, photos)
+ *                  fill the gap.
  *  4. the post     the answers become facts, the topic adds its checklist,
  *                  and the price range moves with the answers (a 3 BHK costs
  *                  more than one room), with urgency and regular-job notes.
@@ -259,6 +262,43 @@ const SIZE: Ask = {
   options: [x('1 room', 0.6), x('1 BHK', 1), x('2 BHK', 1.5), x('3 BHK or bigger', 2.2), x('Office or shop', 1.8)],
   skipIf: /\b(\d ?bhk|\d ?rk|studio|one room|1 room|single room|villa|duplex)\b/,
 };
+
+// Questions that fit any kind of task. They are asked when a request has already
+// answered the topic's own, so no one is left with a single question.
+const JOB_SIZE: Ask = {
+  question: 'How big is the job?',
+  label: 'Job size',
+  options: [x('Small, under an hour', 0.7), 'Medium, a few hours', x('Large, most of a day or more', 1.8)],
+  skipIf: /\b\d+ ?(hours?|hrs?|days?)\b/,
+};
+
+const PRIORITY: Ask = {
+  question: 'What matters most to you?',
+  label: 'Priority',
+  options: [x('Lowest price', 0.9), 'A fair price and good work', x('Best quality', 1.2), x('Getting it done fast', 1.2)],
+  skipIf: /\b(cheap|cheapest|best quality|fastest|budget)\b/,
+};
+
+const ACCESS: Ask = {
+  question: 'Will someone be there to meet the worker?',
+  label: 'Access',
+  options: ['I’ll be there', 'A family member or neighbour will', 'We’ll arrange it in chat'],
+};
+
+const UPDATES: Ask = {
+  question: 'How should the worker keep you updated?',
+  label: 'Updates',
+  options: ['Photos or screenshots as they go', 'Only when it’s done', 'Message me if there’s a question'],
+};
+
+const PHOTOS: Ask = {
+  question: 'Can you share photos or files?',
+  label: 'Photos',
+  options: ['Yes, I’ll add them to the post', 'I’ll send them in chat', 'No photos needed'],
+};
+
+const GENERAL_ON_SITE: Ask[] = [JOB_SIZE, PRIORITY, ACCESS, PHOTOS];
+const GENERAL_ONLINE: Ask[] = [JOB_SIZE, PRIORITY, UPDATES, PHOTOS];
 
 const TOPICS: Topic[] = [
   // ------------------------------------------------------------ repairs --
@@ -1149,6 +1189,11 @@ const optCost = (o: Opt) => (typeof o === 'string' ? 1 : (o.cost ?? 1));
 /** Every question's short label, so facts read "Size: 2 BHK". */
 const LABELS = new Map<string, string>();
 for (const topic of [...TOPICS, FALLBACK]) for (const a of topic.asks) LABELS.set(a.question, a.label);
+for (const a of [...GENERAL_ON_SITE, ...GENERAL_ONLINE]) LABELS.set(a.question, a.label);
+
+/** At least this many questions, so the post is framed by more than one answer
+ *  (owner, 2026-10-31: "ask multiple questions"). */
+const MIN_ASKS = 3;
 
 function questionsFor(prompt: string): Ask[] {
   const topic = topicFor(prompt);
@@ -1157,6 +1202,12 @@ function questionsFor(prompt: string): Ask[] {
   const hasWhere = asks.some((a) => a.label === 'Location' || a.label === 'Venue');
   if (topic.onSite && !hasWhere && !PLACE.test(t) && asks.length < 4 && !topic.asks.some((a) => a.label === 'Location')) {
     asks.push(WHERE_HOME);
+  }
+  // A request that already says most of it still gets a few questions: the general ones fill the gap.
+  for (const general of topic.onSite ? GENERAL_ON_SITE : GENERAL_ONLINE) {
+    if (asks.length >= MIN_ASKS) break;
+    if (general.skipIf?.test(t) || asks.some((a) => a.label === general.label)) continue;
+    asks.push(general);
   }
   return asks.slice(0, 4);
 }
@@ -1222,7 +1273,7 @@ function niceRupees(n: number): number {
 function costFactor(topic: Topic, answers: Answer[]): number {
   let f = 1;
   for (const a of answers) {
-    const ask = [...topic.asks, WHERE_HOME].find((q) => q.question === a.question);
+    const ask = [...topic.asks, WHERE_HOME, ...GENERAL_ON_SITE, ...GENERAL_ONLINE].find((q) => q.question === a.question);
     const opt = ask?.options.find((o) => optLabel(o) === a.answer);
     if (opt) f *= optCost(opt);
   }
@@ -1387,7 +1438,7 @@ export function briefToDescription(b: Pick<Brief, 'summary' | 'bullets'>): strin
 
 // ------------------------------------------------------------- the writer ----
 
-/** Up to four quick questions for a request, none it already answers. */
+/** Three or four quick questions for a request, none it already answers. */
 export function askQuestions(prompt: string): QuickQuestion[] {
   return questionsFor(prompt).map((a) => ({ question: a.question, options: a.options.map(optLabel) }));
 }

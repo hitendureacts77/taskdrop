@@ -43,3 +43,25 @@ test('the usual price follows the quantity in the description (D6)', () => {
   assert.ok(big.budgetMaxInr > small.budgetMaxInr, 'the range moves with the size');
   assert.match(big.budgetWhy ?? '', /Scaled for 12 pages/);
 });
+
+test('Details always asks three or four questions, even when the request answers most of them', () => {
+  for (const s of [
+    'Fix the leaking kitchen tap at my home',
+    'Servicing of my bike at home',
+    'Deep clean my 2 BHK flat every week',
+    'Type 20 pages from scanned images online',
+    'Something strange and unclassifiable',
+  ]) {
+    const n = askQuestions(s).length;
+    assert.ok(n >= 3 && n <= 4, `${s}: ${n} questions`);
+  }
+});
+
+test('the general questions never repeat a question and still move the price', () => {
+  const qs = askQuestions('Fix the leaking kitchen tap at my home').map((q) => q.question);
+  assert.equal(new Set(qs).size, qs.length);
+  const base = askBrief('Fix the leaking kitchen tap at my home', [], 'friendly');
+  const big = askBrief('Fix the leaking kitchen tap at my home', [{ question: 'How big is the job?', answer: 'Large, most of a day or more' }], 'friendly');
+  assert.ok(big.budgetMinInr > base.budgetMinInr, 'a bigger job costs more');
+  assert.ok(big.bullets.some((b) => /^Job size: Large/.test(b)), 'the answer shows in the post');
+});
