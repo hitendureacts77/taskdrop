@@ -10,7 +10,7 @@
  *   2. new migrations           scripts/deploy-migrations.mjs
  *   3. old-app database check   scripts/check-old-app-db.mjs  (needs `main`)
  *   4. function secrets         scripts/sync-function-secrets.mjs  (Vercel -> Supabase; a failure stops the build)
- *   5. Edge Functions           supabase functions deploy
+ *   5. Edge Functions           supabase functions deploy  (up to 3 attempts, so a one-off network or API hiccup does not fail the build)
  *   6. Inngest sync             warning only, until the Inngest Cloud keys are set
  *   7. web export               npm run web:export
  *
@@ -51,6 +51,21 @@ function must(label, cmd, args, env) {
   }
 }
 
+// Like `must`, but tries up to `attempts` times with a growing wait, for a step that can hit a one-off network or API hiccup.
+// Only for steps that are safe to repeat. If the last attempt fails it stops the build exactly as `must` does.
+async function mustRetry(label, cmd, args, env, attempts = 3) {
+  for (let i = 1; i <= attempts; i++) {
+    if (run(`${label} (attempt ${i}/${attempts})`, cmd, args, env)) return;
+    if (i < attempts) {
+      const waitSeconds = 10 * i;
+      note(`"${label}" failed on attempt ${i}/${attempts}; waiting ${waitSeconds}s, then trying again.`);
+      await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000));
+    }
+  }
+  console.error(`[vercel-build] FAILED at "${label}" after ${attempts} attempts. Nothing after it ran, so the web app is not published. Fix it and push again.`);
+  process.exit(1);
+}
+
 const wantsBackend = branch === "redesigned-2.0" && target === "preview";
 const hasSecrets = Boolean(process.env.SUPABASE_ACCESS_TOKEN && process.env.DATABASE_URL);
 
@@ -85,7 +100,7 @@ if (!wantsBackend) {
   // Edge Function secrets are kept in Vercel (one place to edit); copy the allow-listed ones across. A failure stops the build:
   // a stale Inngest signing key in Supabase would break the jobs behind a published web app. A name Vercel does not hold is skipped, not an error.
   must("function secrets", "node", ["scripts/sync-function-secrets.mjs"]);
-  must("deploy Edge Functions", "npx", ["--yes", "supabase@2", "functions", "deploy", "--project-ref", projectId, "--use-api"]);
+  await mustRetry("deploy Edge Functions", "npx", ["--yes", "supabase@2", "functions", "deploy", "--project-ref", projectId, "--use-api"]);
 
   // Tell Inngest Cloud to re-read the function list (the request is signed on the way back, so no secret).
   // A warning, not a failure, until the Inngest keys are set (docs/INNGEST.md): the code is already deployed.
