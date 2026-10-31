@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { BackButton, systemHeader } from '../components/kit';
-import { View, Text as RNText, Pressable, ScrollView, TextInput } from 'react-native';
+import { View, Text as RNText, Pressable, TextInput } from 'react-native';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
@@ -27,6 +27,7 @@ import { useAuth } from '../providers/AuthProvider';
 import { Pressy, tx } from '../components/primitives';
 import { MIN_WITHDRAW_MINOR } from './WalletScreen';
 import { KeyboardSafe } from '../components/KeyboardSafe';
+import { KeyboardScrollView } from '../components/KeyboardScrollView';
 
 export function WithdrawScreen() {
   const t = useTheme();
@@ -186,7 +187,7 @@ export function WithdrawScreen() {
 
   return (
     <Screen padded={false}>
-      <ScrollView
+      <KeyboardScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8 }}
         showsVerticalScrollIndicator={false}
@@ -382,7 +383,7 @@ export function WithdrawScreen() {
         />
 
         <View style={{ height: 20 }} />
-      </ScrollView>
+      </KeyboardScrollView>
 
       <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
         <Pressy

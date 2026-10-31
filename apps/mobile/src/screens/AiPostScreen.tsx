@@ -13,6 +13,7 @@ import { removeDraft, saveDraft } from '../lib/drafts';
 import { useReducedMotion } from '../lib/motion';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { KeyboardSafe } from '../components/KeyboardSafe';
+import { KeyboardScrollView } from '../components/KeyboardScrollView';
 import { TaskDescription } from '../components/TaskDescription';
 import { roughPlace } from '../lib/place';
 import { MIN_PRICE_INR } from '../lib/limits';
@@ -1217,7 +1218,7 @@ export function AiPostScreen() {
         )}
       </View>
 
-      <ScrollView
+      <KeyboardScrollView
         ref={scrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28, width: '100%', maxWidth: 680, alignSelf: 'center' }}
@@ -1227,7 +1228,7 @@ export function AiPostScreen() {
         <FadeIn key={phase} translateY={14} duration={320}>
           {body}
         </FadeIn>
-      </ScrollView>
+      </KeyboardScrollView>
 
       <KeyboardSafe
         style={{

@@ -3,7 +3,6 @@ import {
   View,
   Text as RNText,
   Pressable,
-  ScrollView,
   ActivityIndicator,
   Modal,
   TextInput,
@@ -34,6 +33,7 @@ import { PaymentSheet } from '../components/PaymentSheet';
 import { paymentReturnUrl } from '../lib/links';
 import { tx } from '../components/primitives';
 import { KeyboardSafe } from '../components/KeyboardSafe';
+import { KeyboardScrollView } from '../components/KeyboardScrollView';
 
 export function PromoteScreen() {
   const t = useTheme();
@@ -320,7 +320,7 @@ export function PromoteScreen() {
 
   return (
     <Screen padded={false}>
-      <ScrollView
+      <KeyboardScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8 }}
         showsVerticalScrollIndicator={false}
@@ -607,7 +607,7 @@ export function PromoteScreen() {
             {audienceOn ? ' in your radius' : ' across your city'}
           </RNText>
         </View>
-      </ScrollView>
+      </KeyboardScrollView>
 
       <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
         <Pressable

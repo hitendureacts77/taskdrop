@@ -21,6 +21,7 @@ import { Icon, type IconName } from './Icon';
 import { Pressy, tx } from './primitives';
 import { useLayout } from '../lib/layout';
 import { useKeyboardClearance } from '../lib/useKeyboardClearance';
+import { KeyboardScrollView, useReveal } from './KeyboardScrollView';
 import { NativeHeader } from './NativeHeader';
 import { LOOP_NATIVE, useReducedMotion } from '../lib/motion';
 
@@ -144,12 +145,12 @@ export function BottomSheet({
                 </Pressable>
               </View>
             ) : null}
-            <ScrollView
+            <KeyboardScrollView
               contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6 }}
               keyboardShouldPersistTaps="handled"
             >
               {children}
-            </ScrollView>
+            </KeyboardScrollView>
             {footer ? <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>{footer}</View> : null}
           </Animated.View>
         </Animated.View>
@@ -551,10 +552,13 @@ export function Field({
   // visible instead of hiding behind a scrollbar inside the box.
   const [contentH, setContentH] = useState(0);
   const inputRef = useRef<TextInput>(null);
+  // Inside a KeyboardScrollView, getting focus (or growing while typed in) scrolls the whole box into view.
+  const boxRef = useRef<View>(null);
+  const reveal = useReveal();
   // v2 field: the label sits inside the box, over the value; tapping
   // anywhere in the box puts the cursor in the input.
   return (
-    <View style={style}>
+    <View ref={boxRef} style={style}>
       <Pressable
         onPress={() => inputRef.current?.focus()}
         accessible={false}
@@ -585,6 +589,7 @@ export function Field({
           {...input}
           onFocus={(e) => {
             setFocused(true);
+            reveal(boxRef.current);
             input.onFocus?.(e);
           }}
           onBlur={(e) => {
@@ -592,7 +597,10 @@ export function Field({
             input.onBlur?.(e);
           }}
           onContentSizeChange={(e) => {
-            if (input.multiline) setContentH(e.nativeEvent.contentSize.height);
+            if (input.multiline) {
+              setContentH(e.nativeEvent.contentSize.height);
+              if (focused) reveal(boxRef.current);
+            }
             input.onContentSizeChange?.(e);
           }}
           style={[

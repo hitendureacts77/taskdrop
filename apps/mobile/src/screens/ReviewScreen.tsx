@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../components/Icon';
-import { View, Text as RNText, TextInput, Pressable, Animated, ScrollView } from 'react-native';
+import { View, Text as RNText, TextInput, Pressable, Animated } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -10,6 +10,7 @@ import { submitReview } from '../data/api';
 import { fontFamilyFor } from '../theme';
 import { tx } from '../components/primitives';
 import { KeyboardSafe } from '../components/KeyboardSafe';
+import { KeyboardScrollView } from '../components/KeyboardScrollView';
 
 /**
  * Ratings & review — pixel parity with docs/design/_design_markup.html lines
@@ -126,7 +127,7 @@ export function ReviewScreen() {
 
   return (
     <Screen padded={false}>
-      <ScrollView
+      <KeyboardScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6 }}
         showsVerticalScrollIndicator={false}
@@ -200,7 +201,7 @@ export function ReviewScreen() {
             lineHeight: 20,
           }}
         />
-      </ScrollView>
+      </KeyboardScrollView>
 
       <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
         <Pressable
