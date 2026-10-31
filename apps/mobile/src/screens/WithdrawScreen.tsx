@@ -26,6 +26,7 @@ import {
 import { useAuth } from '../providers/AuthProvider';
 import { Pressy, tx } from '../components/primitives';
 import { MIN_WITHDRAW_MINOR } from './WalletScreen';
+import { KeyboardSafe } from '../components/KeyboardSafe';
 
 export function WithdrawScreen() {
   const t = useTheme();
@@ -383,7 +384,7 @@ export function WithdrawScreen() {
         <View style={{ height: 20 }} />
       </ScrollView>
 
-      <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+      <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
         <Pressy
           onPress={doWithdraw}
           style={{
@@ -403,7 +404,7 @@ export function WithdrawScreen() {
             {busy ? 'Sending…' : `Withdraw ${formatINR(amountMinor)}`}
           </RNText>
         </Pressy>
-      </View>
+      </KeyboardSafe>
 
       <PayoutDestinationSheet
         visible={pickingDestination}

@@ -18,6 +18,7 @@ import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskDescription } from '../components/TaskDescription';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
+import { KeyboardSafe } from '../components/KeyboardSafe';
 
 type Quote = {
   bidId?: string;
@@ -398,7 +399,7 @@ export function CompareScreen() {
         )}
       </ScrollView>
 
-      <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+      <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
         {decided ? (
         <>
         <Pressy
@@ -440,7 +441,7 @@ export function CompareScreen() {
         </RNText>
         </>
         )}
-      </View>
+      </KeyboardSafe>
       <AddFundsSheet
         visible={shortBy !== null}
         initialMinor={shortBy ?? undefined}
