@@ -733,7 +733,14 @@ build the approved designs
 </details>
 
 <details id="t1-8" data-short="Keyboard hides content">
-<summary>[BOTH] <b>1.8</b> Keep content and alerts clear of the keyboard <small>· Planned 31 Oct, not started · your time: 15 minutes</small></summary>
+<summary>[BOTH] <b>1.8</b> Keep content and alerts clear of the keyboard <small>· Built and merged 31 Oct, not yet tried on a phone · your time: 15 minutes</small></summary>
+
+**Built and merged 31 Oct (pull request 134, `npm run check` green).** Not run on a phone yet: your phone was unplugged, so the problem was not reproduced and the 16-spot pass was not done. Not published to testers.
+
+- **One shared rule:** `useKeyboardClearance` (now also re-measures when something appears while the keyboard is already open) and `KeyboardSafe`, a bar that lifts only by what the keyboard still covers.
+- **Used by:** the chat message box (the chat-only helper is gone), the Post a request Back/Continue bar, the Help reply box, the shared bottom sheet (so every sheet built on it), Add money and the payout sheet.
+- **Alerts:** the toast rises above the keyboard, also when it appears while you are typing. A confirm dialog closes the keyboard first.
+- **Not done:** the two-lift question (`softwareKeyboardLayoutMode: "resize"` plus the keyboard-avoiding box) is left as it is, because choosing needs the phone; the other forms (offer box, review, withdraw, profile edit, address) are still to be seen in the pass; the website is untouched.
 
 **What you saw (31 Oct):** on the phone, some content and some alerts end up hidden behind the on-screen keyboard.
 
