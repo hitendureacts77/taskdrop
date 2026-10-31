@@ -133,7 +133,19 @@ export async function tidyE2eTasks(call: ReturnType<typeof apiAs>): Promise<numb
       n++;
     }
   }
+  await readE2eNotifications(call);
   return n;
+}
+
+/**
+ * Test tasks send real notifications (and phone pushes) to the test accounts. Mark the ones about "[e2e"
+ * tasks as read so a test run does not leave the bell lit for whoever signs in as that account next.
+ */
+async function readE2eNotifications(call: ReturnType<typeof apiAs>): Promise<void> {
+  const list = await call<{ id: string; title: string; body: string | null; read_at: string | null }[]>("listNotifications", { limit: 200 });
+  if (!list.ok || !Array.isArray(list.data)) return;
+  const ids = list.data.filter((x) => !x.read_at && `${x.title} ${x.body ?? ""}`.includes("[e2e")).map((x) => x.id);
+  if (ids.length) await call("markNotificationsRead", { ids });
 }
 
 /** Wait until the backend answers its uptime check (a deploy may be under way), so a run does not start into the gap. */
