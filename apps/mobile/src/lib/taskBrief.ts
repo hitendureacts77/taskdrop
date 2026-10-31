@@ -347,7 +347,8 @@ const TOPICS: Topic[] = [
     key: 'device',
     category: 'Repairs & Maintenance',
     noun: 'phone or laptop repair',
-    strong: /\b(phone|laptop|tablet|ipad|screen (broken|cracked)|cracked screen|display broken|battery (draining|drain)|charging port|not charging|hanging|slow laptop|virus|data recovery|printer)\b/,
+    // A bare "phone" is not enough ("phone run", "phone number", "over the phone"): it takes a repair word beside it.
+    strong: /\b(laptop|tablet|ipad|(phone|smartphone) (repair|screen|battery|charger|charging|display|speaker|camera|water damage|software|unlock|hangs?|not (working|charging|switching on|turning on|starting)|is (dead|hanging|slow|broken|cracked|not working))|(repair|fix|replace|service) (my |the |a |our )?(old )?(phone|smartphone)|screen (broken|cracked)|cracked screen|display broken|battery (draining|drain)|charging port|not charging|hanging|slow laptop|virus|data recovery|printer)\b/,
     weak: /\b(repair|fix|broken|replace)\b/,
     asks: [
       { question: 'Which device is it?', label: 'Device', options: ['Phone', 'Laptop or PC', 'Tablet', 'Printer'], skipIf: /\b(phone|laptop|tablet|ipad|printer)\b/ },
