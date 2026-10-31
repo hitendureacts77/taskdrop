@@ -29,7 +29,7 @@ import { signInWithUsername } from '../data/extras';
 import { MIN_SIGNUP_AGE, ageOn, parseBirthDate } from '@taskdrop/rules';
 import { BirthDateField, EMPTY_BIRTH_DATE, type BirthDateParts } from '../components/BirthDateField';
 import { TurnedAway } from '../components/AgeGate';
-import { recordBirthDate, turnAwayThisDevice, turnedAwayOnThisDevice } from '../data/age';
+import { recordBirthDate } from '../data/age';
 
 /**
  * The way in: one screen for new and returning people alike.
@@ -153,8 +153,7 @@ export function AccessScreen() {
         if (!(e instanceof AuthError) || !(e.noAccount || e.accountExists)) throw e;
         used = e.noAccount ? 'signup' : 'signin';
         if (used === 'signup' && !birth) {
-          if (await turnedAwayOnThisDevice()) setTurnedAway(true);
-          else setStage('birth');
+          setStage('birth');
           return;
         }
         result = await requestCode(phone, used);
@@ -175,7 +174,6 @@ export function AccessScreen() {
     const date = parseBirthDate(dob.day, dob.month, dob.year);
     if (!date) return flash('Enter a real date of birth');
     if (ageOn(date) < MIN_SIGNUP_AGE) {
-      await turnAwayThisDevice();
       setTurnedAway(true);
       return;
     }
@@ -213,7 +211,7 @@ export function AccessScreen() {
       // this cannot reach the server, AgeGate asks again after sign-in.
       if (door === 'signup' && birth) {
         if ((await recordBirthDate(birth).catch(() => null)) === 'blocked') {
-          await signOut().catch(() => {});
+          // Signed out on OK: signing out now would reset to the splash and hide the message.
           setTurnedAway(true);
           return;
         }
@@ -322,7 +320,8 @@ export function AccessScreen() {
   if (turnedAway) {
     return (
       <TurnedAway
-        onDone={() => {
+        onDone={async () => {
+          await signOut().catch(() => {});
           setTurnedAway(false);
           setStage('number');
           setPhone('');

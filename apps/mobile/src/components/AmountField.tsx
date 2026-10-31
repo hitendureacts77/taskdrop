@@ -31,7 +31,10 @@ export function AmountField({
   const t = useTheme();
   const [draft, setDraft] = useState<string | null>(null);
 
-  const display = draft ?? (rupees === null ? '' : `₹${rupees.toLocaleString('en-IN')}`);
+  // The typed digits show only while they still are the amount. A chip or a
+  // slider that sets it from outside wins, even with the keypad open.
+  const typing = draft !== null && (draft === '' ? rupees === null : Number(draft) === rupees);
+  const display = typing ? draft : rupees === null ? '' : `₹${rupees.toLocaleString('en-IN')}`;
 
   return (
     <TextInput

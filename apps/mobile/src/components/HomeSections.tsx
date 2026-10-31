@@ -184,7 +184,9 @@ function PostTop() {
               <RNText style={tx('700', 12, '#FFE3D8', { marginTop: 8, lineHeight: 17 })}>{contactIssueMessage(issue)}</RNText>
             ) : null}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-              <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+                {/* Said out loud, so the two chips read as examples to try rather than the only choices. */}
+                <RNText style={tx('700', 12, 'rgba(255,255,255,0.85)')}>Try:</RNText>
                 {quick.slice(0, 2).map((x) => (
                   <Pressable
                     key={x.key}
@@ -820,14 +822,17 @@ function StepsMini() {
   const t = useTheme();
   const steps = ['Post', 'Offers', 'Pay', 'Approve'];
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+    // One line, always (owner, 2026-10-30): the connectors stretch to share the width rather than wrapping.
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 8 }}>
       {steps.map((s, i) => (
-        <View key={s} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          {i > 0 ? <View style={{ width: 10, height: 1.5, backgroundColor: t.colors.line }} /> : null}
-          <View style={{ width: 17, height: 17, borderRadius: 999, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}>
+        <View key={s} style={{ flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 1, flexGrow: i > 0 ? 1 : 0 }}>
+          {i > 0 ? <View style={{ flexGrow: 1, minWidth: 4, maxWidth: 14, height: 1.5, backgroundColor: t.colors.line }} /> : null}
+          <View style={{ width: 16, height: 16, borderRadius: 999, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}>
             <RNText style={tx('800', 9, t.colors.onBtn)}>{i + 1}</RNText>
           </View>
-          <RNText style={tx('700', 10.5, t.colors.accentDeep)}>{s}</RNText>
+          <RNText numberOfLines={1} style={tx('700', 10.5, t.colors.accentDeep, { flexShrink: 1 })}>
+            {s}
+          </RNText>
         </View>
       ))}
     </View>
