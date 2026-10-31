@@ -21,6 +21,7 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   workers: 1,
   fullyParallel: false,
+  globalTeardown: "./e2e/global-teardown.ts",
   retries: process.env.CI ? 1 : 0,
   reporter: [["list"]],
   use: {
