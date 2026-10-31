@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, Linking } from 'react-native';
+import { View, Text as RNText, Pressable, Linking } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
@@ -8,6 +8,7 @@ import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
+import { KeyboardScrollView } from '../components/KeyboardScrollView';
 
 /**
  * Copyright and takedown requests -- public, signed in or not, and linked as
@@ -108,7 +109,7 @@ export function CopyrightScreen() {
   return (
     <Screen padded={false}>
       <TopBar title="Copyright" onBack={back} />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+      <KeyboardScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
         <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.6 })}>Copyright & takedown requests</RNText>
         {para(
           'People post photos, videos and descriptions on TaskDrop. We respect copyright, and we remove material when we receive a valid notice that it infringes someone’s work.',
@@ -210,7 +211,7 @@ export function CopyrightScreen() {
 
         <SectionTitle title="Repeat infringers" style={{ marginTop: 30 }} />
         {para('We close the accounts of people who repeatedly post material that infringes others’ copyright.')}
-      </ScrollView>
+      </KeyboardScrollView>
     </Screen>
   );
 }

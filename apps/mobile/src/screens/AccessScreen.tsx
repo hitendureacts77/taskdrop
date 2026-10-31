@@ -3,7 +3,6 @@ import {
   View,
   Text as RNText,
   Pressable,
-  ScrollView,
   TextInput,
   ActivityIndicator,
   Animated,
@@ -30,6 +29,7 @@ import { MIN_SIGNUP_AGE, ageOn, parseBirthDate } from '@taskdrop/rules';
 import { BirthDateField, EMPTY_BIRTH_DATE, type BirthDateParts } from '../components/BirthDateField';
 import { TurnedAway } from '../components/AgeGate';
 import { recordBirthDate } from '../data/age';
+import { KeyboardScrollView } from '../components/KeyboardScrollView';
 
 /**
  * The way in: one screen for new and returning people alike.
@@ -335,7 +335,7 @@ export function AccessScreen() {
 
   return (
     <Screen padded={false} style={desktop ? { backgroundColor: t.colors.surface } : undefined}>
-      <ScrollView
+      <KeyboardScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 22 }}
         keyboardShouldPersistTaps="handled"
@@ -676,7 +676,7 @@ export function AccessScreen() {
             ))}
           </View>
         </View>
-      </ScrollView>
+      </KeyboardScrollView>
 
       <BottomSheet
         visible={pwOpen}

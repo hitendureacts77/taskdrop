@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text as RNText, ScrollView, Pressable, TextInput, KeyboardAvoidingView } from 'react-native';
+import { View, Text as RNText, Pressable, TextInput, KeyboardAvoidingView } from 'react-native';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { KeyboardSafe } from '../components/KeyboardSafe';
@@ -10,6 +10,7 @@ import { FadeIn, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
+import { KeyboardScrollView } from '../components/KeyboardScrollView';
 import {
   TICKET_CATEGORIES,
   getTicket,
@@ -81,7 +82,7 @@ export function HelpScreen() {
   return (
     <Screen padded={false}>
       <TopBar title="Help & support" onBack={back} />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
+      <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
         <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>WHAT DO YOU NEED HELP WITH?</RNText>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
           {TICKET_CATEGORIES.map((c) => (
@@ -200,7 +201,7 @@ export function HelpScreen() {
             {done.map((x) => <TicketRow key={x.id} ticket={x} onPress={() => go('ticket', { ticketId: x.id })} />)}
           </>
         )}
-      </ScrollView>
+      </KeyboardScrollView>
       <FeedbackSheet visible={feedback} onClose={() => setFeedback(false)} />
     </Screen>
   );
@@ -288,7 +289,7 @@ export function TicketScreen() {
     <Screen padded={false}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <TopBar title="Your conversation" onBack={back} right={s ? <Badge label={s.label} tone={s.tone} /> : undefined} />
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+        <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16 }}>
           {messages === null ? (
             <Shimmer height={80} />
           ) : (
@@ -318,7 +319,7 @@ export function TicketScreen() {
               );
             })
           )}
-        </ScrollView>
+        </KeyboardScrollView>
         {ticket && ticket.status !== 'resolved' ? (
           <KeyboardSafe style={{ paddingHorizontal: 20, paddingBottom: 14, paddingTop: 8, borderTopWidth: 1, borderTopColor: t.colors.line }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>

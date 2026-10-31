@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text as RNText, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text as RNText, Pressable, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
@@ -18,6 +18,7 @@ import { imageSource, pickMedia, pickedFromFile, signedMediaUrl, uploadMedia, ty
 import { useFileDrop } from '../lib/useFileDrop';
 import { levelFor, profileStrength } from '../lib/levels';
 import { findContactIssue, profileIssueMessage } from '../lib/mask';
+import { KeyboardScrollView } from '../components/KeyboardScrollView';
 
 export const SKILL_OPTIONS = [
   'Repairs', 'Delivery', 'Errands', 'Sourcing', 'Local intel', 'Cleaning', 'Carpentry', 'Painting',
@@ -167,7 +168,7 @@ export function ProfileEditScreen() {
         }
       />
       <SwipeTabs index={tab} count={worker ? 3 : 2} onChange={setTab}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
+      <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
         <View style={{ paddingHorizontal: 20 }}>
           <View ref={dropRef} style={{ ...card, marginTop: 0, alignItems: 'center', ...(dropOver ? { borderColor: t.colors.accent, borderStyle: 'dashed' as const, backgroundColor: t.colors.accentSoft } : null) }}>
             <Pressable onPress={() => void choosePhoto()} accessibilityRole="button" accessibilityLabel="Change photo">
@@ -336,7 +337,7 @@ export function ProfileEditScreen() {
 
           {view !== 2 ? <PrimaryButton label="Save profile" onPress={() => void save()} busy={saving} style={{ marginTop: 20 }} /> : null}
         </View>
-      </ScrollView>
+      </KeyboardScrollView>
       </SwipeTabs>
       <LocationSheet
         visible={showLoc}
