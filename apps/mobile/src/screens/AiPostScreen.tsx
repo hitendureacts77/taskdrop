@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, TextInput, Animated, Keyboard, Platform } from 'react-native';
+import { View, Text as RNText, Pressable, ScrollView, TextInput, Animated, Platform } from 'react-native';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import { AmountField } from '../components/AmountField';
@@ -127,8 +127,8 @@ const MILESTONE_PLANS: Record<number, { title: string; pct: number }[]> = {
   ],
 };
 
-/** Where the budget slider ends; it steps up as the amount grows, with no ceiling. */
-const SLIDER_STOPS = [2000, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000];
+/** The top-up bar's stops: an extra share of the poster's own price, to stand out. */
+const TOP_UP_STOPS = [0, 2, 3, 5, 10, 15, 20, 25];
 
 export function AiPostScreen() {
   const t = useTheme();
@@ -175,8 +175,9 @@ export function AiPostScreen() {
 
   // Budget.
   const [budget, setBudget] = useState<number | null>(similar ? Math.round(similar.benchmark_minor / 100) : null);
-  // The last amount typed or tapped (not dragged): it sets how far the slider reaches.
-  const [scaleAmount, setScaleAmount] = useState(budget ?? 0);
+  // The top-up bar: an index into TOP_UP_STOPS. The posted price is the typed
+  // amount plus that share, so workers see one figure.
+  const [topUpStop, setTopUpStop] = useState(0);
   const [split, setSplit] = useState<0 | 2 | 3 | 4 | 5 | 6>(0);
 
   // Place and hiring.
@@ -239,8 +240,6 @@ export function AiPostScreen() {
     setTitle(b.title);
     setDescription(briefToDescription(b));
     setCategory(b.category);
-    // Suggest the middle of the usual range; the poster sets the real figure.
-    setBudget((cur) => cur ?? Math.max(MIN_PRICE_INR, Math.round((b.budgetMinInr + b.budgetMaxInr) / 2 / 10) * 10));
   };
 
   /** Ask -> Details. The questions are only asked again if the request changed. */
@@ -307,14 +306,17 @@ export function AiPostScreen() {
   const canLeaveBrief =
     title.trim().length >= 4 && description.trim().length >= 10 && !titleIssue && !descIssue;
   const budgetOk = (budget ?? 0) >= MIN_PRICE_INR;
+  const topUpPct = TOP_UP_STOPS[topUpStop] ?? 0;
+  // What is posted: the poster's own amount plus the top-up.
+  const price = Math.round((budget ?? 0) * (1 + topUpPct / 100));
   const fees = useFees();
-  const feeRupees = Math.round((budget ?? 0) * fees.posterFee);
+  const feeRupees = Math.round(price * fees.posterFee);
 
   const milestones = useMemo(() => MILESTONE_PLANS[split] ?? [], [split]);
 
   // What an auto-hire must have ready: the budget plus the service fee, since
   // an offer at the full budget is accepted and paid for at once.
-  const autoNeedMinor = Math.round((budget ?? 0) * 100 * (1 + fees.posterFee));
+  const autoNeedMinor = Math.round(price * 100 * (1 + fees.posterFee));
 
   useEffect(() => {
     if (mode !== 'auto') return;
@@ -349,7 +351,7 @@ export function AiPostScreen() {
         pillar: brief?.pillar ?? pillarFor(category),
         title: title.trim(),
         description: description.trim(),
-        benchmarkMinor: Math.round((budget ?? 0) * 100),
+        benchmarkMinor: price * 100,
         timeLimitMinutes: minutes,
         flag: whenKey === 'now' ? 'urgent' : 'none',
         media,
@@ -798,134 +800,38 @@ export function AiPostScreen() {
   }
 
   if (phase === 'budget') {
-    const lo = brief?.budgetMinInr ?? 100;
-    const hi = brief?.budgetMaxInr ?? 2000;
-    const amount = budget ?? 0;
-    const presets = [...new Set([lo, Math.round((lo + hi) / 2 / 10) * 10, hi, 100, 300, 500, 1000])]
-      .filter((n) => n >= MIN_PRICE_INR)
-      .sort((a, b) => a - b)
-      .slice(0, 6);
-    // The slider's end is set by the usual range and by amounts typed or tapped,
-    // never by the slider itself: an end that moved under the finger made the
-    // thumb jump. The scale is curved, so the usual range keeps fine steps
-    // while the far end still reaches well past it.
-    const sliderMax =
-      SLIDER_STOPS.find((m) => m >= Math.max(hi * 5, scaleAmount * 1.25)) ??
-      Math.ceil((scaleAmount * 1.25) / 100000) * 100000;
-    const SLIDER_STEPS = 1000;
-    const toAmount = (p: number) => {
-      const raw = MIN_PRICE_INR + (sliderMax - MIN_PRICE_INR) * (p / SLIDER_STEPS) ** 2;
-      const unit = raw >= 10000 ? 500 : raw >= 2000 ? 50 : 10;
-      return Math.max(MIN_PRICE_INR, Math.round(raw / unit) * unit);
-    };
-    const toPos = (v: number) =>
-      Math.round(Math.sqrt(Math.min(1, Math.max(0, (v - MIN_PRICE_INR) / (sliderMax - MIN_PRICE_INR)))) * SLIDER_STEPS);
-    const pickAmount = (v: number | null) => {
-      Keyboard.dismiss();
-      setBudget(v);
-      setScaleAmount(v ?? 0);
-    };
-
-    // Where the amount sits against the usual range, on a scale that runs
-    // from half the low end to half again past the high end.
-    const scaleLo = lo / 2;
-    const scaleHi = hi * 1.5;
-    const posOf = (v: number) => Math.min(1, Math.max(0, (v - scaleLo) / (scaleHi - scaleLo)));
-    const verdict =
-      amount < lo
-        ? { word: 'Low', color: t.colors.signal, note: 'Below what jobs like this usually get — expect fewer offers.' }
-        : amount > hi
-          ? { word: 'Generous', color: t.colors.gold, note: 'Above the usual range — offers should come quickly.' }
-          : { word: 'Fair', color: t.colors.accent, note: 'Right in the usual range for jobs like this.' };
+    // The milestone split below works on what is posted, top-up included.
+    const amount = price;
 
     body = (
       <>
-        {heading('What’s it worth to you?', 'You pay only when you choose an offer, and TaskDrop holds it safely until you approve the work.')}
+        {heading('What will you pay?', 'Your price, your call. You pay only when you pick an offer, and TaskDrop holds it until you approve the work.')}
         <View style={{ marginTop: 20 }}>
           {card(
-            <>
-              <View style={{ alignItems: 'center' }}>
-                {/* Fixed width: a web <input> otherwise sizes itself to ~20ch
-                    and pushes the box off the screen. AmountField draws its own ₹. */}
-                <View style={{ width: 230 }}>
-                  <AmountField
-                    rupees={budget}
-                    onChangeRupees={(v) => {
-                      setBudget(v);
-                      setScaleAmount(v ?? 0);
-                    }}
-                    min={10}
-                    align="center"
-                    placeholder="₹0"
-                    style={tx('800', 40, t.colors.ink, { width: '100%', padding: 0 })}
-                  />
-                </View>
-              </View>
-
-              {/* The fair-price meter: the usual range shaded, the amount as a dot. */}
-              {budgetOk ? (
-                <View style={{ marginTop: 18 }}>
-                  <View>
-                    <View style={{ height: 10, borderRadius: 10, backgroundColor: t.colors.surface2, overflow: 'hidden' }}>
-                      <View
-                        style={{
-                          position: 'absolute',
-                          left: `${posOf(lo) * 100}%`,
-                          width: `${(posOf(hi) - posOf(lo)) * 100}%`,
-                          top: 0,
-                          bottom: 0,
-                          backgroundColor: t.colors.accentBorder,
-                        }}
-                      />
-                    </View>
-                    <MeterPin pos={posOf(amount)} color={verdict.color} />
-                  </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
-                    <RNText style={tx('500', 11, t.colors.muted)}>
-                      Usual: {rupees(lo)}–{rupees(hi)}
-                    </RNText>
-                    <RNText style={tx('800', 12, verdict.color)}>{verdict.word}</RNText>
-                  </View>
-                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 17 })}>{verdict.note}</RNText>
-                </View>
-              ) : null}
-
-              {/* The usual price for what was written, with the reason beside it. */}
-              {brief ? (
-                <View style={{ marginTop: 16, backgroundColor: t.colors.aiSoft, borderRadius: 16, padding: 14 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Icon name="sparkle" size={13} color={t.colors.aiInk} />
-                    <RNText style={tx('700', 11, t.colors.aiInk, { letterSpacing: 0.9 })}>USUAL PRICE FOR THIS</RNText>
-                  </View>
-                  <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.5, marginTop: 6 })}>
-                    {rupees(lo)} to {rupees(hi)}
-                  </RNText>
-                  {brief.budgetWhy ? <RNText style={tx('400', 13, t.colors.text, { marginTop: 4, lineHeight: 19 })}>{brief.budgetWhy}</RNText> : null}
-                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 8 })}>Estimated from what you wrote. You set the final price.</RNText>
-                </View>
-              ) : null}
-
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 16 }}>
-                {presets.map((p) => chip(rupees(p), budget === p, () => pickAmount(p)))}
-              </View>
-              <View style={{ marginTop: 16 }}>
-                <Slider
-                  value={toPos(budget ?? MIN_PRICE_INR)}
-                  min={0}
-                  max={SLIDER_STEPS}
-                  step={1}
-                  onChange={(p) => {
-                    Keyboard.dismiss();
-                    setBudget(toAmount(p));
-                  }}
-                  accessibilityLabel="Budget"
+            <View style={{ alignItems: 'center', paddingVertical: 6 }}>
+              <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 0.9 })}>TASK PRICE</RNText>
+              {/* Fixed width: a web <input> otherwise sizes itself to ~20ch
+                  and pushes the box off the screen. AmountField draws its own ₹. */}
+              <View style={{ width: 230, marginTop: 8, borderBottomWidth: 2, borderBottomColor: t.colors.accent, paddingBottom: 4 }}>
+                <AmountField
+                  rupees={budget}
+                  onChangeRupees={setBudget}
+                  min={10}
+                  align="center"
+                  placeholder="₹0"
+                  style={tx('800', 44, t.colors.ink, { width: '100%', padding: 0 })}
                 />
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-                  <RNText style={tx('400', 11, t.colors.muted)}>{rupees(MIN_PRICE_INR)}</RNText>
-                  <RNText style={tx('400', 11, t.colors.muted)}>{rupees(sliderMax)}+ · type any amount</RNText>
-                </View>
               </View>
-            </>,
+              <RNText
+                style={tx('600', 12, budget !== null && budget > 0 && !budgetOk ? t.colors.signalDeep : t.colors.muted, { marginTop: 12 })}
+              >
+                {budget === null || budget === 0
+                  ? 'Type any amount'
+                  : budgetOk
+                    ? 'Any amount works'
+                    : `The lowest price is ${rupees(MIN_PRICE_INR)}`}
+              </RNText>
+            </View>,
           )}
         </View>
 
@@ -1003,7 +909,7 @@ export function AiPostScreen() {
         {label('HOW DO YOU WANT TO HIRE?')}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           {choice('bids', mode === 'bids', () => setAssign('bids'), 'users', 'See offers', 'Workers send offers or counteroffers. You pick one')}
-          {choice('auto', mode === 'auto', () => setAssign('auto'), 'bolt', 'Auto-hire', `First offer at or under ${rupees(budget ?? 0)} is accepted`)}
+          {choice('auto', mode === 'auto', () => setAssign('auto'), 'bolt', 'Auto-hire', `First offer at or under ${rupees(price)} is accepted`)}
         </View>
         {mode === 'auto' ? (
           <View
@@ -1089,7 +995,7 @@ export function AiPostScreen() {
         <View style={{ marginTop: 12, ...cardSurface(t, 20), paddingHorizontal: 16, paddingVertical: 4 }}>
           {row('clock', 'Done by', `${whenKey === 'custom' ? 'A date you picked' : whenLabel} · ${formatDeadline(due)}`, 'when')}
           {divider}
-          {row('tag', 'Budget', split ? `${rupees(budget ?? 0)} · in ${split} steps` : rupees(budget ?? 0), 'budget')}
+          {row('tag', 'Budget', `${rupees(price)}${topUpPct ? ` · incl. ${topUpPct}% top up` : ''}${split ? ` · in ${split} steps` : ''}`, 'budget')}
           {divider}
           {row('pin', 'Where', whereLabel, 'providers')}
           {divider}
@@ -1097,10 +1003,10 @@ export function AiPostScreen() {
         </View>
 
         <View style={{ marginTop: 12, ...cardSurface(t, 20), padding: 16, gap: 8 }}>
-          <Row label="Task budget" value={rupees(budget ?? 0)} />
+          <Row label="Task budget" value={rupees(price)} />
           <Row label={`TaskDrop fee (${Math.round(fees.posterFee * 100)}%)`} value={rupees(feeRupees)} />
           <View style={{ height: 1, backgroundColor: t.colors.line }} />
-          <Row label="Held safely when you accept an offer" value={formatINR(Math.round((budget ?? 0) * 100) + feeRupees * 100)} strong />
+          <Row label="Held safely when you accept an offer" value={formatINR(price * 100 + feeRupees * 100)} strong />
           <RNText style={tx('400', 11, t.colors.muted, { lineHeight: 16 })}>
             The final figure follows the offer you accept. Nothing is charged now.
           </RNText>
@@ -1130,7 +1036,7 @@ export function AiPostScreen() {
             ? { label: returning ? 'Save and review' : 'Continue', onPress: () => advance('when') }
             : phase === 'budget'
               ? {
-                  label: returning ? 'Save and review' : budgetOk ? `Continue with ${rupees(budget ?? 0)}` : 'Enter an amount',
+                  label: returning ? 'Save and review' : budgetOk ? `Continue with ${rupees(price)}` : 'Enter your price',
                   onPress: () => advance('budget'),
                   disabled: !budgetOk,
                 }
@@ -1232,8 +1138,6 @@ export function AiPostScreen() {
 
       <KeyboardSafe
         style={{
-          flexDirection: 'row',
-          gap: 10,
           paddingHorizontal: 20,
           paddingTop: 12,
           paddingBottom: 14,
@@ -1245,6 +1149,11 @@ export function AiPostScreen() {
           alignSelf: 'center',
         }}
       >
+        {/* The top-up bar sits at the bottom, right above Continue, so the price it makes stays in view as it moves. */}
+        {phase === 'budget' && budgetOk ? (
+          <TopUpBar stop={topUpStop} onChange={setTopUpStop} base={budget ?? 0} price={price} feeRate={fees.posterFee} />
+        ) : null}
+        <View style={{ flexDirection: 'row', gap: 10 }}>
         {composing ? (
           <>
             {voice.supported ? (
@@ -1305,6 +1214,7 @@ export function AiPostScreen() {
             style={{ flex: 1, borderRadius: 999 }}
           />
         )}
+        </View>
       </KeyboardSafe>
 
       <DateTimeSheet
@@ -1399,38 +1309,78 @@ function StepDot({ here, done, children }: { here: boolean; done: boolean; child
   );
 }
 
-/** The fair-price meter's dot: it springs to where the amount sits. */
-function MeterPin({ pos, color }: { pos: number; color: string }) {
+/**
+ * The top-up bar: slide to add a share of the poster's own price on top, so the
+ * post stands out. Workers only ever see the one total. Each stop is also a tap
+ * target under the track, for anyone who would rather not drag.
+ */
+function TopUpBar({
+  stop,
+  onChange,
+  base,
+  price,
+  feeRate,
+}: {
+  stop: number;
+  onChange: (stop: number) => void;
+  base: number;
+  price: number;
+  feeRate: number;
+}) {
   const t = useTheme();
-  const reduced = useReducedMotion();
-  const at = useRef(new Animated.Value(reduced ? pos : 0)).current;
-  useEffect(() => {
-    if (reduced) {
-      at.setValue(pos);
-      return;
-    }
-    const anim = Animated.spring(at, { toValue: pos, useNativeDriver: false, friction: 6, tension: 90 });
-    anim.start();
-    return () => anim.stop();
-  }, [pos, at, reduced]);
+  const pct = TOP_UP_STOPS[stop] ?? 0;
+  const fee = Math.round(price * feeRate);
   return (
-    <Animated.View
-      style={{
-        position: 'absolute',
-        top: -5,
-        left: at.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-        marginLeft: -10,
-        width: 20,
-        height: 20,
-        borderRadius: 20,
-        backgroundColor: color,
-        borderWidth: 3,
-        borderColor: t.colors.surface,
-        shadowColor: color,
-        shadowOpacity: 0.5,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 3 },
-      }}
-    />
+    <View style={{ marginBottom: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Icon name="trending" size={15} color={t.colors.accentDeep} strokeWidth={2.4} />
+            <RNText style={tx('800', 14, t.colors.ink)}>Top up</RNText>
+          </View>
+          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 1 })}>Slide to add a little extra and stand out</RNText>
+        </View>
+        <View
+          style={{
+            minWidth: 60,
+            height: 30,
+            paddingHorizontal: 10,
+            borderRadius: 999,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: pct ? t.colors.btn : t.colors.surface2,
+          }}
+        >
+          <RNText style={tx('800', 14, pct ? t.colors.onBtn : t.colors.muted, { fontVariant: ['tabular-nums'] })}>
+            {pct ? `+${pct}%` : 'None'}
+          </RNText>
+        </View>
+      </View>
+      <View style={{ marginTop: 8 }}>
+        <Slider value={stop} min={0} max={TOP_UP_STOPS.length - 1} step={1} onChange={onChange} accessibilityLabel="Top up percentage" />
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: -8 }}>
+        {TOP_UP_STOPS.map((p, i) => (
+          <Pressable
+            key={p}
+            onPress={() => onChange(i)}
+            accessibilityRole="button"
+            accessibilityLabel={p ? `Top up ${p} percent` : 'No top up'}
+            accessibilityState={{ selected: i === stop }}
+            hitSlop={6}
+            style={{ width: 36, height: 28, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <RNText style={tx(i === stop ? '800' : '600', 11, i === stop ? t.colors.accentDeep : t.colors.muted, { fontVariant: ['tabular-nums'] })}>
+              {p ? `+${p}%` : '0%'}
+            </RNText>
+          </Pressable>
+        ))}
+      </View>
+      <RNText style={tx('500', 12, t.colors.text, { marginTop: 4, textAlign: 'center' })}>
+        {pct ? `${rupees(base)} + ${rupees(price - base)} top up = ` : 'Workers see '}
+        <RNText style={tx('800', 12, t.colors.ink)}>{rupees(price)}</RNText>
+        {` · with the ${Math.round(feeRate * 100)}% fee, ${rupees(price + fee)} is held`}
+      </RNText>
+    </View>
   );
 }
