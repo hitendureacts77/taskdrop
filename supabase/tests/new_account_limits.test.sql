@@ -38,6 +38,7 @@ language plpgsql as $$
 declare
   v_user uuid := gen_random_uuid();
 begin
+  perform set_config('role', 'postgres', true); -- fixtures are made by the operator, whatever role the last block left
   insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at)
   values (v_user, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
           'limits+' || v_user || '@taskdrop.test', '', now(), now(), now());

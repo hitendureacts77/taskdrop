@@ -83,6 +83,7 @@ async function fuzz() {
         continue;
       }
       if (r.status >= 500) bad('T4', label, `HTTP ${r.status}`);
+      else if (/^s*<!DOCTYPE html/i.test(r.text) && /cloudflare|cf-|Attention Required|Sorry, you have been blocked/i.test(r.text)) ok(label + ' (stopped by the firewall before the app)');
       else if (!r.json || typeof r.json !== 'object' || !('ok' in r.json)) bad('T4', label, `not the app's answer: ${r.text.slice(0, 80)}`);
       else if (r.json.ok === false && (r.json.error?.code === 'INTERNAL' || LEAK.test(String(r.json.error?.message ?? '')))) {
         bad('T4', label, `the refusal says too much: ${String(r.json.error?.message).slice(0, 100)}`);
