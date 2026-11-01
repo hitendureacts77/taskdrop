@@ -50,6 +50,17 @@ test("a phone number, an email and a handle are caught; plain work is not", () =
   assert.equal(server.maskContacts("98765 43210 here").text, "••• here");
 });
 
+test("an email spelled out to dodge the rule is caught; ordinary 'at' and 'dot' talk is not", () => {
+  for (const text of ["mail me at a (at) b (dot) com", "reach me: ravi [at] example [dot] in", "ravi at example dot com", "ravi(at)example.com"]) {
+    assert.equal(server.findContactIssue(text), "email", text);
+    assert.equal(server.maskContacts(text).masked, true, text);
+    assert.equal(app.maskContacts(text).masked, true, text);
+  }
+  for (const text of ["I am at the gate, 5 minutes", "meet at the shop, dot the i's", "arrive at 5 pm"]) {
+    assert.equal(server.findContactIssue(text), null, text);
+  }
+});
+
 test("a phone number written in other digits, emoji or words is caught; counting in words is not", () => {
   for (const text of ["nine eight seven six five four three two one zero", "९८७६५४३२१०", "9️⃣8️⃣7️⃣6️⃣5️⃣4️⃣3️⃣2️⃣1️⃣0️⃣", "call ٩٨٧٦٥٤٣٢١٠", "９８７６５４３２１０"]) {
     assert.equal(server.findContactIssue(text), "phone", text);
