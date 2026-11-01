@@ -331,7 +331,12 @@ export const READ_OPS: Record<string, Op> = {
   },
 
   // ------------------------------------------------------------- people ----
-  getProfile: async (ctx, a) => take(await ctx.db.from("profiles").select("*").eq("id", uuid(a, "userId")).maybeSingle()),
+  getProfile: async (ctx, a) => {
+    const row = take<Record<string, unknown> | null>(await ctx.db.from("profiles").select("*").eq("id", uuid(a, "userId")).maybeSingle());
+    // The old payout_upi column is empty since migration 073 and replaced by payout_destinations; it is never sent (hole H13, break-it run 2026-11-01).
+    if (row) delete row.payout_upi;
+    return row;
+  },
 
   isAdmin: async (ctx) => {
     const res = await ctx.db.from("user_roles").select("role").eq("user_id", ctx.userId).eq("role", "admin").maybeSingle();

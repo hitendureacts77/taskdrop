@@ -18,4 +18,6 @@ regexes = [
 ]
 # Accepted on purpose (docs/ULTIMATE_PLAN.md, Security section): an old Razorpay TEST key in the code history.
 # Add its commit here by its full hash when gitleaks first reports it, with a comment saying what it was.
-commits = []
+commits = [
+  "c92685465f42765cac38e07e0ed16d102b19c00b", # old Razorpay TEST key in supabase/functions/_shared/secrets.ts: accepted in the plan (Security section)
+]
