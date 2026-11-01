@@ -57,7 +57,12 @@ export function unproject(x: number, y: number, zoom: number): { lat: number; ln
   return { lat, lng };
 }
 
-export const TILE_HEADERS = { 'User-Agent': 'TaskDrop/1.0 (Android; com.taskdrop.app)' };
+// OpenStreetMap answers 403 "Access blocked" to an app that does not identify itself. On Android the
+// image loader can replace the User-Agent, so a Referer goes along too: either one is enough for them.
+export const TILE_HEADERS = {
+  'User-Agent': 'TaskDrop/1.0 (Android; com.taskdrop.app)',
+  Referer: 'https://taskdrop.in/',
+};
 
 export function tileUrl(z: number, x: number, y: number): string {
   return `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
