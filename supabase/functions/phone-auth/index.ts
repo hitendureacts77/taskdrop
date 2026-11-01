@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
-import { background, captureServerError, guarded, logServer } from "../_shared/monitoring.ts";
+import { background, captureSecurityEvent, captureServerError, guarded, logServer } from "../_shared/monitoring.ts";
 import { signInRefusal } from "../_shared/signInSwitches.ts";
 import { isIndianMobile } from "../_shared/indianMobile.ts";
 
@@ -262,6 +262,7 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
       if (allowed !== true) {
         // Many of these in a row is someone trying numbers in bulk.
         background(logServer("warn", "phone-auth", "per-IP code budget used up"));
+        background(captureSecurityEvent("sms_budget_hit", "phone-auth"));
         return json({ error: "Too many codes requested. Try again later." }, 429);
       }
 
@@ -288,6 +289,7 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
       }
       if (underCap !== true) {
         background(logServer("error", "phone-auth", "daily SMS cap reached"));
+        background(captureSecurityEvent("sms_budget_hit", "phone-auth"));
         return json({ error: "We cannot send more codes today. Please try again tomorrow, or sign in with Google.", capReached: true }, 429);
       }
     }
@@ -358,6 +360,7 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
     // used to hammer MSG91 for free.
     try {
       await sendSms(phone, code);
+      background(captureSecurityEvent("sms_code_sent", "phone-auth"));
     } catch (e) {
       background(logServer("error", "phone-auth", "SMS provider failed", { error: e instanceof Error ? e.message : String(e) }));
       return json({ error: e instanceof Error ? e.message : "Could not send the SMS" }, 502);
@@ -399,6 +402,7 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
       return json({ error: "That code expired. Request a new one." }, 400);
     }
     if (!safeEqual(String(row.out_code), code)) {
+      background(captureSecurityEvent("refused_login", "phone-auth"));
       return json({ error: "That code is not right" }, 400);
     }
 

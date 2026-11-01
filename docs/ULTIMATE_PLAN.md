@@ -877,6 +877,8 @@ Do them in this order. Google and GitHub come first, because other sites let you
 8. TELL Claude: "done 2.2". (MSG91 limits come later, in S.6.)
 
 **Done when:** the Google budget alert reaches you, Places shows its 1,000-a-day cap, and GitHub, Supabase, Vercel and Razorpay send their warnings to an address you read.
+
+**Checked in your Chrome on 1 Nov (Claude changed nothing):** GitHub already emails security alerts and failed workflows, and Dependabot alerts, to hitendureacts@gmail.com; Supabase's billing email is hitendureacts@gmail.com; Vercel already emails deployment failures to hitendureacts@gmail.com; the Google budget `taskdrop-monthly-100` exists. **Not done:** the Google budget's alert email and the Places cap (a Google page blocks the console until the account's identity verification, due 19 Feb 2027, is done by you), the ImageKit usage alerts, and Razorpay's notification settings. **Razorpay shows "Your account could not be activated: your business is not supported by Razorpay at this time" on its dashboard (test mode only works).** Live payments cannot start until that is resolved with Razorpay; this affects Step 5 and Step 6.
 </details>
 
 <details id="t2-3" data-short="Lock down secret storage">
@@ -914,7 +916,7 @@ So there is nothing to change in Vercel or Expo. What is left is on your PC and 
 </details>
 
 <details id="t2-5" data-short="Key protection">
-<summary>[CLAUDE] <b>2.5</b> Key protection <small>· your time: 10 minutes</small></summary>
+<summary>[CLAUDE] <b>2.5</b> Key protection <small>· your time: 10 minutes · Done 1 Nov</small></summary>
 
 **What Claude builds (one pull request):**
 
@@ -940,6 +942,8 @@ start key protection
 4. SAY "merge it".
 
 **Done when:** Claude says it is merged and all the checks are green.
+
+**Done 1 Nov (PRs 154 and admin 33, merged):** a commit guard on the PC (`scripts/secret-guard.mjs`, turned on by `npm install`), gitleaks on every change and weekly (`.github/workflows/secret-scan.yml`, both repos), CI with least-privilege permissions and actions pinned to commits, a Vercel build that fails when a required secret is missing or too short, keys, phone numbers and emails scrubbed from Sentry events and logs (`scrub.ts`), and tests that fail if a secret name or value reaches the website or app code or its built bundle. The admin no longer falls back to the master key. **Found by the new check:** the admin's `ADMIN_SESSION_SECRET` in Vercel is shorter than 16 characters. Lengthening it is a key change, which is on hold, so that deploy only warns until you lift the hold (then replace it with 64 random characters).
 </details>
 
 <details id="t2-6" data-short="Close the holes">
@@ -970,10 +974,12 @@ close the holes found on 30 October
 4. TELL Claude: "done 2.6".
 
 **Done when:** the pull request is merged, `npm audit` shows 0 high warnings (or each is explained), and Claude has shown you the exposed-file check passing.
+
+**Part done 1 Nov (PR 156, merged):** H8 closed (the Edge Functions answer CORS only for listed origins; production sets `ALLOWED_ORIGINS`, 5.9), the exposed-files check passes on all four staging addresses and the admin (`npm run check:exposed`), and the security-review-before-merge rule is in both agent guides. **H7:** the 6 accepted advisories (2 high) are unchanged and explained, review by 13 Dec; the Expo SDK upgrade that removes them is still to plan. **H12:** `OMNIROUTE_API_KEY` was not found in Vercel (both projects), Supabase function secrets or the Vault, so there is nothing to delete; check Expo's variables once. **Still open:** H9 (read a week of CSP reports in Sentry, then switch the policy to blocking).
 </details>
 
 <details id="t2-7" data-short="Stop-ship tests">
-<summary>[CLAUDE] <b>2.7</b> Stop-ship tests (security round 1) <small>· your time: 20 minutes</small></summary>
+<summary>[CLAUDE] <b>2.7</b> Stop-ship tests (security round 1) <small>· your time: 20 minutes · Done 1 Nov</small></summary>
 
 **What Claude does:** tries to break your own app on the fake-money staging copy, in the seven ways money or private data could leak:
 
@@ -999,6 +1005,8 @@ run stop-ship tests
 4. SAY "merge the fixes" when Claude asks.
 
 **Done when:** no Critical or High problem is open.
+
+**Done 1 Nov (PR 157, merged):** no Critical or High problem. Results in `docs/SECURITY_ROUND1.md`: history scan clean (the 2 old Razorpay test values are the accepted ones), storage 13 of 13 refused, all 113 callable database functions check the caller or are public on purpose (new SQL test), break-it 284 of 285 held. Two Low problems found and fixed (the empty legacy `payout_upi` field, and two private money functions that had an open grant again, migration 131).
 </details>
 
 > **GATE 2a: Step 3 (testers) may start when all of these are true**
@@ -1010,7 +1018,7 @@ run stop-ship tests
 Tasks 2.2 to 2.4 and 2.8 to 2.11 carry on while the testers use the app. They must all be done by Gate 2b.
 
 <details id="t2-8" data-short="SMS safety">
-<summary>[CLAUDE] <b>2.8</b> SMS safety (stop bots wasting SMS money) <small>· your time: 10 minutes</small></summary>
+<summary>[CLAUDE] <b>2.8</b> SMS safety (stop bots wasting SMS money) <small>· your time: 10 minutes · Built 1 Nov, Google-first screen waits for you</small></summary>
 
 **Why:** bots can request sign-in codes to thousands of numbers, and you pay for every SMS. This is called "SMS pumping".
 
@@ -1025,6 +1033,8 @@ start SMS safety
 2. Approve the sign-in screen layout when Claude shows it, then SAY "merge it".
 
 **Done when:** merged, and Claude has shown you the limits working on staging.
+
+**Mostly done 1 Nov (PR 158 and admin 34, merged):** limits per number (5 an hour), per network address (30 an hour) and per app install (8 an hour); Indian mobile numbers only; a daily cap on real SMS (default 500, editable in admin Settings as "Sign-in codes a day") with alerts at 80% and when reached; a watch every 15 minutes for many codes sent and few used (migration 132). **Not built:** Google sign-in shown first on the sign-in screen. It is a screen change and waits for you to approve the layout.
 </details>
 
 <details id="t2-9" data-short="Security tests round 2">
@@ -1050,6 +1060,8 @@ run security tests round 2
 3. SAY "merge the fixes".
 
 **Done when:** no Critical or High problem is open and every Medium has your answer.
+
+**Part done 1 Nov:** T4 hostile input: `node scripts/security-round2.mjs fuzz` sent 1,011 hostile calls to 105 operations; 869 were handled by the app and 151 were stopped by the firewall before the app (an HTML block page); none caused a server error or leaked a database message. **T6 sign-in tricks also done:** 15 of 15 probes held (malformed numbers refused, guessing and resending give no extra tries, a code works once, bad tokens read nothing). **Still to run:** T11 on the Android app (needs the phone) and T13 privacy. **For your decision:** the sign-in screen says whether a number has an account ("No account found" or "already exists"), which is needed to send people to the right door; the per-address limit slows anyone trying numbers. Fix or accept?
 </details>
 
 <details id="t2-10" data-short="Alarms + key emergency guide">
@@ -1087,6 +1099,8 @@ Prove the key protection works.
 - the admin deploy **fails** when its own secret is removed
 - the decoy file is in place and Canarytokens shows your email for it
 - the emergency guide exists and you have read it (a reading-only practice, no key is replaced)
+
+**Part done 1 Nov:** the Sentry alert "Security spike" is created (an issue tagged `security_event` seen at least 10 times, one email an hour), the server now reports `refused_login`, `app_check_failed`, `bad_signature` and `sms_budget_hit` to Sentry, the nightly money check also raises a fatal Sentry issue on a mismatch, the decoy key exists at `C:\complete taskdrop\.env.production-old` (Canarytokens, emails hitendureacts@gmail.com), and `docs/KEY_RUNBOOK.md` and `docs/SECURITY_ALERTS.md` are written. **Still to do:** you read the key emergency guide, then the six proofs. The decoy key and the Sentry rule are live; the proof that the spike email arrives (ten wrong codes to a staging number) is not run.
 </details>
 
 <details id="t2-11" data-short="Money safety limits">
@@ -1117,6 +1131,8 @@ start money safety limits
 4. TELL Claude: "done 2.11".
 
 **Done when:** merged, Claude has shown you each limit working on staging, a test self-dealing task appears on the admin Alerts page, and a test mismatch email has reached you.
+
+**Done 1 Nov (PR 159 and admin 35, merged; migration 133 applied on staging, the money end-to-end tests still pass with the limits live):** new accounts (under 30 days old or under 3 finished jobs) can post or hold a job worth at most Rs 5,000 and withdraw at most Rs 5,000 a day, rising by one step per finished job with 4 stars or more; a poster and worker who share a UPI id, bank account or app install leave one admin alert (flag, not block); all four numbers are editable in admin Settings; a money mismatch now also raises a Sentry issue. **Decision 12:** the starting numbers are the recommended ones until you say otherwise.
 </details>
 
 > **GATE 2b: do not start Step 5 (production) until all of these are true**
