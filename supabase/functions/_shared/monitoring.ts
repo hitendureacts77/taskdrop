@@ -75,6 +75,51 @@ export async function captureServerError(
   }
 }
 
+/**
+ * Things an attacker causes, counted so a spike can email the owner (plan task 2.10). Each kind is one Sentry issue
+ * ("security: <kind>") tagged `security_event`, so one alert rule per kind ("seen more than N times in an hour") is enough.
+ *
+ *   refused_login      a wrong sign-in code, a wrong password, a request with a bad or missing login
+ *   app_check_failed   a request whose App Check token is not from the real app
+ *   bad_signature      a payment or payout message whose signature is wrong (a forged webhook)
+ *   sms_code_sent      a real sign-in SMS went out (a sudden rise is SMS pumping)
+ *   sms_budget_hit     the per-address or daily limit on sign-in codes stopped a request
+ *
+ * One event per kind per instance per hour is plenty to make the issue count rise; at most 20 per kind per instance per hour
+ * are sent, so an attack cannot use up the Sentry quota. No phone number, name, address or token is ever included: counts only.
+ */
+export type SecurityKind = "refused_login" | "app_check_failed" | "bad_signature" | "sms_code_sent" | "sms_budget_hit";
+const securitySeen = new Map<string, { windowStart: number; sent: number }>();
+const SECURITY_PER_HOUR = 20;
+
+export async function captureSecurityEvent(kind: SecurityKind, fn: string): Promise<void> {
+  try {
+    const now = Date.now();
+    const seen = securitySeen.get(kind);
+    if (!seen || now - seen.windowStart > 3_600_000) securitySeen.set(kind, { windowStart: now, sent: 1 });
+    else if (seen.sent >= SECURITY_PER_HOUR) return;
+    else seen.sent++;
+
+    const d = await dsn();
+    if (!d) return;
+    const id = crypto.randomUUID().replace(/-/g, "");
+    const event = {
+      event_id: id,
+      timestamp: now / 1000,
+      platform: "javascript",
+      level: "warning",
+      server_name: "edge-function",
+      environment: environment(),
+      message: `security: ${kind}`,
+      fingerprint: ["security", kind],
+      tags: { security_event: kind, fn },
+    };
+    await send(d, [[{ type: "event" }, event]], id);
+  } catch {
+    // Monitoring is best-effort; it must never become the error.
+  }
+}
+
 export type LogLevel = "info" | "warn" | "error";
 export type LogAttributes = Record<string, string | number | boolean | null | undefined>;
 
