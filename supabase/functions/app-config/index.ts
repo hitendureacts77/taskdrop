@@ -6,6 +6,7 @@ import {
 } from "../_shared/controls.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
 import { captureServerError } from "../_shared/monitoring.ts";
+import { withCors } from "../_shared/cors.ts";
 
 /**
  * What the admin panel has switched for the app that is asking.
@@ -56,7 +57,7 @@ function clientOf(req: Request): Client {
   return readClient(headers);
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withCors(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "GET" && req.method !== "POST") return reply({ error: "Unknown request" }, "no-store", 405);
 
@@ -91,4 +92,4 @@ Deno.serve(async (req: Request) => {
 
   if (!controls) return reply({ ...OPEN_CONFIG, platform: client.platform, appVersion: client.appVersion }, "no-store");
   return reply(publicConfig(controls, client), `public, max-age=${CONFIG_TTL_SECONDS}`);
-});
+}));
