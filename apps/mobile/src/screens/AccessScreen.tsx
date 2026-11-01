@@ -29,7 +29,7 @@ import { MIN_SIGNUP_AGE, ageOn, parseBirthDate } from '@taskdrop/rules';
 import { BirthDateField, EMPTY_BIRTH_DATE, type BirthDateParts } from '../components/BirthDateField';
 import { TurnedAway } from '../components/AgeGate';
 import { recordBirthDate } from '../data/age';
-import { KeyboardScrollView } from '../components/KeyboardScrollView';
+import { KeyboardScrollView, RevealWhen } from '../components/KeyboardScrollView';
 
 /**
  * The way in: one screen for new and returning people alike.
@@ -560,7 +560,9 @@ export function AccessScreen() {
                 </Pressable>
               </View>
 
-              {/* Six beads on a string. Each fills as its digit arrives. */}
+              {/* Six beads on a string. Each fills as its digit arrives. The beads and the test code
+                  scroll up clear of the keyboard while the code box is in use. */}
+              <RevealWhen when={codeFocused} again={devCode}>
               <Pressable onPress={() => codeRef.current?.focus()} style={{ marginTop: 26 }}>
                 <View style={{ justifyContent: 'center' }}>
                   <View
@@ -630,6 +632,7 @@ export function AccessScreen() {
                   </RNText>
                 </View>
               ) : null}
+              </RevealWhen>
 
               <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 22 }}>
                 {busy ? (

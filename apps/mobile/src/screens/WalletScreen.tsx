@@ -574,7 +574,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
   const referral = (
     <>
           {code && !insights ? (
-            <View style={{ ...card, marginTop: 24, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ ...card, marginTop: 32, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <Icon name="gift" size={20} color={t.colors.accentDeep} />
               <View style={{ flex: 1 }}>
                 <RNText style={tx('700', 13, t.colors.ink)}>Bring a friend to TaskDrop</RNText>
