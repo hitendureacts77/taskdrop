@@ -1,0 +1,31 @@
+# Second net for secrets (the first is scripts/secret-guard.mjs on the PC). Used by
+# .github/workflows/secret-scan.yml on every change and once a week over the whole history.
+title = "taskdrop gitleaks"
+
+[extend]
+useDefault = true
+
+# gitleaks has no built-in Razorpay rule, so this one catches live and test keys (found by the plan 2.10 proof, 1 Nov).
+[[rules]]
+id = "razorpay-key"
+description = "Razorpay key id"
+regex = '''rzp_(?:live|test)_[A-Za-z0-9]{10,}'''
+keywords = ["rzp_"]
+
+[allowlist]
+description = "made-up values and old archives"
+paths = [
+  '''docs/archive/''',
+  '''package-lock\.json''',
+]
+regexes = [
+  # The fake Razorpay keys in supabase/functions/_shared/keyMode.test.ts; scripts/secret-guard.test.mjs
+  # fails if any Razorpay-shaped value in a test is not marked THROWAWAY.
+  '''rzp_(live|test)_THROWAWAY[A-Za-z0-9]*''',
+]
+# Accepted on purpose (docs/ULTIMATE_PLAN.md, Security section): an old Razorpay TEST key in the code history.
+# Add its commit here by its full hash when gitleaks first reports it, with a comment saying what it was.
+commits = [
+  "c92685465f42765cac38e07e0ed16d102b19c00b", # old Razorpay TEST key in supabase/functions/_shared/secrets.ts: accepted in the plan (Security section)
+  "259498638f20182c67fabf70f1f64262c4c3a406", # "sk-proj-abc123..." example inside a skill doc (.claude/skills/higgsfield-websites/references/security.md): a placeholder, not a key
+]

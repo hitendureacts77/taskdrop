@@ -224,8 +224,8 @@ export function cardSurface(t: Theme, radius: number = t.radius.lg): ViewStyle {
     borderWidth: 1,
     borderRadius: radius,
     shadowColor: t.colors.shadow,
-    shadowOpacity: t.isDark ? 0 : 0.07,
-    shadowRadius: 18,
+    shadowOpacity: t.isDark ? 0 : 0.05,
+    shadowRadius: 24,
     shadowOffset: { width: 0, height: 8 },
     elevation: t.isDark ? 0 : 1,
   };

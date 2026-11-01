@@ -3,7 +3,6 @@ import {
   View,
   Text as RNText,
   Pressable,
-  ScrollView,
   TextInput,
   ActivityIndicator,
   Animated,
@@ -29,7 +28,8 @@ import { signInWithUsername } from '../data/extras';
 import { MIN_SIGNUP_AGE, ageOn, parseBirthDate } from '@taskdrop/rules';
 import { BirthDateField, EMPTY_BIRTH_DATE, type BirthDateParts } from '../components/BirthDateField';
 import { TurnedAway } from '../components/AgeGate';
-import { recordBirthDate, turnAwayThisDevice, turnedAwayOnThisDevice } from '../data/age';
+import { recordBirthDate } from '../data/age';
+import { KeyboardScrollView, RevealWhen } from '../components/KeyboardScrollView';
 
 /**
  * The way in: one screen for new and returning people alike.
@@ -153,8 +153,7 @@ export function AccessScreen() {
         if (!(e instanceof AuthError) || !(e.noAccount || e.accountExists)) throw e;
         used = e.noAccount ? 'signup' : 'signin';
         if (used === 'signup' && !birth) {
-          if (await turnedAwayOnThisDevice()) setTurnedAway(true);
-          else setStage('birth');
+          setStage('birth');
           return;
         }
         result = await requestCode(phone, used);
@@ -175,7 +174,6 @@ export function AccessScreen() {
     const date = parseBirthDate(dob.day, dob.month, dob.year);
     if (!date) return flash('Enter a real date of birth');
     if (ageOn(date) < MIN_SIGNUP_AGE) {
-      await turnAwayThisDevice();
       setTurnedAway(true);
       return;
     }
@@ -213,7 +211,7 @@ export function AccessScreen() {
       // this cannot reach the server, AgeGate asks again after sign-in.
       if (door === 'signup' && birth) {
         if ((await recordBirthDate(birth).catch(() => null)) === 'blocked') {
-          await signOut().catch(() => {});
+          // Signed out on OK: signing out now would reset to the splash and hide the message.
           setTurnedAway(true);
           return;
         }
@@ -246,7 +244,9 @@ export function AccessScreen() {
       await signInWithGoogle('signin');
       await proceed();
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not sign in with Google');
+      const msg = e instanceof Error ? e.message : 'Could not sign in with Google';
+      // Closing Google's page is a choice, not an error (same as Apple's sheet).
+      if (msg !== 'Sign-in was cancelled') flash(msg);
     } finally {
       setGoogleBusy(false);
     }
@@ -322,7 +322,8 @@ export function AccessScreen() {
   if (turnedAway) {
     return (
       <TurnedAway
-        onDone={() => {
+        onDone={async () => {
+          await signOut().catch(() => {});
           setTurnedAway(false);
           setStage('number');
           setPhone('');
@@ -334,7 +335,7 @@ export function AccessScreen() {
 
   return (
     <Screen padded={false} style={desktop ? { backgroundColor: t.colors.surface } : undefined}>
-      <ScrollView
+      <KeyboardScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 22 }}
         keyboardShouldPersistTaps="handled"
@@ -559,7 +560,9 @@ export function AccessScreen() {
                 </Pressable>
               </View>
 
-              {/* Six beads on a string. Each fills as its digit arrives. */}
+              {/* Six beads on a string. Each fills as its digit arrives. The beads and the test code
+                  scroll up clear of the keyboard while the code box is in use. */}
+              <RevealWhen when={codeFocused} again={devCode}>
               <Pressable onPress={() => codeRef.current?.focus()} style={{ marginTop: 26 }}>
                 <View style={{ justifyContent: 'center' }}>
                   <View
@@ -629,6 +632,7 @@ export function AccessScreen() {
                   </RNText>
                 </View>
               ) : null}
+              </RevealWhen>
 
               <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 22 }}>
                 {busy ? (
@@ -675,7 +679,7 @@ export function AccessScreen() {
             ))}
           </View>
         </View>
-      </ScrollView>
+      </KeyboardScrollView>
 
       <BottomSheet
         visible={pwOpen}

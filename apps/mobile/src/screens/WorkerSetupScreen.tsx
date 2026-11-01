@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text as RNText, ScrollView, Pressable } from 'react-native';
+import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { Field, Pill, PrimaryButton, TopBar } from '../components/kit';
@@ -14,6 +14,7 @@ import { updateProfileExtras } from '../data/extras';
 import { maskContacts } from '../lib/mask';
 import { SKILL_OPTIONS, LANGUAGES } from './ProfileEditScreen';
 import { tx } from '../components/primitives';
+import { KeyboardScrollView } from '../components/KeyboardScrollView';
 
 /**
  * The worker side of an account, set up once.
@@ -92,7 +93,7 @@ function Setup() {
   return (
     <Screen padded={false}>
       <TopBar title="Set up your worker profile" onBack={back} />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
+      <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
         <View style={{ flexDirection: 'row', gap: 10, backgroundColor: t.colors.accentSoft, borderRadius: 14, padding: 14 }}>
           <Icon name="briefcase" size={18} color={t.colors.accentDeep} />
           <RNText style={tx('500', 13, t.colors.accentDeep, { flex: 1, lineHeight: 19 })}>
@@ -145,7 +146,7 @@ function Setup() {
             Add what you do, at least one skill and a language.
           </RNText>
         ) : null}
-      </ScrollView>
+      </KeyboardScrollView>
       <LocationSheet
         visible={showLoc}
         askForDetails={false}

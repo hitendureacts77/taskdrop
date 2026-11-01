@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, ScrollView, Pressable, ActivityIndicator, Animated } from 'react-native';
+import { View, Text as RNText, Pressable, ActivityIndicator, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { Screen } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
@@ -19,6 +19,7 @@ import { nameCarriesContact } from '../lib/mask';
 import { imageSource, pickMedia, pickedFromFile, signedMediaUrl, uploadMedia, type PickedMedia } from '../lib/media';
 import { useFileDrop } from '../lib/useFileDrop';
 import { LANGUAGES, SKILL_OPTIONS } from './ProfileEditScreen';
+import { KeyboardScrollView } from '../components/KeyboardScrollView';
 
 const STEPS = ['Welcome', 'Username', 'Your intent', 'Skills', 'About you', 'Done'] as const;
 type Intent = 'post' | 'earn' | 'both';
@@ -68,6 +69,9 @@ export function OnboardingScreen() {
       setLangs(p.languages ?? []);
       if (p.intent === 'post' || p.intent === 'earn' || p.intent === 'both') setIntent(p.intent);
       if (p.loc_label) setPlace({ label: p.loc_label, lat: p.loc_lat, lng: p.loc_lng });
+      // New sign-ups are asked for their area straight away. Setup only opens
+      // for an account that has not finished it, so returning members never see this.
+      else setShowLoc(true);
       if (p.avatar_url) {
         setAvatarPath(p.avatar_url);
         setAvatar(await signedMediaUrl(p.avatar_url, 'thumb'));
@@ -407,9 +411,9 @@ export function OnboardingScreen() {
           />
         </View>
       </View>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 22, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
+      <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 22, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
         {body}
-      </ScrollView>
+      </KeyboardScrollView>
       <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>{footer}</View>
       <LocationSheet
         visible={showLoc}

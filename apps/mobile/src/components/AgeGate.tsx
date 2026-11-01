@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text as RNText, Pressable, ScrollView } from 'react-native';
-import { parseBirthDate } from '@taskdrop/rules';
+import { MIN_SIGNUP_AGE, parseBirthDate } from '@taskdrop/rules';
 import { Screen } from './ui';
 import { Icon } from './Icon';
 import { PrimaryButton } from './kit';
@@ -59,10 +59,13 @@ export function AgeGate({ children }: { children: React.ReactNode }) {
 
   const frame = (node: React.ReactNode) => (desktop ? <DesktopAuthFrame>{node}</DesktopAuthFrame> : node);
 
+  // Signing out is left to the OK tap: a sign-out sends the app back to the
+  // splash (SessionWatch), which would take this message away before it is read.
   if (turnedAway) {
     return frame(
       <TurnedAway
-        onDone={() => {
+        onDone={async () => {
+          await signOut().catch(() => {});
           setTurnedAway(false);
           reset('welcome');
         }}
@@ -75,10 +78,7 @@ export function AgeGate({ children }: { children: React.ReactNode }) {
   return frame(
     <AgeCheck
       onPassed={() => setStatus('ok')}
-      onTurnedAway={async () => {
-        setTurnedAway(true);
-        await signOut().catch(() => {});
-      }}
+      onTurnedAway={async () => setTurnedAway(true)}
       onSignOut={() => void signOut()}
     />,
   );
@@ -145,21 +145,40 @@ function AgeCheck({
 }
 
 /**
- * Shown to someone the age check turned away. It does not say why or what the
- * threshold is: a neutral refusal is what stops the next attempt being a lie.
+ * Shown to someone the age check turned away. It says plainly that TaskDrop is
+ * for adults (owner, 2026-10-30) and stays until OK is tapped.
  */
-export function TurnedAway({ onDone }: { onDone: () => void }) {
+export function TurnedAway({ onDone }: { onDone: () => void | Promise<void> }) {
   const t = useTheme();
+  const [busy, setBusy] = useState(false);
   return (
     <Screen padded={false}>
       <View style={{ flex: 1, padding: 22, justifyContent: 'center' }}>
-        <RNText style={tx('800', 28, t.colors.ink, { letterSpacing: -1, lineHeight: 33 })}>
-          Sorry, we can’t make{'\n'}an account for you.
+        <View
+          style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: t.colors.signalSoft, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Icon name="shield" size={24} color={t.colors.signalDeep} />
+        </View>
+        <RNText style={tx('800', 28, t.colors.ink, { letterSpacing: -1, lineHeight: 33, marginTop: 18 })}>
+          TaskDrop is for{'\n'}adults only.
         </RNText>
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 12, lineHeight: 21 })}>
-          TaskDrop isn’t available to you right now.
+          You need to be {MIN_SIGNUP_AGE} or older to use TaskDrop, so we can’t make an account for you.
         </RNText>
-        <PrimaryButton label="OK" onPress={onDone} tone="quiet" style={{ marginTop: 28, borderRadius: 999 }} />
+        <PrimaryButton
+          label="OK"
+          busy={busy}
+          onPress={async () => {
+            setBusy(true);
+            try {
+              await onDone();
+            } finally {
+              setBusy(false);
+            }
+          }}
+          tone="quiet"
+          style={{ marginTop: 28, borderRadius: 999 }}
+        />
       </View>
     </Screen>
   );

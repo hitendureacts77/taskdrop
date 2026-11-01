@@ -198,6 +198,15 @@ const nightlyReconcile = inngest.createFunction(
       const run = await call<string>(rpc, "record_provider_reconciliation", { p_checked: rows.length - failed, p_mismatches: mismatches.slice(0, 100) });
       return { run, checked: rows.length - failed, mismatches: mismatches.length, unreachable: failed };
     });
+    // A difference also goes to Sentry as a fatal issue, so the alert rule set up in plan task 2.10 emails the owner. The in-app alert
+    // above is easy to miss overnight; an email is not. Counts only, never an amount, a name or a payment id.
+    const differences = Number(internal?.mismatches ?? 0) + Number((provider as { mismatches?: number }).mismatches ?? 0);
+    if (differences > 0) {
+      await step.run("tell Sentry", async () => {
+        await logServer("error", "nightly-reconcile", "money records do not match", { differences, internal: Number(internal?.mismatches ?? 0) });
+        await captureServerError(new Error(`Money check found ${differences} difference(s)`), { fn: "nightly-reconcile", step: "mismatch" }, "fatal");
+      });
+    }
     return { internal, provider };
   },
 );
@@ -324,6 +333,15 @@ const outboxWatchdog = inngest.createFunction(
 );
 
 /**
+ * SMS pumping watch (task 2.8): bots ask for sign-in codes to thousands of numbers and you pay for each SMS. When the day has sent
+ * many codes and almost none were used, this leaves one admin alert (then stays quiet for six hours).
+ */
+const smsPumpingWatch = inngest.createFunction(
+  { id: "sms-pumping-watch", triggers: [{ cron: "*/15 * * * *" }], concurrency: 1, onFailure: reportFailure("sms-pumping-watch") },
+  async ({ step }) => ({ checked: await step.run("check codes sent and used", () => call<Record<string, unknown>>(rpc, "run_sms_pumping_watch")) }),
+);
+
+/**
  * Two reminders that need a clock: finished work waiting for the poster's
  * approval (it is approved for them within 24 hours), and a started job that is
  * due within the hour. Each goes out once per task and person, as an ordinary
@@ -400,7 +418,7 @@ Deno.serve(serve({
   client: inngest,
   functions: [
     outboxSweeper, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile,
-    pushNotification, accountFiles, mediaPurge, overdueTasks, housekeeping, outboxWatchdog, taskReminders,
+    pushNotification, accountFiles, mediaPurge, overdueTasks, housekeeping, outboxWatchdog, smsPumpingWatch, taskReminders,
     userCreated, userUpdated, userDeleted, userSyncRepair,
     ...moneyJobs,
   ],

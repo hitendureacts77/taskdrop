@@ -11,6 +11,7 @@ import { useAuth } from '../providers/AuthProvider';
 import { placeBid } from '../data/api';
 import { tx } from '../components/primitives';
 import { TaskDescription } from '../components/TaskDescription';
+import { KeyboardSafe } from '../components/KeyboardSafe';
 
 const BY_CHIPS = ['Today, 8:00 PM', 'Tomorrow, 11:00 AM', '12 Sep, 2:00 PM'];
 const STEP = 5000; // ₹50 in paise
@@ -283,7 +284,7 @@ export function DetailSheetScreen() {
           </RNText>
         </ScrollView>
 
-        <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+        <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
           <Pressable
             onPress={() => void send()}
             style={({ pressed }) => ({
@@ -305,7 +306,7 @@ export function DetailSheetScreen() {
           >
             <RNText style={tx('700', 16, blocked ? t.colors.muted : t.colors.onAccent)}>{cta}</RNText>
           </Pressable>
-        </View>
+        </KeyboardSafe>
       </Animated.View>
     </View>
   );

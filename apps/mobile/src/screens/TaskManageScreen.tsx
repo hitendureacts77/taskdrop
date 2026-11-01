@@ -141,7 +141,12 @@ export function TaskManageScreen() {
       <Screen padded={false}>
         <TopBar title="Task" onBack={back} />
         <View style={{ paddingHorizontal: 20, gap: 12 }}>
-          <Shimmer height={120} />
+          {/* The row you tapped already told us the title: show it now rather than a grey box. */}
+          {typeof params.title === 'string' && params.title ? (
+            <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.6 })}>{params.title}</RNText>
+          ) : (
+            <Shimmer height={60} />
+          )}
           <Shimmer height={200} />
         </View>
       </Screen>
@@ -176,7 +181,8 @@ export function TaskManageScreen() {
     ...(task.funded_at ? [{ at: task.funded_at, title: 'Payment held safely', body: formatINR(escrow) + ' held safely', icon: 'lock' as IconName }] : []),
     ...(task.started_at ? [{ at: task.started_at, title: 'Work started', icon: 'play' as IconName }] : []),
     ...(task.work_done_at ? [{ at: task.work_done_at, title: 'Work submitted', body: 'Review it and release the payment', icon: 'flag' as IconName }] : []),
-    ...(task.completed_at ? [{ at: task.completed_at, title: 'Completed', body: 'Payment released to the worker', icon: 'trophy' as IconName }] : []),
+    // A closed task also carries completed_at; only an approved one paid anybody.
+    ...(task.completed_at && (task.status === 'COMPLETED' || task.status === 'AUTO_COMPLETED') ? [{ at: task.completed_at, title: 'Completed', body: 'Payment released to the worker', icon: 'trophy' as IconName }] : []),
     ...(task.status === 'CANCELLED' ? [{ at: task.updated_at, title: 'Task closed', icon: 'close' as IconName }] : []),
     ...(task.status === 'DISPUTED' ? [{ at: task.updated_at, title: 'Problem reported', body: 'Our team is looking at it', icon: 'gavel' as IconName }] : []),
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());

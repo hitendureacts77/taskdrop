@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { BackButton } from '../components/kit';
-import { View, Text as RNText, Pressable, ScrollView, TextInput, type TextStyle } from 'react-native';
+import { View, Text as RNText, Pressable, TextInput, type TextStyle } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
 import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
@@ -15,6 +15,8 @@ import { MapPicker } from '../components/MapPicker';
 import { MediaAttach } from '../components/MediaAttach';
 import type { TaskMedia } from '../lib/media';
 import { tx } from '../components/primitives';
+import { KeyboardSafe } from '../components/KeyboardSafe';
+import { KeyboardScrollView } from '../components/KeyboardScrollView';
 
 /**
  * Placeholder text for the title and details fields.
@@ -228,7 +230,7 @@ export function PostDetailsScreen() {
 
   return (
     <Screen padded={false}>
-      <ScrollView
+      <KeyboardScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8 }}
         showsVerticalScrollIndicator={false}
@@ -489,9 +491,9 @@ export function PostDetailsScreen() {
             </RNText>
           </View>
         )}
-      </ScrollView>
+      </KeyboardScrollView>
 
-      <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+      <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
         <Pressable
           onPress={publish}
           style={({ pressed }) => ({
@@ -511,7 +513,7 @@ export function PostDetailsScreen() {
             {promoteOn ? 'Publish & promote' : worker ? 'Publish service' : 'Post request'}
           </RNText>
         </Pressable>
-      </View>
+      </KeyboardSafe>
 
       <DateTimeSheet
         visible={showDate}

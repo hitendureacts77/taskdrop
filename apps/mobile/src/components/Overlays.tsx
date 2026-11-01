@@ -4,6 +4,7 @@ import Svg, { Path } from 'react-native-svg';
 import { useApp } from '../providers/AppStateProvider';
 import { useTheme } from '../providers/ThemeProvider';
 import { fontFamilyFor } from '../theme';
+import { useKeyboardClearance } from '../lib/useKeyboardClearance';
 
 /**
  * Global toast + success burst — pixel parity with
@@ -17,6 +18,9 @@ export function Overlays() {
   const { toast, burst } = useApp();
   const t = useTheme();
 
+  // A toast shown while the keyboard is open would sit under it: lift it clear (plan task 1.8).
+  const toastRef = useRef<View>(null);
+  const toastLift = useKeyboardClearance(toastRef, toast);
   const toastY = useRef(new Animated.Value(26)).current;
   const toastO = useRef(new Animated.Value(0)).current;
   const pop = useRef(new Animated.Value(0)).current;
@@ -114,11 +118,13 @@ export function Overlays() {
 
       {!!toast && (
         <Animated.View
+          ref={toastRef}
           style={{
             position: 'absolute',
             left: 16,
             right: 16,
-            bottom: 96,
+            // 96 clears the tab bar; the lift is what the keyboard still covers when it is open.
+            bottom: 96 + toastLift,
             alignSelf: 'center',
             maxWidth: 480,
             // v2 toast: the inked bar in light; a raised surface with a hairline in dark.

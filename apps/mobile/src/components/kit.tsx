@@ -8,6 +8,7 @@ import {
   Animated,
   TextInput,
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   PanResponder,
   Platform,
@@ -19,6 +20,8 @@ import { useTheme } from '../providers/ThemeProvider';
 import { Icon, type IconName } from './Icon';
 import { Pressy, tx } from './primitives';
 import { useLayout } from '../lib/layout';
+import { useKeyboardClearance } from '../lib/useKeyboardClearance';
+import { KeyboardScrollView, useReveal } from './KeyboardScrollView';
 import { NativeHeader } from './NativeHeader';
 import { LOOP_NATIVE, useReducedMotion } from '../lib/motion';
 
@@ -64,6 +67,9 @@ export function BottomSheet({
     anim.start();
     return () => anim.stop();
   }, [visible, rise, dialog]);
+  // A sheet with a text box is lifted by whatever the keyboard still covers (plan task 1.8).
+  const panelRef = useRef<View>(null);
+  const panelLift = useKeyboardClearance(panelRef);
   const sheetY = rise.interpolate({ inputRange: [0, 1], outputRange: [dialog ? 12 : 520, 0] });
   const sheetScale = rise.interpolate({ inputRange: [0, 1], outputRange: [dialog ? 0.94 : 1, 1] });
 
@@ -88,12 +94,14 @@ export function BottomSheet({
             accessibilityLabel="Close"
           />
           <Animated.View
+            ref={panelRef}
             style={{
               backgroundColor: t.colors.bg,
               borderTopLeftRadius: 28,
               borderTopRightRadius: 28,
               ...(dialog ? { borderRadius: 28, width: 560, maxWidth: '92%' as const } : null),
               paddingBottom: 20,
+              marginBottom: panelLift,
               maxHeight,
               shadowColor: '#000',
               shadowOpacity: 0.25,
@@ -137,12 +145,12 @@ export function BottomSheet({
                 </Pressable>
               </View>
             ) : null}
-            <ScrollView
+            <KeyboardScrollView
               contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6 }}
               keyboardShouldPersistTaps="handled"
             >
               {children}
-            </ScrollView>
+            </KeyboardScrollView>
             {footer ? <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>{footer}</View> : null}
           </Animated.View>
         </Animated.View>
@@ -430,6 +438,10 @@ export function ConfirmDialog({
     return () => anim.stop();
   }, [visible, pop]);
   const scale = pop.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] });
+  // The question is centred, so an open keyboard would cover its buttons on a short phone (plan task 1.8).
+  useEffect(() => {
+    if (visible) Keyboard.dismiss();
+  }, [visible]);
   const tone = danger ? t.colors.signalDeep : t.colors.btn;
   const toneIcon = danger ? t.colors.signal : t.colors.accent;
   const onTone = danger ? (t.isDark ? '#1A0C06' : '#FFFFFF') : t.colors.onBtn;
@@ -540,10 +552,13 @@ export function Field({
   // visible instead of hiding behind a scrollbar inside the box.
   const [contentH, setContentH] = useState(0);
   const inputRef = useRef<TextInput>(null);
+  // Inside a KeyboardScrollView, getting focus (or growing while typed in) scrolls the whole box into view.
+  const boxRef = useRef<View>(null);
+  const reveal = useReveal();
   // v2 field: the label sits inside the box, over the value; tapping
   // anywhere in the box puts the cursor in the input.
   return (
-    <View style={style}>
+    <View ref={boxRef} style={style}>
       <Pressable
         onPress={() => inputRef.current?.focus()}
         accessible={false}
@@ -574,6 +589,7 @@ export function Field({
           {...input}
           onFocus={(e) => {
             setFocused(true);
+            reveal(boxRef.current);
             input.onFocus?.(e);
           }}
           onBlur={(e) => {
@@ -581,7 +597,10 @@ export function Field({
             input.onBlur?.(e);
           }}
           onContentSizeChange={(e) => {
-            if (input.multiline) setContentH(e.nativeEvent.contentSize.height);
+            if (input.multiline) {
+              setContentH(e.nativeEvent.contentSize.height);
+              if (focused) reveal(boxRef.current);
+            }
             input.onContentSizeChange?.(e);
           }}
           style={[
@@ -854,7 +873,7 @@ export function PrimaryButton({
       style={({ pressed }) => [
         {
           borderRadius: 999,
-          minHeight: 52,
+          minHeight: 54,
           paddingVertical: 15,
           paddingHorizontal: 20,
           alignItems: 'center',

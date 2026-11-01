@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text as RNText,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
+import { useKeyboardClearance } from '../lib/useKeyboardClearance';
 import {
   listPayoutDestinations,
   addPayoutDestination,
@@ -212,6 +213,10 @@ export function PayoutDestinationSheet({
     </Pressable>
   );
 
+  // Lifted by whatever the keyboard still covers (plan task 1.8).
+  const panelRef = useRef<View>(null);
+  const panelLift = useKeyboardClearance(panelRef);
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
@@ -220,6 +225,7 @@ export function PayoutDestinationSheet({
       >
         <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Close" />
         <View
+          ref={panelRef}
           style={{
             backgroundColor: t.colors.bg,
             borderTopLeftRadius: 24,
@@ -228,6 +234,7 @@ export function PayoutDestinationSheet({
             paddingTop: 18,
             paddingBottom: 26,
             maxHeight: '88%',
+            marginBottom: panelLift,
           }}
         >
           <RNText style={tx('800', 20, t.colors.ink, { letterSpacing: -0.4 })}>

@@ -43,6 +43,7 @@ export type ScreenName =
   | 'profileEdit'
   | 'publicProfile'
   | 'saved'
+  | 'nearMap'
   | 'workerSetup'
   | 'listing'
   // Public: reachable signed out, and by link (?page=copyright etc.).

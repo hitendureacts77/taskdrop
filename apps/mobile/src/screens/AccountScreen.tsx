@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text as RNText, ScrollView, Pressable } from 'react-native';
+import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { BlockedPeopleCard } from '../components/BlockedPeopleCard';
@@ -13,6 +13,7 @@ import { useAuth } from '../providers/AuthProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useSwitchMode } from '../lib/useSwitchMode';
 import { getProfile, updateProfile, type Profile } from '../data/api';
+import { KeyboardScrollView } from '../components/KeyboardScrollView';
 import {
   accountDeletionCheck,
   deleteMyAccount,
@@ -167,7 +168,7 @@ export function AccountScreen() {
       <TopBar title="Account & settings" onBack={back} />
       <UnderlineTabs tabs={TABS} active={tab} onPick={setTab} />
       <SwipeTabs index={tab} count={TABS.length} onChange={setTab}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
+      <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
         {tab === 0 ? (
           <>
             <View style={card}>
@@ -381,7 +382,7 @@ export function AccountScreen() {
             <BlockedPeopleCard style={card} />
           </>
         ) : null}
-      </ScrollView>
+      </KeyboardScrollView>
       </SwipeTabs>
       <ConfirmDialog
         visible={confirmSignOut}

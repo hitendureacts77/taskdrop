@@ -5,7 +5,7 @@ import {
 import { assertOwnImage, isMediaRef } from "./media.ts";
 import { readFees } from "./reads.ts";
 import { roughPlace } from "../_shared/place.ts";
-import { PRICE_LIMITS } from "../_shared/rules.ts";
+import { PRICE_LIMITS, TOP_UP_PCTS } from "../_shared/rules.ts";
 import { contactIssueMessage, findContactIssue, maskContacts, nameCarriesContact, profileIssueMessage } from "../_shared/contacts.ts";
 
 /**
@@ -105,6 +105,13 @@ function dueAtOrNull(a: Args): string | null {
   const t = Date.parse(iso);
   if (t < Date.now() - 5 * 60_000 || t > Date.now() + 3 * 365 * 86_400_000) throw bad("dueAt");
   return iso;
+}
+
+/** The top-up a poster picked on the Budget step: one of the bar's steps, 0 when not sent (the old app). */
+function topUpPct(a: Args): number {
+  const v = a.topUpPct ?? 0;
+  if (!(TOP_UP_PCTS as readonly unknown[]).includes(v)) throw bad("topUpPct");
+  return v as number;
 }
 
 /**
@@ -253,6 +260,8 @@ export const WRITE_OPS: Record<string, Op> = {
       due_at: dueAtOrNull(a),
       milestones,
       kind: oneOf(a, "kind", ["request", "service"], "request"),
+      // Only the top-up bar's own steps; benchmark_minor already includes it.
+      topup_pct: topUpPct(a),
     };
     // Auto-hire accepts an offer the moment it arrives and pays for it from the
     // poster's wallet, so a poster who cannot cover it cannot post one. Said in
@@ -349,7 +358,7 @@ export const WRITE_OPS: Record<string, Op> = {
     refuseHiddenContacts(a.summary);
     // The table wants at least 10 characters; say so in words instead of "check what you entered" (P2-40).
     if (typeof a.summary !== "string" || a.summary.trim().length < 10) {
-      throw new OpError("Say a little more about what you did (at least 10 characters).", "BAD_ARGS");
+      throw new OpError("Write at least 10 characters about what you did", "BAD_ARGS");
     }
     return rows(
       await db

@@ -1,7 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
-import { background, captureServerError, guarded, logServer } from "../_shared/monitoring.ts";
+import { background, captureSecurityEvent, captureServerError, guarded, logServer } from "../_shared/monitoring.ts";
 import { signInRefusal } from "../_shared/signInSwitches.ts";
+import { acceptsPhone } from "../_shared/indianMobile.ts";
 
 /**
  * Phone sign-in for TaskDrop.
@@ -33,7 +34,7 @@ import { signInRefusal } from "../_shared/signInSwitches.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-taskdrop-platform, x-taskdrop-app-version",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-taskdrop-platform, x-taskdrop-app-version, x-taskdrop-install",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -55,6 +56,7 @@ const MAX_ATTEMPTS = 5;
 const SEND_COOLDOWN_SEC = 60;
 const SENDS_PER_PHONE_PER_WINDOW = 5;
 const SENDS_PER_IP_PER_WINDOW = 30;
+const SENDS_PER_DEVICE_PER_WINDOW = 8;
 const WINDOW_MIN = 60;
 
 const MSG91_AUTHKEY = Deno.env.get("MSG91_AUTHKEY") ?? "";
@@ -212,6 +214,9 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
   if (/[^0-9\s+().-]/.test(String(body.phone ?? ""))) return json({ error: "Enter a 10-digit mobile number" }, 400);
   const phone = normalise(body.phone ?? "");
   if (phone.length !== 10) return json({ error: "Enter a 10-digit mobile number" }, 400);
+  // Indian mobile numbers start with 6, 7, 8 or 9, and are not one digit repeated. Anything else would be a code sent abroad or into nothing:
+  // SMS pumping sends to numbers like these (task 2.8). A number on the TEST_PHONES allowlist is let through: it never gets an SMS.
+  if (!acceptsPhone(phone, TEST_PHONES)) return json({ error: "Enter a valid Indian mobile number" }, 400);
 
   // The admin panel's sign-in and sign-up switches (migration 092). A code
   // already sent can still be used; a new one is not sent while its door is shut.
@@ -257,7 +262,35 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
       if (allowed !== true) {
         // Many of these in a row is someone trying numbers in bulk.
         background(logServer("warn", "phone-auth", "per-IP code budget used up"));
+        background(captureSecurityEvent("sms_budget_hit", "phone-auth"));
         return json({ error: "Too many codes requested. Try again later." }, 429);
+      }
+
+      // The same budget per install of the app (a header the app sends; a script that leaves it out still meets the
+      // per-IP, per-number and daily limits).
+      const install = (req.headers.get("x-taskdrop-install") ?? "").trim();
+      if (/^[A-Za-z0-9_-]{8,64}$/.test(install)) {
+        const { data: deviceOk } = await admin.rpc("hit_auth_send_ip", {
+          p_ip: `device:${install}`,
+          p_max: SENDS_PER_DEVICE_PER_WINDOW,
+          p_window_min: WINDOW_MIN,
+        });
+        if (deviceOk === false) {
+          background(logServer("warn", "phone-auth", "per-device code budget used up"));
+          return json({ error: "Too many codes requested from this device. Try again later." }, 429);
+        }
+      }
+
+      // The day's total, whoever asks: a ceiling on what a bot can cost. Raised from the admin (Settings, "Sign-in codes a day").
+      const { data: underCap, error: capErr } = await admin.rpc("hit_sms_daily_cap");
+      if (capErr) {
+        background(logServer("error", "phone-auth", "daily SMS cap unavailable", { error: capErr.message }));
+        return json({ error: "Could not send a code right now. Try again in a minute." }, 503);
+      }
+      if (underCap !== true) {
+        background(logServer("error", "phone-auth", "daily SMS cap reached"));
+        background(captureSecurityEvent("sms_budget_hit", "phone-auth"));
+        return json({ error: "We cannot send more codes today. Please try again tomorrow, or sign in with Google.", capReached: true }, 429);
       }
     }
 
@@ -327,6 +360,7 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
     // used to hammer MSG91 for free.
     try {
       await sendSms(phone, code);
+      background(captureSecurityEvent("sms_code_sent", "phone-auth"));
     } catch (e) {
       background(logServer("error", "phone-auth", "SMS provider failed", { error: e instanceof Error ? e.message : String(e) }));
       return json({ error: e instanceof Error ? e.message : "Could not send the SMS" }, 502);
@@ -368,8 +402,13 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
       return json({ error: "That code expired. Request a new one." }, 400);
     }
     if (!safeEqual(String(row.out_code), code)) {
+      background(captureSecurityEvent("refused_login", "phone-auth"));
       return json({ error: "That code is not right" }, 400);
     }
+
+    // A code that was used: counted against the day's codes sent, so the watch (run_sms_pumping_watch) can tell real
+    // sign-ins from bulk requests whose codes nobody reads. Best effort; it never blocks a sign-in.
+    background(Promise.resolve(admin.rpc("record_sms_verified")).catch(() => {}));
 
     // To the server, signing in and signing up are the same exchange. To the
     // person they are not: someone who chose "Sign in" and mistyped a digit

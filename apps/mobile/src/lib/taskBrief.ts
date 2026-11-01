@@ -31,6 +31,16 @@ export const CATEGORIES = [
 ] as const;
 export type Category = (typeof CATEGORIES)[number];
 
+/** The few shown as chips on the post check; the rest are one search away. */
+export const TOP_CATEGORIES: readonly Category[] = [
+  'Home Services',
+  'Repairs & Maintenance',
+  'Errands & Delivery',
+  'Tech & Websites',
+  'Design & Creative',
+  'Tutoring & Education',
+];
+
 export function pillarFor(category: string): Pillar {
   if (category === 'Shopping & Sourcing') return 'procurement';
   if (category === 'Local Checks & Info') return 'local_intel';
@@ -58,6 +68,8 @@ export type Brief = {
   difficulty: 'easy' | 'medium' | 'hard';
   budgetMinInr: number;
   budgetMaxInr: number;
+  /** One line on why the range is what it is, shown beside it. */
+  budgetWhy?: string;
 };
 
 
@@ -135,7 +147,10 @@ export const IDEAS: Idea[] = [
  *                  a kitchen clean-up.
  *  3. questions    each topic's own questions, minus any the request already
  *                  answers ("2 BHK", "my scooter"), plus "where?" for on-site
- *                  work when no place was given. Never more than four.
+ *                  work when no place was given. Always three or four: when
+ *                  the request answers most of them, general questions
+ *                  (job size, what matters most, access or updates, photos)
+ *                  fill the gap.
  *  4. the post     the answers become facts, the topic adds its checklist,
  *                  and the price range moves with the answers (a 3 BHK costs
  *                  more than one room), with urgency and regular-job notes.
@@ -248,6 +263,43 @@ const SIZE: Ask = {
   skipIf: /\b(\d ?bhk|\d ?rk|studio|one room|1 room|single room|villa|duplex)\b/,
 };
 
+// Questions that fit any kind of task. They are asked when a request has already
+// answered the topic's own, so no one is left with a single question.
+const JOB_SIZE: Ask = {
+  question: 'How big is the job?',
+  label: 'Job size',
+  options: [x('Small, under an hour', 0.7), 'Medium, a few hours', x('Large, most of a day or more', 1.8)],
+  skipIf: /\b\d+ ?(hours?|hrs?|days?)\b/,
+};
+
+const PRIORITY: Ask = {
+  question: 'What matters most to you?',
+  label: 'Priority',
+  options: [x('Lowest price', 0.9), 'A fair price and good work', x('Best quality', 1.2), x('Getting it done fast', 1.2)],
+  skipIf: /\b(cheap|cheapest|best quality|fastest|budget)\b/,
+};
+
+const ACCESS: Ask = {
+  question: 'Will someone be there to meet the worker?',
+  label: 'Access',
+  options: ['I’ll be there', 'A family member or neighbour will', 'We’ll arrange it in chat'],
+};
+
+const UPDATES: Ask = {
+  question: 'How should the worker keep you updated?',
+  label: 'Updates',
+  options: ['Photos or screenshots as they go', 'Only when it’s done', 'Message me if there’s a question'],
+};
+
+const PHOTOS: Ask = {
+  question: 'Can you share photos or files?',
+  label: 'Photos',
+  options: ['Yes, I’ll add them to the post', 'I’ll send them in chat', 'No photos needed'],
+};
+
+const GENERAL_ON_SITE: Ask[] = [JOB_SIZE, PRIORITY, ACCESS, PHOTOS];
+const GENERAL_ONLINE: Ask[] = [JOB_SIZE, PRIORITY, UPDATES, PHOTOS];
+
 const TOPICS: Topic[] = [
   // ------------------------------------------------------------ repairs --
   {
@@ -347,7 +399,8 @@ const TOPICS: Topic[] = [
     key: 'device',
     category: 'Repairs & Maintenance',
     noun: 'phone or laptop repair',
-    strong: /\b(phone|laptop|tablet|ipad|screen (broken|cracked)|cracked screen|display broken|battery (draining|drain)|charging port|not charging|hanging|slow laptop|virus|data recovery|printer)\b/,
+    // A bare "phone" is not enough ("phone run", "phone number", "over the phone"): it takes a repair word beside it.
+    strong: /\b(laptop|tablet|ipad|(phone|smartphone) (repair|screen|battery|charger|charging|display|speaker|camera|water damage|software|unlock|hangs?|not (working|charging|switching on|turning on|starting)|is (dead|hanging|slow|broken|cracked|not working))|(repair|fix|replace|service) (my |the |a |our )?(old )?(phone|smartphone)|screen (broken|cracked)|cracked screen|display broken|battery (draining|drain)|charging port|not charging|hanging|slow laptop|virus|data recovery|printer)\b/,
     weak: /\b(repair|fix|broken|replace)\b/,
     asks: [
       { question: 'Which device is it?', label: 'Device', options: ['Phone', 'Laptop or PC', 'Tablet', 'Printer'], skipIf: /\b(phone|laptop|tablet|ipad|printer)\b/ },
@@ -1136,6 +1189,11 @@ const optCost = (o: Opt) => (typeof o === 'string' ? 1 : (o.cost ?? 1));
 /** Every question's short label, so facts read "Size: 2 BHK". */
 const LABELS = new Map<string, string>();
 for (const topic of [...TOPICS, FALLBACK]) for (const a of topic.asks) LABELS.set(a.question, a.label);
+for (const a of [...GENERAL_ON_SITE, ...GENERAL_ONLINE]) LABELS.set(a.question, a.label);
+
+/** At least this many questions, so the post is framed by more than one answer
+ *  (owner, 2026-10-31: "ask multiple questions"). */
+const MIN_ASKS = 3;
 
 function questionsFor(prompt: string): Ask[] {
   const topic = topicFor(prompt);
@@ -1144,6 +1202,12 @@ function questionsFor(prompt: string): Ask[] {
   const hasWhere = asks.some((a) => a.label === 'Location' || a.label === 'Venue');
   if (topic.onSite && !hasWhere && !PLACE.test(t) && asks.length < 4 && !topic.asks.some((a) => a.label === 'Location')) {
     asks.push(WHERE_HOME);
+  }
+  // A request that already says most of it still gets a few questions: the general ones fill the gap.
+  for (const general of topic.onSite ? GENERAL_ON_SITE : GENERAL_ONLINE) {
+    if (asks.length >= MIN_ASKS) break;
+    if (general.skipIf?.test(t) || asks.some((a) => a.label === general.label)) continue;
+    asks.push(general);
   }
   return asks.slice(0, 4);
 }
@@ -1209,7 +1273,7 @@ function niceRupees(n: number): number {
 function costFactor(topic: Topic, answers: Answer[]): number {
   let f = 1;
   for (const a of answers) {
-    const ask = [...topic.asks, WHERE_HOME].find((q) => q.question === a.question);
+    const ask = [...topic.asks, WHERE_HOME, ...GENERAL_ON_SITE, ...GENERAL_ONLINE].find((q) => q.question === a.question);
     const opt = ask?.options.find((o) => optLabel(o) === a.answer);
     if (opt) f *= optCost(opt);
   }
@@ -1242,6 +1306,27 @@ function promptFactor(topic: Topic, t: string): number {
     if (said) f *= optCost(said);
   }
   return f;
+}
+
+/**
+ * How much a quantity in the request moves the price: "5 pages", "3 hours",
+ * "1000 words". Sub-linear, because the second page is cheaper than the first,
+ * and capped, so a typo like "500 pages" cannot run away. Only the biggest
+ * quantity counts, so "3 pages for 2 days" is not charged twice.
+ */
+const QUANTITY = /\b(\d{1,5})\s*(pages?|screens?|rooms?|bathrooms?|hours?|hrs?|days?|visits?|sessions?|classes|lessons?|items?|photos?|videos?|posts?|logos?|articles?|words)\b/g;
+export function quantityFactor(t: string, hasBhk = false): { factor: number; note: string } {
+  let best = { factor: 1, note: '' };
+  for (const m of t.matchAll(QUANTITY)) {
+    const n = Number(m[1]);
+    const unit = m[2]!;
+    if (!(n > 1) || (hasBhk && /^rooms?$/.test(unit))) continue;
+    const factor = /^words$/.test(unit)
+      ? Math.min(Math.max((n / 500) ** 0.8, 0.6), 8)
+      : Math.min(n ** 0.7, 8);
+    if (factor > best.factor) best = { factor, note: `Scaled for ${n} ${unit}.` };
+  }
+  return best;
 }
 
 /** For a request that matched no topic, the "what kind of help" answer still
@@ -1283,7 +1368,8 @@ function writePost(prompt: string, answers: Answer[], style: WritingStyle): Brie
     REGULAR.test(t) || picked.some((a) => /\b(every|daily|weekly|weekday|ongoing|twice a week|a few days a week)\b/i.test(a.answer));
 
   // Price: the topic's usual range, moved by the answers and the request.
-  let factor = costFactor(topic, picked) * promptFactor(topic, t);
+  const qty = quantityFactor(t, /\b\d ?bhk\b/.test(t));
+  let factor = costFactor(topic, picked) * promptFactor(topic, t) * qty.factor;
   if (urgent) factor *= 1.25;
   const min = niceRupees(topic.budget[0] * factor);
   const max = Math.max(niceRupees(topic.budget[1] * factor), min + (min < 1000 ? 100 : 500));
@@ -1333,6 +1419,14 @@ function writePost(prompt: string, answers: Answer[], style: WritingStyle): Brie
     difficulty,
     budgetMinInr: min,
     budgetMaxInr: max,
+    budgetWhy: [
+      `Typical for ${topic.noun}.`,
+      picked.length > 0 ? 'Adjusted for your answers.' : '',
+      qty.note,
+      urgent ? 'Raised a little because it is urgent.' : '',
+    ]
+      .filter(Boolean)
+      .join(' '),
   };
 }
 
@@ -1344,9 +1438,49 @@ export function briefToDescription(b: Pick<Brief, 'summary' | 'bullets'>): strin
 
 // ------------------------------------------------------------- the writer ----
 
-/** Up to four quick questions for a request, none it already answers. */
+/** Three or four quick questions for a request, none it already answers. */
 export function askQuestions(prompt: string): QuickQuestion[] {
   return questionsFor(prompt).map((a) => ({ question: a.question, options: a.options.map(optLabel) }));
+}
+
+/**
+ * How one answer changes the questions after it (owner, 2026-10-30: "all the
+ * questions should be interconnected"). Work done online has no "where", and
+ * hands-on work cannot happen "Online".
+ */
+const ONLINE_ANSWERS = ['Online or computer work', 'Online', 'Remote is fine'];
+const IN_PERSON_ANSWERS = ['Hands-on work', 'Check something in person', 'Must come in person', 'At my home', 'At my office', 'Somewhere nearby'];
+const LINKS: { question: string; answers: string[]; hide?: string[]; drop?: Record<string, string[]> }[] = [
+  { question: 'What kind of help is this?', answers: ['Online or computer work'], hide: ['Where should it happen?'] },
+  {
+    question: 'What kind of help is this?',
+    answers: ['Hands-on work', 'Check something in person', 'Find or buy something'],
+    drop: { 'Where should it happen?': ['Online'] },
+  },
+];
+
+/** The questions as they stand after the answers given so far: some hidden, some with fewer options. */
+export function linkedQuestions(questions: QuickQuestion[], answers: Answer[]): QuickQuestion[] {
+  const hidden = new Set<string>();
+  const dropped: Record<string, Set<string>> = {};
+  for (const link of LINKS) {
+    const given = answers.find((a) => a.question === link.question)?.answer ?? '';
+    if (!link.answers.includes(given)) continue;
+    link.hide?.forEach((q) => hidden.add(q));
+    for (const [q, opts] of Object.entries(link.drop ?? {})) {
+      dropped[q] = new Set([...(dropped[q] ?? []), ...opts]);
+    }
+  }
+  return questions
+    .filter((q) => !hidden.has(q.question))
+    .map((q) => (dropped[q.question] ? { ...q, options: q.options.filter((o) => !dropped[q.question]!.has(o)) } : q));
+}
+
+/** Whether the answers say the job is done online (true), in person (false), or do not say (null). */
+export function answersSayOnline(answers: Answer[]): boolean | null {
+  if (answers.some((a) => ONLINE_ANSWERS.includes(a.answer))) return true;
+  if (answers.some((a) => IN_PERSON_ANSWERS.includes(a.answer))) return false;
+  return null;
 }
 
 /** The post: title, summary, checklist, category and a price range from the answers. */

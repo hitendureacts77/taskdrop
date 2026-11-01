@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../components/Icon';
-import { View, Text as RNText, TextInput, Pressable, Animated, ScrollView } from 'react-native';
+import { View, Text as RNText, TextInput, Pressable, Animated } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -9,6 +9,8 @@ import { useApp } from '../providers/AppStateProvider';
 import { submitReview } from '../data/api';
 import { fontFamilyFor } from '../theme';
 import { tx } from '../components/primitives';
+import { KeyboardSafe } from '../components/KeyboardSafe';
+import { KeyboardScrollView } from '../components/KeyboardScrollView';
 
 /**
  * Ratings & review — pixel parity with docs/design/_design_markup.html lines
@@ -114,7 +116,8 @@ export function ReviewScreen() {
         await submitReview(taskId, stars, body);
       }
       celebrate('Review posted');
-      go('orders');
+      // My Tasks is a tab, so the bar stays; 'orders' is a pushed screen with none on phones.
+      go('myTasks');
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not post that review');
     } finally {
@@ -124,7 +127,7 @@ export function ReviewScreen() {
 
   return (
     <Screen padded={false}>
-      <ScrollView
+      <KeyboardScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6 }}
         showsVerticalScrollIndicator={false}
@@ -198,9 +201,9 @@ export function ReviewScreen() {
             lineHeight: 20,
           }}
         />
-      </ScrollView>
+      </KeyboardScrollView>
 
-      <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+      <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
         <Pressable
           onPress={submit}
           style={({ pressed }) => [
@@ -222,7 +225,7 @@ export function ReviewScreen() {
             {busy ? 'Posting…' : 'Submit review'}
           </RNText>
         </Pressable>
-      </View>
+      </KeyboardSafe>
     </Screen>
   );
 }

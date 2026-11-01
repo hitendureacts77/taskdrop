@@ -2146,6 +2146,7 @@ export type Database = {
           status: Database["public"]["Enums"]["task_status"]
           time_limit_minutes: number
           title: string
+          topup_pct: number
           updated_at: string
           wallet_refunded_at: string | null
           work_done_at: string | null
@@ -2187,6 +2188,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["task_status"]
           time_limit_minutes: number
           title: string
+          topup_pct?: number
           updated_at?: string
           wallet_refunded_at?: string | null
           work_done_at?: string | null
@@ -2228,6 +2230,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["task_status"]
           time_limit_minutes?: number
           title?: string
+          topup_pct?: number
           updated_at?: string
           wallet_refunded_at?: string | null
           work_done_at?: string | null

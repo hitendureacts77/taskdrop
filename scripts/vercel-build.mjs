@@ -10,7 +10,7 @@
  *   2. new migrations           scripts/deploy-migrations.mjs
  *   3. old-app database check   scripts/check-old-app-db.mjs  (needs `main`)
  *   4. function secrets         scripts/sync-function-secrets.mjs  (Vercel -> Supabase; a failure stops the build)
- *   5. Edge Functions           supabase functions deploy
+ *   5. Edge Functions           supabase functions deploy  (up to 3 attempts, so a one-off network or API hiccup does not fail the build)
  *   6. Inngest sync             warning only, until the Inngest Cloud keys are set
  *   7. web export               npm run web:export
  *
@@ -28,6 +28,7 @@
  *   node scripts/vercel-build.mjs --dry-run   print what would run (set VERCEL_GIT_COMMIT_REF and VERCEL_ENV)
  */
 import { spawnSync } from "node:child_process";
+import { missingOrShort } from "./lib/required-env.mjs";
 
 const dryRun = process.argv.includes("--dry-run");
 const branch = process.env.VERCEL_GIT_COMMIT_REF || "";
@@ -51,13 +52,37 @@ function must(label, cmd, args, env) {
   }
 }
 
+// Like `must`, but tries up to `attempts` times with a growing wait, for a step that can hit a one-off network or API hiccup.
+// Only for steps that are safe to repeat. If the last attempt fails it stops the build exactly as `must` does.
+async function mustRetry(label, cmd, args, env, attempts = 3) {
+  for (let i = 1; i <= attempts; i++) {
+    if (run(`${label} (attempt ${i}/${attempts})`, cmd, args, env)) return;
+    if (i < attempts) {
+      const waitSeconds = 10 * i;
+      note(`"${label}" failed on attempt ${i}/${attempts}; waiting ${waitSeconds}s, then trying again.`);
+      await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000));
+    }
+  }
+  console.error(`[vercel-build] FAILED at "${label}" after ${attempts} attempts. Nothing after it ran, so the web app is not published. Fix it and push again.`);
+  process.exit(1);
+}
+
+// Secrets the backend steps need, with the shortest length a real one has (a Supabase access token is 44 characters).
+const REQUIRED = [
+  { name: "SUPABASE_ACCESS_TOKEN", min: 40 },
+  { name: "DATABASE_URL", min: 30 },
+];
+
 const wantsBackend = branch === "redesigned-2.0" && target === "preview";
 const hasSecrets = Boolean(process.env.SUPABASE_ACCESS_TOKEN && process.env.DATABASE_URL);
 
 if (!wantsBackend) {
   note(`branch "${branch || "(none)"}" / environment "${target || "(none)"}": web build only, backend untouched`);
-} else if (!hasSecrets) {
-  warn("Backend NOT deployed: add SUPABASE_ACCESS_TOKEN and DATABASE_URL in Vercel (Preview, branch redesigned-2.0). See docs/DEPLOY.md. Building the web app only.");
+} else if (!hasSecrets || missingOrShort(process.env, REQUIRED).length > 0) {
+  // Task 2.5: a deploy of redesigned-2.0 with a missing or stub secret fails, so the web app is never published
+  // against a backend that was silently skipped. Names only are printed.
+  console.error(`[vercel-build] FAILED: ${missingOrShort(process.env, REQUIRED).join("; ")}. Set them in Vercel (Preview, branch redesigned-2.0). See docs/DEPLOY.md.`);
+  process.exit(1);
 } else {
   // `main` is the old app. Vercel cloned only this branch, so fetch main to compare against.
   let oldAppEnv = null;
@@ -85,7 +110,7 @@ if (!wantsBackend) {
   // Edge Function secrets are kept in Vercel (one place to edit); copy the allow-listed ones across. A failure stops the build:
   // a stale Inngest signing key in Supabase would break the jobs behind a published web app. A name Vercel does not hold is skipped, not an error.
   must("function secrets", "node", ["scripts/sync-function-secrets.mjs"]);
-  must("deploy Edge Functions", "npx", ["--yes", "supabase@2", "functions", "deploy", "--project-ref", projectId, "--use-api"]);
+  await mustRetry("deploy Edge Functions", "npx", ["--yes", "supabase@2", "functions", "deploy", "--project-ref", projectId, "--use-api"]);
 
   // Tell Inngest Cloud to re-read the function list (the request is signed on the way back, so no secret).
   // A warning, not a failure, until the Inngest keys are set (docs/INNGEST.md): the code is already deployed.

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text as RNText, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text as RNText, Pressable, ActivityIndicator } from 'react-native';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { Field, Pill, PrimaryButton, TopBar } from '../components/kit';
@@ -14,6 +14,7 @@ import { CATEGORIES } from '../lib/taskBrief';
 import { findContactIssue, contactIssueMessage } from '../lib/mask';
 import { roughPlace } from '../lib/place';
 import { LocationSheet } from '../components/LocationSheet';
+import { KeyboardScrollView } from '../components/KeyboardScrollView';
 
 const DELIVERY = [1, 2, 3, 5, 7];
 const PREFIX = 'I will ';
@@ -136,7 +137,7 @@ export function ListingEditScreen() {
   return (
     <Screen padded={false}>
       <TopBar title={loaded ? 'Edit service' : 'Offer a service'} onBack={back} />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
+      <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
         <RNText style={tx('400', 13, t.colors.muted, { lineHeight: 19 })}>
           Say what you’ll do and what it costs. Customers looking for this can hire you straight from it.
         </RNText>
@@ -238,7 +239,7 @@ export function ListingEditScreen() {
             <RNText style={tx('700', 13, t.colors.signal)}>Take this service down</RNText>
           </Pressable>
         ) : null}
-      </ScrollView>
+      </KeyboardScrollView>
       <LocationSheet
         visible={pickArea}
         askForDetails={false}

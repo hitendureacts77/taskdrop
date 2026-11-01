@@ -4,7 +4,7 @@ import { APP_CHECK_HEADER, AppCheckLog, checkAppCheck } from "../_shared/appChec
 import { ControlsCache,PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient } from "../_shared/controls.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
 import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
-import { guarded, background, captureServerError, logServer } from "../_shared/monitoring.ts";
+import { captureSecurityEvent, guarded, background, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
 import { type Db, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp } from "./ops.ts";
 
@@ -98,7 +98,10 @@ Deno.serve(guarded("api", async (req: Request) => {
   }
 
   const { data: userData, error: userErr } = await db.auth.getUser(jwt);
-  if (userErr || !userData?.user) return refuse("Your session has expired. Please sign in again.", "UNAUTHENTICATED", 401);
+  if (userErr || !userData?.user) {
+    background(captureSecurityEvent("refused_login", "api"));
+    return refuse("Your session has expired. Please sign in again.", "UNAUTHENTICATED", 401);
+  }
 
   let body: { op?: unknown; args?: unknown };
   try {
@@ -159,6 +162,7 @@ Deno.serve(guarded("api", async (req: Request) => {
     const result = await checkAppCheck(req.headers.get(APP_CHECK_HEADER), await secret("FIREBASE_PROJECT_NUMBER"));
     if (appCheckLog.shouldLog(result, client.platform)) {
       await logServer(result === "invalid" ? "warn" : "info", "api", "app check", { result, platform: client.platform, op: String(body.op) });
+      if (result === "invalid") await captureSecurityEvent("app_check_failed", "api");
     }
   })().catch(() => {}));
   const controls = await controlsCache.get(client, async () => {

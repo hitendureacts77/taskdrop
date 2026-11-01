@@ -95,12 +95,12 @@ export function MediaAttach({
   const t = useTheme();
   const [state, setState] = useState<State>({ phase: 'empty' });
   const [error, setError] = useState<string | null>(null);
-  // Which kind's "camera or gallery?" choice is open, if any.
-  const [asking, setAsking] = useState<'image' | 'video' | null>(null);
+  // Whether the "camera or gallery?" choice under the one add button is open.
+  const [asking, setAsking] = useState(false);
 
   const attach = async (pick: () => Promise<PickedMedia | null>) => {
     setError(null);
-    setAsking(null);
+    setAsking(false);
     try {
       const picked = await pick();
       if (!picked) return;
@@ -124,7 +124,7 @@ export function MediaAttach({
 
   // Straight off the press, with nothing awaited first: a browser blocks a
   // file dialog that is not tied to the gesture, and does so silently.
-  const choose = (kind: 'image' | 'video', source: 'library' | 'camera') =>
+  const choose = (kind: 'image' | 'video' | 'any', source: 'library' | 'camera') =>
     attach(() => pickMedia(kind, source));
 
   const working = state.phase === 'working';
@@ -149,11 +149,12 @@ export function MediaAttach({
     setError(null);
   };
 
-  const addButton = (kind: 'image' | 'video', label: string, icon: React.ReactNode) => {
-    const open = asking === kind;
+  // One button for both (owner, 2026-10-30); the camera or gallery choice opens under it.
+  const addButton = (label: string, icon: React.ReactNode) => {
+    const open = asking;
     return (
       <Pressable
-        onPress={() => setAsking(open ? null : kind)}
+        onPress={() => setAsking(!open)}
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ expanded: open }}
@@ -178,12 +179,18 @@ export function MediaAttach({
     );
   };
 
-  const sourceButton = (kind: 'image' | 'video', source: 'camera' | 'library') => {
+  const sourceButton = (kind: 'image' | 'video' | 'any', source: 'camera' | 'library') => {
     const label =
-      source === 'camera' ? (kind === 'video' ? 'Record video' : 'Take photo') : 'Choose from gallery';
+      source === 'camera'
+        ? kind === 'video'
+          ? 'Record video'
+          : 'Take photo'
+        : Platform.OS === 'web'
+          ? 'Choose a photo or video'
+          : 'Choose from gallery';
     return (
       <Pressable
-        key={source}
+        key={`${kind}-${source}`}
         onPress={() => void choose(kind, source)}
         accessibilityRole="button"
         accessibilityLabel={label}
@@ -215,13 +222,18 @@ export function MediaAttach({
     return (
       <View ref={dropRef} style={{ marginTop: 11, ...dropStyle }}>
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          {addButton('image', 'Add photo', <CameraIcon color={t.colors.accentDeep} />)}
-          {addButton('video', 'Add video', <VideoIcon color={t.colors.accentDeep} />)}
+          {addButton('Add photo or video', <CameraIcon color={t.colors.accentDeep} />)}
         </View>
         {asking && (
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-            {sourceButton(asking, 'camera')}
-            {sourceButton(asking, 'library')}
+          <View style={{ gap: 10, marginTop: 10 }}>
+            {/* The browser's file dialog is the camera and the gallery at once, so the web asks once. */}
+            {Platform.OS !== 'web' ? (
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                {sourceButton('image', 'camera')}
+                {sourceButton('video', 'camera')}
+              </View>
+            ) : null}
+            <View style={{ flexDirection: 'row' }}>{sourceButton('any', 'library')}</View>
           </View>
         )}
         <RNText style={tx('400', 11, t.colors.muted, { marginTop: 8, lineHeight: 16 })}>

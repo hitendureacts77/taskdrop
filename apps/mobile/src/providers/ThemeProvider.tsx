@@ -123,6 +123,30 @@ export function RoleTheme({ worker, children }: { worker: boolean; children: Rea
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
+/**
+ * A person's own colour inside whichever mode you are in: a poster is green and
+ * a worker is blue, so a poster's profile stays green while you browse in Earn
+ * mode, and a worker's stays blue while you hire. Only the accent tokens change;
+ * the tabs and header around the screen keep the mode's colour.
+ */
+export function PersonTheme({ role, children }: { role: 'poster' | 'worker'; children: React.ReactNode }) {
+  const outer = useContext(Ctx);
+  if (!outer) throw new Error('PersonTheme must be used inside ThemeProvider');
+  const theme = useMemo<Theme>(() => {
+    const isDark = outer.theme.isDark;
+    if (role === 'worker') {
+      return { ...outer.theme, colors: { ...outer.theme.colors, ...(isDark ? WORKER_ACCENT.dark : WORKER_ACCENT.light) } };
+    }
+    // Posters are the base palette, which the Earn mode has swapped out.
+    const base = makeTheme(isDark).colors;
+    const keys = Object.keys(WORKER_ACCENT.light) as (keyof typeof WORKER_ACCENT.light)[];
+    const green = Object.fromEntries(keys.map((k) => [k, base[k]]));
+    return { ...outer.theme, colors: { ...outer.theme.colors, ...green } };
+  }, [outer.theme, role]);
+  const value = useMemo<ThemeCtx>(() => ({ ...outer, theme }), [outer, theme]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
 export function useTheme(): Theme {
   const c = useContext(Ctx);
   if (!c) throw new Error('useTheme must be used inside ThemeProvider');

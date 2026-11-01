@@ -365,6 +365,20 @@ await t("tasks near a point are filtered and ordered by distance on the server",
   assert.deepEqual((r.data as { id: string }[]).map((x) => x.id), ["near", "mid"]);
 });
 
+await t("helpers near a point come back nearest first, inside the radius, with only map-card fields", async () => {
+  const here = { lat: 17.44, lng: 78.35 };
+  const f = fake(() => ({ data: [
+    { id: "far", skills: ["Cleaning"], loc_lat: 19.07, loc_lng: 72.87 },
+    { id: "mid", skills: ["Plumbing"], loc_lat: 17.39, loc_lng: 78.49 },
+    { id: "near", skills: ["Delivery"], loc_lat: 17.45, loc_lng: 78.36 },
+  ], error: null }));
+  const r = await runOp("workersNear", { ...here, radiusKm: 50, limit: 5 }, ctx(f));
+  assert.ok(r.ok);
+  assert.deepEqual((r.data as { id: string }[]).map((x) => x.id), ["near", "mid"]);
+  const bad = await runOp("workersNear", { lat: 200, lng: 78, radiusKm: 5 }, ctx(f));
+  assert.ok(!bad.ok && bad.error.code === "BAD_ARGS");
+});
+
 // ------------------------------------------------------------------- media --
 
 await t("uploads go to a server-chosen path in the caller's own folder", async () => {
@@ -960,6 +974,15 @@ await t("nonsense amounts, dates, places and reserved names are refused (break-i
   assert.equal((await runOp("createTask", { ...task, benchmarkMinor: 1999 }, ctx(fake()))).ok, false);
   assert.equal((await runOp("createTask", { ...task, benchmarkMinor: 2000 }, ctx(fake()))).ok, true);
   assert.equal(packageRules.PRICE_LIMITS.MIN_MINOR, serverRules.PRICE_LIMITS.MIN_MINOR, "the server's copy of the minimum matches packages/rules");
+  // The top-up (2026-11-01): only the bar's own steps, 0 when the old app leaves it out.
+  assert.deepEqual([...packageRules.TOP_UP_PCTS], [...serverRules.TOP_UP_PCTS], "the server's copy of the top-up steps matches packages/rules");
+  let f2 = fake();
+  await runOp("createTask", task, ctx(f2));
+  assert.equal(inserted(f2.calls[0]).topup_pct, 0);
+  f2 = fake();
+  assert.equal((await runOp("createTask", { ...task, topUpPct: 10 }, ctx(f2))).ok, true);
+  assert.equal(inserted(f2.calls[0]).topup_pct, 10);
+  for (const topUpPct of [1, 30, -5, "5", 2.5]) await refused("createTask", { ...task, topUpPct });
   await refused("createTask", { ...task, benchmarkMinor: 0 });
   // A service listing may still start at zero while it is being set up.
   const ok = await runOp("createTask", { ...task, benchmarkMinor: 0, kind: "service" }, ctx(fake()));

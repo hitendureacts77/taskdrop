@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Sentry from '@sentry/react-native';
 import { apiFailureKind, setErrorReporter, type RawError } from './errors';
+import { scrubEvent, scrubText, scrubValue } from './scrub';
 
 /**
  * Crash reporting to Sentry, switched on by EXPO_PUBLIC_SENTRY_DSN.
@@ -56,7 +57,10 @@ export function installMonitoring(): void {
       dsn: DSN,
       environment: sentryEnvironment(),
       // A request cancelled because the person left the page is not a failure.
-      beforeSend: (event) => (event.exception?.values?.some((v) => v.type === 'AbortError') ? null : event),
+      // Then everything that is left is scrubbed of keys, phone numbers and emails (lib/scrub.ts).
+      beforeSend: (event) => (event.exception?.values?.some((v) => v.type === 'AbortError') ? null : scrubEvent(event)),
+      beforeSendTransaction: (event) => scrubEvent(event),
+      beforeBreadcrumb: (crumb) => scrubEvent(crumb),
       release: Constants.expoConfig?.version ?? undefined,
       sendDefaultPii: false,
       // About 10% of sessions are traced for performance; errors are never sampled.
@@ -145,7 +149,7 @@ function write(level: 'info' | 'warn' | 'error', message: string, attributes?: A
   try {
     const clean: Record<string, string | number | boolean> = {};
     for (const [k, v] of Object.entries(attributes ?? {})) if (v !== null && v !== undefined) clean[k] = v;
-    Sentry.logger[level](message, clean);
+    Sentry.logger[level](scrubText(message), scrubValue(clean) as Record<string, string | number | boolean>);
   } catch {
     /* logging must never become the crash */
   }

@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
-import { guarded, captureServerError, logServer } from "../_shared/monitoring.ts";
+import { guarded, captureSecurityEvent, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
 
 /**
@@ -72,6 +72,7 @@ Deno.serve(guarded("razorpay-webhook", async (req: Request) => {
   const expected = await signatureFor(raw, SECRET);
   if (!sent || !safeEqual(sent, expected)) {
     await logServer("warn", "razorpay-webhook", "bad signature", { signed: Boolean(sent) });
+    await captureSecurityEvent("bad_signature", "razorpay-webhook");
     return json({ error: "Bad signature" }, 401);
   }
 

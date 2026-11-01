@@ -192,9 +192,11 @@ function extensionFor(mimeType: string, fallback: string): string {
  * Must be called straight off a press: on web the browser refuses a file
  * dialog that is not tied to a user gesture, and there is no error to catch
  * when it does — the dialog simply never appears.
+ *
+ * 'any' lets the gallery return a photo or a video, whichever is picked.
  */
 export async function pickMedia(
-  kind: 'image' | 'video',
+  wanted: 'image' | 'video' | 'any',
   source: 'library' | 'camera' = 'library',
 ): Promise<PickedMedia | null> {
   // The web picker is a plain <input type=file>, which needs no permission and
@@ -214,7 +216,7 @@ export async function pickMedia(
   }
 
   const options: ImagePicker.ImagePickerOptions = {
-    mediaTypes: kind === 'video' ? ['videos'] : ['images'],
+    mediaTypes: wanted === 'any' ? ['images', 'videos'] : wanted === 'video' ? ['videos'] : ['images'],
     quality: 0.8,
     allowsMultipleSelection: false,
     // The camera stops recording at the cap, so a clip can never be too long.
@@ -227,6 +229,8 @@ export async function pickMedia(
   if (result.canceled || !result.assets?.length) return null;
 
   const asset = result.assets[0]!;
+  const kind: 'image' | 'video' =
+    wanted !== 'any' ? wanted : asset.type === 'video' || asset.mimeType?.startsWith('video/') ? 'video' : 'image';
   const mimeType = asset.mimeType ?? (kind === 'video' ? 'video/mp4' : 'image/jpeg');
   const bytes = asset.fileSize ?? 0;
 

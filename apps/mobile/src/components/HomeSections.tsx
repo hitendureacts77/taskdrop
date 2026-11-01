@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, TextInput, Animated, Easing, Platform } from 'react-native';
+import { View, Text as RNText, Pressable, Animated, Easing } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useFocusTick, useNav } from '../providers/NavProvider';
 import { openPostedTask } from '../lib/taskRows';
@@ -21,6 +21,8 @@ import {
   recommendedTasks,
   remoteTasks,
   tasksNear,
+  workersNear,
+  type NearbyWorker,
   urgentTasks,
   setSaved,
   trendingCategories,
@@ -28,15 +30,17 @@ import {
 } from '../data/extras';
 import { TEMPLATES } from '../lib/taskBrief';
 import { levelFor } from '../lib/levels';
-import { useVoiceInput } from '../lib/speech';
-import { contactIssueMessage, findContactIssue } from '../lib/mask';
 import { taskToFeedRow } from '../lib/openTask';
 import { statusBadge } from '../screens/MyTasksScreen';
 import { Icon } from './Icon';
-import { Badge, BottomSheet, Grid, SectionTitle, Shimmer, rupees, timeLeft } from './kit';
+import { Badge, BottomSheet, Grid, PillTabs, SectionTitle, Shimmer, rupees, timeLeft } from './kit';
 import { WorkCard, categoryIcon } from './WorkCard';
 import { BidSheet } from './BidSheet';
-import { LiveWorkers } from './LiveWorkers';
+import { JobsMap, type JobPin } from './JobsMap';
+import { TopUpBadge } from './TopUpBadge';
+import { activeFirst, areaName, farText, initialsOf, jobPin, mainSkill, personPin, ratingOf } from './mapPins';
+import { PresenceLabel } from './PresenceDot';
+import { presenceOf } from '../lib/presence';
 import { Rail, useRailItemWidth } from './Rail';
 import { HeroCard } from './Hero';
 import { Drop, Ripples } from './Ripples';
@@ -100,6 +104,9 @@ function PostTop() {
   const [trending, setTrending] = useState<TrendingCategory[]>([]);
   const [howOpen, setHowOpen] = useState(false);
   const [place, setPlace] = useState<string | null>(null);
+  // The same area as a point, for the "Near you" map. Kept as the same object
+  // while it doesn't move, so the nearby list isn't refetched.
+  const [placeAt, setPlaceAt] = useState<{ lat: number; lng: number } | null>(null);
   const [pickPlace, setPickPlace] = useState(false);
 
   const loadTop = useCallback(
@@ -107,7 +114,13 @@ function PostTop() {
       if (!userId) return;
       await Promise.all([
         getProfile(userId)
-          .then((p) => alive() && setPlace(p?.loc_label ?? null))
+          .then((p) => {
+            if (!alive()) return;
+            setPlace(p?.loc_label ?? null);
+            const lat = p?.loc_lat;
+            const lng = p?.loc_lng;
+            setPlaceAt((cur) => (lat == null || lng == null ? null : cur && cur.lat === lat && cur.lng === lng ? cur : { lat, lng }));
+          })
           .catch(() => {}),
         listMyTasks(userId)
           .then(
@@ -132,6 +145,7 @@ function PostTop() {
     if (picked.lat === null || picked.lng === null) return flash('Drop a pin on the map to set your area');
     const label = picked.area || picked.label;
     setPlace(label);
+    setPlaceAt({ lat: picked.lat, lng: picked.lng });
     if (!userId) return;
     await updateProfile(userId, { locLabel: label, locLat: picked.lat, locLng: picked.lng }).catch((e) =>
       flash(e instanceof Error ? e.message : 'Could not save your area'),
@@ -140,17 +154,9 @@ function PostTop() {
 
   const quick = TEMPLATES.filter((x) => x.hot).slice(0, 4);
 
-  // The composer on the card: typed (or spoken) here, sent to the posting flow.
-  const [prompt, setPrompt] = useState('');
-  const [focused, setFocused] = useState(false);
-  const voice = useVoiceInput((text) => setPrompt((cur) => (cur ? cur + ' ' + text : text)), flash);
-  const issue = findContactIssue(prompt);
-  const submit = () => {
-    if (prompt.trim().length < 3) return flash('Tell us what you need done');
-    if (issue) return flash(contactIssueMessage(issue));
-    go('aiPost', { prompt: prompt.trim() });
-    setPrompt('');
-  };
+  // The card is a doorway: one tap opens the full-screen composer with the
+  // keyboard already up, like starting a quick post.
+  const openComposer = () => go('aiPost');
   const busiest = Math.max(1, ...trending.map((c) => c.open_count));
 
   return (
@@ -173,45 +179,36 @@ function PostTop() {
               <RNText style={tx('700', 11, 'rgba(255,255,255,0.85)', { letterSpacing: 1.3 })}>WE WRITE THE POST FOR YOU</RNText>
             </View>
             <RNText style={tx('800', wideHero ? 36 : 28, '#FFFFFF', { letterSpacing: -0.9, marginTop: 8 })}>Drop a task</RNText>
-            <View
-              style={{
+            <Pressable
+              onPress={openComposer}
+              accessibilityRole="button"
+              accessibilityLabel="What do you need done? Opens the new task screen"
+              style={({ pressed }) => ({
                 marginTop: 14,
                 borderRadius: 16,
                 paddingHorizontal: 15,
                 paddingVertical: 12,
-                minHeight: 66,
+                minHeight: 72,
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                gap: 10,
                 backgroundColor: t.isDark ? 'rgba(10,12,14,0.55)' : '#FFFFFF',
-                borderWidth: issue || focused ? 2 : t.isDark ? 1 : 0,
-                borderColor: issue ? t.colors.signal : focused ? t.colors.accentBorder : 'rgba(255,255,255,0.2)',
-              }}
+                borderWidth: t.isDark ? 1 : 0,
+                borderColor: 'rgba(255,255,255,0.2)',
+                transform: [{ scale: pressed ? 0.985 : 1 }],
+              })}
             >
-              <TextInput
-                value={prompt}
-                onChangeText={setPrompt}
-                onSubmitEditing={submit}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                placeholder="What do you need done? E.g. service my scooter this week"
-                placeholderTextColor={t.isDark ? 'rgba(213,217,221,0.75)' : t.colors.muted}
-                multiline
-                blurOnSubmit
-                returnKeyType="send"
-                accessibilityLabel="What do you need done?"
-                style={tx('400', 15, t.isDark ? '#F2F3F1' : t.colors.ink, {
-                  minHeight: 44,
-                  maxHeight: 120,
-                  padding: 0,
-                  lineHeight: 22,
-                  textAlignVertical: 'top',
-                  ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
-                })}
-              />
-            </View>
-            {issue ? (
-              <RNText style={tx('700', 12, '#FFE3D8', { marginTop: 8, lineHeight: 17 })}>{contactIssueMessage(issue)}</RNText>
-            ) : null}
+              <RNText style={tx('400', 15, t.isDark ? 'rgba(213,217,221,0.75)' : t.colors.muted, { flex: 1, lineHeight: 22 })}>
+                What do you need done? E.g. service my scooter this week
+              </RNText>
+              <View style={{ width: 38, height: 38, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: t.colors.btn }}>
+                <Icon name="edit" size={17} color={t.colors.onBtn} strokeWidth={2} />
+              </View>
+            </Pressable>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-              <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+                {/* Said out loud, so the two chips read as examples to try rather than the only choices. */}
+                <RNText style={tx('700', 12, 'rgba(255,255,255,0.85)')}>Try:</RNText>
                 {quick.slice(0, 2).map((x) => (
                   <Pressable
                     key={x.key}
@@ -233,46 +230,14 @@ function PostTop() {
                   </Pressable>
                 ))}
               </View>
-              {voice.supported ? (
-                <Pressable
-                  onPress={voice.toggle}
-                  accessibilityRole="button"
-                  accessibilityLabel="Voice typing"
-                  style={({ pressed }) => ({
-                    width: 44,
-                    height: 44,
-                    borderRadius: 999,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: voice.listening ? t.colors.signalSoft : 'rgba(255,255,255,0.16)',
-                    transform: [{ scale: pressed ? 0.94 : 1 }],
-                  })}
-                >
-                  <Icon name="mic" size={18} color={voice.listening ? t.colors.signalDeep : '#FFFFFF'} />
-                </Pressable>
-              ) : null}
-              <Pressable
-                onPress={submit}
-                accessibilityRole="button"
-                accessibilityLabel="Continue"
-                style={({ pressed }) => ({
-                  width: 44,
-                  height: 44,
-                  borderRadius: 999,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#FFFFFF',
-                  opacity: prompt.trim().length >= 3 && !issue ? 1 : 0.85,
-                  transform: [{ scale: pressed ? 0.94 : 1 }],
-                })}
-              >
-                <Icon name="send" size={18} color={t.colors.heroMid} strokeWidth={2} />
-              </Pressable>
             </View>
           </View>
           {wideHero ? <HeroArt /> : null}
         </View>
       </HeroCard>
+
+      {/* What open tasks round here pay: the area of each, never the spot. */}
+      <NearYou centre={placeAt} active={screen === 'home'} onSetArea={() => setPickPlace(true)} />
 
       <Pressable
         onPress={() => setHowOpen(true)}
@@ -313,7 +278,7 @@ function PostTop() {
             icon="briefcase"
             action="Manage"
             onAction={() => go('myTasks')}
-            style={{ marginTop: 24 }}
+            style={{ marginTop: 32 }}
           />
           <View style={{ marginTop: 10 }}>
             <Rail min={220}>
@@ -325,15 +290,13 @@ function PostTop() {
         </>
       ) : null}
 
-      <LiveWorkers active={screen === 'home'} />
-
       {/* Starting points */}
       <SectionTitle
         title="Start from an idea"
         icon="sparkle"
         action="See all"
         onAction={() => go('explore')}
-        style={{ marginTop: 24 }}
+        style={{ marginTop: 32 }}
       />
       <View style={{ marginTop: 12 }}>
         <Rail step={300} min={160}>
@@ -346,7 +309,7 @@ function PostTop() {
       {/* What is busy */}
       {trending.length > 0 ? (
         <>
-          <SectionTitle title="Busy on TaskDrop" icon="trending" style={{ marginTop: 24 }} />
+          <SectionTitle title="Busy on TaskDrop" icon="trending" style={{ marginTop: 32 }} />
           <View style={[cardSurface(t, 20), { marginTop: 12, paddingHorizontal: 14 }]}>
             {trending.map((c, i) => (
               <Pressable
@@ -389,6 +352,315 @@ function PostTop() {
         onPick={(p) => void choosePlace(p)}
       />
     </View>
+  );
+}
+
+/** The reach of the poster's "Near you" map, in km. */
+const NEAR_KM = 5;
+
+/**
+ * Open tasks round the poster's area, with what each one pays: a map of soft
+ * circles (the area, never the spot) and the closest few in a list. Seeing real
+ * prices nearby is how a poster gets a feel for what to offer, instead of a
+ * suggested range. Tapping a circle or a row opens a peek with the task.
+ */
+function NearYou({ centre, active, onSetArea }: { centre: { lat: number; lng: number } | null; active: boolean; onSetArea: () => void }) {
+  const t = useTheme();
+  const { go } = useNav();
+  const [rows, setRows] = useState<(TaskWithPoster & { km: number })[] | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
+  const [loadedAt, setLoadedAt] = useState(0);
+  // Helpers first (plan D11); the open tasks with their prices stay one tap away.
+  const [view, setView] = useState(0);
+
+  useEffect(() => {
+    if (!centre || !active || view !== 1) return;
+    let alive = true;
+    void tasksNear(centre, NEAR_KM, 12)
+      .then(async (r) => {
+        const withPeople = await attachPosters(r);
+        if (alive) {
+          setLoadedAt(Date.now());
+          setRows(withPeople.map((x, i) => ({ ...x, km: r[i]!.km })));
+        }
+      })
+      .catch(() => alive && setRows([]));
+    return () => {
+      alive = false;
+    };
+  }, [centre, active, view]);
+
+  const pins = (rows ?? []).map((r) => jobPin(r, loadedAt)).filter((x): x is JobPin => x !== null);
+  const openMap = (mode: 'jobs' | 'people') => centre && go('nearMap', { mode, centre, radiusKm: NEAR_KM });
+  const sel = rows?.find((r) => r.id === picked) ?? null;
+  const areaOf = (r: Task) => (r.loc_label ? roughPlace(r.loc_label)?.split(',')[0] : null) || 'Nearby';
+  const far = (km: number) => (km < 1 ? 'under 1 km' : `~${km.toFixed(km < 10 ? 1 : 0)} km`);
+
+  return (
+    <View>
+      <SectionTitle
+        title={view === 0 ? 'Helpers near you' : 'Near you right now'}
+        icon={view === 0 ? 'users' : 'pin'}
+        action={view === 0 ? (centre ? 'Full map' : undefined) : rows && rows.length > 0 ? 'See all' : undefined}
+        onAction={() => (view === 0 ? openMap('people') : go('explore'))}
+        style={{ marginTop: 32 }}
+      />
+      {centre ? (
+        <View style={{ marginTop: 10, flexDirection: 'row' }}>
+          <PillTabs tabs={[{ label: 'Helpers' }, { label: 'Task prices' }]} active={view} onPick={setView} inset={0} />
+        </View>
+      ) : null}
+      {!centre ? (
+        <Pressy onPress={onSetArea} style={[cardSurface(t), { marginTop: 12, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+          <Icon name="pin" size={18} color={t.colors.accentDeep} />
+          <RNText style={tx('600', 13.5, t.colors.ink, { flex: 1 })}>Set your area to see tasks and prices near you</RNText>
+          <Icon name="chevronRight" size={16} color={t.colors.muted} />
+        </Pressy>
+      ) : view === 0 ? (
+        <HelpersNear centre={centre} onOpenMap={() => openMap('people')} />
+      ) : rows === null ? (
+        <Shimmer height={260} style={{ marginTop: 12 }} />
+      ) : (
+        <>
+          <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4 })}>
+            {rows.length === 0
+              ? `No open tasks within ${NEAR_KM} km yet`
+              : `${rows.length} open task${rows.length === 1 ? '' : 's'} within ${NEAR_KM} km · prices set by the people who posted them`}
+          </RNText>
+          <View style={{ marginTop: 12 }}>
+            <JobsMap me={centre} pins={pins} selectedId={picked} onSelect={setPicked} height={280} ringKm={NEAR_KM} onExpand={() => openMap('jobs')} />
+          </View>
+
+          {sel ? (
+            <View style={[cardSurface(t, 20), { marginTop: 12, padding: 16 }]}>
+              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+                <View style={{ flex: 1 }}>
+                  <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 0.9 })} numberOfLines={1}>
+                    {(sel.category ?? 'Task').toUpperCase()}
+                  </RNText>
+                  <RNText style={tx('800', 17, t.colors.ink, { marginTop: 4, letterSpacing: -0.3 })} numberOfLines={2}>
+                    {sel.title}
+                  </RNText>
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                  <RNText style={tx('800', 22, t.colors.ink, { fontVariant: ['tabular-nums'], letterSpacing: -0.5 })}>
+                    {rupees(sel.benchmark_minor / 100)}
+                  </RNText>
+                  <TopUpBadge pct={sel.topup_pct} />
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, padding: 10, borderRadius: 14, backgroundColor: t.colors.surface2 }}>
+                <View style={{ width: 30, height: 30, borderRadius: 999, backgroundColor: t.colors.accent + '26', borderWidth: 1.5, borderColor: t.colors.accent, borderStyle: 'dashed' }} />
+                <View style={{ flex: 1 }}>
+                  <RNText style={tx('700', 13, t.colors.ink)}>
+                    {areaOf(sel)} area · {far(sel.km)} away
+                  </RNText>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                    <Icon name="lock" size={11} color={t.colors.muted} />
+                    <RNText style={tx('400', 11.5, t.colors.muted, { flexShrink: 1 })}>Exact address unlocks once someone is hired</RNText>
+                  </View>
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                <Pressy
+                  onPress={() => go('taskDetail', { row: taskToFeedRow(sel) })}
+                  style={{ flex: 1, height: 44, borderRadius: 999, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <RNText style={tx('800', 14, t.colors.onBtn)}>Open task</RNText>
+                </Pressy>
+                <Pressy
+                  onPress={() => go('aiPost', { similar: sel })}
+                  style={{ flex: 1, height: 44, borderRadius: 999, borderWidth: 1.5, borderColor: t.colors.line, backgroundColor: t.colors.surface, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <RNText style={tx('700', 14, t.colors.ink)}>Post one like this</RNText>
+                </Pressy>
+              </View>
+            </View>
+          ) : null}
+
+          {rows.length > 0 ? (
+            <View style={[cardSurface(t, 20), { marginTop: 12, paddingHorizontal: 14 }]}>
+              {rows.slice(0, 4).map((r, i) => (
+                <Pressable
+                  key={r.id}
+                  onPress={() => setPicked(r.id === picked ? null : r.id)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: r.id === picked }}
+                  accessibilityLabel={`${r.title}, ${rupees(r.benchmark_minor / 100)}, ${areaOf(r)} area, ${far(r.km)} away`}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingVertical: 12,
+                    borderTopWidth: i === 0 ? 0 : 1,
+                    borderTopColor: t.colors.line,
+                    opacity: pressed ? 0.75 : 1,
+                  })}
+                >
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 999,
+                      backgroundColor: t.colors.accent + '22',
+                      borderWidth: 1.5,
+                      borderColor: t.colors.accent + '55',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icon name={categoryIcon(r.category ?? '')} size={16} color={t.colors.accentDeep} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <RNText style={tx('700', 14, t.colors.ink)} numberOfLines={1}>
+                      {r.title}
+                    </RNText>
+                    <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>
+                      {areaOf(r)} area · {far(r.km)}
+                      {timeLeft(r.due_at) ? ` · ${timeLeft(r.due_at)}` : ''}
+                    </RNText>
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 3 }}>
+                    <RNText style={tx('800', 16, t.colors.ink, { fontVariant: ['tabular-nums'] })}>{rupees(r.benchmark_minor / 100)}</RNText>
+                    <TopUpBadge pct={r.topup_pct} compact />
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+        </>
+      )}
+    </View>
+  );
+}
+
+/**
+ * The poster's map of helpers round their area (plan D11): blue circles with a
+ * face, main skill and rating, a green dot when someone has TaskDrop open, and
+ * the people active now listed first. Tap a tag or a row for a peek with
+ * "View profile" and "Post a task"; the expand button opens the full map.
+ */
+function HelpersNear({ centre, onOpenMap }: { centre: { lat: number; lng: number }; onOpenMap: () => void }) {
+  const t = useTheme();
+  const { go } = useNav();
+  const [list, setList] = useState<NearbyWorker[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const [picked, setPicked] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const at = Date.now();
+    void workersNear(centre, NEAR_KM, 12)
+      .then((r) => alive && (setNow(at), setFailed(false), setList(activeFirst(r, at))))
+      .catch(() => alive && (setFailed(true), setList([])));
+    return () => {
+      alive = false;
+    };
+  }, [centre]);
+
+  if (list === null) return <Shimmer height={260} style={{ marginTop: 12 }} />;
+  const pins = list.map((w) => personPin(w, now)).filter((p): p is JobPin => p !== null);
+  const live = list.filter((w) => presenceOf(w.last_seen_at, now).online).length;
+  const sel = list.find((w) => w.id === picked) ?? null;
+
+  return (
+    <>
+      <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4 })}>
+        {failed
+          ? 'Could not load helpers just now. Try again in a moment.'
+          : list.length === 0
+          ? `No helpers within ${NEAR_KM} km yet. Post a task and people nearby or online can still send offers.`
+          : `${list.length} ${list.length === 1 ? 'person' : 'people'} within ${NEAR_KM} km who can help${live > 0 ? ` · ${live} active now` : ''}`}
+      </RNText>
+      <View style={{ marginTop: 12 }}>
+        <JobsMap me={centre} pins={pins} selectedId={picked} onSelect={setPicked} height={280} ringKm={NEAR_KM} tone="people" onExpand={onOpenMap} />
+      </View>
+
+      {sel ? (
+        <View style={[cardSurface(t, 20), { marginTop: 12, padding: 16, gap: 12 }]}>
+          <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+            <View style={{ width: 46, height: 46, borderRadius: 999, backgroundColor: t.colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
+              <RNText style={tx('800', 15, t.colors.purpleDeep)}>{initialsOf(sel.display_name || sel.username)}</RNText>
+            </View>
+            <View style={{ flex: 1 }}>
+              <RNText style={tx('800', 16, t.colors.ink)} numberOfLines={1}>
+                {sel.display_name}
+              </RNText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                <PresenceLabel lastSeen={sel.last_seen_at} />
+                <RNText style={tx('400', 12, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>
+                  · {ratingOf(sel) ? `★ ${ratingOf(sel)} (${sel.worker_rating_count})` : 'New'} · {areaName(sel.loc_label)} area · {farText(sel.km)}
+                </RNText>
+              </View>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+            {(sel.skills ?? []).slice(0, 4).map((s) => (
+              <View key={s} style={{ paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: t.colors.purpleSoft }}>
+                <RNText style={tx('700', 11.5, t.colors.purpleDeep)}>{mainSkill([s])}</RNText>
+              </View>
+            ))}
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Pressy
+              onPress={() => go('publicProfile', { userId: sel.id })}
+              style={{ flex: 1, height: 44, borderRadius: 999, borderWidth: 1.5, borderColor: t.colors.line, backgroundColor: t.colors.surface, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <RNText style={tx('700', 14, t.colors.ink)}>View profile</RNText>
+            </Pressy>
+            <Pressy
+              onPress={() => go('aiPost')}
+              style={{ flex: 1, height: 44, borderRadius: 999, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <RNText style={tx('800', 14, t.colors.onBtn)}>Post a task</RNText>
+            </Pressy>
+          </View>
+        </View>
+      ) : null}
+
+      {list.length > 0 ? (
+        <View style={[cardSurface(t, 20), { marginTop: 12, paddingHorizontal: 14 }]}>
+          {list.slice(0, 4).map((w, i) => (
+            <Pressable
+              key={w.id}
+              onPress={() => setPicked(w.id === picked ? null : w.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: w.id === picked }}
+              accessibilityLabel={`${w.display_name}, ${mainSkill(w.skills)}, ${presenceOf(w.last_seen_at, now).label}, ${farText(w.km)} away`}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                paddingVertical: 12,
+                borderTopWidth: i === 0 ? 0 : 1,
+                borderTopColor: t.colors.line,
+                opacity: pressed ? 0.75 : 1,
+              })}
+            >
+              <View>
+                <View style={{ width: 38, height: 38, borderRadius: 999, backgroundColor: t.colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
+                  <RNText style={tx('800', 12.5, t.colors.purpleDeep)}>{initialsOf(w.display_name || w.username)}</RNText>
+                </View>
+                {presenceOf(w.last_seen_at, now).online ? (
+                  <View style={{ position: 'absolute', right: 0, bottom: 0, width: 11, height: 11, borderRadius: 999, backgroundColor: '#22C55E', borderWidth: 2, borderColor: t.colors.surface }} />
+                ) : null}
+              </View>
+              <View style={{ flex: 1 }}>
+                <RNText style={tx('700', 14, t.colors.ink)} numberOfLines={1}>
+                  {w.display_name}
+                  {ratingOf(w) ? <RNText style={tx('700', 12, t.colors.muted)}>{`  ★ ${ratingOf(w)}`}</RNText> : null}
+                </RNText>
+                <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>
+                  {(w.skills ?? []).slice(0, 2).map((s) => mainSkill([s])).join(', ')} · {areaName(w.loc_label)} area · {farText(w.km)}
+                </RNText>
+              </View>
+              <Icon name="chevronRight" size={16} color={t.colors.muted} />
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+    </>
   );
 }
 
@@ -470,6 +742,7 @@ function EarnTop() {
   const [pickPlace, setPickPlace] = useState(false);
   const [recs, setRecs] = useState<TaskWithPoster[] | null>(null);
   const [near, setNear] = useState<(TaskWithPoster & { km: number })[] | null>(null);
+  const [nearAt, setNearAt] = useState(0);
   const [remote, setRemote] = useState<TaskWithPoster[] | null>(null);
   const [urgent, setUrgent] = useState<TaskWithPoster[]>([]);
   const [saved, setSavedIds] = useState<Set<string>>(new Set());
@@ -540,7 +813,10 @@ function EarnTop() {
     void tasksNear(place, radius, 8)
       .then(async (rows) => {
         const withPeople = await attachPosters(rows);
-        if (alive) setNear(withPeople.map((x, i) => ({ ...x, km: rows[i]!.km })));
+        if (alive) {
+          setNearAt(Date.now());
+          setNear(withPeople.map((x, i) => ({ ...x, km: rows[i]!.km })));
+        }
       })
       .catch(() => alive && setNear([]));
     return () => {
@@ -711,7 +987,7 @@ function EarnTop() {
           icon="star"
           action="Edit skills"
           onAction={() => go('profileEdit')}
-          style={{ marginTop: 22 }}
+          style={{ marginTop: 32 }}
         />
         <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>
           {skills.length ? skills.slice(0, 3).join(' · ') : 'Add skills to your profile for sharper matches'}
@@ -731,7 +1007,7 @@ function EarnTop() {
         <SectionTitle
           title={areaName ? `Jobs near ${areaName}` : 'Jobs near you'}
           icon="pin"
-          style={{ marginTop: 26 }}
+          style={{ marginTop: 32 }}
         />
         {place ? (
           <>
@@ -767,6 +1043,21 @@ function EarnTop() {
               </View>
             ) : (
               <>
+                {/* The same jobs on a map: a soft circle per job's area, never its spot. Tap one to open it. */}
+                <View style={{ marginTop: 12 }}>
+                  <JobsMap
+                    me={place}
+                    pins={near.map((r) => jobPin(r, nearAt)).filter((x): x is JobPin => x !== null)}
+                    onExpand={() => go('nearMap', { mode: 'jobs', centre: place, radiusKm: radius })}
+                    selectedId={null}
+                    onSelect={(id) => {
+                      const hit = near.find((r) => r.id === id);
+                      if (hit) go('taskDetail', { row: taskToFeedRow(hit) });
+                    }}
+                    height={240}
+                    ringKm={radius}
+                  />
+                </View>
                 <Grid>{firstFew('near', near).map((task, i) => card(task, i, task.km))}</Grid>
                 {more('near', near.length)}
               </>
@@ -799,7 +1090,7 @@ function EarnTop() {
         )}
 
         {/* 3. From anywhere */}
-        <SectionTitle title="Remote & online" icon="compass" style={{ marginTop: 26 }} />
+        <SectionTitle title="Remote & online" icon="compass" style={{ marginTop: 32 }} />
         <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>Work you can do from your phone or laptop</RNText>
         {remote === null ? (
           <Shimmer height={110} style={{ marginTop: 12 }} />
@@ -815,7 +1106,7 @@ function EarnTop() {
         {/* 4. Needed today */}
         {urgent.length > 0 ? (
           <>
-            <SectionTitle title="Needed today" icon="bolt" badge="Urgent" style={{ marginTop: 26 }} />
+            <SectionTitle title="Needed today" icon="bolt" badge="Urgent" style={{ marginTop: 32 }} />
             <Grid>{firstFew('urgent', urgent).map((task, i) => card(task, i))}</Grid>
             {more('urgent', urgent.length)}
           </>
@@ -850,14 +1141,17 @@ function StepsMini() {
   const t = useTheme();
   const steps = ['Post', 'Offers', 'Pay', 'Approve'];
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+    // One line, always (owner, 2026-10-30): the connectors stretch to share the width rather than wrapping.
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 8 }}>
       {steps.map((s, i) => (
-        <View key={s} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          {i > 0 ? <View style={{ width: 10, height: 1.5, backgroundColor: t.colors.line }} /> : null}
-          <View style={{ width: 17, height: 17, borderRadius: 999, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}>
+        <View key={s} style={{ flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 1, flexGrow: i > 0 ? 1 : 0 }}>
+          {i > 0 ? <View style={{ flexGrow: 1, minWidth: 4, maxWidth: 14, height: 1.5, backgroundColor: t.colors.line }} /> : null}
+          <View style={{ width: 16, height: 16, borderRadius: 999, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}>
             <RNText style={tx('800', 9, t.colors.onBtn)}>{i + 1}</RNText>
           </View>
-          <RNText style={tx('700', 10.5, t.colors.accentDeep)}>{s}</RNText>
+          <RNText numberOfLines={1} style={tx('700', 10.5, t.colors.accentDeep, { flexShrink: 1 })}>
+            {s}
+          </RNText>
         </View>
       ))}
     </View>

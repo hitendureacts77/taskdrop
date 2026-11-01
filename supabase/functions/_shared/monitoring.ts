@@ -1,5 +1,7 @@
 import { secret } from "./secrets.ts";
 import { parseStack } from "./stack.ts";
+import { scrubText } from "./scrub.ts";
+import { withCors } from "./cors.ts";
 
 /**
  * Sentry for the Edge Functions, if SENTRY_DSN is configured (as an Edge
@@ -16,7 +18,8 @@ import { parseStack } from "./stack.ts";
  *                       webhook with a bad signature), not for every request.
  *
  * Never put a phone number, email, name, address or token in a message or
- * attribute. Ids (task, payment, payout) and codes are fine.
+ * attribute. Ids (task, payment, payout) and codes are fine. As a last net, everything sent passes
+ * through scrub.ts, which hides keys, phone numbers and emails it finds.
  */
 
 type Dsn = { key: string; host: string; project: string };
@@ -63,8 +66,55 @@ export async function captureServerError(
       level,
       server_name: "edge-function",
       environment: environment(),
-      tags: context,
-      exception: { values: [{ type: e.name, value: e.message, ...(frames.length ? { stacktrace: { frames } } : {}) }] },
+      tags: Object.fromEntries(Object.entries(context).map(([k, v]) => [k, scrubText(String(v))])),
+      exception: { values: [{ type: e.name, value: scrubText(e.message), ...(frames.length ? { stacktrace: { frames } } : {}) }] },
+    };
+    await send(d, [[{ type: "event" }, event]], id);
+  } catch {
+    // Monitoring is best-effort; it must never become the error.
+  }
+}
+
+/**
+ * Things an attacker causes, counted so a spike can email the owner (plan task 2.10). Each kind is one Sentry issue
+ * ("security: <kind>") tagged `security_event`, so one alert rule per kind ("seen more than N times in an hour") is enough.
+ *
+ *   refused_login      a wrong sign-in code, a wrong password, a request with a bad or missing login
+ *   app_check_failed   a request whose App Check token is not from the real app
+ *   bad_signature      a payment or payout message whose signature is wrong (a forged webhook)
+ *   sms_code_sent      a real sign-in SMS went out (a sudden rise is SMS pumping)
+ *   sms_budget_hit     the per-address or daily limit on sign-in codes stopped a request
+ *
+ * One event per kind per instance per hour is plenty to make the issue count rise; at most 20 per kind per instance per hour
+ * are sent, so an attack cannot use up the Sentry quota. No phone number, name, address or token is ever included: counts only.
+ */
+export type SecurityKind = "refused_login" | "app_check_failed" | "bad_signature" | "sms_code_sent" | "sms_budget_hit";
+const securitySeen = new Map<string, { windowStart: number; sent: number }>();
+const SECURITY_PER_HOUR = 20;
+
+export async function captureSecurityEvent(kind: SecurityKind, fn: string): Promise<void> {
+  try {
+    const now = Date.now();
+    const seen = securitySeen.get(kind);
+    if (!seen || now - seen.windowStart > 3_600_000) securitySeen.set(kind, { windowStart: now, sent: 1 });
+    else if (seen.sent >= SECURITY_PER_HOUR) return;
+    else seen.sent++;
+
+    const d = await dsn();
+    if (!d) return;
+    const id = crypto.randomUUID().replace(/-/g, "");
+    const event = {
+      event_id: id,
+      timestamp: now / 1000,
+      platform: "javascript",
+      level: "warning",
+      server_name: "edge-function",
+      environment: environment(),
+      message: `security: ${kind}`,
+      fingerprint: ["security", kind],
+      // sms_code_sent is a volume signal, not an attack in itself (run_sms_pumping_watch judges it), so it does not carry the
+      // security_event tag that the Sentry spike alert matches.
+      tags: kind === "sms_code_sent" ? { sms_event: kind, fn } : { security_event: kind, fn },
     };
     await send(d, [[{ type: "event" }, event]], id);
   } catch {
@@ -96,12 +146,12 @@ export async function logServer(level: LogLevel, fn: string, message: string, at
       fn: attr(fn),
       "sentry.environment": attr(environment()),
     };
-    for (const [k, v] of Object.entries(attributes)) if (v !== null && v !== undefined) attrs[k] = attr(v);
+    for (const [k, v] of Object.entries(attributes)) if (v !== null && v !== undefined) attrs[k] = attr(typeof v === "string" ? scrubText(v) : v);
     const item = {
       timestamp: Date.now() / 1000,
       trace_id: crypto.randomUUID().replace(/-/g, ""),
       level,
-      body: message,
+      body: scrubText(message),
       attributes: attrs,
     };
     await send(
@@ -115,13 +165,15 @@ export async function logServer(level: LogLevel, fn: string, message: string, at
 }
 
 /**
+ * Also decides the CORS answer from who is asking (_shared/cors.ts), whatever the handler wrote.
+ *
  * Wrap a function's request handler so anything it throws and does not catch
  * is reported (with a readable stack) and answered with a plain 500, instead of
  * vanishing into the function logs. Expected refusals are not exceptions and
  * never reach this.
  */
 export function guarded(fn: string, handler: (req: Request) => Promise<Response>): (req: Request) => Promise<Response> {
-  return async (req) => {
+  return withCors(async (req) => {
     try {
       return await handler(req);
     } catch (e) {
@@ -135,7 +187,7 @@ export function guarded(fn: string, handler: (req: Request) => Promise<Response>
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
       });
     }
-  };
+  });
 }
 
 /** Let a send finish after the response has gone out, so it never slows a request down. */
