@@ -12,7 +12,7 @@ Status 2026-10-04 · **Static analysis only.** Latency was not measured (no stag
 | `notifications` rows | Created by `private.notify()` from triggers and some admin RPCs | visible on next fetch |
 | Realtime for `notifications` | App subscribes (`data/extras.ts: subscribeToNotifications`) **but the table is not in the publication** | **never fires** |
 | Push (Expo, via `pg_net` in `private.push_notification`) | Native only | Android yes, web no |
-| Polling | `LiveWorkers` 60 s, `PresenceBeat` 60 s, `AddFundsSheet` interval | not for money state |
+| Polling | `PresenceBeat` 60 s, `AddFundsSheet` interval | not for money state |
 | Refetch on focus / reconnect / foreground | not systematically implemented | screens refetch only when they remount |
 
 **Core gap (S-01):** an admin change becomes visible to a user only when that user navigates or refreshes
