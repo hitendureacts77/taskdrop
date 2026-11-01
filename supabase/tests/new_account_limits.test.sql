@@ -64,6 +64,16 @@ begin
 end;
 $$;
 
+create or replace function pg_temp.refusal(p_sql text) returns text
+language plpgsql as $
+begin
+  execute p_sql;
+  return null;
+exception when others then
+  return sqlerrm;
+end;
+$;
+
 create or replace function pg_temp.refused(p_sql text) returns boolean
 language plpgsql as $$
 begin
@@ -75,26 +85,35 @@ end;
 $$;
 
 -- ---- 1. the value of one job -------------------------------------------------------------------
-do $$
+do $
 declare
-  v_new  uuid := pg_temp.make_user('New poster');
-  v_task uuid;
+  v_new    uuid := pg_temp.make_user('New poster');
+  v_worker uuid := pg_temp.make_user('New worker');
+  v_task   uuid;
+  v_bid    uuid;
+  v_msg    text;
 begin
   perform pg_temp.become(v_new);
 
-  assert pg_temp.refused(format(
-    'insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes) values (%L, ''services'', ''too big'', 500001, 240)', v_new)),
-    'a new account cannot post a job worth more than Rs 5,000';
+  v_msg := pg_temp.refusal(format(
+    'insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes) values (%L, ''services'', ''too big'', 500001, 240)', v_new));
+  assert v_msg like 'New accounts can have jobs worth up to Rs 5000%', format('a new account cannot post a job worth more than Rs 5,000: %s', coalesce(v_msg, 'it was accepted'));
 
   insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes)
   values (v_new, 'services', 'at the limit', 500000, 240) returning id into v_task;
 
-  -- The amount held when an offer is chosen is checked too.
-  assert pg_temp.refused(format('update public.tasks set locked_minor = 600000 where id = %L', v_task)),
-    'an offer worth more than the limit cannot be chosen by a new account';
-  update public.tasks set locked_minor = 500000 where id = v_task;
+  -- Editing the budget upwards is checked too.
+  v_msg := pg_temp.refusal(format('update public.tasks set benchmark_minor = 900000 where id = %L', v_task));
+  assert v_msg like 'New accounts can have jobs worth up to Rs 5000%', format('raising the budget past the limit is refused: %s', coalesce(v_msg, 'it was accepted'));
+
+  -- The amount held when an offer is chosen goes through lock_bid, which writes locked_minor.
+  perform pg_temp.as_operator();
+  insert into public.bids (task_id, worker_id, price_minor, time_limit_minutes) values (v_task, v_worker, 600000, 240) returning id into v_bid;
+  perform pg_temp.become(v_new);
+  v_msg := pg_temp.refusal(format('select public.lock_bid(%L, ''one_time'')', v_bid));
+  assert v_msg like 'New accounts can have jobs worth up to Rs 5000%', format('choosing an offer worth more than the limit is refused: %s', coalesce(v_msg, 'it was accepted'));
 end;
-$$;
+$;
 
 -- ---- 4. the server is not limited --------------------------------------------------------------
 do $$
