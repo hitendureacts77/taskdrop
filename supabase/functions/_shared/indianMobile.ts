@@ -8,3 +8,12 @@
 export function isIndianMobile(phone: string): boolean {
   return /^[6-9][0-9]{9}$/.test(phone) && !/^(.)\1{9}$/.test(phone);
 }
+
+/**
+ * Whether phone-auth takes this number at all. A number on the TEST_PHONES allowlist (set only in the function's
+ * secrets, for development) is taken even when it is not a real Indian mobile, such as 1111111111: it never reaches the
+ * SMS gateway, so it cannot be pumped. Every other number must pass isIndianMobile.
+ */
+export function acceptsPhone(phone: string, testPhones: ReadonlySet<string>): boolean {
+  return testPhones.has(phone) || isIndianMobile(phone);
+}
