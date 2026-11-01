@@ -34,6 +34,8 @@ export function normalizeDigits(text: string): string {
 export const PATTERNS: RegExp[] = [
   // Emails.
   /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
+  // An email written out to dodge the rule: "a (at) b (dot) com", "a at b dot com". Found by the plan 2.10 break-it run.
+  /(?<![\w.+-])[\w.+-]+\s*[(\[{<]\s*at\s*[)\]}>]\s*[\w-]+(?:\s*(?:[(\[{<]\s*dot\s*[)\]}>]|\.)\s*[\w-]+)+|\b[\w.+-]+\s+at\s+[\w-]+\s+dot\s+[a-z]{2,}\b/gi,
   // Links and chat deep-links (wa.me, t.me, instagram.com/...).
   /\b(?:https?:\/\/|www\.)\S+/gi,
   /\b(?:wa\.me|t\.me|instagram\.com|facebook\.com|fb\.me|telegram\.me)\/\S*/gi,
@@ -80,7 +82,7 @@ export type ContactIssue = 'phone' | 'email' | 'link' | 'handle' | 'address';
  * is stopped before it can go out, with the reason.
  */
 export function findContactIssue(text: string): ContactIssue | null {
-  if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text)) return 'email';
+  if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text) || new RegExp(PATTERNS[1].source, 'i').test(text)) return 'email';
   if (/(?:\+?\d[\s\-.()]*){8,}\d/.test(normalizeDigits(text))) return 'phone';
   if (/\b(?:https?:\/\/|www\.)\S+/i.test(text) || /\b(?:wa\.me|t\.me|instagram\.com|facebook\.com|fb\.me|telegram\.me)\//i.test(text)) return 'link';
   if (/(?:^|\s)@[A-Za-z0-9_.]{3,}/.test(text) || /\b(?:whats\s?app|telegram|snapchat|call me on|ping me on)\b/i.test(text)) return 'handle';
