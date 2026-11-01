@@ -5,6 +5,13 @@ title = "taskdrop gitleaks"
 [extend]
 useDefault = true
 
+# gitleaks has no built-in Razorpay rule, so this one catches live and test keys (found by the plan 2.10 proof, 1 Nov).
+[[rules]]
+id = "razorpay-key"
+description = "Razorpay key id"
+regex = '''rzp_(live|test)_[A-Za-z0-9]{10,}'''
+keywords = ["rzp_"]
+
 [allowlist]
 description = "made-up values and old archives"
 paths = [
