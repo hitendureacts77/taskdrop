@@ -12,4 +12,6 @@
 
 What the server sends to Sentry (`captureSecurityEvent`, `supabase/functions/_shared/monitoring.ts`): counts only, never a phone number, name, address or token; at most 20 events per kind per instance per hour, so an attack cannot use up the Sentry quota. `sms_code_sent` is sent under its own tag (`sms_event`) and is judged by the database watch above, not by the spike alert.
 
-**Still to do by hand (needs your decision):** a second Sentry rule for `fatal` issues if one is not already set, and a test that the spike email arrives (send 10 wrong codes to a staging number, wait for the next alert).
+**Proven 1 Nov:** 15 wrong codes sent to a seed account on staging produced the Sentry issue TASKDROP-S, and the "Security spike" email reached hitendureacts@gmail.com.
+
+**Still to do by hand (needs your decision):** a second Sentry rule for `fatal` issues if one is not already set.
