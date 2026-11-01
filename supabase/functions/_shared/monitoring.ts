@@ -1,6 +1,7 @@
 import { secret } from "./secrets.ts";
 import { parseStack } from "./stack.ts";
 import { scrubText } from "./scrub.ts";
+import { withCors } from "./cors.ts";
 
 /**
  * Sentry for the Edge Functions, if SENTRY_DSN is configured (as an Edge
@@ -117,13 +118,15 @@ export async function logServer(level: LogLevel, fn: string, message: string, at
 }
 
 /**
+ * Also decides the CORS answer from who is asking (_shared/cors.ts), whatever the handler wrote.
+ *
  * Wrap a function's request handler so anything it throws and does not catch
  * is reported (with a readable stack) and answered with a plain 500, instead of
  * vanishing into the function logs. Expected refusals are not exceptions and
  * never reach this.
  */
 export function guarded(fn: string, handler: (req: Request) => Promise<Response>): (req: Request) => Promise<Response> {
-  return async (req) => {
+  return withCors(async (req) => {
     try {
       return await handler(req);
     } catch (e) {
@@ -137,7 +140,7 @@ export function guarded(fn: string, handler: (req: Request) => Promise<Response>
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
       });
     }
-  };
+  });
 }
 
 /** Let a send finish after the response has gone out, so it never slows a request down. */
