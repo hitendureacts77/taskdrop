@@ -67,7 +67,7 @@ Checked against best practice on 31 October 2026 (see the changelog). New: 2-ste
 |---|---|---|
 | 1 | Start Google Play's ID check (done: Google verified your identity on 27 Oct) | S.1 |
 | 1 | Book a meeting with a Chartered Accountant | S.2 |
-| 1 | Answer the decisions (20 minutes) | 1.1 |
+| 1 | Answer the decisions (deferred to future scope on 1 Nov 2026) | 1.1 |
 | 1 | Open the staging app on your phone twice and try the walkthrough fixes (done by Claude 31 Oct) | 1.2 |
 | 2 | Set up and protect your secrets file | 2.1 |
 | 2 | Turn on 2-step sign-in on your 8 most important accounts (deferred to future scope on 31 Oct 2026) | 2.1b |
@@ -522,13 +522,15 @@ Add the cancellations-and-refunds page and the contact-us page with the business
 **Goal:** every bug you have seen is fixed or has your written "accept", and the design changes you asked for are decided. Testers should judge a good app, not a broken one.
 
 <details id="t1-1" data-short="Your decisions">
-<summary>[YOU] <b>1.1</b> Make your decisions <small>· 20 minutes</small></summary>
+<summary>[LATER] <b>1.1</b> Future scope: make your decisions <small>· 20 minutes · deferred 1 Nov 2026, no gate waits on it</small></summary>
+
+**Deferred to future scope (your decision, 1 Nov 2026).** Decisions 3, 10 and 12 stay open. Each one is answered when the task that needs it comes up (3 when the payment quotes are in, S.4). Nothing in Step 1 waits for them.
 
 1. Read the **Decisions** section near the end of this file. Each decision has a recommended answer.
 2. For each one, SAY its sentence (or your own answer).
 3. TELL Claude: "done 1.1".
 
-**Done when:** every decision has an answer. Decisions 3, 10 and 12 are still open (3 waits for the payment quotes, S.4).
+**Done when:** every decision has an answer. This is future scope, so it is not part of your progress and Gate 1 does not wait for it.
 </details>
 
 <details id="t1-2" data-short="Merge walkthrough fixes">
@@ -647,7 +649,7 @@ draw D1, D3 and D4
 </details>
 
 <details id="t1-6" data-short="Build the approved designs">
-<summary>[CLAUDE] <b>1.6</b> Build the approved designs and two small features <small>· Built and merged 31 Oct, waiting for the phone check · your time: 20 minutes</small></summary>
+<summary>[CLAUDE] <b>1.6</b> Build the approved designs and two small features <small>· Built and merged (D10 finished 1 Nov), waiting for the phone check · your time: 20 minutes</small></summary>
 
 **What Claude builds:**
 
@@ -669,7 +671,7 @@ build the approved designs
 **Built 31 Oct and merged into `redesigned-2.0` (pull requests 121 and 122). `npm run check` is green.** **Published to testers 31 Oct** (your OK): EAS update group `bdd9c44b-f198-44ac-af49-f65b61877720` on channel `beta`, from `d244b48`, with readable Sentry stacks (maps uploaded, debug id `a9c57bf5…`). Open the staging app on your phone **twice** (the first open downloads it, the second runs it), then try each item. **Seen on the phone 31 Oct (by Claude over USB):** the new Home (pencil button, one-row "Try:" chips), the Drop a task card opening the full-screen composer with Next, and the 7-step flow. The other items are still yours to try. **Newer update, same day (your OK):** group `94d39d2d-af5f-47fe-bfd2-4861c21a73bc` adds "Post a request" step 2 asking three or four questions instead of one (pull request 130); it was built from the code at `8ccd984` (EAS labels it `880840f`, which only adds a small fix on the task screen from pull request 131).
 
 - **Built:** D1 birth-date wheels, D2 larger and sharper splash drop, D3 the Home card opens a full-screen composer with Next, D4 six category chips plus search, D5 the When step in order with its own pictures, D6 the Usual price card (removed again on 1 Nov 2026, see the changelog), D7 one offer card (Price only or Price + proposal), D8 posters green and workers blue on profiles, D9 the Explore list plus a Map view (you as a blue dot, jobs as green price tags, close ones joined into a number), D10 first step on Home (more air between sections, softer cards), the location ask for new sign-ups, and Drafts in My Tasks.
-- **Still to do:** D10 on the other screens, one at a time, each shown to you first. D6 is dropped (1 Nov 2026), so no price estimate is needed.
+- **D10 on the other screens, built 1 Nov (you asked for all of it at once):** Explore, Profile and Wallet now use the same 32-point gap between sections as Home. The other screens already used the shared soft card and 32-point gaps, so nothing else moved. D6 is dropped (1 Nov 2026), so no price estimate is needed. Waits for a new app update before you can see it on the phone.
 - **Differences from the drawings:** the birth-date screen does not say 18 (the code keeps that number off the sign-up screen on purpose); the splash stays dark because the app always opens dark.
 </details>
 
@@ -729,6 +731,8 @@ build the approved designs
 1. Use the staging app on your phone with two accounts: post a task, send an offer, pick it, and watch the alerts on each phone.
 2. TELL Claude: "done 1.7", or what still reads badly.
 
+**Checked 1 Nov (Claude):** the alerts that the real test runs on staging saved that morning were read one by one against the table above: offer, picked you, paid, started, work sent, approved, cancelled (both sides), money back, problem reported, and the cancel-after-start payment each read exactly as written, with a short title and the task name in the body. The code that draws the bell list shows both the title and the body. Alerts saved before 31 Oct keep their old words, and your own bell still holds only those (the newest is three days old), so the new words have not yet been seen on your phone: that needs one live alert, for example a worker sending an offer on your task.
+
 **Done when:** you have read each alert on your phone and none of them needs explaining. **Cleaned up 31 Oct:** the 71 old "[e2e]" test notifications on staging (44 customer alerts and 27 staff alerts, all fake data) were removed at your OK; 147 notifications remain, none with "[e2e]". **Cleaned up again 31 Oct:** a later test run put 24 more on the bell (customer, worker and staff); they were removed, and the test run now removes its own alerts afterwards (`scripts/clear-e2e-notifications.mjs`, needs `DATABASE_URL`).
 </details>
 
@@ -775,14 +779,16 @@ fix the keyboard problem
 4. Open the staging app on your phone twice and try the five worst spots yourself.
 5. TELL Claude: "done 1.8", or what is still hidden.
 
+**Found and fixed 1 Nov, in the pass on the sign-in code:** with the keyboard open, the six code beads and the test-mode code sat below it and could not be seen (the code box is an invisible field, so the page never scrolled to it). The beads and the test code now scroll up clear of the keyboard when the code box is used (`RevealWhen`, in `KeyboardScrollView`). Built and merged; it waits for a new app update to be seen on the phone. The proof-of-work box uses the same page scroll and box as the review text, so it is covered by the same checks; the confirm dialog closes the keyboard first by design.
+
 **Done when:** all 16 spots pass the keyboard pass on your phone, `npm run check` is green, and the chat-only helper is gone (replaced by the shared one). **Risk:** Android keyboards differ (Google's, Samsung's, taller ones with a suggestion row), so Claude tests the keyboard that is on your phone and says which others were not tried.
 </details>
 
 > **GATE 1: do not start Step 3 until all of these are true** (Step 2 can start at the same time as Step 1)
 
-- [ ] Every decision has an answer (1.1)
+- [-] Every decision has an answer (1.1). **Future scope (your decision, 1 Nov 2026):** no gate waits on it; each open decision is answered when the task that needs it comes up.
 - [x] Bugs B1 to B12 are fixed, or you have written "accept" for a Low one. **Checked 1 Nov:** B1 to B12 are all fixed and merged (1.2, 1.3, 1.4; B13 was dropped). B8, B11 and B12 could not be seen on a phone (seed data, too quick, and a sign-in that needs signing out), so they were checked by code and tests only.
-- [ ] Each design change D1 to D10 is built or dropped
+- [x] Each design change D1 to D10 is built or dropped. **Checked 1 Nov:** D1 to D5 and D7 to D9 were built and merged on 31 Oct, D6 was dropped (1 Nov), and D10 is now built: Home's 32-point gap between sections and its softer cards also reach Explore, Profile and Wallet. Seen on your phone: D3 (the Drop a task composer), D5 (When step), D7 (Price only / Price + proposal), D8 (blue for workers) and D9 (the Google map on Home and Find work). Not seen: D1, because the birth-date wheels only show when a new number signs up and Claude does not create accounts; and the D10 spacing on Explore, Profile and Wallet, which needs a new app update.
 - [ ] Every notification reads clearly on your phone (1.7)
 - [ ] Nothing is hidden behind the keyboard: the 16-spot keyboard pass is green on your phone (1.8)
 - [x] `npm run check` is green on `redesigned-2.0` (Claude reports this). **Checked 31 Oct:** typecheck, lint and 62 tests passed (exit 0) on the code of `redesigned-2.0` at `ce62f5c`.
@@ -3142,6 +3148,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-01 (finishing Step 1):** You asked Claude to finish the open Step 1 items at once and merge them together. **Done:** 1.1 (your decisions) moved to future scope, so no gate waits on it; D10 built on Explore, Profile and Wallet (the 32-point gap Home already has), so the "D1 to D10 built or dropped" box is ticked; the sign-in code beads and test code now scroll clear of the keyboard (found in the keyboard pass: they were hidden behind it); the alerts saved by that morning's test runs were read against the 1.7 table and match. **Not done, and why:** the 1.7 and 1.8 boxes stay open until the new words and the keyboard fix are seen on your phone (that needs a new app update, which Claude asks you about first); the bigger-text and other-navigation repeats of the keyboard pass change the phone's own settings, which Claude does not do. All of this is one pull request into `redesigned-2.0`.
 - **2026-11-01 (Phase 1 check, map fault found):** You asked Claude to finish the rest of Step 1 and mark it done. **Found on your phone:** the Home "Near you right now" map showed OpenStreetMap's "Access blocked" page instead of a map (the same tile opens fine in the phone's browser; OpenStreetMap refuses the app's own tile requests). **Fixed:** phones now draw the Google map the location picker already uses (pull request 149, merged by another session; Claude's duplicate pull request 150 was closed). Web and Expo Go keep the tile map. **Published to testers the same day (your OK):** update group `f57bfe9e-a38a-4e47-b411-9f36accb3d43` on channel `beta`, from `b4e9670`, with readable Sentry stacks. **Seen on your phone:** Find work, Map view shows Google's map with you as the blue dot and the legend; the job circles were not in view because the three test jobs are in Bengaluru and you are in Hyderabad. **Also:** the Report sheet and the Explore search box passed the keyboard pass; the Gate 1 box for bugs B1 to B12 is ticked. **Not marked done, and why:** decisions 3, 10 and 12 are yours (3 waits for the payment quotes, 10 for the company choice); D10 on the other screens needs your look first; 1.6 and 1.7 are not fully seen on a phone; 1.8 still has the bigger-text and navigation-style repeats, which change the phone's own settings, and five spots not opened.
 - **2026-11-01 (investors who take profit, not equity):** You asked to add to the plan: ask Basheer how to get investors who do not take equity and only take a share of profit. **Added:** future-scope item **F.15** with the questions to ask him. **Not changed:** it is not counted in your progress bar, and no task, number or gate moved.
 - **2026-11-01 (nearby tasks, free price, top-up bar):** You asked that opening the app shows tasks near you with their prices, only ever as a rough area, and that the fair-price parts go. **Built:** a "Near you right now" section on the Hire home (a map of open tasks within 5 km, each a soft circle round its area with its price, the closest four in a list, and a peek with "Open task" and "Post one like this"); the same map above "Jobs near" on the Earn home; the Explore map draws circles instead of pins. **Removed:** the usual-price card, the Low / Fair / Generous meter, the suggested amounts and the price slider. The price box starts empty and takes any amount (the `₹20` floor in the shared money rules stays). **Added:** a top-up bar at the bottom of the Budget step (0, +2, +3, +5, +10, +15, +20, +25%); workers see one price with the top-up included. **Also built:** the "topped up" badge, after your yes: migration 129 adds `tasks.topup_pct` (0 to 25, set only when posting), the server accepts only the bar's steps, and the badge shows on job cards, the Explore map card and the Home "Near you" list. Applied to the test database the same day; the server function deploys with the merge. D6 is dropped.

@@ -140,7 +140,7 @@ function ExploreIdeas() {
                       </Pressy>
                     </View>
                   ))}
-                  <View style={{ height: 24 }} />
+                  <View style={{ height: 32 }} />
                 </>
               ) : null}
 
@@ -156,7 +156,7 @@ function ExploreIdeas() {
               </ScrollView>
               <TemplateGrid items={templates} onPick={(prompt) => go('aiPost', { prompt })} />
 
-              <View style={{ height: 26 }} />
+              <View style={{ height: 32 }} />
               <SectionTitle title="People often ask for" icon="users" action="Shuffle" onAction={() => setSeed((s) => s + 1)} />
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
                 {ideas.map((idea, i) => (
@@ -185,7 +185,7 @@ function ExploreIdeas() {
                 ))}
               </View>
 
-              <View style={{ height: 26 }} />
+              <View style={{ height: 32 }} />
               <SectionTitle title="How TaskDrop works" icon="help" />
               <HowItWorks side="hire" />
             </>

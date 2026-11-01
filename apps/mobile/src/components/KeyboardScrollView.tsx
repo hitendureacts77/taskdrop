@@ -1,9 +1,10 @@
-import { createContext, forwardRef, useCallback, useContext, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { createContext, forwardRef, useCallback, useContext, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Keyboard,
   Platform,
   ScrollView,
   StyleSheet,
+  View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   type ScrollViewProps,
@@ -114,6 +115,20 @@ export const KeyboardScrollView = forwardRef<ScrollView, ScrollViewProps>(functi
 /** For a text box: call the result with the box's View when it gets focus. A no-op outside a KeyboardScrollView. */
 export function useReveal(): (node: Measurable | null) => void {
   return useContext(RevealContext) ?? noop;
+}
+
+/**
+ * A block that scrolls itself into view while `when` is true, and again when
+ * `again` changes. For a field that is not a plain Field, such as the sign-in
+ * code, whose beads and test code sit low on the page, under the keyboard.
+ */
+export function RevealWhen({ when, again, children }: { when: boolean; again?: unknown; children: ReactNode }) {
+  const reveal = useReveal();
+  const box = useRef<View>(null);
+  useEffect(() => {
+    if (when) reveal(box.current);
+  }, [when, again, reveal]);
+  return <View ref={box}>{children}</View>;
 }
 
 const noop = () => {};

@@ -254,7 +254,7 @@ export function ProfileScreen() {
               flexDirection: 'row',
               alignItems: 'baseline',
               justifyContent: 'space-between',
-              marginTop: 22,
+              marginTop: 32,
             }}
           >
             <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>THEME</RNText>
@@ -287,7 +287,7 @@ export function ProfileScreen() {
             })}
           </View>
 
-          <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 24, marginBottom: 4 })}>
+          <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 32, marginBottom: 4 })}>
             MY TASKDROP
           </RNText>
           {rows.map((r) => (
@@ -328,7 +328,7 @@ export function ProfileScreen() {
             </Pressable>
           ))}
 
-          <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 24 })}>
+          <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 32 })}>
             {worker ? 'WORKER REVIEWS' : 'CUSTOMER REVIEWS'}
           </RNText>
           {reviews.length === 0 && (
