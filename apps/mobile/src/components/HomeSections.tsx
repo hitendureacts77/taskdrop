@@ -35,6 +35,7 @@ import { Badge, BottomSheet, Grid, SectionTitle, Shimmer, rupees, timeLeft } fro
 import { WorkCard, categoryIcon } from './WorkCard';
 import { BidSheet } from './BidSheet';
 import { JobsMap, type JobPin } from './JobsMap';
+import { TopUpBadge } from './TopUpBadge';
 import { LiveWorkers } from './LiveWorkers';
 import { Rail, useRailItemWidth } from './Rail';
 import { HeroCard } from './Hero';
@@ -400,9 +401,12 @@ function NearYou({ centre, active, onSetArea }: { centre: { lat: number; lng: nu
                     {sel.title}
                   </RNText>
                 </View>
-                <RNText style={tx('800', 22, t.colors.ink, { fontVariant: ['tabular-nums'], letterSpacing: -0.5 })}>
-                  {rupees(sel.benchmark_minor / 100)}
-                </RNText>
+                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                  <RNText style={tx('800', 22, t.colors.ink, { fontVariant: ['tabular-nums'], letterSpacing: -0.5 })}>
+                    {rupees(sel.benchmark_minor / 100)}
+                  </RNText>
+                  <TopUpBadge pct={sel.topup_pct} />
+                </View>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, padding: 10, borderRadius: 14, backgroundColor: t.colors.surface2 }}>
                 <View style={{ width: 30, height: 30, borderRadius: 999, backgroundColor: t.colors.accent + '26', borderWidth: 1.5, borderColor: t.colors.accent, borderStyle: 'dashed' }} />
@@ -475,7 +479,10 @@ function NearYou({ centre, active, onSetArea }: { centre: { lat: number; lng: nu
                       {timeLeft(r.due_at) ? ` · ${timeLeft(r.due_at)}` : ''}
                     </RNText>
                   </View>
-                  <RNText style={tx('800', 16, t.colors.ink, { fontVariant: ['tabular-nums'] })}>{rupees(r.benchmark_minor / 100)}</RNText>
+                  <View style={{ alignItems: 'flex-end', gap: 3 }}>
+                    <RNText style={tx('800', 16, t.colors.ink, { fontVariant: ['tabular-nums'] })}>{rupees(r.benchmark_minor / 100)}</RNText>
+                    <TopUpBadge pct={r.topup_pct} compact />
+                  </View>
                 </Pressable>
               ))}
             </View>

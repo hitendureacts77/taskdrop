@@ -18,6 +18,8 @@ export const PRICE_LIMITS = {
   MIN_MINOR: 2000,
 } as const;
 
+export const TOP_UP_PCTS = [0, 2, 3, 5, 10, 15, 20, 25] as const;
+
 export function workerNetPayout(lockedMinor: number): number {
   return Math.round(lockedMinor * (1 - FEES.WORKER_COMMISSION_PCT));
 }

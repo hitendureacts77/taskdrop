@@ -271,6 +271,8 @@ export type NewTask = {
   title: string;
   description?: string;
   benchmarkMinor: number;
+  /** The share added with the top-up bar; benchmarkMinor already includes it. */
+  topUpPct?: number;
   timeLimitMinutes: number;
   flag?: Enums<'task_flag'>;
   media?: { kind: 'image' | 'video'; path: string; seconds?: number } | null;

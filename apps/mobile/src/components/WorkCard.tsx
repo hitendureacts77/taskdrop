@@ -10,6 +10,7 @@ import { PresenceDot } from './PresenceDot';
 import { presenceOf } from '../lib/presence';
 import { roughPlace } from '../lib/place';
 import { cardSurface } from './ui';
+import { TopUpBadge } from './TopUpBadge';
 import { fontFamilyFor } from '../theme';
 
 const CATEGORY_ICON: Record<string, IconName> = {
@@ -127,6 +128,7 @@ export const WorkCard = memo(function WorkCard({
           ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 9 }}>
             <RNText style={tx('800', 17, t.colors.accentDeep, { fontVariant: ['tabular-nums'], letterSpacing: -0.3 })}>{rupees(task.benchmark_minor / 100)}</RNText>
+            <TopUpBadge pct={task.topup_pct} compact />
             {left ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                 <Icon name="clock" size={12} color={left === 'overdue' ? t.colors.signal : t.colors.gold} strokeWidth={2} />

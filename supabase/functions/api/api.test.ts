@@ -960,6 +960,15 @@ await t("nonsense amounts, dates, places and reserved names are refused (break-i
   assert.equal((await runOp("createTask", { ...task, benchmarkMinor: 1999 }, ctx(fake()))).ok, false);
   assert.equal((await runOp("createTask", { ...task, benchmarkMinor: 2000 }, ctx(fake()))).ok, true);
   assert.equal(packageRules.PRICE_LIMITS.MIN_MINOR, serverRules.PRICE_LIMITS.MIN_MINOR, "the server's copy of the minimum matches packages/rules");
+  // The top-up (2026-11-01): only the bar's own steps, 0 when the old app leaves it out.
+  assert.deepEqual([...packageRules.TOP_UP_PCTS], [...serverRules.TOP_UP_PCTS], "the server's copy of the top-up steps matches packages/rules");
+  let f2 = fake();
+  await runOp("createTask", task, ctx(f2));
+  assert.equal(inserted(f2.calls[0]).topup_pct, 0);
+  f2 = fake();
+  assert.equal((await runOp("createTask", { ...task, topUpPct: 10 }, ctx(f2))).ok, true);
+  assert.equal(inserted(f2.calls[0]).topup_pct, 10);
+  for (const topUpPct of [1, 30, -5, "5", 2.5]) await refused("createTask", { ...task, topUpPct });
   await refused("createTask", { ...task, benchmarkMinor: 0 });
   // A service listing may still start at zero while it is being set up.
   const ok = await runOp("createTask", { ...task, benchmarkMinor: 0, kind: "service" }, ctx(fake()));
