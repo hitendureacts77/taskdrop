@@ -798,7 +798,7 @@ fix the keyboard problem
 **Two gates, so the tester clock starts sooner.** Google's 12-tester, 14-day test (Step 3) is the longest fixed wait in this plan, and testers only touch fake money. So **Gate 2a** (after 2.7) lets Step 3 start once the core protection is in place. Tasks 2.8 to 2.11 then run during the 14 days, and **Gate 2b** must pass before Step 5 (production).
 
 <details id="t2-1" data-short="Secrets file">
-<summary>[YOU] <b>2.1</b> Keep every secret safe in one file <small>· 1 hour · free</small></summary>
+<summary>[YOU] <b>2.1</b> Keep every secret safe in one file <small>· Done 1 Nov</small></summary>
 
 **Why:** you need one safe place for passwords, recovery codes and keys before the rest of Step 2. You chose a single file on your PC instead of a password manager.
 
@@ -815,6 +815,8 @@ fix the keyboard problem
 9. TELL Claude: "done 2.1". Claude then checks two things **by name and path only, never by value**: (a) the file is not inside OneDrive and is ignored by Git in both repositories; (b) the step that copies values from the file to the staging server and to Vercel lists no `PROD_`, `LOGIN_`, `RECOVERY_` or `KEYSTORE_` name, so production values never reach staging. Claude reports any name that breaks this.
 
 **Done when:** every login, key, recovery code and keystore password is in `.env.all-secrets` under its own name, the keystore zip is out of OneDrive and on a USB stick, device encryption is on, an encrypted backup of the file is on the USB stick, one trusted person knows where it is, and Claude's two name checks pass.
+
+**Done 1 Nov:** you marked this done. Claude's two name checks passed (the file is outside OneDrive and ignored by Git in both repositories, and the sync step lists no `PROD_`, `LOGIN_`, `RECOVERY_` or `KEYSTORE_` name). The keystore zip is in `C:\TaskDrop-safe`, its passwords are in the file, the two headings and the `LOGIN_` lines are added, and Google sign-in is recorded for Vercel, Supabase, Expo, Sentry, Inngest, ImageKit, UptimeRobot, Razorpay and Spaceship. **Left open by your choice:** the Google, GitHub and Expo passwords are blank (the script `fill-login-passwords.ps1` fills them), Cashfree and MSG91 wait for those accounts, and device encryption, the encrypted backup, the trusted person and emptying the Recycle Bins are not confirmed. Until the backup exists, a lost PC loses every secret.
 </details>
 
 <details id="t2-1b" data-short="2-step sign-in">
@@ -2581,6 +2583,27 @@ These are recorded so nothing is lost. **None of them is needed to launch, and n
 
 </details>
 
+<details id="tF-15" data-short="Investors without equity">
+<summary>[LATER] <b>F.15</b> Ask Basheer how to find investors who take a share of profit, not equity <small>· one chat · free · when you want funding</small></summary>
+
+**What it is:** you want money to grow TaskDrop without giving away ownership. Basheer is the person to ask how to find investors who take a **share of the profit** instead of shares (equity) in the company. This is a conversation first. Nothing is signed, paid or promised in it.
+
+**Start when:** whenever you like; it needs nothing from the app. It is not needed to launch and it does not count in your progress bar.
+
+1. TELL Basheer what TaskDrop is (an online task marketplace, now in testing, launching in Hyderabad) and that you want investors who take a share of profit, not equity.
+2. ASK Basheer:
+   - Where do people find investors who accept a profit share and not equity? Who do you know, or which groups, networks or platforms would you try?
+   - What do these deals usually look like: what share of profit, for how long, is there a cap on what they get back, and what happens if there is no profit?
+   - What do these investors want to see before they say yes (the testing results, the numbers, a plan for the money)?
+   - What reports do they expect afterwards, and how often?
+   - Does it matter whether TaskDrop is a sole proprietor, an LLP or a company (task S.2) when you take this kind of money?
+3. WRITE down his answers and the names he gives you.
+4. Before you agree to anything with an investor, have the CA (S.2) and the lawyer (S.3) read the deal in writing. This plan is not financial or legal advice.
+5. TELL Claude: "done F.15", and paste Basheer's answers. Claude records them here and, if they change what the business must set up, adds that work to the plan.
+
+**Done when:** you have Basheer's answers written down.
+</details>
+
 ---
 
 ## Architecture and system design
@@ -3119,6 +3142,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-01 (investors who take profit, not equity):** You asked to add to the plan: ask Basheer how to get investors who do not take equity and only take a share of profit. **Added:** future-scope item **F.15** with the questions to ask him. **Not changed:** it is not counted in your progress bar, and no task, number or gate moved.
 - **2026-11-01 (nearby tasks, free price, top-up bar):** You asked that opening the app shows tasks near you with their prices, only ever as a rough area, and that the fair-price parts go. **Built:** a "Near you right now" section on the Hire home (a map of open tasks within 5 km, each a soft circle round its area with its price, the closest four in a list, and a peek with "Open task" and "Post one like this"); the same map above "Jobs near" on the Earn home; the Explore map draws circles instead of pins. **Removed:** the usual-price card, the Low / Fair / Generous meter, the suggested amounts and the price slider. The price box starts empty and takes any amount (the `₹20` floor in the shared money rules stays). **Added:** a top-up bar at the bottom of the Budget step (0, +2, +3, +5, +10, +15, +20, +25%); workers see one price with the top-up included. **Also built:** the "topped up" badge, after your yes: migration 129 adds `tasks.topup_pct` (0 to 25, set only when posting), the server accepts only the bar's steps, and the badge shows on job cards, the Explore map card and the Home "Near you" list. Applied to the test database the same day; the server function deploys with the merge. D6 is dropped.
 - **2026-10-31 (keyboard hides content and alerts, task 1.8):** You found that on the phone some content and alerts are hidden by the keyboard and asked for a plan. **Found by reading the code (not yet reproduced on the phone):** two lift mechanisms on Android (`softwareKeyboardLayoutMode: "resize"` plus a keyboard-avoiding box in `NativeRoot`); the toast pinned 96 px from the bottom, which the keyboard covers; only four pop-ups lift for the keyboard; and the 31 Oct chat fix is a one-screen helper while 21 files have text boxes. **Added:** task 1.8 (one shared rule, a 16-spot keyboard pass, asks you before the app update), a Gate 1 box, and a line under "Not done yet". Nothing is built yet.
 - **2026-10-31 (Claude merges without asking):** You said Claude should push, open the pull request and merge it every time, and not ask. **Changed:** rule 6 under "How to use this plan"; rule 7 in `AGENTS.md` (the agent guide read at the start of every session) now says push, open the PR and merge without asking, and lists what Claude still asks first (app update to testers, wipes and resets, key rotation, `main` and production); the Claude settings allow the push, pull request and merge commands so no permission box appears; the admin repo gets the same rule in a new `CLAUDE.md`. **Why Claude had been asking:** a rule written earlier said "do not push or merge without being asked", and CI could not be watched without polling.
