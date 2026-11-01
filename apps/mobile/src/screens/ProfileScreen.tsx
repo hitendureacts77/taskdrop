@@ -46,6 +46,7 @@ const SHARED_ROWS: { icon: IconName; label: string; go: ScreenName }[] = [
 
 const WORKER_ROWS: { icon: IconName; label: string; go: ScreenName }[] = [
   { icon: 'briefcase' as IconName, label: 'Work for you', go: 'myQuotes' },
+  { icon: 'trophy' as IconName, label: 'Streaks and badges', go: 'streaks' },
   { icon: 'bolt' as IconName, label: 'Promote my service', go: 'promote' },
   { icon: 'bookmark' as IconName, label: 'Saved tasks', go: 'saved' },
   ...SHARED_ROWS,
@@ -53,6 +54,7 @@ const WORKER_ROWS: { icon: IconName; label: string; go: ScreenName }[] = [
 ];
 
 const POSTER_ROWS: { icon: IconName; label: string; go: ScreenName }[] = [
+  { icon: 'heart' as IconName, label: 'My regulars', go: 'regulars' },
   { icon: 'bolt' as IconName, label: 'Promote a request', go: 'promote' },
   ...SHARED_ROWS,
   { icon: 'logout' as IconName, label: 'Sign out', go: 'splash' },

@@ -45,6 +45,7 @@ import { formatDeadline } from '../components/DateTimeSheet';
 import { useFees } from '../lib/useFees';
 import { reportError } from '../lib/errors';
 import { AddFundsSheet } from '../components/AddFundsSheet';
+import { TaskOptionsPanel } from '../components/TaskOptionsPanel';
 
 type QuoteFilter = 'newest' | 'cheapest' | 'budget' | 'rated' | 'fastest';
 const QUOTE_FILTERS: { key: QuoteFilter; label: string }[] = [
@@ -289,6 +290,8 @@ export function TaskManageScreen() {
           </View>
         ) : null}
       </View>
+
+      <TaskOptionsPanel task={task} onChanged={() => void load().catch((e) => reportError(e, 'task-manage'))} />
 
       {milestones.length > 0 ? (
         <View style={card}>

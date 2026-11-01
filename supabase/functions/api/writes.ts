@@ -52,6 +52,24 @@ function refuseContacts(text: unknown, wording: "post" | "profile" = "post"): vo
   if (issue) throw new OpError(wording === "profile" ? profileIssueMessage(issue) : contactIssueMessage(issue), CONTACT_CODE);
 }
 
+/**
+ * The options a poster switched on while posting, as task columns. Only the
+ * ones that are on, so a plain post inserts exactly the row it always did.
+ * flash_until is a marker here: the database replaces it with now + 30 minutes.
+ */
+function posterOptions(ctx: Ctx, a: Args): Record<string, unknown> {
+  const wantPhotos = bool(a, "wantPhotos");
+  const options: Record<string, unknown> = {
+    flash_until: bool(a, "flash") ? nowIso(ctx) : null,
+    live_answer: bool(a, "liveAnswer"),
+    repeat_every: a.repeatEvery == null ? null : oneOf(a, "repeatEvery", ["week", "month"]),
+    preferred_worker_id: uuidOrNull(a, "preferWorkerId"),
+    want_photos: wantPhotos,
+    photos_public: wantPhotos && bool(a, "photosPublic"),
+  };
+  return Object.fromEntries(Object.entries(options).filter(([, v]) => v !== null && v !== false));
+}
+
 /** A quote, a proof summary or a worker bio: anything the app would have hidden is refused. */
 function refuseHiddenContacts(text: unknown): void {
   if (typeof text !== "string" || text === "") return;
@@ -262,22 +280,41 @@ export const WRITE_OPS: Record<string, Op> = {
       kind: oneOf(a, "kind", ["request", "service"], "request"),
       // Only the top-up bar's own steps; benchmark_minor already includes it.
       topup_pct: topUpPct(a),
+      // The options the poster switched on (migration 134). The database sets the
+      // time windows itself and refuses any combination it does not accept.
+      ...posterOptions(ctx, a),
     };
+    // Crew: one row per helper, the budget split evenly between them.
+    const crewSize = a.crewSize == null ? 1 : int(a, "crewSize", 1, 10);
+    const each = Math.floor(row.benchmark_minor / crewSize);
+    if (crewSize > 1 && each < PRICE_LIMITS.MIN_MINOR) {
+      throw new OpError(
+        `Each helper must get at least ₹${PRICE_LIMITS.MIN_MINOR / 100}. Raise the budget or ask for fewer people.`,
+        "BAD_ARGS",
+      );
+    }
+    const crewId = crewSize > 1 ? crypto.randomUUID() : null;
+    const slots = crewId
+      ? Array.from({ length: crewSize }, (_, i) => ({ ...row, benchmark_minor: each, crew_id: crewId, crew_size: crewSize, crew_slot: i + 1 }))
+      : [row];
     // Auto-hire accepts an offer the moment it arrives and pays for it from the
     // poster's wallet, so a poster who cannot cover it cannot post one. Said in
     // the same words lockBid uses, so the app offers the same "add money" step.
     if (row.assignment_mode === "auto") {
       const { posterFee } = await readFees(ctx);
-      const need = Math.round(row.benchmark_minor * (1 + posterFee));
+      const need = slots.reduce((sum, s) => sum + Math.round(s.benchmark_minor * (1 + posterFee)), 0);
       const wallet = take<{ balance_minor?: number } | null>(
         await db.from("wallets").select("balance_minor").eq("user_id", userId).maybeSingle(),
       );
       const short = need - Number(wallet?.balance_minor ?? 0);
       if (short > 0) throw new OpError("Not enough money in your wallet", "WALLET_SHORT", String(short));
     }
-    const made = rows(await db.from("tasks").insert(row).select())[0] ?? null;
-    if (made && place.address) await keepAddress(ctx, (made as { id?: unknown }).id, place.address);
-    return made;
+    const madeRows = rows(await db.from("tasks").insert(slots.length === 1 ? row : slots).select());
+    if (place.address) {
+      for (const m of madeRows) await keepAddress(ctx, (m as { id?: unknown }).id, place.address);
+    }
+    // The first slot stands for the whole crew; the rest share its crew_id.
+    return [...madeRows].sort((x, y) => Number(x.crew_slot ?? 0) - Number(y.crew_slot ?? 0))[0] ?? null;
   },
 
   updateListing: async (ctx, a) => {
@@ -390,6 +427,37 @@ export const WRITE_OPS: Record<string, Op> = {
         .select()
         .single(),
     );
+  },
+
+  /** The crew's shared chat. Row level security admits only the poster and the people hired. */
+  sendCrewMessage: async (ctx, a) => {
+    const body = str(a, "body", 2000);
+    refuseHiddenContacts(body);
+    return take(
+      await ctx.db.from("crew_messages").insert({ crew_id: uuid(a, "crewId"), sender_id: ctx.userId, body }).select().single(),
+    );
+  },
+
+  /** Repeat on or off for one of your own tasks (a crew job cannot repeat). */
+  setRepeat: async (ctx, a) => {
+    const every = a.every == null ? null : oneOf(a, "every", ["week", "month"]);
+    const row = rows(
+      await ctx.db.from("tasks").update({ repeat_every: every })
+        .eq("id", uuid(a, "taskId")).eq("poster_id", ctx.userId).is("crew_id", null)
+        .select("id, repeat_every"),
+    )[0];
+    if (!row) throw new OpError("This task can no longer be changed", "NOT_FOUND");
+    return row;
+  },
+
+  /** A helper's own weekly earnings goal (Streaks). Null clears it. */
+  setWeeklyGoal: async (ctx, a) => {
+    const goal = a.goalMinor == null ? null : int(a, "goalMinor", 0, 100_000_000);
+    const row = rows(
+      await ctx.db.from("profiles").update({ weekly_goal_minor: goal }).eq("id", ctx.userId).select("weekly_goal_minor"),
+    )[0];
+    if (!row) throw new OpError("Could not save your goal", "NOT_FOUND");
+    return row;
   },
 
   // ---- profile ----

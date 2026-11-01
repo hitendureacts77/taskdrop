@@ -18,6 +18,7 @@ import { roughPlace } from '../lib/place';
 import { AvatarPresence } from '../components/PresenceDot';
 import { useMode } from '../providers/ModeProvider';
 import { ReportSheet } from '../components/ReportSheet';
+import { ProofPhotosSection } from '../components/ProofPhotosSection';
 
 /**
  * Someone's profile as anyone else sees it. Opened on yourself, it is the
@@ -253,6 +254,8 @@ function PublicProfileBody() {
               <RNText style={tx('400', 13, t.colors.text, { marginTop: 6 })}>{p.languages.join(' · ')}</RNText>
             </>
           ) : null}
+
+          {asWorker && id ? <ProofPhotosSection workerId={id} /> : null}
 
           <RNText style={tx('800', 15, t.colors.ink, { marginTop: 20 })}>Reviews</RNText>
           {reviews.length === 0 ? (

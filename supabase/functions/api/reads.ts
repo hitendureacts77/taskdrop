@@ -397,6 +397,46 @@ export const READ_OPS: Record<string, Op> = {
   },
 
   publicProfileStats: rpcOp("public_profile_stats", (a) => ({ p_user: uuid(a, "userId") })),
+
+  // -------------------------------------------------- poster options ----
+  /** A crew job's slots; names only for the crew itself (migration 134). */
+  crewOverview: rpcOp("crew_overview", (a) => ({ p_crew: uuid(a, "crewId") })),
+  listCrewMessages: async (ctx, a) =>
+    rows(
+      await ctx.db.from("crew_messages").select("*").eq("crew_id", uuid(a, "crewId"))
+        .order("created_at", { ascending: true }).limit(limit(a, "limit", 200, 500)),
+    ),
+  /** Before-and-after photos a helper's customers let them show. */
+  workerProofPhotos: rpcOp("worker_proof_photos", (a) => ({ p_worker: uuid(a, "userId") })),
+  /** The Earn side's weekly goal, on-time streak and badge counts. */
+  myStreaks: rpcOp("my_streaks"),
+  /**
+   * People this poster hired for finished jobs, most jobs first, with the
+   * categories they did: the Regulars list and the "offer it to them first" hint.
+   */
+  myRegulars: async (ctx) => {
+    const done = rows<{ category: string | null; completed_at: string | null; assignments: { worker_id: string }[] | null }>(
+      await ctx.db.from("tasks").select("category, completed_at, assignments(worker_id)")
+        .eq("poster_id", ctx.userId).in("status", ["COMPLETED", "AUTO_COMPLETED"])
+        .order("completed_at", { ascending: false }).limit(200),
+    );
+    const byWorker = new Map<string, { jobs: number; categories: Set<string>; lastAt: string | null }>();
+    for (const t of done) {
+      for (const as of t.assignments ?? []) {
+        const seen = byWorker.get(as.worker_id) ?? { jobs: 0, categories: new Set<string>(), lastAt: t.completed_at };
+        seen.jobs += 1;
+        if (t.category) seen.categories.add(t.category);
+        byWorker.set(as.worker_id, seen);
+      }
+    }
+    const people = await profilesById(ctx, [...byWorker.keys()]);
+    return [...byWorker.entries()]
+      .filter(([id]) => people.has(id))
+      .map(([id, s]) => ({ profile: people.get(id), jobs: s.jobs, categories: [...s.categories], lastAt: s.lastAt }))
+      .sort((x, y) => y.jobs - x.jobs)
+      .slice(0, 20);
+  },
+
   ageStatus: async (ctx) => {
     const res = await ctx.db.from("age_checks").select("passed").eq("user_id", ctx.userId).maybeSingle();
     return Boolean((take(res) as { passed?: boolean } | null)?.passed);

@@ -48,6 +48,9 @@ import { ListingEditScreen } from '../screens/ListingEditScreen';
 import { CopyrightScreen } from '../screens/CopyrightScreen';
 import { PrivacyScreen, TermsScreen } from '../screens/LegalScreens';
 import { SupportScreen } from '../screens/SupportScreen';
+import { CrewScreen } from '../screens/CrewScreen';
+import { RegularsScreen } from '../screens/RegularsScreen';
+import { StreaksScreen } from '../screens/StreaksScreen';
 
 
 // Registry. A name with no screen falls back to Placeholder (none today; registry.test.ts keeps it so).
@@ -95,6 +98,9 @@ export const REGISTRY: Partial<Record<ScreenName, ComponentType>> = {
   nearMap: NearMapScreen,
   workerSetup: WorkerSetupScreen,
   listing: ListingEditScreen,
+  crew: CrewScreen,
+  regulars: RegularsScreen,
+  streaks: StreaksScreen,
   copyright: CopyrightScreen,
   terms: TermsScreen,
   privacy: PrivacyScreen,

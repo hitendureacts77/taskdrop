@@ -46,6 +46,10 @@ export type ScreenName =
   | 'nearMap'
   | 'workerSetup'
   | 'listing'
+  // Poster options (migration 134): a crew job, the people hired before, the Earn side's streaks.
+  | 'crew'
+  | 'regulars'
+  | 'streaks'
   // Public: reachable signed out, and by link (?page=copyright etc.).
   | 'copyright'
   | 'terms'

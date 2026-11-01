@@ -174,13 +174,20 @@ export function ActiveScreen() {
 
   // ------------------------------------------------------------ actions ----
 
-  const addPhoto = async () => {
+  /**
+   * A photo for the proof. A Live answer takes it with the camera, there and
+   * then; a job that asked for before and after photos marks which one it is.
+   */
+  const addPhoto = async (label?: 'before' | 'after') => {
     try {
-      const picked = await pickMedia('image');
+      const picked = await pickMedia('image', task.live_answer ? 'camera' : 'library');
       if (!picked) return;
       setUploading(true);
-      const f = await uploadProofFile({ uri: picked.uri, mimeType: picked.mimeType, name: 'Photo' }, 'image');
-      setFiles((x) => [...x, f]);
+      const name = label === 'before' ? 'Before' : label === 'after' ? 'After' : task.live_answer ? 'Live photo · ' + new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) : 'Photo';
+      const uploaded = await uploadProofFile({ uri: picked.uri, mimeType: picked.mimeType, name }, 'image');
+      const f: ProofFile = label ? { ...uploaded, label } : uploaded;
+      // One before and one after: a new one replaces the old.
+      setFiles((x) => [...x.filter((y) => !label || y.label !== label), f]);
       const url = await signedMediaUrl(f.path);
       if (url) setProofUrls((m) => ({ ...m, [f.path]: url }));
     } catch (e) {
@@ -210,8 +217,14 @@ export function ActiveScreen() {
     if (url) void Linking.openURL(url);
   };
 
+  // What a job that asked for them needs before it can be marked done.
+  const photosReady =
+    (!task.want_photos || (files.some((f) => f.label === 'before') && files.some((f) => f.label === 'after'))) &&
+    (!task.live_answer || files.some((f) => f.kind === 'image'));
+
   const finishWork = async () => {
     if (!userId) return;
+    if (!photosReady) return flash(task.live_answer ? 'Add a live photo first' : 'Add the before and after photos first');
     if (summary.trim().length < 10) return flash('Write at least 10 characters about what you did');
     setBusy(true);
     try {
@@ -272,6 +285,11 @@ export function ActiveScreen() {
           </RNText>
         </>
       )}
+      {f.label ? (
+        <View style={{ position: 'absolute', left: 4, bottom: 4, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2, backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <RNText style={tx('700', 9, '#FFFFFF')}>{f.label === 'before' ? 'BEFORE' : 'AFTER'}</RNText>
+        </View>
+      ) : null}
       {onRemove ? (
         <Pressable onPress={onRemove} hitSlop={6} accessibilityLabel="Remove" style={{ position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="close" size={11} color="#FFFFFF" />
@@ -410,6 +428,23 @@ export function ActiveScreen() {
           ))}
         </View>
 
+        {task.crew_id ? (
+          <Pressable
+            onPress={() => go('crew', { crewId: task.crew_id, member: true })}
+            accessibilityRole="button"
+            style={[card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}
+          >
+            <Icon name="users" size={18} color={t.colors.accentDeep} />
+            <View style={{ flex: 1 }}>
+              <RNText style={tx('800', 14, t.colors.ink)}>
+                Crew job · helper {task.crew_slot} of {task.crew_size}
+              </RNText>
+              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>See who else is on it, and the crew chat</RNText>
+            </View>
+            <Icon name="chevronRight" size={16} color={t.colors.muted} />
+          </Pressable>
+        ) : null}
+
         {/* Proof of work: sent, or being written. */}
         {proof && (doneAt || finished) ? (
           <View style={card}>
@@ -426,7 +461,11 @@ export function ActiveScreen() {
           <View style={card}>
             <RNText style={tx('800', 15, t.colors.ink)}>Finish and send proof</RNText>
             <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
-              Say what you did and add photos or documents. The customer sees this before approving.
+              {task.live_answer
+                ? 'Take a live photo where you are and say what you see. The customer approves it before you are paid.'
+                : task.want_photos
+                  ? 'The customer asked for a before and an after photo. Take the before one first, then say what you did.'
+                  : 'Say what you did and add photos or documents. The customer sees this before approving.'}
             </RNText>
             <Field
               value={summary}
@@ -437,13 +476,38 @@ export function ActiveScreen() {
               placeholder="E.g. Wrote all 30 captions with hashtags, shared as a Google Doc; changed 3 after your notes."
               style={{ marginTop: 12 }}
             />
+            {task.want_photos ? (
+              <>
+                <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 16 })}>BEFORE AND AFTER · ASKED FOR</RNText>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                  {(['before', 'after'] as const).map((l) => {
+                    const have = files.find((f) => f.label === l);
+                    return have ? (
+                      fileTile(have, () => setFiles((x) => x.filter((y) => y.path !== have.path)))
+                    ) : (
+                      <Pressable
+                        key={l}
+                        onPress={() => void addPhoto(l)}
+                        disabled={uploading}
+                        accessibilityRole="button"
+                        accessibilityLabel={l === 'before' ? 'Add the before photo' : 'Add the after photo'}
+                        style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1.5, borderStyle: 'dashed', borderColor: t.colors.accent, alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                      >
+                        <Icon name="camera" size={18} color={t.colors.accentDeep} />
+                        <RNText style={tx('700', 10, t.colors.accentDeep)}>{l === 'before' ? 'Before' : 'After'}</RNText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            ) : null}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-              {files.map((f) => fileTile(f, () => setFiles((x) => x.filter((y) => y.path !== f.path))))}
+              {files.filter((f) => !f.label).map((f) => fileTile(f, () => setFiles((x) => x.filter((y) => y.path !== f.path))))}
               {files.length < 10 ? (
                 <>
                   <Pressable onPress={() => void addPhoto()} disabled={uploading} accessibilityRole="button" style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: t.colors.accentBorder, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                    <Icon name="plus" size={18} color={t.colors.accentDeep} />
-                    <RNText style={tx('600', 10, t.colors.accentDeep)}>Photo</RNText>
+                    <Icon name={task.live_answer ? 'camera' : 'plus'} size={18} color={t.colors.accentDeep} />
+                    <RNText style={tx('600', 10, t.colors.accentDeep)}>{task.live_answer ? 'Live photo' : 'Photo'}</RNText>
                   </Pressable>
                   <Pressable onPress={() => void addDocument()} disabled={uploading} accessibilityRole="button" style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: t.colors.accentBorder, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                     <Icon name="list" size={18} color={t.colors.accentDeep} />
@@ -459,7 +523,7 @@ export function ActiveScreen() {
 
         {/* The one thing to do next, for whoever is on this screen. */}
         {worker && running && startedAt ? (
-          <PrimaryAction label="Mark work done" busy={busy} disabled={summary.trim().length < 10 || uploading} onPress={() => void finishWork()} />
+          <PrimaryAction label="Mark work done" busy={busy} disabled={summary.trim().length < 10 || uploading || !photosReady} onPress={() => void finishWork()} />
         ) : null}
         {worker && status === 'WORK_DONE' && task.auto_complete_at ? (
           <Note>

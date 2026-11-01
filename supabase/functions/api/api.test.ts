@@ -1026,4 +1026,35 @@ await t("a typed door address stays private: only the area is published (P2-21, 
   assert.equal(patch.loc_label, "Kondapur");
 });
 
+await t("poster options: only the ones switched on are sent, and a crew is one row per helper (migration 134)", async () => {
+  const base = { pillar: "services", title: "Shift a 2BHK", benchmarkMinor: 360000, timeLimitMinutes: 300 };
+  // A plain post inserts exactly the row it always did.
+  const plain = fake();
+  await runOp("createTask", base, ctx(plain));
+  const row = inserted(plain.calls[0]);
+  for (const k of ["flash_until", "live_answer", "repeat_every", "preferred_worker_id", "want_photos", "photos_public", "crew_id"]) {
+    assert.equal(k in row, false, k);
+  }
+  // Switched on: sent; photos are only public when asked for at all.
+  const on = fake();
+  await runOp("createTask", { ...base, repeatEvery: "week", preferWorkerId: OTHER, photosPublic: true }, ctx(on));
+  const r2 = inserted(on.calls[0]);
+  assert.equal(r2.repeat_every, "week");
+  assert.equal(r2.preferred_worker_id, OTHER);
+  assert.equal("photos_public" in r2, false);
+  assert.equal((await runOp("createTask", { ...base, repeatEvery: "daily" }, ctx(fake()))).ok, false);
+  // A crew of 3 splits ₹3,600 into three rows of ₹1,200 sharing one crew id.
+  const crew = fake();
+  await runOp("createTask", { ...base, crewSize: 3 }, ctx(crew));
+  const slots = steps(crew.calls[0], "insert")[0][0] as Record<string, unknown>[];
+  assert.equal(slots.length, 3);
+  assert.deepEqual(slots.map((s) => s.benchmark_minor), [120000, 120000, 120000]);
+  assert.deepEqual(slots.map((s) => s.crew_slot), [1, 2, 3]);
+  assert.equal(new Set(slots.map((s) => s.crew_id)).size, 1);
+  // Too little for each helper is refused before anything is written.
+  const thin = fake();
+  assert.equal((await runOp("createTask", { ...base, benchmarkMinor: 3000, crewSize: 5 }, ctx(thin))).ok, false);
+  assert.equal(thin.calls.length, 0);
+});
+
 console.log(`\n${passed} passed`);

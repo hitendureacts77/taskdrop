@@ -11,6 +11,7 @@ import { presenceOf } from '../lib/presence';
 import { roughPlace } from '../lib/place';
 import { cardSurface } from './ui';
 import { TopUpBadge } from './TopUpBadge';
+import { OptionBadges } from './OptionBadges';
 import { fontFamilyFor } from '../theme';
 
 const CATEGORY_ICON: Record<string, IconName> = {
@@ -106,6 +107,7 @@ export const WorkCard = memo(function WorkCard({
             <Badge label={task.assignment_mode === 'auto' ? 'Auto-hire' : 'Offer'} tone={task.assignment_mode === 'auto' ? 'accent' : 'neutral'} />
             {task.difficulty ? <Badge label={task.difficulty} tone="blue" /> : null}
             {live ? <Badge label="Urgent" tone="signal" /> : null}
+            <OptionBadges task={task} />
             <View style={{ flex: 1 }} />
             {onToggleSave ? (
               <Pressable

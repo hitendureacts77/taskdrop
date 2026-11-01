@@ -23,7 +23,9 @@ import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { useMode } from '../providers/ModeProvider';
-import { createTask, getProfile, getWallet, type Task } from '../data/api';
+import { createTask, getProfile, getWallet, listMyTasks, myRegulars, type Regular, type Task } from '../data/api';
+import { NO_OPTIONS, PosterOptionsStep, optionsSummary, type PosterOptions } from '../components/PosterOptionsStep';
+import { crewShareMinor, looksLikePlaceQuestion, suggestOptions } from '../lib/posterOptions';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import type { TaskMedia } from '../lib/media';
 import { useVoiceInput } from '../lib/speech';
@@ -57,6 +59,7 @@ import { looksLikeGibberish } from '../lib/gibberish';
  *   When      the deadline, each choice showing the actual date and time
  *   Budget    the amount, with a meter against what jobs like it usually cost
  *   Place     where the job is, and whether to compare offers or auto-hire
+ *   Options   extras suggested for this task (Flash Drop, crew, repeat...), all off until switched on
  *   Review    the post as workers will see it, what it costs, an Edit on each part
  *
  * The step path along the top is also the way back: a finished step can be
@@ -70,9 +73,9 @@ import { looksLikeGibberish } from '../lib/gibberish';
  * when an offer is chosen. This screen only writes the task row.
  */
 
-type Phase = 'what' | 'picks' | 'brief' | 'when' | 'budget' | 'providers' | 'review';
+type Phase = 'what' | 'picks' | 'brief' | 'when' | 'budget' | 'providers' | 'options' | 'review';
 
-const ORDER: Phase[] = ['what', 'picks', 'brief', 'when', 'budget', 'providers', 'review'];
+const ORDER: Phase[] = ['what', 'picks', 'brief', 'when', 'budget', 'providers', 'options', 'review'];
 const at = (p: Phase) => ORDER.indexOf(p);
 
 const STEP_LABEL: Record<Phase, string> = {
@@ -82,6 +85,7 @@ const STEP_LABEL: Record<Phase, string> = {
   when: 'When',
   budget: 'Budget',
   providers: 'Place',
+  options: 'Options',
   review: 'Review',
 };
 
@@ -193,6 +197,31 @@ export function AiPostScreen() {
   // shortfall being added when posting found the wallet short.
   const [walletMinor, setWalletMinor] = useState<number | null>(null);
   const [topUpMinor, setTopUpMinor] = useState<number | null>(null);
+
+  // Options: all off until the poster switches one on. "Book again" from the
+  // Regulars screen arrives with that person already chosen.
+  const preferParam = params.preferWorker as { id?: unknown; name?: unknown } | undefined;
+  const [opts, setOpts] = useState<PosterOptions>(() =>
+    typeof preferParam?.id === 'string' && typeof preferParam.name === 'string'
+      ? { ...NO_OPTIONS, preferWorker: { id: preferParam.id, name: preferParam.name } }
+      : NO_OPTIONS,
+  );
+  // What the suggestions are made from: people hired before, and earlier posts.
+  const [regulars, setRegulars] = useState<Regular[]>([]);
+  const [pastCategories, setPastCategories] = useState<(string | null)[]>([]);
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    void myRegulars().then((r) => alive && setRegulars(r));
+    listMyTasks(userId)
+      .then((list) => alive && setPastCategories(list.map((x) => x.category)))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+  // Asked once per request, on the Ask step; "Keep as a task" hides it.
+  const [liveAnswerDismissed, setLiveAnswerDismissed] = useState<string | null>(null);
 
   // Start from where the poster lives: most jobs are near home.
   useEffect(() => {
@@ -316,8 +345,45 @@ export function AiPostScreen() {
   const milestones = useMemo(() => MILESTONE_PLANS[split] ?? [], [split]);
 
   // What an auto-hire must have ready: the budget plus the service fee, since
-  // an offer at the full budget is accepted and paid for at once.
-  const autoNeedMinor = Math.round(price * 100 * (1 + fees.posterFee));
+  // an offer at the full budget is accepted and paid for at once. A crew is
+  // that for every helper's share.
+  const crewSize = opts.crewSize >= 2 ? opts.crewSize : 1;
+  const autoNeedMinor = crewSize * Math.round(crewShareMinor(price * 100, crewSize) * (1 + fees.posterFee));
+
+  // The people hired before, the one who did this kind of job first.
+  const orderedRegulars = useMemo(
+    () => [...regulars].sort((x, y) => Number(y.categories.includes(category)) - Number(x.categories.includes(category))),
+    [regulars, category],
+  );
+  const suggestions = useMemo(() => {
+    const match = orderedRegulars[0];
+    return suggestOptions({
+      text: `${prompt} ${title}`,
+      whenNow: whenKey === 'now',
+      remote,
+      postedBefore: pastCategories.filter((c) => c && c === category && c !== 'Other').length,
+      regular: match && match.categories.includes(category) ? { id: match.profile.id, name: match.profile.display_name } : null,
+    });
+  }, [orderedRegulars, prompt, title, whenKey, remote, pastCategories, category]);
+
+  /** Flash Drop rides on Auto-hire, so switching it on switches that on too. */
+  const changeOptions = (next: PosterOptions) => {
+    if (next.flash && !opts.flash) setAssign('auto');
+    setOpts(next);
+  };
+
+  // Work done remotely cannot use the options tied to a place.
+  useEffect(() => {
+    if (remote) setOpts((o) => ({ ...o, flash: false, liveAnswer: false, crewSize: 0, wantPhotos: false, photosPublic: false }));
+  }, [remote]);
+
+  const offerLiveAnswer = phase === 'what' && liveAnswerDismissed !== prompt.trim() && !opts.liveAnswer && looksLikePlaceQuestion(prompt);
+  const useLiveAnswer = () => {
+    setOpts((o) => ({ ...o, liveAnswer: true, crewSize: 0 }));
+    setRemote(false);
+    setWhenKey('now');
+    fromAsk();
+  };
 
   useEffect(() => {
     if (mode !== 'auto') return;
@@ -366,6 +432,13 @@ export function AiPostScreen() {
         assignmentMode: mode,
         dueAt: due.toISOString(),
         milestones,
+        flash: opts.flash || undefined,
+        liveAnswer: opts.liveAnswer || undefined,
+        crewSize: opts.crewSize >= 2 ? opts.crewSize : undefined,
+        repeatEvery: opts.repeat ?? undefined,
+        preferWorkerId: opts.preferWorker?.id,
+        wantPhotos: opts.wantPhotos || undefined,
+        photosPublic: (opts.wantPhotos && opts.photosPublic) || undefined,
       });
       if (draftId) void removeDraft(userId, draftId);
       setMode('poster');
@@ -596,6 +669,70 @@ export function AiPostScreen() {
             <Icon name="shield" size={15} color={t.colors.signalDeep} />
             <RNText style={tx('600', 12, t.colors.signalDeep, { flex: 1, lineHeight: 17 })}>{contactIssueMessage(promptIssue)}</RNText>
           </View>
+        ) : null}
+
+        {offerLiveAnswer ? (
+          <FadeIn translateY={16} duration={320}>
+            <View
+              style={{
+                marginTop: 18,
+                padding: 16,
+                borderRadius: 22,
+                borderWidth: 1.5,
+                borderColor: t.colors.accentBorder,
+                backgroundColor: t.colors.surface,
+              }}
+            >
+              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+                <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name="eye" size={21} color={t.colors.accentDeep} strokeWidth={2} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <RNText style={tx('700', 11, t.colors.accentDeep, { letterSpacing: 1.2 })}>SUGGESTED</RNText>
+                  <RNText style={tx('800', 16, t.colors.ink, { marginTop: 3, lineHeight: 21 })}>
+                    This sounds like a quick question about a place
+                  </RNText>
+                </View>
+              </View>
+              <RNText style={tx('400', 13, t.colors.text, { marginTop: 10, lineHeight: 19 })}>
+                Post it as a Live answer. The first helper nearby who accepts goes there and sends a live photo with a short
+                reply. You approve it before they are paid.
+              </RNText>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                <Pressable
+                  onPress={() => setLiveAnswerDismissed(prompt.trim())}
+                  accessibilityRole="button"
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    height: 44,
+                    borderRadius: 999,
+                    borderWidth: 1.5,
+                    borderColor: t.colors.line,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: pressed ? 0.8 : 1,
+                  })}
+                >
+                  <RNText style={tx('700', 14, t.colors.ink)}>Keep as a task</RNText>
+                </Pressable>
+                <Pressable
+                  onPress={useLiveAnswer}
+                  accessibilityRole="button"
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    height: 44,
+                    borderRadius: 999,
+                    backgroundColor: t.colors.btn,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transform: [{ scale: pressed ? t.motion.pressScale : 1 }],
+                  })}
+                >
+                  <RNText style={tx('800', 14, t.colors.onBtn)}>Use Live answer</RNText>
+                </Pressable>
+              </View>
+            </View>
+          </FadeIn>
         ) : null}
 
         {!prompt.trim() ? (
@@ -950,6 +1087,20 @@ export function AiPostScreen() {
     );
   }
 
+  if (phase === 'options') {
+    body = (
+      <PosterOptionsStep
+        value={opts}
+        onChange={changeOptions}
+        suggestions={suggestions}
+        regulars={orderedRegulars}
+        prompt={prompt}
+        remote={remote}
+        priceMinor={price * 100}
+      />
+    );
+  }
+
   if (phase === 'review') {
     const row = (icon: IconName, head: string, value: string, target: Phase) => (
       <View key={head} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
@@ -1002,7 +1153,14 @@ export function AiPostScreen() {
           {row('pin', 'Where', whereLabel, 'providers')}
           {divider}
           {row(mode === 'auto' ? 'bolt' : 'users', 'How you hire', hireLabel, 'providers')}
+          {divider}
+          {row('sparkle', 'Options', optionsSummary(opts).join(' · ') || 'None', 'options')}
         </View>
+        {crewSize > 1 ? (
+          <RNText style={tx('600', 12, t.colors.accentDeep, { marginTop: 8, marginLeft: 4 })}>
+            {crewSize} helpers, {rupees(crewShareMinor(price * 100, crewSize) / 100)} each. Each one is hired and held for separately.
+          </RNText>
+        ) : null}
 
         <View style={{ marginTop: 12, ...cardSurface(t, 20), padding: 16, gap: 8 }}>
           <Row label="Task budget" value={rupees(price)} />
@@ -1044,7 +1202,16 @@ export function AiPostScreen() {
                 }
               : phase === 'providers'
                 ? { label: returning ? 'Save and review' : 'Continue', onPress: () => advance('providers') }
-                : { label: 'Post my request', onPress: () => void post(), busy: posting };
+                : phase === 'options'
+                  ? {
+                      label: returning
+                        ? 'Save and review'
+                        : optionsSummary(opts).length === 0
+                          ? 'Continue without options'
+                          : `Continue with ${optionsSummary(opts).length} option${optionsSummary(opts).length === 1 ? '' : 's'}`,
+                      onPress: () => advance('options'),
+                    }
+                  : { label: 'Post my request', onPress: () => void post(), busy: posting };
 
   return (
     <Screen padded={false}>
