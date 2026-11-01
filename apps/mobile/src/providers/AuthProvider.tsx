@@ -5,7 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { clientHeaders } from '../lib/appInfo';
+import { clientHeaders, installId } from '../lib/appInfo';
 import { postSignInRoute } from '../data/api';
 import { count, log, setMonitoringUser } from '../lib/monitoring';
 
@@ -84,7 +84,7 @@ export class AuthError extends Error {
 async function callFn(body: Record<string, unknown>) {
   const res = await fetch(FN_URL, {
     method: 'POST',
-    headers: { apikey: ANON, 'Content-Type': 'application/json', ...clientHeaders() },
+    headers: { apikey: ANON, 'Content-Type': 'application/json', ...clientHeaders(), 'x-taskdrop-install': await installId() },
     body: JSON.stringify(body),
   });
   const json = (await res.json()) as Record<string, unknown>;

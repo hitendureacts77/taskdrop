@@ -324,6 +324,15 @@ const outboxWatchdog = inngest.createFunction(
 );
 
 /**
+ * SMS pumping watch (task 2.8): bots ask for sign-in codes to thousands of numbers and you pay for each SMS. When the day has sent
+ * many codes and almost none were used, this leaves one admin alert (then stays quiet for six hours).
+ */
+const smsPumpingWatch = inngest.createFunction(
+  { id: "sms-pumping-watch", triggers: [{ cron: "*/15 * * * *" }], concurrency: 1, onFailure: reportFailure("sms-pumping-watch") },
+  async ({ step }) => ({ checked: await step.run("check codes sent and used", () => call<Record<string, unknown>>(rpc, "run_sms_pumping_watch")) }),
+);
+
+/**
  * Two reminders that need a clock: finished work waiting for the poster's
  * approval (it is approved for them within 24 hours), and a started job that is
  * due within the hour. Each goes out once per task and person, as an ordinary
@@ -400,7 +409,7 @@ Deno.serve(serve({
   client: inngest,
   functions: [
     outboxSweeper, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile,
-    pushNotification, accountFiles, mediaPurge, overdueTasks, housekeeping, outboxWatchdog, taskReminders,
+    pushNotification, accountFiles, mediaPurge, overdueTasks, housekeeping, outboxWatchdog, smsPumpingWatch, taskReminders,
     userCreated, userUpdated, userDeleted, userSyncRepair,
     ...moneyJobs,
   ],
