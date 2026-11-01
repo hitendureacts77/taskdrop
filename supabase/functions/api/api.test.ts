@@ -365,6 +365,20 @@ await t("tasks near a point are filtered and ordered by distance on the server",
   assert.deepEqual((r.data as { id: string }[]).map((x) => x.id), ["near", "mid"]);
 });
 
+await t("helpers near a point come back nearest first, inside the radius, with only map-card fields", async () => {
+  const here = { lat: 17.44, lng: 78.35 };
+  const f = fake(() => ({ data: [
+    { id: "far", skills: ["Cleaning"], loc_lat: 19.07, loc_lng: 72.87 },
+    { id: "mid", skills: ["Plumbing"], loc_lat: 17.39, loc_lng: 78.49 },
+    { id: "near", skills: ["Delivery"], loc_lat: 17.45, loc_lng: 78.36 },
+  ], error: null }));
+  const r = await runOp("workersNear", { ...here, radiusKm: 50, limit: 5 }, ctx(f));
+  assert.ok(r.ok);
+  assert.deepEqual((r.data as { id: string }[]).map((x) => x.id), ["near", "mid"]);
+  const bad = await runOp("workersNear", { lat: 200, lng: 78, radiusKm: 5 }, ctx(f));
+  assert.ok(!bad.ok && bad.error.code === "BAD_ARGS");
+});
+
 // ------------------------------------------------------------------- media --
 
 await t("uploads go to a server-chosen path in the caller's own folder", async () => {

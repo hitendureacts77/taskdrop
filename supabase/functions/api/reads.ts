@@ -363,6 +363,28 @@ export const READ_OPS: Record<string, Op> = {
     return res.error ? [] : (res.data ?? []);
   },
 
+  /**
+   * People who offer work around a point, nearest first, for a poster's map.
+   * Only the public, rounded area (migration 074) is used and sent, never the
+   * private spot, and only the few fields a map card shows.
+   */
+  workersNear: async (ctx, a) => {
+    const at = { lat: num(a, "lat", -90, 90), lng: num(a, "lng", -180, 180) };
+    const radius = num(a, "radiusKm", 0, 20000);
+    const res = await ctx.db.from("profiles")
+      .select("id, display_name, username, avatar_url, skills, worker_rating_avg, worker_rating_count, last_seen_at, loc_lat, loc_lng, loc_label")
+      .not("onboarded_at", "is", null).is("deleted_at", null).not("loc_lat", "is", null)
+      // PostgREST wants the empty array literally: skills=neq.{}
+      .filter("skills", "neq", "{}").neq("id", ctx.userId)
+      .order("last_seen_at", { ascending: false, nullsFirst: false }).limit(300);
+    const found = rows<Row & { loc_lat: number; loc_lng: number }>(res);
+    return found
+      .map((p) => ({ ...p, km: distanceKm(at, { lat: p.loc_lat, lng: p.loc_lng }) ?? Infinity }))
+      .filter((x) => x.km <= radius)
+      .sort((x, y) => x.km - y.km)
+      .slice(0, limit(a, "limit", 12));
+  },
+
   /** Reviews about someone in one role. Poster and worker reputations are never merged. */
   listReviewsAbout: async (ctx, a) => {
     const list = rows<Row & { author_id: string }>(

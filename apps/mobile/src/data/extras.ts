@@ -321,4 +321,13 @@ export const remoteTasks = (limit = 5) => act<Task[]>('remoteTasks', { limit });
 export const tasksNear = (near: { lat: number; lng: number }, radiusKm: number, limit = 5) =>
   act<(Task & { km: number })[]>('tasksNear', { lat: near.lat, lng: near.lng, radiusKm, limit });
 
+/** A helper on a poster's map: the public card fields and the rounded area only. */
+export type NearbyWorker = Pick<
+  Profile,
+  'id' | 'display_name' | 'username' | 'avatar_url' | 'skills' | 'worker_rating_avg' | 'worker_rating_count' | 'last_seen_at' | 'loc_lat' | 'loc_lng' | 'loc_label'
+> & { km: number };
+
+export const workersNear = (near: { lat: number; lng: number }, radiusKm: number, limit = 12) =>
+  act<NearbyWorker[]>('workersNear', { lat: near.lat, lng: near.lng, radiusKm, limit });
+
 export const urgentTasks = (limit = 3) => act<Task[]>('urgentTasks', { limit });
