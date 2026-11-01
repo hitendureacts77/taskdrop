@@ -412,7 +412,8 @@ export function imageSource(url: string): { uri: string; cacheKey: string } {
 // ---------------------------------------------------------- proof of work --
 
 /** A file attached as proof of work: a photo, a video or a document. */
-export type ProofFile = { path: string; kind: 'image' | 'video' | 'file'; name: string };
+/** A proof file. `label` marks the before and after photos of a job that asked for them (migration 134). */
+export type ProofFile = { path: string; kind: 'image' | 'video' | 'file'; name: string; label?: 'before' | 'after' };
 
 /** A picked document, before upload. */
 export type PickedDocument = { uri: string; mimeType: string; name: string; bytes: number };

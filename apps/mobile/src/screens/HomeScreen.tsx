@@ -61,6 +61,8 @@ export type FeedRow = {
   dur: string | null;
   body: string;
   by: string | null;
+  /** The poster's options (Flash Drop, crew, photos...), as short labels; absent on older rows. */
+  options?: string[];
 };
 
 // Must match the pillar names in CreateScreen.tsx exactly — this list and

@@ -288,6 +288,26 @@ export type NewTask = {
   dueAt?: string | null;
   milestones?: { title: string; pct: number }[];
   kind?: TaskKind;
+} & PosterOptionsInput;
+
+/**
+ * The options a poster switched on in the Options step (migration 134). The
+ * server sets the Flash Drop and Regulars windows itself and refuses any
+ * combination it does not accept.
+ */
+export type PosterOptionsInput = {
+  /** Flash Drop: Auto-hire within 30 minutes, helpers nearby told at once. */
+  flash?: boolean;
+  /** A quick paid question about a place, answered with a live photo. */
+  liveAnswer?: boolean;
+  /** Crew: how many helpers (2 to 10); benchmarkMinor is the whole budget, split evenly. */
+  crewSize?: number;
+  repeatEvery?: 'week' | 'month' | null;
+  /** Someone hired before, offered the task for the first 10 minutes. */
+  preferWorkerId?: string | null;
+  wantPhotos?: boolean;
+  /** Let the helper show the photos on their profile. */
+  photosPublic?: boolean;
 };
 
 export async function createTask(input: NewTask): Promise<Task> {
@@ -691,3 +711,57 @@ export const listBlockedUsers = () => act<BlockedUser[]>('listBlockedUsers');
 export const unblockUser = (userId: string) => act<null>('unblockUser', { userId });
 
 export const getProof = (taskId: string) => quietly<Proof | null>('getProof', { taskId }, null);
+
+// -------------------------------------------------------- poster options --
+
+/** One slot of a crew job. Names only reach the poster and the people hired. */
+export type CrewSlot = {
+  task_id: string;
+  slot: number;
+  size: number;
+  status: Enums<'task_status'>;
+  title: string;
+  price_minor: number;
+  worker_id: string | null;
+  worker_name: string | null;
+  worker_avatar: string | null;
+};
+export type CrewMessage = Tables<'crew_messages'>;
+
+export const crewOverview = (crewId: string) => act<CrewSlot[]>('crewOverview', { crewId });
+export const listCrewMessages = (crewId: string) => act<CrewMessage[]>('listCrewMessages', { crewId });
+export const sendCrewMessage = (crewId: string, body: string) => act<CrewMessage>('sendCrewMessage', { crewId, body });
+
+/** Someone this poster hired for finished jobs: the Regulars list. */
+export type Regular = { profile: Profile; jobs: number; categories: string[]; lastAt: string | null };
+export const myRegulars = () => quietly<Regular[]>('myRegulars', {}, []);
+
+export const setRepeat = (taskId: string, every: 'week' | 'month' | null) =>
+  act<{ id: string; repeat_every: string | null }>('setRepeat', { taskId, every });
+
+export type ProofPhotos = {
+  task_id: string;
+  title: string;
+  category: string | null;
+  completed_at: string | null;
+  files: import('../lib/media').ProofFile[];
+};
+export const workerProofPhotos = (userId: string) => quietly<ProofPhotos[]>('workerProofPhotos', { userId }, []);
+
+/** The Earn side's week: goal, on-time streak and the counts badges are made from. */
+export type Streaks = {
+  weekStart: string;
+  weekEarnedMinor: number;
+  weekJobs: number;
+  weeklyGoalMinor: number | null;
+  onTimeStreak: number;
+  jobsDone: number;
+  earlyStarts: number;
+  fiveStars: number;
+  crewJobs: number;
+  liveAnswers: number;
+  photoJobs: number;
+};
+export const myStreaks = () => act<Streaks>('myStreaks');
+export const setWeeklyGoal = (goalMinor: number | null) =>
+  act<{ weekly_goal_minor: number | null }>('setWeeklyGoal', { goalMinor });

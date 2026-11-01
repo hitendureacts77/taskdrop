@@ -1518,6 +1518,7 @@ export type Database = {
           worker_onboarded_at: string | null
           worker_rating_avg: number
           worker_rating_count: number
+          weekly_goal_minor: number | null
         }
         Insert: {
           avatar_url?: string | null
@@ -1545,6 +1546,7 @@ export type Database = {
           worker_onboarded_at?: string | null
           worker_rating_avg?: number
           worker_rating_count?: number
+          weekly_goal_minor?: number | null
         }
         Update: {
           avatar_url?: string | null
@@ -1572,6 +1574,7 @@ export type Database = {
           worker_onboarded_at?: string | null
           worker_rating_avg?: number
           worker_rating_count?: number
+          weekly_goal_minor?: number | null
         }
         Relationships: []
       }
@@ -2059,6 +2062,30 @@ export type Database = {
           },
         ]
       }
+      crew_messages: {
+        Row: {
+          body: string
+          created_at: string
+          crew_id: string
+          id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          crew_id: string
+          id?: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          crew_id?: string
+          id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
       task_proofs: {
         Row: {
           created_at: string
@@ -2147,6 +2174,17 @@ export type Database = {
           time_limit_minutes: number
           title: string
           topup_pct: number
+          crew_id: string | null
+          crew_size: number | null
+          crew_slot: number | null
+          flash_until: string | null
+          live_answer: boolean
+          photos_public: boolean
+          preferred_until: string | null
+          preferred_worker_id: string | null
+          repeat_every: string | null
+          repeated_from: string | null
+          want_photos: boolean
           updated_at: string
           wallet_refunded_at: string | null
           work_done_at: string | null
@@ -2189,6 +2227,17 @@ export type Database = {
           time_limit_minutes: number
           title: string
           topup_pct?: number
+          crew_id?: string | null
+          crew_size?: number | null
+          crew_slot?: number | null
+          flash_until?: string | null
+          live_answer?: boolean
+          photos_public?: boolean
+          preferred_until?: string | null
+          preferred_worker_id?: string | null
+          repeat_every?: string | null
+          repeated_from?: string | null
+          want_photos?: boolean
           updated_at?: string
           wallet_refunded_at?: string | null
           work_done_at?: string | null
@@ -2231,6 +2280,17 @@ export type Database = {
           time_limit_minutes?: number
           title?: string
           topup_pct?: number
+          crew_id?: string | null
+          crew_size?: number | null
+          crew_slot?: number | null
+          flash_until?: string | null
+          live_answer?: boolean
+          photos_public?: boolean
+          preferred_until?: string | null
+          preferred_worker_id?: string | null
+          repeat_every?: string | null
+          repeated_from?: string | null
+          want_photos?: boolean
           updated_at?: string
           wallet_refunded_at?: string | null
           work_done_at?: string | null
@@ -3549,6 +3609,31 @@ export type Database = {
         }[]
       }
       my_stats: { Args: { p_role?: string }; Returns: Json }
+      my_streaks: { Args: never; Returns: Json }
+      crew_overview: {
+        Args: { p_crew: string }
+        Returns: {
+          price_minor: number
+          size: number
+          slot: number
+          status: Database["public"]["Enums"]["task_status"]
+          task_id: string
+          title: string
+          worker_avatar: string | null
+          worker_id: string | null
+          worker_name: string | null
+        }[]
+      }
+      worker_proof_photos: {
+        Args: { p_worker: string }
+        Returns: {
+          category: string | null
+          completed_at: string | null
+          files: Json
+          task_id: string
+          title: string
+        }[]
+      }
       open_dispute: {
         Args: { p_reason?: string; p_task_id: string }
         Returns: {

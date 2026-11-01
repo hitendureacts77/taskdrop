@@ -5,6 +5,9 @@ import Svg, { Path, Circle } from 'react-native-svg';
  * Stroked (outline) icons match the design's line style; a few are filled.
  */
 export type IconName =
+  | 'camera'
+  | 'repeat'
+  | 'heart'
   | 'home'
   | 'search'
   | 'orders'
@@ -94,6 +97,9 @@ const STROKE: Partial<Record<IconName, string>> = {
   filter: 'M4 6h16M7 12h10M10 18h4',
   close: 'M6 6l12 12M18 6 6 18',
   expand: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
+  camera: 'M3.5 8h3.5l2-2.5h6l2 2.5h3.5v11h-17zM8.5 13a3.5 3.5 0 1 0 7 0 3.5 3.5 0 1 0-7 0',
+  repeat: 'M17 2.5l3.5 3.5L17 9.5M3.5 11V9.5a3.5 3.5 0 0 1 3.5-3.5h13.5M7 21.5 3.5 18 7 14.5M20.5 13v1.5a3.5 3.5 0 0 1-3.5 3.5H3.5',
+  heart: 'M12 20s-7.5-4.6-8.9-9.3C2 7.2 4.2 4.5 7.3 4.5c2 0 3.6 1.1 4.7 2.7 1.1-1.6 2.7-2.7 4.7-2.7 3.1 0 5.3 2.7 4.2 6.2C19.5 15.4 12 20 12 20Z',
   eye: 'M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12ZM9.5 12a2.5 2.5 0 1 0 5 0 2.5 2.5 0 1 0-5 0',
   clock: 'M3.5 12a8.5 8.5 0 1 0 17 0 8.5 8.5 0 1 0-17 0M12 7.5V12l3 2',
   pin: 'M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11ZM9.8 10a2.2 2.2 0 1 0 4.4 0 2.2 2.2 0 1 0-4.4 0',

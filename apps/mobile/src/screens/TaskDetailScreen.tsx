@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BackButton, IconButton, systemHeader } from '../components/kit';
+import { Badge, BackButton, IconButton, systemHeader } from '../components/kit';
 import { ReportSheet } from '../components/ReportSheet';
 import { Icon } from '../components/Icon';
 import { View, Text as RNText, Pressable, TextInput, Platform } from 'react-native';
@@ -61,6 +61,8 @@ type Detail = {
   mediaKind: 'image' | 'video' | null;
   mediaSeconds: number | null;
   dur: string | null;
+  /** The poster's options, as short labels (Flash Drop, Crew 1 of 3...). */
+  options?: string[];
 };
 
 // Fallbacks mirror _design_source.jsx `fallbackDetail` (converted to paise).
@@ -139,6 +141,7 @@ export function TaskDetailScreen() {
         mediaKind: row.mediaKind,
         mediaSeconds: row.mediaSeconds,
         dur: row.dur,
+        options: row.options ?? [],
       };
     }
     return worker ? FALLBACK_WORKER : FALLBACK_POSTER;
@@ -474,6 +477,14 @@ export function TaskDetailScreen() {
             </View>
           ) : null}
         </View>
+
+        {detail.options?.length ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+            {detail.options.map((o) => (
+              <Badge key={o} label={o} tone={o === 'Flash Drop' ? 'signal' : 'accent'} />
+            ))}
+          </View>
+        ) : null}
 
         {detailRows.map((r) => (
           <View
