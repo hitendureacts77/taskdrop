@@ -802,6 +802,24 @@ fix the keyboard problem
 
 **Order inside this step:** your own accounts first (2.1 to 2.4, about 4 hours in total), then Claude's work (2.5 to 2.9 and 2.11), then the alarms and the proof (2.10).
 
+**Where Step 2 stands (1 Nov 2026).** Claude's side is done except what needs your phone or your answer.
+
+| Task | State | What is left |
+|---|---|---|
+| 2.1 Secrets file | Done by you | Device encryption, the encrypted backup, the trusted person and the blank Google, GitHub and Expo passwords are not confirmed |
+| 2.2 Limits and alerts | Part done | Google budget alert and Places cap (Google identity check due 19 Feb 2027), ImageKit alerts, Razorpay notifications |
+| 2.3 Lock down key storage | Yours | All four clicks |
+| 2.4 Read the emergency guide | Yours | Read `docs/KEY_RUNBOOK.md` once (this is also proof 6 of 2.10) |
+| 2.5 Key protection | Done | Nothing |
+| 2.6 Close the holes | Part done | H9 (read a week of CSP reports, then block) and the Expo SDK upgrade plan (review by 13 Dec) |
+| 2.7 Stop-ship tests | Done | Nothing |
+| 2.8 SMS safety | Mostly done | Google sign-in shown first needs your OK on the layout |
+| 2.9 Security tests, round 2 | Part done | T11 on the Android app (needs the phone); your answer on the account-existence messages |
+| 2.10 Alarms and emergency guide | Part done | Proof 6 (you read the guide); optional second Sentry rule for `fatal` issues |
+| 2.11 Money safety limits | Done | Nothing |
+
+**On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
+
 **Two gates, so the tester clock starts sooner.** Google's 12-tester, 14-day test (Step 3) is the longest fixed wait in this plan, and testers only touch fake money. So **Gate 2a** (after 2.7) lets Step 3 start once the core protection is in place. Tasks 2.8 to 2.11 then run during the 14 days, and **Gate 2b** must pass before Step 5 (production).
 
 <details id="t2-1" data-short="Secrets file">
@@ -1038,7 +1056,7 @@ start SMS safety
 </details>
 
 <details id="t2-9" data-short="Security tests round 2">
-<summary>[CLAUDE] <b>2.9</b> Security tests, round 2: attacks on forms, sign-in, the app and privacy <small>· your time: 20 minutes</small></summary>
+<summary>[CLAUDE] <b>2.9</b> Security tests, round 2: attacks on forms, sign-in, the app and privacy <small>· your time: 20 minutes · T4, T6, T13 done 1 Nov; T11 needs the phone</small></summary>
 
 **What Claude tries on staging, like an attacker would:**
 
@@ -1065,7 +1083,7 @@ run security tests round 2
 </details>
 
 <details id="t2-10" data-short="Alarms + key emergency guide">
-<summary>[BOTH] <b>2.10</b> Alarms and the key emergency guide <small>· your time: 30 minutes</small></summary>
+<summary>[BOTH] <b>2.10</b> Alarms and the key emergency guide <small>· your time: 30 minutes · proofs 1 to 5 done 1 Nov; proof 6 is yours</small></summary>
 
 **Why:** if someone does get a key, you want to know within the hour, and you want written steps ready.
 
@@ -3165,6 +3183,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-01 (Step 2 proofs run):** You asked Claude to run the rest of Step 2. **Done:** 2.10 proofs 1 to 5 (a fake key is blocked by the PC guard, the unit-test check and gitleaks; the website and Android bundle hold no secret; the public key reads nothing private; the admin deploy fails without its secret; the decoy key tripped Canarytokens and the email arrived), and the Sentry spike email (15 wrong codes, arrived). **Found and fixed:** gitleaks had no Razorpay rule (PR 168), and the break-it run found one email spelled out as "a (at) b (dot) com" (PR 170; 284 of 285 probes held). **Not done:** T11 (needs the phone), proof 6 (you read the guide), H9, the Google sign-in layout and your answer on the account-existence messages. A table of where Step 2 stands was added at the top of Step 2. No task number or gate moved.
 - **2026-11-01 (1.8 accepted, Step 1 closed):** You wrote "accept 1.8". The keyboard pass closes as it stands: 14 of 16 spots seen working on your phone. Not opened because they need money in a wallet: review text, proof of work, payout details and a confirm dialog with the keyboard up. Not done because they change the phone settings: the bigger-text and navigation-style repeats. The Gate 1 keyboard box is ticked; every Step 1 gate box is now ticked.
 - **2026-11-01 (map design approved, D11):** You asked for calm, easy-to-read animated circles that stay tidy when many tasks are on the map, a full-screen map like Snap Map, and for posters to see helpers on the map while workers see tasks. **Drawn and approved the same day:** eight screens on the map design canvas (worker Home map, busy area, task peek, price step, worker full map zoomed out and in, poster Home with helpers, poster full map). **Added:** row D11 under task 1.5. **Not built:** nothing in the app changed. **Open for you:** a poster asking one helper directly for a quote, and helpers showing their own prices, do not exist in the app today; the drawings use "Post a task" and show skill and rating instead.
 - **2026-11-01 (finishing Step 1):** You asked Claude to finish the open Step 1 items at once and merge them together. **Done:** 1.1 (your decisions) moved to future scope, so no gate waits on it; D10 built on Explore, Profile and Wallet (the 32-point gap Home already has), so the "D1 to D10 built or dropped" box is ticked; the sign-in code beads and test code now scroll clear of the keyboard (found in the keyboard pass: they were hidden behind it); the alerts saved by that morning's test runs were read against the 1.7 table and match. **Not done, and why:** the 1.7 and 1.8 boxes stay open until the new words and the keyboard fix are seen on your phone (that needs a new app update, which Claude asks you about first); the bigger-text and other-navigation repeats of the keyboard pass change the phone's own settings, which Claude does not do. All of this is one pull request into `redesigned-2.0`.
