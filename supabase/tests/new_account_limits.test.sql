@@ -65,14 +65,14 @@ end;
 $$;
 
 create or replace function pg_temp.refusal(p_sql text) returns text
-language plpgsql as $
+language plpgsql as $$
 begin
   execute p_sql;
   return null;
 exception when others then
   return sqlerrm;
 end;
-$;
+$$;
 
 create or replace function pg_temp.refused(p_sql text) returns boolean
 language plpgsql as $$
@@ -85,7 +85,7 @@ end;
 $$;
 
 -- ---- 1. the value of one job -------------------------------------------------------------------
-do $
+do $$
 declare
   v_new    uuid := pg_temp.make_user('New poster');
   v_worker uuid := pg_temp.make_user('New worker');
@@ -113,7 +113,7 @@ begin
   v_msg := pg_temp.refusal(format('select public.lock_bid(%L, ''one_time'')', v_bid));
   assert v_msg like 'New accounts can have jobs worth up to Rs 5000%', format('choosing an offer worth more than the limit is refused: %s', coalesce(v_msg, 'it was accepted'));
 end;
-$;
+$$;
 
 -- ---- 4. the server is not limited --------------------------------------------------------------
 do $$
