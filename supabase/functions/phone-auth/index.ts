@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { background, captureSecurityEvent, captureServerError, guarded, logServer } from "../_shared/monitoring.ts";
 import { signInRefusal } from "../_shared/signInSwitches.ts";
-import { isIndianMobile } from "../_shared/indianMobile.ts";
+import { acceptsPhone } from "../_shared/indianMobile.ts";
 
 /**
  * Phone sign-in for TaskDrop.
@@ -215,8 +215,8 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
   const phone = normalise(body.phone ?? "");
   if (phone.length !== 10) return json({ error: "Enter a 10-digit mobile number" }, 400);
   // Indian mobile numbers start with 6, 7, 8 or 9, and are not one digit repeated. Anything else would be a code sent abroad or into nothing:
-  // SMS pumping sends to numbers like these (task 2.8).
-  if (!isIndianMobile(phone)) return json({ error: "Enter a valid Indian mobile number" }, 400);
+  // SMS pumping sends to numbers like these (task 2.8). A number on the TEST_PHONES allowlist is let through: it never gets an SMS.
+  if (!acceptsPhone(phone, TEST_PHONES)) return json({ error: "Enter a valid Indian mobile number" }, 400);
 
   // The admin panel's sign-in and sign-up switches (migration 092). A code
   // already sent can still be used; a new one is not sent while its door is shut.
