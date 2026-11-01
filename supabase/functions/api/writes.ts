@@ -438,16 +438,12 @@ export const WRITE_OPS: Record<string, Op> = {
     );
   },
 
-  /** Repeat on or off for one of your own tasks (a crew job cannot repeat). */
+  /** Repeat on or off for one of your own tasks, at any stage but cancelled (a crew job cannot repeat). */
   setRepeat: async (ctx, a) => {
     const every = a.every == null ? null : oneOf(a, "every", ["week", "month"]);
-    const row = rows(
-      await ctx.db.from("tasks").update({ repeat_every: every })
-        .eq("id", uuid(a, "taskId")).eq("poster_id", ctx.userId).is("crew_id", null)
-        .select("id, repeat_every"),
-    )[0];
-    if (!row) throw new OpError("This task can no longer be changed", "NOT_FOUND");
-    return row;
+    const taskId = uuid(a, "taskId");
+    take(await ctx.db.rpc("set_task_repeat", { p_task_id: taskId, p_every: every }));
+    return { id: taskId, repeat_every: every };
   },
 
   /** A helper's own weekly earnings goal (Streaks). Null clears it. */

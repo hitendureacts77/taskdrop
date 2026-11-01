@@ -134,7 +134,15 @@ begin
   perform public.start_task(v_task);
   insert into public.task_proofs (task_id, worker_id, summary, files)
   values (v_task, v_worker, 'Brought all four cans upstairs',
-          jsonb_build_array(jsonb_build_object('path', v_worker || '/after.jpg', 'label', 'after')));
+          jsonb_build_array(jsonb_build_object('path', v_worker || '/after.jpg', 'label', 'after'),
+                            jsonb_build_object('path', v_worker || '/invoice.pdf')));
+  -- Repeat can be switched while the job is under way (migration 135).
+  perform pg_temp.become(v_poster);
+  if public.set_task_repeat(v_task, 'month') <> 'month' then
+    raise exception 'FAIL: set_task_repeat should work on a started job';
+  end if;
+  perform public.set_task_repeat(v_task, 'week');
+  perform pg_temp.become(v_worker);
   perform public.mark_work_done(v_task);
   perform pg_temp.become(v_poster);
   perform public.confirm_release(v_task);
@@ -170,6 +178,12 @@ begin
   if (select count(*) from public.worker_proof_photos(v_worker)) <> 1 then
     raise exception 'FAIL: worker_proof_photos should list the shared job';
   end if;
+  -- Only the labelled photos are shared, never the rest of the proof (migration 135).
+  -- (can_read_task_media cannot be asked here: this connection's session_user is postgres,
+  -- which private.is_admin() treats as the owner, so every file reads as allowed.)
+  if (select jsonb_array_length(files) from public.worker_proof_photos(v_worker)) <> 1 then
+    raise exception 'FAIL: worker_proof_photos should return only the labelled photos';
+  end if;
 
   -- Streaks for the helper.
   perform pg_temp.become(v_worker);
@@ -199,6 +213,18 @@ begin
   end if;
   perform pg_temp.become(v_poster);
   insert into public.crew_messages (crew_id, sender_id, body) values (v_crew, v_poster, 'Be there at 9');
+
+  -- Nobody can join a crew by posting a task with its id (migration 135).
+  perform pg_temp.as_admin();
+  begin
+    insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, crew_id, crew_size, crew_slot)
+    values (v_other, 'services', 'Borrowed crew', 20000, 60, v_crew, 2, 1);
+    v_err := null;
+  exception when raise_exception then v_err := sqlerrm;
+  end;
+  if v_err is null then
+    raise exception 'FAIL: a crew id used by another poster should be refused';
+  end if;
 
   perform pg_temp.as_admin();
   raise notice 'poster_options: ok';

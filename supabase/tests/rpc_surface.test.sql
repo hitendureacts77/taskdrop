@@ -46,7 +46,7 @@ declare
     'escrow_refund_due', 'admin_payout_queue', 'admin_mark_payout',
     'admin_resolve_dispute', 'admin_set_admin', 'platform_earnings',
     'record_birth_date', 'admin_set_payout_method', 'set_task_address',
-    'crew_overview', 'worker_proof_photos', 'my_streaks'
+    'crew_overview', 'worker_proof_photos', 'my_streaks', 'set_task_repeat'
   ];
   -- Service role only. A grant here is the hole 047 closed.
   must_not_be_callable text[] := array[
