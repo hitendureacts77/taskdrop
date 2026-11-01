@@ -28,6 +28,7 @@
  *   node scripts/vercel-build.mjs --dry-run   print what would run (set VERCEL_GIT_COMMIT_REF and VERCEL_ENV)
  */
 import { spawnSync } from "node:child_process";
+import { missingOrShort } from "./lib/required-env.mjs";
 
 const dryRun = process.argv.includes("--dry-run");
 const branch = process.env.VERCEL_GIT_COMMIT_REF || "";
@@ -66,13 +67,22 @@ async function mustRetry(label, cmd, args, env, attempts = 3) {
   process.exit(1);
 }
 
+// Secrets the backend steps need, with the shortest length a real one has (a Supabase access token is 44 characters).
+const REQUIRED = [
+  { name: "SUPABASE_ACCESS_TOKEN", min: 40 },
+  { name: "DATABASE_URL", min: 30 },
+];
+
 const wantsBackend = branch === "redesigned-2.0" && target === "preview";
 const hasSecrets = Boolean(process.env.SUPABASE_ACCESS_TOKEN && process.env.DATABASE_URL);
 
 if (!wantsBackend) {
   note(`branch "${branch || "(none)"}" / environment "${target || "(none)"}": web build only, backend untouched`);
-} else if (!hasSecrets) {
-  warn("Backend NOT deployed: add SUPABASE_ACCESS_TOKEN and DATABASE_URL in Vercel (Preview, branch redesigned-2.0). See docs/DEPLOY.md. Building the web app only.");
+} else if (!hasSecrets || missingOrShort(process.env, REQUIRED).length > 0) {
+  // Task 2.5: a deploy of redesigned-2.0 with a missing or stub secret fails, so the web app is never published
+  // against a backend that was silently skipped. Names only are printed.
+  console.error(`[vercel-build] FAILED: ${missingOrShort(process.env, REQUIRED).join("; ")}. Set them in Vercel (Preview, branch redesigned-2.0). See docs/DEPLOY.md.`);
+  process.exit(1);
 } else {
   // `main` is the old app. Vercel cloned only this branch, so fetch main to compare against.
   let oldAppEnv = null;
