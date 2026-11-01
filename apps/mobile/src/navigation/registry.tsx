@@ -31,6 +31,7 @@ import { SearchScreen } from '../screens/SearchScreen';
 // Second wave: AI posting, explore, my tasks and the account surfaces
 import { AiPostScreen } from '../screens/AiPostScreen';
 import { ExploreScreen } from '../screens/ExploreScreen';
+import { NearMapScreen } from '../screens/NearMapScreen';
 import { MyTasksScreen } from '../screens/MyTasksScreen';
 import { TaskManageScreen } from '../screens/TaskManageScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
@@ -91,6 +92,7 @@ export const REGISTRY: Partial<Record<ScreenName, ComponentType>> = {
   profileEdit: ProfileEditScreen,
   publicProfile: PublicProfileScreen,
   saved: SavedScreen,
+  nearMap: NearMapScreen,
   workerSetup: WorkerSetupScreen,
   listing: ListingEditScreen,
   copyright: CopyrightScreen,
