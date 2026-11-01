@@ -34,6 +34,7 @@ import { Icon } from './Icon';
 import { Badge, BottomSheet, Grid, SectionTitle, Shimmer, rupees, timeLeft } from './kit';
 import { WorkCard, categoryIcon } from './WorkCard';
 import { BidSheet } from './BidSheet';
+import { JobsMap, type JobPin } from './JobsMap';
 import { LiveWorkers } from './LiveWorkers';
 import { Rail, useRailItemWidth } from './Rail';
 import { HeroCard } from './Hero';
@@ -73,13 +74,22 @@ function PostTop() {
   const [trending, setTrending] = useState<TrendingCategory[]>([]);
   const [howOpen, setHowOpen] = useState(false);
   const [place, setPlace] = useState<string | null>(null);
+  // The same area as a point, for the "Near you" map. Kept as the same object
+  // while it doesn't move, so the nearby list isn't refetched.
+  const [placeAt, setPlaceAt] = useState<{ lat: number; lng: number } | null>(null);
   const [pickPlace, setPickPlace] = useState(false);
 
   useEffect(() => {
     if (!userId || screen !== 'home') return;
     let alive = true;
     getProfile(userId)
-      .then((p) => alive && setPlace(p?.loc_label ?? null))
+      .then((p) => {
+        if (!alive) return;
+        setPlace(p?.loc_label ?? null);
+        const lat = p?.loc_lat;
+        const lng = p?.loc_lng;
+        setPlaceAt((cur) => (lat == null || lng == null ? null : cur && cur.lat === lat && cur.lng === lng ? cur : { lat, lng }));
+      })
       .catch(() => {});
     listMyTasks(userId)
       .then(
@@ -103,6 +113,7 @@ function PostTop() {
     if (picked.lat === null || picked.lng === null) return flash('Drop a pin on the map to set your area');
     const label = picked.area || picked.label;
     setPlace(label);
+    setPlaceAt({ lat: picked.lat, lng: picked.lng });
     if (!userId) return;
     await updateProfile(userId, { locLabel: label, locLat: picked.lat, locLng: picked.lng }).catch((e) =>
       flash(e instanceof Error ? e.message : 'Could not save your area'),
@@ -192,6 +203,9 @@ function PostTop() {
           {wideHero ? <HeroArt /> : null}
         </View>
       </HeroCard>
+
+      {/* What open tasks round here pay: the area of each, never the spot. */}
+      <NearYou centre={placeAt} active={screen === 'home'} onSetArea={() => setPickPlace(true)} />
 
       <Pressable
         onPress={() => setHowOpen(true)}
@@ -307,6 +321,167 @@ function PostTop() {
         onCancel={() => setPickPlace(false)}
         onPick={(p) => void choosePlace(p)}
       />
+    </View>
+  );
+}
+
+/** The reach of the poster's "Near you" map, in km. */
+const NEAR_KM = 5;
+
+/**
+ * Open tasks round the poster's area, with what each one pays: a map of soft
+ * circles (the area, never the spot) and the closest few in a list. Seeing real
+ * prices nearby is how a poster gets a feel for what to offer, instead of a
+ * suggested range. Tapping a circle or a row opens a peek with the task.
+ */
+function NearYou({ centre, active, onSetArea }: { centre: { lat: number; lng: number } | null; active: boolean; onSetArea: () => void }) {
+  const t = useTheme();
+  const { go } = useNav();
+  const [rows, setRows] = useState<(TaskWithPoster & { km: number })[] | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!centre || !active) return;
+    let alive = true;
+    void tasksNear(centre, NEAR_KM, 12)
+      .then(async (r) => {
+        const withPeople = await attachPosters(r);
+        if (alive) setRows(withPeople.map((x, i) => ({ ...x, km: r[i]!.km })));
+      })
+      .catch(() => alive && setRows([]));
+    return () => {
+      alive = false;
+    };
+  }, [centre, active]);
+
+  const pins: JobPin[] = (rows ?? [])
+    .filter((r) => r.loc_lat != null && r.loc_lng != null)
+    .map((r) => ({ id: r.id, lat: r.loc_lat as number, lng: r.loc_lng as number, label: rupees(r.benchmark_minor / 100) }));
+  const sel = rows?.find((r) => r.id === picked) ?? null;
+  const areaOf = (r: Task) => (r.loc_label ? roughPlace(r.loc_label)?.split(',')[0] : null) || 'Nearby';
+  const far = (km: number) => (km < 1 ? 'under 1 km' : `~${km.toFixed(km < 10 ? 1 : 0)} km`);
+
+  return (
+    <View>
+      <SectionTitle
+        title="Near you right now"
+        icon="pin"
+        action={rows && rows.length > 0 ? 'See all' : undefined}
+        onAction={() => go('explore')}
+        style={{ marginTop: 32 }}
+      />
+      {!centre ? (
+        <Pressy onPress={onSetArea} style={[cardSurface(t), { marginTop: 12, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+          <Icon name="pin" size={18} color={t.colors.accentDeep} />
+          <RNText style={tx('600', 13.5, t.colors.ink, { flex: 1 })}>Set your area to see tasks and prices near you</RNText>
+          <Icon name="chevronRight" size={16} color={t.colors.muted} />
+        </Pressy>
+      ) : rows === null ? (
+        <Shimmer height={260} style={{ marginTop: 12 }} />
+      ) : (
+        <>
+          <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4 })}>
+            {rows.length === 0
+              ? `No open tasks within ${NEAR_KM} km yet`
+              : `${rows.length} open task${rows.length === 1 ? '' : 's'} within ${NEAR_KM} km · prices set by the people who posted them`}
+          </RNText>
+          <View style={{ marginTop: 12 }}>
+            <JobsMap me={centre} pins={pins} selectedId={picked} onSelect={setPicked} height={280} ringKm={NEAR_KM} />
+          </View>
+
+          {sel ? (
+            <View style={[cardSurface(t, 20), { marginTop: 12, padding: 16 }]}>
+              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+                <View style={{ flex: 1 }}>
+                  <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 0.9 })} numberOfLines={1}>
+                    {(sel.category ?? 'Task').toUpperCase()}
+                  </RNText>
+                  <RNText style={tx('800', 17, t.colors.ink, { marginTop: 4, letterSpacing: -0.3 })} numberOfLines={2}>
+                    {sel.title}
+                  </RNText>
+                </View>
+                <RNText style={tx('800', 22, t.colors.ink, { fontVariant: ['tabular-nums'], letterSpacing: -0.5 })}>
+                  {rupees(sel.benchmark_minor / 100)}
+                </RNText>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, padding: 10, borderRadius: 14, backgroundColor: t.colors.surface2 }}>
+                <View style={{ width: 30, height: 30, borderRadius: 999, backgroundColor: t.colors.accent + '26', borderWidth: 1.5, borderColor: t.colors.accent, borderStyle: 'dashed' }} />
+                <View style={{ flex: 1 }}>
+                  <RNText style={tx('700', 13, t.colors.ink)}>
+                    {areaOf(sel)} area · {far(sel.km)} away
+                  </RNText>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                    <Icon name="lock" size={11} color={t.colors.muted} />
+                    <RNText style={tx('400', 11.5, t.colors.muted, { flexShrink: 1 })}>Exact address unlocks once someone is hired</RNText>
+                  </View>
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                <Pressy
+                  onPress={() => go('taskDetail', { row: taskToFeedRow(sel) })}
+                  style={{ flex: 1, height: 44, borderRadius: 999, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <RNText style={tx('800', 14, t.colors.onBtn)}>Open task</RNText>
+                </Pressy>
+                <Pressy
+                  onPress={() => go('aiPost', { similar: sel })}
+                  style={{ flex: 1, height: 44, borderRadius: 999, borderWidth: 1.5, borderColor: t.colors.line, backgroundColor: t.colors.surface, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <RNText style={tx('700', 14, t.colors.ink)}>Post one like this</RNText>
+                </Pressy>
+              </View>
+            </View>
+          ) : null}
+
+          {rows.length > 0 ? (
+            <View style={[cardSurface(t, 20), { marginTop: 12, paddingHorizontal: 14 }]}>
+              {rows.slice(0, 4).map((r, i) => (
+                <Pressable
+                  key={r.id}
+                  onPress={() => setPicked(r.id === picked ? null : r.id)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: r.id === picked }}
+                  accessibilityLabel={`${r.title}, ${rupees(r.benchmark_minor / 100)}, ${areaOf(r)} area, ${far(r.km)} away`}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingVertical: 12,
+                    borderTopWidth: i === 0 ? 0 : 1,
+                    borderTopColor: t.colors.line,
+                    opacity: pressed ? 0.75 : 1,
+                  })}
+                >
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 999,
+                      backgroundColor: t.colors.accent + '22',
+                      borderWidth: 1.5,
+                      borderColor: t.colors.accent + '55',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icon name={categoryIcon(r.category ?? '')} size={16} color={t.colors.accentDeep} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <RNText style={tx('700', 14, t.colors.ink)} numberOfLines={1}>
+                      {r.title}
+                    </RNText>
+                    <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>
+                      {areaOf(r)} area · {far(r.km)}
+                      {timeLeft(r.due_at) ? ` · ${timeLeft(r.due_at)}` : ''}
+                    </RNText>
+                  </View>
+                  <RNText style={tx('800', 16, t.colors.ink, { fontVariant: ['tabular-nums'] })}>{rupees(r.benchmark_minor / 100)}</RNText>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+        </>
+      )}
     </View>
   );
 }
@@ -683,6 +858,22 @@ function EarnTop() {
               </View>
             ) : (
               <>
+                {/* The same jobs on a map: a soft circle per job's area, never its spot. Tap one to open it. */}
+                <View style={{ marginTop: 12 }}>
+                  <JobsMap
+                    me={place}
+                    pins={near
+                      .filter((r) => r.loc_lat != null && r.loc_lng != null)
+                      .map((r) => ({ id: r.id, lat: r.loc_lat as number, lng: r.loc_lng as number, label: rupees(r.benchmark_minor / 100) }))}
+                    selectedId={null}
+                    onSelect={(id) => {
+                      const hit = near.find((r) => r.id === id);
+                      if (hit) go('taskDetail', { row: taskToFeedRow(hit) });
+                    }}
+                    height={240}
+                    ringKm={radius}
+                  />
+                </View>
                 <Grid>{firstFew('near', near).map((task, i) => card(task, i, task.km))}</Grid>
                 {more('near', near.length)}
               </>

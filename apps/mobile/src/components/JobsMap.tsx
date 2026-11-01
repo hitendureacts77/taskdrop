@@ -15,13 +15,20 @@ const CLUSTER_PX = 46;
 /** Same reach as the "Near me" filter, drawn as a ring. */
 const RING_KM = 10;
 const DEFAULT_CENTRE = { lat: 12.9716, lng: 77.5946 };
+/**
+ * How far round a job its soft circle reaches. The published coordinates are
+ * rounded to about a kilometre (migration 074), so a circle this size says
+ * "somewhere around here" and never points at a door.
+ */
+const AREA_M = 800;
 
 /**
  * Open jobs on a map. You are the blue dot with your reach drawn around you,
- * and each job is a green price tag. Close tags join into a number; tap it to
- * zoom in. Built on the same plain tiles as the location picker, so it runs on
- * web and on a phone with no extra SDK or key. Pins are placed from the area
- * the post shows, never from an exact address.
+ * and each job is a soft green circle with its price in the middle: the area,
+ * never a point. Close tags join into a number; tap it to zoom in. Built on the
+ * same plain tiles as the location picker, so it runs on web and on a phone
+ * with no extra SDK or key. Circles are placed from the area the post shows,
+ * never from an exact address.
  */
 export function JobsMap({
   me,
@@ -29,12 +36,15 @@ export function JobsMap({
   selectedId,
   onSelect,
   height = 320,
+  ringKm = RING_KM,
 }: {
   me: { lat: number; lng: number } | null;
   pins: JobPin[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   height?: number;
+  /** The reach drawn round you; the same as the list it sits beside. */
+  ringKm?: number;
 }) {
   const t = useTheme();
   const start = me ?? (pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : DEFAULT_CENTRE);
@@ -108,7 +118,9 @@ export function JobsMap({
   };
 
   const you = me ? toScreen(me.lat, me.lng) : null;
-  const ringPx = me ? (RING_KM * 1000) / metresPerPixel(me.lat, zoom) : 0;
+  const ringPx = me ? (ringKm * 1000) / metresPerPixel(me.lat, zoom) : 0;
+  // Never smaller than the tag it holds, so the area still reads when zoomed out.
+  const areaPx = Math.max(30, AREA_M / metresPerPixel(centre.lat, zoom));
   const blue = t.colors.purple;
 
   const control = (label: string, onPress: () => void, child: React.ReactNode) => (
@@ -145,39 +157,62 @@ export function JobsMap({
 
         {groups.map((g) => {
           if (g.ids.length > 1) {
+            // Jobs in the same rounded area never come apart, however far in;
+            // at the last zoom step a tap opens the first of them instead.
+            const deepest = zoom >= MAX_ZOOM;
             return (
-              <Pressable
-                key={g.ids.join('|')}
-                onPress={() => {
-                  const at = unproject(g.x + left, g.y + top, zoom);
-                  zoomTo(zoom + 2, at);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={`${g.ids.length} jobs here. Zoom in`}
-                style={{ position: 'absolute', left: g.x - 19, top: g.y - 19, width: 38, height: 38, borderRadius: 999, backgroundColor: t.colors.btn, borderWidth: 3, borderColor: t.colors.bg, alignItems: 'center', justifyContent: 'center' }}
-              >
-                <RNText style={tx('800', 15, t.colors.onBtn)}>{g.ids.length}</RNText>
-              </Pressable>
+              <View key={g.ids.join('|')} pointerEvents="box-none" style={{ position: 'absolute', left: 0, top: 0 }}>
+                <View
+                  pointerEvents="none"
+                  style={{ position: 'absolute', left: g.x - areaPx, top: g.y - areaPx, width: areaPx * 2, height: areaPx * 2, borderRadius: 999, backgroundColor: t.colors.accent + '26', borderWidth: 1.5, borderColor: t.colors.accent + '66' }}
+                />
+                <Pressable
+                  onPress={() => {
+                    if (deepest) return onSelect(g.ids[0]!);
+                    const at = unproject(g.x + left, g.y + top, zoom);
+                    zoomTo(zoom + 2, at);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={deepest ? `${g.ids.length} jobs in this area. Open the first` : `${g.ids.length} jobs here. Zoom in`}
+                  style={{ position: 'absolute', left: g.x - 19, top: g.y - 19, width: 38, height: 38, borderRadius: 999, backgroundColor: t.colors.btn, borderWidth: 3, borderColor: t.colors.bg, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <RNText style={tx('800', 15, t.colors.onBtn)}>{g.ids.length}</RNText>
+                </Pressable>
+              </View>
             );
           }
           const id = g.ids[0]!;
           const pin = byId.get(id)!;
           const on = selectedId === id;
           const w = pin.label.length * 9 + 24;
+          const h = on ? 34 : 28;
           return (
-            <Pressable
-              key={id}
-              onPress={() => onSelect(on ? null : id)}
-              accessibilityRole="button"
-              accessibilityLabel={`Job for ${pin.label}`}
-              accessibilityState={{ selected: on }}
-              style={{ position: 'absolute', left: g.x - w / 2, top: g.y - (on ? 40 : 34), width: w, alignItems: 'center', zIndex: on ? 2 : 1 }}
-            >
-              <View style={{ height: on ? 34 : 28, minWidth: w, borderRadius: 999, backgroundColor: on ? t.colors.ink : t.colors.btn, borderWidth: 2.5, borderColor: t.colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+            <View key={id} pointerEvents="box-none" style={{ position: 'absolute', left: 0, top: 0, zIndex: on ? 2 : 1 }}>
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  left: g.x - areaPx,
+                  top: g.y - areaPx,
+                  width: areaPx * 2,
+                  height: areaPx * 2,
+                  borderRadius: 999,
+                  backgroundColor: t.colors.accent + (on ? '38' : '26'),
+                  borderWidth: 1.5,
+                  borderColor: t.colors.accent + (on ? 'AA' : '66'),
+                }}
+              />
+              <Pressable
+                onPress={() => onSelect(on ? null : id)}
+                accessibilityRole="button"
+                accessibilityLabel={`Job for ${pin.label}, around this area`}
+                accessibilityState={{ selected: on }}
+                hitSlop={8}
+                style={{ position: 'absolute', left: g.x - w / 2, top: g.y - h / 2, width: w, height: h, borderRadius: 999, backgroundColor: on ? t.colors.ink : t.colors.btn, borderWidth: 2.5, borderColor: t.colors.bg, alignItems: 'center', justifyContent: 'center' }}
+              >
                 <RNText style={tx('800', on ? 14 : 13, on ? t.colors.bg : t.colors.onBtn, { fontVariant: ['tabular-nums'] })}>{pin.label}</RNText>
-              </View>
-              <View style={{ width: 0, height: 0, borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 6, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: on ? t.colors.ink : t.colors.btn }} />
-            </Pressable>
+              </Pressable>
+            </View>
           );
         })}
       </View>
@@ -194,9 +229,16 @@ export function JobsMap({
           <RNText style={tx('600', 11, t.colors.text)}>You</RNText>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-          <View style={{ width: 14, height: 9, borderRadius: 999, backgroundColor: t.colors.btn }} />
-          <RNText style={tx('600', 11, t.colors.text)}>A job</RNText>
+          <View style={{ width: 12, height: 12, borderRadius: 999, backgroundColor: t.colors.accent + '33', borderWidth: 1.5, borderColor: t.colors.accent }} />
+          <RNText style={tx('600', 11, t.colors.text)}>Job area</RNText>
         </View>
+      </View>
+
+      <View pointerEvents="none" style={{ position: 'absolute', left: 8, bottom: 8, right: 96, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.bg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}>
+        <Icon name="lock" size={12} color={t.colors.accentDeep} />
+        <RNText style={tx('600', 11, t.colors.text, { flexShrink: 1 })} numberOfLines={2}>
+          Circles show the area, never the exact spot
+        </RNText>
       </View>
 
       {/* OpenStreetMap's licence requires this credit to stay visible. */}
