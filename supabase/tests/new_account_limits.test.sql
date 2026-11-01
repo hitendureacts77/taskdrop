@@ -133,6 +133,7 @@ declare
   v_poster uuid := pg_temp.make_user('Rising poster');
   v_worker uuid := pg_temp.make_user('Helpful worker');
   v_cap    bigint;
+  v_loner  uuid;
 begin
   perform pg_temp.as_operator();
   assert private.new_account_cap(v_poster, 500000) = 500000, 'a brand-new account starts at the base limit';
@@ -154,8 +155,9 @@ begin
   assert private.new_account_cap(v_worker, 500000) is null, 'old enough and enough finished jobs: no limit';
 
   -- Old but with no finished jobs: still new.
-  update public.profiles set created_at = now() - interval '90 days' where id = v_poster;
-  assert private.new_account_cap(v_poster, 500000) is not null, 'age alone does not end "new": a 90-day-old account with no finished job is still limited';
+  v_loner := pg_temp.make_user('Old but idle');
+  update public.profiles set created_at = now() - interval '90 days' where id = v_loner;
+  assert private.new_account_cap(v_loner, 500000) is not null, 'age alone does not end "new": a 90-day-old account with no finished job is still limited';
 end;
 $$;
 

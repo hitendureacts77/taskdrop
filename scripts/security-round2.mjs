@@ -114,7 +114,7 @@ async function fuzz() {
 
 // ------------------------------------------------------------------------------------ T6
 async function signinTricks() {
-  const phone = '9990000099'; // a seed number used only for sign-in probes
+  const phone = '9990000003'; // a seed account (Meera); the probes only touch her sign-in code
   const fresh = async () => {
     for (let i = 0; i < 3; i++) {
       const s = await phoneAuth({ action: 'send', phone, mode: 'signin' });
