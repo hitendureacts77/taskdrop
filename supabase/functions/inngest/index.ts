@@ -198,6 +198,15 @@ const nightlyReconcile = inngest.createFunction(
       const run = await call<string>(rpc, "record_provider_reconciliation", { p_checked: rows.length - failed, p_mismatches: mismatches.slice(0, 100) });
       return { run, checked: rows.length - failed, mismatches: mismatches.length, unreachable: failed };
     });
+    // A difference also goes to Sentry as a fatal issue, so the alert rule set up in plan task 2.10 emails the owner. The in-app alert
+    // above is easy to miss overnight; an email is not. Counts only, never an amount, a name or a payment id.
+    const differences = Number(internal?.mismatches ?? 0) + Number((provider as { mismatches?: number }).mismatches ?? 0);
+    if (differences > 0) {
+      await step.run("tell Sentry", async () => {
+        await logServer("error", "nightly-reconcile", "money records do not match", { differences, internal: Number(internal?.mismatches ?? 0) });
+        await captureServerError(new Error(`Money check found ${differences} difference(s)`), { fn: "nightly-reconcile", step: "mismatch" }, "fatal");
+      });
+    }
     return { internal, provider };
   },
 );
