@@ -23,12 +23,29 @@ export const BATCHABLE_OPS: ReadonlySet<string> = new Set([
   'getEscrowHeld', 'listWalletActivity', 'listPayouts', 'listPayoutDestinations', 'listPromotions',
   'adAuctionRanks', 'platformFees', 'myStats', 'countNeedsAttention', 'listThreads', 'listMessages',
   'listNotifications', 'countUnreadNotifications', 'countUnreadFor', 'countMyReferrals', 'signMedia',
+  // Reads that used to leave on their own beside a batch (poster Home's workers and trends, the wallet's fees).
+  'listActiveWorkers', 'trendingCategories', 'platformHighlights', 'topEarners', 'feesSince', 'notificationSides',
+  'getNotification', 'getProof', 'listMyDisputes', 'listDisputeReasons', 'listBlockedUsers', 'usernameAvailable',
+  'listTickets', 'getTicket', 'accountDeletionCheck', 'platformStats',
 ]);
 
 export type Args = Record<string, unknown>;
 export type Reply = { ok: true; data: unknown } | { ok: false; error: { message: string; code?: string | null; details?: string | null } };
 
-type Pending = { op: string; args: Args; resolve: (v: never) => void; reject: (e: unknown) => void };
+type Waiter = { resolve: (v: never) => void; reject: (e: unknown) => void };
+type Pending = { op: string; args: Args; key: string | null; waiters: Waiter[] };
+
+/** What makes two calls the same call. Null when the arguments cannot be compared (never merged then). */
+function keyOf(op: string, args: Args): string | null {
+  try {
+    return op + '\u0000' + JSON.stringify(args);
+  } catch {
+    return null;
+  }
+}
+
+/** The answer for one more caller: a copy, so one screen sorting or editing its list cannot change another's. */
+const copyOf = (v: unknown): unknown => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
 
 export type BatcherOptions = {
   /** Send one batch request; resolves with one reply per call, in order. Rejects when the request itself fails. */
@@ -69,7 +86,16 @@ export class Batcher {
   call<T>(op: string, args: Args = {}): Promise<T> {
     if (!this.canBatch || !this.batchable.has(op)) return this.o.single(op, args) as Promise<T>;
     return new Promise<T>((resolve, reject) => {
-      this.queue.push({ op, args, resolve: resolve as (v: never) => void, reject });
+      const waiter: Waiter = { resolve: resolve as (v: never) => void, reject };
+      // The same read asked for again in the same moment (every open screen's header counting unread
+      // alerts at once) is asked once; each caller still gets the answer, or the error.
+      const key = keyOf(op, args);
+      const same = key === null ? undefined : this.queue.find((p) => p.key === key);
+      if (same) {
+        same.waiters.push(waiter);
+        return;
+      }
+      this.queue.push({ op, args, key, waiters: [waiter] });
       if (this.queue.length >= this.max) this.flush();
       else if (!this.timer) this.timer = setTimeout(() => this.flush(), this.windowMs);
     });
@@ -93,8 +119,8 @@ export class Batcher {
         }
         batch.forEach((p, i) => {
           const r = replies[i]!;
-          if (r && r.ok === true) p.resolve(r.data as never);
-          else if (r && r.ok === false && r.error) p.reject(this.o.refuse(r.error, p.op));
+          if (r && r.ok === true) answer(p, r.data);
+          else if (r && r.ok === false && r.error) fail(p, this.o.refuse(r.error, p.op));
           else this.alone(p);
         });
       },
@@ -105,13 +131,24 @@ export class Batcher {
           for (const p of batch) this.alone(p);
         } else {
           // The request itself failed (offline, signed out, held back): every call would have failed the same way.
-          for (const p of batch) p.reject(e);
+          for (const p of batch) fail(p, e);
         }
       },
     );
   }
 
   private alone(p: Pending): void {
-    this.o.single(p.op, p.args).then(p.resolve as (v: unknown) => void, p.reject);
+    this.o.single(p.op, p.args).then(
+      (v) => answer(p, v),
+      (e) => fail(p, e),
+    );
   }
+}
+
+function answer(p: Pending, data: unknown): void {
+  p.waiters.forEach((w, i) => w.resolve((i === 0 ? data : copyOf(data)) as never));
+}
+
+function fail(p: Pending, e: unknown): void {
+  for (const w of p.waiters) w.reject(e);
 }

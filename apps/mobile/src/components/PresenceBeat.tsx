@@ -2,14 +2,9 @@ import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 import { useAuth } from '../providers/AuthProvider';
 import { touchPresence } from '../data/extras';
+import { inFront } from '../lib/inFront';
 
 const BEAT_MS = 60_000;
-
-/** Is the app on screen right now (tab visible / app in the foreground)? */
-function inFront(): boolean {
-  if (Platform.OS === 'web') return typeof document === 'undefined' || document.visibilityState === 'visible';
-  return AppState.currentState === 'active';
-}
 
 /**
  * Keeps "Active now" true while TaskDrop is open and in front: writes

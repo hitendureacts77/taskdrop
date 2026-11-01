@@ -4,6 +4,7 @@ import { clientHeaders } from '../lib/appInfo';
 import { FUNCTIONS_REGION, currentUserId, supabase } from '../lib/supabase';
 import { subscribeLive } from '../lib/live';
 import { count, log } from '../lib/monitoring';
+import { noteChange, reuseWhileFresh } from '../lib/freshness';
 import type { Tables, Enums } from '@taskdrop/db-types';
 
 /**
@@ -145,8 +146,9 @@ export type WalletEvent = {
 
 export const listWalletActivity = (_userId: string, limit = 12) => act<WalletEvent[]>('listWalletActivity', { limit });
 
+/** The tab bar's badge. Recounted on every screen change, so a count from moments ago with nothing changed since is reused (lib/freshness.ts). */
 export const countNeedsAttention = (_userId: string, mode: 'poster' | 'worker') =>
-  act<number>('countNeedsAttention', { mode });
+  reuseWhileFresh(`countNeedsAttention:${mode}`, () => act<number>('countNeedsAttention', { mode }));
 
 /**
  * Profiles are read by many screens, often for the same person within the same
@@ -356,7 +358,12 @@ export const submitReview = (taskId: string, rating: number, comment?: string) =
   act<unknown>('submitReview', { taskId, rating, comment: comment?.trim() ? comment.trim() : null });
 
 /** Move cleared earnings into the spendable balance. Call before showing a balance; let it fail quietly. */
-export const settleClearedEarnings = () => act<number>('settleClearedEarnings');
+export const settleClearedEarnings = async () => {
+  const settled = await act<number>('settleClearedEarnings');
+  // Only a sweep that moved money changes what the other screens show.
+  if (settled > 0) noteChange();
+  return settled;
+};
 
 /** Ask for a withdrawal; the server debits the wallet and hands it to the bank in one go. */
 export const requestWithdrawal = (amountMinor: number, destinationId: string | null, destinationLabel?: string) =>
@@ -590,6 +597,8 @@ export async function refundEscrow(taskId: string): Promise<{ refundedMinor: num
     region: FUNCTIONS_REGION,
     body: { action: 'refund-escrow', taskId },
   });
+  // Money may have moved: what other screens read before is out of date (lib/freshness.ts).
+  noteChange();
   if (error) {
     log.error('refund request failed', { taskId });
     throw await functionError(error, 'Could not start the refund');
@@ -607,6 +616,8 @@ export async function syncPayment(paymentId: string): Promise<PaymentCheck> {
     region: FUNCTIONS_REGION,
     body: { action: 'sync', paymentId },
   });
+  // A payment found paid funds a task or a wallet: what other screens read before is out of date.
+  noteChange();
   if (error) {
     log.error('payment check failed', { paymentId });
     throw await functionError(error, 'Could not check the payment');

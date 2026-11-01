@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { AppState } from 'react-native';
 import { useAuth } from './AuthProvider';
 import { subscribeToNotifications } from '../data/extras';
+import { noteChange } from '../lib/freshness';
 
 /**
  * "Something changed on the server" -- one number that goes up.
@@ -35,6 +36,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     if (!userId) return;
 
     const bump = () => {
+      // Back in front, or a change was pinged: earlier answers are not reused (lib/freshness.ts).
+      noteChange();
       if (pending.current) return;
       pending.current = setTimeout(() => {
         pending.current = null;

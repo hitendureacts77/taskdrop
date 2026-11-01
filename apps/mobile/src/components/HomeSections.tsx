@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, Animated, Easing } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
-import { useNav } from '../providers/NavProvider';
+import { useFocusTick, useNav } from '../providers/NavProvider';
 import { openPostedTask } from '../lib/taskRows';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
@@ -54,6 +54,31 @@ import { resolveCurrentPlace } from '../lib/location';
 import { roughPlace } from '../lib/place';
 import { Pressy, tx } from './primitives';
 
+/**
+ * Loads one of Home's sections when Home is in view and has not loaded for this focus tick: when it
+ * first shows, when it comes back and is due a refresh (useFocusTick, lib/freshness.ts), and after a
+ * live change. A load that failed, or was cut off by leaving Home, runs again the next time Home shows.
+ */
+function useHomeLoad(load: (alive: () => boolean) => Promise<unknown>) {
+  const { screen } = useNav();
+  const tick = useFocusTick();
+  const onHome = screen === 'home';
+  const done = useRef<{ load: unknown; tick: number } | null>(null);
+  useEffect(() => {
+    if (!onHome || (done.current?.load === load && done.current.tick === tick)) return;
+    let alive = true;
+    load(() => alive).then(
+      () => {
+        if (alive) done.current = { load, tick };
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, [onHome, tick, load]);
+}
+
 /** The top of the home screen, above the existing feed. */
 export function HomeSections() {
   const { mode } = useMode();
@@ -84,32 +109,34 @@ function PostTop() {
   const [placeAt, setPlaceAt] = useState<{ lat: number; lng: number } | null>(null);
   const [pickPlace, setPickPlace] = useState(false);
 
-  useEffect(() => {
-    if (!userId || screen !== 'home') return;
-    let alive = true;
-    getProfile(userId)
-      .then((p) => {
-        if (!alive) return;
-        setPlace(p?.loc_label ?? null);
-        const lat = p?.loc_lat;
-        const lng = p?.loc_lng;
-        setPlaceAt((cur) => (lat == null || lng == null ? null : cur && cur.lat === lat && cur.lng === lng ? cur : { lat, lng }));
-      })
-      .catch(() => {});
-    listMyTasks(userId)
-      .then(
-        (rows) =>
-          alive &&
-          setActive(rows.filter((r) => !['COMPLETED', 'AUTO_COMPLETED', 'CANCELLED'].includes(r.status)).slice(0, 4)),
-      )
-      .catch(() => alive && setActive([]));
-    trendingCategories(5)
-      .then((r) => alive && setTrending(r.filter((c) => c.open_count > 0)))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [userId, screen]);
+  const loadTop = useCallback(
+    async (alive: () => boolean) => {
+      if (!userId) return;
+      await Promise.all([
+        getProfile(userId)
+          .then((p) => {
+            if (!alive()) return;
+            setPlace(p?.loc_label ?? null);
+            const lat = p?.loc_lat;
+            const lng = p?.loc_lng;
+            setPlaceAt((cur) => (lat == null || lng == null ? null : cur && cur.lat === lat && cur.lng === lng ? cur : { lat, lng }));
+          })
+          .catch(() => {}),
+        listMyTasks(userId)
+          .then(
+            (rows) =>
+              alive() &&
+              setActive(rows.filter((r) => !['COMPLETED', 'AUTO_COMPLETED', 'CANCELLED'].includes(r.status)).slice(0, 4)),
+          )
+          .catch(() => alive() && setActive([])),
+        trendingCategories(5)
+          .then((r) => alive() && setTrending(r.filter((c) => c.open_count > 0)))
+          .catch(() => {}),
+      ]);
+    },
+    [userId],
+  );
+  useHomeLoad(loadTop);
 
   // The same area a worker sets: where this poster's jobs usually are, and
   // the starting point of every post's location.
@@ -726,6 +753,9 @@ function EarnTop() {
 
   const load = useCallback(async () => {
     if (!userId) return;
+    // Remote and urgent work do not depend on the profile, so they are asked for beside it.
+    const remoteAsked = remoteTasks(8).catch((): Task[] => []);
+    const urgentAsked = urgentTasks(6).catch((): Task[] => []);
     const [s, p, ids] = await Promise.all([
       myStats('worker').catch(() => null),
       getProfile(userId).catch(() => null),
@@ -743,18 +773,18 @@ function EarnTop() {
     });
     const [r, rem, urg] = await Promise.all([
       recommendedTasks(p?.skills ?? [], 8).catch(() => []),
-      remoteTasks(8).catch(() => []),
-      urgentTasks(6).catch(() => []),
+      remoteAsked,
+      urgentAsked,
     ]);
-    const [rp, remp, urgp] = await Promise.all([attachPosters(r), attachPosters(rem), attachPosters(urg)]);
-    setRecs(rp);
-    setRemote(remp);
-    setUrgent(urgp);
+    // One poster lookup for all three lists, each keeping its own order (a task no longer visible drops out).
+    const withPosters = new Map((await attachPosters([...r, ...rem, ...urg])).map((x) => [x.id, x]));
+    const posted = (list: Task[]) => list.flatMap((x) => withPosters.get(x.id) ?? []);
+    setRecs(posted(r));
+    setRemote(posted(rem));
+    setUrgent(posted(urg));
   }, [userId]);
 
-  useEffect(() => {
-    if (screen === 'home') void load();
-  }, [load, screen]);
+  useHomeLoad(load);
 
   const askedLocation = useRef(false);
   useEffect(() => {
