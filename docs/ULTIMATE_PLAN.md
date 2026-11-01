@@ -27,7 +27,7 @@ Checked against best practice on 31 October 2026 (see the changelog). New: 2-ste
 - **SAY**: copy the text in the purple box into the Claude chat.
 - **TELL**: write in the chat what you saw. A screenshot is fine.
 
-**Six rules:**
+**Seven rules:**
 
 1. **Go in order.** Start the whole **Start now** track in week 1 as well. It is slow, so it runs beside Steps 1 to 4.
 2. **Pass each gate.** A gate is a short checklist at the end of each step. Do not start the next step until every line is true.
@@ -35,6 +35,7 @@ Checked against best practice on 31 October 2026 (see the changelog). New: 2-ste
 4. **If a screen looks different** from the steps, stop and send Claude a screenshot. Websites rename their buttons.
 5. **When you finish a task, tell Claude its number** (for example "done 2.1"), so Claude ticks it here as well.
 6. **Claude pushes, opens the pull request and merges it without asking you** (your rule, 31 Oct). Merging is never a question for you. Claude still asks you first only before: publishing an app update to testers, wiping or resetting data, rotating a key, or touching `main` or production.
+7. **After every new feature, check it fits the browser and the screen** (your rule, 1 Nov). Claude does not call a feature done until the website works in Chrome, Edge, Firefox and Safari (latest versions) at phone, tablet and laptop widths, and the Android app works on your phone: nothing cut off, no sideways scrolling, every button easy to reach and tap, text readable (also with bigger text and with the keyboard open). The steps are in the card "Fits every browser and screen".
 
 ---
 
@@ -3037,6 +3038,32 @@ You do not need these to follow the tasks above. They are here so that nothing l
 
 </details>
 
+<details id="c-compat">
+<summary>[CARD] Fits every browser and screen (run after every new feature)</summary>
+
+Claude runs this before a feature is called done, and writes what it saw in the pull request. Where a check cannot be run, it says so; a gap written down beats a green tick.
+
+**Website (taskdrop.in pages, the app on the web, and the admin site)**
+
+1. Opens and works in the latest **Chrome, Edge, Firefox and Safari**. Claude runs the Playwright tests in all three engines (Chromium, Firefox, WebKit) and looks at the screens in Chrome.
+2. Checked at these widths: **360** (small phone), **390** (usual phone), **768** (tablet), **1280** (laptop) and **1920** (large screen). Also turned sideways on a phone.
+3. No sideways scrolling, nothing cut off or hidden behind the top bar or the bottom tabs, no text running over its box.
+4. Buttons and links are easy to tap (about 44 points) and sit away from the screen edges and the phone's notch and home bar.
+5. Text stays readable when the browser text size is raised, and the layout does not break.
+6. Works with the keyboard open (the box you type in and the main button stay in view) and with the mouse, touch and the Tab key.
+7. Dark and light look right if the screen supports both.
+
+**Android app (your phone)**
+
+1. Opens on your phone over USB, or from the testers' update, and the new screen is seen.
+2. Checked with the phone's **bigger text** setting on, and in both portrait and landscape where the app allows landscape.
+3. Nothing hides behind the status bar, the navigation bar or the keyboard.
+4. A smaller or older phone is checked in an emulator when one is available. If not, the gap is written down.
+
+**Done when:** every line above is true, or the lines that could not be checked are written in the pull request. A feature that breaks on any browser or screen size is not done.
+
+</details>
+
 <details id="c-keys">
 <summary>[CARD] Key safety: the five layers and what the check found (from KEY_SECURITY_PLAN.md)</summary>
 
@@ -3183,6 +3210,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-01 (browser and screen rule):** You asked that after every new feature the app and website must work on the browser and the screen. **Added:** rule 7 in "How to use this plan" (the list is now seven rules), and a new card "Fits every browser and screen" with the checks (Chrome, Edge, Firefox and Safari; widths 360 to 1920; no sideways scrolling or cut-off text; easy-to-tap buttons; bigger text and keyboard open; the Android app on your phone). **Not changed:** no task or gate box was added or ticked. Past features have not been re-checked against this card; Claude applies it to each new feature from now on.
 - **2026-11-01 (Step 2 proofs run):** You asked Claude to run the rest of Step 2. **Done:** 2.10 proofs 1 to 5 (a fake key is blocked by the PC guard, the unit-test check and gitleaks; the website and Android bundle hold no secret; the public key reads nothing private; the admin deploy fails without its secret; the decoy key tripped Canarytokens and the email arrived), and the Sentry spike email (15 wrong codes, arrived). **Found and fixed:** gitleaks had no Razorpay rule (PR 168), and the break-it run found one email spelled out as "a (at) b (dot) com" (PR 170; 284 of 285 probes held). **Not done:** T11 (needs the phone), proof 6 (you read the guide), H9, the Google sign-in layout and your answer on the account-existence messages. A table of where Step 2 stands was added at the top of Step 2. No task number or gate moved.
 - **2026-11-01 (1.8 accepted, Step 1 closed):** You wrote "accept 1.8". The keyboard pass closes as it stands: 14 of 16 spots seen working on your phone. Not opened because they need money in a wallet: review text, proof of work, payout details and a confirm dialog with the keyboard up. Not done because they change the phone settings: the bigger-text and navigation-style repeats. The Gate 1 keyboard box is ticked; every Step 1 gate box is now ticked.
 - **2026-11-01 (map design approved, D11):** You asked for calm, easy-to-read animated circles that stay tidy when many tasks are on the map, a full-screen map like Snap Map, and for posters to see helpers on the map while workers see tasks. **Drawn and approved the same day:** eight screens on the map design canvas (worker Home map, busy area, task peek, price step, worker full map zoomed out and in, poster Home with helpers, poster full map). **Added:** row D11 under task 1.5. **Not built:** nothing in the app changed. **Open for you:** a poster asking one helper directly for a quote, and helpers showing their own prices, do not exist in the app today; the drawings use "Post a task" and show skill and rating instead.
