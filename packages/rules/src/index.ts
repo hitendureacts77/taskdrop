@@ -37,6 +37,13 @@ export const PRICE_LIMITS = {
   MIN_MINOR: 2000,
 } as const;
 
+/**
+ * The top-up bar's steps (owner decision 2026-11-01): percent a poster may add
+ * on top of their own price to stand out. The posted price includes it; the
+ * share itself is kept only for the "topped up" badge.
+ */
+export const TOP_UP_PCTS = [0, 2, 3, 5, 10, 15, 20, 25] as const;
+
 /** Media constraints. */
 export const MEDIA = {
   /** Max length of a feed / task showcase video, in seconds. */

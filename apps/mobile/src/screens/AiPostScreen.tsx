@@ -17,6 +17,7 @@ import { KeyboardScrollView } from '../components/KeyboardScrollView';
 import { TaskDescription } from '../components/TaskDescription';
 import { roughPlace } from '../lib/place';
 import { MIN_PRICE_INR } from '../lib/limits';
+import { TOP_UP_PCTS } from '@taskdrop/rules';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
@@ -127,8 +128,8 @@ const MILESTONE_PLANS: Record<number, { title: string; pct: number }[]> = {
   ],
 };
 
-/** The top-up bar's stops: an extra share of the poster's own price, to stand out. */
-const TOP_UP_STOPS = [0, 2, 3, 5, 10, 15, 20, 25];
+/** The top-up bar's stops: an extra share of the poster's own price, to stand out (the server accepts only these). */
+const TOP_UP_STOPS = TOP_UP_PCTS;
 
 export function AiPostScreen() {
   const t = useTheme();
@@ -352,6 +353,7 @@ export function AiPostScreen() {
         title: title.trim(),
         description: description.trim(),
         benchmarkMinor: price * 100,
+        topUpPct,
         timeLimitMinutes: minutes,
         flag: whenKey === 'now' ? 'urgent' : 'none',
         media,

@@ -29,6 +29,7 @@ import { IDEAS, TEMPLATES, TEMPLATE_TAGS, CATEGORIES, TOP_CATEGORIES, type Templ
 import { taskToFeedRow } from '../lib/openTask';
 import { useVoiceInput } from '../lib/speech';
 import { distanceKm } from '@taskdrop/rules';
+import { TopUpBadge } from '../components/TopUpBadge';
 
 /**
  * Explore -- two different pages behind one tab.
@@ -642,7 +643,10 @@ function JobsMapBlock({
             <RNText numberOfLines={1} style={tx('700', 15, t.colors.ink)}>{picked.title}</RNText>
             <RNText numberOfLines={1} style={tx('400', 12.5, t.colors.muted, { marginTop: 2 })}>{picked.loc_label ?? 'Nearby'}</RNText>
           </View>
-          <RNText style={tx('800', 16, t.colors.accentDeep, { fontVariant: ['tabular-nums'] })}>{priceTag(picked.benchmark_minor)}</RNText>
+          <View style={{ alignItems: 'flex-end', gap: 3 }}>
+            <RNText style={tx('800', 16, t.colors.accentDeep, { fontVariant: ['tabular-nums'] })}>{priceTag(picked.benchmark_minor)}</RNText>
+            <TopUpBadge pct={picked.topup_pct} compact />
+          </View>
           <Icon name="chevronRight" size={16} color={t.colors.muted} />
         </Pressable>
       ) : (
