@@ -112,7 +112,9 @@ export async function captureSecurityEvent(kind: SecurityKind, fn: string): Prom
       environment: environment(),
       message: `security: ${kind}`,
       fingerprint: ["security", kind],
-      tags: { security_event: kind, fn },
+      // sms_code_sent is a volume signal, not an attack in itself (run_sms_pumping_watch judges it), so it does not carry the
+      // security_event tag that the Sentry spike alert matches.
+      tags: kind === "sms_code_sent" ? { sms_event: kind, fn } : { security_event: kind, fn },
     };
     await send(d, [[{ type: "event" }, event]], id);
   } catch {
