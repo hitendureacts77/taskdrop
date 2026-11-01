@@ -55,7 +55,7 @@ export function RegularsScreen() {
                     <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>
                       {r.jobs} job{r.jobs === 1 ? '' : 's'} with you
                       {r.categories.length ? ` · ${r.categories.slice(0, 2).join(', ')}` : ''}
-                      {r.lastAt ? ` · last ${timeAgo(r.lastAt)}` : ''}
+                      {r.lastAt ? ` · ${timeAgo(r.lastAt)}` : ''}
                     </RNText>
                   </View>
                   <Icon name="heart" size={18} color={t.colors.signal} />
