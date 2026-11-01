@@ -225,9 +225,6 @@ export async function touchPresence(_userId: string): Promise<void> {
   await quietly('touchPresence', {}, null);
 }
 
-/** Workers around lately, most recently active first. */
-export const listActiveWorkers = (limit = 12) => quietly<Profile[]>('listActiveWorkers', { limit }, []);
-
 // ------------------------------------------------------------------ fees -----
 
 export type Fees = {

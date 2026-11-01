@@ -41,7 +41,6 @@ import { TopUpBadge } from './TopUpBadge';
 import { activeFirst, areaName, farText, initialsOf, jobPin, mainSkill, personPin, ratingOf } from './mapPins';
 import { PresenceLabel } from './PresenceDot';
 import { presenceOf } from '../lib/presence';
-import { LiveWorkers } from './LiveWorkers';
 import { Rail, useRailItemWidth } from './Rail';
 import { HeroCard } from './Hero';
 import { Drop, Ripples } from './Ripples';
@@ -263,8 +262,6 @@ function PostTop() {
           </View>
         </>
       ) : null}
-
-      <LiveWorkers active={screen === 'home'} />
 
       {/* Starting points */}
       <SectionTitle
