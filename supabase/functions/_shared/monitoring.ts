@@ -1,5 +1,6 @@
 import { secret } from "./secrets.ts";
 import { parseStack } from "./stack.ts";
+import { scrubText } from "./scrub.ts";
 
 /**
  * Sentry for the Edge Functions, if SENTRY_DSN is configured (as an Edge
@@ -16,7 +17,8 @@ import { parseStack } from "./stack.ts";
  *                       webhook with a bad signature), not for every request.
  *
  * Never put a phone number, email, name, address or token in a message or
- * attribute. Ids (task, payment, payout) and codes are fine.
+ * attribute. Ids (task, payment, payout) and codes are fine. As a last net, everything sent passes
+ * through scrub.ts, which hides keys, phone numbers and emails it finds.
  */
 
 type Dsn = { key: string; host: string; project: string };
@@ -63,8 +65,8 @@ export async function captureServerError(
       level,
       server_name: "edge-function",
       environment: environment(),
-      tags: context,
-      exception: { values: [{ type: e.name, value: e.message, ...(frames.length ? { stacktrace: { frames } } : {}) }] },
+      tags: Object.fromEntries(Object.entries(context).map(([k, v]) => [k, scrubText(String(v))])),
+      exception: { values: [{ type: e.name, value: scrubText(e.message), ...(frames.length ? { stacktrace: { frames } } : {}) }] },
     };
     await send(d, [[{ type: "event" }, event]], id);
   } catch {
@@ -96,12 +98,12 @@ export async function logServer(level: LogLevel, fn: string, message: string, at
       fn: attr(fn),
       "sentry.environment": attr(environment()),
     };
-    for (const [k, v] of Object.entries(attributes)) if (v !== null && v !== undefined) attrs[k] = attr(v);
+    for (const [k, v] of Object.entries(attributes)) if (v !== null && v !== undefined) attrs[k] = attr(typeof v === "string" ? scrubText(v) : v);
     const item = {
       timestamp: Date.now() / 1000,
       trace_id: crypto.randomUUID().replace(/-/g, ""),
       level,
-      body: message,
+      body: scrubText(message),
       attributes: attrs,
     };
     await send(
