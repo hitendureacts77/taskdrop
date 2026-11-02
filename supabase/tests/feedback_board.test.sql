@@ -1,4 +1,4 @@
--- The feedback board (migration 136): posting, voting, comments, the team's
+-- The feedback board (migrations 136 and 137): posting, voting, comments, the team's
 -- status changes, hiding, and what happens when an account is deleted.
 --
 -- One transaction, rolled back, so no rows are left behind.
@@ -65,6 +65,34 @@ begin
   if has_function_privilege('anon', 'public.feedback_board_list(text,text,text,text,integer,integer)', 'EXECUTE') then
     raise exception 'FAIL: signed-out visitors must not read the board';
   end if;
+  if has_function_privilege('anon', 'public.feedback_board_get(uuid)', 'EXECUTE')
+     or has_function_privilege('anon', 'public.feedback_board_post(text,text,text)', 'EXECUTE')
+     or has_function_privilege('anon', 'public.feedback_board_vote(uuid,boolean)', 'EXECUTE')
+     or has_function_privilege('anon', 'public.feedback_board_comment(uuid,text)', 'EXECUTE') then
+    raise exception 'FAIL: signed-out visitors must not open, post, vote or comment';
+  end if;
+
+  -- ---- a call with no person behind it is refused (migration 137) ---------
+  -- The authenticated role with no user in the token: auth.uid() is null.
+  perform set_config('request.jwt.claims', '', true);
+  perform set_config('role', 'authenticated', true);
+  v_failed := false;
+  begin perform public.feedback_board_list('top'); exception when others then v_failed := sqlerrm = 'Sign in first'; end;
+  assert v_failed, 'listing the board needs a signed-in person';
+  v_failed := false;
+  begin perform public.feedback_board_get(gen_random_uuid()); exception when others then v_failed := sqlerrm = 'Sign in first'; end;
+  assert v_failed, 'opening an idea needs a signed-in person';
+  v_failed := false;
+  begin perform public.feedback_board_post('No one posted this', '', 'other'); exception when others then v_failed := sqlerrm = 'Sign in first'; end;
+  assert v_failed, 'posting needs a signed-in person';
+  v_failed := false;
+  begin perform public.feedback_board_vote(gen_random_uuid(), true); exception when others then v_failed := sqlerrm = 'Sign in first'; end;
+  assert v_failed, 'voting needs a signed-in person';
+  v_failed := false;
+  begin perform public.feedback_board_comment(gen_random_uuid(), 'No one wrote this'); exception when others then v_failed := sqlerrm = 'Sign in first'; end;
+  assert v_failed, 'commenting needs a signed-in person';
+  perform pg_temp.as_operator();
+  assert not exists (select 1 from public.feedback_posts where title = 'No one posted this'), 'nothing was written';
 
   -- ---- posting -------------------------------------------------------------
   perform pg_temp.become(v_ann);
