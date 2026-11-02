@@ -283,7 +283,7 @@ Everything here is **new and separate** and is made in Step 5. Nothing is copied
 </div>
 ```
 
-**The holes found (checked by Claude on 30 October 2026, on staging; H15 to H17 added on 31 October from the best-practices check; H18 and H19 added on 31 October from the Vercel security check)**
+**The holes found (checked by Claude on 30 October 2026, on staging; H15 to H17 added on 31 October from the best-practices check; H18 and H19 added on 31 October from the Vercel security check; H20 added on 2 November from Supabase's rate-limit guide)**
 
 Sources: Supabase's own security check on the staging database (rerun on 31 October: the same 113 functions, the same signed-out `get_app_controls`, the same 7 private tables and leaked-password protection off, so nothing new), `npm audit` on both code folders, the break-it pass of 25 October, and a read of both `vercel.json` files, the admin's `next.config.mjs` and `middleware.ts`, and the Edge Functions' CORS settings.
 
@@ -320,6 +320,7 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | H16 | No database copy kept outside Supabase, and no restore ever practised. Staging's free plan has no backups at all | High for production | 5.9 (nightly copy), 6.5 (restore practice) |
 | H17 | Nothing stops a brand-new account from moving large amounts at once, or one person posting a task and "doing" it from a second account | Medium (high once money is real) | 2.11 |
 | H18 | Vercel's firewall and flood protection only guard the website and the admin. Sign-in codes, `api`, payments and the Edge Functions are answered by Supabase, so no Vercel rule can slow an attacker there. Their limits must live in the server (and the server functions still answer any website, H8) | Medium | 2.8 (server limits), 2.6 (CORS). Nothing to buy; just never assume "Vercel has it" |
+| H20 | Supabase has its own sign-in speed limits (Authentication → Rate Limits), counted per network address. Username sign-in goes through the server function `password-auth`, so Supabase sees **every** username sign-in coming from one server address: all users share one limit of 150 a 5 minutes, and one attacker could use it up for everyone. Many Indian mobile users also share one address (carrier NAT). The limits have never been set on purpose, and the app shows a vague error when they hit | Medium (high once many people sign in at launch) | 2.8b |
 | H19 | Vercel Pro does not stop spending by default (it only emails at $200), the production projects have no firewall rules, no limit on admin sign-in tries at the Vercel door, and nothing proves that preview builds hold no production values | Medium | 5.8b |
 | — | Accepted on purpose: an old Razorpay **test** key in the code history; `get_app_controls` readable signed out; 7 private tables closed to the app | Info | Nothing to do |
 
@@ -843,7 +844,7 @@ approve 1.9
 
 ## STEP 2: Make it hacker-proof (weeks 1 to 3)
 
-**Goal:** nobody can steal your logins, your keys, your users' data or your money, and if someone tries, you hear about it within the hour. This step closes holes H2 to H12 and H17 from the Security section. H14 (2-step sign-in) is left open for now by your decision.
+**Goal:** nobody can steal your logins, your keys, your users' data or your money, and if someone tries, you hear about it within the hour. This step closes holes H2 to H12, H17 and H20 from the Security section. H14 (2-step sign-in) is left open for now by your decision.
 
 **Order inside this step:** your own accounts first (2.1 to 2.4, about 4 hours in total), then Claude's work (2.5 to 2.9 and 2.11), then the alarms and the proof (2.10).
 
@@ -859,6 +860,7 @@ approve 1.9
 | 2.6 Close the holes | Part done | H9 (read a week of CSP reports, then block) and the Expo SDK upgrade plan (review by 13 Dec) |
 | 2.7 Stop-ship tests | Done | Nothing |
 | 2.8 SMS safety | Mostly done | Google sign-in shown first needs your OK on the layout |
+| 2.8b Supabase sign-in limits | Not started | All of it (added 2 Nov). You may need to make one new secret key |
 | 2.9 Security tests, round 2 | Part done | T11 on the Android app (needs the phone); your answer on the account-existence messages |
 | 2.10 Alarms and emergency guide | Part done | Proof 6 (you read the guide); optional second Sentry rule for `fatal` issues |
 | 2.11 Money safety limits | Done | Nothing |
@@ -1100,6 +1102,47 @@ start SMS safety
 **Done when:** merged, and Claude has shown you the limits working on staging.
 
 **Mostly done 1 Nov (PR 158 and admin 34, merged):** limits per number (5 an hour), per network address (30 an hour) and per app install (8 an hour); Indian mobile numbers only; a daily cap on real SMS (default 500, editable in admin Settings as "Sign-in codes a day") with alerts at 80% and when reached; a watch every 15 minutes for many codes sent and few used (migration 132). **Not built:** Google sign-in shown first on the sign-in screen. It is a screen change and waits for you to approve the layout.
+</details>
+
+<details id="t2-8b" data-short="Supabase sign-in limits">
+<summary>[CLAUDE] <b>2.8b</b> Supabase's own sign-in limits: set them on purpose, and count each person separately <small>· your time: 5 minutes · added 2 Nov from Supabase's rate-limit guide</small></summary>
+
+**Why:** 2.8 built TaskDrop's own limits in front of the SMS gateway. Supabase's sign-in service has a second set of limits behind them (Supabase guide: https://supabase.com/docs/guides/auth/rate-limits). When one is hit, Supabase answers "429 Too Many Requests". Two things in TaskDrop make them matter (hole H20):
+
+- **Username sign-in all looks like one person.** The app sends username and password to the server function `password-auth`, which then signs in to Supabase from the server. So Supabase counts every username sign-in from every user against **one** network address: 150 sign-ins and token renewals per 5 minutes, shared by everyone. On a busy launch evening real people would be refused, and an attacker could fill the limit on purpose to lock everyone out.
+- **Shared phone networks.** Many Indian mobile users share one network address. The per-address limits on token renewal (150 per 5 minutes) and on sign-in code checks (30 per 5 minutes) can then hit honest people on the same network.
+
+**What Claude does, on staging:**
+
+1. **Counts each person separately.** Turns on **IP Address Forwarding** (Supabase → Authentication → Rate Limits) and changes `password-auth` to pass the person's real address in the `Sb-Forwarded-For` header. Supabase only accepts that header with a **secret key** (`sb_secret_…`), never the public key or the old master key. If staging has no secret key yet, you make one (step 2 below); it is a new key, nothing is replaced. TaskDrop's own gate in `password-auth` (tries per username and per address) stays in front, unchanged.
+2. **Sets the limits on purpose** and writes the numbers here:
+
+| Door (what uses it in TaskDrop) | Supabase default | TaskDrop value | Why |
+|---|---|---|---|
+| Token: username sign-in, Google sign-in, session renewal | 150 per 5 min per address | **300** per 5 min | Shared phone networks; every app open renews a session |
+| Code checks (the last step of phone sign-in) | 30 per 5 min per address | **60** per 5 min | Every phone sign-in ends here, from the phone |
+| Sign-ups and sign-ins by email or SMS (`/otp`, `/signup`, `/recover`) | 30 per 5 min per address | **keep 30** | TaskDrop does not use these doors: phone codes go through `phone-auth` and MSG91 |
+| SMS sent by Supabase | 30 an hour | **keep** | Supabase sends no SMS for TaskDrop; MSG91 does, capped by 2.8 |
+| Emails sent by Supabase | 2 an hour (built-in sender) | **keep** | TaskDrop sends no Supabase sign-in emails. If that ever changes (email sign-in, password reset by email), connect your own email sender first (custom SMTP, with Loops from 4.10), or only 2 emails an hour go out |
+| Anonymous sign-ins | 30 an hour | **keep** (switched off) | Anonymous sign-in is off in TaskDrop |
+| Authenticator challenges | 15 a minute (fixed) | — | Admin authenticator is future scope |
+
+3. **Makes a "too many tries" answer kind.** When Supabase answers 429, the app says "Too many tries. Please wait a minute and try again" instead of a vague error, and a refused session renewal tries again later instead of signing the person out.
+4. **Checks the server's own calls.** `places-search`, `razorpay` and `razorpayx-payouts` (and one path in `api`) ask Supabase "who is this?" from the server. Claude checks these are not counted against a sign-in limit and, if they are, moves them to the local check `api` already uses (`getClaims`), which is also faster.
+5. **Proves it.** A new T6 probe: from one address, 40 wrong passwords in a row are stopped by TaskDrop's own gate first; and 40 username sign-ins with 40 different test addresses all go through, which shows Supabase now counts each person. Claude shows you the result.
+
+Steps for you:
+
+1. SAY:
+
+```say
+start Supabase sign-in limits
+```
+
+2. Only if Claude says staging has no secret key: CLICK: https://supabase.com/dashboard → your staging project → **Project Settings** → **API Keys** → **Secret keys** → **Add new secret key** → name it `password-auth` → **Create**. Copy it **straight into** `.env.all-secrets` (never into chat), then TELL Claude "secret key added". Claude copies it into the server function secrets.
+3. When Claude shows the proof, SAY "merge it".
+
+**Done when:** merged; IP forwarding is on; the limits on the Rate Limits page match the table above; the app shows the kind message on a 429; and the T6 probe passed on staging. Production gets the same settings in 5.9.
 </details>
 
 <details id="t2-9" data-short="Security tests round 2">
@@ -2151,6 +2194,7 @@ Add a Vercel firewall rule on taskdrop-admin-production that rate-limits POST /a
 | New-account limits (2.11) | **₹5,000** per task and per day's withdrawals, for 30 days and 3 finished tasks (decision 12) | the same |
 | Session video replays | **A small share, money and chat screens blurred** (5.7) | every session |
 | Direct database access with the public key | **Closed** (built switched over) | open until 3.9 |
+| Supabase sign-in limits and IP forwarding (2.8b) | **The 2.8b values, forwarding on**, with production's own secret key | the same |
 | Sign-ups, posting, offers, top-ups, withdrawals, promotions, chat photos | **On** | on |
 
 1. SAY:
@@ -2844,7 +2888,7 @@ The app never decides the amount and never sees the secret key. If the payment m
 | Website | Floods of requests, bad bots, scrapers | Vercel firewall rules, bot protection and Attack Challenge Mode (5.8b) | At production (Pro) |
 | `api` | Abuse, guessing, scraping | Login token required, limits per user and per network address, App Check. Vercel's firewall never sees this traffic (it goes to Supabase), so these limits must be in the server | Partly on |
 | Database, directly | Calls with the public key that skip `api` | Row rules now; the switch-over (3.9) closes this door | Biggest open door until 3.9 |
-| Sign-in | SMS pumping, guessing codes | 60-second wait and 5 tries per code now; task 2.8 adds more | Partly on |
+| Sign-in | SMS pumping, guessing codes, filling Supabase's shared sign-in limit | 60-second wait and 5 tries per code; 2.8 limits per number, address and install, and a daily SMS cap (built); 2.8b sets Supabase's own limits and counts each person separately | Partly on |
 | Payments | Fake payment messages, card testing | Signature checks, record-once rule, limits on new orders | Mostly on |
 | Photos and files | Huge uploads, stealing links | Private storage, 50 MB limit, allowed types only, expiring links | On |
 | Admin | A stolen staff login | Staff roles, sign-out when idle, extra sign-in check at production | Partly on |
@@ -3118,7 +3162,7 @@ You do not need these to follow the tasks above. They are here so that nothing l
 
 | Problem | Test |
 |---|---|
-| Rate limits trust a forwarded network address; no overall daily SMS limit | T6, T12, task 2.8 |
+| Rate limits trust a forwarded network address; no overall daily SMS limit; Supabase sees all username sign-ins from one address | T6, T12, tasks 2.8 and 2.8b |
 | The test sign-in shortcut is on (on purpose in staging) | T6; switched off in 5.9 |
 | An old `razorpay-setup` server function is still deployed | T7 |
 | Server functions answer any website (CORS `*`). Not open today, because they need a login token, but wider than needed | T7 |
@@ -3310,6 +3354,8 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-02 (Supabase sign-in limits):** You asked to add Supabase's rate-limit guide to the security plan. Claude read the guide and checked it against the code. **Found:** username sign-in goes through `password-auth`, so Supabase counts every user's sign-in against one server address (150 per 5 minutes, shared), and the limits were never set on purpose. **Added:** hole H20; task 2.8b (IP forwarding with a secret key, the limits table, a kind "too many tries" message, a check of the server's own calls, a T6 probe); a 5.9 production line; the Step 2 table row; the sign-in rows in the architecture and reference tables. **Fixed:** the PostHog changelog entry had landed at the end of the changelog; it is back at the top. **Not changed:** nothing is built and no Supabase setting is touched yet.
+- **2026-11-02 (PostHog is a must, not future scope):** You said PostHog is required. **Changed:** PostHog moved out of F.7 into two real tasks: 3.3c (staging, with the testers: one tracking helper, consent, hidden text in recordings, EU cloud because PostHog has no India region, a signup → first task funnel) and 5.6b (a separate production project). F.7 now covers Mixpanel and the later PostHog extras (flags, A/B tests, surveys). Also added: PostHog in the all-tools table and the Play data-safety row (App activity). **Not changed:** the 3.3b numbers; nothing is built and no PostHog account is made. PostHog is also in both accounts maps, the 5.11 proof and the cost table. **Open:** the lawyer (S.3) confirms the EU storage and the privacy-policy line.
 - **2026-11-02 (feedback board):** You asked for a feedback board like the one in the picture (ideas with vote counts, comments and a status such as Under review, Planned, In progress, Done), so customers can tell you what to improve. **Built:** a public **Ideas & feedback** board in the app (menu and Help & support): anyone signed in can suggest an idea, vote (the idea starts with its author's vote), comment, search, and filter by status; while typing a title the app shows ideas that already say the same. Phone numbers and emails are refused on the board (they belong in Help & support); five ideas and 30 comments a day; only a first name shows. In the admin panel a new **Feedback board** page lets staff set each idea's status, reply as the TaskDrop team, and hide an idea or a comment; people who suggested or voted are told when an idea becomes Planned, In progress or Done. Deleting an account removes its ideas, comments and votes. The private "Send feedback" box stays. Migration 136 (tested in a rolled-back run on the staging database). **Not done:** the migration is not applied to the staging database yet (the board shows "couldn't load" until it is); not tried on a phone; no app update published to testers; nothing in production.
 - **2026-11-02 (fewer requests, 3.5, and the sign-in check, P2-48):** You chose to merge both waiting branches after full checks. **Done:** the 13-second Explore wait is explained (two requests in a row on a busy test server) and fixed (Find work asks once; the server checks the sign-in itself and still refuses suspended and deleted people; a read with no answer in 15 s is asked again). New numbers: 42 requests and 80 operations for the walk. Task 3.5 is marked done. **Not done:** the Android phone check, and P2-48's timing on a slow connection; no app update was published to testers.
 - **2026-11-02 (rival apps, task 1.9):** You installed Qwikyo and Heplo and asked what TaskDrop should take from them. Claude used both apps and the staging TaskDrop app on your phone over USB; nothing was posted or saved. A first version (13 changes, including Hindi and Telugu, 3-stage posting and AI wording) was replaced the same day after you said: English only, keep the 8 steps, no AI wording, follow the redesigned-2.0 design and only add on top of it. **Added:** task 1.9 with 9 items (questions on a task, speak your task, two promises on Review, an activity line on Home, asking for alerts after the first post, and four bugs found on your phone), drawn on today’s screens in the [design canvas](https://claude.ai/artifact/Go1AwUdAZrjRwHAtjT51yB). **Corrected:** “your answers do not reach the post” was Claude’s mistake (a missed tap). **Not built:** nothing in the app changed; it waits for your approval. Gate 1 stays ticked.
@@ -3352,5 +3398,3 @@ Entries from before the 30 October rethink use the old task numbers (for example
 - **2026-10-30 (latest):** Everything from the four other plan files is now here. New tasks 1.8 (lock down where keys are kept) and 1.9 (decoy key, security alerts, key emergency guide, six proofs). Alert emails added to 1.3, an app-code secret test added to 1.6, a monthly security check card, and a Reference section (phases and rules, testing, key safety, fewer requests).
 - **2026-10-30 (later):** One complete step-by-step plan. Every task opens to its own clicks. The paperwork track, the decisions, the costs and the emergency cards are now in this one file. Corrected the status: the staging safety, the app tour and the "app finished" check were already done on 26 to 28 October.
 - **2026-10-30:** First short version. The originals are in `docs/archive/2026-10-30-before-simplify/`.
-
-- **2026-11-02 (PostHog is a must, not future scope):** You said PostHog is required. **Changed:** PostHog moved out of F.7 into two real tasks: 3.3c (staging, with the testers: one tracking helper, consent, hidden text in recordings, EU cloud because PostHog has no India region, a signup → first task funnel) and 5.6b (a separate production project). F.7 now covers Mixpanel and the later PostHog extras (flags, A/B tests, surveys). Also added: PostHog in the all-tools table and the Play data-safety row (App activity). **Not changed:** the 3.3b numbers; nothing is built and no PostHog account is made. PostHog is also in both accounts maps, the 5.11 proof and the cost table. **Open:** the lawyer (S.3) confirms the EU storage and the privacy-policy line.
