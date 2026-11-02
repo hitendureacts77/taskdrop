@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_SUGGESTIONS, crewShareMinor, looksLikePlaceQuestion, suggestOptions } from './posterOptions.ts';
+import { CREW_MAX, MAX_SUGGESTIONS, crewShareMinor, crewSizeFrom, looksLikePlaceQuestion, suggestOptions } from './posterOptions.ts';
 
 const base = { text: '', whenNow: false, remote: false, postedBefore: 0, regular: null };
 
@@ -50,4 +50,12 @@ test('a question about a place right now looks like a Live answer', () => {
 test('a crew budget splits like the server: rounded down', () => {
   assert.equal(crewShareMinor(360000, 3), 120000);
   assert.equal(crewShareMinor(100000, 3), 33333);
+});
+
+test('a crew starts with the number of helpers the poster wrote, else 2, within 2 to 10', () => {
+  assert.equal(crewSizeFrom('need 3 people to help shift my house on Saturday'), 3);
+  assert.equal(crewSizeFrom('Four helpers for a wedding'), 4);
+  assert.equal(crewSizeFrom('shift my 2BHK on Sunday'), 2);
+  assert.equal(crewSizeFrom('1 person to move a sofa'), 2);
+  assert.equal(crewSizeFrom('25 workers for an event'), CREW_MAX);
 });

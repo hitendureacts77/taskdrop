@@ -4,7 +4,7 @@ import { Icon, type IconName } from './Icon';
 import { FadeIn, tx } from './primitives';
 import { rupees } from './kit';
 import { useTheme } from '../providers/ThemeProvider';
-import { crewShareMinor, type OptionKey, type Suggestion } from '../lib/posterOptions';
+import { CREW_MAX, crewShareMinor, crewSizeFrom, type OptionKey, type Suggestion } from '../lib/posterOptions';
 import type { Regular } from '../data/api';
 
 /**
@@ -35,7 +35,7 @@ export const NO_OPTIONS: PosterOptions = {
   photosPublic: false,
 };
 
-export const CREW_MAX = 10;
+export { CREW_MAX };
 
 /** Whether an option is on. */
 export function isOn(o: PosterOptions, key: OptionKey): boolean {
@@ -120,7 +120,7 @@ export function PosterOptionsStep({
       case 'liveAnswer':
         return onChange({ ...value, liveAnswer: !on });
       case 'crew':
-        return onChange({ ...value, crewSize: on ? 0 : 2 });
+        return onChange({ ...value, crewSize: on ? 0 : crewSizeFrom(prompt) });
       case 'repeat':
         return onChange({ ...value, repeat: on ? null : 'week' });
       case 'regular': {
@@ -138,7 +138,7 @@ export function PosterOptionsStep({
     for (const s of suggestions) {
       if (!isOn(next, s.key) && !blocked(s.key)) {
         if (s.key === 'flash') next = { ...next, flash: true };
-        if (s.key === 'crew') next = { ...next, crewSize: 2 };
+        if (s.key === 'crew') next = { ...next, crewSize: crewSizeFrom(prompt) };
         if (s.key === 'repeat') next = { ...next, repeat: 'week' };
         if (s.key === 'photos') next = { ...next, wantPhotos: true };
         if (s.key === 'regular' && regulars[0]) {
