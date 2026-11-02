@@ -1501,7 +1501,7 @@ This is a test version. All money and all data are fake. Do not type a real addr
 </details>
 
 <details id="t3-3b" data-short="Marketplace numbers">
-<summary>[CLAUDE] <b>3.3b</b> Put the two marketplace numbers on the admin dashboard <small>· your time: 10 minutes</small></summary>
+<summary>[CLAUDE] <b>3.3b</b> Put the two marketplace numbers on the admin dashboard <small>· Built and merged 2 Nov, waiting for your look at Reports · your time: 10 minutes</small></summary>
 
 **Why:** "posted tasks get no offers" is your second-biggest risk. Every marketplace watches two numbers above all, and you should start reading them with the testers, not after launch:
 
@@ -1520,6 +1520,8 @@ start marketplace numbers
 3. TELL Claude: "done 3.3b".
 
 **Done when:** the admin dashboard shows time to first offer and fill rate, per category and per area.
+
+**Built 2 Nov (app PR 198, admin PR 38, merged; migration 141 applied to staging):** the admin **Reports** page has a new card, "Do tasks get offers, and get done?", with the typical wait for a first offer, the slowest 1 in 10, the share of tasks that got an offer, and the fill rate (tasks done and paid ÷ tasks posted), plus a table per category and per area (the 15 busiest). A task still being worked on counts as not filled yet, so the last few days look low. **Checked:** a SQL test with known timings (3 tasks, 2 offers, 1 done, median exactly 900 s; a group with no offers shows a dash, never 0), the real function answers on staging data, typecheck, lint and all admin tests green. The test caught a real bug first: tasks with no offer were counted as "0 seconds". **Not yet seen on screen:** the card needs your admin sign-in. Open **Reports** on the staging admin and TELL Claude "done 3.3b" or what looks wrong. The numbers are not yet in the weekly check (7.1).
 </details>
 
 <details id="t3-3c" data-short="PostHog (staging)">
@@ -1587,7 +1589,7 @@ start API calls
 </details>
 
 <details id="t3-6" data-short="Quality tests round 3">
-<summary>[CLAUDE] <b>3.6</b> Quality tests, round 3: speed, every screen, outages <small>· your time: 20 minutes</small></summary>
+<summary>[CLAUDE] <b>3.6</b> Quality tests, round 3: speed, every screen, outages <small>· Website and server parts run 2 Nov (PR 200); phone parts and T12 still open · your time: 20 minutes</small></summary>
 
 **What Claude checks:**
 
@@ -1608,10 +1610,12 @@ run quality tests round 3
 3. SAY "merge the fixes".
 
 **Done when:** no Critical or High problem is open and every Medium has your answer.
+
+**Part done 2 Nov (PR 200, results in `docs/QUALITY_ROUND3.md`):** Lighthouse on the website: accessibility **100** on phone and laptop; performance **35** (phone-sized) and **62** (laptop). A staging load test (`npm run test:load`): 180 reads from 3 people, no errors; one person sent 330 reads in a minute and exactly 300 were answered and 30 refused with 429. **No Critical or High problem.** **For your decision:** **F1 (Medium)** the website's first load is slow on a phone-class processor because the app is one 1.3 MB script; fixing means splitting it, which is real work. Fix, or accept for now (the Android app is not affected)? **F2 (Low)** the "Continue with Google" button's spoken name does not contain its visible text; a one-line fix. Fix or accept? **F3 is a launch trap, now in 5.10 and 5.11:** `vercel.json` tells Google not to list `taskdrop.in`, which becomes production's name. **Still to do:** speed on the phone, a full every-screen light/dark/screen-reader pass, T12 (what the app shows when SMS, payments or photos are down) and the nightly database copy script. The phone was not connected.
 </details>
 
 <details id="t3-7" data-short="Release guide">
-<summary>[CLAUDE] <b>3.7</b> Release guide and an undo rehearsal <small>· your time: 15 minutes</small></summary>
+<summary>[CLAUDE] <b>3.7</b> Release guide and an undo rehearsal <small>· Done 2 Nov · your time: 15 minutes</small></summary>
 
 **Why:** before real money, you must know how to undo a bad release in minutes.
 
@@ -1628,6 +1632,8 @@ Write the release guide and rehearse a rollback on staging.
 3. Read the "How every change reaches users" card near the end of this file. It is the short version.
 
 **Done when:** the guide exists, one undo has been practised, and the GitHub "production" approval step is set up (it stays unused until Step 5).
+
+**Done 2 Nov (PR 199, merged):** `docs/RELEASE.md` is written (the path of a change, small slices, database first, the 5-minute check, an undo for every part, restore, and a rehearsal log). **Approval step:** a GitHub environment named `production-database` now exists on the app repository, with you (`hitendureacts77`) as the required reviewer and only `main` allowed. It is separate from the `Production` and `Preview` environments that Vercel made, which were left alone. **Undo files:** every new migration from 141 on carries one in `supabase/undo/`. **Practised on staging:** migration 141's undo (removed and restored by a rolled-back run) and moving the staging address to the previous deployment and back (about 10 seconds each way). **Found:** staging has no "Instant Rollback" (that exists only for production), so its undo is moving the address or merging a revert. **Not practised:** the phone-update rollback (it is a publish to testers, so it needs your OK), Play's halt rollout and production's Instant Rollback (they need Step 5 or a store release). **Open for 5.9:** the Vercel build deploys the backend only for staging today, so the production backend step must move into a workflow that uses `production-database`.
 </details>
 
 <details id="t3-8" data-short="Staging exit gate">
@@ -1892,7 +1898,7 @@ Text: I built a two-sided marketplace where a person posts a task, others send p
 </details>
 
 <details id="t4-9" data-short="Dispute + safety policy">
-<summary>[BOTH] <b>4.9</b> Write the dispute policy and the safety rules for in-person tasks <small>· your time: 45 minutes · design first, then build</small></summary>
+<summary>[BOTH] <b>4.9</b> Write the dispute policy and the safety rules for in-person tasks <small>· Draft written 2 Nov, waiting for your answers · your time: 45 minutes · design first, then build</small></summary>
 
 **Why:** you hold people's money, so the first dispute will come soon after launch. It needs a fair, written rule before it arrives, not a decision made up on the day. And a stranger coming to someone's home needs a few simple safety rules.
 
@@ -1917,6 +1923,8 @@ draft the dispute policy and safety rules
 5. TELL Claude: "done 4.9".
 
 **Done when:** the policy and the rules are approved by you, built on staging, and sent to the lawyer.
+
+**Draft 2 Nov (PR 201): `docs/DISPUTE_POLICY_DRAFT.md`. Nothing is built.** It states how disputes work today (read from the code), the policy text, the not-allowed list and a 4-line safety card. **Five answers needed:** **A.** the Terms say TaskDrop "decides how the held money is split", but the app can only give everything to the worker or everything back to the poster. Recommended: keep all-or-nothing at launch and reword the Terms. **B.** acknowledge within 24 hours, decide within 3 working days (the lawyer confirms). **C.** the not-allowed list. **D.** the "share a job with a trusted contact" option is left out, because on 1 Nov you rejected Safety Shield, Live Track and Start Code. Say "include a plain share button" if you want it. **E.** who may decide disputes (today: admin and finance roles). Say "approved" with your answers and Claude builds it on staging.
 </details>
 
 <details id="t4-10" data-short="Email sequences">
@@ -2375,6 +2383,8 @@ Set up production.
 4. TELL Claude: "done 5.9".
 
 **Done when:** Claude reports production is built with the settings above, the safety alarm and the nightly copy are running, and a Google sign-in works there.
+
+**From 3.7:** the Vercel build deploys the backend only for staging. For production, the database and function steps run in a workflow that uses the `production-database` GitHub environment (already created, you are the reviewer), with the production Supabase secrets stored as secrets of that environment only. See `docs/RELEASE.md` section 4.
 </details>
 
 <details id="t5-10" data-short="Move the addresses">
@@ -2407,7 +2417,9 @@ If Vercel's **Domains** page shows a different value, use Vercel's value.
    - `admin.taskdrop.in` opens the production admin, and the staging admin address opens the staging admin
 5. Message your testers the staging web address Claude gives you, `https://taskdrop-git-redesigned-20-hitenduteam.vercel.app`. The Android test app keeps working; it talks to the staging server, not to a web address.
 
-**Done when:** all four addresses open the right copy.
+**Claude does this first (found 2 Nov by the website test, 3.6):** `vercel.json` sends `noindex` for the hosts `taskdrop.in` and `www.taskdrop.in`, which is right while they serve staging. Before they move to production, Claude removes those two rules (staging keeps its own `.vercel.app` rule), so promoting to `main` does not hide the real website from Google.
+
+**Done when:** all four addresses open the right copy, and `taskdrop.in` answers with no `noindex` (neither the header nor the page tag).
 </details>
 
 <details id="t5-11" data-short="Prove they are separate">
@@ -2431,6 +2443,7 @@ Prove that staging and production are separate.
 - a staging test account (Asha, `9990000001`) does **not** exist in production
 - the production database has **no** staging tasks, wallets, chats or photos
 - a staging key used against production is **refused**, and the reverse
+- `taskdrop.in` answers **without** `noindex` (header and page tag), and the staging address still answers with it
 - an error made on purpose in staging appears only in staging's Sentry, and the same for production
 - a sign-up made on staging appears only in staging's PostHog, and the same for production
 - a test photo uploaded in staging lands only in staging's ImageKit
@@ -3525,6 +3538,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-02 (Steps 1 to 4 and security: what could be done):** You asked to complete Steps 1 to 4 and the security tasks and test them. **Done and tested:** 3.3b built (card on the admin Reports page, migration 141, SQL test, merged; the card is not yet seen on screen); 3.7 done (`docs/RELEASE.md`, undo files, the `production-database` approval environment, two undos practised on staging); 3.6 website and server parts run (Lighthouse and a load test, `docs/QUALITY_ROUND3.md`); 4.9 drafted for your approval (`docs/DISPUTE_POLICY_DRAFT.md`). **New finding:** `vercel.json` hides `taskdrop.in` from Google, and that name becomes production's; fixed in the plan (5.10, 5.11), not in code yet. **Not possible without you:** S.1 to S.8, 2.2 to 2.4, 3.1 to 3.4, 4.1, 4.2, 4.4, 4.6 to 4.8 (accounts, paperwork, testers, people); 1.9, 2.8 (Google-first sign-in screen), 4.3, 4.5 and 4.9 (a design or an answer from you first); 4.10 (your Loops key); the phone checks and T11 (phone not connected); H9 (needs a week of reports). **Not done by choice:** 3.9 cannot be undone, so it needs your word.
 - **2026-11-02 (4.10 wording approved):** You approved the design of the email sequences (13 emails in 5 sequences, the Profile tick-box and the question after Google sign-in) on the [design page](https://claude.ai/artifact/62YPmQz9FvqzUQgon67hfo). **Next:** your steps in 4.10 (make the staging Loops account and save its key), then "build the email sequences". **Still open:** the sign-off name (used "The taskdrop. team"), the footer's business address (waits for S.2), and the Privacy line and consent wording for the lawyer (S.3). Nothing is built.
 - **2026-11-02 (repeat keys, task 2.12):** You said "Yes, build them". **Built:** every write the app sends carries an `Idempotency-Key`; the `api` gateway does a write once per key and answers repeats with the saved reply (migration 139, `private.api_repeat_keys`, service-role functions `api_repeat_claim` and `api_repeat_save`, pruned by the claim itself, no new scheduled job). The app now retries a write after a blip with the same key, reuses the key for 10 minutes after a lost answer, and folds a double tap into one request. Migration and its test run on staging inside a rolled-back transaction first; the staging build applies it on merge.
 - **2026-11-02 (API gateway, task 2.12):** You asked for a design where nothing reaches the main server directly, with an API gateway and good SaaS habits, and shared a vibe-coding security checklist video. **Found:** the gateway already exists (`api`); one app screen (Promote prices) still read a table directly, and nothing stopped a new direct read from being added. **Built:** that read now goes through `api` (`promotionTiers`); a CI check fails if app code skips the gateway; `api` refuses requests over 256 KB, tags every call with a trace id and never lets an answer be cached; a lockfile check refuses packages from anywhere but the npm registry. The video's checklist is mapped to TaskDrop in 2.12. **Still open:** H3 closes in 3.9; idempotency keys on money writes are recommended next.
