@@ -50,6 +50,9 @@ export type ScreenName =
   | 'crew'
   | 'regulars'
   | 'streaks'
+  // The public feedback board (migration 136).
+  | 'ideas'
+  | 'ideaDetail'
   // Public: reachable signed out, and by link (?page=copyright etc.).
   | 'copyright'
   | 'terms'

@@ -600,6 +600,15 @@ export const WRITE_OPS: Record<string, Op> = {
     return null;
   },
 
+  // ---- the public feedback board (migration 136) ----
+  postFeedbackIdea: rpcOp("feedback_board_post", (a) => ({
+    p_title: str(a, "title", 120, 3),
+    p_body: str(a, "body", 2000, 0),
+    p_category: oneOf(a, "category", ["feature", "improvement", "bug", "other"], "feature"),
+  })),
+  voteFeedbackIdea: rpcOp("feedback_board_vote", (a) => ({ p_post: uuid(a, "postId"), p_on: bool(a, "on", true) })),
+  commentFeedbackIdea: rpcOp("feedback_board_comment", (a) => ({ p_post: uuid(a, "postId"), p_body: str(a, "body", 1000) })),
+
   openTicket: rpcOp("open_support_ticket", (a) => ({
     p_category: oneOf(a, "category", ["payment", "task", "account", "safety", "bug", "other"]),
     p_body: str(a, "body", 5000),

@@ -327,6 +327,7 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
 
               {row('help', 'Help & support', 'Stuck on a payment, task or your account', () => open(() => go('help')))}
               {row('sparkle', TOUR_COPY.menuLabel, TOUR_COPY.menuSub, () => open(() => startTour(mode === 'worker' ? 'earn' : 'hire')))}
+              {row('trending', 'Ideas & feedback', 'Suggest what we build next, and vote', () => open(() => go('ideas')))}
               {row('chat', 'Send feedback', 'Report a bug or suggest an improvement', () => {
                 onClose();
                 setFeedback(true);

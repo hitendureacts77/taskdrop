@@ -19,6 +19,8 @@ export const NATIVE_HEADER_SCREENS: readonly ScreenName[] = [
   'disputes',
   'escrow',
   'help',
+  'ideas',
+  'ideaDetail',
   'ticket',
   'inbox',
   'listing',

@@ -1,7 +1,7 @@
 import { FEES, distanceKm } from "../_shared/rules.ts";
 import {
   type Args, type Ctx, type Op, MONEY_MAX, bad, countBy, int, isoOrNull, limit, notExpired, num, oneOf, rows,
-  rpcOp, str, strings, take, uuid, uuids,
+  rpcOp, str, strOrNull, strings, take, uuid, uuids,
 } from "./core.ts";
 
 /**
@@ -713,6 +713,20 @@ export const READ_OPS: Record<string, Op> = {
     const sides = await sidesFor(ctx, items);
     return items.filter((n) => sides[n.id] === side || sides[n.id] === "both").length;
   },
+
+  // ------------------------------------------------------ feedback board ----
+  /** The public feedback board (migration 136): top or newest ideas, filtered by status, kind or a search. */
+  listFeedbackBoard: rpcOp("feedback_board_list", (a) => ({
+    p_sort: oneOf(a, "sort", ["top", "new"], "top"),
+    p_status: a.status == null ? null : oneOf(a, "status", ["open", "under_review", "planned", "in_progress", "done", "declined"]),
+    p_category: a.category == null ? null : oneOf(a, "category", ["feature", "improvement", "bug", "other"]),
+    p_search: strOrNull(a, "search", 60),
+    p_limit: limit(a, "limit", 30, 50),
+    p_offset: int(a, "offset", 0, 10_000, 0),
+  })),
+
+  /** One idea with its comments; null once it is hidden or gone. */
+  getFeedbackPost: rpcOp("feedback_board_get", (a) => ({ p_post: uuid(a, "postId") })),
 
   // ------------------------------------------------------- support & more ----
   listTickets: async (ctx) =>
