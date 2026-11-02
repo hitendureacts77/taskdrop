@@ -143,14 +143,16 @@ function sixDigits(): string {
   return String(100000 + (buf[0] % 900000));
 }
 
+type FoundUser = { id: string; email?: string; email_confirmed_at?: string | null };
+
 /**
- * Is there already an account for this phone-derived email?
+ * The account on this phone-derived email, if any.
  *
  * GoTrue's admin list endpoint takes a filter, which supabase-js does not
  * expose, so this goes over REST. The filter is a partial match, hence the
  * exact comparison afterwards.
  */
-async function accountExists(email: string): Promise<boolean> {
+async function findAccount(email: string): Promise<FoundUser | null> {
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const url = new URL(`${Deno.env.get("SUPABASE_URL")}/auth/v1/admin/users`);
   url.searchParams.set("filter", email);
@@ -162,8 +164,19 @@ async function accountExists(email: string): Promise<boolean> {
   if (!res.ok) throw new Error(`Could not check that number (${res.status})`);
 
   const body = await res.json();
-  const users: Array<{ email?: string }> = Array.isArray(body?.users) ? body.users : [];
-  return users.some((u) => (u.email ?? "").toLowerCase() === email.toLowerCase());
+  const users: FoundUser[] = Array.isArray(body?.users) ? body.users : [];
+  return users.find((u) => (u.email ?? "").toLowerCase() === email.toLowerCase()) ?? null;
+}
+
+/**
+ * Is there already an account for this phone-derived email? Only one this
+ * function made counts: it always creates the email confirmed. An unconfirmed
+ * one was signed up directly at Supabase by someone squatting the number
+ * (hole H21); signing into it would hand the person an account whose password
+ * the squatter chose, so it is treated as no account.
+ */
+async function accountExists(email: string): Promise<boolean> {
+  return !!(await findAccount(email))?.email_confirmed_at;
 }
 
 /**
@@ -457,6 +470,15 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
     await admin.from("auth_codes").delete().eq("phone", phone);
 
     if (!wantsSignIn) {
+      // A squatter's unconfirmed account on this address (hole H21) is removed
+      // first, so the person gets a fresh account of their own.
+      const squatter = await findAccount(email);
+      if (squatter && !squatter.email_confirmed_at) {
+        const { error: delErr } = await admin.auth.admin.deleteUser(squatter.id);
+        if (delErr) return failed("remove unconfirmed account", delErr);
+        background(logServer("warn", "phone-auth", "removed an unconfirmed account squatting a phone address"));
+        background(captureSecurityEvent("refused_login", "phone-auth"));
+      }
       // email_confirm skips the confirmation mail that would otherwise block
       // sign-in. An existing user comes back as an "already registered" error,
       // which is how we tell a new account from a returning one.
