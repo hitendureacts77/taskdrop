@@ -27,7 +27,7 @@
     "@taskdrop/rules": "*",
     "@taskdrop/schemas": "*",
     "@taskdrop/supabase": "*",
-    "babel-preset-expo": "~57.0.0",
+    "babel-preset-expo": "~58.0.20",
     "expo": "~57.0.21",
     "expo-apple-authentication": "~57.0.2",
     "expo-asset": "~57.0.16",
