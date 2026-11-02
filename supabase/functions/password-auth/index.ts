@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { background, captureSecurityEvent, captureServerError, guarded, logServer } from "../_shared/monitoring.ts";
 import { signInRefusal } from "../_shared/signInSwitches.ts";
+import { secretKey, signInKey } from "../_shared/forwardedFor.ts";
 
 /**
  * Username + password sign-in.
@@ -10,8 +11,9 @@ import { signInRefusal } from "../_shared/signInSwitches.ts";
  * or Google, so a person never learns the email their account sits on. Once
  * they set a password (Settings -> Security, supabase.auth.updateUser) they can
  * sign in with their public @username instead: this function resolves the
- * username to the account server-side, signs in with the anon key exactly as
- * the client would, and hands back the session for supabase.auth.setSession().
+ * username to the account server-side, signs in exactly as the client would
+ * (with the person's address forwarded, task 2.8b), and hands back the session
+ * for supabase.auth.setSession().
  *
  * The account email is never returned, so a username cannot be turned into a
  * phone number. Failed attempts are throttled per username and per IP, over
@@ -116,15 +118,24 @@ Deno.serve(guarded("password-auth", async (req: Request) => {
     return json({ error: WRONG }, 401);
   }
 
-  // Sign in as the client would, with the anon key, so GoTrue applies its own
-  // checks (banned users, unconfirmed emails) exactly as for any sign-in.
-  const anon = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
+  // Sign in as the client would, so GoTrue applies its own checks (banned users,
+  // unconfirmed emails) exactly as for any sign-in. With the secret key and the
+  // person's address in Sb-Forwarded-For, GoTrue's per-address limit counts this
+  // person, not this server (task 2.8b); without a secret key it is the anon key.
+  const { key, headers } = signInKey(ip, secretKey(Deno.env.get("SUPABASE_SECRET_KEYS")), Deno.env.get("SUPABASE_ANON_KEY")!);
+  const signer = createClient(url, key, {
     auth: { persistSession: false },
+    global: { headers },
   });
-  const { data: signedIn, error: signInErr } = await anon.auth.signInWithPassword({
+  const { data: signedIn, error: signInErr } = await signer.auth.signInWithPassword({
     email,
     password,
   });
+  if (signInErr?.status === 429) {
+    // GoTrue's own limit, not a wrong password: say so, and do not count it as a failed try.
+    background(logServer("warn", "password-auth", "auth rate limit reached", { forwarded: "sb-forwarded-for" in headers }));
+    return json({ error: "Too many tries. Please wait a minute and try again." }, 429);
+  }
   if (signInErr || !signedIn.session) {
     // A closed account is refused by GoTrue only once the password is right, so saying so
     // gives nothing away about who has an account.

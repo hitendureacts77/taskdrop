@@ -27,6 +27,8 @@ const DENIED = 'You do not have permission to do that.';
 const DUPLICATE = 'That already exists.';
 const GONE = 'That is no longer available.';
 const INVALID = 'Please check what you entered and try again.';
+/** Supabase's own sign-in limits answer 429 (task 2.8b). */
+export const TOO_MANY = 'Too many tries. Please wait a minute and try again.';
 /** What a sign-in says when Supabase refuses a closed (deleted or suspended) account as "User is banned". */
 export const ACCOUNT_CLOSED = 'This account is closed. Contact support.';
 
@@ -56,6 +58,8 @@ export function friendlyMessage(err: RawError, fallback = GENERIC): string {
 
   // Before the 401/403 wording below: a closed account is refused with a 403.
   if (code === 'user_banned' || /user is banned|account is banned/i.test(raw)) return ACCOUNT_CLOSED;
+
+  if (err.status === 429 || /^over_\w+_rate_limit$/.test(code) || /rate limit|too many requests/i.test(raw)) return TOO_MANY;
 
   if (/network request failed|failed to fetch|failed to send a request|fetch failed|load failed|networkerror|timed? ?out|econn|enotfound/i.test(raw)) {
     return OFFLINE;
