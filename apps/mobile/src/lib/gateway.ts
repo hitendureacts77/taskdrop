@@ -5,7 +5,7 @@ import { appCheckHeaders } from './appCheck';
 import { refreshAppConfig } from './appConfig';
 import { log } from './monitoring';
 import { BATCHABLE_OPS, Batcher, type Reply as BatchReply } from './batcher';
-import { RETRY_DELAYS_MS, isTransient, retryWhile, type Failure } from './retry';
+import { READ_TIMEOUT_MS, RETRY_DELAYS_MS, isTransient, retryWhile, type Failure } from './retry';
 import { noteChange } from './freshness';
 
 /**
@@ -50,16 +50,18 @@ async function describeFailure(error: unknown): Promise<Failure> {
 async function callApiDirect<T>(op: string, args: Record<string, unknown> = {}): Promise<T> {
   // The platform and app version let the server apply the admin panel's
   // per-platform switches (maintenance, minimum version, features off).
+  // A read that hits a blip (a deploy, a dropped connection, no answer within READ_TIMEOUT_MS) is asked
+  // again, twice, before it counts as a failure. A write is asked once and never timed out: sending money
+  // or a bid twice is never worth the risk.
+  const isRead = op === 'batch' || BATCHABLE_OPS.has(op);
   const invokeOnce = async () =>
     supabase.functions.invoke('api', {
       body: { op, args },
       region: FUNCTIONS_REGION,
       headers: { ...clientHeaders(), ...(await appCheckHeaders()) },
+      ...(isRead ? { timeout: READ_TIMEOUT_MS } : {}),
     });
 
-  // A read that hits a blip (a deploy, a dropped connection) is asked again, twice, before it counts
-  // as a failure. A write is asked once: sending money or a bid twice is never worth the risk.
-  const isRead = op === 'batch' || BATCHABLE_OPS.has(op);
   const changes = !isRead && !BOOKKEEPING.has(op);
   // Marked on the way out and on the way back: a screen shown in between asks the server again either way.
   if (changes) noteChange();

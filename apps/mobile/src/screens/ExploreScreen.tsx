@@ -17,10 +17,9 @@ import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import {
-  attachPosters,
+  searchTasksWithPosters,
   getProfile,
   listMyTasks,
-  searchTasks,
   type Task,
   type TaskWithPoster,
 } from '../data/api';
@@ -30,6 +29,8 @@ import { taskToFeedRow } from '../lib/openTask';
 import { useVoiceInput } from '../lib/speech';
 import { distanceKm } from '@taskdrop/rules';
 import { TopUpBadge } from '../components/TopUpBadge';
+import { NearYou } from '../components/NearYou';
+import { JobsNearHero } from '../components/JobsNearHero';
 
 /**
  * Explore -- two different pages behind one tab.
@@ -90,7 +91,11 @@ function ExploreIdeas() {
     <Screen padded={false}>
       <AppHeader />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-        <View style={{ alignItems: 'center', paddingHorizontal: 20, paddingTop: 10 }}>
+        {/* The hero: who can help near you, and what tasks round here pay. */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
+          <NearYou active first />
+        </View>
+        <View style={{ alignItems: 'center', paddingHorizontal: 20, paddingTop: 22 }}>
           <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Ideas & templates</RNText>
           <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4 })}>Pick a starting point, or describe your own</RNText>
         </View>
@@ -384,8 +389,8 @@ function FindWork() {
   }, [userId]);
 
   const load = useCallback(async () => {
-    const found = await searchTasks({ q: query || undefined, limit: 60, kind: 'request' });
-    return attachPosters(found);
+    // One request: the posts and their posters together (it was two back to back, once 13 s on a busy server).
+    return searchTasksWithPosters({ q: query || undefined, limit: 60, kind: 'request' });
   }, [query, focusTick]);
 
   useEffect(() => {
@@ -477,7 +482,11 @@ function FindWork() {
       refreshing={refreshing}
       header={
         <>
-        <View style={{ alignItems: 'center', paddingHorizontal: 20, paddingTop: 10 }}>
+        {/* The hero: open jobs round the area you chose, on the map. */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
+          <JobsNearHero />
+        </View>
+        <View style={{ alignItems: 'center', paddingHorizontal: 20, paddingTop: 22 }}>
           <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Browse jobs</RNText>
           <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4 })}>Every open job, filtered your way</RNText>
         </View>

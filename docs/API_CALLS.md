@@ -1,9 +1,9 @@
 # API calls: what the app asks the server for, and the plan to ask less
 
-Status (2026-10-29): **plan, waiting for the owner.** The owner asked for the plan before anything is built.
-Measurements are done. A trial of the fixes in section 3 exists on the local branch `perf/fewer-api-calls`
-(5 commits off `redesigned-2.0`, not pushed, not merged; `npm run check` passed on it). The trial numbers
-below come from that branch. `redesigned-2.0` itself is unchanged.
+Status (2026-11-02): **built and merged.** The owner accepted the 30 s rule (decision 5). The trial's fixes
+(section 3) reached `redesigned-2.0` in PR 174 (1 Nov). The open question, Explore's 13 s wait, is explained and
+fixed in section 7, together with the first server-side saving (S1 for Find work) and the P2-48 sign-in check.
+Sections 2 to 4 are the 29 Oct measurements and stay as they were; section 7 has the 2 Nov numbers.
 
 Goal: fewer requests for cost (Edge Function invocations, database work, the per-person rate limit) and
 speed, with **no change to how any screen looks or behaves**.
@@ -128,7 +128,7 @@ the old calls if the server answers "Unknown request". Not built.
 
 | # | Change | Saves |
 |---|---|---|
-| S1 | Lists that come back with their posters attached (feed, Find work, My Work, Earn Home lists), so the second `attachPosters` round trip goes. | 1 request per load of each of those screens |
+| S1 | Lists that come back with their posters attached (feed, Find work, My Work, Earn Home lists), so the second `attachPosters` round trip goes. **Find work done 2026-11-02** (`searchTasksWithPosters`); the other lists not yet. | 1 request per load of each of those screens |
 | S2 | Notifications that come back with their side (poster/worker) | 1 request per Notifications visit |
 | S3 | My Tasks that come back with quote counts | 1 request per My Tasks load |
 | S4 | One wallet summary read after the sweep (wallet, escrow, payouts, activity, fees) | 2 requests per Wallet visit |
@@ -143,3 +143,60 @@ the old calls if the server answers "Unknown request". Not built.
 - **Q2.** Build the server-side operations S1 to S7 (needs an `api` deploy)?
 - **Q3.** When approved: turn the trial branch into a PR into `redesigned-2.0`, after the Explore wait is
   explained and Android and desktop web are checked by eye.
+
+## 7. The 13-second Explore wait, and the numbers on 2 Nov
+
+**What happened (found in the server logs of the trial walk, 29 Oct 16:43 UTC).** Nothing was lost and the
+reuse rule played no part. Find work waits for two requests one after the other: the search
+(`listSavedTaskIds, searchTasks`), then `attachPosters` for the posters on the cards. Both landed on newly
+started function instances while the Earn Home batch was still running on the server (its `signMedia` took
+3.8 s). The search took 7.3 s and `attachPosters` 5.8 s, 13.1 s in all. In each of them about 1 s went on the
+sign-in check (`auth.getUser`, normally 10 to 50 ms, then 0.7 to 1.2 s at the auth service) and 1.2 to 2 s
+went on queries that normally take 0.2 to 0.3 s. Slow calls like these are common on the free test project:
+in the 24 hours before 2 Nov, 38 of 8,677 `api` calls took over 5 s (the slowest 8.4 s), almost all of them
+the first call on a new instance.
+
+**What was changed (PR into `redesigned-2.0`, 2 Nov):**
+
+1. Find work asks once: the new read `searchTasksWithPosters` answers the posts with their posters (S1 for
+   Find work). The old `searchTasks` and `attachPosters` are unchanged. An older server answers "Unknown
+   request", and the app then asks the old two.
+2. The `api` function checks the sign-in token itself (`getClaims`, against the project's public keys,
+   cached per instance) instead of asking the auth service on every call (P2-48). Suspended and deleted
+   people are still refused on every call: their standing is read beside the rate limiter and kept for 5 s.
+   The auth service is still asked while the admin's "phone must be confirmed" switch is on.
+3. A read that has no answer after 15 s is given up and asked again (twice at most), so a reply that never
+   comes cannot hold a screen on "Loading..." for good. Writes are never timed out.
+
+**Numbers (2 Nov, today's `redesigned-2.0` plus this change, web build at 390 x 844, same script).** The
+walk is not the 29 Oct walk: posting now opens its own screen (the poster options), the Earn Home has the
+map and more lists, and both cold starts refreshed the sign-in. The script's selectors were updated for the
+post screen and the job cards.
+
+| Flow (step) | Requests / ops |
+|---|---:|
+| Asha: cold start and Home (the Home reads spilled into the next step) | 9 / 13 |
+| Asha: close the post screen, back on Home | 2 / 7 |
+| Asha: Explore | 1 / 1 |
+| Asha: My Tasks | 2 / 2 |
+| Asha: open own task | 1 / 3 |
+| Asha: back to My Tasks | **0 / 0** |
+| Asha: Messages, open a chat, back | 3 / 5 |
+| Asha: Notifications | 3 / 3 |
+| Asha: Wallet | 4 / 10 |
+| Asha: Profile | 1 / 1 |
+| Asha: back to Home | 2 / 4 |
+| Ravi: cold start, Home | 8 / 17 |
+| Ravi: Find work | 3 / 4 before the `api` deploy, **1 / 2 after it** |
+| Ravi: open a job | 2 / 3 |
+| Ravi: back to Find work | **0 / 0** |
+| Ravi: My Work | 2 / 7 |
+| Ravi: Profile | 1 / 2 |
+| Ravi: back to Home | **0 / 0** |
+| **Total** | **44 / 82** before the deploy, **42 / 80** after |
+
+Waits: Find work's list was on screen 1.8 s after the tap on the old server (three requests); no request in
+the walk waited longer than 2 s except one `countBidsByTask` on My Tasks (5.8 s, a new instance, the quote
+counts only; the list was already showing).
+
+Not checked: the Android phone and the desktop website by eye; P2-48's throttled-4G timing.
