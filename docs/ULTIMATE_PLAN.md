@@ -1338,7 +1338,7 @@ This is a test version. All money and all data are fake. Do not type a real addr
 - **Time to first offer:** how long a new task waits for its first offer.
 - **Fill rate:** of all tasks posted, the share that got done and paid. Shown per category and per area.
 
-The admin already has business numbers (migration 096). Claude checks that these two are there, adds them if not, and makes them part of the weekly numbers (7.1). No new tool is needed. Product analytics (PostHog) stays in future scope F.7.
+The admin already has business numbers (migration 096). Claude checks that these two are there, adds them if not, and makes them part of the weekly numbers (7.1). No new tool is needed. Product analytics (Mixpanel and PostHog) stays in future scope F.7.
 
 1. SAY:
 
@@ -2561,9 +2561,22 @@ These are recorded so nothing is lost. **None of them is needed to launch, and n
 </details>
 
 <details id="tF-7" data-short="Product analytics">
-<summary>[LATER] <b>F.7</b> Product analytics (PostHog) <small>· after launch</small></summary>
+<summary>[LATER] <b>F.7</b> Product analytics (Mixpanel and PostHog) <small>· after launch</small></summary>
 
-**What it is:** see where people get stuck in the app. Set up the safe way: consent asked on the website first, nothing typed is recorded, people identified only by an internal number, a line in the privacy policy.
+**What it is:** see where people get stuck in the app, and whether they come back. Two tools, each with its own job:
+
+- **Mixpanel: the numbers.** Funnels (opened the app, posted a task, got a first offer, hired, paid), retention (who comes back each week) and groups of users. Its charts are the easiest to read, and its data can be stored in India.
+- **PostHog: the why.** Screen recordings of where people get stuck (every text box and the chat hidden), feature flags that turn a new feature on for a few people first, A/B tests and short in-app surveys.
+
+**Today:** no product analytics tool is in the app. The admin's business numbers (3.3b) and Sentry (errors only) are all there is.
+
+**How it is set up:**
+
+- One tracking helper in the code sends each event to both tools, so the list of events is written once and the two never disagree.
+- The safe way, for both: consent asked on the website first, nothing typed is recorded, people identified only by an internal number (never a name, phone or email), one line per tool in the privacy policy, and the Play data-safety form updated.
+- Events go through the server (`api`), so no key sits in the app code (rule 8). PostHog's screen recordings need its app library; its project key is public by design, so Claude asks you before adding it.
+- A staging project and a production project in each tool, never mixed, signed in as **hitendureacts@gmail.com**.
+- Cost: both have free plans (about 1 million events a month each), far more than early use needs. Check the prices again when you sign up.
 
 **Start when:** after launch, when you have enough users for the charts to mean something.
 </details>
@@ -3213,6 +3226,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-02 (product analytics: Mixpanel and PostHog):** You asked to add Mixpanel for product analytics, then to include both Mixpanel and PostHog. **Changed:** future-scope item F.7 now names both tools, each with its own job (Mixpanel for funnels and retention, with data stored in India; PostHog for screen recordings, feature flags, A/B tests and surveys), one tracking helper that feeds both, and the same safe setup; the line in task 3.3b names both. **Not changed:** F.7 stays after launch and is not counted in your progress bar; nothing is built and no account is made.
 - **2026-11-02 (poster options built):** You approved the new-features design (design canvas, 1 Nov) with two changes: every feature is an option the poster switches on while posting, and the app suggests the right ones for each task. You dropped Safety Shield, Earn Route and Live Track. **Built:** a new **Options** step in posting (between "Where, and how to hire" and Review) with up to 3 suggestions and the reason for each, plus "More options"; **Flash Drop** (Auto-hire within 30 minutes, helpers nearby told at once); **Live answer** (suggested on the Ask step for a question about a place; answered with a photo taken in the app); **Crew** (2 to 10 helpers, the budget split evenly, one task per helper and a shared crew chat); **Repeat** (weekly or monthly; the next one is posted when the job is done, and can be switched off on the task page); **Regulars** (offer a task first to someone you hired before, who gets 10 minutes; a "My regulars" page with Book again); **Before-and-after photos** (the helper adds both with the proof; with your OK they show on the helper's profile); and **Streaks and badges** for helpers (weekly goal, on-time streak, 8 badges). Database migration 134 applied to the staging database. **Not done:** not tried on the Android phone and no app update published to testers; nothing in production.
 - **2026-11-01 (secrets stay server-side):** You asked that secrets are always stored in a server-side env variable file. **Added:** rule 8 in "How to use this plan" (the list is now eight rules) and "The server-side rule" in task 2.1. Every secret goes only into `.env.all-secrets` and the server-side store that needs it; never into code, `EXPO_PUBLIC_` or `NEXT_PUBLIC_` names, Git, the plan, pull requests or chat. **Not changed:** the one-file rule, the backup steps and the checks; no task or gate box was ticked.
 - **2026-11-01 (browser and screen rule):** You asked that after every new feature the app and website must work on the browser and the screen. **Added:** rule 7 in "How to use this plan" (the list is now seven rules), and a new card "Fits every browser and screen" with the checks (Chrome, Edge, Firefox and Safari; widths 360 to 1920; no sideways scrolling or cut-off text; easy-to-tap buttons; bigger text and keyboard open; the Android app on your phone). **Not changed:** no task or gate box was added or ticked. Past features have not been re-checked against this card; Claude applies it to each new feature from now on.
