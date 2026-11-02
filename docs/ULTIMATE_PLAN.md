@@ -1919,11 +1919,80 @@ draft the dispute policy and safety rules
 **Done when:** the policy and the rules are approved by you, built on staging, and sent to the lawyer.
 </details>
 
+<details id="t4-10" data-short="Email sequences">
+<summary>[BOTH] <b>4.10</b> Email sequences: welcome and nudge emails that stop when the person acts <small>· your time: 45 minutes · design first, then build</small></summary>
+
+**Why:** a new person who signs up and does nothing is lost. A few short, honest emails at the right time bring many of them back to post a first task or send a first offer. This task plans the whole system: who gets which email, when it stops, who sends it, and the rules that keep it from becoming spam.
+
+**Who gets email at all.** TaskDrop signs people in by phone, so many have no email address. Emails go only to people who gave one (Google sign-in, or an email they add in Profile) **and** ticked a box that says "send me tips and reminders" (not pre-ticked). Everyone else is reached by the app's alerts (4.5), as today.
+
+**Who does what** (decided by you, 2 Nov: Loops runs the sequences):
+
+| Part | Job |
+|---|---|
+| **The database** | Knows the facts (signed up, posted, got an offer, finished) and writes each one as an event through the outbox (`private.emit_event`), like every other background job |
+| **Inngest** | Only the messenger. It takes each event from the outbox and passes it to Loops with retries (a contact is created or updated, then an event such as `task_posted` is sent). It sends nothing for people who have not agreed, and it deletes the contact when an account is deleted. It does not time or write any email |
+| **Loops (loops.so)** | Runs the five sequences in its own builder (its "loops"): the waits, the "stop when they act" checks, the templates, the contact list, the one-click unsubscribe page and the sender reputation. A sequence stops because the contact's facts change (for example `hasPostedTask` becomes true) and each email step checks that fact first |
+| **The admin** | One switch per sequence: when off, the database stops sending that sequence's events, so nobody new enters it. A page shows how many contacts and events were sent. Sent, opened and unsubscribed counts are read in the Loops dashboard |
+
+**The five sequences** (wording is drafted by Claude and approved by you; plain words, no tricks):
+
+| # | Sequence | Emails | Stops when |
+|---|---|---|---|
+| 1 | Poster welcome | Day 0: "Post your first task in two minutes", with examples. Day 2: three real kinds of task people post (only if no task yet). Day 7: one last reminder (only if still no task) | The person posts a task |
+| 2 | Worker welcome | Day 0: finish your profile and set your price. Day 2: how to send an offer that gets chosen (only if no offer yet). Day 5: how many open tasks are near you now (area names only) | The person sends an offer |
+| 3 | No offers yet | 24 hours after posting, if nothing arrived: add more detail, a photo, or top up the price (the top-up bar). The 30-minute alert to nearby workers is 4.5, not this | The first offer arrives, or the task is closed |
+| 4 | After a finished task | Day 1: thank-you and a kind ask for an honest review (and the Google review link, see 7.3). Day 14: "need anything else done?" (posters) or "new tasks near you" (workers) | The person starts another task |
+| 5 | Come back | One email after 30 days away, one after 60 days. Then nothing more, ever (the sunset rule) | The person signs in |
+
+**Rules that protect people and the brand**
+
+- At most 1 email every 3 days to one person, across all sequences, and never before 9 am or after 8 pm India time.
+- Every email has a one-click unsubscribe, and it works at once. Turning it off in Profile does the same.
+- Never a phone number, exact address, someone else's name or private amounts. Fees are shown plainly. No false urgency and no "only 2 left" tricks.
+- When an account is deleted (087), the contact is removed from Loops too.
+- Receipts and security emails are a separate stream (they are not marketing and unsubscribing does not stop them). They are not built in this task; they use the same sender setup later.
+- **Staging never emails a stranger:** it sends only to an allow-list of your own and your testers' addresses.
+- The Privacy policy gets one plain line about these emails, and the lawyer (S.3) reads the consent wording. Do not claim legal compliance in the copy.
+
+**The sender address.** Emails go out from an address at `taskdrop.in` (for example `hello@taskdrop.in`) set up for sending only (SPF, DKIM and DMARC records), with replies going to `hitendureacts@gmail.com`. That keeps your decision 11 (no business mailbox, no cost). This is done on the **production** Loops account in Step 5, because `taskdrop.in` is production's. Staging uses Loops' own test sending until then.
+
+**Measure it.** The one number: of people who got the welcome email, how many posted a task or sent an offer within 7 days, compared with people who did not get it. Add it to the weekly numbers (7.1). If a sequence does not help after a month, turn it off.
+
+1. SAY:
+
+```say
+design the email sequences
+```
+
+2. **Done 2 Nov.** Claude sends every email's wording and a picture of the flow, plus the new "send me tips" tick-box on sign-up and Profile. Change what you want, then SAY "approved" (your rule: design before building). You approved the [design page](https://claude.ai/artifact/62YPmQz9FvqzUQgon67hfo).
+3. **Your turn, whenever you are ready:**
+   1. CLICK: https://app.loops.so and sign up with **hitendureacts@gmail.com**. This is the **staging** account; production gets its own in Step 5.
+   2. CLICK: **Settings** → **API** → create a key.
+   3. Save the key only in `.env.all-secrets` as `LOOPS_API_KEY`. Never paste it in the chat.
+   4. TELL Claude: "Loops key saved". If a screen looks different, send a screenshot.
+4. SAY:
+
+```say
+build the email sequences
+```
+
+5. Claude builds the database and Inngest part on staging. Loops has no way to create sequences from code, so Claude builds the five loops in the Loops editor in your Chrome, with your OK for each (or gives you the clicks if you prefer). Claude then sends you a test of each email at your own address. Check each one on your phone and on a laptop. Then SAY "merge it".
+6. TELL Claude: "done 4.10". In Step 5, when you make the production accounts, SAY "set up production email" and Claude walks you through the production Loops account, the three domain records, and rebuilding the five loops there by hand (nothing is shared with staging).
+
+**One rule changes.** The agent guide (`AGENTS.md`, rule 8) says Inngest is the only automation tool. Your decision 13 makes Loops the one exception, for email sequences only. Everything else stays on Inngest.
+
+**Two answers Claude still needs** (any time before the build): the **sign-off name** (the design uses "The taskdrop. team"; say if you want your own first name), and the **footer's business address** (it waits for the company paperwork in S.2, so the build uses a placeholder until then).
+
+**Done when:** the wording is approved, the five sequences work on staging with test emails to you, each can be switched off in the admin, and the unsubscribe link works.
+</details>
+
 > **GATE 4: do not start Step 5 until all of these are true**
 
 - [ ] Gate 3 has passed
 - [ ] Gate 2b has passed (all of Step 2, including 2.8 to 2.11)
 - [ ] The dispute policy and safety rules (4.9) are live on staging
+- [ ] The email sequences (4.10) work on staging and can be switched off
 - [ ] The whole Start now track (S.1 to S.8) is finished
 - [ ] At least 20 workers are lined up in the launch city
 - [ ] The public pages and the marketing plan are approved
@@ -2119,6 +2188,19 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 6. TELL Claude: "done 5.6" with the two DSNs.
 
 **Done when:** both production projects exist with their alerts, and their DSNs are with Claude.
+</details>
+
+<details id="t5-6b" data-short="Production PostHog">
+<summary>[BOTH] <b>5.6b</b> Production PostHog project <small>· 15 minutes · free to start</small></summary>
+
+**Why separate:** real users' funnels are never mixed with the testers' and your own test clicks. Sign in at https://posthog.com as **hitendureacts@gmail.com** (the same organization as staging, 3.3c).
+
+1. CLICK: **Create project** → name `taskdrop-production` → region **EU** (the same as staging, so the privacy policy stays true).
+2. CLICK: **Project settings** → copy its **Project API key** (starts with `phc_`) and give it to Claude. It goes into the production Vercel project and the production server secrets with the other production values (5.8, 5.9). Never reuse staging's key.
+3. Claude copies the funnel from 3.3c into this project, and filters out your own and the testers' accounts by internal number.
+4. TELL Claude: "done 5.6b".
+
+**Done when:** an event made on production appears only in `taskdrop-production`, and one made on staging appears only in `taskdrop-staging` (add this to the 5.11 proof).
 </details>
 
 <details id="t5-7" data-short="Production Expo + Play">
@@ -2350,6 +2432,7 @@ Prove that staging and production are separate.
 - the production database has **no** staging tasks, wallets, chats or photos
 - a staging key used against production is **refused**, and the reverse
 - an error made on purpose in staging appears only in staging's Sentry, and the same for production
+- a sign-up made on staging appears only in staging's PostHog, and the same for production
 - a test photo uploaded in staging lands only in staging's ImageKit
 - the production app shows no ribbon and asks for a real SMS code; the staging app shows the ribbon
 - the safety alarm reports "all clear" for production, and Claude has shown it firing on a practice run (on staging set to look like production, never by switching a test shortcut on in production)
@@ -3034,6 +3117,7 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 10 | **Google Play account type.** Today it is a personal account. Once your company or LLP exists (S.2), move TaskDrop to a Google Play **organization** account (it needs a free D-U-N-S number)? | Yes, if S.2 makes a company or LLP. The store then shows the company name, not you; your home address stays private; it matches the Razorpay KYC; and organization accounts do not need the 12-tester rule. If S.2 picks a sole proprietor, stay personal | "Decision 10: ___." |
 | 11 | **Business email for production accounts.** Make the production accounts (Step 5) with a business address such as `ops@taskdrop.in` instead of your Gmail? | **Decided by you, 2026-10-31.** Keep the Gmail. No business email, because it costs more. Done | Nothing to say |
 | 12 | **New-account limits** (task 2.11) | ₹5,000 per task and ₹5,000 of withdrawals per day, until an account is 30 days old and has 3 finished tasks. You can change them later in the admin | "Decision 12: use the recommended limits." |
+| 13 | **Who times the emails** (task 4.10). Let Loops run the sequences itself in its own builder, or let Inngest decide when each email goes and use Loops only to send? | **Decided by you, 2026-11-02.** Loops runs the sequences in its own builder; Inngest only passes events and contacts to it. This makes Loops the one exception to the "Inngest only" rule, for email sequences only. Done | Nothing to say |
 
 ---
 
@@ -3371,6 +3455,8 @@ Claude runs this before a feature is called done, and writes what it saw in the 
 | | Inngest paid plan, in its own organization (staging stays free) | check its billing page |
 | | Google Cloud and Firebase for production | pay as you use, with a budget alert |
 | | ImageKit, Sentry, Expo for production | free plans to start; pay only when a limit warns |
+| | PostHog (staging and production) | free plan (about 1 million events and 5,000 recordings a month); check the prices again when you sign up |
+| | Loops for production email (4.10), in its own account (staging has its own) | free plan to start; check its pricing page when contacts grow |
 | | Nightly database copy outside Supabase (5.9) | free at launch size (GitHub's free minutes and storage) |
 | From Step 6, optional | Supabase point-in-time recovery (go back to any minute) | a paid add-on; you note the price in 5.2 and decide |
 | | RazorpayX balance to pay workers | working money you hold |
@@ -3439,6 +3525,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-02 (4.10 wording approved):** You approved the design of the email sequences (13 emails in 5 sequences, the Profile tick-box and the question after Google sign-in) on the [design page](https://claude.ai/artifact/62YPmQz9FvqzUQgon67hfo). **Next:** your steps in 4.10 (make the staging Loops account and save its key), then "build the email sequences". **Still open:** the sign-off name (used "The taskdrop. team"), the footer's business address (waits for S.2), and the Privacy line and consent wording for the lawyer (S.3). Nothing is built.
 - **2026-11-02 (repeat keys, task 2.12):** You said "Yes, build them". **Built:** every write the app sends carries an `Idempotency-Key`; the `api` gateway does a write once per key and answers repeats with the saved reply (migration 139, `private.api_repeat_keys`, service-role functions `api_repeat_claim` and `api_repeat_save`, pruned by the claim itself, no new scheduled job). The app now retries a write after a blip with the same key, reuses the key for 10 minutes after a lost answer, and folds a double tap into one request. Migration and its test run on staging inside a rolled-back transaction first; the staging build applies it on merge.
 - **2026-11-02 (API gateway, task 2.12):** You asked for a design where nothing reaches the main server directly, with an API gateway and good SaaS habits, and shared a vibe-coding security checklist video. **Found:** the gateway already exists (`api`); one app screen (Promote prices) still read a table directly, and nothing stopped a new direct read from being added. **Built:** that read now goes through `api` (`promotionTiers`); a CI check fails if app code skips the gateway; `api` refuses requests over 256 KB, tags every call with a trace id and never lets an answer be cached; a lockfile check refuses packages from anywhere but the npm registry. The video's checklist is mapped to TaskDrop in 2.12. **Still open:** H3 closes in 3.9; idempotency keys on money writes are recommended next.
 - **2026-11-02 (H21 closed on staging):** You said "Yes, switch it on". Migration 138 was already on staging (another session merged PR 191 and the deploy applied it). **Done:** the "before user created" hook switched on (`hook_before_user_created`). **Proof:** `node scripts/security-round2.mjs signupguard` held 2 of 2: a direct sign-up on a phone address was refused (Supabase's log: "403: Create your account in the TaskDrop app.") and a brand-new phone sign-up still made a working account. No new unconfirmed account appeared. **Not tested:** a real first-time Google sign-up (the hook lets the Google provider through by design; worth one check on the phone). **Left as is:** the old September probe account (a Gmail address, unconfirmed, cannot sign in).
@@ -3446,6 +3533,8 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 - **2026-11-02 (2.8b built):** You said "Start 2.8b". **Done on staging:** IP forwarding on; token limit 300 and code-check limit 60 per 5 minutes; `password-auth` forwards the person's address with the secret key Supabase already gives server functions (no new key); a Supabase 429 is shown as "Too many tries" and never counted as a wrong password; a refused session renewal no longer signs people out; T6 probe `authlimits` added and passed, confirmed in the auth log. **Found:** H21 (direct email sign-up at Supabase), Low, waiting for your OK. **Not done:** production (5.9) and the phone app update.
 - **2026-11-02 (Supabase sign-in limits):** You asked to add Supabase's rate-limit guide to the security plan. Claude read the guide and checked it against the code. **Found:** username sign-in goes through `password-auth`, so Supabase counts every user's sign-in against one server address (150 per 5 minutes, shared), and the limits were never set on purpose. **Added:** hole H20; task 2.8b (IP forwarding with a secret key, the limits table, a kind "too many tries" message, a check of the server's own calls, a T6 probe); a 5.9 production line; the Step 2 table row; the sign-in rows in the architecture and reference tables. **Fixed:** the PostHog changelog entry had landed at the end of the changelog; it is back at the top. **Not changed:** nothing is built and no Supabase setting is touched yet.
 - **2026-11-02 (PostHog is a must, not future scope):** You said PostHog is required. **Changed:** PostHog moved out of F.7 into two real tasks: 3.3c (staging, with the testers: one tracking helper, consent, hidden text in recordings, EU cloud because PostHog has no India region, a signup → first task funnel) and 5.6b (a separate production project). F.7 now covers Mixpanel and the later PostHog extras (flags, A/B tests, surveys). Also added: PostHog in the all-tools table and the Play data-safety row (App activity). **Not changed:** the 3.3b numbers; nothing is built and no PostHog account is made. PostHog is also in both accounts maps, the 5.11 proof and the cost table. **Open:** the lawyer (S.3) confirms the EU storage and the privacy-policy line.
+- **2026-11-02 (decision 13: Loops runs the email sequences):** You chose to let Loops run the sequences itself. **Changed:** task 4.10 now has Loops own the waits, the stop checks, the templates and the unsubscribe page, and Inngest only pass events and contacts to it (and delete the contact when an account is deleted). Claude builds the five loops in the Loops editor in your Chrome with your OK, because Loops cannot create them from code; production's loops are rebuilt by hand in its own account. The admin switch now stops new people entering a sequence. Decision 13 is marked decided, and the "Inngest only" rule has this one exception, for email sequences. **Not changed:** the five sequences, the send rules, the consent box and the Gate 4 box. Nothing is built.
+- **2026-11-02 (email sequence system, task 4.10):** You asked for the email sequence system plan (and wrote "loops"). **Added:** task 4.10 in Step 4 (five sequences: poster welcome, worker welcome, no offers yet, after a finished task, come back; the rules that stop each one; consent by an unticked box; one-click unsubscribe; a send cap; staging sends only to an allow-list), a Gate 4 box, a cost row for production Loops, and decision 13. **Reading of "loops":** Loops (loops.so) is the sender, Inngest does the timing (the agent guide allows no second automation tool); decision 13 lets you choose the other way. **Not built:** nothing in the app changed and no account was made. **Not yet in Step 5:** the production Loops account and the three domain records are only mentioned in 4.10, not yet written as a Step 5 task.
 - **2026-11-02 (feedback board):** You asked for a feedback board like the one in the picture (ideas with vote counts, comments and a status such as Under review, Planned, In progress, Done), so customers can tell you what to improve. **Built:** a public **Ideas & feedback** board in the app (menu and Help & support): anyone signed in can suggest an idea, vote (the idea starts with its author's vote), comment, search, and filter by status; while typing a title the app shows ideas that already say the same. Phone numbers and emails are refused on the board (they belong in Help & support); five ideas and 30 comments a day; only a first name shows. In the admin panel a new **Feedback board** page lets staff set each idea's status, reply as the TaskDrop team, and hide an idea or a comment; people who suggested or voted are told when an idea becomes Planned, In progress or Done. Deleting an account removes its ideas, comments and votes. The private "Send feedback" box stays. Migration 136 (tested in a rolled-back run on the staging database). **Not done:** the migration is not applied to the staging database yet (the board shows "couldn't load" until it is); not tried on a phone; no app update published to testers; nothing in production.
 - **2026-11-02 (fewer requests, 3.5, and the sign-in check, P2-48):** You chose to merge both waiting branches after full checks. **Done:** the 13-second Explore wait is explained (two requests in a row on a busy test server) and fixed (Find work asks once; the server checks the sign-in itself and still refuses suspended and deleted people; a read with no answer in 15 s is asked again). New numbers: 42 requests and 80 operations for the walk. Task 3.5 is marked done. **Not done:** the Android phone check, and P2-48's timing on a slow connection; no app update was published to testers.
 - **2026-11-02 (rival apps, task 1.9):** You installed Qwikyo and Heplo and asked what TaskDrop should take from them. Claude used both apps and the staging TaskDrop app on your phone over USB; nothing was posted or saved. A first version (13 changes, including Hindi and Telugu, 3-stage posting and AI wording) was replaced the same day after you said: English only, keep the 8 steps, no AI wording, follow the redesigned-2.0 design and only add on top of it. **Added:** task 1.9 with 9 items (questions on a task, speak your task, two promises on Review, an activity line on Home, asking for alerts after the first post, and four bugs found on your phone), drawn on today’s screens in the [design canvas](https://claude.ai/artifact/Go1AwUdAZrjRwHAtjT51yB). **Corrected:** “your answers do not reach the post” was Claude’s mistake (a missed tap). **Not built:** nothing in the app changed; it waits for your approval. Gate 1 stays ticked.
