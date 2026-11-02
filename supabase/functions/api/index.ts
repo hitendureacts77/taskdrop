@@ -4,9 +4,10 @@ import { APP_CHECK_HEADER, AppCheckLog, checkAppCheck } from "../_shared/appChec
 import { ControlsCache,PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient } from "../_shared/controls.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
 import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
-import { captureSecurityEvent, guarded, background, captureServerError, logServer } from "../_shared/monitoring.ts";
+import { type LogAttributes, captureSecurityEvent, guarded, background, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
 import { type Standing, StandingCache, callerFromClaims, standingOf } from "./core.ts";
+import { MAX_BODY_BYTES, REQUEST_ID_HEADER, readBody, requestIdFrom, withGatewayHeaders } from "./http.ts";
 import { type Db, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp } from "./ops.ts";
 
 /**
@@ -31,11 +32,15 @@ import { type Db, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost
  * RATE_LIMITS). Over it, the answer is 429 and nothing is returned. A write
  * never starts; a read may already be running beside the counter (it changes
  * nothing) and its answer is dropped.
+ *
+ * Every answer carries the call's id (x-request-id, sent by the app or made
+ * here) and is never cached; a body over MAX_BODY_BYTES is refused with 413
+ * before it is read (see ./http.ts).
  */
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-region, " + PLATFORM_HEADER + ", " + VERSION_HEADER + ", " + APP_CHECK_HEADER,
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-region, " + PLATFORM_HEADER + ", " + VERSION_HEADER + ", " + APP_CHECK_HEADER + ", " + REQUEST_ID_HEADER,
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -74,7 +79,15 @@ async function health(url: string): Promise<Response> {
 
 Deno.serve(guarded("api", async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  const requestId = requestIdFrom(req.headers);
+  return withGatewayHeaders(await handle(req, requestId), requestId);
+}));
+
+async function handle(req: Request, requestId: string): Promise<Response> {
   if (req.method !== "POST") return refuse("Unknown request", "BAD_METHOD", 405);
+  /** A log line for this call, with its id, so it can be matched to what the person saw. */
+  const log = (level: "info" | "warn" | "error", message: string, extra: LogAttributes = {}) =>
+    logServer(level, "api", message, { ...extra, request_id: requestId });
 
   const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
   if (!jwt) return refuse("Sign in first", "UNAUTHENTICATED", 401);
@@ -82,7 +95,7 @@ Deno.serve(guarded("api", async (req: Request) => {
   const url = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   if (!url || !anonKey) {
-    console.error("api: SUPABASE_URL / SUPABASE_ANON_KEY missing");
+    console.error("api: SUPABASE_URL / SUPABASE_ANON_KEY missing", requestId);
     return refuse("Something went wrong. Please try again.", "INTERNAL", 500);
   }
 
@@ -93,12 +106,23 @@ Deno.serve(guarded("api", async (req: Request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+  // Read once, and no further than MAX_BODY_BYTES: nothing the app sends comes near it.
+  const raw = await readBody(req, MAX_BODY_BYTES);
+  if (!raw.ok) {
+    background(log("warn", "request too large"));
+    return refuse("That is too much to send at once.", "TOO_LARGE", 413);
+  }
+  let parsed: unknown = undefined;
+  try {
+    parsed = JSON.parse(raw.text);
+  } catch {
+    /* answered below, after the sign-in check, as before */
+  }
   // Uptime check: { "op": "health" } with the project's anon key as the bearer
   // token (the gateway still wants a valid key). Answers before any sign-in and
   // changes nothing; it only says whether the database answers.
-  if (req.headers.get("content-type")?.includes("json")) {
-    const peek = (await req.clone().json().catch(() => null)) as { op?: unknown } | null;
-    if (peek?.op === "health") return await health(url);
+  if (req.headers.get("content-type")?.includes("json") && (parsed as { op?: unknown } | null)?.op === "health") {
+    return await health(url);
   }
 
   // Checked here against the project's cached public keys, not by asking the auth service on every call
@@ -111,12 +135,8 @@ Deno.serve(guarded("api", async (req: Request) => {
     return refuse("Your session has expired. Please sign in again.", "UNAUTHENTICATED", 401);
   }
 
-  let body: { op?: unknown; args?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return refuse("Unknown request", "BAD_JSON", 400);
-  }
+  if (parsed === undefined) return refuse("Unknown request", "BAD_JSON", 400);
+  const body = parsed as { op?: unknown; args?: unknown };
   // `null`, a list or a bare number is valid JSON but not a request (found 2026-10-24: `null` answered 500).
   if (!body || typeof body !== "object" || Array.isArray(body)) return refuse("Unknown request", "BAD_JSON", 400);
 
@@ -141,16 +161,16 @@ Deno.serve(guarded("api", async (req: Request) => {
       );
       const failed = hits.find((h) => h.error);
       if (failed?.error) {
-        background(logServer("warn", "api", "rate limiter unavailable", { error: failed.error.message }));
+        background(log("warn", "rate limiter unavailable", { error: failed.error.message }));
         return null;
       }
       if (hits.some((h) => h.data === false)) {
         limitedLately.mark(userId);
-        background(logServer("warn", "api", "rate limited", { op: String(body.op), bucket, user_id: userId }));
+        background(log("warn", "rate limited", { op: String(body.op), bucket, user_id: userId }));
         return refuse("You are going too fast. Please wait a moment and try again.", "RATE_LIMITED", 429);
       }
     } catch (e) {
-      background(logServer("warn", "api", "rate limiter unavailable", { error: e instanceof Error ? e.message : String(e) }));
+      background(log("warn", "rate limiter unavailable", { error: e instanceof Error ? e.message : String(e) }));
     }
     return null;
   };
@@ -174,26 +194,26 @@ Deno.serve(guarded("api", async (req: Request) => {
   background((async () => {
     const result = await checkAppCheck(req.headers.get(APP_CHECK_HEADER), await secret("FIREBASE_PROJECT_NUMBER"));
     if (appCheckLog.shouldLog(result, client.platform)) {
-      await logServer(result === "invalid" ? "warn" : "info", "api", "app check", { result, platform: client.platform, op: String(body.op) });
+      await log(result === "invalid" ? "warn" : "info", "app check", { result, platform: client.platform, op: String(body.op) });
       if (result === "invalid") await captureSecurityEvent("app_check_failed", "api");
     }
   })().catch(() => {}));
   const controls = await controlsCache.get(client, async () => {
     const { data, error } = await db.rpc("get_app_controls", { p_platform: client.platform, p_version: client.appVersion });
     if (error) {
-      background(logServer("warn", "api", "app controls unavailable", { error: error.message }));
+      background(log("warn", "app controls unavailable", { error: error.message }));
       return null;
     }
     return parseControls(data);
   });
   const accountStanding = await standing;
   if (accountStanding === "suspended" || accountStanding === "deleted") {
-    background(logServer("warn", "api", "refused: " + accountStanding + " account", { op: String(body.op), user_id: userId }));
+    background(log("warn", "refused: " + accountStanding + " account", { op: String(body.op), user_id: userId }));
     return refuse("Your session has expired. Please sign in again.", "UNAUTHENTICATED", 401);
   }
   // If standing could not be read the request goes ahead, like an unreachable limiter: an outage of the check
   // must not become an outage of the app (the operation itself still runs under the caller's row level security).
-  if (accountStanding === null) background(logServer("warn", "api", "account standing unavailable", { user_id: userId }));
+  if (accountStanding === null) background(log("warn", "account standing unavailable", { user_id: userId }));
   if (!overlap) {
     const refused = await rate;
     if (refused) return refused;
@@ -223,7 +243,7 @@ Deno.serve(guarded("api", async (req: Request) => {
         body: JSON.stringify(payload),
       });
     } catch (e) {
-      background(logServer("error", "api", "function hand-off failed", { target: name, error: e instanceof Error ? e.message : String(e) }));
+      background(log("error", "function hand-off failed", { target: name, error: e instanceof Error ? e.message : String(e) }));
     }
   };
 
@@ -234,7 +254,7 @@ Deno.serve(guarded("api", async (req: Request) => {
     if (!admin || mine.length === 0) return;
     for (let i = 0; i < mine.length; i += 100) {
       const { error } = await admin.storage.from("task-media").remove(mine.slice(i, i + 100));
-      if (error) background(logServer("error", "api", "could not remove files", { error: error.message, user_id: userId }));
+      if (error) background(log("error", "could not remove files", { error: error.message, user_id: userId }));
     }
   };
 
@@ -254,11 +274,11 @@ Deno.serve(guarded("api", async (req: Request) => {
   const ctx = { db: db as unknown as Db, userId, callFunction, removeOwnFiles, client, controls, phoneVerified, imagekit };
   const onUnexpected = (e: unknown) => {
     // Both finish in the background after the response is sent.
-    background(logServer("error", "api", "op failed", { op: String(body.op), user_id: userId, error: e instanceof Error ? e.message : String(e) }));
-    background(captureServerError(e, { op: String(body.op), fn: "api" }));
+    background(log("error", "op failed", { op: String(body.op), user_id: userId, error: e instanceof Error ? e.message : String(e) }));
+    background(captureServerError(e, { op: String(body.op), fn: "api", request_id: requestId }));
   };
   const running = isBatch ? runBatch(body.args, ctx, onUnexpected) : runOp(body.op, body.args, ctx, onUnexpected);
   if (!overlap) return json(await running);
   const [refused, result] = await Promise.all([rate, running]);
   return refused ?? json(result);
-}));
+}

@@ -46,7 +46,8 @@ export function osVersion(): string | null {
 const INSTALL_KEY = 'td:install-id';
 let installIdMemo: string | null = null;
 
-function randomId(): string {
+/** A random id: a UUID where the platform has one. Also the trace id the api gets with each call (lib/gateway.ts). */
+export function randomId(): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
   if (c?.randomUUID) return c.randomUUID();
   const piece = () => Math.random().toString(36).slice(2, 10).padEnd(8, '0');
