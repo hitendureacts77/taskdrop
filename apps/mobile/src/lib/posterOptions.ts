@@ -2,9 +2,13 @@
  * Which options to suggest while posting (owner, 2026-11-01).
  *
  * Every option is something the poster switches on themselves; these rules
- * only pick the few worth showing first, each with the reason in the poster's
- * own words. Nothing here turns anything on. Pure functions, so they are
- * tested in Node (posterOptions.test.ts).
+ * only pick the one worth showing first, with the reason in the poster's own
+ * words. Nothing here turns anything on. Pure functions, so they are tested in
+ * Node (posterOptions.test.ts).
+ *
+ * Owner, 2026-11-02: one suggestion only, from the post's details; Repeat,
+ * Offer-first and Before-and-after photos are no longer offered while posting.
+ * The keys stay so "Book again" and older tasks keep working.
  */
 
 export type OptionKey = 'flash' | 'crew' | 'regular' | 'repeat' | 'photos' | 'liveAnswer';
@@ -17,38 +21,24 @@ export type SuggestInput = {
   /** "Now" on the When step. */
   whenNow: boolean;
   remote: boolean;
-  /** How many tasks in this category the poster posted before. */
-  postedBefore: number;
-  /** Someone the poster hired for this kind of job before. */
-  regular: { id: string; name: string } | null;
 };
 
-/** At most this many, so the step never feels like a form. */
-export const MAX_SUGGESTIONS = 3;
+/** One, so the step never feels like a form. */
+export const MAX_SUGGESTIONS = 1;
 
 const CREW = /\b(shift(?:ing)?|mov(?:e|ing)|relocat\w*|packers?|movers?|event|party|wedding|function|deep[- ]?clean\w*|whole (?:house|flat|home)|[1-5]\s?bhk)\b/i;
-const PHOTOS = /\b(clean\w*|paint\w*|repair\w*|fix\w*|polish\w*|wash\w*|til(?:e|es|ing)|plumb\w*|garden\w*)\b/i;
-const OFTEN = /\b(water cans?|groceries|milk|laundry|ironing|cook(?:ing)?|weekly|every (?:day|week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b/i;
 
 const quoted = (m: RegExpMatchArray | null) => (m ? `You said “${m[0].trim()}”` : '');
 
-/** The options worth suggesting for this task, most useful first. */
+/**
+ * The option worth suggesting for this task, if any. What the poster wrote
+ * comes first (a crew job), then the When step ("Now" → Flash Drop).
+ */
 export function suggestOptions(i: SuggestInput): Suggestion[] {
   const out: Suggestion[] = [];
-  if (i.whenNow && !i.remote) out.push({ key: 'flash', reason: 'You picked “Now” on the When step' });
   const crew = i.remote ? null : i.text.match(CREW);
   if (crew) out.push({ key: 'crew', reason: quoted(crew) });
-  if (i.regular) out.push({ key: 'regular', reason: `You hired ${i.regular.name} for this before` });
-  if (i.postedBefore > 0) {
-    out.push({
-      key: 'repeat',
-      reason: `You posted this ${i.postedBefore === 1 ? 'once' : `${i.postedBefore} times`} before`,
-    });
-  } else if (OFTEN.test(i.text)) {
-    out.push({ key: 'repeat', reason: 'This sounds like something you need often' });
-  }
-  const photos = i.remote ? null : i.text.match(PHOTOS);
-  if (photos) out.push({ key: 'photos', reason: quoted(photos) });
+  if (i.whenNow && !i.remote) out.push({ key: 'flash', reason: 'You picked “Now” on the When step' });
   return out.slice(0, MAX_SUGGESTIONS);
 }
 

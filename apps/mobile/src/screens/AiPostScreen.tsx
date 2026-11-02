@@ -23,7 +23,7 @@ import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { useMode } from '../providers/ModeProvider';
-import { createTask, getProfile, getWallet, listMyTasks, myRegulars, type Regular, type Task } from '../data/api';
+import { createTask, getProfile, getWallet, myRegulars, type Regular, type Task } from '../data/api';
 import { NO_OPTIONS, PosterOptionsStep, optionsSummary, type PosterOptions } from '../components/PosterOptionsStep';
 import { crewShareMinor, looksLikePlaceQuestion, suggestOptions } from '../lib/posterOptions';
 import { AddFundsSheet } from '../components/AddFundsSheet';
@@ -206,16 +206,12 @@ export function AiPostScreen() {
       ? { ...NO_OPTIONS, preferWorker: { id: preferParam.id, name: preferParam.name } }
       : NO_OPTIONS,
   );
-  // What the suggestions are made from: people hired before, and earlier posts.
+  // People hired before, to pick from when "Book again" chose one.
   const [regulars, setRegulars] = useState<Regular[]>([]);
-  const [pastCategories, setPastCategories] = useState<(string | null)[]>([]);
   useEffect(() => {
     if (!userId) return;
     let alive = true;
     void myRegulars().then((r) => alive && setRegulars(r));
-    listMyTasks(userId)
-      .then((list) => alive && setPastCategories(list.map((x) => x.category)))
-      .catch(() => {});
     return () => {
       alive = false;
     };
@@ -355,16 +351,10 @@ export function AiPostScreen() {
     () => [...regulars].sort((x, y) => Number(y.categories.includes(category)) - Number(x.categories.includes(category))),
     [regulars, category],
   );
-  const suggestions = useMemo(() => {
-    const match = orderedRegulars[0];
-    return suggestOptions({
-      text: `${prompt} ${title}`,
-      whenNow: whenKey === 'now',
-      remote,
-      postedBefore: pastCategories.filter((c) => c && c === category && c !== 'Other').length,
-      regular: match && match.categories.includes(category) ? { id: match.profile.id, name: match.profile.display_name } : null,
-    });
-  }, [orderedRegulars, prompt, title, whenKey, remote, pastCategories, category]);
+  const suggestions = useMemo(
+    () => suggestOptions({ text: `${prompt} ${title}`, whenNow: whenKey === 'now', remote }),
+    [prompt, title, whenKey, remote],
+  );
 
   /**
    * Flash Drop rides on Auto-hire, so switching it on switches that on too,
