@@ -249,6 +249,31 @@ await t("search text cannot break out of the filter grammar", async () => {
   assert.ok(ors[1].startsWith("title.ilike.%") && !/[(),]/.test(ors[1].replace(/^title\.ilike\.%|,description\.ilike\.%|%$/g, "").replace(/%,description\.ilike\.%/, "")), ors[1]);
 });
 
+await t("searchTasksWithPosters answers what searchTasks then attachPosters would, in one call", async () => {
+  const tasks = [
+    { id: TASK, poster_id: OTHER, status: "OPEN", loc_lat: null, loc_lng: null },
+    { id: TASK2, poster_id: OTHER, status: "OPEN", loc_lat: null, loc_lng: null },
+  ];
+  const f = fake((c) => (c.table === "profiles" ? { data: [{ id: OTHER, display_name: "Ravi" }], error: null } : { data: tasks, error: null }));
+  const r = await runOp("searchTasksWithPosters", { q: "tap", limit: 60, kind: "request" }, ctx(f));
+  assert.ok(r.ok);
+  const out = r.data as Array<{ id: string; poster: { id: string } | null }>;
+  assert.deepEqual(out.map((x) => [x.id, x.poster?.id]), [[TASK, OTHER], [TASK2, OTHER]]);
+  // Same filters as searchTasks (never the caller's own posts), and one profiles read for both tasks.
+  assert.deepEqual(steps(f.calls[0], "neq")[0], ["poster_id", UID]);
+  assert.equal(f.calls.filter((c) => c.table === "profiles").length, 1);
+  assert.equal(rateBucket("searchTasksWithPosters"), "read");
+  // Bad arguments are refused the same way, before the database is asked.
+  const g = fake();
+  const bad = await runOp("searchTasksWithPosters", { near: { lat: 999, lng: 0, radiusKm: 1 } }, ctx(g));
+  assert.ok(!bad.ok && bad.error.code === "BAD_ARGS");
+  assert.equal(g.calls.length, 0);
+  // Nothing found: no profiles read.
+  const h = fake(() => ({ data: [], error: null }));
+  assert.deepEqual((await runOp("searchTasksWithPosters", {}, ctx(h))).ok, true);
+  assert.equal(h.calls.filter((c) => c.table === "profiles").length, 0);
+});
+
 // ------------------------------------------------------- safe error text --
 
 await t("a message a SQL function wrote on purpose passes through, with its detail", async () => {
@@ -879,7 +904,7 @@ await t("api/index.ts refuses a suspended or deleted caller with the sign-in-aga
 
 await t("api/index.ts checks the token with getClaims and asks the auth service only while the phone switch is on", () => {
   const src = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
-  assert.match(src, /callerFromClaims\(await db\.auth\.getClaims\(jwt\)\)/);
+  assert.match(src, /callerFromClaims\(await db\.auth\.getClaims\(jwt\)\.catch\(\(\) => null\)\)/);
   assert.equal((src.match(/auth\.getUser\(/g) ?? []).length, 1, "one getUser, and only for the phone check");
   assert.match(src, /if \(controls\?\.require_phone_verified\) \{\s*const \{ data: userData, error: userErr \} = await db\.auth\.getUser\(jwt\)/);
 });

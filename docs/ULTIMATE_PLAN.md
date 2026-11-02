@@ -1370,7 +1370,7 @@ Tester problems:
 </details>
 
 <details id="t3-5" data-short="Fewer requests">
-<summary>[CLAUDE] <b>3.5</b> Fewer server requests (same design) <small>· your time: 10 minutes · decision 5 answered: yes</small></summary>
+<summary>[CLAUDE] <b>3.5</b> Fewer server requests (same design) <small>· Done 2 Nov (Android phone not seen) · your time: 10 minutes · decision 5 answered: yes</small></summary>
 
 **What it is:** a trial already exists. The same walk through the app went from **56 requests to 37** (34% fewer) and from **171 operations to 73** (57% fewer). No screen looks different. The one trade-off: when you come back to a screen, something another person changed can take up to 30 seconds longer to appear. Your own actions still show at once, and pull to refresh still works.
 
@@ -1385,6 +1385,8 @@ start API calls
 4. SAY "merge it" when Claude reports it is safe.
 
 **Done when:** merged, and the new numbers are recorded.
+
+**Done 2 Nov 2026.** The trial reached `redesigned-2.0` on 1 Nov (PR 174). The 13-second wait is explained: Find work waited for two requests one after the other (the search, then the posters on the cards), both on newly started server copies while the Home's own requests were still running. Each spent about a second on the sign-in check and 1 to 2 seconds on queries that normally take a fifth of that (7.3 s + 5.8 s). Nothing was lost, and the 30-second rule played no part. **Fixed:** Find work now asks once (posts and posters together); the server checks the sign-in itself instead of asking the sign-in service on every call (P2-48), and still refuses suspended and deleted people on every call; a read with no answer after 15 seconds is asked again, so a screen cannot stay on "Loading..." for good. **New numbers** (today's app, which has more screens than on 29 Oct): **42 requests and 80 operations** for the same walk (44 and 82 until the server update that comes with this merge is live). Find work showed its list 1.8 s after the tap. Checked on the website at phone size and at desktop size. **Not checked:** the Android phone. Details: `docs/API_CALLS.md` section 7.
 </details>
 
 <details id="t3-6" data-short="Quality tests round 3">
@@ -3113,7 +3115,7 @@ Claude runs this before a feature is called done, and writes what it saw in the 
 <details id="c-requests">
 <summary>[CARD] Fewer server requests: the details (from API_CALLS.md)</summary>
 
-**The trial** (local branch `perf/fewer-api-calls`, not merged): the same walk through the app went from **56 requests to 37** (34% fewer) and from **171 operations to 73** (57% fewer), with no change to how anything looks. It becomes a pull request in task 3.5, after decision 5.
+**The trial** (merged 1 Nov, PR 174): the same walk through the app went from **56 requests to 37** (34% fewer) and from **171 operations to 73** (57% fewer), with no change to how anything looks. On 2 Nov the larger app of today measured 42 requests and 80 operations for the walk (task 3.5).
 
 | # | Waste found | Fix | Visible change |
 |---|---|---|---|
@@ -3123,13 +3125,13 @@ Claude runs this before a feature is called done, and writes what it saw in the 
 | 4 | Worker Home started some lists late and looked up posters three times | Start earlier; one poster lookup | None |
 | 5 | Every return to a screen re-read everything | Reuse what was read less than 30 seconds ago, unless something changed | Other people's changes can take up to 30 s longer to show (decision 5) |
 
-**Before merging:** explain why Explore once waited 13 seconds in the trial, and check Android and the desktop website.
+**The 13-second Explore wait (explained 2 Nov):** two requests in a row on a busy test server, each paying its own sign-in check. Find work now asks once, and the sign-in check no longer calls the sign-in service. Android not seen yet.
 
 **Later, server-side savings** (new server actions added beside the old ones; see F.9)
 
 | # | Change | Saves |
 |---|---|---|
-| S1 | Lists come with their posters attached | 1 request per list screen |
+| S1 | Lists come with their posters attached (Find work done 2 Nov) | 1 request per list screen |
 | S2 | Notifications come with their side | 1 per visit |
 | S3 | My Tasks comes with offer counts | 1 per load |
 | S4 | One wallet summary | 2 per Wallet visit |
@@ -3225,6 +3227,8 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 ---
 
 ## Changelog
+
+- **2026-11-02 (fewer requests, 3.5, and the sign-in check, P2-48):** You chose to merge both waiting branches after full checks. **Done:** the 13-second Explore wait is explained (two requests in a row on a busy test server) and fixed (Find work asks once; the server checks the sign-in itself and still refuses suspended and deleted people; a read with no answer in 15 s is asked again). New numbers: 42 requests and 80 operations for the walk. Task 3.5 is marked done. **Not done:** the Android phone check, and P2-48's timing on a slow connection; no app update was published to testers.
 
 - **2026-11-02 (product analytics: Mixpanel and PostHog):** You asked to add Mixpanel for product analytics, then to include both Mixpanel and PostHog. **Changed:** future-scope item F.7 now names both tools, each with its own job (Mixpanel for funnels and retention, with data stored in India; PostHog for screen recordings, feature flags, A/B tests and surveys), one tracking helper that feeds both, and the same safe setup; the line in task 3.3b names both. **Not changed:** F.7 stays after launch and is not counted in your progress bar; nothing is built and no account is made.
 - **2026-11-02 (poster options built):** You approved the new-features design (design canvas, 1 Nov) with two changes: every feature is an option the poster switches on while posting, and the app suggests the right ones for each task. You dropped Safety Shield, Earn Route and Live Track. **Built:** a new **Options** step in posting (between "Where, and how to hire" and Review) with up to 3 suggestions and the reason for each, plus "More options"; **Flash Drop** (Auto-hire within 30 minutes, helpers nearby told at once); **Live answer** (suggested on the Ask step for a question about a place; answered with a photo taken in the app); **Crew** (2 to 10 helpers, the budget split evenly, one task per helper and a shared crew chat); **Repeat** (weekly or monthly; the next one is posted when the job is done, and can be switched off on the task page); **Regulars** (offer a task first to someone you hired before, who gets 10 minutes; a "My regulars" page with Book again); **Before-and-after photos** (the helper adds both with the proof; with your OK they show on the helper's profile); and **Streaks and badges** for helpers (weekly goal, on-time streak, 8 badges). Database migration 134 applied to the staging database. **Not done:** not tried on the Android phone and no app update published to testers; nothing in production.

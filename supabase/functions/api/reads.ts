@@ -150,6 +150,18 @@ export const READ_OPS: Record<string, Op> = {
       .map((t) => ({ ...t, poster: people.get(t.poster_id) ?? null }));
   },
 
+  /**
+   * searchTasks with each task's poster attached: what attachPosters(searchTasks(...)) answers, in one request
+   * instead of two back to back. Same filters and arguments as searchTasks. Explore waited 13 s on that pair on
+   * a busy moment (2026-10-29): each request paid its own sign-in check and queue on the server.
+   */
+  searchTasksWithPosters: async (ctx, a) => {
+    const found = (await READ_OPS.searchTasks(ctx, a)) as Task[];
+    if (found.length === 0) return [];
+    const people = await profilesById(ctx, found.map((t) => t.poster_id));
+    return found.map((t) => ({ ...t, poster: people.get(t.poster_id) ?? null }));
+  },
+
   getTask: async (ctx, a) => take(await ctx.db.from("tasks").select("*").eq("id", uuid(a, "taskId")).maybeSingle()),
 
   /** The task, the assignment holding its escrow, and both people, in one round trip. */

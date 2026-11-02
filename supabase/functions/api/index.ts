@@ -104,7 +104,8 @@ Deno.serve(guarded("api", async (req: Request) => {
   // Checked here against the project's cached public keys, not by asking the auth service on every call
   // (P2-48: that round trip was a large part of the function's own time). The gateway has already
   // verified the token (verify_jwt); this reads who it belongs to and that it has not expired.
-  const userId = callerFromClaims(await db.auth.getClaims(jwt));
+  // A token that is not even shaped like one makes getClaims throw rather than answer an error: nobody, too.
+  const userId = callerFromClaims(await db.auth.getClaims(jwt).catch(() => null));
   if (!userId) {
     background(captureSecurityEvent("refused_login", "api"));
     return refuse("Your session has expired. Please sign in again.", "UNAUTHENTICATED", 401);

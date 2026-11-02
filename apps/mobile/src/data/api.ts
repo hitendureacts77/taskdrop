@@ -107,6 +107,19 @@ export async function attachPosters(tasks: Task[]): Promise<TaskWithPoster[]> {
   return act<TaskWithPoster[]>('attachPosters', { taskIds: tasks.map((t) => t.id) });
 }
 
+/**
+ * searchTasks with each task's poster attached, in one request instead of two back to back (Explore once
+ * waited 13 s on the pair). A server that does not know the operation yet gets the two old calls.
+ */
+export async function searchTasksWithPosters(input: TaskSearch = {}): Promise<TaskWithPoster[]> {
+  try {
+    return await act<TaskWithPoster[]>('searchTasksWithPosters', { ...input });
+  } catch (e) {
+    if (!(e instanceof ApiError) || e.code !== 'UNKNOWN_OP') throw e;
+    return attachPosters(await searchTasks(input));
+  }
+}
+
 export const getTask = (taskId: string) => act<Task | null>('getTask', { taskId });
 
 export type TaskDetail = {

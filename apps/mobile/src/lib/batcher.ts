@@ -17,7 +17,7 @@
  */
 export const BATCHABLE_OPS: ReadonlySet<string> = new Set([
   'listOpenTasks', 'listMyTasks', 'listMyBids', 'listMyAssignments', 'listBidsForTask', 'countBidsByTask',
-  'searchTasks', 'attachPosters', 'getTask', 'getTaskDetail', 'getPosterStats', 'getMyBid', 'canQuoteOn',
+  'searchTasks', 'searchTasksWithPosters', 'attachPosters', 'getTask', 'getTaskDetail', 'getPosterStats', 'getMyBid', 'canQuoteOn',
   'promotableTasks', 'recommendedTasks', 'remoteTasks', 'tasksNear', 'workersNear', 'urgentTasks', 'listSavedTaskIds',
   'listSavedTasks', 'getProfile', 'isAdmin', 'listReviewsAbout', 'publicProfileStats', 'ageStatus', 'getWallet',
   'getEscrowHeld', 'listWalletActivity', 'listPayouts', 'listPayoutDestinations', 'listPromotions',

@@ -141,12 +141,6 @@ async function pressCardOf(page, label) {
   if (!box) throw new Error(`no ${label} on screen`);
   await page.mouse.click(box.x - 120, box.y + box.height / 2);
 }
-/** The first card under the "N results" line of a list. */
-async function pressFirstResult(page) {
-  const box = await visible(page.getByText(/\d+ results?/)).boundingBox();
-  if (!box) throw new Error("no results line on screen");
-  await page.mouse.click(box.x + 150, box.y + box.height + 60);
-}
 const back = (page) => visible(page.getByLabel(/^(Back|Close)$/)).click();
 
 function summarise({ name, started, requests }) {
@@ -172,13 +166,16 @@ const FLOWS = {
   // Asha hires.
   asha: [
     ["cold", (p) => p.goto("/")],
+    // Home's field opens the post screen (since the 1 Nov poster options); the text is typed there.
     ["composer", async (p) => {
+      await press(p, "What do you need done? Opens the new task screen");
       await visible(p.getByLabel("What do you need done?", { exact: true })).fill("Clean my kitchen this weekend");
-      await press(p, "Continue");
     }],
     ["composerBack", async (p) => {
       await back(p);
-      await tap(p, "Discard");
+      // Leaving with text may ask whether to discard it.
+      const discard = visible(p.getByText("Discard", { exact: true }));
+      if (await discard.isVisible({ timeout: 1500 }).catch(() => false)) await discard.click();
     }],
     ["explore", (p) => tap(p, "Explore")],
     ["myTasks", (p) => tap(p, "My Tasks")],
@@ -202,7 +199,8 @@ const FLOWS = {
   ravi: [
     ["cold", (p) => p.goto("/")],
     ["findWork", (p) => tap(p, "Explore")],
-    ["openTask", pressFirstResult],
+    // The first job card: Find work no longer prints an "N results" line, so the card is found by its Save button.
+    ["openTask", (p) => pressCardOf(p, "Save for later")],
     ["backToFindWork", back],
     ["myWork", (p) => tap(p, "My Work")],
     ["profile", (p) => tap(p, "Profile")],
