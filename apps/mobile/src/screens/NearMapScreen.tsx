@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, Image, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { View, Text as RNText, Pressable, ScrollView, Image, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -48,7 +48,7 @@ export function NearMapScreen() {
   const [now, setNow] = useState(() => Date.now());
   const [picked, setPicked] = useState<string | null>(null);
   const [focus, setFocus] = useState<string | null>(null);
-  const rail = useRef<ScrollView>(null);
+  const rail = useRef<ScrollViewInstance>(null);
 
   useEffect(() => {
     if (!centre) return;

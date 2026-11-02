@@ -9,6 +9,7 @@ import {
   Linking,
   KeyboardAvoidingView,
   Platform,
+  type ViewInstance,
 } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
@@ -175,7 +176,7 @@ export function AddFundsSheet({
   };
 
   // Lifted by whatever the keyboard still covers (plan task 1.8).
-  const panelRef = useRef<View>(null);
+  const panelRef = useRef<ViewInstance>(null);
   const panelLift = useKeyboardClearance(panelRef);
 
   return (

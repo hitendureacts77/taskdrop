@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, TextInput, Animated, Platform } from 'react-native';
+import { View, Text as RNText, Pressable, TextInput, Animated, Platform, type ScrollViewInstance } from 'react-native';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import { AmountField } from '../components/AmountField';
@@ -477,7 +477,7 @@ export function AiPostScreen() {
   };
 
   // Each step opens at its top.
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   useEffect(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [phase]);

@@ -12,8 +12,8 @@ Tagline: "Ask for anything. Someone gets it done for you." Tasks are **local AND
 
 ## Stack
 
-- **App:** one React Native codebase, `apps/mobile`. Expo SDK 57, React Native 0.86, React 19. Runs on Android, iOS and web (`react-native-web`). Web is deployed on Vercel. EAS is for app builds only.
-- **Expo has changed.** Before writing Expo code, read https://docs.expo.dev/versions/v57.0.0/ (see `apps/mobile/AGENTS.md`).
+- **App:** one React Native codebase, `apps/mobile`. Expo SDK 58, React Native 0.88, React 19. Runs on Android, iOS and web (`react-native-web`). Web is deployed on Vercel. EAS is for app builds only.
+- **Expo has changed.** Before writing Expo code, read https://docs.expo.dev/versions/v58.0.0/ (see `apps/mobile/AGENTS.md`).
 - **Monorepo:** npm workspaces + Turborepo. `packages/rules` (money constants), `packages/schemas` (Zod, shared by app and Edge Functions), `packages/supabase` (client factory), `packages/db-types` (generated).
 - **Backend:** Supabase (Postgres, RLS, Edge Functions in Deno) in `supabase/`. Project ref `wjxvingpfbfvkfqhrguj`, region ap-south-1.
 - **Payments:** Razorpay escrow, RazorpayX payouts. **Background jobs:** Inngest only. Postgres owns the rules and money and writes events to an outbox; Inngest runs schedules, retries and outside calls (`supabase/functions/inngest/`, `docs/INNGEST.md`). The money sweeps stay on pg_cron until the Inngest cutover. Push, deleted-account file cleanup, overdue tasks and the prunes are built (migration 101) and switch over with `supabase/cutover/inngest_background_jobs.sql`. Payouts, refund retries and webhook hand-off wait for the lawyer's answer on the money flow. **Images:** ImageKit; video and documents stay in Supabase Storage.
@@ -62,7 +62,7 @@ Run `npm run check` before calling anything done. Run `npm run test:db` for any 
 - Type: Plus Jakarta Sans; money uses tabular figures. Use tokens from `apps/mobile/src/theme.ts`, never raw hex in screens.
 - Light, dark and System themes. Dark must be first-class.
 - One component set for all three platforms. Phone: 390x844 with the bottom tab bar. Web desktop: left side menu (`SideNav`).
-- Navigation: the **iOS and Android** apps use Expo Router's native tabs (`expo-router/unstable-native-tabs`) for the five bottom tabs: the tabs are `src/app/(tabs)`, every other screen is the route `src/app/screen/[name]` in a native stack (`src/navigation/NativeRoot.tsx`), started from `index.ts`. Screens still call `useNav()` (`go`, `back`, `reset`, `params`); on phones that is `providers/NavProvider.native.tsx` on top of Expo Router, on web `NavProvider.tsx`. Object params travel in `navigation/navParams.ts`, not in the URL. The **web** build is unchanged and custom (`BottomTabBar`, `SideNav`, `ScreenHost`, started from `App.tsx`), and never loads expo-router. Do not extend expo-router or react-navigation beyond the tabs without owner approval.
+- Navigation: the **iOS and Android** apps use Expo Router's native tabs (`expo-router/native-tabs`) for the five bottom tabs: the tabs are `src/app/(tabs)`, every other screen is the route `src/app/screen/[name]` in a native stack (`src/navigation/NativeRoot.tsx`), started from `index.ts`. Screens still call `useNav()` (`go`, `back`, `reset`, `params`); on phones that is `providers/NavProvider.native.tsx` on top of Expo Router, on web `NavProvider.tsx`. Object params travel in `navigation/navParams.ts`, not in the URL. The **web** build is unchanged and custom (`BottomTabBar`, `SideNav`, `ScreenHost`, started from `App.tsx`), and never loads expo-router. Do not extend expo-router or react-navigation beyond the tabs without owner approval.
 - Motion should respect reduced-motion settings.
 
 ## Code style

@@ -123,9 +123,9 @@ export function ScreenList<T>({
   renderItem: (info: Parameters<ListRenderItem<T>>[0]) => React.ReactElement | null;
   /** Pinned above the list, outside the scroll. */
   above?: React.ReactNode;
-  header?: React.ReactElement | null;
-  empty?: React.ReactElement | null;
-  footer?: React.ReactElement | null;
+  header?: React.JSX.Element | null;
+  empty?: React.JSX.Element | null;
+  footer?: React.JSX.Element | null;
   onRefresh?: () => void;
   refreshing?: boolean;
   /** Colour of the pull-to-refresh spinner; the accent by default. */
@@ -157,9 +157,9 @@ export function ScreenList<T>({
         contentContainerStyle={{ paddingBottom: t.spacing.xxl }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={header}
-        ListEmptyComponent={empty}
-        ListFooterComponent={footer}
+        ListHeaderComponent={header ?? undefined}
+        ListEmptyComponent={empty ?? undefined}
+        ListFooterComponent={footer ?? undefined}
         initialNumToRender={6}
         maxToRenderPerBatch={6}
         windowSize={7}

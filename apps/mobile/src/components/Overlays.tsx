@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { View, Text as RNText, Animated, Easing, StyleSheet } from 'react-native';
+import { View, Text as RNText, Animated, Easing, StyleSheet, type ViewInstance } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useApp } from '../providers/AppStateProvider';
 import { useTheme } from '../providers/ThemeProvider';
@@ -19,7 +19,7 @@ export function Overlays() {
   const t = useTheme();
 
   // A toast shown while the keyboard is open would sit under it: lift it clear (plan task 1.8).
-  const toastRef = useRef<View>(null);
+  const toastRef = useRef<ViewInstance>(null);
   const toastLift = useKeyboardClearance(toastRef, toast);
   const toastY = useRef(new Animated.Value(26)).current;
   const toastO = useRef(new Animated.Value(0)).current;

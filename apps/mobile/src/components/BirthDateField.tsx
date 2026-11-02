@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, ScrollView, Platform, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { View, Text as RNText, ScrollView, Platform, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollViewInstance } from 'react-native';
 import { ageOn, parseBirthDate } from '@taskdrop/rules';
 import { tx } from './primitives';
 import { useTheme } from '../providers/ThemeProvider';
@@ -45,7 +45,7 @@ function Wheel({
   flex: number;
 }) {
   const t = useTheme();
-  const ref = useRef<ScrollView>(null);
+  const ref = useRef<ScrollViewInstance>(null);
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rows: Item[] = [{ value: '', label }, ...items];
   const chosen = Math.max(0, rows.findIndex((r) => r.value === value));

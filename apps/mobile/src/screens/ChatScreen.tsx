@@ -10,6 +10,7 @@ import {
   Linking,
   Platform,
   type ViewStyle,
+  type ScrollViewInstance,
 } from 'react-native';
 import { Screen, formatINR } from '../components/ui';
 import { Icon } from '../components/Icon';
@@ -135,7 +136,7 @@ export function ChatScreen() {
   const [uploading, setUploading] = useState(false);
   const [calling, setCalling] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   const contactsOpen = status !== null && OPEN_STATUSES.includes(status);
   const counterpartyName = other?.display_name ?? (mode === 'worker' ? 'The customer' : 'The worker');

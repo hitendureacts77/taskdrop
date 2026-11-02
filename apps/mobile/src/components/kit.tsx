@@ -15,6 +15,8 @@ import {
   type TextInputProps,
   type ViewStyle,
   type StyleProp,
+  type ViewInstance,
+  type TextInputInstance,
 } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { Icon, type IconName } from './Icon';
@@ -68,7 +70,7 @@ export function BottomSheet({
     return () => anim.stop();
   }, [visible, rise, dialog]);
   // A sheet with a text box is lifted by whatever the keyboard still covers (plan task 1.8).
-  const panelRef = useRef<View>(null);
+  const panelRef = useRef<ViewInstance>(null);
   const panelLift = useKeyboardClearance(panelRef);
   const sheetY = rise.interpolate({ inputRange: [0, 1], outputRange: [dialog ? 12 : 520, 0] });
   const sheetScale = rise.interpolate({ inputRange: [0, 1], outputRange: [dialog ? 0.94 : 1, 1] });
@@ -551,9 +553,9 @@ export function Field({
   // Multiline boxes grow with their text, so the whole thing is always
   // visible instead of hiding behind a scrollbar inside the box.
   const [contentH, setContentH] = useState(0);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   // Inside a KeyboardScrollView, getting focus (or growing while typed in) scrolls the whole box into view.
-  const boxRef = useRef<View>(null);
+  const boxRef = useRef<ViewInstance>(null);
   const reveal = useReveal();
   // v2 field: the label sits inside the box, over the value; tapping
   // anywhere in the box puts the cursor in the input.

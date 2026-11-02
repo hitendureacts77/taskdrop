@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text as RNText, ScrollView, TextInput, Pressable } from 'react-native';
+import { View, Text as RNText, ScrollView, TextInput, Pressable, type TextInputInstance } from 'react-native';
 import { Screen, ScreenList, cardSurface } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
@@ -267,7 +267,7 @@ export function SearchBox({
   submitIcon?: 'search' | 'send';
   tone?: 'accent' | 'purple';
   right?: React.ReactNode;
-  inputRef?: React.RefObject<TextInput | null>;
+  inputRef?: React.RefObject<TextInputInstance | null>;
 }) {
   const t = useTheme();
   const color = tone === 'purple' ? t.colors.purpleDeep : t.colors.accent;
@@ -348,7 +348,7 @@ function FindWork() {
   // List or map of the jobs that match the filters, and the pin that is open.
   const [view, setView] = useState<'list' | 'map'>('list');
   const [pinId, setPinId] = useState<string | null>(null);
-  const searchRef = useRef<TextInput>(null);
+  const searchRef = useRef<TextInputInstance>(null);
 
   // Arriving from the home search bar: start clean (no leftover filters that
   // would hide every result) and put the cursor in the search box.

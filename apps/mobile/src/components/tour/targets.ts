@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import { Dimensions, type View } from 'react-native';
+import { Dimensions, type ViewInstance } from 'react-native';
 import type { TourTarget } from '../../lib/tour';
 
 export type Rect = { x: number; y: number; w: number; h: number };
@@ -10,7 +10,7 @@ export type Rect = { x: number; y: number; w: number; h: number };
  * mounted at once (every tab has its own header), so one name can have many
  * Views; the one that is actually on screen is picked when measuring.
  */
-const registry = new Map<TourTarget, Set<View>>();
+const registry = new Map<TourTarget, Set<ViewInstance>>();
 
 /**
  * Attach the returned ref to the View to light up. A callback ref, so a View
@@ -18,13 +18,13 @@ const registry = new Map<TourTarget, Set<View>>();
  * picked) is registered when it mounts and dropped when it goes.
  */
 export function useTourTarget(id: TourTarget) {
-  const current = useRef<View | null>(null);
+  const current = useRef<ViewInstance | null>(null);
   return useCallback(
-    (view: View | null) => {
+    (view: ViewInstance | null) => {
       if (current.current) registry.get(id)?.delete(current.current);
       current.current = view;
       if (!view) return;
-      const set = registry.get(id) ?? new Set<View>();
+      const set = registry.get(id) ?? new Set<ViewInstance>();
       set.add(view);
       registry.set(id, set);
     },
@@ -32,7 +32,7 @@ export function useTourTarget(id: TourTarget) {
   );
 }
 
-function measure(view: View): Promise<Rect | null> {
+function measure(view: ViewInstance): Promise<Rect | null> {
   return new Promise((resolve) => {
     try {
       view.measureInWindow((x, y, w, h) => resolve(w > 0 && h > 0 ? { x, y, w, h } : null));
