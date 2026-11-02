@@ -13,6 +13,9 @@ import {
 } from "../_shared/controls.ts";
 import { StandingCache, callerFromClaims, standingOf } from "./core.ts";
 import { MAX_BODY_BYTES, REQUEST_ID_HEADER, readBody, requestIdFrom, withGatewayHeaders } from "./http.ts";
+import {
+  IN_PROGRESS, KEY_REUSED, OUTCOME_UNKNOWN, REPEAT_KEY_HEADER, type RepeatStore, repeatKeyFrom, requestHash, runOnce, stableJson as repeatStableJson,
+} from "./repeat.ts";
 import * as serverRules from "../_shared/rules.ts";
 import type { ImageKitConfig } from "../_shared/imagekit.ts";
 import { createHmac } from "node:crypto";
@@ -1275,6 +1278,116 @@ await t("a body over the cap is refused, declared or not", async () => {
   assert.equal((await readBody(new Request("https://x/", { method: "POST", body: "₹".repeat(1000) }))).ok, true);
   const exact = await readBody(new Request("https://x/", { method: "POST", body: "a".repeat(MAX_BODY_BYTES) }));
   assert.equal(exact.ok && exact.text.length, MAX_BODY_BYTES);
+});
+
+// ------------------------------------------------------------- repeat keys --
+
+/** A store kept in memory, shaped like migration 139's two functions. */
+function memoryStore() {
+  const rows = new Map<string, { op: string; hash: string; reply: unknown }>();
+  const store: RepeatStore & { rows: typeof rows; claims: number } = {
+    rows,
+    claims: 0,
+    async claim(key, op, hash) {
+      store.claims++;
+      const row = rows.get(key);
+      if (!row) {
+        rows.set(key, { op, hash, reply: null });
+        return { state: "new" };
+      }
+      if (row.op !== op || row.hash !== hash) return { state: "mismatch" };
+      return row.reply === null ? { state: "running" } : { state: "done", reply: row.reply as never };
+    },
+    async save(key, reply) {
+      const row = rows.get(key);
+      if (row && row.reply === null) row.reply = reply;
+    },
+  };
+  return store;
+}
+
+await t("a repeat key must look like one; none at all is fine", () => {
+  assert.equal(repeatKeyFrom(new Headers()), null);
+  assert.equal(repeatKeyFrom(new Headers({ [REPEAT_KEY_HEADER]: "3f2b9c1e-aaaa-4bbb-8ccc-1234567890ab" })), "3f2b9c1e-aaaa-4bbb-8ccc-1234567890ab");
+  assert.equal(repeatKeyFrom(new Headers({ [REPEAT_KEY_HEADER]: "short" })), "bad");
+  assert.equal(repeatKeyFrom(new Headers({ [REPEAT_KEY_HEADER]: "x".repeat(65) })), "bad");
+  assert.equal(repeatKeyFrom(new Headers({ [REPEAT_KEY_HEADER]: "abc def ghij klmn opqr" })), "bad");
+});
+
+await t("the same request gives the same fingerprint, whatever order its fields came in", async () => {
+  assert.equal(repeatStableJson({ b: 1, a: [2, { d: 1, c: undefined, b: null }] }), '{"a":[2,{"b":null,"d":1}],"b":1}');
+  const one = await requestHash("payTaskFromWallet", { taskId: TASK, note: "x" });
+  assert.equal(one, await requestHash("payTaskFromWallet", { note: "x", taskId: TASK }));
+  assert.match(one, /^[0-9a-f]{64}$/);
+  assert.notEqual(one, await requestHash("payTaskFromWallet", { taskId: TASK2, note: "x" }));
+  assert.notEqual(one, await requestHash("startTask", { taskId: TASK, note: "x" }));
+});
+
+await t("a write sent twice with one key is done once, and the repeat gets the first reply", async () => {
+  const store = memoryStore();
+  let runs = 0;
+  const run = async () => ({ ok: true as const, data: { id: `payout-${++runs}` } });
+  const first = await runOnce(store, "k".repeat(20), "requestWithdrawal", { amountMinor: 50000 }, run);
+  const again = await runOnce(store, "k".repeat(20), "requestWithdrawal", { amountMinor: 50000 }, run);
+  assert.equal(runs, 1);
+  assert.deepEqual(first, { reply: { ok: true, data: { id: "payout-1" } }, status: 200, replayed: false });
+  assert.deepEqual(again, { reply: { ok: true, data: { id: "payout-1" } }, status: 200, replayed: true });
+  // A new key is a new tap: done again.
+  await runOnce(store, "n".repeat(20), "requestWithdrawal", { amountMinor: 50000 }, run);
+  assert.equal(runs, 2);
+});
+
+await t("a refusal is saved too, so a repeat cannot turn a no into a yes", async () => {
+  const store = memoryStore();
+  let runs = 0;
+  const refusedPay = async () => (runs++, { ok: false as const, error: { message: "Not enough money in your wallet", code: "INSUFFICIENT", details: null } });
+  await runOnce(store, "r".repeat(20), "payTaskFromWallet", { taskId: TASK }, refusedPay);
+  const again = await runOnce(store, "r".repeat(20), "payTaskFromWallet", { taskId: TASK }, async () => ({ ok: true as const, data: null }));
+  assert.equal(runs, 1);
+  assert.equal(again.replayed, true);
+  assert.equal(again.reply.ok, false);
+});
+
+await t("still running, used for something else, or lost: each has its own answer and nothing runs", async () => {
+  const store = memoryStore();
+  let runs = 0;
+  const run = async () => (runs++, { ok: true as const, data: null });
+  store.rows.set("s".repeat(20), { op: "lockBid", hash: await requestHash("lockBid", { bidId: BID }), reply: null });
+  const running = await runOnce(store, "s".repeat(20), "lockBid", { bidId: BID }, run);
+  assert.deepEqual(running, { reply: IN_PROGRESS, status: 409, replayed: false });
+  const reused = await runOnce(store, "s".repeat(20), "lockBid", { bidId: OTHER }, run);
+  assert.deepEqual(reused, { reply: KEY_REUSED, status: 422, replayed: false });
+  const lostStore: RepeatStore = { claim: async () => ({ state: "lost" }), save: async () => {} };
+  const lost = await runOnce(lostStore, "l".repeat(20), "lockBid", { bidId: BID }, run);
+  // 200 like any refusal, so the app shows it and does not ask again on its own.
+  assert.deepEqual(lost, { reply: OUTCOME_UNKNOWN, status: 200, replayed: false });
+  assert.equal(runs, 0);
+});
+
+await t("if the key store cannot be reached the write still runs, once, as before keys existed", async () => {
+  const errors: unknown[] = [];
+  let saves = 0;
+  const down: RepeatStore = { claim: async () => { throw new Error("db down"); }, save: async () => { saves++; } };
+  let runs = 0;
+  const out = await runOnce(down, "d".repeat(20), "confirmRelease", { taskId: TASK }, async () => (runs++, { ok: true as const, data: null }), (e) => errors.push(e));
+  assert.equal(runs, 1);
+  assert.equal(saves, 0, "nothing is saved for a key that was never claimed");
+  assert.equal(out.replayed, false);
+  assert.equal(errors.length, 1);
+  // A reply that cannot be saved is still sent.
+  const saveFails: RepeatStore = { claim: async () => ({ state: "new" }), save: async () => { throw new Error("db down"); } };
+  const sent = await runOnce(saveFails, "e".repeat(20), "confirmRelease", { taskId: TASK }, async () => ({ ok: true as const, data: 1 }), (e) => errors.push(e));
+  assert.deepEqual(sent.reply, { ok: true, data: 1 });
+  assert.equal(errors.length, 2);
+});
+
+await t("the app's key and the server's agree on what a usable key is", () => {
+  const appKey = "3f2b9c1e-aaaa-4bbb-8ccc-1234567890ab"; // crypto.randomUUID(), as randomId() makes
+  assert.equal(repeatKeyFrom(new Headers({ [REPEAT_KEY_HEADER]: appKey })), appKey);
+  const fallback = "abcd1234-efgh5678-ijkl9012"; // randomId()'s fallback shape
+  assert.equal(repeatKeyFrom(new Headers({ [REPEAT_KEY_HEADER]: fallback })), fallback);
+  const sql = readFileSync(new URL("../../migrations/20261102160000_139_api_repeat_keys.sql", import.meta.url), "utf8");
+  assert.ok(sql.includes("^[A-Za-z0-9_-]{16,64}$"), "the table checks the same shape");
 });
 
 console.log(`\n${passed} passed`);
