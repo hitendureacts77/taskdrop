@@ -6,6 +6,7 @@ import { subscribeLive } from '../lib/live';
 import { reuseWhileFresh } from '../lib/freshness';
 import type { Tables } from '@taskdrop/db-types';
 import { primeProfile, type Task, type Profile } from './api';
+import type { Idea, IdeaComment, IdeaKind, IdeaStatus } from '../lib/ideas';
 
 /**
  * The second-wave features: notifications, saved tasks, help & support,
@@ -128,6 +129,48 @@ export async function sendFeedback(kind: FeedbackKind, body: string, page?: stri
   if (text.length < 3) throw new Error('Write a little more first');
   await act('sendFeedback', { kind, body: text, page: page ?? null }, 'Sign in to send feedback');
 }
+
+// ------------------------------------------------------ feedback board (136) --
+
+export type IdeaQuery = {
+  sort?: 'top' | 'new';
+  status?: IdeaStatus | null;
+  category?: IdeaKind | null;
+  search?: string;
+  limit?: number;
+  offset?: number;
+};
+
+/** The public board: ideas people posted, most voted first unless asked for the newest. */
+export const listIdeas = (q: IdeaQuery = {}) =>
+  ask<Idea[]>(
+    'listFeedbackBoard',
+    {
+      sort: q.sort ?? 'top',
+      status: q.status ?? null,
+      category: q.category ?? null,
+      search: q.search?.trim() || null,
+      limit: q.limit ?? 30,
+      offset: q.offset ?? 0,
+    },
+    [],
+  );
+
+/** One idea and its comments; null once it has been hidden or removed. */
+export const getIdea = (id: string) =>
+  act<{ post: Idea; comments: IdeaComment[] } | null>('getFeedbackPost', { postId: id });
+
+export async function postIdea(title: string, body: string, category: IdeaKind): Promise<Idea> {
+  const t = title.trim();
+  if (t.length < 3) throw new Error('Give your idea a short title first');
+  return act<Idea>('postFeedbackIdea', { title: t, body: body.trim(), category }, 'Sign in to suggest an idea');
+}
+
+export const voteIdea = (id: string, on: boolean) =>
+  act<{ votes: number; iVoted: boolean }>('voteFeedbackIdea', { postId: id, on }, 'Sign in to vote');
+
+export const commentOnIdea = (id: string, body: string) =>
+  act<IdeaComment>('commentFeedbackIdea', { postId: id, body: body.trim() }, 'Sign in to comment');
 
 // --------------------------------------------------------------- referrals --
 

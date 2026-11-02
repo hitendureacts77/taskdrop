@@ -101,7 +101,7 @@ export function HelpScreen() {
         <PrimaryButton label="Send message" onPress={() => void send()} busy={busy} disabled={body.trim().length < 5} style={{ marginTop: 14 }} />
         <Pressable onPress={() => setFeedback(true)} style={{ marginTop: 12 }} accessibilityRole="button">
           <RNText style={tx('400', 12, t.colors.muted, { lineHeight: 18 })}>
-            Not stuck, just have an idea or found a bug? <RNText style={tx('700', 12, t.colors.accentDeep)}>Send feedback</RNText> instead — it goes to the team that builds TaskDrop.
+            Not stuck, just have an idea or found a bug? <RNText style={tx('700', 12, t.colors.accentDeep)}>Send feedback</RNText> instead — it goes to the team that builds TaskDrop. Or <RNText onPress={() => go('ideas')} style={tx('700', 12, t.colors.accentDeep)}>vote on ideas</RNText> other people have suggested.
           </RNText>
         </Pressable>
 

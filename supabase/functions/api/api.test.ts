@@ -955,6 +955,50 @@ await t("reports and blocks pass the right ids to their SQL functions and refuse
   assert.equal(rateBucket("reportContent"), "write");
 });
 
+await t("the feedback board passes clean arguments to its SQL functions and refuses bad input", async () => {
+  const f = fake(() => ({ data: [], error: null }));
+  assert.ok((await runOp("listFeedbackBoard", {}, ctx(f))).ok);
+  assert.deepEqual(f.calls[0].args, {
+    p_sort: "top", p_status: null, p_category: null, p_search: null, p_limit: 30, p_offset: 0,
+  });
+  assert.ok((await runOp("listFeedbackBoard", { sort: "new", status: "planned", category: "bug", search: " dark ", limit: 500 }, ctx(f))).ok);
+  assert.deepEqual(f.calls[1].args, {
+    p_sort: "new", p_status: "planned", p_category: "bug", p_search: "dark", p_limit: 50, p_offset: 0,
+  });
+  assert.equal(f.calls[1].rpc, "feedback_board_list");
+  assert.ok((await runOp("getFeedbackPost", { postId: TASK }, ctx(f))).ok);
+  assert.deepEqual(f.calls[2].args, { p_post: TASK });
+
+  assert.ok((await runOp("postFeedbackIdea", { title: " Dark mode ", body: "", category: "feature" }, ctx(f))).ok);
+  assert.deepEqual(f.calls[3].args, { p_title: "Dark mode", p_body: "", p_category: "feature" });
+  assert.ok((await runOp("voteFeedbackIdea", { postId: TASK, on: false }, ctx(f))).ok);
+  assert.deepEqual(f.calls[4].args, { p_post: TASK, p_on: false });
+  assert.ok((await runOp("commentFeedbackIdea", { postId: TASK, body: " yes " }, ctx(f))).ok);
+  assert.deepEqual(f.calls[5].args, { p_post: TASK, p_body: "yes" });
+
+  const cases: [string, Record<string, unknown>][] = [
+    ["listFeedbackBoard", { sort: "sideways" }],
+    ["listFeedbackBoard", { status: "maybe" }],
+    ["listFeedbackBoard", { category: "gossip" }],
+    ["listFeedbackBoard", { search: "x".repeat(61) }],
+    ["getFeedbackPost", { postId: "nope" }],
+    ["postFeedbackIdea", { title: "ab", body: "" }],
+    ["postFeedbackIdea", { title: "x".repeat(121), body: "" }],
+    ["postFeedbackIdea", { title: "A fine title", body: "x".repeat(2001) }],
+    ["postFeedbackIdea", { title: "A fine title", body: "", category: "gossip" }],
+    ["voteFeedbackIdea", { postId: "nope" }],
+    ["commentFeedbackIdea", { postId: TASK, body: "" }],
+    ["commentFeedbackIdea", { postId: TASK, body: "x".repeat(1001) }],
+  ];
+  for (const [op, args] of cases) {
+    const r = await runOp(op, args, ctx(fake()));
+    assert.ok(!r.ok && r.error.code === "BAD_ARGS", `${op} ${JSON.stringify(args).slice(0, 40)}`);
+  }
+  assert.equal(rateBucket("listFeedbackBoard"), "read");
+  assert.equal(rateBucket("getFeedbackPost"), "read");
+  for (const op of ["postFeedbackIdea", "voteFeedbackIdea", "commentFeedbackIdea"]) assert.equal(rateBucket(op), "write", op);
+});
+
 await t("the verified-phone switch refuses only a known unverified caller, and only for posting, offers and withdrawals", async () => {
   const on = controlsWith({ require_phone_verified: true });
   for (const op of ["createTask", "placeBid", "updateBid", "requestWithdrawal"]) {

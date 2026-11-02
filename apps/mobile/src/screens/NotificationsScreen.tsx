@@ -34,6 +34,7 @@ const ICON: Record<string, IconName> = {
   reopened: 'refresh',
   message: 'chat',
   support: 'help',
+  feedback: 'trending',
   referral: 'gift',
   auto_locked: 'bolt',
 };
@@ -126,6 +127,7 @@ export function NotificationsScreen() {
     }
     if (n.ticket_id) return go('ticket', { ticketId: n.ticket_id });
     if (n.kind === 'referral') return go('wallet');
+    if (n.kind === 'feedback') return go('ideas');
     if (!n.task_id || !userId) return;
     if (n.kind === 'message') return go('chat', { taskId: n.task_id });
     setOpening(n.id);
