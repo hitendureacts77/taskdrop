@@ -8,6 +8,8 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   type ScrollViewProps,
+  type ViewInstance,
+  type ScrollViewInstance,
 } from 'react-native';
 
 /** Anything that can say where it is on screen. */
@@ -25,17 +27,17 @@ const RevealContext = createContext<((node: Measurable | null) => void) | null>(
  * show the whole box with a small gap (plan task 1.8). On the web it does
  * nothing: the browser does this itself.
  */
-export const KeyboardScrollView = forwardRef<ScrollView, ScrollViewProps>(function KeyboardScrollView(
+export const KeyboardScrollView = forwardRef<ScrollViewInstance, ScrollViewProps>(function KeyboardScrollView(
   { children, onScroll, contentContainerStyle, ...rest },
   forwarded,
 ) {
-  const inner = useRef<ScrollView>(null);
+  const inner = useRef<ScrollViewInstance>(null);
   const offset = useRef(0);
   // Where the keyboard's top edge is on screen, or null while it is closed.
   const keyboardTop = useRef<number | null>(null);
   // Room added at the bottom of the page: what the keyboard covers of this scroll view.
   const [pad, setPad] = useState(0);
-  useImperativeHandle(forwarded, () => inner.current as ScrollView);
+  useImperativeHandle(forwarded, () => inner.current as ScrollViewInstance);
   // A ScrollView is a native view underneath; its type just does not list measureInWindow.
   const asMeasurable = () => inner.current as unknown as Measurable | null;
 
@@ -124,7 +126,7 @@ export function useReveal(): (node: Measurable | null) => void {
  */
 export function RevealWhen({ when, again, children }: { when: boolean; again?: unknown; children: ReactNode }) {
   const reveal = useReveal();
-  const box = useRef<View>(null);
+  const box = useRef<ViewInstance>(null);
   useEffect(() => {
     if (when) reveal(box.current);
   }, [when, again, reveal]);

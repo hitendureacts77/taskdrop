@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, Modal, Animated, Easing } from 'react-native';
+import { View, Text as RNText, Pressable, ScrollView, Modal, Animated, Easing, type ScrollViewInstance } from 'react-native';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { useTheme } from '../providers/ThemeProvider';
 import { describeLeadTime, quickDeadlines } from '@taskdrop/rules';
@@ -120,7 +120,7 @@ export function DateTimeSheet({
   const [note, setNote] = useState<string | null>(null);
 
   const today = startOfDay(new Date());
-  const stripRef = useRef<ScrollView>(null);
+  const stripRef = useRef<ScrollViewInstance>(null);
 
   // ---- sheet motion -------------------------------------------------------
   const rise = useRef(new Animated.Value(0)).current;

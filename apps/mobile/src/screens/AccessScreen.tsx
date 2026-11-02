@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Animated,
   Platform,
+  type TextInputInstance,
 } from 'react-native';
 import { Drop, Ripples } from '../components/Ripples';
 import { HeroBackground } from '../components/Hero';
@@ -98,8 +99,8 @@ export function AccessScreen() {
   }, [resendAt]);
   const waitSec = Math.max(0, Math.ceil((resendAt - now) / 1000));
 
-  const phoneRef = useRef<TextInput>(null);
-  const codeRef = useRef<TextInput>(null);
+  const phoneRef = useRef<TextInputInstance>(null);
+  const codeRef = useRef<TextInputInstance>(null);
 
   // The line under the number fills as it is typed: ten digits, ten steps.
   const fill = useRef(new Animated.Value(0)).current;

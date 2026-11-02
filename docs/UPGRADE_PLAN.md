@@ -945,7 +945,7 @@ You started this because the app felt clumsy and parts weren't working as expect
 
 | Tool | Responsible for | Not responsible for |
 |---|---|---|
-| **Expo** (SDK 57, React Native 0.86, React 19) | One user app for web, Android and iOS | Business rules or secrets |
+| **Expo** (SDK 58, React Native 0.88, React 19) | One user app for web, Android and iOS | Business rules or secrets |
 | **EAS Build / Submit / Update** | Android and iOS app files, store submission, over-the-air updates | Web hosting (no EAS Hosting) |
 | **Next.js 16** | Admin panel UI and server actions | Being reachable by normal users |
 | **Supabase** | Database, auth (phone, Google, Apple), RLS, SQL money rules, edge functions, Storage for videos/documents, Realtime | Image resizing, retrying schedules |

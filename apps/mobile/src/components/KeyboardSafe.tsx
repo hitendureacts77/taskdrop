@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { StyleSheet, View, type ViewProps } from 'react-native';
+import { StyleSheet, View, type ViewProps, type ViewInstance } from 'react-native';
 import { useKeyboardClearance } from '../lib/useKeyboardClearance';
 
 /**
@@ -10,7 +10,7 @@ import { useKeyboardClearance } from '../lib/useKeyboardClearance';
  * (plan task 1.8).
  */
 export function KeyboardSafe({ children, style, ...rest }: ViewProps) {
-  const ref = useRef<View>(null);
+  const ref = useRef<ViewInstance>(null);
   const lift = useKeyboardClearance(ref);
   const own = Number(StyleSheet.flatten(style)?.marginBottom ?? 0) || 0;
   return (

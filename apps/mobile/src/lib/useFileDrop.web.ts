@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { View } from 'react-native';
+import type { ViewInstance } from 'react-native';
 
 /**
  * Drag-and-drop of a file onto a view, web build. react-native-web does not
@@ -15,7 +15,7 @@ export function useFileDrop({ enabled = true, onFile }: { enabled?: boolean; onF
   const latest = useRef(onFile);
   latest.current = onFile;
 
-  const ref = useCallback((n: View | null) => setNode(n as unknown as HTMLElement | null), []);
+  const ref = useCallback((n: ViewInstance | null) => setNode(n as unknown as HTMLElement | null), []);
 
   useEffect(() => {
     if (!node || !enabled) return;

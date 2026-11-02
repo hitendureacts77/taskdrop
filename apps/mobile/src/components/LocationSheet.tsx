@@ -10,6 +10,7 @@ import {
   Animated,
   AppState,
   Platform,
+  type TextInputInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -189,7 +190,7 @@ export function LocationSheet({
   // rather than clearing a height someone guessed once.
   const [panelHeight, setPanelHeight] = useState(180);
 
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
 
   /**
    * Name whatever the pin is sitting on. Each move supersedes the last, so a

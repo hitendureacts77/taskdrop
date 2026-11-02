@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Redirect } from 'expo-router';
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { NativeTabs } from 'expo-router/native-tabs';
 import { useTheme } from '../../providers/ThemeProvider';
 import { useMode } from '../../providers/ModeProvider';
 import { useNav } from '../../providers/NavProvider';

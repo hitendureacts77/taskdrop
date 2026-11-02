@@ -6,6 +6,8 @@ import {
   ScrollView,
   TextInput,
   KeyboardAvoidingView,
+  type ViewInstance,
+  type TextInputInstance,
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useTheme } from '../providers/ThemeProvider';
@@ -110,7 +112,7 @@ export function AddressForm({
   const [tagName, setTagName] = useState(initial?.tagName ?? '');
   const [showError, setShowError] = useState(false);
 
-  const line1Ref = useRef<TextInput>(null);
+  const line1Ref = useRef<TextInputInstance>(null);
 
   const draft = (): AddressDetails => ({
     line1: line1.trim(),
@@ -141,7 +143,7 @@ export function AddressForm({
       required?: boolean;
       invalid?: boolean;
       multiline?: boolean;
-      ref?: React.RefObject<TextInput | null>;
+      ref?: React.RefObject<TextInputInstance | null>;
       autoFocus?: boolean;
     } = {},
   ) => (
@@ -181,7 +183,7 @@ export function AddressForm({
     </View>
   );
 
-  const saveBarRef = useRef<View>(null);
+  const saveBarRef = useRef<ViewInstance>(null);
   const saveBarLift = useKeyboardClearance(saveBarRef);
 
   return (

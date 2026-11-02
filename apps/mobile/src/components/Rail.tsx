@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, View } from 'react-native';
+import { Platform, Pressable, ScrollView, View, type ScrollViewInstance } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useLayout } from '../lib/layout';
 import { Icon } from './Icon';
@@ -26,7 +26,7 @@ export function useRailItemWidth(own: number): number {
 export function Rail({ children, step = 260, min = 170 }: { children: React.ReactNode; step?: number; min?: number }) {
   const t = useTheme();
   const { desktop, tablet } = useLayout();
-  const ref = useRef<ScrollView>(null);
+  const ref = useRef<ScrollViewInstance>(null);
   const [x, setX] = useState(0);
   const [viewW, setViewW] = useState(0);
   const [contentW, setContentW] = useState(0);
