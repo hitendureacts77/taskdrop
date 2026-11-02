@@ -4,14 +4,18 @@
  * A deploy takes the Edge Functions away for a few seconds, and a weak mobile
  * signal drops a request now and then. Both are over almost at once, so a read
  * that fails that way is asked again, twice, instead of showing an error.
- * Only reads travel this road: asking for something twice is harmless, while a
- * write (a payment, a bid) is never sent a second time on its own.
+ * Reads travel this road because asking for something twice is harmless. A
+ * write (a payment, a bid) travels it only with a repeat key (./repeatKeys.ts):
+ * the server does a keyed write once, however many times it arrives.
  *
  * No React Native imports on purpose, so this can be tested from Node.
  */
 
 /** How long to wait before the first and the second repeat. */
 export const RETRY_DELAYS_MS: readonly number[] = [400, 1000];
+
+/** The same for a keyed write. Longer, so a write still running on the server has time to finish and answer. */
+export const WRITE_RETRY_DELAYS_MS: readonly number[] = [1000, 2500];
 
 /**
  * How long a read may go without an answer before it is given up and asked again. The slowest reads on the

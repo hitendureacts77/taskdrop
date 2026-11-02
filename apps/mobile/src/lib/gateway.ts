@@ -5,7 +5,8 @@ import { appCheckHeaders } from './appCheck';
 import { refreshAppConfig } from './appConfig';
 import { log } from './monitoring';
 import { BATCHABLE_OPS, Batcher, type Reply as BatchReply } from './batcher';
-import { READ_TIMEOUT_MS, RETRY_DELAYS_MS, isTransient, retryWhile, type Failure } from './retry';
+import { READ_TIMEOUT_MS, RETRY_DELAYS_MS, WRITE_RETRY_DELAYS_MS, isTransient, retryWhile, type Failure } from './retry';
+import { IN_PROGRESS_STATUS, RepeatKeys, outcomeUnknown } from './repeatKeys';
 import { noteChange } from './freshness';
 
 /**
@@ -14,6 +15,9 @@ import { noteChange } from './freshness';
  * settleClearedEarnings is told by its caller, and only when it actually moved money.
  */
 const BOOKKEEPING = new Set(['touchPresence', 'recordDevice', 'registerPushToken', 'recordAdImpression', 'recordAdClick', 'settleClearedEarnings']);
+
+/** Which repeat key each write carries (./repeatKeys.ts). */
+const repeatKeys = new RepeatKeys(randomId);
 
 type Reply<T> =
   | { ok: true; data: T }
@@ -51,9 +55,12 @@ async function callApiDirect<T>(op: string, args: Record<string, unknown> = {}):
   // The platform and app version let the server apply the admin panel's
   // per-platform switches (maintenance, minimum version, features off).
   // A read that hits a blip (a deploy, a dropped connection, no answer within READ_TIMEOUT_MS) is asked
-  // again, twice, before it counts as a failure. A write is asked once and never timed out: sending money
-  // or a bid twice is never worth the risk.
+  // again, twice, before it counts as a failure. A write is never timed out (giving up half way would leave
+  // its outcome unknown). It carries a repeat key, so the server does it once however often it arrives,
+  // and a blip is asked again with the same key, the way a read is.
   const isRead = op === 'batch' || BATCHABLE_OPS.has(op);
+  const changes = !isRead && !BOOKKEEPING.has(op);
+  const repeatKey = changes ? repeatKeys.take(op, args) : null;
   // One id per call, kept across its retries: the server logs it beside every line about the call,
   // so a failure someone reports can be found (supabase/functions/api/http.ts).
   const requestId = randomId();
@@ -61,20 +68,37 @@ async function callApiDirect<T>(op: string, args: Record<string, unknown> = {}):
     supabase.functions.invoke('api', {
       body: { op, args },
       region: FUNCTIONS_REGION,
-      headers: { ...clientHeaders(), ...(await appCheckHeaders()), 'x-request-id': requestId },
+      headers: {
+        ...clientHeaders(),
+        ...(await appCheckHeaders()),
+        'x-request-id': requestId,
+        ...(repeatKey ? { 'Idempotency-Key': repeatKey } : {}),
+      },
       ...(isRead ? { timeout: READ_TIMEOUT_MS } : {}),
     });
 
-  const changes = !isRead && !BOOKKEEPING.has(op);
   // Marked on the way out and on the way back: a screen shown in between asks the server again either way.
   if (changes) noteChange();
-  const { data, error } = await retryWhile(
-    invokeOnce,
-    async (r) => (r.error ? isTransient(await describeFailure(r.error)) : false),
-    isRead ? RETRY_DELAYS_MS : [],
-  ).finally(() => {
-    if (changes) noteChange();
-  });
+  let unknown = true;
+  const { data, error } = await (async () => {
+    try {
+      const result = await retryWhile(
+        invokeOnce,
+        async (r) => {
+          if (!r.error) return false;
+          const f = await describeFailure(r.error);
+          // "Still going through" (the same write is running): wait, then ask for its answer with the same key.
+          return isTransient(f) || (repeatKey !== null && f.ours === true && f.status === IN_PROGRESS_STATUS);
+        },
+        isRead ? RETRY_DELAYS_MS : repeatKey ? WRITE_RETRY_DELAYS_MS : [],
+      );
+      unknown = outcomeUnknown(result.error ? await describeFailure(result.error) : null);
+      return result;
+    } finally {
+      if (repeatKey) repeatKeys.settle(op, args, repeatKey, unknown);
+      if (changes) noteChange();
+    }
+  })();
 
   if (error) {
     const context = (error as { context?: unknown }).context;
@@ -118,7 +142,9 @@ const batcher = new Batcher({
 export const callApi = <T>(op: string, args: Record<string, unknown> = {}): Promise<T> => batcher.call<T>(op, args);
 
 /** Refusals worth a log line: the server broke, or the person is being held back. Ordinary rule refusals (not enough money, quote taken) are not. */
-const NOTABLE_REFUSALS = new Set(['INTERNAL', 'RATE_LIMITED', 'TOO_LARGE', 'MAINTENANCE', 'UPDATE_REQUIRED', 'FEATURE_OFF', 'UNAUTHENTICATED']);
+const NOTABLE_REFUSALS = new Set([
+  'INTERNAL', 'RATE_LIMITED', 'TOO_LARGE', 'MAINTENANCE', 'UPDATE_REQUIRED', 'FEATURE_OFF', 'UNAUTHENTICATED', 'IN_PROGRESS', 'OUTCOME_UNKNOWN', 'KEY_REUSED',
+]);
 
 /** A refusal by the server, as an error. One caused by an admin switch also refreshes what the app shows. */
 function refused(e: { message: string; code?: string | null; details?: string | null }, op: string, requestId?: string): ApiError {

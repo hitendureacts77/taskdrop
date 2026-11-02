@@ -9,6 +9,7 @@ import { secret } from "../_shared/secrets.ts";
 import { type Standing, StandingCache, callerFromClaims, standingOf } from "./core.ts";
 import { MAX_BODY_BYTES, REQUEST_ID_HEADER, readBody, requestIdFrom, withGatewayHeaders } from "./http.ts";
 import { type Db, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp } from "./ops.ts";
+import { type Claim, type RepeatStore, REPEAT_KEY_HEADER, REPLAYED_HEADER, repeatKeyFrom, runOnce } from "./repeat.ts";
 
 /**
  * The app's one door to its data.
@@ -36,11 +37,14 @@ import { type Db, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost
  * Every answer carries the call's id (x-request-id, sent by the app or made
  * here) and is never cached; a body over MAX_BODY_BYTES is refused with 413
  * before it is read (see ./http.ts).
+ *
+ * A write may carry an Idempotency-Key header; the same key sent again gets
+ * the first reply back and the write is not done twice (see ./repeat.ts).
  */
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-region, " + PLATFORM_HEADER + ", " + VERSION_HEADER + ", " + APP_CHECK_HEADER + ", " + REQUEST_ID_HEADER,
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-region, " + PLATFORM_HEADER + ", " + VERSION_HEADER + ", " + APP_CHECK_HEADER + ", " + REQUEST_ID_HEADER + ", " + REPEAT_KEY_HEADER,
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -139,6 +143,8 @@ async function handle(req: Request, requestId: string): Promise<Response> {
   const body = parsed as { op?: unknown; args?: unknown };
   // `null`, a list or a bare number is valid JSON but not a request (found 2026-10-24: `null` answered 500).
   if (!body || typeof body !== "object" || Array.isArray(body)) return refuse("Unknown request", "BAD_JSON", 400);
+  const repeatKey = repeatKeyFrom(req.headers);
+  if (repeatKey === "bad") return refuse("Unknown request", "BAD_KEY", 400);
 
   // The counter is written with the service key: a person must not be able to
   // reset or spend anyone else's budget. If the counter cannot be reached the
@@ -277,6 +283,27 @@ async function handle(req: Request, requestId: string): Promise<Response> {
     background(log("error", "op failed", { op: String(body.op), user_id: userId, error: e instanceof Error ? e.message : String(e) }));
     background(captureServerError(e, { op: String(body.op), fn: "api", request_id: requestId }));
   };
+  // A write with a key runs at most once per key; a repeat gets the saved reply (reads never need one).
+  if (repeatKey && admin && !isBatch && bucket !== "read") {
+    const store: RepeatStore = {
+      claim: async (key, op, hash) => {
+        const { data, error } = await admin.rpc("api_repeat_claim", { p_user: userId, p_key: key, p_op: op, p_hash: hash });
+        if (error) throw new Error(error.message);
+        return data as Claim;
+      },
+      save: async (key, reply) => {
+        const { error } = await admin.rpc("api_repeat_save", { p_user: userId, p_key: key, p_reply: reply });
+        if (error) throw new Error(error.message);
+      },
+    };
+    const op = String(body.op);
+    const out = await runOnce(store, repeatKey, op, body.args ?? {}, () => runOp(body.op, body.args, ctx, onUnexpected), (e) =>
+      background(log("warn", "repeat keys unavailable", { op, error: e instanceof Error ? e.message : String(e) })));
+    if (out.replayed) background(log("info", "repeat answered from the saved reply", { op, user_id: userId }));
+    const res = json(out.reply, out.status);
+    if (out.replayed) res.headers.set(REPLAYED_HEADER, "true");
+    return res;
+  }
   const running = isBatch ? runBatch(body.args, ctx, onUnexpected) : runOp(body.op, body.args, ctx, onUnexpected);
   if (!overlap) return json(await running);
   const [refused, result] = await Promise.all([rate, running]);
