@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { askBrief, askQuestions, quantityFactor } from './taskBrief.ts';
+import { askBrief, askQuestions, quantityFactor, titleFrom } from './taskBrief.ts';
 
 const categoryOf = (prompt: string) => askBrief(prompt, [], 'friendly').category;
 const wordsOf = (prompt: string) => JSON.stringify(askBrief(prompt, [], 'friendly')) + JSON.stringify(askQuestions(prompt));
@@ -64,4 +64,18 @@ test('the general questions never repeat a question and still move the price', (
   const big = askBrief('Fix the leaking kitchen tap at my home', [{ question: 'How big is the job?', answer: 'Large, most of a day or more' }], 'friendly');
   assert.ok(big.budgetMinInr > base.budgetMinInr, 'a bigger job costs more');
   assert.ok(big.bullets.some((b) => /^Job size: Large/.test(b)), 'the answer shows in the post');
+});
+
+test('the written title is a whole title, not cut at "and…" (plan 1.9 bug 8)', () => {
+  assert.equal(
+    titleFrom('Need a deep cleaning of my 2BHK flat including kitchen and bathrooms'),
+    'Deep cleaning of my 2BHK flat including kitchen and bathrooms',
+  );
+  const long = titleFrom(
+    'Please I need someone to shift my furniture from Kondapur to Gachibowli with a small truck and two helpers on Sunday morning',
+  );
+  assert.ok(long.length <= 80, long);
+  assert.ok(!/…$/.test(long), long);
+  assert.ok(!/\s(and|with|to|on|a)$/i.test(long), long);
+  assert.equal(titleFrom('Paint my bedroom walls, the colour is light blue, and also fix the cracks near the window frame please'), 'Paint my bedroom walls, the colour is light blue');
 });

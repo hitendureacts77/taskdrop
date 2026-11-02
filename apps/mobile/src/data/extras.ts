@@ -172,6 +172,34 @@ export const voteIdea = (id: string, on: boolean) =>
 export const commentOnIdea = (id: string, body: string) =>
   act<IdeaComment>('commentFeedbackIdea', { postId: id, body: body.trim() }, 'Sign in to comment');
 
+// ----------------------------------------------------- questions on a task --
+
+/** A worker's question on a task and the poster's public answer (migration 140). */
+export type TaskQuestion = {
+  id: string;
+  body: string;
+  answer: string | null;
+  answeredAt: string | null;
+  /** First name only. */
+  asker: string;
+  mine: boolean;
+  createdAt: string;
+};
+
+/** Empty when there are none or the task is closed to the caller; null when they could not be read (or are not switched on yet). */
+export const listTaskQuestions = (taskId: string) => quietly<TaskQuestion[] | null>('listTaskQuestions', { taskId }, null);
+
+export const askTaskQuestion = (taskId: string, body: string) =>
+  act<TaskQuestion>('askTaskQuestion', { taskId, body: body.trim() }, 'Sign in to ask a question');
+
+export const answerTaskQuestion = (questionId: string, answer: string) =>
+  act<{ id: string; answer: string; answeredAt: string }>('answerTaskQuestion', { questionId, answer: answer.trim() });
+
+/** Tasks finished near a point today and helpers active there now; null when it could not be counted. */
+export type NearbyPulse = { doneToday: number; activeNow: number };
+export const nearbyPulse = (near: { lat: number; lng: number }, radiusKm = 5) =>
+  quietly<NearbyPulse | null>('nearbyPulse', { lat: near.lat, lng: near.lng, radiusKm }, null);
+
 // --------------------------------------------------------------- referrals --
 
 export const applyReferralCode = (code: string) => act<boolean>('applyReferralCode', { code });

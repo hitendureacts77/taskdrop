@@ -18,14 +18,17 @@ import {
 } from '../data/api';
 import {
   listSavedTaskIds,
+  nearbyPulse,
   recommendedTasks,
   remoteTasks,
   tasksNear,
   urgentTasks,
   setSaved,
   trendingCategories,
+  type NearbyPulse,
   type TrendingCategory,
 } from '../data/extras';
+import { useVoiceInput } from '../lib/speech';
 import { TEMPLATES } from '../lib/taskBrief';
 import { levelFor } from '../lib/levels';
 import { taskToFeedRow } from '../lib/openTask';
@@ -98,6 +101,15 @@ function PostTop() {
   const [howOpen, setHowOpen] = useState(false);
   const [place, setPlace] = useState<string | null>(null);
   const [pickPlace, setPickPlace] = useState(false);
+  const [pulse, setPulse] = useState<NearbyPulse | null>(null);
+  // Only to know whether this browser can listen; the composer does the listening.
+  const canSpeak = useVoiceInput(() => {}).supported;
+
+  // What is going on around the poster's area, in two real numbers (item 4).
+  const loadPulse = useCallback(async (at: { lat: number; lng: number } | null, alive: () => boolean = () => true) => {
+    const got = at ? await nearbyPulse(at) : null;
+    if (alive()) setPulse(got);
+  }, []);
 
   const loadTop = useCallback(
     async (alive: () => boolean) => {
@@ -107,6 +119,7 @@ function PostTop() {
           .then((p) => {
             if (!alive()) return;
             setPlace(p?.loc_label ?? null);
+            return loadPulse(p?.loc_lat != null && p?.loc_lng != null ? { lat: p.loc_lat, lng: p.loc_lng } : null, alive);
           })
           .catch(() => {}),
         listMyTasks(userId)
@@ -121,7 +134,7 @@ function PostTop() {
           .catch(() => {}),
       ]);
     },
-    [userId],
+    [userId, loadPulse],
   );
   useHomeLoad(loadTop);
 
@@ -132,6 +145,7 @@ function PostTop() {
     if (picked.lat === null || picked.lng === null) return flash('Drop a pin on the map to set your area');
     const label = picked.area || picked.label;
     setPlace(label);
+    void loadPulse({ lat: picked.lat, lng: picked.lng });
     if (!userId) return;
     await updateProfile(userId, { locLabel: label, locLat: picked.lat, locLng: picked.lng }).catch((e) =>
       flash(e instanceof Error ? e.message : 'Could not save your area'),
@@ -153,6 +167,7 @@ function PostTop() {
         onPress={() => setPickPlace(true)}
         flush
       />
+      <PulseLine pulse={pulse} />
 
       {/* The composer, on the v2 hero: the card itself is where you type.
           Sending opens the step-by-step flow with these words, which asks the
@@ -187,6 +202,27 @@ function PostTop() {
               <RNText style={tx('400', 15, t.isDark ? 'rgba(213,217,221,0.75)' : t.colors.muted, { flex: 1, lineHeight: 22 })}>
                 What do you need done? E.g. service my scooter this week
               </RNText>
+              {/* Start by talking: the composer opens already listening. Only where the device can listen (lib/speech). */}
+              {canSpeak ? (
+                <Pressable
+                  onPress={() => go('aiPost', { listen: true })}
+                  accessibilityRole="button"
+                  accessibilityLabel="Speak your task"
+                  hitSlop={6}
+                  style={({ pressed }) => ({
+                    width: 38,
+                    height: 38,
+                    borderRadius: 999,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: 1.5,
+                    borderColor: t.isDark ? 'rgba(255,255,255,0.55)' : t.colors.line,
+                    transform: [{ scale: pressed ? 0.94 : 1 }],
+                  })}
+                >
+                  <Icon name="mic" size={17} color={t.isDark ? '#FFFFFF' : t.colors.ink} strokeWidth={2} />
+                </Pressable>
+              ) : null}
               <View style={{ width: 38, height: 38, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: t.colors.btn }}>
                 <Icon name="edit" size={17} color={t.colors.onBtn} strokeWidth={2} />
               </View>
@@ -325,6 +361,32 @@ function PostTop() {
         onCancel={() => setPickPlace(false)}
         onPick={(p) => void choosePlace(p)}
       />
+    </View>
+  );
+}
+
+/**
+ * One line under the poster's area: tasks finished near there today and
+ * helpers there right now. Real counts from nearby_pulse (migration 140);
+ * a part that is zero is left out, and nothing shows when both are.
+ */
+function PulseLine({ pulse }: { pulse: NearbyPulse | null }) {
+  const t = useTheme();
+  const done = pulse?.doneToday ?? 0;
+  const active = pulse?.activeNow ?? 0;
+  if (done <= 0 && active <= 0) return null;
+  const lead = done > 0 ? `${done} done near you today` : `${active} ${active === 1 ? 'helper' : 'helpers'} active now`;
+  const rest = done > 0 && active > 0 ? ` · ${active} ${active === 1 ? 'helper' : 'helpers'} active now` : '';
+  return (
+    <View
+      accessibilityRole="text"
+      style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, backgroundColor: t.colors.accentSoft }}
+    >
+      <View style={{ width: 8, height: 8, borderRadius: 999, backgroundColor: t.colors.online }} />
+      <RNText style={tx('500', 13, t.colors.muted, { flex: 1, lineHeight: 18 })} numberOfLines={1}>
+        <RNText style={tx('700', 13, t.colors.ink)}>{lead}</RNText>
+        {rest}
+      </RNText>
     </View>
   );
 }

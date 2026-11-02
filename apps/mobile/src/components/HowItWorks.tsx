@@ -9,7 +9,7 @@ type Scene = 'describe' | 'quotes' | 'escrow' | 'done' | 'find' | 'quote' | 'wor
 type Step = { scene: Scene; title: string; body: string };
 
 const HIRE: Step[] = [
-  { scene: 'describe', title: 'Say what you need', body: 'Type or speak it. TaskDrop turns it into a clear post with a fair budget.' },
+  { scene: 'describe', title: 'Say what you need', body: 'Type or speak it. TaskDrop turns it into a clear post.' },
   { scene: 'quotes', title: 'Offers come to you', body: 'Nearby and remote workers send prices. Compare them side by side, or let the first good one be hired automatically.' },
   { scene: 'escrow', title: 'Money waits safely', body: 'You fund the job, and TaskDrop holds it. Nobody is paid before the work is done.' },
   { scene: 'done', title: 'Approve and rate', body: 'Check the work, release payment, and leave a rating for the next person.' },

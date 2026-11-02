@@ -4,14 +4,25 @@
  * left out of the web bundle entirely. See push.ts for the native side.
  */
 
-/** Ask the browser for permission once signed in. */
-export async function setupPush(): Promise<void> {
+/** Whether this browser may show alerts: 'ask' means it has not been asked yet. */
+export type PushPermission = 'granted' | 'denied' | 'ask' | 'unsupported';
+
+export async function pushPermission(): Promise<PushPermission> {
+  if (typeof Notification === 'undefined') return 'unsupported';
+  return Notification.permission === 'default' ? 'ask' : Notification.permission;
+}
+
+/** Once signed in. A tab has nothing to register, and it never asks here (see push.ts). */
+export async function setupPush(): Promise<void> {}
+
+/** Ask the browser now, after the person tapped "Turn on alerts". True when alerts are on. */
+export async function askForPush(): Promise<boolean> {
   try {
-    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      await Notification.requestPermission();
-    }
+    if (typeof Notification === 'undefined') return false;
+    if (Notification.permission === 'default') await Notification.requestPermission();
+    return Notification.permission === 'granted';
   } catch {
-    /* no notifications in this browser */
+    return false; /* no notifications in this browser */
   }
 }
 

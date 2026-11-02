@@ -238,6 +238,15 @@ export function AiPostScreen() {
     flash,
   );
 
+  // Home's mic opens this screen already listening (plan item 2), once.
+  const listenOnOpen = params.listen === true;
+  const startedListening = useRef(false);
+  useEffect(() => {
+    if (!listenOnOpen || startedListening.current || !voice.supported) return;
+    startedListening.current = true;
+    voice.toggle();
+  }, [listenOnOpen, voice]);
+
   // ---------------------------------------------------------------- flow ---
 
   /** Forward from `from` -- or, when an earlier step was being changed, straight back to where they were. */
@@ -872,7 +881,13 @@ export function AiPostScreen() {
               <Field
                 label="Title"
                 value={title}
-                onChangeText={setTitle}
+                // Two lines that grow, so a long title shows from its first
+                // word; Enter closes the keyboard instead of adding a line.
+                onChangeText={(v) => setTitle(v.replace(/\s*\n+\s*/g, ' '))}
+                multiline
+                minHeight={40}
+                submitBehavior="blurAndSubmit"
+                returnKeyType="done"
                 maxLength={80}
                 error={titleIssue ? contactIssueMessage(titleIssue) : null}
               />
@@ -1185,6 +1200,19 @@ export function AiPostScreen() {
             The final figure follows the offer you accept. Nothing is charged now.
           </RNText>
         </View>
+
+        {/* Two promises just above "Post my request" (plan item 3): what stays private, and when money moves. */}
+        <View style={{ marginTop: 12, borderRadius: 20, backgroundColor: t.colors.accentSoft, paddingHorizontal: 16, paddingVertical: 14, gap: 10 }}>
+          <Pledge
+            icon="lock"
+            text={
+              remote
+                ? 'Your phone number stays hidden until you pick someone.'
+                : 'Your number and exact address stay hidden. Workers see only the area until you pick one.'
+            }
+          />
+          <Pledge icon="shield" text="Nothing is paid now. When you pick someone, TaskDrop holds the money until you approve the work." />
+        </View>
       </>
     );
   }
@@ -1445,6 +1473,17 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       <RNText style={tx(strong ? '700' : '400', 13, strong ? t.colors.ink : t.colors.muted, { flex: 1 })}>{label}</RNText>
       <RNText style={tx(strong ? '800' : '600', strong ? 15 : 13, t.colors.ink)}>{value}</RNText>
+    </View>
+  );
+}
+
+/** One of Review's promises: an icon and a plain sentence. */
+function Pledge({ icon, text }: { icon: IconName; text: string }) {
+  const t = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+      <Icon name={icon} size={18} color={t.colors.accentDeep} />
+      <RNText style={tx('500', 14, t.colors.ink, { flex: 1, lineHeight: 20 })}>{text}</RNText>
     </View>
   );
 }

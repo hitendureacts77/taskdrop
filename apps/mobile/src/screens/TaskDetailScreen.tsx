@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Badge, BackButton, IconButton, systemHeader } from '../components/kit';
 import { ReportSheet } from '../components/ReportSheet';
+import { TaskQuestions } from '../components/TaskQuestions';
 import { Icon } from '../components/Icon';
 import { View, Text as RNText, Pressable, TextInput, Platform } from 'react-native';
 import { maskContacts } from '../lib/mask';
@@ -505,6 +506,10 @@ export function TaskDetailScreen() {
         <RNText style={tx('400', 12, t.colors.muted, { lineHeight: 18, marginTop: 13 })}>
           Phone numbers stay hidden until the work starts.
         </RNText>
+
+        {worker && realId && !blocked ? (
+          <TaskQuestions taskId={realId} role="ask" posterName={other?.name} style={{ marginTop: t.spacing.xl }} />
+        ) : null}
 
         {worker && blocked ? (
           /* Say why instead of showing a price box that cannot be sent. The

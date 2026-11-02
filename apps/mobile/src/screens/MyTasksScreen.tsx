@@ -32,6 +32,7 @@ import {
 import { listSavedTasks, listSavedTaskIds, setSaved } from '../data/extras';
 import { openPostedTask, openRow, toneInk, workerAssignmentRow, workerBidRow, type ViewRow } from '../lib/taskRows';
 import { ListingCard } from '../components/ListingCard';
+import { AlertsCard } from '../components/AlertsCard';
 import { taskToFeedRow } from '../lib/openTask';
 
 /**
@@ -247,6 +248,7 @@ function MyPosted() {
             ) : null}
           </HeroCard>
         </View>
+        <AlertsCard show={(tasks?.length ?? 0) > 0} side="hire" />
 
         <View {...ring}
           style={{
@@ -620,6 +622,7 @@ function MyWork() {
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.purple} />}
       >
+        <AlertsCard show={(rows?.length ?? 0) > 0} side="earn" />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 20, paddingTop: 8 }}>
           <StatTile icon="wallet" label="Earned" value={w ? formatINR(w.earnedMinor) : '–'} />
           <StatTile icon="check" label="Completed" value={String(w?.jobsDone ?? '–')} tone="blue" />
