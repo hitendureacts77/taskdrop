@@ -872,7 +872,13 @@ export function AiPostScreen() {
               <Field
                 label="Title"
                 value={title}
-                onChangeText={setTitle}
+                // Two lines that grow, so a long title shows from its first
+                // word; Enter closes the keyboard instead of adding a line.
+                onChangeText={(v) => setTitle(v.replace(/\s*\n+\s*/g, ' '))}
+                multiline
+                minHeight={40}
+                submitBehavior="blurAndSubmit"
+                returnKeyType="done"
                 maxLength={80}
                 error={titleIssue ? contactIssueMessage(titleIssue) : null}
               />

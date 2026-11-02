@@ -851,7 +851,10 @@ export function HomeScreen() {
               </View>
             )}
           </View>
-        ) : null}
+        ) : (
+          // Room under the last section so the drop button never covers it.
+          <View style={{ height: 110 }} />
+        )}
       </FadeIn>
     </Screen>
   );
