@@ -22,6 +22,12 @@ import { PushBridge } from './components/PushBridge';
 import { SessionWatch } from './components/SessionWatch';
 import { PresenceBeat } from './components/PresenceBeat';
 import { PublicPageLink } from './components/PublicPageLink';
+import { refreshAppConfig } from './lib/appConfig';
+
+// Ask for the admin panel's switches as the script loads, while the five font files download, instead of
+// when AppGate mounts after them (P2-48: on a slow link that was 4.4 s in). AppGate's own start-up call
+// joins this one, and the answer is kept the same way.
+void refreshAppConfig();
 
 /**
  * Wraps the current screen. A crash inside it shows the "try again" page, and

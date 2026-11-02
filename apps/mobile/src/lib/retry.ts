@@ -13,6 +13,14 @@
 /** How long to wait before the first and the second repeat. */
 export const RETRY_DELAYS_MS: readonly number[] = [400, 1000];
 
+/**
+ * How long a read may go without an answer before it is given up and asked again. The slowest reads on the
+ * test server take about 8 s (a fresh function instance on a busy moment); a reply that has not come in 15 s
+ * is treated like a dropped connection, so a lost answer cannot hold a screen on "Loading..." for good.
+ * Writes have no limit: giving up on a payment or a bid half way would leave its outcome unknown.
+ */
+export const READ_TIMEOUT_MS = 15_000;
+
 /** What the failed request looked like from outside. */
 export type Failure = {
   /** The HTTP status when the server (or the gateway in front of it) answered. */

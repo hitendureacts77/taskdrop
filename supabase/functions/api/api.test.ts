@@ -11,6 +11,7 @@ import { MAX_BATCH, OPS, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, r
 import {
   ControlsCache, featureOffMessage, OPEN_CONFIG, parseControls, publicConfig, readClient, refusalFor, type Controls,
 } from "../_shared/controls.ts";
+import { StandingCache, callerFromClaims, standingOf } from "./core.ts";
 import * as serverRules from "../_shared/rules.ts";
 import type { ImageKitConfig } from "../_shared/imagekit.ts";
 import { createHmac } from "node:crypto";
@@ -246,6 +247,31 @@ await t("search text cannot break out of the filter grammar", async () => {
   await runOp("searchTasks", { q: "tap),status.eq.CANCELLED,(title" }, ctx(f));
   const ors = steps(f.calls[0], "or").map(([x]) => String(x));
   assert.ok(ors[1].startsWith("title.ilike.%") && !/[(),]/.test(ors[1].replace(/^title\.ilike\.%|,description\.ilike\.%|%$/g, "").replace(/%,description\.ilike\.%/, "")), ors[1]);
+});
+
+await t("searchTasksWithPosters answers what searchTasks then attachPosters would, in one call", async () => {
+  const tasks = [
+    { id: TASK, poster_id: OTHER, status: "OPEN", loc_lat: null, loc_lng: null },
+    { id: TASK2, poster_id: OTHER, status: "OPEN", loc_lat: null, loc_lng: null },
+  ];
+  const f = fake((c) => (c.table === "profiles" ? { data: [{ id: OTHER, display_name: "Ravi" }], error: null } : { data: tasks, error: null }));
+  const r = await runOp("searchTasksWithPosters", { q: "tap", limit: 60, kind: "request" }, ctx(f));
+  assert.ok(r.ok);
+  const out = r.data as Array<{ id: string; poster: { id: string } | null }>;
+  assert.deepEqual(out.map((x) => [x.id, x.poster?.id]), [[TASK, OTHER], [TASK2, OTHER]]);
+  // Same filters as searchTasks (never the caller's own posts), and one profiles read for both tasks.
+  assert.deepEqual(steps(f.calls[0], "neq")[0], ["poster_id", UID]);
+  assert.equal(f.calls.filter((c) => c.table === "profiles").length, 1);
+  assert.equal(rateBucket("searchTasksWithPosters"), "read");
+  // Bad arguments are refused the same way, before the database is asked.
+  const g = fake();
+  const bad = await runOp("searchTasksWithPosters", { near: { lat: 999, lng: 0, radiusKm: 1 } }, ctx(g));
+  assert.ok(!bad.ok && bad.error.code === "BAD_ARGS");
+  assert.equal(g.calls.length, 0);
+  // Nothing found: no profiles read.
+  const h = fake(() => ({ data: [], error: null }));
+  assert.deepEqual((await runOp("searchTasksWithPosters", {}, ctx(h))).ok, true);
+  assert.equal(h.calls.filter((c) => c.table === "profiles").length, 0);
 });
 
 // ------------------------------------------------------- safe error text --
@@ -793,6 +819,94 @@ await t("controls are looked up once per half minute per kind of caller, and a f
   const stale = await cache.get(android, load);
   assert.equal(stale, first, "a failed refresh falls back to the last good answer");
   assert.equal(await new ControlsCache(30_000).get(android, load), null, "no answer at all is null, which never refuses");
+});
+
+await t("the caller comes from a checked token's claims; anything that did not check out is nobody", () => {
+  const ok = (claims: Record<string, unknown>) => callerFromClaims({ data: { claims }, error: null });
+  assert.equal(ok({ sub: UID, role: "authenticated" }), UID);
+  assert.equal(callerFromClaims({ data: { claims: { sub: UID } }, error: new Error("Invalid JWT signature") }), null, "a failed check");
+  assert.equal(callerFromClaims({ data: null, error: null }), null, "no answer");
+  assert.equal(callerFromClaims(null), null);
+  assert.equal(callerFromClaims(undefined), null);
+  assert.equal(ok({ role: "anon" }), null, "the anon key has no subject");
+  assert.equal(ok({ sub: "" }), null);
+  assert.equal(ok({ sub: 42 }), null);
+  assert.equal(ok({ sub: "not-a-uuid" }), null);
+});
+
+/** A service-role stand-in for the two lookups behind a person's standing. */
+function standingDb(o: { suspended?: boolean; deletedAt?: string | null; noProfile?: boolean; fail?: boolean }) {
+  const asked: string[] = [];
+  const q = (table: string, result: () => { data: unknown; error: unknown }) => {
+    const p: unknown = new Proxy(function () {}, {
+      get(_t, name) {
+        if (name === "then") return (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) => Promise.resolve(result()).then(res, rej);
+        if (name === "maybeSingle") return () => p;
+        return (...args: unknown[]) => {
+          asked.push(table + "." + String(name) + "(" + args.map(String).join(",") + ")");
+          return p;
+        };
+      },
+    });
+    return p;
+  };
+  const err = () => (o.fail ? { message: "db down" } : null);
+  return {
+    asked,
+    from: (table: string) =>
+      table === "user_suspensions"
+        ? q(table, () => ({ data: o.suspended ? [{ id: "s" }] : [], error: err() }))
+        : q(table, () => ({ data: o.noProfile ? null : { deleted_at: o.deletedAt ?? null }, error: err() })),
+  };
+}
+
+await t("a suspended or deleted person is refused even though their token still checks out; a normal one passes", async () => {
+  assert.equal(await standingOf(standingDb({}), UID), "ok", "a normal person passes");
+  const banned = standingDb({ suspended: true });
+  assert.equal(await standingOf(banned, UID), "suspended", "a token-valid but suspended person is refused");
+  assert.ok(banned.asked.includes("user_suspensions.is(lifted_at,null)"), "only an open suspension counts");
+  assert.ok(banned.asked.includes(`user_suspensions.eq(user_id,${UID})`));
+  assert.equal(await standingOf(standingDb({ deletedAt: "2026-10-27T00:00:00Z" }), UID), "deleted", "an account the person deleted");
+  assert.equal(await standingOf(standingDb({ noProfile: true }), UID), "deleted", "an auth user that is gone altogether");
+  assert.equal(await standingOf(standingDb({ suspended: true, deletedAt: "2026-10-27T00:00:00Z" }), UID), "deleted");
+  assert.equal(await standingOf(standingDb({ fail: true }), UID), null, "unreadable is not a verdict");
+});
+
+await t("standing is remembered for a few seconds only, so a ban bites quickly; unreadable answers are not kept", async () => {
+  let clock = 1_000_000, loads = 0, next: "ok" | "suspended" | null = "ok";
+  const cache = new StandingCache(5_000, () => clock);
+  const load = async () => (loads++, next);
+  assert.equal(await cache.get(UID, load), "ok");
+  await Promise.all([cache.get(UID, load), cache.get(UID, load)]);
+  assert.equal(loads, 1, "a burst of calls asks once");
+  next = "suspended";
+  clock += 4_000;
+  assert.equal(await cache.get(UID, load), "ok", "still the old answer inside the window");
+  clock += 1_500;
+  assert.equal(await cache.get(UID, load), "suspended", "a suspension is seen within 5 seconds");
+  assert.equal(await cache.get(OTHER, async () => "ok"), "ok", "each person has their own entry");
+  next = null;
+  clock += 6_000;
+  assert.equal(await cache.get(UID, load), null);
+  next = "ok";
+  assert.equal(await cache.get(UID, load), "ok", "an unreadable answer was not kept");
+  assert.equal(await cache.get(UID, async () => { throw new Error("boom"); }), "ok", "inside the window the kept answer is used");
+});
+
+await t("api/index.ts refuses a suspended or deleted caller with the sign-in-again 401, before any operation runs", () => {
+  const src = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+  assert.ok(src.includes("standingCache.get(userId, () => standingOf(admin, userId))"));
+  const refusal = src.indexOf('accountStanding === "suspended" || accountStanding === "deleted"');
+  const run = src.indexOf("const running =");
+  assert.ok(refusal > 0 && run > refusal, "the refusal comes before the operation starts");
+  assert.match(src.slice(refusal, refusal + 400), /UNAUTHENTICATED", 401/);
+});
+
+await t("api/index.ts checks the token with getClaims and asks the auth service only while the phone switch is on", () => {
+  const src = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+  assert.match(src, /callerFromClaims\(await db\.auth\.getClaims\(jwt\)\.catch\(\(\) => null\)\)/);
+  assert.equal((src.match(/auth\.getUser\(/g) ?? []).length, 1, "one getUser, and only for the phone check");
+  assert.match(src, /if \(controls\?\.require_phone_verified\) \{\s*const \{ data: userData, error: userErr \} = await db\.auth\.getUser\(jwt\)/);
 });
 
 await t("a device is recorded from the headers, and registering a push token never fails because of it", async () => {

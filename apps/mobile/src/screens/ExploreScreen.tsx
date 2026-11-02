@@ -17,10 +17,9 @@ import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import {
-  attachPosters,
+  searchTasksWithPosters,
   getProfile,
   listMyTasks,
-  searchTasks,
   type Task,
   type TaskWithPoster,
 } from '../data/api';
@@ -390,8 +389,8 @@ function FindWork() {
   }, [userId]);
 
   const load = useCallback(async () => {
-    const found = await searchTasks({ q: query || undefined, limit: 60, kind: 'request' });
-    return attachPosters(found);
+    // One request: the posts and their posters together (it was two back to back, once 13 s on a busy server).
+    return searchTasksWithPosters({ q: query || undefined, limit: 60, kind: 'request' });
   }, [query, focusTick]);
 
   useEffect(() => {
