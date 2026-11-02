@@ -15,10 +15,12 @@
  *   node scripts/security-round2.mjs fuzz     # T4 only
  *   node scripts/security-round2.mjs signin   # T6 only
  *   node scripts/security-round2.mjs authlimits  # T6 username sign-in vs Supabase's limits (task 2.8b)
+ *   node scripts/security-round2.mjs signupguard # hole H21: direct sign-ups refused, phone sign-up still works
  *
  * Needs EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (public values). Exit 1 if anything got through.
  */
 import { readFileSync } from 'node:fs';
+import { createClient } from '@supabase/supabase-js';
 import { fileURLToPath } from 'node:url';
 import { URL as SUPABASE_URL, api, headers, phoneAuth, signIn } from './lib/staging-session.mjs';
 
@@ -226,9 +228,41 @@ async function authLimits() {
   bad('2.8b', '10 wrong passwords in a row', 'never refused');
 }
 
+// ---------------------------------------------------------------------------------- T6, hole H21
+// A direct sign-up at Supabase (the public key, POST /auth/v1/signup) on a phone address must be refused by the
+// "before user created" hook (migration 138), and a real phone sign-up for that number must still make a fresh
+// account the person can use. Each run makes one new staging account on a random 6xxxxxxxxx number.
+async function signupGuard() {
+  const phone = `6${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
+  const email = `p${phone}@phone.taskdrop.app`;
+  const direct = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ email, password: `H21-${crypto.randomUUID()}` }),
+  }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => ({})) }));
+  if (direct.status === 200 || direct.body?.id || direct.body?.user) bad('H21', 'a direct sign-up on a phone address was accepted', `HTTP ${direct.status}`);
+  else ok(`direct sign-up refused (HTTP ${direct.status})`);
+
+  const sent = await phoneAuth({ action: 'send', phone, mode: 'signup' });
+  if (!sent.body.devCode) {
+    bad('H21', 'no test code for a new number', `HTTP ${sent.status} ${String(sent.body.error).slice(0, 60)}`);
+    return;
+  }
+  const verified = await phoneAuth({ action: 'verify', phone, code: sent.body.devCode, mode: 'signup' });
+  if (!verified.body.token_hash || verified.body.isNew !== true) {
+    bad('H21', 'a new phone sign-up did not make a fresh account', `HTTP ${verified.status} ${String(verified.body.error).slice(0, 60)}`);
+    return;
+  }
+  const client = createClient(SUPABASE_URL, process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data, error } = await client.auth.verifyOtp({ token_hash: verified.body.token_hash, type: 'magiclink' });
+  if (error || !data.session) bad('H21', 'the new phone account could not open a session', error?.message ?? 'no session');
+  else ok('phone sign-up still makes a working account');
+}
+
 if (which === 'all' || which === 'fuzz') await fuzz();
 if (which === 'all' || which === 'signin') await signinTricks();
 if (which === 'all' || which === 'authlimits') await authLimits();
+if (which === 'all' || which === 'signupguard') await signupGuard();
 
 console.log(`security round 2: ${held} probes held, ${findings.length} got through`);
 for (const f of findings.slice(0, 60)) console.log('  GOT THROUGH: ' + f);
