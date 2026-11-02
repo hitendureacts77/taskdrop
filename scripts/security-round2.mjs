@@ -14,12 +14,13 @@
  *   node scripts/security-round2.mjs          # both
  *   node scripts/security-round2.mjs fuzz     # T4 only
  *   node scripts/security-round2.mjs signin   # T6 only
+ *   node scripts/security-round2.mjs authlimits  # T6 username sign-in vs Supabase's limits (task 2.8b)
  *
  * Needs EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (public values). Exit 1 if anything got through.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { api, phoneAuth, signIn } from './lib/staging-session.mjs';
+import { URL as SUPABASE_URL, api, headers, phoneAuth, signIn } from './lib/staging-session.mjs';
 
 const which = process.argv[2] ?? 'all';
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -188,8 +189,46 @@ async function signinTricks() {
   }
 }
 
+// ------------------------------------------------------------------------------- T6, task 2.8b
+// Username sign-in goes through password-auth, which signs in to Supabase with the secret key and the
+// caller's address in Sb-Forwarded-For. The right password must still work on that path, and wrong ones
+// must be stopped by TaskDrop's own gate (8 per username in 15 minutes) before Supabase's limit is reached.
+// That Supabase now counts the caller, not the server, shows in the auth log (the plan's 2.8b notes).
+// Leaves seed_ravi's username locked for 15 minutes; run it at most twice a day (20 failures a day lock it for 24 hours).
+async function authLimits() {
+  const { client } = await signIn('9990000002'); // seed_ravi
+  const password = `T6-${crypto.randomUUID()}`;
+  const { error } = await client.auth.updateUser({ password });
+  if (error) {
+    bad('2.8b', 'could not set a test password', error.message);
+    return;
+  }
+  const pw = (pass) =>
+    fetch(`${SUPABASE_URL}/functions/v1/password-auth`, { method: 'POST', headers, body: JSON.stringify({ username: 'seed_ravi', password: pass }) })
+      .then(async (r) => ({ status: r.status, body: await r.json().catch(() => ({})) }));
+
+  const right = await pw(password);
+  if (right.status === 200 && right.body.access_token) ok('username sign-in works through the forwarding path');
+  else bad('2.8b', 'username sign-in with the right password', `HTTP ${right.status} ${String(right.body.error).slice(0, 60)}`);
+
+  for (let i = 1; i <= 10; i++) {
+    const r = await pw(`${password}-wrong`);
+    if (r.status === 200) {
+      bad('2.8b', 'a wrong password signed in', 'session');
+      return;
+    }
+    if (r.status === 429) {
+      if (/Too many attempts/.test(String(r.body.error))) ok(`own gate stopped wrong passwords after ${i - 1}`);
+      else bad('2.8b', "Supabase's limit was reached before TaskDrop's own gate", String(r.body.error).slice(0, 60));
+      return;
+    }
+  }
+  bad('2.8b', '10 wrong passwords in a row', 'never refused');
+}
+
 if (which === 'all' || which === 'fuzz') await fuzz();
 if (which === 'all' || which === 'signin') await signinTricks();
+if (which === 'all' || which === 'authlimits') await authLimits();
 
 console.log(`security round 2: ${held} probes held, ${findings.length} got through`);
 for (const f of findings.slice(0, 60)) console.log('  GOT THROUGH: ' + f);

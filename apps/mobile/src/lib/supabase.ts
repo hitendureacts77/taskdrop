@@ -2,6 +2,7 @@ import { LogBox } from 'react-native';
 import { FunctionRegion } from '@supabase/supabase-js';
 import { createBrowserClient } from '@taskdrop/supabase';
 import { sessionStorage } from './secureStorage';
+import { keepSessionOnRateLimit } from './authFetch';
 // Gives supabase-js the WebCrypto digest it needs for S256 sign-in codes on phones (a no-op on web).
 import './webcrypto';
 
@@ -14,8 +15,9 @@ const url = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 // One typed client for the whole app, persisting the session in SecureStore on
-// a phone (Keystore-encrypted) and AsyncStorage on web.
-export const supabase = createBrowserClient(url, anonKey, { storage: sessionStorage });
+// a phone (Keystore-encrypted) and AsyncStorage on web. A renewal refused by
+// Supabase's sign-in limit keeps the session (keepSessionOnRateLimit, task 2.8b).
+export const supabase = createBrowserClient(url, anonKey, { storage: sessionStorage, fetch: keepSessionOnRateLimit() });
 
 /**
  * Where our server functions run: Mumbai, next to the database. Left to

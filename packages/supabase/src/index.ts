@@ -13,9 +13,10 @@ export type TaskDropClient = SupabaseClient<Database>;
 export function createBrowserClient(
   url: string,
   anonKey: string,
-  options?: { storage?: unknown },
+  options?: { storage?: unknown; fetch?: typeof fetch },
 ): TaskDropClient {
   return createClient<Database>(url, anonKey, {
+    ...(options?.fetch ? { global: { fetch: options.fetch } } : {}),
     auth: {
       persistSession: true,
       autoRefreshToken: true,
