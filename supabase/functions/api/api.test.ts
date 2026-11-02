@@ -12,6 +12,7 @@ import {
   ControlsCache, featureOffMessage, OPEN_CONFIG, parseControls, publicConfig, readClient, refusalFor, type Controls,
 } from "../_shared/controls.ts";
 import { StandingCache, callerFromClaims, standingOf } from "./core.ts";
+import { MAX_BODY_BYTES, REQUEST_ID_HEADER, readBody, requestIdFrom, withGatewayHeaders } from "./http.ts";
 import * as serverRules from "../_shared/rules.ts";
 import type { ImageKitConfig } from "../_shared/imagekit.ts";
 import { createHmac } from "node:crypto";
@@ -1213,6 +1214,67 @@ await t("poster options: only the ones switched on are sent, and a crew is one r
   const thin = fake();
   assert.equal((await runOp("createTask", { ...base, benchmarkMinor: 3000, crewSize: 5 }, ctx(thin))).ok, false);
   assert.equal(thin.calls.length, 0);
+});
+
+// ------------------------------------------------------------- front door --
+
+await t("promotionTiers reads the two settings through the gateway, as stored", async () => {
+  const f = fake((c) =>
+    c.table === "settings"
+      ? { data: [{ key: "promotion_daily_budgets_minor", value: [5000, 8000] }, { key: "promotion_durations_days", value: [1, 3] }], error: null }
+      : { data: [], error: null }
+  );
+  const r = await runOp("promotionTiers", {}, ctx(f));
+  assert.deepEqual(r, { ok: true, data: { budgetsMinor: [5000, 8000], days: [1, 3] } });
+  assert.deepEqual(steps(f.calls[0], "in")[0], ["key", ["promotion_daily_budgets_minor", "promotion_durations_days"]]);
+  // Nothing stored yet: nulls, and the app keeps its defaults.
+  const empty = await runOp("promotionTiers", {}, ctx(fake(() => ({ data: [], error: null }))));
+  assert.deepEqual(empty, { ok: true, data: { budgetsMinor: null, days: null } });
+  assert.equal(rateBucket("promotionTiers"), "read");
+});
+
+await t("the app's trace id is kept when it looks like one, replaced otherwise", () => {
+  const made = () => "made-here-1234";
+  assert.equal(requestIdFrom(new Headers({ [REQUEST_ID_HEADER]: "3f2b9c1e-aaaa-4bbb-8ccc-1234567890ab" }), made), "3f2b9c1e-aaaa-4bbb-8ccc-1234567890ab");
+  assert.equal(requestIdFrom(new Headers(), made), "made-here-1234");
+  assert.equal(requestIdFrom(new Headers({ [REQUEST_ID_HEADER]: "short" }), made), "made-here-1234");
+  assert.equal(requestIdFrom(new Headers({ [REQUEST_ID_HEADER]: "x".repeat(65) }), made), "made-here-1234");
+  assert.equal(requestIdFrom(new Headers({ [REQUEST_ID_HEADER]: "abc def-ghij-klmn" }), made), "made-here-1234");
+  assert.match(requestIdFrom(new Headers()), /^[0-9a-f-]{36}$/);
+});
+
+await t("every answer carries the trace id and is never cached", async () => {
+  const res = withGatewayHeaders(new Response("{}", { status: 429, headers: { "Content-Type": "application/json" } }), "req-12345678");
+  assert.equal(res.status, 429);
+  assert.equal(res.headers.get(REQUEST_ID_HEADER), "req-12345678");
+  assert.equal(res.headers.get("Cache-Control"), "no-store");
+  assert.equal(res.headers.get("X-Content-Type-Options"), "nosniff");
+  assert.equal(res.headers.get("Access-Control-Expose-Headers"), REQUEST_ID_HEADER);
+  assert.equal(res.headers.get("Content-Type"), "application/json");
+  assert.equal(await res.text(), "{}");
+});
+
+await t("a body over the cap is refused, declared or not", async () => {
+  const small = await readBody(new Request("https://x/", { method: "POST", body: JSON.stringify({ op: "getTask" }) }));
+  assert.deepEqual(small, { ok: true, text: '{"op":"getTask"}' });
+  const declared = new Request("https://x/", { method: "POST", body: "{}", headers: { "content-length": String(MAX_BODY_BYTES + 1) } });
+  assert.deepEqual(await readBody(declared), { ok: false, reason: "too_large" });
+  // A stream that never says how long it is gets cut off as it crosses the cap.
+  const chunk = new Uint8Array(64 * 1024).fill(97);
+  let sent = 0;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(c) {
+      if (sent++ < 10) c.enqueue(chunk);
+      else c.close();
+    },
+  });
+  const req = new Request("https://x/", { method: "POST", body: stream, duplex: "half" } as RequestInit);
+  assert.deepEqual(await readBody(req), { ok: false, reason: "too_large" });
+  assert.ok(sent <= 7, "stopped reading soon after the cap");
+  // Exactly at the cap is fine; multi-byte text survives being put back together.
+  assert.equal((await readBody(new Request("https://x/", { method: "POST", body: "₹".repeat(1000) }))).ok, true);
+  const exact = await readBody(new Request("https://x/", { method: "POST", body: "a".repeat(MAX_BODY_BYTES) }));
+  assert.equal(exact.ok && exact.text.length, MAX_BODY_BYTES);
 });
 
 console.log(`\n${passed} passed`);

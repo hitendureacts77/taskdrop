@@ -574,6 +574,19 @@ export const READ_OPS: Record<string, Op> = {
   /** The live fee settings, with the defaults when a key is missing. */
   platformFees: (ctx) => readFees(ctx),
 
+  /**
+   * The promotion budgets and lengths staff set in the admin (migration 114), as stored. The app
+   * checks their shape and falls back to its defaults; startPromotion still refuses anything else.
+   * The app used to read the settings table itself, which the gateway-only lockdown would stop.
+   */
+  promotionTiers: async (ctx) => {
+    const list = rows<{ key: string; value: unknown }>(
+      await ctx.db.from("settings").select("key,value").in("key", ["promotion_daily_budgets_minor", "promotion_durations_days"]),
+    );
+    const value = (k: string) => list.find((r) => r.key === k)?.value ?? null;
+    return { budgetsMinor: value("promotion_daily_budgets_minor"), days: value("promotion_durations_days") };
+  },
+
   /** Platform fees the caller actually paid since a date, from the rows that moved the money. */
   feesSince: async (ctx, a) => {
     const iso = isoOrNull(a, "since") ?? "1970-01-01T00:00:00Z";

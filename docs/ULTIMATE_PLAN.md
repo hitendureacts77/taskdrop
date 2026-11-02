@@ -1246,10 +1246,81 @@ start money safety limits
 **Done 1 Nov (PR 159 and admin 35, merged; migration 133 applied on staging, the money end-to-end tests still pass with the limits live):** new accounts (under 30 days old or under 3 finished jobs) can post or hold a job worth at most Rs 5,000 and withdraw at most Rs 5,000 a day, rising by one step per finished job with 4 stars or more; a poster and worker who share a UPI id, bank account or app install leave one admin alert (flag, not block); all four numbers are editable in admin Settings; a money mismatch now also raises a Sentry issue. **Decision 12:** the starting numbers are the recommended ones until you say otherwise.
 </details>
 
+<details id="t2-12" data-short="One front door (API gateway)">
+<summary>[CLAUDE] <b>2.12</b> One front door: nothing reaches the database except through the API gateway <small>· your time: none · Built 2 Nov; the last door (H3) closes in 3.9</small></summary>
+
+**Why:** you asked for a design where nothing goes to the main server directly: an API gateway in front of it, and the habits a good SaaS app follows. TaskDrop already has that gateway. It is the `api` server function: the app names what it wants (`placeBid`, `getTask`), and `api` decides how, under the caller's own login, with every check in one place. This task checked every road from the app to the database, closed the ones that skipped the gateway, and added a CI check so no new one can appear.
+
+**The road every request takes:**
+
+```mermaid
+sequenceDiagram
+  participant App as App (website or Android)
+  participant Edge as Supabase edge
+  participant API as api, the gateway
+  participant DB as Database
+  App->>Edge: HTTPS, login token, app version, App Check, trace id
+  Edge->>Edge: Encryption, token signature checked
+  Edge->>API: Only valid tokens get through
+  API->>API: Size cap (256 KB), who is it, banned or deleted?
+  API->>API: Rate limit per person, admin switches (maintenance, minimum version, features off)
+  API->>API: Input checks: type, length, allowed values
+  API->>DB: As the caller, with the secret gateway header
+  DB->>DB: Row rules and money rules decide. From 3.9 it refuses anything without the header
+  DB-->>API: Rows or a refusal
+  API-->>App: Plain-words answer, never cached, with the same trace id
+```
+
+**What was already in place (checked 2 Nov):**
+
+| Layer | What protects it |
+|---|---|
+| App | Holds no secret and decides nothing; calls `api` by name, one request for many reads at once |
+| Supabase edge | HTTPS, and the login token's signature is checked before `api` runs |
+| `api` | Sign-in check, banned or deleted accounts refused, 300 reads, 60 writes and 20 uploads a minute per person, admin switches, input checks on every field, App Check (watching, refuses at 3.9), CORS limited to TaskDrop's own websites, errors to Sentry with no database names shown |
+| Other server functions | Payments, place search, sign-in and app config each check the caller and have their own limits |
+| Database | Row rules on every table, money rules in SQL, the gateway check (`require_gateway`) built and waiting for 3.9 |
+| Live updates | Private per-person pings that carry no data; the app then asks `api` |
+| Admin | Runs on the server only; staff browsers never touch the database |
+
+**Built 2 Nov (one pull request):**
+
+| What | In plain words |
+|---|---|
+| The last direct read moved behind `api` | The Promote screen read its prices straight from the `settings` table. It now asks `api` (`promotionTiers`). Without this, the 3.9 switch-over would have silently broken the price list |
+| A CI check: gateway only | `scripts/check-gateway-only.mjs` fails the tests if app code reads a table, calls a database function, opens Storage, calls an unlisted server function or subscribes to raw table changes. It is part of `npm test`, so it runs on every pull request |
+| Size cap | `api` refuses a request over 256 KB before reading it (the biggest real one is a few KB; photos go straight to ImageKit) |
+| Trace id | Every call carries an id that the server writes beside every log line and sends back, so a problem a tester reports can be found in the logs in seconds |
+| Never cached | Every answer says `no-store` and `nosniff`, so a shared cache can never show one person's data to another |
+| Supply-chain check | `scripts/check-lockfile.mjs` fails the tests if any package would be downloaded from anywhere but the npm registry, or without a checksum. This is the defence against look-alike packages ("slopsquatting") |
+
+**Still open, and where it is planned:**
+
+| What | Why | Where |
+|---|---|---|
+| Close direct database access on staging (hole H3) | The gateway check is built but off, because the old app still reads tables directly | 3.9 (production starts with it on, 5.9) |
+| App Check refuses, not only watches | The old app cannot send the token | 3.9 |
+| A repeat key on money writes (idempotency) | Today a double tap is stopped by the database rules (a paid task cannot be paid again). A repeat key on each money request would also make a retry after a lost connection safe | Recommended next; say "start idempotency keys" |
+| Firewall and bot rules on the website | Vercel's firewall, bot protection and Attack Challenge Mode | 5.8b (needs Vercel Pro) |
+| Backups and a practised restore | Supabase daily backups plus a nightly copy outside Supabase | 5.9, 6.5 |
+
+**The security checklist from the video you shared (2 Nov), against TaskDrop:**
+
+| The video's point | TaskDrop |
+|---|---|
+| Never paste secret keys into the prompt or the front end | Keys live only in `.env.all-secrets` and the server secret stores; secret scanning on every commit and a bundle check (2.5, 2.10 proof 2) |
+| A paywall must be a server check, not a browser switch | Rule 1: the app asks, the server decides. Every price, permission and limit is checked in `api` and the database |
+| Watch what gets installed | The audit gate, Dependabot, and now the lockfile check above |
+| Check every input on the server | `api` checks the type, length and allowed values of every field; the database checks again; the size cap above |
+| Hosting with a firewall, DDoS protection and backups | Vercel and Supabase block floods today; firewall rules and backups come with production (5.8b, 5.9) |
+
+**Done when:** merged into `redesigned-2.0`, `npm run check` passes with both new checks, and the `api` function is deployed by the staging build.
+</details>
+
 > **GATE 2b: do not start Step 5 (production) until all of these are true**
 
 - [ ] Gate 2a has passed
-- [ ] Tasks 2.1 to 2.11 are ticked
+- [ ] Tasks 2.1 to 2.12 are ticked
 - [ ] The six proofs in task 2.10 are all true
 - [ ] Holes H2 to H10, H12 and H17 are closed (H3 closes in 3.9 for staging and is never open in production; H11 closes in 5.2; H1, H15 and H16 in 5.9)
 - [ ] No Critical or High security problem is open
@@ -2890,7 +2961,7 @@ The app never decides the amount and never sees the secret key. If the payment m
 |---|---|---|---|
 | Website | Network floods | Vercel blocks them automatically, on every plan | On |
 | Website | Floods of requests, bad bots, scrapers | Vercel firewall rules, bot protection and Attack Challenge Mode (5.8b) | At production (Pro) |
-| `api` | Abuse, guessing, scraping | Login token required, limits per user and per network address, App Check. Vercel's firewall never sees this traffic (it goes to Supabase), so these limits must be in the server | Partly on |
+| `api` | Abuse, guessing, scraping, oversized requests | Login token required, limits per user and per network address, a 256 KB size cap, App Check. Vercel's firewall never sees this traffic (it goes to Supabase), so these limits must be in the server | Partly on |
 | Database, directly | Calls with the public key that skip `api` | Row rules now; the switch-over (3.9) closes this door | Biggest open door until 3.9 |
 | Sign-in | SMS pumping, guessing codes, filling Supabase's shared sign-in limit | 60-second wait and 5 tries per code; 2.8 limits per number, address and install, and a daily SMS cap (built); 2.8b sets Supabase's own limits and counts each person separately | Partly on |
 | Payments | Fake payment messages, card testing | Signature checks, record-once rule, limits on new orders | Mostly on |
@@ -2905,7 +2976,7 @@ The app never decides the amount and never sees the secret key. If the payment m
 **The design rules TaskDrop follows** (the good system-design habits from the backend-concepts list you saved)
 
 1. **The app asks, the server decides.** The app is a remote control. Every price, permission and limit is checked on the server.
-2. **One front door.** Every request goes through `api`, where login, limits and input checks happen once.
+2. **One front door.** Every request goes through `api`, the API gateway, where login, limits and input checks happen once. A CI check (2.12) fails if app code ever reaches the database another way, and 3.9 makes the database itself refuse anything that skipped the gateway.
 3. **Money changes happen in one database step** (a transaction), so money can never be half-moved. No complex multi-service money dance is needed.
 4. **Slow work goes to a queue** (the outbox, then Inngest), with automatic retries. A slow outside service never makes a user wait.
 5. **Every payment message is recorded once** (idempotency), so a repeat cannot pay twice.
@@ -2917,7 +2988,7 @@ The app never decides the amount and never sees the secret key. If the payment m
 11. **Safe by default.** A brand-new production starts with every test shortcut off and an alarm that fires if one ever comes back (5.9). A forgotten setting must fail safe, never open.
 12. **Release in small slices.** New versions reach 20% of phones first, and database changes go out before the code that needs them (3.7).
 
-Already handled for you by Vercel and Supabase, so there is nothing to build: load balancing, reverse proxies, an API gateway, servers and containers (Docker, Kubernetes), certificates, and 7 days of daily backups (Pro). Because you hold people's money, production also keeps its own nightly copy outside Supabase, and a restore is practised before launch (5.9, 6.5).
+Already handled for you by Vercel and Supabase, so there is nothing to build: load balancing, reverse proxies, the edge gateway in front of every server function (encryption and login-token checks; TaskDrop's own API gateway on top of it is `api`, task 2.12), servers and containers (Docker, Kubernetes), certificates, and 7 days of daily backups (Pro). Because you hold people's money, production also keeps its own nightly copy outside Supabase, and a restore is practised before launch (5.9, 6.5).
 
 Deliberately not used: Cloudflare in front of Vercel (Vercel advises against it), splitting the app into many small services (microservices), and separate servers that you would have to run yourself.
 
@@ -3358,6 +3429,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-02 (API gateway, task 2.12):** You asked for a design where nothing reaches the main server directly, with an API gateway and good SaaS habits, and shared a vibe-coding security checklist video. **Found:** the gateway already exists (`api`); one app screen (Promote prices) still read a table directly, and nothing stopped a new direct read from being added. **Built:** that read now goes through `api` (`promotionTiers`); a CI check fails if app code skips the gateway; `api` refuses requests over 256 KB, tags every call with a trace id and never lets an answer be cached; a lockfile check refuses packages from anywhere but the npm registry. The video's checklist is mapped to TaskDrop in 2.12. **Still open:** H3 closes in 3.9; idempotency keys on money writes are recommended next.
 - **2026-11-02 (H21 closed on staging):** You said "Yes, switch it on". Migration 138 was already on staging (another session merged PR 191 and the deploy applied it). **Done:** the "before user created" hook switched on (`hook_before_user_created`). **Proof:** `node scripts/security-round2.mjs signupguard` held 2 of 2: a direct sign-up on a phone address was refused (Supabase's log: "403: Create your account in the TaskDrop app.") and a brand-new phone sign-up still made a working account. No new unconfirmed account appeared. **Not tested:** a real first-time Google sign-up (the hook lets the Google provider through by design; worth one check on the phone). **Left as is:** the old September probe account (a Gmail address, unconfirmed, cannot sign in).
 - **2026-11-02 (H21 fix built):** You said "Yes, fix H21". Reading `phone-auth` showed H21 is High, not Low: a direct sign-up on someone's phone address leads to that person signing into an account whose password the attacker chose. **Built:** migration 138, a Supabase "before user created" hook that refuses unconfirmed email sign-ups (Google and the server's own confirmed accounts pass), with SQL test `signup_guard.test.sql`; `phone-auth` now ignores an unconfirmed account on a phone address and removes it before creating the real one, so a squatter made earlier cannot be used either; the hook is in `supabase/config.toml` and the 5.9 production list. **Not done:** applying migration 138 and switching the hook on in staging wait for your OK (migrations always do).
 - **2026-11-02 (2.8b built):** You said "Start 2.8b". **Done on staging:** IP forwarding on; token limit 300 and code-check limit 60 per 5 minutes; `password-auth` forwards the person's address with the secret key Supabase already gives server functions (no new key); a Supabase 429 is shown as "Too many tries" and never counted as a wrong password; a refused session renewal no longer signs people out; T6 probe `authlimits` added and passed, confirmed in the auth log. **Found:** H21 (direct email sign-up at Supabase), Low, waiting for your OK. **Not done:** production (5.9) and the phone app update.

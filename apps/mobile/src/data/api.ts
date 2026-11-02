@@ -478,20 +478,15 @@ const positiveInts = (v: unknown, divisor = 1): number[] | null => {
 };
 
 /**
- * The tiers the server will accept, from the `settings` rows staff edit in the admin (migration 114).
+ * The tiers the server will accept, from the `settings` rows staff edit in the admin (migration 114), read through the api.
  * The server still refuses anything outside them, so this only decides what the screen offers.
  */
 export async function promotionTiers(): Promise<PromotionTiers> {
   try {
-    const { data, error } = await supabase
-      .from('settings')
-      .select('key, value')
-      .in('key', ['promotion_daily_budgets_minor', 'promotion_durations_days']);
-    if (error || !data) return DEFAULT_PROMOTION_TIERS;
-    const byKey = new Map(data.map((r) => [r.key, r.value] as const));
+    const raw = await callApi<{ budgetsMinor: unknown; days: unknown }>('promotionTiers');
     return {
-      budgets: positiveInts(byKey.get('promotion_daily_budgets_minor'), 100) ?? DEFAULT_PROMOTION_TIERS.budgets,
-      days: positiveInts(byKey.get('promotion_durations_days')) ?? DEFAULT_PROMOTION_TIERS.days,
+      budgets: positiveInts(raw?.budgetsMinor, 100) ?? DEFAULT_PROMOTION_TIERS.budgets,
+      days: positiveInts(raw?.days) ?? DEFAULT_PROMOTION_TIERS.days,
     };
   } catch {
     return DEFAULT_PROMOTION_TIERS;

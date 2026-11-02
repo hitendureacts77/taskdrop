@@ -1,6 +1,6 @@
 import { FUNCTIONS_REGION, supabase } from './supabase';
 import { ApiError, apiError } from './errors';
-import { clientHeaders } from './appInfo';
+import { clientHeaders, randomId } from './appInfo';
 import { appCheckHeaders } from './appCheck';
 import { refreshAppConfig } from './appConfig';
 import { log } from './monitoring';
@@ -54,11 +54,14 @@ async function callApiDirect<T>(op: string, args: Record<string, unknown> = {}):
   // again, twice, before it counts as a failure. A write is asked once and never timed out: sending money
   // or a bid twice is never worth the risk.
   const isRead = op === 'batch' || BATCHABLE_OPS.has(op);
+  // One id per call, kept across its retries: the server logs it beside every line about the call,
+  // so a failure someone reports can be found (supabase/functions/api/http.ts).
+  const requestId = randomId();
   const invokeOnce = async () =>
     supabase.functions.invoke('api', {
       body: { op, args },
       region: FUNCTIONS_REGION,
-      headers: { ...clientHeaders(), ...(await appCheckHeaders()) },
+      headers: { ...clientHeaders(), ...(await appCheckHeaders()), 'x-request-id': requestId },
       ...(isRead ? { timeout: READ_TIMEOUT_MS } : {}),
     });
 
@@ -82,7 +85,7 @@ async function callApiDirect<T>(op: string, args: Record<string, unknown> = {}):
       try {
         const body = (await context.clone().json()) as Reply<T>;
         if (body && body.ok === false && body.error?.message) {
-          throw refused(body.error, op);
+          throw refused(body.error, op, requestId);
         }
       } catch (e) {
         if (e instanceof ApiError) throw e;
@@ -90,18 +93,18 @@ async function callApiDirect<T>(op: string, args: Record<string, unknown> = {}):
       }
     }
     // Only the op name and status are logged, never the arguments.
-    log.warn('request did not reach the server', { op, status: status ?? null });
+    log.warn('request did not reach the server', { op, status: status ?? null, request_id: requestId });
     throw apiError({ message: error.message, status });
   }
 
   const reply = data as Reply<T> | null;
   if (!reply || typeof reply !== 'object' || !('ok' in reply)) {
-    log.error('unreadable reply from the server', { op });
+    log.error('unreadable reply from the server', { op, request_id: requestId });
     throw apiError({ message: 'unreadable reply' });
   }
   if (!reply.ok) {
     const { message, code, details } = reply.error;
-    throw refused({ message, code, details }, op);
+    throw refused({ message, code, details }, op, requestId);
   }
   return reply.data;
 }
@@ -115,11 +118,11 @@ const batcher = new Batcher({
 export const callApi = <T>(op: string, args: Record<string, unknown> = {}): Promise<T> => batcher.call<T>(op, args);
 
 /** Refusals worth a log line: the server broke, or the person is being held back. Ordinary rule refusals (not enough money, quote taken) are not. */
-const NOTABLE_REFUSALS = new Set(['INTERNAL', 'RATE_LIMITED', 'MAINTENANCE', 'UPDATE_REQUIRED', 'FEATURE_OFF', 'UNAUTHENTICATED']);
+const NOTABLE_REFUSALS = new Set(['INTERNAL', 'RATE_LIMITED', 'TOO_LARGE', 'MAINTENANCE', 'UPDATE_REQUIRED', 'FEATURE_OFF', 'UNAUTHENTICATED']);
 
 /** A refusal by the server, as an error. One caused by an admin switch also refreshes what the app shows. */
-function refused(e: { message: string; code?: string | null; details?: string | null }, op: string): ApiError {
-  if (e.code && NOTABLE_REFUSALS.has(e.code)) log[e.code === 'INTERNAL' ? 'error' : 'warn']('server refused a request', { op, code: e.code });
+function refused(e: { message: string; code?: string | null; details?: string | null }, op: string, requestId?: string): ApiError {
+  if (e.code && NOTABLE_REFUSALS.has(e.code)) log[e.code === 'INTERNAL' ? 'error' : 'warn']('server refused a request', { op, code: e.code, request_id: requestId ?? null });
   if (e.code === 'MAINTENANCE' || e.code === 'UPDATE_REQUIRED' || e.code === 'FEATURE_OFF') void refreshAppConfig(true);
   return new ApiError(e.message, e.code ?? null, e.message, e.details ?? null);
 }
