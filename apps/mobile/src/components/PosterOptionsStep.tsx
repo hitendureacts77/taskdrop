@@ -76,7 +76,12 @@ const META: Record<OptionKey, { title: string; icon: IconName; what: string; ton
   liveAnswer: { title: 'Live answer', icon: 'eye', what: 'Someone nearby sends a live photo and a short reply', tone: 'accent' },
 };
 
-const ALL: OptionKey[] = ['flash', 'crew', 'regular', 'repeat', 'photos', 'liveAnswer'];
+/**
+ * What the step offers. Repeat, Offer-first and Before-and-after photos were
+ * taken off (owner, 2026-11-02); Offer-first still shows when "Book again"
+ * arrives with someone chosen, so the poster can see it and switch it off.
+ */
+const ALL: OptionKey[] = ['flash', 'crew', 'liveAnswer'];
 
 export function PosterOptionsStep({
   value,
@@ -98,17 +103,17 @@ export function PosterOptionsStep({
 }) {
   const t = useTheme();
   const suggested = suggestions.map((s) => s.key);
-  const rest = ALL.filter((k) => !suggested.includes(k));
+  // Kept for the whole visit, so switching Offer-first off does not hide it.
+  const [bookedAgain] = useState(value.preferWorker !== null);
+  const offered: OptionKey[] = bookedAgain ? ['regular', ...ALL] : ALL;
+  const rest = offered.filter((k) => !suggested.includes(k));
   const [moreOpen, setMoreOpen] = useState(suggested.length === 0);
 
   /** Why an option cannot be used for this task, or null. */
   const blocked = (key: OptionKey): string | null => {
-    if (remote && (key === 'flash' || key === 'crew' || key === 'photos' || key === 'liveAnswer')) return 'For jobs at a place';
-    if (key === 'regular' && regulars.length === 0) return 'Once you have hired someone';
+    if (remote && (key === 'flash' || key === 'crew' || key === 'liveAnswer')) return 'For jobs at a place';
     if (key === 'crew' && value.liveAnswer) return 'A Live answer is for one person';
     if (key === 'liveAnswer' && value.crewSize >= 2) return 'Not with a crew';
-    if (key === 'repeat' && value.crewSize >= 2) return 'A crew job cannot repeat yet';
-    if (key === 'crew' && value.repeat) return 'A repeating job is for one person';
     return null;
   };
 
@@ -121,35 +126,13 @@ export function PosterOptionsStep({
         return onChange({ ...value, liveAnswer: !on });
       case 'crew':
         return onChange({ ...value, crewSize: on ? 0 : crewSizeFrom(prompt) });
-      case 'repeat':
-        return onChange({ ...value, repeat: on ? null : 'week' });
       case 'regular': {
-        // The screen puts the person who did this kind of job first.
+        // Shown only once "Book again" chose someone; it can switch back on after being switched off.
         const pick = regulars[0]?.profile;
         return onChange({ ...value, preferWorker: on || !pick ? null : { id: pick.id, name: pick.display_name } });
       }
-      case 'photos':
-        return onChange({ ...value, wantPhotos: !on, photosPublic: on ? false : value.photosPublic });
     }
   };
-
-  const turnOnAll = () => {
-    let next = value;
-    for (const s of suggestions) {
-      if (!isOn(next, s.key) && !blocked(s.key)) {
-        if (s.key === 'flash') next = { ...next, flash: true };
-        if (s.key === 'crew') next = { ...next, crewSize: crewSizeFrom(prompt) };
-        if (s.key === 'repeat') next = { ...next, repeat: 'week' };
-        if (s.key === 'photos') next = { ...next, wantPhotos: true };
-        if (s.key === 'regular' && regulars[0]) {
-          next = { ...next, preferWorker: { id: regulars[0].profile.id, name: regulars[0].profile.display_name } };
-        }
-      }
-    }
-    onChange(next);
-  };
-
-  const allOn = suggestions.every((s) => isOn(value, s.key) || blocked(s.key));
 
   const settings = (key: OptionKey) => {
     if (!isOn(value, key)) return null;
@@ -172,20 +155,6 @@ export function PosterOptionsStep({
         </View>
       );
     }
-    if (key === 'repeat') {
-      return (
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-          {(['week', 'month'] as const).map((every) => (
-            <Chip
-              key={every}
-              text={every === 'week' ? 'Every week' : 'Every month'}
-              on={value.repeat === every}
-              onPress={() => onChange({ ...value, repeat: every })}
-            />
-          ))}
-        </View>
-      );
-    }
     if (key === 'regular' && regulars.length > 1) {
       return (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
@@ -198,34 +167,6 @@ export function PosterOptionsStep({
             />
           ))}
         </View>
-      );
-    }
-    if (key === 'photos') {
-      return (
-        <Pressable
-          onPress={() => onChange({ ...value, photosPublic: !value.photosPublic })}
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: value.photosPublic }}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}
-        >
-          <View
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 7,
-              borderWidth: 2,
-              borderColor: value.photosPublic ? t.colors.accent : t.colors.line,
-              backgroundColor: value.photosPublic ? t.colors.accent : 'transparent',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {value.photosPublic ? <Icon name="check" size={13} color={t.colors.onAccent} strokeWidth={3} /> : null}
-          </View>
-          <RNText style={tx('500', 13, t.colors.text, { flex: 1, lineHeight: 18 })}>
-            Let the helper show them on their profile
-          </RNText>
-        </Pressable>
       );
     }
     if (key === 'flash') {
@@ -287,7 +228,7 @@ export function PosterOptionsStep({
     <>
       <RNText style={tx('800', 27, t.colors.ink, { letterSpacing: -0.8, lineHeight: 32 })}>Make it go smoothly</RNText>
       <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21 })}>
-        {suggestions.length ? 'Picked for your task. Switch on what you need.' : 'Extras you can switch on for this task. All optional.'}
+        {suggestions.length ? 'Picked for your task. Switch it on if you need it.' : 'Extras you can switch on for this task. All optional.'}
       </RNText>
       {prompt.trim() ? (
         <View style={{ marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: t.colors.surface2 }}>
@@ -299,27 +240,9 @@ export function PosterOptionsStep({
 
       {suggestions.length ? (
         <>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 22, marginBottom: 10 }}>
-            <RNText style={tx('700', 11, t.colors.accentDeep, { letterSpacing: 1.2, flex: 1 })}>
-              SUGGESTED FOR YOU · {suggestions.length}
-            </RNText>
-            {suggestions.length > 1 && !allOn ? (
-              <Pressable
-                onPress={turnOnAll}
-                accessibilityRole="button"
-                style={({ pressed }) => ({
-                  paddingHorizontal: 12,
-                  height: 32,
-                  borderRadius: 999,
-                  justifyContent: 'center',
-                  backgroundColor: t.colors.accentSoft,
-                  opacity: pressed ? 0.8 : 1,
-                })}
-              >
-                <RNText style={tx('800', 12, t.colors.accentDeep)}>Turn on all {suggestions.length}</RNText>
-              </Pressable>
-            ) : null}
-          </View>
+          <RNText style={tx('700', 11, t.colors.accentDeep, { letterSpacing: 1.2, marginTop: 22, marginBottom: 10 })}>
+            SUGGESTED FOR YOU
+          </RNText>
           <View style={{ gap: 10 }}>{suggestions.map((s, i) => optionCard(s.key, i, s.reason))}</View>
         </>
       ) : null}
