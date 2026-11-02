@@ -366,15 +366,39 @@ export function AiPostScreen() {
     });
   }, [orderedRegulars, prompt, title, whenKey, remote, pastCategories, category]);
 
-  /** Flash Drop rides on Auto-hire, so switching it on switches that on too. */
+  /**
+   * Flash Drop rides on Auto-hire, so switching it on switches that on too,
+   * and switching it off puts back how the poster had chosen to hire.
+   */
+  const modeBeforeFlash = useRef<'bids' | 'auto' | null>(null);
+  const undoFlashMode = () => {
+    if (modeBeforeFlash.current) setAssign(modeBeforeFlash.current);
+    modeBeforeFlash.current = null;
+  };
   const changeOptions = (next: PosterOptions) => {
-    if (next.flash && !opts.flash) setAssign('auto');
+    if (next.flash && !opts.flash) {
+      modeBeforeFlash.current = mode;
+      setAssign('auto');
+    }
+    if (!next.flash && opts.flash) undoFlashMode();
     setOpts(next);
+  };
+  /** Choosing See offers ends Flash Drop, which needs Auto-hire. */
+  const chooseMode = (next: 'bids' | 'auto') => {
+    modeBeforeFlash.current = null;
+    setAssign(next);
+    if (next === 'bids' && opts.flash) {
+      setOpts((o) => ({ ...o, flash: false }));
+      flash('Flash Drop is off: it needs Auto-hire');
+    }
   };
 
   // Work done remotely cannot use the options tied to a place.
   useEffect(() => {
-    if (remote) setOpts((o) => ({ ...o, flash: false, liveAnswer: false, crewSize: 0, wantPhotos: false, photosPublic: false }));
+    if (!remote) return;
+    undoFlashMode();
+    setOpts((o) => ({ ...o, flash: false, liveAnswer: false, crewSize: 0, wantPhotos: false, photosPublic: false }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- undoFlashMode only reads a ref and a state setter
   }, [remote]);
 
   const offerLiveAnswer = phase === 'what' && liveAnswerDismissed !== prompt.trim() && !opts.liveAnswer && looksLikePlaceQuestion(prompt);
@@ -1047,8 +1071,8 @@ export function AiPostScreen() {
 
         {label('HOW DO YOU WANT TO HIRE?')}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          {choice('bids', mode === 'bids', () => setAssign('bids'), 'users', 'See offers', 'Workers send offers or counteroffers. You pick one')}
-          {choice('auto', mode === 'auto', () => setAssign('auto'), 'bolt', 'Auto-hire', `First offer at or under ${rupees(price)} is accepted`)}
+          {choice('bids', mode === 'bids', () => chooseMode('bids'), 'users', 'See offers', 'Workers send offers or counteroffers. You pick one')}
+          {choice('auto', mode === 'auto', () => chooseMode('auto'), 'bolt', 'Auto-hire', `First offer at or under ${rupees(price)} is accepted`)}
         </View>
         {mode === 'auto' ? (
           <View
