@@ -35,6 +35,7 @@ const ICON: Record<string, IconName> = {
   message: 'chat',
   support: 'help',
   feedback: 'trending',
+  question: 'help',
   referral: 'gift',
   auto_locked: 'bolt',
 };

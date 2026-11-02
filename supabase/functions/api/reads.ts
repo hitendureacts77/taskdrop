@@ -741,6 +741,17 @@ export const READ_OPS: Record<string, Op> = {
   /** One idea with its comments; null once it is hidden or gone. */
   getFeedbackPost: rpcOp("feedback_board_get", (a) => ({ p_post: uuid(a, "postId") })),
 
+  // ------------------------------------------------- questions on a task ----
+  /** Workers' questions on a task and the poster's answers, oldest first (migration 140). */
+  listTaskQuestions: rpcOp("task_questions_list", (a) => ({ p_task: uuid(a, "taskId") })),
+
+  /** Tasks finished near a point today and helpers active there now: two counts, nothing else (migration 140). */
+  nearbyPulse: rpcOp("nearby_pulse", (a) => ({
+    p_lat: num(a, "lat", -90, 90),
+    p_lng: num(a, "lng", -180, 180),
+    p_radius_km: num(a, "radiusKm", 2, 25),
+  })),
+
   // ------------------------------------------------------- support & more ----
   listTickets: async (ctx) =>
     rows(await ctx.db.from("support_tickets").select("*").eq("user_id", ctx.userId).order("updated_at", { ascending: false })),

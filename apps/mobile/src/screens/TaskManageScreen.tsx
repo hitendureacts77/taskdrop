@@ -46,6 +46,7 @@ import { useFees } from '../lib/useFees';
 import { reportError } from '../lib/errors';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { TaskOptionsPanel } from '../components/TaskOptionsPanel';
+import { TaskQuestions } from '../components/TaskQuestions';
 
 type QuoteFilter = 'newest' | 'cheapest' | 'budget' | 'rated' | 'fastest';
 const QUOTE_FILTERS: { key: QuoteFilter; label: string }[] = [
@@ -307,6 +308,8 @@ export function TaskManageScreen() {
           ))}
         </View>
       ) : null}
+
+      <TaskQuestions taskId={task.id} role="answer" style={{ padding: 15, marginTop: 12 }} />
 
       <View style={card}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

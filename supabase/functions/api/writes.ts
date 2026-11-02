@@ -609,6 +609,10 @@ export const WRITE_OPS: Record<string, Op> = {
   voteFeedbackIdea: rpcOp("feedback_board_vote", (a) => ({ p_post: uuid(a, "postId"), p_on: bool(a, "on", true) })),
   commentFeedbackIdea: rpcOp("feedback_board_comment", (a) => ({ p_post: uuid(a, "postId"), p_body: str(a, "body", 1000) })),
 
+  // ---- questions on a task (migration 140) ----
+  askTaskQuestion: rpcOp("task_question_ask", (a) => ({ p_task: uuid(a, "taskId"), p_body: str(a, "body", 300, 3) })),
+  answerTaskQuestion: rpcOp("task_question_answer", (a) => ({ p_question: uuid(a, "questionId"), p_answer: str(a, "answer", 500) })),
+
   openTicket: rpcOp("open_support_ticket", (a) => ({
     p_category: oneOf(a, "category", ["payment", "task", "account", "safety", "bug", "other"]),
     p_body: str(a, "body", 5000),

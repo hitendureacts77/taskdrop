@@ -1237,8 +1237,25 @@ export function titleFrom(prompt: string): string {
     .replace(/\s+(chahiye|chahie|karna hai|karni hai|karwana hai|karwani hai|karwana|karwani|hai)[.!?]*$/i, '')
     .replace(/[.!?,\s]+$/, '');
   if (s.length < 4) s = prompt.trim();
-  const short = s.length > 60 ? s.slice(0, 57).replace(/\s+\S*$/, '') + '…' : s;
-  return short.charAt(0).toUpperCase() + short.slice(1);
+  return capitalise(s.length > TITLE_MAX ? shortTitle(s) : s);
+}
+
+/** The title box on step 3 holds 80 characters on two lines. */
+const TITLE_MAX = 80;
+const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/**
+ * A long request cut to a title that still reads as one: at a sentence or
+ * comma break when there is one, otherwise at a whole word, never ending on
+ * "and", "with" or "for" and never on "…" (plan 1.9 bug 8: "…kitchen and…").
+ */
+function shortTitle(s: string): string {
+  const head = s.slice(0, TITLE_MAX + 1);
+  const brk = Math.max(head.lastIndexOf('. '), head.lastIndexOf(', '), head.lastIndexOf('; '), head.lastIndexOf(' - '));
+  let cut = brk >= 30 ? head.slice(0, brk) : head.slice(0, TITLE_MAX).replace(/\s+\S*$/, '');
+  const dangling = /\s+(and|or|with|including|for|of|to|in|on|at|from|by|the|a|an|my|our|your|aur|ke|ki|ka)$/i;
+  for (let i = 0; i < 4 && dangling.test(cut); i++) cut = cut.replace(dangling, '');
+  return cut.replace(/[.,;:\s-]+$/, '');
 }
 
 /** "What type of vehicle is it?" -> "Vehicle"; known questions use their own label. */

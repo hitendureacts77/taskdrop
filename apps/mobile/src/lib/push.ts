@@ -68,33 +68,64 @@ function projectId(): string | null {
   return fromExtra ?? Constants.easConfig?.projectId ?? null;
 }
 
-/** Ask for permission once signed in, and register for remote push when possible. */
-export async function setupPush(): Promise<void> {
+/** Whether this device may show alerts: 'ask' means it has not been asked yet. */
+export type PushPermission = 'granted' | 'denied' | 'ask' | 'unsupported';
+
+export async function pushPermission(): Promise<PushPermission> {
   if (Platform.OS === 'web') {
-    // Browsers only allow the prompt after a user gesture on some platforms;
-    // asking here is harmless where it is not allowed.
+    if (typeof Notification === 'undefined') return 'unsupported';
+    return Notification.permission === 'default' ? 'ask' : Notification.permission;
+  }
+  const Notifications = loadNotifications();
+  if (!Notifications) return 'unsupported';
+  try {
+    const current = await Notifications.getPermissionsAsync();
+    if (current.granted) return 'granted';
+    return current.canAskAgain ? 'ask' : 'denied';
+  } catch {
+    return 'unsupported';
+  }
+}
+
+/**
+ * Once signed in: register for remote push if alerts are already allowed.
+ * It never asks. The phone's own question comes from askForPush(), after the
+ * person taps "Turn on alerts" (plan item 5: asking at sign-in, before they
+ * know why, is how most people end up saying no).
+ */
+export async function setupPush(): Promise<void> {
+  if ((await pushPermission()) === 'granted') await register(false);
+}
+
+/** Ask the phone's question now, then register. True when alerts are on. */
+export async function askForPush(): Promise<boolean> {
+  return register(true);
+}
+
+async function register(ask: boolean): Promise<boolean> {
+  if (Platform.OS === 'web') {
     try {
-      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-        await Notification.requestPermission();
-      }
+      if (typeof Notification === 'undefined') return false;
+      if (ask && Notification.permission === 'default') await Notification.requestPermission();
+      return Notification.permission === 'granted';
     } catch {
-      /* no notifications in this browser */
+      return false; /* no notifications in this browser */
     }
-    return;
   }
 
   const Notifications = loadNotifications();
-  if (!Notifications) return;
+  if (!Notifications) return false;
   configure();
+  let granted = false;
   try {
     const current = await Notifications.getPermissionsAsync();
-    const granted = current.granted || (await Notifications.requestPermissionsAsync()).granted;
-    if (!granted) return;
+    granted = current.granted || (ask && (await Notifications.requestPermissionsAsync()).granted);
+    if (!granted) return false;
 
     const id = projectId();
     // Remote push needs a real device and an EAS project. Expo Go on Android
     // has no remote push at all, so this throws there; local still works.
-    if (!Device.isDevice || !id) return;
+    if (!Device.isDevice || !id) return true;
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId: id });
     await callApi('registerPushToken', {
       token,
@@ -107,6 +138,7 @@ export async function setupPush(): Promise<void> {
   } catch {
     /* local notifications still cover the app while it is open */
   }
+  return granted;
 }
 
 /** Show one notification row on the device, unless remote push already will. */
