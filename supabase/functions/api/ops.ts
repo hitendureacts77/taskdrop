@@ -11,7 +11,7 @@
  */
 
 import { refusalFor } from "../_shared/controls.ts";
-import { type Ctx, GENERIC, OpError, type Op } from "./core.ts";
+import { type Ctx, type Db, type DbResult, GENERIC, OpError, type Op } from "./core.ts";
 import { MEDIA_OPS } from "./media.ts";
 import { READ_OPS } from "./reads.ts";
 import { WRITE_OPS } from "./writes.ts";
@@ -97,6 +97,16 @@ export function rateCost(name: unknown, args: unknown): number {
   if (name !== "batch") return 1;
   const raw = args && typeof args === "object" ? (args as { calls?: unknown }).calls : undefined;
   return Array.isArray(raw) ? Math.max(1, Math.min(raw.length, MAX_BATCH)) : 1;
+}
+
+/**
+ * Count one request against the caller's limit: a single database call carrying
+ * its whole cost (migration 142), not one call per read in a batch, which
+ * queued up to 20 upserts on the same row. Answers false once over the limit.
+ * `db` must be the service-key client: the counter is closed to the app.
+ */
+export function spendRate(db: Db, user: string, bucket: RateBucket, cost: number): PromiseLike<DbResult> {
+  return db.rpc("api_rate_spend", { p_user: user, p_bucket: bucket, p_limit: RATE_LIMITS[bucket], p_cost: cost });
 }
 
 /**
