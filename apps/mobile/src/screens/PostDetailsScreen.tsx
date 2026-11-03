@@ -231,6 +231,7 @@ export function PostDetailsScreen() {
   return (
     <Screen padded={false}>
       <KeyboardScrollView
+        hugContent
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8 }}
         showsVerticalScrollIndicator={false}

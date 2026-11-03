@@ -9,6 +9,7 @@ import { Platform, useWindowDimensions } from 'react-native';
  *   600 – 1023  tablet: a slim icon rail on the left, content up to 720,
  *               two-column grids, sheets as centred dialogs
  *   ≥ 1024      desktop: the full side menu, content up to 1120
+ *   ≥ 1600      the same, with feeds up to 1360
  *
  * Resizing the window switches live.
  */
@@ -22,6 +23,10 @@ export const RAIL_WIDTH = 84;
 
 /** Content width for feeds and lists (Home, Explore, My Tasks, Wallet). */
 export const WIDE_CONTENT = 1120;
+/** The feed width on a big monitor, from XL_MIN_WIDTH up. */
+export const XL_CONTENT = 1360;
+/** From this browser width up, feeds use XL_CONTENT. */
+export const XL_MIN_WIDTH = 1600;
 /** Content width for reading and forms (a task, settings, chat). */
 export const NARROW_CONTENT = 760;
 /** Content width on a tablet. */

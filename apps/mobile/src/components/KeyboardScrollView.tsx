@@ -11,6 +11,7 @@ import {
   type ViewInstance,
   type ScrollViewInstance,
 } from 'react-native';
+import { useLayout } from '../lib/layout';
 
 /** Anything that can say where it is on screen. */
 type Measurable = { measureInWindow: (cb: (x: number, y: number, width: number, height: number) => void) => void };
@@ -26,11 +27,19 @@ const RevealContext = createContext<((node: Measurable | null) => void) | null>(
  * calls `useReveal` when it gets focus, so the page scrolls just far enough to
  * show the whole box with a small gap (plan task 1.8). On the web it does
  * nothing: the browser does this itself.
+ *
+ * `hugContent`: on a desktop or tablet browser the page is only as tall as
+ * what is in it, so the button bar a screen puts after it sits right under
+ * the form instead of at the bottom of the window (plan task 1.10, L5). A
+ * form taller than the window still scrolls with the bar pinned below, as on
+ * a phone, where nothing changes.
  */
-export const KeyboardScrollView = forwardRef<ScrollViewInstance, ScrollViewProps>(function KeyboardScrollView(
-  { children, onScroll, contentContainerStyle, ...rest },
+export const KeyboardScrollView = forwardRef<ScrollViewInstance, ScrollViewProps & { hugContent?: boolean }>(function KeyboardScrollView(
+  { children, onScroll, contentContainerStyle, hugContent = false, style, ...rest },
   forwarded,
 ) {
+  const { desktop, tablet } = useLayout();
+  const hug = hugContent && (desktop || tablet);
   const inner = useRef<ScrollViewInstance>(null);
   const offset = useRef(0);
   // Where the keyboard's top edge is on screen, or null while it is closed.
@@ -104,6 +113,7 @@ export const KeyboardScrollView = forwardRef<ScrollViewInstance, ScrollViewProps
       <ScrollView
         ref={inner}
         {...rest}
+        style={hug ? [style, { flexGrow: 0, flexShrink: 1, flexBasis: 'auto' }] : style}
         contentContainerStyle={pad > 0 ? [contentContainerStyle, { paddingBottom: ownBottom + pad }] : contentContainerStyle}
         onScroll={track}
         scrollEventThrottle={rest.scrollEventThrottle ?? 16}

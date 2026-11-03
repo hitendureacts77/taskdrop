@@ -4,7 +4,7 @@ import {
   Text as RNText,
   Pressable,
 } from 'react-native';
-import { UnderlineTabs } from '../components/kit';
+import { Grid, UnderlineTabs } from '../components/kit';
 import { Icon } from '../components/Icon';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
@@ -249,6 +249,7 @@ export function OrdersScreen() {
         <UnderlineTabs tabs={tabNames} active={orderTab} onPick={(i) => { setPickedTab(true); setOrderTab(i); }} />
 
         <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16 }}>
+          <Grid>
           {orderRows.map((row, i) => (
             <OrderCard
               key={`${row.title}-${i}`}
@@ -259,6 +260,7 @@ export function OrdersScreen() {
               t={t}
             />
           ))}
+          </Grid>
 
           {loading && orderRows.length === 0 &&
             [0, 1, 2].map((i) => (

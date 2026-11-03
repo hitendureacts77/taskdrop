@@ -9,7 +9,7 @@ import { roughPlace } from '../lib/place';
 import { BottomTabBar } from '../components/BottomTabBar';
 import { SideNav } from '../components/SideNav';
 import { DesktopAuthFrame } from '../components/DesktopAuthFrame';
-import { NARROW_CONTENT, TABLET_CONTENT, WIDE_CONTENT, useLayout } from '../lib/layout';
+import { NARROW_CONTENT, TABLET_CONTENT, WIDE_CONTENT, XL_CONTENT, XL_MIN_WIDTH, useLayout } from '../lib/layout';
 import { FadeIn } from '../components/primitives';
 import { useKeyboardOpen } from '../lib/useKeyboardOpen';
 import { CreateFab } from '../components/CreateFab';
@@ -30,14 +30,16 @@ export const KEEP_ALIVE: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet',
 const PRE_AUTH: ScreenName[] = ['splash', 'welcome', 'signup', 'setup'];
 // Pages anyone may read; signed out on desktop they get the sign-in frame.
 const PUBLIC: ScreenName[] = ['copyright', 'terms', 'privacy', 'support'];
-const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'search', 'orders', 'saved', 'wallet', 'spending', 'profile', 'inbox', 'taskManage'];
+const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'orders', 'saved', 'wallet', 'spending', 'inbox', 'taskManage'];
+// Screens that fill everything beside the menu: a full map has no reading column.
+const FULL: ScreenName[] = ['nearMap'];
 
 
 export function ScreenHost() {
   const t = useTheme();
   const { screen, params, go } = useNav();
   const { userId } = useAuth();
-  const { desktop, tablet } = useLayout();
+  const { desktop, tablet, width } = useLayout();
   const keyboardOpen = useKeyboardOpen();
   const Comp = REGISTRY[screen];
 
@@ -140,7 +142,7 @@ export function ScreenHost() {
       <View style={{ flex: 1, flexDirection: 'row', backgroundColor: t.colors.bg }}>
         <SideNav rail />
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <View style={{ flex: 1, width: '100%', maxWidth: TABLET_CONTENT }}>{content}</View>
+          <View style={{ flex: 1, width: '100%', maxWidth: FULL.includes(screen) ? undefined : TABLET_CONTENT }}>{content}</View>
         </View>
       </View>
     );
@@ -150,7 +152,7 @@ export function ScreenHost() {
       <View style={{ flex: 1, flexDirection: 'row', backgroundColor: t.colors.bg }}>
         <SideNav />
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <View style={{ flex: 1, width: '100%', maxWidth: WIDE.includes(screen) ? WIDE_CONTENT : NARROW_CONTENT }}>
+          <View style={{ flex: 1, width: '100%', maxWidth: FULL.includes(screen) ? undefined : WIDE.includes(screen) ? (width >= XL_MIN_WIDTH ? XL_CONTENT : WIDE_CONTENT) : NARROW_CONTENT }}>
             {content}
           </View>
         </View>

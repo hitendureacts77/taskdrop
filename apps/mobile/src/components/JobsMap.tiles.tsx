@@ -240,7 +240,8 @@ export function JobsMap({
   );
 
   const frame = fill
-    ? { flex: 1, backgroundColor: t.colors.surface2 }
+    ? // The tiles run past the edges; without the clip they draw over the menu and the page around a full map.
+      { flex: 1, overflow: 'hidden' as const, backgroundColor: t.colors.surface2 }
     : { height, borderRadius: 18, overflow: 'hidden' as const, backgroundColor: t.colors.surface2, borderWidth: 1, borderColor: t.colors.line };
   const padTop = fill ? fill.top : 0;
   const padBottom = fill ? fill.bottom : 0;

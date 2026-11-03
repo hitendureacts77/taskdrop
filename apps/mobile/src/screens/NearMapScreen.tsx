@@ -17,10 +17,14 @@ import { PresenceLabel } from '../components/PresenceDot';
 import { taskToFeedRow } from '../lib/openTask';
 import { isFresh } from '../lib/mapMotion';
 import { presenceOf } from '../lib/presence';
+import { useLayout } from '../lib/layout';
 
 const CARD_W = 290;
 const GAP = 10;
 const RAIL_H = 176;
+/** On a wide browser the map fills the page; the bars over it keep a readable width. */
+const WIDE_TOP_BAR = 640;
+const WIDE_RAIL = 900;
 /** Enough to fill a big city's 5-10 km without the map turning to noise (clusters take the rest). */
 const MAX_ITEMS = 60;
 /** The "₹1,000+" filter. */
@@ -63,6 +67,8 @@ export function NearMapScreen() {
   const t = useTheme();
   const { params, back, go } = useNav();
   const insets = useSafeAreaInsets();
+  const { desktop, tablet } = useLayout();
+  const wide = desktop || tablet;
   const mode = params.mode === 'people' ? 'people' : 'jobs';
   const centre = isPoint(params.centre) ? params.centre : null;
   const radiusKm = typeof params.radiusKm === 'number' ? params.radiusKm : 5;
@@ -188,7 +194,7 @@ export function NearMapScreen() {
       />
 
       {/* Top bar: what this map shows, and one filter */}
-      <View style={{ position: 'absolute', left: 16, right: 16, top: insets.top + 10, gap: 10 }}>
+      <View style={{ position: 'absolute', left: 16, right: 16, top: insets.top + 10, gap: 10, maxWidth: wide ? WIDE_TOP_BAR : undefined }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Pressy
             onPress={back}
@@ -222,7 +228,7 @@ export function NearMapScreen() {
       </View>
 
       {/* Cards: swipe sideways; the map follows */}
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + 12, height: RAIL_H }}>
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + 12, height: RAIL_H, maxWidth: wide ? WIDE_RAIL : undefined }}>
         {!centre ? (
           <View style={[cardFrame(false), { marginHorizontal: 16, width: undefined }]}>
             <RNText style={tx('700', 14, t.colors.ink)}>Set your area on Home to see what is near you</RNText>
