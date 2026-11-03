@@ -5,13 +5,17 @@ import { tx } from './primitives';
 import { Icon } from './Icon';
 import { TILE, TILE_HEADERS, project, tileUrl, unproject } from './MapPicker.tiles';
 import { groupPins, metresPerPixel } from '../lib/mapCluster';
-import { MAX_FRESH, areaAt, groupScale, introDelays, introEnd, rippleAt, tagAt } from '../lib/mapMotion';
+import { SPREAD_ZOOM, layoutPins, topAmount, type MapItem } from '../lib/mapLayout';
+import { MAX_FRESH, areaAt, easeOut, introDelays, introEnd, rippleAt, tagAt } from '../lib/mapMotion';
 import { useMapClock } from './useMapClock';
+import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PricePin, TASK_PIN, TaskPin, type Face } from './MapMarkers';
 
 /**
- * One thing on the map. Jobs carry their price as `label`; people (a poster's
- * map of helpers) also carry `face`: initials and whether they are active now.
- * `fresh` marks a task posted in the last few minutes, which ripples.
+ * One thing on the map. Jobs carry their price as `label` and in rupees as
+ * `amount` (an area shows its biggest offer), plus, once known, who posted it
+ * and what it is. People (a poster's map of helpers) carry `face` and `name`,
+ * with their main skill and rating as `label`. `area` is the place's name
+ * ("Madhapur"). `fresh` marks a task posted in the last few minutes, which ripples.
  */
 export type JobPin = {
   id: string;
@@ -19,10 +23,15 @@ export type JobPin = {
   lng: number;
   label: string;
   fresh?: boolean;
-  face?: { initials: string; live: boolean };
+  face?: Face;
+  name?: string;
+  amount?: number;
+  who?: string;
+  title?: string;
+  area?: string;
 };
 
-/** Jobs are jade (hiring money); helpers are blue (the people who earn). */
+/** Jobs are money (the mode's colour); helpers are faces on blue. */
 export type MapTone = 'jobs' | 'people';
 
 export type JobsMapProps = {
@@ -43,37 +52,65 @@ export type JobsMapProps = {
 };
 
 const MIN_ZOOM = 5;
-const MAX_ZOOM = 17;
-/** Two tags closer than this many pixels become one numbered circle. */
-const CLUSTER_PX = 46;
-/** Helper tags are wider (face, skill and rating), so they join sooner. */
-const CLUSTER_PX_PEOPLE = 84;
+export const MAX_ZOOM = 17;
+/** Pins closer than this many pixels join into one group. */
+export const CLUSTER_PX = 80;
+/** Face stacks are wider, so they join sooner. */
+export const CLUSTER_PX_PEOPLE = 96;
+/** How far apart pins sit once a group spreads out: across, and up and down. */
+export const SPREAD_GAP = { x: 150, y: 104 };
+export const SPREAD_GAP_PEOPLE = { x: 96, y: 98 };
+/** Spreading pins fly out from the group's centre for this long. */
+export const SPREAD_MS = 450;
 /** Same reach as the "Near me" filter, drawn as a ring. */
 const RING_KM = 10;
 const DEFAULT_CENTRE = { lat: 12.9716, lng: 77.5946 };
-/**
- * How far round a job its soft circle reaches. The published coordinates are
- * rounded to about a kilometre (migration 074), so a circle this size says
- * "somewhere around here" and never points at a door.
- */
-const AREA_M = 800;
 
 /** Short text for the legend and screen readers, by tone. */
 export function mapWords(tone: MapTone) {
   return tone === 'people'
-    ? { area: 'Helper area', privacy: 'Area only, never where they live', one: 'helper', many: 'helpers' }
-    : { area: 'Job area', privacy: 'Circles show the area, never the exact spot', one: 'job', many: 'jobs' };
+    ? { area: 'Helper area', privacy: 'Faces sit in their area, never at a home', one: 'helper', many: 'helpers', legend: 'Tap a group to see everyone' }
+    : { area: 'Job area', privacy: 'Pins show the area, never the exact spot', one: 'job', many: 'jobs', legend: 'Each pin is the biggest offer in that area' };
+}
+
+/** The group's or pin's place name, for the label under it. */
+export function placeOf(ids: string[], byId: Map<string, JobPin>): string {
+  return byId.get(ids[0]!)?.area ?? 'Nearby';
+}
+
+/** For jobs: each item's biggest offer and the best one on screen, which is drawn in the mode's colour. */
+export function offersOf(items: MapItem[], byId: Map<string, JobPin>) {
+  const amountOf = (id: string) => byId.get(id)?.amount;
+  const top = items.map((it) => (it.kind === 'group' ? topAmount(it.ids, amountOf) : (amountOf(it.id) ?? null)));
+  const best = top.reduce<number | null>((m, a) => (a !== null && (m === null || a > m) ? a : m), null);
+  return { top, best };
+}
+
+/** Jobs with the biggest offer first; people keep the caller's order. */
+export function byOffer(pins: JobPin[], people: boolean): JobPin[] {
+  return people ? pins : [...pins].sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0));
+}
+
+/** The pin with the biggest offer in a group: its price is the one shown. */
+export function topPinOf(ids: string[], byId: Map<string, JobPin>): JobPin {
+  let pick = byId.get(ids[0]!)!;
+  for (const id of ids) {
+    const p = byId.get(id)!;
+    if ((p.amount ?? 0) > (pick.amount ?? 0)) pick = p;
+  }
+  return pick;
 }
 
 /**
- * Open jobs (or, for a poster, nearby helpers) on a map. You are the dot with
- * your reach drawn around you, and each item is a soft circle with its tag in
- * the middle: the area, never a point. Close tags join into a number; tap it to
- * zoom in. On first show each circle starts as a dot and spreads out, nearest
- * first, then everything holds still (lib/mapMotion.ts). Built on the same
- * plain tiles as the location picker, so it runs on web (and in Expo Go) with
- * no extra SDK or key. Installed phone builds use JobsMap.native.tsx instead,
- * because OpenStreetMap turns away tile requests from the app.
+ * Open jobs (or, for a poster, nearby helpers) on a map (plan D12, after Snap
+ * Map). Zoomed out, helpers are faces and several in one area are a stack of
+ * faces; jobs are price pins showing each area's biggest offer, with a soft
+ * heat glow where the pay is higher. Tap a group, or zoom in, and everyone in
+ * it spreads out round the area (lib/mapLayout.ts): every face with a name,
+ * every task with its price, poster and title. Built on the same plain tiles as
+ * the location picker, so it runs on web (and in Expo Go) with no extra SDK or
+ * key. Installed phone builds use JobsMap.native.tsx instead, because
+ * OpenStreetMap turns away tile requests from the app.
  */
 export function JobsMap({
   me,
@@ -105,18 +142,19 @@ export function JobsMap({
     if (!moved.current && me) setCentre(me);
   }, [me]);
 
-  // The full map's card rail picks a pin: bring it into the middle.
+  // The full map's card rail picks a pin: bring it into the middle, close enough to see it on its own.
   useEffect(() => {
     const hit = focusId ? pins.find((p) => p.id === focusId) : null;
     if (!hit) return;
     moved.current = true;
     setCentre({ lat: hit.lat, lng: hit.lng });
+    setZoom((z) => Math.max(z, SPREAD_ZOOM));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusId]);
 
   const pan = useRef(
     PanResponder.create({
-      // A tap on a tag must reach the tag, so only a real drag takes over.
+      // A tap on a pin must reach the pin, so only a real drag takes over.
       onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) + Math.abs(g.dy) > 4,
       onMoveShouldSetPanResponderCapture: (_e, g) => Math.abs(g.dx) + Math.abs(g.dy) > 4,
       onPanResponderTerminationRequest: () => false,
@@ -156,10 +194,13 @@ export function JobsMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [centre, zoom, size]);
 
+  const people = tone === 'people';
   const byId = useMemo(() => new Map(pins.map((p) => [p.id, p])), [pins]);
-  const placed = pins.map((p) => ({ id: p.id, ...toScreen(p.lat, p.lng) }));
-  const inView = placed.filter((p) => p.x > -60 && p.x < size.w + 60 && p.y > -60 && p.y < size.h + 60);
-  const groups = groupPins(inView, tone === 'people' ? CLUSTER_PX_PEOPLE : CLUSTER_PX);
+  // A spread area puts its first pin at the top: the biggest offer, or (as the caller orders them) someone active now.
+  const placed = byOffer(pins, people).map((p) => ({ id: p.id, ...toScreen(p.lat, p.lng) }));
+  const inView = placed.filter((p) => p.x > -120 && p.x < size.w + 120 && p.y > -120 && p.y < size.h + 120);
+  const items = layoutPins(groupPins(inView, people ? CLUSTER_PX_PEOPLE : CLUSTER_PX), { zoom, gap: people ? SPREAD_GAP_PEOPLE : SPREAD_GAP });
+  const offers = people ? null : offersOf(items, byId);
 
   const zoomTo = (next: number, at?: { lat: number; lng: number }) => {
     moved.current = true;
@@ -169,19 +210,23 @@ export function JobsMap({
 
   const you = me ? toScreen(me.lat, me.lng) : null;
   const ringPx = me ? (ringKm * 1000) / metresPerPixel(me.lat, zoom) : 0;
-  // Never smaller than the tag it holds, so the area still reads when zoomed out.
-  const areaPx = Math.max(30, AREA_M / metresPerPixel(centre.lat, zoom));
   const blue = t.colors.purple;
-  const hue = tone === 'people' ? blue : t.colors.accent;
-  // The poster is a dark dot on a map of blue helpers, so the two never mix up.
-  const youColor = tone === 'people' ? t.colors.ink : blue;
+  const hue = people ? blue : t.colors.btn;
+  // The poster is a dark dot on a map of helpers' faces, so the two never mix up.
+  const youColor = people ? t.colors.ink : blue;
   const words = mapWords(tone);
 
   // The intro replays for a new set of things, not when the map is moved.
   const introKey = useMemo(() => pins.map((p) => p.id).sort().join('|'), [pins]);
   const freshIds = useMemo(() => new Set(pins.filter((p) => p.fresh).slice(0, MAX_FRESH).map((p) => p.id)), [pins]);
   const clock = useMapClock(introKey, introEnd(pins.length), freshIds.size > 0);
-  const delays = introDelays(groups, you);
+  const delays = introDelays(items, you);
+  // Groups that have just spread fly out from their centre.
+  const spreadKey = items.map((it) => (it.kind === 'one' && it.area ? it.id : '')).join('');
+  const spreadClock = useMapClock(spreadKey, SPREAD_MS, false);
+  const fan = easeOut(spreadClock.elapsed / SPREAD_MS);
+  const at = (it: MapItem) =>
+    it.kind === 'one' && it.area ? { x: it.area.x + (it.x - it.area.x) * fan, y: it.area.y + (it.y - it.area.y) * fan } : { x: it.x, y: it.y };
 
   const control = (label: string, onPress: () => void, child: React.ReactNode) => (
     <Pressable
@@ -199,6 +244,8 @@ export function JobsMap({
     : { height, borderRadius: 18, overflow: 'hidden' as const, backgroundColor: t.colors.surface2, borderWidth: 1, borderColor: t.colors.line };
   const padTop = fill ? fill.top : 0;
   const padBottom = fill ? fill.bottom : 0;
+  const areas = new Map<string, { x: number; y: number; r: number }>();
+  for (const it of items) if (it.kind === 'one' && it.area) areas.set(`${it.area.x},${it.area.y}`, { x: it.area.x, y: it.area.y, r: Math.max(it.area.rx, it.area.ry) });
 
   return (
     <View onLayout={onLayout} style={frame}>
@@ -215,130 +262,118 @@ export function JobsMap({
 
         {you ? (
           <View pointerEvents="none" style={{ position: 'absolute', left: you.x, top: you.y, width: 0, height: 0, alignItems: 'center', justifyContent: 'center' }}>
-            <View style={{ position: 'absolute', width: ringPx * 2, height: ringPx * 2, borderRadius: 999, borderWidth: 1.5, borderColor: blue, borderStyle: 'dashed', backgroundColor: blue + '12' }} />
-            <View style={{ position: 'absolute', width: 34, height: 34, borderRadius: 999, backgroundColor: youColor + '33' }} />
-            <View style={{ position: 'absolute', width: 16, height: 16, borderRadius: 999, backgroundColor: youColor, borderWidth: 3, borderColor: '#FFFFFF' }} />
+            <View style={{ position: 'absolute', width: ringPx * 2, height: ringPx * 2, borderRadius: 999, borderWidth: 1, borderColor: blue + '77', borderStyle: 'dashed' }} />
+            <View style={{ position: 'absolute', width: 26, height: 26, borderRadius: 999, backgroundColor: youColor + '40' }} />
+            <View style={{ position: 'absolute', width: 14, height: 14, borderRadius: 999, backgroundColor: youColor, borderWidth: 2.5, borderColor: '#FFFFFF' }} />
           </View>
         ) : null}
 
-        {/* Areas first, so every tag sits above every circle. */}
-        {groups.map((g, i) => {
-          const many = g.ids.length > 1;
-          const on = !many && selectedId === g.ids[0];
-          const r = areaPx * groupScale(g.ids.length);
-          const a = areaAt(clock.elapsed, delays[i]!);
-          if (!a.shown) return null;
-          const rr = Math.max(4, r * a.scale);
-          const fillA = Math.round(0x26 + (0xcc - 0x26) * a.dense);
-          const ripple = !many && freshIds.has(g.ids[0]!) && !clock.still ? rippleAt(clock.now, i * 1200) : null;
-          return (
-            <View key={'area-' + g.ids.join('|')} pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0 }}>
-              <View
-                style={{
-                  position: 'absolute',
-                  left: g.x - rr,
-                  top: g.y - rr,
-                  width: rr * 2,
-                  height: rr * 2,
-                  borderRadius: 999,
-                  backgroundColor: hue + (on ? '38' : fillA.toString(16).padStart(2, '0')),
-                  borderWidth: on ? 2.5 : 1.5,
-                  borderColor: hue + (on ? 'CC' : '66'),
-                }}
-              />
-              {ripple !== null ? (
-                <View
-                  style={{
-                    position: 'absolute',
-                    left: g.x - r * (1 + 0.5 * ripple),
-                    top: g.y - r * (1 + 0.5 * ripple),
-                    width: r * 2 * (1 + 0.5 * ripple),
-                    height: r * 2 * (1 + 0.5 * ripple),
-                    borderRadius: 999,
-                    borderWidth: 2,
-                    borderColor: hue,
-                    opacity: 0.75 * (1 - ripple),
-                  }}
-                />
-              ) : null}
-            </View>
-          );
-        })}
+        {/* Spread areas: one soft circle behind everyone in it, never a spot. */}
+        {[...areas.entries()].map(([key, a]) => (
+          <View
+            key={'area-' + key}
+            pointerEvents="none"
+            style={{ position: 'absolute', left: a.x - a.r, top: a.y - a.r, width: a.r * 2, height: a.r * 2, borderRadius: 999, backgroundColor: hue + '1A', borderWidth: 1, borderColor: hue + '80', borderStyle: 'dashed' }}
+          />
+        ))}
 
-        {groups.map((g, i) => {
+        {/* Jobs: a soft heat glow under each area, stronger where the biggest offer is higher. */}
+        {offers && offers.best
+          ? items.map((it, i) => {
+              if (it.kind === 'one' && it.area) return null;
+              const k = (offers.top[i] ?? 0) / offers.best!;
+              const a = areaAt(clock.elapsed, delays[i]!);
+              if (!a.shown) return null;
+              const r = (36 + 46 * k) * a.scale;
+              return (
+                <View key={'heat-' + i} pointerEvents="none" style={{ position: 'absolute', left: it.x - r, top: it.y - r, width: r * 2, height: r * 2, alignItems: 'center', justifyContent: 'center' }}>
+                  {[1, 0.66, 0.36].map((s) => (
+                    <View key={s} style={{ position: 'absolute', width: r * 2 * s, height: r * 2 * s, borderRadius: 999, backgroundColor: hue, opacity: (0.05 + 0.1 * k) }} />
+                  ))}
+                </View>
+              );
+            })
+          : null}
+
+        {items.map((it, i) => {
           const pop = tagAt(clock.elapsed, delays[i]!);
           if (pop === 0) return null;
-          const lift = { opacity: pop, transform: [{ translateY: 6 * (1 - pop) }, { scale: 0.85 + 0.15 * pop }] };
-          if (g.ids.length > 1) {
-            // Items in the same rounded area never come apart, however far in;
-            // at the last zoom step a tap opens the first of them instead.
-            const deepest = zoom >= MAX_ZOOM;
+          const p = at(it);
+          const drop = { opacity: pop, transform: [{ translateY: -10 * (1 - pop) }] };
+          if (it.kind === 'group') {
+            const key = 'g-' + it.ids.join('|');
+            const into = () => zoomTo(Math.max(zoom + 2, SPREAD_ZOOM), unproject(it.x + left, it.y + top, zoom));
+            if (people) {
+              const shown = it.ids.slice(0, 3).map((id) => ({ seed: id, face: byId.get(id)!.face ?? { initials: '?', live: false } }));
+              return (
+                <Pressable
+                  key={key}
+                  onPress={into}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${it.ids.length} ${words.many} in ${placeOf(it.ids, byId)} area. Spread them out`}
+                  style={[{ position: 'absolute', left: p.x - FACE_STACK.w / 2, top: p.y - FACE_STACK.anchor, zIndex: 1 }, drop]}
+                >
+                  <FaceStack faces={shown} extra={it.ids.length - shown.length} label={`${placeOf(it.ids, byId)} · ${it.ids.length}`} />
+                </Pressable>
+              );
+            }
+            const topPin = topPinOf(it.ids, byId);
+            const best = offers?.top[i] !== null && offers?.top[i] === offers?.best;
             return (
               <Pressable
-                key={'tag-' + g.ids.join('|')}
-                onPress={() => {
-                  if (deepest) return onSelect(g.ids[0]!);
-                  const at = unproject(g.x + left, g.y + top, zoom);
-                  zoomTo(zoom + 2, at);
-                }}
+                key={key}
+                onPress={into}
                 accessibilityRole="button"
-                accessibilityLabel={deepest ? `${g.ids.length} ${words.many} in this area. Open the first` : `${g.ids.length} ${words.many} here. Zoom in`}
-                style={[
-                  { position: 'absolute', left: g.x - 19, top: g.y - 19, width: 38, height: 38, borderRadius: 999, backgroundColor: tone === 'people' ? blue : t.colors.btn, borderWidth: 3, borderColor: t.colors.bg, alignItems: 'center', justifyContent: 'center' },
-                  lift,
-                ]}
+                accessibilityLabel={`${it.ids.length} ${words.many} in ${placeOf(it.ids, byId)} area, biggest offer ${topPin.label}. Zoom in`}
+                style={[{ position: 'absolute', left: p.x - PRICE_PIN.w / 2, top: p.y - PRICE_PIN.anchor, zIndex: best ? 2 : 1 }, drop]}
               >
-                <RNText style={tx('800', 15, tone === 'people' ? '#FFFFFF' : t.colors.onBtn)}>{g.ids.length}</RNText>
+                <PricePin price={topPin.label} best={best} on={false} place={placeOf(it.ids, byId)} count={`${it.ids.length} ${words.many}`} />
               </Pressable>
             );
           }
-          const id = g.ids[0]!;
-          const pin = byId.get(id)!;
-          const on = selectedId === id;
-          if (pin.face) {
-            const w = pin.label.length * 7.4 + 46;
+
+          const pin = byId.get(it.id)!;
+          const on = selectedId === it.id;
+          const pick = () => onSelect(on ? null : it.id);
+          const spread = it.area !== null;
+          if (people) {
             return (
               <Pressable
-                key={'tag-' + id}
-                onPress={() => onSelect(on ? null : id)}
+                key={'p-' + it.id}
+                onPress={pick}
                 accessibilityRole="button"
-                accessibilityLabel={`${pin.label}${pin.face.live ? ', active now' : ''}, around this area`}
+                accessibilityLabel={`${pin.name ?? pin.label}, ${pin.label}${pin.face?.live ? ', active now' : ''}, ${pin.area ?? 'nearby'} area`}
                 accessibilityState={{ selected: on }}
-                hitSlop={6}
-                style={[
-                  { position: 'absolute', left: g.x - w / 2, top: g.y - 16, width: w, height: 32, borderRadius: 999, backgroundColor: on ? t.colors.purpleDeep : t.colors.bg, borderWidth: 1, borderColor: on ? t.colors.purpleDeep : t.colors.line, flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 3, zIndex: on ? 2 : 1 },
-                  lift,
-                ]}
+                style={[{ position: 'absolute', left: p.x - FACE_PIN.w / 2, top: p.y - FACE_PIN.anchor, zIndex: on ? 3 : 1 }, drop]}
               >
-                <View style={{ width: 24, height: 24, borderRadius: 999, backgroundColor: t.colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
-                  <RNText style={tx('800', 9.5, t.colors.purpleDeep)}>{pin.face.initials}</RNText>
-                  {pin.face.live ? (
-                    <View style={{ position: 'absolute', right: -1, bottom: -1, width: 9, height: 9, borderRadius: 999, backgroundColor: '#22C55E', borderWidth: 2, borderColor: t.colors.bg }} />
-                  ) : null}
-                </View>
-                <RNText style={tx('800', 12, on ? '#FFFFFF' : t.colors.ink)} numberOfLines={1}>
-                  {pin.label}
-                </RNText>
+                <FacePin face={pin.face ?? { initials: '?', live: false }} seed={pin.id} name={pin.name ?? pin.label} skill={pin.label} on={on} glow />
               </Pressable>
             );
           }
-          const w = pin.label.length * 9 + 24;
-          const h = on ? 34 : 28;
+          const best = offers?.top[i] !== null && offers?.top[i] === offers?.best;
+          const ripple = freshIds.has(it.id) && !clock.still ? rippleAt(clock.now, i * 1200) : null;
           return (
-            <Pressable
-              key={'tag-' + id}
-              onPress={() => onSelect(on ? null : id)}
-              accessibilityRole="button"
-              accessibilityLabel={`Job for ${pin.label}, around this area`}
-              accessibilityState={{ selected: on }}
-              hitSlop={8}
-              style={[
-                { position: 'absolute', left: g.x - w / 2, top: g.y - h / 2, width: w, height: h, borderRadius: 999, backgroundColor: on ? t.colors.ink : t.colors.btn, borderWidth: 2.5, borderColor: t.colors.bg, alignItems: 'center', justifyContent: 'center', zIndex: on ? 2 : 1 },
-                lift,
-              ]}
-            >
-              <RNText style={tx('800', on ? 14 : 13, on ? t.colors.bg : t.colors.onBtn, { fontVariant: ['tabular-nums'] })}>{pin.label}</RNText>
-            </Pressable>
+            <View key={'j-' + it.id} pointerEvents="box-none" style={{ position: 'absolute', left: 0, top: 0, zIndex: on ? 3 : best ? 2 : 1 }}>
+              {ripple !== null ? (
+                <View
+                  pointerEvents="none"
+                  style={{ position: 'absolute', left: p.x - 20 - 30 * ripple, top: p.y - 20 - 30 * ripple, width: 40 + 60 * ripple, height: 40 + 60 * ripple, borderRadius: 999, borderWidth: 2, borderColor: hue, opacity: 0.8 * (1 - ripple) }}
+                />
+              ) : null}
+              <Pressable
+                onPress={pick}
+                accessibilityRole="button"
+                accessibilityLabel={`${pin.label}${pin.title ? ', ' + pin.title : ''}${pin.who ? ', posted by ' + pin.who : ''}, ${pin.area ?? 'nearby'} area`}
+                accessibilityState={{ selected: on }}
+                style={[{ position: 'absolute', left: p.x - (spread ? TASK_PIN.w : PRICE_PIN.w) / 2, top: p.y - (spread ? TASK_PIN.anchor : PRICE_PIN.anchor) }, drop]}
+              >
+                {spread ? (
+                  <TaskPin price={pin.label} face={pin.face} seed={pin.id} who={pin.who} title={pin.title} best={best} on={on} />
+                ) : (
+                  <PricePin price={pin.label} best={best} on={on} place={pin.area ?? 'Nearby'} />
+                )}
+              </Pressable>
+            </View>
           );
         })}
       </View>
@@ -350,25 +385,21 @@ export function JobsMap({
         {me ? control('Back to my area', () => (moved.current = false, setCentre(me), setZoom(12)), <Icon name="compass" size={18} color={blue} />) : null}
       </View>
 
-      <View style={{ position: 'absolute', left: 8, top: 8 + padTop, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: t.colors.bg, borderRadius: 10, borderWidth: 1, borderColor: t.colors.line, paddingHorizontal: 10, paddingVertical: 6 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-          <View style={{ width: 9, height: 9, borderRadius: 999, backgroundColor: youColor }} />
-          <RNText style={tx('600', 11, t.colors.text)}>You</RNText>
+      <View pointerEvents="none" style={{ position: 'absolute', left: 8, top: 8 + padTop, right: 56, flexDirection: 'row' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.bg, borderRadius: 10, borderWidth: 1, borderColor: t.colors.line, paddingHorizontal: 10, paddingVertical: 6, flexShrink: 1 }}>
+          {people ? (
+            <Icon name="users" size={12} color={blue} />
+          ) : (
+            <View style={{ width: 14, height: 9, borderRadius: 5, backgroundColor: t.colors.ink }} />
+          )}
+          <RNText style={tx('600', 11, t.colors.text, { flexShrink: 1 })} numberOfLines={1}>
+            {words.legend}
+          </RNText>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-          <View style={{ width: 12, height: 12, borderRadius: 999, backgroundColor: hue + '33', borderWidth: 1.5, borderColor: hue }} />
-          <RNText style={tx('600', 11, t.colors.text)}>{words.area}</RNText>
-        </View>
-        {freshIds.size > 0 ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <View style={{ width: 12, height: 12, borderRadius: 999, borderWidth: 1.5, borderColor: hue, borderStyle: 'dashed' }} />
-            <RNText style={tx('600', 11, t.colors.text)}>Just posted</RNText>
-          </View>
-        ) : null}
       </View>
 
       <View pointerEvents="none" style={{ position: 'absolute', left: 8, bottom: 8 + padBottom, right: 96, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.bg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}>
-        <Icon name="lock" size={12} color={tone === 'people' ? t.colors.purpleDeep : t.colors.accentDeep} />
+        <Icon name="lock" size={12} color={people ? t.colors.purpleDeep : t.colors.accentDeep} />
         <RNText style={tx('600', 11, t.colors.text, { flexShrink: 1 })} numberOfLines={2}>
           {words.privacy}
         </RNText>

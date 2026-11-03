@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text as RNText, Pressable } from 'react-native';
+import { View, Text as RNText, Pressable, ScrollView } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { attachPosters, type Task, type TaskWithPoster } from '../data/api';
@@ -13,7 +13,8 @@ import { PillTabs, SectionTitle, Shimmer, rupees, timeLeft } from './kit';
 import { categoryIcon } from './WorkCard';
 import { JobsMap, type JobPin } from './JobsMap';
 import { TopUpBadge } from './TopUpBadge';
-import { activeFirst, areaName, farText, initialsOf, jobPin, mainSkill, personPin, ratingOf } from './mapPins';
+import { activeFirst, areaName, farText, firstName, initialsOf, jobPin, mainSkill, personPin, ratingOf } from './mapPins';
+import { FaceDisc } from './MapMarkers';
 import { PresenceLabel } from './PresenceDot';
 import { LocationSheet } from './LocationSheet';
 import { cardSurface } from './ui';
@@ -254,6 +255,43 @@ function HelpersNear({ centre, onOpenMap }: { centre: { lat: number; lng: number
       <View style={{ marginTop: 12 }}>
         <JobsMap me={centre} pins={pins} selectedId={picked} onSelect={setPicked} height={280} ringKm={NEAR_KM} tone="people" onExpand={onOpenMap} />
       </View>
+
+      {/* Everyone as faces, one swipe: active now first, with a green ring. */}
+      {list.length > 0 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12, marginHorizontal: -4 }} contentContainerStyle={{ gap: 12, paddingHorizontal: 4 }}>
+          {list.map((w) => {
+            const live = presenceOf(w.last_seen_at, now).online;
+            const on = w.id === picked;
+            return (
+              <Pressable
+                key={w.id}
+                onPress={() => setPicked(on ? null : w.id)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                accessibilityLabel={`${w.display_name}, ${mainSkill(w.skills)}${live ? ', active now' : ''}`}
+                style={({ pressed }) => ({ width: 58, alignItems: 'center', gap: 5, opacity: pressed ? 0.75 : 1 })}
+              >
+                <View
+                  style={{
+                    width: 54,
+                    height: 54,
+                    borderRadius: 27,
+                    borderWidth: 2.5,
+                    borderColor: on ? t.colors.purple : live ? '#22C55E' : t.colors.line,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <FaceDisc face={{ initials: initialsOf(w.display_name || w.username), live: false, photo: w.avatar_url }} seed={w.id} size={44} rimWidth={0} />
+                </View>
+                <RNText style={tx('700', 11.5, t.colors.ink)} numberOfLines={1}>
+                  {firstName(w.display_name || w.username)}
+                </RNText>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
 
       {sel ? (
         <View style={[cardSurface(t, 20), { marginTop: 12, padding: 16, gap: 12 }]}>
