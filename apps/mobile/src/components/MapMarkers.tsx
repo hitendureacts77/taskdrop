@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { View, Image, Text as RNText, Animated, Platform, type TextStyle, type ViewStyle } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, Image, Text as RNText, Animated, Platform, type ViewStyle } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useReducedMotion } from '../lib/motion';
 import { Icon } from './Icon';
@@ -22,8 +22,8 @@ export type Face = { initials: string; live: boolean; photo?: string | null };
 
 export const FACE_PIN = { w: 116, h: 88, anchor: 30 } as const;
 export const FACE_STACK = { w: 176, h: 76, anchor: 25 } as const;
-export const PRICE_PIN = { w: 168, h: 72, anchor: 46 } as const;
-export const TASK_PIN = { w: 176, h: 92, anchor: 48 } as const;
+export const PRICE_PIN = { w: 168, h: 76, anchor: 46 } as const;
+export const TASK_PIN = { w: 176, h: 98, anchor: 48 } as const;
 
 const RIM = '#FFFFFF';
 const LIVE = '#22C55E';
@@ -38,8 +38,14 @@ export function faceTone(seed: string): string {
 
 const lift: ViewStyle = { shadowColor: '#000', shadowOpacity: 0.45, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 };
 
-function halo(color: string): TextStyle {
-  return { textShadowColor: color, textShadowRadius: 4, textShadowOffset: { width: 0, height: 0 } };
+/** A small dark tag under a pin, so its words read on any map, light or dark. */
+function Tag({ children, max, top = 3 }: { children: React.ReactNode; max: number; top?: number }) {
+  const t = useTheme();
+  return (
+    <View style={{ marginTop: top, maxWidth: max, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: t.colors.bg, alignItems: 'center' }}>
+      {children}
+    </View>
+  );
 }
 
 /** A round face: the photo, or initials on a muted colour, with a green dot when active now. */
@@ -59,6 +65,7 @@ export function FaceDisc({
   onImage?: () => void;
 }) {
   const dot = Math.max(9, Math.round(size * 0.26));
+  const [broken, setBroken] = useState(false);
   return (
     <View style={{ width: size, height: size }}>
       <View
@@ -74,11 +81,17 @@ export function FaceDisc({
           justifyContent: 'center',
         }}
       >
-        {face.photo ? (
-          <Image source={{ uri: face.photo }} onLoad={onImage} style={{ width: size, height: size }} accessibilityIgnoresInvertColors />
-        ) : (
-          <RNText style={tx('800', Math.round(size * 0.3), '#FFFFFF')}>{face.initials}</RNText>
-        )}
+        {/* Initials sit underneath, so a photo that never loads still leaves a face. */}
+        <RNText style={tx('800', Math.round(size * 0.3), '#FFFFFF')}>{face.initials}</RNText>
+        {face.photo && !broken ? (
+          <Image
+            source={{ uri: face.photo }}
+            onLoad={onImage}
+            onError={() => (setBroken(true), onImage?.())}
+            style={{ position: 'absolute', left: 0, top: 0, width: size - rimWidth * 2, height: size - rimWidth * 2 }}
+            accessibilityIgnoresInvertColors
+          />
+        ) : null}
       </View>
       {face.live ? (
         <View style={{ position: 'absolute', right: -1, bottom: -1, width: dot, height: dot, borderRadius: dot / 2, backgroundColor: LIVE, borderWidth: 2, borderColor: rim }} />
@@ -205,10 +218,12 @@ export function PricePin({ price, best, on, place, count }: { price: string; bes
         <RNText style={tx('800', 15, fg, { fontVariant: ['tabular-nums'], letterSpacing: -0.2 })}>{price}</RNText>
       </View>
       <Pointer color={bg} />
-      <RNText numberOfLines={1} style={tx('700', 11, t.colors.ink, { marginTop: 3, maxWidth: PRICE_PIN.w, ...halo(t.colors.bg) })}>
-        {place}
-        {count ? <RNText style={tx('600', 11, t.colors.muted)}>{` · ${count}`}</RNText> : null}
-      </RNText>
+      <Tag max={PRICE_PIN.w}>
+        <RNText numberOfLines={1} style={tx('700', 11, t.colors.ink)}>
+          {place}
+          {count ? <RNText style={tx('600', 11, t.colors.muted)}>{` · ${count}`}</RNText> : null}
+        </RNText>
+      </Tag>
     </View>
   );
 }
@@ -259,15 +274,19 @@ export function TaskPin({
         <RNText style={tx('800', 15, fg, { fontVariant: ['tabular-nums'], letterSpacing: -0.2 })}>{price}</RNText>
       </View>
       <Pointer color={bg} />
-      {who ? (
-        <RNText numberOfLines={1} style={tx('800', 12, t.colors.ink, { marginTop: 3, maxWidth: TASK_PIN.w, ...halo(t.colors.bg) })}>
-          {who}
-        </RNText>
-      ) : null}
-      {title ? (
-        <RNText numberOfLines={1} style={tx('600', 11, t.colors.muted, { marginTop: who ? 0 : 3, maxWidth: TASK_PIN.w, ...halo(t.colors.bg) })}>
-          {title}
-        </RNText>
+      {who || title ? (
+        <Tag max={TASK_PIN.w}>
+          {who ? (
+            <RNText numberOfLines={1} style={tx('800', 12, t.colors.ink)}>
+              {who}
+            </RNText>
+          ) : null}
+          {title ? (
+            <RNText numberOfLines={1} style={tx('600', 11, t.colors.muted)}>
+              {title}
+            </RNText>
+          ) : null}
+        </Tag>
       ) : null}
     </View>
   );
