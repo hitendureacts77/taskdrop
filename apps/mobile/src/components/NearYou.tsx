@@ -308,9 +308,10 @@ function HelpersNear({ centre, onOpenMap }: { centre: { lat: number; lng: number
                   <View>
                     <RNText style={tx('800', 12.5, t.colors.ink, { maxWidth: 170 })} numberOfLines={1}>
                       {o.what}
-                      {o.price ? <RNText style={tx('800', 12.5, t.colors.accentDeep)}>{` · ${o.price}`}</RNText> : null}
                     </RNText>
-                    <RNText style={tx('400', 11, t.colors.muted)} numberOfLines={1}>
+                    {/* The price on its own line, so a long service name never hides it. */}
+                    <RNText style={tx('400', 11, t.colors.muted, { maxWidth: 170 })} numberOfLines={1}>
+                      {o.price ? <RNText style={tx('800', 11, t.colors.accentDeep)}>{`from ${o.price} · `}</RNText> : null}
                       {areaName(w.loc_label)} · {farText(w.km)}
                     </RNText>
                   </View>
