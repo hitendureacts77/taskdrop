@@ -93,7 +93,7 @@ function Setup() {
   return (
     <Screen padded={false}>
       <TopBar title="Set up your worker profile" onBack={back} />
-      <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
+      <KeyboardScrollView hugContent style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
         <View style={{ flexDirection: 'row', gap: 10, backgroundColor: t.colors.accentSoft, borderRadius: 14, padding: 14 }}>
           <Icon name="briefcase" size={18} color={t.colors.accentDeep} />
           <RNText style={tx('500', 13, t.colors.accentDeep, { flex: 1, lineHeight: 19 })}>

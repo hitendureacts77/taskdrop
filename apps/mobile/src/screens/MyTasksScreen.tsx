@@ -650,11 +650,13 @@ function MyWork() {
               />
             ) : (
               <>
-                {listings.map((task) => (
-                  <View key={task.id} style={{ marginTop: 12 }}>
-                    <ListingCard task={task} owner onPress={() => go('listing', { taskId: task.id })} />
-                  </View>
-                ))}
+                <Grid>
+                  {listings.map((task) => (
+                    <View key={task.id} style={{ marginTop: 12 }}>
+                      <ListingCard task={task} owner onPress={() => go('listing', { taskId: task.id })} />
+                    </View>
+                  ))}
+                </Grid>
                 <Pressable
                   onPress={() => go('listing')}
                   accessibilityRole="button"
@@ -669,17 +671,19 @@ function MyWork() {
             (saved ?? []).length === 0 ? (
               <EmptyState icon="bookmark" title="No saved tasks" body="Tap the bookmark on any task to keep it here." actionLabel="Browse tasks" onAction={() => go('explore')} />
             ) : (
-              (saved ?? []).map((task, i) => (
-                <WorkCard
-                  key={task.id}
-                  task={task}
-                  index={i}
-                  saved={savedIds.has(task.id)}
-                  onOpen={() => go('taskDetail', { row: taskToFeedRow(task) })}
-                  onApply={() => setBidTask(task)}
-                  onToggleSave={() => void unsave(task.id)}
-                />
-              ))
+              <Grid>
+                {(saved ?? []).map((task, i) => (
+                  <WorkCard
+                    key={task.id}
+                    task={task}
+                    index={i}
+                    saved={savedIds.has(task.id)}
+                    onOpen={() => go('taskDetail', { row: taskToFeedRow(task) })}
+                    onApply={() => setBidTask(task)}
+                    onToggleSave={() => void unsave(task.id)}
+                  />
+                ))}
+              </Grid>
             )
           ) : list.length === 0 ? (
             <EmptyState
@@ -690,7 +694,8 @@ function MyWork() {
               onAction={() => go('explore')}
             />
           ) : (
-            list.map((row, i) => (
+            <Grid>
+            {list.map((row, i) => (
               <FadeIn key={`${row.taskId}-${i}`} duration={320} delay={Math.min(i, 6) * 60} translateY={8} style={{ marginTop: 12 }}>
                 <Pressy
                   onPress={() =>
@@ -710,7 +715,8 @@ function MyWork() {
                   </View>
                 </Pressy>
               </FadeIn>
-            ))
+            ))}
+            </Grid>
           )}
         </View>
       </ScrollView>

@@ -137,7 +137,7 @@ export function ListingEditScreen() {
   return (
     <Screen padded={false}>
       <TopBar title={loaded ? 'Edit service' : 'Offer a service'} onBack={back} />
-      <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
+      <KeyboardScrollView hugContent style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
         <RNText style={tx('400', 13, t.colors.muted, { lineHeight: 19 })}>
           Say what you’ll do and what it costs. Customers looking for this can hire you straight from it.
         </RNText>

@@ -832,6 +832,34 @@ approve 1.9
 **Done when:** every item is built and seen on your phone, or dropped. **Gate 1 is not reopened:** testers can start Step 3 while this is built.
 </details>
 
+<details id="t1-10" data-short="Desktop, phone and Android layouts">
+<summary>[CLAUDE] <b>1.10</b> Make every screen fit a desktop browser, a phone browser and the Android app <small>· Planned and built 3 Nov · layout only, no new design · does not reopen Gate 1</small></summary>
+
+**What you saw (3 Nov):** on a desktop browser the "Work near you" map sat in a thin strip in the middle of the page with empty space on both sides. You asked for every screen to be checked on desktop, phone browser and Android, and for a plan, built in the same session.
+
+**How it was checked:** Claude opened 37 screens of the staging app, signed in as the seed accounts (Asha and Ravi, fake data), at four sizes: phone 390 wide, tablet 820, laptop 1440 and big monitor 1920. Android uses the phone layout on every screen, so the 390 pictures stand for it too.
+
+**Also seen in your picture:** your Chrome tab was zoomed out (the magnifier icon in the address bar), which makes every word tiny. Press `Ctrl` + `0` on that tab to go back to 100%.
+
+| # | What is wrong on a desktop | Screens | The fix |
+|---|---|---|---|
+| L1 | **The full map is squeezed and spills.** It is held to the 760-wide reading column, and the map pieces draw outside it, over the orange staging bar and the empty margins | Work near you, Helpers near you | The full map fills everything right of the side menu on desktop and tablet; the map pieces stay inside the map; the title bar and the card rail keep a readable width |
+| L2 | **Lists of your work are one long row each.** On a 1440 screen each job is a strip 1,100 wide with the price far away on the right, while Explore and My Tasks (Hire) already show 2 or 3 cards side by side | My Work (Earn), My offers, Saved, My services | The same 2 or 3 cards per row as Explore |
+| L3 | **Settings and forms are stretched.** Profile's menu rows and Search's sliders run the full 1,120 width | Profile, Search | They use the 760 reading width, like Account and Help |
+| L4 | **Big monitors leave a lot of empty space.** At 1920 wide the feed stays 1,120 wide with about 270 empty on each side | Home, Explore, My Tasks, Wallet, Inbox and the other feeds | From a 1,600-wide window the feed grows to 1,360 |
+| L5 | **The main button floats at the very bottom of the window**, far from the form it belongs to (on a phone it is pinned there on purpose) | Withdraw, Promote, Offer a service, Post a service, Set up worker profile, Review, New task | On desktop and tablet the button sits right under the form; when the form is taller than the window, it stays pinned as today |
+
+**Left alone on purpose:** the phone browser and the Android app (the pictures at 390 wide looked right, and every fix above only applies from 600 wide, on the web); the tablet icon rail; the sign-in screens' split layout; the bell and messages buttons at the top (they also show counts); the Inbox's two panes (already side by side when there are messages).
+
+**Not in this task (would change the design, so it needs your OK first):** a two-pane task page (details on the left, offers on the right) and a two-column Profile.
+
+1. Claude builds L1 to L5 in one pull request into `redesigned-2.0` and checks each at 390, 820, 1440 and 1920 wide.
+2. LOOK at the staging website on your laptop (Ctrl + 0 first) and on your phone's browser.
+3. TELL Claude: "done 1.10", or what still looks wrong.
+
+**Done when:** L1 to L5 are built and checked at the four sizes, `npm run check` is green, and you say "done 1.10". Android needs no app update for this (nothing changes on the phone layout).
+</details>
+
 > **GATE 1: do not start Step 3 until all of these are true** (Step 2 can start at the same time as Step 1)
 
 - [-] Every decision has an answer (1.1). **Future scope (your decision, 1 Nov 2026):** no gate waits on it; each open decision is answered when the task that needs it comes up.
@@ -3540,6 +3568,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-03 (1.10 desktop, phone and Android layouts):** You showed the "Work near you" map squeezed into a strip on a desktop browser and asked for every screen to fit desktop, phone browser and Android. Claude checked 37 screens at 390, 820, 1440 and 1920 wide and added task 1.10 with five fixes, then built them: the full map fills the page beside the menu and no longer draws outside itself (L1); My Work, My offers, Saved and My services show 2 or 3 cards per row (L2); Profile and Search use the reading width (L3); feeds grow to 1,360 on big monitors (L4); form buttons sit under the form on desktop (L5). The phone browser and the Android app are unchanged. **Also:** your Chrome tab was zoomed out; Ctrl + 0 resets it. **Open:** your look on the staging website and "done 1.10".
 - **2026-11-03 (4.9 built):** You answered "Use my defaults" to the five dispute-policy questions, so Claude built 4.9 the recommended way: all-or-nothing (Terms reworded from "split" to "decides who receives the held money"), 24-hour acknowledgement and 3-working-day decision as aims, the not-allowed list in the Terms, Support and the last posting step, the new report-sheet line, and the 4-line safety card once before a first in-person job. No share button (Safety Shield, Live Track and Start Code stay rejected). No server code changed. Open: the lawyer (S.3) and your "done 4.9".
 - **2026-11-02 (Steps 1 to 4 and security: what could be done):** You asked to complete Steps 1 to 4 and the security tasks and test them. **Done and tested:** 3.3b built (card on the admin Reports page, migration 141, SQL test, merged; the card is not yet seen on screen); 3.7 done (`docs/RELEASE.md`, undo files, the `production-database` approval environment, two undos practised on staging); 3.6 website and server parts run (Lighthouse and a load test, `docs/QUALITY_ROUND3.md`); 4.9 drafted for your approval (`docs/DISPUTE_POLICY_DRAFT.md`). **New finding:** `vercel.json` hides `taskdrop.in` from Google, and that name becomes production's; fixed in the plan (5.10, 5.11), not in code yet. **Not possible without you:** S.1 to S.8, 2.2 to 2.4, 3.1 to 3.4, 4.1, 4.2, 4.4, 4.6 to 4.8 (accounts, paperwork, testers, people); 1.9, 2.8 (Google-first sign-in screen), 4.3, 4.5 and 4.9 (a design or an answer from you first); 4.10 (your Loops key); the phone checks and T11 (phone not connected); H9 (needs a week of reports). **Not done by choice:** 3.9 cannot be undone, so it needs your word.
 - **2026-11-02 (4.10 wording approved):** You approved the design of the email sequences (13 emails in 5 sequences, the Profile tick-box and the question after Google sign-in) on the [design page](https://claude.ai/artifact/62YPmQz9FvqzUQgon67hfo). **Next:** your steps in 4.10 (make the staging Loops account and save its key), then "build the email sequences". **Still open:** the sign-off name (used "The taskdrop. team"), the footer's business address (waits for S.2), and the Privacy line and consent wording for the lawyer (S.3). Nothing is built.

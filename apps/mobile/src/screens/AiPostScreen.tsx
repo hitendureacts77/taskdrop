@@ -1350,6 +1350,7 @@ export function AiPostScreen() {
       </View>
 
       <KeyboardScrollView
+        hugContent
         ref={scrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28, width: '100%', maxWidth: 680, alignSelf: 'center' }}
