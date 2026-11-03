@@ -37,7 +37,12 @@ export function firstName(name: string | null | undefined): string {
 
 /** Two letters for a face with no photo. */
 export function initialsOf(name: string | null | undefined): string {
-  const words = (name ?? '').replace(/^@/, '').trim().split(/\s+/).filter(Boolean);
+  // Letters and digits only, so "Asha (seed poster)" is "AS", not "A(".
+  const words = (name ?? '')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
   const two = words.length > 1 ? words[0]![0]! + words[1]![0]! : (words[0] ?? '?').slice(0, 2);
   return two.toUpperCase();
 }
