@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Image, Text as RNText, Animated, Platform, type ViewStyle } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useReducedMotion } from '../lib/motion';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 import { tx } from './primitives';
 
 /**
@@ -11,16 +11,19 @@ import { tx } from './primitives';
  * `anchor`: how far down the box the area's point is, so both maps can line the
  * pin up with the place.
  *
- * Helpers: a face (photo or initials) with a white rim and the first name under
- * it; several in one area become a stack of faces with "+N" and the area name.
+ * Helpers: what they offer, never who they are (plan D13): a service icon
+ * with a white rim and their main service and price under it; several in one
+ * area become a stack of icons with "+N" and the area name. The name and face
+ * show only once a poster taps one (the helper sheet).
  * Tasks: a price pin with a small pointer and dot; zoomed in, the poster's face
  * sits in the pin and their name and the task show underneath. The best offer
  * on screen takes the mode's button colour.
  */
 
-export type Face = { initials: string; live: boolean; photo?: string | null };
+/** A person's disc: photo or initials, or with `icon` a service icon in their place (helpers on the map). */
+export type Face = { initials: string; live: boolean; photo?: string | null; icon?: IconName };
 
-export const FACE_PIN = { w: 116, h: 88, anchor: 30 } as const;
+export const FACE_PIN = { w: 152, h: 88, anchor: 30 } as const;
 export const FACE_STACK = { w: 176, h: 76, anchor: 25 } as const;
 export const PRICE_PIN = { w: 168, h: 76, anchor: 46 } as const;
 export const TASK_PIN = { w: 176, h: 98, anchor: 48 } as const;
@@ -48,7 +51,7 @@ function Tag({ children, max, top = 3 }: { children: React.ReactNode; max: numbe
   );
 }
 
-/** A round face: the photo, or initials on a muted colour, with a green dot when active now. */
+/** A round face: the photo, or initials on a muted colour, or a service icon; a green dot when active now. */
 export function FaceDisc({
   face,
   seed,
@@ -64,6 +67,7 @@ export function FaceDisc({
   rimWidth?: number;
   onImage?: () => void;
 }) {
+  const t = useTheme();
   const dot = Math.max(9, Math.round(size * 0.26));
   const [broken, setBroken] = useState(false);
   return (
@@ -75,15 +79,19 @@ export function FaceDisc({
           borderRadius: size / 2,
           borderWidth: rimWidth,
           borderColor: rim,
-          backgroundColor: faceTone(seed),
+          backgroundColor: face.icon ? t.colors.purpleSoft : faceTone(seed),
           overflow: 'hidden',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        {/* Initials sit underneath, so a photo that never loads still leaves a face. */}
-        <RNText style={tx('800', Math.round(size * 0.3), '#FFFFFF')}>{face.initials}</RNText>
-        {face.photo && !broken ? (
+        {face.icon ? (
+          <Icon name={face.icon} size={Math.round(size * 0.42)} color={t.colors.purpleDeep} strokeWidth={1.9} />
+        ) : (
+          // Initials sit underneath, so a photo that never loads still leaves a face.
+          <RNText style={tx('800', Math.round(size * 0.3), '#FFFFFF')}>{face.initials}</RNText>
+        )}
+        {face.photo && !face.icon && !broken ? (
           <Image
             source={{ uri: face.photo }}
             onLoad={onImage}
@@ -128,20 +136,26 @@ function LiveGlow({ size, top }: { size: number; top: number }) {
   );
 }
 
-/** One helper: face and first name; picked, the face grows and the label adds their main skill. */
+/**
+ * One helper: a disc and what they offer ("AC repair · ₹399"). `price` is
+ * missing for someone who lists skills but no service (a dashed tag); `more`
+ * is how many other services they list. Picked, the disc grows and turns blue.
+ */
 export function FacePin({
   face,
   seed,
-  name,
-  skill,
+  what,
+  price,
+  more = 0,
   on,
   glow = false,
   onImage,
 }: {
   face: Face;
   seed: string;
-  name: string;
-  skill: string;
+  what: string;
+  price?: string | null;
+  more?: number;
   on: boolean;
   glow?: boolean;
   onImage?: () => void;
@@ -149,16 +163,38 @@ export function FacePin({
   const t = useTheme();
   const size = on ? 60 : 48;
   const top = FACE_PIN.anchor - size / 2;
+  const skillOnly = !price;
   return (
     <View style={{ width: FACE_PIN.w, height: FACE_PIN.h, alignItems: 'center' }} collapsable={false}>
       {glow && face.live && !on ? <LiveGlow size={size} top={top} /> : null}
       <View style={[{ marginTop: top, borderRadius: size / 2 }, lift]}>
         <FaceDisc face={face} seed={seed} size={size} rim={on ? t.colors.purple : RIM} rimWidth={on ? 4 : 3} onImage={onImage} />
+        {more > 0 ? (
+          <View style={{ position: 'absolute', right: -8, top: -4, height: 18, minWidth: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: RIM, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
+            <RNText style={tx('800', 9.5, '#FFFFFF')}>+{more}</RNText>
+          </View>
+        ) : null}
       </View>
-      <View style={{ marginTop: 5, maxWidth: FACE_PIN.w, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: on ? t.colors.purpleDeep : t.colors.bg }}>
-        <RNText numberOfLines={1} style={tx('800', 11, on ? '#FFFFFF' : t.colors.ink)}>
-          {on ? `${name} · ${skill}` : name}
+      <View
+        style={{
+          marginTop: 5,
+          maxWidth: FACE_PIN.w,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 4,
+          paddingHorizontal: 8,
+          paddingVertical: 2,
+          borderRadius: 999,
+          borderWidth: 1,
+          borderStyle: skillOnly && !on ? 'dashed' : 'solid',
+          borderColor: on ? t.colors.purpleDeep : skillOnly ? t.colors.muted : t.colors.bg,
+          backgroundColor: on ? t.colors.purpleDeep : skillOnly ? t.colors.surface2 : t.colors.bg,
+        }}
+      >
+        <RNText numberOfLines={1} style={tx('800', 11, on ? '#FFFFFF' : t.colors.ink, { flexShrink: 1 })}>
+          {what}
         </RNText>
+        {price ? <RNText style={tx('800', 11, on ? '#FFFFFF' : t.colors.accentDeep, { fontVariant: ['tabular-nums'] })}>{price}</RNText> : null}
       </View>
     </View>
   );

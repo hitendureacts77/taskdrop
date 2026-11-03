@@ -13,9 +13,11 @@ import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PricePin, TASK_PIN
 /**
  * One thing on the map. Jobs carry their price as `label` and in rupees as
  * `amount` (an area shows its biggest offer), plus, once known, who posted it
- * and what it is. People (a poster's map of helpers) carry `face` and `name`,
- * with their main skill and rating as `label`. `area` is the place's name
- * ("Madhapur"). `fresh` marks a task posted in the last few minutes, which ripples.
+ * and what it is. People (a poster's map of helpers) carry `face` (a service
+ * icon), what they offer as `label`, its starting `price` (none when they only
+ * list skills) and `more`, their other services; never a name (plan D13).
+ * `area` is the place's name ("Madhapur"). `fresh` marks a task posted in the
+ * last few minutes, which ripples.
  */
 export type JobPin = {
   id: string;
@@ -25,6 +27,8 @@ export type JobPin = {
   fresh?: boolean;
   face?: Face;
   name?: string;
+  price?: string | null;
+  more?: number;
   amount?: number;
   who?: string;
   title?: string;
@@ -59,7 +63,8 @@ export const CLUSTER_PX = 80;
 export const CLUSTER_PX_PEOPLE = 96;
 /** How far apart pins sit once a group spreads out: across, and up and down. */
 export const SPREAD_GAP = { x: 150, y: 104 };
-export const SPREAD_GAP_PEOPLE = { x: 96, y: 98 };
+/** Helpers' tags carry a service and price, so they need nearly a job pin's width. */
+export const SPREAD_GAP_PEOPLE = { x: 140, y: 98 };
 /** Spreading pins fly out from the group's centre for this long. */
 export const SPREAD_MS = 450;
 /** Same reach as the "Near me" filter, drawn as a ring. */
@@ -69,8 +74,15 @@ const DEFAULT_CENTRE = { lat: 12.9716, lng: 77.5946 };
 /** Short text for the legend and screen readers, by tone. */
 export function mapWords(tone: MapTone) {
   return tone === 'people'
-    ? { area: 'Helper area', privacy: 'Faces sit in their area, never at a home', one: 'helper', many: 'helpers', legend: 'Tap a group to see everyone' }
+    ? { area: 'Helper area', privacy: 'Pins sit in their area, never at a home. Tap to see who', one: 'helper', many: 'helpers', legend: 'Tap a group to see everyone' }
     : { area: 'Job area', privacy: 'Pins show the area, never the exact spot', one: 'job', many: 'jobs', legend: 'Each pin is the biggest offer in that area' };
+}
+
+/** What a screen reader says for a helper's pin: the service, never the name. */
+export function helperSays(pin: JobPin): string {
+  const what = pin.price ? `${pin.label}, from ${pin.price}` : pin.label;
+  const more = pin.more ? `, ${pin.more} more ${pin.more === 1 ? 'service' : 'services'}` : '';
+  return `${what}${more}${pin.face?.live ? ', active now' : ''}, ${pin.area ?? 'nearby'} area. Tap to see who`;
 }
 
 /** The group's or pin's place name, for the label under it. */
@@ -103,10 +115,10 @@ export function topPinOf(ids: string[], byId: Map<string, JobPin>): JobPin {
 
 /**
  * Open jobs (or, for a poster, nearby helpers) on a map (plan D12, after Snap
- * Map). Zoomed out, helpers are faces and several in one area are a stack of
- * faces; jobs are price pins showing each area's biggest offer, with a soft
+ * Map). Zoomed out, helpers are service icons and several in one area are a
+ * stack of them; jobs are price pins showing each area's biggest offer, with a soft
  * heat glow where the pay is higher. Tap a group, or zoom in, and everyone in
- * it spreads out round the area (lib/mapLayout.ts): every face with a name,
+ * it spreads out round the area (lib/mapLayout.ts): every helper with their service,
  * every task with its price, poster and title. Built on the same plain tiles as
  * the location picker, so it runs on web (and in Expo Go) with no extra SDK or
  * key. Installed phone builds use JobsMap.native.tsx instead, because
@@ -343,11 +355,11 @@ export function JobsMap({
                 key={'p-' + it.id}
                 onPress={pick}
                 accessibilityRole="button"
-                accessibilityLabel={`${pin.name ?? pin.label}, ${pin.label}${pin.face?.live ? ', active now' : ''}, ${pin.area ?? 'nearby'} area`}
+                accessibilityLabel={helperSays(pin)}
                 accessibilityState={{ selected: on }}
                 style={[{ position: 'absolute', left: p.x - FACE_PIN.w / 2, top: p.y - FACE_PIN.anchor, zIndex: on ? 3 : 1 }, drop]}
               >
-                <FacePin face={pin.face ?? { initials: '?', live: false }} seed={pin.id} name={pin.name ?? pin.label} skill={pin.label} on={on} glow />
+                <FacePin face={pin.face ?? { initials: '?', live: false }} seed={pin.id} what={pin.label} price={pin.price} more={pin.more} on={on} glow />
               </Pressable>
             );
           }

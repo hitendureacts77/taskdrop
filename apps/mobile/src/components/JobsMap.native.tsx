@@ -18,6 +18,7 @@ import {
   offersOf,
   placeOf,
   topPinOf,
+  helperSays,
   type JobsMapProps,
 } from './JobsMap.tiles';
 import { groupPins, metresPerPixel } from '../lib/mapCluster';
@@ -347,11 +348,11 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
                 at={place}
                 box={FACE_PIN}
                 z={on ? 4 : 2}
-                label={`${pin.name ?? pin.label}, ${pin.label}${face.live ? ', active now' : ''}, ${pin.area ?? 'nearby'} area`}
+                label={helperSays(pin)}
                 onPress={pick}
-                deps={[on, face.live, face.photo]}
+                deps={[on, face.live, face.icon, pin.label, pin.price, pin.more]}
               >
-                {(redraw) => <FacePin face={face} seed={pin.id} name={pin.name ?? pin.label} skill={pin.label} on={on} onImage={redraw} />}
+                {(redraw) => <FacePin face={face} seed={pin.id} what={pin.label} price={pin.price} more={pin.more} on={on} onImage={redraw} />}
               </PinMarker>
             );
           }

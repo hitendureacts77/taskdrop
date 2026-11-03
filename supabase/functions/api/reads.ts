@@ -378,24 +378,63 @@ export const READ_OPS: Record<string, Op> = {
   /**
    * People who offer work around a point, nearest first, for a poster's map.
    * Only the public, rounded area (migration 074) is used and sent, never the
-   * private spot, and only the few fields a map card shows.
+   * private spot, and only the few fields a map card shows. Each comes with
+   * their newest open service listing (`top_service`) and how many they have,
+   * so the map can say what they offer; people with a listing but no skills
+   * count as helpers too.
    */
   workersNear: async (ctx, a) => {
     const at = { lat: num(a, "lat", -90, 90), lng: num(a, "lng", -180, 180) };
     const radius = num(a, "radiusKm", 0, 20000);
-    const res = await ctx.db.from("profiles")
-      .select("id, display_name, username, avatar_url, skills, worker_rating_avg, worker_rating_count, last_seen_at, loc_lat, loc_lng, loc_label")
-      .not("onboarded_at", "is", null).is("deleted_at", null).not("loc_lat", "is", null)
+    const cols = "id, display_name, username, avatar_url, skills, worker_rating_avg, worker_rating_count, last_seen_at, loc_lat, loc_lng, loc_label";
+    const people = () =>
+      ctx.db.from("profiles").select(cols)
+        .not("onboarded_at", "is", null).is("deleted_at", null).not("loc_lat", "is", null).neq("id", ctx.userId);
+    const [res, offers] = await Promise.all([
       // PostgREST wants the empty array literally: skills=neq.{}
-      .filter("skills", "neq", "{}").neq("id", ctx.userId)
-      .order("last_seen_at", { ascending: false, nullsFirst: false }).limit(300);
-    const found = rows<Row & { loc_lat: number; loc_lng: number }>(res);
+      people().filter("skills", "neq", "{}").order("last_seen_at", { ascending: false, nullsFirst: false }).limit(300),
+      ctx.db.from("tasks").select("id, poster_id, title, benchmark_minor, category")
+        .eq("status", "OPEN").or(notExpired(ctx)).eq("kind", "service").neq("poster_id", ctx.userId)
+        .order("created_at", { ascending: false }).limit(500),
+    ]);
+    // Listings fail soft: helpers still show, just without a service.
+    const listings = offers.error
+      ? []
+      : ((offers.data ?? []) as Row[]).filter((t) => typeof t.poster_id === "string").map((t) => ({
+        id: String(t.id), poster_id: String(t.poster_id), title: String(t.title ?? ""),
+        price_minor: Number(t.benchmark_minor ?? 0), category: (t.category as string | null) ?? null,
+      }));
+    const byPoster = new Map<string, typeof listings>();
+    for (const l of listings) byPoster.set(l.poster_id, [...(byPoster.get(l.poster_id) ?? []), l]);
+    const found = rows<Row & { id: string; loc_lat: number; loc_lng: number }>(res);
+    const seen = new Set(found.map((p) => p.id));
+    const sellersOnly = [...byPoster.keys()].filter((id) => !seen.has(id)).slice(0, 300);
+    if (sellersOnly.length > 0) {
+      const more = await people().in("id", sellersOnly);
+      if (!more.error) found.push(...((more.data ?? []) as typeof found));
+    }
     return found
-      .map((p) => ({ ...p, km: distanceKm(at, { lat: p.loc_lat, lng: p.loc_lng }) ?? Infinity }))
+      .map((p) => {
+        const mine = byPoster.get(p.id) ?? [];
+        const top = mine[0];
+        return {
+          ...p,
+          km: distanceKm(at, { lat: p.loc_lat, lng: p.loc_lng }) ?? Infinity,
+          top_service: top ? { id: top.id, title: top.title, price_minor: top.price_minor, category: top.category } : null,
+          service_count: mine.length,
+        };
+      })
       .filter((x) => x.km <= radius)
       .sort((x, y) => x.km - y.km)
       .slice(0, limit(a, "limit", 12));
   },
+
+  /** One helper's open service listings, newest first: the cards on the map's helper sheet. */
+  workerServices: async (ctx, a) =>
+    rows(
+      await openTasksQuery(ctx, "service").eq("poster_id", uuid(a, "userId"))
+        .order("created_at", { ascending: false }).limit(limit(a, "limit", 10, 20)),
+    ),
 
   /** Reviews about someone in one role. Poster and worker reputations are never merged. */
   listReviewsAbout: async (ctx, a) => {

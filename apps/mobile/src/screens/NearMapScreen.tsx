@@ -1,19 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, Image, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollViewInstance } from 'react-native';
+import { View, Text as RNText, Pressable, ScrollView, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { attachPosters, type TaskWithPoster } from '../data/api';
 import { tasksNear, workersNear, type NearbyWorker } from '../data/extras';
 import { JobsMap, mapWords, type JobPin } from '../components/JobsMap';
-import { FaceDisc } from '../components/MapMarkers';
-import { activeFirst, areaName, farText, firstName, initialsOf, jobPin, mainSkill, personPin, ratingOf } from '../components/mapPins';
+import { HelperSheet } from '../components/HelperSheet';
+import { activeFirst, areaName, farText, firstName, jobPin, offerOf, personPin } from '../components/mapPins';
 import { TopUpBadge } from '../components/TopUpBadge';
 import { categoryIcon } from '../components/WorkCard';
 import { Icon } from '../components/Icon';
 import { rupees } from '../components/kit';
-import { Pressy, tx } from '../components/primitives';
-import { PresenceLabel } from '../components/PresenceDot';
+import { FadeIn, Pressy, tx } from '../components/primitives';
+import { useReducedMotion } from '../lib/motion';
 import { taskToFeedRow } from '../lib/openTask';
 import { isFresh } from '../lib/mapMotion';
 import { presenceOf } from '../lib/presence';
@@ -22,6 +22,10 @@ import { useLayout } from '../lib/layout';
 const CARD_W = 290;
 const GAP = 10;
 const RAIL_H = 176;
+/** Helpers' tray holds service tiles, a little taller than the jobs' area tiles. */
+const PEOPLE_TRAY_H = 204;
+/** About how tall a tapped helper's sheet is, so the map keeps their pin above it. */
+const SHEET_H = 430;
 /** On a wide browser the map fills the page; the bars over it keep a readable width. */
 const WIDE_TOP_BAR = 640;
 const WIDE_RAIL = 900;
@@ -56,11 +60,12 @@ const isPoint = (v: unknown): v is Point =>
 /**
  * The full-screen map, after Snap Map (plans D11, D12). A worker sees each
  * area's biggest offer, and zoomed in every task with its price, poster and
- * title; a poster sees helpers as faces, grouped by area, spread out once
- * zoomed in. With nothing picked, a tray at the bottom shows everyone nearby as
- * faces (people) or the best-paying areas (jobs); tapping one flies the map
- * there. Once something is picked, a rail of cards takes its place: swiping it
- * moves the map to that card and marks it. Opened from the expand button on a
+ * title; a poster sees helpers as what they offer (plan D13: service and price,
+ * no names), grouped by area, spread out once zoomed in. With nothing picked, a
+ * tray at the bottom shows the services nearby (people) or the best-paying
+ * areas (jobs); tapping one flies the map there. A picked helper opens a sheet
+ * with their name, face and service cards; a picked job, a rail of cards where
+ * swiping moves the map to that card and marks it. Opened from the expand button on a
  * Home map with { mode: 'jobs' | 'people', centre, radiusKm }.
  */
 export function NearMapScreen() {
@@ -81,6 +86,9 @@ export function NearMapScreen() {
   const [focus, setFocus] = useState<string | null>(null);
   // "Active now" for helpers, "₹1,000+" for jobs.
   const [narrow, setNarrow] = useState(false);
+  // Helpers only: just those who list a service.
+  const [served, setServed] = useState(false);
+  const reduced = useReducedMotion();
   const rail = useRef<ScrollViewInstance>(null);
 
   useEffect(() => {
@@ -111,7 +119,10 @@ export function NearMapScreen() {
   }, [mode, centre?.lat, centre?.lng, radiusKm]);
 
   const shownJobs = useMemo(() => (jobs ?? []).filter((j) => !narrow || j.benchmark_minor >= HIGH_PAY * 100), [jobs, narrow]);
-  const shownPeople = useMemo(() => (people ?? []).filter((w) => !narrow || presenceOf(w.last_seen_at, now).online), [people, narrow, now]);
+  const shownPeople = useMemo(
+    () => (people ?? []).filter((w) => (!narrow || presenceOf(w.last_seen_at, now).online) && (!served || Boolean(w.top_service))),
+    [people, narrow, served, now],
+  );
   const ids = useMemo(() => (mode === 'jobs' ? shownJobs.map((j) => j.id) : shownPeople.map((p) => p.id)), [mode, shownJobs, shownPeople]);
   const pins = useMemo<JobPin[]>(
     () =>
@@ -131,6 +142,8 @@ export function NearMapScreen() {
   };
   const pickFromMap = (id: string | null) => {
     setPicked(id);
+    // A helper's sheet covers the bottom half: bring their pin up above it.
+    if (id && mode === 'people') setFocus(id);
     // The rail mounts when something is picked; give it a frame before scrolling.
     if (id) setTimeout(() => scrollToCard(id), 0);
   };
@@ -149,7 +162,9 @@ export function NearMapScreen() {
   };
 
   const topBar = insets.top + 106;
-  const bottom = RAIL_H + insets.bottom + 16;
+  const pickedHelper = mode === 'people' ? (shownPeople.find((w) => w.id === picked) ?? null) : null;
+  const trayH = mode === 'people' ? PEOPLE_TRAY_H : RAIL_H;
+  const bottom = (pickedHelper ? SHEET_H : trayH) + insets.bottom + 16;
   const title = mode === 'jobs' ? 'Work near you' : 'Helpers near you';
   const sub = loading
     ? 'Looking around…'
@@ -223,20 +238,33 @@ export function NearMapScreen() {
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {chip('All', !narrow, () => setNarrow(false))}
           {mode === 'jobs' ? chip(`${rupees(HIGH_PAY)}+`, narrow, () => setNarrow(true)) : chip('Active now', narrow, () => setNarrow(true), '#22C55E')}
+          {mode === 'people' ? chip('Has services', served, () => setServed((v) => !v)) : null}
           {picked !== null && ids.includes(picked) ? chip(mode === 'jobs' ? 'Best areas' : 'Everyone', false, () => setPicked(null)) : null}
         </View>
       </View>
 
-      {/* Cards: swipe sideways; the map follows */}
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + 12, height: RAIL_H, maxWidth: wide ? WIDE_RAIL : undefined }}>
+      {/* A tapped helper: only now their name, face and service cards (plan D13). */}
+      {pickedHelper ? (
+        <FadeIn
+          key={pickedHelper.id}
+          {...(reduced ? { duration: 120 } : { duration: 280, translateY: 40 })}
+          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, maxWidth: wide ? WIDE_RAIL : undefined }}
+        >
+          <View style={{ borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: t.colors.surface, borderTopWidth: 1, borderColor: t.colors.line, paddingHorizontal: 16, paddingTop: 10, paddingBottom: insets.bottom + 16 }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: t.colors.line, marginBottom: 12 }} />
+            <HelperSheet worker={pickedHelper} onClose={() => setPicked(null)} />
+          </View>
+        </FadeIn>
+      ) : (
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + 12, height: trayH, maxWidth: wide ? WIDE_RAIL : undefined }}>
         {!centre ? (
           <View style={[cardFrame(false), { marginHorizontal: 16, width: undefined }]}>
             <RNText style={tx('700', 14, t.colors.ink)}>Set your area on Home to see what is near you</RNText>
           </View>
         ) : picked === null || !ids.includes(picked) ? (
-          <View style={{ marginHorizontal: 12, height: RAIL_H, borderRadius: 24, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, paddingTop: 14 }}>
+          <View style={{ marginHorizontal: 12, height: trayH, borderRadius: 24, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, paddingTop: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 16 }}>
-              <RNText style={tx('800', 16, t.colors.ink)}>{mode === 'jobs' ? 'Best-paying areas' : 'Everyone nearby'}</RNText>
+              <RNText style={tx('800', 16, t.colors.ink)}>{mode === 'jobs' ? 'Best-paying areas' : 'Services nearby'}</RNText>
               <RNText style={tx('600', 11.5, t.colors.muted)}>{mode === 'jobs' ? 'highest offer first' : 'active now first'}</RNText>
             </View>
             {mode === 'people' ? (
@@ -272,19 +300,30 @@ export function NearMapScreen() {
                     </Pressy>
                   ))
                 : shownPeople.map((w) => {
+                    // What they offer, not who they are: the name waits for a tap (plan D13).
                     const on = presenceOf(w.last_seen_at, now).online;
+                    const o = offerOf(w);
                     return (
                       <Pressy
                         key={w.id}
                         onPress={() => flyToFirst(w.id)}
-                        label={`${w.display_name}, ${mainSkill(w.skills)}${on ? ', active now' : ''}`}
-                        style={{ width: 60, alignItems: 'center', gap: 6 }}
+                        label={`${o.what}${o.price ? `, from ${o.price}` : ''}${on ? ', active now' : ''}, ${areaName(w.loc_label)} area`}
+                        style={{ width: 136, padding: 12, borderRadius: 16, backgroundColor: t.colors.surface2, gap: 5 }}
                       >
-                        <View style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 2.5, borderColor: on ? '#22C55E' : t.colors.line, alignItems: 'center', justifyContent: 'center' }}>
-                          <FaceDisc face={{ initials: initialsOf(w.display_name || w.username), live: false, photo: w.avatar_url }} seed={w.id} size={46} rimWidth={0} />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: t.colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
+                            <Icon name={o.icon} size={16} color={t.colors.purpleDeep} />
+                          </View>
+                          {on ? <RNText style={tx('800', 10, t.colors.online)}>● Active</RNText> : null}
                         </View>
-                        <RNText style={tx('700', 11.5, t.colors.ink)} numberOfLines={1}>
-                          {firstName(w.display_name || w.username)}
+                        <RNText style={tx('800', 12.5, t.colors.ink, { lineHeight: 16 })} numberOfLines={1}>
+                          {o.what}
+                        </RNText>
+                        <RNText style={tx('800', 14, o.price ? t.colors.ink : t.colors.muted, { fontVariant: ['tabular-nums'] })} numberOfLines={1}>
+                          {o.price ? `from ${o.price}` : 'Skill only'}
+                        </RNText>
+                        <RNText style={tx('600', 11, t.colors.muted)} numberOfLines={1}>
+                          {areaName(w.loc_label)} · {farText(w.km)}
                         </RNText>
                       </Pressy>
                     );
@@ -301,8 +340,7 @@ export function NearMapScreen() {
             onMomentumScrollEnd={onRailStop}
             contentContainerStyle={{ paddingHorizontal: 16, gap: GAP, alignItems: 'flex-end' }}
           >
-            {mode === 'jobs'
-              ? shownJobs.map((j) => {
+            {shownJobs.map((j) => {
                   const on = picked === j.id;
                   return (
                     <View key={j.id} style={cardFrame(on)}>
@@ -337,62 +375,11 @@ export function NearMapScreen() {
                       </Pressy>
                     </View>
                   );
-                })
-              : shownPeople.map((w) => {
-                  const on = picked === w.id;
-                  const rating = ratingOf(w);
-                  return (
-                    <View key={w.id} style={cardFrame(on)}>
-                      <Pressable onPress={() => pickCard(w.id)} accessibilityRole="button" accessibilityState={{ selected: on }} style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                        <View style={{ width: 44, height: 44, borderRadius: 999, backgroundColor: t.colors.purpleSoft, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                          {w.avatar_url ? (
-                            <Image source={{ uri: w.avatar_url }} style={{ width: 44, height: 44 }} accessibilityIgnoresInvertColors />
-                          ) : (
-                            <RNText style={tx('800', 14, t.colors.purpleDeep)}>{initialsOf(w.display_name || w.username)}</RNText>
-                          )}
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <RNText style={tx('800', 14.5, t.colors.ink)} numberOfLines={1}>
-                            {w.display_name}
-                            <RNText style={tx('700', 12, t.colors.muted)}>
-                              {rating ? `  ★ ${rating} · ${w.worker_rating_count} review${w.worker_rating_count === 1 ? '' : 's'}` : '  New'}
-                            </RNText>
-                          </RNText>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                            <PresenceLabel lastSeen={w.last_seen_at} />
-                            <RNText style={tx('400', 12, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>
-                              · {areaName(w.loc_label)} area · {farText(w.km)}
-                            </RNText>
-                          </View>
-                        </View>
-                      </Pressable>
-                      <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', height: 24, overflow: 'hidden' }}>
-                        {(w.skills ?? []).slice(0, 3).map((s) => (
-                          <View key={s} style={{ height: 24, paddingHorizontal: 9, borderRadius: 999, backgroundColor: t.colors.purpleSoft, justifyContent: 'center' }}>
-                            <RNText style={tx('700', 11.5, t.colors.purpleDeep)}>{mainSkill([s])}</RNText>
-                          </View>
-                        ))}
-                      </View>
-                      <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <Pressy
-                          onPress={() => go('publicProfile', { userId: w.id })}
-                          style={{ flex: 1, height: 40, borderRadius: 12, borderWidth: 1.5, borderColor: t.colors.line, backgroundColor: t.colors.surface, alignItems: 'center', justifyContent: 'center' }}
-                        >
-                          <RNText style={tx('700', 13, t.colors.ink)}>View profile</RNText>
-                        </Pressy>
-                        <Pressy
-                          onPress={() => go('aiPost')}
-                          style={{ flex: 1, height: 40, borderRadius: 12, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}
-                        >
-                          <RNText style={tx('800', 13, t.colors.onBtn)}>Post a task</RNText>
-                        </Pressy>
-                      </View>
-                    </View>
-                  );
                 })}
           </ScrollView>
         )}
       </View>
+      )}
     </View>
   );
 }

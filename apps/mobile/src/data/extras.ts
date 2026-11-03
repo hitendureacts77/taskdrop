@@ -399,9 +399,17 @@ export const tasksNear = (near: { lat: number; lng: number }, radiusKm: number, 
 export type NearbyWorker = Pick<
   Profile,
   'id' | 'display_name' | 'username' | 'avatar_url' | 'skills' | 'worker_rating_avg' | 'worker_rating_count' | 'last_seen_at' | 'loc_lat' | 'loc_lng' | 'loc_label'
-> & { km: number };
+> & {
+  km: number;
+  /** Their newest open service listing, for the map label; null when they only list skills. */
+  top_service?: { id: string; title: string; price_minor: number; category: string | null } | null;
+  service_count?: number;
+};
 
 export const workersNear = (near: { lat: number; lng: number }, radiusKm: number, limit = 12) =>
   act<NearbyWorker[]>('workersNear', { lat: near.lat, lng: near.lng, radiusKm, limit });
+
+/** One helper's open service listings, newest first (the helper sheet on the map). */
+export const workerServices = (userId: string, limit = 10) => act<Task[]>('workerServices', { userId, limit });
 
 export const urgentTasks = (limit = 3) => act<Task[]>('urgentTasks', { limit });

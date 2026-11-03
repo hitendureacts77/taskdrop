@@ -13,9 +13,9 @@ import { PillTabs, SectionTitle, Shimmer, rupees, timeLeft } from './kit';
 import { categoryIcon } from './WorkCard';
 import { JobsMap, type JobPin } from './JobsMap';
 import { TopUpBadge } from './TopUpBadge';
-import { activeFirst, areaName, farText, firstName, initialsOf, jobPin, mainSkill, personPin, ratingOf } from './mapPins';
-import { FaceDisc } from './MapMarkers';
-import { PresenceLabel } from './PresenceDot';
+import { activeFirst, areaName, farText, jobPin, offerOf, personPin, ratingOf } from './mapPins';
+import { HelperSheet } from './HelperSheet';
+import type { IconName } from './Icon';
 import { LocationSheet } from './LocationSheet';
 import { cardSurface } from './ui';
 import { Pressy, tx } from './primitives';
@@ -213,15 +213,30 @@ export function NearYou({ active, first = false }: { active: boolean; first?: bo
   );
 }
 
+/** A helper's service icon, with a green dot when they have TaskDrop open. */
+function OfferDot({ icon, live, size }: { icon: IconName; live: boolean; size: number }) {
+  const t = useTheme();
+  return (
+    <View>
+      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: t.colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={icon} size={Math.round(size * 0.45)} color={t.colors.purpleDeep} />
+      </View>
+      {live ? (
+        <View style={{ position: 'absolute', right: -1, bottom: -1, width: 11, height: 11, borderRadius: 999, backgroundColor: '#22C55E', borderWidth: 2, borderColor: t.colors.surface }} />
+      ) : null}
+    </View>
+  );
+}
+
 /**
- * The poster's map of helpers round their area (plan D11): blue circles with a
- * face, main skill and rating, a green dot when someone has TaskDrop open, and
- * the people active now listed first. Tap a tag or a row for a peek with
- * "View profile" and "Post a task"; the expand button opens the full map.
+ * The poster's map of helpers round their area (plans D11, D13): each one is
+ * what they offer, a service and its price, never a name; a green dot when
+ * someone has TaskDrop open, and the people active now listed first. Tap a pin,
+ * a service or a row to see who it is: name, face and service cards
+ * (HelperSheet). The expand button opens the full map.
  */
 function HelpersNear({ centre, onOpenMap }: { centre: { lat: number; lng: number }; onOpenMap: () => void }) {
   const t = useTheme();
-  const { go } = useNav();
   const [list, setList] = useState<NearbyWorker[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -256,124 +271,98 @@ function HelpersNear({ centre, onOpenMap }: { centre: { lat: number; lng: number
         <JobsMap me={centre} pins={pins} selectedId={picked} onSelect={setPicked} height={280} ringKm={NEAR_KM} tone="people" onExpand={onOpenMap} />
       </View>
 
-      {/* Everyone as faces, one swipe: active now first, with a green ring. */}
+      {/* What people offer, one swipe: active now first. Names wait for a tap (plan D13). */}
       {list.length > 0 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12, marginHorizontal: -4 }} contentContainerStyle={{ gap: 12, paddingHorizontal: 4 }}>
-          {list.map((w) => {
-            const live = presenceOf(w.last_seen_at, now).online;
-            const on = w.id === picked;
-            return (
-              <Pressable
-                key={w.id}
-                onPress={() => setPicked(on ? null : w.id)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={`${w.display_name}, ${mainSkill(w.skills)}${live ? ', active now' : ''}`}
-                style={({ pressed }) => ({ width: 58, alignItems: 'center', gap: 5, opacity: pressed ? 0.75 : 1 })}
-              >
-                <View
-                  style={{
-                    width: 54,
-                    height: 54,
-                    borderRadius: 27,
-                    borderWidth: 2.5,
-                    borderColor: on ? t.colors.purple : live ? '#22C55E' : t.colors.line,
+        <>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 14 }}>
+            <RNText style={tx('800', 14, t.colors.ink)}>Services nearby</RNText>
+            <RNText style={tx('600', 11.5, t.colors.muted)}>active now first</RNText>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8, marginHorizontal: -4 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 4 }}>
+            {list.map((w) => {
+              const live = presenceOf(w.last_seen_at, now).online;
+              const on = w.id === picked;
+              const o = offerOf(w);
+              return (
+                <Pressable
+                  key={w.id}
+                  onPress={() => setPicked(on ? null : w.id)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={`${o.what}${o.price ? `, from ${o.price}` : ''}${live ? ', active now' : ''}, ${areaName(w.loc_label)} area`}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
+                    gap: 8,
+                    paddingVertical: 8,
+                    paddingLeft: 8,
+                    paddingRight: 12,
+                    borderRadius: 16,
+                    borderWidth: 1.5,
+                    borderColor: on ? t.colors.purple : t.colors.line,
+                    backgroundColor: t.colors.surface,
+                    opacity: pressed ? 0.75 : 1,
+                  })}
                 >
-                  <FaceDisc face={{ initials: initialsOf(w.display_name || w.username), live: false, photo: w.avatar_url }} seed={w.id} size={44} rimWidth={0} />
-                </View>
-                <RNText style={tx('700', 11.5, t.colors.ink)} numberOfLines={1}>
-                  {firstName(w.display_name || w.username)}
-                </RNText>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+                  <OfferDot icon={o.icon} live={live} size={30} />
+                  <View>
+                    <RNText style={tx('800', 12.5, t.colors.ink, { maxWidth: 170 })} numberOfLines={1}>
+                      {o.what}
+                      {o.price ? <RNText style={tx('800', 12.5, t.colors.accentDeep)}>{` · ${o.price}`}</RNText> : null}
+                    </RNText>
+                    <RNText style={tx('400', 11, t.colors.muted)} numberOfLines={1}>
+                      {areaName(w.loc_label)} · {farText(w.km)}
+                    </RNText>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </>
       ) : null}
 
       {sel ? (
-        <View style={[cardSurface(t, 20), { marginTop: 12, padding: 16, gap: 12 }]}>
-          <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-            <View style={{ width: 46, height: 46, borderRadius: 999, backgroundColor: t.colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
-              <RNText style={tx('800', 15, t.colors.purpleDeep)}>{initialsOf(sel.display_name || sel.username)}</RNText>
-            </View>
-            <View style={{ flex: 1 }}>
-              <RNText style={tx('800', 16, t.colors.ink)} numberOfLines={1}>
-                {sel.display_name}
-              </RNText>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                <PresenceLabel lastSeen={sel.last_seen_at} />
-                <RNText style={tx('400', 12, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>
-                  · {ratingOf(sel) ? `★ ${ratingOf(sel)} (${sel.worker_rating_count})` : 'New'} · {areaName(sel.loc_label)} area · {farText(sel.km)}
-                </RNText>
-              </View>
-            </View>
-          </View>
-          <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-            {(sel.skills ?? []).slice(0, 4).map((s) => (
-              <View key={s} style={{ paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: t.colors.purpleSoft }}>
-                <RNText style={tx('700', 11.5, t.colors.purpleDeep)}>{mainSkill([s])}</RNText>
-              </View>
-            ))}
-          </View>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Pressy
-              onPress={() => go('publicProfile', { userId: sel.id })}
-              style={{ flex: 1, height: 44, borderRadius: 999, borderWidth: 1.5, borderColor: t.colors.line, backgroundColor: t.colors.surface, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <RNText style={tx('700', 14, t.colors.ink)}>View profile</RNText>
-            </Pressy>
-            <Pressy
-              onPress={() => go('aiPost')}
-              style={{ flex: 1, height: 44, borderRadius: 999, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <RNText style={tx('800', 14, t.colors.onBtn)}>Post a task</RNText>
-            </Pressy>
-          </View>
+        <View style={[cardSurface(t, 20), { marginTop: 12, padding: 16 }]}>
+          <HelperSheet worker={sel} onClose={() => setPicked(null)} />
         </View>
       ) : null}
 
       {list.length > 0 ? (
         <View style={[cardSurface(t, 20), { marginTop: 12, paddingHorizontal: 14 }]}>
-          {list.slice(0, 4).map((w, i) => (
-            <Pressable
-              key={w.id}
-              onPress={() => setPicked(w.id === picked ? null : w.id)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: w.id === picked }}
-              accessibilityLabel={`${w.display_name}, ${mainSkill(w.skills)}, ${presenceOf(w.last_seen_at, now).label}, ${farText(w.km)} away`}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-                paddingVertical: 12,
-                borderTopWidth: i === 0 ? 0 : 1,
-                borderTopColor: t.colors.line,
-                opacity: pressed ? 0.75 : 1,
-              })}
-            >
-              <View>
-                <View style={{ width: 38, height: 38, borderRadius: 999, backgroundColor: t.colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
-                  <RNText style={tx('800', 12.5, t.colors.purpleDeep)}>{initialsOf(w.display_name || w.username)}</RNText>
+          {list.slice(0, 4).map((w, i) => {
+            const o = offerOf(w);
+            const live = presenceOf(w.last_seen_at, now).online;
+            const rating = ratingOf(w);
+            return (
+              <Pressable
+                key={w.id}
+                onPress={() => setPicked(w.id === picked ? null : w.id)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: w.id === picked }}
+                accessibilityLabel={`${o.what}${o.price ? `, from ${o.price}` : ''}, ${presenceOf(w.last_seen_at, now).label}, ${farText(w.km)} away. Tap to see who`}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  paddingVertical: 12,
+                  borderTopWidth: i === 0 ? 0 : 1,
+                  borderTopColor: t.colors.line,
+                  opacity: pressed ? 0.75 : 1,
+                })}
+              >
+                <OfferDot icon={o.icon} live={live} size={38} />
+                <View style={{ flex: 1 }}>
+                  <RNText style={tx('700', 14, t.colors.ink)} numberOfLines={1}>
+                    {o.what}
+                  </RNText>
+                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>
+                    {[o.price ? `from ${o.price}` : 'Skill', rating ? `★ ${rating}` : 'New', `${areaName(w.loc_label)}`, farText(w.km)].join(' · ')}
+                  </RNText>
                 </View>
-                {presenceOf(w.last_seen_at, now).online ? (
-                  <View style={{ position: 'absolute', right: 0, bottom: 0, width: 11, height: 11, borderRadius: 999, backgroundColor: '#22C55E', borderWidth: 2, borderColor: t.colors.surface }} />
-                ) : null}
-              </View>
-              <View style={{ flex: 1 }}>
-                <RNText style={tx('700', 14, t.colors.ink)} numberOfLines={1}>
-                  {w.display_name}
-                  {ratingOf(w) ? <RNText style={tx('700', 12, t.colors.muted)}>{`  ★ ${ratingOf(w)}`}</RNText> : null}
-                </RNText>
-                <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>
-                  {(w.skills ?? []).slice(0, 2).map((s) => mainSkill([s])).join(', ')} · {areaName(w.loc_label)} area · {farText(w.km)}
-                </RNText>
-              </View>
-              <Icon name="chevronRight" size={16} color={t.colors.muted} />
-            </Pressable>
-          ))}
+                <Icon name="chevronRight" size={16} color={t.colors.muted} />
+              </Pressable>
+            );
+          })}
         </View>
       ) : null}
     </>

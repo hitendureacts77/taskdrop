@@ -409,6 +409,47 @@ await t("helpers near a point come back nearest first, inside the radius, with o
   assert.ok(!bad.ok && bad.error.code === "BAD_ARGS");
 });
 
+await t("helpers near a point carry their newest open service, and sellers without skills count too", async () => {
+  const here = { lat: 17.44, lng: 78.35 };
+  const f = fake((c) => {
+    if (c.table === "tasks") {
+      return { data: [
+        { id: "s-new", poster_id: "near", title: "AC service", benchmark_minor: 39900, category: "Repairs" },
+        { id: "s-old", poster_id: "near", title: "Fridge fix", benchmark_minor: 54900, category: "Repairs" },
+        { id: "s-seller", poster_id: "seller", title: "Logo design", benchmark_minor: 99900, category: "Design" },
+      ], error: null };
+    }
+    const asked = c.steps.find(([name]) => name === "in");
+    if (asked) return { data: [{ id: "seller", skills: [], loc_lat: 17.43, loc_lng: 78.37 }], error: null };
+    return { data: [{ id: "near", skills: ["AC repair"], loc_lat: 17.45, loc_lng: 78.36 }, { id: "plain", skills: ["Plumbing"], loc_lat: 17.46, loc_lng: 78.35 }], error: null };
+  });
+  const r = await runOp("workersNear", { ...here, radiusKm: 50, limit: 5 }, ctx(f));
+  assert.ok(r.ok);
+  const list = r.data as { id: string; top_service: { id: string; price_minor: number } | null; service_count: number }[];
+  const byId = Object.fromEntries(list.map((x) => [x.id, x]));
+  assert.deepEqual(Object.keys(byId).sort(), ["near", "plain", "seller"]);
+  assert.equal(byId.near!.top_service?.id, "s-new");
+  assert.equal(byId.near!.service_count, 2);
+  assert.equal(byId.seller!.top_service?.price_minor, 99900);
+  assert.equal(byId.plain!.top_service, null);
+  assert.equal(byId.plain!.service_count, 0);
+  // Only open, unexpired services, never the caller's own.
+  const tasks = f.calls.find((c) => c.table === "tasks")!;
+  assert.ok(tasks.steps.some(([n, args]) => n === "eq" && args[0] === "status" && args[1] === "OPEN"));
+  assert.ok(tasks.steps.some(([n, args]) => n === "neq" && args[0] === "poster_id"));
+});
+
+await t("a helper's services are their open listings, asked by id", async () => {
+  const f = fake(() => ({ data: [{ id: "s1", poster_id: OTHER, kind: "service" }], error: null }));
+  const r = await runOp("workerServices", { userId: OTHER }, ctx(f));
+  assert.ok(r.ok);
+  const q = f.calls[0]!;
+  assert.ok(q.steps.some(([n, args]) => n === "eq" && args[0] === "poster_id" && args[1] === OTHER));
+  assert.ok(q.steps.some(([n, args]) => n === "eq" && args[0] === "kind" && args[1] === "service"));
+  const bad = await runOp("workerServices", { userId: "nope" }, ctx(f));
+  assert.ok(!bad.ok && bad.error.code === "BAD_ARGS");
+});
+
 // ------------------------------------------------------------------- media --
 
 await t("uploads go to a server-chosen path in the caller's own folder", async () => {
