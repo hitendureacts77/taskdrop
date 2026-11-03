@@ -5,6 +5,7 @@ import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
 import { EmptyState, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../components/kit';
 import { JobsMap, type JobPin } from '../components/JobsMap';
+import { jobPin } from '../components/mapPins';
 import { PersonTheme } from '../providers/ThemeProvider';
 import { TrendingSection } from '../components/Trending';
 import { WorkCard, categoryLabel } from '../components/WorkCard';
@@ -625,7 +626,8 @@ function JobsMapBlock({
   const t = useTheme();
   const located = rows.filter((r) => r.loc_lat !== null && r.loc_lng !== null);
   const remote = rows.length - located.length;
-  const pins: JobPin[] = located.map((r) => ({ id: r.id, lat: r.loc_lat as number, lng: r.loc_lng as number, label: priceTag(r.benchmark_minor) }));
+  const now = Date.now();
+  const pins = located.map((r) => jobPin(r, now, priceTag(r.benchmark_minor))).filter((p): p is JobPin => p !== null);
   const picked = located.find((r) => r.id === pinId) ?? null;
   return (
     <View style={{ marginTop: 12 }}>

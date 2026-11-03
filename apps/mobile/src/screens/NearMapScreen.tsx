@@ -3,10 +3,11 @@ import { View, Text as RNText, Pressable, ScrollView, Image, type NativeScrollEv
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
-import type { Task } from '../data/api';
+import { attachPosters, type TaskWithPoster } from '../data/api';
 import { tasksNear, workersNear, type NearbyWorker } from '../data/extras';
 import { JobsMap, mapWords, type JobPin } from '../components/JobsMap';
-import { activeFirst, areaName, farText, initialsOf, jobPin, mainSkill, personPin, ratingOf } from '../components/mapPins';
+import { FaceDisc } from '../components/MapMarkers';
+import { activeFirst, areaName, farText, firstName, initialsOf, jobPin, mainSkill, personPin, ratingOf } from '../components/mapPins';
 import { TopUpBadge } from '../components/TopUpBadge';
 import { categoryIcon } from '../components/WorkCard';
 import { Icon } from '../components/Icon';
@@ -15,24 +16,48 @@ import { Pressy, tx } from '../components/primitives';
 import { PresenceLabel } from '../components/PresenceDot';
 import { taskToFeedRow } from '../lib/openTask';
 import { isFresh } from '../lib/mapMotion';
+import { presenceOf } from '../lib/presence';
 
 const CARD_W = 290;
 const GAP = 10;
 const RAIL_H = 176;
 /** Enough to fill a big city's 5-10 km without the map turning to noise (clusters take the rest). */
 const MAX_ITEMS = 60;
+/** The "₹1,000+" filter. */
+const HIGH_PAY = 1000;
+
+type Job = TaskWithPoster & { km: number; fresh: boolean };
+
+/** Open tasks by area for the "Best-paying areas" tray: each area's biggest offer, highest first. */
+function bestAreas(jobs: Job[]) {
+  const by = new Map<string, { name: string; top: Job; count: number; km: number }>();
+  for (const j of jobs) {
+    if (j.loc_lat == null) continue;
+    const name = areaName(j.loc_label);
+    const a = by.get(name);
+    if (!a) by.set(name, { name, top: j, count: 1, km: j.km });
+    else {
+      a.count += 1;
+      a.km = Math.min(a.km, j.km);
+      if (j.benchmark_minor > a.top.benchmark_minor) a.top = j;
+    }
+  }
+  return [...by.values()].sort((a, b) => b.top.benchmark_minor - a.top.benchmark_minor);
+}
 
 type Point = { lat: number; lng: number };
 const isPoint = (v: unknown): v is Point =>
   typeof v === 'object' && v !== null && typeof (v as Point).lat === 'number' && typeof (v as Point).lng === 'number';
 
 /**
- * The full-screen map, like Snap Map (plan D11). A worker sees open tasks with
- * their prices; a poster sees helpers with their main skill, rating and whether
- * they are active now. A rail of cards sits at the bottom: swiping it moves the
- * map to that card's area and marks it; tapping a tag on the map brings its
- * card to the front. Opened from the expand button on a Home map with
- * { mode: 'jobs' | 'people', centre, radiusKm }.
+ * The full-screen map, after Snap Map (plans D11, D12). A worker sees each
+ * area's biggest offer, and zoomed in every task with its price, poster and
+ * title; a poster sees helpers as faces, grouped by area, spread out once
+ * zoomed in. With nothing picked, a tray at the bottom shows everyone nearby as
+ * faces (people) or the best-paying areas (jobs); tapping one flies the map
+ * there. Once something is picked, a rail of cards takes its place: swiping it
+ * moves the map to that card and marks it. Opened from the expand button on a
+ * Home map with { mode: 'jobs' | 'people', centre, radiusKm }.
  */
 export function NearMapScreen() {
   const t = useTheme();
@@ -43,11 +68,13 @@ export function NearMapScreen() {
   const radiusKm = typeof params.radiusKm === 'number' ? params.radiusKm : 5;
   const words = mapWords(mode);
 
-  const [jobs, setJobs] = useState<(Task & { km: number; fresh: boolean })[] | null>(null);
+  const [jobs, setJobs] = useState<Job[] | null>(null);
   const [people, setPeople] = useState<NearbyWorker[] | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [picked, setPicked] = useState<string | null>(null);
   const [focus, setFocus] = useState<string | null>(null);
+  // "Active now" for helpers, "₹1,000+" for jobs.
+  const [narrow, setNarrow] = useState(false);
   const rail = useRef<ScrollViewInstance>(null);
 
   useEffect(() => {
@@ -55,8 +82,15 @@ export function NearMapScreen() {
     let alive = true;
     const at = Date.now();
     if (mode === 'jobs') {
+      // Posters ride along so the zoomed-in map shows who posted each task.
       void tasksNear(centre, radiusKm, MAX_ITEMS)
-        .then((r) => alive && (setNow(at), setJobs(r.map((x) => ({ ...x, fresh: isFresh(x.created_at, at) })))))
+        .then(async (r) => {
+          const withPeople = await attachPosters(r);
+          if (alive) {
+            setNow(at);
+            setJobs(withPeople.map((x, i) => ({ ...x, km: r[i]!.km, fresh: isFresh(x.created_at, at) })));
+          }
+        })
         .catch(() => alive && setJobs([]));
     } else {
       void workersNear(centre, radiusKm, MAX_ITEMS)
@@ -70,16 +104,20 @@ export function NearMapScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, centre?.lat, centre?.lng, radiusKm]);
 
-  const ids = useMemo(() => (mode === 'jobs' ? (jobs ?? []).map((j) => j.id) : (people ?? []).map((p) => p.id)), [mode, jobs, people]);
+  const shownJobs = useMemo(() => (jobs ?? []).filter((j) => !narrow || j.benchmark_minor >= HIGH_PAY * 100), [jobs, narrow]);
+  const shownPeople = useMemo(() => (people ?? []).filter((w) => !narrow || presenceOf(w.last_seen_at, now).online), [people, narrow, now]);
+  const ids = useMemo(() => (mode === 'jobs' ? shownJobs.map((j) => j.id) : shownPeople.map((p) => p.id)), [mode, shownJobs, shownPeople]);
   const pins = useMemo<JobPin[]>(
     () =>
       mode === 'jobs'
-        ? (jobs ?? []).map((j) => jobPin(j, now)).filter((p): p is JobPin => p !== null)
-        : (people ?? []).map((w) => personPin(w, now)).filter((p): p is JobPin => p !== null),
-    [mode, jobs, people, now],
+        ? shownJobs.map((j) => jobPin(j, now)).filter((p): p is JobPin => p !== null)
+        : shownPeople.map((w) => personPin(w, now)).filter((p): p is JobPin => p !== null),
+    [mode, shownJobs, shownPeople, now],
   );
   const loading = mode === 'jobs' ? jobs === null : people === null;
   const count = ids.length;
+  const areas = useMemo(() => bestAreas(shownJobs), [shownJobs]);
+  const live = (people ?? []).filter((w) => presenceOf(w.last_seen_at, now).online).length;
 
   const scrollToCard = (id: string) => {
     const i = ids.indexOf(id);
@@ -87,11 +125,16 @@ export function NearMapScreen() {
   };
   const pickFromMap = (id: string | null) => {
     setPicked(id);
-    if (id) scrollToCard(id);
+    // The rail mounts when something is picked; give it a frame before scrolling.
+    if (id) setTimeout(() => scrollToCard(id), 0);
   };
   const pickCard = (id: string) => {
     setPicked(id);
     setFocus(id);
+  };
+  const flyToFirst = (id: string) => {
+    pickCard(id);
+    setTimeout(() => scrollToCard(id), 0);
   };
   const onRailStop = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const i = Math.round(e.nativeEvent.contentOffset.x / (CARD_W + GAP));
@@ -99,13 +142,27 @@ export function NearMapScreen() {
     if (id && id !== picked) pickCard(id);
   };
 
-  const topBar = insets.top + 60;
+  const topBar = insets.top + 106;
   const bottom = RAIL_H + insets.bottom + 16;
-  const title = loading
+  const title = mode === 'jobs' ? 'Work near you' : 'Helpers near you';
+  const sub = loading
     ? 'Looking around…'
     : count === 0
       ? `No ${words.many} within ${radiusKm} km yet`
-      : `${count} ${count === 1 ? words.one : words.many} within ${radiusKm} km`;
+      : `${count} ${count === 1 ? words.one : words.many} within ${radiusKm} km${mode === 'people' && live > 0 ? ` · ${live} active now` : ''}`;
+  const bestJob = areas[0]?.top ?? null;
+  const glass = { backgroundColor: t.colors.bg, borderWidth: 1, borderColor: t.colors.line };
+  const chip = (label: string, on: boolean, onPress: () => void, dot?: string) => (
+    <Pressy
+      key={label}
+      onPress={onPress}
+      label={label}
+      style={{ height: 34, paddingHorizontal: 13, borderRadius: 17, flexDirection: 'row', alignItems: 'center', gap: 6, ...(on ? { backgroundColor: t.colors.ink } : glass) }}
+    >
+      {dot ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }} /> : null}
+      <RNText style={tx(on ? '800' : '700', 12.5, on ? t.colors.bg : t.colors.ink)}>{label}</RNText>
+    </Pressy>
+  );
 
   const cardFrame = (on: boolean) => ({
     width: CARD_W,
@@ -130,19 +187,37 @@ export function NearMapScreen() {
         fill={{ top: topBar, bottom }}
       />
 
-      {/* Top bar */}
-      <View style={{ position: 'absolute', left: 16, right: 16, top: insets.top + 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Pressy
-          onPress={back}
-          label="Close the map"
-          style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: t.colors.bg, borderWidth: 1, borderColor: t.colors.line, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Icon name="close" size={18} color={t.colors.ink} />
-        </Pressy>
-        <View style={{ flex: 1, height: 44, borderRadius: 14, backgroundColor: t.colors.bg, borderWidth: 1, borderColor: t.colors.line, justifyContent: 'center', paddingHorizontal: 14 }}>
-          <RNText style={tx('800', 14, t.colors.ink)} numberOfLines={1}>
-            {title}
-          </RNText>
+      {/* Top bar: what this map shows, and one filter */}
+      <View style={{ position: 'absolute', left: 16, right: 16, top: insets.top + 10, gap: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Pressy
+            onPress={back}
+            label="Close the map"
+            style={{ width: 44, height: 44, borderRadius: 22, ...glass, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Icon name="close" size={18} color={t.colors.ink} />
+          </Pressy>
+          <View style={{ flex: 1, height: 44, borderRadius: 22, ...glass, flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 6, gap: 8 }}>
+            <View style={{ flex: 1 }}>
+              <RNText style={tx('800', 14, t.colors.ink)} numberOfLines={1}>
+                {title}
+              </RNText>
+              <RNText style={tx('600', 11, t.colors.muted)} numberOfLines={1}>
+                {sub}
+              </RNText>
+            </View>
+            {mode === 'jobs' && bestJob ? (
+              <View style={{ height: 32, paddingHorizontal: 10, borderRadius: 16, backgroundColor: t.colors.accentSoft, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <RNText style={tx('700', 12, t.colors.accentDeep)}>Best</RNText>
+                <RNText style={tx('800', 12.5, t.colors.ink, { fontVariant: ['tabular-nums'] })}>{rupees(bestJob.benchmark_minor / 100)}</RNText>
+              </View>
+            ) : null}
+          </View>
+        </View>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {chip('All', !narrow, () => setNarrow(false))}
+          {mode === 'jobs' ? chip(`${rupees(HIGH_PAY)}+`, narrow, () => setNarrow(true)) : chip('Active now', narrow, () => setNarrow(true), '#22C55E')}
+          {picked !== null && ids.includes(picked) ? chip(mode === 'jobs' ? 'Best areas' : 'Everyone', false, () => setPicked(null)) : null}
         </View>
       </View>
 
@@ -151,6 +226,64 @@ export function NearMapScreen() {
         {!centre ? (
           <View style={[cardFrame(false), { marginHorizontal: 16, width: undefined }]}>
             <RNText style={tx('700', 14, t.colors.ink)}>Set your area on Home to see what is near you</RNText>
+          </View>
+        ) : picked === null || !ids.includes(picked) ? (
+          <View style={{ marginHorizontal: 12, height: RAIL_H, borderRadius: 24, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, paddingTop: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 16 }}>
+              <RNText style={tx('800', 16, t.colors.ink)}>{mode === 'jobs' ? 'Best-paying areas' : 'Everyone nearby'}</RNText>
+              <RNText style={tx('600', 11.5, t.colors.muted)}>{mode === 'jobs' ? 'highest offer first' : 'active now first'}</RNText>
+            </View>
+            {mode === 'people' ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 16, marginTop: 3 }}>
+                <Icon name="lock" size={11} color={t.colors.muted} />
+                <RNText style={tx('600', 11.5, t.colors.muted)}>{words.privacy}</RNText>
+              </View>
+            ) : null}
+            {!loading && count === 0 ? (
+              <RNText style={tx('600', 13, t.colors.muted, { paddingHorizontal: 16, marginTop: 14 })}>
+                {narrow ? 'Nothing matches this filter yet. Tap All to see everyone.' : `No ${words.many} within ${radiusKm} km yet.`}
+              </RNText>
+            ) : null}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, gap: mode === 'jobs' ? 10 : 14 }}>
+              {mode === 'jobs'
+                ? areas.map((a, i) => (
+                    <Pressy
+                      key={a.name}
+                      onPress={() => flyToFirst(a.top.id)}
+                      label={`${a.name}, biggest offer ${rupees(a.top.benchmark_minor / 100)}, ${a.count} ${a.count === 1 ? 'task' : 'tasks'}, ${farText(a.km)}`}
+                      style={{ width: 140, padding: 12, borderRadius: 16, backgroundColor: t.colors.surface2, borderWidth: 1, borderColor: i === 0 ? t.colors.accent : t.colors.line, gap: 6 }}
+                    >
+                      <RNText style={tx('700', 12.5, t.colors.text)} numberOfLines={1}>
+                        {a.name}
+                      </RNText>
+                      <RNText style={tx('800', 20, t.colors.ink, { fontVariant: ['tabular-nums'], letterSpacing: -0.4 })}>{rupees(a.top.benchmark_minor / 100)}</RNText>
+                      <View style={{ height: 4, borderRadius: 2, backgroundColor: t.colors.line, overflow: 'hidden' }}>
+                        <View style={{ width: `${Math.round((100 * a.top.benchmark_minor) / (areas[0]!.top.benchmark_minor || 1))}%`, height: 4, borderRadius: 2, backgroundColor: t.colors.accent }} />
+                      </View>
+                      <RNText style={tx('600', 11, t.colors.muted)} numberOfLines={1}>
+                        {a.count} {a.count === 1 ? 'task' : 'tasks'} · {farText(a.km)}
+                      </RNText>
+                    </Pressy>
+                  ))
+                : shownPeople.map((w) => {
+                    const on = presenceOf(w.last_seen_at, now).online;
+                    return (
+                      <Pressy
+                        key={w.id}
+                        onPress={() => flyToFirst(w.id)}
+                        label={`${w.display_name}, ${mainSkill(w.skills)}${on ? ', active now' : ''}`}
+                        style={{ width: 60, alignItems: 'center', gap: 6 }}
+                      >
+                        <View style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 2.5, borderColor: on ? '#22C55E' : t.colors.line, alignItems: 'center', justifyContent: 'center' }}>
+                          <FaceDisc face={{ initials: initialsOf(w.display_name || w.username), live: false, photo: w.avatar_url }} seed={w.id} size={46} rimWidth={0} />
+                        </View>
+                        <RNText style={tx('700', 11.5, t.colors.ink)} numberOfLines={1}>
+                          {firstName(w.display_name || w.username)}
+                        </RNText>
+                      </Pressy>
+                    );
+                  })}
+            </ScrollView>
           </View>
         ) : (
           <ScrollView
@@ -163,7 +296,7 @@ export function NearMapScreen() {
             contentContainerStyle={{ paddingHorizontal: 16, gap: GAP, alignItems: 'flex-end' }}
           >
             {mode === 'jobs'
-              ? (jobs ?? []).map((j) => {
+              ? shownJobs.map((j) => {
                   const on = picked === j.id;
                   return (
                     <View key={j.id} style={cardFrame(on)}>
@@ -177,6 +310,7 @@ export function NearMapScreen() {
                           </RNText>
                           <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>
                             {areaName(j.loc_label)} area · {farText(j.km)}
+                            {j.poster ? ` · by ${firstName(j.poster.display_name || j.poster.username)}` : ''}
                           </RNText>
                         </View>
                       </Pressable>
@@ -190,7 +324,7 @@ export function NearMapScreen() {
                         ) : null}
                       </View>
                       <Pressy
-                        onPress={() => go('taskDetail', { row: taskToFeedRow({ ...j, poster: null }) })}
+                        onPress={() => go('taskDetail', { row: taskToFeedRow(j) })}
                         style={{ height: 40, borderRadius: 12, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}
                       >
                         <RNText style={tx('800', 13.5, t.colors.onBtn)}>Open task</RNText>
@@ -198,7 +332,7 @@ export function NearMapScreen() {
                     </View>
                   );
                 })
-              : (people ?? []).map((w) => {
+              : shownPeople.map((w) => {
                   const on = picked === w.id;
                   const rating = ratingOf(w);
                   return (

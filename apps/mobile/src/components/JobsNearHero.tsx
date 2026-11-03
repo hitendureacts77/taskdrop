@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
-import type { Task } from '../data/api';
+import { attachPosters, type TaskWithPoster } from '../data/api';
 import { tasksNear } from '../data/extras';
 import { taskToFeedRow } from '../lib/openTask';
 import { roughPlace } from '../lib/place';
@@ -28,7 +28,7 @@ export function JobsNearHero() {
   const { go } = useNav();
   const { area, loaded, choose } = useMyArea();
   const [radius, setRadius] = useState(10);
-  const [rows, setRows] = useState<(Task & { km: number })[] | null>(null);
+  const [rows, setRows] = useState<(TaskWithPoster & { km: number })[] | null>(null);
   const [at, setAt] = useState(0);
   const [pickPlace, setPickPlace] = useState(false);
 
@@ -39,8 +39,15 @@ export function JobsNearHero() {
     }
     let alive = true;
     setRows(null);
+    // Posters ride along so the zoomed-in map can show who posted each task.
     void tasksNear(area, radius, 40)
-      .then((r) => alive && (setAt(Date.now()), setRows(r)))
+      .then(async (r) => {
+        const withPeople = await attachPosters(r);
+        if (alive) {
+          setAt(Date.now());
+          setRows(withPeople.map((x, i) => ({ ...x, km: r[i]!.km })));
+        }
+      })
       .catch(() => alive && setRows([]));
     return () => {
       alive = false;
@@ -110,7 +117,7 @@ export function JobsNearHero() {
                   selectedId={null}
                   onSelect={(id) => {
                     const hit = rows.find((r) => r.id === id);
-                    if (hit) go('taskDetail', { row: taskToFeedRow({ ...hit, poster: null }) });
+                    if (hit) go('taskDetail', { row: taskToFeedRow(hit) });
                   }}
                   onExpand={() => go('nearMap', { mode: 'jobs', centre: { lat: area.lat, lng: area.lng }, radiusKm: radius })}
                   height={300}

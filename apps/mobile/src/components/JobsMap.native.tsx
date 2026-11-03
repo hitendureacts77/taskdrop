@@ -6,10 +6,25 @@ import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
 import { Icon } from './Icon';
 import { TILE, project, unproject } from './MapPicker.tiles';
-import { JobsMap as TileJobsMap, mapWords, type JobsMapProps } from './JobsMap.tiles';
+import {
+  CLUSTER_PX,
+  CLUSTER_PX_PEOPLE,
+  JobsMap as TileJobsMap,
+  MAX_ZOOM,
+  SPREAD_GAP,
+  SPREAD_GAP_PEOPLE,
+  byOffer,
+  mapWords,
+  offersOf,
+  placeOf,
+  topPinOf,
+  type JobsMapProps,
+} from './JobsMap.tiles';
 import { groupPins, metresPerPixel } from '../lib/mapCluster';
-import { MAX_FRESH, areaAt, groupScale, introDelays, introEnd, rippleAt, tagAt } from '../lib/mapMotion';
+import { SPREAD_ZOOM, layoutPins } from '../lib/mapLayout';
+import { MAX_FRESH, areaAt, introDelays, introEnd, rippleAt, tagAt } from '../lib/mapMotion';
 import { useMapClock } from './useMapClock';
+import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PricePin, TASK_PIN, TaskPin } from './MapMarkers';
 
 export type { JobPin, MapTone, JobsMapProps } from './JobsMap.tiles';
 export { mapWords } from './JobsMap.tiles';
@@ -22,16 +37,9 @@ export { mapWords } from './JobsMap.tiles';
 const IN_EXPO_GO = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 const MIN_ZOOM = 5;
-const MAX_ZOOM = 17;
 const START_ZOOM = 12;
-/** Two tags closer than this many pixels become one numbered circle. */
-const CLUSTER_PX = 46;
-/** Helper tags are wider (face, skill and rating), so they join sooner. */
-const CLUSTER_PX_PEOPLE = 84;
 const RING_KM = 10;
 const DEFAULT_CENTRE = { lat: 12.9716, lng: 77.5946 };
-/** Same soft area as the tile map: published coordinates are rounded to about a kilometre. */
-const AREA_M = 800;
 
 type Props = JobsMapProps;
 
@@ -46,129 +54,52 @@ function deltaFor(zoom: number): number {
 
 /**
  * A native view drawn into a marker is a snapshot. Let it redraw for a moment
- * when what it shows changes, then stop tracking: tracking forever is slow.
+ * when what it shows changes (or a face photo arrives), then stop tracking:
+ * tracking forever is slow.
  */
-function useSnapshot(...deps: unknown[]): boolean {
+function useSnapshot(...deps: unknown[]): [boolean, () => void] {
   const [tracking, setTracking] = useState(true);
+  const [poked, setPoked] = useState(0);
   useEffect(() => {
     setTracking(true);
-    const id = setTimeout(() => setTracking(false), 500);
+    const id = setTimeout(() => setTracking(false), 600);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-  return tracking;
+  }, [...deps, poked]);
+  return [tracking, () => setPoked((n) => n + 1)];
 }
 
-function PriceTag({
+/** One marker holding a pin from MapMarkers, lined up so the pin's point sits on the place. */
+function PinMarker({
   at,
+  box,
+  z,
   label,
-  on,
   onPress,
+  deps,
+  children,
 }: {
   at: { lat: number; lng: number };
+  box: { w: number; h: number; anchor: number };
+  z: number;
   label: string;
-  on: boolean;
   onPress: () => void;
+  deps: unknown[];
+  children: (redraw: () => void) => React.ReactNode;
 }) {
   const t = useTheme();
-  const tracking = useSnapshot(label, on, t.isDark);
-  const w = label.length * 9 + 24;
-  const h = on ? 34 : 28;
+  const [tracking, redraw] = useSnapshot(t.isDark, ...deps);
   return (
     <Marker
       coordinate={{ latitude: at.lat, longitude: at.lng }}
-      anchor={{ x: 0.5, y: 0.5 }}
-      zIndex={on ? 3 : 2}
+      anchor={{ x: 0.5, y: box.anchor / box.h }}
+      zIndex={z}
       tracksViewChanges={tracking}
       onPress={onPress}
-      accessibilityLabel={`Job for ${label}, around this area`}
+      accessibilityLabel={label}
     >
-      <View
-        style={{ width: w + 8, height: h + 8, alignItems: 'center', justifyContent: 'center' }}
-        collapsable={false}
-      >
-        <View
-          style={{ width: w, height: h, borderRadius: 999, backgroundColor: on ? t.colors.ink : t.colors.btn, borderWidth: 2.5, borderColor: t.colors.bg, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <RNText style={tx('800', on ? 14 : 13, on ? t.colors.bg : t.colors.onBtn, { fontVariant: ['tabular-nums'] })}>{label}</RNText>
-        </View>
-      </View>
-    </Marker>
-  );
-}
-
-function CountTag({
-  at,
-  count,
-  onPress,
-  color,
-  word,
-}: {
-  at: { lat: number; lng: number };
-  count: number;
-  onPress: () => void;
-  color?: string;
-  word: string;
-}) {
-  const t = useTheme();
-  const tracking = useSnapshot(count, t.isDark, color);
-  return (
-    <Marker
-      coordinate={{ latitude: at.lat, longitude: at.lng }}
-      anchor={{ x: 0.5, y: 0.5 }}
-      zIndex={2}
-      tracksViewChanges={tracking}
-      onPress={onPress}
-      accessibilityLabel={`${count} ${word} here. Zoom in`}
-    >
-      <View style={{ width: 46, height: 46, alignItems: 'center', justifyContent: 'center' }} collapsable={false}>
-        <View style={{ width: 38, height: 38, borderRadius: 999, backgroundColor: color ?? t.colors.btn, borderWidth: 3, borderColor: t.colors.bg, alignItems: 'center', justifyContent: 'center' }}>
-          <RNText style={tx('800', 15, color ? '#FFFFFF' : t.colors.onBtn)}>{count}</RNText>
-        </View>
-      </View>
-    </Marker>
-  );
-}
-
-function PersonTag({
-  at,
-  label,
-  face,
-  on,
-  onPress,
-}: {
-  at: { lat: number; lng: number };
-  label: string;
-  face: { initials: string; live: boolean };
-  on: boolean;
-  onPress: () => void;
-}) {
-  const t = useTheme();
-  const tracking = useSnapshot(label, on, face.live, t.isDark);
-  const w = label.length * 7.4 + 46;
-  return (
-    <Marker
-      coordinate={{ latitude: at.lat, longitude: at.lng }}
-      anchor={{ x: 0.5, y: 0.5 }}
-      zIndex={on ? 3 : 2}
-      tracksViewChanges={tracking}
-      onPress={onPress}
-      accessibilityLabel={`${label}${face.live ? ', active now' : ''}, around this area`}
-    >
-      <View style={{ width: w + 8, height: 40, alignItems: 'center', justifyContent: 'center' }} collapsable={false}>
-        <View
-          style={{ width: w, height: 32, borderRadius: 999, backgroundColor: on ? t.colors.purpleDeep : t.colors.bg, borderWidth: 1, borderColor: on ? t.colors.purpleDeep : t.colors.line, flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 3 }}
-        >
-          <View style={{ width: 24, height: 24, borderRadius: 999, backgroundColor: t.colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
-            <RNText style={tx('800', 9.5, t.colors.purpleDeep)}>{face.initials}</RNText>
-            {face.live ? (
-              <View style={{ position: 'absolute', right: -1, bottom: -1, width: 9, height: 9, borderRadius: 999, backgroundColor: '#22C55E', borderWidth: 2, borderColor: t.colors.bg }} />
-            ) : null}
-          </View>
-          <RNText style={tx('800', 12, on ? '#FFFFFF' : t.colors.ink)} numberOfLines={1}>
-            {label}
-          </RNText>
-        </View>
+      <View style={{ width: box.w, height: box.h }} collapsable={false}>
+        {children(redraw)}
       </View>
     </Marker>
   );
@@ -176,8 +107,7 @@ function PersonTag({
 
 function YouDot({ at, color }: { at: { lat: number; lng: number }; color: string }) {
   const t = useTheme();
-  const tracking = useSnapshot(t.isDark, color);
-  const blue = color;
+  const [tracking] = useSnapshot(t.isDark, color);
   return (
     <Marker
       coordinate={{ latitude: at.lat, longitude: at.lng }}
@@ -186,9 +116,9 @@ function YouDot({ at, color }: { at: { lat: number; lng: number }; color: string
       tracksViewChanges={tracking}
       tappable={false}
     >
-      <View style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }} collapsable={false}>
-        <View style={{ position: 'absolute', width: 34, height: 34, borderRadius: 999, backgroundColor: blue + '33' }} />
-        <View style={{ width: 16, height: 16, borderRadius: 999, backgroundColor: blue, borderWidth: 3, borderColor: '#FFFFFF' }} />
+      <View style={{ width: 30, height: 30, alignItems: 'center', justifyContent: 'center' }} collapsable={false}>
+        <View style={{ position: 'absolute', width: 26, height: 26, borderRadius: 999, backgroundColor: color + '40' }} />
+        <View style={{ width: 14, height: 14, borderRadius: 999, backgroundColor: color, borderWidth: 2.5, borderColor: '#FFFFFF' }} />
       </View>
     </Marker>
   );
@@ -214,43 +144,46 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
     }
   }, [me]);
 
-  // The full map's card rail picks a pin: bring it into the middle.
-  useEffect(() => {
-    const hit = focusId ? pins.find((p) => p.id === focusId) : null;
-    if (!hit) return;
-    moved.current = true;
-    mapRef.current?.animateCamera({ center: { latitude: hit.lat, longitude: hit.lng } }, { duration: 350 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusId]);
-
   const onLayout = (e: LayoutChangeEvent) =>
     setSize({ w: Math.round(e.nativeEvent.layout.width), h: Math.round(e.nativeEvent.layout.height) });
 
-  // What the screen shows, as a web-mercator zoom, so the same pixel clustering
-  // as the tile map can run on top of the native camera.
+  // What the screen shows, as a web-mercator zoom, so the same pixel layout as
+  // the tile map can run on top of the native camera.
   const zoom = size.w > 0 ? Math.log2((360 * size.w) / (TILE * region.longitudeDelta)) : START_ZOOM;
   const c = project(region.latitude, region.longitude, zoom);
   const left = c.x - size.w / 2;
   const top = c.y - size.h / 2;
+  const toPlace = (x: number, y: number) => unproject(x + left, y + top, zoom);
 
+  // The full map's card rail picks a pin: bring it into the middle, close enough to see it on its own.
+  useEffect(() => {
+    const hit = focusId ? pins.find((p) => p.id === focusId) : null;
+    if (!hit) return;
+    moved.current = true;
+    mapRef.current?.animateCamera({ center: { latitude: hit.lat, longitude: hit.lng }, zoom: Math.max(Math.round(zoom), SPREAD_ZOOM) }, { duration: 350 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusId]);
+
+  const people = tone === 'people';
   const byId = useMemo(() => new Map(pins.map((p) => [p.id, p])), [pins]);
-  const groups = useMemo(() => {
+  const items = useMemo(() => {
     if (size.w === 0) return [];
-    const placed = pins.map((p) => {
+    const placed = byOffer(pins, people).map((p) => {
       const q = project(p.lat, p.lng, zoom);
       return { id: p.id, x: q.x - left, y: q.y - top };
     });
-    const inView = placed.filter((p) => p.x > -60 && p.x < size.w + 60 && p.y > -60 && p.y < size.h + 60);
-    return groupPins(inView, tone === 'people' ? CLUSTER_PX_PEOPLE : CLUSTER_PX).map((g) => ({ ...g, at: unproject(g.x + left, g.y + top, zoom) }));
+    const inView = placed.filter((p) => p.x > -120 && p.x < size.w + 120 && p.y > -120 && p.y < size.h + 120);
+    return layoutPins(groupPins(inView, people ? CLUSTER_PX_PEOPLE : CLUSTER_PX), { zoom, gap: people ? SPREAD_GAP_PEOPLE : SPREAD_GAP });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pins, region, size, tone]);
+  const offers = people ? null : offersOf(items, byId);
 
   // The intro replays for a new set of things, not when the map is moved.
   const introKey = useMemo(() => pins.map((p) => p.id).sort().join('|'), [pins]);
   const freshIds = useMemo(() => new Set(pins.filter((p) => p.fresh).slice(0, MAX_FRESH).map((p) => p.id)), [pins]);
   const clock = useMapClock(introKey, introEnd(pins.length), freshIds.size > 0);
   const youAt = me ? project(me.lat, me.lng, zoom) : null;
-  const delays = introDelays(groups, youAt ? { x: youAt.x - left, y: youAt.y - top } : null);
+  const delays = introDelays(items, youAt ? { x: youAt.x - left, y: youAt.y - top } : null);
 
   const flyTo = (center: { lat: number; lng: number }, next: number) => {
     moved.current = true;
@@ -273,18 +206,19 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
   );
 
   const blue = t.colors.purple;
-  const hue = tone === 'people' ? blue : t.colors.accent;
-  // The poster is a dark dot on a map of blue helpers, so the two never mix up.
-  const youColor = tone === 'people' ? t.colors.ink : blue;
+  const hue = people ? blue : t.colors.btn;
+  // The poster is a dark dot on a map of helpers' faces, so the two never mix up.
+  const youColor = people ? t.colors.ink : blue;
   const words = mapWords(tone);
-  // Never smaller than the tag it holds, so the area still reads when zoomed out.
-  const areaM = Math.max(AREA_M, 30 * metresPerPixel(region.latitude, zoom));
+  const mpp = metresPerPixel(region.latitude, zoom);
   const hex = (n: number) => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2, '0');
   const padTop = fill ? fill.top : 0;
   const padBottom = fill ? fill.bottom : 0;
   const frame = fill
     ? { flex: 1, backgroundColor: t.colors.surface2 }
     : { height, borderRadius: 18, overflow: 'hidden' as const, backgroundColor: t.colors.surface2, borderWidth: 1, borderColor: t.colors.line };
+  const areas = new Map<string, { x: number; y: number; r: number }>();
+  for (const it of items) if (it.kind === 'one' && it.area) areas.set(`${it.area.x},${it.area.y}`, { x: it.area.x, y: it.area.y, r: Math.max(it.area.rx, it.area.ry) });
 
   return (
     <View onLayout={onLayout} style={frame}>
@@ -313,77 +247,146 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
             <Circle
               center={{ latitude: me.lat, longitude: me.lng }}
               radius={ringKm * 1000}
-              strokeColor={blue}
-              strokeWidth={1.5}
+              strokeColor={blue + '77'}
+              strokeWidth={1}
               lineDashPattern={[10, 8]}
-              fillColor={blue + '12'}
+              fillColor="transparent"
               zIndex={0}
             />
             <YouDot at={me} color={youColor} />
           </>
         ) : null}
 
-        {groups.map((g, i) => {
-          const key = g.ids.join('|');
-          const many = g.ids.length > 1;
-          const a = areaAt(clock.elapsed, delays[i]!);
-          if (!a.shown) return null;
-          const full = areaM * groupScale(g.ids.length);
-          const showTag = tagAt(clock.elapsed, delays[i]!) > 0;
-          const ripple = !many && freshIds.has(g.ids[0]!) && !clock.still ? rippleAt(clock.now, i * 1200) : null;
-          const area = (on: boolean) => (
+        {/* Spread areas: one soft circle behind everyone in it, never a spot. */}
+        {[...areas.entries()].map(([key, a]) => {
+          const p = toPlace(a.x, a.y);
+          return (
             <Circle
               key={'area-' + key}
-              center={{ latitude: g.at.lat, longitude: g.at.lng }}
-              radius={Math.max(8, full * a.scale)}
-              strokeColor={hue + (on ? 'CC' : '66')}
-              strokeWidth={on ? 2.5 : 1.5}
-              fillColor={hue + (on ? '38' : hex(0x26 + (0xcc - 0x26) * a.dense))}
+              center={{ latitude: p.lat, longitude: p.lng }}
+              radius={a.r * mpp}
+              strokeColor={hue + '80'}
+              strokeWidth={1}
+              lineDashPattern={[8, 6]}
+              fillColor={hue + '1A'}
               zIndex={1}
             />
           );
-          const rings =
+        })}
+
+        {/* Jobs: a soft heat glow under each area, stronger where the biggest offer is higher. */}
+        {offers && offers.best
+          ? items.flatMap((it, i) => {
+              if (it.kind === 'one' && it.area) return [];
+              const a = areaAt(clock.elapsed, delays[i]!);
+              if (!a.shown) return [];
+              const k = (offers.top[i] ?? 0) / offers.best!;
+              const r = (36 + 46 * k) * a.scale * mpp;
+              const p = toPlace(it.x, it.y);
+              return [1, 0.66, 0.36].map((s) => (
+                <Circle
+                  key={`heat-${i}-${s}`}
+                  center={{ latitude: p.lat, longitude: p.lng }}
+                  radius={Math.max(4, r * s)}
+                  strokeWidth={0}
+                  strokeColor="transparent"
+                  fillColor={hue + hex(255 * (0.05 + 0.1 * k))}
+                  zIndex={1}
+                />
+              ));
+            })
+          : null}
+
+        {items.map((it, i) => {
+          if (tagAt(clock.elapsed, delays[i]!) === 0) return null;
+          const place = toPlace(it.x, it.y);
+          if (it.kind === 'group') {
+            const into = () => flyTo(place, Math.max(Math.round(zoom) + 2, SPREAD_ZOOM));
+            const name = placeOf(it.ids, byId);
+            if (people) {
+              const shown = it.ids.slice(0, 3).map((id) => ({ seed: id, face: byId.get(id)!.face ?? { initials: '?', live: false } }));
+              return (
+                <PinMarker
+                  key={'g-' + it.ids.join('|')}
+                  at={place}
+                  box={FACE_STACK}
+                  z={2}
+                  label={`${it.ids.length} ${words.many} in ${name} area. Spread them out`}
+                  onPress={into}
+                  deps={[it.ids.join('|')]}
+                >
+                  {() => <FaceStack faces={shown} extra={it.ids.length - shown.length} label={`${name} · ${it.ids.length}`} />}
+                </PinMarker>
+              );
+            }
+            const topPin = topPinOf(it.ids, byId);
+            const best = offers?.top[i] !== null && offers?.top[i] === offers?.best;
+            return (
+              <PinMarker
+                key={'g-' + it.ids.join('|')}
+                at={place}
+                box={PRICE_PIN}
+                z={best ? 3 : 2}
+                label={`${it.ids.length} ${words.many} in ${name} area, biggest offer ${topPin.label}. Zoom in`}
+                onPress={into}
+                deps={[topPin.label, best, it.ids.length]}
+              >
+                {() => <PricePin price={topPin.label} best={best} on={false} place={name} count={`${it.ids.length} ${words.many}`} />}
+              </PinMarker>
+            );
+          }
+
+          const pin = byId.get(it.id)!;
+          const on = selectedId === it.id;
+          const pick = () => onSelect(on ? null : it.id);
+          if (people) {
+            const face = pin.face ?? { initials: '?', live: false };
+            return (
+              <PinMarker
+                key={'p-' + it.id}
+                at={place}
+                box={FACE_PIN}
+                z={on ? 4 : 2}
+                label={`${pin.name ?? pin.label}, ${pin.label}${face.live ? ', active now' : ''}, ${pin.area ?? 'nearby'} area`}
+                onPress={pick}
+                deps={[on, face.live, face.photo]}
+              >
+                {(redraw) => <FacePin face={face} seed={pin.id} name={pin.name ?? pin.label} skill={pin.label} on={on} onImage={redraw} />}
+              </PinMarker>
+            );
+          }
+          const spread = it.area !== null;
+          const best = offers?.top[i] !== null && offers?.top[i] === offers?.best;
+          const ripple = freshIds.has(it.id) && !clock.still ? rippleAt(clock.now, i * 1200) : null;
+          return [
             ripple !== null ? (
               <Circle
-                key={'ripple-' + key}
-                center={{ latitude: g.at.lat, longitude: g.at.lng }}
-                radius={full * (1 + 0.5 * ripple)}
-                strokeColor={hue + hex(190 * (1 - ripple))}
+                key={'ripple-' + it.id}
+                center={{ latitude: place.lat, longitude: place.lng }}
+                radius={(20 + 30 * ripple) * mpp}
+                strokeColor={hue + hex(200 * (1 - ripple))}
                 strokeWidth={2}
                 fillColor="transparent"
                 zIndex={1}
               />
-            ) : null;
-          if (many) {
-            // Items in the same rounded area never come apart, however far in;
-            // at the last zoom step a tap opens the first of them instead.
-            const deepest = zoom >= MAX_ZOOM - 0.5;
-            return [
-              area(false),
-              showTag ? (
-                <CountTag
-                  key={'tag-' + key}
-                  at={g.at}
-                  count={g.ids.length}
-                  color={tone === 'people' ? blue : undefined}
-                  word={words.many}
-                  onPress={() => (deepest ? onSelect(g.ids[0]!) : flyTo(g.at, Math.round(zoom) + 2))}
-                />
-              ) : null,
-            ];
-          }
-          const id = g.ids[0]!;
-          const pin = byId.get(id)!;
-          const on = selectedId === id;
-          const pick = () => onSelect(on ? null : id);
-          return [
-            area(on),
-            rings,
-            !showTag ? null : pin.face ? (
-              <PersonTag key={'tag-' + id} at={g.at} label={pin.label} face={pin.face} on={on} onPress={pick} />
-            ) : (
-              <PriceTag key={'tag-' + id} at={g.at} label={pin.label} on={on} onPress={pick} />
-            ),
+            ) : null,
+            <PinMarker
+              key={'j-' + it.id}
+              at={place}
+              box={spread ? TASK_PIN : PRICE_PIN}
+              z={on ? 4 : best ? 3 : 2}
+              label={`${pin.label}${pin.title ? ', ' + pin.title : ''}${pin.who ? ', posted by ' + pin.who : ''}, ${pin.area ?? 'nearby'} area`}
+              onPress={pick}
+              deps={[on, best, spread, pin.face?.photo]}
+            >
+              {(redraw) =>
+                spread ? (
+                  <TaskPin price={pin.label} face={pin.face} seed={pin.id} who={pin.who} title={pin.title} best={best} on={on} onImage={redraw} />
+                ) : (
+                  <PricePin price={pin.label} best={best} on={on} place={pin.area ?? 'Nearby'} />
+                )
+              }
+            </PinMarker>,
           ];
         })}
       </MapView>
@@ -405,26 +408,18 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
           : null}
       </View>
 
-      <View pointerEvents="none" style={{ position: 'absolute', left: 8, top: 8 + padTop, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: t.colors.bg, borderRadius: 10, borderWidth: 1, borderColor: t.colors.line, paddingHorizontal: 10, paddingVertical: 6 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-          <View style={{ width: 9, height: 9, borderRadius: 999, backgroundColor: youColor }} />
-          <RNText style={tx('600', 11, t.colors.text)}>You</RNText>
+      <View pointerEvents="none" style={{ position: 'absolute', left: 8, top: 8 + padTop, right: 56, flexDirection: 'row' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.bg, borderRadius: 10, borderWidth: 1, borderColor: t.colors.line, paddingHorizontal: 10, paddingVertical: 6, flexShrink: 1 }}>
+          {people ? <Icon name="users" size={12} color={blue} /> : <View style={{ width: 14, height: 9, borderRadius: 5, backgroundColor: t.colors.ink }} />}
+          <RNText style={tx('600', 11, t.colors.text, { flexShrink: 1 })} numberOfLines={1}>
+            {words.legend}
+          </RNText>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-          <View style={{ width: 12, height: 12, borderRadius: 999, backgroundColor: hue + '33', borderWidth: 1.5, borderColor: hue }} />
-          <RNText style={tx('600', 11, t.colors.text)}>{words.area}</RNText>
-        </View>
-        {freshIds.size > 0 ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <View style={{ width: 12, height: 12, borderRadius: 999, borderWidth: 1.5, borderColor: hue, borderStyle: 'dashed' }} />
-            <RNText style={tx('600', 11, t.colors.text)}>Just posted</RNText>
-          </View>
-        ) : null}
       </View>
 
       {/* Clear of the Google logo in the bottom-left corner, which has to stay visible. */}
       <View pointerEvents="none" style={{ position: 'absolute', left: 84, bottom: 8 + padBottom, right: 8, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.bg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}>
-        <Icon name="lock" size={12} color={tone === 'people' ? t.colors.purpleDeep : t.colors.accentDeep} />
+        <Icon name="lock" size={12} color={people ? t.colors.purpleDeep : t.colors.accentDeep} />
         <RNText style={tx('600', 11, t.colors.text, { flexShrink: 1 })} numberOfLines={2}>
           {words.privacy}
         </RNText>
