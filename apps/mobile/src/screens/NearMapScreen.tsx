@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, ScrollView, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollViewInstance } from 'react-native';
+import { View, Text as RNText, Pressable, ScrollView, TextInput, Platform, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -16,6 +16,7 @@ import { FadeIn, Pressy, tx } from '../components/primitives';
 import { useReducedMotion } from '../lib/motion';
 import { taskToFeedRow } from '../lib/openTask';
 import { isFresh } from '../lib/mapMotion';
+import { chipCategories, chipLabel, matchesSearch } from '../lib/mapFilter';
 import { presenceOf } from '../lib/presence';
 import { useLayout } from '../lib/layout';
 
@@ -65,7 +66,9 @@ const isPoint = (v: unknown): v is Point =>
  * tray at the bottom shows the services nearby (people) or the best-paying
  * areas (jobs); tapping one flies the map there. A picked helper opens a sheet
  * with their name, face and service cards; a picked job, a rail of cards where
- * swiping moves the map to that card and marks it. Opened from the expand button on a
+ * swiping moves the map to that card and marks it. The search box and category
+ * chips (plan D11) narrow both the map and the tray; helpers are searched by
+ * what they offer and where, never by name. Opened from the expand button on a
  * Home map with { mode: 'jobs' | 'people', centre, radiusKm }.
  */
 export function NearMapScreen() {
@@ -88,6 +91,10 @@ export function NearMapScreen() {
   const [narrow, setNarrow] = useState(false);
   // Helpers only: just those who list a service.
   const [served, setServed] = useState(false);
+  // The search box (open or not, and what is typed) and the category chip.
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState('');
+  const [cat, setCat] = useState<string | null>(null);
   const reduced = useReducedMotion();
   const rail = useRef<ScrollViewInstance>(null);
 
@@ -118,11 +125,34 @@ export function NearMapScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, centre?.lat, centre?.lng, radiusKm]);
 
-  const shownJobs = useMemo(() => (jobs ?? []).filter((j) => !narrow || j.benchmark_minor >= HIGH_PAY * 100), [jobs, narrow]);
-  const shownPeople = useMemo(
-    () => (people ?? []).filter((w) => (!narrow || presenceOf(w.last_seen_at, now).online) && (!served || Boolean(w.top_service))),
-    [people, narrow, served, now],
+  // A helper's category is their newest service's; skills alone have none.
+  const cats = useMemo(
+    () => chipCategories(mode === 'jobs' ? (jobs ?? []).map((j) => j.category) : (people ?? []).map((w) => w.top_service?.category)),
+    [mode, jobs, people],
   );
+  const shownJobs = useMemo(
+    () =>
+      (jobs ?? []).filter(
+        (j) =>
+          (!narrow || j.benchmark_minor >= HIGH_PAY * 100) &&
+          (!cat || j.category === cat) &&
+          matchesSearch(query, [j.title, j.category, areaName(j.loc_label)]),
+      ),
+    [jobs, narrow, cat, query],
+  );
+  // Search what helpers offer and where, never their names (plan D13).
+  const shownPeople = useMemo(
+    () =>
+      (people ?? []).filter(
+        (w) =>
+          (!narrow || presenceOf(w.last_seen_at, now).online) &&
+          (!served || Boolean(w.top_service)) &&
+          (!cat || w.top_service?.category === cat) &&
+          matchesSearch(query, [offerOf(w).what, w.top_service?.category, ...(w.skills ?? []).map((s) => s.replace(/[_-]+/g, ' ')), areaName(w.loc_label)]),
+      ),
+    [people, narrow, served, cat, query, now],
+  );
+  const filtered = narrow || served || cat !== null || query.trim() !== '';
   const ids = useMemo(() => (mode === 'jobs' ? shownJobs.map((j) => j.id) : shownPeople.map((p) => p.id)), [mode, shownJobs, shownPeople]);
   const pins = useMemo<JobPin[]>(
     () =>
@@ -169,7 +199,9 @@ export function NearMapScreen() {
   const sub = loading
     ? 'Looking around…'
     : count === 0
-      ? `No ${words.many} within ${radiusKm} km yet`
+      ? filtered
+        ? `No ${words.many} match`
+        : `No ${words.many} within ${radiusKm} km yet`
       : `${count} ${count === 1 ? words.one : words.many} within ${radiusKm} km${mode === 'people' && live > 0 ? ` · ${live} active now` : ''}`;
   const bestJob = areas[0]?.top ?? null;
   const glass = { backgroundColor: t.colors.bg, borderWidth: 1, borderColor: t.colors.line };
@@ -219,6 +251,22 @@ export function NearMapScreen() {
             <Icon name="close" size={18} color={t.colors.ink} />
           </Pressy>
           <View style={{ flex: 1, height: 44, borderRadius: 22, ...glass, flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 6, gap: 8 }}>
+            {searching ? (
+              <>
+                <Icon name="search" size={16} color={t.colors.muted} />
+                <TextInput
+                  value={query}
+                  onChangeText={setQuery}
+                  autoFocus
+                  returnKeyType="search"
+                  placeholder={mode === 'jobs' ? 'Search tasks or areas' : 'Search services or areas'}
+                  placeholderTextColor={t.colors.muted}
+                  accessibilityLabel={mode === 'jobs' ? 'Search tasks on the map' : 'Search services on the map'}
+                  style={tx('600', 14, t.colors.ink, { flex: 1, height: 40, padding: 0, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null) })}
+                />
+                <RNText style={tx('700', 11.5, t.colors.muted, { fontVariant: ['tabular-nums'] })}>{loading ? '' : count}</RNText>
+              </>
+            ) : (
             <View style={{ flex: 1 }}>
               <RNText style={tx('800', 14, t.colors.ink)} numberOfLines={1}>
                 {title}
@@ -227,20 +275,33 @@ export function NearMapScreen() {
                 {sub}
               </RNText>
             </View>
-            {mode === 'jobs' && bestJob ? (
+            )}
+            {!searching && mode === 'jobs' && bestJob ? (
               <View style={{ height: 32, paddingHorizontal: 10, borderRadius: 16, backgroundColor: t.colors.accentSoft, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                 <RNText style={tx('700', 12, t.colors.accentDeep)}>Best</RNText>
                 <RNText style={tx('800', 12.5, t.colors.ink, { fontVariant: ['tabular-nums'] })}>{rupees(bestJob.benchmark_minor / 100)}</RNText>
               </View>
             ) : null}
           </View>
+          <Pressy
+            onPress={() => {
+              // Closing the box clears it, so nothing stays hidden by a search no one can see.
+              if (searching) setQuery('');
+              setSearching((v) => !v);
+            }}
+            label={searching ? 'Close the search' : 'Search the map'}
+            style={{ width: 44, height: 44, borderRadius: 22, ...(searching ? { backgroundColor: t.colors.ink } : glass), alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Icon name={searching ? 'close' : 'search'} size={18} color={searching ? t.colors.bg : t.colors.ink} />
+          </Pressy>
         </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {chip('All', !narrow, () => setNarrow(false))}
-          {mode === 'jobs' ? chip(`${rupees(HIGH_PAY)}+`, narrow, () => setNarrow(true)) : chip('Active now', narrow, () => setNarrow(true), '#22C55E')}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 8 }}>
+          {chip('All', !narrow && !served && cat === null, () => (setNarrow(false), setServed(false), setCat(null)))}
+          {mode === 'jobs' ? chip(`${rupees(HIGH_PAY)}+`, narrow, () => setNarrow((v) => !v)) : chip('Active now', narrow, () => setNarrow((v) => !v), '#22C55E')}
           {mode === 'people' ? chip('Has services', served, () => setServed((v) => !v)) : null}
           {picked !== null && ids.includes(picked) ? chip(mode === 'jobs' ? 'Best areas' : 'Everyone', false, () => setPicked(null)) : null}
-        </View>
+          {cats.map((c) => chip(chipLabel(c), cat === c, () => setCat((v) => (v === c ? null : c))))}
+        </ScrollView>
       </View>
 
       {/* A tapped helper: only now their name, face and service cards (plan D13). */}
@@ -275,7 +336,7 @@ export function NearMapScreen() {
             ) : null}
             {!loading && count === 0 ? (
               <RNText style={tx('600', 13, t.colors.muted, { paddingHorizontal: 16, marginTop: 14 })}>
-                {narrow ? 'Nothing matches this filter yet. Tap All to see everyone.' : `No ${words.many} within ${radiusKm} km yet.`}
+                {filtered ? 'Nothing matches yet. Clear the search or tap All to see everyone.' : `No ${words.many} within ${radiusKm} km yet.`}
               </RNText>
             ) : null}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, gap: mode === 'jobs' ? 10 : 14 }}>

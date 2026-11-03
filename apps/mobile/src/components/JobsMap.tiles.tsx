@@ -67,6 +67,14 @@ export const SPREAD_GAP = { x: 150, y: 104 };
 export const SPREAD_GAP_PEOPLE = { x: 140, y: 98 };
 /** Spreading pins fly out from the group's centre for this long. */
 export const SPREAD_MS = 450;
+/** While one pin is picked, the rest step back to this (plan D11's peek). */
+export const DIM = 0.4;
+
+/** How strongly to draw a pin or group: full, unless something else is picked. */
+export function dimFor(ids: string[], selectedId: string | null, pins: JobPin[]): number {
+  if (selectedId === null || ids.includes(selectedId) || !pins.some((p) => p.id === selectedId)) return 1;
+  return DIM;
+}
 /** Same reach as the "Near me" filter, drawn as a ring. */
 const RING_KM = 10;
 const DEFAULT_CENTRE = { lat: 12.9716, lng: 77.5946 };
@@ -315,7 +323,7 @@ export function JobsMap({
           const pop = tagAt(clock.elapsed, delays[i]!);
           if (pop === 0) return null;
           const p = at(it);
-          const drop = { opacity: pop, transform: [{ translateY: -10 * (1 - pop) }] };
+          const drop = { opacity: pop * dimFor(it.kind === 'group' ? it.ids : [it.id], selectedId, pins), transform: [{ translateY: -10 * (1 - pop) }] };
           if (it.kind === 'group') {
             const key = 'g-' + it.ids.join('|');
             const into = () => zoomTo(Math.max(zoom + 2, SPREAD_ZOOM), unproject(it.x + left, it.y + top, zoom));

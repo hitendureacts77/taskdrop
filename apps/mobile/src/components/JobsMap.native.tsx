@@ -14,6 +14,7 @@ import {
   SPREAD_GAP,
   SPREAD_GAP_PEOPLE,
   byOffer,
+  dimFor,
   mapWords,
   offersOf,
   placeOf,
@@ -75,6 +76,7 @@ function PinMarker({
   at,
   box,
   z,
+  dim = 1,
   label,
   onPress,
   deps,
@@ -83,6 +85,8 @@ function PinMarker({
   at: { lat: number; lng: number };
   box: { w: number; h: number; anchor: number };
   z: number;
+  /** Below 1 while another pin is picked. */
+  dim?: number;
   label: string;
   onPress: () => void;
   deps: unknown[];
@@ -95,6 +99,7 @@ function PinMarker({
       coordinate={{ latitude: at.lat, longitude: at.lng }}
       anchor={{ x: 0.5, y: box.anchor / box.h }}
       zIndex={z}
+      opacity={dim}
       tracksViewChanges={tracking}
       onPress={onPress}
       accessibilityLabel={label}
@@ -312,6 +317,7 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
                   at={place}
                   box={FACE_STACK}
                   z={2}
+                  dim={dimFor(it.ids, selectedId, pins)}
                   label={`${it.ids.length} ${words.many} in ${name} area. Spread them out`}
                   onPress={into}
                   deps={[it.ids.join('|')]}
@@ -328,6 +334,7 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
                 at={place}
                 box={PRICE_PIN}
                 z={best ? 3 : 2}
+                dim={dimFor(it.ids, selectedId, pins)}
                 label={`${it.ids.length} ${words.many} in ${name} area, biggest offer ${topPin.label}. Zoom in`}
                 onPress={into}
                 deps={[topPin.label, best, it.ids.length]}
@@ -348,6 +355,7 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
                 at={place}
                 box={FACE_PIN}
                 z={on ? 4 : 2}
+                dim={dimFor([it.id], selectedId, pins)}
                 label={helperSays(pin)}
                 onPress={pick}
                 deps={[on, face.live, face.icon, pin.label, pin.price, pin.more]}
@@ -376,6 +384,7 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
               at={place}
               box={spread ? TASK_PIN : PRICE_PIN}
               z={on ? 4 : best ? 3 : 2}
+              dim={dimFor([it.id], selectedId, pins)}
               label={`${pin.label}${pin.title ? ', ' + pin.title : ''}${pin.who ? ', posted by ' + pin.who : ''}, ${pin.area ?? 'nearby'} area`}
               onPress={pick}
               deps={[on, best, spread, pin.face?.photo]}
