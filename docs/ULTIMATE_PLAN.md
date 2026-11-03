@@ -898,7 +898,7 @@ approve 1.9
 | 2.9 Security tests, round 2 | Part done | T11 on the Android app (needs the phone); your answer on the account-existence messages |
 | 2.10 Alarms and emergency guide | Part done | Proof 6 (you read the guide); optional second Sentry rule for `fatal` issues |
 | 2.11 Money safety limits | Done | Nothing |
-| 2.13 The WhatsApp advice (added 3 Nov) | Not started | Decisions 14 and 15, then "start 2.13" |
+| 2.13 The WhatsApp advice (added 3 Nov) | Not started | Decisions 14 and 15 answered 3 Nov; say "start 2.13" |
 
 **On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
 
@@ -1417,7 +1417,7 @@ Every line gets one of three marks: **pass** (with the test or file that proves 
 3. A short "Report a security problem" part on the Support page, with the rules: test only with your own test accounts; never touch other people's data; no floods, no SMS sending in bulk, no tricking staff, no attacks on Razorpay, MSG91 or Google; give TaskDrop time to fix before telling anyone. TaskDrop promises a reply within 3 working days, no legal action against a good-faith report that follows the rules, and a name on a thank-you list. No cash reward at first.
 4. The rules go to the lawyer (S.3) with the Terms, because the "no legal action" promise is a legal text.
 
-**E. A first outside test before launch (your decision 15).** Recommended: the free way first. You invite 2 or 3 people who know security (from that WhatsApp group, a college security club, or a researcher you trust) to test staging for one week under part D's rules, with their own test accounts and fake money only. Every finding goes through the same fix or accept rule. A paid outside review stays in F.13 (before a second city). If you prefer to pay now, Claude collects 2 or 3 written quotes for a small test of staging first; nothing is paid without your yes. Part E needs part D live first, and must be finished before the go / no-go (6.5).
+**E. A first outside test before launch (decision 15: free invites, decided 3 Nov).** The free way first. You invite 2 or 3 people who know security (from that WhatsApp group, a college security club, or a researcher you trust) to test staging for one week under part D's rules, with their own test accounts and fake money only. Every finding goes through the same fix or accept rule. A paid outside review stays in F.13 (before a second city). If you prefer to pay now, Claude collects 2 or 3 written quotes for a small test of staging first; nothing is paid without your yes. Part E needs part D live first, and must be finished before the go / no-go (6.5).
 
 **F. A spending stop on every paid service, and a cap per person.** Claude checks each row on the live dashboards (reading only; the clicks that change a setting are yours) and writes what it found here:
 
@@ -1433,7 +1433,7 @@ Every line gets one of three marks: **pass** (with the test or file that proves 
 
 **Your steps:**
 
-1. Answer decisions 14 and 15 (the security contact address, and the outside test).
+1. Decisions 14 and 15 are answered (3 Nov): the Support address for reports, and free invites for the outside test.
 2. SAY:
 
 ```say
@@ -3256,8 +3256,8 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 11 | **Business email for production accounts.** Make the production accounts (Step 5) with a business address such as `ops@taskdrop.in` instead of your Gmail? | **Decided by you, 2026-10-31.** Keep the Gmail. No business email, because it costs more. Done | Nothing to say |
 | 12 | **New-account limits** (task 2.11) | ₹5,000 per task and ₹5,000 of withdrawals per day, until an account is 30 days old and has 3 finished tasks. You can change them later in the admin | "Decision 12: use the recommended limits." |
 | 13 | **Who times the emails** (task 4.10). Let Loops run the sequences itself in its own builder, or let Inngest decide when each email goes and use Loops only to send? | **Decided by you, 2026-11-02.** Loops runs the sequences in its own builder; Inngest only passes events and contacts to it. This makes Loops the one exception to the "Inngest only" rule, for email sequences only. Done | Nothing to say |
-| 14 | **Where security reports go** (task 2.13 part D). `security.txt` and the Support page must name an address that is public and that you read | Use the contact the Support page already shows, so there is no new mailbox and no new cost (decision 11). GitHub's private report button is used as well | "Decision 14: use the Support address." |
-| 15 | **A first outside test before launch** (task 2.13 part E). Invite 2 or 3 people to test staging for a week for free, pay for a small test now, or wait for F.13? | Invite 2 or 3 people for free now; the paid review stays in F.13, before a second city | "Decision 15: free invites now." |
+| 14 | **Where security reports go** (task 2.13 part D). `security.txt` and the Support page must name an address that is public and that you read | **Decided by you, 2026-11-03.** Use the contact the Support page already shows, so there is no new mailbox and no new cost (decision 11). GitHub's private report button is used as well. Done | Nothing to say |
+| 15 | **A first outside test before launch** (task 2.13 part E). Invite 2 or 3 people to test staging for a week for free, pay for a small test now, or wait for F.13? | **Decided by you, 2026-11-03.** Invite 2 or 3 people for free now; the paid review stays in F.13, before a second city. Done | Nothing to say |
 
 ---
 
@@ -3668,6 +3668,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-03 (decisions 14 and 15):** You chose the recommended answers: security reports go to the contact the Support page already shows (plus GitHub's private report button), and the first outside test is 2 or 3 free invited testers on staging before launch; the paid review stays in F.13. Next: "start 2.13"
 - **2026-11-03 (security plan from the WhatsApp advice, 2.13):** You shared advice from a WhatsApp group (keys only on the server, a login and a limit on every endpoint, a dependency check, the OWASP checklist, pentests by security researchers; AI spend limits; launching in communities and Reddit, reaching out to people with the problem) and asked for a security plan around it. Claude checked each point against the code: keys, login checks, the package check, Reddit and outreach were already done or planned. **New:** task 2.13 with six parts (A: a test that every server door has a lock and a limit, and limits for `razorpayx-payouts` and the admin's routes; B: GitHub CodeQL and a weekly `npm audit`; C: OWASP ASVS level 1, API Top 10 and MASVS line by line in `docs/SECURITY_OWASP.md`; D: `security.txt`, `SECURITY.md`, GitHub private reporting and rules on the Support page; E: a first outside test, decision 15; F: a spending stop, an alert and a cap per person for every paid service, and the rule for any future AI feature), holes H22 to H25, decisions 14 and 15, Gate 2b updated, a new step in the monthly security check, and Tolvyn in Skipped on purpose (TaskDrop calls no AI service). Found on the way: both GitHub code folders are public. Nothing is built yet
 - **2026-11-03 (helpers map shows services, D13):** You asked that posters see the helpers around them on the Explore map with the service each one offers in short, with no names on the map: only after tapping a helper should their name, profile and service cards show, so a poster can trust there are real helpers nearby. **Drawn and approved the same day** (6 screens and a motion board), then **built:** row D13. Names still travel to the app with the map data (the existing `workersNear` answer may not change shape), so they are hidden on screen, not from a determined person reading the network. **Not checked:** the Google map in the installed Android build, the phone. **OTA:** you said "Yes, publish OTA"; published on channel beta (runtime 1.1.0) from 7175cf0, update group f25514e7, Android update 01a1a121, Sentry map debug id 2595b855. Follow-up PR 208: a tapped pin stays above the sheet on the web map, and the service price is never cut off.
 - **2026-11-03 (1.10 desktop, phone and Android layouts):** You showed the "Work near you" map squeezed into a strip on a desktop browser and asked for every screen to fit desktop, phone browser and Android. Claude checked 37 screens at 390, 820, 1440 and 1920 wide and added task 1.10 with five fixes, then built them: the full map fills the page beside the menu and no longer draws outside itself (L1); My Work, My offers, Saved and My services show 2 or 3 cards per row (L2); Profile and Search use the reading width (L3); feeds grow to 1,360 on big monitors (L4); form buttons sit under the form on desktop (L5). The phone browser and the Android app are unchanged. **Also:** your Chrome tab was zoomed out; Ctrl + 0 resets it. **Open:** your look on the staging website and "done 1.10".
