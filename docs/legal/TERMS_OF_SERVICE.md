@@ -1,6 +1,6 @@
 # Terms of Service
 
-_Last updated 19 October 2026._
+_Last updated 3 November 2026._
 
 These terms are an agreement between you and [LEGAL ENTITY NAME], which runs TaskDrop. By creating an account or using TaskDrop you agree to them, to the Privacy Policy, and to the copyright rules on the Copyright page.
 
@@ -18,12 +18,25 @@ Workers are independent. They decide how to do the work and are responsible for 
 
 ## 3. Posts, offers and conduct
 
-Describe jobs and offers honestly, and only post work that is legal and safe. You must not use TaskDrop to:
+Describe jobs and offers honestly, and only post work that is legal and safe. You must not post, offer or ask for:
 
-- offer or ask for anything illegal, dangerous, sexual, or that needs a licence you do not have;
+- anything illegal in India;
+- weapons, explosives, drugs or alcohol;
+- prescription medicines, or medical treatment or advice offered as a task;
+- adult content or sexual services;
+- handling cash for others (collecting, holding, carrying or lending money), or lending your bank or UPI access;
+- fake or altered documents, exam cheating, or fake reviews;
+- work that involves anyone under 18: TaskDrop is for people 18 and over;
+- pressure, threats or harassment of any person;
+- collecting other people’s personal data without their consent;
+- anything meant to move the deal off TaskDrop, such as paying outside the app.
+
+A post that breaks these rules can be hidden by the TaskDrop team, and the poster is told why.
+
+You must also not use TaskDrop to:
+
 - harass, threaten, discriminate against or mislead anyone;
-- post fake reviews, spam, or someone else’s content without permission;
-- take payment for a TaskDrop job outside TaskDrop to avoid fees or our payment protection;
+- post spam, or someone else’s content without permission;
 - interfere with TaskDrop, its security, or other people’s accounts.
 
 To protect both sides, a job’s exact address is shared only with the worker who is hired, and phone numbers stay hidden until work starts. For jobs done in person, take the same care you would with anyone you have just met.
@@ -38,7 +51,7 @@ You can report a person or a post from the app, and block a person. Our team rev
 - Earnings. Released earnings, less the commission, become available after the clearing period shown on How fees work.
 - Your wallet. Money you add, money you earn and refunds all sit in one balance. You can spend it on jobs or withdraw it to a UPI ID or bank account you have saved, above the minimum shown in the app, with no withdrawal fee. Before your first withdrawal we ask for your full name as on your PAN card, and your PAN. Withdrawals are sent through RazorpayX. We may hold, delay or refuse a withdrawal that looks like fraud or that the law requires us to stop, and adding money and withdrawing can be paused for a while.
 - Cancelling. If a job is cancelled before work starts, the customer gets their money back the way the app shows when cancelling. If the customer cancels after the worker has started, the worker is paid the cancellation fee for the time they put in, and the rest is refunded.
-- Disputes. Either side can open a dispute about a job. TaskDrop looks at the job, its chat and the proof of work, and decides how the held money is split. That decides the held money on TaskDrop; it does not take away any other legal right you have.
+- Disputes. Either side can report a problem on a job, and the held money stays held until TaskDrop decides. TaskDrop looks at the job, its chat and the proof of work, and decides who receives the held money: either the worker is paid, or the customer is refunded what they paid for the job. The money is not split. We aim to acknowledge a report within 24 hours and decide within 3 working days. That decides the held money on TaskDrop; it does not take away any other legal right you have. Reporting a job without a real reason, again and again, may lead us to limit your account.
 - Promoting a post. A promotion is paid once, up front, and does not renew. You pay only for the reach that is delivered: what is not delivered, including if you stop early, comes back to your TaskDrop wallet when the promotion ends. Reach figures are estimates.
 - Taxes. You are responsible for any tax on what you earn through TaskDrop.
 

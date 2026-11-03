@@ -8,6 +8,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav, type ScreenName } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { company } from '../legal/company';
+import { DISPUTE_POLICY, DISPUTE_POLICY_TITLE, NOT_ALLOWED, NOT_ALLOWED_ACTION, SAFETY_CARD, SAFETY_CARD_TITLE } from '../legal/disputePolicy';
 
 /**
  * Support -- public, signed in or not, and linked as ?page=support. The app
@@ -40,7 +41,22 @@ const ANSWERS: Answer[] = [
   {
     id: 'work',
     q: 'The work is not what I asked for',
-    a: 'Ask for changes on the job first. If you and the worker cannot agree, open a dispute from the job. The team reads the chat and the proof of work and decides how the held money is split.',
+    a: 'Ask for changes on the job first. If you and the worker cannot agree, tap Report a problem on the job. The payment stays held while the team reads the chat and the proof of work, then decides who receives the held money.',
+  },
+  {
+    id: 'dispute',
+    q: DISPUTE_POLICY_TITLE,
+    a: DISPUTE_POLICY.map((x) => `${x.heading}. ${x.text}`).join('\n\n'),
+  },
+  {
+    id: 'safety',
+    q: SAFETY_CARD_TITLE,
+    a: SAFETY_CARD.map((x, i) => `${i + 1}. ${x}`).join('\n'),
+  },
+  {
+    id: 'notAllowed',
+    q: 'What tasks are not allowed?',
+    a: `You cannot post, offer or ask for:\n${NOT_ALLOWED.map((x) => `• ${x.replace(/[;.]$/, '')}`).join('\n')}\n\n${NOT_ALLOWED_ACTION}`,
   },
   {
     id: 'cancel',

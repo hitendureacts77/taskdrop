@@ -9,6 +9,8 @@ import { maskContacts } from '../lib/mask';
 import { DateTimeSheet, formatDeadline } from './DateTimeSheet';
 import { BottomSheet, Field, PrimaryButton, rupees } from './kit';
 import { Icon } from './Icon';
+import { SafetyCardSheet } from './SafetyCardSheet';
+import { markSafetyCardSeen, needsSafetyCard } from '../lib/safetyCard';
 import { tx } from './primitives';
 
 const HOURS_LINE = /^Estimated time: ([\d.]+) hours?$/m;
@@ -57,6 +59,8 @@ export function BidSheet({
   const [blocked, setBlocked] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  // "Staying safe on a job", once before a person's first offer on an in-person job (plan 4.9).
+  const [safetyOpen, setSafetyOpen] = useState(false);
 
   useEffect(() => {
     if (!visible || !task || !userId) return;
@@ -120,10 +124,15 @@ export function BidSheet({
     setPitch(out.text);
   };
 
-  const submit = async () => {
+  const submit = async (safetySeen = false) => {
     if (!userId) return flash('Sign in to send an offer');
     if (!price.trim()) return flash('Enter your price');
     if (pitch.trim().length < 10) return flash('Tell the customer a little about why you');
+    // A job with a place is in person; one without is remote.
+    if (!existing && task.loc_lat !== null && !safetySeen && (await needsSafetyCard(userId))) {
+      setSafetyOpen(true);
+      return;
+    }
     setBusy(true);
     try {
       const h = Number(hours);
@@ -162,7 +171,7 @@ export function BidSheet({
   return (
     <>
       <BottomSheet
-        visible={visible && !showDate}
+        visible={visible && !showDate && !safetyOpen}
         onClose={onClose}
         title={existing ? 'Edit your offer' : countering ? 'Send a counteroffer' : 'Send an offer'}
         subtitle={task.title}
@@ -285,6 +294,16 @@ export function BidSheet({
           </>
         )}
       </BottomSheet>
+      <SafetyCardSheet
+        visible={visible && safetyOpen}
+        doneLabel="Got it, send my offer"
+        onClose={() => setSafetyOpen(false)}
+        onDone={() => {
+          setSafetyOpen(false);
+          if (userId) void markSafetyCardSeen(userId);
+          void submit(true);
+        }}
+      />
       <DateTimeSheet
         visible={visible && showDate}
         initial={deliverBy ?? undefined}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useActions } from '../providers/AppStateProvider';
 import { openDispute } from '../data/api';
+import { REPORT_SUBTITLE } from '../legal/disputePolicy';
 import { BottomSheet, Field, PrimaryButton } from './kit';
 
 /**
@@ -52,7 +53,7 @@ export function ReportProblemSheet({
       visible={visible}
       onClose={() => !busy && onClose()}
       title="Report a problem"
-      subtitle="The payment stays on hold until TaskDrop reviews it."
+      subtitle={REPORT_SUBTITLE}
       footer={<PrimaryButton label="Report problem" onPress={() => void send()} busy={busy} disabled={reason.trim().length < 10} />}
     >
       <Field

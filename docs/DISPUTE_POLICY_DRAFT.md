@@ -1,6 +1,6 @@
 # Dispute policy and safety rules: DRAFT for your approval (plan task 4.9)
 
-Status: **draft, 2 November 2026. Nothing is built.** Your rule is design before building: read this, change what you want, then say "approved". After that Claude builds the app and Terms changes on staging and sends the pull request. Then the policy goes to the lawyer (S.3). This draft makes no legal claim; every sentence about time limits and money outcomes waits for the lawyer's answer.
+Status: **approved 3 November 2026 with the default answers (A1, B 24 h and 3 working days, C as drafted, D no share button, E admin and finance), and built.** Original draft note: nothing was built on 2 November. Your rule is design before building: read this, change what you want, then say "approved". After that Claude builds the app and Terms changes on staging and sends the pull request. Then the policy goes to the lawyer (S.3). This draft makes no legal claim; every sentence about time limits and money outcomes waits for the lawyer's answer.
 
 Everything under "How it works today" was read from the code on 2 November, so the policy never promises something the app cannot do.
 
