@@ -6,7 +6,7 @@ The clickable version is `docs/ULTIMATE_PLAN.html`. Open it in Chrome. Your tick
 
 Rethought on 30 October 2026. What changed: the steps now follow the order a product owner would choose (fix what is broken, make it hacker-proof, prove it with testers, get ready to market, build production, launch, grow). Every slow task that waits on other people sits in one "Start now" track. Future ideas sit in a separate **Future scope** section, so they never count against your progress. The accounts for staging and production are drawn as two maps. Security and marketing each have their own section. The previous version is kept unchanged in `docs/archive/2026-10-30-before-rethink/`.
 
-Checked against best practice on 31 October 2026 (see the changelog). New: 2-step sign-in on your accounts (2.1b), money safety limits (2.11), the marketplace numbers (3.3b), a dispute and safety policy (4.9), backups you control and a real restore practice, a production that is safe from its first minute, releases in small slices, and an earlier start for the 14-day tester clock (Gate 2 is now two gates, 2a and 2b). Vercel security check (31 October): a table of what Vercel secures and what stays yours, holes H18 and H19, and a new task 5.8b (spending stop, firewall rule, preview safety). Advice from a WhatsApp group (3 November): a new task 2.13 (a lock and a limit on every server door, a code scanner, the OWASP checklist line by line, a way for security researchers to report, a spending stop on every paid service; then your three rules: one person never reaches another's data, every document private, sign-in sessions that can be ended), holes H22 to H28, and decisions 14 to 16.
+Checked against best practice on 31 October 2026 (see the changelog). New: 2-step sign-in on your accounts (2.1b), money safety limits (2.11), the marketplace numbers (3.3b), a dispute and safety policy (4.9), backups you control and a real restore practice, a production that is safe from its first minute, releases in small slices, and an earlier start for the 14-day tester clock (Gate 2 is now two gates, 2a and 2b). Vercel security check (31 October): a table of what Vercel secures and what stays yours, holes H18 and H19, and a new task 5.8b (spending stop, firewall rule, preview safety). Advice from a WhatsApp group (3 November): a new task 2.13 (a lock and a limit on every server door, a code scanner, the OWASP checklist line by line, a way for security researchers to report, a spending stop on every paid service; then your three rules: one person never reaches another's data, every document private, sign-in sessions that can be ended), holes H22 to H28, and decisions 14 to 16. A second paste the same day (rate limits, a real sign-in provider, row rules, keys on the server, caching, background jobs, a load test) was checked too: it added part J (a load and abuse test, plus a check of slow work and caching) and hole H29.
 
 ---
 
@@ -283,7 +283,7 @@ Everything here is **new and separate** and is made in Step 5. Nothing is copied
 </div>
 ```
 
-**The holes found (checked by Claude on 30 October 2026, on staging; H15 to H17 added on 31 October from the best-practices check; H18 and H19 added on 31 October from the Vercel security check; H20 and H21 added on 2 November from Supabase's rate-limit guide; H22 to H25 added on 3 November from the WhatsApp advice, task 2.13)**
+**The holes found (checked by Claude on 30 October 2026, on staging; H15 to H17 added on 31 October from the best-practices check; H18 and H19 added on 31 October from the Vercel security check; H20 and H21 added on 2 November from Supabase's rate-limit guide; H22 to H25 added on 3 November from the WhatsApp advice, task 2.13; H29 added on 3 November from a second paste, task 2.13 part J)**
 
 Sources: Supabase's own security check on the staging database (rerun on 31 October: the same 113 functions, the same signed-out `get_app_controls`, the same 7 private tables and leaked-password protection off, so nothing new), `npm audit` on both code folders, the break-it pass of 25 October, and a read of both `vercel.json` files, the admin's `next.config.mjs` and `middleware.ts`, and the Edge Functions' CORS settings.
 
@@ -330,6 +330,7 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | H26 | Sign-in sessions cannot be ended properly. "Sign out" only signs out the device in your hand; no one (the person or the admin) can end all of a person's sessions; a password change leaves old devices signed in; an old session token keeps working for up to an hour | Medium (high if a phone is stolen) | 2.13 part I |
 | H27 | Both GitHub code folders (`taskdrop`, `taskdrop-admin`) are public, so this plan with its list of open holes, the security reports and the emergency guide can be read by anyone. No secret is in them (2.5 proves it), but they are a map for an attacker | Medium | 2.13 part H (you make them private) |
 | H28 | No test goes through every `api` action as a second person, so a new action that showed person B's data to person A would pass every check | Medium | 2.13 part G |
+| H29 | Nobody has measured what happens when many people arrive at once, or when one person hammers sign-in, sign-up, code sending and uploads. The load test in 3.6 is small and only counts speed; it does not try to break the limits, so a launch-day rush or a spammer would be the first real test | Medium at launch | 2.13 part J |
 | — | Accepted on purpose: an old Razorpay **test** key in the code history; `get_app_controls` readable signed out; 7 private tables closed to the app | Info | Nothing to do |
 
 **The bugs found (your walkthrough, the phone runs and the break-it pass)**
@@ -881,7 +882,7 @@ approve 1.9
 
 ## STEP 2: Make it hacker-proof (weeks 1 to 3)
 
-**Goal:** nobody can steal your logins, your keys, your users' data or your money, and if someone tries, you hear about it within the hour. This step closes holes H2 to H12, H17 and H20 to H28 from the Security section. H14 (2-step sign-in) is left open for now by your decision.
+**Goal:** nobody can steal your logins, your keys, your users' data or your money, and if someone tries, you hear about it within the hour. This step closes holes H2 to H12, H17 and H20 to H29 from the Security section. H14 (2-step sign-in) is left open for now by your decision.
 
 **Order inside this step:** your own accounts first (2.1 to 2.4, about 4 hours in total), then Claude's work (2.5 to 2.9 and 2.11), then the alarms and the proof (2.10).
 
@@ -901,7 +902,7 @@ approve 1.9
 | 2.9 Security tests, round 2 | Part done | T11 on the Android app (needs the phone); your answer on the account-existence messages |
 | 2.10 Alarms and emergency guide | Part done | Proof 6 (you read the guide); optional second Sentry rule for `fatal` issues |
 | 2.11 Money safety limits | Done | Nothing |
-| 2.13 The WhatsApp advice (added 3 Nov) | Not started | Decisions 14 to 16 answered 3 Nov; say "start 2.13" (parts G to I added the same day) |
+| 2.13 The WhatsApp advice (added 3 Nov) | Not started | Decisions 14 to 16 answered 3 Nov; say "start 2.13" (parts G to I added the same day, part J from a second paste) |
 
 **On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
 
@@ -1367,7 +1368,7 @@ sequenceDiagram
 <details id="t2-13" data-short="Advice check: OWASP + researchers">
 <summary>[BOTH] <b>2.13</b> The WhatsApp advice: a lock and a limit on every door, a code scanner, the OWASP checklist, a way for security researchers to report, no one sees another's data, private documents, sessions you can end <small>· your time: 30 minutes · planned 3 Nov, not started</small></summary>
 
-**Why:** on 3 November you shared advice from a WhatsApp group about security, cost and marketing, and asked for a security plan around it. Claude checked each point against the code and this plan. Most of it is already done or planned. Four things are new, holes **H22 to H25**. The same day you added three rules of your own (parts G to I, holes **H26 to H28**). One fact made all of it matter more: both code folders on GitHub (`taskdrop` and `taskdrop-admin`) were **public**, so an attacker could read the same code Claude reads. Part H makes them private. Every door and every check must still hold on its own, because what was public may already have been copied.
+**Why:** on 3 November you shared advice from a WhatsApp group about security, cost and marketing, and asked for a security plan around it. Claude checked each point against the code and this plan. Most of it is already done or planned. Four things are new, holes **H22 to H25**. The same day you added three rules of your own (parts G to I, holes **H26 to H28**), and then a second paste about launch strain (part J, hole **H29**). One fact made all of it matter more: both code folders on GitHub (`taskdrop` and `taskdrop-admin`) were **public**, so an attacker could read the same code Claude reads. Part H makes them private. Every door and every check must still hold on its own, because what was public may already have been copied.
 
 **The advice, point by point, against TaskDrop (checked 3 Nov 2026):**
 
@@ -1386,7 +1387,7 @@ sequenceDiagram
 
 ```html
 <div class="fig">
-<div class="fig-title">The nine parts of 2.13</div>
+<div class="fig-title">The ten parts of 2.13</div>
 <div class="fig-sub">All are Claude's work on staging, except E (invited testers, decision 15) and the click that makes the code private (H).</div>
 <div class="layers">
 <div class="layer"><span class="ln">A</span><span class="lt"><b>A lock and a limit on every door</b><small>A test lists every server door in both code folders and fails if one has no login check and no limit, unless it is public on purpose. Closes H24</small></span><span class="st no">Not started</span></div>
@@ -1398,6 +1399,7 @@ sequenceDiagram
 <div class="layer"><span class="ln">G</span><span class="lt"><b>User A never reaches user B's data</b><small>A two-person test over every api action and every admin role, on every change. Closes H28</small></span><span class="st part">Partly</span></div>
 <div class="layer"><span class="ln">H</span><span class="lt"><b>Every document private</b><small>Users' files only through 1-hour links (tested); both code folders made private. Closes H27</small></span><span class="st part">Partly</span></div>
 <div class="layer"><span class="ln">I</span><span class="lt"><b>Sessions you can end</b><small>Sign out of all devices, automatic sign-out on password change or suspension, an admin button, no hour-long gap. Closes H26</small></span><span class="st no">Not started</span></div>
+<div class="layer"><span class="ln">J</span><span class="lt"><b>A rush and an abuse test</b><small>A load test of sign-in, sign-up and the main screens, a spammer test against every limit, and a check that slow work runs in the background and nothing private is cached. Closes H29</small></span><span class="st no">Not started</span></div>
 </div>
 </div>
 ```
@@ -1467,6 +1469,29 @@ Every line gets one of three marks: **pass** (with the test or file that proves 
 | Where the website keeps the session | Claude checks what a script injected into the website could read, and makes sure the content policy (2.6, H9) blocks such scripts before launch |
 | Tests | A signed-out device is refused on its next call; a suspended person's other devices are refused within one call; the admin button works and appears in the audit log |
 
+**Added 3 Nov, a second paste: "if people actually use it, make sure it does not break or get abused".** Checked against the code and this plan the same day:
+
+| The advice | TaskDrop today | New in this task |
+|---|---|---|
+| Rate limits so people cannot spam login, signup or AI endpoints | **Mostly done.** Sign-in codes, password tries and SMS sending have limits per phone number and per network address, and Supabase's own sign-in limits are set (2.8, 2.8b); `api` limits every person per minute (2.12). TaskDrop has no AI endpoint (see part F for the rule if one is added). Gaps are H24 (part A). **Nobody has tried to break these limits at volume** (H29) | Part A closes the gaps; part J tries to break every limit |
+| Use a real sign-in provider, like Clerk or Firebase | **Done.** Sign-in is Supabase Auth, a real provider: one-time codes, hashed passwords, Google sign-in, signed login tokens and its own limits. Clerk was rejected on purpose (a second provider would split the user list from the database rules that decide who sees what) | Nothing; added to **Skipped on purpose** |
+| Lock the database with row-level security so users see only their own data | **Done.** Row rules on every table, all 113 database functions check the caller, storage refused 13 of 13 tries (2.7) | Part G adds the two-person test that keeps it true on every change |
+| Never expose keys in the frontend; keep secrets server-side in environment files | **Done.** Rule 8 and the one-file rule: keys live only in `.env.all-secrets` and the server secret stores; scanner on every change and a test that fails if a secret reaches the app or website (2.5, 2.10 proof 2) | Nothing |
+| Cache repeated requests with Redis | **Partly, by design without Redis.** Photos come from ImageKit's network, the website is static, app settings are cached 60 seconds, every list is paged, and `api` answers are `no-store` so a shared cache can never show one person's data to another. Cached lists and a read copy of the database are planned for "one busy city" (How it grows) | Part J measures first; no Redis until a number says so |
+| Move heavy work (email, AI, PDF parsing) into background jobs | **Done.** Design rule 4: slow work goes to the outbox and Inngest with automatic retries; email sequences run in Loops, passed by Inngest. TaskDrop parses no PDFs and calls no AI | Part J checks that no server function still makes a person wait for a slow outside call |
+| Load test before launching | **Small.** 3.6 (T9) has a small speed test on staging, with no abuse and no step-by-step ramp up to a breaking point (H29) | Part J |
+| Distribution: post your own videos, copy proven ideas in your niche with your own twist | **Already planned.** Task 4.7 tests 10 short videos with real people, and the weekly marketing rhythm posts one Reels and Shorts video using the hook that worked (Marketing playbook) | Nothing |
+
+**J. A rush and an abuse test, plus slow work and caching (closes H29).** Claude runs this on staging, with fake data. Staging's test shortcut is on, so no real SMS is sent and no money moves.
+
+| What | In plain words |
+|---|---|
+| The rush test | With k6 (free, open source, run from Claude's computer), many fake people sign up, sign in, scroll tasks and the map, post a task, send offers and chat at once. The number of people goes up step by step until something slows or fails, and Claude writes down where that happened. Pass means no wrong answers, no one sees another person's data, nothing is paid twice, and the app answers "please wait" in plain words instead of crashing |
+| The spammer test | One script hammers sign-in, sign-up, code sending, offers, uploads, withdrawals (`razorpayx-payouts`) and the place search from one network address and one account. Each must start refusing within its limit, with the plain-words message, and the other fake people must keep working while it happens |
+| Slow work check | Claude lists every server function that calls an outside service (SMS, payments, push, email, ImageKit, Google). Each must either run in the background through the outbox and Inngest, or have a short time limit and a plain failure message (design rule 10). Anything that makes a person wait for a slow call is moved to the background in this task |
+| Caching check | Claude writes down what is cached today and what must never be: answers about a person are never cached or shared, and any cache added later is keyed per person. Redis or cached lists are added only if the rush test shows the database busy more than 70% for an hour, or one reading screen slower than its target. Then Claude proposes that single change |
+| Result | Written in `docs/LOAD_TEST.md` in plain words: how many people at once staging handled, what failed first, and what to buy or change. Staging is the free plan, so production (Supabase Pro) should do better: the number is a floor, not a promise. Claude repeats the read-only part on production after 5.9 only with your yes |
+
 **Your steps:**
 
 1. Decisions 14 to 16 are answered (3 Nov): the Support address for reports, free invites for the outside test, and private code folders.
@@ -1481,7 +1506,7 @@ start 2.13
 5. CLICK: the settings part F says are yours (each row names the page).
 6. TELL Claude: "done 2.13".
 
-**Done when:** merged in both code folders; Claude has shown you the test failing for a door with no lock or limit; Semgrep and the weekly audit run with no open Critical or High finding; `docs/SECURITY_OWASP.md` has every line marked and no Critical or High fail open; `security.txt` and the Support part are live; the part F table is filled in; the two-person test covers every `api` action and passes (G); both code folders are private and the website, admin and app still build (H); "Sign out of all devices", the automatic sign-outs and the admin button are shown working on staging (I). Part E follows by decision 15, before 6.5.
+**Done when:** merged in both code folders; Claude has shown you the test failing for a door with no lock or limit; Semgrep and the weekly audit run with no open Critical or High finding; `docs/SECURITY_OWASP.md` has every line marked and no Critical or High fail open; `security.txt` and the Support part are live; the part F table is filled in; the two-person test covers every `api` action and passes (G); both code folders are private and the website, admin and app still build (H); "Sign out of all devices", the automatic sign-outs and the admin button are shown working on staging (I); `docs/LOAD_TEST.md` is written, every limit refused the spammer test, and no server function makes a person wait for a slow outside call (J). Part E follows by decision 15, before 6.5.
 </details>
 
 > **GATE 2b: do not start Step 5 (production) until all of these are true**
@@ -1489,7 +1514,7 @@ start 2.13
 - [ ] Gate 2a has passed
 - [ ] Tasks 2.1 to 2.13 are ticked (2.13 part E may follow, by decision 15, before 6.5)
 - [ ] The six proofs in task 2.10 are all true
-- [ ] Holes H2 to H10, H12, H17 and H22 to H28 are closed (H3 closes in 3.9 for staging and is never open in production; H11 closes in 5.2; H1, H15 and H16 in 5.9)
+- [ ] Holes H2 to H10, H12, H17 and H22 to H29 are closed (H3 closes in 3.9 for staging and is never open in production; H11 closes in 5.2; H1, H15 and H16 in 5.9)
 - [ ] No Critical or High security problem is open
 
 ---
@@ -3673,6 +3698,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 | A Chrome extension | Nothing shows it would bring users |
 | Automated attack robots (PentAGI) | Fix what the test checklist finds first |
 | Tolvyn (AI cost limits, suggested in the WhatsApp advice, 3 Nov) | It only meters calls to AI services, and TaskDrop makes none. If an AI feature is ever added, the rule in 2.13 part F applies first (a provider limit, alerts, a cap per person) |
+| Clerk or Firebase for sign-in, and Redis now (second paste, 3 Nov) | Supabase Auth already is a real provider and a second one would split users from the database rules (Clerk was rejected earlier). Redis adds a service to run before any number shows it is needed: 2.13 part J measures first |
 | Posting tools, AI video tools, plugin packs, design galleries, courses | They add work, not users. Post by hand; real people on camera beat AI |
 | Buying more tools | What you have is enough |
 | Extra restrictions on staging's Google keys (website limit on the Firebase browser key) | Staging is a test copy with fake money. Production's keys are restricted at creation (5.3, Gate 5) |
@@ -3705,6 +3731,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-03 (second paste added to 2.13, part J):** You shared more advice: make sure it does not break or get abused (rate limits on login, signup and AI endpoints; a real sign-in provider; row-level security; no keys in the frontend; secrets only server-side), then cache with Redis, move heavy work to background jobs, load test before launching, and grow the first 1,000 users with your own videos. Claude checked each against the code: sign-in provider, row rules, keys, background jobs and the video plan were already done or planned. **New:** part J (a rush test with k6 on staging, a spammer test against every limit, a check that no server function makes a person wait for a slow outside call, a caching check with Redis only if a number says so, results in `docs/LOAD_TEST.md`), hole H29, Gate 2b and the Step 2 hole range updated, and "Clerk or Firebase, and Redis now" in Skipped on purpose. Nothing is built yet
 - **2026-11-03 (your three rules added to 2.13):** You added: user A must not reach user B's data, keep all documents private with no public access, and secure the sign-in sessions and be able to end them. Checked in the code: users' files were already private (private ImageKit files, private bucket, 1-hour links); the phone keeps the session in the encrypted key store; suspended and deleted people are refused by `api`. **New:** parts G (two-person test over every `api` action and admin role), H (file privacy tests, and both GitHub code folders made private: decision 16), I (sign out of all devices, automatic sign-out on password or phone change and suspension, an admin button, staff sessions, no hour-long gap), holes H26 to H28, Gate 2b and the monthly check updated. Because private code folders lose GitHub's free CodeQL and report button, part B now uses Semgrep and part D uses `security.txt` and the Support page. Nothing is built yet
 - **2026-11-03 (decisions 14 and 15):** You chose the recommended answers: security reports go to the contact the Support page already shows (plus GitHub's private report button), and the first outside test is 2 or 3 free invited testers on staging before launch; the paid review stays in F.13. Next: "start 2.13"
 - **2026-11-03 (security plan from the WhatsApp advice, 2.13):** You shared advice from a WhatsApp group (keys only on the server, a login and a limit on every endpoint, a dependency check, the OWASP checklist, pentests by security researchers; AI spend limits; launching in communities and Reddit, reaching out to people with the problem) and asked for a security plan around it. Claude checked each point against the code: keys, login checks, the package check, Reddit and outreach were already done or planned. **New:** task 2.13 with six parts (A: a test that every server door has a lock and a limit, and limits for `razorpayx-payouts` and the admin's routes; B: GitHub CodeQL and a weekly `npm audit`; C: OWASP ASVS level 1, API Top 10 and MASVS line by line in `docs/SECURITY_OWASP.md`; D: `security.txt`, `SECURITY.md`, GitHub private reporting and rules on the Support page; E: a first outside test, decision 15; F: a spending stop, an alert and a cap per person for every paid service, and the rule for any future AI feature), holes H22 to H25, decisions 14 and 15, Gate 2b updated, a new step in the monthly security check, and Tolvyn in Skipped on purpose (TaskDrop calls no AI service). Found on the way: both GitHub code folders are public. Nothing is built yet
