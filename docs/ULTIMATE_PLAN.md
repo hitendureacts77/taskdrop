@@ -331,6 +331,9 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | H27 | Both GitHub code folders (`taskdrop`, `taskdrop-admin`) are public, so this plan with its list of open holes, the security reports and the emergency guide can be read by anyone. No secret is in them (2.5 proves it), but they are a map for an attacker | Medium | 2.13 part H (you make them private) |
 | H28 | No test goes through every `api` action as a second person, so a new action that showed person B's data to person A would pass every check | Medium | 2.13 part G |
 | H29 | Nobody has measured what happens when many people arrive at once, or when one person hammers sign-in, sign-up, code sending and uploads. The load test in 3.6 is small and only counts speed; it does not try to break the limits, so a launch-day rush or a spammer would be the first real test | Medium at launch | 2.13 part J |
+| H30 | Migration 071 (4 Oct) rewrote the withdrawal function from an older copy and lost three checks: the most per withdrawal (₹1 lakh), "add your name and PAN first", and the holder's name on a bank account. Proven on staging: an established account could ask for more than ₹1 lakh at once. Found by the 2.14 hunt | High (before real money) | **Fixed 3 Nov** (migration 142 and a test; a new test now fails if any database function loses a check this way). PAN: decision 17 |
+| H31 | Every staff role, including the read-only Viewer, can download one spreadsheet with every person's name, email and phone number (the People export) | Medium | Decision 18 |
+| H32 | Each wallet is one running number, changed in place by many functions, with no record of each movement, so the books cannot be proven to balance and a wrong change would be hard to trace | Medium (High once money is real) | Build before Step 5: an add-only list of wallet movements and a test that every balance equals its list (2.14) |
 | — | Accepted on purpose: an old Razorpay **test** key in the code history; `get_app_controls` readable signed out; 7 private tables closed to the app | Info | Nothing to do |
 
 **The bugs found (your walkthrough, the phone runs and the break-it pass)**
@@ -351,6 +354,7 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | B12 | Google sign-in needs one more check on every path | Medium | 1.4 |
 | B13 | Razorpay test mode ran out of payment links and shows no UPI | Medium (testing only) | Dropped 31 Oct: test keys have no UPI |
 | B14 | 10 design changes you asked for (birth-date wheel, sharper splash, shorter categories, clearer price and more) | Design | 1.5 and 1.6 |
+| B15 | The test-data seed files load with triggers off, so 13 staging tasks show a point about 11 m precise on the map instead of the rounded area (about 1 km). Found by the 2.14 hunt | Low (fake data) | **Fixed 3 Nov** in the seed files; the 13 rows correct at the next test-data reset (needs your yes) |
 
 New holes and bugs found by the bug and security hunt (task 2.14) are added to these two tables, holes from H30 and bugs from B15, each with its proof and the task that fixes it.
 
@@ -905,7 +909,7 @@ approve 1.9
 | 2.10 Alarms and emergency guide | Part done | Proof 6 (you read the guide); optional second Sentry rule for `fatal` issues |
 | 2.11 Money safety limits | Done | Nothing |
 | 2.13 The WhatsApp advice (added 3 Nov) | Not started | Decisions 14 to 16 answered 3 Nov; say "start 2.13" (parts G to I added the same day, part J from a second paste) |
-| 2.14 The bug and security hunt (added 3 Nov) | Not started | Say "start 2.14" |
+| 2.14 The bug and security hunt (added 3 Nov) | Round 1 started 3 Nov | H30 fixed; decisions 17 and 18; parts D and G next (G needs the phone) |
 
 **On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
 
@@ -1513,7 +1517,7 @@ start 2.13
 </details>
 
 <details id="t2-14" data-short="Bug and security hunt">
-<summary>[CLAUDE] <b>2.14</b> The bug and security hunt: read the whole app end to end and attack it, to find the mistakes the tests do not know about <small>· your time: 45 minutes · planned 3 Nov, not started</small></summary>
+<summary>[CLAUDE] <b>2.14</b> The bug and security hunt: read the whole app end to end and attack it, to find the mistakes the tests do not know about <small>· your time: 45 minutes · round 1 started 3 Nov: parts B and C done, A, E, F, H in part</small></summary>
 
 **Why:** on 3 November you asked Claude to find the bugs and security problems in the app. The rounds so far (2.7 and 2.9 on 1 Nov, 3.6 on 2 Nov) test attacks we already knew to look for, and most bugs so far were found by you on the phone (B1 to B14). Since 1 November about 60 changes and 10 database changes (migrations 132 to 141) have landed: top-ups, poster options, helper streaks, the Ideas board, task questions, the nearby pulse, marketplace numbers, repeat keys, the sign-up guard, three map redesigns and the desktop layout. None of that has been through a security round. Nobody has yet read the whole app from start to finish asking "what could go wrong here?". This task does that, in nine parts, on staging only.
 
@@ -1604,6 +1608,8 @@ start 2.14
 
 **Done when:** every part has run; every finding is in this plan's tables (H30 onwards, B15 onwards) and in `docs/HUNT_ROUND1.md` with its proof; no Critical or High problem is open; every Medium has your answer; the books-balance check and the task-life tests are in `npm run test:db` and pass; and the part B reruns are all green.
 
+**Round 1, 3 Nov (results in `docs/HUNT_ROUND1.md`):** **B** done: every check passes (256 unit tests, typecheck, lint), npm audit 0 high, Supabase's advisor shows nothing new; signed-in callable functions grew from 113 to 132. **C** done: the payment webhooks, top-up credits and withdrawal locking hold. **H30 (High) found and fixed:** migration 071 had silently dropped the ₹1 lakh per-withdrawal limit and two other checks; migration 142 puts back the limit and the bank-name check, with a test that failed before and passes after, and `scripts/check-lost-refusals.mjs` now fails `npm test` if any rewritten database function drops a check. **H32:** the books cannot be proven to balance because wallets keep no record of each movement. **A, E, F, H in part:** 123 `api` actions counted; task questions, the nearby counter and helpers' map areas are sound; B15 (precise points from the seed files) fixed; every admin route checks the sign-in; H31 (any staff role can export everyone's contacts). **For you:** decisions 17 and 18. **Next session:** part D, part G (needs the phone), the rest of E (Ideas board, streaks, crew jobs) and H (Inngest jobs, push, the location inside a real photo), then the H32 design.
+
 **Then keep it going:** a hunt finds what is there today. After it, every new feature's pull request gets the short version before it merges: its doors added to the part A list, its money and status moves checked as in parts C and D, and a two-person test (2.13 G). Claude repeats the full hunt before Gate 5, and again after the first 30 days of real money (with 7.4's monthly check).
 </details>
 
@@ -1612,7 +1618,7 @@ start 2.14
 - [ ] Gate 2a has passed
 - [ ] Tasks 2.1 to 2.14 are ticked (2.13 part E may follow, by decision 15, before 6.5)
 - [ ] The six proofs in task 2.10 are all true
-- [ ] Holes H2 to H10, H12, H17 and H22 to H29 are closed (H3 closes in 3.9 for staging and is never open in production; H11 closes in 5.2; H1, H15 and H16 in 5.9)
+- [ ] Holes H2 to H10, H12, H17 and H22 to H32 are closed (H3 closes in 3.9 for staging and is never open in production; H11 closes in 5.2; H1, H15 and H16 in 5.9)
 - [ ] No Critical or High security problem is open, and every Medium from the 2.14 hunt has your answer
 
 ---
@@ -3418,6 +3424,8 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 14 | **Where security reports go** (task 2.13 part D). `security.txt` and the Support page must name an address that is public and that you read | **Decided by you, 2026-11-03.** Use the contact the Support page already shows, so there is no new mailbox and no new cost (decision 11). (GitHub's report button was dropped the same day: it needs public code folders, see decision 16.) Done | Nothing to say |
 | 15 | **A first outside test before launch** (task 2.13 part E). Invite 2 or 3 people to test staging for a week for free, pay for a small test now, or wait for F.13? | **Decided by you, 2026-11-03.** Invite 2 or 3 people for free now; the paid review stays in F.13, before a second city. Done | Nothing to say |
 | 16 | **Make both GitHub code folders private** (task 2.13 part H) | **Decided by you, 2026-11-03** ("keep all the documents private, no public access"). Private. The code scanner becomes Semgrep and the GitHub report button is dropped, because both need public folders to be free. You click the switch after Claude's checks. Done | Nothing to say |
+| 17 | **Name and PAN before a withdrawal** (task 2.14, H30). Migration 066 asked for a legal name and PAN before anyone could withdraw; 071 dropped it by accident, and the app has no screen to enter them, so no one has one saved. Ask for them again (Claude adds a screen to the Withdraw page and puts the check back), or leave them out until your CA says what TDS rules need (S.2)? | Open. Recommended: ask your CA in S.2, then add the screen before Step 5, since payouts to people without PAN can carry higher tax deduction | "Decision 17: add the PAN screen" or "Decision 17: wait for the CA" |
+| 18 | **Who may download everyone's phone numbers and emails** (task 2.14, H31). Today the People export includes them for every staff role, even Viewer | Open. Recommended: only Admin and Support get the contact columns; the others get the same file without them | "Decision 18: Admin and Support only" or "Decision 18: keep for all roles" |
 
 ---
 
@@ -3829,6 +3837,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-03 (2.14 round 1):** You said "start 2.14". Claude ran parts B and C and part of A, E, F and H on staging (every database trial rolled back). Found and fixed **H30 (High):** a 4 Oct migration had silently dropped the ₹1 lakh per-withdrawal limit and two other withdrawal checks; migration 142 puts back the limit and the bank-name check with a test, and a new test fails if any database function loses a check again. Fixed **B15** (seed files skipped the map rounding). New holes **H31** (any staff role can export everyone's contacts) and **H32** (no record of each wallet movement). New decisions 17 (PAN) and 18 (who sees contacts in exports). Results in `docs/HUNT_ROUND1.md`. Parts D and G come next.
 - **2026-11-03 (bug and security hunt, 2.14):** You asked Claude to find the bugs and security problems in the app and to put the plan here. The rounds so far (2.7, 2.9, 3.6) test known attacks, and about 60 changes and migrations 132 to 141 have landed since the last security round on 1 Nov. New task **2.14** reads the whole app end to end and attacks it on staging, in nine parts: map every door, an automatic sweep (every test rerun, Supabase advisors, Sentry and server errors), follow the money (twice at once, amounts from the app, webhooks, a books-balance check), every move in a task's life, the features added since 1 Nov (including exact places on the maps), the admin app, bugs people would feel on every screen, background jobs and outside services (including the location stored inside photos, which nothing removes today), then fix, prove and report. Findings go into the Security tables as H30 and B15 onwards. Gate 2b now needs 2.14. Nothing is built yet; say "start 2.14".
 - **2026-11-03 (second paste added to 2.13, part J):** You shared more advice: make sure it does not break or get abused (rate limits on login, signup and AI endpoints; a real sign-in provider; row-level security; no keys in the frontend; secrets only server-side), then cache with Redis, move heavy work to background jobs, load test before launching, and grow the first 1,000 users with your own videos. Claude checked each against the code: sign-in provider, row rules, keys, background jobs and the video plan were already done or planned. **New:** part J (a rush test with k6 on staging, a spammer test against every limit, a check that no server function makes a person wait for a slow outside call, a caching check with Redis only if a number says so, results in `docs/LOAD_TEST.md`), hole H29, Gate 2b and the Step 2 hole range updated, and "Clerk or Firebase, and Redis now" in Skipped on purpose. Nothing is built yet
 - **2026-11-03 (your three rules added to 2.13):** You added: user A must not reach user B's data, keep all documents private with no public access, and secure the sign-in sessions and be able to end them. Checked in the code: users' files were already private (private ImageKit files, private bucket, 1-hour links); the phone keeps the session in the encrypted key store; suspended and deleted people are refused by `api`. **New:** parts G (two-person test over every `api` action and admin role), H (file privacy tests, and both GitHub code folders made private: decision 16), I (sign out of all devices, automatic sign-out on password or phone change and suspension, an admin button, staff sessions, no hour-long gap), holes H26 to H28, Gate 2b and the monthly check updated. Because private code folders lose GitHub's free CodeQL and report button, part B now uses Semgrep and part D uses `security.txt` and the Support page. Nothing is built yet
