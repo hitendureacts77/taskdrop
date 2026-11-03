@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { background, captureSecurityEvent, captureServerError, guarded, logServer } from "../_shared/monitoring.ts";
+import { outsideCall } from "../_shared/timeouts.ts";
 import { signInRefusal } from "../_shared/signInSwitches.ts";
 import { acceptsPhone } from "../_shared/indianMobile.ts";
 
@@ -160,6 +161,7 @@ async function findAccount(email: string): Promise<FoundUser | null> {
 
   const res = await fetch(url, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
+    signal: outsideCall(),
   });
   if (!res.ok) throw new Error(`Could not check that number (${res.status})`);
 
@@ -196,6 +198,7 @@ async function sendSms(phone: string, code: string): Promise<void> {
     method: "POST",
     headers: { authkey: MSG91_AUTHKEY, "Content-Type": "application/json" },
     body: "{}",
+    signal: outsideCall(),
   });
 
   // MSG91 answers 200 with {"type":"error"} for a bad template or a number
