@@ -3,6 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { secret } from "../_shared/secrets.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
 import { guardKey } from "../_shared/keyGuard.ts";
+import { TOO_FAST, withinRate } from "../_shared/rateLimit.ts";
 import { guarded, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient, featureOffMessage } from "../_shared/controls.ts";
 
@@ -89,6 +90,12 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
   const { data: userData, error: userErr } = await admin.auth.getUser(jwt);
   if (userErr || !userData?.user) return json({ error: "Sign in first" }, 401);
   const userId = userData.user.id;
+
+  // Each call here can open a payment link or ask Razorpay a question: 30 a minute per person is
+  // far above an honest payment flow and stops a script from running up calls (task 2.13 part A).
+  if (!(await withinRate(admin, userId, "payments", 30, (m) => void logServer("warn", "razorpay", "rate limiter unavailable", { error: m })))) {
+    return json({ error: TOO_FAST, code: "RATE_LIMITED" }, 429);
+  }
 
   let body: {
     action?: string;

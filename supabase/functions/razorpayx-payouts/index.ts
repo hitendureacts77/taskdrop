@@ -3,6 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { guarded, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { guardKey } from "../_shared/keyGuard.ts";
 import { secret } from "../_shared/secrets.ts";
+import { TOO_FAST, withinRate } from "../_shared/rateLimit.ts";
 import { balance, giveBack, sendPayout, syncOpen, type XConfig } from "../_shared/razorpayx.ts";
 
 /**
@@ -50,6 +51,11 @@ Deno.serve(guarded("razorpayx-payouts", async (req: Request) => {
   const { data: who } = await admin.auth.getUser(jwt);
   const userId = who?.user?.id;
   if (!userId) return json({ error: "Sign in first" }, 401);
+
+  // A withdrawal is money: 20 calls a minute per person is far above any honest use (the Withdraw screen
+  // makes one or two) and stops a script from hammering the payout provider (task 2.13 part A).
+  const okRate = await withinRate(admin, userId, "payouts", 20, (m) => void logServer("warn", "razorpayx-payouts", "rate limiter unavailable", { error: m }));
+  if (!okRate) return json({ error: TOO_FAST, code: "RATE_LIMITED" }, 429);
 
   let body: { action?: string; payoutId?: string };
   try {
