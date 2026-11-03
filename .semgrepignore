@@ -1,0 +1,12 @@
+# Not shipped code: Semgrep skips these (task 2.13 part B).
+node_modules/
+docs/
+e2e/
+supabase/migrations/
+supabase/tests/
+supabase/cutover/
+supabase/lockdown/
+*.test.ts
+*.test.mjs
+*.test.tsx
+package-lock.json
