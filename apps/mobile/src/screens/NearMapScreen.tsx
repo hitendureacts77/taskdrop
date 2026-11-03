@@ -187,12 +187,17 @@ export function NearMapScreen() {
 
   const cardFrame = (on: boolean) => ({
     width: CARD_W,
-    borderRadius: 20,
+    borderRadius: 22,
     backgroundColor: t.colors.surface,
-    borderWidth: 2,
+    borderWidth: on ? 2 : 1,
     borderColor: on ? (mode === 'people' ? t.colors.purple : t.colors.accent) : t.colors.line,
-    padding: 14,
-    gap: 10,
+    padding: on ? 15 : 16,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
   });
 
   return (
@@ -345,34 +350,46 @@ export function NearMapScreen() {
                   return (
                     <View key={j.id} style={cardFrame(on)}>
                       <Pressable onPress={() => pickCard(j.id)} accessibilityRole="button" accessibilityState={{ selected: on }} style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                        <View style={{ width: 42, height: 42, borderRadius: 999, backgroundColor: t.colors.accentSoft, borderWidth: 1.5, borderColor: t.colors.accentBorder, alignItems: 'center', justifyContent: 'center' }}>
-                          <Icon name={categoryIcon(j.category ?? '')} size={18} color={t.colors.accentDeep} />
+                        <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: t.colors.accentSoft, borderWidth: 1, borderColor: t.colors.accentBorder, alignItems: 'center', justifyContent: 'center' }}>
+                          <Icon name={categoryIcon(j.category ?? '')} size={20} color={t.colors.accentDeep} />
                         </View>
                         <View style={{ flex: 1 }}>
-                          <RNText style={tx('700', 14, t.colors.ink)} numberOfLines={1}>
+                          <RNText style={tx('800', 14.5, t.colors.ink, { letterSpacing: -0.1 })} numberOfLines={1}>
                             {j.title}
                           </RNText>
-                          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>
-                            {areaName(j.loc_label)} area · {farText(j.km)}
-                            {j.poster ? ` · by ${firstName(j.poster.display_name || j.poster.username)}` : ''}
-                          </RNText>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                            <Icon name="pin" size={11} color={t.colors.muted} />
+                            <RNText style={tx('600', 11.5, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>
+                              {areaName(j.loc_label)} · {farText(j.km)}
+                              {j.poster ? ` · by ${firstName(j.poster.display_name || j.poster.username)}` : ''}
+                            </RNText>
+                          </View>
                         </View>
                       </Pressable>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <RNText style={tx('800', 19, t.colors.ink, { fontVariant: ['tabular-nums'] })}>{rupees(j.benchmark_minor / 100)}</RNText>
-                        <TopUpBadge pct={j.topup_pct} compact />
-                        {j.fresh ? (
-                          <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: t.colors.accentSoft }}>
-                            <RNText style={tx('800', 10.5, t.colors.accentDeep)}>Just posted</RNText>
-                          </View>
-                        ) : null}
+                      <View style={{ height: 1, backgroundColor: t.colors.line }} />
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={{ flex: 1, gap: 4 }}>
+                          <RNText style={tx('800', 22, t.colors.ink, { fontVariant: ['tabular-nums'], letterSpacing: -0.5 })}>{rupees(j.benchmark_minor / 100)}</RNText>
+                          {j.fresh || j.topup_pct ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <TopUpBadge pct={j.topup_pct} compact />
+                              {j.fresh ? (
+                                <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: t.colors.accentSoft }}>
+                                  <RNText style={tx('800', 10.5, t.colors.accentDeep)}>Just posted</RNText>
+                                </View>
+                              ) : null}
+                            </View>
+                          ) : null}
+                        </View>
+                        <Pressy
+                          onPress={() => go('taskDetail', { row: taskToFeedRow(j) })}
+                          label="Open task"
+                          style={{ height: 42, paddingLeft: 18, paddingRight: 12, borderRadius: 21, backgroundColor: t.colors.btn, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                        >
+                          <RNText style={tx('800', 13.5, t.colors.onBtn)}>Open task</RNText>
+                          <Icon name="chevronRight" size={16} color={t.colors.onBtn} />
+                        </Pressy>
                       </View>
-                      <Pressy
-                        onPress={() => go('taskDetail', { row: taskToFeedRow(j) })}
-                        style={{ height: 40, borderRadius: 12, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        <RNText style={tx('800', 13.5, t.colors.onBtn)}>Open task</RNText>
-                      </Pressy>
                     </View>
                   );
                 })}
