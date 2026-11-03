@@ -5,8 +5,9 @@ import { mkdtempSync, readFileSync, existsSync, writeFileSync, rmSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { applyToHtml, isProductionBuild, NOINDEX_META, ROBOTS_TXT, run } from '../apps/mobile/scripts/web-env-guard.mjs';
+import { applyToHtml, isProductionBuild, NOINDEX_META, ROBOTS_TXT, run, securityTxt, SECURITY_TXT_EXPIRES, SUPPORT_URL } from '../apps/mobile/scripts/web-env-guard.mjs';
 
+const NL = String.fromCharCode(10);
 const HTML = '<!DOCTYPE html><html><head><title>TaskDrop</title></head><body></body></html>';
 
 test('only "production" is production; unset or odd values are staging', () => {
@@ -48,5 +49,35 @@ test('vercel.json: noindex header is limited to staging hosts, never a catch-all
   for (const r of rules) {
     assert.ok(r.headers.some((h) => h.key === 'X-Robots-Tag' && /noindex/.test(h.value)));
     assert.ok(Array.isArray(r.has) && r.has.some((c) => c.type === 'host'), 'X-Robots-Tag rule must be host-scoped');
+  }
+});
+
+test('security.txt names the support address and page, an expiry and the canonical address', () => {
+  const withMail = securityTxt('help@example.in', new Date('2026-11-03'));
+  assert.ok(withMail.split(NL).includes('Contact: mailto:help@example.in'));
+  assert.ok(withMail.split(NL).includes(`Contact: ${SUPPORT_URL}`));
+  assert.ok(withMail.split(NL).includes(`Expires: ${SECURITY_TXT_EXPIRES}`));
+  assert.ok(withMail.split(NL).includes('Canonical: https://taskdrop.in/.well-known/security.txt'));
+  const noMail = securityTxt('', new Date('2026-11-03'));
+  assert.ok(!noMail.includes('mailto:'));
+  assert.ok(noMail.split(NL).includes(`Contact: ${SUPPORT_URL}`));
+  assert.ok(!securityTxt('not an address', new Date('2026-11-03')).includes('mailto:'));
+});
+
+test('an expired security.txt stops the build instead of shipping', () => {
+  assert.throws(() => securityTxt('', new Date('2027-11-01')), /expired/);
+  assert.ok(Date.parse(SECURITY_TXT_EXPIRES) > Date.now(), 'move SECURITY_TXT_EXPIRES one year on');
+});
+
+test('run() writes .well-known/security.txt for both staging and production', () => {
+  const dist = mkdtempSync(join(tmpdir(), 'td-guard-'));
+  try {
+    writeFileSync(join(dist, 'index.html'), HTML);
+    for (const env of [undefined, 'production']) {
+      run(dist, env, 'help@example.in');
+      assert.ok(readFileSync(join(dist, '.well-known', 'security.txt'), 'utf8').includes('mailto:help@example.in'));
+    }
+  } finally {
+    rmSync(dist, { recursive: true, force: true });
   }
 });
