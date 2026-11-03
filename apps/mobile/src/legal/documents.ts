@@ -1,4 +1,5 @@
 import { company, contactLine } from './company';
+import { DISPUTE_ACK_HOURS, DISPUTE_DECIDE_WORKING_DAYS, NOT_ALLOWED, NOT_ALLOWED_ACTION } from './disputePolicy';
 
 export { STAGING_NOTICE } from './stagingNotice';
 
@@ -22,6 +23,8 @@ export type LegalSection = { heading: string; body: LegalBlock[] };
 export type LegalDoc = { title: string; updated: string; intro: string; sections: LegalSection[] };
 
 const UPDATED = '19 October 2026';
+// The Terms changed on their own (disputes and the not-allowed list); the Privacy Policy did not.
+const TERMS_UPDATED = '3 November 2026';
 const who = company.entity;
 // "Acme Pvt Ltd runs TaskDrop", or just "TaskDrop" until the entity is set.
 const named = who !== 'TaskDrop';
@@ -146,7 +149,7 @@ export const PRIVACY: LegalDoc = {
 
 export const TERMS: LegalDoc = {
   title: 'Terms of Service',
-  updated: UPDATED,
+  updated: TERMS_UPDATED,
   intro: `These terms are an agreement between you and ${named ? `${who}, which runs TaskDrop` : 'TaskDrop'}. By creating an account or using TaskDrop you agree to them, to the Privacy Policy, and to the copyright rules on the Copyright page.`,
   sections: [
     {
@@ -171,13 +174,14 @@ export const TERMS: LegalDoc = {
     {
       heading: 'Posts, offers and conduct',
       body: [
-        'Describe jobs and offers honestly, and only post work that is legal and safe. You must not use TaskDrop to:',
+        'Describe jobs and offers honestly, and only post work that is legal and safe. You must not post, offer or ask for:',
+        { list: NOT_ALLOWED },
+        NOT_ALLOWED_ACTION,
+        'You must also not use TaskDrop to:',
         {
           list: [
-            'offer or ask for anything illegal, dangerous, sexual, or that needs a licence you do not have;',
             'harass, threaten, discriminate against or mislead anyone;',
-            'post fake reviews, spam, or someone else’s content without permission;',
-            'take payment for a TaskDrop job outside TaskDrop to avoid fees or our payment protection;',
+            'post spam, or someone else’s content without permission;',
             'interfere with TaskDrop, its security, or other people’s accounts.',
           ],
         },
@@ -196,7 +200,7 @@ export const TERMS: LegalDoc = {
             'Earnings. Released earnings, less the commission, become available after the clearing period shown on How fees work.',
             'Your wallet. Money you add, money you earn and refunds all sit in one balance. You can spend it on jobs or withdraw it to a UPI ID or bank account you have saved, above the minimum shown in the app, with no withdrawal fee. Before your first withdrawal we ask for your full name as on your PAN card, and your PAN. Withdrawals are sent through RazorpayX. We may hold, delay or refuse a withdrawal that looks like fraud or that the law requires us to stop, and adding money and withdrawing can be paused for a while.',
             'Cancelling. If a job is cancelled before work starts, the customer gets their money back the way the app shows when cancelling. If the customer cancels after the worker has started, the worker is paid the cancellation fee for the time they put in, and the rest is refunded.',
-            'Disputes. Either side can open a dispute about a job. TaskDrop looks at the job, its chat and the proof of work, and decides how the held money is split. That decides the held money on TaskDrop; it does not take away any other legal right you have.',
+            `Disputes. Either side can report a problem on a job, and the held money stays held until TaskDrop decides. TaskDrop looks at the job, its chat and the proof of work, and decides who receives the held money: either the worker is paid, or the customer is refunded what they paid for the job. The money is not split. We aim to acknowledge a report within ${DISPUTE_ACK_HOURS} hours and decide within ${DISPUTE_DECIDE_WORKING_DAYS} working days. That decides the held money on TaskDrop; it does not take away any other legal right you have. Reporting a job without a real reason, again and again, may lead us to limit your account.`,
             'Promoting a post. A promotion is paid once, up front, and does not renew. You pay only for the reach that is delivered: what is not delivered, including if you stop early, comes back to your TaskDrop wallet when the promotion ends. Reach figures are estimates.',
             'Taxes. You are responsible for any tax on what you earn through TaskDrop.',
           ],

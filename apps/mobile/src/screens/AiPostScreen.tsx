@@ -27,6 +27,9 @@ import { createTask, getProfile, getWallet, myRegulars, type Regular, type Task 
 import { NO_OPTIONS, PosterOptionsStep, optionsSummary, type PosterOptions } from '../components/PosterOptionsStep';
 import { crewShareMinor, looksLikePlaceQuestion, suggestOptions } from '../lib/posterOptions';
 import { AddFundsSheet } from '../components/AddFundsSheet';
+import { SafetyCardSheet } from '../components/SafetyCardSheet';
+import { markSafetyCardSeen, needsSafetyCard } from '../lib/safetyCard';
+import { NOT_ALLOWED_LINE } from '../legal/disputePolicy';
 import type { TaskMedia } from '../lib/media';
 import { useVoiceInput } from '../lib/speech';
 import { contactIssueMessage, findContactIssue } from '../lib/mask';
@@ -191,6 +194,8 @@ export function AiPostScreen() {
   const [remote, setRemote] = useState(false);
   const [showLoc, setShowLoc] = useState(false);
   const [posting, setPosting] = useState(false);
+  // "Staying safe on a job", once before a person's first in-person post (plan 4.9).
+  const [safetyOpen, setSafetyOpen] = useState(false);
 
   // Auto-hire accepts an offer the moment it arrives, so the money has to be
   // in the wallet already. `walletMinor` is what is there; `topUpMinor` is the
@@ -419,9 +424,13 @@ export function AiPostScreen() {
     };
   }, [mode, topUpMinor]);
 
-  const post = async () => {
+  const post = async (safetySeen = false) => {
     if (!userId) return flash('Sign in to post a task');
     if (posting) return;
+    if (!remote && !safetySeen && (await needsSafetyCard(userId))) {
+      setSafetyOpen(true);
+      return;
+    }
     setPosting(true);
     try {
       if (mode === 'auto') {
@@ -1213,6 +1222,11 @@ export function AiPostScreen() {
           />
           <Pledge icon="shield" text="Nothing is paid now. When you pick someone, TaskDrop holds the money until you approve the work." />
         </View>
+        <Pressable onPress={() => go('support')} accessibilityRole="link" accessibilityLabel={`${NOT_ALLOWED_LINE} See all`} hitSlop={8} style={{ marginTop: 12 }}>
+          <RNText style={tx('400', 12, t.colors.muted, { lineHeight: 17 })}>
+            {NOT_ALLOWED_LINE} <RNText style={tx('700', 12, t.colors.accentDeep)}>See all</RNText>
+          </RNText>
+        </Pressable>
       </>
     );
   }
@@ -1427,6 +1441,17 @@ export function AiPostScreen() {
         )}
         </View>
       </KeyboardSafe>
+
+      <SafetyCardSheet
+        visible={safetyOpen}
+        doneLabel="Got it, post my request"
+        onClose={() => setSafetyOpen(false)}
+        onDone={() => {
+          setSafetyOpen(false);
+          if (userId) void markSafetyCardSeen(userId);
+          void post(true);
+        }}
+      />
 
       <DateTimeSheet
         visible={showDate}
