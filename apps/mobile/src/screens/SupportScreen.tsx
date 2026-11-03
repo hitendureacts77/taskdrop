@@ -8,6 +8,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav, type ScreenName } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { company } from '../legal/company';
+import { SECURITY_REPORT_INTRO, SECURITY_REPORT_PROMISES, SECURITY_REPORT_RULES, SECURITY_REPORT_TITLE, securityReportContact } from '../legal/securityReports';
 import { DISPUTE_POLICY, DISPUTE_POLICY_TITLE, NOT_ALLOWED, NOT_ALLOWED_ACTION, SAFETY_CARD, SAFETY_CARD_TITLE } from '../legal/disputePolicy';
 
 /**
@@ -211,6 +212,25 @@ export function SupportScreen() {
             <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4 })}>Through Help & support in the app.</RNText>
           )}
           {company.address ? <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>{company.address}</RNText> : null}
+        </View>
+
+        <View style={[card, { marginTop: 22, padding: 14 }]}>
+          <RNText style={tx('800', 14, t.colors.ink)}>{SECURITY_REPORT_TITLE}</RNText>
+          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6, lineHeight: 18 })}>{SECURITY_REPORT_INTRO}</RNText>
+          <RNText style={tx('700', 12, t.colors.ink, { marginTop: 10 })}>Please</RNText>
+          {SECURITY_REPORT_RULES.map((x) => (
+            <RNText key={x} style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>• {x}</RNText>
+          ))}
+          <RNText style={tx('700', 12, t.colors.ink, { marginTop: 10 })}>In return</RNText>
+          {SECURITY_REPORT_PROMISES.map((x) => (
+            <RNText key={x} style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>• {x}</RNText>
+          ))}
+          <RNText style={tx('400', 12, t.colors.ink, { marginTop: 10, lineHeight: 18 })}>{securityReportContact(company.email)}</RNText>
+          {company.email ? (
+            <Pressable onPress={() => mail(company.email!)} accessibilityRole="link" hitSlop={8} style={{ marginTop: 6 }}>
+              <RNText style={tx('700', 13, t.colors.accentDeep)}>{company.email}</RNText>
+            </Pressable>
+          ) : null}
         </View>
       </ScrollView>
     </Screen>
