@@ -5,6 +5,8 @@ import { presenceOf } from '../lib/presence';
 import { roughPlace } from '../lib/place';
 import { rupees } from './kit';
 import type { JobPin } from './JobsMap';
+import type { IconName } from './Icon';
+import { categoryIcon } from './WorkCard';
 
 /**
  * A task on the map: its price (as text and in rupees, so an area can show its
@@ -60,18 +62,38 @@ export function ratingOf(w: Pick<NearbyWorker, 'worker_rating_avg' | 'worker_rat
   return w.worker_rating_count > 0 ? Number(w.worker_rating_avg).toFixed(1) : null;
 }
 
-/** A helper on a poster's map: face (photo or initials), first name, main skill and rating, and their area. */
+/** "₹399", "₹1.2k", "₹25k": short enough for a pin's tag. */
+export function shortPrice(minor: number): string {
+  const r = Math.round(minor / 100);
+  if (r < 1000) return '₹' + r;
+  const k = r / 1000;
+  return '₹' + (k >= 10 || Number.isInteger(k) ? Math.round(k) : k.toFixed(1)) + 'k';
+}
+
+/** What a helper offers, in a few words: their newest service, else their main skill. */
+export function offerOf(w: NearbyWorker): { what: string; price: string | null; icon: IconName; more: number } {
+  const s = w.top_service;
+  if (s) return { what: s.title.trim() || mainSkill(w.skills), price: shortPrice(s.price_minor), icon: categoryIcon(s.category), more: Math.max(0, (w.service_count ?? 1) - 1) };
+  return { what: mainSkill(w.skills), price: null, icon: 'wrench', more: 0 };
+}
+
+/**
+ * A helper on a poster's map (plan D13): a service icon, what they offer and
+ * its price, and their area. Never their name, photo or initials: those show
+ * only once the poster taps them.
+ */
 export function personPin(w: NearbyWorker, now: number): JobPin | null {
   if (w.loc_lat == null || w.loc_lng == null) return null;
-  const rating = ratingOf(w);
+  const o = offerOf(w);
   return {
     id: w.id,
     lat: w.loc_lat,
     lng: w.loc_lng,
-    label: rating ? `${mainSkill(w.skills)} ★ ${rating}` : mainSkill(w.skills),
-    name: firstName(w.display_name || w.username),
+    label: o.what,
+    price: o.price,
+    more: o.more,
     area: areaName(w.loc_label),
-    face: { initials: initialsOf(w.display_name || w.username), live: presenceOf(w.last_seen_at, now).online, photo: w.avatar_url },
+    face: { initials: '', live: presenceOf(w.last_seen_at, now).online, icon: o.icon },
   };
 }
 
