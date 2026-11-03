@@ -154,13 +154,16 @@ export function JobsMap({
     if (!moved.current && me) setCentre(me);
   }, [me]);
 
-  // The full map's card rail picks a pin: bring it into the middle, close enough to see it on its own.
+  // The full map's card rail picks a pin: bring it into the middle of the part
+  // left uncovered by the top bar and the rail or sheet, close enough to see it on its own.
   useEffect(() => {
     const hit = focusId ? pins.find((p) => p.id === focusId) : null;
     if (!hit) return;
     moved.current = true;
-    setCentre({ lat: hit.lat, lng: hit.lng });
-    setZoom((z) => Math.max(z, SPREAD_ZOOM));
+    const z = Math.max(zoomRef.current, SPREAD_ZOOM);
+    const p = project(hit.lat, hit.lng, z);
+    setCentre(unproject(p.x, p.y + (fill ? (fill.bottom - fill.top) / 2 : 0), z));
+    setZoom(z);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusId]);
 
