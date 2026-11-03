@@ -6,7 +6,7 @@ The clickable version is `docs/ULTIMATE_PLAN.html`. Open it in Chrome. Your tick
 
 Rethought on 30 October 2026. What changed: the steps now follow the order a product owner would choose (fix what is broken, make it hacker-proof, prove it with testers, get ready to market, build production, launch, grow). Every slow task that waits on other people sits in one "Start now" track. Future ideas sit in a separate **Future scope** section, so they never count against your progress. The accounts for staging and production are drawn as two maps. Security and marketing each have their own section. The previous version is kept unchanged in `docs/archive/2026-10-30-before-rethink/`.
 
-Checked against best practice on 31 October 2026 (see the changelog). New: 2-step sign-in on your accounts (2.1b), money safety limits (2.11), the marketplace numbers (3.3b), a dispute and safety policy (4.9), backups you control and a real restore practice, a production that is safe from its first minute, releases in small slices, and an earlier start for the 14-day tester clock (Gate 2 is now two gates, 2a and 2b). Vercel security check (31 October): a table of what Vercel secures and what stays yours, holes H18 and H19, and a new task 5.8b (spending stop, firewall rule, preview safety). Advice from a WhatsApp group (3 November): a new task 2.13 (a lock and a limit on every server door, a code scanner, the OWASP checklist line by line, a way for security researchers to report, a spending stop on every paid service), holes H22 to H25, and decisions 14 and 15.
+Checked against best practice on 31 October 2026 (see the changelog). New: 2-step sign-in on your accounts (2.1b), money safety limits (2.11), the marketplace numbers (3.3b), a dispute and safety policy (4.9), backups you control and a real restore practice, a production that is safe from its first minute, releases in small slices, and an earlier start for the 14-day tester clock (Gate 2 is now two gates, 2a and 2b). Vercel security check (31 October): a table of what Vercel secures and what stays yours, holes H18 and H19, and a new task 5.8b (spending stop, firewall rule, preview safety). Advice from a WhatsApp group (3 November): a new task 2.13 (a lock and a limit on every server door, a code scanner, the OWASP checklist line by line, a way for security researchers to report, a spending stop on every paid service; then your three rules: one person never reaches another's data, every document private, sign-in sessions that can be ended), holes H22 to H28, and decisions 14 to 16.
 
 ---
 
@@ -324,9 +324,12 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | H21 | Anyone with the public key could create an email account directly at Supabase (`/auth/v1/signup`), skipping TaskDrop's sign-up. **Worse than junk:** an attacker could sign up as `p<someone's phone>@phone.taskdrop.app` with a password they choose. That person's "Create account" then says the number already exists; "Sign in" opens the squatter's account and confirms its email, and the attacker's password then opens it too. Staging has one old probe account made this way (September, a Gmail address, not a phone address) | **High** (raised from Low on 2 Nov after reading `phone-auth`) | **Closed on staging 2 Nov** (PR 191: migration 138 hook switched on, `phone-auth` guard); production in 5.9 |
 | H19 | Vercel Pro does not stop spending by default (it only emails at $200), the production projects have no firewall rules, no limit on admin sign-in tries at the Vercel door, and nothing proves that preview builds hold no production values | Medium | 5.8b |
 | H22 | No written OWASP check. Claude's tests are built on the OWASP lists, but nobody has gone through a checklist line by line and written down the proof, so a missed item would go unnoticed | Medium | 2.13 part C |
-| H23 | No code scanner. Secrets and package warnings are scanned, but nothing reads the code itself for unsafe patterns, and both code folders are public, so an attacker can read it | Medium | 2.13 part B |
+| H23 | No code scanner. Secrets and package warnings are scanned, but nothing reads the code itself for unsafe patterns, and both code folders were public, so an attacker could read it | Medium | 2.13 part B (Semgrep) |
 | H24 | Not every server door has a per-person limit, and nothing stops a new door being added without a lock or a limit. The withdrawal function `razorpayx-payouts` has no limit of its own, and the admin's server routes have none in the code (checked 3 Nov) | Medium | 2.13 part A (the Vercel door for admin sign-in stays in 5.8b) |
-| H25 | A security researcher who finds a hole has no way to tell you: no `security.txt`, no private report button, no rules and no promise that a good-faith report is not treated as an attack | Low today, Medium at launch | 2.13 part D |
+| H25 | A security researcher who finds a hole has no way to tell you: no `security.txt`, no rules and no promise that a good-faith report is not treated as an attack | Low today, Medium at launch | 2.13 part D |
+| H26 | Sign-in sessions cannot be ended properly. "Sign out" only signs out the device in your hand; no one (the person or the admin) can end all of a person's sessions; a password change leaves old devices signed in; an old session token keeps working for up to an hour | Medium (high if a phone is stolen) | 2.13 part I |
+| H27 | Both GitHub code folders (`taskdrop`, `taskdrop-admin`) are public, so this plan with its list of open holes, the security reports and the emergency guide can be read by anyone. No secret is in them (2.5 proves it), but they are a map for an attacker | Medium | 2.13 part H (you make them private) |
+| H28 | No test goes through every `api` action as a second person, so a new action that showed person B's data to person A would pass every check | Medium | 2.13 part G |
 | — | Accepted on purpose: an old Razorpay **test** key in the code history; `get_app_controls` readable signed out; 7 private tables closed to the app | Info | Nothing to do |
 
 **The bugs found (your walkthrough, the phone runs and the break-it pass)**
@@ -878,7 +881,7 @@ approve 1.9
 
 ## STEP 2: Make it hacker-proof (weeks 1 to 3)
 
-**Goal:** nobody can steal your logins, your keys, your users' data or your money, and if someone tries, you hear about it within the hour. This step closes holes H2 to H12, H17 and H20 to H25 from the Security section. H14 (2-step sign-in) is left open for now by your decision.
+**Goal:** nobody can steal your logins, your keys, your users' data or your money, and if someone tries, you hear about it within the hour. This step closes holes H2 to H12, H17 and H20 to H28 from the Security section. H14 (2-step sign-in) is left open for now by your decision.
 
 **Order inside this step:** your own accounts first (2.1 to 2.4, about 4 hours in total), then Claude's work (2.5 to 2.9 and 2.11), then the alarms and the proof (2.10).
 
@@ -898,7 +901,7 @@ approve 1.9
 | 2.9 Security tests, round 2 | Part done | T11 on the Android app (needs the phone); your answer on the account-existence messages |
 | 2.10 Alarms and emergency guide | Part done | Proof 6 (you read the guide); optional second Sentry rule for `fatal` issues |
 | 2.11 Money safety limits | Done | Nothing |
-| 2.13 The WhatsApp advice (added 3 Nov) | Not started | Decisions 14 and 15 answered 3 Nov; say "start 2.13" |
+| 2.13 The WhatsApp advice (added 3 Nov) | Not started | Decisions 14 to 16 answered 3 Nov; say "start 2.13" (parts G to I added the same day) |
 
 **On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
 
@@ -1362,9 +1365,9 @@ sequenceDiagram
 </details>
 
 <details id="t2-13" data-short="Advice check: OWASP + researchers">
-<summary>[BOTH] <b>2.13</b> The WhatsApp advice: a lock and a limit on every door, a code scanner, the OWASP checklist, and a way for security researchers to report <small>· your time: 30 minutes · planned 3 Nov, not started</small></summary>
+<summary>[BOTH] <b>2.13</b> The WhatsApp advice: a lock and a limit on every door, a code scanner, the OWASP checklist, a way for security researchers to report, no one sees another's data, private documents, sessions you can end <small>· your time: 30 minutes · planned 3 Nov, not started</small></summary>
 
-**Why:** on 3 November you shared advice from a WhatsApp group about security, cost and marketing, and asked for a security plan around it. Claude checked each point against the code and this plan. Most of it is already done or planned. Four things are new, holes **H22 to H25**. One fact makes them matter more: both code folders on GitHub (`taskdrop` and `taskdrop-admin`) are **public**, so an attacker can read the same code Claude reads. That is fine as long as no secret is in it (2.5 checks this on every change), but every door and every check must hold on its own.
+**Why:** on 3 November you shared advice from a WhatsApp group about security, cost and marketing, and asked for a security plan around it. Claude checked each point against the code and this plan. Most of it is already done or planned. Four things are new, holes **H22 to H25**. The same day you added three rules of your own (parts G to I, holes **H26 to H28**). One fact made all of it matter more: both code folders on GitHub (`taskdrop` and `taskdrop-admin`) were **public**, so an attacker could read the same code Claude reads. Part H makes them private. Every door and every check must still hold on its own, because what was public may already have been copied.
 
 **The advice, point by point, against TaskDrop (checked 3 Nov 2026):**
 
@@ -1383,22 +1386,25 @@ sequenceDiagram
 
 ```html
 <div class="fig">
-<div class="fig-title">The six parts of 2.13</div>
-<div class="fig-sub">A to D and F are Claude's work on staging. E waits for your decision 15.</div>
+<div class="fig-title">The nine parts of 2.13</div>
+<div class="fig-sub">All are Claude's work on staging, except E (invited testers, decision 15) and the click that makes the code private (H).</div>
 <div class="layers">
 <div class="layer"><span class="ln">A</span><span class="lt"><b>A lock and a limit on every door</b><small>A test lists every server door in both code folders and fails if one has no login check and no limit, unless it is public on purpose. Closes H24</small></span><span class="st no">Not started</span></div>
-<div class="layer"><span class="ln">B</span><span class="lt"><b>A code scanner and a weekly package check</b><small>GitHub CodeQL (free for public code) on every change; npm audit every Monday. Closes H23</small></span><span class="st no">Not started</span></div>
+<div class="layer"><span class="ln">B</span><span class="lt"><b>A code scanner and a weekly package check</b><small>Semgrep with its OWASP rules on every change (free, works on private code); npm audit every Monday. Closes H23</small></span><span class="st no">Not started</span></div>
 <div class="layer"><span class="ln">C</span><span class="lt"><b>The OWASP checklist, line by line</b><small>ASVS level 1, API Top 10, MASVS for Android. Every line: pass with proof, fixed, or a new hole. Closes H22</small></span><span class="st no">Not started</span></div>
-<div class="layer"><span class="ln">D</span><span class="lt"><b>A door for security researchers</b><small>security.txt, a private report button on GitHub, rules and a thank-you list on the Support page. Closes H25</small></span><span class="st no">Not started</span></div>
+<div class="layer"><span class="ln">D</span><span class="lt"><b>A door for security researchers</b><small>security.txt, rules and a thank-you list on the Support page. Closes H25</small></span><span class="st no">Not started</span></div>
 <div class="layer"><span class="ln">E</span><span class="lt"><b>A first outside test</b><small>2 or 3 invited people test staging for a week under part D's rules, before launch</small></span><span class="st no">Decision 15</span></div>
 <div class="layer"><span class="ln">F</span><span class="lt"><b>A spending stop on every paid service</b><small>A hard limit, an alert and a cap per person for each one, checked and written in the table below</small></span><span class="st part">Partly</span></div>
+<div class="layer"><span class="ln">G</span><span class="lt"><b>User A never reaches user B's data</b><small>A two-person test over every api action and every admin role, on every change. Closes H28</small></span><span class="st part">Partly</span></div>
+<div class="layer"><span class="ln">H</span><span class="lt"><b>Every document private</b><small>Users' files only through 1-hour links (tested); both code folders made private. Closes H27</small></span><span class="st part">Partly</span></div>
+<div class="layer"><span class="ln">I</span><span class="lt"><b>Sessions you can end</b><small>Sign out of all devices, automatic sign-out on password change or suspension, an admin button, no hour-long gap. Closes H26</small></span><span class="st no">Not started</span></div>
 </div>
 </div>
 ```
 
 **A. A lock and a limit on every door (closes H24).** Claude adds `scripts/check-endpoints.mjs` to `npm test` in both code folders. It lists every server function in `supabase/functions/` and every server route in the admin app. Each one must be on one of two lists inside the script: **"login and limit"** (the check looks for the shared login check and the shared limiter in its code), or **"public on purpose, and why"** (the two Razorpay webhooks, which check Razorpay's signature; `app-config`, which only reads the admin switches). A new door on neither list fails the tests, so it cannot be merged. Then Claude adds a per-person limit to `razorpayx-payouts` and a per-staff-member limit to the admin's server routes (sign-in per network address), with the same limiter `api` uses. A test proves that the call over the limit is refused with a plain-words message.
 
-**B. A code scanner, and a weekly package check (closes H23).** Today only secrets and package warnings are scanned. Claude turns on **GitHub CodeQL** for JavaScript and TypeScript in both code folders (GitHub's own scanner, free for public code, no new account). It reads every change for unsafe patterns: unchecked input reaching the database, open redirects, cross-site scripting. The `npm audit` gate also runs every Monday, so a new warning on an old package is found even in a week with no pull request. First run: Claude fixes every Critical and High finding; for each Medium or Low one you reply "fix" or "accept" (the same rule as 2.7).
+**B. A code scanner, and a weekly package check (closes H23).** Today only secrets and package warnings are scanned. Claude adds **Semgrep** (open source, free, runs inside GitHub Actions with no account, and works on private code; GitHub's own CodeQL is free only for public code, and part H makes the code private) with its OWASP Top 10 and JavaScript rules to both code folders. It reads every change for unsafe patterns: unchecked input reaching the database, open redirects, cross-site scripting. The `npm audit` gate also runs every Monday, so a new warning on an old package is found even in a week with no pull request. First run: Claude fixes every Critical and High finding; for each Medium or Low one you reply "fix" or "accept" (the same rule as 2.7).
 
 **C. The OWASP checklist, ticked line by line (closes H22).** Claude goes through three lists, on staging only:
 
@@ -1413,7 +1419,7 @@ Every line gets one of three marks: **pass** (with the test or file that proves 
 **D. A door for security researchers (closes H25).** Free, and the way most researchers expect to find:
 
 1. `https://taskdrop.in/.well-known/security.txt` (the standard file, RFC 9116): where to write, a link to the rules, and an expiry date one year out. The monthly security check reminds you a month before it expires.
-2. A `SECURITY.md` file in both code folders, and GitHub's **private vulnerability reporting** turned on, so a researcher can report on GitHub without it being public.
+2. No GitHub report button: it only works on public code folders, and part H makes them private.
 3. A short "Report a security problem" part on the Support page, with the rules: test only with your own test accounts; never touch other people's data; no floods, no SMS sending in bulk, no tricking staff, no attacks on Razorpay, MSG91 or Google; give TaskDrop time to fix before telling anyone. TaskDrop promises a reply within 3 working days, no legal action against a good-faith report that follows the rules, and a name on a thank-you list. No cash reward at first.
 4. The rules go to the lawyer (S.3) with the Terms, because the "no legal action" promise is a legal text.
 
@@ -1431,9 +1437,39 @@ Every line gets one of three marks: **pass** (with the test or file that proves 
 | Inngest, Sentry, PostHog | Claude checks each free limit stops, not bills | Quota emails | Not needed (no person can trigger them directly) | 5.4, 5.6, 5.6b |
 | **Any AI service, if one is ever added** | A monthly limit in the provider's dashboard | Alerts at half and at 90% | A daily cap per person in `api` | **Rule: all three before the feature ships** |
 
+**Added 3 Nov, your three rules: one person never sees another's data, every document private, sessions safe and easy to end.** Checked against the code the same day:
+
+| Your rule | TaskDrop today | New in this task |
+|---|---|---|
+| User A must never reach user B's data | **Mostly.** Row rules on every table; all 113 database functions check the caller and storage refused 13 of 13 tries (2.7); `api` runs every read as the caller. **Gap:** no test goes through every `api` action as a second person, so a new action could leak and nothing would fail (H28) | Part G |
+| Every document private, no public access | **Your users' files: done.** Photos, videos and proofs are private files on ImageKit and in a private storage bucket, shown only through links that stop working after 1 hour. **Gap:** both GitHub code folders are public, so this plan (with its list of open holes), the security reports and the emergency guide can be read by anyone (H27) | Part H |
+| Secure the sign-in sessions, and be able to end them | **Part.** On the phone the session is kept in the encrypted key store; the admin ends a staff session after 30 idle minutes and always after 12 hours; a suspended or deleted person is refused by `api` on every call. **Gap:** "Sign out" only signs out the device in your hand, nobody can end all of a person's sessions, a password change leaves old devices signed in, and an old session token keeps working for up to an hour (H26) | Part I |
+
+**G. User A can never reach user B's data (closes H28).** Claude adds a two-person test to `npm test`. It takes the list of every `api` action (the same list part A uses) and, on staging, signs in as two test people. For every action, person A asks for person B's things: tasks, offers, chats, wallet and payments, withdrawals, notifications, saved items, profile details that are not public (phone number, exact address, UPI), photos and proofs. Each one must be refused, or return only what anyone may see. A new `api` action with no entry in the test fails it, so it cannot be merged. The same test checks that no answer carries B's private fields by accident (for example a phone number inside a task card), and that a private file link asked for by A for B's file is refused. Admin pages get the same check for staff roles: a support agent cannot open what only finance may see.
+
+**H. Every document private, no public access (closes H27).**
+
+1. **Your users' files.** Claude adds a test that a private file opened without a fresh signed link is refused, that a signed link stops working after 1 hour, and that no file is ever uploaded as public (profile pictures included: they are shown through signed links too, or Claude lists any that are public on purpose for you to approve).
+2. **The code folders become private** (your rule, decision 16). Before the switch Claude checks three things and tells you: GitHub Actions minutes (private folders get 2,000 free minutes a month; if last month used more than 1,500, the browser tests run only on merges, not on every pull request), that Vercel and Expo still build from a private folder (they do on your plans; Claude confirms after the switch with one test build each), and that nothing links to a GitHub page in public (the Play listing, Terms and Privacy point at `taskdrop.in`, not GitHub).
+3. Then you click it (step 4 below). Making a folder private does not hide what was already public: anyone may have copied it. That is fine because no secret was ever in it (2.5 and the weekly history scan prove it), but from now on the plan, the security reports and the emergency guide are no longer public.
+4. Because GitHub's free code scanner (CodeQL) and its private report button only work on public folders, part B uses Semgrep and part D uses `security.txt` and the Support page instead.
+
+**I. Safe sign-in sessions, and a way to end them (closes H26).**
+
+| What | In plain words |
+|---|---|
+| "Sign out of all devices" | A new button in Profile → Settings. It ends every session of that person on every phone and browser at once, not only this one |
+| Ended automatically | Every session ends when a person changes their password or phone number, is suspended, or deletes their account. The person who changed their password stays signed in on the device they used |
+| No hour-long gap | `api` remembers when a person's sessions were last ended and refuses any older session token at once, instead of waiting up to an hour for it to run out |
+| Admin button | "Sign out this person everywhere" on the admin's user page, for a stolen phone or a hacked account. Only owner and support roles see it, and it is written to the audit log |
+| Staff sessions | Removing a staff member's role ends their admin session at once. An "end all staff sessions" button (owner only) for an emergency. The 30-minute idle and 12-hour caps stay |
+| Renewal tokens | Staging gets the same settings production gets in 5.2: every renewal token can be used once, and a reused one ends that session (it means the token was copied) |
+| Where the website keeps the session | Claude checks what a script injected into the website could read, and makes sure the content policy (2.6, H9) blocks such scripts before launch |
+| Tests | A signed-out device is refused on its next call; a suspended person's other devices are refused within one call; the admin button works and appears in the audit log |
+
 **Your steps:**
 
-1. Decisions 14 and 15 are answered (3 Nov): the Support address for reports, and free invites for the outside test.
+1. Decisions 14 to 16 are answered (3 Nov): the Support address for reports, free invites for the outside test, and private code folders.
 2. SAY:
 
 ```say
@@ -1441,11 +1477,11 @@ start 2.13
 ```
 
 3. Wait (a few sessions; part C is the longest). For each Medium or Low finding, reply "fix" or "accept".
-4. CLICK: on GitHub, open `taskdrop` → **Settings** → **Security** (or **Code security**) → turn on **Private vulnerability reporting**. Do the same for `taskdrop-admin`. (A settings change, so it is yours.)
+4. CLICK, when Claude says the checks in part H are done: on GitHub, open `taskdrop` → **Settings** → **General** → scroll to **Danger Zone** → **Change visibility** → **Make private**, and confirm. Do the same for `taskdrop-admin`. (A settings change, so it is yours.) TELL Claude when both are private, so Claude can run the test builds.
 5. CLICK: the settings part F says are yours (each row names the page).
 6. TELL Claude: "done 2.13".
 
-**Done when:** merged in both code folders; Claude has shown you the test failing for a door with no lock or limit; CodeQL and the weekly audit run with no open Critical or High finding; `docs/SECURITY_OWASP.md` has every line marked and no Critical or High fail open; `security.txt`, `SECURITY.md` and the Support part are live and private reporting is on; the part F table is filled in. Part E follows by decision 15, before 6.5.
+**Done when:** merged in both code folders; Claude has shown you the test failing for a door with no lock or limit; Semgrep and the weekly audit run with no open Critical or High finding; `docs/SECURITY_OWASP.md` has every line marked and no Critical or High fail open; `security.txt` and the Support part are live; the part F table is filled in; the two-person test covers every `api` action and passes (G); both code folders are private and the website, admin and app still build (H); "Sign out of all devices", the automatic sign-outs and the admin button are shown working on staging (I). Part E follows by decision 15, before 6.5.
 </details>
 
 > **GATE 2b: do not start Step 5 (production) until all of these are true**
@@ -1453,7 +1489,7 @@ start 2.13
 - [ ] Gate 2a has passed
 - [ ] Tasks 2.1 to 2.13 are ticked (2.13 part E may follow, by decision 15, before 6.5)
 - [ ] The six proofs in task 2.10 are all true
-- [ ] Holes H2 to H10, H12, H17 and H22 to H25 are closed (H3 closes in 3.9 for staging and is never open in production; H11 closes in 5.2; H1, H15 and H16 in 5.9)
+- [ ] Holes H2 to H10, H12, H17 and H22 to H28 are closed (H3 closes in 3.9 for staging and is never open in production; H11 closes in 5.2; H1, H15 and H16 in 5.9)
 - [ ] No Critical or High security problem is open
 
 ---
@@ -3256,8 +3292,9 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 11 | **Business email for production accounts.** Make the production accounts (Step 5) with a business address such as `ops@taskdrop.in` instead of your Gmail? | **Decided by you, 2026-10-31.** Keep the Gmail. No business email, because it costs more. Done | Nothing to say |
 | 12 | **New-account limits** (task 2.11) | ₹5,000 per task and ₹5,000 of withdrawals per day, until an account is 30 days old and has 3 finished tasks. You can change them later in the admin | "Decision 12: use the recommended limits." |
 | 13 | **Who times the emails** (task 4.10). Let Loops run the sequences itself in its own builder, or let Inngest decide when each email goes and use Loops only to send? | **Decided by you, 2026-11-02.** Loops runs the sequences in its own builder; Inngest only passes events and contacts to it. This makes Loops the one exception to the "Inngest only" rule, for email sequences only. Done | Nothing to say |
-| 14 | **Where security reports go** (task 2.13 part D). `security.txt` and the Support page must name an address that is public and that you read | **Decided by you, 2026-11-03.** Use the contact the Support page already shows, so there is no new mailbox and no new cost (decision 11). GitHub's private report button is used as well. Done | Nothing to say |
+| 14 | **Where security reports go** (task 2.13 part D). `security.txt` and the Support page must name an address that is public and that you read | **Decided by you, 2026-11-03.** Use the contact the Support page already shows, so there is no new mailbox and no new cost (decision 11). (GitHub's report button was dropped the same day: it needs public code folders, see decision 16.) Done | Nothing to say |
 | 15 | **A first outside test before launch** (task 2.13 part E). Invite 2 or 3 people to test staging for a week for free, pay for a small test now, or wait for F.13? | **Decided by you, 2026-11-03.** Invite 2 or 3 people for free now; the paid review stays in F.13, before a second city. Done | Nothing to say |
+| 16 | **Make both GitHub code folders private** (task 2.13 part H) | **Decided by you, 2026-11-03** ("keep all the documents private, no public access"). Private. The code scanner becomes Semgrep and the GitHub report button is dropped, because both need public folders to be free. You click the switch after Claude's checks. Done | Nothing to say |
 
 ---
 
@@ -3370,14 +3407,14 @@ Put a monthly reminder in your phone's calendar. Then:
    - Vercel: team **hitenduteam** → **Settings** → **Activity** (or **Audit log**)
    - Supabase, Razorpay, Expo, Sentry: open account or organization settings and look for **Audit log**, **Activity** or **Security**
 2. CLICK: on each billing page (Google Cloud, Supabase, Vercel, ImageKit, MSG91, Razorpay), check for usage you did not expect.
-3. CLICK: on each code page on GitHub (`taskdrop` and `taskdrop-admin`) → **Security** → **Secret scanning**. There should be **0 open alerts**.
+3. CLICK: on each code page on GitHub (`taskdrop` and `taskdrop-admin`) → **Actions** → the weekly **secret-scan** run (gitleaks) should be green, and both folders should still say **Private** next to their name.
 4. SAY the text below. Claude compares a fingerprint of each server secret with last month's (never the values themselves) and tells you if anything changed that you did not change. Claude also checks that last night's database copy exists, that the safety alarm is quiet, and that the encrypted backup of `.env.all-secrets` on your USB stick is less than a month old (you tell Claude its date) and that the file is still outside OneDrive and Git (paths only, never values; the one-file rule from 2.1).
 
 ```say
 Run the monthly secrets check.
 ```
 
-5. CLICK: on GitHub, `taskdrop` and `taskdrop-admin` → **Security** → **Advisories** (private reports) and **Code scanning** (CodeQL, from 2.13). Answer any new report within 3 working days. In the month before the date in `security.txt` runs out, SAY "renew security.txt".
+5. CLICK: open the inbox of the Support address and answer any security report within 3 working days. On GitHub → **Actions**, the Monday audit and Semgrep runs (from 2.13) should be green. In the month before the date in `security.txt` runs out, SAY "renew security.txt".
 
 6. Every 3 months: SAY "practise a restore of production" (the same practice as 6.5), so you know the copies still work.
 
@@ -3668,6 +3705,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-03 (your three rules added to 2.13):** You added: user A must not reach user B's data, keep all documents private with no public access, and secure the sign-in sessions and be able to end them. Checked in the code: users' files were already private (private ImageKit files, private bucket, 1-hour links); the phone keeps the session in the encrypted key store; suspended and deleted people are refused by `api`. **New:** parts G (two-person test over every `api` action and admin role), H (file privacy tests, and both GitHub code folders made private: decision 16), I (sign out of all devices, automatic sign-out on password or phone change and suspension, an admin button, staff sessions, no hour-long gap), holes H26 to H28, Gate 2b and the monthly check updated. Because private code folders lose GitHub's free CodeQL and report button, part B now uses Semgrep and part D uses `security.txt` and the Support page. Nothing is built yet
 - **2026-11-03 (decisions 14 and 15):** You chose the recommended answers: security reports go to the contact the Support page already shows (plus GitHub's private report button), and the first outside test is 2 or 3 free invited testers on staging before launch; the paid review stays in F.13. Next: "start 2.13"
 - **2026-11-03 (security plan from the WhatsApp advice, 2.13):** You shared advice from a WhatsApp group (keys only on the server, a login and a limit on every endpoint, a dependency check, the OWASP checklist, pentests by security researchers; AI spend limits; launching in communities and Reddit, reaching out to people with the problem) and asked for a security plan around it. Claude checked each point against the code: keys, login checks, the package check, Reddit and outreach were already done or planned. **New:** task 2.13 with six parts (A: a test that every server door has a lock and a limit, and limits for `razorpayx-payouts` and the admin's routes; B: GitHub CodeQL and a weekly `npm audit`; C: OWASP ASVS level 1, API Top 10 and MASVS line by line in `docs/SECURITY_OWASP.md`; D: `security.txt`, `SECURITY.md`, GitHub private reporting and rules on the Support page; E: a first outside test, decision 15; F: a spending stop, an alert and a cap per person for every paid service, and the rule for any future AI feature), holes H22 to H25, decisions 14 and 15, Gate 2b updated, a new step in the monthly security check, and Tolvyn in Skipped on purpose (TaskDrop calls no AI service). Found on the way: both GitHub code folders are public. Nothing is built yet
 - **2026-11-03 (helpers map shows services, D13):** You asked that posters see the helpers around them on the Explore map with the service each one offers in short, with no names on the map: only after tapping a helper should their name, profile and service cards show, so a poster can trust there are real helpers nearby. **Drawn and approved the same day** (6 screens and a motion board), then **built:** row D13. Names still travel to the app with the map data (the existing `workersNear` answer may not change shape), so they are hidden on screen, not from a determined person reading the network. **Not checked:** the Google map in the installed Android build, the phone. **OTA:** you said "Yes, publish OTA"; published on channel beta (runtime 1.1.0) from 7175cf0, update group f25514e7, Android update 01a1a121, Sentry map debug id 2595b855. Follow-up PR 208: a tapped pin stays above the sheet on the web map, and the service price is never cut off.
