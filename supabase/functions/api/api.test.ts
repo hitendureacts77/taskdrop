@@ -11,7 +11,7 @@ import { MAX_BATCH, OPS, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, r
 import {
   ControlsCache, featureOffMessage, OPEN_CONFIG, parseControls, publicConfig, readClient, refusalFor, type Controls,
 } from "../_shared/controls.ts";
-import { StandingCache, callerFromClaims, standingOf } from "./core.ts";
+import { StandingCache, callerFromClaims, cutoffOf, endedBefore, standingOf, tokenFacts } from "./core.ts";
 import { MAX_BODY_BYTES, REQUEST_ID_HEADER, readBody, requestIdFrom, withGatewayHeaders } from "./http.ts";
 import {
   IN_PROGRESS, KEY_REUSED, OUTCOME_UNKNOWN, REPEAT_KEY_HEADER, type RepeatStore, repeatKeyFrom, requestHash, runOnce, stableJson as repeatStableJson,
@@ -947,9 +947,64 @@ await t("api/index.ts refuses a suspended or deleted caller with the sign-in-aga
   assert.match(src.slice(refusal, refusal + 400), /UNAUTHENTICATED", 401/);
 });
 
+/** A service-role stand-in for the one profile lookup behind the session cutoff. */
+function cutoffDb(row: { sessions_revoked_at?: string | null; sessions_keep_session?: string | null } | null, fail = false) {
+  const q: unknown = new Proxy(function () {}, {
+    get(_t, name) {
+      if (name === "then") return (res: (v: unknown) => unknown) => Promise.resolve({ data: row, error: fail ? { message: "db down" } : null }).then(res);
+      return () => q;
+    },
+  });
+  return { from: () => q };
+}
+
+await t("a token issued before the person's sessions were ended is refused; the kept session and newer tokens pass", async () => {
+  const at = "2026-11-03T10:00:00.000Z";
+  const sec = Date.parse(at) / 1000;
+  const cut = await cutoffOf(cutoffDb({ sessions_revoked_at: at, sessions_keep_session: "keep-1" }), UID);
+  assert.deepEqual(cut, { revokedAtSec: sec, keepSession: "keep-1" });
+  assert.equal(endedBefore(cut, { iat: sec - 600, sessionId: "old" }), true, "an old token from another device is refused");
+  assert.equal(endedBefore(cut, { iat: sec - 600, sessionId: "keep-1" }), false, "the device that changed the password stays in");
+  assert.equal(endedBefore(cut, { iat: sec + 5, sessionId: "new" }), false, "signing in again after works");
+  assert.equal(endedBefore(cut, { iat: null, sessionId: null }), true, "a token with no issue time cannot be shown to be newer");
+  const all = await cutoffOf(cutoffDb({ sessions_revoked_at: at, sessions_keep_session: null }), UID);
+  assert.equal(endedBefore(all, { iat: sec - 1, sessionId: "any" }), true, "sign out of all devices keeps none");
+  assert.equal(endedBefore(await cutoffOf(cutoffDb({ sessions_revoked_at: null }), UID), { iat: 1, sessionId: "x" }), false, "nobody ended anything");
+  assert.equal(endedBefore(null, { iat: 1, sessionId: "x" }), false, "unreadable lets the call through, like standing");
+  assert.equal(await cutoffOf(cutoffDb(null, true), UID), null, "unreadable is not a verdict");
+});
+
+await t("the token's issue time and session are read from the signed claims, and only when the check succeeded", () => {
+  assert.deepEqual(tokenFacts({ data: { claims: { iat: 1700000000, session_id: "s-1" } }, error: null }), { iat: 1700000000, sessionId: "s-1" });
+  assert.deepEqual(tokenFacts({ data: { claims: { iat: "1700000000" } }, error: null }), { iat: null, sessionId: null }, "a string is not a time");
+  assert.deepEqual(tokenFacts({ data: null, error: new Error("bad") }), { iat: null, sessionId: null });
+  assert.deepEqual(tokenFacts(null), { iat: null, sessionId: null });
+});
+
+await t("api/index.ts refuses an ended session with the sign-in-again 401, before any operation runs", () => {
+  const src = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+  assert.ok(src.includes("cutoffCache.get(userId, () => cutoffOf(admin, userId))"));
+  const refusal = src.indexOf("endedBefore(sessionCutoff, token)");
+  const run = src.indexOf("const running =");
+  assert.ok(refusal > 0 && run > refusal, "the refusal comes before the operation starts");
+  assert.match(src.slice(refusal, refusal + 400), /UNAUTHENTICATED", 401/);
+});
+
+await t("endMySessions asks the database to end all sessions or all but this one, says how many, and counts as a write", async () => {
+  const f = fake(() => ({ data: 3, error: null }));
+  assert.deepEqual(await runOp("endMySessions", { all: true }, ctx(f)), { ok: true, data: { ended: 3 } });
+  assert.deepEqual(f.calls.at(-1)?.args, { p_all: true });
+  assert.equal(f.calls.at(-1)?.rpc, "end_my_sessions");
+  await runOp("endMySessions", {}, ctx(f));
+  assert.deepEqual(f.calls.at(-1)?.args, { p_all: false });
+  const bad = await runOp("endMySessions", { all: "yes" }, ctx(f));
+  assert.ok(!bad.ok && bad.error.code === "BAD_ARGS");
+  assert.equal(rateBucket("endMySessions"), "write");
+});
+
 await t("api/index.ts checks the token with getClaims and asks the auth service only while the phone switch is on", () => {
   const src = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
-  assert.match(src, /callerFromClaims\(await db\.auth\.getClaims\(jwt\)\.catch\(\(\) => null\)\)/);
+  assert.match(src, /const claimsResult = await db\.auth\.getClaims\(jwt\)\.catch\(\(\) => null\);\s*const userId = callerFromClaims\(claimsResult\)/);
   assert.equal((src.match(/auth\.getUser\(/g) ?? []).length, 1, "one getUser, and only for the phone check");
   assert.match(src, /if \(controls\?\.require_phone_verified\) \{\s*const \{ data: userData, error: userErr \} = await db\.auth\.getUser\(jwt\)/);
 });

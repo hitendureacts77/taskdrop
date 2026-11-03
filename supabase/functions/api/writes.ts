@@ -539,6 +539,17 @@ export const WRITE_OPS: Record<string, Op> = {
     return { deleted: true };
   },
 
+  /**
+   * End the caller's sessions (migration 142). { all: true } ends every one including this device ("Sign out of all
+   * devices"); { all: false } keeps this device (after a password change). The cutoff is written in the same step, so
+   * the other devices' tokens stop working on their next call.
+   */
+  endMySessions: async (ctx, a) => {
+    const all = bool(a, "all");
+    const ended = take<number>(await ctx.db.rpc("end_my_sessions", { p_all: all }));
+    return { ended: Number(ended ?? 0) };
+  },
+
   registerPushToken: async (ctx, a) => {
     take(await ctx.db.rpc("register_push_token", {
       p_token: str(a, "token", 300),

@@ -17,6 +17,7 @@ import { KeyboardScrollView } from '../components/KeyboardScrollView';
 import {
   accountDeletionCheck,
   deleteMyAccount,
+  endMySessions,
   type DeletionBlocker,
   setPassword,
   updateProfileExtras,
@@ -46,6 +47,8 @@ export function AccountScreen() {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [confirmSignOutAll, setConfirmSignOutAll] = useState(false);
+  const [signingOutAll, setSigningOutAll] = useState(false);
   const [free, setFree] = useState<boolean | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [pw, setPw] = useState('');
@@ -125,7 +128,11 @@ export function AccountScreen() {
       await setPassword(pw);
       setPw('');
       setPw2('');
-      celebrate('Password set');
+      // A new password should end every other sign-in: a phone that was lost or borrowed stops working.
+      // This device stays signed in. If the server cannot be reached the password is still set; say so.
+      const others = await endMySessions(false).then(() => true, () => false);
+      celebrate(others ? 'Password set. Other devices were signed out' : 'Password set');
+      if (!others) flash('Your other devices could not be signed out just now. Use “Sign out of all devices” below to do it.');
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not set the password');
     } finally {
@@ -262,6 +269,15 @@ export function AccountScreen() {
               <Icon name="logout" size={18} color={t.colors.signal} />
               <RNText style={tx('700', 14, t.colors.signal)}>Sign out on this device</RNText>
             </Pressable>
+            <Pressable
+              onPress={() => setConfirmSignOutAll(true)}
+              accessibilityRole="button"
+              accessibilityHint="Signs you out on every phone and browser"
+              style={{ ...card, flexDirection: 'row', alignItems: 'center', gap: 10 }}
+            >
+              <Icon name="logout" size={18} color={t.colors.signal} />
+              <RNText style={tx('700', 14, t.colors.signal)}>Sign out of all devices</RNText>
+            </Pressable>
             <View style={card}>
               <RNText style={tx('800', 15, t.colors.ink)}>Delete account</RNText>
               <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
@@ -396,6 +412,27 @@ export function AccountScreen() {
         onConfirm={() => {
           setConfirmSignOut(false);
           void signOut().finally(() => reset('splash'));
+        }}
+      />
+      <ConfirmDialog
+        visible={confirmSignOutAll}
+        danger
+        busy={signingOutAll}
+        icon="logout"
+        title="Sign out of all devices?"
+        message="Every phone and browser signed in to your account is signed out, including this one. Use this if a phone is lost or someone else has used your account. Your tasks and wallet stay safe."
+        confirmLabel="Sign out everywhere"
+        cancelLabel="Stay signed in"
+        onCancel={() => setConfirmSignOutAll(false)}
+        onConfirm={() => {
+          setSigningOutAll(true);
+          void endMySessions(true)
+            .then(() => signOut().finally(() => reset('splash')))
+            .catch((e) => flash(e instanceof Error ? e.message : 'Could not sign you out everywhere. Try again.'))
+            .finally(() => {
+              setSigningOutAll(false);
+              setConfirmSignOutAll(false);
+            });
         }}
       />
       <ConfirmDialog
