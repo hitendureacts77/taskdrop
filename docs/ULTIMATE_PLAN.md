@@ -6,7 +6,7 @@ The clickable version is `docs/ULTIMATE_PLAN.html`. Open it in Chrome. Your tick
 
 Rethought on 30 October 2026. What changed: the steps now follow the order a product owner would choose (fix what is broken, make it hacker-proof, prove it with testers, get ready to market, build production, launch, grow). Every slow task that waits on other people sits in one "Start now" track. Future ideas sit in a separate **Future scope** section, so they never count against your progress. The accounts for staging and production are drawn as two maps. Security and marketing each have their own section. The previous version is kept unchanged in `docs/archive/2026-10-30-before-rethink/`.
 
-Checked against best practice on 31 October 2026 (see the changelog). New: 2-step sign-in on your accounts (2.1b), money safety limits (2.11), the marketplace numbers (3.3b), a dispute and safety policy (4.9), backups you control and a real restore practice, a production that is safe from its first minute, releases in small slices, and an earlier start for the 14-day tester clock (Gate 2 is now two gates, 2a and 2b). Vercel security check (31 October): a table of what Vercel secures and what stays yours, holes H18 and H19, and a new task 5.8b (spending stop, firewall rule, preview safety).
+Checked against best practice on 31 October 2026 (see the changelog). New: 2-step sign-in on your accounts (2.1b), money safety limits (2.11), the marketplace numbers (3.3b), a dispute and safety policy (4.9), backups you control and a real restore practice, a production that is safe from its first minute, releases in small slices, and an earlier start for the 14-day tester clock (Gate 2 is now two gates, 2a and 2b). Vercel security check (31 October): a table of what Vercel secures and what stays yours, holes H18 and H19, and a new task 5.8b (spending stop, firewall rule, preview safety). Advice from a WhatsApp group (3 November): a new task 2.13 (a lock and a limit on every server door, a code scanner, the OWASP checklist line by line, a way for security researchers to report, a spending stop on every paid service), holes H22 to H25, and decisions 14 and 15.
 
 ---
 
@@ -276,14 +276,14 @@ Everything here is **new and separate** and is made in Step 5. Nothing is copied
 <div class="layers">
 <div class="layer"><span class="ln">L1</span><span class="lt"><b>Stop leaks</b><small>A scanner blocks keys before they reach GitHub; secrets hidden from logs; a test fails if a secret reaches the app. Tasks 2.5, 2.6</small></span><span class="st part">Scanning on, rest in 2.5</span></div>
 <div class="layer"><span class="ln">L2</span><span class="lt"><b>Guard the places keys live</b><small>One secrets file with an encrypted backup, 2-step sign-in on every important account, keystore out of OneDrive, device encryption, Sensitive settings. Tasks 2.1, 2.3 (2-step sign-in 2.1b deferred, passkeys F.1: future scope)</small></span><span class="st no">Not started</span></div>
-<div class="layer"><span class="ln">L3</span><span class="lt"><b>Lock the doors</b><small>Every database function checks who is calling; CORS, limits, SMS caps; direct database access closed; test shortcuts off in production. Tasks 2.6 to 2.9, 3.9, 5.9</small></span><span class="st part">Partly</span></div>
+<div class="layer"><span class="ln">L3</span><span class="lt"><b>Lock the doors</b><small>Every database function checks who is calling; CORS, limits, SMS caps; direct database access closed; test shortcuts off in production; a test that every server door has a lock and a limit, a code scanner, the OWASP checklist. Tasks 2.6 to 2.9, 2.13, 3.9, 5.9</small></span><span class="st part">Partly</span></div>
 <div class="layer"><span class="ln">L4</span><span class="lt"><b>Notice fast</b><small>Budget alerts, Sentry spike alerts, the decoy key, the monthly check. Tasks 2.2, 2.10, 7.4</small></span><span class="st part">Partly</span></div>
 <div class="layer"><span class="ln">L5</span><span class="lt"><b>Recover fast</b><small>Key emergency guide, rollback rehearsal, a nightly database copy outside Supabase, one real restore. Tasks 2.10, 3.7, 5.9, 6.5</small></span><span class="st no">Not started</span></div>
 </div>
 </div>
 ```
 
-**The holes found (checked by Claude on 30 October 2026, on staging; H15 to H17 added on 31 October from the best-practices check; H18 and H19 added on 31 October from the Vercel security check; H20 and H21 added on 2 November from Supabase's rate-limit guide)**
+**The holes found (checked by Claude on 30 October 2026, on staging; H15 to H17 added on 31 October from the best-practices check; H18 and H19 added on 31 October from the Vercel security check; H20 and H21 added on 2 November from Supabase's rate-limit guide; H22 to H25 added on 3 November from the WhatsApp advice, task 2.13)**
 
 Sources: Supabase's own security check on the staging database (rerun on 31 October: the same 113 functions, the same signed-out `get_app_controls`, the same 7 private tables and leaked-password protection off, so nothing new), `npm audit` on both code folders, the break-it pass of 25 October, and a read of both `vercel.json` files, the admin's `next.config.mjs` and `middleware.ts`, and the Edge Functions' CORS settings.
 
@@ -323,6 +323,10 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | H20 | Supabase has its own sign-in speed limits (Authentication → Rate Limits), counted per network address. Username sign-in goes through the server function `password-auth`, so Supabase sees **every** username sign-in coming from one server address: all users share one limit of 150 a 5 minutes, and one attacker could use it up for everyone. Many Indian mobile users also share one address (carrier NAT). The limits have never been set on purpose, and the app shows a vague error when they hit | Medium (high once many people sign in at launch) | **Closed on staging 2 Nov** (2.8b); production in 5.9 |
 | H21 | Anyone with the public key could create an email account directly at Supabase (`/auth/v1/signup`), skipping TaskDrop's sign-up. **Worse than junk:** an attacker could sign up as `p<someone's phone>@phone.taskdrop.app` with a password they choose. That person's "Create account" then says the number already exists; "Sign in" opens the squatter's account and confirms its email, and the attacker's password then opens it too. Staging has one old probe account made this way (September, a Gmail address, not a phone address) | **High** (raised from Low on 2 Nov after reading `phone-auth`) | **Closed on staging 2 Nov** (PR 191: migration 138 hook switched on, `phone-auth` guard); production in 5.9 |
 | H19 | Vercel Pro does not stop spending by default (it only emails at $200), the production projects have no firewall rules, no limit on admin sign-in tries at the Vercel door, and nothing proves that preview builds hold no production values | Medium | 5.8b |
+| H22 | No written OWASP check. Claude's tests are built on the OWASP lists, but nobody has gone through a checklist line by line and written down the proof, so a missed item would go unnoticed | Medium | 2.13 part C |
+| H23 | No code scanner. Secrets and package warnings are scanned, but nothing reads the code itself for unsafe patterns, and both code folders are public, so an attacker can read it | Medium | 2.13 part B |
+| H24 | Not every server door has a per-person limit, and nothing stops a new door being added without a lock or a limit. The withdrawal function `razorpayx-payouts` has no limit of its own, and the admin's server routes have none in the code (checked 3 Nov) | Medium | 2.13 part A (the Vercel door for admin sign-in stays in 5.8b) |
+| H25 | A security researcher who finds a hole has no way to tell you: no `security.txt`, no private report button, no rules and no promise that a good-faith report is not treated as an attack | Low today, Medium at launch | 2.13 part D |
 | — | Accepted on purpose: an old Razorpay **test** key in the code history; `get_app_controls` readable signed out; 7 private tables closed to the app | Info | Nothing to do |
 
 **The bugs found (your walkthrough, the phone runs and the break-it pass)**
@@ -874,7 +878,7 @@ approve 1.9
 
 ## STEP 2: Make it hacker-proof (weeks 1 to 3)
 
-**Goal:** nobody can steal your logins, your keys, your users' data or your money, and if someone tries, you hear about it within the hour. This step closes holes H2 to H12, H17, H20 and H21 from the Security section. H14 (2-step sign-in) is left open for now by your decision.
+**Goal:** nobody can steal your logins, your keys, your users' data or your money, and if someone tries, you hear about it within the hour. This step closes holes H2 to H12, H17 and H20 to H25 from the Security section. H14 (2-step sign-in) is left open for now by your decision.
 
 **Order inside this step:** your own accounts first (2.1 to 2.4, about 4 hours in total), then Claude's work (2.5 to 2.9 and 2.11), then the alarms and the proof (2.10).
 
@@ -894,6 +898,7 @@ approve 1.9
 | 2.9 Security tests, round 2 | Part done | T11 on the Android app (needs the phone); your answer on the account-existence messages |
 | 2.10 Alarms and emergency guide | Part done | Proof 6 (you read the guide); optional second Sentry rule for `fatal` issues |
 | 2.11 Money safety limits | Done | Nothing |
+| 2.13 The WhatsApp advice (added 3 Nov) | Not started | Decisions 14 and 15, then "start 2.13" |
 
 **On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
 
@@ -1356,12 +1361,99 @@ sequenceDiagram
 **Done when:** merged into `redesigned-2.0`, `npm run check` passes with both new checks, and the `api` function is deployed by the staging build.
 </details>
 
+<details id="t2-13" data-short="Advice check: OWASP + researchers">
+<summary>[BOTH] <b>2.13</b> The WhatsApp advice: a lock and a limit on every door, a code scanner, the OWASP checklist, and a way for security researchers to report <small>· your time: 30 minutes · planned 3 Nov, not started</small></summary>
+
+**Why:** on 3 November you shared advice from a WhatsApp group about security, cost and marketing, and asked for a security plan around it. Claude checked each point against the code and this plan. Most of it is already done or planned. Four things are new, holes **H22 to H25**. One fact makes them matter more: both code folders on GitHub (`taskdrop` and `taskdrop-admin`) are **public**, so an attacker can read the same code Claude reads. That is fine as long as no secret is in it (2.5 checks this on every change), but every door and every check must hold on its own.
+
+**The advice, point by point, against TaskDrop (checked 3 Nov 2026):**
+
+| The advice | TaskDrop today | New in this task |
+|---|---|---|
+| Keep API keys only on the server, never in the app or website | **Done.** Rule 8; a scanner on every change and once a week over the whole history; a test fails if a secret reaches the app or the website (2.5, 2.10 proof 2) | Nothing |
+| A login check on every endpoint | **Done.** All 113 database functions check the caller (2.7); `api` checks the login on every call (2.12); payments, place search and sign-in check the caller; the two Razorpay webhooks check Razorpay's signature instead | Part A: a test, so a new door can never be added without a lock |
+| A rate limit on every endpoint | **Mostly.** `api` allows 300 reads, 60 writes and 20 uploads a minute per person; sign-in and SMS have their own limits (2.8, 2.8b). **Gap:** the withdrawal function `razorpayx-payouts` has no limit of its own, and the admin's server routes have none in the code (H24) | Part A |
+| Run a dependency check | **Done.** `npm audit` gate on every pull request, Dependabot alerts, and the lockfile check (2.6, 2.12) | Part B: also once a week with no pull request, and a code scanner, which nothing runs today (H23) |
+| Use the OWASP checklist | **Part.** Claude's tests are built on the OWASP lists, but nobody has gone through a checklist line by line and written down the proof (H22) | Part C |
+| Get security researchers to run pentests | **Future scope** (F.13, a paid review before a second city). A researcher who finds a hole today has no way to tell you, and no promise that a good-faith report is not treated as an attack (H25) | Part D now (free); part E, a first outside test before launch, is your decision 15 |
+| If the app calls AI services: a monthly spend limit, a cap per user, alerts | **TaskDrop calls no AI service** (checked in the code 3 Nov). The same three things apply to every paid service: SMS, maps, servers | Part F, plus a rule for any AI feature added later |
+| Use the advisor's own product (Tolvyn) for AI cost limits | Not needed: it only meters AI calls, and TaskDrop makes none | Listed in **Skipped on purpose** |
+| Launch in communities like that group, and Reddit | **Already planned:** the city subreddit and WhatsApp groups by hand at launch (4.8, 6.7), r/IndianStartups for building in public (Marketing playbook) | Nothing |
+| Find people who have the problem and reach out to them | **Already planned:** 2 or 3 helpful replies a day to real "need help" and "looking for work" posts (7.3), 20+ workers lined up one by one (4.6), the 9-to-1 help-first rule | Nothing |
+
+```html
+<div class="fig">
+<div class="fig-title">The six parts of 2.13</div>
+<div class="fig-sub">A to D and F are Claude's work on staging. E waits for your decision 15.</div>
+<div class="layers">
+<div class="layer"><span class="ln">A</span><span class="lt"><b>A lock and a limit on every door</b><small>A test lists every server door in both code folders and fails if one has no login check and no limit, unless it is public on purpose. Closes H24</small></span><span class="st no">Not started</span></div>
+<div class="layer"><span class="ln">B</span><span class="lt"><b>A code scanner and a weekly package check</b><small>GitHub CodeQL (free for public code) on every change; npm audit every Monday. Closes H23</small></span><span class="st no">Not started</span></div>
+<div class="layer"><span class="ln">C</span><span class="lt"><b>The OWASP checklist, line by line</b><small>ASVS level 1, API Top 10, MASVS for Android. Every line: pass with proof, fixed, or a new hole. Closes H22</small></span><span class="st no">Not started</span></div>
+<div class="layer"><span class="ln">D</span><span class="lt"><b>A door for security researchers</b><small>security.txt, a private report button on GitHub, rules and a thank-you list on the Support page. Closes H25</small></span><span class="st no">Not started</span></div>
+<div class="layer"><span class="ln">E</span><span class="lt"><b>A first outside test</b><small>2 or 3 invited people test staging for a week under part D's rules, before launch</small></span><span class="st no">Decision 15</span></div>
+<div class="layer"><span class="ln">F</span><span class="lt"><b>A spending stop on every paid service</b><small>A hard limit, an alert and a cap per person for each one, checked and written in the table below</small></span><span class="st part">Partly</span></div>
+</div>
+</div>
+```
+
+**A. A lock and a limit on every door (closes H24).** Claude adds `scripts/check-endpoints.mjs` to `npm test` in both code folders. It lists every server function in `supabase/functions/` and every server route in the admin app. Each one must be on one of two lists inside the script: **"login and limit"** (the check looks for the shared login check and the shared limiter in its code), or **"public on purpose, and why"** (the two Razorpay webhooks, which check Razorpay's signature; `app-config`, which only reads the admin switches). A new door on neither list fails the tests, so it cannot be merged. Then Claude adds a per-person limit to `razorpayx-payouts` and a per-staff-member limit to the admin's server routes (sign-in per network address), with the same limiter `api` uses. A test proves that the call over the limit is refused with a plain-words message.
+
+**B. A code scanner, and a weekly package check (closes H23).** Today only secrets and package warnings are scanned. Claude turns on **GitHub CodeQL** for JavaScript and TypeScript in both code folders (GitHub's own scanner, free for public code, no new account). It reads every change for unsafe patterns: unchecked input reaching the database, open redirects, cross-site scripting. The `npm audit` gate also runs every Monday, so a new warning on an old package is found even in a week with no pull request. First run: Claude fixes every Critical and High finding; for each Medium or Low one you reply "fix" or "accept" (the same rule as 2.7).
+
+**C. The OWASP checklist, ticked line by line (closes H22).** Claude goes through three lists, on staging only:
+
+| List | What it covers |
+|---|---|
+| OWASP ASVS, level 1 | The website, the admin and the server: sign-in, sessions, who may do what, input checks, errors and logs, files, settings |
+| OWASP API Security Top 10 (2023) | `api` and the other server functions: someone else's rows, broken sign-in, too much data in an answer, no limits, admin actions, unsafe use of other companies' answers |
+| OWASP MASVS | The Android app: what it stores on the phone, its network safety, what a copied or changed app can do |
+
+Every line gets one of three marks: **pass** (with the test or file that proves it), **fail** (fixed in this task, or written as a new hole H26 onwards with the task that closes it), or **does not apply** (with the reason). Every line that can be tested gets a test in the existing security tests, so it runs again on every change. The result goes in `docs/SECURITY_OWASP.md`, beside `docs/SECURITY_ROUND1.md`.
+
+**D. A door for security researchers (closes H25).** Free, and the way most researchers expect to find:
+
+1. `https://taskdrop.in/.well-known/security.txt` (the standard file, RFC 9116): where to write, a link to the rules, and an expiry date one year out. The monthly security check reminds you a month before it expires.
+2. A `SECURITY.md` file in both code folders, and GitHub's **private vulnerability reporting** turned on, so a researcher can report on GitHub without it being public.
+3. A short "Report a security problem" part on the Support page, with the rules: test only with your own test accounts; never touch other people's data; no floods, no SMS sending in bulk, no tricking staff, no attacks on Razorpay, MSG91 or Google; give TaskDrop time to fix before telling anyone. TaskDrop promises a reply within 3 working days, no legal action against a good-faith report that follows the rules, and a name on a thank-you list. No cash reward at first.
+4. The rules go to the lawyer (S.3) with the Terms, because the "no legal action" promise is a legal text.
+
+**E. A first outside test before launch (your decision 15).** Recommended: the free way first. You invite 2 or 3 people who know security (from that WhatsApp group, a college security club, or a researcher you trust) to test staging for one week under part D's rules, with their own test accounts and fake money only. Every finding goes through the same fix or accept rule. A paid outside review stays in F.13 (before a second city). If you prefer to pay now, Claude collects 2 or 3 written quotes for a small test of staging first; nothing is paid without your yes. Part E needs part D live first, and must be finished before the go / no-go (6.5).
+
+**F. A spending stop on every paid service, and a cap per person.** Claude checks each row on the live dashboards (reading only; the clicks that change a setting are yours) and writes what it found here:
+
+| Service | Hard stop or cap | Alert | Cap per person | Where it is set |
+|---|---|---|---|---|
+| Google Places search | 1,000 searches a day (set 22 Oct) | Budget `taskdrop-monthly-100` (2.2) | Claude checks the per-person limit in `places-search` (part A) | 2.2 |
+| MSG91 (SMS codes) | A daily SMS cap | Low-balance email | Code limits per phone number and per network address (2.8) | S.6, 2.8 |
+| Vercel | Spending stop (Pro) | Usage emails (2.2) | A firewall speed rule | 5.8b |
+| Supabase | Claude checks the spend cap is on (production) | Billing email (2.2) | `api` limits per person | 5.2 |
+| ImageKit | Claude checks what happens at the free limit | Usage emails (2.2) | 20 uploads a minute per person | 2.2, 5.5 |
+| Inngest, Sentry, PostHog | Claude checks each free limit stops, not bills | Quota emails | Not needed (no person can trigger them directly) | 5.4, 5.6, 5.6b |
+| **Any AI service, if one is ever added** | A monthly limit in the provider's dashboard | Alerts at half and at 90% | A daily cap per person in `api` | **Rule: all three before the feature ships** |
+
+**Your steps:**
+
+1. Answer decisions 14 and 15 (the security contact address, and the outside test).
+2. SAY:
+
+```say
+start 2.13
+```
+
+3. Wait (a few sessions; part C is the longest). For each Medium or Low finding, reply "fix" or "accept".
+4. CLICK: on GitHub, open `taskdrop` → **Settings** → **Security** (or **Code security**) → turn on **Private vulnerability reporting**. Do the same for `taskdrop-admin`. (A settings change, so it is yours.)
+5. CLICK: the settings part F says are yours (each row names the page).
+6. TELL Claude: "done 2.13".
+
+**Done when:** merged in both code folders; Claude has shown you the test failing for a door with no lock or limit; CodeQL and the weekly audit run with no open Critical or High finding; `docs/SECURITY_OWASP.md` has every line marked and no Critical or High fail open; `security.txt`, `SECURITY.md` and the Support part are live and private reporting is on; the part F table is filled in. Part E follows by decision 15, before 6.5.
+</details>
+
 > **GATE 2b: do not start Step 5 (production) until all of these are true**
 
 - [ ] Gate 2a has passed
-- [ ] Tasks 2.1 to 2.12 are ticked
+- [ ] Tasks 2.1 to 2.13 are ticked (2.13 part E may follow, by decision 15, before 6.5)
 - [ ] The six proofs in task 2.10 are all true
-- [ ] Holes H2 to H10, H12 and H17 are closed (H3 closes in 3.9 for staging and is never open in production; H11 closes in 5.2; H1, H15 and H16 in 5.9)
+- [ ] Holes H2 to H10, H12, H17 and H22 to H25 are closed (H3 closes in 3.9 for staging and is never open in production; H11 closes in 5.2; H1, H15 and H16 in 5.9)
 - [ ] No Critical or High security problem is open
 
 ---
@@ -2964,6 +3056,8 @@ These are recorded so nothing is lost. **None of them is needed to launch, and n
 **What it is:** a paid security expert (or an automated attack tool such as PentAGI, run on a separate computer against staging only) tries to break TaskDrop. Claude's tests in Step 2 cover the common holes; an outside person finds what an inside view misses.
 
 **Start when:** before a second city, or when real money volume grows.
+
+**Earlier and smaller:** 2.13 already gives researchers a way to report (part D), and part E (decision 15) lets 2 or 3 invited people test staging before launch. F.13 is the full paid review on top of that.
 </details>
 
 <details id="tF-14" data-short="More growth experiments">
@@ -3162,6 +3256,8 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 11 | **Business email for production accounts.** Make the production accounts (Step 5) with a business address such as `ops@taskdrop.in` instead of your Gmail? | **Decided by you, 2026-10-31.** Keep the Gmail. No business email, because it costs more. Done | Nothing to say |
 | 12 | **New-account limits** (task 2.11) | ₹5,000 per task and ₹5,000 of withdrawals per day, until an account is 30 days old and has 3 finished tasks. You can change them later in the admin | "Decision 12: use the recommended limits." |
 | 13 | **Who times the emails** (task 4.10). Let Loops run the sequences itself in its own builder, or let Inngest decide when each email goes and use Loops only to send? | **Decided by you, 2026-11-02.** Loops runs the sequences in its own builder; Inngest only passes events and contacts to it. This makes Loops the one exception to the "Inngest only" rule, for email sequences only. Done | Nothing to say |
+| 14 | **Where security reports go** (task 2.13 part D). `security.txt` and the Support page must name an address that is public and that you read | Use the contact the Support page already shows, so there is no new mailbox and no new cost (decision 11). GitHub's private report button is used as well | "Decision 14: use the Support address." |
+| 15 | **A first outside test before launch** (task 2.13 part E). Invite 2 or 3 people to test staging for a week for free, pay for a small test now, or wait for F.13? | Invite 2 or 3 people for free now; the paid review stays in F.13, before a second city | "Decision 15: free invites now." |
 
 ---
 
@@ -3281,9 +3377,11 @@ Put a monthly reminder in your phone's calendar. Then:
 Run the monthly secrets check.
 ```
 
-5. Every 3 months: SAY "practise a restore of production" (the same practice as 6.5), so you know the copies still work.
+5. CLICK: on GitHub, `taskdrop` and `taskdrop-admin` → **Security** → **Advisories** (private reports) and **Code scanning** (CodeQL, from 2.13). Answer any new report within 3 working days. In the month before the date in `security.txt` runs out, SAY "renew security.txt".
 
-6. If anything looks wrong, use the "If something goes wrong" card.
+6. Every 3 months: SAY "practise a restore of production" (the same practice as 6.5), so you know the copies still work.
+
+7. If anything looks wrong, use the "If something goes wrong" card.
 
 </details>
 
@@ -3537,6 +3635,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 | Dodo Payments | Built for selling digital products, not for paying a local worker |
 | A Chrome extension | Nothing shows it would bring users |
 | Automated attack robots (PentAGI) | Fix what the test checklist finds first |
+| Tolvyn (AI cost limits, suggested in the WhatsApp advice, 3 Nov) | It only meters calls to AI services, and TaskDrop makes none. If an AI feature is ever added, the rule in 2.13 part F applies first (a provider limit, alerts, a cap per person) |
 | Posting tools, AI video tools, plugin packs, design galleries, courses | They add work, not users. Post by hand; real people on camera beat AI |
 | Buying more tools | What you have is enough |
 | Extra restrictions on staging's Google keys (website limit on the Firebase browser key) | Staging is a test copy with fake money. Production's keys are restricted at creation (5.3, Gate 5) |
@@ -3569,6 +3668,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-03 (security plan from the WhatsApp advice, 2.13):** You shared advice from a WhatsApp group (keys only on the server, a login and a limit on every endpoint, a dependency check, the OWASP checklist, pentests by security researchers; AI spend limits; launching in communities and Reddit, reaching out to people with the problem) and asked for a security plan around it. Claude checked each point against the code: keys, login checks, the package check, Reddit and outreach were already done or planned. **New:** task 2.13 with six parts (A: a test that every server door has a lock and a limit, and limits for `razorpayx-payouts` and the admin's routes; B: GitHub CodeQL and a weekly `npm audit`; C: OWASP ASVS level 1, API Top 10 and MASVS line by line in `docs/SECURITY_OWASP.md`; D: `security.txt`, `SECURITY.md`, GitHub private reporting and rules on the Support page; E: a first outside test, decision 15; F: a spending stop, an alert and a cap per person for every paid service, and the rule for any future AI feature), holes H22 to H25, decisions 14 and 15, Gate 2b updated, a new step in the monthly security check, and Tolvyn in Skipped on purpose (TaskDrop calls no AI service). Found on the way: both GitHub code folders are public. Nothing is built yet
 - **2026-11-03 (helpers map shows services, D13):** You asked that posters see the helpers around them on the Explore map with the service each one offers in short, with no names on the map: only after tapping a helper should their name, profile and service cards show, so a poster can trust there are real helpers nearby. **Drawn and approved the same day** (6 screens and a motion board), then **built:** row D13. Names still travel to the app with the map data (the existing `workersNear` answer may not change shape), so they are hidden on screen, not from a determined person reading the network. **Not checked:** the Google map in the installed Android build, the phone. **OTA:** you said "Yes, publish OTA"; published on channel beta (runtime 1.1.0) from 7175cf0, update group f25514e7, Android update 01a1a121, Sentry map debug id 2595b855. Follow-up PR 208: a tapped pin stays above the sheet on the web map, and the service price is never cut off.
 - **2026-11-03 (1.10 desktop, phone and Android layouts):** You showed the "Work near you" map squeezed into a strip on a desktop browser and asked for every screen to fit desktop, phone browser and Android. Claude checked 37 screens at 390, 820, 1440 and 1920 wide and added task 1.10 with five fixes, then built them: the full map fills the page beside the menu and no longer draws outside itself (L1); My Work, My offers, Saved and My services show 2 or 3 cards per row (L2); Profile and Search use the reading width (L3); feeds grow to 1,360 on big monitors (L4); form buttons sit under the form on desktop (L5). The phone browser and the Android app are unchanged. **Also:** your Chrome tab was zoomed out; Ctrl + 0 resets it. **Open:** your look on the staging website and "done 1.10".
 - **2026-11-03 (4.9 built):** You answered "Use my defaults" to the five dispute-policy questions, so Claude built 4.9 the recommended way: all-or-nothing (Terms reworded from "split" to "decides who receives the held money"), 24-hour acknowledgement and 3-working-day decision as aims, the not-allowed list in the Terms, Support and the last posting step, the new report-sheet line, and the 4-line safety card once before a first in-person job. No share button (Safety Shield, Live Track and Start Code stay rejected). No server code changed. Open: the lawyer (S.3) and your "done 4.9".
