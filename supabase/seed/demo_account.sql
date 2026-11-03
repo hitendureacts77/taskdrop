@@ -310,4 +310,26 @@ begin
      and n.title like '%"' || t.title || '"%';
 end $$;
 
+-- The rows above were written with triggers off (replica), so the location
+-- rounding from migration 074 did not run. Do it here, the same way: keep the
+-- exact spot privately, publish the rounded area (plan task 2.14, finding B15).
+-- It must run with triggers off, as here: with them on, the 074 trigger would
+-- copy the rounded value over the exact one.
+insert into public.task_private (task_id, loc_lat, loc_lng)
+select id, loc_lat, loc_lng from public.tasks
+ where loc_lat is not null and loc_lng is not null
+   and (loc_lat <> round(loc_lat::numeric, 2)::double precision or loc_lng <> round(loc_lng::numeric, 2)::double precision)
+on conflict (task_id) do nothing;
+update public.tasks
+   set loc_lat = round(loc_lat::numeric, 2)::double precision, loc_lng = round(loc_lng::numeric, 2)::double precision
+ where loc_lat <> round(loc_lat::numeric, 2)::double precision or loc_lng <> round(loc_lng::numeric, 2)::double precision;
+insert into public.profile_private (user_id, loc_lat, loc_lng)
+select id, loc_lat, loc_lng from public.profiles
+ where loc_lat is not null and loc_lng is not null
+   and (loc_lat <> round(loc_lat::numeric, 2)::double precision or loc_lng <> round(loc_lng::numeric, 2)::double precision)
+on conflict (user_id) do nothing;
+update public.profiles
+   set loc_lat = round(loc_lat::numeric, 2)::double precision, loc_lng = round(loc_lng::numeric, 2)::double precision
+ where loc_lat <> round(loc_lat::numeric, 2)::double precision or loc_lng <> round(loc_lng::numeric, 2)::double precision;
+
 commit;
