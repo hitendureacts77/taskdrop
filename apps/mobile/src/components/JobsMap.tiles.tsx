@@ -414,11 +414,35 @@ export function JobsMap({
         </View>
       </View>
 
-      <View pointerEvents="none" style={{ position: 'absolute', left: 8, bottom: 8 + padBottom, right: 96, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.bg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}>
-        <Icon name="lock" size={12} color={people ? t.colors.purpleDeep : t.colors.accentDeep} />
-        <RNText style={tx('600', 11, t.colors.text, { flexShrink: 1 })} numberOfLines={2}>
-          {words.privacy}
-        </RNText>
+      {/* The pill hugs its words: stretched across a wide map it read as a black bar. */}
+      <View pointerEvents="none" style={{ position: 'absolute', left: 10, bottom: 10 + padBottom, right: 96, flexDirection: 'row' }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 7,
+            flexShrink: 1,
+            backgroundColor: t.colors.bg,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: t.colors.line,
+            paddingLeft: 6,
+            paddingRight: 12,
+            paddingVertical: 5,
+            shadowColor: '#000',
+            shadowOpacity: 0.12,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 2 },
+            elevation: 2,
+          }}
+        >
+          <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: people ? t.colors.purpleSoft : t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="lock" size={11} color={people ? t.colors.purpleDeep : t.colors.accentDeep} />
+          </View>
+          <RNText style={tx('600', 11, t.colors.text, { flexShrink: 1 })} numberOfLines={2}>
+            {words.privacy}
+          </RNText>
+        </View>
       </View>
 
       {/* OpenStreetMap's licence requires this credit to stay visible. */}
