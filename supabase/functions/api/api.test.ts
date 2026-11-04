@@ -7,6 +7,9 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { GUEST_OPS, NEEDS_ACCOUNT, NEEDS_ACCOUNT_CODE, guestAddress, guestRateKey, isGuestOp, isGuestToken, runGuestBatch, runGuestOp } from "./guest.ts";
+import { WRITE_OPS } from "./writes.ts";
+import { MEDIA_OPS } from "./media.ts";
 import { MAX_BATCH, OPS, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp, spendRate } from "./ops.ts";
 import {
   ControlsCache, featureOffMessage, OPEN_CONFIG, parseControls, publicConfig, readClient, refusalFor, type Controls,
@@ -1496,6 +1499,266 @@ await t("the app's key and the server's agree on what a usable key is", () => {
   assert.equal(repeatKeyFrom(new Headers({ [REPEAT_KEY_HEADER]: fallback })), fallback);
   const sql = readFileSync(new URL("../../migrations/20261102160000_139_api_repeat_keys.sql", import.meta.url), "utf8");
   assert.ok(sql.includes("^[A-Za-z0-9_-]{16,64}$"), "the table checks the same shape");
+});
+
+// ------------------------------------------------------------- guest mode --
+
+const [G1, G2, G3] = [
+  "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+  "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2",
+  "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3",
+];
+const HELPER1 = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1";
+const HELPER2 = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2";
+const HELPER3 = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3";
+const HERE = { lat: 12.97, lng: 77.59 };
+
+/** What guest_open_posts hands back: the far one comes first on purpose, so sorting has to happen. */
+const guestPosts = () => [
+  { id: G3, poster_id: HELPER3, title: "Far", loc_lat: 28.6, loc_lng: 77.2, poster: { id: HELPER3, name: "Far Poster" } },
+  { id: G2, poster_id: HELPER2, title: "Mid", loc_lat: 13.0, loc_lng: 77.62, poster: { id: HELPER2, name: "Mid Poster" } },
+  { id: G1, poster_id: HELPER1, title: "Near", loc_lat: 12.971, loc_lng: 77.591, poster: { id: HELPER1, name: "Near Poster" }, benchmark_minor: 500, category: "x" },
+];
+
+const SHARED_RPCS = new Set([
+  "trending_categories", "platform_highlights", "top_earners", "public_profile_stats", "ad_auction",
+]);
+
+/** A fake whose guest SQL functions answer sensibly; `media` is what guest_public_media lets through. */
+function guestFake(media: (paths: string[]) => string[] = (p) => p) {
+  return fake((c) => {
+    if (c.rpc === "guest_open_posts") {
+      const a = c.args as { p_ids: string[] | null };
+      return { data: guestPosts().filter((p) => !a.p_ids || a.p_ids.includes(p.id)), error: null };
+    }
+    if (c.rpc === "guest_helpers") {
+      return {
+        data: [
+          { id: HELPER3, loc_lat: 28.6, loc_lng: 77.2, skills: ["a"], last_seen_at: "2026-10-05T09:50:00Z" },
+          { id: HELPER2, loc_lat: 13.0, loc_lng: 77.62, skills: ["a"], last_seen_at: "2026-10-05T09:59:00Z" },
+          { id: HELPER1, loc_lat: 12.971, loc_lng: 77.591, skills: [], last_seen_at: "2026-10-05T09:00:00Z" },
+        ],
+        error: null,
+      };
+    }
+    if (c.rpc === "guest_profile") return { data: { id: HELPER1, name: "Near Poster" }, error: null };
+    if (c.rpc === "guest_bid_counts") return { data: { [G1]: 2 }, error: null };
+    if (c.rpc === "guest_public_media") return { data: media((c.args as { p_paths: string[] }).p_paths), error: null };
+    return { data: [], error: null };
+  });
+}
+
+/** Plausible arguments for each op a guest may run. */
+const GUEST_ARGS: Record<string, Record<string, unknown>> = {
+  trendingCategories: {}, platformHighlights: {}, topEarners: { kind: "top_rated" },
+  platformFees: {}, publicProfileStats: { userId: HELPER1 },
+  adAuctionRanks: {},
+  listOpenTasks: {}, searchTasks: { q: "clean", near: { ...HERE, radiusKm: 10 } }, searchTasksWithPosters: { q: "clean" },
+  attachPosters: { taskIds: [G1, G2] }, getTask: { taskId: G1 }, getTaskDetail: { taskId: G1 },
+  countBidsByTask: { taskIds: [G1] }, getPosterStats: { posterId: HELPER1 }, recommendedTasks: { skills: ["clean"] },
+  remoteTasks: {}, tasksNear: { ...HERE, radiusKm: 10 }, urgentTasks: {}, workerServices: { userId: HELPER1 },
+  workersNear: { ...HERE, radiusKm: 10 }, listActiveWorkers: {}, getProfile: { userId: HELPER1 },
+  listReviewsAbout: { userId: HELPER1, role: "worker" }, signMedia: { paths: ["a/1.jpg"] },
+};
+
+/** The names inside `export const NAME ... new Set([ ... ])` of the app's guest.ts. */
+function appSet(name: string): Set<string> {
+  const src = readFileSync(new URL("../../../apps/mobile/src/lib/guest.ts", import.meta.url), "utf8");
+  const m = src.match(new RegExp(`export const ${name}\\b[^=]*=\\s*new Set\\(\\[([\\s\\S]*?)\\]\\)`));
+  assert.ok(m, `${name} not found in apps/mobile/src/lib/guest.ts`);
+  return new Set([...m[1].matchAll(/'([A-Za-z]+)'/g)].map((x) => x[1]));
+}
+
+await t("guest: the app's list of guest reads is the server's list", () => {
+  const app = appSet("GUEST_OPS");
+  const server = Object.keys(GUEST_OPS);
+  assert.ok(server.length > 20);
+  assert.deepEqual([...app].sort(), [...server].sort());
+  for (const name of server) assert.ok(isGuestOp(name), name);
+  for (const name of ["constructor", "__proto__", "toString", "createTask", 5, null]) assert.equal(isGuestOp(name), false, String(name));
+});
+
+await t("guest: the app's account and quiet write lists are exactly the server's writes, with no overlap", () => {
+  const account = appSet("ACCOUNT_WRITES");
+  const quiet = appSet("QUIET_WRITES");
+  for (const n of account) assert.ok(!quiet.has(n), `${n} is in both lists`);
+  const serverWrites = [
+    ...Object.keys(WRITE_OPS),
+    ...Object.keys(MEDIA_OPS).filter((n) => rateBucket(n) !== "read"),
+  ];
+  assert.deepEqual([...new Set([...account, ...quiet])].sort(), [...new Set(serverWrites)].sort());
+  for (const n of [...account, ...quiet]) assert.equal(isGuestOp(n), false, `${n} is a write but guests may run it`);
+});
+
+await t("guest: every guest operation is a read on the server", () => {
+  for (const name of Object.keys(GUEST_OPS)) {
+    assert.equal(rateBucket(name), "read", name);
+    assert.ok(!Object.prototype.hasOwnProperty.call(WRITE_OPS, name), `${name} is a write op`);
+  }
+  assert.deepEqual(Object.keys(GUEST_ARGS).sort(), Object.keys(GUEST_OPS).sort(), "this test lacks arguments for an op");
+});
+
+await t("guest: a write or an unknown name answers NEEDS_ACCOUNT and never touches the database", async () => {
+  for (const name of ["createTask", "placeBid", "requestWithdrawal", "sendMessage", "deleteMyAccount", "nope", "constructor", "__proto__", "", null, 7]) {
+    const f = guestFake();
+    const r = await runGuestOp(name, { taskId: G1 }, ctx(f));
+    assert.equal(r.ok, false, String(name));
+    if (!r.ok) {
+      assert.equal(r.error.code, NEEDS_ACCOUNT_CODE);
+      assert.equal(r.error.message, NEEDS_ACCOUNT);
+    }
+    assert.equal(f.calls.length, 0, `${String(name)} reached the database`);
+    assert.equal(f.storageCalls.length, 0);
+  }
+  assert.equal(NEEDS_ACCOUNT_CODE, "NEEDS_ACCOUNT");
+});
+
+await t("guest: reads only use guest_ functions, the shared public functions and the fee settings", async () => {
+  for (const name of Object.keys(GUEST_OPS)) {
+    const f = guestFake();
+    const r = await runGuestOp(name, GUEST_ARGS[name], ctx(f, { userId: undefined }));
+    assert.ok(r.ok, `${name}: ${JSON.stringify(r)}`);
+    assert.ok(f.calls.length > 0 || name === "signMedia", `${name} made no call`);
+    for (const c of f.calls) {
+      if (c.rpc) assert.ok(c.rpc.startsWith("guest_") || SHARED_RPCS.has(c.rpc), `${name} called rpc ${c.rpc}`);
+      else {
+        assert.equal(c.table, "settings", `${name} read table ${c.table}`);
+        assert.equal(name, "platformFees", `${name} read settings`);
+      }
+    }
+  }
+  // Nothing in the module can reach the private tables, by name.
+  const src = readFileSync(new URL("./guest.ts", import.meta.url), "utf8");
+  for (const table of ["tasks", "profiles", "task_private", "assignments", "bids"]) {
+    assert.ok(!src.includes(`from("${table}")`), `guest.ts reads ${table}`);
+  }
+});
+
+await t("guest: the task page has no address, no hired helper and no poster inside the task", async () => {
+  const f = guestFake();
+  const r = await runGuestOp("getTaskDetail", { taskId: G1 }, ctx(f));
+  assert.ok(r.ok);
+  const d = (r as { data: { task: Record<string, unknown>; address: unknown; assignment: unknown; worker: unknown; poster: { id: string } } }).data;
+  assert.equal(d.address, null);
+  assert.equal(d.assignment, null);
+  assert.equal(d.worker, null);
+  assert.equal(d.poster.id, HELPER1);
+  assert.equal(d.task.id, G1);
+  assert.ok(!("poster" in d.task), "poster must be stripped from the task object");
+  const gone = await runGuestOp("getTaskDetail", { taskId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc" }, ctx(f));
+  assert.deepEqual(gone, { ok: true, data: null });
+  const badId = await runGuestOp("getTaskDetail", { taskId: "x" }, ctx(f));
+  assert.ok(!badId.ok && badId.error.code === "BAD_ARGS");
+});
+
+await t("guest: attachPosters keeps the asked order and drops ids that were not returned", async () => {
+  const f = guestFake();
+  const missing = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const r = await runGuestOp("attachPosters", { taskIds: [G1, missing, G3, G2] }, ctx(f));
+  assert.ok(r.ok);
+  const list = (r as { data: { id: string; poster: unknown }[] }).data;
+  assert.deepEqual(list.map((p) => p.id), [G1, G3, G2]);
+  assert.ok(list.every((p) => p.poster));
+  assert.deepEqual(await runGuestOp("attachPosters", { taskIds: [] }, ctx(f)), { ok: true, data: [] });
+});
+
+await t("guest: tasksNear and workersNear keep only what is in range, nearest first", async () => {
+  const f = guestFake();
+  const r = await runGuestOp("tasksNear", { ...HERE, radiusKm: 10, limit: 10 }, ctx(f));
+  assert.ok(r.ok);
+  const tasks = (r as { data: { id: string; km: number }[] }).data;
+  assert.deepEqual(tasks.map((x) => x.id), [G1, G2]);
+  assert.ok(tasks[0].km < tasks[1].km && tasks[1].km <= 10);
+  const tight = await runGuestOp("tasksNear", { ...HERE, radiusKm: 1 }, ctx(f));
+  assert.deepEqual((tight as { data: { id: string }[] }).data.map((x) => x.id), [G1]);
+  const capped = await runGuestOp("tasksNear", { ...HERE, radiusKm: 10000, limit: 2 }, ctx(f));
+  assert.deepEqual((capped as { data: { id: string }[] }).data.map((x) => x.id), [G1, G2]);
+
+  const w = await runGuestOp("workersNear", { ...HERE, radiusKm: 10 }, ctx(f));
+  assert.ok(w.ok);
+  const near = (w as { data: { id: string; km: number; top_service: { id: string } | null; service_count: number }[] }).data;
+  assert.deepEqual(near.map((x) => x.id), [HELPER1, HELPER2]);
+  assert.ok(near[0].km < near[1].km);
+  assert.equal(near[0].service_count, 1);
+  assert.equal(near[0].top_service?.id, G1);
+});
+
+await t("guest: signMedia signs only the pictures guest_public_media allows", async () => {
+  const f = guestFake((p) => p.filter((x) => x !== "private/2.jpg"));
+  const r = await runGuestOp("signMedia", { paths: ["pub/1.jpg", "private/2.jpg", "pub/3.jpg", "pub/1.jpg"] }, ctx(f));
+  assert.ok(r.ok);
+  const ask = f.calls.find((c) => c.rpc === "guest_public_media")!;
+  assert.deepEqual((ask.args as { p_paths: string[] }).p_paths, ["pub/1.jpg", "private/2.jpg", "pub/3.jpg"]);
+  assert.equal(f.storageCalls.length, 1);
+  assert.deepEqual(steps(f.storageCalls[0], "createSignedUrls")[0][0], ["pub/1.jpg", "pub/3.jpg"]);
+  assert.deepEqual(Object.keys((r as { data: Record<string, string> }).data).sort(), ["pub/1.jpg", "pub/3.jpg"]);
+
+  const none = guestFake(() => []);
+  assert.deepEqual(await runGuestOp("signMedia", { paths: ["private/2.jpg"] }, ctx(none)), { ok: true, data: {} });
+  assert.equal(none.storageCalls.length, 0, "nothing allowed means nothing signed");
+  const empty = guestFake();
+  assert.deepEqual(await runGuestOp("signMedia", { paths: [] }, ctx(empty)), { ok: true, data: {} });
+  assert.equal(empty.calls.length, 0);
+  const bad = await runGuestOp("signMedia", { paths: "a" }, ctx(empty));
+  assert.ok(!bad.ok && bad.error.code === "BAD_ARGS");
+});
+
+await t("guest: a batch runs each read and answers NEEDS_ACCOUNT for a write inside it", async () => {
+  const f = guestFake();
+  const r = await runGuestBatch({ calls: [{ op: "getTask", args: { taskId: G1 } }, { op: "placeBid", args: { taskId: G1 } }, { op: "platformHighlights" }] }, ctx(f));
+  assert.ok(r.ok);
+  const out = (r as { data: { ok: boolean; error?: { code: string } }[] }).data;
+  assert.equal(out.length, 3);
+  assert.equal(out[0].ok, true);
+  assert.equal(out[1].ok, false);
+  assert.equal(out[1].error?.code, NEEDS_ACCOUNT_CODE);
+  assert.equal(out[2].ok, true);
+  assert.ok(!f.calls.some((c) => c.table), "the write reached a table");
+  const tooMany = await runGuestBatch({ calls: Array.from({ length: MAX_BATCH + 1 }, () => ({ op: "platformHighlights" })) }, ctx(guestFake()));
+  assert.ok(!tooMany.ok && tooMany.error.code === "BAD_ARGS");
+  const junk = await runGuestBatch({ calls: "x" }, ctx(guestFake()));
+  assert.ok(!junk.ok);
+});
+
+await t("guest: the rate key looks like a lowercase uuid, is stable, differs per address and hides the address", async () => {
+  const shape = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/;
+  const a = await guestRateKey("203.0.113.7");
+  assert.match(a, shape);
+  assert.equal(await guestRateKey("203.0.113.7"), a);
+  const b = await guestRateKey("203.0.113.8");
+  assert.match(b, shape);
+  assert.notEqual(a, b);
+  assert.ok(!a.includes("203"), "the address must not appear");
+  assert.equal(await guestRateKey(""), await guestRateKey(""));
+  assert.match(await guestRateKey(""), shape);
+  assert.equal(guestAddress(new Headers({ "cf-connecting-ip": " 1.2.3.4 ", "x-forwarded-for": "9.9.9.9" })), "1.2.3.4");
+  assert.equal(guestAddress(new Headers({ "x-forwarded-for": "5.6.7.8, 9.9.9.9" })), "5.6.7.8");
+  assert.equal(guestAddress(new Headers()), "");
+});
+
+await t("guest: only the public key with no person behind it is a guest token", () => {
+  assert.equal(isGuestToken("anon-key", "anon-key", null), true);
+  assert.equal(isGuestToken("other", "anon-key", { data: { claims: { role: "anon" } }, error: null }), true);
+  assert.equal(isGuestToken("other", "anon-key", { data: { claims: { role: "anon", sub: UID } }, error: null }), false);
+  assert.equal(isGuestToken("other", "anon-key", { data: { claims: { role: "authenticated", sub: UID } }, error: null }), false);
+  assert.equal(isGuestToken("other", "anon-key", { data: null, error: new Error("bad") }), false);
+  assert.equal(isGuestToken("other", "anon-key", { data: { claims: { role: "anon" } }, error: new Error("bad") }), false);
+  assert.equal(isGuestToken("", "", null), false, "an empty token is never the anon key");
+  assert.equal(isGuestToken("x", "anon-key", null), false);
+});
+
+await t("guest: the admin panel's maintenance and update switches also stop a guest's reads", async () => {
+  for (const patch of [{ maintenance: true, maintenance_message: "Back at 6pm" }, { update_required: true, min_version: "2.0.0" }]) {
+    const f = guestFake();
+    const r = await runGuestOp("listOpenTasks", {}, ctx(f, { controls: controlsWith(patch) }));
+    assert.ok(!r.ok);
+    if (!r.ok) assert.ok(["MAINTENANCE", "UPDATE_REQUIRED"].includes(r.error.code));
+    assert.equal(f.calls.length, 0);
+  }
+  const ok = await runGuestOp("listOpenTasks", {}, ctx(guestFake(), { controls: controlsWith() }));
+  assert.ok(ok.ok);
+  const unreadable = await runGuestOp("listOpenTasks", {}, ctx(guestFake(), { controls: null }));
+  assert.ok(unreadable.ok, "unreadable switches never refuse");
 });
 
 console.log(`\n${passed} passed`);

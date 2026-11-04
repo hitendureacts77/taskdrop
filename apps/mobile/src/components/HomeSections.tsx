@@ -29,6 +29,7 @@ import {
   type TrendingCategory,
 } from '../data/extras';
 import { useVoiceInput } from '../lib/speech';
+import { listGuestSaves, setGuestSaved } from '../lib/guestSaves';
 import { TEMPLATES } from '../lib/taskBrief';
 import { levelFor } from '../lib/levels';
 import { taskToFeedRow } from '../lib/openTask';
@@ -95,7 +96,7 @@ function PostTop() {
   const wideHero = desktop;
   const { go } = useNav();
   const { flash } = useActions();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
   const [active, setActive] = useState<Task[] | null>(null);
   const [trending, setTrending] = useState<TrendingCategory[]>([]);
   const [howOpen, setHowOpen] = useState(false);
@@ -113,7 +114,11 @@ function PostTop() {
 
   const loadTop = useCallback(
     async (alive: () => boolean) => {
-      if (!userId) return;
+      if (!userId) {
+        // A guest sees what is trending; nothing of theirs to load.
+        if (guest) await trendingCategories(5).then((r) => alive() && setTrending(r.filter((c) => c.open_count > 0))).catch(() => {});
+        return;
+      }
       await Promise.all([
         getProfile(userId)
           .then((p) => {
@@ -134,7 +139,7 @@ function PostTop() {
           .catch(() => {}),
       ]);
     },
-    [userId, loadPulse],
+    [userId, guest, loadPulse],
   );
   useHomeLoad(loadTop);
 
@@ -460,7 +465,7 @@ function EarnTop() {
   const t = useTheme();
   const { go, screen } = useNav();
   const { flash } = useActions();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
   const [stats, setStats] = useState<MyStats | null>(null);
   const [rating, setRating] = useState(0);
   const [skills, setSkills] = useState<string[]>([]);
@@ -478,20 +483,24 @@ function EarnTop() {
 
 
   const load = useCallback(async () => {
-    if (!userId) return;
+    if (!userId && !guest) return;
     // Remote and urgent work do not depend on the profile, so they are asked for beside it.
     const remoteAsked = remoteTasks(8).catch((): Task[] => []);
     const urgentAsked = urgentTasks(6).catch((): Task[] => []);
-    const [s, p, ids] = await Promise.all([
-      myStats('worker').catch(() => null),
-      getProfile(userId).catch(() => null),
-      listSavedTaskIds().catch(() => new Set<string>()),
-    ]);
+    // A guest has no stats or profile of their own; their saves sit on the phone.
+    const [s, p, ids] = userId
+      ? await Promise.all([
+          myStats('worker').catch(() => null),
+          getProfile(userId).catch(() => null),
+          listSavedTaskIds().catch(() => new Set<string>()),
+        ])
+      : [null, null, new Set(await listGuestSaves())];
     setStats(s);
     setRating(Number(p?.worker_rating_avg ?? 0));
     setSkills(p?.skills ?? []);
     setSavedIds(ids);
     setPlace((cur) => {
+      if (!userId) return cur;
       if (p?.loc_lat == null || p?.loc_lng == null) return null;
       // Same pin as before: keep the object, so the nearby list isn't refetched.
       if (cur && cur.lat === p.loc_lat && cur.lng === p.loc_lng) return cur;
@@ -508,13 +517,13 @@ function EarnTop() {
     setRecs(posted(r));
     setRemote(posted(rem));
     setUrgent(posted(urg));
-  }, [userId]);
+  }, [userId, guest]);
 
   useHomeLoad(load);
 
   const askedLocation = useRef(false);
   useEffect(() => {
-    if (!userId || place || askedLocation.current || recs === null) return;
+    if ((!userId && !guest) || place || askedLocation.current || recs === null) return;
     askedLocation.current = true;
     void resolveCurrentPlace()
       .then((found) => choosePlace(found))
@@ -522,7 +531,7 @@ function EarnTop() {
         /* declined or unavailable: the "Set your area" card stays */
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, place, recs]);
+  }, [userId, guest, place, recs]);
 
   useEffect(() => {
   }, [load, screen]);
@@ -560,6 +569,7 @@ function EarnTop() {
       else n.delete(id);
       return n;
     });
+    if (guest) return void setGuestSaved(id, on);
     await setSaved(id, on).catch((e) => flash(e instanceof Error ? e.message : 'Could not save'));
   };
 

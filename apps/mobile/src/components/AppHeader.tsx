@@ -17,6 +17,7 @@ import { FeedbackSheet } from './FeedbackSheet';
 import { PayoutDestinationSheet } from './PayoutDestinationSheet';
 import { Badge, ConfirmDialog, IconButton, rupees } from './kit';
 import { ModeSwitch } from './ModeSwitch';
+import { GuestSignInPill } from './GuestBits';
 import { tx } from './primitives';
 import { levelFor } from '../lib/levels';
 import { useLayout } from '../lib/layout';
@@ -41,7 +42,7 @@ export function AppHeader() {
   const { mode } = useMode();
   const modeRef = useRef(mode);
   modeRef.current = mode;
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
   const toolsRef = useTourTarget('headerTools');
   const same = last.userId === userId;
   const [unread, setUnreadState] = useState(same ? last.unread : 0);
@@ -125,6 +126,7 @@ export function AppHeader() {
         <View style={{ flex: 1 }} />
         {/* One wrapper so the tour can light up the bell, messages and account menu together. */}
         <View ref={toolsRef} collapsable={false} style={{ flexDirection: 'row', alignItems: 'center', gap: tight ? 6 : 8 }}>
+        {guest ? <GuestSignInPill /> : (<>
         <IconButton icon="bell" label="Notifications" onPress={() => go('notifications')} badge={unread} size={btn} />
         <IconButton icon="chat" label="Messages" onPress={() => go('inbox')} size={btn} />
         <Pressable
@@ -165,6 +167,7 @@ export function AppHeader() {
             }}
           />
         </Pressable>
+        </>)}
         </View>
       </View>
       <AccountDrawer visible={drawer} onClose={() => setDrawer(false)} />

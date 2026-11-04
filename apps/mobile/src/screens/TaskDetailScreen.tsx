@@ -12,6 +12,7 @@ import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
+import { isNeedsAccount, needAccount } from '../lib/guest';
 import {
   placeBid,
   canQuoteOn,
@@ -119,7 +120,7 @@ export function TaskDetailScreen() {
   const { params, back, go } = useNav();
   const { mode } = useMode();
   const { flash, celebrate } = useActions();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
   const [busy, setBusy] = useState(false);
   const worker = mode === 'worker';
 
@@ -188,15 +189,15 @@ export function TaskDetailScreen() {
   } | null>(null);
 
   useEffect(() => {
-    if (!realId || !userId) return;
+    if (!realId || (!userId && !guest)) return;
     let alive = true;
     void (async () => {
       try {
         // Whether this worker may quote is asked beside the task, not after it: one round trip, not two.
         const [mine, td, verdict] = await Promise.all([
-          getProfile(userId),
+          userId ? getProfile(userId) : null,
           getTaskDetail(realId),
-          worker ? canQuoteOn(realId, userId) : null,
+          worker && userId ? canQuoteOn(realId, userId) : null,
         ]);
         if (!alive) return;
         setMe(mine);
@@ -247,7 +248,7 @@ export function TaskDetailScreen() {
     return () => {
       alive = false;
     };
-  }, [realId, userId, worker, go]);
+  }, [realId, userId, guest, worker, go]);
 
   const body = live?.body || detail.body;
   const mediaPath = live ? live.mediaPath : detail.mediaPath;
@@ -334,6 +335,7 @@ export function TaskDetailScreen() {
     if (busy) return;
     if (worker) {
       if (!realId) return flash('This is a sample task — post a real one to send an offer');
+      if (guest) return needAccount('offer', () => void sendQuote());
       if (!userId) return flash('Sign in to send an offer');
       if (quote < MIN_QUOTE_MINOR) return flash(`The smallest offer is ${formatINR(MIN_QUOTE_MINOR)}`);
       if (proposalShort) return flash('Tell the customer a little about how you will do it');
@@ -351,6 +353,7 @@ export function TaskDetailScreen() {
       } catch (e) {
         // placeBid already turns a policy refusal into a sentence. Whatever it
         // is, it also means the quote box should not still be offered.
+        if (isNeedsAccount(e)) return;
         const msg = e instanceof Error ? e.message : 'Could not send the offer';
         setBlocked(msg);
         flash(msg);
@@ -359,6 +362,7 @@ export function TaskDetailScreen() {
       }
       return;
     }
+    if (guest) return needAccount('hire', () => void sendQuote());
     go('escrow', { priceMinor: quote, title: detail.title, taskId: realId });
   };
 

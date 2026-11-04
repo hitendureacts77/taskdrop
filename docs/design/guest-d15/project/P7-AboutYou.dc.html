@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>About you</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0A6F58}a:hover{color:#064A3B}
+</style>
+</helmet>
+<div style="width: 390px; height: 1000px; box-sizing: border-box; background: #F3F4F1; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #121417; display: flex; flex-direction: column">
+  <div style="padding: 52px 20px 0">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <div style="flex: 1; font-size: 13px; font-weight: 600; color: #5F6368">Last step · About you</div>
+      <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.8px; color: #B4512C; background: #FBEDE7; border-radius: 6px; padding: 3px 6px">GUEST CHANGE · decision 3</span>
+    </div>
+    <div style="height: 4px; border-radius: 999px; background: #ECEEE9; margin-top: 12px; overflow: hidden"><div style="height: 4px; width: 90%; background: #0E8F72"></div></div>
+  </div>
+
+  <div style="flex: 1; padding: 22px 20px 0; display: flex; flex-direction: column">
+    <div style="font-size: 26px; font-weight: 800; letter-spacing: -0.7px">About you</div>
+
+    <div style="margin-top: 18px; display: flex; align-items: center; gap: 14px">
+      <div style="width: 64px; height: 64px; border-radius: 999px; background: #ECEEE9; border: 1px dashed #0E8F72; display: flex; align-items: center; justify-content: center; box-sizing: border-box">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0E8F72" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </div>
+      <div style="flex: 1">
+        <div style="font-size: 15px; font-weight: 800">Add a photo</div>
+        <div style="font-size: 12px; font-weight: 500; color: #0A6F58; margin-top: 3px">Profiles with photos get more replies</div>
+      </div>
+    </div>
+
+    <label for="dn" style="margin-top: 18px; font-size: 13px; font-weight: 700; color: #3F444A">Display name</label>
+    <input id="dn" type="text" value="Arjun" style="margin-top: 7px; height: 50px; box-sizing: border-box; border: 1.5px solid #0E8F72; border-radius: 14px; padding: 0 14px; background: #FFFFFF; font: inherit; font-size: 15px; color: #121417">
+
+    <div style="margin-top: 16px; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; color: #5F6368">LOCATION</div>
+    <div style="margin-top: 8px; display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 14px; border: 1.5px solid #E2E5DF; background: #FFFFFF">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0A6F58" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+      <div style="flex: 1; font-size: 14px">Indiranagar, Bengaluru</div>
+      <div style="font-size: 13px; font-weight: 700; color: #0A6F58">Change</div>
+    </div>
+    <div style="margin-top: 6px; font-size: 12px; color: #5F6368">Filled in from the area the guest already picked on Home.</div>
+
+    <label for="bio" style="margin-top: 16px; font-size: 13px; font-weight: 700; color: #3F444A">Short bio (optional)</label>
+    <textarea id="bio" placeholder="A line or two about you" style="margin-top: 7px; height: 80px; box-sizing: border-box; border: 1.5px solid #E2E5DF; border-radius: 14px; padding: 12px 14px; background: #FFFFFF; font: inherit; font-size: 15px; color: #121417; resize: none"></textarea>
+
+    <div style="margin-top: 16px; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; color: #5F6368">LANGUAGES</div>
+    <div style="margin-top: 9px; display: flex; flex-wrap: wrap; gap: 8px">
+      <span style="font-size: 13px; font-weight: 700; color: #0A6F58; background: #E7F5EF; border: 1.5px solid #0E8F72; border-radius: 999px; padding: 7px 13px">English</span>
+      <span style="font-size: 13px; font-weight: 700; color: #0A6F58; background: #E7F5EF; border: 1.5px solid #0E8F72; border-radius: 999px; padding: 7px 13px">Hindi</span>
+      <span style="font-size: 13px; font-weight: 600; color: #3F444A; background: #FFFFFF; border: 1.5px solid #E2E5DF; border-radius: 999px; padding: 7px 13px">Kannada</span>
+      <span style="font-size: 13px; font-weight: 600; color: #3F444A; background: #FFFFFF; border: 1.5px solid #E2E5DF; border-radius: 999px; padding: 7px 13px">Tamil</span>
+      <span style="font-size: 13px; font-weight: 600; color: #3F444A; background: #FFFFFF; border: 1.5px solid #E2E5DF; border-radius: 999px; padding: 7px 13px">Telugu</span>
+    </div>
+  </div>
+
+  <div style="padding: 16px 20px 30px">
+    <a href="#" style="text-decoration: none; background: #0A6F58; color: #FFFFFF; border-radius: 16px; height: 54px; display: flex; align-items: center; justify-content: center; font-size: 15.5px; font-weight: 800">Continue and post</a>
+    <div style="margin-top: 12px; font-size: 12.5px; line-height: 18px; color: #5F6368; text-align: center">Then, as today: “Task posted”, and the task’s page opens. Referral code, username and skills are asked later.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

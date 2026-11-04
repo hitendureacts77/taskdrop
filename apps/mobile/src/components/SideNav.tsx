@@ -8,6 +8,7 @@ import { countNeedsAttention } from '../data/api';
 import { RAIL_WIDTH, SIDEBAR_WIDTH } from '../lib/layout';
 import { Icon, type IconName } from './Icon';
 import { ModeSwitch } from './ModeSwitch';
+import { GuestSignInPill } from './GuestBits';
 import { Drop } from './Ripples';
 import { tx } from './primitives';
 import { useTourTarget } from './tour/targets';
@@ -23,7 +24,7 @@ export function SideNav({ rail = false }: { rail?: boolean }) {
   const t = useTheme();
   const { screen, go, reset } = useNav();
   const { mode } = useMode();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
   const worker = mode === 'worker';
   // Wide screens have no drop button; the tour lights this one instead.
   const tourRef = useTourTarget('fab');
@@ -187,6 +188,8 @@ export function SideNav({ rail = false }: { rail?: boolean }) {
         )}
 
         {post}
+
+        {guest && !rail ? <GuestSignInPill full /> : null}
 
         <View style={{ gap: 4 }}>{main.map(item)}</View>
 

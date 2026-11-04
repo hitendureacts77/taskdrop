@@ -9,6 +9,8 @@ import { ScreenScope, useNav } from '../providers/NavProvider';
 import { useLayout } from '../lib/layout';
 import { ChatScreen } from './ChatScreen';
 import { listThreads, type Thread } from '../data/extras';
+import { useAuth } from '../providers/AuthProvider';
+import { GuestScreen } from '../components/GuestBits';
 
 /**
  * Messages: every task conversation this person is in, newest first. A
@@ -17,6 +19,7 @@ import { listThreads, type Thread } from '../data/extras';
 export function InboxScreen() {
   const t = useTheme();
   const { back, go } = useNav();
+  const { guest } = useAuth();
   const [threads, setThreads] = useState<Thread[] | null>(null);
   const [q, setQ] = useState('');
   // Desktop (W6): the inbox on the left and the open conversation beside it.
@@ -25,6 +28,7 @@ export function InboxScreen() {
   const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (guest) return;
     let alive = true;
     listThreads()
       .then((r) => alive && setThreads(r))
@@ -32,7 +36,7 @@ export function InboxScreen() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [guest]);
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -43,6 +47,18 @@ export function InboxScreen() {
   const split = desktop && (threads?.length ?? 0) > 0;
   // Nothing opens until a thread is picked: opening one marks it read.
   const open = split ? (threads!.find((x) => x.taskId === openId) ?? null) : null;
+
+  if (guest) {
+    return (
+      <GuestScreen
+        title="Messages"
+        reason="chat"
+        icon="chat"
+        heading="Messages need an account"
+        body="Chats open once you hire someone, or someone hires you."
+      />
+    );
+  }
 
   const list = (
     <>

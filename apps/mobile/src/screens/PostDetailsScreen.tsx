@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { BackButton } from '../components/kit';
 import { View, Text as RNText, Pressable, TextInput, type TextStyle } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
@@ -8,6 +8,7 @@ import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
+import { isNeedsAccount, needAccount } from '../lib/guest';
 import { createTask } from '../data/api';
 import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
 import { LocationSheet } from '../components/LocationSheet';
@@ -134,7 +135,8 @@ export function PostDetailsScreen() {
   const { params, go, back } = useNav();
   const { mode } = useMode();
   const { celebrate, flash } = useActions();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
+  const publishRef = useRef<() => Promise<void>>(async () => {});
   const [busy, setBusy] = useState(false);
 
   const worker = mode === 'worker';
@@ -190,6 +192,7 @@ export function PostDetailsScreen() {
       flash('Pick when this needs to be done by');
       return;
     }
+    if (guest) return needAccount(worker ? 'publish' : 'post', () => publishRef.current());
     setBusy(true);
     try {
       if (!userId) throw new Error('Sign in to post');
@@ -222,11 +225,13 @@ export function PostDetailsScreen() {
       );
       go(promoteOn ? 'promote' : 'orders');
     } catch (e) {
+      if (isNeedsAccount(e)) return;
       flash(e instanceof Error ? e.message : 'Could not publish');
     } finally {
       setBusy(false);
     }
   };
+  publishRef.current = () => publish();
 
   return (
     <Screen padded={false}>

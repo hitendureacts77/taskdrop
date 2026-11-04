@@ -8,6 +8,7 @@ import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
+import { isNeedsAccount, needAccount } from '../lib/guest';
 import { placeBid } from '../data/api';
 import { tx } from '../components/primitives';
 import { TaskDescription } from '../components/TaskDescription';
@@ -32,7 +33,7 @@ export function DetailSheetScreen() {
   const { params, go, back } = useNav();
   const { mode } = useMode();
   const { celebrate, flash } = useActions();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
   const [busy, setBusy] = useState(false);
 
   const worker = mode === 'worker';
@@ -85,6 +86,7 @@ export function DetailSheetScreen() {
       // a thing -- the worst possible failure for a marketplace, because it is
       // silent on both sides.
       if (!realId) return flash('This is a sample card — open a real task to send an offer');
+      if (guest) return needAccount('offer', () => void send());
       if (!userId) return flash('Sign in to send an offer');
       setBusy(true);
       try {
@@ -97,6 +99,7 @@ export function DetailSheetScreen() {
         celebrate(`Offer sent · ${formatINR(quote)}`);
         go('orders');
       } catch (e) {
+        if (isNeedsAccount(e)) return;
         const msg = e instanceof Error ? e.message : 'Could not send the offer';
         // The unique index on (task_id, worker_id) is the "one quote per task" rule.
         flash(/duplicate|unique/i.test(msg) ? 'You have already sent an offer for this task' : msg);
@@ -107,6 +110,7 @@ export function DetailSheetScreen() {
     }
 
     if (blocked) return flash('Set a completion date and time first');
+    if (guest) return needAccount('hire', () => void send());
     go('escrow', { title, priceMinor: quote, who, by, taskId: realId });
   };
 

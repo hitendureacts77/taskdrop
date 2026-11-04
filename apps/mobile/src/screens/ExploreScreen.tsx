@@ -25,6 +25,7 @@ import {
   type TaskWithPoster,
 } from '../data/api';
 import { listSavedTaskIds, setSaved } from '../data/extras';
+import { listGuestSaves, setGuestSaved } from '../lib/guestSaves';
 import { IDEAS, TEMPLATES, TEMPLATE_TAGS, CATEGORIES, TOP_CATEGORIES, type TemplateTag } from '../lib/taskBrief';
 import { taskToFeedRow } from '../lib/openTask';
 import { useVoiceInput } from '../lib/speech';
@@ -342,7 +343,7 @@ function FindWork() {
   const t = useTheme();
   const { go, params } = useNav();
   const { flash, setOpenTask } = useActions();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState(typeof params.q === 'string' ? params.q : '');
   const [query, setQuery] = useState(typeof params.q === 'string' ? params.q : '');
@@ -384,10 +385,13 @@ function FindWork() {
   const voice = useVoiceInput((text) => setQ((cur) => (cur ? cur + ' ' + text : text)), flash);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      if (guest) void listGuestSaves().then((ids) => setSavedIds(new Set(ids)));
+      return;
+    }
     void getProfile(userId).then((p) => p && setMe({ lat: p.loc_lat, lng: p.loc_lng })).catch(() => {});
     void listSavedTaskIds().then(setSavedIds).catch(() => {});
-  }, [userId]);
+  }, [userId, guest]);
 
   const load = useCallback(async () => {
     // One request: the posts and their posters together (it was two back to back, once 13 s on a busy server).
@@ -451,7 +455,8 @@ function FindWork() {
       return n;
     });
     try {
-      await setSaved(id, on);
+      if (guest) await setGuestSaved(id, on);
+      else await setSaved(id, on);
       flash(on ? 'Saved for later' : 'Removed from saved');
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not save that');

@@ -14,6 +14,9 @@ import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { searchTasks, attachPosters, placeBid, kindFor } from '../data/api';
 import { useAuth } from '../providers/AuthProvider';
+import { isNeedsAccount, needAccount } from '../lib/guest';
+import { moveGuestSaves } from '../lib/guestSaves';
+import { setSaved } from '../data/extras';
 import { type Theme } from '../theme';
 import type { Enums } from '@taskdrop/db-types';
 import { FadeIn, Pressy, tx } from '../components/primitives';
@@ -371,9 +374,14 @@ export function HomeScreen() {
   const { go, params } = useNav();
   const { mode } = useMode();
   const { setOpenTask, celebrate, flash } = useActions();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
   const focusTick = useFocusTick();
   const worker = mode === 'worker';
+
+  // Tasks saved while looking around move into the account the first time Home opens with it.
+  useEffect(() => {
+    if (userId) void moveGuestSaves(userId, setSaved);
+  }, [userId]);
 
   const [liveTasks, setLiveTasks] = useState<LiveTask[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -541,6 +549,7 @@ export function HomeScreen() {
     if (!/^[0-9a-f-]{36}$/i.test(row.id)) {
       return flash('This is a sample card — open a real task to send an offer');
     }
+    if (guest) return needAccount('offer', () => void onAccept(row));
     if (!userId) return flash('Sign in to send an offer');
     if (quoting) return;
 
@@ -555,6 +564,7 @@ export function HomeScreen() {
       celebrate('Offer sent at ' + formatINR(row.amountMinor));
       go('orders');
     } catch (e) {
+      if (isNeedsAccount(e)) return;
       const msg = e instanceof Error ? e.message : 'Could not send that offer';
       flash(/duplicate|unique/i.test(msg) ? 'You have already sent an offer for this task' : msg);
     } finally {

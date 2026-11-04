@@ -1,5 +1,6 @@
 import { ApiError, friendlyMessage, reportError } from '../lib/errors';
 import { callApi } from '../lib/gateway';
+import { ACCOUNT_WRITES, NeedsAccountError, isGuestOp, needAccount } from '../lib/guest';
 import { clientHeaders } from '../lib/appInfo';
 import { FUNCTIONS_REGION, currentUserId, supabase } from '../lib/supabase';
 import { subscribeLive } from '../lib/live';
@@ -31,12 +32,28 @@ export class WalletShortError extends Error {
   }
 }
 
+/**
+ * Signed out: a guest may make the public reads (lib/guest.ts). A write opens the
+ * "Make your account" pop-up and throws; any other read fails as it always did.
+ */
+export async function guestGate(op: string, signedOutRead = 'Sign in first'): Promise<void> {
+  if (await myId()) return;
+  if (isGuestOp(op)) return;
+  if (!ACCOUNT_WRITES.has(op)) throw new Error(signedOutRead);
+  needAccount();
+  throw new NeedsAccountError();
+}
+
 /** Ask the server to do something by name. */
 async function act<T>(op: string, args: Record<string, unknown> = {}): Promise<T> {
-  if (!(await myId())) throw new Error('Sign in first');
+  await guestGate(op);
   try {
     return await callApi<T>(op, args);
   } catch (e) {
+    if (e instanceof ApiError && e.code === 'NEEDS_ACCOUNT') {
+      needAccount();
+      throw new NeedsAccountError();
+    }
     const short = e instanceof ApiError ? Number(e.details) : 0;
     if (e instanceof ApiError && e.message === 'Not enough money in your wallet' && short > 0) {
       throw new WalletShortError(short);
@@ -47,7 +64,7 @@ async function act<T>(op: string, args: Record<string, unknown> = {}): Promise<T
 
 /** Same, but signed out simply means "nothing" rather than an error. */
 async function ask<T>(op: string, args: Record<string, unknown>, signedOut: T): Promise<T> {
-  if (!(await myId())) return signedOut;
+  if (!(await myId()) && !isGuestOp(op)) return signedOut;
   return act<T>(op, args);
 }
 

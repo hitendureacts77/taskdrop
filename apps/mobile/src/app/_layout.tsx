@@ -15,10 +15,10 @@ import { withMonitoring } from '../lib/monitoring';
  * native stack.
  */
 function Routes() {
-  const { ready, session, postAuthRoute } = useAuth();
+  const { ready, session, postAuthRoute, guest } = useAuth();
   const { mode } = useMode();
   if (!ready) return <View style={{ flex: 1, backgroundColor: '#0F1012' }} />;
-  decideStart(postAuthRoute === 'setup' ? 'setup' : session ? null : 'splash');
+  decideStart(postAuthRoute === 'setup' ? 'setup' : session || guest ? null : 'splash');
   return (
     // Signed in and earning: the whole app turns royal blue. Sign-up and the
     // welcome screens keep the brand green.

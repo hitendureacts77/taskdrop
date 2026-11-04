@@ -10,6 +10,7 @@ import { type SessionCutoff, type Standing, StandingCache, callerFromClaims, cut
 import { MAX_BODY_BYTES, REQUEST_ID_HEADER, readBody, requestIdFrom, withGatewayHeaders } from "./http.ts";
 import { type Db, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp, spendRate } from "./ops.ts";
 import { type Claim, type RepeatStore, REPEAT_KEY_HEADER, REPLAYED_HEADER, repeatKeyFrom, runOnce } from "./repeat.ts";
+import { GUEST_READS_PER_MINUTE, guestAddress, guestRateKey, isGuestOp, isGuestToken, needsAccount, runGuestBatch, runGuestOp } from "./guest.ts";
 
 /**
  * The app's one door to its data.
@@ -89,6 +90,69 @@ Deno.serve(guarded("api", async (req: Request) => {
   return withGatewayHeaders(await handle(req, requestId), requestId);
 }));
 
+/**
+ * A guest's call (design D15): someone using the app before making an account. Only the reads in ./guest.ts
+ * run, with the service key, through the SQL functions of migration 146, which decide what a guest may see.
+ * Anything else answers NEEDS_ACCOUNT. The limiter counts per network address (hashed), not per person.
+ */
+async function handleGuest(
+  req: Request,
+  url: string,
+  parsed: unknown,
+  log: (level: "info" | "warn" | "error", message: string, extra?: LogAttributes) => Promise<void>,
+): Promise<Response> {
+  if (parsed === undefined) return refuse("Unknown request", "BAD_JSON", 400);
+  const body = parsed as { op?: unknown; args?: unknown } | null;
+  if (!body || typeof body !== "object" || Array.isArray(body)) return refuse("Unknown request", "BAD_JSON", 400);
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!serviceKey) return refuse("Something went wrong. Please try again.", "INTERNAL", 500);
+  const isBatch = body.op === "batch";
+  // Nothing a guest cannot do is even counted: the app opens its own pop-up for those.
+  const calls = isBatch ? (batchCalls(body.args) ?? []) : [];
+  if (!isBatch && !isGuestOp(body.op)) return json(needsAccount());
+  const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+
+  const key = await guestRateKey(guestAddress(req.headers));
+  try {
+    const hit = await admin.rpc("api_rate_spend", {
+      p_user: key, p_bucket: "guest", p_limit: GUEST_READS_PER_MINUTE, p_cost: rateCost(body.op, body.args),
+    });
+    if (hit.error) background(log("warn", "rate limiter unavailable", { error: hit.error.message }));
+    else if (hit.data === false) {
+      background(log("warn", "guest rate limited", { op: String(body.op) }));
+      return refuse("You are going too fast. Please wait a moment and try again.", "RATE_LIMITED", 429);
+    }
+  } catch (e) {
+    background(log("warn", "rate limiter unavailable", { error: e instanceof Error ? e.message : String(e) }));
+  }
+
+  const client = readClient(req.headers);
+  background((async () => {
+    const result = await checkAppCheck(req.headers.get(APP_CHECK_HEADER), await secret("FIREBASE_PROJECT_NUMBER"));
+    if (appCheckLog.shouldLog(result, client.platform)) {
+      await log(result === "invalid" ? "warn" : "info", "app check", { result, platform: client.platform, op: String(body.op), guest: true });
+      if (result === "invalid") await captureSecurityEvent("app_check_failed", "api");
+    }
+  })().catch(() => {}));
+  const controls = await controlsCache.get(client, async () => {
+    const { data, error } = await admin.rpc("get_app_controls", { p_platform: client.platform, p_version: client.appVersion });
+    if (error) {
+      background(log("warn", "app controls unavailable", { error: error.message }));
+      return null;
+    }
+    return parseControls(data);
+  });
+  const signs = isBatch ? calls.some((c) => c.op === "signMedia") : body.op === "signMedia";
+  const imagekit = signs ? await imageKitConfig(secret) : null;
+  // No person: the nil id keeps the shared reads' types whole and matches nobody's rows.
+  const ctx = { db: admin as unknown as Db, userId: "00000000-0000-0000-0000-000000000000", client, controls, imagekit };
+  const onUnexpected = (e: unknown) => {
+    background(log("error", "guest op failed", { op: String(body.op), error: e instanceof Error ? e.message : String(e) }));
+    background(captureServerError(e, { op: String(body.op), fn: "api", caller: "guest" }));
+  };
+  return json(await (isBatch ? runGuestBatch(body.args, ctx, onUnexpected) : runGuestOp(body.op, body.args, ctx, onUnexpected)));
+}
+
 async function handle(req: Request, requestId: string): Promise<Response> {
   if (req.method !== "POST") return refuse("Unknown request", "BAD_METHOD", 405);
   /** A log line for this call, with its id, so it can be matched to what the person saw. */
@@ -138,6 +202,8 @@ async function handle(req: Request, requestId: string): Promise<Response> {
   const claimsResult = await db.auth.getClaims(jwt).catch(() => null);
   const userId = callerFromClaims(claimsResult);
   const token = tokenFacts(claimsResult);
+  // Guest mode (D15): the public key with nobody behind it may read a short list of public things.
+  if (!userId && isGuestToken(jwt, anonKey, claimsResult)) return await handleGuest(req, url, parsed, log);
   if (!userId) {
     background(captureSecurityEvent("refused_login", "api"));
     return refuse("Your session has expired. Please sign in again.", "UNAUTHENTICATED", 401);

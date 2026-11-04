@@ -15,6 +15,10 @@ import { ConfirmDialog } from '../components/kit';
 import { AppHeader } from '../components/AppHeader';
 import { HeroBackground } from '../components/Hero';
 import { Ripples } from '../components/Ripples';
+import { GuestNote } from '../components/GuestBits';
+import { startTour } from '../components/tour/tourStore';
+import { TOUR_COPY } from '../lib/tour';
+import { needAccount } from '../lib/guest';
 
 function SlideIn({ delay, children }: { delay: number; children: React.ReactNode }) {
   const v = useRef(new Animated.Value(0)).current;
@@ -93,7 +97,7 @@ export function ProfileScreen() {
     return () => anim.stop();
   }, [worker, slide]);
 
-  const { userId, signOut } = useAuth();
+  const { userId, guest, signOut } = useAuth();
   const focusTick = useFocusTick();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -105,13 +109,27 @@ export function ProfileScreen() {
   // A worker sees their earnings here. A customer's spending is deliberately
   // not on the profile, where it would be in front of them every visit: it
   // lives under Account & settings → App, for whoever goes looking.
-  const rows = worker
+  const memberRows = worker
     ? [{ icon: 'trending' as IconName, label: 'My earnings and jobs', go: 'analytics' as ScreenName }, ...WORKER_ROWS]
     : POSTER_ROWS;
+  // A guest keeps Help, the tour, feedback and the legal pages; the rest is about an account they do not have yet.
+  const guestRows: { icon: IconName; label: string; go: ScreenName; act?: () => void }[] = [
+    { icon: 'edit', label: 'Edit my profile', go: 'profileEdit', act: () => needAccount('profile') },
+    { icon: 'sparkle', label: TOUR_COPY.menuLabel, go: 'profile', act: () => startTour(worker ? 'earn' : 'hire') },
+    { icon: 'trending', label: 'Ideas & feedback', go: 'ideas' },
+    { icon: 'help', label: 'Help & support', go: 'help' },
+    { icon: 'flag', label: 'Terms', go: 'terms' },
+    { icon: 'lock', label: 'Privacy', go: 'privacy' },
+  ];
+  const rows: { icon: IconName; label: string; go: ScreenName; act?: () => void }[] = guest ? guestRows : memberRows;
 
   // Poster and worker reputations are separate, so re-fetch when the mode flips.
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      setProfile(null);
+      setReviews([]);
+      return;
+    }
     let alive = true;
     void (async () => {
       try {
@@ -137,14 +155,15 @@ export function ProfileScreen() {
     };
   }, [userId, worker, focusTick]);
 
-  const displayName = profile?.display_name ?? 'Your profile';
+  const displayName = guest ? 'Guest' : (profile?.display_name ?? 'Your profile');
   const ratingAvg = worker ? profile?.worker_rating_avg : profile?.poster_rating_avg;
   const ratingCount = worker ? profile?.worker_rating_count : profile?.poster_rating_count;
   const initial = displayName.trim().charAt(0).toUpperCase() || '?';
 
   // A brand-new account has no rating yet — say so rather than showing 0.0.
-  const roleLine =
-    ratingCount && ratingCount > 0
+  const roleLine = guest
+    ? 'Looking around'
+    : ratingCount && ratingCount > 0
       ? '★ ' + Number(ratingAvg ?? 0).toFixed(1) + (worker ? ' worker · ' : ' customer · ') + ratingCount +
         (worker ? (ratingCount === 1 ? ' job done' : ' jobs done') : (ratingCount === 1 ? ' request' : ' requests'))
       : worker
@@ -205,6 +224,12 @@ export function ProfileScreen() {
             </View>
           </View>
         </View>
+
+        {guest ? (
+          <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
+            <GuestNote />
+          </View>
+        ) : null}
 
         <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 }}>
           <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>MODE</RNText>
@@ -296,6 +321,7 @@ export function ProfileScreen() {
             <Pressable
               key={r.label}
               onPress={() => {
+                if (r.act) return r.act();
                 if (r.go !== 'splash') return go(r.go);
                 setConfirmSignOut(true);
               }}
@@ -330,10 +356,12 @@ export function ProfileScreen() {
             </Pressable>
           ))}
 
-          <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 32 })}>
-            {worker ? 'WORKER REVIEWS' : 'CUSTOMER REVIEWS'}
-          </RNText>
-          {reviews.length === 0 && (
+          {guest ? null : (
+            <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 32 })}>
+              {worker ? 'WORKER REVIEWS' : 'CUSTOMER REVIEWS'}
+            </RNText>
+          )}
+          {!guest && reviews.length === 0 && (
             <RNText style={tx('400', 13, t.colors.muted, { marginTop: 12, lineHeight: 19.5 })}>
               {worker
                 ? 'Finish a job and the customer’s review shows up here.'

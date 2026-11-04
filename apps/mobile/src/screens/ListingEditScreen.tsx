@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, ActivityIndicator } from 'react-native';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
@@ -8,6 +8,7 @@ import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
+import { isNeedsAccount, needAccount } from '../lib/guest';
 import { useActions } from '../providers/AppStateProvider';
 import { createListing, getTask, removeListing, updateListing, type Task } from '../data/api';
 import { CATEGORIES } from '../lib/taskBrief';
@@ -27,7 +28,8 @@ const PREFIX = 'I will ';
 export function ListingEditScreen() {
   const t = useTheme();
   const { back, params } = useNav();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
+  const saveRef = useRef<() => Promise<void>>(async () => {});
   const { flash, celebrate } = useActions();
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
   const [loaded, setLoaded] = useState<Task | null | undefined>(taskId ? undefined : null);
@@ -77,8 +79,9 @@ export function ListingEditScreen() {
               : null;
 
   const save = async () => {
-    if (!userId) return;
     if (missing) return flash(missing);
+    if (guest) return needAccount('publish', () => saveRef.current());
+    if (!userId) return;
     setBusy(true);
     try {
       const round = (n: number) => Math.round(n * 100) / 100;
@@ -97,11 +100,13 @@ export function ListingEditScreen() {
       celebrate(loaded ? 'Service updated' : 'Your service is live');
       back();
     } catch (e) {
+      if (isNeedsAccount(e)) return;
       flash(e instanceof Error ? e.message : 'Could not save your service');
     } finally {
       setBusy(false);
     }
   };
+  saveRef.current = () => save();
 
   const remove = async () => {
     if (!loaded) return;

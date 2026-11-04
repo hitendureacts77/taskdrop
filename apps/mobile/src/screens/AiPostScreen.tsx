@@ -10,6 +10,7 @@ import { LocationSheet, type PickedPlace } from '../components/LocationSheet';
 import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
 import { Field, IconButton, PrimaryButton, rupees } from '../components/kit';
 import { removeDraft, saveDraft } from '../lib/drafts';
+import { GUEST_DRAFTS_OWNER, isNeedsAccount, needAccount } from '../lib/guest';
 import { useReducedMotion } from '../lib/motion';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { KeyboardSafe } from '../components/KeyboardSafe';
@@ -142,7 +143,9 @@ export function AiPostScreen() {
   const t = useTheme();
   const { params, back, reset, go } = useNav();
   const { flash, celebrate } = useActions();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
+  const draftOwner = userId ?? (guest ? GUEST_DRAFTS_OWNER : null);
+  const postRef = useRef<() => Promise<void>>(async () => {});
   const { setMode } = useMode();
 
   const similar = isTask(params.similar) ? params.similar : null;
@@ -414,7 +417,7 @@ export function AiPostScreen() {
   };
 
   useEffect(() => {
-    if (mode !== 'auto') return;
+    if (mode !== 'auto' || !userId) return;
     let alive = true;
     void getWallet()
       .then((w) => alive && setWalletMinor(w?.balance_minor ?? 0))
@@ -422,9 +425,10 @@ export function AiPostScreen() {
     return () => {
       alive = false;
     };
-  }, [mode, topUpMinor]);
+  }, [mode, topUpMinor, userId]);
 
   const post = async (safetySeen = false) => {
+    if (guest) return needAccount('post', () => postRef.current());
     if (!userId) return flash('Sign in to post a task');
     if (posting) return;
     if (!remote && !safetySeen && (await needsSafetyCard(userId))) {
@@ -472,17 +476,19 @@ export function AiPostScreen() {
         wantPhotos: opts.wantPhotos || undefined,
         photosPublic: (opts.wantPhotos && opts.photosPublic) || undefined,
       });
-      if (draftId) void removeDraft(userId, draftId);
+      if (draftId && draftOwner) void removeDraft(draftOwner, draftId);
       setMode('poster');
       celebrate('Task posted');
       reset('myTasks');
       go('taskManage', { taskId: task.id });
     } catch (e) {
+      if (isNeedsAccount(e)) return;
       flash(e instanceof Error ? e.message : 'Could not post your task');
     } finally {
       setPosting(false);
     }
   };
+  postRef.current = () => post();
 
   // Each step opens at its top.
   const scrollRef = useRef<ScrollViewInstance>(null);
@@ -492,8 +498,8 @@ export function AiPostScreen() {
 
   // Leaving with words typed keeps them as a draft, listed under Drafts in My Tasks.
   const leave = () => {
-    if (userId && prompt.trim().length >= 3) {
-      void saveDraft(userId, prompt, draftId);
+    if (draftOwner && prompt.trim().length >= 3) {
+      void saveDraft(draftOwner, prompt, draftId);
       flash('Saved to Drafts in My Tasks');
     }
     back();

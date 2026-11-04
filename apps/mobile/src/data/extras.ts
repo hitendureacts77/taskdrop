@@ -5,7 +5,8 @@ import { currentUserId, supabase } from '../lib/supabase';
 import { subscribeLive } from '../lib/live';
 import { reuseWhileFresh } from '../lib/freshness';
 import type { Tables } from '@taskdrop/db-types';
-import { primeProfile, type Task, type Profile } from './api';
+import { guestGate, primeProfile, type Task, type Profile } from './api';
+import { isGuestOp } from '../lib/guest';
 import type { Idea, IdeaComment, IdeaKind, IdeaStatus } from '../lib/ideas';
 
 /**
@@ -17,12 +18,13 @@ import type { Idea, IdeaComment, IdeaKind, IdeaStatus } from '../lib/ideas';
 const myId = currentUserId;
 
 async function act<T>(op: string, args: Record<string, unknown> = {}, signedOutMessage = 'Sign in first'): Promise<T> {
-  if (!(await myId())) throw new Error(signedOutMessage);
+  // A guest may make the public reads; a write opens the "Make your account" pop-up (data/api.ts).
+  await guestGate(op, signedOutMessage);
   return callApi<T>(op, args);
 }
 
 async function ask<T>(op: string, args: Record<string, unknown>, signedOut: T): Promise<T> {
-  if (!(await myId())) return signedOut;
+  if (!(await myId()) && !isGuestOp(op)) return signedOut;
   return callApi<T>(op, args);
 }
 

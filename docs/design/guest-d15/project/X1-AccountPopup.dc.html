@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Create your account pop-up</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0A6F58}a:hover{color:#064A3B}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #5E625F; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #121417; position: relative; overflow: hidden">
+  <div style="position: absolute; left: 20px; right: 20px; top: 56px; font-size: 17px; font-weight: 800; color: #C9CCC7">Post a request · Review</div>
+  <div style="position: absolute; left: 20px; right: 20px; top: 96px; height: 120px; border-radius: 20px; background: rgba(255,255,255,0.12)"></div>
+
+  <div role="dialog" aria-labelledby="pt" style="position: absolute; left: 20px; right: 20px; top: 170px; background: #FFFFFF; border-radius: 26px; padding: 24px 20px 18px; box-shadow: 0 24px 48px rgba(0,0,0,0.28); display: flex; flex-direction: column">
+    <div style="display: flex; align-items: flex-start">
+      <div style="width: 56px; height: 56px; border-radius: 18px; background: #E7F5EF; display: flex; align-items: center; justify-content: center">
+        <svg width="30" height="30" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 5C62 22 82 40 82 62A32 32 0 0 1 18 62C18 40 38 22 50 5Z" fill="#0E8F72"/><path d="M36 63l9 9 19-21" fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <a href="P3-Review.dc.html" aria-label="Close" style="margin-left: auto; width: 36px; height: 36px; border-radius: 999px; background: #ECEEE9; display: flex; align-items: center; justify-content: center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3F444A" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </a>
+    </div>
+    <div id="pt" style="margin-top: 16px; font-size: 24px; font-weight: 800; letter-spacing: -0.7px; line-height: 29px">Make your account to post</div>
+    <div style="margin-top: 8px; font-size: 14px; line-height: 21px; color: #5F6368">“Service my scooter this week” is saved on this phone. Posting needs a free TaskDrop account, so people know who they’re working with.</div>
+
+    <div style="margin-top: 16px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+      <div style="background: #F3F4F1; border-radius: 14px; padding: 10px"><div style="width: 20px; height: 20px; border-radius: 6px; background: #0A6F58; color: #FFFFFF; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center">1</div><div style="font-size: 12.5px; font-weight: 700; margin-top: 8px">Mobile number</div></div>
+      <div style="background: #F3F4F1; border-radius: 14px; padding: 10px"><div style="width: 20px; height: 20px; border-radius: 6px; background: #0A6F58; color: #FFFFFF; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center">2</div><div style="font-size: 12.5px; font-weight: 700; margin-top: 8px">Date of birth (18+)</div></div>
+      <div style="background: #F3F4F1; border-radius: 14px; padding: 10px"><div style="width: 20px; height: 20px; border-radius: 6px; background: #0A6F58; color: #FFFFFF; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center">3</div><div style="font-size: 12.5px; font-weight: 700; margin-top: 8px">Code and name</div></div>
+    </div>
+
+    <a href="P4-Wall.dc.html" style="margin-top: 18px; text-decoration: none; background: #0A6F58; color: #FFFFFF; border-radius: 999px; height: 54px; display: flex; align-items: center; justify-content: center; font-size: 15.5px; font-weight: 800">Create account</a>
+    <a href="P4-Wall.dc.html" style="margin-top: 10px; text-decoration: none; height: 48px; border-radius: 999px; border: 1.5px solid #E2E5DF; color: #121417; display: flex; align-items: center; justify-content: center; font-size: 14.5px; font-weight: 700">I have an account · Sign in</a>
+    <a href="P3-Review.dc.html" style="margin-top: 8px; align-self: center; text-decoration: none; font-size: 13px; font-weight: 700; color: #5F6368; padding: 8px 12px">Not now, keep exploring</a>
+    <div style="margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 11.5px; color: #5F6368">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5F6368" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+      Your post is posted as soon as you finish.
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 20px; right: 20px; bottom: 26px; display: flex; flex-direction: column; gap: 6px">
+    <span style="align-self: flex-start; font-size: 10px; font-weight: 800; letter-spacing: 0.8px; color: #B4512C; background: #FBEDE7; border-radius: 6px; padding: 3px 6px">GUEST CHANGE · one pop-up, a headline per action</span>
+    <div style="font-size: 12px; line-height: 18px; color: #F2F3F1">“…to publish your service” (blue, in Earn) · “…to add money” · “…to set up your profile” · “…to send this offer” · “…to message”</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

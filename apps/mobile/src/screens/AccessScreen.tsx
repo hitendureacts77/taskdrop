@@ -31,6 +31,7 @@ import { BirthDateField, EMPTY_BIRTH_DATE, type BirthDateParts } from '../compon
 import { TurnedAway } from '../components/AgeGate';
 import { recordBirthDate } from '../data/age';
 import { KeyboardScrollView, RevealWhen } from '../components/KeyboardScrollView';
+import { FROM_GUEST, declineAccount, runPendingAfterSignIn } from '../lib/guest';
 
 /**
  * The way in: one screen for new and returning people alike.
@@ -60,9 +61,11 @@ function spaced(digits: string): string {
 export function AccessScreen() {
   const t = useTheme();
   const { desktop } = useLayout();
-  const { go, reset } = useNav();
+  const { go, reset, back, params } = useNav();
   const { celebrate, flash } = useActions();
-  const { requestCode, verifyCode, signInWithGoogle, signInWithApple, signOut } = useAuth();
+  const { requestCode, verifyCode, signInWithGoogle, signInWithApple, signOut, continueAsGuest } = useAuth();
+  // Opened from the "Make your account" pop-up: Not now goes back, and signing in resumes what the guest was doing.
+  const fromGuest = Boolean(params[FROM_GUEST]);
   // Sign-in methods the admin panel has switched off are not offered (the server refuses them too, except Google).
   const { features } = useAppConfig();
 
@@ -119,6 +122,13 @@ export function AccessScreen() {
     } = await supabase.auth.getUser();
     if (!user) return;
     const route = await postSignInRoute(user.id);
+    if (fromGuest) {
+      if (route === 'home') {
+        back();
+        runPendingAfterSignIn();
+      } else go('setup', { quick: true });
+      return;
+    }
     if (route === 'home') reset('home');
     else go('setup');
   };
@@ -384,6 +394,20 @@ export function AccessScreen() {
         )}
 
         <View style={{ flex: 1, paddingHorizontal: 22, paddingTop: desktop ? 30 : 28 }}>
+          {fromGuest ? (
+            <Pressable
+              onPress={() => {
+                declineAccount();
+                back();
+              }}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Not now"
+              style={{ alignSelf: 'flex-start', marginBottom: 14 }}
+            >
+              <RNText style={tx('700', 14, t.colors.muted)}>Not now</RNText>
+            </Pressable>
+          ) : null}
           <RNText style={tx('800', 32, t.colors.ink, { letterSpacing: -1.2, lineHeight: 36 })}>{heading.title}</RNText>
           <RNText style={tx('400', 14, t.colors.muted, { marginTop: 10, lineHeight: 21 })}>{heading.sub}</RNText>
 
@@ -512,6 +536,36 @@ export function AccessScreen() {
                 </Pressable>
                 ) : null}
               </View>
+
+              {/* Look around first: the account is made at the last step (design D15). */}
+              {fromGuest ? null : (
+                <>
+                  <Pressable
+                    onPress={() => {
+                      void continueAsGuest();
+                      reset('home');
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Continue as guest"
+                    style={({ pressed }) => ({
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginTop: 14,
+                      paddingVertical: 13,
+                      borderRadius: 16,
+                      backgroundColor: t.colors.surface,
+                      borderWidth: 1,
+                      borderColor: t.colors.line,
+                      transform: [{ scale: pressed ? 0.97 : 1 }],
+                    })}
+                  >
+                    <RNText style={tx('700', 14, t.colors.ink)}>Continue as guest</RNText>
+                  </Pressable>
+                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 8, lineHeight: 18, textAlign: 'center' })}>
+                    Look around first. Make your account when you post, offer or pay.
+                  </RNText>
+                </>
+              )}
             </>
           ) : stage === 'birth' ? (
             <>

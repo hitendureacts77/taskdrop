@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
@@ -8,6 +8,7 @@ import { RoleTheme, useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useAuth } from '../providers/AuthProvider';
+import { isNeedsAccount, needAccount } from '../lib/guest';
 import { useActions } from '../providers/AppStateProvider';
 import { getProfile, updateProfile } from '../data/api';
 import { updateProfileExtras } from '../data/extras';
@@ -37,7 +38,8 @@ function Setup() {
   const t = useTheme();
   const { back, reset } = useNav();
   const { setMode } = useMode();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
+  const finishRef = useRef<() => Promise<void>>(async () => {});
   const { flash, celebrate } = useActions();
   const [bio, setBio] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
@@ -64,7 +66,9 @@ function Setup() {
   const ready = bioOk && skills.length > 0 && langs.length > 0;
 
   const finish = async () => {
-    if (!userId || !ready) return;
+    if (!ready) return;
+    if (guest) return needAccount('profile', () => finishRef.current());
+    if (!userId) return;
     setBusy(true);
     try {
       await updateProfile(userId, {
@@ -80,11 +84,13 @@ function Setup() {
       reset('home');
       celebrate('You’re set up to earn');
     } catch (e) {
+      if (isNeedsAccount(e)) return;
       flash(e instanceof Error ? e.message : 'Could not save your worker profile');
     } finally {
       setBusy(false);
     }
   };
+  finishRef.current = () => finish();
 
   const label = (s: string, top = 20) => (
     <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: top })}>{s}</RNText>

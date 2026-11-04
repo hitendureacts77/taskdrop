@@ -9,6 +9,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { AgeGate } from '../components/AgeGate';
 import { Overlays } from '../components/Overlays';
+import { AccountPrompt } from '../components/AccountPrompt';
 import { StagingWelcome } from '../components/StagingWelcome';
 import { TourHost } from '../components/tour/TourHost';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -28,7 +29,7 @@ const FADE = ['splash', 'welcome'];
  */
 export function NativeRoot() {
   const t = useTheme();
-  const { session } = useAuth();
+  const { session, guest } = useAuth();
   const c = t.colors;
 
   // While the staging ribbon or a banner sits above the app it has already used the status-bar gap. The system
@@ -55,7 +56,7 @@ export function NativeRoot() {
     // here lifts every screen; the ScrollViews inside then bring the focused
     // field into view themselves.
     <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-      <ScreenBoundary home={session ? 'home' : 'splash'}>
+      <ScreenBoundary home={session || guest ? 'home' : 'splash'}>
         <AgeGate>
           <NavThemeProvider value={navTheme}>
             <EdgeInsetApplicationContext.Provider value={edgeInsets}>
@@ -86,6 +87,7 @@ export function NativeRoot() {
       </ScreenBoundary>
       <ErrorBoundary silent>
         <Overlays />
+        <AccountPrompt />
         <StagingWelcome />
         <TourHost />
       </ErrorBoundary>

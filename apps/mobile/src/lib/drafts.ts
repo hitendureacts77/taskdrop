@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GUEST_DRAFTS_OWNER } from './guest';
 
 /**
  * Half-written posts. Leaving the posting flow with something typed keeps the
@@ -40,4 +41,21 @@ export async function saveDraft(userId: string, prompt: string, id?: string | nu
 
 export async function removeDraft(userId: string, id: string): Promise<void> {
   await write(userId, (await listDrafts(userId)).filter((d) => d.id !== id));
+}
+
+/**
+ * A guest's drafts (kept under GUEST_DRAFTS_OWNER, lib/guest.ts) move into the account once there is one,
+ * so the Drafts list in My Tasks still has them. Best-effort, like every draft write.
+ */
+export async function moveGuestDrafts(userId: string): Promise<void> {
+  const theirs = await listDrafts(GUEST_DRAFTS_OWNER);
+  if (theirs.length === 0 || userId === GUEST_DRAFTS_OWNER) return;
+  const mine = await listDrafts(userId);
+  const texts = new Set(mine.map((d) => d.prompt));
+  await write(userId, [...theirs.filter((d) => !texts.has(d.prompt)), ...mine].sort((a, b) => b.savedAt - a.savedAt));
+  try {
+    await AsyncStorage.removeItem(KEY(GUEST_DRAFTS_OWNER));
+  } catch {
+    // Left behind: they would move again next time, and duplicates are skipped.
+  }
 }
