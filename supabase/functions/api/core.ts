@@ -7,6 +7,7 @@
 
 import type { Client, Controls } from "../_shared/controls.ts";
 import type { Fetch as ImageKitFetch, ImageKitConfig } from "../_shared/imagekit.ts";
+import type { Standing, StandingReader } from "../_shared/standing.ts";
 
 export type DbError = { message: string; code?: string | null; details?: string | null };
 export type DbResult = { data: unknown; error: DbError | null; count?: number | null };
@@ -243,31 +244,9 @@ export function countBy<T>(list: T[], key: (x: T) => string): Record<string, num
 
 // ---------------------------------------------------------- account standing --
 
-/** Whether a person whose token still checks out may use the api: a suspended or deleted account may not. */
-export type Standing = "ok" | "suspended" | "deleted";
-
-/** The slice of a service-role client that `standingOf` reads. */
-export interface StandingReader {
-  // deno-lint-ignore no-explicit-any
-  from(table: string): any;
-}
-
-/**
- * Whether the person is suspended (an open row in user_suspensions, migration 071) or deleted (profiles.deleted_at,
- * migrations 087 and 108; no profile row at all means the auth user is gone). Both also set auth.users.banned_until,
- * but that column is not served by the data API and the token check above does not look at it, so this reads the
- * public tables that go with it. Two indexed lookups, asked together. Null when it could not be read: the caller
- * decides (the api lets the request go ahead, like the limiter, and logs it).
- */
-export async function standingOf(db: StandingReader, userId: string): Promise<Standing | null> {
-  const [suspension, profile] = await Promise.all([
-    db.from("user_suspensions").select("id").eq("user_id", userId).is("lifted_at", null).limit(1),
-    db.from("profiles").select("deleted_at").eq("id", userId).maybeSingle(),
-  ]);
-  if (suspension.error || profile.error) return null;
-  if (!profile.data || profile.data.deleted_at) return "deleted";
-  return (suspension.data?.length ?? 0) > 0 ? "suspended" : "ok";
-}
+// The check itself lives in ../_shared/standing.ts so razorpay, razorpayx-payouts and places-search use the very
+// same one (task 2.14, H46); it is re-exported here so the api's imports and tests are unchanged.
+export { standingOf, type Standing, type StandingReader } from "../_shared/standing.ts";
 
 // ------------------------------------------------------------ ended sessions --
 

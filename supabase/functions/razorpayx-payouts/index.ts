@@ -4,6 +4,8 @@ import { guarded, captureServerError, logServer } from "../_shared/monitoring.ts
 import { guardKey } from "../_shared/keyGuard.ts";
 import { secret } from "../_shared/secrets.ts";
 import { TOO_FAST, withinRate } from "../_shared/rateLimit.ts";
+import { gatewayHeaders } from "../_shared/gateway.ts";
+import { STANDING_REFUSAL, mustRefuse, standingOf } from "../_shared/standing.ts";
 import { balance, giveBack, sendPayout, syncOpen, type XConfig } from "../_shared/razorpayx.ts";
 
 /**
@@ -52,6 +54,14 @@ Deno.serve(guarded("razorpayx-payouts", async (req: Request) => {
   const userId = who?.user?.id;
   if (!userId) return json({ error: "Sign in first" }, 401);
 
+  // A suspended or deleted person's token still checks out for up to an hour: refuse it here as the api does (task 2.14, H46).
+  const standing = await standingOf(admin, userId);
+  if (mustRefuse(standing)) {
+    await logServer("warn", "razorpayx-payouts", "refused: " + standing + " account", { user_id: userId });
+    return json({ error: STANDING_REFUSAL, code: "UNAUTHENTICATED" }, 401);
+  }
+  if (standing === null) await logServer("warn", "razorpayx-payouts", "account standing unavailable", { user_id: userId });
+
   // A withdrawal is money: 20 calls a minute per person is far above any honest use (the Withdraw screen
   // makes one or two) and stops a script from hammering the payout provider (task 2.13 part A).
   const okRate = await withinRate(admin, userId, "payouts", 20, (m) => void logServer("warn", "razorpayx-payouts", "rate limiter unavailable", { error: m }));
@@ -71,6 +81,20 @@ Deno.serve(guarded("razorpayx-payouts", async (req: Request) => {
     .eq("role", "admin")
     .maybeSingle();
   const isAdmin = Boolean(adminRow);
+
+  // The staff actions below move company money, so "has the admin role" is not enough: this function holds the
+  // service key, so the table rules never see the person. Ask the database as the caller, who must be money staff
+  // (full admin or finance) with the authenticator code (task 2.14, H35). Null means allowed; otherwise the refusal.
+  const asUser = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    auth: { persistSession: false },
+    global: { headers: { Authorization: `Bearer ${jwt}`, ...(await gatewayHeaders()) } },
+  });
+  const moneyStaffRefusal = async (): Promise<Response | null> => {
+    const { error } = await asUser.rpc("check_money_staff");
+    if (!error) return null;
+    await logServer("warn", "razorpayx-payouts", "staff action refused: not money staff", { action: String(body.action), user_id: userId });
+    return json({ error: error.message }, 403);
+  };
 
   const account = await secret("RAZORPAYX_ACCOUNT_NUMBER");
   const keyId = (await secret("RAZORPAYX_KEY_ID")) || (await secret("RAZORPAY_KEY_ID"));
@@ -99,6 +123,10 @@ Deno.serve(guarded("razorpayx-payouts", async (req: Request) => {
       const { data: p } = await admin.from("payouts").select("user_id").eq("id", body.payoutId).maybeSingle();
       if (!p) return json({ error: "That withdrawal does not exist" }, 404);
       if (p.user_id !== userId && !isAdmin) return json({ error: "That is not your withdrawal" }, 403);
+      if (p.user_id !== userId) {
+        const refused = await moneyStaffRefusal();
+        if (refused) return refused;
+      }
       const sent = await sendPayout(admin, cfg, body.payoutId);
       // A payout that is not on its way or paid is one a person may need to look at.
       const fine = sent.status === "paid" || sent.status === "processing";
@@ -114,18 +142,38 @@ Deno.serve(guarded("razorpayx-payouts", async (req: Request) => {
     case "sync-mine":
       return json({ configured: true, payouts: await syncOpen(admin, cfg, userId, 10) });
     case "check-all":
-    case "send-pending":
+    case "send-pending": {
       if (!isAdmin) return json({ error: "Admins only" }, 403);
+      const refused = await moneyStaffRefusal();
+      if (refused) return refused;
       return json({ configured: true, payouts: await syncOpen(admin, cfg, null, 50) });
-    case "give-back":
+    }
+    case "give-back": {
       if (!isAdmin) return json({ error: "Admins only" }, 403);
       if (!body.payoutId) return json({ error: "Which withdrawal?" }, 400);
+      const refused = await moneyStaffRefusal();
+      if (refused) return refused;
       const back = await giveBack(admin, cfg, body.payoutId);
       await logServer("info", "razorpayx-payouts", "admin gave a withdrawal back", { payout_id: body.payoutId, status: back.status, note: back.note ?? null });
+      // A give-back by staff leaves a row in the admin audit log, written as that person, with how it ended (task
+      // 2.14, H36). A failure to write it is loud but does not change the answer: the money step is already done.
+      const { error: auditErr } = await asUser.rpc("admin_log_event", {
+        p_action: "payout_give_back",
+        p_target: body.payoutId,
+        p_detail: `status ${back.status}`,
+      });
+      if (auditErr) {
+        await logServer("error", "razorpayx-payouts", "GIVE-BACK NOT AUDITED", { payout_id: body.payoutId, error: auditErr.message, user_id: userId });
+        await captureServerError(new Error(`give-back not audited: ${auditErr.message}`), { fn: "razorpayx-payouts", step: "admin_log_event" });
+      }
       return json({ configured: true, ...back });
-    case "balance":
+    }
+    case "balance": {
       if (!isAdmin) return json({ error: "Admins only" }, 403);
+      const refused = await moneyStaffRefusal();
+      if (refused) return refused;
       return json({ configured: true, ...(await balance(cfg)) });
+    }
     default:
       return json({ error: "Unknown action" }, 400);
   }
