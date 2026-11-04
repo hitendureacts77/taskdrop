@@ -51,9 +51,33 @@ export type JobsMapProps = {
   focusId?: string | null;
   /** Shows a button that opens the full-screen map. */
   onExpand?: () => void;
-  /** Fill the screen: no rounded card, and room left for a top bar and a card rail. */
-  fill?: { top: number; bottom: number };
+  /**
+   * Fill the screen: no rounded card, and room left for a top bar, a bottom
+   * sheet and (desktop) a side panel. The legend and privacy notes then live in
+   * the panel or sheet, not over the map.
+   */
+  fill?: { top: number; bottom: number; left?: number };
+  /** A card drawn just above the picked pin (the desktop map, plan D14). Tile map only. */
+  callout?: React.ReactNode;
+  /** While a pin is picked, the others step back. */
+  dim?: boolean;
+  /** The person has moved the map; where its middle is now (for "Search this area"). */
+  onMoveEnd?: (centre: { lat: number; lng: number }) => void;
 };
+
+/** Where the middle of the map has to be so a point sits in the middle of the part the bars leave uncovered. */
+export function centreFor(
+  p: { x: number; y: number },
+  fill: { top: number; bottom: number; left?: number } | undefined,
+  lift = 0,
+): { x: number; y: number } {
+  if (!fill) return p;
+  return { x: p.x - (fill.left ?? 0) / 2, y: p.y + (fill.bottom - fill.top) / 2 - lift };
+}
+
+/** How far a callout lifts its pin below the middle, so the card above it stays on screen. */
+export const CALLOUT_LIFT = 110;
+const CALLOUT_W = 300;
 
 const MIN_ZOOM = 5;
 export const MAX_ZOOM = 17;
@@ -135,10 +159,18 @@ export function JobsMap({
   focusId = null,
   onExpand,
   fill,
+  callout,
+  dim = false,
+  onMoveEnd,
 }: JobsMapProps) {
   const t = useTheme();
   const start = me ?? (pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : DEFAULT_CENTRE);
-  const [centre, setCentre] = useState(start);
+  // A place shown in the middle of the part the bars leave uncovered, not behind a side panel.
+  const clear = (at: { lat: number; lng: number }, z: number) => {
+    const p = centreFor(project(at.lat, at.lng, z), fill);
+    return unproject(p.x, p.y, z);
+  };
+  const [centre, setCentre] = useState(() => clear(start, 12));
   const [zoom, setZoom] = useState(12);
   const [size, setSize] = useState({ w: 0, h: height });
 
@@ -151,7 +183,8 @@ export function JobsMap({
   // Once the first location arrives, start there; after that the map is the person's to move.
   const moved = useRef(false);
   useEffect(() => {
-    if (!moved.current && me) setCentre(me);
+    if (!moved.current && me) setCentre(clear(me, zoomRef.current));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me]);
 
   // The full map's card rail picks a pin: bring it into the middle of the part
@@ -161,11 +194,17 @@ export function JobsMap({
     if (!hit) return;
     moved.current = true;
     const z = Math.max(zoomRef.current, SPREAD_ZOOM);
-    const p = project(hit.lat, hit.lng, z);
-    setCentre(unproject(p.x, p.y + (fill ? (fill.bottom - fill.top) / 2 : 0), z));
+    const p = centreFor(project(hit.lat, hit.lng, z), fill, callout ? CALLOUT_LIFT : 0);
+    setCentre(unproject(p.x, p.y, z));
     setZoom(z);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusId]);
+
+  // The pan handler is made once, so it reads the latest callback through a ref.
+  const onMoveEndRef = useRef(onMoveEnd);
+  onMoveEndRef.current = onMoveEnd;
+  const fillRef = useRef(fill);
+  fillRef.current = fill;
 
   const pan = useRef(
     PanResponder.create({
@@ -181,6 +220,15 @@ export function JobsMap({
         const z = zoomRef.current;
         const from = project(origin.current.lat, origin.current.lng, z);
         setCentre(unproject(from.x - g.dx, from.y - g.dy, z));
+      },
+      onPanResponderRelease: (_e, g) => {
+        const z = zoomRef.current;
+        const from = project(origin.current.lat, origin.current.lng, z);
+        // What sits in the middle of the uncovered part, the reverse of centreFor.
+        const f = fillRef.current;
+        const dx = f ? (f.left ?? 0) / 2 : 0;
+        const dy = f ? (f.bottom - f.top) / 2 : 0;
+        onMoveEndRef.current?.(unproject(from.x - g.dx + dx, from.y - g.dy - dy, z));
       },
     }),
   ).current;
@@ -219,7 +267,10 @@ export function JobsMap({
 
   const zoomTo = (next: number, at?: { lat: number; lng: number }) => {
     moved.current = true;
-    if (at) setCentre(at);
+    if (at) {
+      setCentre(at);
+      onMoveEnd?.(at);
+    }
     setZoom(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next)));
   };
 
@@ -248,11 +299,17 @@ export function JobsMap({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: t.colors.bg, borderWidth: 1, borderColor: t.colors.line, alignItems: 'center', justifyContent: 'center' }}
+      style={{ width: fill ? 44 : 36, height: fill ? 44 : 36, borderRadius: fill ? 14 : 10, backgroundColor: t.colors.bg, borderWidth: 1, borderColor: t.colors.line, alignItems: 'center', justifyContent: 'center' }}
     >
       {child}
     </Pressable>
   );
+
+  // Where the picked pin is drawn, when it stands alone (a group zooms in first), and how tall it is.
+  const pickedItem = callout && selectedId ? items.find((it) => it.kind === 'one' && it.id === selectedId) : undefined;
+  const pickedAt = pickedItem
+    ? { ...at(pickedItem), lift: (pickedItem.kind === 'one' && pickedItem.area ? TASK_PIN.anchor : PRICE_PIN.anchor) + 10 }
+    : null;
 
   const frame = fill
     ? // The tiles run past the edges; without the clip they draw over the menu and the page around a full map.
@@ -315,7 +372,8 @@ export function JobsMap({
           const pop = tagAt(clock.elapsed, delays[i]!);
           if (pop === 0) return null;
           const p = at(it);
-          const drop = { opacity: pop, transform: [{ translateY: -10 * (1 - pop) }] };
+          const back = dim && selectedId !== null && !(it.kind === 'one' && it.id === selectedId);
+          const drop = { opacity: pop * (back ? 0.45 : 1), transform: [{ translateY: -10 * (1 - pop) }] };
           if (it.kind === 'group') {
             const key = 'g-' + it.ids.join('|');
             const into = () => zoomTo(Math.max(zoom + 2, SPREAD_ZOOM), unproject(it.x + left, it.y + top, zoom));
@@ -392,15 +450,24 @@ export function JobsMap({
             </View>
           );
         })}
+
+        {/* The picked pin's card sits right above it (desktop, plan D14). */}
+        {callout && pickedAt ? (
+          <View pointerEvents="box-none" style={{ position: 'absolute', left: pickedAt.x - CALLOUT_W / 2, bottom: size.h - pickedAt.y + pickedAt.lift, width: CALLOUT_W, zIndex: 5 }}>
+            {callout}
+          </View>
+        ) : null}
       </View>
 
-      <View style={{ position: 'absolute', right: 8, top: 8 + padTop, gap: 6 }}>
+      <View style={{ position: 'absolute', right: fill ? 16 : 8, top: (fill ? 16 : 8) + padTop, gap: 6 }}>
         {onExpand ? control('Open the full map', onExpand, <Icon name="expand" size={16} color={t.colors.ink} />) : null}
         {control('Zoom in', () => zoomTo(zoom + 1), <RNText style={tx('700', 18, t.colors.ink)}>+</RNText>)}
         {control('Zoom out', () => zoomTo(zoom - 1), <RNText style={tx('700', 18, t.colors.ink)}>−</RNText>)}
-        {me ? control('Back to my area', () => (moved.current = false, setCentre(me), setZoom(12)), <Icon name="compass" size={18} color={blue} />) : null}
+        {me ? control('Back to my area', () => (moved.current = false, setCentre(clear(me, 12)), setZoom(12), onMoveEnd?.(me)), <Icon name="compass" size={18} color={blue} />) : null}
       </View>
 
+      {fill ? null : (
+      <>
       <View pointerEvents="none" style={{ position: 'absolute', left: 8, top: 8 + padTop, right: 56, flexDirection: 'row' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.bg, borderRadius: 10, borderWidth: 1, borderColor: t.colors.line, paddingHorizontal: 10, paddingVertical: 6, flexShrink: 1 }}>
           {people ? (
@@ -444,6 +511,8 @@ export function JobsMap({
           </RNText>
         </View>
       </View>
+      </>
+      )}
 
       {/* OpenStreetMap's licence requires this credit to stay visible. */}
       <RNText style={tx('400', 9, t.colors.muted, { position: 'absolute', right: 6, bottom: 4 + padBottom, backgroundColor: t.colors.bg, paddingHorizontal: 4, borderRadius: 4, overflow: 'hidden' })}>

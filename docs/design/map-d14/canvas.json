@@ -1,0 +1,21 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-11-04T12:00:00Z" },
+  "title": "Full Map Redesign D14",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1440, "h": 900, "title": "Desktop: side panel, picked job opens above its pin" },
+    "PhoneLow.dc.html": { "x": 0, "y": 1280, "w": 390, "h": 844, "title": "Phone: sheet resting low" },
+    "PhoneUp.dc.html": { "x": 470, "y": 1280, "w": 390, "h": 844, "title": "Phone: sheet pulled up, Best-paying areas tab" },
+    "PhoneCard.dc.html": { "x": 940, "y": 1280, "w": 390, "h": 844, "title": "Phone: one picked job, step to the next" },
+    "PhoneReach.dc.html": { "x": 1410, "y": 1280, "w": 390, "h": 844, "title": "Phone: how-far picker open" }
+  },
+  "order": ["Main.dc.html", "PhoneLow.dc.html", "PhoneUp.dc.html", "PhoneCard.dc.html", "PhoneReach.dc.html"],
+  "notes": {
+    "t1": { "x": 0, "y": -300, "text": "D14 full map: desktop (Earn mode, dark)", "kind": "title1", "maxW": 1800 },
+    "t2": { "x": 0, "y": 1000, "text": "D14 full map: phone", "kind": "title1", "maxW": 1800 },
+    "s1": { "x": 1520, "y": 0, "w": 320, "text": "New things that need your OK (not in the live app today):\n\n1. \"Search this area\" button, shown after you drag the map\n2. \"Nearest\" tile next to \"Best offer\"\n3. Poster's star rating on the job card\n4. How-far picker (5 / 10 / 25 km) inside the map\n\nKept: every old feature. Best-paying areas is now a tab next to Jobs. Helpers mode gets the same panel and sheet.\n\nAll names, prices and areas here are sample data.", "fill": "blue", "size": "m" }
+  },
+  "designSystems": []
+}
