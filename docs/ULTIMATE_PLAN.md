@@ -273,18 +273,26 @@ Everything here is **new and separate** and is made in Step 5. Nothing is copied
 
 | # | The check, in plain words | Where TaskDrop stands | Finished in |
 |---|---|---|---|
-| 1 | **Safe connection.** Nobody can listen in or show the site inside another page; the browser gets safety headers | **Done**, except one part. HTTPS only (Vercel and Supabase); HSTS, `nosniff`, a frame block and a referrer rule on both sites. The content policy only reports problems so far (H9) | 2.6 (H9) |
-| 2 | **No key leaks, now or ever.** No secret in the app, the website, Git or chat | **New changes: done** (rule 8, a scanner on every change, a test that fails if a secret reaches the app). **Every file and the whole history, judged key by key: not started**, and both code folders are still public | 2.5 done; **2.15** |
+| 1 | **Safe connection.** Nobody can listen in or show the site inside another page; the browser gets safety headers | **Done.** HTTPS only (Vercel and Supabase); HSTS, `nosniff`, a frame block and a referrer rule on both sites. The website's content policy now blocks bad scripts instead of only reporting them (H9 closed 4 Nov, PR 233); the report address stays on | 2.6 (done) |
+| 2 | **No key leaks, now or ever.** No secret in the app, the website, Git or chat | **Done.** New changes: rule 8, a scanner on every change, a test that fails if a secret reaches the app. Every file and the whole history were scanned and judged key by key on 4 Nov (2.15): nothing exposed that is a real live secret; one old test key pair (accepted) and one before-launch step (H56). Both code folders are still public until you click (H27) | 2.5 and 2.15 done; 2.13 H (your click) |
 | 3 | **Real sign-in.** A proper sign-in provider, passwords stored safely | **Done.** Supabase Auth: one-time codes, hashed passwords, Google sign-in, signed login tokens. The OWASP check found two small gaps for your answer (H30, H31) | 2.13 C |
 | 4 | **Every door checks who you are and what you may do.** Person A never reaches person B's data | **Done on staging.** All 113 database functions check the caller; a test fails if a new door has no lock; a two-person test over every `api` action found nothing leaked (built 4 Nov). The last side door (H3) closes in 3.9 | 2.7, 2.12, 2.13 A and G; 3.9 |
 | 5 | **A limit on every door.** Bots cannot spam sign-in, SMS, posts, uploads or withdrawals, or flood the site | **Mostly.** Every server door has a per-person limit, and a test stops a new door without one (built 4 Nov); Vercel blocks floods on the website. Left: the rush and spammer test's results (H29) | 2.8, 2.8b, 2.13 A; 2.13 J |
 | 6 | **Hostile input is refused.** Script code, database tricks and odd values do nothing | **Done.** Every `api` input is checked; database queries are never built from typed text; a code scanner (Semgrep) reads every change and runs every Monday (built 4 Nov) | 2.9, 2.13 B |
-| 7 | **Sessions and cookies are safe.** A forged request from another website cannot act for you, and a session can be ended | **Mostly.** The app sends a login token, not a cookie; "Sign out of all devices" and the admin's button stop a session at once (on staging 4 Nov). To check: the admin cookie's flags and forged requests | 2.13 I; 2.14 F |
-| 8 | **Errors and logs say nothing private.** No keys, phone numbers or codes in error messages, Sentry or the logs | **Mostly.** Sentry hides secrets; the OWASP checklist went through errors and logs line by line (built 4 Nov). Background jobs and outside services are read in the hunt | 2.13 C; 2.14 H |
-| 9 | **Uploads are safe and files are private.** Only real photos and videos of a fair size; nobody opens another person's file | **Mostly.** Private files only, shown through short-lived links; 20 uploads a minute and 15 MB each; a test that no file is public. Left: your click to make the code folders private (H27), and removing the location stored inside photos | 2.13 H; 2.14 H |
+| 7 | **Sessions and cookies are safe.** A forged request from another website cannot act for you, and a session can be ended | **Mostly.** The app sends a login token, not a cookie; "Sign out of all devices" and the admin's button stop a session at once (on staging 4 Nov). The hunt (4 Nov) found that forged requests from another website are stopped, but the admin's login cookie can be read by page scripts and Supabase does not enforce the idle limits itself (H37, waiting for your answer) | 2.13 I; 2.14 F |
+| 8 | **Errors and logs say nothing private.** No keys, phone numbers or codes in error messages, Sentry or the logs | **Mostly.** Sentry hides secrets; the OWASP checklist went through errors and logs line by line (built 4 Nov). The hunt read the background jobs and logs on 4 Nov: nothing private in them; one small leak fixed (B19, the export log kept the search text); lock-screen pushes show private detail (H42, your decision) | 2.13 C; 2.14 H |
+| 9 | **Uploads are safe and files are private.** Only real photos and videos of a fair size; nobody opens another person's file | **Mostly.** Private files only, shown through short-lived links; 20 uploads a minute and 15 MB each; a test that no file is public. The hunt (4 Nov) found photos in ImageKit are fine (ImageKit removes the hidden location). Left: your click to make the code folders private (H27), and the location stored inside videos and files kept in Supabase (H38, waiting for your answer) | 2.13 H; 2.14 H |
 | 10 | **Packages kept up to date.** Old libraries are where most holes come from | **Mostly.** `npm audit` on every change and every Monday (built 4 Nov); Dependabot suggests new versions. One accepted warning waits for review by 13 December | 2.6, 2.13 B |
-| 11 | **Attacked for real before launch.** Someone tries to break in on purpose and proves each hole | **Not started.** In order: Claude's hunt, then Strix, then 2 or 3 testers you invite | 2.14, **2.16**, 2.13 E |
+| 11 | **Attacked for real before launch.** Someone tries to break in on purpose and proves each hole | **In progress.** Claude's hunt: rounds 1 and 2 done 4 Nov; it found 2 Critical and 2 High (money could be created from nothing) and the fixes are in a PR for migration 148. Still to come: Strix (waiting for you), then 2 or 3 testers you invite | 2.14, **2.16**, 2.13 E |
 | 12 | **Notice fast, recover fast, guard your own logins.** Alarms, an emergency guide, backups, your accounts | **Partly.** Budget and Sentry alarms, the decoy key and the emergency guide are in place. Yours: the clicks in 2.2 to 2.4. Backups outside Supabase come with production. 2-step sign-in is deferred by you (H14) | 2.2 to 2.4, 2.10, 5.9, 6.5 |
+
+**Questions for you from the security work** (4 Nov). The full wording is in the Decisions list at the end. Each has a recommended answer; say it, or say your own.
+
+- **Decision 17, PAN before withdrawals** (open since round 1). Recommended: ask your CA in S.2, then add the screen before Step 5.
+- **Decision 18, H33: who may download everyone's phone numbers and emails** (open since round 1). Recommended: only Admin and Support.
+- **Decision 25, H68: an 18+ check for guests.** Recommended: add a one-tap "I am 18 or older" before guest mode, because the Terms are 18+ only.
+- **Decision 26, H42: lock-screen notifications show private detail** (names, rupee amounts, the start of a chat). Recommended: show a plain line such as "You have a new message" and keep the detail inside the app.
+- **Decision 27, H47: the cost and limits of new accounts** (daily cap on posting tasks and ideas; sign-up is cheap while codes show on screen). Recommended: 20 tasks and 20 ideas a day, fewer for brand-new accounts.
 
 ```html
 <div class="fig">
@@ -303,7 +311,7 @@ Everything here is **new and separate** and is made in Step 5. Nothing is copied
 <details id="c-security-detail">
 <summary>[CARD] The detail: every hole found (H1 onwards), what Vercel gives you and what stays yours, and the bug list</summary>
 
-**The holes found (checked by Claude on 30 October 2026, on staging; H15 to H17 added on 31 October from the best-practices check; H18 and H19 added on 31 October from the Vercel security check; H20 and H21 added on 2 November from Supabase's rate-limit guide; H22 to H25 added on 3 November from the WhatsApp advice, task 2.13; H29 added on 3 November from a second paste, task 2.13 part J)**
+**The holes found (checked by Claude on 30 October 2026, on staging; H15 to H17 added on 31 October from the best-practices check; H18 and H19 added on 31 October from the Vercel security check; H20 and H21 added on 2 November from Supabase's rate-limit guide; H22 to H25 added on 3 November from the WhatsApp advice, task 2.13; H29 added on 3 November from a second paste, task 2.13 part J; H35 to H55 and H61 to H68 added on 4 November from the second round of the hunt, task 2.14; H56 added on 4 November from the secrets audit, task 2.15)**
 
 Sources: Supabase's own security check on the staging database (rerun on 31 October: the same 113 functions, the same signed-out `get_app_controls`, the same 7 private tables and leaked-password protection off, so nothing new), `npm audit` on both code folders, the break-it pass of 25 October, and a read of both `vercel.json` files, the admin's `next.config.mjs` and `middleware.ts`, and the Edge Functions' CORS settings.
 
@@ -330,7 +338,7 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | H6 | The secrets file and the keystore passwords sit together in OneDrive | High | 2.1 |
 | H7 | 15 package warnings in the user app, **7 of them high** (the admin app has 0) | Medium | 2.6 |
 | H8 | Server functions answer requests from any website (CORS `*`). Not open today because a login token is needed, but wider than needed | Medium | 2.6 |
-| H9 | The full content security policy only reports problems; it does not block them yet | Medium | 2.6 |
+| H9 | The full content security policy only reports problems; it does not block them yet | Medium | **Closed 4 Nov** (2.6, PR 233: the website's policy now blocks bad scripts; the report address stays on) |
 | H10 | Sign-in limits trust a network address that can be faked, and there is no daily cap on SMS | Medium (costs money once SMS is real) | 2.8 |
 | H11 | Leaked-password protection is off (Supabase only offers it on the paid plan) | Medium | 5.2 turns it on in production |
 | H12 | An unused key, `OMNIROUTE_API_KEY`, is still set | Low | 2.6 |
@@ -356,6 +364,36 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | H32 | Migration 071 (4 Oct) rewrote the withdrawal function from an older copy and lost three checks: the most per withdrawal (₹1 lakh), "add your name and PAN first", and the holder's name on a bank account. Proven on staging: an established account could ask for more than ₹1 lakh at once. Found by the 2.14 hunt | High (before real money) | **Fixed 3 Nov** (migration 145 and a test; a new test now fails if any database function loses a check this way). PAN: decision 17 |
 | H33 | Every staff role, including the read-only Viewer, can download one spreadsheet with every person's name, email and phone number (the People export) | Medium | Decision 18 |
 | H34 | Each wallet is one running number, changed in place by many functions, with no record of each movement, so the books cannot be proven to balance and a wrong change would be hard to trace | Medium (High once money is real) | Build before Step 5: an add-only list of wallet movements and a test that every balance equals its list (2.14) |
+| H35 | Any staff login, even the read-only Viewer, could send a refund or trigger RazorpayX withdrawal actions by calling the two money server functions directly, with no authenticator code. The amount and the receiver were right (the database works them out), so no theft, but "Viewer changes nothing" and "money needs a code" were both untrue for these paths. Found by hunt round 2 | Medium | **Fixed 4 Nov (PR 234 + admin PR 44, migration 147)** |
+| H36 | Refunds and RazorpayX give-backs left no row in the admin audit log, so nobody could say which staff member pressed the button | Medium | **Fixed 4 Nov (PR 234 + admin PR 44, migration 147)** |
+| H37 | The admin's login cookies can be read by page scripts, and the 30-minute idle and 12-hour limits are enforced only by the admin website, not by Supabase. A script that got onto an admin page could steal the login and keep using it directly | Medium | **Waiting for your "fix" or "accept"** |
+| H38 | Videos, documents and any picture sent to Supabase storage keep the location data stored inside them, and while a job is open every signed-in person can open its video. (Pictures kept in ImageKit are fine: ImageKit removes the hidden location. This corrects round 1) | Medium | **Waiting for your "fix" or "accept"** |
+| H39 | The place search has no daily or overall limit, so one account or a few could run up the Google bill | Medium | **Waiting for your "fix" or "accept"** |
+| H40 | A person's phone can be texted 120 times a day by someone else, and one bot with about 17 network addresses can use up the whole day's SMS allowance (500 on staging), so nobody new can sign in by text until midnight | Medium | **Waiting for your "fix" or "accept"** |
+| H41 | A signed-in person can upload files to ImageKit under their own names and folders, outside the path TaskDrop checks. They take space and are never found or removed | Medium | **Waiting for your "fix" or "accept"** |
+| H42 | Notifications on a locked phone show private detail: the other person's name and task, rupee amounts, the first 100 characters of a chat message | Medium (your decision) | **Waiting for your "fix" or "accept"** (decision 26) |
+| H43 | Ad clicks are free, unlimited and unchecked, and they raise a promotion's rank. An advertiser could click their own promotion to win the top slot | Medium | **Waiting for your "fix" or "accept"** |
+| H44 | Nothing limits the total number of files one person can store, so one account could fill the storage | Medium | **Waiting for your "fix" or "accept"** |
+| H45 | Three profile fields are readable by every signed-in person: when someone last signed out of all devices, and their weekly earnings goal | Low | **Waiting for your "fix" or "accept"** |
+| H46 | The money and place-search functions do not check that the person is suspended or deleted (the `api` does) | Low | **Fixed 4 Nov (PR 234 + admin PR 44, migration 147)** |
+| H47 | No daily cap on posting tasks, services or feedback, so a new account could fill the public feed with fake jobs | Medium (before launch) | **Waiting for your "fix" or "accept"** (decision 27) |
+| H48 | Sign-in codes are kept in plain text in the database for the 10 minutes they live | Low | **Waiting for your "fix" or "accept"** |
+| H49 | Anyone can learn whether a phone number has a TaskDrop account (the sign-in screen says "no account" or "already exists") | Low | **Waiting for your "fix" or "accept"** (same question as the 2.9 account-existence messages) |
+| H50 | The check that background jobs really come from Inngest switches off if a test setting (`INNGEST_DEV`) is ever set on production by mistake | Low | **Fixed 4 Nov (PR 234 + admin PR 44, migration 147)** |
+| H51 | **A quote with a negative price creates money.** The database does not insist that a quote is above zero. A quote of minus ₹1,000, written straight into the database, makes the poster's wallet go up by ₹1,030 when accepted, and cancelling gives nothing back. Proven on staging (rolled back) | Critical | **Being fixed: Critical, 4 Nov (PR pending, migration 148)** |
+| H52 | The database's own data door is open to every signed-in person, so every check that lives only in the `api` (amount limits, text checks, suspended people, the admin's switches, per-person limits) can be skipped. This is the same open door as H3 | High | Same open door as H3 (direct database access): **closes with 3.9 (gateway-only); until then the new price rules from the H51 fix reduce the damage** |
+| H53 | **A job paid by card stays "paid" after the helper backs out**, so the poster can hire a far dearer quote with the old money and the new helper is paid the new price. Proven on staging: ₹1,236 paid in, ₹10,800 of earnings out (rolled back) | Critical | **Being fixed: Critical, 4 Nov (PR pending, migration 148)** |
+| H54 | A helper who backed out can come back and press Start after the poster chose someone else, and take the job over. Proven on staging (rolled back) | High | **Being fixed: Critical, 4 Nov (PR pending, migration 148)** |
+| H55 | Streaks, "jobs done" and five-star counts can be farmed with a second account of the same person | Low | **Waiting for your "fix" or "accept"** |
+| H56 | The beta Android builds carry the App Check debug token (found by the secrets audit, task 2.15). Anyone who got a beta build could use it to pass TaskDrop's app check. FIX SOON: before launch, delete that token in Firebase and confirm the store builds are made without it | Low | 5.9 (before launch) |
+| H61 | Guest mode (no account): old full addresses typed before the fix still sit in the public place label, next to the rounded point. Anyone could read them from the feed and the profile cards | Medium | **Waiting for your "fix" or "accept"** |
+| H62 | The guest task card is built as "every column except these", so any column added to tasks later would go onto the open internet unreviewed | Medium | **Waiting for your "fix" or "accept"** |
+| H63 | The guest limit counts per network address only: many phones behind one mobile address can lock each other out, and someone with many addresses has no overall ceiling on the database load | Medium | **Waiting for your "fix" or "accept"** |
+| H64 | Suspended people stay fully visible to guests (their open posts and helper card) | Low | **Waiting for your "fix" or "accept"** |
+| H65 | Every public card shows the exact "last seen" time, so anyone can watch when a named person is on their phone | Low | **Waiting for your "fix" or "accept"** |
+| H66 | The automatic check of server doors (`check-endpoints`) does not know about the no-login guest door | Low | **Waiting for your "fix" or "accept"** |
+| H67 | If the guest limiter itself breaks, guest calls run anyway instead of being refused | Low | **Waiting for your "fix" or "accept"** |
+| H68 | Guests browse every post and profile without any 18+ question (the age check is only at sign-up) | Low (your decision) | **Waiting for your "fix" or "accept"** (decision 25) |
 | — | Accepted on purpose: an old Razorpay **test** key in the code history; `get_app_controls` readable signed out; 7 private tables closed to the app | Info | Nothing to do |
 
 **The bugs found (your walkthrough, the phone runs and the break-it pass)**
@@ -377,8 +415,19 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | B13 | Razorpay test mode ran out of payment links and shows no UPI | Medium (testing only) | Dropped 31 Oct: test keys have no UPI |
 | B14 | 10 design changes you asked for (birth-date wheel, sharper splash, shorter categories, clearer price and more) | Design | 1.5 and 1.6 |
 | B15 | The test-data seed files load with triggers off, so 13 staging tasks show a point about 11 m precise on the map instead of the rounded area (about 1 km). Found by the 2.14 hunt | Low (fake data) | **Fixed 3 Nov** in the seed files; the 13 rows correct at the next test-data reset (needs your yes) |
+| B16 | A payment that is paid but whose job could not be funded (one short database hiccup at the wrong second) is never retried by itself. The poster sees "paid", the helper cannot start, and only the nightly check notices | Medium | **Fixed 4 Nov (PR 234 + admin PR 44, migration 147)** |
+| B17 | A double tap on a slow network can make two payment links for the same job, and both can be paid | Low | **Fixed 4 Nov (PR 234 + admin PR 44, migration 147)** |
+| B18 | Rare double push or double alert after a slow moment (the message was sent, then the step is retried) | Low | **Waiting for your "fix" or "accept"** (recommended: accept) |
+| B19 | The people-export audit line stores the text typed in the search box, so a searched phone number would stay in the audit log | Low | **Fixed 4 Nov (PR 234 + admin PR 44, migration 147)** |
+| B20 | A poster can open a dispute on a task where no work was sent, even an open task with no helper. On a started job it also dodges the 5% fine, because staff then decide | Medium | **Being fixed: Critical, 4 Nov (PR pending, migration 148)** |
+| B21 | Nothing ever expires: open tasks stay open after their due time, and a locked task that is never paid stays locked (on staging, 21 open tasks past due and 2 unpaid locks over 2 days) | Low | **Waiting for your "fix" or "accept"** |
+| B30 | The "New talent" list shows deleted accounts (3 of 30 cards on staging), to guests and signed-in people | Low | **Waiting for your "fix" or "accept"** |
+| B31 | On a shared phone, a guest's drafts and saved tasks move into whichever account signs in next. Drafts are free text, often with a flat number or a phone number | Medium | **Waiting for your "fix" or "accept"** |
+| B32 | The home counter "open tasks" counts posts nobody can see (59 shown, 38 live) | Low | **Waiting for your "fix" or "accept"** |
 
 New holes and bugs found by the bug and security hunt (task 2.14) are added to these two tables, holes from H30 and bugs from B15, each with its proof and the task that fixes it.
+
+**Hunt round 2 (4 Nov) in numbers:** 38 findings (H35 to H55, H61 to H68, B16 to B21, B30 to B32): 2 Critical (H51, H53), 2 High (H52, H54), 17 Medium and 17 Low. The numbers H56 to H60 are not all used: H56 came from the secrets audit (2.15), and H57 to H60 are simply unused. Critical and High are always fixed; the Critical and High fixes are in a PR for migration 148. The Medium and Low ones marked "Waiting" need your "fix" or "accept".
 
 </details>
 
@@ -937,12 +986,12 @@ approve 1.9
 
 **The security path: what is left, in order** (made simpler on 4 November 2026). Do one line at a time. Each line is one sentence to Claude, or a few clicks of yours. The "Security in one page" table in the Security section shows what each line finishes.
 
-1. **Find every leaked key** (2.15, Claude, about one session). It goes first, because both code folders are still public. SAY "start 2.15", then answer each short card with "fix" or "accept".
+1. **Find every leaked key** (2.15). **Done 4 Nov:** nothing exposed that is a real live secret. One before-launch step is left (H56, the beta app's debug token), and the old test keys are accepted until you make the code folders private.
 2. **Finish 2.13** (Claude built it on 4 Nov). Yours: reply "fix" or "accept" to H30 and H31, make both code folders private (part H, after 2.15), and invite 2 or 3 testers (part E).
 3. **Your clicks** (2.2, 2.3 and 2.4, about 1.5 hours, any day): spending alerts, lock the places keys are kept, read the emergency guide once.
-4. **The hunt** (2.14). SAY "start 2.14".
+4. **The hunt** (2.14). Rounds 1 and 2 done 4 Nov. The 2 Critical and 2 High finds are being fixed (migration 148); reply "fix" or "accept" to the Medium and Low finds. Part G (every screen on the phone) is still to do.
 5. **The AI attacker** (2.16), after the hunt's fixes. Install Docker and make an AI key with a spending limit, then SAY "start 2.16".
-6. **The small leftovers:** block mode for the content policy (2.6, H9), your OK on the Google-first sign-in screen (2.8), and test T11 with the phone (2.9).
+6. **The small leftovers:** your OK on the Google-first sign-in screen (2.8). (The content policy now blocks, H9 closed 4 Nov, and the Android app test T11 passed 4 Nov.)
 7. **Tick Gate 2b.** Then Step 5 (production) may start.
 
 Every finding from 2.13 to 2.16 reaches you in one short form: a level, what happened, why it matters and what to do. Critical and High are always fixed. For everything else you reply "fix" or "accept".
@@ -956,17 +1005,17 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 | 2.3 Lock down key storage | Yours | All four clicks |
 | 2.4 Read the emergency guide | Yours | Read `docs/KEY_RUNBOOK.md` once (this is also proof 6 of 2.10) |
 | 2.5 Key protection | Done | Nothing |
-| 2.6 Close the holes | Part done | H9 (read a week of CSP reports, then block) and the Expo SDK upgrade plan (review by 13 Dec) |
+| 2.6 Close the holes | Done 4 Nov | H9 closed (PR 233). The accepted warnings wait for review by 13 Dec |
 | 2.7 Stop-ship tests | Done | Nothing |
 | 2.8 SMS safety | Mostly done | Google sign-in shown first needs your OK on the layout |
 | 2.8b Supabase sign-in limits | Done (2 Nov) | Nothing. H21, found on the way, is closed on staging too |
-| 2.9 Security tests, round 2 | Part done | T11 on the Android app (needs the phone); your answer on the account-existence messages |
+| 2.9 Security tests, round 2 | Done 4 Nov | T11 passed on build 1.1.0. Your answer on the account-existence messages (H49) |
 | 2.10 Alarms and emergency guide | Part done | Proof 6 (you read the guide); optional second Sentry rule for `fatal` issues |
 | 2.11 Money safety limits | Done | Nothing |
 | 2.13 The WhatsApp advice (added 3 Nov) | Built 4 Nov | Your replies to H30 and H31; the Make-private click (part H); invite the testers (part E); the spend-stop clicks in the part F table |
-| 2.14 The bug and security hunt (added 3 Nov) | Round 1 started 3 Nov | H32 fixed; decisions 17 and 18; parts D and G next (G needs the phone) |
-| 2.15 The secrets audit (added 4 Nov) | Not started | Say "start 2.15" |
-| 2.16 The AI attacker, Strix (added 4 Nov) | Not started | After 2.14: Docker and an AI key with a limit, then say "start 2.16" |
+| 2.14 The bug and security hunt (added 3 Nov) | Rounds 1 and 2 done 4 Nov | Critical and High fixes (migration 148) to merge; your "fix" or "accept" on the Medium and Low finds; decisions 17, 18, 25 to 27; part G (needs the phone) |
+| 2.15 The secrets audit (added 4 Nov) | Done 4 Nov | H56 before launch (5.9); make the code folders private (2.13 H) |
+| 2.16 The AI attacker, Strix (added 4 Nov) | Not started | Waiting for you: Docker Desktop (not installed on this PC, checked 4 Nov) and an AI key with a spending limit, then say "start 2.16" |
 
 **On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
 
@@ -1117,7 +1166,7 @@ start key protection
 </details>
 
 <details id="t2-6" data-short="Close the holes">
-<summary>[BOTH] <b>2.6</b> Close the holes found on 30 October <small>· your time: 20 minutes</small></summary>
+<summary>[BOTH] <b>2.6</b> Close the holes found on 30 October <small>· your time: 20 minutes · H9 closed 4 Nov</small></summary>
 
 **What Claude fixes (one pull request):**
 
@@ -1145,7 +1194,7 @@ close the holes found on 30 October
 
 **Done when:** the pull request is merged, `npm audit` shows 0 high warnings (or each is explained), and Claude has shown you the exposed-file check passing.
 
-**Part done 1 Nov (PR 156, merged):** H8 closed (the Edge Functions answer CORS only for listed origins; production sets `ALLOWED_ORIGINS`, 5.9), the exposed-files check passes on all four staging addresses and the admin (`npm run check:exposed`), and the security-review-before-merge rule is in both agent guides. **H7:** the 6 accepted advisories (2 high) are unchanged and explained, review by 13 Dec; the Expo SDK upgrade that removes them is still to plan. **H12:** `OMNIROUTE_API_KEY` was not found in Vercel (both projects), Supabase function secrets or the Vault, so there is nothing to delete; check Expo's variables once. **Still open:** H9 (read a week of CSP reports in Sentry, then switch the policy to blocking).
+**Part done 1 Nov (PR 156, merged):** H8 closed (the Edge Functions answer CORS only for listed origins; production sets `ALLOWED_ORIGINS`, 5.9), the exposed-files check passes on all four staging addresses and the admin (`npm run check:exposed`), and the security-review-before-merge rule is in both agent guides. **H7:** the 6 accepted advisories (2 high) are unchanged and explained, review by 13 Dec; the Expo SDK upgrade that removes them is still to plan. **H12:** `OMNIROUTE_API_KEY` was not found in Vercel (both projects), Supabase function secrets or the Vault, so there is nothing to delete; check Expo's variables once. **Done 4 Nov (PR 233, merged): H9 closed.** The website's content policy now blocks bad scripts instead of only reporting them; the report address stays on, so Sentry still hears about anything blocked. H9 is the last open hole of this task. Still waiting on its own date: the accepted warnings (review by 13 Dec).
 </details>
 
 <details id="t2-7" data-short="Stop-ship tests">
@@ -1251,7 +1300,7 @@ start Supabase sign-in limits
 </details>
 
 <details id="t2-9" data-short="Security tests round 2">
-<summary>[CLAUDE] <b>2.9</b> Security tests, round 2: attacks on forms, sign-in, the app and privacy <small>· your time: 20 minutes · T4, T6, T13 done 1 Nov; T11 needs the phone</small></summary>
+<summary>[CLAUDE] <b>2.9</b> Security tests, round 2: attacks on forms, sign-in, the app and privacy <small>· your time: 20 minutes · T4, T6, T13 done 1 Nov; T11 done 4 Nov</small></summary>
 
 **What Claude tries on staging, like an attacker would:**
 
@@ -1274,7 +1323,7 @@ run security tests round 2
 
 **Done when:** no Critical or High problem is open and every Medium has your answer.
 
-**Part done 1 Nov:** T4 hostile input: `node scripts/security-round2.mjs fuzz` sent 1,011 hostile calls to 105 operations; 869 were handled by the app and 151 were stopped by the firewall before the app (an HTML block page); none caused a server error or leaked a database message. **T6 sign-in tricks also done:** 15 of 15 probes held (malformed numbers refused, guessing and resending give no extra tries, a code works once, bad tokens read nothing). **T13 privacy done 1 Nov:** the break-it run sent 285 probes (284 held); the one that got through was an email spelled out as "a (at) b (dot) com", fixed in PR 170 (server and app filters, with a test). The address-hidden and account-deletion checks are SQL tests that run in CI. **Still to run:** T11 on the Android app (needs the phone). **For your decision:** the sign-in screen says whether a number has an account ("No account found" or "already exists"), which is needed to send people to the right door; the per-address limit slows anyone trying numbers. Fix or accept?
+**Part done 1 Nov:** T4 hostile input: `node scripts/security-round2.mjs fuzz` sent 1,011 hostile calls to 105 operations; 869 were handled by the app and 151 were stopped by the firewall before the app (an HTML block page); none caused a server error or leaked a database message. **T6 sign-in tricks also done:** 15 of 15 probes held (malformed numbers refused, guessing and resending give no extra tries, a code works once, bad tokens read nothing). **T13 privacy done 1 Nov:** the break-it run sent 285 probes (284 held); the one that got through was an email spelled out as "a (at) b (dot) com", fixed in PR 170 (server and app filters, with a test). The address-hidden and account-deletion checks are SQL tests that run in CI. **T11 done 4 Nov (Android app, build 1.1.0, over USB):** no server keys inside the app file (the counts of key patterns were all zero; only the public Google Maps key and the public Supabase key are present, on purpose); the phone's log held no token, phone number or code; the sign-in session is kept in the phone's secure storage; and Android backup is off. **For your decision:** the sign-in screen says whether a number has an account ("No account found" or "already exists"), which is needed to send people to the right door; the per-address limit slows anyone trying numbers. Fix or accept?
 </details>
 
 <details id="t2-10" data-short="Alarms + key emergency guide">
@@ -1587,9 +1636,9 @@ start 2.13
 </details>
 
 <details id="t2-14" data-short="Bug and security hunt">
-<summary>[CLAUDE] <b>2.14</b> The bug and security hunt: read the whole app end to end and attack it, to find the mistakes the tests do not know about <small>· your time: 45 minutes · round 1 started 3 Nov: parts B and C done, A, E, F, H in part</small></summary>
+<summary>[CLAUDE] <b>2.14</b> The bug and security hunt: read the whole app end to end and attack it, to find the mistakes the tests do not know about <small>· your time: 45 minutes · rounds 1 and 2 done 4 Nov; parts B, C, D, E, F, H, and a new part J: guest mode</small></summary>
 
-**Why:** on 3 November you asked Claude to find the bugs and security problems in the app. The rounds so far (2.7 and 2.9 on 1 Nov, 3.6 on 2 Nov) test attacks we already knew to look for, and most bugs so far were found by you on the phone (B1 to B14). Since 1 November about 60 changes and 10 database changes (migrations 132 to 141) have landed: top-ups, poster options, helper streaks, the Ideas board, task questions, the nearby pulse, marketplace numbers, repeat keys, the sign-up guard, three map redesigns and the desktop layout. None of that has been through a security round. Nobody has yet read the whole app from start to finish asking "what could go wrong here?". This task does that, in nine parts, on staging only.
+**Why:** on 3 November you asked Claude to find the bugs and security problems in the app. The rounds so far (2.7 and 2.9 on 1 Nov, 3.6 on 2 Nov) test attacks we already knew to look for, and most bugs so far were found by you on the phone (B1 to B14). Since 1 November about 60 changes and 10 database changes (migrations 132 to 141) have landed: top-ups, poster options, helper streaks, the Ideas board, task questions, the nearby pulse, marketplace numbers, repeat keys, the sign-up guard, three map redesigns and the desktop layout. None of that has been through a security round. Nobody has yet read the whole app from start to finish asking "what could go wrong here?". This task does that, in nine parts (a tenth, J, the guest door, was added on 4 Nov), on staging only.
 
 **How it differs from the other security tasks:**
 
@@ -1680,11 +1729,35 @@ start 2.14
 
 **Round 1, 3 Nov (results in `docs/HUNT_ROUND1.md`):** **B** done: every check passes (256 unit tests, typecheck, lint), npm audit 0 high, Supabase's advisor shows nothing new; signed-in callable functions grew from 113 to 132. **C** done: the payment webhooks, top-up credits and withdrawal locking hold. **H32 (High) found and fixed:** migration 071 had silently dropped the ₹1 lakh per-withdrawal limit and two other checks; migration 145 puts back the limit and the bank-name check, with a test that failed before and passes after, and `scripts/check-lost-refusals.mjs` now fails `npm test` if any rewritten database function drops a check. **H34:** the books cannot be proven to balance because wallets keep no record of each movement. **A, E, F, H in part:** 123 `api` actions counted; task questions, the nearby counter and helpers' map areas are sound; B15 (precise points from the seed files) fixed; every admin route checks the sign-in; H33 (any staff role can export everyone's contacts). **For you:** decisions 17 and 18. **Next session:** part D, part G (needs the phone), the rest of E (Ideas board, streaks, crew jobs) and H (Inngest jobs, push, the location inside a real photo), then the H34 design.
 
+**Round 2, 4 Nov (details in the Security section, H35 to H55, H61 to H68, B16 to B21, B30 to B32):** on staging only, with the fake people; every database attack ran inside a step that was rolled back, so nothing was left behind. **What was tried:** every one of the 128 `api` actions, the other server functions, the 40 admin pages, 61 admin server actions, 7 admin routes and the 18 background jobs were mapped, and each checked for who may call it. Every step of a task's life was tried the wrong way (a helper who backed out pressing Start, a poster disputing an untouched task, a negative quote, a card-paid job hiring a dearer quote). The new features were attacked (Ideas board, streaks, top-ups, poster options, repeat keys). The admin was read for roles, cookies and the audit log. Guest mode was attacked signed out (see part J). **What was found:** 38 findings: **2 Critical** (H51 a negative quote creates money; H53 a card-paid job lets the poster hire a dearer quote with the old money) and **2 High** (H52 the direct database door, the same as H3; H54 a helper who backed out can take the job back); all others are Medium or Low. **What held up:** every `api` action checks the caller, every admin page and button checks the staff role on the server, nobody can raise their own staff role, the payment messages are signed, a withdrawal cannot be sent twice, and photos kept in ImageKit lose their hidden location. **Fixes:** H35, H36, H46, H50, B16, B17 and B19 are fixed and merged (PR 234 + admin PR 44, migration 147). The Critical and High fixes (H51, H53, H54, B20) are in a PR for migration 148. **Part G** (every screen on the phone) was partly done: the phone and the website basic screens were opened on the latest build and looked right; the full part G checklist is still to do. **Nothing here is ticked as done except what is named above.**
+
+**J. The guest door (added 4 Nov, for guest mode D15).** All 128 actions were sent signed out: only the 24 public reads on the guest list answer; the other 104 say "Make your account first" and touch nothing. Fake, broken and tampered tokens are refused and never treated as a guest. Search text, limits and odd values were tried; places are rounded to about a kilometre; private pictures are never signed; nothing Critical or High. Found: H61 to H68 and B30 to B32.
+
 **Then keep it going:** a hunt finds what is there today. After it, every new feature's pull request gets the short version before it merges: its doors added to the part A list, its money and status moves checked as in parts C and D, and a two-person test (2.13 G). Claude repeats the full hunt before Gate 5, and again after the first 30 days of real money (with 7.4's monthly check).
 </details>
 
 <details id="t2-15" data-short="Secrets audit (Betterleaks)">
-<summary>[CLAUDE] <b>2.15</b> The secrets audit: find every key in today's files and in the whole history, and judge each one <small>· your time: 15 minutes · added 4 Nov, not started</small></summary>
+<summary>[CLAUDE] <b>2.15</b> The secrets audit: find every key in today's files and in the whole history, and judge each one <small>· your time: 15 minutes · Done 4 Nov</small></summary>
+
+**Result (done 4 Nov):** Betterleaks 1.9.0 was run over both code folders (`taskdrop` and `taskdrop-admin`): today's files and the whole history, with every value hidden. **Nothing is exposed that is a real, live secret.** Two cards, both Low:
+
+```
+[LOW] An old Razorpay TEST key pair is in the public code history
+What happened: An old pair of Razorpay test keys was saved in the code once and later removed; old versions still hold it.
+Why it matters: Test keys cannot move real money, but both code folders are public until you make them private.
+What to do: Nothing now. You already accepted this. Make both code folders private (2.13 H).
+Status: ACCEPT (already accepted)
+```
+
+```
+[LOW] The beta Android builds carry the App Check debug token (H56)
+What happened: The beta builds are made with a debug token that lets a build pass TaskDrop's app check.
+Why it matters: Anyone who got a beta build could use that token to look like the real app.
+What to do: Before launch, delete that token in Firebase and confirm the store builds are made without it (5.9).
+Status: FIX SOON
+```
+
+**Non-actionable detections: 1,982.** 6 are public on purpose, 37 are test values, 1,823 are false alarms and 116 are safely stored. The two reports are on your PC outside the code folders. Nothing was changed, replaced or sent anywhere.
 
 **Why:** gitleaks (2.5) stops a key in each new change and scans the history every week. But nobody has yet gone through every finding and asked the real question: is this key actually exposed, or is it safely stored, public on purpose, a test value or a false alarm? Both code folders on GitHub are still public (until 2.13 part H), so anything ever committed to them could be read by anyone. Betterleaks is the newer, open-source scanner from the people who made gitleaks. You shared a careful audit prompt on 4 Nov. It is saved word for word in `docs/SECRETS_AUDIT_PROMPT.md`, and Claude follows it in both code folders (`taskdrop` and `taskdrop-admin`).
 
@@ -1729,14 +1802,14 @@ start 2.15
 3. Reply "fix" or "accept" for each card. Say "details" and the card's title to see its full proof (files, lines, reasoning).
 4. TELL Claude: "done 2.15".
 
-**Done when:** both code folders are scanned (today's files and the whole history), with both reports kept outside the code folders; every finding is sorted; you have the plain-words report; every FIX NOW and FIX SOON card is fixed through the usual pull request or accepted by you; and any new hole is in the Security section under the next free H number.
+**Done 4 Nov, with one before-launch step (H56) left for 5.9.** **Done when:** both code folders are scanned (today's files and the whole history), with both reports kept outside the code folders; every finding is sorted; you have the plain-words report; every FIX NOW and FIX SOON card is fixed through the usual pull request or accepted by you; and any new hole is in the Security section under the next free H number.
 
 **Then keep it going:** the weekly gitleaks history scan (2.5) stays. If Betterleaks found something gitleaks missed, Claude proposes moving the weekly scan to Betterleaks. Claude repeats 2.15 before Gate 5.
 
 </details>
 
 <details id="t2-16" data-short="AI attacker (Strix)">
-<summary>[BOTH] <b>2.16</b> The AI attacker: let Strix attack staging and prove what it finds <small>· your time: 45 minutes · about $5 to $15 of AI use · added 4 Nov, not started</small></summary>
+<summary>[BOTH] <b>2.16</b> The AI attacker: let Strix attack staging and prove what it finds <small>· your time: 45 minutes · about $5 to $15 of AI use · added 4 Nov, not started; still waiting for you: Docker is not installed on this PC (checked 4 Nov)</small></summary>
 
 **Why:** [Strix](https://github.com/usestrix/strix) is a free, open-source team of AI attackers, and one of the most popular projects on GitHub this week. It reads the code, runs the app, tries real attacks, and reports a hole only when it has a working proof, so it raises few false alarms. It is a second, independent pair of eyes after Claude's hunt (2.14): a different AI with a professional attacker's toolbox. It runs after 2.14, so it tests the app with the hunt's fixes in.
 
@@ -1750,6 +1823,8 @@ start 2.15
 - **Small first.** The quick mode first, then the deeper mode. No flood tests (that is 2.13 part J's job).
 - **The AI key is a secret.** It lives only in `.env.all-secrets` (rule 8), never in chat. Claude loads it for the run and removes it from Strix's own settings file (`~/.strix`) afterwards.
 - **Results stay on your PC**, in a folder outside the code folders. Strix Cloud (the paid version, which uploads the code) is not used.
+
+**Where it stands (4 Nov):** unchanged, waiting for you. Install Docker Desktop (it is not installed on this PC, checked 4 Nov) and save an AI key with a spending limit as `STRIX_LLM_API_KEY` in `.env.all-secrets`; then say "start 2.16".
 
 **Your steps:**
 
@@ -3591,6 +3666,9 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 22 | **The hands-on tour** (D15). Run the approved tour in guest mode on first open? | Open: guest mode is built without changing the tour. Recommended: yes | "Decision 22: yes." |
 | 23 | **Order in the sign-up sheet** (D15). Keep number then date of birth, or ask the date first so no number is taken from anyone under 18? | **Built with the recommended answer, 4 Nov:** today’s order kept | "Decision 23: keep the order." |
 | 24 | **Saves for guests** (D15). Keep saved tasks on the phone, or open the pop-up? | **Built with the recommended answer, 4 Nov:** saves stay on the phone and move into the account at sign-up | "Decision 24: keep on the phone." |
+| 25 | **An 18+ check for guests** (H68). The age check is only at sign-up, so a guest sees every post and profile without it. Add a one-tap "I am 18 or older" before guest mode? | Open. Recommended: yes, because the Terms are 18+ only | "Decision 25: add the 18+ tap" or "Decision 25: accept" |
+| 26 | **Lock-screen notifications** (H42). They show the other person's name, the task, rupee amounts and the start of a chat message to anyone who sees the phone | Open. Recommended: for messages, money, support and security show a plain line ("You have a new message") and keep the detail inside the app | "Decision 26: plain line" or "Decision 26: keep as is" |
+| 27 | **Limits for new accounts and posting** (H47). Sign-up costs nothing while codes show on screen, and there is no daily cap on posting tasks or ideas | Open. Recommended: a daily cap per account (20 tasks, 20 ideas), tighter for brand-new accounts | "Decision 27: use the recommended caps" |
 
 ---
 
@@ -3780,6 +3858,7 @@ You do not need these to follow the tasks above. They are here so that nothing l
 **Results so far**
 
 - **T11 Android app (2026-10-28, on your phone): passed.** It is not debuggable, backups are off, there is no unencrypted traffic, there are no secret keys in the app file, and nothing secret appears in the phone log. Secure storage was checked in the code only.
+- **T11 again (2026-11-04, build 1.1.0, over USB): passed.** No server keys inside the app file (key-pattern counts all zero; only the public Google Maps key and public Supabase key are present), no token, phone number or code in the phone's log, the sign-in session sits in the phone's secure storage, and Android backup is off.
 - **T2 Google map key (2026-10-28):** calls from outside the app were refused.
 - Everything else: not run yet.
 
@@ -4005,6 +4084,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-04 (security work run: merged, deployed, tested, hunt rounds):** You asked Claude to run the security work. **Merged:** all the local branches went into `redesigned-2.0` in one pull request (PR 230); the migrations were renumbered 143 to 145 and the holes found on the way renumbered H32 to H34. **Deployed:** to `taskdrop.in` and to the beta app (update `00ef021a`, then `c34b80a3`, runtime 1.1.0). **Secrets audit (2.15) done:** Betterleaks 1.9.0 over both folders, today's files and the whole history, values hidden; nothing exposed that is a real live secret; two Low cards (the old Razorpay test keys, already accepted; the beta builds' App Check debug token, H56, to be removed before launch); 1,982 other detections sorted (6 public on purpose, 37 test values, 1,823 false alarms, 116 safely stored); nothing was changed, replaced or sent anywhere. **Hunt round 2 (2.14):** 38 findings, H35 to H55, H61 to H68, B16 to B21 and B30 to B32: 2 Critical, 2 High, the rest Medium or Low (see the Security section). **Money-door fixes:** H35, H36, H46, H50, B16, B17 and B19 are fixed (PR 234 + admin PR 44, migration 147): refunds and RazorpayX actions now need a money role and the authenticator code, leave an audit row, check the person is not suspended, and a paid-but-unfunded payment is retried. The Critical and High finds (H51, H53, H54, B20) are being fixed in a PR for migration 148. **Content policy:** H9 closed (PR 233): the website's policy now blocks bad scripts; the report address stays on. **Android test T11 (2.9)** passed on build 1.1.0 over USB. **Guest mode (D15) tested:** all 128 actions were tried signed out and only the 24 guest reads answer; nothing Critical or High; H61 to H68 and B30 to B32 found. **Still waiting for you:** Strix (2.16: Docker and an AI key with a limit), your "fix" or "accept" on the Medium and Low finds, and decisions 17, 18 and 25 to 27. Part G (every screen on the phone) is still to do: only the basic phone and website screens were opened and looked right.
 - **2026-11-04 (guest mode D15 built, "implement guest mode"):** Built with the recommended answers to decisions 19, 21, 23 and 24. **Server:** migration 146 adds read-only guest functions (open posts without money or hiring fields, places rounded to about a kilometre, public profile cards, reviews, offer counts, and only open-post pictures and profile photos signed); `api` answers a guest (the public key with nobody behind it) with only those reads, 120 a minute per network address (hashed), and NEEDS_ACCOUNT for everything else. **App:** Continue as guest on the sign-in page; the choice is remembered on the device; Home, Explore, the map, task and service pages and the writer open to guests; a Sign in pill in the header; one Make your account pop-up (Create account, Sign in, Not now) on every write, with the action finished by itself after sign-up; from guest mode only About you is asked; drafts and saved tasks stay on the phone and move into the account at sign-up. **Decision 20 needs no limit:** the AI writer runs on the phone (lib/taskBrief.ts) and costs nothing per post. **Decision 22 (tour):** not changed here. Not run on a phone yet; no app update published.
 - **2026-11-04 (guest mode, D15):** You asked for a landing that lets people use the app before signing up, with the account asked only at the last step. Drawn, then redrawn three times from your notes: from the real redesigned-2.0 screens (the real date-of-birth step is kept), from taskdrop.in as it is today, with the real sign-in page plus a Continue as guest button, and with a Make your account pop-up wherever something needs an account. **Approved 4 Nov.** Row D15, decisions 19 to 24 (recommended answers given). Nothing built yet; say "build D15" to start. Seen while checking: the sign-in heading “Get help nearby. Or earn nearby.” reads local-only; not changed.
 - **2026-11-04 (task 2.13 built, "complete the security part"):** Claude built the task and merged it in both code folders (app PRs 216, 217, 218; admin PRs 41, 42). **A:** `scripts/check-endpoints.mjs` in `npm test` of both folders lists every server function and every admin route and fails on a door with no lock or no limit (shown failing on the old `razorpayx-payouts`); new per-person limits on `razorpayx-payouts` (20 a minute), `razorpay` (30), and on the admin's sign-in (10 a minute per address), exports and live strip. **B:** Semgrep (OWASP Top 10, JavaScript, TypeScript, secrets) on every change and every Monday in both folders, plus a Monday package audit; its first run found nothing high and four Medium or Low notes (a Dependabot wait, fixed; two accepted in `docs/SECURITY_OWASP.md`). **C:** `docs/SECURITY_OWASP.md`: ASVS 4.0.3 level 1, API Top 10 and MASVS line by line, 0 Critical or High; two new Low holes H30 and H31 for your reply; one Low fixed on the way (Razorpay could be told to send a payer to any website after paying: only TaskDrop's own addresses are kept now). **D:** `security.txt` is written by the website build (contact = the Support address, expiry 31 Oct 2027, the build refuses an expired file) and the Support page has the researcher rules (the text goes to the lawyer with the Terms, S.3). **F:** the table is filled in below. **G:** `scripts/two-person-test.mjs` signs in two seed people and sends every one of the 126 `api` operations as the stranger with the other person's ids; on staging nothing private leaked (exact address, UPI id, phone number) and the other person's data did not change; it runs after every change to the api and every Monday (`.github/workflows/two-person.yml`). **H:** `scripts/check-private-files.mjs` in `npm test` (uploads private, server refuses non-private, no public bucket, no public link); correction: ImageKit picture links last one to two hours, not exactly one. **I:** migration 142: "Sign out of all devices" in Account settings, other devices signed out after a password change, an admin button to end all staff sessions, and the api refuses a token issued before the last sign-out at once (before: up to an hour). **J:** timeouts of 8 seconds on the SMS send, the account lookup and the payment status checks, and `scripts/rush-test.mjs` (a rush in steps and a spammer test); the run is in `docs/LOAD_TEST.md`. Your steps are the replies to H30 and H31, the Make-private click and the invitations
