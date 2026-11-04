@@ -267,11 +267,13 @@ export function JobsMap({
 
   const zoomTo = (next: number, at?: { lat: number; lng: number }) => {
     moved.current = true;
+    const z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
     if (at) {
-      setCentre(at);
+      // Zoomed onto a group, it sits in the uncovered part, not behind the panel; the search point is the group itself.
+      setCentre(clear(at, z));
       onMoveEnd?.(at);
     }
-    setZoom(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next)));
+    setZoom(z);
   };
 
   const you = me ? toScreen(me.lat, me.lng) : null;
@@ -453,7 +455,7 @@ export function JobsMap({
 
         {/* The picked pin's card sits right above it (desktop, plan D14). */}
         {callout && pickedAt ? (
-          <View pointerEvents="box-none" style={{ position: 'absolute', left: pickedAt.x - CALLOUT_W / 2, bottom: size.h - pickedAt.y + pickedAt.lift, width: CALLOUT_W, zIndex: 5 }}>
+          <View pointerEvents="box-none" style={{ position: 'absolute', left: Math.max((fill?.left ?? 0) + 8, Math.min(pickedAt.x - CALLOUT_W / 2, size.w - CALLOUT_W - 8)), bottom: size.h - pickedAt.y + pickedAt.lift, width: CALLOUT_W, zIndex: 5 }}>
             {callout}
           </View>
         ) : null}

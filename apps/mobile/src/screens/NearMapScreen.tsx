@@ -174,6 +174,14 @@ export function NearMapScreen() {
   const areas = useMemo(() => bestAreas(shownJobs), [shownJobs]);
   const live = shownPeople.filter((w) => presenceOf(w.last_seen_at, now).online).length;
 
+  // A filter, a new search or fresh results can take the picked one away; then nothing stays picked (or dimmed).
+  useEffect(() => {
+    if (picked && !loading && !ids.includes(picked)) {
+      setPicked(null);
+      setFocus(null);
+    }
+  }, [picked, loading, ids]);
+
   const pickedJob = mode === 'jobs' ? (shownJobs.find((j) => j.id === picked) ?? null) : null;
   const pickedHelper = mode === 'people' ? (shownPeople.find((w) => w.id === picked) ?? null) : null;
 
@@ -241,7 +249,7 @@ export function NearMapScreen() {
   const chips =
     mode === 'jobs'
       ? [chip('All', !narrow, () => setNarrow(false)), chip(`${rupees(HIGH_PAY)}+`, narrow, () => setNarrow(true))]
-      : [chip('All', !narrow && !served, () => (setNarrow(false), setServed(false))), chip('Active now', narrow, () => setNarrow((v) => !v), '#22C55E'), chip('Has services', served, () => setServed((v) => !v))];
+      : [chip('All', !narrow && !served, () => (setNarrow(false), setServed(false))), chip('Active now', narrow, () => setNarrow((v) => !v), t.colors.online), chip('Has services', served, () => setServed((v) => !v))];
 
   // Two tiles that answer "where is the money" and "what is closest" at a glance.
   const tiles = (() => {
