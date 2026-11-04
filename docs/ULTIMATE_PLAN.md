@@ -482,6 +482,26 @@ Here are the payment quotes:
 5. Make decision 3 in the "Decisions" section.
 
 **Done when:** both quotes are in and you have chosen.
+
+**How TaskDrop uses a payment company (ready to copy).** Use this when a form, a sales call or a person asks "How will you use our payments for your business?". It was written for Cashfree's sign-up form on 4 Nov. If the form allows only 300 characters, use the short version below it.
+
+```say
+TaskDrop is a task marketplace for India (web and Android app). A user ("poster") posts a task with a price, for example picking up groceries, small repairs, deliveries or remote work. A verified helper accepts it and completes it.
+
+We'd use Cashfree for:
+1. Payment Gateway: the poster pays the task amount when posting or assigning the task, using UPI, cards, netbanking or wallets.
+2. Holding funds until completion: the money stays with us until the poster confirms the work is done, or a dispute is settled. This protects both sides.
+3. Payouts / Easy Split: we release the helper's earnings to their bank account or UPI ID and keep our platform fee as commission.
+4. Refunds: if a task is cancelled or a dispute is decided in the poster's favour, we refund the poster.
+
+Typical tickets are small, around ₹150 to ₹1,000 per task. All users are 18+ and sign in with a verified phone number.
+```
+
+```say
+TaskDrop (taskdrop.in) is a marketplace where people post local and remote tasks and verified helpers complete them. We'll use Cashfree to collect task payments via UPI, cards and netbanking, hold funds until the task is done, then pay helpers via payouts and refund cancelled tasks.
+```
+
+For Razorpay, change "Cashfree" to "Razorpay" and "Payouts / Easy Split" to "RazorpayX payouts". In a form, choose a category like "Marketplace / Online services", not "Escrow": payment companies treat real escrow as a separate regulated product.
 </details>
 
 <details id="tS-5" data-short="Name and trademark">
