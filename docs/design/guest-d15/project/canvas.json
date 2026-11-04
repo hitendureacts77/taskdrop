@@ -1,0 +1,176 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-04T12:00:00Z"
+  },
+  "title": "TaskDrop guest mode",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1360,
+      "h": 2060,
+      "title": "The plan: use everything, sign up at the last step (v2, from redesigned-2.0)"
+    },
+    "P1-FirstOpen.dc.html": {
+      "x": 0,
+      "y": 2440,
+      "w": 390,
+      "h": 1040,
+      "title": "1 · Landing on a phone: real sign-in + Continue as guest"
+    },
+    "P2-GuestHome.dc.html": {
+      "x": 470,
+      "y": 2440,
+      "w": 390,
+      "h": 1560,
+      "title": "2 · Home as a guest (real order)"
+    },
+    "P3-Review.dc.html": {
+      "x": 940,
+      "y": 2440,
+      "w": 390,
+      "h": 1500,
+      "title": "3 · Real “Ready to post?” step"
+    },
+    "P4-Wall.dc.html": {
+      "x": 1880,
+      "y": 2440,
+      "w": 390,
+      "h": 844,
+      "title": "4 · One step left: real number step"
+    },
+    "P5-Birth.dc.html": {
+      "x": 2350,
+      "y": 2440,
+      "w": 390,
+      "h": 844,
+      "title": "5 · Real date-of-birth step"
+    },
+    "P6-Code.dc.html": {
+      "x": 2820,
+      "y": 2440,
+      "w": 390,
+      "h": 844,
+      "title": "6 · Real code step"
+    },
+    "P7-AboutYou.dc.html": {
+      "x": 3290,
+      "y": 2440,
+      "w": 390,
+      "h": 1000,
+      "title": "7 · Real “About you”, then the task posts"
+    },
+    "W1-Listing.dc.html": {
+      "x": 0,
+      "y": 4380,
+      "w": 390,
+      "h": 1300,
+      "title": "Earn · Real “Offer a service”"
+    },
+    "W2-Wall.dc.html": {
+      "x": 470,
+      "y": 4380,
+      "w": 390,
+      "h": 844,
+      "title": "Earn · One step left (blue)"
+    },
+    "G1-MyTasks.dc.html": {
+      "x": 940,
+      "y": 4380,
+      "w": 390,
+      "h": 1000,
+      "title": "Guest · My Tasks with a draft"
+    },
+    "G2-Wallet.dc.html": {
+      "x": 1410,
+      "y": 4380,
+      "w": 390,
+      "h": 1000,
+      "title": "Guest · Wallet"
+    },
+    "G3-Profile.dc.html": {
+      "x": 1880,
+      "y": 4380,
+      "w": 390,
+      "h": 1100,
+      "title": "Guest · Profile"
+    },
+    "G4-Under18.dc.html": {
+      "x": 2350,
+      "y": 4380,
+      "w": 390,
+      "h": 844,
+      "title": "Under 18: real “adults only” screen"
+    },
+    "L1-WebLanding.dc.html": {
+      "x": 0,
+      "y": 6060,
+      "w": 1440,
+      "h": 900,
+      "title": "Website · taskdrop.in landing: real sign-in + Continue as guest"
+    },
+    "D1-WebHome.dc.html": {
+      "x": 1520,
+      "y": 6060,
+      "w": 1440,
+      "h": 1260,
+      "title": "Website · Home as a guest, after the landing"
+    },
+    "X1-AccountPopup.dc.html": {
+      "x": 1410,
+      "y": 2440,
+      "w": 390,
+      "h": 844,
+      "title": "3b · Pop-up: Make your account (opens from every “needs an account”)"
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "P1-FirstOpen.dc.html",
+    "P2-GuestHome.dc.html",
+    "P3-Review.dc.html",
+    "X1-AccountPopup.dc.html",
+    "P4-Wall.dc.html",
+    "P5-Birth.dc.html",
+    "P6-Code.dc.html",
+    "P7-AboutYou.dc.html",
+    "W1-Listing.dc.html",
+    "W2-Wall.dc.html",
+    "G1-MyTasks.dc.html",
+    "G2-Wallet.dc.html",
+    "G3-Profile.dc.html",
+    "G4-Under18.dc.html",
+    "L1-WebLanding.dc.html",
+    "D1-WebHome.dc.html"
+  ],
+  "notes": {
+    "rowHire": {
+      "x": 0,
+      "y": 2180,
+      "text": "Hire: try it all, sign up only at “Post my request”",
+      "kind": "title1",
+      "maxW": 3680
+    },
+    "rowEarn": {
+      "x": 0,
+      "y": 4120,
+      "text": "Earn, and the tabs a guest sees",
+      "kind": "title1",
+      "maxW": 2740
+    },
+    "rowWeb": {
+      "x": 0,
+      "y": 5800,
+      "text": "The website (desktop): landing, then Home",
+      "kind": "title1",
+      "maxW": 2960
+    }
+  },
+  "designSystems": []
+}

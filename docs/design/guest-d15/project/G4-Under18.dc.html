@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Adults only</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0A6F58}a:hover{color:#064A3B}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F3F4F1; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #121417; display: flex; flex-direction: column; justify-content: center; padding: 22px">
+  <div style="width: 52px; height: 52px; border-radius: 16px; background: #FBEDE7; display: flex; align-items: center; justify-content: center">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#B4512C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3z"/></svg>
+  </div>
+  <div style="margin-top: 18px; font-size: 28px; font-weight: 800; letter-spacing: -1px; line-height: 33px">TaskDrop is for<br>adults only.</div>
+  <div style="margin-top: 12px; font-size: 14px; line-height: 21px; color: #5F6368">You need to be 18 or older to use TaskDrop, so we can’t make an account for you.</div>
+  <a href="P2-GuestHome.dc.html" style="margin-top: 28px; text-decoration: none; background: #ECEEE9; color: #121417; border-radius: 999px; height: 52px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700">OK</a>
+
+  <div style="margin-top: 28px; display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; line-height: 18px; color: #5F6368">
+    <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.8px; color: #B4512C; background: #FBEDE7; border-radius: 6px; padding: 3px 6px; flex-shrink: 0">GUEST CHANGE</span>
+    <span>Same screen as today. In guest mode “OK” closes the sheet and drops the waiting draft. Nothing typed into the sign-up steps is kept.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
