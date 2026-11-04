@@ -194,4 +194,47 @@ begin
 end;
 $$;
 
+-- Migration 144: nearby_pulse's two counts can use their partial indexes. Scans
+-- of the whole table are switched off for this check only: with a handful of
+-- test rows the planner would rightly read the table, which says nothing about
+-- a table with a year of history.
+do $$
+declare
+  v_plan text;
+  r      record;
+begin
+  perform pg_temp.as_operator();
+  perform set_config('enable_seqscan', 'off', true);
+  perform set_config('enable_bitmapscan', 'off', true);
+
+  v_plan := '';
+  for r in execute $q$
+    explain select count(*) from public.tasks t
+     where t.status in ('COMPLETED', 'AUTO_COMPLETED')
+       and t.completed_at >= now() - interval '1 day'
+  $q$ loop
+    v_plan := v_plan || r."QUERY PLAN" || E'\n';
+  end loop;
+  if v_plan not like '%tasks_completed_at_done_idx%' then
+    raise exception 'FAIL: doneToday should use tasks_completed_at_done_idx, plan: %', v_plan;
+  end if;
+
+  v_plan := '';
+  for r in execute $q$
+    explain select count(*) from public.profiles p
+     where p.last_seen_at > now() - interval '3 minutes'
+       and p.deleted_at is null
+  $q$ loop
+    v_plan := v_plan || r."QUERY PLAN" || E'\n';
+  end loop;
+  if v_plan not like '%profiles_last_seen_at_live_idx%' then
+    raise exception 'FAIL: activeNow should use profiles_last_seen_at_live_idx, plan: %', v_plan;
+  end if;
+
+  perform set_config('enable_seqscan', 'on', true);
+  perform set_config('enable_bitmapscan', 'on', true);
+  raise notice 'nearby_pulse indexes ok';
+end;
+$$;
+
 rollback;

@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { MAX_BATCH, OPS, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp } from "./ops.ts";
+import { MAX_BATCH, OPS, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp, spendRate } from "./ops.ts";
 import {
   ControlsCache, featureOffMessage, OPEN_CONFIG, parseControls, publicConfig, readClient, refusalFor, type Controls,
 } from "../_shared/controls.ts";
@@ -1207,6 +1207,18 @@ await t("a batch counts against the limiter once per call, capped at the batch s
   for (const args of [undefined, {}, { calls: "x" }, { calls: [] }]) assert.equal(rateCost("batch", args), 1);
   assert.equal(rateBucket("batch"), "read");
   assert.deepEqual(batchCalls({ calls: [{ op: "getWallet", args: [1] }] }), [{ op: "getWallet", args: {} }]);
+});
+
+await t("a request spends its whole cost in one limiter call (eng review R1)", async () => {
+  const f = fake((c) => (c.rpc === "api_rate_spend" ? { data: true, error: null } : { data: null, error: null }));
+  const batch = { calls: Array.from({ length: MAX_BATCH }, () => ({ op: "getWallet" })) };
+  const res = await spendRate(f.db as never, UID, rateBucket("batch"), rateCost("batch", batch));
+  assert.equal(res.data, true);
+  assert.equal(f.calls.length, 1, "one database call, not one per read");
+  assert.deepEqual(f.calls[0].args, { p_user: UID, p_bucket: "read", p_limit: RATE_LIMITS.read, p_cost: MAX_BATCH });
+  const w = fake();
+  await spendRate(w.db as never, UID, rateBucket("payTaskFromWallet"), rateCost("payTaskFromWallet", {}));
+  assert.deepEqual(w.calls[0].args, { p_user: UID, p_bucket: "write", p_limit: RATE_LIMITS.write, p_cost: 1 });
 });
 
 await t("nonsense amounts, dates, places and reserved names are refused (break-it findings, 2026-10-24)", async () => {
