@@ -1,0 +1,58 @@
+name: Two-person test
+
+# Task 2.13 part G (docs/ULTIMATE_PLAN.md). Person A (a stranger) calls every operation of the api with
+# person B's ids, and the run fails if B's private things (exact address, UPI id, phone number, chat text) show up
+# in any answer, or if B's own state changes. The list of operations is read from the source, so a new operation
+# is tested without anyone remembering to add it. See scripts/two-person-test.mjs.
+#
+# It uses the TEST project's seed accounts and fake data only, and stores no secret: the two values below are the
+# app's PUBLIC url and anon key, set as repository variables. It shares the e2e concurrency group because both move
+# the same seed accounts' data.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [redesigned-2.0]
+    paths:
+      - 'supabase/functions/api/**'
+      - 'supabase/migrations/**'
+      - 'scripts/two-person-test.mjs'
+      - 'scripts/lib/two-person.mjs'
+      - '.github/workflows/two-person.yml'
+  schedule:
+    - cron: '7 5 * * 1' # Mondays 05:07 UTC
+
+concurrency:
+  group: e2e-test-project
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  two-person:
+    name: A never reaches B
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - name: Check the two variables are set
+        run: |
+          test -n "$EXPO_PUBLIC_SUPABASE_URL" && test -n "$EXPO_PUBLIC_SUPABASE_ANON_KEY" || { echo "::error::Set the repository variables EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY"; exit 1; }
+
+      # Give a deploy that is still under way a moment to finish before the first call.
+      - name: Run the two-person test
+        run: node scripts/two-person-test.mjs

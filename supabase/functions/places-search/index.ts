@@ -96,6 +96,7 @@ Deno.serve(guarded("places-search", async (req: Request) => {
         "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.location",
       },
       body: JSON.stringify({ textQuery: q, maxResultCount: 6 }),
+      signal: AbortSignal.timeout(6000),
     });
     if (!res.ok) {
       // A rejected key or an exhausted quota shows up here first.

@@ -8,7 +8,7 @@ import { type LogAttributes, captureSecurityEvent, guarded, background, captureS
 import { secret } from "../_shared/secrets.ts";
 import { type SessionCutoff, type Standing, StandingCache, callerFromClaims, cutoffOf, endedBefore, standingOf, tokenFacts } from "./core.ts";
 import { MAX_BODY_BYTES, REQUEST_ID_HEADER, readBody, requestIdFrom, withGatewayHeaders } from "./http.ts";
-import { type Db, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp } from "./ops.ts";
+import { type Db, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp, spendRate } from "./ops.ts";
 import { type Claim, type RepeatStore, REPEAT_KEY_HEADER, REPLAYED_HEADER, repeatKeyFrom, runOnce } from "./repeat.ts";
 
 /**
@@ -163,18 +163,13 @@ async function handle(req: Request, requestId: string): Promise<Response> {
   const checkRate = async (): Promise<Response | null> => {
     if (!admin) return null;
     try {
-      // A batch counts once per call inside it, so batching never widens the budget.
-      const hits = await Promise.all(
-        Array.from({ length: rateCost(body.op, body.args) }, () =>
-          admin.rpc("api_rate_hit", { p_user: userId, p_bucket: bucket, p_limit: RATE_LIMITS[bucket] })
-        ),
-      );
-      const failed = hits.find((h) => h.error);
-      if (failed?.error) {
-        background(log("warn", "rate limiter unavailable", { error: failed.error.message }));
+      // A batch counts once per call inside it, so batching never widens the budget: one database call, whole cost.
+      const hit = await spendRate(admin, userId, bucket, rateCost(body.op, body.args));
+      if (hit.error) {
+        background(log("warn", "rate limiter unavailable", { error: hit.error.message }));
         return null;
       }
-      if (hits.some((h) => h.data === false)) {
+      if (hit.data === false) {
         limitedLately.mark(userId);
         background(log("warn", "rate limited", { op: String(body.op), bucket, user_id: userId }));
         return refuse("You are going too fast. Please wait a moment and try again.", "RATE_LIMITED", 429);

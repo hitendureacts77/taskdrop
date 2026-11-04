@@ -15,7 +15,7 @@
  *   node scripts/security-round2.mjs fuzz     # T4 only
  *   node scripts/security-round2.mjs signin   # T6 only
  *   node scripts/security-round2.mjs authlimits  # T6 username sign-in vs Supabase's limits (task 2.8b)
- *   node scripts/security-round2.mjs signupguard # hole H21: direct sign-ups refused, phone sign-up still works
+ *   node scripts/security-round2.mjs signupguard # hole H21: direct email, phone and anonymous sign-ups refused, phone sign-up still works
  *
  * Needs EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (public values). Exit 1 if anything got through.
  */
@@ -242,6 +242,22 @@ async function signupGuard() {
   }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => ({})) }));
   if (direct.status === 200 || direct.body?.id || direct.body?.user) bad('H21', 'a direct sign-up on a phone address was accepted', `HTTP ${direct.status}`);
   else ok(`direct sign-up refused (HTTP ${direct.status})`);
+
+  // The hook only checks email sign-ups (138 lets every other provider through), so Supabase's own phone
+  // sign-up and anonymous sign-in must stay switched off in the project's Auth settings (eng review
+  // 2026-11-03, F3 / R3; checked again on production in 5.9). The phone number is in the US 555-01xx range,
+  // which is reserved for fiction: should phone sign-up ever be on, no real person gets a text.
+  const signup = (body) =>
+    fetch(`${SUPABASE_URL}/auth/v1/signup`, { method: 'POST', headers, body: JSON.stringify(body) })
+      .then(async (r) => ({ status: r.status, body: await r.json().catch(() => ({})) }));
+  const made = (r) => r.status === 200 || Boolean(r.body?.id || r.body?.user || r.body?.access_token);
+  const fictional = `+120255501${String(Math.floor(Math.random() * 100)).padStart(2, '0')}`;
+  const byPhone = await signup({ phone: fictional, password: `H21-${crypto.randomUUID()}` });
+  if (made(byPhone)) bad('H21', "Supabase's own phone sign-up made an account outside the app", `HTTP ${byPhone.status}`);
+  else ok(`direct phone sign-up refused (HTTP ${byPhone.status})`);
+  const anonymous = await signup({});
+  if (made(anonymous)) bad('H21', 'an anonymous sign-in made an account', `HTTP ${anonymous.status}`);
+  else ok(`anonymous sign-in refused (HTTP ${anonymous.status})`);
 
   const sent = await phoneAuth({ action: 'send', phone, mode: 'signup' });
   if (!sent.body.devCode) {

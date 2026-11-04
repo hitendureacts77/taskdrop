@@ -4,6 +4,8 @@ import { secret } from "../_shared/secrets.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
 import { guardKey } from "../_shared/keyGuard.ts";
 import { TOO_FAST, withinRate } from "../_shared/rateLimit.ts";
+import { safeReturnUrl } from "../_shared/returnUrl.ts";
+import { outsideCall } from "../_shared/timeouts.ts";
 import { guarded, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient, featureOffMessage } from "../_shared/controls.ts";
 
@@ -189,6 +191,8 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
     const description =
       purpose === "escrow" ? "TaskDrop escrow funding" : purpose === "promotion" ? "TaskDrop promotion" : "TaskDrop wallet top-up";
 
+    // Only TaskDrop's own websites may be the return address (task 2.13 part C): anything else is dropped.
+    const returnTo = safeReturnUrl(body.returnUrl, Deno.env.get("ALLOWED_ORIGINS"));
     const res = await fetch(`${RZP}/payment_links`, {
       method: "POST",
       headers: rzpHeaders(RZP_ID, RZP_SECRET),
@@ -216,7 +220,7 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
             },
           },
         },
-        ...(body.returnUrl ? { callback_url: body.returnUrl, callback_method: "get" } : {}),
+        ...(returnTo ? { callback_url: returnTo, callback_method: "get" } : {}),
       }),
     });
     const link = await res.json();
@@ -266,7 +270,7 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
       });
     }
 
-    const res = await fetch(`${RZP}/payment_links/${row.provider_ref}`, { headers: rzpHeaders(RZP_ID, RZP_SECRET) });
+    const res = await fetch(`${RZP}/payment_links/${row.provider_ref}`, { headers: rzpHeaders(RZP_ID, RZP_SECRET), signal: outsideCall() });
     const link = await res.json();
     if (!res.ok) {
       await logServer("error", "razorpay", "could not read payment link", { payment_id: row.id, http_status: res.status, reason: link?.error?.description ?? null });
@@ -388,6 +392,7 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
       if (payRow?.provider_ref) {
         const lr = await fetch(`${RZP}/payment_links/${payRow.provider_ref}`, {
           headers: rzpHeaders(RZP_ID, RZP_SECRET),
+          signal: outsideCall(),
         });
         const linkRow = await lr.json();
         payId = linkRow?.payments?.[0]?.payment_id ?? null;
