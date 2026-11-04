@@ -78,6 +78,7 @@ function PinMarker({
   label,
   onPress,
   deps,
+  faded = false,
   children,
 }: {
   at: { lat: number; lng: number };
@@ -86,10 +87,11 @@ function PinMarker({
   label: string;
   onPress: () => void;
   deps: unknown[];
+  faded?: boolean;
   children: (redraw: () => void) => React.ReactNode;
 }) {
   const t = useTheme();
-  const [tracking, redraw] = useSnapshot(t.isDark, ...deps);
+  const [tracking, redraw] = useSnapshot(t.isDark, faded, ...deps);
   return (
     <Marker
       coordinate={{ latitude: at.lat, longitude: at.lng }}
@@ -99,7 +101,7 @@ function PinMarker({
       onPress={onPress}
       accessibilityLabel={label}
     >
-      <View style={{ width: box.w, height: box.h }} collapsable={false}>
+      <View style={{ width: box.w, height: box.h, opacity: faded ? 0.45 : 1 }} collapsable={false}>
         {children(redraw)}
       </View>
     </Marker>
@@ -125,7 +127,7 @@ function YouDot({ at, color }: { at: { lat: number; lng: number }; color: string
   );
 }
 
-function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = RING_KM, tone = 'jobs', focusId = null, onExpand, fill }: Props) {
+function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = RING_KM, tone = 'jobs', focusId = null, onExpand, fill, dim = false, onMoveEnd }: Props) {
   const t = useTheme();
   const mapRef = useRef<MapView>(null);
   const start = me ?? (pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : DEFAULT_CENTRE);
@@ -228,7 +230,11 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
         style={{ flex: 1 }}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={region}
-        onRegionChangeComplete={setRegion}
+        onRegionChangeComplete={(r, details) => {
+          setRegion(r);
+          // Only the person's own moves count, not the camera following a picked pin.
+          if (details?.isGesture) onMoveEnd?.({ lat: r.latitude, lng: r.longitude });
+        }}
         onPanDrag={() => {
           moved.current = true;
         }}
@@ -241,7 +247,7 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
         toolbarEnabled={false}
         moveOnMarkerPress={false}
         userInterfaceStyle={t.isDark ? 'dark' : 'light'}
-        mapPadding={{ top: padTop, bottom: padBottom, left: 0, right: 0 }}
+        mapPadding={{ top: padTop, bottom: padBottom, left: fill?.left ?? 0, right: 0 }}
       >
         {me ? (
           <>
@@ -301,6 +307,8 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
         {items.map((it, i) => {
           if (tagAt(clock.elapsed, delays[i]!) === 0) return null;
           const place = toPlace(it.x, it.y);
+          // While a pin is picked, the others step back.
+          const back = dim && selectedId !== null && !(it.kind === 'one' && it.id === selectedId);
           if (it.kind === 'group') {
             const into = () => flyTo(place, Math.max(Math.round(zoom) + 2, SPREAD_ZOOM));
             const name = placeOf(it.ids, byId);
@@ -309,6 +317,7 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
               return (
                 <PinMarker
                   key={'g-' + it.ids.join('|')}
+                  faded={back}
                   at={place}
                   box={FACE_STACK}
                   z={2}
@@ -325,6 +334,7 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
             return (
               <PinMarker
                 key={'g-' + it.ids.join('|')}
+                faded={back}
                 at={place}
                 box={PRICE_PIN}
                 z={best ? 3 : 2}
@@ -345,6 +355,7 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
             return (
               <PinMarker
                 key={'p-' + it.id}
+                faded={back}
                 at={place}
                 box={FACE_PIN}
                 z={on ? 4 : 2}
@@ -373,6 +384,7 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
             ) : null,
             <PinMarker
               key={'j-' + it.id}
+              faded={back}
               at={place}
               box={spread ? TASK_PIN : PRICE_PIN}
               z={on ? 4 : best ? 3 : 2}
@@ -409,6 +421,9 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
           : null}
       </View>
 
+      {/* On the full map these notes live in the sheet (plan D14). */}
+      {fill ? null : (
+      <>
       <View pointerEvents="none" style={{ position: 'absolute', left: 8, top: 8 + padTop, right: 56, flexDirection: 'row' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.bg, borderRadius: 10, borderWidth: 1, borderColor: t.colors.line, paddingHorizontal: 10, paddingVertical: 6, flexShrink: 1 }}>
           {people ? <Icon name="users" size={12} color={blue} /> : <View style={{ width: 14, height: 9, borderRadius: 5, backgroundColor: t.colors.ink }} />}
@@ -425,6 +440,8 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
           {words.privacy}
         </RNText>
       </View>
+      </>
+      )}
     </View>
   );
 }
