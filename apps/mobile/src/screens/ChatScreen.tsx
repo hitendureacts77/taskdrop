@@ -21,6 +21,7 @@ import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
+import { GuestScreen } from '../components/GuestBits';
 import {
   CHAT_MEDIA_PREFIX,
   listMessages,
@@ -120,7 +121,7 @@ export function ChatScreen() {
   const { params, back, go } = useNav();
   const { mode } = useMode();
   const { openTask, flash } = useApp();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
   const title = typeof params.title === 'string' ? params.title : (openTask?.title ?? 'Task');
 
@@ -310,6 +311,18 @@ export function ChatScreen() {
     )}
   </Pressable>
   );
+
+  if (guest) {
+    return (
+      <GuestScreen
+        title="Chat"
+        reason="chat"
+        icon="chat"
+        heading="Chat needs an account"
+        body="Messages open once you hire someone, or someone hires you."
+      />
+    );
+  }
 
   return (
     <Screen padded={false}>

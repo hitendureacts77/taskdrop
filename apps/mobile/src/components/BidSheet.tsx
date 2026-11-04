@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, ActivityIndicator } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
+import { isNeedsAccount, needAccount } from '../lib/guest';
 import { canQuoteOn, getMyBid, placeBid, updateBid, type Bid, type Task } from '../data/api';
 import { MIN_PRICE_INR } from '../lib/limits';
 import { maskContacts } from '../lib/mask';
@@ -47,7 +48,10 @@ export function BidSheet({
 }) {
   const t = useTheme();
   const { flash, celebrate } = useActions();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
+  // A guest's half-written offer survives the sign-up: the effect below must not wipe it when the account appears.
+  const keepFields = useRef(false);
+  const submitRef = useRef<() => Promise<void>>(async () => {});
   const [pitch, setPitch] = useState('');
   const [masked, setMasked] = useState(false);
   const [price, setPrice] = useState('');
@@ -63,7 +67,12 @@ export function BidSheet({
   const [safetyOpen, setSafetyOpen] = useState(false);
 
   useEffect(() => {
+    if (!visible) keepFields.current = false;
     if (!visible || !task || !userId) return;
+    if (keepFields.current) {
+      keepFields.current = false;
+      return;
+    }
     setPitch('');
     setMasked(false);
     setPrice('');
@@ -125,6 +134,12 @@ export function BidSheet({
   };
 
   const submit = async (safetySeen = false) => {
+    if (guest) {
+      if (!price.trim()) return flash('Enter your price');
+      if (pitch.trim().length < 10) return flash('Tell the customer a little about why you');
+      keepFields.current = true;
+      return needAccount('offer', () => submitRef.current());
+    }
     if (!userId) return flash('Sign in to send an offer');
     if (!price.trim()) return flash('Enter your price');
     if (pitch.trim().length < 10) return flash('Tell the customer a little about why you');
@@ -160,11 +175,13 @@ export function BidSheet({
       }
       onPlaced?.();
     } catch (e) {
+      if (isNeedsAccount(e)) return;
       flash(e instanceof Error ? e.message : 'Could not send your offer');
     } finally {
       setBusy(false);
     }
   };
+  submitRef.current = () => submit();
 
   const dateText = deliverBy ? formatDeadline(deliverBy) : savedDateLabel;
 

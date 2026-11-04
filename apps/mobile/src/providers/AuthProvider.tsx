@@ -7,6 +7,8 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { clientHeaders, installId } from '../lib/appInfo';
 import { postSignInRoute } from '../data/api';
+import { loadGuestChoice, saveGuestChoice } from '../lib/guest';
+import { moveGuestDrafts } from '../lib/drafts';
 import { count, log, setMonitoringUser } from '../lib/monitoring';
 
 /**
@@ -63,6 +65,12 @@ type AuthCtx = {
   notice: string | null;
   clearNotice: () => void;
   signOut: () => Promise<void>;
+  /**
+   * Guest mode (D15): no session, and this device chose "Continue as guest". The app then opens on
+   * Home with every tab; anything that needs an account opens the "Make your account" pop-up.
+   */
+  guest: boolean;
+  continueAsGuest: () => void;
 };
 
 const Ctx = createContext<AuthCtx | null>(null);
@@ -200,6 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const [postAuthRoute, setPostAuthRoute] = useState<'home' | 'setup' | null>(null);
+  const [guestChosen, setGuestChosen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const clearNotice = useCallback(() => setNotice(null), []);
 
@@ -281,13 +290,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       const { data } = await supabase.auth.getSession();
+      // Decision 19: a device that chose "Continue as guest" opens straight on Home next time.
+      const chosen = data.session ? false : await loadGuestChoice();
       if (!alive) return;
+      setGuestChosen(chosen);
       setSession(data.session);
       setMonitoringUser(data.session?.user.id ?? null);
       setReady(true);
     })();
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
+      if (s) {
+        // An account now: guest mode is over on this device (a later sign-out shows the sign-in page),
+        // and anything half-written as a guest moves into the account.
+        setGuestChosen(false);
+        void saveGuestChoice(false);
+        void moveGuestDrafts(s.user.id);
+      }
       // Sentry sees the account id only, so a report can be matched to a person without naming them.
       setMonitoringUser(s?.user.id ?? null);
     });
@@ -487,6 +506,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   }, []);
 
+  const continueAsGuest = useCallback(() => {
+    setGuestChosen(true);
+    void saveGuestChoice(true);
+  }, []);
+  const guest = !session && guestChosen;
+
   const value = useMemo<AuthCtx>(
     () => ({
       session,
@@ -499,10 +524,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithApple,
       linkGoogle,
       signOut,
+      guest,
+      continueAsGuest,
       notice,
       clearNotice,
     }),
-    [session, ready, postAuthRoute, requestCode, verifyCode, signInWithGoogle, signInWithApple, linkGoogle, signOut, notice, clearNotice],
+    [session, ready, postAuthRoute, requestCode, verifyCode, signInWithGoogle, signInWithApple, linkGoogle, signOut, guest, continueAsGuest, notice, clearNotice],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

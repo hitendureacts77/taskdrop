@@ -24,6 +24,7 @@ import {
   type PayoutDestination,
 } from '../data/api';
 import { useAuth } from '../providers/AuthProvider';
+import { GuestScreen } from '../components/GuestBits';
 import { Pressy, tx } from '../components/primitives';
 import { MIN_WITHDRAW_MINOR } from './WalletScreen';
 import { KeyboardSafe } from '../components/KeyboardSafe';
@@ -33,7 +34,7 @@ export function WithdrawScreen() {
   const t = useTheme();
   const { back } = useNav();
   const { balance, roll, celebrate, flash } = useApp();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
 
   // Start from the real wallet balance, not whatever the animated counter holds.
   const [availableMinor, setAvailableMinor] = useState(balance);
@@ -71,6 +72,7 @@ export function WithdrawScreen() {
   }, []);
 
   useEffect(() => {
+    if (guest) return;
     let alive = true;
     void listPayoutDestinations()
       .then((list) => {
@@ -101,7 +103,7 @@ export function WithdrawScreen() {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [userId, guest]);
 
   const amountMinor = rupees * 100;
   const overdrawn = amountMinor > availableMinor;
@@ -184,6 +186,18 @@ export function WithdrawScreen() {
   const inFlightMinor = payouts
     .filter((p) => p.status === 'requested' || p.status === 'processing')
     .reduce((sum, p) => sum + p.amount_minor, 0);
+
+  if (guest) {
+    return (
+      <GuestScreen
+        title="Withdraw"
+        reason="money"
+        icon="wallet"
+        heading="Withdrawing needs an account"
+        body="Earn first, then withdraw to UPI or bank once your account is made."
+      />
+    );
+  }
 
   return (
     <Screen padded={false}>

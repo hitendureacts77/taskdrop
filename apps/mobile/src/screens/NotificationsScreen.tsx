@@ -20,6 +20,7 @@ import { attachPosters, getTask, listMyAssignments } from '../data/api';
 import { openPostedTask, openRow, workerAssignmentRow } from '../lib/taskRows';
 import { taskToFeedRow } from '../lib/openTask';
 import { useApp } from '../providers/AppStateProvider';
+import { GuestScreen } from '../components/GuestBits';
 
 const ICON: Record<string, IconName> = {
   quote: 'tag',
@@ -54,7 +55,7 @@ const ICON: Record<string, IconName> = {
 export function NotificationsScreen() {
   const t = useTheme();
   const { back, go } = useNav();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
   const { mode, setMode } = useMode();
   const { flash, setOpenTask, startedOf } = useApp();
   const [tab, setTab] = useState(0);
@@ -82,8 +83,9 @@ export function NotificationsScreen() {
   );
 
   useEffect(() => {
+    if (guest) return;
     void loadOrFail();
-  }, [loadOrFail]);
+  }, [loadOrFail, guest]);
 
   useEffect(() => {
     if (!userId) return;
@@ -151,6 +153,18 @@ export function NotificationsScreen() {
       setOpening(null);
     }
   };
+
+  if (guest) {
+    return (
+      <GuestScreen
+        title="Notifications"
+        reason="chat"
+        icon="bell"
+        heading="Alerts need an account"
+        body="Offers, replies and payments show up here once your account is made."
+      />
+    );
+  }
 
   return (
     <Screen padded={false}>

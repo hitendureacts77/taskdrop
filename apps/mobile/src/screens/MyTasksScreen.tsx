@@ -15,6 +15,9 @@ import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp, useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
+import { GUEST_DRAFTS_OWNER } from '../lib/guest';
+import { listGuestSaves, loadGuestSavedTasks, setGuestSaved } from '../lib/guestSaves';
+import { GuestNote } from '../components/GuestBits';
 import {
   attachPosters,
   cancelTask,
@@ -99,7 +102,9 @@ function MyPosted() {
   const t = useTheme();
   const { go } = useNav();
   const { flash } = useActions();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
+  // A guest's drafts wait on this phone under one shared owner until the account is made.
+  const draftOwner = userId ?? (guest ? GUEST_DRAFTS_OWNER : null);
   const focusTick = useFocusTick();
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [quotes, setQuotes] = useState<Map<string, number>>(new Map());
@@ -116,13 +121,13 @@ function MyPosted() {
   // Half-written posts kept on this device (see lib/drafts).
   const [drafts, setDrafts] = useState<PostDraft[]>([]);
   useEffect(() => {
-    if (!userId) return setDrafts([]);
+    if (!draftOwner) return setDrafts([]);
     let alive = true;
-    void listDrafts(userId).then((d) => alive && setDrafts(d));
+    void listDrafts(draftOwner).then((d) => alive && setDrafts(d));
     return () => {
       alive = false;
     };
-  }, [userId, focusTick]);
+  }, [draftOwner, focusTick]);
 
   const load = useCallback(async () => {
     if (!userId) {
@@ -203,6 +208,11 @@ function MyPosted() {
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />}
       >
+        {guest ? (
+          <View style={{ paddingHorizontal: 20 }}>
+            <GuestNote />
+          </View>
+        ) : null}
         {/* One summary card rather than four tiles: what is running, what is
             waiting on me, what is done. Spending lives in Wallet → Insights. */}
         <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
@@ -292,9 +302,9 @@ function MyPosted() {
                 </Pressable>
                 <Pressable
                   onPress={() => {
-                    if (!userId) return;
+                    if (!draftOwner) return;
                     setDrafts((cur) => cur.filter((x) => x.id !== d.id));
-                    void removeDraft(userId, d.id);
+                    void removeDraft(draftOwner, d.id);
                   }}
                   hitSlop={8}
                   accessibilityRole="button"
@@ -525,7 +535,7 @@ function MyWork() {
   const t = useTheme();
   const { go } = useNav();
   const { flash, setOpenTask, startedOf } = useApp();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
   const focusTick = useFocusTick();
   const [tab, setTab] = useState(0);
   const [rows, setRows] = useState<ViewRow[] | null>(null);
@@ -541,6 +551,11 @@ function MyWork() {
   const load = useCallback(async () => {
     if (!userId) {
       setRows([]);
+      if (guest) {
+        // Nothing of theirs yet, but the tasks they saved on this phone are listed.
+        setSavedTasks(await attachPosters(await loadGuestSavedTasks(getTask)).catch(() => [] as TaskWithPoster[]));
+        setSavedIds(new Set(await listGuestSaves()));
+      }
       return;
     }
     const [bids, assignments, s, sv, ids, mine] = await Promise.all([
@@ -561,7 +576,7 @@ function MyWork() {
     setSavedTasks(sv);
     setSavedIds(ids);
     setFailed(false);
-  }, [userId, focusTick]);
+  }, [userId, guest, focusTick]);
 
   const loadOrFail = useCallback(
     () =>
@@ -602,7 +617,8 @@ function MyWork() {
 
   const unsave = async (id: string) => {
     try {
-      await setSaved(id, false);
+      if (guest) await setGuestSaved(id, false);
+      else await setSaved(id, false);
       setSavedTasks((s) => (s ?? []).filter((x) => x.id !== id));
       setSavedIds((s) => {
         const n = new Set(s);
@@ -622,6 +638,11 @@ function MyWork() {
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.purple} />}
       >
+        {guest ? (
+          <View style={{ paddingHorizontal: 20 }}>
+            <GuestNote />
+          </View>
+        ) : null}
         <AlertsCard show={(rows?.length ?? 0) > 0} side="earn" />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 20, paddingTop: 8 }}>
           <StatTile icon="wallet" label="Earned" value={w ? formatINR(w.earnedMinor) : '–'} />

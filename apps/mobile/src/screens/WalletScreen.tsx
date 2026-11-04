@@ -11,6 +11,8 @@ import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { reportError } from '../lib/errors';
 import { useAuth } from '../providers/AuthProvider';
+import { needAccount } from '../lib/guest';
+import { GuestNote } from '../components/GuestBits';
 import {
   getProfile,
   getWallet,
@@ -67,7 +69,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
   const { go, back } = useNav();
   const { mode } = useMode();
   const { balance, escrow, clearing, flash, celebrate } = useApp();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
   const focusTick = useFocusTick();
   // One wallet since migration 066: `balance` holds what was added, earned and
   // refunded, all withdrawable. `credits` is always 0 now and is only summed in
@@ -105,6 +107,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
   // Real wallet for the signed-in user; the in-memory figures are the fallback
   // until it loads (or when signed out).
   useEffect(() => {
+    if (guest) return;
     let alive = true;
     // Sweep first. Earnings that finished clearing are spendable, and reading
     // the wallet before moving them shows them as still clearing -- which on
@@ -123,7 +126,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusTick]);
+  }, [focusTick, guest]);
 
   // Adding money lives in its own sheet: it has to ask how much, and it has
   // to watch for the payment rather than asking whether it arrived.
@@ -381,9 +384,10 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
             ) : null}
           </HeroCard>
   
+          {guest ? <GuestNote /> : null}
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
             <Pressy
-              onPress={() => setAddingFunds(true)}
+              onPress={() => (guest ? needAccount('money') : setAddingFunds(true))}
               style={{
                 flex: 1,
                 backgroundColor: t.colors.btn,
@@ -401,7 +405,9 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
             </Pressy>
             <Pressy
               onPress={() =>
-                available >= MIN_WITHDRAW_MINOR
+                guest
+                  ? needAccount('money')
+                  : available >= MIN_WITHDRAW_MINOR
                   ? go('withdraw')
                   : flash(`You can withdraw once you have ${formatINR(MIN_WITHDRAW_MINOR)} available`)
               }

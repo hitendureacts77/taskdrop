@@ -13,6 +13,7 @@ import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
+import { runPendingAfterSignIn } from '../lib/guest';
 import { getProfile, updateProfile } from '../data/api';
 import { applyReferralCode, updateProfileExtras, usernameAvailable } from '../data/extras';
 import { nameCarriesContact } from '../lib/mask';
@@ -32,11 +33,13 @@ type Intent = 'post' | 'earn' | 'both';
  */
 export function OnboardingScreen() {
   const t = useTheme();
-  const { reset } = useNav();
+  const { reset, back, params } = useNav();
   const { setMode } = useMode();
   const { flash, celebrate } = useActions();
   const { userId } = useAuth();
-  const [step, setStep] = useState(0);
+  // From guest mode only "About you" is asked now; the rest is offered at a later sign-in (decision 21).
+  const quick = Boolean(params.quick);
+  const [step, setStep] = useState(quick ? 4 : 0);
   const [busy, setBusy] = useState(false);
 
   const [code, setCode] = useState('');
@@ -136,6 +139,37 @@ export function OnboardingScreen() {
 
   const toggle = (list: string[], set: (v: string[]) => void, v: string, max: number) =>
     list.includes(v) ? set(list.filter((x) => x !== v)) : list.length < max ? set([...list, v]) : flash(`Pick up to ${max}`);
+
+  // Saves what "About you" saves. Shared by the normal Continue and the guest's quick finish.
+  const saveAbout = async () => {
+    if (!userId) return;
+    await updateProfile(userId, {
+      displayName: name.trim(),
+      avatarUrl: avatarPath ?? undefined,
+      locLabel: place?.label ?? null,
+      locLat: place?.lat ?? null,
+      locLng: place?.lng ?? null,
+    });
+    // Earning-only sign-ups write their worker bio; everyone else starts
+    // with the poster one. Each side can be edited later.
+    await updateProfileExtras(userId, intent === 'earn' ? { workerBio: bio, languages: langs } : { bio, languages: langs });
+  };
+
+  // Guest's quick finish: not marked onboarded, so the full setup is offered later. Pops setup and the sign-in
+  // page, back to the screen the guest was on, then finishes what they were doing.
+  const finishQuick = async () => {
+    setBusy(true);
+    try {
+      await saveAbout();
+      back();
+      back();
+      runPendingAfterSignIn();
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Something went wrong');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const finish = async () => {
     if (!userId) return;
@@ -352,19 +386,7 @@ export function OnboardingScreen() {
         label="Continue"
         busy={busy}
         disabled={!name.trim()}
-        onPress={() => void run(async () => {
-          if (!userId) return;
-          await updateProfile(userId, {
-            displayName: name.trim(),
-            avatarUrl: avatarPath ?? undefined,
-            locLabel: place?.label ?? null,
-            locLat: place?.lat ?? null,
-            locLng: place?.lng ?? null,
-          });
-          // Earning-only sign-ups write their worker bio; everyone else starts
-          // with the poster one. Each side can be edited later.
-          await updateProfileExtras(userId, intent === 'earn' ? { workerBio: bio, languages: langs } : { bio, languages: langs });
-        })}
+        onPress={() => (quick ? void finishQuick() : void run(saveAbout))}
       />
     );
   }
@@ -394,22 +416,24 @@ export function OnboardingScreen() {
     <Screen padded={false}>
       <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          {step > 0 && step < STEPS.length - 1 ? (
+          {!quick && step > 0 && step < STEPS.length - 1 ? (
             <IconButton icon="back" label="Back" onPress={prev} />
           ) : null}
           <RNText style={tx('600', 13, t.colors.muted, { flex: 1 })}>
-            Step {step + 1} of {STEPS.length} · {STEPS[step]}
+            {quick ? STEPS[step] : `Step ${step + 1} of ${STEPS.length} · ${STEPS[step]}`}
           </RNText>
         </View>
-        <View style={{ height: 4, borderRadius: 999, backgroundColor: t.colors.surface2, marginTop: 12, overflow: 'hidden' }}>
-          <Animated.View
-            style={{
-              height: 4,
-              backgroundColor: t.colors.accent,
-              width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-            }}
-          />
-        </View>
+        {quick ? null : (
+          <View style={{ height: 4, borderRadius: 999, backgroundColor: t.colors.surface2, marginTop: 12, overflow: 'hidden' }}>
+            <Animated.View
+              style={{
+                height: 4,
+                backgroundColor: t.colors.accent,
+                width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+              }}
+            />
+          </View>
+        )}
       </View>
       <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 22, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
         {body}

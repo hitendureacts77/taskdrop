@@ -7,7 +7,9 @@ import { BidSheet } from '../components/BidSheet';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useMode } from '../providers/ModeProvider';
-import { attachPosters, type Task, type TaskWithPoster } from '../data/api';
+import { attachPosters, getTask, type Task, type TaskWithPoster } from '../data/api';
+import { useAuth } from '../providers/AuthProvider';
+import { loadGuestSavedTasks, setGuestSaved } from '../lib/guestSaves';
 import { listSavedTasks, setSaved } from '../data/extras';
 import { taskToFeedRow } from '../lib/openTask';
 
@@ -16,24 +18,26 @@ export function SavedScreen() {
   const { back, go } = useNav();
   const { flash } = useActions();
   const { setMode } = useMode();
+  const { guest } = useAuth();
   const [rows, setRows] = useState<TaskWithPoster[] | null>(null);
   const [bidTask, setBidTask] = useState<Task | null>(null);
 
   useEffect(() => {
     let alive = true;
-    listSavedTasks()
-      .then(attachPosters)
+    (guest ? loadGuestSavedTasks(getTask) : listSavedTasks())
+      .then((r) => attachPosters(r))
       .then((r) => alive && setRows(r))
       .catch(() => alive && setRows([]));
     return () => {
       alive = false;
     };
-  }, []);
+  }, [guest]);
 
   const unsave = async (id: string) => {
     setRows((r) => (r ?? []).filter((x) => x.id !== id));
     try {
-      await setSaved(id, false);
+      if (guest) await setGuestSaved(id, false);
+      else await setSaved(id, false);
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not update saved');
     }

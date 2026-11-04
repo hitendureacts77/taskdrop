@@ -6,6 +6,7 @@ import { NavProvider } from './src/providers/NavProvider';
 import { ScreenHost } from './src/navigation/ScreenHost';
 import { AgeGate } from './src/components/AgeGate';
 import { Overlays } from './src/components/Overlays';
+import { AccountPrompt } from './src/components/AccountPrompt';
 import { StagingWelcome } from './src/components/StagingWelcome';
 import { TourHost } from './src/components/tour/TourHost';
 import { WebShell } from './src/components/WebShell';
@@ -18,14 +19,14 @@ import { AppProviders, Background, ScreenBoundary, ThemedStatusBar } from './src
  * is restored, otherwise at the splash.
  */
 function Routes() {
-  const { ready, session, postAuthRoute } = useAuth();
+  const { ready, session, postAuthRoute, guest } = useAuth();
   const { mode } = useMode();
   if (!ready) return <View style={{ flex: 1, backgroundColor: '#0F1012' }} />;
   return (
     // Signed in and earning: the whole app turns royal blue. Sign-up and the
     // welcome screens keep the brand green.
     <RoleTheme worker={Boolean(session) && mode === 'worker'}>
-    <NavProvider initial={postAuthRoute ?? (session ? 'home' : 'splash')}>
+    <NavProvider initial={postAuthRoute ?? (session || guest ? 'home' : 'splash')}>
       <ThemedStatusBar />
       <Background />
       <WebShell>
@@ -38,13 +39,14 @@ function Routes() {
           behavior="padding"
           enabled={Platform.OS !== 'web'}
         >
-          <ScreenBoundary home={session ? 'home' : 'splash'}>
+          <ScreenBoundary home={session || guest ? 'home' : 'splash'}>
             <AgeGate>
               <ScreenHost />
             </AgeGate>
           </ScreenBoundary>
           <ErrorBoundary silent>
             <Overlays />
+            <AccountPrompt />
             <StagingWelcome />
             <TourHost />
           </ErrorBoundary>
