@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Full map, phone, sheet low</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#8FA8FF}a:hover{color:#B7C7FF}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #1A1E22; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #F2F3F1">
+
+<svg aria-hidden="true" viewBox="0 0 390 844" style="position: absolute; left: 0; top: 0; width: 390px; height: 844px">
+<rect width="390" height="844" fill="#1A1E22"></rect>
+<path d="M250 150 C300 175 330 170 350 220 C365 265 320 290 285 272 C255 258 230 190 250 150Z" fill="#15222C"></path>
+<path d="M10 520 C60 500 110 520 125 565 C135 605 80 620 40 605 C10 590 -5 545 10 520Z" fill="#17241D"></path>
+<path d="M0 360 C120 345 250 390 390 330" stroke="#2D3339" stroke-width="9" fill="none"></path>
+<path d="M150 0 C160 250 140 500 175 844" stroke="#2D3339" stroke-width="9" fill="none"></path>
+<path d="M0 640 L390 580" stroke="#2D3339" stroke-width="8" fill="none"></path>
+<path d="M0 230 L390 260 M0 470 L390 455 M70 0 L95 844 M290 0 L305 844 M0 540 C150 510 260 530 390 505" stroke="#24292E" stroke-width="3" fill="none"></path>
+<path d="M0 150 L390 165 M0 300 L390 300 M230 0 L240 844 M350 0 L360 844 M30 0 L40 844" stroke="#212529" stroke-width="2" fill="none"></path>
+</svg>
+
+<div style="position: absolute; left: 45px; top: 280px; width: 300px; height: 300px; border-radius: 50%; border: 2px dashed rgba(107,140,255,0.55); background: rgba(107,140,255,0.06); box-sizing: border-box"></div>
+<div style="position: absolute; left: 181px; top: 416px; width: 28px; height: 28px; border-radius: 50%; background: rgba(107,140,255,0.25); display: flex; align-items: center; justify-content: center">
+<div style="width: 14px; height: 14px; border-radius: 50%; background: #6B8CFF; border: 3px solid #F2F3F1; box-sizing: border-box"></div>
+</div>
+
+<sc-for list="{{pins}}" as="p" hint-placeholder-count="6">
+<div style="position: absolute; left: {{p.x}}px; top: {{p.y}}px; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center">
+<div style="display: flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: #F2F3F1; color: #0E1012; font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; box-shadow: 0 4px 12px rgba(0,0,0,0.45); white-space: nowrap">
+<sc-if value="{{p.fresh}}" hint-placeholder-val="{{false}}"><span style="width: 7px; height: 7px; border-radius: 50%; background: #6B8CFF"></span></sc-if>
+{{p.price}}
+</div>
+<div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #F2F3F1"></div>
+</div>
+</sc-for>
+
+<div style="position: absolute; left: 16px; right: 16px; top: 12px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 8px">
+<button aria-label="Close the map" style="width: 44px; height: 44px; border-radius: 22px; background: #0E1012; border: 1px solid #2A2F34; color: #F2F3F1; display: flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0">
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+</button>
+<div style="flex: 1; min-width: 0; height: 44px; border-radius: 22px; background: #0E1012; border: 1px solid #2A2F34; box-sizing: border-box; display: flex; align-items: center; padding: 0 6px 0 16px; gap: 8px">
+<div style="flex: 1; min-width: 0">
+<div style="font-size: 14px; font-weight: 800; color: #F2F3F1">Work near you</div>
+<div style="font-size: 11px; font-weight: 600; color: #9AA0A6">12 jobs within 10 km</div>
+</div>
+<button aria-label="How far: 10 km. Change" style="height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid #2A2F34; background: #1E2226; color: #C9CDD2; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 4px">
+10 km
+<svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+</div>
+</div>
+<div style="display: flex; gap: 8px">
+<button style="height: 34px; padding: 0 13px; border-radius: 17px; border: 0; background: #F2F3F1; color: #0E1012; font-size: 12.5px; font-weight: 800">All</button>
+<button style="height: 34px; padding: 0 13px; border-radius: 17px; background: #0E1012; border: 1px solid #2A2F34; color: #F2F3F1; font-size: 12.5px; font-weight: 700">₹1,000+</button>
+</div>
+</div>
+
+<div style="position: absolute; left: 16px; right: 16px; top: 122px; display: flex; justify-content: center">
+<button style="height: 40px; padding: 0 16px; border-radius: 20px; background: #0E1012; border: 1px solid #2A2F34; color: #F2F3F1; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.4)">
+<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4"></path></svg>
+Search this area
+</button>
+</div>
+
+<div style="position: absolute; left: 0; right: 0; bottom: 0; height: 230px; border-radius: 28px 28px 0 0; background: #16191C; border-top: 1px solid #2A2F34; box-shadow: 0 -10px 30px rgba(0,0,0,0.4); display: flex; flex-direction: column; padding-top: 10px; box-sizing: border-box">
+<div style="align-self: center; width: 40px; height: 5px; border-radius: 3px; background: #2A2F34; margin-bottom: 12px"></div>
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 0 16px 12px">
+<div style="flex: 1">
+<div style="font-size: 18px; font-weight: 800; letter-spacing: -0.3px; color: #F2F3F1">12 jobs nearby</div>
+<div style="font-size: 12px; font-weight: 600; color: #9AA0A6">Pull up to see them all</div>
+</div>
+<button style="height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid #2A2F34; background: #1E2226; color: #F2F3F1; font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 6px">
+<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"></path></svg>
+List
+</button>
+</div>
+<div style="padding: 0 16px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; gap: 8px">
+<button style="flex: 1; text-align: left; padding: 10px 12px; border-radius: 14px; background: #172036; border: 1px solid #6B8CFF; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 11px; font-weight: 700; color: #8FA8FF">Best offer</span>
+<span style="font-size: 18px; font-weight: 800; color: #F2F3F1; font-variant-numeric: tabular-nums">₹1,800</span>
+<span style="font-size: 11px; font-weight: 600; color: #C9CDD2">Madhapur · 1.2 km</span>
+</button>
+<button style="flex: 1; text-align: left; padding: 10px 12px; border-radius: 14px; background: #1E2226; border: 1px solid #2A2F34; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 11px; font-weight: 700; color: #9AA0A6">Nearest</span>
+<span style="font-size: 18px; font-weight: 800; color: #F2F3F1; font-variant-numeric: tabular-nums">under 1 km</span>
+<span style="font-size: 11px; font-weight: 600; color: #C9CDD2">Hitech City · ₹500</span>
+</button>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 600; color: #9AA0A6">
+<svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8FA8FF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+Pins show the area, never the exact spot
+</div>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      pins: [
+        { x: 230, y: 400, price: '₹1,800', fresh: false },
+        { x: 95, y: 470, price: '₹1,200', fresh: false },
+        { x: 300, y: 330, price: '₹900', fresh: false },
+        { x: 80, y: 330, price: '₹850', fresh: false },
+        { x: 150, y: 560, price: '₹650', fresh: false },
+        { x: 260, y: 500, price: '₹500', fresh: true },
+        { x: 330, y: 250, price: '₹300', fresh: false }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
