@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
-import { FROM_GUEST, needAccount, type AccountReason } from '../lib/guest';
+import { FROM_GUEST, needAccountOnArrival, type AccountReason } from '../lib/guest';
 import { Screen } from './ui';
 import { EmptyState, TopBar } from './kit';
 import type { IconName } from './Icon';
@@ -89,7 +89,7 @@ export function GuestScreen({
 }) {
   const { back, go } = useNav();
   useEffect(() => {
-    needAccount(reason);
+    needAccountOnArrival(reason);
   }, [reason]);
   return (
     <Screen padded={false}>

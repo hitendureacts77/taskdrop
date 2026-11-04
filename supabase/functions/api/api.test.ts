@@ -1521,8 +1521,7 @@ const guestPosts = () => [
 ];
 
 const SHARED_RPCS = new Set([
-  "trending_categories", "platform_highlights", "top_earners", "nearby_pulse", "public_profile_stats",
-  "worker_proof_photos", "task_questions_list", "feedback_board_list", "feedback_board_get", "ad_auction",
+  "trending_categories", "platform_highlights", "top_earners", "public_profile_stats", "ad_auction",
 ]);
 
 /** A fake whose guest SQL functions answer sensibly; `media` is what guest_public_media lets through. */
@@ -1552,9 +1551,8 @@ function guestFake(media: (paths: string[]) => string[] = (p) => p) {
 /** Plausible arguments for each op a guest may run. */
 const GUEST_ARGS: Record<string, Record<string, unknown>> = {
   trendingCategories: {}, platformHighlights: {}, topEarners: { kind: "top_rated" },
-  nearbyPulse: { ...HERE, radiusKm: 5 }, platformFees: {}, publicProfileStats: { userId: HELPER1 },
-  workerProofPhotos: { userId: HELPER1 }, listTaskQuestions: { taskId: G1 }, listFeedbackBoard: {},
-  getFeedbackPost: { postId: G1 }, adAuctionRanks: {},
+  platformFees: {}, publicProfileStats: { userId: HELPER1 },
+  adAuctionRanks: {},
   listOpenTasks: {}, searchTasks: { q: "clean", near: { ...HERE, radiusKm: 10 } }, searchTasksWithPosters: { q: "clean" },
   attachPosters: { taskIds: [G1, G2] }, getTask: { taskId: G1 }, getTaskDetail: { taskId: G1 },
   countBidsByTask: { taskIds: [G1] }, getPosterStats: { posterId: HELPER1 }, recommendedTasks: { skills: ["clean"] },

@@ -31,7 +31,7 @@ import { BirthDateField, EMPTY_BIRTH_DATE, type BirthDateParts } from '../compon
 import { TurnedAway } from '../components/AgeGate';
 import { recordBirthDate } from '../data/age';
 import { KeyboardScrollView, RevealWhen } from '../components/KeyboardScrollView';
-import { FROM_GUEST, runPendingAfterSignIn } from '../lib/guest';
+import { FROM_GUEST, declineAccount, runPendingAfterSignIn } from '../lib/guest';
 
 /**
  * The way in: one screen for new and returning people alike.
@@ -396,7 +396,10 @@ export function AccessScreen() {
         <View style={{ flex: 1, paddingHorizontal: 22, paddingTop: desktop ? 30 : 28 }}>
           {fromGuest ? (
             <Pressable
-              onPress={back}
+              onPress={() => {
+                declineAccount();
+                back();
+              }}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel="Not now"

@@ -7,7 +7,7 @@
  * guest_helpers, guest_reviews_about, guest_bid_counts, guest_public_media),
  * which decides what a guest may see: open posts only, no money or hiring
  * columns, places rounded to about a kilometre, public profile cards only. A few
- * public numbers (trending, highlights, the nearby pulse, fees) reuse the
+ * public numbers (trending, highlights, top helpers, fees) reuse the
  * signed-in operation as it is, because the SQL behind them shows nothing
  * personal. Nothing here writes; every other name answers NEEDS_ACCOUNT, which
  * the app turns into the "Make your account" pop-up.
@@ -121,8 +121,8 @@ async function helpers(ctx: Ctx): Promise<(Row & { id: string; loc_lat: number; 
 
 /** Signed-in reads whose SQL shows only public numbers or public posts, reused as they are. */
 const SHARED = [
-  "trendingCategories", "platformHighlights", "topEarners", "nearbyPulse", "platformFees", "publicProfileStats",
-  "workerProofPhotos", "listTaskQuestions", "listFeedbackBoard", "getFeedbackPost", "adAuctionRanks",
+  "trendingCategories", "platformHighlights", "topEarners", "platformFees", "publicProfileStats",
+  "adAuctionRanks",
 ] as const;
 
 export const GUEST_OPS: Record<string, Op> = {

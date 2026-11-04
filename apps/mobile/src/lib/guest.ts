@@ -15,8 +15,7 @@ import { useSyncExternalStore } from 'react';
  * that the two lists are the same.
  */
 export const GUEST_OPS: ReadonlySet<string> = new Set([
-  'trendingCategories', 'platformHighlights', 'topEarners', 'nearbyPulse', 'platformFees', 'publicProfileStats',
-  'workerProofPhotos', 'listTaskQuestions', 'listFeedbackBoard', 'getFeedbackPost', 'adAuctionRanks',
+  'trendingCategories', 'platformHighlights', 'topEarners', 'platformFees', 'publicProfileStats', 'adAuctionRanks',
   'listOpenTasks', 'searchTasks', 'searchTasksWithPosters', 'attachPosters', 'getTask', 'getTaskDetail',
   'countBidsByTask', 'getPosterStats', 'recommendedTasks', 'remoteTasks', 'tasksNear', 'urgentTasks',
   'workerServices', 'workersNear', 'listActiveWorkers', 'getProfile', 'listReviewsAbout', 'signMedia',
@@ -107,9 +106,30 @@ export function needAccount(reason: AccountReason = 'general', then?: () => void
   emit();
 }
 
+/** When the guest last said "Not now" (in the pop-up or on the sign-in page opened from it). */
+let declinedAt = 0;
+
+/** "Not now" on the sign-in page opened from the pop-up: nothing is kept, and the page below does not ask again at once. */
+export function declineAccount(): void {
+  pending = null;
+  declinedAt = Date.now();
+}
+
+/**
+ * For a page that opens the pop-up as soon as a guest arrives (Messages, Notifications): not when the
+ * guest has just said "Not now", which would bring the same question straight back.
+ */
+export function needAccountOnArrival(reason: AccountReason): void {
+  if (Date.now() - declinedAt < 5_000) return;
+  needAccount(reason);
+}
+
 /** "Not now": the pop-up closes and nothing is kept. */
 export function closeAccountPrompt(keepPending = false): void {
-  if (!keepPending) pending = null;
+  if (!keepPending) {
+    pending = null;
+    declinedAt = Date.now();
+  }
   if (!state.open) return;
   state = { ...state, open: false };
   emit();

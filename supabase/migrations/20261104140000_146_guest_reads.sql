@@ -194,9 +194,32 @@ as $$
    limit least(greatest(coalesce(p_limit, 10), 1), 50)
 $$;
 
--- Which of these pictures a guest may see: the picture on an open post, or
--- someone's profile photo. Anything else (chat photos, proof of work, a
--- closed task's files) is left out, so the api never signs it for a guest.
+-- Whether a picture belongs to this person: a storage path in their own
+-- folder, or a registered picture (media:<id>) they uploaded. A profile photo
+-- or a post picture is a plain text column, so without this anyone could
+-- point theirs at someone else's file (a chat photo, a proof) and have it
+-- signed as "public".
+create or replace function private.guest_owns_media(p_owner uuid, p_path text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case
+    when p_path like 'media:%' then exists (
+      select 1 from public.media m
+       where 'media:' || m.id::text = p_path and m.owner = p_owner and m.status = 'attached')
+    else p_path like p_owner::text || '/%' and position('..' in p_path) = 0
+  end
+$$;
+
+revoke all on function private.guest_owns_media(uuid, text) from public, anon, authenticated;
+
+-- Which of these pictures a guest may see: the poster's own picture on an
+-- open post, or a person's own profile photo. Anything else (chat photos,
+-- proof of work, a closed task's files, a path borrowed from someone else) is
+-- left out, so the api never signs it for a guest.
 create or replace function public.guest_public_media(p_paths text[])
 returns text[]
 language sql
@@ -209,9 +232,11 @@ as $$
    where exists (select 1 from public.tasks t
                   where t.media_path = x.path and t.status = 'OPEN'
                     and (t.due_at is null or t.due_at > now())
-                    and not private.task_is_hidden(t.id))
+                    and not private.task_is_hidden(t.id)
+                    and private.guest_owns_media(t.poster_id, x.path))
       or exists (select 1 from public.profiles p
-                  where p.avatar_url = x.path and p.deleted_at is null)
+                  where p.avatar_url = x.path and p.deleted_at is null
+                    and private.guest_owns_media(p.id, x.path))
 $$;
 
 revoke all on function public.guest_public_media(text[]) from public, anon, authenticated;
