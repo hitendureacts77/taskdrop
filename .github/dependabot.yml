@@ -8,6 +8,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Wait a week before proposing a newly published version: a malicious or broken release is
+    # usually pulled within days. Security updates ignore the wait (task 2.13 part B).
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     ignore:
       # The app is on Expo SDK 57. Expo's packages move together with the SDK, so a
@@ -35,3 +39,5 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7

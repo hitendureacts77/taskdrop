@@ -6,7 +6,7 @@ import { gatewayHeaders } from "../_shared/gateway.ts";
 import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
 import { type LogAttributes, captureSecurityEvent, guarded, background, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
-import { type Standing, StandingCache, callerFromClaims, standingOf } from "./core.ts";
+import { type SessionCutoff, type Standing, StandingCache, callerFromClaims, cutoffOf, endedBefore, standingOf, tokenFacts } from "./core.ts";
 import { MAX_BODY_BYTES, REQUEST_ID_HEADER, readBody, requestIdFrom, withGatewayHeaders } from "./http.ts";
 import { type Db, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp } from "./ops.ts";
 import { type Claim, type RepeatStore, REPEAT_KEY_HEADER, REPLAYED_HEADER, repeatKeyFrom, runOnce } from "./repeat.ts";
@@ -59,6 +59,8 @@ const limitedLately = new RecentlyLimited();
 
 /** Whether a person is suspended or deleted, kept for 5 seconds per instance so a ban still bites quickly. */
 const standingCache = new StandingCache(5_000);
+/** Same memo, for when a person's sessions were last ended (migration 142). */
+const cutoffCache = new StandingCache<SessionCutoff>(5_000);
 
 /** Which App Check results were logged lately, so the log shows who passes without a line per request. */
 const appCheckLog = new AppCheckLog();
@@ -133,7 +135,9 @@ async function handle(req: Request, requestId: string): Promise<Response> {
   // (P2-48: that round trip was a large part of the function's own time). The gateway has already
   // verified the token (verify_jwt); this reads who it belongs to and that it has not expired.
   // A token that is not even shaped like one makes getClaims throw rather than answer an error: nobody, too.
-  const userId = callerFromClaims(await db.auth.getClaims(jwt).catch(() => null));
+  const claimsResult = await db.auth.getClaims(jwt).catch(() => null);
+  const userId = callerFromClaims(claimsResult);
+  const token = tokenFacts(claimsResult);
   if (!userId) {
     background(captureSecurityEvent("refused_login", "api"));
     return refuse("Your session has expired. Please sign in again.", "UNAUTHENTICATED", 401);
@@ -191,6 +195,11 @@ async function handle(req: Request, requestId: string): Promise<Response> {
   const standing = admin
     ? standingCache.get(userId, () => standingOf(admin, userId))
     : Promise.resolve<Standing | null>("ok");
+  // Whether this token's session was ended after it was issued (sign out of all devices, a password change, an admin).
+  // A token the signature still accepts must not outlive that. Asked beside the standing, so it adds no round trip.
+  const cutoff = admin
+    ? cutoffCache.get(userId, () => cutoffOf(admin, userId))
+    : Promise.resolve<SessionCutoff | null>(null);
 
   // Which app is asking, and what the admin panel has switched off for it.
   // If the switches cannot be read the request goes ahead (see refusalFor).
@@ -216,6 +225,11 @@ async function handle(req: Request, requestId: string): Promise<Response> {
   if (accountStanding === "suspended" || accountStanding === "deleted") {
     background(log("warn", "refused: " + accountStanding + " account", { op: String(body.op), user_id: userId }));
     return refuse("Your session has expired. Please sign in again.", "UNAUTHENTICATED", 401);
+  }
+  const sessionCutoff = await cutoff;
+  if (endedBefore(sessionCutoff, token)) {
+    background(log("info", "refused: session was ended", { op: String(body.op), user_id: userId }));
+    return refuse("You were signed out. Please sign in again.", "UNAUTHENTICATED", 401);
   }
   // If standing could not be read the request goes ahead, like an unreachable limiter: an outage of the check
   // must not become an outage of the app (the operation itself still runs under the caller's row level security).

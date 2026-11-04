@@ -360,6 +360,13 @@ export async function setPassword(password: string): Promise<void> {
   if (error) throw apiError(error);
 }
 
+/**
+ * End this person's sessions on the server (migration 142). `all: true` is "Sign out of all devices" and includes this
+ * one, so the caller then clears its own copy; `all: false` keeps this device and signs the others out (after a
+ * password change). The other devices' tokens stop working on their next call, not within the hour.
+ */
+export const endMySessions = (all: boolean) => act<{ ended: number }>('endMySessions', { all });
+
 /** One thing that has to be settled before an account can be deleted. */
 export type DeletionBlocker = { code: string; message: string };
 

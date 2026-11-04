@@ -269,17 +269,63 @@ export async function standingOf(db: StandingReader, userId: string): Promise<St
   return (suspension.data?.length ?? 0) > 0 ? "suspended" : "ok";
 }
 
+// ------------------------------------------------------------ ended sessions --
+
+/**
+ * When a person's sessions were last ended (migration 142: sign out of all devices, a password change, an admin's
+ * "sign out everywhere"), in whole seconds, and the one session that survived it. The token check above only reads a
+ * signature, so without this an ended session's token would keep working until it expired (up to an hour).
+ */
+export interface SessionCutoff {
+  revokedAtSec: number | null;
+  keepSession: string | null;
+}
+
+/** Null when it could not be read: the caller lets the request go ahead and logs it, like standing. */
+export async function cutoffOf(db: StandingReader, userId: string): Promise<SessionCutoff | null> {
+  const { data, error } = await db.from("profiles").select("sessions_revoked_at, sessions_keep_session").eq("id", userId).maybeSingle();
+  if (error) return null;
+  const at = data?.sessions_revoked_at ? Date.parse(String(data.sessions_revoked_at)) : NaN;
+  return {
+    revokedAtSec: Number.isFinite(at) ? Math.floor(at / 1000) : null,
+    keepSession: typeof data?.sessions_keep_session === "string" ? data.sessions_keep_session : null,
+  };
+}
+
+/** What the signed token says about itself: when it was issued and which session it belongs to. */
+export interface TokenFacts {
+  iat: number | null;
+  sessionId: string | null;
+}
+
+export function tokenFacts(res: { data: { claims?: { iat?: unknown; session_id?: unknown } } | null; error: unknown } | null | undefined): TokenFacts {
+  const c = res && !res.error ? res.data?.claims : undefined;
+  return {
+    iat: typeof c?.iat === "number" ? c.iat : null,
+    sessionId: typeof c?.session_id === "string" ? c.session_id : null,
+  };
+}
+
+/** True when this token was issued before the person's sessions were ended, and is not the session they kept. */
+export function endedBefore(cutoff: SessionCutoff | null, token: TokenFacts): boolean {
+  if (!cutoff || cutoff.revokedAtSec === null) return false;
+  if (token.sessionId !== null && token.sessionId === cutoff.keepSession) return false;
+  // A real token always has an issue time; one without it cannot be shown to be newer than the cutoff.
+  if (token.iat === null) return true;
+  return token.iat < cutoff.revokedAtSec;
+}
+
 /**
  * Standing per person, kept in the function instance for a few seconds so a burst of calls (a screen opening) asks
  * once. Short on purpose: a suspension must bite within moments, not minutes. Unreadable answers are not kept.
  */
-export class StandingCache {
-  private entries = new Map<string, { at: number; value: Standing }>();
-  private inflight = new Map<string, Promise<Standing | null>>();
+export class StandingCache<T = Standing> {
+  private entries = new Map<string, { at: number; value: T }>();
+  private inflight = new Map<string, Promise<T | null>>();
 
   constructor(private ttlMs: number, private now: () => number = Date.now) {}
 
-  get(userId: string, load: () => Promise<Standing | null>): Promise<Standing | null> {
+  get(userId: string, load: () => Promise<T | null>): Promise<T | null> {
     const hit = this.entries.get(userId);
     if (hit && this.now() - hit.at < this.ttlMs) return Promise.resolve(hit.value);
     const pending = this.inflight.get(userId);

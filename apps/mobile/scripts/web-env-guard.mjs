@@ -14,14 +14,42 @@
  * lives in vercel.json, scoped to the staging hosts, because Vercel's header rules cannot read an
  * environment variable.
  *
+ * It also writes /.well-known/security.txt (RFC 9116, task 2.13 part D) so a security researcher knows where to
+ * report a problem. The contact is the support address the Support page shows (EXPO_PUBLIC_LEGAL_EMAIL, decision 14),
+ * plus the Support page itself, which holds the rules. Both builds get the file.
+ *
  *   node apps/mobile/scripts/web-env-guard.mjs [distFolder]
  */
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const NOINDEX_META = '<meta name="robots" content="noindex, nofollow">';
 export const ROBOTS_TXT = '# Staging copy of TaskDrop: not for search engines.\nUser-agent: *\nDisallow: /\n';
+
+/**
+ * When security.txt stops being valid (RFC 9116 wants an expiry). A build refuses to ship an expired
+ * file; the monthly security check reminds the owner a month ahead ("renew security.txt" = Claude moves
+ * this date one year on).
+ */
+export const SECURITY_TXT_EXPIRES = '2027-10-31T00:00:00.000Z';
+export const SUPPORT_URL = 'https://taskdrop.in/?page=support';
+
+/** The text of /.well-known/security.txt. `email` is the Support address, or empty when none is set yet. */
+export function securityTxt(email, now = new Date()) {
+  if (now.getTime() >= Date.parse(SECURITY_TXT_EXPIRES)) {
+    throw new Error('security.txt has expired: move SECURITY_TXT_EXPIRES in apps/mobile/scripts/web-env-guard.mjs one year on');
+  }
+  const address = String(email ?? '').trim();
+  const lines = [];
+  if (/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address)) lines.push(`Contact: mailto:${address}`);
+  lines.push(`Contact: ${SUPPORT_URL}`);
+  lines.push(`Expires: ${SECURITY_TXT_EXPIRES}`);
+  lines.push('Preferred-Languages: en');
+  lines.push('Canonical: https://taskdrop.in/.well-known/security.txt');
+  lines.push(`Policy: ${SUPPORT_URL}`);
+  return `${lines.join('\n')}\n`;
+}
 
 const META_RE = /<meta name="robots" content="noindex, nofollow">/g;
 
@@ -38,7 +66,7 @@ export function applyToHtml(html, production) {
   return clean.replace(/<\/head>/i, `${NOINDEX_META}</head>`);
 }
 
-export function run(dist, env) {
+export function run(dist, env, email = process.env.EXPO_PUBLIC_LEGAL_EMAIL) {
   const production = isProductionBuild(env);
   const indexFile = join(dist, 'index.html');
   const robotsFile = join(dist, 'robots.txt');
@@ -46,6 +74,8 @@ export function run(dist, env) {
   writeFileSync(indexFile, applyToHtml(readFileSync(indexFile, 'utf8'), production));
   if (production) rmSync(robotsFile, { force: true });
   else writeFileSync(robotsFile, ROBOTS_TXT);
+  mkdirSync(join(dist, '.well-known'), { recursive: true });
+  writeFileSync(join(dist, '.well-known', 'security.txt'), securityTxt(email));
   return production ? 'production' : 'staging';
 }
 
