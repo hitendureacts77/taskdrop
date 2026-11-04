@@ -32,7 +32,7 @@ export const FUNCTIONS = {
 };
 
 const LOGIN = /\bauth\s*\.\s*(getUser|getClaims)\s*\(/;
-const LIMIT = /_shared\/rateLimit|\bapi_rate_hit\b|\btake_places_quota\b/;
+const LIMIT = /_shared\/rateLimit|\bapi_rate_(hit|spend)\b|\btake_places_quota\b/;
 const OWN_LIMIT = /\bhit_auth_send_ip\b|\bpassword_sign_in_gate\b/;
 const SIGNATURE = /x-razorpay-signature|INNGEST_SIGNING_KEY|handleWebhook\s*\(/;
 
