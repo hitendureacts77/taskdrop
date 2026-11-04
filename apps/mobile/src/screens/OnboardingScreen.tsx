@@ -14,6 +14,8 @@ import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { runPendingAfterSignIn } from '../lib/guest';
+import { ownerMatches, resumable } from '../lib/postWizard';
+import { loadWizard } from '../lib/postWizardStore';
 import { getProfile, updateProfile } from '../data/api';
 import { applyReferralCode, updateProfileExtras, usernameAvailable } from '../data/extras';
 import { nameCarriesContact } from '../lib/mask';
@@ -33,7 +35,7 @@ type Intent = 'post' | 'earn' | 'both';
  */
 export function OnboardingScreen() {
   const t = useTheme();
-  const { reset, back, params } = useNav();
+  const { reset, back, go, params } = useNav();
   const { setMode } = useMode();
   const { flash, celebrate } = useActions();
   const { userId } = useAuth();
@@ -186,6 +188,10 @@ export function OnboardingScreen() {
       celebrate('Welcome to TaskDrop');
       // Offered once, on Home, after the staging card (see components/tour).
       requestTourOffer(intent);
+      // "Post my request" was pressed as a guest just before this account was made (a new Google
+      // account lands here after the reload): back to that post, on Review, with everything put back.
+      const kept = await loadWizard();
+      if (kept && resumable(kept) && ownerMatches(kept, userId)) go('aiPost', { resume: true });
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not finish setup');
     } finally {
