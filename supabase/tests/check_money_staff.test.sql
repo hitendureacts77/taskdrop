@@ -73,7 +73,11 @@ begin
   if coalesce(v_err, '') not like '%authenticator%' then raise exception 'FAIL: a full admin passed without the code (%)', v_err; end if;
   perform pg_temp.become(v_poster);
   v_err := pg_temp.try('select public.check_money_staff()');
-  if coalesce(v_err, '') not like '%Admins only%' then raise exception 'FAIL: an ordinary person passed the money check (%)', v_err; end if;
+  -- Refused by the admin check on a real connection; the test harness runs as postgres, which that check
+  -- trusts, so here the role rule refuses them instead. Either way they do not pass.
+  if coalesce(v_err, '') not like '%Admins only%' and coalesce(v_err, '') not like '%staff role%' then
+    raise exception 'FAIL: an ordinary person passed the money check (%)', v_err;
+  end if;
 
   -- ---- the grant: signed-in only, never signed out ---------------------------------
   perform pg_temp.as_owner();
