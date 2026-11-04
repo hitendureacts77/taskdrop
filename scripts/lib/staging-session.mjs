@@ -7,7 +7,8 @@ import { createClient } from '@supabase/supabase-js';
 export const URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 export const KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 if (!URL || !KEY) throw new Error('Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (public values).');
-if (!URL.includes('wjxvingpfbfvkfqhrguj')) throw new Error('These tests only run against the staging project.');
+// The whole host must be staging's: a substring test would let `https://wjxvingpfbfvkfqhrguj.evil.example` through.
+if (new globalThis.URL(URL).hostname !== 'wjxvingpfbfvkfqhrguj.supabase.co') throw new Error('These tests only run against the staging project.');
 
 export const headers = { apikey: KEY, 'Content-Type': 'application/json', 'x-taskdrop-platform': 'web', 'x-taskdrop-app-version': '1.0.0' };
 
