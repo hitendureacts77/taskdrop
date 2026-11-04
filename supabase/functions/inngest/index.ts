@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { Inngest } from "npm:inngest@4.23.0";
 import { serve } from "npm:inngest@4.23.0/edge";
+import { devModeAllowed } from "../_shared/devMode.ts";
 import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
 import { guardKey } from "../_shared/keyGuard.ts";
 import { captureServerError, logServer } from "../_shared/monitoring.ts";
@@ -60,6 +61,12 @@ import {
  */
 
 const dev = Deno.env.get("INNGEST_DEV") === "1";
+
+// Dev mode switches the signature check off, so anyone who can reach this function could run every job. Refuse to
+// start that way anywhere but staging or a developer's machine (task 2.14, H50).
+if (dev && !devModeAllowed(Deno.env.get("SUPABASE_URL"))) {
+  throw new Error("INNGEST_DEV is on, which turns off the signature check. It is only allowed on the staging project or localhost: unset it.");
+}
 
 const inngest = new Inngest({
   id: "taskdrop",
