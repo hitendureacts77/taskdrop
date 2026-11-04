@@ -117,7 +117,22 @@ Deno.serve(guarded("razorpay-webhook", async (req: Request) => {
 
   // Razorpay retries until it gets a 2xx, so the same event can arrive twice.
   // Settling an already-settled payment must not credit the wallet again.
-  if (row.status === "paid") return json({ ok: true, alreadySettled: true });
+  // But a payment that is paid while its task is not funded is one the first attempt could not finish (a
+  // database hiccup at the wrong second): nothing else retries it, so try again here (task 2.14, B16).
+  // fund_task_from_payment does nothing if the task is already funded, so asking twice is safe.
+  if (row.status === "paid") {
+    if (row.purpose === "escrow" && row.task_id) {
+      const { data: t } = await admin.from("tasks").select("funded_at").eq("id", row.task_id).maybeSingle();
+      if (t && !t.funded_at) {
+        const { error: fundErr } = await admin.rpc("fund_task_from_payment", { p_payment_id: row.id });
+        if (fundErr) {
+          await logServer("error", "razorpay-webhook", "paid but could not fund task (retry)", { payment_id: row.id, task_id: row.task_id, error: fundErr.message });
+          await captureServerError(fundErr, { fn: "razorpay-webhook", step: "fund_task_retry" });
+        }
+      }
+    }
+    return json({ ok: true, alreadySettled: true });
+  }
 
   const paid = link.status === "paid" || event.event === "payment_link.paid";
   const status = paid ? "paid" : link.status === "cancelled" ? "cancelled" : "created";
@@ -142,8 +157,9 @@ Deno.serve(guarded("razorpay-webhook", async (req: Request) => {
       p_payment_id: row.id,
     });
     // Never fail the webhook over this: Razorpay would retry the whole event
-    // and the payment is already settled. Log it and let the app fund on its
-    // next poll instead.
+    // and the payment is already settled. Log it: the app's next check (the
+    // razorpay function's sync) funds it, and the nightly money check
+    // (paid_not_credited) reports it if nothing does.
     if (fundErr) {
       await logServer("error", "razorpay-webhook", "paid but could not fund task", { payment_id: row.id, task_id: row.task_id, error: fundErr.message });
       await captureServerError(fundErr, { fn: "razorpay-webhook", step: "fund_task" });

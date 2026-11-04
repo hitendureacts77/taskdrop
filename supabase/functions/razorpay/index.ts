@@ -6,6 +6,7 @@ import { guardKey } from "../_shared/keyGuard.ts";
 import { TOO_FAST, withinRate } from "../_shared/rateLimit.ts";
 import { safeReturnUrl } from "../_shared/returnUrl.ts";
 import { outsideCall } from "../_shared/timeouts.ts";
+import { STANDING_REFUSAL, mustRefuse, standingOf } from "../_shared/standing.ts";
 import { guarded, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient, featureOffMessage } from "../_shared/controls.ts";
 
@@ -46,6 +47,18 @@ function rzpHeaders(id: string, key: string) {
     Authorization: `Basic ${btoa(`${id}:${key}`)}`,
     "Content-Type": "application/json",
   };
+}
+
+/**
+ * Ask the database to fund the task behind a paid escrow payment. fund_task_from_payment does nothing if the task is
+ * already funded, so this is safe to call from the webhook, from sync and again later (task 2.14, B16).
+ */
+async function fundTask(admin: ReturnType<typeof createClient>, paymentId: string, taskId: string): Promise<void> {
+  const { error } = await admin.rpc("fund_task_from_payment", { p_payment_id: paymentId });
+  if (error) {
+    await logServer("error", "razorpay", "paid but could not fund task", { payment_id: paymentId, task_id: taskId, error: error.message });
+    await captureServerError(error, { fn: "razorpay", step: "fund_task" });
+  }
 }
 
 /** Whether the task behind a payment is actually funded right now. */
@@ -92,6 +105,14 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
   const { data: userData, error: userErr } = await admin.auth.getUser(jwt);
   if (userErr || !userData?.user) return json({ error: "Sign in first" }, 401);
   const userId = userData.user.id;
+
+  // A suspended or deleted person's token still checks out for up to an hour: refuse it here as the api does (task 2.14, H46).
+  const standing = await standingOf(admin, userId);
+  if (mustRefuse(standing)) {
+    await logServer("warn", "razorpay", "refused: " + standing + " account", { user_id: userId });
+    return json({ error: STANDING_REFUSAL, code: "UNAUTHENTICATED" }, 401);
+  }
+  if (standing === null) await logServer("warn", "razorpay", "account standing unavailable", { user_id: userId });
 
   // Each call here can open a payment link or ask Razorpay a question: 30 a minute per person is
   // far above an honest payment flow and stops a script from running up calls (task 2.13 part A).
@@ -167,6 +188,27 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
         return json({ error: "No quote has been locked on this task yet" }, 400);
       }
       amount = Number(assignment.escrow_minor);
+
+      // A double tap on a slow network used to open two links for one job, and paying both charged twice (task 2.14,
+      // B17). If this poster already has an unpaid link for this task and this amount, from the last day, hand that
+      // one back. (Razorpay links made here carry no expiry of their own, so the day is our own limit on reuse.)
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: open } = await admin
+        .from("payments")
+        .select("id, link_url, amount_minor")
+        .eq("user_id", userId)
+        .eq("task_id", task.id)
+        .eq("purpose", "escrow")
+        .eq("status", "created")
+        .eq("amount_minor", amount)
+        .not("link_url", "is", null)
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (open?.link_url) {
+        return json({ ok: true, paymentId: open.id, url: open.link_url, amountMinor: amount, reused: true });
+      }
     }
 
     // A promotion is priced from the campaign row start_promotion wrote, like
@@ -262,12 +304,14 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
     if (error) return json({ error: error.message }, 500);
     if (!row) return json({ error: "Payment not found" }, 404);
     if (row.status === "paid") {
-      return json({
-        ok: true,
-        status: "paid",
-        alreadySettled: true,
-        funded: await taskIsFunded(admin, row.task_id),
-      });
+      // Paid but the task is not funded: the first attempt could not finish and nothing else retries it, so try
+      // again now (task 2.14, B16). Safe if it is already funded: the database function does nothing then.
+      let funded = await taskIsFunded(admin, row.task_id);
+      if (!funded && row.purpose === "escrow" && row.task_id) {
+        await fundTask(admin, row.id, row.task_id);
+        funded = await taskIsFunded(admin, row.task_id);
+      }
+      return json({ ok: true, status: "paid", alreadySettled: true, funded });
     }
 
     const res = await fetch(`${RZP}/payment_links/${row.provider_ref}`, { headers: rzpHeaders(RZP_ID, RZP_SECRET), signal: outsideCall() });
@@ -296,15 +340,7 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
     // Funding the task here too, so the app does not depend on the webhook
     // having arrived first. fund_task_from_payment is idempotent, so whichever
     // gets there first wins and the other is a no-op.
-    if (paid && row.purpose === "escrow" && row.task_id) {
-      const { error: fundErr } = await admin.rpc("fund_task_from_payment", {
-        p_payment_id: row.id,
-      });
-      if (fundErr) {
-        await logServer("error", "razorpay", "paid but could not fund task", { payment_id: row.id, task_id: row.task_id, error: fundErr.message });
-        await captureServerError(fundErr, { fn: "razorpay", step: "fund_task" });
-      }
-    }
+    if (paid && row.purpose === "escrow" && row.task_id) await fundTask(admin, row.id, row.task_id);
 
     // A settled top-up becomes task credits: spendable on tasks, never
     // withdrawable. credit_topup is idempotent per payment, so this and the
@@ -345,6 +381,20 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
         global: { headers: { Authorization: `Bearer ${jwt}`, ...(await gatewayHeaders()) } },
       },
     );
+
+    // The poster may refund their own cancelled task. Anyone else is staff, and staff must be money staff with the
+    // authenticator code: this function holds the service key, so the table rules never see the person, and the
+    // database check is asked as the caller (task 2.14, H35). It runs before anything is read or sent.
+    const { data: taskRow, error: taskErr } = await admin.from("tasks").select("poster_id").eq("id", taskId).maybeSingle();
+    if (taskErr) return json({ error: "Could not check that task. Try again in a moment." }, 500);
+    const byStaff = Boolean(taskRow) && taskRow!.poster_id !== userId;
+    if (byStaff) {
+      const { error: staffErr } = await asUser.rpc("check_money_staff");
+      if (staffErr) {
+        await logServer("warn", "razorpay", "refund refused: not money staff", { task_id: taskId, user_id: userId });
+        return json({ error: staffErr.message }, 403);
+      }
+    }
 
     const { data: dueRows, error: dueErr } = await asUser.rpc("escrow_refund_due", {
       p_task_id: taskId,
@@ -447,6 +497,20 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
     }
     await releaseClaim();
     await logServer("info", "razorpay", "escrow refunded", { task_id: taskId, payment_id: due.payment_id, amount_minor: amount, refund_ref: refund.id ?? null });
+
+    // A refund a staff member sent leaves a row in the admin audit log, written as that person (task 2.14, H36).
+    // The money has already moved, so a failure here is loud but does not turn the answer into an error.
+    if (byStaff) {
+      const { error: auditErr } = await asUser.rpc("admin_log_event", {
+        p_action: "escrow_refund",
+        p_target: taskId,
+        p_detail: `payment ${due.payment_id}, ${amount} paise, refund ${refund.id ?? "no ref"}`,
+      });
+      if (auditErr) {
+        await logServer("error", "razorpay", "REFUND SENT BUT NOT AUDITED", { task_id: taskId, payment_id: due.payment_id, error: auditErr.message, user_id: userId });
+        await captureServerError(new Error(`refund sent but not audited: ${auditErr.message}`), { fn: "razorpay", step: "admin_log_event", task_id: String(taskId) });
+      }
+    }
 
     return json({ ok: true, refundedMinor: amount, refundRef: refund.id ?? null });
   }

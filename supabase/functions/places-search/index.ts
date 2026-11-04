@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { captureServerError, guarded, logServer } from "../_shared/monitoring.ts";
+import { STANDING_REFUSAL, mustRefuse, standingOf } from "../_shared/standing.ts";
 
 /**
  * Place search for the app, so no Google key ships in the web bundle or APK.
@@ -53,6 +54,15 @@ Deno.serve(guarded("places-search", async (req: Request) => {
   const { data: who } = await asCaller.auth.getUser();
   if (!who?.user) return json({ error: "Sign in first" }, 401);
 
+  // A suspended or deleted person's token still checks out for up to an hour: refuse it here as the api does (task 2.14, H46).
+  const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+  const standing = await standingOf(admin, who.user.id);
+  if (mustRefuse(standing)) {
+    await logServer("warn", "places-search", "refused: " + standing + " account", { user_id: who.user.id });
+    return json({ error: STANDING_REFUSAL, code: "UNAUTHENTICATED" }, 401);
+  }
+  if (standing === null) await logServer("warn", "places-search", "account standing unavailable", { user_id: who.user.id });
+
   let body: { q?: unknown; lat?: unknown; lng?: unknown };
   try {
     body = await req.json();
@@ -67,7 +77,6 @@ Deno.serve(guarded("places-search", async (req: Request) => {
   const q = String(body.q ?? "").trim();
   if (!reverse && (q.length < 2 || q.length > 120)) return json({ configured: true, places: [] });
 
-  const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
   const { data: within, error: quotaErr } = await admin.rpc("take_places_quota", {
     p_user: who.user.id,
     p_limit: LIMIT,
