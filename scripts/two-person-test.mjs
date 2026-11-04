@@ -101,7 +101,12 @@ async function main() {
       const reading = isRead.has(op);
       const variants = reading ? [aim, ...idVariants.map((id) => ({ ...aim, id }))] : [aim, { ...aim, id: destId }, { ...aim, id: taskId }];
       for (const args of variants) {
-        const r = await api(a.token, op, args);
+        let r = await api(a.token, op, args);
+        // A gateway blip (a function restarting during a deploy) is not a finding: ask once more before counting it.
+        if (r.status >= 500 || r.status === 0) {
+          await wait(3000);
+          r = await api(a.token, op, args);
+        }
         calls++;
         if (r.status === 429) {
           await wait(15_000);
