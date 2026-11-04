@@ -584,8 +584,10 @@ begin
   if v_task.status = 'DISPUTED' then
     raise exception 'A dispute is already open on this task';
   end if;
-  if v_task.status not in ('WORK_DONE', 'REVISION_REQUESTED')
-     and (v_me = v_task.poster_id or v_task.status not in ('TASK_STARTED', 'OVERDUE')) then
+  -- An OVERDUE job stays open to the poster: the helper missed the deadline, so cancelling would cost the poster
+  -- the 5% fine for the helper's lateness. Staff decide. (A job just started, with no proof yet, is the poster's to cancel.)
+  if v_task.status not in ('WORK_DONE', 'REVISION_REQUESTED', 'OVERDUE')
+     and (v_me = v_task.poster_id or v_task.status <> 'TASK_STARTED') then
     raise exception 'The work has not been sent yet, so there is nothing to report. To stop this job, cancel it instead.';
   end if;
 
