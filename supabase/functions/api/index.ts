@@ -159,11 +159,14 @@ async function handle(req: Request, requestId: string): Promise<Response> {
   const log = (level: "info" | "warn" | "error", message: string, extra: LogAttributes = {}) =>
     logServer(level, "api", message, { ...extra, request_id: requestId });
 
-  const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
-  if (!jwt) return refuse("Sign in first", "UNAUTHENTICATED", 401);
-
   const url = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  // Signed out, the app's client sends only the public key, in `apikey`, and no Authorization at all: that is a
+  // guest (design D15). Exactly the project's public key counts, nothing else.
+  const sentJwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+  const jwt = sentJwt || (anonKey && req.headers.get("apikey") === anonKey ? anonKey : "");
+  if (!jwt) return refuse("Sign in first", "UNAUTHENTICATED", 401);
+
   if (!url || !anonKey) {
     console.error("api: SUPABASE_URL / SUPABASE_ANON_KEY missing", requestId);
     return refuse("Something went wrong. Please try again.", "INTERNAL", 500);
