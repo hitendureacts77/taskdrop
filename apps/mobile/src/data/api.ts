@@ -178,7 +178,7 @@ export const listWalletActivity = (_userId: string, limit = 12) => act<WalletEve
 
 /** The tab bar's badge. Recounted on every screen change, so a count from moments ago with nothing changed since is reused (lib/freshness.ts). */
 export const countNeedsAttention = (_userId: string, mode: 'poster' | 'worker') =>
-  reuseWhileFresh(`countNeedsAttention:${mode}`, () => act<number>('countNeedsAttention', { mode }));
+  reuseWhileFresh('countNeedsAttention', mode, () => act<number>('countNeedsAttention', { mode }));
 
 /**
  * Profiles are read by many screens, often for the same person within the same

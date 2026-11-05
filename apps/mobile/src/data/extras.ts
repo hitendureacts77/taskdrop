@@ -3,7 +3,7 @@ import { callApi } from '../lib/gateway';
 import { clientHeaders } from '../lib/appInfo';
 import { currentUserId, supabase } from '../lib/supabase';
 import { subscribeLive } from '../lib/live';
-import { reuseWhileFresh } from '../lib/freshness';
+import { forgetEverything, reuseWhileFresh } from '../lib/freshness';
 import type { Tables } from '@taskdrop/db-types';
 import { guestGate, primeProfile, type Task, type Profile } from './api';
 import { isGuestOp } from '../lib/guest';
@@ -62,7 +62,7 @@ export async function notificationSides(rows: Notification[]): Promise<Map<strin
  * moments ago, with no alert, write or sign-in since, is reused (lib/freshness.ts). A failure is never kept.
  */
 export const countUnreadFor = (side: 'poster' | 'worker') =>
-  reuseWhileFresh(`countUnreadFor:${side}`, () => ask<number>('countUnreadFor', { side }, 0)).catch(() => 0);
+  reuseWhileFresh('countUnreadFor', side, () => ask<number>('countUnreadFor', { side }, 0)).catch(() => 0);
 
 export async function markNotificationsRead(ids?: string[]): Promise<void> {
   await ask('markNotificationsRead', { ids: ids ?? [] }, null);
@@ -382,6 +382,8 @@ export const accountDeletionCheck = () =>
  */
 export async function deleteMyAccount(): Promise<void> {
   await act('deleteMyAccount', { confirm: 'DELETE MY ACCOUNT' });
+  // Nothing remembered for this account outlives it, even before the sign-out below is heard (3.5b, H69).
+  forgetEverything();
   await supabase.auth.signOut({ scope: 'local' });
 }
 

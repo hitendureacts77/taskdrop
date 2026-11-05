@@ -86,10 +86,84 @@ export function isFresh(s: Stamp | null | undefined, now = Date.now()): boolean 
   return age >= 0 && age < FRESH_FOR_MS;
 }
 
+// ------------------------------------------------ who the memories belong to --
+//
+// Plan task 3.5b, layer A (hole H69): everything the app remembers belongs to one person. Every key
+// starts with the signed-in person's id, or GUEST with no session, and every memory is emptied (not only
+// made stale) when that changes: sign-in, sign-out, a switch to another account, an account deletion.
+// Until the first session is known, nothing is remembered at all.
+
+/** The key prefix with no session (a guest, or signed out). Never a real id: those are uuids. */
+export const GUEST = 'guest';
+
+/** The person every memory belongs to right now; undefined until the first session is known. */
+let person: string | undefined;
+
+/** How many times every memory has been emptied: an answer that arrives after a wipe is not kept. */
+let wipes = 0;
+
+const forgetters = new Set<() => void>();
+
+/** Empty every memory the app keeps (this file's, and each one registered with onForget). */
+export function forgetEverything(): void {
+  wipes += 1;
+  changes += 1;
+  recent.clear();
+  for (const fn of [...forgetters]) fn();
+}
+
+/** Another memory (signed photo links, lib/signedLinks.ts) to empty whenever this one is. */
+export function onForget(fn: () => void): () => void {
+  forgetters.add(fn);
+  return () => forgetters.delete(fn);
+}
+
+/**
+ * The session changed (lib/gateway.ts listens to every auth event, token renewals included). A different
+ * person, or none, empties every memory before anything can be read under the new key.
+ */
+export function setPerson(id: string | null | undefined): void {
+  const next = id || GUEST;
+  if (next === person) return;
+  person = next;
+  forgetEverything();
+}
+
+/** The key prefix for what is remembered now, or null while nobody is known yet (then nothing is kept). */
+export function personKey(): string | null {
+  return person ?? null;
+}
+
+/** The wipe count, so an answer started before a wipe can tell it must not be kept. */
+export function wipeCount(): number {
+  return wipes;
+}
+
+/** Screens that always ask again when shown, whatever the 30-second rule says: the wallet (3.5b). */
+const ALWAYS_ASK_SCREENS: ReadonlySet<string> = new Set(['wallet']);
+
+/** Whether coming back to `screen` may skip asking again while it is fresh. */
+export function screenMayReuse(screen: string | null | undefined): boolean {
+  return !screen || !ALWAYS_ASK_SCREENS.has(screen);
+}
+
 const recent = new Map<string, { stamp: Stamp; answer: Promise<unknown> }>();
 
-/** The last answer for `key` while it is fresh, otherwise a new one from `ask`. A failed ask is never kept. */
-export function reuseWhileFresh<T>(key: string, ask: () => Promise<T>, now = Date.now()): Promise<T> {
+/** How many answers are remembered (for tests). */
+export function rememberedCount(): number {
+  return recent.size;
+}
+
+/**
+ * The last answer to `op` with `args` for the signed-in person while it is fresh, otherwise a new one
+ * from `ask`. The key is `<person or guest>:op:args`. Only ops on PER_PERSON_REUSE are ever kept: an op on
+ * NEVER_REUSE (or on no list) always asks, as does any read before the first session is known. A failed
+ * ask is never kept.
+ */
+export function reuseWhileFresh<T>(op: string, args: string, ask: () => Promise<T>, now = Date.now()): Promise<T> {
+  const who = person;
+  if (who === undefined || NEVER_REUSE.has(op) || !PER_PERSON_REUSE.has(op)) return ask();
+  const key = `${who}:${op}:${args}`;
   const hit = recent.get(key);
   if (hit && isFresh(hit.stamp, now)) return hit.answer as Promise<T>;
   const answer = ask();
