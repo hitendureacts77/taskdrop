@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "How a database event reaches Inngest (the outbox)",
+    "output": "taskdrop-outbox-dataflow.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/hitendureacts77/taskdrop.git",
+      "revision": "5e0c2fff8308db6c3fc039792c8c678e6644734d"
+    }
+  },
+  "stages": [
+    { "label": "Change" },
+    { "label": "Record" },
+    { "label": "Send" },
+    { "label": "Run" },
+    { "label": "Result" }
+  ],
+  "nodes": [
+    { "id": "change", "type": "database", "label": "Table change", "sublabel": "payout, dispute, push", "stage": 0, "row": 1, "tag": "trigger",
+      "sources": [{ "path": "supabase/migrations/20261012100000_090_outbox_inngest.sql", "line": 188, "end_line": 209 }, { "path": "supabase/migrations/20261018140000_101_inngest_background_jobs.sql", "line": 36, "end_line": 53 }] },
+    { "id": "emit", "type": "backend", "label": "emit_event()", "sublabel": "same transaction", "stage": 1, "row": 1, "tag": "never throws",
+      "sources": [{ "path": "supabase/migrations/20261012100000_090_outbox_inngest.sql", "line": 86, "end_line": 131 }] },
+    { "id": "outbox", "type": "database", "label": "private.outbox", "sublabel": "unsent until confirmed", "stage": 2, "row": 0, "tag": "durable",
+      "sources": [{ "path": "supabase/migrations/20261012100000_090_outbox_inngest.sql", "line": 35, "end_line": 51 }] },
+    { "id": "pgnet", "type": "cloud", "label": "pg_net POST", "sublabel": "after commit", "stage": 2, "row": 2, "tag": "fast path",
+      "sources": [{ "path": "supabase/migrations/20261012100000_090_outbox_inngest.sql", "line": 107, "end_line": 126 }] },
+    { "id": "sweeper", "type": "backend", "label": "outbox-sweeper", "sublabel": "every 5 minutes", "stage": 3, "row": 0, "tag": "safety net",
+      "sources": [{ "path": "supabase/functions/inngest/index.ts", "line": 99, "end_line": 117 }] },
+    { "id": "jobs", "type": "messagebus", "label": "Inngest jobs", "sublabel": "run by event name", "stage": 3, "row": 2, "tag": "retries",
+      "sources": [{ "path": "supabase/functions/inngest/index.ts", "line": 128, "end_line": 136 }, { "path": "supabase/functions/inngest/index.ts", "line": 232, "end_line": 240 }, { "path": "supabase/functions/inngest/index.ts", "line": 279, "end_line": 296 }] },
+    { "id": "expo", "type": "external", "label": "Expo Push", "sublabel": "phone alert", "stage": 4, "row": 1,
+      "sources": [{ "path": "supabase/functions/inngest/jobs.ts", "line": 159, "end_line": 160 }, { "path": "supabase/functions/inngest/jobs.ts", "line": 195, "end_line": 200 }] },
+    { "id": "alerts", "type": "database", "label": "admin_alerts", "sublabel": "message for the team", "stage": 4, "row": 2,
+      "sources": [{ "path": "supabase/migrations/20261012100000_090_outbox_inngest.sql", "line": 53, "end_line": 60 }] },
+    { "id": "files", "type": "cloud", "label": "Files removed", "sublabel": "storage + ImageKit", "stage": 4, "row": 3,
+      "sources": [{ "path": "supabase/functions/inngest/index.ts", "line": 273, "end_line": 296 }] }
+  ],
+  "flows": [
+    { "id": "change-emit", "from": "change", "to": "emit", "label": "kind + ids", "variant": "default" },
+    { "id": "emit-outbox", "from": "emit", "to": "outbox", "label": "insert row", "variant": "emphasis" },
+    { "id": "emit-pgnet", "from": "emit", "to": "pgnet", "label": "post later", "variant": "dashed" },
+    { "id": "pgnet-jobs", "from": "pgnet", "to": "jobs", "label": "event, same id", "variant": "emphasis" },
+    { "id": "outbox-sweeper", "from": "outbox", "to": "sweeper", "label": "unsent rows", "variant": "dashed" },
+    { "id": "sweeper-jobs", "from": "sweeper", "to": "jobs", "label": "re-send", "variant": "dashed" },
+    { "id": "jobs-expo", "from": "jobs", "to": "expo", "label": "push" },
+    { "id": "jobs-alerts", "from": "jobs", "to": "alerts", "label": "team alert" },
+    { "id": "jobs-files", "from": "jobs", "to": "files", "label": "clean up" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Why an outbox", "items": ["The row is written in the same transaction as the change, so an event is never lost or invented", "A rolled-back change never reaches Inngest: pg_net posts only after commit", "emit_event swallows its own errors, so it can never break the action that fired it"] },
+    { "dot": "amber", "title": "Safety net", "items": ["If the fast push fails, the sweeper re-sends unsent rows every 5 minutes", "The outbox id is the Inngest event id, so a second send is dropped as a duplicate"] },
+    { "dot": "rose", "title": "What leaves the database", "items": ["Ids, names, amounts and fixed categories only", "Never phone numbers, emails, bank details, or text a person typed"] }
+  ]
+}

@@ -1,0 +1,362 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "TaskDrop admin panel architecture",
+    "output": "taskdrop-admin-architecture.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/hitendureacts77/taskdrop-admin.git",
+      "revision": "26630cde2686182526a11a6ddaddee3c40f5d37f"
+    }
+  },
+  "components": [
+    {
+      "id": "staff",
+      "type": "external",
+      "label": "Staff",
+      "sublabel": "admin, finance, support",
+      "pos": [
+        40,
+        190
+      ],
+      "size": [
+        120,
+        60
+      ],
+      "sources": [
+        {
+          "path": "README.md",
+          "line": 3,
+          "end_line": 5
+        },
+        {
+          "path": "src/lib/staff-roles.ts",
+          "line": 9,
+          "end_line": 18
+        }
+      ]
+    },
+    {
+      "id": "middleware",
+      "type": "security",
+      "label": "Middleware",
+      "sublabel": "CSP + session limits",
+      "pos": [
+        240,
+        190
+      ],
+      "size": [
+        130,
+        60
+      ],
+      "sources": [
+        {
+          "path": "src/middleware.ts",
+          "line": 9,
+          "end_line": 20
+        },
+        {
+          "path": "src/middleware.ts",
+          "line": 43,
+          "end_line": 60
+        }
+      ]
+    },
+    {
+      "id": "panel",
+      "type": "frontend",
+      "label": "Dashboard pages",
+      "sublabel": "Next.js server pages",
+      "pos": [
+        450,
+        185
+      ],
+      "size": [
+        150,
+        70
+      ],
+      "sources": [
+        {
+          "path": "src/lib/live.ts",
+          "line": 9,
+          "end_line": 17
+        },
+        {
+          "path": "src/lib/admin-actions.ts",
+          "line": 15,
+          "end_line": 21
+        },
+        {
+          "path": "src/lib/controls-actions.ts",
+          "line": 11,
+          "end_line": 15
+        }
+      ]
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "Shared database",
+      "sublabel": "same as the app",
+      "pos": [
+        890,
+        180
+      ],
+      "size": [
+        140,
+        80
+      ],
+      "sources": [
+        {
+          "path": "README.md",
+          "line": 3,
+          "end_line": 5
+        },
+        {
+          "path": "src/lib/db/index.ts",
+          "line": 1,
+          "end_line": 4
+        }
+      ]
+    },
+    {
+      "id": "login",
+      "type": "security",
+      "label": "Sign-in",
+      "sublabel": "Google or password",
+      "pos": [
+        240,
+        480
+      ],
+      "size": [
+        130,
+        60
+      ],
+      "sources": [
+        {
+          "path": "src/app/auth/callback/route.ts",
+          "line": 4,
+          "end_line": 15
+        },
+        {
+          "path": "src/app/api/auth/password/route.ts",
+          "line": 9,
+          "end_line": 23
+        },
+        {
+          "path": "src/lib/auth.ts",
+          "line": 15,
+          "end_line": 23
+        }
+      ]
+    },
+    {
+      "id": "fns",
+      "type": "backend",
+      "label": "App functions",
+      "sublabel": "Edge Functions",
+      "pos": [
+        890,
+        340
+      ],
+      "size": [
+        130,
+        60
+      ],
+      "sources": [
+        {
+          "path": "src/lib/actions.ts",
+          "line": 127
+        },
+        {
+          "path": "src/lib/actions.ts",
+          "line": 277
+        },
+        {
+          "path": "src/app/api/auth/password/route.ts",
+          "line": 25
+        }
+      ]
+    },
+    {
+      "id": "razorpay",
+      "type": "external",
+      "label": "Razorpay + X",
+      "sublabel": "refunds, payouts",
+      "pos": [
+        1090,
+        340
+      ],
+      "size": [
+        120,
+        60
+      ],
+      "sources": [
+        {
+          "path": "src/lib/actions.ts",
+          "line": 116,
+          "end_line": 127
+        },
+        {
+          "path": "src/lib/actions.ts",
+          "line": 277
+        }
+      ]
+    },
+    {
+      "id": "imagekit",
+      "type": "external",
+      "label": "ImageKit",
+      "sublabel": "private pictures",
+      "pos": [
+        450,
+        340
+      ],
+      "size": [
+        130,
+        60
+      ],
+      "sources": [
+        {
+          "path": "src/lib/photos.ts",
+          "line": 6,
+          "end_line": 18
+        },
+        {
+          "path": "src/lib/imagekit-sign.ts",
+          "line": 1,
+          "end_line": 10
+        }
+      ]
+    },
+    {
+      "id": "service",
+      "type": "security",
+      "label": "Service-role client",
+      "sublabel": "server only, reads",
+      "pos": [
+        450,
+        40
+      ],
+      "size": [
+        140,
+        60
+      ],
+      "sources": [
+        {
+          "path": "src/lib/supabase/service.ts",
+          "line": 8,
+          "end_line": 22
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "staff-middleware",
+      "from": "staff",
+      "to": "middleware",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "middleware-panel",
+      "from": "middleware",
+      "to": "panel",
+      "label": "allowed"
+    },
+    {
+      "id": "staff-login",
+      "from": "staff",
+      "to": "login",
+      "label": "sign in",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "left"
+    },
+    {
+      "id": "login-fns",
+      "from": "login",
+      "to": "fns",
+      "label": "password check",
+      "variant": "security"
+    },
+    {
+      "id": "panel-db",
+      "from": "panel",
+      "to": "db",
+      "label": "reads + RPC, own session",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "panel-fns",
+      "from": "panel",
+      "to": "fns",
+      "label": "refund, payout"
+    },
+    {
+      "id": "fns-razorpay",
+      "from": "fns",
+      "to": "razorpay",
+      "label": "money"
+    },
+    {
+      "id": "panel-imagekit",
+      "from": "panel",
+      "to": "imagekit",
+      "label": "signed links",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "panel-service",
+      "from": "panel",
+      "to": "service",
+      "label": "what RLS hides",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "service-db",
+      "from": "service",
+      "to": "db",
+      "label": "read",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Who gets in",
+      "items": [
+        "Google or @username + password; the account must hold the admin role",
+        "ADMIN_EMAIL / ADMIN_PHONE can add an allowlist on top",
+        "Idle limit 30 min and absolute limit 12 h, checked on every request"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Who may do what",
+      "items": [
+        "Staff role (admin, finance, support, sales, viewer) narrows each area",
+        "Money actions also need a verified authenticator code (aal2)",
+        "The database repeats both checks; the panel checks first to explain"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Shared with the app",
+      "items": [
+        "One Supabase project: what staff change is the live app's data",
+        "Switches reach the app through app-config; api enforces them",
+        "The service-role key never reaches the browser"
+      ]
+    }
+  ]
+}
