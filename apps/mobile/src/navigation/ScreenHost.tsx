@@ -15,7 +15,7 @@ import { useKeyboardOpen } from '../lib/useKeyboardOpen';
 import { CreateFab } from '../components/CreateFab';
 import { Placeholder } from '../screens/Placeholder';
 import { REGISTRY } from './registry';
-import { isFresh, stamp, type Stamp } from '../lib/freshness';
+import { isFresh, screenMayReuse, stamp, type Stamp } from '../lib/freshness';
 // Screens that show the bottom tab bar (the main app tabs).
 // search and orders are no longer tabs, but they keep the bar when reached.
 export const TABBED: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'profile', 'search', 'orders'];
@@ -58,7 +58,8 @@ export function ScreenHost() {
   }
   if (KEEP_ALIVE.includes(screen)) {
     const cur = kept.current.get(screen);
-    const returning = prevScreen.current !== screen && cur !== undefined && !isFresh(cur.loaded);
+    // The wallet always counts (3.5b): money is never shown from what was read before.
+    const returning = prevScreen.current !== screen && cur !== undefined && (!screenMayReuse(screen) || !isFresh(cur.loaded));
     if (!cur || cur.params !== params || returning) {
       kept.current.set(screen, {
         params,

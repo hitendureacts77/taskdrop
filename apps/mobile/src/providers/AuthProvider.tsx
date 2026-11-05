@@ -10,6 +10,7 @@ import { postSignInRoute } from '../data/api';
 import { loadGuestChoice, saveGuestChoice } from '../lib/guest';
 import { moveGuestDrafts } from '../lib/drafts';
 import { count, log, setMonitoringUser } from '../lib/monitoring';
+import { forgetEverything } from '../lib/freshness';
 
 /**
  * Real Supabase auth: phone OTP via the phone-auth Edge Function, or Google
@@ -503,6 +504,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Emptied now, and again when the sign-out is heard (lib/gateway.ts): nothing is kept for the next person.
+    forgetEverything();
     await supabase.auth.signOut();
   }, []);
 

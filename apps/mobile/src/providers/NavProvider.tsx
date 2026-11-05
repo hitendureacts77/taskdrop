@@ -82,6 +82,8 @@ export function ScreenScope({
 }: {
   params: NavParams;
   focus?: number;
+  /** Used by the phone build only (NavProvider.native.tsx); here ScreenHost counts each tab's focus. */
+  name?: ScreenName;
   children: React.ReactNode;
 }) {
   const outer = useContext(Ctx);

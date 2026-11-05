@@ -33,7 +33,7 @@ function Tab({ name }: { name: NativeTab }) {
     // The native tab bar floats over the bottom of the screen; this keeps the
     // content clear of it. The top is each screen's own (ui.tsx Screen).
     <SafeAreaView edges={{ bottom: true }} style={{ flex: 1, backgroundColor: t.colors.bg }}>
-      <ScreenScope params={params}>
+      <ScreenScope params={params} name={name}>
         <Comp />
       </ScreenScope>
       {name === 'home' && focused ? <CreateFab bottom={16} /> : null}
