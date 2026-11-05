@@ -5,10 +5,11 @@
  *   node --experimental-strip-types --no-warnings --test supabase/functions/inngest/jobs.test.ts
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
-  ALERT_EVENTS, alertFor, call, checkSnapshotFreshness, chunk, compareProviderPayment, deadKeys, digestAlert, expoReceipts, expoSend, ownFiles,
-  readTickets, refreshPublicSnapshots, safeData, saveAlert, toEvents, tokenKey, tokensForKeys, userSyncArgs, USER_EVENTS, type Fetch, type Rpc, type SnapshotMarker,
+  ALERT_EVENTS, alertFor, call, checkSnapshotFreshness, chunk, compareProviderPayment, deadKeys, digestAlert, expoReceipts, expoSend, lockScreenSafe, ownFiles, PLAIN_PUSH,
+  readTickets, refreshPublicSnapshots, safeData, saveAlert, toEvents, tokenKey, tokensForKeys, userSyncArgs, USER_EVENTS, type Fetch, type PushMessage, type Rpc, type SnapshotMarker,
 } from "./jobs.ts";
 
 test("outbox rows become Inngest events keyed by the outbox id", () => {
@@ -338,4 +339,75 @@ test("public snapshots: stale copy reports to Sentry and leaves one team alert; 
   await checkSnapshotFreshness(rpc, memoryMarker(minutesAgo(120)), report, () => T0);
   assert.equal(reports.length, 2);
   assert.equal(saved.length, 1);
+});
+
+// ------------------------------------------------- plain lock-screen pushes (H42) --
+
+/** What the database writes for each sensitive kind (staging wording), with the private facts in it. */
+const SENSITIVE: Record<string, { title: string; body: string; secrets: string[] }> = {
+  message: { title: "Ravi sent you a message", body: "Call me on 9876543210 at 12 Cross Road", secrets: ["Ravi", "9876543210", "Cross Road"] },
+  question: { title: 'Ravi asked about "Fix the flat"', body: "Is the lift working at Block C?", secrets: ["Ravi", "Fix the flat", "lift", "Block C"] },
+  payout_paid: { title: "Money sent to your account", body: "Your withdrawal of 100.00 rupees has been sent.", secrets: ["100", "rupees", "withdrawal"] },
+  payout_failed: { title: "Withdrawal could not be sent", body: "UPI id asha@okbank not found. The money is back in your wallet.", secrets: ["asha@okbank", "UPI", "money", "wallet"] },
+  wallet: { title: "₹500 added to your wallet", body: "Open your wallet to see why.", secrets: ["500", "₹"] },
+  wallet_refund: { title: "₹98 is back in your wallet", body: '"Fix the tap" was cancelled. ₹5 went to the worker.', secrets: ["98", "₹", "Fix the tap", "worker"] },
+  cancel_fine: { title: "Asha cancelled after you started", body: 'You were paid ₹5 for your time on "Fix the tap".', secrets: ["Asha", "₹", "Fix the tap"] },
+  support: { title: "Support replied", body: "Your refund of 450 is approved, ref ABC123", secrets: ["refund", "450", "ABC123"] },
+  security: { title: "Wrong password entered on your account", body: "Password sign-in is paused for 15 minutes.", secrets: ["password", "Password", "15 minutes"] },
+  admin_warning: { title: "A warning from TaskDrop", body: "You posted a phone number in a task. Please follow the rules.", secrets: ["phone number", "warning", "rules"] },
+};
+
+const pushOf = (kind: string, title: string, body: string): PushMessage => ({
+  to: T1, title, body, sound: "default", priority: "high", channelId: "default",
+  data: { notificationId: "n1", kind, taskId: "t1" },
+});
+
+test("every sensitive kind gets a plain line with none of its private facts, and every listed kind is covered", () => {
+  assert.deepEqual(Object.keys(SENSITIVE).sort(), Object.keys(PLAIN_PUSH).sort());
+  for (const [kind, s] of Object.entries(SENSITIVE)) {
+    const out = lockScreenSafe(pushOf(kind, s.title, s.body));
+    assert.equal(out.title, PLAIN_PUSH[kind].title, kind);
+    assert.equal(out.body, PLAIN_PUSH[kind].body, kind);
+    const shown = `${out.title} ${out.body}`;
+    for (const secret of s.secrets) assert.ok(!shown.includes(secret), `${kind} still shows "${secret}"`);
+    assert.ok(!/\d/.test(shown), `${kind} shows a digit`);
+    assert.ok(!/[₹@"]/.test(shown), `${kind} shows a rupee sign, @ or quote`);
+  }
+});
+
+test("a plain push keeps the deep link data and delivery settings, and the in-app text is not touched", () => {
+  const input = pushOf("message", "Ravi sent you a message", "See you at 5");
+  const frozen = structuredClone(input);
+  const out = lockScreenSafe(input);
+  assert.deepEqual(out.data, frozen.data);
+  assert.equal(out.to, T1);
+  assert.equal(out.sound, "default");
+  assert.equal(out.priority, "high");
+  assert.equal(out.channelId, "default");
+  // The input (what the database wrote, and what the notifications list shows) is unchanged.
+  assert.deepEqual(input, frozen);
+  assert.notEqual(out, input);
+});
+
+test("the database's direct push road (migration 155) uses the very same plain lines", () => {
+  const sql = readFileSync(new URL("../../migrations/20261105151000_155_plain_pushes.sql", import.meta.url), "utf8");
+  const rows = [...sql.matchAll(/when '([a-z_]+)'\s+then array\['([^']+)', '([^']+)'\]/g)];
+  assert.deepEqual(rows.map((r) => r[1]).sort(), Object.keys(PLAIN_PUSH).sort());
+  for (const [, kind, title, body] of rows) {
+    assert.deepEqual({ title, body }, PLAIN_PUSH[kind], kind);
+  }
+});
+
+test("other kinds (offers, task progress) keep the database wording", () => {
+  for (const kind of ["quote", "picked", "funded", "started", "submitted", "released", "cancelled", "dispute", "review_reminder", "due_reminder", "announcement", "feedback", "staff_alert", "bid", "locked", "review"]) {
+    const m = pushOf(kind, "Ravi offered ₹100", 'To do "Fix the tap".');
+    assert.equal(lockScreenSafe(m), m, kind);
+  }
+  // No kind, or odd data, is left alone and never throws.
+  const bare = { to: T1, title: "Hi", body: "There" };
+  assert.equal(lockScreenSafe(bare), bare);
+  const odd = { to: T1, title: "Hi", body: "There", data: { kind: 7 } };
+  assert.equal(lockScreenSafe(odd), odd);
+  const proto = pushOf("constructor", "Hi", "There");
+  assert.equal(lockScreenSafe(proto), proto);
 });
