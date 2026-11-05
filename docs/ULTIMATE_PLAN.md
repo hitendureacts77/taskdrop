@@ -1017,7 +1017,7 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 | 2.14 The bug and security hunt (added 3 Nov) | Rounds 1 and 2 done 4 Nov | H52 (direct database access) closes in 3.9; your "fix" or "accept" on the Medium and Low finds; decisions 17, 18, 25 to 27; part G (needs the phone) |
 | 2.15 The secrets audit (added 4 Nov) | Done 4 Nov | H56 before launch (5.9); make the code folders private (2.13 H) |
 | 2.16 The AI attacker, Strix (added 4 Nov) | Not started | Waiting for you: Docker Desktop (not installed on this PC, checked 4 Nov) and an AI key with a spending limit, then say "start 2.16" |
-| 2.17 One home per secret (added 5 Nov) | Not started | Say "start 2.17". Does not block Gate 2b, but must be done before Step 5 |
+| 2.17 One home per secret (added 5 Nov) | Built 5 Nov | Your reply "delete them" or "keep them" for the duplicate keys in Vercel. Does not block Gate 2b, but must be done before Step 5 |
 
 **On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
 
@@ -1040,7 +1040,7 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 6. CLICK: Windows **Settings** → **Privacy & security** → **Device encryption** → **On**. First check that your recovery key is saved at https://account.microsoft.com/devices/recoverykey. If you do not see "Device encryption", tell Claude. This step is required: the file holds every secret in plain text, and encryption is what protects it if the PC is lost or stolen.
 7. **An encrypted backup, because the file is the only copy.** If the PC dies, everything in the file is gone, and with it the keys you are never meant to regenerate. CLICK: install **7-Zip** (free) from https://www.7-zip.org. Right-click `.env.all-secrets` → **7-Zip** → **Add to archive**. Set **Archive format** to **7z**, **Encryption method** to **AES-256**, tick **Encrypt file names**, and enter a password of 4 or 5 random words that you use nowhere else. Press **OK**, then copy the new `.7z` file to the same USB stick as the keystore. Write the password on paper and keep it at home, apart from the stick. Make a fresh backup after every batch of new secrets, and at least once a month.
 8. **Someone who can get in if you cannot.** You are the only person who holds TaskDrop's secrets. Tell one person you trust completely where the USB stick and the paper with the backup password are (a sealed envelope is enough). They open it only if you are unreachable.
-9. TELL Claude: "done 2.1". Claude then checks two things **by name and path only, never by value**: (a) the file is not inside OneDrive and is ignored by Git in both repositories; (b) the step that copies values from the file to the staging server and to Vercel lists no `PROD_`, `LOGIN_`, `RECOVERY_` or `KEYSTORE_` name, so production values never reach staging. Claude reports any name that breaks this.
+9. TELL Claude: "done 2.1". Claude then checks two things **by name and path only, never by value**: (a) the file is not inside OneDrive and is ignored by Git in both repositories; (b) the script that sets the server keys from the file (`scripts/set-function-secrets.mjs`, since 2.17; before that the Vercel copy step) lists no `PROD_`, `LOGIN_`, `RECOVERY_` or `KEYSTORE_` name for staging, so production values never reach staging. Claude reports any name that breaks this.
 
 **Done when:** every login, key, recovery code and keystore password is in `.env.all-secrets` under its own name, the keystore zip is out of OneDrive and on a USB stick, device encryption is on, an encrypted backup of the file is on the USB stick, one trusted person knows where it is, and Claude's two name checks pass.
 
@@ -1849,7 +1849,7 @@ start 2.16
 </details>
 
 <details id="t2-17" data-short="One home per secret">
-<summary>[BOTH] <b>2.17</b> Give every secret one home: set the server keys straight in Supabase, and stop the Vercel build copying them <small>· your time: 10 minutes · added 5 Nov, not started</small></summary>
+<summary>[BOTH] <b>2.17</b> Give every secret one home: set the server keys straight in Supabase, and stop the Vercel build copying them <small>· your time: 5 minutes · built 5 Nov; the Vercel duplicates wait for your OK</small></summary>
 
 **Why:** today the Edge Function keys are kept in Vercel, and every staging build copies them into Supabase (`scripts/sync-function-secrets.mjs`). So the same key sits in two stores, and Vercel holds keys its own builds never use. Your rule is one home per secret: the store that uses it, plus `.env.all-secrets` and its encrypted 7-Zip backup as the master copy. Supabase never shows a secret again after you save it, so that file is the only place you can read a value back. (You approved this split on 5 Nov.)
 
@@ -1877,6 +1877,8 @@ start 2.16
 ```say
 start 2.17
 ```
+
+**Where it stands (5 Nov):** the script, its test and the removal of the build copy step are built (the new test and `npm run check` are green). Claude compared Supabase staging with the allow-list by name: all 11 keys the old copy step sent are already there (plus `TEST_PHONES`), so nothing needed sending. `INNGEST_PUSH_RECEIPT_WAIT`, `ALLOWED_ORIGINS` and `ALLOW_ANY_OTP` are not set in Supabase and not in the file; the code has defaults, so they stay as they are. The `set` path of the script has not run live, because nothing needed sending. **Left:** your reply "delete them" or "keep them" for the Vercel duplicates (step 3), and `scripts/push-payment-secrets.sh` still to be pointed at `.env.all-secrets`.
 
 2. Claude builds one pull request (merged into `redesigned-2.0` without asking, as usual):
    - a new `scripts/set-function-secrets.mjs` (with its test). It reads `.env.all-secrets`, sends **only** the names on its allow-list to staging Supabase through a private temporary file that is deleted at once, prints names only, and skips (never blanks) a name the file does not have. `--dry-run` shows what it would send; `--list-names` compares Supabase's name list with the allow-list. It always refuses any `LOGIN_`, `RECOVERY_` or `KEYSTORE_` name, and any `PROD_` name unless `--production` is given **and** the target is the production project. It refuses `ALLOW_ANY_OTP` with `--production`.

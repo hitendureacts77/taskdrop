@@ -501,7 +501,7 @@ Before starting: the lawyer's answer on the money flow (R3). If Razorpay Route i
   - functions run with `INNGEST_DEV=1`
   - the local database sends events to `host.docker.internal:8288`
 - [x] **(You)** Create an Inngest Cloud free account
-  - [x] Set `INNGEST_SIGNING_KEY` and `INNGEST_EVENT_KEY` on the shared test project. Both are now Edge Function secrets on the project (checked by name, 2026-10-21). They come from Vercel: `scripts/sync-function-secrets.mjs` copies the allow-listed names on every backend deploy
+  - [x] Set `INNGEST_SIGNING_KEY` and `INNGEST_EVENT_KEY` on the shared test project. Both are now Edge Function secrets on the project (checked by name, 2026-10-21). They are set straight in Supabase from `.env.all-secrets` by `scripts/set-function-secrets.mjs` (plan task 2.17; the Vercel copy step was removed 5 Nov 2026), and the older Vercel copy step `scripts/sync-function-secrets.mjs` copied the allow-listed names on every backend deploy until then
   - [x] The Vercel build syncs the app URL `https://wjxvingpfbfvkfqhrguj.supabase.co/functions/v1/inngest` on deploy
 - [x] The Inngest event address and key live in Vault, so one migration works locally and hosted
 - [x] The jobs serve both apps, since they share the database. The old app sees the same results, just more reliably. **They run on the one shared project; the old-app contract check in CI passes.**
