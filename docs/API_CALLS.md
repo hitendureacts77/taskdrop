@@ -317,9 +317,10 @@ Results (empty on purpose; nothing has been measured yet):
 | `memo counts` log lines (api logs, one minute) | none | `topEarners` 14 hits / 3 misses, `trendingCategories` 4 / 1, `platformHighlights` 4 / 1 | The memo is working; hits are per server copy |
 | Kept copies versus the live query | not applicable | identical (trending, top helpers, today's numbers) | checked before switching `snapshots` on |
 | Each switch turned off once, then back on | not applicable | all three work | `snapshots` off: database work back to 181 ms (baseline 195); `memo` off and `app` off: the controls showed false at once. The memo's pass-through and the app's no-reuse when off are also proven by the offline tests |
+| Money check on staging, all three switches on (`scripts/money-freshness-check.mjs`): the worker reads her wallet three times, the poster approves a ₹100 job, the worker looks again at once | not applicable | passed, twice | The worker's first look showed the new money (+9000 after the 10% commission) with no waiting; the poster's wallet dropped by exactly what was held (10300) and the task showed COMPLETED on the first look. Ravi posted and Asha worked, because Asha's staging wallet only had ₹49 |
 | Leak test (`two-person-test.mjs --cache-only`) | clean | clean after each switch, guests included (publishable key) | the 126-operation probe is clean in CI |
 | Website as a guest, switches on: 3 visits to Home and 2 to Explore | not measured | 1 batched request and 1 poster-images request in total | opened in Chrome on taskdrop.in (staging); no console errors |
 
 **What this says, plainly:** the kept copies and the memo cut the database work for these lists by 5 to 8 times, and nothing leaks. At today's size that saves almost nothing a person can feel, which matches the design note that the database is not busy. The benefit is headroom for when many people open Home at once.
 
-**Still not done:** per-screen request counts for two people with `count-api-calls.mjs`, the load test, the money check by hand (person B approves work, person A opens the wallet within 30 s), and the phone check.
+**Still not done:** per-screen request counts for two people with `count-api-calls.mjs`, the load test, and the phone check. (The money check was run on 5 Nov, see the table.)
