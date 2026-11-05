@@ -16,6 +16,7 @@ import { CreateFab } from '../components/CreateFab';
 import { Placeholder } from '../screens/Placeholder';
 import { REGISTRY } from './registry';
 import { isFresh, screenMayReuse, stamp, type Stamp } from '../lib/freshness';
+import { hasPendingAccountAction } from '../lib/guest';
 // Screens that show the bottom tab bar (the main app tabs).
 // search and orders are no longer tabs, but they keep the bar when reached.
 export const TABBED: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'profile', 'search', 'orders'];
@@ -52,8 +53,10 @@ export function ScreenHost() {
   const kept = useRef(new Map<ScreenName, { params: NavParams; focus: number; loaded: Stamp }>());
   const prevScreen = useRef<ScreenName | null>(null);
   const keptFor = useRef(userId);
+  // Not when a guest has just made their account to finish something (an offer half-written in a
+  // sheet on Home): nothing on those tabs was anyone else's, and dropping them would drop that offer.
   if (keptFor.current !== userId) {
-    kept.current.clear();
+    if (!(keptFor.current === null && hasPendingAccountAction())) kept.current.clear();
     keptFor.current = userId;
   }
   if (KEEP_ALIVE.includes(screen)) {

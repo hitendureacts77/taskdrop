@@ -5,6 +5,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { blockUser, reportContent } from '../data/api';
 import { BottomSheet, Field, PrimaryButton } from './kit';
 import { tx } from './primitives';
+import { isNeedsAccount, useAccountHold } from '../lib/guest';
 
 const TITLES = { user: 'Report this person', task: 'Report this task', message: 'Report this message', review: 'Report this review' } as const;
 
@@ -29,6 +30,8 @@ export function ReportSheet({
   personId?: string | null;
   personName?: string;
 }) {
+  // Steps aside while the account pop-up, or the sign-in page it opened, is showing.
+  const held = useAccountHold();
   const t = useTheme();
   const { flash, celebrate } = useActions();
   const [reason, setReason] = useState('');
@@ -57,6 +60,7 @@ export function ReportSheet({
       if (block && personId && !blocked) flash('Reported, but we could not block them');
       else celebrate(blocked ? 'Reported and blocked' : 'Thanks, we will look into it');
     } catch (e) {
+      if (isNeedsAccount(e)) return;
       flash(e instanceof Error ? e.message : 'Could not send the report');
     } finally {
       setBusy(false);
@@ -65,7 +69,7 @@ export function ReportSheet({
 
   return (
     <BottomSheet
-      visible={visible}
+      visible={visible && !held}
       onClose={() => !busy && onClose()}
       title={TITLES[targetType]}
       subtitle="The TaskDrop team reads every report. The other person is not told who reported."

@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, existsSync, writeFileSync, rmSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { applyToHtml, isProductionBuild, NOINDEX_META, ROBOTS_TXT, run, securityTxt, SECURITY_TXT_EXPIRES, SUPPORT_URL } from '../apps/mobile/scripts/web-env-guard.mjs';
+import { applyToHtml, DEFAULT_ORIGIN, isProductionBuild, NOINDEX_META, originOf, ROBOTS_TXT, run, securityTxt, SECURITY_TXT_EXPIRES, SUPPORT_URL } from '../apps/mobile/scripts/web-env-guard.mjs';
 
 const NL = String.fromCharCode(10);
 const HTML = '<!DOCTYPE html><html><head><title>TaskDrop</title></head><body></body></html>';
@@ -52,6 +52,27 @@ test('vercel.json: noindex header is limited to staging hosts, never a catch-all
   }
 });
 
+test('vercel.json: staging hosts are noindex, and the production addresses are not (plan 5.0a, 5.10)', () => {
+  const cfg = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  const patterns = cfg.headers
+    .filter((r) => r.headers.some((h) => h.key === 'X-Robots-Tag'))
+    .flatMap((r) => r.has.filter((c) => c.type === 'host').map((c) => new RegExp(`^(?:${c.value})$`)));
+  const hidden = (host) => patterns.some((p) => p.test(host));
+  for (const host of [
+    'taskdrop.in',
+    'www.taskdrop.in',
+    'taskdrop-five.vercel.app',
+    'taskdrop-git-redesigned-20-hitenduteam.vercel.app',
+    'taskdrop-git-feat-something-hitenduteam.vercel.app',
+    'taskdrop-a1b2c3d4e-hitenduteam.vercel.app',
+  ]) assert.equal(hidden(host), true, `${host} must send noindex`);
+  for (const host of [
+    'taskdrop-production.vercel.app',
+    'taskdrop-production-a1b2c3d4e-hitenduteam.vercel.app',
+    'taskdrop-production-git-main-hitenduteam.vercel.app',
+  ]) assert.equal(hidden(host), false, `${host} must not send noindex`);
+});
+
 test('security.txt names the support address and page, an expiry and the canonical address', () => {
   const withMail = securityTxt('help@example.in', new Date('2026-11-03'));
   assert.ok(withMail.split(NL).includes('Contact: mailto:help@example.in'));
@@ -62,6 +83,18 @@ test('security.txt names the support address and page, an expiry and the canonic
   assert.ok(!noMail.includes('mailto:'));
   assert.ok(noMail.split(NL).includes(`Contact: ${SUPPORT_URL}`));
   assert.ok(!securityTxt('not an address', new Date('2026-11-03')).includes('mailto:'));
+});
+
+test('security.txt names the address the build is served from (production has its own)', () => {
+  const prod = securityTxt('help@example.in', new Date('2026-11-03'), 'https://taskdrop-production.vercel.app');
+  assert.ok(prod.split(NL).includes('Canonical: https://taskdrop-production.vercel.app/.well-known/security.txt'));
+  assert.ok(prod.split(NL).includes('Contact: https://taskdrop-production.vercel.app/?page=support'));
+  assert.ok(!prod.includes('https://taskdrop.in'), 'no staging address in the production file');
+});
+
+test('originOf: EXPO_PUBLIC_APP_URL wins when it is a plain https address, otherwise staging\'s', () => {
+  assert.equal(originOf('https://taskdrop-production.vercel.app/'), 'https://taskdrop-production.vercel.app');
+  for (const v of [undefined, '', 'http://x.example', 'https://x.example/path', 'not a url']) assert.equal(originOf(v), DEFAULT_ORIGIN);
 });
 
 test('an expired security.txt stops the build instead of shipping', () => {

@@ -9,6 +9,7 @@ import { clientHeaders, installId } from '../lib/appInfo';
 import { postSignInRoute } from '../data/api';
 import { loadGuestChoice, saveGuestChoice } from '../lib/guest';
 import { moveGuestDrafts } from '../lib/drafts';
+import { adoptGuestWizard, clearWizard } from '../lib/postWizardStore';
 import { count, log, setMonitoringUser } from '../lib/monitoring';
 import { forgetEverything } from '../lib/freshness';
 
@@ -307,6 +308,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setGuestChosen(false);
         void saveGuestChoice(false);
         void moveGuestDrafts(s.user.id);
+        // A post half-made as a guest (lib/postWizard) becomes this account's too.
+        void adoptGuestWizard(s.user.id);
       }
       // Sentry sees the account id only, so a report can be matched to a person without naming them.
       setMonitoringUser(s?.user.id ?? null);
@@ -506,6 +509,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     // Emptied now, and again when the sign-out is heard (lib/gateway.ts): nothing is kept for the next person.
     forgetEverything();
+    // A half-made post stays with its account: the next person on this device never sees it.
+    await clearWizard();
     await supabase.auth.signOut();
   }, []);
 

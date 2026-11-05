@@ -20,7 +20,7 @@
 
 import { refusalFor } from "../_shared/controls.ts";
 import { distanceKm } from "../_shared/rules.ts";
-import { type Args, type Ctx, GENERIC, MONEY_MAX, OpError, type Op, bad, int, limit, num, oneOf, rows, str, strings, take, uuid, uuids } from "./core.ts";
+import { type Args, type Ctx, GENERIC, MONEY_MAX, OpError, type Op, bad, int, limit, num, oneOf, rows, rpcOp, str, strOrNull, strings, take, uuid, uuids } from "./core.ts";
 import { MEDIA_OPS } from "./media.ts";
 import { MAX_BATCH, type Reply, batchCalls } from "./ops.ts";
 import { sharedAnswer } from "./publicMemo.ts";
@@ -220,7 +220,36 @@ export const GUEST_OPS: Record<string, Op> = {
       p_limit: limit(a, "limit", 10, 50),
     })),
 
-  /** Pictures: only those on open posts and profile photos (guest_public_media), then signed as for anyone. */
+  // Migration 151: the rest of what a signed-in stranger sees on these pages,
+  // each through its guest_* function ("mine" and "iVoted" always false).
+
+  /** Questions and answers on an open post. */
+  listTaskQuestions: rpcOp("guest_task_questions", (a) => ({ p_task: uuid(a, "taskId") })),
+
+  /** The public Ideas & feedback board. */
+  listFeedbackBoard: rpcOp("guest_feedback_board_list", (a) => ({
+    p_sort: oneOf(a, "sort", ["top", "new"], "top"),
+    p_status: a.status == null ? null : oneOf(a, "status", ["open", "under_review", "planned", "in_progress", "done", "declined"]),
+    p_category: a.category == null ? null : oneOf(a, "category", ["feature", "improvement", "bug", "other"]),
+    p_search: strOrNull(a, "search", 60),
+    p_limit: limit(a, "limit", 30, 50),
+    p_offset: int(a, "offset", 0, 10_000, 0),
+  })),
+
+  /** One idea with its comments; null once it is hidden or gone. */
+  getFeedbackPost: rpcOp("guest_feedback_board_get", (a) => ({ p_post: uuid(a, "postId") })),
+
+  /** Two counts near a point: tasks finished today, helpers active now. */
+  nearbyPulse: rpcOp("guest_nearby_pulse", (a) => ({
+    p_lat: num(a, "lat", -90, 90),
+    p_lng: num(a, "lng", -180, 180),
+    p_radius_km: num(a, "radiusKm", 2, 25),
+  })),
+
+  /** A helper's before-and-after photos where the customer agreed. */
+  workerProofPhotos: rpcOp("guest_proof_photos", (a) => ({ p_worker: uuid(a, "userId") })),
+
+  /** Pictures: only those on open posts, profile photos and shared before/after photos (guest_public_media), then signed as for anyone. */
   signMedia: async (ctx, a) => {
     const raw = a.paths;
     if (!Array.isArray(raw) || raw.length > 200 || raw.some((p) => typeof p !== "string" || p.length > 300)) throw bad("paths");

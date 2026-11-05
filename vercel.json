@@ -27,12 +27,17 @@
     },
     {
       "source": "/(.*)",
-      "has": [{ "type": "host", "value": "beta\\.taskdrop\\.in" }],
+      "has": [{ "type": "host", "value": "taskdrop-five\\.vercel\\.app" }],
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
       "source": "/(.*)",
-      "has": [{ "type": "host", "value": ".*\\.vercel\\.app" }],
+      "has": [{ "type": "host", "value": "taskdrop-git-.*-hitenduteam\\.vercel\\.app" }],
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "taskdrop-[a-z0-9]+-hitenduteam\\.vercel\\.app" }],
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {

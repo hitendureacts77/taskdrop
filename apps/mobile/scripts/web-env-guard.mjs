@@ -33,21 +33,32 @@ export const ROBOTS_TXT = '# Staging copy of TaskDrop: not for search engines.\n
  * this date one year on).
  */
 export const SECURITY_TXT_EXPIRES = '2027-10-31T00:00:00.000Z';
-export const SUPPORT_URL = 'https://taskdrop.in/?page=support';
+export const DEFAULT_ORIGIN = 'https://taskdrop.in';
+export const SUPPORT_URL = `${DEFAULT_ORIGIN}/?page=support`;
+
+/**
+ * The address this build is served from: EXPO_PUBLIC_APP_URL, so the production site names its own address
+ * (plan task 5.10) and not staging's. Unset means taskdrop.in, which is staging's.
+ */
+export function originOf(raw = process.env.EXPO_PUBLIC_APP_URL) {
+  const v = String(raw ?? '').trim().replace(/\/+$/, '');
+  return /^https:\/\/[^\s/]+$/.test(v) ? v : DEFAULT_ORIGIN;
+}
 
 /** The text of /.well-known/security.txt. `email` is the Support address, or empty when none is set yet. */
-export function securityTxt(email, now = new Date()) {
+export function securityTxt(email, now = new Date(), origin = DEFAULT_ORIGIN) {
   if (now.getTime() >= Date.parse(SECURITY_TXT_EXPIRES)) {
     throw new Error('security.txt has expired: move SECURITY_TXT_EXPIRES in apps/mobile/scripts/web-env-guard.mjs one year on');
   }
   const address = String(email ?? '').trim();
   const lines = [];
   if (/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address)) lines.push(`Contact: mailto:${address}`);
-  lines.push(`Contact: ${SUPPORT_URL}`);
+  const support = `${origin}/?page=support`;
+  lines.push(`Contact: ${support}`);
   lines.push(`Expires: ${SECURITY_TXT_EXPIRES}`);
   lines.push('Preferred-Languages: en');
-  lines.push('Canonical: https://taskdrop.in/.well-known/security.txt');
-  lines.push(`Policy: ${SUPPORT_URL}`);
+  lines.push(`Canonical: ${origin}/.well-known/security.txt`);
+  lines.push(`Policy: ${support}`);
   return `${lines.join('\n')}\n`;
 }
 
@@ -66,7 +77,7 @@ export function applyToHtml(html, production) {
   return clean.replace(/<\/head>/i, `${NOINDEX_META}</head>`);
 }
 
-export function run(dist, env, email = process.env.EXPO_PUBLIC_LEGAL_EMAIL) {
+export function run(dist, env, email = process.env.EXPO_PUBLIC_LEGAL_EMAIL, origin = originOf()) {
   const production = isProductionBuild(env);
   const indexFile = join(dist, 'index.html');
   const robotsFile = join(dist, 'robots.txt');
@@ -75,7 +86,7 @@ export function run(dist, env, email = process.env.EXPO_PUBLIC_LEGAL_EMAIL) {
   if (production) rmSync(robotsFile, { force: true });
   else writeFileSync(robotsFile, ROBOTS_TXT);
   mkdirSync(join(dist, '.well-known'), { recursive: true });
-  writeFileSync(join(dist, '.well-known', 'security.txt'), securityTxt(email));
+  writeFileSync(join(dist, '.well-known', 'security.txt'), securityTxt(email, new Date(), origin));
   return production ? 'production' : 'staging';
 }
 
