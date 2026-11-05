@@ -147,7 +147,8 @@ export function screenMayReuse(screen: string | null | undefined): boolean {
   return !screen || !ALWAYS_ASK_SCREENS.has(screen);
 }
 
-const recent = new Map<string, { stamp: Stamp; answer: Promise<unknown> }>();
+type Remembered = { stamp: Stamp; answer: Promise<unknown>; /** set on shared (same-for-everyone) answers: how long they may stand */ ttlMs?: number };
+const recent = new Map<string, Remembered>();
 
 /** How many answers are remembered (for tests). */
 export function rememberedCount(): number {
@@ -172,5 +173,75 @@ export function reuseWhileFresh<T>(op: string, args: string, ask: () => Promise<
   answer.catch(() => {
     if (recent.get(key) === entry) recent.delete(key);
   });
+  return answer;
+}
+
+// ------------------------------------------- same-for-everyone reads (3.5b, layer A) --
+//
+// The five reads whose answer is the same for every person (the server's PUBLIC_MEMO_OPS, in
+// supabase/functions/api/publicMemo.ts) may be kept for the same short time the server keeps them, but only
+// while the admin switch "public cache: app" (features.publicCache in lib/appConfig.ts) is on. Off, nothing
+// here is kept and every read asks the server exactly as before. They are still keyed per person and emptied
+// with everything else on sign-in, sign-out or an account switch; a write or a ping does not matter to them
+// (nothing this person does changes what everyone sees within these seconds, and the server shares the
+// same copy for as long anyway). The closed list is checked against the server's by freshness.test.ts.
+
+/** Op -> how long the app may reuse its answer. Never longer than the server's own time for the op. */
+export const PUBLIC_REUSE_MS: Readonly<Record<string, number>> = Object.freeze({
+  trendingCategories: 60_000,
+  topEarners: 60_000,
+  platformHighlights: 30_000,
+  promotionTiers: 60_000,
+  adAuctionRanks: 15_000,
+});
+
+let publicCacheOn = false;
+
+/** The admin switch "public cache: app" (appConfig.ts calls this with every answer). Turning it off forgets what was kept. */
+export function setPublicCache(on: boolean): void {
+  const next = on === true;
+  if (next === publicCacheOn) return;
+  publicCacheOn = next;
+  if (!next) for (const [k, v] of [...recent]) if (v.ttlMs !== undefined) recent.delete(k);
+}
+
+export function publicCacheEnabled(): boolean {
+  return publicCacheOn;
+}
+
+/** A real answer worth keeping: not nothing, and not an empty list or object (that looks like a fallback, and re-asking costs the same as today). */
+function worthKeeping(v: unknown): boolean {
+  if (v === null || v === undefined) return false;
+  if (Array.isArray(v)) return v.length > 0;
+  if (typeof v === 'object') return Object.keys(v as object).length > 0;
+  return true;
+}
+
+/**
+ * Like reuseWhileFresh, for the ops in PUBLIC_REUSE_MS only, and only while the switch is on. `ask` must be the
+ * raw call that throws when it fails: a failed answer, an empty one, one that arrives after a wipe, and any
+ * read before the first session is known are never kept. An op on NEVER_REUSE or on no list always asks.
+ */
+export function reusePublic<T>(op: string, args: string, ask: () => Promise<T>, now = Date.now()): Promise<T> {
+  const who = person;
+  const ttlMs = Object.prototype.hasOwnProperty.call(PUBLIC_REUSE_MS, op) ? PUBLIC_REUSE_MS[op] : undefined;
+  if (!publicCacheOn || who === undefined || ttlMs === undefined || NEVER_REUSE.has(op)) return ask();
+  const key = `${who}:${op}:${args}`;
+  const hit = recent.get(key);
+  if (hit && hit.ttlMs !== undefined) {
+    const age = now - hit.stamp.at;
+    if (age >= 0 && age < hit.ttlMs) return hit.answer as Promise<T>;
+  }
+  const answer = ask();
+  const entry: Remembered = { stamp: { at: now, changes }, answer, ttlMs };
+  recent.set(key, entry);
+  answer.then(
+    (v) => {
+      if (!worthKeeping(v) && recent.get(key) === entry) recent.delete(key);
+    },
+    () => {
+      if (recent.get(key) === entry) recent.delete(key);
+    },
+  );
   return answer;
 }

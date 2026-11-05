@@ -205,6 +205,8 @@ export type AppConfig = {
     withdrawals: boolean;
     promotions: boolean;
     chatPhotos: boolean;
+    /** Plan 3.5b layer A: the app may reuse the same-for-everyone lists for a short time (admin switch "public cache: app"). Off unless set. */
+    publicCache: boolean;
   };
   /** True when posting, offers and withdrawals need a confirmed phone number. */
   requirePhoneVerified: boolean;
@@ -235,6 +237,7 @@ export function publicConfig(c: Controls, client: Client): AppConfig {
       withdrawals: c.withdrawals,
       promotions: c.promotions,
       chatPhotos: c.chat_photos,
+      publicCache: c.public_cache_app,
     },
     requirePhoneVerified: c.require_phone_verified,
     environment: c.environment,

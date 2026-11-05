@@ -830,7 +830,10 @@ await t("the public config has the shape the app and the admin preview read", ()
   assert.deepEqual(cfg.maintenance, { on: false, message: null });
   assert.equal(cfg.ttlSeconds, 60);
   assert.equal(OPEN_CONFIG.banner, null);
-  assert.ok(Object.values(OPEN_CONFIG.features).every(Boolean) && !OPEN_CONFIG.maintenance.on && !OPEN_CONFIG.update.required);
+  // Every switch is on, except "public cache: app" (3.5b): reusing answers is opt-in, off unless an admin turns it on.
+  const { publicCache, ...others } = OPEN_CONFIG.features;
+  assert.equal(publicCache, false);
+  assert.ok(Object.values(others).every(Boolean) && !OPEN_CONFIG.maintenance.on && !OPEN_CONFIG.update.required);
   assert.equal(parseControls("nope"), null);
 });
 
