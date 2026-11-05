@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { captureServerError, guarded, logServer } from "../_shared/monitoring.ts";
 import { STANDING_REFUSAL, mustRefuse, standingOf } from "../_shared/standing.ts";
+import { placesSource } from "../_shared/sendCaps.ts";
 
 /**
  * Place search for the app, so no Google key ships in the web bundle or APK.
@@ -10,6 +11,8 @@ import { STANDING_REFUSAL, mustRefuse, standingOf } from "../_shared/standing.ts
  * which anyone could read out of the bundle and spend (audit F-23). Now:
  *   - signed-in callers only (verify_jwt, then getUser),
  *   - 60 searches per 10 minutes per account (public.take_places_quota),
+ *   - a daily cap on billed Google calls per account (150) and in total (3,000), after which the free OpenStreetMap
+ *     search answers (public.take_places_daily, migration 153),
  *   - the key lives here: an Edge Function secret GOOGLE_MAPS_API_KEY, or a
  *     Vault entry of the same name.
  * With no key set it answers { configured: false } and the app falls back to
@@ -95,6 +98,18 @@ Deno.serve(guarded("places-search", async (req: Request) => {
   // No Google key, or Google has nothing: OpenStreetMap answers, from here, so
   // the app does not have to call it (it refuses anonymous app traffic).
   if (!key) return json({ configured: false, places: await osmSearch(q), source: "osm" });
+
+  // Google bills per call, so each one is counted against a daily cap per person and a daily total (migration 153,
+  // finding H39). Past either cap, or if the counter cannot be reached, the free OpenStreetMap search answers instead:
+  // the app already accepts that, so nothing breaks and nothing is billed.
+  const { data: daily, error: dailyErr } = await admin.rpc("take_places_daily", { p_user: who.user.id });
+  if (dailyErr) {
+    await logServer("error", "places-search", "daily search cap unavailable", { error: dailyErr.message });
+    await captureServerError(new Error(dailyErr.message), { fn: "places-search", step: "take_places_daily" });
+  }
+  if (placesSource(dailyErr ? null : daily) === "osm") {
+    return json({ configured: true, places: await osmSearch(q), source: "osm" });
+  }
 
   try {
     const res = await fetch("https://places.googleapis.com/v1/places:searchText", {

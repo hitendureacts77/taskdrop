@@ -4,6 +4,7 @@ import { background, captureSecurityEvent, captureServerError, guarded, logServe
 import { outsideCall } from "../_shared/timeouts.ts";
 import { signInRefusal } from "../_shared/signInSwitches.ts";
 import { acceptsPhone } from "../_shared/indianMobile.ts";
+import { accountFromMode, phoneCounterKey, smsRefusal } from "../_shared/sendCaps.ts";
 
 /**
  * Phone sign-in for TaskDrop.
@@ -297,17 +298,9 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
         }
       }
 
-      // The day's total, whoever asks: a ceiling on what a bot can cost. Raised from the admin (Settings, "Sign-in codes a day").
-      const { data: underCap, error: capErr } = await admin.rpc("hit_sms_daily_cap");
-      if (capErr) {
-        background(logServer("error", "phone-auth", "daily SMS cap unavailable", { error: capErr.message }));
-        return json({ error: "Could not send a code right now. Try again in a minute." }, 503);
-      }
-      if (underCap !== true) {
-        background(logServer("error", "phone-auth", "daily SMS cap reached"));
-        background(captureSecurityEvent("sms_budget_hit", "phone-auth"));
-        return json({ error: "We cannot send more codes today. Please try again tomorrow, or sign in with Google.", capReached: true }, 429);
-      }
+      // The day's total and the per-number daily cap are NOT counted here. They are counted at the last moment before a
+      // real SMS goes out (take_sms_send, below; migration 153), so lookups that end in "no account", the 60-second wait
+      // and the like do not use up the allowance that real people need.
     }
 
     // Right door? Checked before a code is made, so nobody types a code only
@@ -350,6 +343,34 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
       return json({ error: "Too many codes for this number. Try again in an hour." }, 429);
     }
 
+    // The last gate before a real SMS (migration 153, findings H40): this number's daily cap, and the day's total, of
+    // which a part is held back for numbers that already have an account. It counts only here, after every other check
+    // has passed, and a counter that cannot be reached refuses rather than lets a billed SMS through. The counter
+    // is keyed by a one-way hash; the number itself never reaches it.
+    let counted: string | null = null;
+    if (!skipSms) {
+      let hasAccount = accountFromMode(body.mode);
+      if (hasAccount === null) {
+        // No door named (an old app): look the number up, and on a failed lookup take the stricter side.
+        hasAccount = await accountExists(email).catch(() => false);
+      }
+      const phoneKey = await phoneCounterKey(phone, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const { data: taken, error: takeErr } = await admin.rpc("take_sms_send", {
+        p_phone_key: phoneKey,
+        p_has_account: hasAccount,
+      });
+      if (takeErr) background(logServer("error", "phone-auth", "send caps unavailable", { error: takeErr.message }));
+      const refusal = smsRefusal(takeErr ? null : taken);
+      if (refusal) {
+        if (!takeErr) {
+          background(logServer("warn", "phone-auth", "SMS cap reached", { cap: taken as string }));
+          background(captureSecurityEvent("sms_budget_hit", "phone-auth"));
+        }
+        return json(refusal.body, refusal.status);
+      }
+      counted = phoneKey;
+    }
+
     // Under the bypass, store the fixed code so the normal verify path matches
     // it with no special-casing downstream.
     const code = DEV_BYPASS ? DEV_OTP : sixDigits();
@@ -368,16 +389,24 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
       },
       { onConflict: "phone" },
     );
-    if (error) return failed("store code", error);
+    // A code that was counted but never sent is taken back, so only real sends use up the allowance.
+    const releaseCount = () => {
+      if (counted) background(Promise.resolve(admin.rpc("release_sms_send", { p_phone_key: counted })).catch(() => {}));
+    };
+    if (error) {
+      releaseCount();
+      return failed("store code", error);
+    }
 
     if (skipSms) return json({ ok: true, devCode: code });
 
-    // Already counted against the budget above, so a provider outage cannot be
+    // The per-address and per-number budgets above are already counted, so a provider outage cannot be
     // used to hammer MSG91 for free.
     try {
       await sendSms(phone, code);
       background(captureSecurityEvent("sms_code_sent", "phone-auth"));
     } catch (e) {
+      releaseCount();
       background(logServer("error", "phone-auth", "SMS provider failed", { error: e instanceof Error ? e.message : String(e) }));
       return json({ error: e instanceof Error ? e.message : "Could not send the SMS" }, 502);
     }
