@@ -1559,6 +1559,8 @@ const GUEST_ARGS: Record<string, Record<string, unknown>> = {
   remoteTasks: {}, tasksNear: { ...HERE, radiusKm: 10 }, urgentTasks: {}, workerServices: { userId: HELPER1 },
   workersNear: { ...HERE, radiusKm: 10 }, listActiveWorkers: {}, getProfile: { userId: HELPER1 },
   listReviewsAbout: { userId: HELPER1, role: "worker" }, signMedia: { paths: ["a/1.jpg"] },
+  listTaskQuestions: { taskId: G1 }, listFeedbackBoard: { sort: "new" }, getFeedbackPost: { postId: G1 },
+  nearbyPulse: { ...HERE, radiusKm: 5 }, workerProofPhotos: { userId: HELPER1 },
 };
 
 /** The names inside `export const NAME ... new Set([ ... ])` of the app's guest.ts. */
@@ -1681,6 +1683,30 @@ await t("guest: tasksNear and workersNear keep only what is in range, nearest fi
   assert.ok(near[0].km < near[1].km);
   assert.equal(near[0].service_count, 1);
   assert.equal(near[0].top_service?.id, G1);
+});
+
+await t("guest: questions, ideas, pulse and proof photos go through their migration-151 guest functions", async () => {
+  const want: Record<string, [string, Record<string, unknown>]> = {
+    listTaskQuestions: ["guest_task_questions", { p_task: G1 }],
+    listFeedbackBoard: ["guest_feedback_board_list", { p_sort: "new", p_status: null, p_category: null, p_search: null, p_limit: 30, p_offset: 0 }],
+    getFeedbackPost: ["guest_feedback_board_get", { p_post: G1 }],
+    nearbyPulse: ["guest_nearby_pulse", { p_lat: HERE.lat, p_lng: HERE.lng, p_radius_km: 5 }],
+    workerProofPhotos: ["guest_proof_photos", { p_worker: HELPER1 }],
+  };
+  for (const [name, [rpc, args]] of Object.entries(want)) {
+    const f = guestFake();
+    const r = await runGuestOp(name, GUEST_ARGS[name], ctx(f, { userId: undefined }));
+    assert.equal(r.ok, true, name);
+    const calls = f.calls.filter((c) => c.rpc);
+    assert.equal(calls.length, 1, name);
+    assert.equal(calls[0].rpc, rpc, name);
+    assert.deepEqual(calls[0].args, args, name);
+  }
+  // Out-of-range input is refused before any query.
+  const f = guestFake();
+  const bad = await runGuestOp("nearbyPulse", { ...HERE, radiusKm: 500 }, ctx(f, { userId: undefined }));
+  assert.equal(bad.ok, false);
+  assert.equal(f.calls.filter((c) => c.rpc).length, 0);
 });
 
 await t("guest: signMedia signs only the pictures guest_public_media allows", async () => {

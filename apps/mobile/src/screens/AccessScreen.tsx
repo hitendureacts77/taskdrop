@@ -31,7 +31,7 @@ import { BirthDateField, EMPTY_BIRTH_DATE, type BirthDateParts } from '../compon
 import { TurnedAway } from '../components/AgeGate';
 import { recordBirthDate } from '../data/age';
 import { KeyboardScrollView, RevealWhen } from '../components/KeyboardScrollView';
-import { FROM_GUEST, declineAccount, runPendingAfterSignIn } from '../lib/guest';
+import { FROM_GUEST, declineAccount, releaseAccountHold, runPendingAfterSignIn } from '../lib/guest';
 
 /**
  * The way in: one screen for new and returning people alike.
@@ -66,6 +66,9 @@ export function AccessScreen() {
   const { requestCode, verifyCode, signInWithGoogle, signInWithApple, signOut, continueAsGuest } = useAuth();
   // Opened from the "Make your account" pop-up: Not now goes back, and signing in resumes what the guest was doing.
   const fromGuest = Boolean(params[FROM_GUEST]);
+  // Leaving this page any other way (the phone's Back) gives the guest's open sheet back, unless setup comes next.
+  const toSetup = useRef(false);
+  useEffect(() => (fromGuest ? () => { if (!toSetup.current) releaseAccountHold(); } : undefined), [fromGuest]);
   // Sign-in methods the admin panel has switched off are not offered (the server refuses them too, except Google).
   const { features } = useAppConfig();
 
@@ -126,7 +129,10 @@ export function AccessScreen() {
       if (route === 'home') {
         back();
         runPendingAfterSignIn();
-      } else go('setup', { quick: true });
+      } else {
+        toSetup.current = true;
+        go('setup', { quick: true });
+      }
       return;
     }
     if (route === 'home') reset('home');

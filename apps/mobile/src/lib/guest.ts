@@ -19,6 +19,7 @@ export const GUEST_OPS: ReadonlySet<string> = new Set([
   'listOpenTasks', 'searchTasks', 'searchTasksWithPosters', 'attachPosters', 'getTask', 'getTaskDetail',
   'countBidsByTask', 'getPosterStats', 'recommendedTasks', 'remoteTasks', 'tasksNear', 'urgentTasks',
   'workerServices', 'workersNear', 'listActiveWorkers', 'getProfile', 'listReviewsAbout', 'signMedia',
+  'listTaskQuestions', 'listFeedbackBoard', 'getFeedbackPost', 'nearbyPulse', 'workerProofPhotos',
 ]);
 
 export const isGuestOp = (op: string) => GUEST_OPS.has(op);
@@ -84,9 +85,15 @@ export const ACCOUNT_COPY: Record<AccountReason, { title: string; body: string }
   general: { title: 'Make your account first.', body: 'You can look around as much as you like. This step needs an account.' },
 };
 
-type PromptState = { open: boolean; reason: AccountReason };
+/**
+ * `held` is true from the moment the pop-up opens until the guest says "Not now" or comes back
+ * from the sign-in pages it opened. A sheet the guest was filling in (an offer, an idea, a report)
+ * steps aside while it is true: on web a sheet that is already open would sit on top of the pop-up,
+ * and on any platform it would cover the sign-in page.
+ */
+type PromptState = { open: boolean; reason: AccountReason; held: boolean };
 
-let state: PromptState = { open: false, reason: 'general' };
+let state: PromptState = { open: false, reason: 'general', held: false };
 /** What to do once the account exists: the action the guest was finishing. Kept outside React on purpose. */
 let pending: (() => void | Promise<void>) | null = null;
 const listeners = new Set<() => void>();
@@ -102,7 +109,14 @@ const subscribe = (l: () => void) => {
  */
 export function needAccount(reason: AccountReason = 'general', then?: () => void | Promise<void>): void {
   pending = then ?? null;
-  state = { open: true, reason };
+  state = { open: true, reason, held: true };
+  emit();
+}
+
+/** The guest is back from the sign-in pages (or never went): sheets that stepped aside come back. */
+export function releaseAccountHold(): void {
+  if (!state.held) return;
+  state = { ...state, held: false };
   emit();
 }
 
@@ -113,6 +127,7 @@ let declinedAt = 0;
 export function declineAccount(): void {
   pending = null;
   declinedAt = Date.now();
+  releaseAccountHold();
 }
 
 /**
@@ -130,9 +145,15 @@ export function closeAccountPrompt(keepPending = false): void {
     pending = null;
     declinedAt = Date.now();
   }
-  if (!state.open) return;
-  state = { ...state, open: false };
+  const held = keepPending && state.held;
+  if (!state.open && state.held === held) return;
+  state = { ...state, open: false, held };
   emit();
+}
+
+/** For a sheet the guest may be filling in: true while it should step aside for the pop-up. */
+export function useAccountHold(): boolean {
+  return useAccountPrompt().held;
 }
 
 export function useAccountPrompt(): PromptState {
@@ -146,6 +167,7 @@ export function useAccountPrompt(): PromptState {
 export function runPendingAfterSignIn(): void {
   const then = pending;
   pending = null;
+  releaseAccountHold();
   if (!then) return;
   // After the screens above have gone, so the action's own navigation lands on top.
   setTimeout(() => {
@@ -153,6 +175,11 @@ export function runPendingAfterSignIn(): void {
       .then(then)
       .catch(() => {});
   }, 50);
+}
+
+/** A guest is part-way through something (an offer, a post) that runs once the account exists. */
+export function hasPendingAccountAction(): boolean {
+  return pending !== null;
 }
 
 /** Whether the sign-in screen was opened from the pop-up (so it goes back, not to Home). */
