@@ -11,7 +11,7 @@ import { MAX_BODY_BYTES, REQUEST_ID_HEADER, readBody, requestIdFrom, withGateway
 import { type Db, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp, spendRate } from "./ops.ts";
 import { type Claim, type RepeatStore, REPEAT_KEY_HEADER, REPLAYED_HEADER, repeatKeyFrom, runOnce } from "./repeat.ts";
 import { PublicMemo } from "./publicMemo.ts";
-import { GUEST_READS_PER_MINUTE, guestAddress, guestRateKey, isGuestOp, isGuestToken, needsAccount, runGuestBatch, runGuestOp } from "./guest.ts";
+import { GuestLocalLimit, guestAddress, guestBusy, guestCost, guestRateKey, guestSpend, isGuestOp, isGuestToken, needsAccount, runGuestBatch, runGuestOp } from "./guest.ts";
 
 /**
  * The app's one door to its data.
@@ -65,6 +65,9 @@ const publicMemo = new PublicMemo({
   report: (op, counts) => background(logServer("info", "api", "memo counts", { op, ...counts })),
 });
 
+/** The guests' stand-in limiter while api_guest_spend cannot be reached (per instance, light reads only). */
+const guestLocalLimit = new GuestLocalLimit();
+
 /** People the limiter refused lately: their reads wait for the limiter instead of running beside it. */
 const limitedLately = new RecentlyLimited();
 
@@ -103,7 +106,8 @@ Deno.serve(guarded("api", async (req: Request) => {
 /**
  * A guest's call (design D15): someone using the app before making an account. Only the reads in ./guest.ts
  * run, with the service key, through the SQL functions of migration 146, which decide what a guest may see.
- * Anything else answers NEEDS_ACCOUNT. The limiter counts per network address (hashed), not per person.
+ * Anything else answers NEEDS_ACCOUNT. The limiter counts each request's cost per network address (hashed, IPv6 by
+ * /64) and for all guests together (migration 154, see GUEST_READS_PER_MINUTE in ./guest.ts), not per person.
  */
 async function handleGuest(
   req: Request,
@@ -122,19 +126,20 @@ async function handleGuest(
   if (!isBatch && !isGuestOp(body.op)) return json(needsAccount());
   const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
+  // Cost-weighted, per address (IPv6 by /64) and for all guests together (migration 154). If the counter cannot be
+  // reached, this instance's own small budget applies with light reads only: bounded, never open (H67).
   const key = await guestRateKey(guestAddress(req.headers));
-  try {
-    const hit = await admin.rpc("api_rate_spend", {
-      p_user: key, p_bucket: "guest", p_limit: GUEST_READS_PER_MINUTE, p_cost: rateCost(body.op, body.args),
-    });
-    if (hit.error) background(log("warn", "rate limiter unavailable", { error: hit.error.message }));
-    else if (hit.data === false) {
-      background(log("warn", "guest rate limited", { op: String(body.op) }));
-      return refuse("You are going too fast. Please wait a moment and try again.", "RATE_LIMITED", 429);
-    }
-  } catch (e) {
-    background(log("warn", "rate limiter unavailable", { error: e instanceof Error ? e.message : String(e) }));
+  const verdict = await guestSpend(admin as unknown as Db, key, guestCost(body.op, body.args), guestLocalLimit, (why) =>
+    background(log("warn", "guest rate limiter unavailable", { error: why })));
+  if (verdict === "limited") {
+    background(log("warn", "guest rate limited", { op: String(body.op) }));
+    return refuse("You are going too fast. Please wait a moment and try again.", "RATE_LIMITED", 429);
   }
+  if (verdict === "busy") {
+    background(log("warn", "guest ceiling reached", { op: String(body.op) }));
+    return json(guestBusy(), 503);
+  }
+  const lightOnly = verdict === "heavy_off";
 
   const client = readClient(req.headers);
   background((async () => {
@@ -160,7 +165,9 @@ async function handleGuest(
     background(log("error", "guest op failed", { op: String(body.op), error: e instanceof Error ? e.message : String(e) }));
     background(captureServerError(e, { op: String(body.op), fn: "api", caller: "guest" }));
   };
-  return json(await (isBatch ? runGuestBatch(body.args, ctx, onUnexpected) : runGuestOp(body.op, body.args, ctx, onUnexpected)));
+  return json(await (isBatch
+    ? runGuestBatch(body.args, ctx, onUnexpected, lightOnly)
+    : runGuestOp(body.op, body.args, ctx, onUnexpected, lightOnly)));
 }
 
 async function handle(req: Request, requestId: string): Promise<Response> {

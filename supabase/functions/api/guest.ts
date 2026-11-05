@@ -20,7 +20,7 @@
 
 import { refusalFor } from "../_shared/controls.ts";
 import { distanceKm } from "../_shared/rules.ts";
-import { type Args, type Ctx, GENERIC, MONEY_MAX, OpError, type Op, bad, int, limit, num, oneOf, rows, rpcOp, str, strOrNull, strings, take, uuid, uuids } from "./core.ts";
+import { type Args, type Ctx, type Db, GENERIC, MONEY_MAX, OpError, type Op, bad, int, limit, num, oneOf, rows, rpcOp, str, strOrNull, strings, take, uuid, uuids } from "./core.ts";
 import { MEDIA_OPS } from "./media.ts";
 import { MAX_BATCH, type Reply, batchCalls } from "./ops.ts";
 import { sharedAnswer } from "./publicMemo.ts";
@@ -30,8 +30,128 @@ import { READ_OPS } from "./reads.ts";
 export const NEEDS_ACCOUNT = "Make your account first.";
 export const NEEDS_ACCOUNT_CODE = "NEEDS_ACCOUNT";
 
-/** Guest reads per network address per minute: enough to browse by hand, far below scraping. */
-export const GUEST_READS_PER_MINUTE = 120;
+/**
+ * The guest limiter (hunt round 2, H63 and H67), in cost units per minute. A light read costs 1, a heavy one more
+ * (GUEST_COST). Counted by api_guest_spend (migration 154) per network address and for all guests together:
+ *   * per address: enough to browse by hand on a shared mobile network, far below scraping;
+ *   * all guests over the soft ceiling: only light reads run, heavy ones answer BUSY;
+ *   * over the hard ceiling: nothing runs (503).
+ * If the counter cannot be reached, a much smaller budget kept by this instance applies (GuestLocalLimit), with
+ * light reads only: an outage of the limiter never opens the service key to everyone.
+ */
+export const GUEST_READS_PER_MINUTE = 240;
+export const GUEST_ALL_SOFT_PER_MINUTE = 6_000;
+export const GUEST_ALL_HARD_PER_MINUTE = 12_000;
+/** The per-instance stand-in while the counter is down: per address, and for the whole instance. */
+export const GUEST_LOCAL_PER_MINUTE = 60;
+export const GUEST_LOCAL_ALL_PER_MINUTE = 600;
+
+/** Most rows one guest list read may ask for, and how deep the Ideas board may be paged. */
+export const GUEST_LIMIT_MAX = 100;
+export const GUEST_MAX_OFFSET = 1_000;
+/** Most task ids one guest attachPosters may carry (the app sends at most one search page, 200 at the very most). */
+export const GUEST_MAX_IDS = 200;
+
+/**
+ * What a guest read costs against the limiter. Heavy reads pull hundreds of rows with the service key:
+ * workersNear and listActiveWorkers read 300 profiles (plus 300 posts), getPosterStats up to 200 posts.
+ * Anything not listed costs 1.
+ */
+export const GUEST_COST: Readonly<Record<string, number>> = {
+  workersNear: 5,
+  listActiveWorkers: 5,
+  getPosterStats: 5,
+  tasksNear: 3,
+  searchTasks: 2,
+  searchTasksWithPosters: 2,
+  attachPosters: 2,
+  recommendedTasks: 2,
+  signMedia: 2,
+};
+
+const costOf = (name: unknown): number =>
+  typeof name === "string" && Object.prototype.hasOwnProperty.call(GUEST_COST, name) ? GUEST_COST[name] : 1;
+
+/** True for a read that is refused (BUSY) while all guests together are over the soft ceiling. */
+export const isHeavyGuestOp = (name: unknown): boolean => costOf(name) > 1;
+
+/**
+ * What one guest request costs: its op's weight, or the sum over a batch's calls. A call a guest may not make costs
+ * nothing (it is answered NEEDS_ACCOUNT without a query) and every request costs at least 1. At most 100, the most
+ * the counter takes at once.
+ */
+export function guestCost(name: unknown, args: unknown): number {
+  if (name !== "batch") return costOf(name);
+  const calls = batchCalls(args);
+  if (!calls) return 1;
+  const sum = calls.reduce((n, c) => n + (isGuestOp(c.op) ? costOf(c.op) : 0), 0);
+  return Math.max(1, Math.min(sum, 100));
+}
+
+/** What the limiter decided for a guest request. */
+export type GuestVerdict = "ok" | "heavy_off" | "limited" | "busy";
+
+/**
+ * The limiter this instance keeps by itself, used only while api_guest_spend cannot be reached. Fixed one-minute
+ * windows, a bounded map. Never says "ok": the best it gives is "heavy_off" (light reads only).
+ */
+export class GuestLocalLimit {
+  private window = -1;
+  private hits = new Map<string, number>();
+  private all = 0;
+
+  constructor(
+    private perKey = GUEST_LOCAL_PER_MINUTE,
+    private perInstance = GUEST_LOCAL_ALL_PER_MINUTE,
+    private now: () => number = Date.now,
+  ) {}
+
+  spend(key: string, cost: number): GuestVerdict {
+    const w = Math.floor(this.now() / 60_000);
+    if (w !== this.window) {
+      this.window = w;
+      this.hits.clear();
+      this.all = 0;
+    }
+    const mine = this.hits.get(key) ?? 0;
+    if (mine + cost > this.perKey) return "limited";
+    if (this.all + cost > this.perInstance) return "busy";
+    // Too many addresses in one window: past this point everyone shares the instance budget only.
+    if (this.hits.size < 5_000 || this.hits.has(key)) this.hits.set(key, mine + cost);
+    this.all += cost;
+    return "heavy_off";
+  }
+}
+
+/**
+ * Count one guest request (migration 154). If the counter errors, answers something unexpected or cannot be reached,
+ * the instance's own small budget decides instead: bounded, never open. `onDown` hears why, for the log.
+ */
+export async function guestSpend(
+  db: Db,
+  key: string,
+  cost: number,
+  local: GuestLocalLimit,
+  onDown: (why: string) => void = () => {},
+): Promise<GuestVerdict> {
+  try {
+    const r = await db.rpc("api_guest_spend", {
+      p_key: key, p_cost: cost, p_limit: GUEST_READS_PER_MINUTE,
+      p_soft: GUEST_ALL_SOFT_PER_MINUTE, p_hard: GUEST_ALL_HARD_PER_MINUTE,
+    });
+    if (!r.error && (r.data === "ok" || r.data === "heavy_off" || r.data === "limited" || r.data === "busy")) return r.data;
+    onDown(r.error ? r.error.message : "unexpected answer");
+  } catch (e) {
+    onDown(e instanceof Error ? e.message : String(e));
+  }
+  return local.spend(key, cost);
+}
+
+export const BUSY_CODE = "BUSY";
+const busy = (): Reply => ({
+  ok: false,
+  error: { message: "Lots of people are looking right now. Please try again in a minute.", code: BUSY_CODE, details: null },
+});
 
 type Row = Record<string, unknown>;
 type Post = Row & { id: string; poster_id: string; loc_lat: number | null; loc_lng: number | null; poster?: Row | null };
@@ -88,7 +208,7 @@ async function search(ctx: Ctx, a: Args): Promise<Post[]> {
   const text = typeof a.q === "string" ? a.q.trim().slice(0, 200) : "";
   const found = await posts(ctx, {
     kind: kindArg(a),
-    limit: limit(a),
+    limit: limit(a, "limit", 30, GUEST_LIMIT_MAX),
     q: text || null,
     pillar: a.pillar != null ? str(a, "pillar", 40) : null,
     minMinor: typeof a.minMinor === "number" ? int(a, "minMinor", 0, MONEY_MAX) : null,
@@ -105,7 +225,7 @@ async function search(ctx: Ctx, a: Args): Promise<Post[]> {
 async function helpers(ctx: Ctx): Promise<(Row & { id: string; loc_lat: number; loc_lng: number; top_service: Row | null; service_count: number })[]> {
   const [people, services] = await Promise.all([
     ctx.db.rpc("guest_helpers", { p_limit: 300 }),
-    posts(ctx, { kind: "service", limit: 500 }).catch(() => [] as Post[]),
+    posts(ctx, { kind: "service", limit: 300 }).catch(() => [] as Post[]),
   ]);
   const byPoster = new Map<string, Post[]>();
   for (const s of services) byPoster.set(s.poster_id, [...(byPoster.get(s.poster_id) ?? []), s]);
@@ -129,12 +249,12 @@ const SHARED = [
 export const GUEST_OPS: Record<string, Op> = {
   ...Object.fromEntries(SHARED.map((name) => [name, READ_OPS[name]])),
 
-  listOpenTasks: async (ctx, a) => (await posts(ctx, { kind: kindArg(a), limit: limit(a) })).map(bare),
+  listOpenTasks: async (ctx, a) => (await posts(ctx, { kind: kindArg(a), limit: limit(a, "limit", 30, GUEST_LIMIT_MAX) })).map(bare),
   searchTasks: async (ctx, a) => (await search(ctx, a)).map(bare),
   searchTasksWithPosters: async (ctx, a) => (await search(ctx, a)).map((p) => ({ ...p, poster: p.poster ?? null })),
 
   attachPosters: async (ctx, a) => {
-    const ids = uuids(a, "taskIds");
+    const ids = uuids(a, "taskIds", GUEST_MAX_IDS);
     if (ids.length === 0) return [];
     const found = new Map((await posts(ctx, { kind: null, ids, limit: ids.length })).map((p) => [p.id, p]));
     return ids.map((id) => found.get(id)).filter((p): p is Post => Boolean(p)).map((p) => ({ ...p, poster: p.poster ?? null }));
@@ -162,7 +282,7 @@ export const GUEST_OPS: Record<string, Op> = {
     const posterId = uuid(a, "posterId");
     const [profile, open] = await Promise.all([
       ctx.db.rpc("guest_profile", { p_user: posterId }),
-      posts(ctx, { kind: "request", poster: posterId, limit: 500 }),
+      posts(ctx, { kind: "request", poster: posterId, limit: 200 }),
     ]);
     return { profile: take(profile), requestsPosted: open.length };
   },
@@ -233,7 +353,7 @@ export const GUEST_OPS: Record<string, Op> = {
     p_category: a.category == null ? null : oneOf(a, "category", ["feature", "improvement", "bug", "other"]),
     p_search: strOrNull(a, "search", 60),
     p_limit: limit(a, "limit", 30, 50),
-    p_offset: int(a, "offset", 0, 10_000, 0),
+    p_offset: Math.min(int(a, "offset", 0, 10_000, 0), GUEST_MAX_OFFSET),
   })),
 
   /** One idea with its comments; null once it is hidden or gone. */
@@ -269,8 +389,16 @@ export const isGuestOp = (name: unknown): boolean =>
 export const needsAccount = (): Reply => ({ ok: false, error: { message: NEEDS_ACCOUNT, code: NEEDS_ACCOUNT_CODE, details: null } });
 
 /** Run one guest operation: the admin panel's switches first, then the operation; anything else needs an account. */
-export async function runGuestOp(name: unknown, args: unknown, ctx: Ctx, onUnexpected: (e: unknown) => void = () => {}): Promise<Reply> {
+export async function runGuestOp(
+  name: unknown,
+  args: unknown,
+  ctx: Ctx,
+  onUnexpected: (e: unknown) => void = () => {},
+  lightOnly = false,
+): Promise<Reply> {
   if (!isGuestOp(name)) return needsAccount();
+  // All guests together are over the soft ceiling: the heavy reads wait, the light ones still answer.
+  if (lightOnly && isHeavyGuestOp(name)) return busy();
   const a = args && typeof args === "object" && !Array.isArray(args) ? (args as Args) : {};
   const off = refusalFor(name, ctx.controls ?? null, a, {});
   if (off) return { ok: false, error: off };
@@ -285,20 +413,54 @@ export async function runGuestOp(name: unknown, args: unknown, ctx: Ctx, onUnexp
 }
 
 /** A guest's batch of reads: each call alone, in order, like runBatch. */
-export async function runGuestBatch(args: unknown, ctx: Ctx, onUnexpected: (e: unknown) => void = () => {}): Promise<Reply> {
+export async function runGuestBatch(
+  args: unknown,
+  ctx: Ctx,
+  onUnexpected: (e: unknown) => void = () => {},
+  lightOnly = false,
+): Promise<Reply> {
   const calls = batchCalls(args);
   if (!calls || calls.length > MAX_BATCH) return { ok: false, error: { message: "Invalid calls", code: "BAD_ARGS", details: null } };
-  return { ok: true, data: await Promise.all(calls.map((c) => runGuestOp(c.op, c.args, ctx, onUnexpected))) };
+  // batchCalls keeps only { op: string, args: object }: a batch inside a batch is just an op called "batch",
+  // which is not a guest read and answers NEEDS_ACCOUNT.
+  return { ok: true, data: await Promise.all(calls.map((c) => runGuestOp(c.op, c.args, ctx, onUnexpected, lightOnly))) };
 }
+
+/** A request that cannot run at all (all guests over the hard ceiling, or this instance's stand-in budget). */
+export const guestBusy = busy;
 
 /**
  * The limiter's key for a guest: their network address, hashed, shaped like the uuid the counter wants. The
  * address itself is never stored. Everyone with no known address shares one key.
  */
 export async function guestRateKey(ip: string): Promise<string> {
-  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`guest|${ip || "unknown"}`)));
+  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`guest|${guestRateScope(ip) || "unknown"}`)));
   const hex = [...bytes.slice(0, 16)].map((b) => b.toString(16).padStart(2, "0")).join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+/**
+ * What one limiter key stands for. An IPv4 address as it is. An IPv6 address by its /64 (one home or phone line is
+ * handed a whole /64, so counting each address alone would give one person billions of budgets); an IPv4 address
+ * written the IPv6 way (::ffff:1.2.3.4) as the IPv4 address. Anything unreadable stays as sent.
+ */
+export function guestRateScope(ip: string): string {
+  const s = ip.trim().toLowerCase().replace(/%.*$/, "");
+  if (!s.includes(":")) return s;
+  const mapped = s.match(/^(?:::|(?:0{1,4}:){5})ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (mapped) return mapped[1];
+  const halves = s.split("::");
+  if (halves.length > 2) return s;
+  const head = halves[0] ? halves[0].split(":") : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  // A trailing dotted IPv4 part counts as two groups.
+  if (tail.length && tail[tail.length - 1].includes(".")) tail.splice(tail.length - 1, 1, "0", "0");
+  if (head.length && head[head.length - 1].includes(".")) head.splice(head.length - 1, 1, "0", "0");
+  const missing = 8 - head.length - tail.length;
+  if (missing < 0 || (halves.length === 1 && missing !== 0)) return s;
+  const groups = [...head, ...Array(missing).fill("0"), ...tail];
+  if (groups.some((g) => !/^[0-9a-f]{1,4}$/.test(g))) return s;
+  return groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, "")).join(":") + "::/64";
 }
 
 /** The caller's address as the platform reports it (same rule as phone-auth: never true-client-ip or forwarded). */
