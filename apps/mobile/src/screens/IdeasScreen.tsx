@@ -13,6 +13,7 @@ import { useActions } from '../providers/AppStateProvider';
 import { listIdeas, voteIdea } from '../data/extras';
 import { STATUS_FILTERS, withVote, withVoteResult, type Idea, type IdeaStatus } from '../lib/ideas';
 import { reportError } from '../lib/errors';
+import { isNeedsAccount } from '../lib/guest';
 
 const PAGE = 30;
 
@@ -95,6 +96,7 @@ export function IdeasScreen() {
       swap(idea.id, (i) => withVoteResult(i, r));
     } catch (e) {
       swap(idea.id, (i) => withVote(i, !on));
+      if (isNeedsAccount(e)) return;
       flash(e instanceof Error ? e.message : 'Could not save your vote');
     }
   };

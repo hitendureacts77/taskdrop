@@ -4,6 +4,7 @@ import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useMode } from '../providers/ModeProvider';
 import { getProfile } from '../data/api';
+import { hasPendingAccountAction } from '../lib/guest';
 
 /**
  * When a session ends underneath the app -- signed out elsewhere, or a
@@ -25,10 +26,13 @@ export function SessionWatch() {
   }, [session, reset]);
 
   // Earn needs a worker profile. An account without one starts on Post
-  // (the app otherwise opens on Earn); switching over runs worker setup.
+  // (the app otherwise opens on Earn); switching over runs worker setup. Not for a guest who made
+  // the account to finish something (an offer from Earn): the mode they were in stays, or the
+  // screen holding that offer would be swapped out before it is sent.
   const userId = session?.user.id ?? null;
   useEffect(() => {
     if (!userId) return;
+    if (hasPendingAccountAction()) return;
     void getProfile(userId)
       .then((p) => {
         if (p && !p.worker_onboarded_at) setMode('poster');

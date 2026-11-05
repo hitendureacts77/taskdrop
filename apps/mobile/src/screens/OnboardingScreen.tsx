@@ -13,7 +13,7 @@ import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
-import { runPendingAfterSignIn } from '../lib/guest';
+import { releaseAccountHold, runPendingAfterSignIn } from '../lib/guest';
 import { getProfile, updateProfile } from '../data/api';
 import { applyReferralCode, updateProfileExtras, usernameAvailable } from '../data/extras';
 import { nameCarriesContact } from '../lib/mask';
@@ -39,6 +39,8 @@ export function OnboardingScreen() {
   const { userId } = useAuth();
   // From guest mode only "About you" is asked now; the rest is offered at a later sign-in (decision 21).
   const quick = Boolean(params.quick);
+  // A guest who backs out of the quick finish gets their open sheet back.
+  useEffect(() => (quick ? releaseAccountHold : undefined), [quick]);
   const [step, setStep] = useState(quick ? 4 : 0);
   const [busy, setBusy] = useState(false);
 

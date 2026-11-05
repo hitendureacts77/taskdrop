@@ -6,6 +6,7 @@ import { useActions } from '../providers/AppStateProvider';
 import { sendFeedback, type FeedbackKind } from '../data/extras';
 import { BottomSheet, Field, Pill, PrimaryButton } from './kit';
 import { tx } from './primitives';
+import { isNeedsAccount, useAccountHold } from '../lib/guest';
 
 const KINDS: { key: FeedbackKind; label: string }[] = [
   { key: 'broken', label: 'Something is broken' },
@@ -16,6 +17,8 @@ const KINDS: { key: FeedbackKind; label: string }[] = [
 
 /** "Send feedback": goes straight to the team, no reply expected. */
 export function FeedbackSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  // Steps aside while the account pop-up, or the sign-in page it opened, is showing.
+  const held = useAccountHold();
   const t = useTheme();
   const { screen } = useNav();
   const { flash, celebrate } = useActions();
@@ -31,6 +34,7 @@ export function FeedbackSheet({ visible, onClose }: { visible: boolean; onClose:
       onClose();
       celebrate('Thanks — the team will read it');
     } catch (e) {
+      if (isNeedsAccount(e)) return;
       flash(e instanceof Error ? e.message : 'Could not send that');
     } finally {
       setBusy(false);
@@ -39,7 +43,7 @@ export function FeedbackSheet({ visible, onClose }: { visible: boolean; onClose:
 
   return (
     <BottomSheet
-      visible={visible}
+      visible={visible && !held}
       onClose={onClose}
       title="Send feedback"
       subtitle="Goes straight to the team that builds TaskDrop. For help with a payment or a task, use Help & support instead."

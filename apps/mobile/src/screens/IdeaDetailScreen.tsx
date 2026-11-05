@@ -21,6 +21,7 @@ import {
   type IdeaComment,
 } from '../lib/ideas';
 import { reportError } from '../lib/errors';
+import { isNeedsAccount } from '../lib/guest';
 
 /** One idea on the board: its text, where it stands, the vote, and the conversation under it. */
 export function IdeaDetailScreen() {
@@ -60,6 +61,7 @@ export function IdeaDetailScreen() {
       setIdea((i) => (i ? withVoteResult(i, r) : i));
     } catch (e) {
       setIdea((i) => (i ? withVote(i, !on) : i));
+      if (isNeedsAccount(e)) return;
       flash(e instanceof Error ? e.message : 'Could not save your vote');
     }
   };
@@ -73,6 +75,7 @@ export function IdeaDetailScreen() {
       setIdea((i) => (i ? { ...i, comments: i.comments + 1 } : i));
       setDraft('');
     } catch (e) {
+      if (isNeedsAccount(e)) return;
       flash(e instanceof Error ? e.message : 'Could not send that');
     } finally {
       setBusy(false);

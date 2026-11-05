@@ -6,6 +6,7 @@ import { listIdeas, postIdea } from '../data/extras';
 import { KINDS, KIND_LABEL, compactCount, similarQuery, type Idea, type IdeaKind } from '../lib/ideas';
 import { BottomSheet, Field, Pill, PrimaryButton } from './kit';
 import { tx } from './primitives';
+import { isNeedsAccount, useAccountHold } from '../lib/guest';
 
 /**
  * "Suggest an idea": a title, what it is, and optional details. While the title
@@ -23,6 +24,8 @@ export function IdeaSheet({
   onPosted: (idea: Idea) => void;
   onOpenIdea: (idea: Idea) => void;
 }) {
+  // Steps aside while the account pop-up, or the sign-in page it opened, is showing.
+  const held = useAccountHold();
   const t = useTheme();
   const { flash, celebrate } = useActions();
   const [kind, setKind] = useState<IdeaKind>('feature');
@@ -61,6 +64,7 @@ export function IdeaSheet({
       onPosted(idea);
       celebrate('Thanks. Your idea is on the board');
     } catch (e) {
+      if (isNeedsAccount(e)) return;
       flash(e instanceof Error ? e.message : 'Could not post that');
     } finally {
       setBusy(false);
@@ -69,7 +73,7 @@ export function IdeaSheet({
 
   return (
     <BottomSheet
-      visible={visible}
+      visible={visible && !held}
       onClose={onClose}
       title="Suggest an idea"
       subtitle="Everyone using TaskDrop can see it and vote. Keep phone numbers and emails out. For a private problem, use Help & support."

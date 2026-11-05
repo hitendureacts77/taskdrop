@@ -3,7 +3,7 @@ import { View, Text as RNText, Pressable, ActivityIndicator } from 'react-native
 import { useTheme } from '../providers/ThemeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
-import { isNeedsAccount, needAccount } from '../lib/guest';
+import { isNeedsAccount, needAccount, useAccountHold } from '../lib/guest';
 import { canQuoteOn, getMyBid, placeBid, updateBid, type Bid, type Task } from '../data/api';
 import { MIN_PRICE_INR } from '../lib/limits';
 import { maskContacts } from '../lib/mask';
@@ -51,7 +51,17 @@ export function BidSheet({
   const { userId, guest } = useAuth();
   // A guest's half-written offer survives the sign-up: the effect below must not wipe it when the account appears.
   const keepFields = useRef(false);
+  // Steps aside while the account pop-up, or the sign-in page it opened, is showing.
+  const held = useAccountHold();
   const submitRef = useRef<() => Promise<void>>(async () => {});
+  // Whether this sheet is still on screen when a guest's new account is ready to send the offer.
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   const [pitch, setPitch] = useState('');
   const [masked, setMasked] = useState(false);
   const [price, setPrice] = useState('');
@@ -138,7 +148,9 @@ export function BidSheet({
       if (!price.trim()) return flash('Enter your price');
       if (pitch.trim().length < 10) return flash('Tell the customer a little about why you');
       keepFields.current = true;
-      return needAccount('offer', () => submitRef.current());
+      return needAccount('offer', () =>
+        alive.current ? submitRef.current() : flash('Your account is ready. Open the job again to send your offer.'),
+      );
     }
     if (!userId) return flash('Sign in to send an offer');
     if (!price.trim()) return flash('Enter your price');
@@ -188,7 +200,7 @@ export function BidSheet({
   return (
     <>
       <BottomSheet
-        visible={visible && !showDate && !safetyOpen}
+        visible={visible && !showDate && !safetyOpen && !held}
         onClose={onClose}
         title={existing ? 'Edit your offer' : countering ? 'Send a counteroffer' : 'Send an offer'}
         subtitle={task.title}
