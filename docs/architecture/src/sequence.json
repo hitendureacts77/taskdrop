@@ -1,0 +1,300 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "From offer to withdrawal: the money path",
+    "output": "taskdrop-money-sequence.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/hitendureacts77/taskdrop.git",
+      "revision": "b2b054595896a0a5592ff204f346b000d45e74c7"
+    }
+  },
+  "participants": [
+    {
+      "id": "poster",
+      "type": "frontend",
+      "label": "Poster app",
+      "sublabel": "person who asks",
+      "sources": [
+        {
+          "path": "apps/mobile/src/data/api.ts",
+          "line": 47,
+          "end_line": 63
+        }
+      ]
+    },
+    {
+      "id": "helper",
+      "type": "frontend",
+      "label": "Helper app",
+      "sublabel": "person who does it",
+      "sources": [
+        {
+          "path": "apps/mobile/src/data/api.ts",
+          "line": 11,
+          "end_line": 18
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "api function",
+      "sublabel": "named ops",
+      "sources": [
+        {
+          "path": "supabase/functions/api/writes.ts",
+          "line": 156,
+          "end_line": 168
+        },
+        {
+          "path": "supabase/functions/api/writes.ts",
+          "line": 180,
+          "end_line": 195
+        },
+        {
+          "path": "supabase/functions/api/writes.ts",
+          "line": 383,
+          "end_line": 405
+        }
+      ]
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "Postgres",
+      "sublabel": "SQL money rules",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261104200000_148_hunt2_money_guards.sql",
+          "line": 195,
+          "end_line": 235
+        },
+        {
+          "path": "supabase/migrations/20261104200000_148_hunt2_money_guards.sql",
+          "line": 301,
+          "end_line": 350
+        },
+        {
+          "path": "supabase/migrations/20261104200000_148_hunt2_money_guards.sql",
+          "line": 353,
+          "end_line": 402
+        }
+      ]
+    },
+    {
+      "id": "inngest",
+      "type": "messagebus",
+      "label": "Inngest",
+      "sublabel": "push job",
+      "sources": [
+        {
+          "path": "supabase/functions/inngest/index.ts",
+          "line": 232,
+          "end_line": 240
+        }
+      ]
+    },
+    {
+      "id": "pay",
+      "type": "backend",
+      "label": "razorpayx-payouts",
+      "sublabel": "bank transfer",
+      "sources": [
+        {
+          "path": "supabase/functions/razorpayx-payouts/index.ts",
+          "line": 11,
+          "end_line": 35
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "from": 163,
+      "to": 345,
+      "label": "Hire"
+    },
+    {
+      "from": 357,
+      "to": 503,
+      "label": "Work"
+    },
+    {
+      "from": 515,
+      "to": 661,
+      "label": "Release"
+    },
+    {
+      "from": 673,
+      "to": 855,
+      "label": "Withdraw"
+    }
+  ],
+  "messages": [
+    {
+      "id": "place-bid",
+      "from": "helper",
+      "to": "api",
+      "y": 185,
+      "label": "placeBid",
+      "variant": "default"
+    },
+    {
+      "id": "insert-bid",
+      "from": "api",
+      "to": "db",
+      "y": 221,
+      "label": "insert bid",
+      "variant": "default"
+    },
+    {
+      "id": "lock-bid",
+      "from": "poster",
+      "to": "api",
+      "y": 257,
+      "label": "lockBid",
+      "variant": "emphasis"
+    },
+    {
+      "id": "lock-bid-sql",
+      "from": "api",
+      "to": "db",
+      "y": 293,
+      "label": "lock_bid + escrow",
+      "variant": "emphasis"
+    },
+    {
+      "id": "locked",
+      "from": "db",
+      "to": "api",
+      "y": 329,
+      "label": "LOCKED",
+      "variant": "return"
+    },
+    {
+      "id": "start-task",
+      "from": "helper",
+      "to": "api",
+      "y": 379,
+      "label": "startTask",
+      "variant": "default"
+    },
+    {
+      "id": "start-sql",
+      "from": "api",
+      "to": "db",
+      "y": 415,
+      "label": "start_task (paid?)",
+      "variant": "security"
+    },
+    {
+      "id": "proof",
+      "from": "helper",
+      "to": "api",
+      "y": 451,
+      "label": "proof + markWorkDone",
+      "variant": "default"
+    },
+    {
+      "id": "work-done-sql",
+      "from": "api",
+      "to": "db",
+      "y": 487,
+      "label": "WORK_DONE",
+      "variant": "default"
+    },
+    {
+      "id": "confirm",
+      "from": "poster",
+      "to": "api",
+      "y": 537,
+      "label": "confirmRelease",
+      "variant": "emphasis"
+    },
+    {
+      "id": "confirm-sql",
+      "from": "api",
+      "to": "db",
+      "y": 573,
+      "label": "net to clearing",
+      "variant": "emphasis"
+    },
+    {
+      "id": "event",
+      "from": "db",
+      "to": "inngest",
+      "y": 609,
+      "label": "notification event",
+      "variant": "dashed"
+    },
+    {
+      "id": "push",
+      "from": "inngest",
+      "to": "helper",
+      "y": 645,
+      "label": "push (Expo)",
+      "variant": "dashed"
+    },
+    {
+      "id": "settle",
+      "from": "helper",
+      "to": "api",
+      "y": 695,
+      "label": "settleCleared",
+      "variant": "default"
+    },
+    {
+      "id": "settle-sql",
+      "from": "api",
+      "to": "db",
+      "y": 731,
+      "label": "move to balance",
+      "variant": "default"
+    },
+    {
+      "id": "withdraw",
+      "from": "helper",
+      "to": "api",
+      "y": 767,
+      "label": "requestWithdrawal",
+      "variant": "emphasis"
+    },
+    {
+      "id": "withdraw-sql",
+      "from": "api",
+      "to": "db",
+      "y": 803,
+      "label": "debit + request",
+      "variant": "emphasis"
+    },
+    {
+      "id": "send-payout",
+      "from": "api",
+      "to": "pay",
+      "y": 839,
+      "label": "send payout",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "App asks, server decides",
+      "items": [
+        "Every step is one named op; SQL functions check who may do it",
+        "start_task refuses unless the escrow is fully paid"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Money in motion",
+      "items": [
+        "Escrow comes out of the poster's wallet at lock time",
+        "Approval puts the helper's net amount in clearing, not balance",
+        "Withdrawal debits first, then hands the transfer to RazorpayX; if that fails an admin can still pay it"
+      ]
+    }
+  ]
+}
