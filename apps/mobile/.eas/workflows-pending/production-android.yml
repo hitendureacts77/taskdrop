@@ -1,0 +1,72 @@
+# PENDING, NOT LIVE (plan task 5.0a). Do not move this into .eas/workflows/ until task 5.7 has made the
+# production Expo project (@hitendureacts/taskdrop-production) and task 5.9 has switched production on.
+# It belongs to the PRODUCTION Expo project only, never the staging one.
+#
+# Production is never automatic. This workflow has no push trigger: you start it by hand
+# (`eas workflow:run production-android.yml`, or Run on expo.dev), it checks the build, and then it
+# WAITS for your approval before it builds or publishes anything.
+#
+# Docs checked 2026-11-05: job type `require-approval` takes no parameters; `workflow_dispatch` is a
+# supported trigger (https://docs.expo.dev/eas/workflows/pre-packaged-jobs/).
+#
+# What it does:
+#   1. fingerprint   hash of the native code, with the PRODUCTION environment
+#   2. get_build     is there a finished production store build with that hash?
+#   3. approve       waits for you (nothing has been built or published yet)
+#   4a. build        no match -> build the store file (AAB). No OTA goes out on this run.
+#   4b. update       match -> publish an OTA to channel production
+# The build guard (apps/mobile/variant.cjs, run by app.config.js) stops steps 1, 4a and 4b by itself if the
+# build sees the staging server, a debug token, a test key or a missing production setting.
+
+name: Production Android - approve, then build or OTA
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: production-android
+  queue: single
+
+jobs:
+  fingerprint:
+    name: Fingerprint
+    type: fingerprint
+    environment: production
+
+  get_build:
+    name: Find matching production build
+    type: get-build
+    needs: [fingerprint]
+    environment: production
+    params:
+      platform: android
+      profile: production
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+      runtime_version: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+      wait_for_in_progress: true
+
+  approve:
+    name: Wait for the owner
+    type: require-approval
+    needs: [get_build]
+
+  build:
+    name: Build production store file
+    type: build
+    needs: [get_build, approve]
+    if: ${{ !needs.get_build.outputs.build_id }}
+    environment: production
+    params:
+      platform: android
+      profile: production
+
+  update:
+    name: Publish OTA to production
+    type: update
+    needs: [get_build, approve]
+    if: ${{ needs.get_build.outputs.build_id }}
+    environment: production
+    params:
+      channel: production
+      platform: android
+      upload_sentry_sourcemaps: true
