@@ -8,6 +8,7 @@ import { TopInsetUsedCtx } from '../components/topInsetUsed';
 import { useTheme } from '../providers/ThemeProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { AgeGate } from '../components/AgeGate';
+import { ResumePost } from '../components/ResumePost';
 import { Overlays } from '../components/Overlays';
 import { AccountPrompt } from '../components/AccountPrompt';
 import { StagingWelcome } from '../components/StagingWelcome';
@@ -83,6 +84,7 @@ export function NativeRoot() {
               </Stack>
             </EdgeInsetApplicationContext.Provider>
           </NavThemeProvider>
+          <ResumePost />
         </AgeGate>
       </ScreenBoundary>
       <ErrorBoundary silent>

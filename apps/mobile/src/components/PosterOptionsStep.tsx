@@ -226,9 +226,14 @@ export function PosterOptionsStep({
 
   return (
     <>
-      <RNText style={tx('800', 27, t.colors.ink, { letterSpacing: -0.8, lineHeight: 32 })}>Make it go smoothly</RNText>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 10, rowGap: 6 }}>
+        <RNText style={tx('800', 27, t.colors.ink, { letterSpacing: -0.8, lineHeight: 32 })}>Make it go smoothly</RNText>
+        <View style={{ paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999, backgroundColor: t.colors.surface2, borderWidth: 1, borderColor: t.colors.line }}>
+          <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 0.4 })}>Optional</RNText>
+        </View>
+      </View>
       <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21 })}>
-        {suggestions.length ? 'Picked for your task. Switch it on if you need it.' : 'Extras you can switch on for this task. All optional.'}
+        Optional. Most requests skip this — switch something on only if it helps.
       </RNText>
       {prompt.trim() ? (
         <View style={{ marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: t.colors.surface2 }}>
@@ -241,7 +246,7 @@ export function PosterOptionsStep({
       {suggestions.length ? (
         <>
           <RNText style={tx('700', 11, t.colors.accentDeep, { letterSpacing: 1.2, marginTop: 22, marginBottom: 10 })}>
-            SUGGESTED FOR YOU
+            IF YOU LIKE
           </RNText>
           <View style={{ gap: 10 }}>{suggestions.map((s, i) => optionCard(s.key, i, s.reason))}</View>
         </>

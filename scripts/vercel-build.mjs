@@ -9,12 +9,14 @@
  *   1. old-app contract         npm run test:contract         (needs `main`; see below)
  *   2. new migrations           scripts/deploy-migrations.mjs
  *   3. old-app database check   scripts/check-old-app-db.mjs  (needs `main`)
- *   4. function secrets         scripts/sync-function-secrets.mjs  (Vercel -> Supabase; a failure stops the build)
- *   5. Edge Functions           supabase functions deploy  (up to 3 attempts, so a one-off network or API hiccup does not fail the build)
- *   6. Inngest sync             warning only, until the Inngest Cloud keys are set
- *   7. web export               npm run web:export
+ *   4. Edge Functions           supabase functions deploy  (up to 3 attempts, so a one-off network or API hiccup does not fail the build)
+ *   5. Inngest sync             warning only, until the Inngest Cloud keys are set
+ *   6. web export               npm run web:export
  *
- * A failed step 1-4 fails the build, so the web app is never published against a half-updated
+ * Function secrets are NOT copied here any more (plan task 2.17, "one home per secret"): they are set
+ * straight in Supabase from `.env.all-secrets` with `node scripts/set-function-secrets.mjs`.
+ *
+ * A failed step 1-3 fails the build, so the web app is never published against a half-updated
  * backend (the previous deployment stays live). Steps 1 and 3 compare against `main`: Vercel only
  * clones the pushed branch, so the script fetches `main` first; if that fails it says so loudly and
  * skips those two checks instead of blocking every deploy.
@@ -107,9 +109,6 @@ if (!wantsBackend) {
   if (oldAppEnv) must("old-app contract", "npm", ["run", "test:contract"], oldAppEnv);
   must("apply new migrations", "node", ["scripts/deploy-migrations.mjs"]);
   if (oldAppEnv) must("old app still has its tables and functions", "node", ["scripts/check-old-app-db.mjs"], oldAppEnv);
-  // Edge Function secrets are kept in Vercel (one place to edit); copy the allow-listed ones across. A failure stops the build:
-  // a stale Inngest signing key in Supabase would break the jobs behind a published web app. A name Vercel does not hold is skipped, not an error.
-  must("function secrets", "node", ["scripts/sync-function-secrets.mjs"]);
   await mustRetry("deploy Edge Functions", "npx", ["--yes", "supabase@2", "functions", "deploy", "--project-ref", projectId, "--use-api"]);
 
   // Tell Inngest Cloud to re-read the function list (the request is signed on the way back, so no secret).
