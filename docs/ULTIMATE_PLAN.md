@@ -6,7 +6,7 @@ The clickable version is `docs/ULTIMATE_PLAN.html`. Open it in Chrome. Your tick
 
 Rethought on 30 October 2026. What changed: the steps now follow the order a product owner would choose (fix what is broken, make it hacker-proof, prove it with testers, get ready to market, build production, launch, grow). Every slow task that waits on other people sits in one "Start now" track. Future ideas sit in a separate **Future scope** section, so they never count against your progress. The accounts for staging and production are drawn as two maps. Security and marketing each have their own section. The previous version is kept unchanged in `docs/archive/2026-10-30-before-rethink/`.
 
-Checked against best practice on 31 October 2026 (see the changelog). New: 2-step sign-in on your accounts (2.1b), money safety limits (2.11), the marketplace numbers (3.3b), a dispute and safety policy (4.9), backups you control and a real restore practice, a production that is safe from its first minute, releases in small slices, and an earlier start for the 14-day tester clock (Gate 2 is now two gates, 2a and 2b). Vercel security check (31 October): a table of what Vercel secures and what stays yours, holes H18 and H19, and a new task 5.8b (spending stop, firewall rule, preview safety). Advice from a WhatsApp group (3 November): a new task 2.13 (a lock and a limit on every server door, a code scanner, the OWASP checklist line by line, a way for security researchers to report, a spending stop on every paid service; then your three rules: one person never reaches another's data, every document private, sign-in sessions that can be ended), holes H22 to H28, and decisions 14 to 16. A second paste the same day (rate limits, a real sign-in provider, row rules, keys on the server, caching, background jobs, a load test) was checked too: it added part J (a load and abuse test, plus a check of slow work and caching) and hole H29. Made simpler on 4 November: the Security section now opens with "Security in one page", 12 plain checks (with Matt Palmer's checklist, the Betterleaks secrets audit and Strix folded in); the long tables sit in cards below it; Step 2 opens with the security path in order; and two tasks are new, 2.15 (the secrets audit) and 2.16 (the AI attacker).
+Checked against best practice on 31 October 2026 (see the changelog). New: 2-step sign-in on your accounts (2.1b), money safety limits (2.11), the marketplace numbers (3.3b), a dispute and safety policy (4.9), backups you control and a real restore practice, a production that is safe from its first minute, releases in small slices, and an earlier start for the 14-day tester clock (Gate 2 is now two gates, 2a and 2b). Vercel security check (31 October): a table of what Vercel secures and what stays yours, holes H18 and H19, and a new task 5.8b (spending stop, firewall rule, preview safety). Advice from a WhatsApp group (3 November): a new task 2.13 (a lock and a limit on every server door, a code scanner, the OWASP checklist line by line, a way for security researchers to report, a spending stop on every paid service; then your three rules: one person never reaches another's data, every document private, sign-in sessions that can be ended), holes H22 to H28, and decisions 14 to 16. A second paste the same day (rate limits, a real sign-in provider, row rules, keys on the server, caching, background jobs, a load test) was checked too: it added part J (a load and abuse test, plus a check of slow work and caching) and hole H29. Made simpler on 4 November: the Security section now opens with "Security in one page", 12 plain checks (with Matt Palmer's checklist, the Betterleaks secrets audit and Strix folded in); the long tables sit in cards below it; Step 2 opens with the security path in order; and two tasks are new, 2.15 (the secrets audit) and 2.16 (the AI attacker). **Two copies, side by side (5 November):** `taskdrop.in` is now **staging**, production starts on the addresses Vercel makes, staging gets its own Android app (`com.taskdrop.app.staging`), and one step-by-step plan covers the staging and production websites, the staging and production Android apps and every backend tool (tasks 5.0a to 5.0e, the switchboard card, decision 28).
 
 ---
 
@@ -103,8 +103,10 @@ Checked against best practice on 31 October 2026 (see the changelog). New: 2-ste
 | Data | Fake. Test accounts Asha, Ravi, Meera and what testers create | Real customers. Starts empty |
 | Who uses it | You and invited testers | The public |
 | Sign-in code | Shown on screen. Any phone number works | Real SMS |
-| Web address | The address Vercel makes: `taskdrop-git-redesigned-20-hitenduteam.vercel.app` (admin: `taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app`). Staging has no name of its own, and `taskdrop.in` is never staging's | `taskdrop.in`, `www.taskdrop.in` and `admin.taskdrop.in` |
+| Web address | `taskdrop.in` and `www.taskdrop.in` (admin: Vercel's address, or `admin.taskdrop.in`, task 5.0b). Hidden from Google | The addresses Vercel makes for the production projects: expected `taskdrop-production.vercel.app` and `taskdrop-admin-production.vercel.app`. A real name can be added later (decision 28) |
 | Code branch | `redesigned-2.0` | `main` (you promote by hand) |
+| Android app | **TaskDrop Staging**, `com.taskdrop.app.staging`, an APK from an Expo link. Updates by itself on the `staging` channel (task 5.0c) | **TaskDrop**, `com.taskdrop.app`: a production APK for you to rehearse with, and the store file for Google Play (task 5.0d). Update channel `production` |
+| Plan for the split | Section "The two copies, side by side" at the start of Step 5 | The same section |
 | Accounts | Today's account or project in every tool | Its own new account or project in every tool. Nothing is copied |
 | Cost | Free plans. Google Play $25 once | About $45 a month plus fees |
 
@@ -131,7 +133,7 @@ You use **two Google accounts**, plus one email alias. When Google shows an acco
 ```html
 <div class="fig">
 <div class="fig-title"><span class="pill stg">Staging</span> Fake money, fake data, testers only</div>
-<div class="fig-sub">Web address: the ones Vercel makes, <code>taskdrop-git-redesigned-20-hitenduteam.vercel.app</code> and <code>taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app</code> (no DNS records needed). <code>taskdrop.in</code> belongs to production, not staging; until task 5.10 the staging project still answers on it by leftover, and nothing new should rely on that. Built from branch <code>redesigned-2.0</code>. Names marked "today" get the ending <code>-staging</code> later (future scope F.12).</div>
+<div class="fig-sub">Web address: <code>taskdrop.in</code> and <code>www.taskdrop.in</code> (decided 5 Nov), plus Vercel's own <code>taskdrop-git-redesigned-20-hitenduteam.vercel.app</code> for the app and <code>taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app</code> for the admin (<code>admin.taskdrop.in</code> if you do the optional step in 5.0b). Built from branch <code>redesigned-2.0</code>. Hidden from Google. Android app: <b>TaskDrop Staging</b>, <code>com.taskdrop.app.staging</code> (task 5.0c). Names marked "today" get the ending <code>-staging</code> later (future scope F.12).</div>
 
 <div class="am-band g1">
 <div class="am-owner"><span class="am-ic">1</span><div><b>hitendureacts@gmail.com</b><small>Chrome profile /u/2 · owns every staging tool below</small></div></div>
@@ -139,15 +141,15 @@ You use **two Google accounts**, plus one email alias. When Google shows an acco
 <div class="am-card"><div class="am-tool">Vercel <span>hosts website + admin</span></div><dl><dt>Workspace</dt><dd>team <code>hitenduteam</code> (Hobby, free)<br><code>team_ZEyzabHJSWRmHgiiy8ZZ655y</code></dd><dt>Projects</dt><dd><code>taskdrop</code> and <code>taskdrop-admin</code> (today)</dd><dt>Project IDs</dt><dd><code>prj_4j5lBW5qhmpl1egxznEyAQK2RzkE</code><br><code>prj_AWdsUdG8vre4LLPYP1VEhsdldJqq</code></dd></dl></div>
 <div class="am-card"><div class="am-tool">Supabase <span>database, sign-in, server</span></div><dl><dt>Workspace</dt><dd>organization "hitendureacts@gmail.com's Org" (Free)</dd><dt>Project</dt><dd><code>taskdrop</code> (today), Mumbai</dd><dt>Project ID</dt><dd><code>wjxvingpfbfvkfqhrguj</code> (never changes)</dd></dl></div>
 <div class="am-card"><div class="am-tool">Firebase + Google Cloud <span>push, App Check, maps, Google sign-in</span></div><dl><dt>Workspace</dt><dd>organization <code>hitendureacts-org</code>; billing "My only billing account"</dd><dt>Project</dt><dd><b>Taskdrop</b> (today)</dd><dt>Project ID</dt><dd><code>project-a19d1da9-6903-4168-905</code><br>number <code>629108039430</code></dd><dt>Budget</dt><dd><code>taskdrop-monthly-100</code> (₹100)</dd></dl></div>
-<div class="am-card"><div class="am-tool">Expo (EAS) <span>Android builds + updates</span></div><dl><dt>Workspace</dt><dd>account <code>hitendureacts</code></dd><dt>Project</dt><dd><code>@hitendureacts/taskdrop</code> (today)</dd><dt>Project ID</dt><dd><code>08aa002b-4eea-4952-a62a-ec9245e77953</code></dd><dt>Channel</dt><dd><code>beta</code></dd></dl></div>
+<div class="am-card"><div class="am-tool">Expo (EAS) <span>Android builds + updates</span></div><dl><dt>Workspace</dt><dd>account <code>hitendureacts</code></dd><dt>Project</dt><dd><code>@hitendureacts/taskdrop</code> (today)</dd><dt>Project ID</dt><dd><code>08aa002b-4eea-4952-a62a-ec9245e77953</code></dd><dt>Channel</dt><dd><code>staging</code> (was <code>beta</code> until 5.0c)</dd><dt>Android app</dt><dd>TaskDrop Staging, <code>com.taskdrop.app.staging</code></dd></dl></div>
 <div class="am-card"><div class="am-tool">Sentry <span>error alerts</span></div><dl><dt>Workspace</dt><dd>organization <code>hitendu</code></dd><dt>Projects</dt><dd><code>taskdrop</code> (app + server), <code>taskdrop-admin</code> (today)</dd></dl></div>
 <div class="am-card"><div class="am-tool">PostHog <span>funnels, task 3.3c</span></div><dl><dt>Account</dt><dd><b>hitendureacts@gmail.com</b> (not made yet)</dd><dt>Project</dt><dd><code>taskdrop-staging</code>, EU cloud</dd></dl></div>
 <div class="am-card"><div class="am-tool">Inngest <span>background jobs</span></div><dl><dt>Workspace</dt><dd>organization <code>taskdrop</code> (today)</dd><dt>Plan</dt><dd>Hobby (free)</dd></dl></div>
 <div class="am-card"><div class="am-tool">ImageKit <span>photos</span></div><dl><dt>Account</dt><dd>"Hitendu"</dd><dt>ImageKit ID</dt><dd>not written down yet (Claude reads it in task 2.3)</dd></dl></div>
 <div class="am-card"><div class="am-tool">Razorpay <span>payments</span></div><dl><dt>Account</dt><dd>your business account</dd><dt>Mode</dt><dd><b>Test mode</b> only</dd></dl></div>
 <div class="am-card"><div class="am-tool">Uptime Robot <span>"site is down" emails</span></div><dl><dt>Monitors</dt><dd>website and admin (renamed "staging website", "staging admin" in 5.11)</dd></dl></div>
-<div class="am-card shared"><div class="am-tool">Spaceship <span>owns taskdrop.in</span></div><dl><dt>Domain</dt><dd><code>taskdrop.in</code>, one domain for both copies</dd><dt>Staging names</dt><dd>none. Staging uses the addresses Vercel makes</dd></dl></div>
-<div class="am-card"><div class="am-tool">Admin website <span>run TaskDrop</span></div><dl><dt>Address</dt><dd><code>taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app</code> (stays; Vercel makes it)</dd><dt>Who signs in</dt><dd>only this Gmail. Dummy staff Priya, Kiran, Neha</dd></dl></div>
+<div class="am-card shared"><div class="am-tool">Spaceship <span>owns taskdrop.in</span></div><dl><dt>Domain</dt><dd><code>taskdrop.in</code>, used by staging (5 Nov)</dd><dt>Staging names</dt><dd><code>taskdrop.in</code>, <code>www</code> and, optionally, <code>admin</code> (task 5.0b). Production uses the addresses Vercel makes</dd></dl></div>
+<div class="am-card"><div class="am-tool">Admin website <span>run TaskDrop</span></div><dl><dt>Address</dt><dd>Vercel's <code>taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app</code>, or <code>admin.taskdrop.in</code> (optional, 5.0b)</dd><dt>Who signs in</dt><dd>only this Gmail. Dummy staff Priya, Kiran, Neha</dd></dl></div>
 <div class="am-card shared new"><div class="am-tool">.env.all-secrets <span>secrets file on your PC</span></div><dl><dt>Status</dt><dd>protected in task 2.1</dd><dt>Holds</dt><dd>every login, key, recovery code, account detail and the keystore passwords, staging and production. It is the only copy: there is no password manager (one-file rule)</dd></dl></div>
 </div>
 </div>
@@ -155,7 +157,7 @@ You use **two Google accounts**, plus one email alias. When Google shows an acco
 <div class="am-band g2">
 <div class="am-owner"><span class="am-ic">2</span><div><b>narasimharaju7c@gmail.com</b><small>Chrome profile /u/0 · Google Play only</small></div></div>
 <div class="am-cards">
-<div class="am-card shared"><div class="am-tool">Google Play Console <span>Android store</span></div><dl><dt>Workspace</dt><dd>Personal developer account <b>NLNarasimhaRaju</b></dd><dt>App</dt><dd><code>com.taskdrop.app</code>, made in task 3.1</dd><dt>Staging uses</dt><dd>the Internal and Closed <b>testing</b> tracks only</dd></dl></div>
+<div class="am-card shared"><div class="am-tool">Google Play Console <span>Android store</span></div><dl><dt>Workspace</dt><dd>Personal developer account <b>NLNarasimhaRaju</b></dd><dt>App</dt><dd><code>com.taskdrop.app</code>, made in task 3.1</dd><dt>Staging uses</dt><dd>the Internal and Closed <b>testing</b> tracks only, with a staging-server build. TaskDrop Staging (<code>com.taskdrop.app.staging</code>) is not on Play</dd></dl></div>
 </div>
 </div>
 
@@ -176,23 +178,23 @@ Everything here is **new and separate** and is made in Step 5. Nothing is copied
 ```html
 <div class="fig">
 <div class="fig-title"><span class="pill prd">Production</span> Real money, real customers</div>
-<div class="fig-sub">Web address <code>taskdrop.in</code>, <code>www.taskdrop.in</code> and <code>admin.taskdrop.in</code>. Built from branch <code>main</code>, which only you merge into. Green dashed box = a new account or project you create.</div>
+<div class="fig-sub">Web address: the ones Vercel makes, expected <code>taskdrop-production.vercel.app</code> and <code>taskdrop-admin-production.vercel.app</code> (decided 5 Nov; <code>taskdrop.in</code> stays with staging, see decision 28). Built from branch <code>main</code>, which only you merge into. Android app: <b>TaskDrop</b>, <code>com.taskdrop.app</code>. Green dashed box = a new account or project you create.</div>
 
 <div class="am-band g1">
 <div class="am-owner"><span class="am-ic">1</span><div><b>hitendureacts@gmail.com</b><small>Chrome profile /u/2 · owns almost every production tool, as new projects</small></div></div>
 <div class="am-cards">
-<div class="am-card new"><div class="am-tool">Vercel <span>task 5.8</span></div><dl><dt>Workspace</dt><dd>same team <code>hitenduteam</code>, upgraded to <b>Pro</b> ($20/month)</dd><dt>Projects</dt><dd><code>taskdrop-production</code>, <code>taskdrop-admin-production</code></dd><dt>Project IDs</dt><dd>written here after 5.8</dd></dl></div>
+<div class="am-card new"><div class="am-tool">Vercel <span>task 5.8</span></div><dl><dt>Workspace</dt><dd>same team <code>hitenduteam</code>, upgraded to <b>Pro</b> ($20/month)</dd><dt>Projects</dt><dd><code>taskdrop-production</code>, <code>taskdrop-admin-production</code></dd><dt>Addresses</dt><dd>made by Vercel, expected <code>taskdrop-production.vercel.app</code> and <code>taskdrop-admin-production.vercel.app</code></dd><dt>Project IDs</dt><dd>written here after 5.8</dd></dl></div>
 <div class="am-card new"><div class="am-tool">Supabase <span>task 5.2</span></div><dl><dt>Workspace</dt><dd><b>new</b> organization "TaskDrop Production" (Pro, $25/month, spend cap on)</dd><dt>Project</dt><dd><code>taskdrop-production</code>, Mumbai</dd><dt>Project ID</dt><dd>written here after 5.2</dd></dl></div>
 <div class="am-card new"><div class="am-tool">Firebase + Google Cloud <span>task 5.3</span></div><dl><dt>Workspace</dt><dd>same organization <code>hitendureacts-org</code>, same billing account</dd><dt>Project</dt><dd><code>taskdrop-production</code></dd><dt>Budget</dt><dd><code>taskdrop-production-monthly</code> (₹1,000, alerts 50/90/100%)</dd><dt>Keys</dt><dd><code>taskdrop-production-android-maps</code>, <code>taskdrop-production-server-places</code></dd></dl></div>
-<div class="am-card new"><div class="am-tool">Expo (EAS) <span>task 5.7</span></div><dl><dt>Workspace</dt><dd>same account <code>hitendureacts</code></dd><dt>Project</dt><dd><code>@hitendureacts/taskdrop-production</code></dd><dt>Channel</dt><dd><code>production</code>. Never a debug token</dd></dl></div>
+<div class="am-card new"><div class="am-tool">Expo (EAS) <span>task 5.7</span></div><dl><dt>Workspace</dt><dd>same account <code>hitendureacts</code></dd><dt>Project</dt><dd><code>@hitendureacts/taskdrop-production</code></dd><dt>Channel</dt><dd><code>production</code>. Never a debug token</dd><dt>Android app</dt><dd>TaskDrop, <code>com.taskdrop.app</code> (5.0d)</dd></dl></div>
 <div class="am-card new"><div class="am-tool">Sentry <span>task 5.6</span></div><dl><dt>Workspace</dt><dd>same organization <code>hitendu</code></dd><dt>Projects</dt><dd><code>taskdrop-production</code>, <code>taskdrop-admin-production</code></dd></dl></div>
 <div class="am-card new"><div class="am-tool">PostHog <span>task 5.6b</span></div><dl><dt>Account</dt><dd>same organization, <b>hitendureacts@gmail.com</b></dd><dt>Project</dt><dd><code>taskdrop-production</code>, EU cloud, its own Project API key</dd></dl></div>
 <div class="am-card new"><div class="am-tool">Inngest <span>task 5.4</span></div><dl><dt>Workspace</dt><dd><b>new</b> organization "TaskDrop Production", paid plan</dd><dt>If refused</dt><dd>a second account with <code>hitendureacts+prod@gmail.com</code></dd></dl></div>
 <div class="am-card shared"><div class="am-tool">Razorpay + RazorpayX <span>task 6.1</span></div><dl><dt>Account</dt><dd>the same business account</dd><dt>Mode</dt><dd><b>Live mode</b>. Razorpay keeps test and live data apart</dd></dl></div>
 <div class="am-card new"><div class="am-tool">MSG91 <span>task S.6</span></div><dl><dt>Account</dt><dd>new, made in S.6</dd><dt>Sender</dt><dd>DLT header such as <code>TSKDRP</code>; production only</dd></dl></div>
 <div class="am-card new"><div class="am-tool">Uptime Robot <span>task 5.11</span></div><dl><dt>Monitors</dt><dd>"production website", "production admin", "production server"</dd></dl></div>
-<div class="am-card shared"><div class="am-tool">Spaceship <span>task 5.10</span></div><dl><dt>Domain</dt><dd><code>taskdrop.in</code></dd><dt>Production names</dt><dd><code>taskdrop.in</code>, <code>www</code>, <code>admin</code></dd></dl></div>
-<div class="am-card new"><div class="am-tool">Admin website <span>task 5.9</span></div><dl><dt>Address</dt><dd><code>admin.taskdrop.in</code></dd><dt>Who signs in</dt><dd>only this Gmail. Starts with no staff</dd></dl></div>
+<div class="am-card shared"><div class="am-tool">Spaceship <span>task 5.10</span></div><dl><dt>Domain</dt><dd><code>taskdrop.in</code> stays with staging</dd><dt>Production names</dt><dd>none for now (Vercel's addresses). Option: swap <code>taskdrop.in</code> onto production at launch (decision 28)</dd></dl></div>
+<div class="am-card new"><div class="am-tool">Admin website <span>task 5.9</span></div><dl><dt>Address</dt><dd><code>taskdrop-admin-production.vercel.app</code> (expected)</dd><dt>Who signs in</dt><dd>only this Gmail. Starts with no staff</dd></dl></div>
 <div class="am-card shared"><div class="am-tool">.env.all-secrets <span>task 2.1</span></div><dl><dt>Holds</dt><dd>every key, login and recovery code, production included, in its <code>PROD_</code> section. One file on your PC with an encrypted backup (one-file rule)</dd></dl></div>
 </div>
 </div>
@@ -236,6 +238,7 @@ Everything here is **new and separate** and is made in Step 5. Nothing is copied
 1. Make every new account with **hitendureacts@gmail.com**. Where a tool needs a different email for its production account, use **hitendureacts+prod@gmail.com** (same inbox). Google Play stays on narasimharaju7c@gmail.com, because your developer account lives there.
 2. **The one-file rule (owner decision, 31 Oct 2026).** Every secret you hold lives in one place: `C:\complete taskdrop\Taskdrop user\.env.all-secrets`. There is no password manager. It holds keys, passwords, account details (email and username), 2-step recovery codes and the keystore passwords, staging and production alike. Wherever a task below says "save it in the secrets file", add it the same day. In the file, production values sit in their own section and every name starts with `PROD_`; Claude keeps `PROD_` names out of anything that copies the file's values to staging. The file is plain text and the only copy, so task 2.1 makes device encryption required and adds an encrypted backup. Never in the chat. (Task 2.1 sets this up.)
 3. Names: staging names end in `-staging`, production names end in `-production`. Today's staging tools keep their old names until future task F.12. Never renamed: the GitHub repositories, the Supabase project ID and the Firebase project ID.
+4. **Addresses and apps (5 Nov 2026).** `taskdrop.in` is staging. Production uses the addresses Vercel makes (decision 28). Staging's Android app is `com.taskdrop.app.staging` ("TaskDrop Staging"); production's is `com.taskdrop.app`. The full plan is the section "The two copies, side by side" at the start of Step 5. Where an older task below says `taskdrop.in` for the public or production site, read it as "the production web address" (5.10).
 
 <details id="c-tools">
 <summary>[CARD] Every tool in one table (the same facts as the two maps, with links)</summary>
@@ -243,23 +246,23 @@ Everything here is **new and separate** and is made in Step 5. Nothing is copied
 | Tool | What it does for TaskDrop | Open it at | Signed in as (staging) | Project name (staging) | What is inside (staging) | Gmail to use (production) | Project name (production) | What is inside (production) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | **GitHub** | The code | [Open](https://github.com/hitendureacts77) | Username **hitendureacts77** (checked) | `taskdrop`, `taskdrop-admin` | Repositories `taskdrop` and `taskdrop-admin`. Branch `redesigned-2.0` | No new account. Same username **hitendureacts77** | `taskdrop`, `taskdrop-admin` (the same two repositories) | Branch `main`, protected. Only code moves from staging to production (5.9) |
-| **Vercel** | Hosts the website and the admin | [Open](https://vercel.com/hitenduteam) | **hitendureacts@gmail.com**, username `hitendureacts-2625` (checked) | `taskdrop-staging`, `taskdrop-admin-staging` (today `taskdrop`, `taskdrop-admin`) | Team `hitenduteam` on the free Hobby plan. Built from `redesigned-2.0`. Staging's addresses are the ones Vercel makes (`taskdrop-git-redesigned-20-hitenduteam.vercel.app` and `taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app`). `taskdrop.in` is production's; staging stops answering on it in task 5.10 | **hitendureacts@gmail.com** (same team `hitenduteam`, upgraded to Pro) | `taskdrop-production`, `taskdrop-admin-production` | Same team `hitenduteam`, upgraded to Pro ($20 a month). Built from `main`. Addresses `taskdrop.in`, `www.taskdrop.in` and `admin.taskdrop.in` (5.8, 5.10) |
+| **Vercel** | Hosts the website and the admin | [Open](https://vercel.com/hitenduteam) | **hitendureacts@gmail.com**, username `hitendureacts-2625` (checked) | `taskdrop-staging`, `taskdrop-admin-staging` (today `taskdrop`, `taskdrop-admin`) | Team `hitenduteam` on the free Hobby plan. Built from `redesigned-2.0`. Staging's addresses: `taskdrop.in`, `www.taskdrop.in` and (optional, 5.0b) `admin.taskdrop.in`, plus Vercel's own `taskdrop-git-redesigned-20-hitenduteam.vercel.app` and `taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app` | **hitendureacts@gmail.com** (same team `hitenduteam`, upgraded to Pro) | `taskdrop-production`, `taskdrop-admin-production` | Same team `hitenduteam`, upgraded to Pro ($20 a month). Built from `main`. Addresses made by Vercel, expected `taskdrop-production.vercel.app` and `taskdrop-admin-production.vercel.app` (5.8, 5.10). `taskdrop.in` stays staging's unless you choose to swap it (decision 28) |
 | **Supabase** | Database, sign-in, files, server code, Vault | [Open](https://supabase.com/dashboard) | **hitendureacts@gmail.com** (checked) | `taskdrop-staging` (today `taskdrop`; the ref `wjxvingpfbfvkfqhrguj` never changes) | Organization "hitendureacts@gmail.com's Org", free plan. Mumbai. Fake data only | **hitendureacts@gmail.com** (a new organization, not a new login) | `taskdrop-production` | New organization "TaskDrop Production", Pro plan ($25 a month), spend cap on. Mumbai. Starts empty (5.2) |
-| **Firebase console** | Push messages to Android, App Check (proves a request comes from the real app) | [Open](https://console.firebase.google.com) | **hitendureacts@gmail.com** (`/u/2`) | `taskdrop-staging` (today **Taskdrop**; the ID `project-a19d1da9-6903-4168-905` and number `629108039430` never change) | Pay-as-you-go plan. An Android app and a web app are registered | **hitendureacts@gmail.com** (`/u/2`) | `taskdrop-production` | New project, Analytics off. Android app `com.taskdrop.app`, web app `taskdrop-web-production`, its own push key and App Check (5.3) |
+| **Firebase console** | Push messages to Android, App Check (proves a request comes from the real app) | [Open](https://console.firebase.google.com) | **hitendureacts@gmail.com** (`/u/2`) | `taskdrop-staging` (today **Taskdrop**; the ID `project-a19d1da9-6903-4168-905` and number `629108039430` never change) | Pay-as-you-go plan. Android apps `com.taskdrop.app` and (from 5.0c) `com.taskdrop.app.staging`, and a web app, are registered | **hitendureacts@gmail.com** (`/u/2`) | `taskdrop-production` | New project, Analytics off. Android app `com.taskdrop.app`, web app `taskdrop-web-production`, its own push key and App Check (5.3) |
 | **Google Cloud console** | The keys behind maps, place search and Google sign-in, plus billing and the budget | [Open](https://console.cloud.google.com/?authuser=2) | **hitendureacts@gmail.com** (`/u/2`) | `taskdrop-staging` (today **Taskdrop**, the same project as Firebase), under organization `hitendureacts-org` | Keys `taskdrop-android-maps`, `taskdrop-server-places` and the Firebase "Browser key" (no extra website limit on staging for now). Sign-in client `TaskDrop Supabase`. Billing account "My only billing account". Budget `taskdrop-monthly-100` (₹100 a month, alerts only) | **hitendureacts@gmail.com** (`/u/2`) | `taskdrop-production` (the same project as Firebase) | Keys `taskdrop-production-android-maps`, `taskdrop-production-server-places` and its own "Browser key". Sign-in client `TaskDrop Supabase production`. Same billing account. Budget `taskdrop-production-monthly` (₹1,000 a month, alerts at 50%, 90%, 100%). Places search capped at 2,000 a day (5.3) |
-| **Google Play Console** | The Android app store | [Open](https://play.google.com/console/u/0/developers) | **narasimharaju7c@gmail.com** (`/u/0`) | No app yet (task 3.1). After launch: "TaskDrop Staging" | Personal developer account **NLNarasimhaRaju**. Testing tracks only. After launch, staging moves to the app `com.taskdrop.app.staging` (decision 9) | **narasimharaju7c@gmail.com** (`/u/0`), where your developer account is | **TaskDrop** (`com.taskdrop.app`) | The same developer account. The app's **Production** track, linked to the `taskdrop-production` Google Cloud project (5.7, 6.6) |
-| **Expo (EAS)** | Android builds, app updates, the push key | [Open](https://expo.dev/accounts/hitendureacts) | Username **hitendureacts**, email hitendureacts@gmail.com (checked) | `@hitendureacts/taskdrop-staging` (today `@hitendureacts/taskdrop`; project ID `08aa002b-4eea-4952-a62a-ec9245e77953`) | Update channel `beta`. Has the staging-only App Check debug token | **hitendureacts@gmail.com**, username **hitendureacts** | `@hitendureacts/taskdrop-production` | New project under the same account. Update channel `production`. Its own push key and variables, and never a debug token (5.7) |
+| **Google Play Console** | The Android app store | [Open](https://play.google.com/console/u/0/developers) | **narasimharaju7c@gmail.com** (`/u/0`) | No app yet (task 3.1). "TaskDrop Staging" is not on Play | Personal developer account **NLNarasimhaRaju**. The testing tracks hold `com.taskdrop.app` (the 14-day clock) with a staging-server build. The separate staging app `com.taskdrop.app.staging` is installed from an Expo link, not from Play (decision 9, moved earlier on 5 Nov: task 5.0c) | **narasimharaju7c@gmail.com** (`/u/0`), where your developer account is | **TaskDrop** (`com.taskdrop.app`) | The same developer account. The app's **Production** track, linked to the `taskdrop-production` Google Cloud project (5.7, 6.6) |
+| **Expo (EAS)** | Android builds, app updates, the push key | [Open](https://expo.dev/accounts/hitendureacts) | Username **hitendureacts**, email hitendureacts@gmail.com (checked) | `@hitendureacts/taskdrop-staging` (today `@hitendureacts/taskdrop`; project ID `08aa002b-4eea-4952-a62a-ec9245e77953`) | Update channel `staging` (was `beta` until 5.0c). Builds `com.taskdrop.app.staging`. Has the staging-only App Check debug token | **hitendureacts@gmail.com**, username **hitendureacts** | `@hitendureacts/taskdrop-production` | New project under the same account. Update channel `production`. Its own push key and variables, and never a debug token (5.7) |
 | **Sentry** | Error reports and alerts | [Open](https://sentry.io) | **hitendureacts@gmail.com** (checked) | `taskdrop-staging`, `taskdrop-admin-staging` (today `taskdrop` for the app and server functions, and `taskdrop-admin`) | Organization `hitendu` | **hitendureacts@gmail.com** (same organization `hitendu`) | `taskdrop-production`, `taskdrop-admin-production` | Same organization `hitendu`. Same alert rules. Source-map token `taskdrop-production-sourcemaps` (5.6) |
 | **PostHog** | Funnels and screen recordings (3.3c) | [Open](https://posthog.com) | **hitendureacts@gmail.com** (not made yet) | `taskdrop-staging` | EU cloud, free plan. Public Project API key only; no personal API key | **hitendureacts@gmail.com** (same organization) | `taskdrop-production` | Same organization and region, its own Project API key (5.6b) |
 | **Inngest** | Background jobs | [Open](https://app.inngest.com) | **hitendureacts@gmail.com** (checked) | Organization `taskdrop-staging` (today `taskdrop`) | Free Hobby plan | **hitendureacts@gmail.com** (a new organization). Only if Inngest refuses a second organization: **hitendureacts+prod@gmail.com** | Organization **TaskDrop Production** | Separate organization on a paid plan, with its own Event key and Signing key. If Inngest does not allow a second organization, a second account with `hitendureacts+prod@gmail.com` (5.4) |
 | **ImageKit** | Photo storage and delivery | [Open](https://imagekit.io/dashboard) | **hitendureacts@gmail.com**, name "Hitendu" (checked) | Today's photo account (name not recorded here) | Staging photos | **hitendureacts+prod@gmail.com** (a different address for the same inbox, so ImageKit makes a separate account) | ImageKit ID `taskdropproduction` | Separate account, signed up with `hitendureacts+prod@gmail.com`. Its own URL endpoint and keys (5.5) |
 | **Razorpay** | Payments in (test mode now) | [Open](https://dashboard.razorpay.com) | **hitendureacts@gmail.com** (you confirmed, 2026-10-30) | The business account, **Test mode** | Test mode only | **hitendureacts@gmail.com** (same business account, Live mode) | The same business account, **Live mode** | Live keys. Razorpay already keeps test and live data apart (6.1) |
-| **Uptime Robot** | "Site is down" emails | [Open](https://dashboard.uptimerobot.com) | **hitendureacts@gmail.com** (you confirmed, 2026-10-30) | "staging website", "staging admin" (renamed in 5.11) | Two monitors (website and admin), pointed at the two Vercel staging addresses (5.11) | **hitendureacts@gmail.com** | "production website", "production admin", "production server" | Three new monitors: `taskdrop.in`, `admin.taskdrop.in` and the production `app-config` address (5.11) |
-| **Spaceship** | Owns the domain `taskdrop.in` and its DNS | [Open](https://www.spaceship.com) | **hitendureacts@gmail.com** (you confirmed, 2026-10-30), account holder name Narasimha Raju | Domain `taskdrop.in` (one domain for both copies) | Today the domain points at staging. Staging needs no DNS names: it uses the addresses Vercel makes | **hitendureacts@gmail.com** | Domain `taskdrop.in` (one domain for both copies) | `taskdrop.in`, `www` and `admin` point at the production Vercel projects (5.10) |
+| **Uptime Robot** | "Site is down" emails | [Open](https://dashboard.uptimerobot.com) | **hitendureacts@gmail.com** (you confirmed, 2026-10-30) | "staging website", "staging admin" (renamed in 5.11) | Two monitors (website and admin), pointed at `taskdrop.in` and the staging admin address (5.11) | **hitendureacts@gmail.com** | "production website", "production admin", "production server" | Three new monitors: the production website address, the production admin address and the production `app-config` address (5.11) |
+| **Spaceship** | Owns the domain `taskdrop.in` and its DNS | [Open](https://www.spaceship.com) | **hitendureacts@gmail.com** (you confirmed, 2026-10-30), account holder name Narasimha Raju | Domain `taskdrop.in` | Staging uses it: `taskdrop.in`, `www` and, optionally, `admin` (5.0b) | **hitendureacts@gmail.com** | None for now | Production uses the addresses Vercel makes. Option: swap `taskdrop.in` onto production at launch (decision 28, 5.10) |
 | **MSG91** | Sign-in text messages | [Open](https://msg91.com) | Not created yet (task S.6) | Not used | The sign-in code shows on screen instead | **hitendureacts@gmail.com** | Your MSG91 account from S.6 | Real SMS. Use **hitendureacts@gmail.com**, like your other tools. Its key goes into production only (6.1) |
 | **Cashfree** | Possible second payment company | [Open](https://www.cashfree.com) | No account (you asked for a quote only, task S.4) | None |  | **hitendureacts@gmail.com**, only if you open an account | None | Only if you choose it after the quote |
 | **.env.all-secrets** | Your secrets file (on your PC) | Not a website | Exists; protected in task 2.1 | None |  | None (a file, not an account) | None | Holds every key, login, recovery code and account detail, including every production key and the "TaskDrop production database password", under `PROD_` names. It is the only copy (one-file rule, 2.1) |
-| **Admin website** | Running TaskDrop | [Open](https://taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app) | Only **hitendureacts@gmail.com** can sign in (your rule, 2026-10-25) | `taskdrop-admin-staging` (today `taskdrop-admin`; Vercel's own address) | Staff roles. Dummy staff Priya, Kiran and Neha | Only **hitendureacts@gmail.com** can sign in | `taskdrop-admin-production` (`admin.taskdrop.in`) | Starts with no staff. Only you can sign in. `ADMIN_PHONE` stays empty |
+| **Admin website** | Running TaskDrop | [Open](https://taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app) | Only **hitendureacts@gmail.com** can sign in (your rule, 2026-10-25) | `taskdrop-admin-staging` (today `taskdrop-admin`; Vercel's own address, or `admin.taskdrop.in`, 5.0b) | Staff roles. Dummy staff Priya, Kiran and Neha | Only **hitendureacts@gmail.com** can sign in | `taskdrop-admin-production` (Vercel's address, expected `taskdrop-admin-production.vercel.app`) | Starts with no staff. Only you can sign in. `ADMIN_PHONE` stays empty |
 
 </details>
 
@@ -621,7 +624,7 @@ DMCA agent registered: name ___, email ___, address ___, phone ___. Grievance of
 Add the cancellations-and-refunds page and the contact-us page with the business address.
 ```
 
-2. CLICK: https://dashboard.razorpay.com → **Activate account** → enter the business type, PAN, GST (if any), your current account and the website `https://taskdrop.in` → upload the documents it asks for → **Submit**. If you chose Cashfree in decision 3, do the same on Cashfree instead.
+2. CLICK: https://dashboard.razorpay.com → **Activate account** → enter the business type, PAN, GST (if any), your current account and the website → upload the documents it asks for → **Submit**. The website is the address Razorpay will open and review: use the production web address from 5.10 if it is ready, and ask Razorpay first whether a `.vercel.app` address is accepted (decision 28). If you chose Cashfree in decision 3, do the same on Cashfree instead.
 3. CLICK: https://x.razorpay.com → activate RazorpayX (for paying workers) with the same business.
 4. Wait for the approval emails.
 5. TELL Claude: "done S.8, Razorpay and RazorpayX are approved". **Do not create or copy live keys yet.** That is task 6.1.
@@ -1176,7 +1179,7 @@ start key protection
 |---|---|
 | H7: 7 high package warnings | Update the affected packages, or write down why one cannot be updated yet and why it is safe |
 | The accepted `decode-uri-component` warnings | You accepted the new high one on 2026-10-31 so the walkthrough fixes could merge (review by 2026-12-13). The real fix is moving to the next Expo SDK (expo-router 58). Claude plans that upgrade here and does it before 13 December |
-| H8: server functions answer any website | Each copy allows only its own addresses. Staging: the two addresses Vercel makes (`…vercel.app`), plus `taskdrop.in` until 5.10. Production: `taskdrop.in`, `www.taskdrop.in` and `admin.taskdrop.in`. The Android app keeps working (it is not a website) |
+| H8: server functions answer any website | Each copy allows only its own addresses. Staging: `taskdrop.in`, `www.taskdrop.in`, `admin.taskdrop.in` (if used) and the two addresses Vercel makes (`…vercel.app`). Production: only the two addresses Vercel makes for it (5.10). The Android apps keep working (they are not websites) |
 | H9: the content security policy only reports | Read a week of reports in Sentry, then switch it to blocking |
 | Exposed files | Check `/.env`, `/.git/config`, `.map` files and backup files on every address. All must be "not found" |
 | Same checks on the admin | The admin's security headers and exposed files get the same check |
@@ -2252,7 +2255,7 @@ Do the switch-over, one step at a time.
 ```
 
 4. Claude asks before each step (redirects, closing direct database access, removing old code, updating `main`). Read each one and reply **yes**, or ask a question.
-5. CLICK: open https://taskdrop-five.vercel.app (it should take you to the staging app, `https://taskdrop-git-redesigned-20-hitenduteam.vercel.app`) and https://taskdrop-admin.vercel.app (it should open the staging admin, `https://taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app`). The redirects point at the staging addresses, never at `taskdrop.in`, which becomes production's in 5.10. TELL Claude what you saw.
+5. CLICK: open https://taskdrop-five.vercel.app (it should take you to the staging app, `https://taskdrop-git-redesigned-20-hitenduteam.vercel.app`) and https://taskdrop-admin.vercel.app (it should open the staging admin, `https://taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app`). The redirects point at the staging addresses (`taskdrop.in` is staging's since 5 Nov). TELL Claude what you saw.
 
 **Done when:** every tester is on the new app, and the old addresses lead to the new ones.
 </details>
@@ -2320,7 +2323,7 @@ write my marketing plan and the first 30 days of posts
 <details id="t4-3" data-short="Public pages">
 <summary>[CLAUDE] <b>4.3</b> Build the public pages that Google can read <small>· your time: 30 minutes</small></summary>
 
-**Why:** Google cannot properly read the app's screens. Plain, fast pages can be found on Google. They go live at `taskdrop.in`, next to the production app, on launch day.
+**Why:** Google cannot properly read the app's screens. Plain, fast pages can be found on Google. They go live on the production web address (5.10), next to the production app, on launch day.
 
 **Pages:** Home, How it works, Earn with TaskDrop, Fees (3% service fee, 10% commission, the 5% cancel fine, shown plainly), Safety, Categories, Help, Contact, the legal pages, and a "Request TaskDrop in your area" form.
 
@@ -2344,7 +2347,7 @@ build the public pages
 1. CLICK: https://business.google.com → **Add your business** → name **TaskDrop**.
 2. Pick the closest category Google suggests.
 3. Choose **I deliver goods and services to my customers** and set the service area to the launch city. This keeps your home address hidden.
-4. Add your support email. Leave the website empty for now. You add `https://taskdrop.in` in task 6.4, when it shows the real app.
+4. Add your support email. Leave the website empty for now. You add the production web address (5.10) in task 6.4, when it shows the real app.
 5. Complete Google's verification (a video, a phone call or a postcard; Google chooses).
 6. Add the logo (`docs/store/icon-512.png`) and a short description. Ask Claude for one if you want.
 7. TELL Claude: "done 4.4".
@@ -2435,7 +2438,7 @@ I built taskdrop. because asking for help is still harder than it should be. Fin
 
 On taskdrop. you describe the job in plain words, people nearby (or online) send offers with their own price, and you choose. Your money is held until you approve the work, so both sides are protected.
 
-We are live in Hyderabad today, starting with home repairs, cleaning, moving help, tutoring and online work. If you need something done, or want to earn on your own time, try it: https://taskdrop.in
+We are live in Hyderabad today, starting with home repairs, cleaning, moving help, tutoring and online work. If you need something done, or want to earn on your own time, try it: [the production web address from 5.10]
 
 I'd love your honest feedback.
 ```
@@ -2453,7 +2456,7 @@ It launched today and I personally answer every message. What would make you tru
 **WhatsApp (friends and groups):**
 
 ```say
-taskdrop. is live in Hyderabad 🎉 Post any small job in plain words, get offers from people nearby or online, and pay only when the work is done. Need something done, or want to earn on your own time? https://taskdrop.in
+taskdrop. is live in Hyderabad 🎉 Post any small job in plain words, get offers from people nearby or online, and pay only when the work is done. Need something done, or want to earn on your own time? [the production web address from 5.10]
 ```
 
 **Product Hunt tagline (60 characters at most) and first comment:**
@@ -2596,7 +2599,7 @@ build the email sequences
 
 **Goal:** production gets its own account or project in **every** tool, exactly as drawn in **Map 2** of the accounts map. Staging keeps the one set it has today. Nothing is copied from staging, and no key is shared.
 
-**Your addresses (decided 2026-10-30, changed 2026-10-31):** `taskdrop.in` and `admin.taskdrop.in` are both **production**. Staging does not get a name of its own: it uses the addresses Vercel makes, `taskdrop-git-redesigned-20-hitenduteam.vercel.app` for the app and `taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app` for the admin. These are Vercel's fixed address for the branch `redesigned-2.0`, not the random one in each build, so they do not change. Until task 5.10, `taskdrop.in` still shows staging.
+**Your addresses (decided 2026-10-30, changed 2026-10-31, changed again 2026-11-05):** `taskdrop.in` is **staging**. Production uses the addresses Vercel makes for its own projects (expected `taskdrop-production.vercel.app` and `taskdrop-admin-production.vercel.app`). The first version of this rule made `taskdrop.in` production's; you reversed it on 5 November, and Vercel already had `taskdrop.in` on the staging project, so nothing has to move. The full plan for the websites, the Android apps and every backend tool is the section directly below, then tasks 5.1 to 5.11.
 
 ```mermaid
 flowchart LR
@@ -2604,19 +2607,23 @@ flowchart LR
     B["branch redesigned-2.0"] -->|"you promote"| M["branch main"]
   end
   subgraph STG["STAGING: fake money, testers"]
-    S1["Vercel staging addresses<br/>(…vercel.app, made by Vercel)"]
+    S1["taskdrop.in<br/>admin: Vercel address or admin.taskdrop.in"]
+    S5["Android: TaskDrop Staging<br/>com.taskdrop.app.staging"]
     S2["Supabase staging project"]
     S3["Inngest, ImageKit, Sentry,<br/>Firebase, Expo: staging"]
     S4["Razorpay TEST keys"]
   end
   subgraph PRD["PRODUCTION: real money, the public"]
-    P1["taskdrop.in<br/>admin.taskdrop.in"]
+    P1["…vercel.app addresses<br/>made by Vercel"]
+    P5["Android: TaskDrop<br/>com.taskdrop.app"]
     P2["Supabase production project"]
     P3["Inngest, ImageKit, Sentry,<br/>Firebase, Expo: production"]
     P4["Razorpay LIVE keys"]
   end
   B --> S1
+  B --> S5
   M --> P1
+  M --> P5
   WALL(["No data and no keys ever cross"])
   S2 --- WALL --- P2
 ```
@@ -2630,6 +2637,236 @@ flowchart LR
 3. **No key is shared.** A staging key used in production (or the reverse) is refused.
 4. **Staging stays one set** (one project per tool, as today), and Claude keeps deploying to it as now.
 5. **Production settings are set fresh:** fees, the 7-day earnings clearing, the app controls. The full list, with each value, is in task 5.9.
+
+### The two copies, side by side: websites, Android apps and every backend tool (decided 5 November 2026)
+
+**What you asked for:** a staging website and a production website; a staging Android app and a production Android app; and every tool behind them (Supabase, Inngest, ImageKit, Sentry, PostHog, Firebase and the rest) split the same way, so staging can never touch production. This section is that plan. It uses the accounts already drawn in Map 1 and Map 2, so no tool is added except the staging Android app's own identity.
+
+**What changed on 5 November** (it reverses the address rule of 30 and 31 October):
+
+- `taskdrop.in`, `www.taskdrop.in` (and, if you want it, `admin.taskdrop.in`) are **staging**. Checked on 5 November through Vercel: the project `taskdrop` already answers on `taskdrop.in` and `www.taskdrop.in`, built from `redesigned-2.0`. Nothing has to be moved.
+- **Production** starts on the addresses Vercel makes for its own projects: expected `taskdrop-production.vercel.app` and `taskdrop-admin-production.vercel.app` (Vercel shows the real names when the projects are made in 5.8; if a name is taken it adds letters, as it did for `taskdrop-five`). A real name can be added to production later without a rebuild. Read **decision 28** first: it lists three things that may need a real name.
+- **Staging gets its own Android app**, `com.taskdrop.app.staging`, named "TaskDrop Staging", and production keeps `com.taskdrop.app`. Decision 9 said this would happen after launch. It now happens first (task 5.0c).
+
+**The whole picture in one table**
+
+| Part | Staging (fake money, testers) | Production (real money, public) | What keeps them apart |
+|---|---|---|---|
+| Website | `taskdrop.in`, `www.taskdrop.in`; Vercel project `taskdrop`; branch `redesigned-2.0`; hidden from Google | `taskdrop-production.vercel.app` (expected); Vercel project `taskdrop-production`; branch `main`; open to Google | Two Vercel projects. Each holds only its own variables |
+| Admin website | `taskdrop-admin` project; Vercel's address, or `admin.taskdrop.in` (5.0b) | `taskdrop-admin-production`; `taskdrop-admin-production.vercel.app` (expected) | Two projects, each with its own session secret and database key |
+| Android app | **TaskDrop Staging**, `com.taskdrop.app.staging`, an APK from an Expo link | **TaskDrop**, `com.taskdrop.app`: a production APK for you, and the store file for Google Play | Different package, name, icon corner and link name, so both sit on one phone and never share a sign-in |
+| Phone updates | Expo project `@hitendureacts/taskdrop`, channel `staging` | Expo project `@hitendureacts/taskdrop-production`, channel `production` | Two Expo projects. A staging update cannot reach a production phone |
+| Database, sign-in, server code | Supabase `wjxvingpfbfvkfqhrguj` (free) | Supabase `taskdrop-production` in its own organization (Pro) | Different address and different keys. The app is told its server when it is built, and a build that picks the wrong one is refused (5.0a) |
+| Background jobs | Inngest organization `taskdrop` | Inngest organization "TaskDrop Production" | Own Event key and Signing key. Each syncs only with its own server's functions |
+| Photos | ImageKit account "Hitendu" | ImageKit `taskdropproduction` (a second account) | Own URL endpoint and keys |
+| Error alerts | Sentry `taskdrop`, `taskdrop-admin` | Sentry `taskdrop-production`, `taskdrop-admin-production` | Own address (DSN) per project, and an environment tag |
+| Funnels | PostHog `taskdrop-staging` | PostHog `taskdrop-production` | Own Project API key |
+| Push, maps, App Check, Google sign-in | Google project **Taskdrop** (Firebase) | Google project `taskdrop-production` | Own `google-services.json`, own keys, each limited to its own app |
+| Payments | Razorpay test mode | Razorpay live mode | The server refuses a live key outside production and a test key inside it |
+| Sign-in text messages | None. The code shows on screen | MSG91, production only | `dev_otp_for_all` is off in production |
+| "Site is down" emails | Two staging monitors | Three production monitors | Named by copy |
+| Google Play | The testing tracks of `com.taskdrop.app` (the 14-day clock) | The Production track of `com.taskdrop.app` | Same app, different tracks and different builds (below) |
+
+**Android: four files, because Google forces one of them**
+
+| # | File | Name on the phone, package | Talks to | Installed from | Updates by | Lives |
+|---|---|---|---|---|---|---|
+| 1 | **Staging APK** (profile `staging-apk`) | TaskDrop Staging, `com.taskdrop.app.staging` | staging | an Expo link or QR | by itself, channel `staging` (every merge into `redesigned-2.0`) | for good |
+| 2 | Play testing file (AAB, profile `staging-store`) | taskdrop, `com.taskdrop.app` | **staging** (until launch) | Google Play, closed testing (the 12 testers) | a new upload to Play | until 6.6 step 9 |
+| 3 | **Production APK** (profile `production-apk`) | TaskDrop, `com.taskdrop.app` | production | an Expo link, for you only | by hand, channel `production` | rehearsals; useless once App Check is enforced (5.0d) |
+| 4 | **Production store file** (AAB, profile `production`) | TaskDrop, `com.taskdrop.app` | production | Google Play (Internal testing for you, then Production) | Play, plus channel `production` | for good |
+
+The two you asked for are rows 1 and 3/4. Row 2 exists only because Google's 12-tester, 14-day rule must run on the app that goes public (decision 9), and the testing build points at staging so production stays empty. At launch (6.6 step 9) row 2 is paused and its testers receive row 4. Rows 2, 3 and 4 share one package, so they cannot be installed together on one phone; row 1 can sit beside any of them.
+
+**Which accounts: new, or the same login?** You asked whether any tool needs a new account. Answer: **no tool needs a new Gmail.** The rule, already in the account rules above, stays:
+
+| How production is made | Tools |
+|---|---|
+| Same login, a **new project or organization** (separate keys, separate bill, separate delete button) | Vercel (same team, Pro, two new projects), Supabase (new organization), Firebase and Google Cloud (new project), Expo (new project), Sentry (new projects), PostHog (new project), Uptime Robot (new monitors) |
+| Same account, a **mode** the vendor keeps apart itself | Razorpay (test mode and live mode), GitHub (branch `main`) |
+| A **new account**, because the tool has no projects | ImageKit (second account, `hitendureacts+prod@gmail.com`), Inngest (new organization; a second account with the plus address only if Inngest refuses), MSG91 (production only, made in S.6) |
+
+**Do these in this order**
+
+| # | Task | When | Cost |
+|---|---|---|---|
+| 1 | Read decision 28 and answer it, or leave it open until 5.3 | Now | none |
+| 2 | **5.0a** Make the code ready for two copies (Claude) | Now | none |
+| 3 | **5.0b** Staging website: confirm, and name the staging admin | Now | none |
+| 4 | **5.0c** Staging Android app and APK | Now | none (one EAS build) |
+| 5 | **5.0e** The release routine, staging half | Now | none |
+| 6 | **5.1 to 5.9** Production tools, with the production addresses below | After Gate 4 | as in the cost section |
+| 7 | **5.0d** Production APK and store file | After 5.7 and 5.9 | none |
+| 8 | **5.10** Production web addresses | After 5.8 | none |
+| 9 | **5.11** Prove the two copies are separate (now includes the phone and the web) | After 5.10 | none |
+| 10 | **5.0e** The release routine, production half; the switchboard card | From 5.11 on | none |
+
+Steps 2 to 5 do not wait for Gate 4. They cost nothing and make staging match the way production will be built, so the rehearsal happens early.
+
+<details id="t5-0a" data-short="Code ready for two copies">
+<summary>[CLAUDE] <b>5.0a</b> Make the code ready for two copies <small>· your time: 2 minutes</small></summary>
+
+**Why first:** every later task (the staging APK, the production APK, the two websites) depends on the code knowing which copy it is. Today it does not: `apps/mobile/eas.json` points the `production` build at the **staging** database (hole H15), the web header rules treat every `…vercel.app` address as staging, and the app's name and package are fixed.
+
+1. SAY:
+
+```say
+Start 5.0a: make the code ready for two copies.
+```
+
+2. Claude makes one pull request into `redesigned-2.0` and merges it (rule 6). Nothing is published to phones in this task. It contains:
+
+| What | Staging | Production |
+|---|---|---|
+| One switch, `APP_VARIANT`, in `app.config.js`. Not set means staging, the safe one | `staging` | `production` |
+| App name on the phone | TaskDrop Staging | TaskDrop |
+| Package | `com.taskdrop.app.staging` | `com.taskdrop.app` |
+| Link name (so a link opens the right app) | `taskdrop-staging://` | `taskdrop://` |
+| Icon | the normal icon with an orange "STG" corner | the normal icon |
+| Expo project, slug, update address and channel | `@hitendureacts/taskdrop`, channel `staging` | `@hitendureacts/taskdrop-production`, channel `production` |
+| Sentry project for the app | `taskdrop` | `taskdrop-production` |
+| Google file | the staging `google-services.json` | the production one |
+
+3. **Build profiles** in `eas.json`: `staging-apk`, `staging-store` (the one that asks for the real package `com.taskdrop.app` but the staging server, row 2 above), `production-apk` and `production`. The old `preview` and `beta` profiles are removed once testers have moved (5.0c). No server address, key or token is written in `eas.json` any more: each Expo project stores its own values in its own environment, so a profile cannot point at the wrong server. This also closes the gap listed in `docs/EAS_AUTO_DEPLOY_PLAN.md` (public values missing for cloud updates).
+4. **A build guard.** A small check runs at the start of every build and stops it, in plain words, if: the production variant sees the staging server address; the staging variant sees any other server; a production build contains an App Check debug token, `ALLOW_ANY_OTP`, `TEST_PHONES` or a Razorpay `rzp_test_` key; or `APP_VARIANT` and the package disagree. This is what makes a mix-up impossible instead of unlikely (hole H15).
+5. **Workflows.** `beta-android.yml` becomes `staging-android.yml` (profile `staging-apk`, channel `staging`, still only on pushes to `redesigned-2.0`). A second workflow for `main` builds the production file and then **waits for your approval** before it publishes anything (Claude checks the current Expo workflow documentation for the approval step and, if it is missing, makes the production workflow manual-start only).
+6. **Search-engine rules in `vercel.json`.** Today every `…vercel.app` address and `taskdrop.in` is told "noindex", and a dead rule for `beta.taskdrop.in` is still there. After this change: `taskdrop.in`, `www.taskdrop.in` and every `…vercel.app` address **except** the production one are noindex; the production address is not. Claude proves both with a header check on a preview before merging. The page tag follows the server's `environment` answer.
+7. **Allow-lists per copy** (hole H8): the server functions' allowed websites, the admin's allowed origins and the sign-in redirect lists are read from each copy's own settings, never from one shared list.
+8. **A visible "which copy is this" marker**: the staging admin shows an orange STAGING bar (the app and website already show the ribbon); the production admin shows nothing.
+9. `npm run check` passes, and the test for the build guard shows it refusing a deliberately wrong build.
+10. TELL Claude if anything in the list is not what you want.
+
+**Done when:** the pull request is merged, `npm run check` is green, and Claude has shown the guard refusing a mismatched build and the header check passing on both kinds of address.
+</details>
+
+<details id="t5-0b" data-short="Staging website and admin name">
+<summary>[BOTH] <b>5.0b</b> Staging website: confirm it, and give the staging admin a name <small>· 20 minutes · free</small></summary>
+
+**Where staging stands (checked 5 November through Vercel):** project `taskdrop` is built from `redesigned-2.0` and answers on `taskdrop.in` and `www.taskdrop.in`. Vercel's own addresses (`taskdrop-five.vercel.app`, and the branch address `taskdrop-git-redesigned-20-hitenduteam.vercel.app`) still work. The staging admin is `taskdrop-admin`, on Vercel's address only. There is no `admin.taskdrop.in` yet.
+
+1. SAY:
+
+```say
+Check that taskdrop.in is the staging copy and hidden from Google.
+```
+
+Claude checks and reports: the "Staging: fake money and fake data" ribbon shows, the server's `app-config` answers `environment: staging`, both the header and the page tag say noindex, the staging sign-in redirect lists include `taskdrop.in`, and no production value is anywhere in the `taskdrop` project's variables.
+
+2. **Optional, recommended: a name for the staging admin** (so everything staging lives under the domain you own). Skipping it is fine.
+   - CLICK: https://www.spaceship.com → **Domains** → `taskdrop.in` → **DNS** → **Add record** → type **CNAME**, host `admin`, value `cname.vercel-dns.com` (if Vercel's **Domains** page shows a different value, use Vercel's) → **Save**.
+   - CLICK: https://vercel.com → team **hitenduteam** → project **`taskdrop-admin`** → **Settings** → **Domains** → **Add** `admin.taskdrop.in`.
+   - SAY:
+
+```say
+Add admin.taskdrop.in to the staging allow-lists.
+```
+
+   Claude adds `https://admin.taskdrop.in/auth/callback` to the staging sign-in redirect list and `admin.taskdrop.in` to the staging admin's allowed origins, and confirms you can sign in there.
+3. Wait up to an hour for the address to work. TELL Claude: "done 5.0b".
+
+**Done when:** `taskdrop.in` is confirmed as staging and hidden from Google, and (if you did step 2) `admin.taskdrop.in` opens the staging admin.
+</details>
+
+<details id="t5-0c" data-short="Staging Android app">
+<summary>[BOTH] <b>5.0c</b> Staging Android app: TaskDrop Staging (an APK) <small>· your time: about 1 hour · one build</small></summary>
+
+**Why a new app and not the old one:** Android allows only one app per package on a phone. If staging and production both used `com.taskdrop.app`, you could never have both on one phone, and a sign-in, push token or link from one could land in the other. A separate package keeps them apart for good. The price is one more install for your testers. Their accounts and data live on the server, so nothing is lost.
+
+**Needs:** 5.0a merged. Everything below touches staging only (the Google project **Taskdrop** and the Expo project `@hitendureacts/taskdrop`). Sign in to Google as **hitendureacts@gmail.com** (`/u/2`). Claude checks each Google and Expo screen against the current documentation first; if a screen looks different, send Claude a screenshot.
+
+1. SAY:
+
+```say
+Start 5.0c: set up the staging Android app.
+```
+
+2. Claude creates the signing key for `com.taskdrop.app.staging` inside the staging Expo project, reads its **SHA-1** and **SHA-256** (public values, safe to show) and tells you. It saves a backup copy in your safe folder and the key's password name in `.env.all-secrets` (never in the chat).
+3. CLICK: Firebase console → project **Taskdrop** → ⚙ **Project settings** → **General** → **Add app** → **Android** → package `com.taskdrop.app.staging`, nickname `TaskDrop Staging` → paste the SHA-1 and SHA-256 → **Register app** → **Download google-services.json** and save it in your safe folder. TELL Claude "got it". Claude puts it in the staging Expo project as the `GOOGLE_SERVICES_JSON` file variable. The new file lists **both** apps, so the testers' current app keeps working until they switch.
+4. CLICK: Firebase → **App Check** → **Apps** → the new Android app → register it. A sideloaded staging APK cannot pass Play Integrity, so staging keeps using the debug token, as the current beta app does: **Manage debug tokens** → **Add** → paste the staging debug token from `.env.all-secrets` (the name is `EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN`; copy it from the file into Firebase, never into the chat). Enforcement stays as staging has it today.
+5. CLICK: https://console.cloud.google.com/?authuser=2 → project **Taskdrop** → **APIs & Services** → **Credentials** → the key `taskdrop-android-maps` → **Application restrictions** → **Android apps** → **Add** package `com.taskdrop.app.staging` with the SHA-1 from step 2. **Keep the existing row** for `com.taskdrop.app`. **Save**. Without this the map is blank in the new app.
+6. Claude adds the link name `taskdrop-staging://**` to the staging Supabase **Redirect URLs** (Authentication → URL Configuration) and checks that Google sign-in returns to the new app. If Google sign-in needs an Android client of its own, Claude gives you the clicks for it in the same project.
+7. SAY:
+
+```say
+Build the staging APK.
+```
+
+   That is your OK for one EAS build of the profile `staging-apk` (about 20 minutes). Claude gives you the install link and a QR code.
+8. CLICK: on your phone, open the link → download → install **TaskDrop Staging** (Android asks once to allow installs from this source). Sign in with a staging account and check: the "Staging" ribbon shows; the map shows tiles; a push message arrives; a photo uploads; Google sign-in comes back into this app; opening a `taskdrop-staging://` link opens **only** this app. The orange "STG" corner on the icon tells it apart from any other TaskDrop on the phone.
+9. TELL Claude what you saw. When it works, Claude sends you the text to give your testers: install the new link, then uninstall the old TaskDrop (beta). The old `beta` channel receives no more updates after this.
+10. From now on, every merge into `redesigned-2.0` goes to this app by itself through the `staging` workflow (a quick update if only the code changed, a new APK if the native part changed). Manual `eas update` runs are not needed.
+
+**Done when:** TaskDrop Staging is installed on your phone, the checks in step 8 pass, and every tester has moved over.
+</details>
+
+<details id="t5-0d" data-short="Production APK and store file">
+<summary>[BOTH] <b>5.0d</b> Production Android app: the production APK and the store file <small>· your time: about 40 minutes · after 5.7 and 5.9</small></summary>
+
+**What you get:** a production APK you can install on your own phone to rehearse the real thing before Google's review, and the store file (AAB) that 6.6 uploads. Both are built from `main` only, so what you rehearse is the code that ships.
+
+**Rules**
+
+- Built by the **production** Expo project, with the production variables only. No debug token, ever.
+- The production Firebase app `com.taskdrop.app` and the Android maps key `taskdrop-production-android-maps` must list **both** signing certificates: the Play upload key (the APK is signed with it) and the Play app-signing key (the store version is signed with it). 5.3 adds the second one after Google shows it; add the first one now.
+- The production APK cannot sit beside the Play testing app (row 2) because they share a package and have different signatures. Use a different phone, or uninstall the testing app first. Row 1 (TaskDrop Staging) can stay.
+
+1. Check that 5.2 to 5.7 and 5.9 are done. SAY:
+
+```say
+Build the production APK.
+```
+
+   Claude first runs the build guard on the production settings, shows you the result, then builds the profile `production-apk` from `main` in the production Expo project and gives you the install link. That SAY is your OK for the build.
+2. CLICK: install it on your phone. Sign in with a **real SMS code** (production has the on-screen code off). Check: no ribbon, no "staging" anywhere, the name is "TaskDrop", the map shows, a push message arrives. Money steps wait for the live payment keys (6.1 and 6.2); do not try to pay yet.
+3. **App Check and the sideloaded APK.** Google's Play Integrity check is made for apps that Google Play installed, so an APK from an Expo link is expected to fail it (Claude confirms this in the current Firebase documentation). That is fine while enforcement is **off** (5.3, step 12). Order of events: (a) rehearse with the APK; (b) upload the production store file to the **Internal testing** track in Play Console (only your own address as tester, separate from the closed-testing list); (c) install from Play, and confirm there are no App Check errors; (d) only then Claude switches enforcement **on**. After that the production APK stops working against production, by design; use the Play internal build for any later rehearsal.
+4. **Clean-up.** Everything you do in this rehearsal is real production data. Before launch, with your OK, Claude removes the rehearsal accounts, tasks and photos so production starts empty (checked in Gate 6).
+5. TELL Claude: "done 5.0d".
+
+**Done when:** the production APK installs and signs in with a real SMS code, the Play internal build passes App Check, enforcement is on, and the rehearsal data is removed.
+</details>
+
+<details id="t5-0e" data-short="The release routine">
+<summary>[CLAUDE] <b>5.0e</b> The release routine: how one change travels to both copies <small>· one page · Claude follows it every time</small></summary>
+
+| Step | Staging | Production |
+|---|---|---|
+| Code | A short branch is merged into `redesigned-2.0` (rule 6) | You merge a pull request from `redesigned-2.0` into `main`. `main` is protected: checks must be green |
+| Website | Vercel builds `taskdrop` by itself: `taskdrop.in` | Vercel builds `taskdrop-production` from `main`: the production address |
+| Admin | `taskdrop-admin` builds by itself | `taskdrop-admin-production` builds from `main` |
+| Database and server code | The Vercel build deploys them to the staging project | The GitHub workflow with the `production-database` environment: it waits for you to approve (3.7) |
+| Background jobs | Staging's Inngest picks up the new functions | Production's Inngest picks them up after the production deploy |
+| Android app | The `staging` workflow: a quick update, or a new APK if the native part changed | The production workflow builds, then waits for your approval. A quick update goes to channel `production`. A native change becomes a new store file and a 20% rollout on Google Play (6.6) |
+| Who tries it first | You and the testers | You on Play Internal testing, then 20% of users, then everyone |
+
+**Rules**
+
+1. **A change reaches staging first, always.** Production receives only code that has run on staging for at least one quiet day in Sentry.
+2. **A database change goes out with the code that needs it,** in the same release, and only adds (rule 2 of the agent guide).
+3. **Nothing is run by hand against production** without your OK in the chat. Claude never reads a production key; it reads names only.
+4. **Rollback.** Website and admin: promote the previous deployment in Vercel. Phone: republish the previous update, or stop the Play rollout. Database: a forward fix, or restore from the nightly copy (5.9).
+5. **Which copy am I looking at?** Website and app: the ribbon (staging only). App on the phone: the name and the orange "STG" corner. Admin: the orange STAGING bar. Sentry, PostHog, Inngest, ImageKit: the project name ends in `staging` or `production`.
+</details>
+
+<details id="c-switchboard">
+<summary>[CARD] The switchboard: every value that differs between the copies (and where it lives)</summary>
+
+Each row is one tool. "Where" is the only place the value is stored, so there is no shared copy. None of the values is ever written in the chat or in code (rule 8).
+
+| Tool | What differs | Staging keeps it in | Production keeps it in | Proof |
+|---|---|---|---|---|
+| Supabase | Project address, public key, secret key, database password, function secrets | Vercel and Expo staging variables; Supabase function secrets; `.env.all-secrets` | Vercel and Expo production variables; production function secrets; `PROD_` section of `.env.all-secrets` | A staging key against production is refused, and the reverse (5.11) |
+| Razorpay | Key id and secret, webhook secret, webhook address | Staging function secrets (test keys) | Production function secrets (live keys) | The server refuses `rzp_live_` outside production and `rzp_test_` inside it |
+| Inngest | Event key, Signing key, the address of the functions it syncs with | Staging function secrets | Production function secrets | An event sent in staging shows only in staging's Inngest |
+| ImageKit | URL endpoint, public key, private key | Staging function secrets and admin variables | Production ones | A photo uploaded in staging lands only in staging's account |
+| Sentry | App address (DSN), environment tag, source-map token | Expo `preview` environment, Vercel staging, function secrets | Expo `production` environment, Vercel production, function secrets | An error made on purpose shows only in its own project |
+| PostHog | Project API key | Vercel and Expo staging variables | Production variables | An event shows only in its own project |
+| Firebase and Google | `google-services.json`, push key, maps keys, reCAPTCHA key, browser key, App Check | Staging Expo project; staging function secrets | Production Expo project; production function secrets | Each key is limited to its own app or address (Gate 5) |
+| Expo | Project, channel, signing key, variables | `@hitendureacts/taskdrop`, channel `staging` | `@hitendureacts/taskdrop-production`, channel `production` | An update on one channel never reaches the other |
+| Vercel | Variables per project; production scope only | Project `taskdrop`, `taskdrop-admin` | Project `taskdrop-production`, `taskdrop-admin-production` | Preview and Development hold no production value (5.8b) |
+| MSG91, Loops | Sign-in text messages, email sequences | Not connected to real people (the sign-in code shows on screen) | Own account and keys | The production app asks for a real SMS code |
+| GitHub | Branch and approval | `redesigned-2.0`, repository secrets | `main`, the `production-database` environment | A direct push to `main` is refused |
+| Uptime Robot | Monitors | Two, named staging | Three, named production | Named by copy |
+</details>
 
 <details id="t5-1" data-short="Say: I want to launch">
 <summary>[YOU] <b>5.1</b> Say "I want to launch" <small>· 1 minute</small></summary>
@@ -2662,9 +2899,9 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
    - **Google: on.** Paste the Client ID and Client Secret from task 5.3, step 7.
    - Everything else: off.
 5. CLICK: **Authentication** → **URL Configuration**:
-   - **Site URL:** `https://taskdrop.in`
-   - **Redirect URLs:** add exactly these four: `https://taskdrop.in/**`, `https://www.taskdrop.in/**`, `https://admin.taskdrop.in/auth/callback`, `taskdrop://**`
-   - Do **not** add the staging addresses (`localhost`, `vercel.app`, `exp://`). They stay only on staging.
+   - **Site URL:** `https://taskdrop-production.vercel.app` (the address Vercel makes; Claude checks the real name in 5.8 and corrects this list in 5.10 if it differs)
+   - **Redirect URLs:** add exactly these three: `https://taskdrop-production.vercel.app/**`, `https://taskdrop-admin-production.vercel.app/auth/callback`, `taskdrop://**`
+   - Do **not** add `taskdrop.in`, `localhost`, `exp://`, `taskdrop-staging://` or any staging address. They stay only on staging.
 6. CLICK: **Authentication** → **Sessions**: access token expiry **3600** seconds, **Detect and revoke potentially compromised refresh tokens: on**, reuse interval **10** seconds. These are the same values as staging.
 7. CLICK: **Authentication** → **Attack Protection** → turn on **leaked password protection** (it is a Pro feature, so it can be on here).
 8. CLICK: your Supabase account → **Account preferences** → **Security**: if you later do the future-scope 2-step sign-in (task 2.1b), it protects this new organization too.
@@ -2680,6 +2917,8 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 **Production only.** Nothing is created or restricted here until you are in Step 5; staging is left as it is (see task 1.3). **Every production Google key is limited when it is made. An unlimited key can be copied from the app or the website and run up your bill or be used for abuse.**
 
 **What lives here:** push messages, App Check, the Android map key, the server's place-search key, the Google sign-in client and the reCAPTCHA key. Each one gets a production copy, so a staging key can never touch real users. Sign in everywhere as **hitendureacts@gmail.com** (`/u/2`). Button names change sometimes; if a screen looks different, send Claude a screenshot.
+
+**Check first (decision 28):** Google's sign-in consent screen asks for a home page and a privacy link on a domain you own, and `vercel.app` is shared by everyone, so Google may refuse to verify it. Claude reads Google's current rule before step 7 and tells you. If Google refuses, the fix is option B in 5.10 (put a real domain on production) before the public launch.
 
 **Part A: the project and the money**
 
@@ -2711,13 +2950,13 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
    - **Clients** → **Create client** → type **Web application**, name `TaskDrop Supabase production`.
    - Under **Authorized redirect URIs**, add `https://<your production project>.supabase.co/auth/v1/callback`. The project address is shown in Supabase → `taskdrop-production` → **Project Settings** → **API**.
    - **Create.** Copy the Client ID and the Client Secret into the `PROD_` section of `.env.all-secrets`, then paste them into production Supabase → **Sign In / Providers** → **Google** (task 5.2, step 4).
-8. CLICK: **Security** → **reCAPTCHA** → **Create key** → type **Website**, domains `taskdrop.in` and `www.taskdrop.in`, no checkbox challenge → **Create**. The site key is public: give it to Claude.
+8. CLICK: **Security** → **reCAPTCHA** → **Create key** → type **Website**, domain `taskdrop-production.vercel.app` (the production web address, 5.10), no checkbox challenge → **Create**. The site key is public: give it to Claude.
 
 **Part D: Firebase apps, push and App Check**
 
 9. CLICK: Firebase console → `taskdrop-production` → **Project settings** → **Add app** → **Android**:
    - Package name `com.taskdrop.app`.
-   - Add the **SHA-1** and **SHA-256** of the Play app-signing key.
+   - Add the **SHA-1** and **SHA-256** of the Play upload key (the production APK is signed with it, 5.0d) and, once Google shows it, of the Play app-signing key.
    - **Register app**, then download `google-services.json` and save it in `C:\TaskDrop-safe\prod\`.
    - It goes to the production Expo project as the Secret file variable `GOOGLE_SERVICES_JSON` in task 5.7.
 10. CLICK: **Add app** → **Web** → nickname `taskdrop-web-production` → **Register**. Copy the web settings (apiKey, appId, projectId, messagingSenderId); these are public, so give them to Claude.
@@ -2728,14 +2967,14 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
     - Web app: register with **reCAPTCHA Enterprise** and the site key from step 8.
     - Android app: register with **Play Integrity**.
     - Leave enforcement **off**. Claude switches it on after testing.
-13. CLICK: Play Console (narasimharaju7c@gmail.com) → your app → **Test and release** → **App integrity** → **Link a Cloud project** → choose `taskdrop-production`. An app can link to only one project, which is why staging moves to its own app after launch (decision 9).
+13. CLICK: Play Console (narasimharaju7c@gmail.com) → your app → **Test and release** → **App integrity** → **Link a Cloud project** → choose `taskdrop-production`. An app can link to only one project, so `com.taskdrop.app` is re-linked from the staging project to `taskdrop-production` at this point. That is why the staging APK is a different app, `com.taskdrop.app.staging` (decision 9, task 5.0c).
 14. CLICK: Google Cloud → **Credentials** → open the key Firebase made automatically, named "Browser key (auto created by Firebase)":
-    - **Application restrictions:** Websites → `https://taskdrop.in/*` and `https://www.taskdrop.in/*` → **Save**.
+    - **Application restrictions:** Websites → `https://taskdrop-production.vercel.app/*` (the production web address, 5.10) → **Save**.
     - **This one is required.** The browser key is public by design (it sits in the website's code), so the website limit is what stops others using it.
 15. CLICK: **APIs & Services** → **Places API (New)** → **Quotas & System Limits** → set "SearchText requests per day" to **2,000** to start.
 16. TELL Claude: "done 5.3", and give the public values: the reCAPTCHA site key, the web settings and the project number.
 
-**Done when:** all seven Google services are on, all three production keys are restricted (the place-search key to Places only, the Android maps key to this app and its three services, the Firebase browser key to `taskdrop.in` and `www.taskdrop.in`), sign-in, App Check and push are set up, and the budget alert and daily cap are in place. Claude opens each key in the console (read only) and writes what it found in the proofs of 5.11.
+**Done when:** all seven Google services are on, all three production keys are restricted (the place-search key to Places only, the Android maps key to this app and its three services, the Firebase browser key to the production web address), sign-in, App Check and push are set up, and the budget alert and daily cap are in place. Claude opens each key in the console (read only) and writes what it found in the proofs of 5.11.
 </details>
 
 <details id="t5-4" data-short="Production Inngest">
@@ -2802,9 +3041,9 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 
 **The plan** (Claude checks it against the current Expo documentation before anything is made):
 
-- A new Expo project `taskdrop-production` under your account, with the update channel `production`. Staging keeps `@hitendureacts/taskdrop` with the channel `beta`.
+- A new Expo project `taskdrop-production` under your account, with the update channel `production`. Staging keeps `@hitendureacts/taskdrop` with the channel `staging` (it was `beta` until 5.0c).
 - The real app keeps the name `com.taskdrop.app` and its Google Play signing key.
-- After launch, staging builds go to a separate "TaskDrop Staging" app, `com.taskdrop.app.staging` (decision 9).
+- Staging already has its own app, `com.taskdrop.app.staging` (task 5.0c, decision 9), so the two never share a phone slot, a sign-in or a link.
 
 1. CLICK: https://expo.dev → **Create a project** → name `taskdrop-production`. Tell Claude the project ID it shows.
 2. CLICK: in `taskdrop-production` → **Environment variables** → add these for the **production** environment:
@@ -2813,9 +3052,9 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
    - `SENTRY_AUTH_TOKEN`: from 5.6, step 5, **Secret**
    - `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`: the production project's address and public key, **Plain text**
    - **Never** add `EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN` here
-3. CLICK: **Credentials** → **Android** → `com.taskdrop.app` → **FCM V1 service account key** → upload the push key from 5.3, step 11. Then **Android upload keystore**: upload the same keystore staging uses, from your safe copy (task 2.1). Google Play needs the same signing key for the same app.
+3. CLICK: **Credentials** → **Android** → `com.taskdrop.app` → **FCM V1 service account key** → upload the push key from 5.3, step 11. Then **Android upload keystore**: upload the keystore that signed the Play testing file for `com.taskdrop.app` (task 3.2), from your safe copy (task 2.1). Google Play needs the same signing key for the same app. TaskDrop Staging has its own, different key, made in 5.0c, and it is never uploaded here.
 4. TELL Claude: "done 5.7" with the project ID. Claude then fixes the app's build settings (`apps/mobile/eas.json`, hole H15) in a pull request:
-   - the `production` build points at the **production** project and the `production` update channel. Today it still points at the staging database
+   - the `production` and `production-apk` builds point at the **production** project and the `production` update channel (the profiles and the build guard are made in 5.0a; before that, `eas.json` still pointed the `production` build at the staging database)
    - session video replays in production: a small share of sessions only (for example 5%), and the wallet, payment, chat and ID screens always blurred. Staging records every session, which is fine with fake data but not with real people's money and chats
 
 **Done when:** `taskdrop-production` exists with its own push key, keystore and production variables, no debug token, and the `production` build settings point only at production.
@@ -2840,7 +3079,7 @@ Create the production Vercel projects taskdrop-production and taskdrop-admin-pro
 | Name | Value comes from | Type |
 |---|---|---|
 | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Production Supabase → Project Settings → API | public |
-| `EXPO_PUBLIC_APP_URL` | `https://taskdrop.in` | public |
+| `EXPO_PUBLIC_APP_URL` | The production web address Vercel makes (expected `https://taskdrop-production.vercel.app`; 5.10 confirms it) | public |
 | `EXPO_PUBLIC_SENTRY_DSN` | `taskdrop-production` DSN (5.6) | public |
 | `EXPO_PUBLIC_SENTRY_ENVIRONMENT` | `production` | public |
 | `EXPO_PUBLIC_FIREBASE_API_KEY`, `_APP_ID`, `_PROJECT_ID`, `_SENDER_ID` | Firebase web settings (5.3, step 10) | public |
@@ -2972,49 +3211,42 @@ Set up production.
 **From 3.7:** the Vercel build deploys the backend only for staging. For production, the database and function steps run in a workflow that uses the `production-database` GitHub environment (already created, you are the reviewer), with the production Supabase secrets stored as secrets of that environment only. See `docs/RELEASE.md` section 4.
 </details>
 
-<details id="t5-10" data-short="Move the addresses">
-<summary>[YOU] <b>5.10</b> Give taskdrop.in and admin.taskdrop.in to production <small>· 20 minutes, then up to an hour of waiting</small></summary>
+<details id="t5-10" data-short="Production web addresses">
+<summary>[BOTH] <b>5.10</b> Production web addresses (Vercel makes them) <small>· 20 minutes · free</small></summary>
 
-**What changes:** `taskdrop.in`, `www.taskdrop.in` and `admin.taskdrop.in` move to the production projects. Staging gets **no new name**: it keeps the addresses Vercel makes for it (`taskdrop-git-redesigned-20-hitenduteam.vercel.app` and `taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app`). Claude reads them from Vercel and uses those for staging. `taskdrop.in`'s own DNS record stays the same; only `admin` needs a new record.
+**What this is (changed 5 November):** `taskdrop.in` stays with **staging**. Production runs on the addresses Vercel makes for its two projects. There is no DNS record to add and nothing to wait for. A real name can be attached to production later (option B below).
 
-1. SAY the text below. Claude first gets staging ready to leave `taskdrop.in`: it reads the staging addresses from Vercel, puts them in the Supabase redirect URLs and site URL, the App Check and reCAPTCHA website list and the site's security policy, and takes `taskdrop.in` out of those staging lists. Staging's Google keys have no website limit for now (task 1.3), so there is nothing to change on them. It also checks that your testers can open the staging address without a Vercel sign-in, and tells you the one setting to change if they cannot.
+1. SAY:
 
 ```say
-Get staging ready to leave taskdrop.in and use its Vercel address.
+Set up the production web addresses.
 ```
 
-2. CLICK: https://www.spaceship.com → **Domains** → `taskdrop.in` → **DNS** (or **Advanced DNS**) → **Add record**, and add this → **Save**:
+   Claude reads the real addresses from Vercel (expected `https://taskdrop-production.vercel.app` and `https://taskdrop-admin-production.vercel.app`), then writes them, and only them, into: the production Supabase **Site URL** and **Redirect URLs** (5.2), the reCAPTCHA domain list and the Firebase browser key's website limit (5.3), the production server's allowed websites, the admin's allowed origins, the content-security rules, and the variable `EXPO_PUBLIC_APP_URL` (5.8). If Vercel gave different names, Claude uses those everywhere.
+2. Claude checks that the production address is **not** hidden from Google (no `noindex` header and no page tag) and that `taskdrop.in` still is.
+3. CLICK: open each production address in Chrome. The app opens with no ribbon and asks for a real SMS code. The admin opens its sign-in page, and only hitendureacts@gmail.com can sign in.
+4. **Where the production address must be written by hand** (do these in the tasks named, using the production address and not `taskdrop.in`):
+   - Google Play listing: privacy policy, website and account-deletion addresses (3.1 wrote `taskdrop.in` for the testing stage; 6.6 changes them to production)
+   - Razorpay activation and RazorpayX (S.8, 6.1) and the SMS registration (S.6): they ask for a website. Ask Razorpay in the quote email (S.4) whether a `.vercel.app` address is accepted; see decision 28
+   - Google Search Console (6.4): a `vercel.app` address cannot be a **Domain** property, so use **URL prefix** with the HTML-tag check
+   - Google Business Profile (4.4, 6.4) and the launch posts (4.8)
+   - The website's own files: Claude checks that `/.well-known/security.txt` (2.13) and the public pages (4.3) answer on the production address too, with the production address inside them
+5. Staging needs nothing: `taskdrop.in` and its Vercel addresses stay as they are.
+6. TELL Claude: "done 5.10".
 
-| Type | Host / name | Value |
-|---|---|---|
-| CNAME | `admin` (only if it is not there already) | `cname.vercel-dns.com` |
+**Option B: swap `taskdrop.in` onto production at launch.** If decision 28 ends up as "swap", this is the whole job and takes about 20 minutes: in Vercel, project `taskdrop` → **Settings** → **Domains** → **Remove** `taskdrop.in` and `www.taskdrop.in`; project `taskdrop-production` → **Add** them; add the CNAME `admin` for `taskdrop-admin-production` if you want `admin.taskdrop.in`. Before that, SAY "Get staging ready to leave taskdrop.in" so Claude moves staging's lists to its Vercel address, and removes the two `noindex` host rules for `taskdrop.in` so the real site is not hidden from Google (found 2 Nov by the website test, 3.6). Staging then lives on its Vercel address. Nothing else changes.
 
-If Vercel's **Domains** page shows a different value, use Vercel's value.
-
-3. CLICK: https://vercel.com → team **hitenduteam**, project by project. In each one, go to **Settings** → **Domains**:
-   - **`taskdrop`** (staging): **Remove** `taskdrop.in` and `www.taskdrop.in`. Leave its Vercel address alone.
-   - **`taskdrop-production`**: **Add** `taskdrop.in` and `www.taskdrop.in`.
-   - **`taskdrop-admin`** (staging): nothing to change.
-   - **`taskdrop-admin-production`**: **Add** `admin.taskdrop.in`.
-4. Wait up to an hour. Then TELL Claude: "done 5.10". Claude checks every address:
-   - `taskdrop.in` shows production, with the public pages from 4.3, and Google may list it
-   - the staging app address shows staging, with the ribbon, and stays hidden from Google
-   - `admin.taskdrop.in` opens the production admin, and the staging admin address opens the staging admin
-5. Message your testers the staging web address Claude gives you, `https://taskdrop-git-redesigned-20-hitenduteam.vercel.app`. The Android test app keeps working; it talks to the staging server, not to a web address.
-
-**Claude does this first (found 2 Nov by the website test, 3.6):** `vercel.json` sends `noindex` for the hosts `taskdrop.in` and `www.taskdrop.in`, which is right while they serve staging. Before they move to production, Claude removes those two rules (staging keeps its own `.vercel.app` rule), so promoting to `main` does not hide the real website from Google.
-
-**Done when:** all four addresses open the right copy, and `taskdrop.in` answers with no `noindex` (neither the header nor the page tag).
+**Done when:** both production addresses open the right copy, the production address answers with no `noindex` (header and page tag), and `taskdrop.in` still answers as staging with `noindex`.
 </details>
 
 <details id="t5-11" data-short="Prove they are separate">
 <summary>[BOTH] <b>5.11</b> Monitors, and prove the two copies are separate <small>· your time: 20 minutes</small></summary>
 
 1. CLICK: https://dashboard.uptimerobot.com → **Add new monitor** → **HTTP(s)**, and add three:
-   - `https://taskdrop.in`, named "production website"
-   - `https://admin.taskdrop.in`, named "production admin"
+   - the production website address (5.10), named "production website"
+   - the production admin address (5.10), named "production admin"
    - `https://<your production project>.supabase.co/functions/v1/app-config`, named "production server"
-   - Rename the old monitors "staging website" and "staging admin", and change their addresses to Vercel's two staging addresses.
+   - Rename the old monitors "staging website" and "staging admin", and point them at `https://taskdrop.in` and the staging admin address.
 2. SAY:
 
 ```say
@@ -3028,11 +3260,15 @@ Prove that staging and production are separate.
 - a staging test account (Asha, `9990000001`) does **not** exist in production
 - the production database has **no** staging tasks, wallets, chats or photos
 - a staging key used against production is **refused**, and the reverse
-- `taskdrop.in` answers **without** `noindex` (header and page tag), and the staging address still answers with it
+- the production address answers **without** `noindex` (header and page tag), and `taskdrop.in` (staging) still answers with it
 - an error made on purpose in staging appears only in staging's Sentry, and the same for production
 - a sign-up made on staging appears only in staging's PostHog, and the same for production
 - a test photo uploaded in staging lands only in staging's ImageKit
 - the production app shows no ribbon and asks for a real SMS code; the staging app shows the ribbon
+- TaskDrop Staging and TaskDrop (production) sit on one phone together: different names and icons, and a `taskdrop-staging://` link opens only the staging app while a `taskdrop://` link opens only the production one
+- a staging account cannot sign in to the production app, and the reverse; a push message sent by staging reaches only the staging app
+- an update published to the `staging` channel never appears in the production app, and the reverse
+- the build guard refuses a production build that sees the staging server (shown on a practice run)
 - the safety alarm reports "all clear" for production, and Claude has shown it firing on a practice run (on staging set to look like production, never by switching a test shortcut on in production)
 - last night's copy of the production database exists outside Supabase
 - 2-step sign-in on the production accounts is deferred by your decision (31 Oct 2026, task 2.1b, future scope). Claude reminds you of this once before you go live
@@ -3040,11 +3276,12 @@ Prove that staging and production are separate.
 
 > **GATE 5: do not start Step 6 until all of these are true**
 
-- [ ] Tasks 5.1 to 5.11 are ticked, including 5.8b (Vercel firewall, spending stop, preview safety)
+- [ ] Tasks 5.0a to 5.0e and 5.1 to 5.11 are ticked, including 5.8b (Vercel firewall, spending stop, preview safety)
 - [ ] Every tool on Map 2 has its own production account or project, and its ID is written on the map
 - [ ] All the proofs in 5.11 are true
-- [ ] Production's Google keys are restricted: the Android maps key (this app only), the place-search key (Places only) and the Firebase browser key (`taskdrop.in` and `www.taskdrop.in` only), as written in 5.3
-- [ ] `taskdrop.in` shows production and the staging address (Vercel's own) shows staging
+- [ ] Production's Google keys are restricted: the Android maps key (this app only), the place-search key (Places only) and the Firebase browser key (the production web address only), as written in 5.3
+- [ ] The production address shows production and `taskdrop.in` shows staging
+- [ ] TaskDrop Staging is installed by every tester, the production APK rehearsal passed, and App Check is enforced after the Play internal test (5.0c, 5.0d)
 
 ---
 
@@ -3114,7 +3351,7 @@ Switch on real money, one part at a time.
 <details id="t6-3" data-short="₹10 test">
 <summary>[YOU] <b>6.3</b> The ₹10 real-money test <small>· 20 minutes · ₹10 plus fees</small></summary>
 
-1. CLICK: on the production app (`https://taskdrop.in`), sign in as yourself with a real SMS code. Post a ₹10 job and pay with your own UPI.
+1. CLICK: on the production app (the production web address from 5.10), sign in as yourself with a real SMS code. Post a ₹10 job and pay with your own UPI.
 2. CLICK: on a second account (another phone, or Chrome Incognito with **Ctrl + Shift + N**), send an offer, then do the job: start, upload proof, mark it done.
 3. CLICK: on your first account, approve and review.
 4. CLICK: on the second account, withdraw to your own bank account.
@@ -3127,12 +3364,12 @@ Switch on real money, one part at a time.
 <details id="t6-4" data-short="Search Console">
 <summary>[YOU] <b>6.4</b> Google Search Console, Bing and your Business Profile link <small>· 30 minutes, then 10 minutes a week</small></summary>
 
-1. CLICK: https://search.google.com/search-console → **Add property** → choose **Domain** → type `taskdrop.in` → **Continue**. Copy the **TXT record** Google shows.
-2. CLICK: in Spaceship DNS (as in 5.10) → **Add record** → type **TXT** → paste the value → **Save**. Back in Search Console, click **Verify** (it can take up to an hour).
+1. CLICK: https://search.google.com/search-console → **Add property** → choose **URL prefix** → type the production web address (5.10) → **Continue** → choose the **HTML tag** check and give Claude the tag; it adds it to the production site. (A `vercel.app` address cannot be a **Domain** property. If you swapped `taskdrop.in` onto production, choose **Domain** → type `taskdrop.in` and use the TXT record as before.)
+2. After Claude has deployed the tag, click **Verify** in Search Console. (For a **Domain** property: in Spaceship DNS → **Add record** → type **TXT** → paste the value → **Save**, then **Verify**; it can take up to an hour.)
 3. CLICK: in Search Console → **Sitemaps** → type `sitemap.xml` → **Submit**.
 4. CLICK: https://www.bing.com/webmasters → sign in → **Import** from Google Search Console.
-5. CLICK: in your Google Business Profile (4.4), add the website `https://taskdrop.in`.
-6. Every week (10 minutes): look at the **Pages** and **Performance** reports, and tell Claude if a page has an error. Only `taskdrop.in` is listed; the staging `vercel.app` address must never appear.
+5. CLICK: in your Google Business Profile (4.4), add the production web address (5.10) as the website.
+6. Every week (10 minutes): look at the **Pages** and **Performance** reports, and tell Claude if a page has an error. Only the production address is listed; `taskdrop.in` (staging) and the staging `vercel.app` addresses must never appear.
 7. TELL Claude: "done 6.4".
 
 **Done when:** the sitemap shows "Success" and pages start to appear as indexed.
@@ -3172,7 +3409,7 @@ GO. Date: ___. Version: the one you just checked.
 Build the production AAB.
 ```
 
-2. **A reviewer account.** In production the test shortcut is off, so Google's reviewer needs a real login. Sign up once on `https://taskdrop.in` with **username and password**: username `playreviewer`, and a strong password saved in `.env.all-secrets` as `PROD_PLAY_REVIEWER_PASSWORD`. Claude marks this account as a reviewer so it is never shown to customers.
+2. **A reviewer account.** In production the test shortcut is off, so Google's reviewer needs a real login. Sign up once on the production web address (5.10) with **username and password**: username `playreviewer`, and a strong password saved in `.env.all-secrets` as `PROD_PLAY_REVIEWER_PASSWORD`. Claude marks this account as a reviewer so it is never shown to customers.
 3. CLICK: Play Console (narasimharaju7c@gmail.com) → **Production** → **Apply for production access** (Google asks about your closed test; answer honestly).
 4. CLICK: **App content** → **App access** → replace the old text with this (fill in the password from `.env.all-secrets`):
 
@@ -3193,7 +3430,7 @@ Sign in with the "Username" option on the sign-in screen. Username: playreviewer
 <details id="t6-7" data-short="Launch day">
 <summary>[YOU] <b>6.7</b> Launch day <small>· 1 day</small></summary>
 
-1. Check: the store listing is live, `taskdrop.in` is live, 20+ workers are ready, and the posts from 4.8 are ready.
+1. Check: the store listing is live, the production web address (5.10) is live, 20+ workers are ready, and the posts from 4.8 are ready.
 2. Post the launch posts (city subreddit and WhatsApp groups by hand, LinkedIn, then Product Hunt and Show HN on a Tuesday to Thursday).
 3. Personally help the first 10 posters and 10 workers. Write down what confused them.
 4. Reply to every comment the same day.
@@ -3561,16 +3798,16 @@ These are recorded so nothing is lost. **None of them is needed to launch, and n
 
 ## Architecture and system design
 
-How TaskDrop is built, why it is built this way, and how it grows. This is the same for staging and production; each copy has its own set of these boxes (Step 5). The addresses in the pictures are production's (`taskdrop.in`, `admin.taskdrop.in`); staging uses the addresses Vercel makes.
+How TaskDrop is built, why it is built this way, and how it grows. This is the same for staging and production; each copy has its own set of these boxes (Step 5). The addresses in the pictures are the production names made in Step 5: production uses the addresses Vercel makes (expected `taskdrop-production.vercel.app` and `taskdrop-admin-production.vercel.app`); staging uses `taskdrop.in`.
 
 **The big picture**
 
 ```mermaid
 flowchart LR
   subgraph PEOPLE["1. People"]
-    W["Website<br/>taskdrop.in"]
+    W["Website<br/>(taskdrop.in is staging)"]
     A["Android app"]
-    AD["Admin staff<br/>admin.taskdrop.in"]
+    AD["Admin staff<br/>(admin website)"]
   end
   subgraph HOST["2. Vercel"]
     WEB["Website files<br/>screens only, no secrets"]
@@ -3705,7 +3942,7 @@ For each one, SAY the sentence to record your answer, or write your own.
 
 | # | Question | Recommended | Say |
 |---|---|---|---|
-| 1 | **Addresses.** `taskdrop.in` is production (the app plus the public pages), and `admin.taskdrop.in` is the production admin. Staging uses the address Vercel makes for it (no name of our own) | **Decided by you, 2026-10-31.** Both `taskdrop.in` and `admin.taskdrop.in` are production. Staging gets no name of its own: it uses the address Vercel makes, which Claude reads from Vercel (task 5.10). Done | Nothing to say |
+| 1 | **Addresses.** `taskdrop.in` is staging (the app plus the public pages) and production uses the addresses Vercel makes. The admin follows the same rule | **Decided by you, 2026-11-05** (it reverses your 2026-10-31 answer, which made `taskdrop.in` production). Staging: `taskdrop.in`, `www.taskdrop.in`, and optionally `admin.taskdrop.in`. Production: the Vercel addresses, expected `taskdrop-production.vercel.app` and `taskdrop-admin-production.vercel.app` (task 5.10). Read decision 28 before launch. Done | Nothing to say |
 | 2 | **Launch city and first 5 task types** | **Decided by you, 2026-10-31.** City: Hyderabad. The task types are not picked up front: they follow what posters and workers actually post (task 4.1). Done | Nothing to say |
 | 3 | **Payment company** | Your rule: take the cheaper quote, but only if it approves TaskDrop's use case in writing. Wait for the quotes (S.4) | "Decision 3: ___." |
 | 4 | **Key replacement.** Your rule is "never replace keys". Allow one exception: replace a key only if it is confirmed leaked? | **Decided by you, 2026-10-31.** Yes. Replace a key only when it is confirmed leaked. Done | Nothing to say |
@@ -3713,7 +3950,7 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 6 | **Smart alerts for workers** | **Decided by you, 2026-10-31.** Yes. Design first (task 4.5). Done | Nothing to say |
 | 7 | **Block screenshots on the money screens** (wallet, payment) on Android? | **Decided by you, 2026-10-31.** No. Screenshots stay allowed on the money screens. Done | Nothing to say |
 | 8 | **Promotions.** When a user cancels a promotion, refund the unused part only (what "Stop" does today), or the full amount? | **Decided by you, 2026-10-31.** Refund the unused part only: money already spent on the promotion is not given back. Done | Nothing to say |
-| 9 | **The staging Android app after launch.** Before launch, testers use the TaskDrop app (`com.taskdrop.app`) on Google Play's testing tracks, because Google's 12-tester, 14-day rule must run on the app that goes public. After launch, should staging move to its own "TaskDrop Staging" app (`com.taskdrop.app.staging`, internal testing only)? | **Decided by you, 2026-10-31.** Yes, a separate staging app after launch. Done | Nothing to say |
+| 9 | **The staging Android app.** Before launch, testers use the TaskDrop app (`com.taskdrop.app`) on Google Play's testing tracks, because Google's 12-tester, 14-day rule must run on the app that goes public. Should staging have its own "TaskDrop Staging" app (`com.taskdrop.app.staging`, installed from an Expo link)? | **Decided by you, 2026-10-31 (after launch), moved earlier on 2026-11-05:** yes, and now, so staging and production APKs exist side by side from the start (task 5.0c). Done | Nothing to say |
 | 10 | **Google Play account type.** Today it is a personal account. Once your company or LLP exists (S.2), move TaskDrop to a Google Play **organization** account (it needs a free D-U-N-S number)? | Yes, if S.2 makes a company or LLP. The store then shows the company name, not you; your home address stays private; it matches the Razorpay KYC; and organization accounts do not need the 12-tester rule. If S.2 picks a sole proprietor, stay personal | "Decision 10: ___." |
 | 11 | **Business email for production accounts.** Make the production accounts (Step 5) with a business address such as `ops@taskdrop.in` instead of your Gmail? | **Decided by you, 2026-10-31.** Keep the Gmail. No business email, because it costs more. Done | Nothing to say |
 | 12 | **New-account limits** (task 2.11) | ₹5,000 per task and ₹5,000 of withdrawals per day, until an account is 30 days old and has 3 finished tasks. You can change them later in the admin | "Decision 12: use the recommended limits." |
@@ -3732,6 +3969,7 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 25 | **An 18+ check for guests** (H68). The age check is only at sign-up, so a guest sees every post and profile without it. Add a one-tap "I am 18 or older" before guest mode? | Open. Recommended: yes, because the Terms are 18+ only | "Decision 25: add the 18+ tap" or "Decision 25: accept" |
 | 26 | **Lock-screen notifications** (H42). They show the other person's name, the task, rupee amounts and the start of a chat message to anyone who sees the phone | Open. Recommended: for messages, money, support and security show a plain line ("You have a new message") and keep the detail inside the app | "Decision 26: plain line" or "Decision 26: keep as is" |
 | 27 | **Limits for new accounts and posting** (H47). Sign-up costs nothing while codes show on screen, and there is no daily cap on posting tasks or ideas | Open. Recommended: a daily cap per account (20 tasks, 20 ideas), tighter for brand-new accounts | "Decision 27: use the recommended caps" |
+| 28 | **Production's web address.** You asked (5 Nov) for `taskdrop.in` to stay with staging and for production to start on the address Vercel makes. That is fine for building and testing. Three things may need a real name before real money: (1) **Razorpay's live review**, the **SMS registration** and the **Google Play listing** each ask for a website they can open; (2) **Google's sign-in consent screen** wants a home page on a domain you own, and `vercel.app` is shared; (3) customers and Google trust a `…vercel.app` address less. Keep it, swap `taskdrop.in` onto production at launch (5.10, option B, about 20 minutes, no rebuild; staging then uses its Vercel address), or buy a second domain for production? | Open. Recommended: keep the Vercel address while you build and rehearse, ask Razorpay in the quote email (S.4) whether it accepts a `.vercel.app` address, and **decide before task 5.3** (Google sign-in) and at the latest before 6.1. If any answer is no, swap | "Decision 28: keep the Vercel address", "Decision 28: swap taskdrop.in at launch" or "Decision 28: buy a second domain" |
 
 ---
 
@@ -3813,9 +4051,10 @@ Which login owns each tool is in "Your accounts map" near the top.
 
 | What | Address |
 |---|---|
-| Staging app | https://taskdrop-git-redesigned-20-hitenduteam.vercel.app (the address Vercel makes; staging has no name of its own) |
-| Staging admin | https://taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app (sign in to vercel.com first) |
-| Production app and admin (live from task 5.10) | https://taskdrop.in and https://admin.taskdrop.in. Until 5.10 the staging project still answers on `taskdrop.in` by leftover; do not use it for staging work |
+| Staging app | https://taskdrop.in (also Vercel's https://taskdrop-git-redesigned-20-hitenduteam.vercel.app) |
+| Staging admin | https://taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app (sign in to vercel.com first), or https://admin.taskdrop.in once 5.0b is done |
+| Production app and admin (live from task 5.10) | The addresses Vercel makes, expected https://taskdrop-production.vercel.app and https://taskdrop-admin-production.vercel.app. `taskdrop.in` is staging's unless you swap it (decision 28) |
+| Staging Android app | TaskDrop Staging, `com.taskdrop.app.staging`: the install link comes from Claude after task 5.0c |
 | Old app / old admin (until 3.9) | https://taskdrop-five.vercel.app / https://taskdrop-admin.vercel.app |
 | Staging database | https://supabase.com/dashboard/project/wjxvingpfbfvkfqhrguj |
 | Firebase (staging) | https://console.firebase.google.com/?authuser=2, project **Taskdrop** |
@@ -4147,6 +4386,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-05 (staging and production, side by side):** You asked for a staging website, a production website, a staging APK and a production APK, with every backend tool split the same way, and said `taskdrop.in` should host staging while production uses a random Vercel address. Claude read the whole plan, the build files and the real Vercel setup (`taskdrop.in` and `www.taskdrop.in` were already bound to the staging project, branch `redesigned-2.0`, so nothing has to move). **Reversed:** the 30 and 31 October rule that `taskdrop.in` is production's (decision 1, Map 1, Map 2, the tool table, the Step 5 intro and diagram, 5.2, 5.3, 5.7, 5.8, 5.10, 5.11, Gate 5, H8, the architecture note, the address card, 6.4). **New:** a section at the start of Step 5, "The two copies, side by side" (one table for every part, a four-file table for the Android apps, which accounts are new and which are not, and the order to do things in); tasks **5.0a** (code ready: `APP_VARIANT`, new profiles, a build guard that refuses a wrong-server build, search-engine rules by address, per-copy allow-lists), **5.0b** (confirm staging on `taskdrop.in`, optional `admin.taskdrop.in`), **5.0c** (the staging Android app `com.taskdrop.app.staging`, its Firebase app, key, map limit, redirect and build), **5.0d** (the production APK and store file, and why a sideloaded APK cannot pass Play Integrity), **5.0e** (the release routine and rollback); the "switchboard" card (every value that differs, where it lives, how to prove it); a rewritten **5.10** (production addresses made by Vercel, with the `taskdrop.in` swap kept as option B); decision **28** (does production need a real name before real money?); decision 9 moved earlier. **Answer to "new accounts?":** none needs a new Gmail; the plan keeps the accounts of Map 2 (new projects or organizations, a mode, or the plus-address account for ImageKit and Inngest). **Not built:** this is a plan; no code, account or setting has been changed. **Checked and not checked:** the Vercel domain facts were read from Vercel on 5 Nov; the Play Integrity and Google consent-screen statements come from general knowledge of those services and are marked in the tasks for Claude to confirm against the current documentation before anything depends on them.
 - **2026-11-05 (new task 2.17: one home per secret):** You asked to move every key to the server side and approved this split: each secret lives in exactly one place, chosen by who uses it. **Planned, nothing built or changed yet:** Supabase function secrets hold the Edge Function keys (Inngest, ImageKit, Sentry address, Google Maps server key, Firebase project number, sign-in text-message keys later); Vercel keeps only what its builds use (the deploy token, the database address, the source-map tokens); Expo keeps the Android build values; `.env.all-secrets` plus the encrypted backup stays the master copy. A new script, `scripts/set-function-secrets.mjs`, will set the Supabase keys straight from `.env.all-secrets` (names only printed; staging and production kept apart), and only after that is checked will the Vercel build stop copying them (`scripts/sync-function-secrets.mjs` is removed) and the duplicates be deleted in Vercel with your OK. Deleting a copy is not a key rotation. Three later options stay unscheduled and need your go-ahead: remove the App Check debug token from release builds, send Sentry reports through a function, and a map tile proxy (needs a new Android build). The Supabase address and public key, Firebase settings and the reCAPTCHA site key cannot be hidden and stay protected by limits. Planned with Opus 5.5. **Then built and finished the same day (PR 241):** the script, its 12 tests and the removal of the Vercel copy step are merged; Supabase staging already held all 11 keys by name; and, with your OK, the 2 duplicates that were in Vercel `taskdrop` (`FIREBASE_PROJECT_NUMBER`, `INNGEST_MONEY_JOBS`) were deleted. No key was changed. Does not block Gate 2b.
 - **2026-11-05 (beta Android updates itself):** You asked expo.dev to handle the Android test app when code lands on `redesigned-2.0`. **Built, not live:** one EAS Workflow file (`apps/mobile/.eas/workflows/beta-android.yml`) that publishes an update to `beta`, or builds a new beta APK when the native code changed, and the runtime version policy is now `fingerprint`. Production stays manual. One open line added under 3.7; your steps O1, O2, O4, O5 and O6 are in `docs/EAS_AUTO_DEPLOY_PLAN.md`.
 - **2026-11-04 (security work run: merged, deployed, tested, hunt rounds):** You asked Claude to run the security work. **Merged:** all the local branches went into `redesigned-2.0` in one pull request (PR 230); the migrations were renumbered 143 to 145 and the holes found on the way renumbered H32 to H34. **Deployed:** to `taskdrop.in` and to the beta app (update `00ef021a`, then `c34b80a3`, runtime 1.1.0). **Secrets audit (2.15) done:** Betterleaks 1.9.0 over both folders, today's files and the whole history, values hidden; nothing exposed that is a real live secret; two Low cards (the old Razorpay test keys, already accepted; the beta builds' App Check debug token, H56, to be removed before launch); 1,982 other detections sorted (6 public on purpose, 37 test values, 1,823 false alarms, 116 safely stored); nothing was changed, replaced or sent anywhere. **Hunt round 2 (2.14):** 38 findings, H35 to H55, H61 to H68, B16 to B21 and B30 to B32: 2 Critical, 2 High, the rest Medium or Low (see the Security section). **Money-door fixes:** H35, H36, H46, H50, B16, B17 and B19 are fixed (PR 234 + admin PR 44, migration 147): refunds and RazorpayX actions now need a money role and the authenticator code, leave an audit row, check the person is not suspended, and a paid-but-unfunded payment is retried. The Critical and High finds (H51, H53, H54, B20) are fixed and live (PR 236, migration 148). **Content policy:** H9 closed (PR 233): the website's policy now blocks bad scripts; the report address stays on. **Android test T11 (2.9)** passed on build 1.1.0 over USB. **Guest mode (D15) tested:** all 128 actions were tried signed out and only the 24 guest reads answer; nothing Critical or High; H61 to H68 and B30 to B32 found. **Still waiting for you:** Strix (2.16: Docker and an AI key with a limit), your "fix" or "accept" on the Medium and Low finds, and decisions 17, 18 and 25 to 27. Part G (every screen on the phone) is still to do: only the basic phone and website screens were opened and looked right.
