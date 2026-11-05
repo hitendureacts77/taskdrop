@@ -61,11 +61,11 @@ $$;
 -- Finishing a job is a server step (the app cannot edit a task's status); it runs as the table's owner while the
 -- session is still the signed-in person, which is how the real approve functions run.
 create or replace function pg_temp.finish_job(p_task uuid) returns void
-language plpgsql security definer as $
+language plpgsql security definer as $$
 begin
   update public.tasks set status = 'COMPLETED' where id = p_task;
 end;
-$;
+$$;
 
 -- ---- the seeded numbers -------------------------------------------------------------------------
 do $$
