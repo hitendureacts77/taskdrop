@@ -305,3 +305,20 @@ Results (empty on purpose; nothing has been measured yet):
 | `get_app_controls`: calls / total time | not measured | not measured | |
 | `app_secrets`: calls / total time | not measured | not measured | |
 | Load test: median / p95 / slowest | not measured | not measured | |
+
+**Measured on staging, 5 Nov 2026 (Claude, hand-run; the staging copy has about 60 open tasks, so the database was never under pressure).** Switches were set one at a time (snapshots, then memo, then app) and the leak test was run after each.
+
+| What | Before (all off) | After (all on) | Notes |
+|---|---|---|---|
+| Database time for 300 calls of `trending_categories(8)` | 195 ms (0.65 ms a call) | 34 ms (0.11 ms a call) | `EXPLAIN ANALYZE`, snapshots on |
+| Database time for 300 calls of `top_earners('top_rated', 10)` | 438 ms (1.46 ms a call) | 54 ms (0.18 ms a call) | same |
+| Database time for 300 calls of `platform_highlights()` | 80 ms (0.27 ms a call) | 14 ms (0.05 ms a call) | same |
+| Answer time through `api`, one person, 30 calls each of the 7 shared reads (median) | 389 to 429 ms | 396 to 457 ms | No change you could feel: about 400 ms of it is the network and the sign-in check, the database part was under 2 ms. `scripts/measure-cache.mjs` |
+| `memo counts` log lines (api logs, one minute) | none | `topEarners` 14 hits / 3 misses, `trendingCategories` 4 / 1, `platformHighlights` 4 / 1 | The memo is working; hits are per server copy |
+| Kept copies versus the live query | not applicable | identical (trending, top helpers, today's numbers) | checked before switching `snapshots` on |
+| Leak test (`two-person-test.mjs --cache-only`) | clean | clean after each switch, guests included (publishable key) | the 126-operation probe is clean in CI |
+| Website as a guest, switches on: 3 visits to Home and 2 to Explore | not measured | 1 batched request and 1 poster-images request in total | opened in Chrome on taskdrop.in (staging); no console errors |
+
+**What this says, plainly:** the kept copies and the memo cut the database work for these lists by 5 to 8 times, and nothing leaks. At today's size that saves almost nothing a person can feel, which matches the design note that the database is not busy. The benefit is headroom for when many people open Home at once.
+
+**Still not done:** per-screen request counts for two people with `count-api-calls.mjs`, the load test, trying each switch off once and watching the numbers return, the money check by hand (person B approves work, person A opens the wallet within 30 s), and the phone check.
