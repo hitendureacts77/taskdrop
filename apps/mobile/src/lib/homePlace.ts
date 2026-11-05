@@ -40,8 +40,14 @@ export function pickDefaultPlace(recents: readonly PlaceLike[] | null | undefine
     if (p?.details?.tag !== 'home' || !p.label || !hasCoords(p.lat, p.lng)) continue;
     return { label: p.label, lat: p.lat, lng: p.lng as number, source: 'home' };
   }
-  if (profile?.loc_label && hasCoords(profile.loc_lat, profile.loc_lng)) {
-    return { label: profile.loc_label, lat: profile.loc_lat, lng: profile.loc_lng as number, source: 'profile' };
+  // The pin dropped at sign-up saves coordinates only, with no name: still a usable default.
+  if (hasCoords(profile?.loc_lat, profile?.loc_lng)) {
+    return {
+      label: profile?.loc_label?.trim() || 'Your saved location',
+      lat: profile?.loc_lat as number,
+      lng: profile?.loc_lng as number,
+      source: 'profile',
+    };
   }
   return null;
 }

@@ -29,6 +29,12 @@ test('entries without coordinates are ignored', () => {
   assert.equal(pickDefaultPlace([], { loc_label: 'X', loc_lat: 1, loc_lng: null }), null);
 });
 
+test('a profile pin without a name still gives a default', () => {
+  const r = pickDefaultPlace([], { loc_label: null, loc_lat: 12.97, loc_lng: 77.59 });
+  assert.deepEqual(r, { label: 'Your saved location', lat: 12.97, lng: 77.59, source: 'profile' });
+  assert.equal(pickDefaultPlace([], { loc_label: '  ', loc_lat: 1, loc_lng: 2 })?.label, 'Your saved location');
+});
+
 test('nothing saved gives null', () => {
   assert.equal(pickDefaultPlace([], null), null);
   assert.equal(pickDefaultPlace(undefined, undefined), null);
