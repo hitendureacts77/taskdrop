@@ -102,7 +102,10 @@ test('the guard refuses staging settings in production and production settings i
   assert.equal(v.checkVariant({ ...PROD_OK, EXPO_PUBLIC_APP_URL: 'https://taskdrop.in' }, { androidBuild: true }).length, 1);
   assert.equal(v.checkVariant({ ...PROD_OK, EXPO_PUBLIC_APP_URL: 'https://www.taskdrop.in/' }, { androidBuild: true }).length, 1);
   assert.equal(v.checkVariant({ APP_VARIANT: 'staging', EXPO_PUBLIC_SUPABASE_URL: PROD_URL }).length, 1);
-  assert.equal(v.checkVariant({ APP_VARIANT: 'staging', EXPO_PUBLIC_SENTRY_ENVIRONMENT: 'production' }).length, 1);
+  // the staging website's Vercel project labels its error reports "production" (a label only): not a mix-up
+  assert.deepEqual(v.checkVariant({ APP_VARIANT: 'staging', EXPO_PUBLIC_SENTRY_ENVIRONMENT: 'production' }), []);
+  assert.deepEqual(v.checkVariant({ EXPO_PUBLIC_SUPABASE_URL: STAGING_URL, EXPO_PUBLIC_SENTRY_ENVIRONMENT: 'production' }), []);
+  assert.equal(v.checkVariant({ APP_VARIANT: 'staging', EXPO_PUBLIC_APP_ENV: 'production' }).length, 1);
   assert.equal(v.checkVariant({ APP_VARIANT: 'staging', EXPO_PUBLIC_SUPABASE_URL: STAGING_URL, X: 'rzp_live_' + 'abc' }).length, 1);
   assert.deepEqual(v.checkVariant({ APP_VARIANT: 'staging', EXPO_PUBLIC_SUPABASE_URL: STAGING_URL, EXPO_PUBLIC_SENTRY_ENVIRONMENT: 'beta' }), []);
 });

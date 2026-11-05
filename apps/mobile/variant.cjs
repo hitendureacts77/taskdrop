@@ -111,9 +111,10 @@ function checkVariant(env, ctx = {}) {
     if (ref && ref !== STAGING_SUPABASE_REF) problems.push('A staging build points at a server that is not the staging server (EXPO_PUBLIC_SUPABASE_URL).');
     const testOnly = Object.keys(env).filter((k) => /rzp_live_/.test(String(env[k] || '')));
     if (testOnly.length) problems.push(`A Razorpay live key is present in a staging build (${testOnly.join(', ')}).`);
-    if (set(env, 'EXPO_PUBLIC_SENTRY_ENVIRONMENT') && env.EXPO_PUBLIC_SENTRY_ENVIRONMENT.trim() === 'production') {
-      problems.push('EXPO_PUBLIC_SENTRY_ENVIRONMENT is "production" in a staging build.');
-    }
+    // No rule on EXPO_PUBLIC_SENTRY_ENVIRONMENT here: it is only a label on error reports, and the staging
+    // website's Vercel project has carried "production" in it since before the two copies were split
+    // (found 5 Nov, when this rule stopped the staging build). The staging-side checks that protect
+    // the copies are the server address, the live key and EXPO_PUBLIC_APP_ENV.
     if (set(env, 'EXPO_PUBLIC_APP_ENV') && env.EXPO_PUBLIC_APP_ENV.trim().toLowerCase() === 'production') {
       problems.push('EXPO_PUBLIC_APP_ENV is "production" in a staging build.');
     }
