@@ -19,6 +19,7 @@ import {
   type Digest,
   expoReceipts,
   expoSend,
+  lockScreenSafe,
   MEDIA_PURGE_BATCH,
   ownFiles,
   purgeMediaBatch,
@@ -244,7 +245,9 @@ const pushNotification = inngest.createFunction(
     if (!notificationId || !userId) return { skipped: "no notification" };
 
     const sent = await step.run("send", async () => {
-      const messages = ((await call<PushMessage[] | null>(rpc, "push_job_load", { p_notification: notificationId })) ?? []).slice(0, 100);
+      const messages = ((await call<PushMessage[] | null>(rpc, "push_job_load", { p_notification: notificationId })) ?? [])
+        .slice(0, 100)
+        .map(lockScreenSafe);
       if (messages.length === 0) return { sent: 0, failed: 0, gone: 0, waiting: [] as WaitingTicket[] };
       const tickets = await expoSend(fetch, messages);
       const { waiting, dead, failed } = await readTickets(messages, tickets);

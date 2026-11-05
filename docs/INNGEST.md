@@ -112,6 +112,8 @@ Pushes keep going out the old way, straight from the database, until the setting
 
 To go back: `update public.settings set value = 'false' where key = 'push_via_inngest';` (at once, no deploy). The same file lists the two `cron.schedule` lines for the prunes.
 
+Lock-screen wording (H42, owner decision 26): pushes for chat, task questions, payouts, wallet, support, security and staff warnings carry a plain line ("You have a new message"), never a name, amount, task title or typed text. The list lives in `PLAIN_PUSH` in `supabase/functions/inngest/jobs.ts` and, for the direct road used while `push_via_inngest` is false, in `private.push_plain_line` (migration 155); a unit test keeps the two identical. The in-app notification text and the tap-through data are unchanged.
+
 The web has no push; in-app notifications and live updates do not go through Inngest.
 
 Team messages land in `public.admin_alerts` (admins can read them, nobody else).
