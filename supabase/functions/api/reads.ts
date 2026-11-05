@@ -3,6 +3,7 @@ import {
   type Args, type Ctx, type Op, MONEY_MAX, bad, countBy, int, isoOrNull, limit, notExpired, num, oneOf, rows,
   rpcOp, str, strOrNull, strings, take, uuid, uuids,
 } from "./core.ts";
+import { noKeep } from "./publicMemo.ts";
 
 /**
  * Everything the app reads. "My" queries always say whose rows they mean, using
@@ -604,7 +605,8 @@ export const READ_OPS: Record<string, Op> = {
   /** The live ad auction's running order: { [taskId]: rank }. Rank 1 wins. */
   adAuctionRanks: async (ctx) => {
     const res = await ctx.db.rpc("ad_auction");
-    if (res.error) return {};
+    // Same `{}` as always, marked so the shared memo (3.5b layer D) never keeps an answer born of an error.
+    if (res.error) return noKeep({});
     const out: Record<string, number> = {};
     for (const r of (res.data ?? []) as { task_id: string; rank: number | null }[]) out[r.task_id] = Number(r.rank ?? 0);
     return out;
