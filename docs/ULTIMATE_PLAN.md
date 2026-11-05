@@ -475,6 +475,7 @@ Your Play account is the **Personal** account **NLNarasimhaRaju**, owned by `nar
    - Is GST due on our 3% service fee and on the worker commission? What must our invoice show?
 2. Get the documents the CA says you need: PAN (a business PAN for an LLP or company), a GST registration if required, and address proof.
 3. Open a **current account** in the business name at any bank. Ask for net banking and UPI.
+   Razorpay's list (5 Nov) is: a registered entity (shop establishment, import and export code or utility bill) or GST, plus a business bank account. A **sole proprietorship** with GST, or a Shop & Establishment certificate with Udyam, meets it. The "Individual / Unregistered" Razorpay account does not suit a marketplace. See the Razorpay PPI note under S.4.
 4. If you chose an LLP or a company: ask the CA about a free **D-U-N-S number** for it. You need one for decision 10 (a Google Play organization account).
 5. TELL Claude: "done S.2. Business type: ___, name: ___", and paste the CA's answers to the four marketplace questions. Do not send account numbers. Claude records the answers and, if tax must be deducted or PAN collected, adds that work to the plan before Step 5.
 
@@ -490,7 +491,7 @@ Your Play account is the **Personal** account **NLNarasimhaRaju**, owned by `nar
 2. Email each one. Attach `docs/LAWYER_BRIEF.md` (it explains how TaskDrop moves money). Add the links https://taskdrop.in/?page=terms and https://taskdrop.in/?page=privacy. Ask for a **fixed-fee quote**.
 3. The questions to ask:
    - May TaskDrop hold a poster's money until they approve, then pay the worker? Or must a payment company (for example Razorpay Route) hold it?
-   - Does the wallet need RBI permission?
+   - Does the wallet need RBI permission? Razorpay asked for a PPI license on 5 Nov. Is Razorpay Route with held settlements enough, so TaskDrop never holds a balance (see the note under S.4)?
    - Please review our Terms and Privacy pages.
    - What do we need for India's data law (DPDP)? How fast must a data breach be reported, and to whom? How long may we keep chats, photos and ID details after an account is deleted?
    - Above what amount must we check a worker's identity (KYC) before paying them out?
@@ -563,6 +564,44 @@ TaskDrop (taskdrop.in) is a marketplace where people post local and remote tasks
 ```
 
 For Razorpay, change "Cashfree" to "Razorpay" and "Payouts / Easy Split" to "RazorpayX payouts". In a form, choose a category like "Marketplace / Online services", not "Escrow": payment companies treat real escrow as a separate regulated product.
+
+**Razorpay asked for a PPI license (5 Nov 2026): what it means and what to do.** Razorpay asked for a **PPI license** and listed these documents: a registered entity (shop establishment, import and export code, or utility bill) or GST, and a business bank account. You asked whether you need a registered business, or whether an individual plan works. This is the answer, saved word for word in substance. It is general guidance, not legal or tax advice, and the figures come from general knowledge, not from Razorpay's current pages. Confirm them with Razorpay in writing (S.4), with your lawyer (S.3) and with your CA (S.2) before you rely on them. Nothing was built or changed.
+
+**Short answer:** an individual account won't work for TaskDrop, and you should not try to get a PPI license. Razorpay is asking two separate things, and each has a different fix.
+
+**1. The PPI license is about the wallet, not your paperwork.**
+
+A PPI (Prepaid Payment Instrument) license is an RBI license for anyone who holds money for users, such as a wallet balance that people can spend or withdraw. Razorpay asks for it when it sees that a platform stores user balances. TaskDrop has withdrawal rules and limits in its database (for example `supabase/tests/withdrawal_rules.test.sql`), so Razorpay probably reads TaskDrop as a wallet.
+
+- To get a PPI license you need a **Private Limited company with about ₹5 crore net worth** when you apply, and that has to grow to about ₹15 crore within 3 years. Registering as a business does not get you this. It is not realistic for TaskDrop now.
+- **The fix is to change how money moves, not to get the license.** The usual approach for marketplaces is **Razorpay Route** (split payments):
+  - The poster pays, and Razorpay holds the money on its side ("on hold").
+  - When the task is done, Route sends the money straight to the helper's bank account, which is a "linked account" with its own KYC.
+  - TaskDrop takes its fee from that split and never holds anyone's balance, so no PPI is needed.
+- A "closed" wallet (credits usable only inside TaskDrop, never withdrawn as cash) does not need a license either. But helpers need to be paid out, so that does not fit TaskDrop.
+
+**2. A registered business: yes, but it can be small.**
+
+Razorpay does have an "Individual / Unregistered" account that needs only your PAN and a personal bank account. It is meant for freelancers selling their own work. A marketplace that collects money from one person and pays another almost always needs a registered business, and Route needs one too.
+
+The cheapest option that meets Razorpay's list is a **sole proprietorship**. It is not a new company, just you trading under a business name:
+
+- **Proof of registration:** GST registration (free, done online). Or, if you do not have GST, a Shop & Establishment certificate from your state, usually with Udyam (MSME) registration, which is also free.
+- **Business bank account:** a current account in the business name. You open it with the GST or Shop & Establishment certificate.
+- **Utility bill:** for the business address. This can be your home address, with a rent agreement or owner's NOC if it is not in your name.
+
+This usually takes 1 to 3 weeks. One thing to check with a CA: GST law has special rules for online marketplaces ("e-commerce operators"). TaskDrop may have to register for GST no matter how small its turnover is, so GST is probably the right document to get anyway.
+
+**Later:** if you plan to raise money or want limited liability, convert to a Private Limited company. You do not need to do that now.
+
+**What to tell Razorpay:** say that TaskDrop will use **Route with settlements on hold**, not a stored-value wallet, and send the proprietorship documents. That usually makes the PPI request go away.
+
+**What this changes in the plan:**
+
+- **S.2** now names the sole proprietorship papers as the minimum for Razorpay (GST or Shop & Establishment plus Udyam, a current account, a utility bill).
+- **S.3** already asks the lawyer "Does the wallet need RBI permission?". Add: "Is Razorpay Route with held settlements enough, so TaskDrop never holds a balance?".
+- **Decision 29** (below) is the one choice only you can make: keep the wallet as built and risk the PPI request, or move to Route.
+- **Not built:** TaskDrop today keeps a wallet balance (earnings clear after 7 days, then withdraw through RazorpayX). Moving to Route would change the money flow, so it needs the lawyer's answer (S.3), Razorpay's written reply (S.4) and a design step before any code. Say "design the Route money flow" when you want that started.
 </details>
 
 <details id="tS-5" data-short="Name and trademark">
@@ -4070,6 +4109,7 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 27 | **Limits for new accounts and posting** (H47). Sign-up costs nothing while codes show on screen, and there is no daily cap on posting tasks or ideas | Open. Recommended: a daily cap per account (20 tasks, 20 ideas), tighter for brand-new accounts | "Decision 27: use the recommended caps" |
 | 28 | **Production's web address.** You asked (5 Nov) for `taskdrop.in` to stay with staging and for production to start on the address Vercel makes. That is fine for building and testing. Three things may need a real name before real money: (1) **Razorpay's live review**, the **SMS registration** and the **Google Play listing** each ask for a website they can open; (2) **Google's sign-in consent screen** wants a home page on a domain you own, and `vercel.app` is shared; (3) customers and Google trust a `…vercel.app` address less. Keep it, swap `taskdrop.in` onto production at launch (5.10, option B, about 20 minutes, no rebuild; staging then uses its Vercel address), or buy a second domain for production? | Open. Recommended: keep the Vercel address while you build and rehearse, ask Razorpay in the quote email (S.4) whether it accepts a `.vercel.app` address, and **decide before task 5.3** (Google sign-in) and at the latest before 6.1. If any answer is no, swap | "Decision 28: keep the Vercel address", "Decision 28: swap taskdrop.in at launch" or "Decision 28: buy a second domain" |
 | 29 | **How old the same-for-everyone lists may be** (3.5b). Trending, Top helpers and today's numbers would be worked out once every 10 minutes and shared, instead of once per person. Money, tasks, offers and chats are never shown old | Open. Recommended: up to 10 minutes | "Decision 29: 10 minutes is fine" |
+| 29 | **How money moves, given Razorpay's PPI request (5 Nov).** Razorpay asked for a PPI license because TaskDrop keeps a wallet balance. A PPI license needs a Private Limited company with about ₹5 crore net worth, which is not realistic now. Keep the wallet as built and risk Razorpay refusing, or move to **Razorpay Route** (the poster's money is held by Razorpay and sent straight to the helper's bank account, TaskDrop never holds a balance)? The note under S.4 has the full answer and the sole-proprietorship papers it needs | Open. Recommended: Route with settlements on hold. First ask Razorpay (S.4) and your lawyer (S.3) to confirm in writing that it removes the PPI request. Then say "design the Route money flow": Claude writes the design (no code) before anything in the money path changes. This stays a plan until you say so | "Decision 29: move to Route", "Decision 29: keep the wallet" or "Decision 29: wait for the lawyer" |
 
 ---
 
@@ -4486,6 +4526,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-05 (Razorpay asked for a PPI license):** Razorpay asked you for a PPI license and a registered entity (shop establishment, import and export code or utility bill) or GST, plus a business bank account. You asked whether a registered business is needed or whether an individual plan works. **Answer, saved in the plan:** an individual account will not work for a marketplace, and a PPI license (Private Limited company, about ₹5 crore net worth) is not realistic. The PPI request is about the wallet balance, so the fix is to change how money moves (Razorpay Route with held settlements, no stored balance), plus a sole proprietorship (GST, or Shop & Establishment with Udyam, a current account and a utility bill). **Changed:** a full note under S.4, a line in S.2 (the proprietorship papers), one more lawyer question in S.3, and new decision **29** (move to Route, keep the wallet, or wait for the lawyer). **Not built, not checked:** no code, account or setting changed. The ₹5 crore and ₹15 crore figures and the Route behaviour come from general knowledge; Razorpay's own pages only confirmed the individual and unregistered route. Confirm with Razorpay, your lawyer and your CA before relying on them.
 - **2026-11-05 (guest mode on the Android phone):** You asked for the beta update to be published and checked on the phone. **Published:** beta updates `edb64274` and `7f7e2f52` (runtime 1.1.0, Sentry maps uploaded; no native code changed since the 3 Nov APK, so they reach it). **Found on the phone:** as a guest every tab was blank, because the phone's tab code needed a signed-in person (the website was fine). **Fixed (PR 250):** the tabs show for guests, and are kept when a guest makes an account to finish an offer. **Checked on the phone after the fix:** Home in Hire and Earn, the Make your account pop-up in front of the offer sheet, Not now and Back from sign-in keep the filled offer. **Not done on the phone:** sign-up then the offer sent by itself (needs you to make the test account on the phone; it was checked on the website), and posting a task or publishing a service as a guest. Your own account on the phone is signed out.
 - **2026-11-05 (two more architecture diagrams):** You said yes to the two diagrams Claude offered. **Added** in `docs/architecture/`: how a database event reaches Inngest through the outbox (with the safety-net sweeper), and the admin panel architecture (drawn from the `taskdrop-admin` repo at commit `26630cd`). The plan table now lists six pages. Nothing in the app, admin, database or deploy changed.
 - **2026-11-05 (caching built offline, task 3.5b):** All five layers are written on the branch `feat/cache-integration` and tested offline (no database, no deploy, no push). `docs/API_CALLS.md` section 8 now says what each layer does, which part of `settings.public_cache` controls it (all off by default) and the exact steps to turn each off, and lists the measuring steps; **no numbers have been measured and none are claimed.** Still open and needing staging: apply migration 149, run its SQL tests, the two-person run with the switches on, trying each off switch, the money check, and your phone check. The app side was built with 15 to 60 s reuse times (the server's own), not the 5 minutes in the design table.
