@@ -13,6 +13,12 @@
 // in the build environment (apps/mobile/.env.local on this machine, an EAS
 // secret for EAS builds); without one the upload is skipped and the build
 // still succeeds.
+//
+// APP_VARIANT (variant.cjs, plan task 5.0a) decides which TaskDrop this is: today's app (not set),
+// the staging app, or production. checkVariant() stops a build that mixes the two copies, and runs
+// everywhere this file is read: builds, updates, web exports and `expo start`.
+const { applyVariant, checkVariant, sentryProject } = require('./variant.cjs');
+
 const SENTRY = {
   url: 'https://sentry.io/',
   organization: 'hitendu',
@@ -20,6 +26,11 @@ const SENTRY = {
 };
 
 module.exports = ({ config }) => {
+  const androidBuild = process.env.EAS_BUILD_PLATFORM === 'android' || process.argv.some((a) => /android/i.test(a));
+  const problems = checkVariant(process.env, { androidBuild });
+  if (problems.length) {
+    throw new Error(['Build stopped: this build mixes staging and production.', ...problems.map((p) => ` - ${p}`)].join('\n'));
+  }
   // Deliberately not EXPO_PUBLIC_: that prefix inlines the value into the JS
   // bundle. This one is only read here, at build time, for the Android manifest
   // (an EAS secret for EAS builds, apps/mobile/.env on this machine).
@@ -29,13 +40,12 @@ module.exports = ({ config }) => {
   // native Android build: an EAS Android build, or a local command naming android
   // (`expo run:android`, `expo prebuild --platform android`). A web export never
   // gets it, even if the variable happens to be set in that environment.
-  const androidBuild = process.env.EAS_BUILD_PLATFORM === 'android' || process.argv.some((a) => /android/i.test(a));
   const mapsKey = androidBuild ? process.env.EXPO_GOOGLE_MAPS_API_KEY : undefined;
   const plugins = (config.plugins ?? []).filter((p) => {
     const name = Array.isArray(p) ? p[0] : p;
     return name !== '@sentry/react-native/expo' && !(mapsKey && name === 'react-native-maps');
   });
-  plugins.push(['@sentry/react-native/expo', SENTRY]);
+  plugins.push(['@sentry/react-native/expo', { ...SENTRY, project: sentryProject(process.env) }]);
   if (mapsKey) plugins.push(['react-native-maps', { androidGoogleMapsApiKey: mapsKey }]);
   // Push on Android needs the Firebase app's google-services.json. It is kept out
   // of git: on EAS it is a file environment variable (GOOGLE_SERVICES_JSON, whose
@@ -49,5 +59,5 @@ module.exports = ({ config }) => {
   // Expo Go, no secret) skips it and sends no App Check header (docs/APP_CHECK.md).
   // Its app-check plugin only edits the iOS AppDelegate, so it is left out until iOS.
   if (androidBuild && googleServicesFile) plugins.push('@react-native-firebase/app');
-  return { ...config, android, plugins };
+  return applyVariant({ ...config, android, plugins }, process.env);
 };

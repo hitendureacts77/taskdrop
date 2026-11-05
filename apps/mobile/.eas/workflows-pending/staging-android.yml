@@ -1,0 +1,152 @@
+# PENDING, NOT LIVE (plan task 5.0a). EAS only reads apps/mobile/.eas/workflows/*.yml, so this copy does nothing here.
+# Task 5.0c moves it to .eas/workflows/ (and deletes beta-android.yml) once the staging app
+# com.taskdrop.app.staging is registered in Firebase, the Google maps key lists it, and the owner has said
+# "Build the staging APK". Until then a push would build an app whose push, maps and sign-in are not set up.
+#
+# Same design as beta-android.yml (docs/EAS_AUTO_DEPLOY_PLAN.md), with profile staging-apk and channel staging.
+# The fingerprint/get-build/build/update comments below were written for beta and still apply.
+#
+name: Staging Android - build or OTA
+
+on:
+  push:
+    branches: ['redesigned-2.0']
+    # Written from the REPO ROOT, like the docs example `apps/mobile/**`.
+    # The docs do not say outright whether paths are relative to the repo root
+    # or to the Base directory (apps/mobile). If they were relative to the base
+    # directory, nothing would match and NO run would start (fail-safe, but
+    # silent). First-run checklist item 1 catches that.
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+
+# One run at a time. cancel_in_progress stays false (the docs default, and what
+# they recommend for deploys) so a running build or OTA always finishes.
+# queue single (default): if several pushes land while a run is busy, only the
+# newest waits and the older waiting ones are dropped. The newest commit
+# contains all earlier changes, so nothing is lost, OTAs can never be published
+# out of order (older JS landing after newer JS), and two pushes cannot start
+# two identical APK builds.
+concurrency:
+  group: staging-android-${{ github.ref_name }}
+  queue: single
+
+jobs:
+  # 1. Hash of the native side of the app for Android.
+  #    environment preview: app.config.js reads EXPO_GOOGLE_MAPS_API_KEY and
+  #    GOOGLE_SERVICES_JSON, which change the native config, so the hash must be
+  #    computed with the same variables the staging build uses.
+  fingerprint:
+    name: Fingerprint
+    type: fingerprint
+    environment: preview
+
+  # 2. Look for a finished staging APK whose native code matches this commit.
+  #    The docs do not state this job's status when nothing matches. Their
+  #    examples branch on build_id, which implies success with an empty
+  #    build_id. The build job below also covers the case where it fails.
+  get_build:
+    name: Find matching staging APK
+    type: get-build
+    needs: [fingerprint]
+    environment: preview
+    params:
+      platform: android
+      profile: staging-apk
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+      # Also require runtime_version == hash. With the fingerprint policy a
+      # build's runtime version IS its fingerprint hash. The APKs built before
+      # the switch have runtime version "1.1.0" (appVersion policy) but may have
+      # the SAME fingerprint hash; without this line they would "match", the
+      # update job would publish to runtime <hash>, and no phone would get it.
+      runtime_version: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+      # If a matching build is still running (an earlier push started it),
+      # wait for it instead of starting a second one. If that build fails, the
+      # docs say this job still succeeds with empty outputs, so `build` runs.
+      wait_for_in_progress: true
+
+  # 3a. No matching APK -> build one. No OTA goes out on this run.
+  #    `after` (not `needs`) so this job is still considered when get_build
+  #    FAILS; the `if` then decides. Truth table:
+  #      get_build success + build_id set   -> skip (update runs instead)
+  #      get_build success + build_id empty -> BUILD  (implied no-match case)
+  #      get_build failure (outputs empty)  -> BUILD  (in case no-match is a failure)
+  #      get_build skipped (fingerprint failed) -> skip (nothing runs, run is red)
+  #    `if` is kept on ONE line, with no grouping brackets (the docs never show
+  #    brackets used only for grouping). The docs warn && and || do not
+  #    short-circuit; harmless here (outputs of a failed job are just empty).
+  build:
+    name: Build staging APK
+    type: build
+    after: [get_build]
+    if: ${{ after.get_build.status != 'skipped' && !after.get_build.outputs.build_id }}
+    environment: preview
+    params:
+      platform: android
+      profile: staging-apk
+
+  # 3b. Matching APK exists -> publish an OTA to channel staging.
+  #    `needs` (not `after`): it only runs when get_build SUCCEEDED and found a
+  #    build. It does not depend on `build` at all, and `build` only runs when
+  #    no build was found, so the two are mutually exclusive: a failed build can
+  #    never be followed by an OTA on the same run.
+  #    No `message`: the docs say it defaults to the commit message. (If one is
+  #    ever wanted, the documented expression is ${{ github.commit_message }},
+  #    available on push events only.)
+  #    No `branch`: channel and branch cannot be combined.
+  #    Nothing extra is needed for the fingerprint policy: `eas update` works out
+  #    the runtime version (= the fingerprint) itself, with the same preview
+  #    variables, and the project has no committed android/ folder (CNG).
+  update:
+    name: Publish OTA to staging
+    type: update
+    needs: [get_build]
+    if: ${{ needs.get_build.outputs.build_id }}
+    environment: preview
+    params:
+      channel: staging
+      platform: android
+      upload_sentry_sourcemaps: true
+
+# FAILURE MODES (summary)
+# 1. get-build finds no match: documented behaviour (by example) is success with
+#    an empty build_id -> `build` runs, `update` skipped. If it instead FAILS,
+#    `build` still runs (after + status == 'failure'), `update` is skipped
+#    (needs). Either way the APK gets built and no OTA goes out.
+#    Side effect: a get_build failure for any other reason (Expo outage) also
+#    starts a build. Cost: one extra build; nothing wrong reaches phones.
+# 2. build fails: `update` cannot run (it only runs on a match, and does not
+#    wait for `build`). The run is red; nothing reaches phones. Fix and push
+#    again, or re-run the workflow on expo.dev.
+# 3. update fails: nothing is published (an EAS update is all-or-nothing).
+#    Phones keep the previous OTA. Re-run, or the next push publishes. With
+#    `upload_sentry_sourcemaps: true` the docs say the job FAILS if the Sentry
+#    upload fails (they do not say whether the update is already published by
+#    then). So before re-running a red update job, look at the Updates page on
+#    expo.dev to avoid a double publish. Leaving the key out would make a failed
+#    upload silent (stack traces unreadable); we keep it so it is loud.
+# 4. Commit message: `message` omitted; the update job defaults to the commit
+#    message. Documented expression if needed: ${{ github.commit_message }}.
+# 5. Fingerprint policy: the update job needs nothing extra. BUT the cloud hash
+#    must be stable between the fingerprint job, the build job and the update
+#    job. app.config.js puts the GOOGLE_SERVICES_JSON value (a file PATH) into
+#    android.googleServicesFile and adds plugins only when it sees an Android
+#    build (EAS_BUILD_PLATFORM or "android" in argv). If the file path or the
+#    argv check differs between jobs, the hashes differ and EITHER every push
+#    builds a new APK (fingerprint job hash != build hash) OR OTAs reach no
+#    phone (update runtime != APK runtime). Check on the first two runs:
+#    run 1 builds; run 2 (JS-only) must MATCH and publish, and the update's
+#    runtime version on expo.dev must equal the new APK's runtime version.
+# 6. `if` is written on one line in every job (docs examples are one line).
+# 7. paths are written from the repo root (docs example `apps/mobile/**`).
+#    If no run appears after a qualifying push, this is the first suspect,
+#    together with the Base directory (owner step O2).
+# 8. Skip one push: put [skip eas], [eas skip] or [no eas] in the commit or
+#    merge message (documented).
+# 9. Manual OTAs from this PC: under the fingerprint policy a local
+#    `eas update` computes the runtime version from the LOCAL environment
+#    (local .env, local google-services path). It may not match the cloud APK,
+#    in which case the OTA silently reaches no phone. After this goes live, let
+#    the workflow publish; do not run `eas update` by hand for staging.

@@ -9,13 +9,14 @@
  * `Origin` header and are not subject to CORS, so they are not affected.
  *
  * The list is the `ALLOWED_ORIGINS` secret (comma-separated, exact origins). When it is not set, the
- * default is the STAGING list below. Production sets it in Step 5 (5.9): taskdrop.in,
- * www.taskdrop.in and admin.taskdrop.in, with no localhost and no vercel.app address.
+ * default is the STAGING list below. Production sets it in Step 5 (5.9, 5.10) to its own web addresses
+ * only (the addresses Vercel makes for the production projects), with no taskdrop.in, no localhost and
+ * no staging address. taskdrop.in is staging's since 5 Nov 2026 (plan decision 1).
  */
 
 /** Staging: the website's own addresses, the two addresses Vercel makes, and a dev server on this computer. */
 export const STAGING_ORIGINS = [
-  "https://taskdrop.in", // until production takes this name (plan task 5.10)
+  "https://taskdrop.in", // staging's own name (plan 5.0b); production uses Vercel's addresses (5.10)
   "https://www.taskdrop.in",
   "https://taskdrop-five.vercel.app",
   "https://taskdrop-git-redesigned-20-hitenduteam.vercel.app",
