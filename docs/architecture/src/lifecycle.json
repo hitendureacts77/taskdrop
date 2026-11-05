@@ -1,0 +1,59 @@
+{
+  "schema_version": 3,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "TaskDrop task status lifecycle",
+    "output": "taskdrop-task-lifecycle.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/hitendureacts77/taskdrop.git",
+      "revision": "b2b054595896a0a5592ff204f346b000d45e74c7"
+    }
+  },
+  "mainPath": ["open", "locked", "started", "work_done", "completed"],
+  "states": [
+    { "id": "open", "type": "start", "label": "OPEN", "sublabel": "taking offers", "tag": "poster", "step": "01",
+      "sources": [{ "path": "supabase/migrations/20261104200000_148_hunt2_money_guards.sql", "line": 195, "end_line": 235 }] },
+    { "id": "locked", "type": "waiting", "label": "LOCKED", "sublabel": "offer chosen, escrow", "tag": "wallet funded", "step": "02",
+      "sources": [{ "path": "supabase/migrations/20261104200000_148_hunt2_money_guards.sql", "line": 301, "end_line": 350 }] },
+    { "id": "started", "type": "active", "label": "TASK_STARTED", "sublabel": "helper working", "tag": "helper", "step": "03",
+      "sources": [{ "path": "supabase/migrations/20260925180000_057_proof_of_work_autorelease.sql", "line": 65, "end_line": 96 }] },
+    { "id": "work_done", "type": "decision", "label": "WORK_DONE", "sublabel": "proof sent, review", "tag": "poster decides", "step": "04",
+      "sources": [{ "path": "supabase/migrations/20261104200000_148_hunt2_money_guards.sql", "line": 353, "end_line": 402 }, { "path": "supabase/migrations/20260913160000_011_revision_and_dispute.sql", "line": 10, "end_line": 48 }, { "path": "supabase/migrations/20261104200000_148_hunt2_money_guards.sql", "line": 405, "end_line": 449 }] },
+    { "id": "completed", "type": "success", "label": "COMPLETED", "sublabel": "earnings clearing", "tag": "terminal", "step": "05",
+      "sources": [{ "path": "supabase/migrations/20261104200000_148_hunt2_money_guards.sql", "line": 386, "end_line": 399 }] },
+    { "id": "auto_completed", "type": "success", "label": "AUTO_COMPLETED", "sublabel": "poster stayed silent", "tag": "terminal",
+      "sources": [{ "path": "supabase/migrations/20261104200000_148_hunt2_money_guards.sql", "line": 420, "end_line": 446 }] },
+    { "id": "revision", "type": "waiting", "label": "REVISION_REQUESTED", "sublabel": "changes asked", "tag": "helper",
+      "sources": [{ "path": "supabase/migrations/20260913160000_011_revision_and_dispute.sql", "line": 38, "end_line": 43 }] },
+    { "id": "overdue", "type": "waiting", "label": "OVERDUE", "sublabel": "past due, no money moves", "tag": "label only",
+      "sources": [{ "path": "supabase/migrations/20261018140000_101_inngest_background_jobs.sql", "line": 188, "end_line": 206 }] },
+    { "id": "disputed", "type": "decision", "label": "DISPUTED", "sublabel": "escrow frozen", "tag": "staff decide",
+      "sources": [{ "path": "supabase/migrations/20261104200000_148_hunt2_money_guards.sql", "line": 551, "end_line": 600 }, { "path": "supabase/migrations/20261104200000_148_hunt2_money_guards.sql", "line": 452, "end_line": 540 }] },
+    { "id": "cancelled", "type": "failure", "label": "CANCELLED", "sublabel": "refund or fine", "tag": "terminal",
+      "sources": [{ "path": "supabase/migrations/20261031150000_128_plain_notification_wording.sql", "line": 390, "end_line": 419 }, { "path": "supabase/migrations/20261031150000_128_plain_notification_wording.sql", "line": 433, "end_line": 483 }] }
+  ],
+  "transitions": [
+    { "id": "open-locked", "from": "open", "to": "locked", "label": "hire" },
+    { "id": "locked-started", "from": "locked", "to": "started", "label": "start" },
+    { "id": "started-work_done", "from": "started", "to": "work_done", "label": "proof" },
+    { "id": "work_done-completed", "from": "work_done", "to": "completed", "label": "approve", "variant": "emphasis" },
+    { "id": "work_done-auto", "from": "work_done", "to": "auto_completed", "label": "window ends", "variant": "dashed" },
+    { "id": "work_done-revision", "from": "work_done", "to": "revision", "label": "asks changes" },
+    { "id": "revision-work_done", "from": "revision", "to": "work_done", "label": "resubmits" },
+    { "id": "revision-completed", "from": "revision", "to": "completed", "label": "approves" },
+    { "id": "started-overdue", "from": "started", "to": "overdue", "label": "due time passes", "variant": "dashed" },
+    { "id": "overdue-work_done", "from": "overdue", "to": "work_done", "label": "late proof" },
+    { "id": "locked-open", "from": "locked", "to": "open", "label": "helper backs out" },
+    { "id": "open-cancelled", "from": "open", "to": "cancelled", "label": "poster cancels" },
+    { "id": "overdue-disputed", "from": "overdue", "to": "disputed", "label": "report", "variant": "security" },
+    { "id": "revision-disputed", "from": "revision", "to": "disputed", "label": "report", "variant": "security" },
+    { "id": "disputed-completed", "from": "disputed", "to": "completed", "label": "staff pay helper", "variant": "security" },
+    { "id": "disputed-cancelled", "from": "disputed", "to": "cancelled", "label": "staff refund", "variant": "security" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Happy path", "items": ["hire = poster picks an offer; escrow is taken from the wallet", "start = helper begins; proof = helper sends photos or notes; approve = poster releases", "Earnings wait in clearing before they can be withdrawn"] },
+    { "dot": "amber", "title": "Waits and clocks", "items": ["Review window auto-completes silent posters (days from settings)", "OVERDUE is a label only: no money moves", "A cron job in Inngest sets OVERDUE; SQL decides everything else"] },
+    { "dot": "rose", "title": "Endings", "items": ["Cancelling after the helper started can cost the poster a fine", "A dispute freezes escrow until staff choose a side", "Once work is submitted, cancel is refused: open a dispute instead"] }
+  ]
+}

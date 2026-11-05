@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "TaskDrop system architecture",
+    "output": "taskdrop-architecture.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/hitendureacts77/taskdrop.git",
+      "revision": "b2b054595896a0a5592ff204f346b000d45e74c7"
+    }
+  },
+  "components": [
+    { "id": "users", "type": "external", "label": "Posters & helpers", "sublabel": "Android + web", "pos": [40, 290], "size": [120, 60],
+      "sources": [{ "path": "README.md", "line": 3 }] },
+    { "id": "vercel", "type": "cloud", "label": "Vercel", "sublabel": "web build + deploy", "pos": [250, 160], "size": [130, 60],
+      "sources": [{ "path": "scripts/vercel-build.mjs", "line": 1, "end_line": 24 }, { "path": "vercel.json", "line": 1, "end_line": 3 }] },
+    { "id": "app", "type": "frontend", "label": "TaskDrop app", "sublabel": "Expo / React Native", "pos": [250, 285], "size": [130, 70],
+      "sources": [{ "path": "README.md", "line": 5, "end_line": 11 }, { "path": "apps/mobile/src/data/api.ts", "line": 11, "end_line": 18 }, { "path": "apps/mobile/src/lib/supabase.ts", "line": 14, "end_line": 20 }] },
+    { "id": "api", "type": "backend", "label": "api function", "sublabel": "the one front door", "pos": [470, 290], "size": [130, 60],
+      "sources": [{ "path": "supabase/functions/api/index.ts", "line": 15, "end_line": 44 }] },
+    { "id": "db", "type": "database", "label": "Postgres + RLS", "sublabel": "money rules in SQL", "pos": [690, 280], "size": [140, 80],
+      "sources": [{ "path": "supabase/migrations/20260911045820_001_core_schema.sql", "line": 1, "end_line": 8 }, { "path": "supabase/migrations/20261104200000_148_hunt2_money_guards.sql", "line": 195, "end_line": 235 }] },
+    { "id": "signin", "type": "security", "label": "Sign-in functions", "sublabel": "phone OTP + password", "pos": [695, 160], "size": [130, 60],
+      "sources": [{ "path": "supabase/functions/phone-auth/index.ts", "line": 8, "end_line": 34 }, { "path": "supabase/functions/password-auth/index.ts", "line": 7, "end_line": 25 }] },
+    { "id": "msg91", "type": "external", "label": "MSG91", "sublabel": "OTP text message", "pos": [695, 40], "size": [130, 60],
+      "sources": [{ "path": "supabase/functions/phone-auth/index.ts", "line": 11, "end_line": 14 }] },
+    { "id": "pay", "type": "backend", "label": "Razorpay functions", "sublabel": "money in and out", "pos": [695, 430], "size": [130, 60],
+      "sources": [{ "path": "supabase/functions/razorpay/index.ts", "line": 13, "end_line": 29 }, { "path": "supabase/functions/razorpay-webhook/index.ts", "line": 6, "end_line": 22 }, { "path": "supabase/functions/razorpayx-payouts/index.ts", "line": 11, "end_line": 35 }] },
+    { "id": "razorpay", "type": "external", "label": "Razorpay + X", "sublabel": "escrow + payouts", "pos": [695, 550], "size": [130, 60],
+      "sources": [{ "path": "supabase/functions/razorpay/index.ts", "line": 43 }, { "path": "supabase/functions/razorpayx-payouts/index.ts", "line": 11, "end_line": 14 }] },
+    { "id": "inngest", "type": "messagebus", "label": "Inngest jobs", "sublabel": "cron + events", "pos": [960, 280], "size": [140, 80],
+      "sources": [{ "path": "supabase/functions/inngest/index.ts", "line": 40, "end_line": 61 }, { "path": "supabase/functions/inngest/index.ts", "line": 99, "end_line": 117 }] },
+    { "id": "expo", "type": "external", "label": "Expo Push", "sublabel": "phone alerts", "pos": [965, 160], "size": [130, 60],
+      "sources": [{ "path": "supabase/functions/inngest/jobs.ts", "line": 159, "end_line": 160 }, { "path": "supabase/functions/inngest/index.ts", "line": 232, "end_line": 240 }] },
+    { "id": "imagekit", "type": "external", "label": "ImageKit", "sublabel": "task pictures", "pos": [965, 430], "size": [130, 60],
+      "sources": [{ "path": "supabase/functions/inngest/index.ts", "line": 300, "end_line": 319 }, { "path": "apps/mobile/src/lib/media.ts", "line": 12, "end_line": 27 }] }
+  ],
+  "connections": [
+    { "id": "users-to-app", "from": "users", "to": "app", "label": "uses" },
+    { "id": "vercel-to-app", "from": "vercel", "to": "app", "label": "serves web", "fromSide": "bottom", "toSide": "top" },
+    { "id": "app-to-api", "from": "app", "to": "api", "label": "HTTPS ops", "variant": "emphasis" },
+    { "id": "api-to-db", "from": "api", "to": "db", "label": "RPC + RLS", "variant": "emphasis" },
+    { "id": "app-to-signin", "from": "app", "to": "signin", "label": "sign in", "variant": "security" },
+    { "id": "signin-to-msg91", "from": "signin", "to": "msg91", "label": "OTP SMS", "fromSide": "top", "toSide": "bottom" },
+    { "id": "signin-to-db", "from": "signin", "to": "db", "label": "users + codes", "fromSide": "bottom", "toSide": "top" },
+    { "id": "app-to-pay", "from": "app", "to": "pay", "label": "pay / withdraw" },
+    { "id": "pay-to-razorpay", "from": "pay", "to": "razorpay", "label": "links, payouts", "fromSide": "bottom", "toSide": "top" },
+    { "id": "razorpay-webhook", "from": "razorpay", "to": "pay", "label": "signed webhook", "variant": "security", "fromSide": "top", "toSide": "bottom" },
+    { "id": "pay-to-db", "from": "pay", "to": "db", "label": "settle money", "fromSide": "top", "toSide": "bottom" },
+    { "id": "db-to-inngest", "from": "db", "to": "inngest", "label": "outbox events", "variant": "dashed" },
+    { "id": "inngest-to-db", "from": "inngest", "to": "db", "label": "RPC sweeps" },
+    { "id": "inngest-to-expo", "from": "inngest", "to": "expo", "label": "push", "fromSide": "top", "toSide": "bottom" },
+    { "id": "inngest-to-imagekit", "from": "inngest", "to": "imagekit", "label": "purge pictures", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Client", "items": ["One Expo / React Native codebase runs on Android and web", "Every read and write is a named op sent to the api function", "Pictures go straight to ImageKit with a signed one-time token"] },
+    { "dot": "emerald", "title": "Server decides", "items": ["api runs each op with the caller's own token, so RLS applies", "Money and status changes happen in SQL functions, never in the app", "app-config serves admin switches; api enforces the same switches"] },
+    { "dot": "amber", "title": "Money", "items": ["Razorpay Payment Links fund escrow; a signed webhook settles them", "RazorpayX sends worker withdrawals", "Inngest never computes money; Postgres decides, Inngest carries out"] },
+    { "dot": "rose", "title": "Guardrails", "items": ["App Check token on api calls (monitor mode)", "Sentry reports errors from the app and every function", "The admin panel is a separate repo on the same Supabase project"] }
+  ]
+}
