@@ -3,8 +3,8 @@
 Everything that could be automated has been:
 
 - the webhook is deployed with JWT verification **off**, so Razorpay can reach it
-- a 256-bit `RAZORPAY_WEBHOOK_SECRET` is generated into your `.env`
-- your Razorpay **test** keys are in `.env` and verified against the live API
+- a 256-bit `RAZORPAY_WEBHOOK_SECRET` is generated into your `.env.all-secrets`
+- your Razorpay **test** keys are in `.env.all-secrets` and verified against the live API
 - `npm run check:payments` tells you what is still outstanding
 
 **One step needs your hands**, because it needs a Supabase login this machine
@@ -16,12 +16,12 @@ bash scripts/push-payment-secrets.sh
 npm run check:payments
 ```
 
-Alternatively paste the three values from `.env` into
+Alternatively paste the three values from `.env.all-secrets` into
 **Supabase dashboard → Edge Functions → Secrets**.
 
 ## 1. Razorpay keys
 
-Test keys are in `.env` already and verified working — they authenticate, and
+Test keys are in `.env.all-secrets` already and verified working — they authenticate, and
 the exact payment-link call the Edge Function makes returns a live test link.
 Test mode moves no real money, which is what you want until the flow is proven.
 
@@ -32,7 +32,7 @@ re-run the push script.
 They are server-only: they must never reach a client bundle. The script below
 sends them straight to Supabase as Edge Function secrets.
 
-Put them in `.env`:
+Put them in `.env.all-secrets` (the script reads that file, not `.env`):
 
 ```
 RAZORPAY_KEY_ID=rzp_live_...
@@ -55,7 +55,7 @@ Without it a payment only settles if the payer returns to the app and taps
 "I've paid". Close the tab after paying and Razorpay has the money while the
 task sits unfunded.
 
-The secret is already generated and sits in your `.env`; the script above sends
+The secret is already generated and sits in your `.env.all-secrets`; the script above sends
 it. Register the endpoint in Razorpay with that same value:
 
 In Razorpay: **Settings → Webhooks → Add New Webhook**
