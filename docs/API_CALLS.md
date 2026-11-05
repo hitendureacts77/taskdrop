@@ -316,9 +316,10 @@ Results (empty on purpose; nothing has been measured yet):
 | Answer time through `api`, one person, 30 calls each of the 7 shared reads (median) | 389 to 429 ms | 396 to 457 ms | No change you could feel: about 400 ms of it is the network and the sign-in check, the database part was under 2 ms. `scripts/measure-cache.mjs` |
 | `memo counts` log lines (api logs, one minute) | none | `topEarners` 14 hits / 3 misses, `trendingCategories` 4 / 1, `platformHighlights` 4 / 1 | The memo is working; hits are per server copy |
 | Kept copies versus the live query | not applicable | identical (trending, top helpers, today's numbers) | checked before switching `snapshots` on |
+| Each switch turned off once, then back on | not applicable | all three work | `snapshots` off: database work back to 181 ms (baseline 195); `memo` off and `app` off: the controls showed false at once. The memo's pass-through and the app's no-reuse when off are also proven by the offline tests |
 | Leak test (`two-person-test.mjs --cache-only`) | clean | clean after each switch, guests included (publishable key) | the 126-operation probe is clean in CI |
 | Website as a guest, switches on: 3 visits to Home and 2 to Explore | not measured | 1 batched request and 1 poster-images request in total | opened in Chrome on taskdrop.in (staging); no console errors |
 
 **What this says, plainly:** the kept copies and the memo cut the database work for these lists by 5 to 8 times, and nothing leaks. At today's size that saves almost nothing a person can feel, which matches the design note that the database is not busy. The benefit is headroom for when many people open Home at once.
 
-**Still not done:** per-screen request counts for two people with `count-api-calls.mjs`, the load test, trying each switch off once and watching the numbers return, the money check by hand (person B approves work, person A opens the wallet within 30 s), and the phone check.
+**Still not done:** per-screen request counts for two people with `count-api-calls.mjs`, the load test, the money check by hand (person B approves work, person A opens the wallet within 30 s), and the phone check.
