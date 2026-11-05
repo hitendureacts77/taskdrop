@@ -7,6 +7,7 @@ import { cardSurface } from './ui';
 import { Icon } from './Icon';
 import { timeAgo } from './kit';
 import { Pressy, tx } from './primitives';
+import { isNeedsAccount } from '../lib/guest';
 
 /**
  * Questions on a task (plan item 1, migration 140). Workers ask before they
@@ -57,6 +58,7 @@ export function TaskQuestions({
       setDraft('');
       flash('Question sent. You will get an alert when it is answered');
     } catch (e) {
+      if (isNeedsAccount(e)) return;
       flash(e instanceof Error ? e.message : 'Could not send your question');
     } finally {
       setBusy(null);
@@ -72,6 +74,7 @@ export function TaskQuestions({
       setList((cur) => (cur ?? []).map((x) => (x.id === q.id ? { ...x, answer: done.answer, answeredAt: done.answeredAt } : x)));
       setAnswers((cur) => ({ ...cur, [q.id]: '' }));
     } catch (e) {
+      if (isNeedsAccount(e)) return;
       flash(e instanceof Error ? e.message : 'Could not save your answer');
     } finally {
       setBusy(null);
