@@ -3,7 +3,7 @@ import { callApi } from '../lib/gateway';
 import { clientHeaders } from '../lib/appInfo';
 import { currentUserId, supabase } from '../lib/supabase';
 import { subscribeLive } from '../lib/live';
-import { reuseWhileFresh } from '../lib/freshness';
+import { forgetEverything, reusePublic, reuseWhileFresh } from '../lib/freshness';
 import type { Tables } from '@taskdrop/db-types';
 import { guestGate, primeProfile, type Task, type Profile } from './api';
 import { isGuestOp } from '../lib/guest';
@@ -21,6 +21,16 @@ async function act<T>(op: string, args: Record<string, unknown> = {}, signedOutM
   // A guest may make the public reads; a write opens the "Make your account" pop-up (data/api.ts).
   await guestGate(op, signedOutMessage);
   return callApi<T>(op, args);
+}
+
+/**
+ * A same-for-everyone read (lib/freshness.ts PUBLIC_REUSE_MS, the server's PUBLIC_MEMO_OPS). Reused for a
+ * short time only while the admin switch "public cache: app" is on; off, this is exactly act(). A failure
+ * still throws, and is never kept.
+ */
+async function actPublic<T>(op: string, args: Record<string, unknown> = {}): Promise<T> {
+  await guestGate(op, 'Sign in first');
+  return reusePublic<T>(op, JSON.stringify(args), () => callApi<T>(op, args));
 }
 
 async function ask<T>(op: string, args: Record<string, unknown>, signedOut: T): Promise<T> {
@@ -62,7 +72,7 @@ export async function notificationSides(rows: Notification[]): Promise<Map<strin
  * moments ago, with no alert, write or sign-in since, is reused (lib/freshness.ts). A failure is never kept.
  */
 export const countUnreadFor = (side: 'poster' | 'worker') =>
-  reuseWhileFresh(`countUnreadFor:${side}`, () => ask<number>('countUnreadFor', { side }, 0)).catch(() => 0);
+  reuseWhileFresh('countUnreadFor', side, () => ask<number>('countUnreadFor', { side }, 0)).catch(() => 0);
 
 export async function markNotificationsRead(ids?: string[]): Promise<void> {
   await ask('markNotificationsRead', { ids: ids ?? [] }, null);
@@ -218,7 +228,7 @@ export type Highlights = {
   liveWorkers: number;
 };
 
-export const platformHighlights = () => act<Highlights>('platformHighlights');
+export const platformHighlights = () => actPublic<Highlights>('platformHighlights');
 
 export type TrendingCategory = {
   category: string;
@@ -227,7 +237,7 @@ export type TrendingCategory = {
   avg_budget_minor: number;
 };
 
-export const trendingCategories = (limit = 8) => act<TrendingCategory[]>('trendingCategories', { limit });
+export const trendingCategories = (limit = 8) => actPublic<TrendingCategory[]>('trendingCategories', { limit });
 
 export type EarnerKind = 'top_rated' | 'most_active' | 'new_talent';
 export type Earner = {
@@ -241,7 +251,7 @@ export type Earner = {
   skill: string | null;
 };
 
-export const topEarners = (kind: EarnerKind, limit = 10) => act<Earner[]>('topEarners', { kind, limit });
+export const topEarners = (kind: EarnerKind, limit = 10) => actPublic<Earner[]>('topEarners', { kind, limit });
 
 export type PublicStats = { jobsDone: number; tasksPosted: number; tasksCompletedAsPoster: number };
 export const publicProfileStats = (userId: string) => act<PublicStats>('publicProfileStats', { userId });
@@ -382,6 +392,8 @@ export const accountDeletionCheck = () =>
  */
 export async function deleteMyAccount(): Promise<void> {
   await act('deleteMyAccount', { confirm: 'DELETE MY ACCOUNT' });
+  // Nothing remembered for this account outlives it, even before the sign-out below is heard (3.5b, H69).
+  forgetEverything();
   await supabase.auth.signOut({ scope: 'local' });
 }
 

@@ -4,7 +4,7 @@ import { useSyncVersion } from './SyncProvider';
 import type { NavParams, ScreenName } from './navTypes';
 import { TAB_ROUTE, isNativeTab, tabForPath } from '../navigation/nativeTabs';
 import { clearParams, putParams, setTabParams } from '../navigation/navParams';
-import { isFresh, stamp, type Stamp } from '../lib/freshness';
+import { isFresh, screenMayReuse, stamp, type Stamp } from '../lib/freshness';
 
 export type { NavParams, ScreenName } from './navTypes';
 
@@ -41,11 +41,14 @@ const EMPTY: NavParams = {};
 export function ScreenScope({
   params,
   focus,
+  name,
   children,
 }: {
   params: NavParams;
   /** Ignored here; the route counts its own focus. */
   focus?: number;
+  /** Which screen this is: the wallet always asks again when shown (lib/freshness.ts). */
+  name?: ScreenName;
   children: React.ReactNode;
 }) {
   void focus;
@@ -54,8 +57,9 @@ export function ScreenScope({
   const was = useRef(focused);
   // Coming back only counts when the screen is not fresh: loaded half a minute ago or more, or
   // something changed since (lib/freshness.ts). Back from a quick look at a task, nothing is re-asked.
+  // The wallet always counts (3.5b): money is never shown from what was read before.
   const loaded = useRef<Stamp>(stamp());
-  if (focused && !was.current && !isFresh(loaded.current)) {
+  if (focused && !was.current && (!screenMayReuse(name) || !isFresh(loaded.current))) {
     count.current += 1;
     loaded.current = stamp();
   }

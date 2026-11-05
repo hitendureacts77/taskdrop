@@ -324,3 +324,66 @@ export async function purgeMediaBatch(
   if (failed > 0) throw new Error(`media purge: ${failed} of ${batch.length} pictures could not be removed`);
   return { purged: done.length, more: batch.length === MEDIA_PURGE_BATCH };
 }
+
+// ------------------------------------------------------ public snapshots --
+
+/** Plan 3.5b layer C: the kept copies are only used while younger than this (migration 149), so older means the job is behind. */
+export const SNAPSHOT_STALE_MINUTES = 30;
+/** The team alert is left only while the copy is this old or less, so a stale copy rings the bell once or twice, not every 10 minutes. */
+export const SNAPSHOT_ALERT_WINDOW_MINUTES = 45;
+/** The settings row that remembers when a refresh last finished (the kept table itself is closed to the service key). */
+export const SNAPSHOT_MARKER_KEY = "public_snapshots_last_ok";
+
+/** Where the time of the last finished refresh is kept. */
+export type SnapshotMarker = { get(): Promise<string | null>; set(iso: string): Promise<void> };
+
+/**
+ * Asks the database to work out Trending, Top helpers and today's numbers again.
+ * Another refresh already running is not a failure ({ skipped: true }). An error from the
+ * database throws, so Inngest retries and, after the last retry, reports it.
+ */
+export async function refreshPublicSnapshots(
+  rpc: Rpc,
+  marker: SnapshotMarker,
+  now: () => Date = () => new Date(),
+): Promise<{ skipped: boolean; took_ms?: unknown }> {
+  const r = await call<{ skipped?: unknown; took_ms?: unknown } | null>(rpc, "refresh_public_snapshots");
+  if (r === null || typeof r !== "object") throw new Error("refresh_public_snapshots: unexpected answer");
+  if (r.skipped === true) return { skipped: true };
+  await marker.set(now().toISOString());
+  return { skipped: false, took_ms: r.took_ms };
+}
+
+/** Minutes since the last finished refresh, or null when none was ever recorded or the value is not a time. */
+export function snapshotAgeMinutes(lastOk: string | null, now: Date): number | null {
+  if (!lastOk) return null;
+  const t = Date.parse(lastOk);
+  if (Number.isNaN(t)) return null;
+  return Math.max(0, (now.getTime() - t) / 60_000);
+}
+
+export function staleSnapshotAlert(ageMinutes: number): Alert {
+  const m = Math.floor(ageMinutes);
+  return {
+    kind: "public_snapshots_stale",
+    title: "Kept copies of the public lists are out of date",
+    body: `The last refresh finished ${m} minutes ago (the app falls back to live answers after ${SNAPSHOT_STALE_MINUTES}). Check the public-snapshots job in Inngest.`,
+  };
+}
+
+/**
+ * Staleness check: when the last finished refresh is older than 30 minutes, tell Sentry (every run, it groups
+ * them) and leave one team alert. Nothing recorded yet is not an alert (the switch may never have been used).
+ */
+export async function checkSnapshotFreshness(
+  rpc: Rpc,
+  marker: SnapshotMarker,
+  report: (message: string, ageMinutes: number) => Promise<void>,
+  now: () => Date = () => new Date(),
+): Promise<{ ageMinutes: number | null; stale: boolean }> {
+  const age = snapshotAgeMinutes(await marker.get(), now());
+  if (age === null || age <= SNAPSHOT_STALE_MINUTES) return { ageMinutes: age, stale: false };
+  await report(`public snapshots are ${Math.floor(age)} minutes old`, Math.floor(age));
+  if (age <= SNAPSHOT_ALERT_WINDOW_MINUTES) await saveAlert(rpc, staleSnapshotAlert(age), { age_minutes: Math.floor(age) });
+  return { ageMinutes: age, stale: true };
+}

@@ -5,7 +5,7 @@ import { clientHeaders } from '../lib/appInfo';
 import { FUNCTIONS_REGION, currentUserId, supabase } from '../lib/supabase';
 import { subscribeLive } from '../lib/live';
 import { count, log } from '../lib/monitoring';
-import { noteChange, reuseWhileFresh } from '../lib/freshness';
+import { noteChange, reusePublic, reuseWhileFresh } from '../lib/freshness';
 import type { Tables, Enums } from '@taskdrop/db-types';
 
 /**
@@ -178,7 +178,7 @@ export const listWalletActivity = (_userId: string, limit = 12) => act<WalletEve
 
 /** The tab bar's badge. Recounted on every screen change, so a count from moments ago with nothing changed since is reused (lib/freshness.ts). */
 export const countNeedsAttention = (_userId: string, mode: 'poster' | 'worker') =>
-  reuseWhileFresh(`countNeedsAttention:${mode}`, () => act<number>('countNeedsAttention', { mode }));
+  reuseWhileFresh('countNeedsAttention', mode, () => act<number>('countNeedsAttention', { mode }));
 
 /**
  * Profiles are read by many screens, often for the same person within the same
@@ -500,7 +500,7 @@ const positiveInts = (v: unknown, divisor = 1): number[] | null => {
  */
 export async function promotionTiers(): Promise<PromotionTiers> {
   try {
-    const raw = await callApi<{ budgetsMinor: unknown; days: unknown }>('promotionTiers');
+    const raw = await reusePublic('promotionTiers', '{}', () => callApi<{ budgetsMinor: unknown; days: unknown }>('promotionTiers'));
     return {
       budgets: positiveInts(raw?.budgetsMinor, 100) ?? DEFAULT_PROMOTION_TIERS.budgets,
       days: positiveInts(raw?.days) ?? DEFAULT_PROMOTION_TIERS.days,
@@ -568,7 +568,14 @@ export const listPromotions = () => ask<Promotion[]>('listPromotions', {}, []);
 
 /** The live ad auction's running order. Rank 1 is the winning campaign. */
 export async function adAuctionRanks(): Promise<Map<string, number>> {
-  return toMap(await quietly<Record<string, number>>('adAuctionRanks', {}, {}));
+  // Reused for a few seconds only while the admin switch "public cache: app" is on (lib/freshness.ts). The
+  // empty fallback on a failure is made here, outside the reuse, so it is never kept.
+  try {
+    if (!(await myId()) && !isGuestOp('adAuctionRanks')) return new Map();
+    return toMap(await reusePublic('adAuctionRanks', '{}', () => callApi<Record<string, number>>('adAuctionRanks', {})));
+  } catch {
+    return new Map();
+  }
 }
 
 export async function recordAdImpression(taskId: string): Promise<void> {

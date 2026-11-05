@@ -11,6 +11,7 @@ import { loadGuestChoice, saveGuestChoice } from '../lib/guest';
 import { moveGuestDrafts } from '../lib/drafts';
 import { adoptGuestWizard, clearWizard } from '../lib/postWizardStore';
 import { count, log, setMonitoringUser } from '../lib/monitoring';
+import { forgetEverything } from '../lib/freshness';
 
 /**
  * Real Supabase auth: phone OTP via the phone-auth Edge Function, or Google
@@ -506,6 +507,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Emptied now, and again when the sign-out is heard (lib/gateway.ts): nothing is kept for the next person.
+    forgetEverything();
     // A half-made post stays with its account: the next person on this device never sees it.
     await clearWizard();
     await supabase.auth.signOut();

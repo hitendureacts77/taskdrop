@@ -21,7 +21,7 @@ export default function ScreenRoute() {
   return (
     <View style={{ flex: 1, backgroundColor: t.colors.bg }}>
       <NativeHeaderCtx.Provider value={NATIVE_HEADER_SCREENS.includes(screen)}>
-        <ScreenScope params={getParams(k)}>{Comp ? <Comp /> : <Placeholder name={screen} />}</ScreenScope>
+        <ScreenScope params={getParams(k)} name={screen}>{Comp ? <Comp /> : <Placeholder name={screen} />}</ScreenScope>
       </NativeHeaderCtx.Provider>
     </View>
   );

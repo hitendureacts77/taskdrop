@@ -64,7 +64,8 @@ function ensureOpen(): void {
 
 // A new sign-in gets its own channel; signing out closes it.
 supabase.auth.onAuthStateChange((event) => {
-  // Someone else's answers must never be reused for the next person.
+  // Someone else's answers must never be reused for the next person: lib/gateway.ts empties every memory
+  // when the person changes (keys carry the person, 3.5b); this also makes every screen ask again.
   if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') noteChange();
   if (event === 'SIGNED_OUT') {
     void close();

@@ -59,6 +59,7 @@ also drops those fields from anything it stores, for an event queued before this
 | `push-notification` | event `notification.created` | reads the message from the database, sends it to Expo, waits 15 minutes, reads Expo's receipts and forgets devices that are gone |
 | `account-files` | event `user.deleted` | removes whatever files of the deleted account are still in storage (the api function already tried once); empty when nothing is left. Also marks the account's ImageKit pictures deleted (migration 109), except those a kept record still uses |
 | `media-purge` | every 10 min | marks pictures nobody finished uploading (pending for 24 h) as deleted, then removes deleted pictures from ImageKit in batches of 50, with retries. Waits, without failing, until the ImageKit secrets are set. See `docs/MEDIA.md` |
+| `public-snapshots` | every 10 min | calls `refresh_public_snapshots()` (migration 149, plan 3.5b layer C): Trending, Top helpers and today's numbers are worked out once and kept. Another refresh already running counts as success. If the last finished refresh is over 30 minutes old it logs an error for Sentry and leaves one team alert (the time is kept in the settings row `public_snapshots_last_ok`) |
 | `overdue-tasks` | every 10 min | calls `run_overdue_tasks()`: a started job past its due time becomes `OVERDUE`. Only the label changes; no money moves |
 | `user-created` | event `user.signed_up` | records the person in the `user_sync` ledger |
 | `user-updated` | event `user.updated` | counts the update and keeps which fields changed in the ledger |

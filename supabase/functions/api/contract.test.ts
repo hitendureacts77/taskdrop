@@ -23,11 +23,88 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { oldAppDir } from "../../../scripts/lib/old-app.mjs";
-import { OPS as NEW_OPS, runOp as runNew } from "./ops.ts";
+import { NEVER_REUSE, PER_PERSON_REUSE } from "../../../apps/mobile/src/lib/freshness.ts";
+import { GUEST_OPS } from "./guest.ts";
+import { OPS as NEW_OPS, rateBucket, runOp as runNew } from "./ops.ts";
+import { MEMO_MAX_TTL_MS, MEMO_MIN_TTL_MS, PUBLIC_MEMO_OPS, isPublicMemoOp, memoKey, memoTtlMs } from "./publicMemo.ts";
+import { READ_OPS } from "./reads.ts";
 
 const REPO = resolve(import.meta.dirname, "../../..");
 const UID = "11111111-1111-4111-8111-111111111111";
 const ID = "22222222-2222-4222-8222-222222222222";
+
+// ------------------------------------- closed caching lists (task 3.5b E) --
+// Runs first and needs no old app: what may be shared between people, what
+// is never reused, and that every api op is one of them by a conscious choice.
+{
+  const memo = Object.keys(PUBLIC_MEMO_OPS);
+  const known = new Set([...Object.keys(NEW_OPS), "batch"]);
+  const reads = Object.keys(NEW_OPS).filter((op) => rateBucket(op) === "read");
+  const writes = Object.keys(NEW_OPS).filter((op) => rateBucket(op) !== "read");
+  const lists = { PUBLIC_MEMO_OPS: memo, NEVER_REUSE: [...NEVER_REUSE], PER_PERSON_REUSE: [...PER_PERSON_REUSE] };
+  const problems: string[] = [];
+
+  // Every name on a list is a real op (a typo would leave the real op unguarded).
+  for (const [list, names] of Object.entries(lists)) {
+    for (const op of names) if (!known.has(op)) problems.push(`${list} names ${op}, which is not an api op`);
+  }
+
+  // No op on two lists.
+  const seen = new Map<string, string>();
+  for (const [list, names] of Object.entries(lists)) {
+    for (const op of names) {
+      if (seen.has(op)) problems.push(`${op} is on both ${seen.get(op)} and ${list}`);
+      else seen.set(op, list);
+    }
+  }
+
+  // Every read is classified (a new op forces a choice); writes are never reused.
+  for (const op of reads) if (!seen.has(op)) problems.push(`${op} is a new api read on no caching list: add it to PUBLIC_MEMO_OPS, NEVER_REUSE or PER_PERSON_REUSE`);
+  for (const op of writes) {
+    if (isPublicMemoOp(op) || PER_PERSON_REUSE.has(op)) problems.push(`${op} is a write and may never be reused`);
+  }
+
+  // The shared list holds only same-for-everyone reads.
+  const neverShared = new Set([
+    // money
+    "getWallet", "getEscrowHeld", "listWalletActivity", "listPayouts", "listPayoutDestinations", "feesSince",
+    "platformFees", "settleClearedEarnings", "myStats", "listPromotions",
+    // task status and offers
+    "getTask", "getTaskDetail", "canQuoteOn", "getMyBid", "listBidsForTask", "listMyBids", "countBidsByTask",
+    "listMyTasks", "listMyAssignments", "getProof", "countNeedsAttention",
+    // chat, contacts, notifications
+    "listMessages", "listThreads", "listCrewMessages", "taskContactPhone", "countUnreadFor", "getNotification",
+    "listNotifications", "countUnreadNotifications",
+    // admin and account state
+    "isAdmin", "platformStats", "accountDeletionCheck", "ageStatus",
+  ]);
+  const sensitiveName = (op: string) =>
+    /wallet|escrow|payout|fee|earning|bid|quote|proof|message|thread|chat|contact|phone|notification|admin|stats|dispute|ticket|unread|attention/i.test(op) ||
+    /^my[A-Z]|^getTask|^listMy/.test(op);
+  for (const op of memo) {
+    if (NEVER_REUSE.has(op)) problems.push(`${op} is on PUBLIC_MEMO_OPS and NEVER_REUSE`);
+    if (neverShared.has(op)) problems.push(`${op} is a money, task, offer, chat, contact or admin read and may never be shared`);
+    if (sensitiveName(op)) problems.push(`${op} looks like a personal or money read (name) and may never be shared`);
+    if (rateBucket(op) !== "read") problems.push(`${op} is not a read`);
+    // The same op a guest gets (it runs with no person behind it), or the one
+    // reviewed exception: promotionTiers reads settings rows every signed-in person may read.
+    if (GUEST_OPS[op] !== READ_OPS[op] && op !== "promotionTiers") problems.push(`${op} is not one of the guest's shared reads`);
+    const ttl = memoTtlMs(op);
+    if (ttl === null || ttl < MEMO_MIN_TTL_MS || ttl > MEMO_MAX_TTL_MS) problems.push(`${op} keeps its answer ${ttl} ms, outside 15 to 60 s`);
+  }
+  assert.deepEqual(problems, [], `caching lists are wrong:\n  ${problems.join("\n  ")}`);
+
+  // The helpers: nothing off the list is shared, and the key is the op plus sorted arguments.
+  assert.equal(memoTtlMs("getWallet"), null);
+  assert.equal(memoTtlMs("toString"), null);
+  assert.equal(isPublicMemoOp("__proto__"), false);
+  assert.equal(memoKey("topEarners", { limit: 10, kind: "top_rated" }), memoKey("topEarners", { kind: "top_rated", limit: 10 }));
+  assert.equal(memoKey("topEarners", { kind: "top_rated", limit: 10 }), 'topEarners:{"kind":"top_rated","limit":10}');
+  assert.notEqual(memoKey("topEarners", { kind: "top_rated" }), memoKey("topEarners", { kind: "most_active" }));
+  assert.equal(memoKey("platformHighlights", undefined), "platformHighlights:{}");
+  assert.equal(memoKey("trendingCategories", { a: { y: 1, x: [2, { b: 1, a: 0 }] } }), 'trendingCategories:{"a":{"x":[2,{"a":0,"b":1}],"y":1}}');
+  console.log(`ok  - caching lists: ${memo.length} shared, ${NEVER_REUSE.size} never reused, ${PER_PERSON_REUSE.size} per person; ${reads.length} reads all classified`);
+}
 
 const OLD = oldAppDir(REPO);
 const oldApi = (await import(pathToFileURL(join(OLD, "supabase/functions/api/ops.ts")).href)) as typeof import("./ops.ts");
