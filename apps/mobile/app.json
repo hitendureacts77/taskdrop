@@ -8,7 +8,7 @@
     "userInterfaceStyle": "automatic",
     "scheme": "taskdrop",
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "fingerprint"
     },
     "updates": {
       "url": "https://u.expo.dev/08aa002b-4eea-4952-a62a-ec9245e77953",
