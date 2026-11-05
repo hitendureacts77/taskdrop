@@ -324,6 +324,37 @@ const overdueTasks = inngest.createFunction(
   async ({ step }) => ({ marked: await step.run("mark overdue", () => call<number>(rpc, "run_overdue_tasks")) }),
 );
 
+/**
+ * Plan 3.5b, layer C: every 10 minutes the database works out Trending, Top helpers and today's numbers once and keeps
+ * the copy (refresh_public_snapshots, migration 149). Another refresh already running counts as success. A refresh that
+ * keeps failing is reported after the last retry like every job; the first step also checks that the last finished
+ * refresh is under 30 minutes old and, if not, logs an error for Sentry and leaves a team alert.
+ */
+const snapshotMarker: SnapshotMarker = {
+  async get() {
+    const { data, error } = await db.from("settings").select("value").eq("key", SNAPSHOT_MARKER_KEY).maybeSingle();
+    if (error) throw new Error(`settings: ${error.message}`);
+    return typeof data?.value === "string" ? data.value : null;
+  },
+  async set(iso) {
+    const { error } = await db.from("settings").upsert({ key: SNAPSHOT_MARKER_KEY, value: iso });
+    if (error) throw new Error(`settings: ${error.message}`);
+  },
+};
+
+const publicSnapshots = inngest.createFunction(
+  { id: "public-snapshots", triggers: [{ cron: "*/10 * * * *" }], concurrency: 1, retries: 3, onFailure: reportFailure("public-snapshots") },
+  async ({ step }) => {
+    const freshness = await step.run("check age", () =>
+      checkSnapshotFreshness(rpc, snapshotMarker, async (message, ageMinutes) => {
+        await logServer("error", "public-snapshots", message, { ageMinutes });
+        await captureServerError(new Error(message), { job: "public-snapshots", step: "stale" });
+      }));
+    const refreshed = await step.run("refresh", () => refreshPublicSnapshots(rpc, snapshotMarker));
+    return { ...refreshed, ageBeforeMinutes: freshness.ageMinutes === null ? null : Math.floor(freshness.ageMinutes) };
+  },
+);
+
 /** Counters, sign-in codes, old notifications, the admin live feed: records that have outlived their use. */
 const housekeeping = inngest.createFunction(
   { id: "housekeeping", triggers: [{ cron: "17 * * * *" }], concurrency: 1, onFailure: reportFailure("housekeeping") },
@@ -425,7 +456,7 @@ Deno.serve(serve({
   client: inngest,
   functions: [
     outboxSweeper, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile,
-    pushNotification, accountFiles, mediaPurge, overdueTasks, housekeeping, outboxWatchdog, smsPumpingWatch, taskReminders,
+    pushNotification, accountFiles, mediaPurge, overdueTasks, publicSnapshots, housekeeping, outboxWatchdog, smsPumpingWatch, taskReminders,
     userCreated, userUpdated, userDeleted, userSyncRepair,
     ...moneyJobs,
   ],

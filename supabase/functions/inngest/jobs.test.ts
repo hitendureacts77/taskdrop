@@ -7,8 +7,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  ALERT_EVENTS, alertFor, call, chunk, compareProviderPayment, deadKeys, digestAlert, expoReceipts, expoSend, ownFiles,
-  readTickets, safeData, saveAlert, toEvents, tokenKey, tokensForKeys, userSyncArgs, USER_EVENTS, type Fetch, type Rpc,
+  ALERT_EVENTS, alertFor, call, checkSnapshotFreshness, chunk, compareProviderPayment, deadKeys, digestAlert, expoReceipts, expoSend, ownFiles,
+  readTickets, refreshPublicSnapshots, safeData, saveAlert, toEvents, tokenKey, tokensForKeys, userSyncArgs, USER_EVENTS, type Fetch, type Rpc, type SnapshotMarker,
 } from "./jobs.ts";
 
 test("outbox rows become Inngest events keyed by the outbox id", () => {
@@ -276,4 +276,66 @@ test("pictures: a full batch says there may be more; an empty one does nothing",
   const none = purgeKit([], () => 204);
   assert.deepEqual(await purgeMediaBatch(none.rpc, IK, none.fetcher), { purged: 0, more: false });
   assert.deepEqual(none.marked, []);
+});
+
+// ------------------------------------------------------ public snapshots --
+
+function memoryMarker(initial: string | null = null) {
+  const m = { value: initial, sets: 0 } as { value: string | null; sets: number } & SnapshotMarker;
+  m.get = async () => m.value;
+  m.set = async (iso: string) => { m.value = iso; m.sets++; };
+  return m;
+}
+const T0 = new Date("2026-11-04T12:00:00Z");
+const minutesAgo = (n: number) => new Date(T0.getTime() - n * 60_000).toISOString();
+
+test("public snapshots: a finished refresh is recorded and reports the time taken", async () => {
+  const calls: string[] = [];
+  const rpc: Rpc = async (name) => { calls.push(name); return { data: { skipped: false, took_ms: { highlights: 3 } }, error: null }; };
+  const marker = memoryMarker();
+  const r = await refreshPublicSnapshots(rpc, marker, () => T0);
+  assert.deepEqual(calls, ["refresh_public_snapshots"]);
+  assert.equal(r.skipped, false);
+  assert.deepEqual(r.took_ms, { highlights: 3 });
+  assert.equal(marker.value, T0.toISOString());
+});
+
+test("public snapshots: another refresh already running is a success and records nothing", async () => {
+  const rpc: Rpc = async () => ({ data: { skipped: true }, error: null });
+  const marker = memoryMarker(minutesAgo(5));
+  const r = await refreshPublicSnapshots(rpc, marker, () => T0);
+  assert.deepEqual(r, { skipped: true });
+  assert.equal(marker.sets, 0);
+});
+
+test("public snapshots: a database error throws so Inngest retries and reports it", async () => {
+  const rpc: Rpc = async () => ({ data: null, error: { message: "boom" } });
+  const marker = memoryMarker();
+  await assert.rejects(refreshPublicSnapshots(rpc, marker, () => T0), /refresh_public_snapshots: boom/);
+  assert.equal(marker.sets, 0);
+  const odd: Rpc = async () => ({ data: null, error: null });
+  await assert.rejects(refreshPublicSnapshots(odd, marker, () => T0), /unexpected answer/);
+});
+
+test("public snapshots: stale copy reports to Sentry and leaves one team alert; fresh, unknown and old-alert cases stay quiet", async () => {
+  const saved: Array<Record<string, unknown>> = [];
+  const rpc: Rpc = async (name, args) => { if (name === "record_admin_alert") saved.push(args ?? {}); return { data: "alert-id", error: null }; };
+  const reports: string[] = [];
+  const report = async (m: string) => { reports.push(m); };
+
+  assert.deepEqual(await checkSnapshotFreshness(rpc, memoryMarker(minutesAgo(10)), report, () => T0), { ageMinutes: 10, stale: false });
+  assert.deepEqual(await checkSnapshotFreshness(rpc, memoryMarker(null), report, () => T0), { ageMinutes: null, stale: false });
+  assert.deepEqual(await checkSnapshotFreshness(rpc, memoryMarker("not a time"), report, () => T0), { ageMinutes: null, stale: false });
+  assert.equal(reports.length + saved.length, 0);
+
+  const r = await checkSnapshotFreshness(rpc, memoryMarker(minutesAgo(35)), report, () => T0);
+  assert.equal(r.stale, true);
+  assert.equal(reports.length, 1);
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].p_kind, "public_snapshots_stale");
+
+  // Much older: still reported to Sentry every run, but the team alert is not repeated.
+  await checkSnapshotFreshness(rpc, memoryMarker(minutesAgo(120)), report, () => T0);
+  assert.equal(reports.length, 2);
+  assert.equal(saved.length, 1);
 });
