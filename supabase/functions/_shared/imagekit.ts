@@ -35,8 +35,12 @@ export type Fetch = (
 export const UPLOAD_URL = "https://upload.imagekit.io/api/v1/files/upload";
 export const API_URL = "https://api.imagekit.io/v1";
 
-/** How long an upload token may be used. ImageKit allows at most an hour. */
-export const UPLOAD_TOKEN_SECONDS = 30 * 60;
+/**
+ * How long an upload token may be used. ImageKit allows at most an hour. The token is only checked when an upload
+ * starts, so a few minutes is plenty; a short life stops a token that leaks or is hoarded from being used later
+ * (hunt 2, H41).
+ */
+export const UPLOAD_TOKEN_SECONDS = 5 * 60;
 
 /** Most an image may weigh. The app compresses before it uploads; this is the server's own limit. */
 export const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
@@ -131,6 +135,8 @@ export type FileDetails = {
   mime?: string;
   size?: number;
   isPrivateFile?: boolean;
+  /** ISO 8601, when the file was uploaded. */
+  createdAt?: string;
 };
 
 /** A file by id, or null when ImageKit has no such file. Throws on any other failure so the caller can retry. */
@@ -146,6 +152,15 @@ export async function deleteFile(cfg: ImageKitConfig, fetcher: Fetch, fileId: st
   const res = await fetcher(`${API_URL}/files/${encodeURIComponent(fileId)}`, { method: "DELETE", headers: basic(cfg) });
   if (res.ok || res.status === 404) return;
   throw new Error(`ImageKit delete: HTTP ${res.status}`);
+}
+
+/** One page of the account's files, oldest first. Only files (no folders or old versions). Throws on any failure. */
+export async function listFiles(cfg: ImageKitConfig, fetcher: Fetch, skip: number, limit: number): Promise<FileDetails[]> {
+  const query = new URLSearchParams({ type: "file", sort: "ASC_CREATED", skip: String(skip), limit: String(limit) });
+  const res = await fetcher(`${API_URL}/files?${query}`, { headers: basic(cfg) });
+  if (!res.ok) throw new Error(`ImageKit list: HTTP ${res.status}`);
+  const list = (await res.json()) as FileDetails[];
+  return Array.isArray(list) ? list : [];
 }
 
 /**

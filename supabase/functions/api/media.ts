@@ -115,6 +115,12 @@ export const MEDIA_OPS: Record<string, Op> = {
 
     const ext = str(a, "ext", 5).toLowerCase();
     if (!/^[a-z0-9]{1,5}$/.test(ext)) throw bad("ext");
+    // Pictures go to ImageKit only in production (hunt 2, H38): ImageKit removes a picture's location data when it serves
+    // it; this bucket serves the file exactly as uploaded. Judged by the extension too, so a picture cannot be sent here
+    // by calling it a video or a file. Staging keeps this path.
+    if (ctx.controls?.environment === "production" && (a.kind === "image" || kindFromExt(ext) === "image")) {
+      throw uploadFailed("Photo uploads are not available right now");
+    }
     const prefix = purpose === "proof" ? "proof-" : "";
     const path = `${userId}/${prefix}${Date.now()}-${random()}.${ext}`;
     const res = await db.storage.from(BUCKET).createSignedUploadUrl(path);

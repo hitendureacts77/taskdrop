@@ -7,7 +7,7 @@
  * to run the sweeps it already has, and leaves messages for the team.
  */
 
-import { deleteFile, type Fetch as ImageKitFetch, findFileId, type ImageKitConfig } from "../_shared/imagekit.ts";
+import { deleteFile, type Fetch as ImageKitFetch, findFileId, type ImageKitConfig, listFiles } from "../_shared/imagekit.ts";
 
 /** The one database call shape these jobs need: supabase.rpc, narrowed. */
 export type Rpc = (
@@ -323,6 +323,95 @@ export async function purgeMediaBatch(
   if (done.length > 0) await call<number>(rpc, "media_mark_purged", { p_ids: done });
   if (failed > 0) throw new Error(`media purge: ${failed} of ${batch.length} pictures could not be removed`);
   return { purged: done.length, more: batch.length === MEDIA_PURGE_BATCH };
+}
+
+// ------------------------------------------------- stray ImageKit files --
+
+/** A file is only judged a stray once it is this old, so an upload still on its way to attachMedia is never touched. */
+export const ORPHAN_MIN_AGE_MS = 2 * 24 * 60 * 60 * 1000;
+/** Most files one weekly run removes. */
+export const ORPHAN_MAX_DELETES = 200;
+/** ImageKit files looked at per request (ImageKit allows up to 1000). */
+export const ORPHAN_PAGE = 1000;
+/** Pages looked at per run (oldest files first), so a run always ends. */
+export const ORPHAN_MAX_PAGES = 10;
+
+/** Which of these file paths / ImageKit file ids have a `media` row (any status). Must throw if it cannot tell. */
+export type KnownFiles = (paths: string[], fileIds: string[]) => Promise<{ paths: Set<string>; fileIds: Set<string> }>;
+
+export type OrphanSweep = { scanned: number; strays: number; deleted: number; failed: number; dryRun: boolean };
+
+/**
+ * Weekly clean-up of ImageKit files TaskDrop never registered (hunt 2, H41). The upload token is not tied to a folder or
+ * name, so a signed-in person can put files anywhere in the account; those never get a `media` row, so nothing removes them.
+ *
+ * A file is removed only when ALL of these hold: it sits in this deployment's own top folder (`/<env>/`; another
+ * deployment sharing the account has its own database, so its files look like strays from here), it was uploaded more than
+ * two days ago, and neither its path nor its file id is in `media`. If the database cannot be asked, nothing is removed.
+ * At most 200 files are removed per run; the rest wait for the next week. Strays are collected first and removed after,
+ * so the paging never shifts under the scan. With `dryRun` nothing is removed, only counted.
+ *
+ * Counts only: no path or file name is returned or logged (they contain user ids).
+ */
+export async function sweepStrayImageKitFiles(
+  cfg: ImageKitConfig,
+  fetcher: ImageKitFetch,
+  known: KnownFiles,
+  opts: { now: Date; dryRun?: boolean; maxDeletes?: number },
+): Promise<OrphanSweep> {
+  const dryRun = opts.dryRun === true;
+  const maxDeletes = Math.min(opts.maxDeletes ?? ORPHAN_MAX_DELETES, ORPHAN_MAX_DELETES);
+  const cutoff = opts.now.getTime() - ORPHAN_MIN_AGE_MS;
+  const prefix = `/${cfg.env}/`;
+  const strays: string[] = [];
+  let scanned = 0;
+
+  for (let page = 0; page < ORPHAN_MAX_PAGES && strays.length < maxDeletes; page++) {
+    const files = await listFiles(cfg, fetcher, page * ORPHAN_PAGE, ORPHAN_PAGE);
+    scanned += files.length;
+    const old = files.filter((f) => {
+      if (typeof f.fileId !== "string" || !f.fileId || typeof f.filePath !== "string" || !f.filePath.startsWith(prefix)) return false;
+      const made = Date.parse(f.createdAt ?? "");
+      return Number.isFinite(made) && made <= cutoff;
+    });
+    if (old.length > 0) {
+      const have = await known(old.map((f) => f.filePath), old.map((f) => f.fileId));
+      for (const f of old) {
+        if (strays.length >= maxDeletes) break;
+        if (!have.paths.has(f.filePath) && !have.fileIds.has(f.fileId)) strays.push(f.fileId);
+      }
+    }
+    // Oldest first: a short page is the end, and a last file still too new means everything after it is too new.
+    const lastMade = Date.parse(files[files.length - 1]?.createdAt ?? "");
+    if (files.length < ORPHAN_PAGE || (Number.isFinite(lastMade) && lastMade > cutoff)) break;
+  }
+
+  if (dryRun) return { scanned, strays: strays.length, deleted: 0, failed: 0, dryRun };
+
+  let deleted = 0;
+  let failed = 0;
+  for (const fileId of strays) {
+    try {
+      await deleteFile(cfg, fetcher, fileId);
+      deleted++;
+    } catch (e) {
+      failed++;
+      console.error("stray files: could not remove one", e instanceof Error ? e.message : e);
+    }
+  }
+  if (failed > 0) throw new Error(`stray files: ${failed} of ${strays.length} could not be removed`);
+  return { scanned, strays: strays.length, deleted, failed, dryRun };
+}
+
+/** The weekly job's body: a no-op, touching neither ImageKit nor the database, until ImageKit's keys are set (`cfg` is null). */
+export async function runStraySweep(
+  cfg: ImageKitConfig | null,
+  fetcher: ImageKitFetch,
+  known: KnownFiles,
+  opts: { now: Date; dryRun?: boolean },
+): Promise<OrphanSweep | { skipped: string }> {
+  if (!cfg) return { skipped: "ImageKit is not configured" };
+  return await sweepStrayImageKitFiles(cfg, fetcher, known, opts);
 }
 
 // ------------------------------------------------------ public snapshots --

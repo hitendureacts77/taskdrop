@@ -533,6 +533,33 @@ await t("without ImageKit's keys, or for videos and documents, uploads go to Sup
   assert.ok((await runOp("createUpload", { purpose: "task", ext: "jpg" }, ctx(broken))).ok);
 });
 
+await t("in production a picture never goes to Supabase Storage, however it is labelled; staging, videos and documents still do (H38)", async () => {
+  const prod = parseControls({ platform: "android", environment: "production" })!;
+  const staging = parseControls({ platform: "android", environment: "staging" })!;
+  for (const args of [
+    { purpose: "task", kind: "image", mime: "image/jpeg", ext: "jpg" }, // ImageKit not configured
+    { purpose: "task", ext: "jpg" }, // an old app sends no kind
+    { purpose: "task", ext: "PNG" },
+    { purpose: "task", kind: "video", ext: "jpg" }, // a picture called a video
+    { purpose: "proof", kind: "file", ext: "heic" }, // a picture called a document
+  ]) {
+    const f = fake();
+    const r = await runOp("createUpload", args, ctx(f, { controls: prod }));
+    assert.ok(!r.ok && r.error.code === "UPLOAD", JSON.stringify(args));
+    assert.equal(f.storageCalls.length, 0, "no upload URL is handed out");
+    assert.equal(f.calls.filter((c) => c.rpc === "media_begin").length, 0);
+  }
+  // With ImageKit set, a production picture still goes to ImageKit.
+  const viaIk = await runOp("createUpload", { purpose: "task", kind: "image", mime: "image/jpeg", ext: "jpg" }, ctx(fake(), { controls: prod, imagekit: IK }));
+  assert.ok(viaIk.ok && (viaIk.data as { provider: string }).provider === "imagekit");
+  // Videos and documents are not pictures.
+  for (const args of [{ purpose: "task", kind: "video", ext: "mp4" }, { purpose: "proof", kind: "file", ext: "pdf" }]) {
+    assert.ok((await runOp("createUpload", args, ctx(fake(), { controls: prod }))).ok, JSON.stringify(args));
+  }
+  // Staging keeps the fallback.
+  assert.ok((await runOp("createUpload", { purpose: "task", ext: "jpg" }, ctx(fake(), { controls: staging }))).ok);
+});
+
 const pendingRow = { id: MEDIA_ID, path: MEDIA_PATH, provider: "imagekit", status: "pending", provider_file_id: null };
 const goodFile = { fileId: "f1", filePath: MEDIA_PATH, fileType: "image", size: 2_000_000, isPrivateFile: true };
 
