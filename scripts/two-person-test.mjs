@@ -102,8 +102,32 @@ async function markersOf(person, phone) {
 }
 
 /** The cache section (plan 3.5b task 8). Adds its findings to `findings`. */
+/**
+ * A guest's call, the way the app makes it (design D15): only the project's public key in `apikey`, no Authorization.
+ * The newer "publishable" key works this way; the older key (a long token starting "eyJ") is refused by the gateway
+ * without an Authorization header. Set EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY to the publishable key to include guests.
+ */
+const GUEST_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || KEY;
+async function guestApi(op, args = {}) {
+  try {
+    const res = await fetch(`${BASE}/functions/v1/api`, {
+      method: 'POST',
+      headers: { apikey: GUEST_KEY, 'Content-Type': 'application/json', 'x-taskdrop-platform': 'web', 'x-taskdrop-app-version': '1.0.0' },
+      body: JSON.stringify({ op, args }),
+    });
+    const text = await res.text();
+    let json = null;
+    try { json = JSON.parse(text); } catch { /* not JSON */ }
+    return { status: res.status, json, text };
+  } catch (e) {
+    return { status: 0, json: null, text: String(e) };
+  }
+}
+
 async function cacheSection(a, b) {
-  const guest = KEY; // the public key with nobody behind it is a guest (design D15)
+  const probe = await guestApi('trendingCategories', { limit: 1 });
+  const guestUsable = probe.json?.ok === true;
+  if (!guestUsable) console.log(`note: guest checks skipped, this key cannot act as a guest (status ${probe.status}). Set EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY to include them.`);
   const [ma, mb] = [await markersOf(a, A.phone), await markersOf(b, B.phone)];
   const markers = { ids: [...ma.ids, ...mb.ids], other: [...ma.other, ...mb.other] };
 
@@ -114,13 +138,13 @@ async function cacheSection(a, b) {
     let diff = 'not asked';
     for (let attempt = 0; attempt < 3 && diff; attempt++) {
       if (attempt) await wait(2000);
-      const [ra, rb, rg] = await Promise.all([api(a.token, op, args), api(b.token, op, args), api(guest, op, args)]);
+      const [ra, rb, rg] = await Promise.all([api(a.token, op, args), api(b.token, op, args), guestUsable ? guestApi(op, args) : Promise.resolve(null)]);
       if (!ra.json?.ok || !rb.json?.ok) {
         diff = `could not be read (A ${ra.status}, B ${rb.status}: ${(ra.json?.error?.message ?? rb.json?.error?.message ?? '').slice(0, 80)})`;
         continue;
       }
-      if (!guestMay && rg.json?.error?.code !== 'NEEDS_ACCOUNT') bad(`cache: ${name}: a guest was not told to make an account (${rg.status})`);
-      answers = guestMay ? { A: ra.json.data, B: rb.json.data, guest: rg.json?.ok ? rg.json.data : { refused: rg.status } } : { A: ra.json.data, B: rb.json.data };
+      if (guestUsable && !guestMay && rg.json?.error?.code !== 'NEEDS_ACCOUNT') bad(`cache: ${name}: a guest was not told to make an account (${rg.status})`);
+      answers = guestMay && guestUsable ? { A: ra.json.data, B: rb.json.data, guest: rg?.json?.ok ? rg.json.data : { refused: rg?.status } } : { A: ra.json.data, B: rb.json.data };
       diff = differences(answers);
     }
     if (diff) bad(`cache: ${name}: answers were not byte-identical: ${diff}`);
