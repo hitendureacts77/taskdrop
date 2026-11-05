@@ -992,7 +992,8 @@ approve 1.9
 4. **The hunt** (2.14). Rounds 1 and 2 done 4 Nov. The 2 Critical finds and the High "old helper presses Start" are fixed and live (migration 148); the High "direct database access" (H52) closes in 3.9; reply "fix" or "accept" to the Medium and Low finds. Part G (every screen on the phone) is still to do.
 5. **The AI attacker** (2.16), after the hunt's fixes. Install Docker and make an AI key with a spending limit, then SAY "start 2.16".
 6. **The small leftovers:** your OK on the Google-first sign-in screen (2.8). (The content policy now blocks, H9 closed 4 Nov, and the Android app test T11 passed 4 Nov.)
-7. **Tick Gate 2b.** Then Step 5 (production) may start.
+7. **One home per secret** (2.17, about 10 minutes of yours): the server keys are set straight in Supabase and the Vercel build stops copying them. Do it before Step 5.
+8. **Tick Gate 2b.** Then Step 5 (production) may start.
 
 Every finding from 2.13 to 2.16 reaches you in one short form: a level, what happened, why it matters and what to do. Critical and High are always fixed. For everything else you reply "fix" or "accept".
 
@@ -1016,6 +1017,7 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 | 2.14 The bug and security hunt (added 3 Nov) | Rounds 1 and 2 done 4 Nov | H52 (direct database access) closes in 3.9; your "fix" or "accept" on the Medium and Low finds; decisions 17, 18, 25 to 27; part G (needs the phone) |
 | 2.15 The secrets audit (added 4 Nov) | Done 4 Nov | H56 before launch (5.9); make the code folders private (2.13 H) |
 | 2.16 The AI attacker, Strix (added 4 Nov) | Not started | Waiting for you: Docker Desktop (not installed on this PC, checked 4 Nov) and an AI key with a spending limit, then say "start 2.16" |
+| 2.17 One home per secret (added 5 Nov) | Not started | Say "start 2.17". Does not block Gate 2b, but must be done before Step 5 |
 
 **On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
 
@@ -1844,6 +1846,63 @@ start 2.16
 
 **Then keep it going:** Claude runs Strix again before Gate 5 and after big features. Running Strix on every pull request (its GitHub Action) is future scope: it would put the AI key in GitHub and cost money on every change.
 
+</details>
+
+<details id="t2-17" data-short="One home per secret">
+<summary>[BOTH] <b>2.17</b> Give every secret one home: set the server keys straight in Supabase, and stop the Vercel build copying them <small>· your time: 10 minutes · added 5 Nov, not started</small></summary>
+
+**Why:** today the Edge Function keys are kept in Vercel, and every staging build copies them into Supabase (`scripts/sync-function-secrets.mjs`). So the same key sits in two stores, and Vercel holds keys its own builds never use. Your rule is one home per secret: the store that uses it, plus `.env.all-secrets` and its encrypted 7-Zip backup as the master copy. Supabase never shows a secret again after you save it, so that file is the only place you can read a value back. (You approved this split on 5 Nov.)
+
+**Where each secret lives** (names only, never values):
+
+| Secret name | Used by | Lives in | Moves? |
+|---|---|---|---|
+| `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `INNGEST_MONEY_JOBS` | Edge Functions (background jobs) | Supabase function secrets | Yes: the copy in Vercel is deleted |
+| `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_URL_ENDPOINT`, `IMAGEKIT_ENV` | Edge Functions; the admin's own server code | Supabase function secrets; Vercel `taskdrop-admin` | The copy in Vercel `taskdrop` is deleted; the admin keeps its own |
+| `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `GOOGLE_MAPS_API_KEY`, `FIREBASE_PROJECT_NUMBER` | Edge Functions | Supabase function secrets | Yes: the copy in Vercel is deleted |
+| `ALLOWED_ORIGINS`, `TEST_PHONES`, `INNGEST_PUSH_RECEIPT_WAIT`, `ALLOW_ANY_OTP` (staging only) | Edge Functions | Supabase function secrets | No, now set by the new script |
+| `MSG91_AUTHKEY`, `MSG91_TEMPLATE_ID` | Edge Functions (phone codes) | Supabase function secrets, once S.6 makes the account | No |
+| `RAZORPAY_*`, `RAZORPAYX_*`, `API_GATEWAY_SECRET` (server side) | Edge Functions | Supabase Vault or function secrets: one of the two, never both | No |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SECRET_KEYS` | Edge Functions | Given by Supabase itself; they cannot be set | No |
+| `SUPABASE_ACCESS_TOKEN`, `DATABASE_URL`, `SENTRY_AUTH_TOKEN_TASKDROP_USERAPP` | The Vercel build (deploy, migrations, source maps) | Vercel `taskdrop` | No |
+| `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_SESSION_SECRET`, `API_GATEWAY_SECRET`, `SENTRY_AUTH_TOKEN*` | The admin website's server | Vercel `taskdrop-admin` | No |
+| `EXPO_GOOGLE_MAPS_API_KEY`, `GOOGLE_SERVICES_JSON`, `SENTRY_AUTH_TOKEN` | Android builds | Expo Secret variables (`apps/mobile/eas.json`) | No |
+| The Supabase address and public key, Firebase web settings, the reCAPTCHA site key | The app and the website | In the app, public on purpose (guarded by row rules, App Check and key limits) | No |
+| Everything above | You (the master copy) | `.env.all-secrets` + the encrypted 7-Zip backup | No |
+
+**What happens:**
+
+1. SAY:
+
+```say
+start 2.17
+```
+
+2. Claude builds one pull request (merged into `redesigned-2.0` without asking, as usual):
+   - a new `scripts/set-function-secrets.mjs` (with its test). It reads `.env.all-secrets`, sends **only** the names on its allow-list to staging Supabase through a private temporary file that is deleted at once, prints names only, and skips (never blanks) a name the file does not have. `--dry-run` shows what it would send; `--list-names` compares Supabase's name list with the allow-list. It always refuses any `LOGIN_`, `RECOVERY_` or `KEYSTORE_` name, and any `PROD_` name unless `--production` is given **and** the target is the production project. It refuses `ALLOW_ANY_OTP` with `--production`.
+   - Claude runs it on staging, then checks with `--list-names` that every name is there.
+   - Only after that check passes: step 4 "function secrets" comes out of `scripts/vercel-build.mjs`, and `scripts/sync-function-secrets.mjs` and its test are deleted.
+   - Claude checks, by name only, that each Razorpay name and `API_GATEWAY_SECRET` sits in the Vault or in the function secrets, not both, and tells you if one is in both.
+3. Claude shows you the list of Vercel copies that no website build reads (checked in the code first). CLICK nothing yet; just reply "delete them" or "keep them".
+4. With your OK, Claude deletes those copies in Vercel `taskdrop`. **Deleting a copy is not changing a key:** the key itself stays the same and keeps working in Supabase.
+5. TELL Claude: "done 2.17".
+
+**Safe order (never skip a step):** set in Supabase → check the name list → remove the build copy → delete the Vercel duplicates, only with your OK. Removing the build copy changes nothing already stored in Supabase.
+
+**Staging and production:** staging uses the plain names; production uses the `PROD_` names and the production project only, run in Step 5 with your OK (production always asks first). Nothing is ever copied between the two projects. `ALLOW_ANY_OTP` is never set on production.
+
+**Files Claude changes:** new `scripts/set-function-secrets.mjs` and `scripts/set-function-secrets.test.mjs`; deletes `scripts/sync-function-secrets.mjs` and `scripts/sync-function-secrets.test.mjs`; updates `scripts/vercel-build.mjs` (the step list and the copy line), `package.json` (test list), `docs/DEPLOY.md` (the "Function secrets" step), `docs/UPGRADE_PLAN.md` (the Inngest secrets line and the changelog), this plan's rule 8 and task 2.1's name check (it now checks the new script), and the header of `scripts/push-payment-secrets.sh` (so it reads `.env.all-secrets`, or Claude folds it into the new script).
+
+**Gate:** this does **not** block Gate 2b. It must be done **before Step 5**, so production is set up the new way from day one (5.9 runs the script with `--production`).
+
+**Done when:** every allow-listed name shows in Supabase's name list on staging; the staging build no longer copies secrets and still deploys; the Vercel copies you approved are gone; `npm run check` passes; and no secret value appears anywhere in the PR, the chat or the logs.
+
+**Later (not started, each needs your go-ahead):**
+
+- Take `EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN` out of release builds (H56, 5.9).
+- Send Sentry reports through a TaskDrop function, so the app holds no Sentry address.
+- A map tile proxy with MapLibre instead of the Google Maps SDK, so no Maps key sits in the Android app (needs a new Android build).
+- Not hideable, so protected by limits instead: the Supabase address and public key, Firebase settings and the reCAPTCHA site key.
 </details>
 
 > **GATE 2b: do not start Step 5 (production) until all of these are true**
@@ -4086,6 +4145,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-05 (new task 2.17: one home per secret):** You asked to move every key to the server side and approved this split: each secret lives in exactly one place, chosen by who uses it. **Planned, nothing built or changed yet:** Supabase function secrets hold the Edge Function keys (Inngest, ImageKit, Sentry address, Google Maps server key, Firebase project number, sign-in text-message keys later); Vercel keeps only what its builds use (the deploy token, the database address, the source-map tokens); Expo keeps the Android build values; `.env.all-secrets` plus the encrypted backup stays the master copy. A new script, `scripts/set-function-secrets.mjs`, will set the Supabase keys straight from `.env.all-secrets` (names only printed; staging and production kept apart), and only after that is checked will the Vercel build stop copying them (`scripts/sync-function-secrets.mjs` is removed) and the duplicates be deleted in Vercel with your OK. Deleting a copy is not a key rotation. Three later options stay unscheduled and need your go-ahead: remove the App Check debug token from release builds, send Sentry reports through a function, and a map tile proxy (needs a new Android build). The Supabase address and public key, Firebase settings and the reCAPTCHA site key cannot be hidden and stay protected by limits. Planned with Opus 5.5. Does not block Gate 2b; do it before Step 5. Say "start 2.17".
 - **2026-11-05 (beta Android updates itself):** You asked expo.dev to handle the Android test app when code lands on `redesigned-2.0`. **Built, not live:** one EAS Workflow file (`apps/mobile/.eas/workflows/beta-android.yml`) that publishes an update to `beta`, or builds a new beta APK when the native code changed, and the runtime version policy is now `fingerprint`. Production stays manual. One open line added under 3.7; your steps O1, O2, O4, O5 and O6 are in `docs/EAS_AUTO_DEPLOY_PLAN.md`.
 - **2026-11-04 (security work run: merged, deployed, tested, hunt rounds):** You asked Claude to run the security work. **Merged:** all the local branches went into `redesigned-2.0` in one pull request (PR 230); the migrations were renumbered 143 to 145 and the holes found on the way renumbered H32 to H34. **Deployed:** to `taskdrop.in` and to the beta app (update `00ef021a`, then `c34b80a3`, runtime 1.1.0). **Secrets audit (2.15) done:** Betterleaks 1.9.0 over both folders, today's files and the whole history, values hidden; nothing exposed that is a real live secret; two Low cards (the old Razorpay test keys, already accepted; the beta builds' App Check debug token, H56, to be removed before launch); 1,982 other detections sorted (6 public on purpose, 37 test values, 1,823 false alarms, 116 safely stored); nothing was changed, replaced or sent anywhere. **Hunt round 2 (2.14):** 38 findings, H35 to H55, H61 to H68, B16 to B21 and B30 to B32: 2 Critical, 2 High, the rest Medium or Low (see the Security section). **Money-door fixes:** H35, H36, H46, H50, B16, B17 and B19 are fixed (PR 234 + admin PR 44, migration 147): refunds and RazorpayX actions now need a money role and the authenticator code, leave an audit row, check the person is not suspended, and a paid-but-unfunded payment is retried. The Critical and High finds (H51, H53, H54, B20) are fixed and live (PR 236, migration 148). **Content policy:** H9 closed (PR 233): the website's policy now blocks bad scripts; the report address stays on. **Android test T11 (2.9)** passed on build 1.1.0 over USB. **Guest mode (D15) tested:** all 128 actions were tried signed out and only the 24 guest reads answer; nothing Critical or High; H61 to H68 and B30 to B32 found. **Still waiting for you:** Strix (2.16: Docker and an AI key with a limit), your "fix" or "accept" on the Medium and Low finds, and decisions 17, 18 and 25 to 27. Part G (every screen on the phone) is still to do: only the basic phone and website screens were opened and looked right.
 - **2026-11-04 (guest mode D15 built, "implement guest mode"):** Built with the recommended answers to decisions 19, 21, 23 and 24. **Server:** migration 146 adds read-only guest functions (open posts without money or hiring fields, places rounded to about a kilometre, public profile cards, reviews, offer counts, and only open-post pictures and profile photos signed); `api` answers a guest (the public key with nobody behind it) with only those reads, 120 a minute per network address (hashed), and NEEDS_ACCOUNT for everything else. **App:** Continue as guest on the sign-in page; the choice is remembered on the device; Home, Explore, the map, task and service pages and the writer open to guests; a Sign in pill in the header; one Make your account pop-up (Create account, Sign in, Not now) on every write, with the action finished by itself after sign-up; from guest mode only About you is asked; drafts and saved tasks stay on the phone and move into the account at sign-up. **Decision 20 needs no limit:** the AI writer runs on the phone (lib/taskBrief.ts) and costs nothing per post. **Decision 22 (tour):** not changed here. Not run on a phone yet; no app update published.
