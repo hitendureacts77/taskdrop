@@ -163,6 +163,16 @@ begin
     raise exception 'FAIL: a hidden idea must not be listed for a guest';
   end if;
 
+  -- An idea whose author has gone (author_id set null) is not "mine" for a guest either.
+  insert into public.feedback_posts (author_id, title, body, category)
+  values (null, 'An idea from an account that was deleted', '', 'other')
+  returning id into v_idea;
+  select x into v_got from jsonb_array_elements(public.guest_feedback_board_list('new', null, null, 'account that was deleted', 50, 0)) x
+   where (x->>'id')::uuid = v_idea;
+  if v_got is null or (v_got->>'mine')::boolean or (public.guest_feedback_board_get(v_idea)->'post'->>'mine')::boolean then
+    raise exception 'FAIL: an idea with no author must not be "mine" for a guest, got %', v_got;
+  end if;
+
   -- ---- the nearby pulse ------------------------------------------------------
   update public.profiles
      set onboarded_at = now(), skills = array['repairs'], last_seen_at = now(), loc_lat = 17.45, loc_lng = 78.39

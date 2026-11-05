@@ -85,7 +85,7 @@ begin
     v_q := '%' || replace(replace(replace(left(v_q, 60), '\', '\\'), '%', '\%'), '_', '\_') || '%';
   end if;
 
-  select coalesce(jsonb_agg(private.feedback_post_json(p, null) order by r.rn), '[]'::jsonb)
+  select coalesce(jsonb_agg(private.feedback_post_json(p, null) || jsonb_build_object('mine', false) order by r.rn), '[]'::jsonb)
     into v_out
     from (
       select x.id, row_number() over (
@@ -118,7 +118,7 @@ begin
   select * into v_post from public.feedback_posts where id = p_post and hidden_at is null;
   if not found then return null; end if;
   return jsonb_build_object(
-    'post', private.feedback_post_json(v_post, null),
+    'post', private.feedback_post_json(v_post, null) || jsonb_build_object('mine', false),
     'comments', coalesce((
       select jsonb_agg(jsonb_build_object(
                'id', c.id,
