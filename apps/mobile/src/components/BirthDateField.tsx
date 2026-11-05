@@ -3,28 +3,17 @@ import { View, Text as RNText, ScrollView, Platform, type NativeScrollEvent, typ
 import { ageOn, parseBirthDate } from '@taskdrop/rules';
 import { tx } from './primitives';
 import { useTheme } from '../providers/ThemeProvider';
+import { days, months, years, type BirthDateItem, type BirthDateParts } from '../lib/birthDate';
 
-export type BirthDateParts = { day: string; month: string; year: string };
-
-export const EMPTY_BIRTH_DATE: BirthDateParts = { day: '', month: '', year: '' };
+// Re-exported so every existing importer keeps working. The web build loads
+// BirthDateField.web.tsx instead (three native dropdowns).
+export { EMPTY_BIRTH_DATE } from '../lib/birthDate';
+export type { BirthDateParts } from '../lib/birthDate';
 
 const ROW = 50;
 const ROWS = 5;
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-type Item = { value: string; label: string };
-
-function days(): Item[] {
-  return Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }));
-}
-function months(): Item[] {
-  return MONTHS.map((label, i) => ({ value: String(i + 1), label }));
-}
-/** Newest first: most people are born in the last 20 to 40 years, so the swipe is short. */
-function years(now = new Date()): Item[] {
-  const top = now.getFullYear();
-  return Array.from({ length: top - 1920 + 1 }, (_, i) => ({ value: String(top - i), label: String(top - i) }));
-}
+type Item = BirthDateItem;
 
 /**
  * One scroll wheel. Row 0 is always the column's name ("Day", "Month", "Year")

@@ -53,6 +53,18 @@ import {
   type WritingStyle,
 } from '../lib/taskBrief';
 import { looksLikeGibberish } from '../lib/gibberish';
+import { pickDefaultPlace } from '../lib/homePlace';
+import { loadRecentPlaces } from '../lib/recentPlaces';
+import { WIZARD_VERSION, isStale, normalize, ownerMatches, resumable, type WizardSnapshot } from '../lib/postWizard';
+import {
+  clearWizard,
+  loadWizard,
+  peekWizard,
+  requestResumeSubmit,
+  saveWizard,
+  takeResumeSubmit,
+  useResumeSignal,
+} from '../lib/postWizardStore';
 
 /**
  * "What do you need done?" -> a posted task, one page per step.
@@ -89,9 +101,19 @@ const STEP_LABEL: Record<Phase, string> = {
   when: 'When',
   budget: 'Budget',
   providers: 'Place',
-  options: 'Options',
+  options: 'Extras',
   review: 'Review',
 };
+
+/** The "How it sounds" tone chips on the Post step. Hidden for now (owner video, 2026-11-04); the tone stays 'professional'. */
+const SHOW_TONE = false;
+
+/**
+ * The route params of the last posting screen that restored or saved here. On the web a screen
+ * opened on top unmounts this one; coming back to the same stack entry hands over the same params
+ * object, which is how a return is told apart from a new post opened with a prompt.
+ */
+let lastParams: object | null = null;
 
 const OTHER = 'Something else';
 
@@ -150,7 +172,8 @@ export function AiPostScreen() {
 
   const similar = isTask(params.similar) ? params.similar : null;
   // Set when this request was picked up from Drafts, so posting it clears the draft.
-  const draftId = typeof params.draftId === 'string' ? params.draftId : null;
+  const paramDraftId = typeof params.draftId === 'string' ? params.draftId : null;
+  const [draftId, setDraftId] = useState<string | null>(paramDraftId);
   const [phase, setPhase] = useState<Phase>(similar ? 'brief' : 'what');
   // The furthest step reached. Finished steps up to here can be reopened, and
   // a change to one of them comes back here afterwards.
@@ -194,6 +217,8 @@ export function AiPostScreen() {
   // Place and hiring.
   const [mode, setAssign] = useState<'bids' | 'auto'>('bids');
   const [place, setPlace] = useState<PickedPlace | null>(null);
+  // Where the place was filled in from for the poster: 'home' shows a HOME label on the Place card.
+  const [placeSource, setPlaceSource] = useState<'home' | 'profile' | null>(null);
   const [remote, setRemote] = useState(false);
   const [showLoc, setShowLoc] = useState(false);
   const [posting, setPosting] = useState(false);
@@ -227,19 +252,214 @@ export function AiPostScreen() {
   // Asked once per request, on the Ask step; "Keep as a task" hides it.
   const [liveAnswerDismissed, setLiveAnswerDismissed] = useState<string | null>(null);
 
-  // Start from where the poster lives: most jobs are near home.
+  // ------------------------------------------------- keeping the post ---
+  // Everything above is kept on the device as it changes (lib/postWizardStore), so the post
+  // survives this screen closing under it: signing in from the guest pop-up, Google's round
+  // trip (a full reload on the web), a reload by hand. Close is the one way to drop it.
+
+  const viewer = userId ?? (guest ? GUEST_DRAFTS_OWNER : null);
+  // Nothing is saved until the kept post, if any, has been put back.
+  const [hydrated, setHydrated] = useState(false);
+  // "Post my request" was pressed as a guest in this page session: post it when the sign-in signal comes.
+  const resumeArmed = useRef(false);
+  // Posted or closed: nothing more is saved.
+  const doneRef = useRef(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSave = useRef<WizardSnapshot | null>(null);
+
+  const snapshot = (): WizardSnapshot | null =>
+    viewer
+      ? {
+          v: WIZARD_VERSION,
+          owner: viewer,
+          savedAt: Date.now(),
+          phase,
+          reached,
+          prompt,
+          questions,
+          askedFor,
+          answers,
+          brief,
+          writtenFrom,
+          title,
+          description,
+          category,
+          style,
+          media,
+          whenKey,
+          customDue: customDue ? customDue.toISOString() : null,
+          budget,
+          topUpStop,
+          split,
+          mode,
+          place,
+          placeSource,
+          remote,
+          opts,
+          draftId,
+          submitAfterAuth: false,
+        }
+      : null;
+
+  const applySnapshot = (s: WizardSnapshot, showAt: Phase) => {
+    setPhase(showAt);
+    setReached(Math.max(s.reached, at(showAt)));
+    setPrompt(s.prompt);
+    setQuestions(s.questions);
+    setAskedFor(s.askedFor);
+    setAnswers(s.answers);
+    setOtherOpen({});
+    setBrief(s.brief);
+    setWrittenFrom(s.writtenFrom);
+    setTitle(s.title);
+    setDescription(s.description);
+    setCategory(s.category);
+    setStyle(s.style);
+    setMedia(s.media);
+    setWhenKey(s.whenKey);
+    setCustomDue(s.customDue ? new Date(s.customDue) : null);
+    setBudget(s.budget);
+    setTopUpStop(Math.min(s.topUpStop, TOP_UP_STOPS.length - 1));
+    setSplit(s.split);
+    setAssign(s.mode);
+    setPlace(s.place);
+    setPlaceSource(s.placeSource);
+    setRemote(s.remote);
+    setOpts(s.opts);
+    setDraftId(s.draftId);
+  };
+
+  /** Stops any save still waiting: the post is about to be saved by hand, posted or dropped. */
+  const cancelSave = () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = null;
+    pendingSave.current = null;
+  };
+  const forget = () => {
+    doneRef.current = true;
+    cancelSave();
+    void clearWizard();
+  };
+
+  // Once, on opening: put back the kept post, unless this is a new one opened with words already in it.
   useEffect(() => {
-    if (!userId) return;
     let alive = true;
-    getProfile(userId)
-      .then((p) => {
-        if (alive && p?.loc_label) setPlace((cur) => cur ?? { label: p.loc_label!, lat: p.loc_lat, lng: p.loc_lng });
-      })
-      .catch(() => {});
+    const resumeParam = params.resume === true;
+    const seeded = typeof params.prompt === 'string' || similar !== null || paramDraftId !== null || params.preferWorker !== undefined;
+    // The same stack entry again (web: a screen opened on top has closed), not a new post.
+    const sameEntry = lastParams === params;
+    lastParams = params;
+    const usable = (s: WizardSnapshot | null) => (s && ownerMatches(s, viewer) && !isStale(s) ? normalize(s) : null);
+
+    const restore = (s: WizardSnapshot, fromMemory: boolean) => {
+      if (userId && resumable(s)) {
+        applySnapshot(s, 'review');
+        // Same page session (phone sign-in): posted when the sign-in signal arrives. After a
+        // reload or Google's round trip the signal is gone, so it waits on Review for the tap.
+        if (fromMemory) resumeArmed.current = true;
+        else flash('Signed in. Your request is ready to post.');
+      } else {
+        applySnapshot(s, s.phase);
+        if (!sameEntry) flash('Picked up where you left off');
+      }
+      setHydrated(true);
+    };
+
+    if (seeded && !sameEntry && !resumeParam) {
+      // A new post replaces the kept one; an older one with words in it goes to Drafts rather than being lost.
+      void loadWizard().then((old) => {
+        const o = usable(old);
+        if (!o || !viewer || o.prompt.trim().length < 3 || o.prompt.trim() === prompt.trim()) return;
+        if (o.draftId && o.draftId === paramDraftId) return;
+        void saveDraft(viewer, o.prompt, o.draftId);
+      });
+      setHydrated(true);
+      return;
+    }
+    const mem = usable(peekWizard());
+    if (mem) {
+      restore(mem, true);
+      return;
+    }
+    void loadWizard().then((s) => {
+      if (!alive) return;
+      const u = usable(s);
+      if (u) restore(u, false);
+      else setHydrated(true);
+    });
     return () => {
       alive = false;
     };
-  }, [userId]);
+    // Once, on opening: later changes are this screen's own.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Saved 400 ms after the last change. Wallet figures and the posting state are never kept.
+  useEffect(() => {
+    if (!hydrated || doneRef.current) return;
+    if (prompt.trim().length < 3) {
+      cancelSave();
+      // Emptied by hand: the kept post goes too, so it does not come back.
+      const kept = peekWizard();
+      if (kept && viewer && kept.owner === viewer) void clearWizard();
+      return;
+    }
+    const s = snapshot();
+    if (!s) return;
+    pendingSave.current = s;
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = null;
+      pendingSave.current = null;
+      void saveWizard(s);
+    }, 400);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    };
+    // `snapshot` reads exactly these.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, viewer, phase, reached, prompt, questions, askedFor, answers, brief, writtenFrom, title, description, category, style, media, whenKey, customDue, budget, topUpStop, split, mode, place, placeSource, remote, opts, draftId]);
+
+  // Closing under a save still waiting (a tab tapped, a screen opened on top): save it now.
+  useEffect(
+    () => () => {
+      if (pendingSave.current && !doneRef.current) void saveWizard(pendingSave.current);
+    },
+    [],
+  );
+
+  // Back from signing in, in the same page session: post it, once. The safety card and the
+  // wallet top-up still show if they apply.
+  const resumeSignal = useResumeSignal();
+  useEffect(() => {
+    if (!hydrated || !userId || !resumeArmed.current) return;
+    if (!takeResumeSubmit()) return;
+    resumeArmed.current = false;
+    setPhase('review');
+    void postRef.current();
+  }, [hydrated, userId, resumeSignal]);
+
+  // Start from where the poster lives: most jobs are near home. The address saved as Home
+  // first, then the profile's area. Never over a place already chosen or put back.
+  const placeRef = useRef(place);
+  placeRef.current = place;
+  useEffect(() => {
+    if (!hydrated || (!userId && !guest)) return;
+    let alive = true;
+    void (async () => {
+      const [recents, profile] = await Promise.all([
+        loadRecentPlaces().catch(() => []),
+        userId ? getProfile(userId).catch(() => null) : Promise.resolve(null),
+      ]);
+      const d = pickDefaultPlace(recents, profile);
+      if (!alive || !d || placeRef.current) return;
+      setPlace({ label: d.label, lat: d.lat, lng: d.lng });
+      setPlaceSource(d.source);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [hydrated, userId, guest]);
 
   const voice = useVoiceInput(
     (text) => setPrompt((cur) => (cur.trim() ? cur.trim() + ' ' + text : text)),
@@ -428,7 +648,16 @@ export function AiPostScreen() {
   }, [mode, topUpMinor, userId]);
 
   const post = async (safetySeen = false) => {
-    if (guest) return needAccount('post', () => postRef.current());
+    if (guest) {
+      // Kept with "post when back" before the sign-in page opens: on the web that page replaces this
+      // screen, and Google's round trip reloads the app. The pop-up's follow-up is only a signal,
+      // which this screen (or the copy of it that opens again) answers.
+      cancelSave();
+      const s = snapshot();
+      if (s) await saveWizard({ ...s, submitAfterAuth: true });
+      resumeArmed.current = true;
+      return needAccount('post', requestResumeSubmit);
+    }
     if (!userId) return flash('Sign in to post a task');
     if (posting) return;
     if (!remote && !safetySeen && (await needsSafetyCard(userId))) {
@@ -477,6 +706,7 @@ export function AiPostScreen() {
         photosPublic: (opts.wantPhotos && opts.photosPublic) || undefined,
       });
       if (draftId && draftOwner) void removeDraft(draftOwner, draftId);
+      forget();
       setMode('poster');
       celebrate('Task posted');
       reset('myTasks');
@@ -496,8 +726,10 @@ export function AiPostScreen() {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [phase]);
 
-  // Leaving with words typed keeps them as a draft, listed under Drafts in My Tasks.
+  // Leaving with words typed keeps them as a draft, listed under Drafts in My Tasks. Close is
+  // the one way to drop the kept steps: the next post starts fresh.
   const leave = () => {
+    forget();
     if (draftOwner && prompt.trim().length >= 3) {
       void saveDraft(draftOwner, prompt, draftId);
       flash('Saved to Drafts in My Tasks');
@@ -921,7 +1153,7 @@ export function AiPostScreen() {
         </View>
         {label('CATEGORY')}
         <CategoryPicker value={category} onChange={setCategory} />
-        {!similar ? (
+        {SHOW_TONE && !similar ? (
           <>
             {label('HOW IT SOUNDS')}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -1082,9 +1314,14 @@ export function AiPostScreen() {
             })}
           >
             <Icon name="pin" size={18} color={t.colors.accentDeep} />
-            <RNText style={tx('500', 14, place ? t.colors.ink : t.colors.muted, { flex: 1 })} numberOfLines={2}>
-              {place?.label ?? 'Set where the job is'}
-            </RNText>
+            <View style={{ flex: 1 }}>
+              {place && placeSource === 'home' ? (
+                <RNText style={tx('700', 10.5, t.colors.accentDeep, { letterSpacing: 1.1, marginBottom: 2 })}>HOME</RNText>
+              ) : null}
+              <RNText style={tx('500', 14, place ? t.colors.ink : t.colors.muted)} numberOfLines={2}>
+                {place?.label ?? 'Set where the job is'}
+              </RNText>
+            </View>
             <RNText style={tx('700', 13, t.colors.accentDeep)}>{place ? 'Change' : 'Set'}</RNText>
           </Pressable>
         ) : null}
@@ -1269,7 +1506,7 @@ export function AiPostScreen() {
                       label: returning
                         ? 'Save and review'
                         : optionsSummary(opts).length === 0
-                          ? 'Continue without options'
+                          ? 'Skip this step'
                           : `Continue with ${optionsSummary(opts).length} option${optionsSummary(opts).length === 1 ? '' : 's'}`,
                       onPress: () => advance('options'),
                     }
@@ -1322,7 +1559,7 @@ export function AiPostScreen() {
                 onPress={done ? () => reopen(p) : undefined}
                 disabled={!done}
                 accessibilityRole="button"
-                accessibilityLabel={`${STEP_LABEL[p]}${here ? ', current step' : done ? ', done. Tap to change' : ''}`}
+                accessibilityLabel={`${STEP_LABEL[p]}${p === 'options' ? ', optional' : ''}${here ? ', current step' : done ? ', done. Tap to change' : ''}`}
                 style={{ flex: 1, alignItems: 'center' }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', height: 32 }}>
@@ -1476,6 +1713,7 @@ export function AiPostScreen() {
         onCancel={() => setShowLoc(false)}
         onPick={(p) => {
           setPlace(p);
+          setPlaceSource(p.details?.tag === 'home' ? 'home' : null);
           setShowLoc(false);
         }}
         askForDetails

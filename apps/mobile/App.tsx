@@ -5,6 +5,7 @@ import { useAuth } from './src/providers/AuthProvider';
 import { NavProvider } from './src/providers/NavProvider';
 import { ScreenHost } from './src/navigation/ScreenHost';
 import { AgeGate } from './src/components/AgeGate';
+import { ResumePost } from './src/components/ResumePost';
 import { Overlays } from './src/components/Overlays';
 import { AccountPrompt } from './src/components/AccountPrompt';
 import { StagingWelcome } from './src/components/StagingWelcome';
@@ -42,6 +43,7 @@ function Routes() {
           <ScreenBoundary home={session || guest ? 'home' : 'splash'}>
             <AgeGate>
               <ScreenHost />
+              <ResumePost />
             </AgeGate>
           </ScreenBoundary>
           <ErrorBoundary silent>
