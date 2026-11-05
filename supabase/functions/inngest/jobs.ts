@@ -168,6 +168,43 @@ export type Fetch = (url: string, init: { method: string; headers: Record<string
 /** One message for one device, as the database built it (push_job_load). */
 export type PushMessage = { to: string } & Record<string, unknown>;
 
+/**
+ * H42 (owner decision 26): what a locked phone screen may show. For these kinds of
+ * notification the push carries a plain line only: no names, no amounts, no task
+ * titles, no typed text. The notification itself (the in-app list) keeps its full
+ * wording, and `data` (notificationId, kind, taskId) is untouched, so a tap still
+ * opens the same screen. Kinds not listed here keep the title and body the database
+ * wrote (offers, task progress and the like).
+ */
+export const PLAIN_PUSH: Readonly<Record<string, { title: string; body: string }>> = {
+  // Chat and task questions: a name, a task title and typed text.
+  message: { title: "You have a new message", body: "Open taskdrop to read it." },
+  question: { title: "You have a new question or answer", body: "Open taskdrop to read it." },
+  // Payouts: amounts and the bank's failure reason.
+  payout_paid: { title: "Your payout update is ready", body: "Open taskdrop to see it." },
+  payout_failed: { title: "Your payout update is ready", body: "Open taskdrop to see it." },
+  // Wallet: amounts, names and task titles.
+  wallet: { title: "Your wallet has an update", body: "Open taskdrop to see it." },
+  wallet_refund: { title: "Your wallet has an update", body: "Open taskdrop to see it." },
+  cancel_fine: { title: "Your wallet has an update", body: "Open taskdrop to see it." },
+  // Support replies carry the reply text.
+  support: { title: "You have an update from support", body: "Open taskdrop to read it." },
+  // Security alerts and staff warnings say what happened to the account.
+  security: { title: "A security alert on your account", body: "Open taskdrop to check your account." },
+  admin_warning: { title: "You have a notice from taskdrop", body: "Open taskdrop to read it." },
+};
+
+/**
+ * Swaps the title and body of a sensitive kind for its plain line. Anything else is
+ * returned as it was. The message `data` is never touched.
+ */
+export function lockScreenSafe(message: PushMessage): PushMessage {
+  const data = message.data;
+  const kind = data && typeof data === "object" ? (data as { kind?: unknown }).kind : undefined;
+  const plain = typeof kind === "string" && Object.hasOwn(PLAIN_PUSH, kind) ? PLAIN_PUSH[kind] : null;
+  return plain ? { ...message, title: plain.title, body: plain.body } : message;
+}
+
 type ExpoError = { details?: { error?: string } };
 export type PushTicket = ({ status?: string; id?: string } & ExpoError) | undefined;
 export type PushReceipt = ({ status?: string } & ExpoError) | undefined;
