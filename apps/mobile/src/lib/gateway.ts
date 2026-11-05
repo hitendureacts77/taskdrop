@@ -7,7 +7,18 @@ import { log } from './monitoring';
 import { BATCHABLE_OPS, Batcher, type Reply as BatchReply } from './batcher';
 import { READ_TIMEOUT_MS, RETRY_DELAYS_MS, WRITE_RETRY_DELAYS_MS, isTransient, retryWhile, type Failure } from './retry';
 import { IN_PROGRESS_STATUS, RepeatKeys, outcomeUnknown } from './repeatKeys';
-import { noteChange } from './freshness';
+import { noteChange, setPerson } from './freshness';
+
+/**
+ * Whose answers the app may remember (lib/freshness.ts, plan 3.5b layer A, H69). Every call here travels
+ * with the session supabase-js holds, so every change of that session reaches this listener: the first
+ * session on start-up, a sign-in, a sign-out (an account deletion signs out too), a token renewal and a
+ * switch to another account. A different person, or none, empties every memory at once. Registered here
+ * because every read goes through this file, so it is in place before the first one.
+ */
+supabase.auth.onAuthStateChange((_event, session) => {
+  setPerson(session?.user.id ?? null);
+});
 
 /**
  * Writes that change nothing this person's screens show (their own presence, device and push

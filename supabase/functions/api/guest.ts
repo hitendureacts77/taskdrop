@@ -23,6 +23,7 @@ import { distanceKm } from "../_shared/rules.ts";
 import { type Args, type Ctx, GENERIC, MONEY_MAX, OpError, type Op, bad, int, limit, num, oneOf, rows, rpcOp, str, strOrNull, strings, take, uuid, uuids } from "./core.ts";
 import { MEDIA_OPS } from "./media.ts";
 import { MAX_BATCH, type Reply, batchCalls } from "./ops.ts";
+import { sharedAnswer } from "./publicMemo.ts";
 import { READ_OPS } from "./reads.ts";
 
 /** What a guest is told when they try something that needs an account. The app shows its own pop-up instead. */
@@ -274,7 +275,8 @@ export async function runGuestOp(name: unknown, args: unknown, ctx: Ctx, onUnexp
   const off = refusalFor(name, ctx.controls ?? null, a, {});
   if (off) return { ok: false, error: off };
   try {
-    return { ok: true, data: (await GUEST_OPS[name as string](ctx, a)) ?? null };
+    // The shared reads use the same memo as a signed-in caller: the key never says who asked (3.5b layer D).
+    return { ok: true, data: (await sharedAnswer(name, a, ctx, () => GUEST_OPS[name as string](ctx, a))) ?? null };
   } catch (e) {
     if (e instanceof OpError) return { ok: false, error: { message: e.message, code: e.code, details: e.details } };
     onUnexpected(e);

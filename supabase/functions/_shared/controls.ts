@@ -57,6 +57,19 @@ export type Controls = {
   banner_text: string | null;
   banner_level: "info" | "warning" | "critical" | null;
   banner_link: string | null;
+  /**
+   * Admin switch "public cache: memo" (migration 149, plan 3.5b layer D): when on, the api shares the
+   * same-for-everyone answers inside one server copy. Off unless the database says exactly true.
+   * Server-only: not part of the app's public config.
+   */
+  public_cache_memo: boolean;
+  /**
+   * The other two public-cache switches (migration 149), read the same way and server-only too. The api does not
+   * act on them: 'snapshots' is decided inside the three list functions (kept copy under 30 minutes old, else live),
+   * and 'app' belongs to the app's own cache (layer A). Kept here so logs and tests see the whole row.
+   */
+  public_cache_snapshots: boolean;
+  public_cache_app: boolean;
 };
 
 /** The switches the api can refuse an operation for. */
@@ -165,6 +178,9 @@ export function parseControls(data: unknown): Controls | null {
     banner_text: text("banner_text"),
     banner_level: level,
     banner_link: text("banner_link"),
+    public_cache_memo: d.public_cache_memo === true,
+    public_cache_snapshots: d.public_cache_snapshots === true,
+    public_cache_app: d.public_cache_app === true,
   };
 }
 
@@ -189,6 +205,8 @@ export type AppConfig = {
     withdrawals: boolean;
     promotions: boolean;
     chatPhotos: boolean;
+    /** Plan 3.5b layer A: the app may reuse the same-for-everyone lists for a short time (admin switch "public cache: app"). Off unless set. */
+    publicCache: boolean;
   };
   /** True when posting, offers and withdrawals need a confirmed phone number. */
   requirePhoneVerified: boolean;
@@ -219,6 +237,7 @@ export function publicConfig(c: Controls, client: Client): AppConfig {
       withdrawals: c.withdrawals,
       promotions: c.promotions,
       chatPhotos: c.chat_photos,
+      publicCache: c.public_cache_app,
     },
     requirePhoneVerified: c.require_phone_verified,
     environment: c.environment,

@@ -10,6 +10,7 @@ import { type SessionCutoff, type Standing, StandingCache, callerFromClaims, cut
 import { MAX_BODY_BYTES, REQUEST_ID_HEADER, readBody, requestIdFrom, withGatewayHeaders } from "./http.ts";
 import { type Db, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp, spendRate } from "./ops.ts";
 import { type Claim, type RepeatStore, REPEAT_KEY_HEADER, REPLAYED_HEADER, repeatKeyFrom, runOnce } from "./repeat.ts";
+import { PublicMemo } from "./publicMemo.ts";
 import { GUEST_READS_PER_MINUTE, guestAddress, guestRateKey, isGuestOp, isGuestToken, needsAccount, runGuestBatch, runGuestOp } from "./guest.ts";
 
 /**
@@ -54,6 +55,15 @@ const IMAGE_OPS = new Set(["createUpload", "attachMedia", "signMedia"]);
 
 /** The admin panel's switches per platform and version, kept for half a minute per instance. */
 const controlsCache = new ControlsCache(30_000);
+
+/**
+ * The same-for-everyone answers (plan 3.5b layer D), shared by guests and signed-in callers of this server copy.
+ * Used only while the admin switch "public cache: memo" is on (see sharedAnswer). At most once a minute, one log
+ * line per op with its hit, miss, shared-wait and not-kept counts: op names and numbers only.
+ */
+const publicMemo = new PublicMemo({
+  report: (op, counts) => background(logServer("info", "api", "memo counts", { op, ...counts })),
+});
 
 /** People the limiter refused lately: their reads wait for the limiter instead of running beside it. */
 const limitedLately = new RecentlyLimited();
@@ -145,7 +155,7 @@ async function handleGuest(
   const signs = isBatch ? calls.some((c) => c.op === "signMedia") : body.op === "signMedia";
   const imagekit = signs ? await imageKitConfig(secret) : null;
   // No person: the nil id keeps the shared reads' types whole and matches nobody's rows.
-  const ctx = { db: admin as unknown as Db, userId: "00000000-0000-0000-0000-000000000000", client, controls, imagekit };
+  const ctx = { db: admin as unknown as Db, userId: "00000000-0000-0000-0000-000000000000", client, controls, imagekit, memo: publicMemo };
   const onUnexpected = (e: unknown) => {
     background(log("error", "guest op failed", { op: String(body.op), error: e instanceof Error ? e.message : String(e) }));
     background(captureServerError(e, { op: String(body.op), fn: "api", caller: "guest" }));
@@ -355,7 +365,7 @@ async function handle(req: Request, requestId: string): Promise<Response> {
   const isBatch = body.op === "batch";
   const needsImageKit = isBatch ? (batchCalls(body.args) ?? []).some((c) => IMAGE_OPS.has(c.op)) : IMAGE_OPS.has(String(body.op));
   const imagekit = needsImageKit ? await imageKitConfig(secret) : null;
-  const ctx = { db: db as unknown as Db, userId, callFunction, removeOwnFiles, client, controls, phoneVerified, imagekit };
+  const ctx = { db: db as unknown as Db, userId, callFunction, removeOwnFiles, client, controls, phoneVerified, imagekit, memo: publicMemo };
   const onUnexpected = (e: unknown) => {
     // Both finish in the background after the response is sent.
     background(log("error", "op failed", { op: String(body.op), user_id: userId, error: e instanceof Error ? e.message : String(e) }));

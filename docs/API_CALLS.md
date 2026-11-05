@@ -200,3 +200,108 @@ the walk waited longer than 2 s except one `countBidsByTask` on My Tasks (5.8 s,
 counts only; the list was already showing).
 
 Not checked: the Android phone and the desktop website by eye; P2-48's throttled-4G timing.
+
+## 8. Caching (plan 3.5b)
+
+Status (5 Nov 2026): **built in code on the branch `feat/cache-integration`, tested offline, not yet on staging.
+Nothing has been measured yet, so this section has no before-and-after numbers and none are claimed.** The
+exact way to get them is in "How to measure" below; the numbers go into the table at the end after staging is
+switched on.
+
+**The idea in plain words.** Some answers are the same for every person: Trending, Top helpers, "today on
+TaskDrop", the promotion prices and the ad order. Today each person who opens Home or Explore makes the server
+and the database work them out again. Caching means working one out once and handing the same copy to the next
+people for a few seconds or minutes. Anything about one person (money, tasks, offers, chats, notifications,
+addresses, phone numbers, sign-in state, admin numbers) is never shared and never shown from a kept copy.
+
+**All three switches start OFF.** They are three true/false parts of one row in the `settings` table, key
+`public_cache`: `{"app": false, "snapshots": false, "memo": false}`. Only the exact value `true` turns a part
+on; a missing row, a missing part or any other value means off. With all three off, every list is asked for
+and worked out live, exactly as before this plan (apart from the three safety fixes listed below the table).
+
+| Layer | What it does now, in code | How old an answer can be | Switch (default OFF) | When an "off" takes effect |
+|---|---|---|---|---|
+| A. The app reuses | `apps/mobile/src/lib/freshness.ts`: the phone keeps the five same-for-everyone answers in memory and shows them again instead of asking, but only while the app switch is on. Each is kept per person (the key starts with the signed-in person's id, or `guest`) and everything is emptied on sign-in, sign-out, an account switch and an account deletion | Trending 60 s, Top helpers 60 s, today's numbers 30 s, promotion prices 60 s, ad order 15 s (never longer than the server keeps them) | `public_cache.app` | Within 5 minutes: the app asks `app-config` every 5 minutes and when it returns to the foreground, and that answer may sit in the browser for 60 s. When the app sees it off, it forgets what it kept at once |
+| B. Browser and network | Unchanged on purpose: every `api` answer stays `Cache-Control: no-store`, so no shared network cache can ever hand one person's answer to another. Only the public `app-config` answer (60 s) and the website's own files are cached | Website files with a content hash in their name: a year (a new release changes the name). `index.html` stays revalidated | None; there is nothing to turn off on the `api`. The website file rule is the `vercel.json` rule for `/assets/` files, not a switch | Remove that rule from `vercel.json` and release |
+| C. The database keeps a ready copy | Migration 149 adds a private table `private.public_snapshots` (closed to everyone, row rules on, no policies). The Inngest job `public-snapshots` fills it every 10 minutes with Trending, Top helpers (3 kinds) and today's numbers. `trending_categories`, `top_earners` and `platform_highlights` keep their exact inputs and outputs and read the copy only when the switch is on and the copy is under 30 minutes old; otherwise they work it out live. `platform_stats` (admin money totals) is never kept | 10 minutes normally; a copy older than 30 minutes is ignored and the live answer is used | `public_cache.snapshots` | Instant: the switch is read on every call. The job keeps refreshing the table (cheap); the copy is simply ignored |
+| D. The server shares one answer | `supabase/functions/api/publicMemo.ts`: inside one server copy, the same-for-everyone answer is kept, and 20 people asking at the same moment cause one database question (single-flight). A closed list of five ops plus the guest's shared post read; at most 500 entries; errors and empty fallbacks are never kept; each caller gets its own copy of the answer | 15 to 60 s per op | `public_cache.memo` | Within about 30 s: each server copy remembers the admin switches for 30 s |
+| E. Never cached | `NEVER_REUSE` in `freshness.ts` and the closed list in `publicMemo.ts`: wallet, escrow, payouts, fees, task status, offers, chat, notifications, addresses and phone numbers, sign-in and age state, admin numbers, and every write. A test fails if any of them is ever added to a cached list | Always live | None | Not applicable |
+
+**Three things that change even with every switch OFF.** They are safety fixes, not part of the switchable
+caching, so they have no off switch:
+
+1. The phone's existing 30-second "reuse" and its signed-photo-link memory are now kept per person and emptied
+   on sign-in and sign-out (hole H69), and nothing is kept until the first session is known.
+2. The wallet screen now asks the server again every time it is shown (money is never shown from what was read
+   before). This is a small, deliberate increase in wallet requests.
+3. A second request that arrives while a new server copy is still loading the secrets now waits for them
+   instead of getting an empty value (hole H70), and website files whose names contain a content hash are cached
+   for a year.
+
+### How to turn each layer off
+
+Do this on the project where it went wrong (staging first; production only with the owner's yes). The switch is
+a row in the `settings` table. There is no button for it in the admin panel yet (none was found in this
+repository), so use the SQL editor of the Supabase project:
+
+- **Everything off at once (safest):**
+  `update public.settings set value = '{"app": false, "snapshots": false, "memo": false}'::jsonb where key = 'public_cache';`
+- **Layer A only (the app):**
+  `update public.settings set value = jsonb_set(value, '{app}', 'false') where key = 'public_cache';`
+- **Layer C only (kept copies):**
+  `update public.settings set value = jsonb_set(value, '{snapshots}', 'false') where key = 'public_cache';`
+- **Layer D only (server sharing):**
+  `update public.settings set value = jsonb_set(value, '{memo}', 'false') where key = 'public_cache';`
+- **Stop the 10-minute refresh job too:** in the Inngest dashboard, pause the function `public-snapshots`. This
+  is not needed to switch layer C off.
+- **Remove layer C completely:** only with the owner's yes, run `supabase/undo/149_public_snapshots.down.sql`
+  (it drops the table and the refresh functions and puts back the three old list functions).
+- **Check that it is off:** read the row back (`select value from public.settings where key = 'public_cache';`),
+  wait the time in the table above, and confirm in the `api` logs that the `memo counts` lines stop counting hits.
+
+### How to measure (not done yet; fill in after staging is switched on)
+
+No saving is claimed until these steps have been run and the numbers written below. Layer A saves requests from
+the phone; layers C and D save database work, not requests, so they are measured differently. Staging only,
+fake data.
+
+1. **Before (all three switches off).**
+   - Requests per screen open: export the web build and run the existing walk,
+     `npx expo export -p web --output-dir <some folder>` then `node scripts/count-api-calls.mjs <some folder> --idle 130`
+     (section 1). Write down Requests and Ops for the Home, Explore and "back to Home" steps of both walks (Asha,
+     Ravi) and the total. Run it twice and keep both, since one run varies.
+   - Database work: in the Supabase SQL editor, from `pg_stat_statements`, write down calls, mean time and total
+     time for the statements behind `platform_highlights`, `trending_categories`, `top_earners`, `ad_auction`,
+     `get_app_controls` and `app_secrets`. Note the starting values first, because the counters run since the
+     last reset.
+   - Speed under load: `npm run test:load` (`scripts/load-test.mjs`); write down the median, 95th percentile and
+     slowest answer.
+2. **Switch on, one layer at a time, in this order:** first `snapshots` (let the `public-snapshots` job run at
+   least once and check `refreshed_at` and `took_ms` on the rows in `private.public_snapshots`), then `memo`, then
+   `app`. After each, wait the time in the table above, repeat step 1 and write the new numbers beside the old.
+3. **After (all three on).** Repeat the same walk, the same `pg_stat_statements` statements and the same load
+   test. The number to write is the change per screen open: requests and ops from `count-api-calls.mjs` for
+   layer A, and calls and total time per statement from `pg_stat_statements` for layers C and D. For layer D also
+   copy the `memo counts` log lines from the `api` function logs (one line per op at most once a minute, with
+   hits, misses, shared waits and not-kept counts: names and numbers only).
+4. **Leak proof on the same run:** `node scripts/two-person-test.mjs --cache-only` with the switches on (read its
+   plan first with `--dry-run`). It must exit 0. The money check by hand: person B approves work, person A opens
+   the wallet within 30 s and must see the new balance on the first look.
+5. **Turn each switch off once** (steps above) and confirm the numbers return to the "before" values within the
+   time given.
+
+Results (empty on purpose; nothing has been measured yet):
+
+| What | Before (all off) | After (all on) | Date and who measured |
+|---|---|---|---|
+| Home open, Asha: requests / ops | not measured | not measured | |
+| Home open, Ravi: requests / ops | not measured | not measured | |
+| Back to Home, Asha / Ravi: requests / ops | not measured | not measured | |
+| Whole walk, both people: requests / ops | not measured | not measured | |
+| `platform_highlights`: calls / total time | not measured | not measured | |
+| `trending_categories`: calls / total time | not measured | not measured | |
+| `top_earners`: calls / total time | not measured | not measured | |
+| `ad_auction`: calls / total time | not measured | not measured | |
+| `get_app_controls`: calls / total time | not measured | not measured | |
+| `app_secrets`: calls / total time | not measured | not measured | |
+| Load test: median / p95 / slowest | not measured | not measured | |

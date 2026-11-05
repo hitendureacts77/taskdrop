@@ -5,6 +5,11 @@ import { MEDIA } from '@taskdrop/rules';
 import { readBytes } from './readBytes';
 import { currentUserId } from './supabase';
 import { callApi } from './gateway';
+import { makeLinkMemory } from './signedLinks';
+import { onForget, personKey, wipeCount } from './freshness';
+
+/** Signed photo links, per person and emptied on sign-in and sign-out (lib/signedLinks.ts, 3.5b, H69). */
+const { cachedLink, joinPending, keeperFor, linkKey } = makeLinkMemory({ personKey, wipeCount, onForget });
 
 /** What a file is for. The server records it and checks it again before the file is attached to anything. */
 export type UploadPurpose = 'task' | 'proof' | 'avatar' | 'chat';
@@ -335,32 +340,23 @@ const SIGNED_URL_SECONDS = 60 * 60;
  * they are cached separately.
  */
 const REUSE_MS = (SIGNED_URL_SECONDS - 10 * 60) * 1000;
-const signed = new Map<string, { url: string; at: number }>();
-const pending = new Map<string, Promise<string | null>>();
-
-const cacheKey = (path: string, size: ImageSize) => `${size}|${path}`;
-
+/** A link already signed for the person signed in now (lib/signedLinks.ts: per person, emptied on sign-in and sign-out, H69). */
 function cached(path: string, size: ImageSize): string | null {
-  const hit = signed.get(cacheKey(path, size));
-  return hit && Date.now() - hit.at < REUSE_MS ? hit.url : null;
+  return cachedLink(path, size, REUSE_MS);
 }
 
 /** A viewable URL for one stored path, or null if it cannot be signed. */
 export async function signedMediaUrl(path: string, size: ImageSize = 'card'): Promise<string | null> {
   const hit = cached(path, size);
   if (hit) return hit;
-  const key = cacheKey(path, size);
-  const inFlight = pending.get(key);
-  if (inFlight) return inFlight;
-  const p = (async () => {
+  const keep = keeperFor(size);
+  return joinPending(linkKey(path, size), async () => {
     const urls = await callApi<Record<string, string>>('signMedia', { paths: [path], size }).catch(() => ({}) as Record<string, string>);
     const url = urls[path];
     if (!url) return null;
-    signed.set(key, { url, at: Date.now() });
+    keep(path, url);
     return url;
-  })().finally(() => pending.delete(key));
-  pending.set(key, p);
-  return p;
+  });
 }
 
 /** The URL for a path if it is already signed, for a first paint with no wait. */
@@ -386,6 +382,7 @@ export async function signedMediaUrls(paths: string[], size: ImageSize = 'card')
   }
   if (missing.length === 0) return out;
 
+  const keep = keeperFor(size);
   let urls: Record<string, string>;
   try {
     urls = await callApi<Record<string, string>>('signMedia', { paths: missing, size });
@@ -395,7 +392,7 @@ export async function signedMediaUrls(paths: string[], size: ImageSize = 'card')
   const now = Date.now();
   for (const [p, url] of Object.entries(urls)) {
     out[p] = url;
-    signed.set(cacheKey(p, size), { url, at: now });
+    keep(p, url, now);
   }
   return out;
 }

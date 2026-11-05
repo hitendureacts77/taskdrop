@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2.116.0";
+import { makeVaultLoader } from "./secretsLoader.ts";
 
 /**
  * Where an Edge Function gets its secrets.
@@ -22,9 +23,6 @@ import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2.1
  * year, and a Vault round trip on every webhook would be silly.
  */
 
-const cache = new Map<string, string>();
-let vaultLoaded = false;
-
 function admin(): SupabaseClient {
   return createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -35,34 +33,27 @@ function admin(): SupabaseClient {
 
 /**
  * Pull every Vault secret once. One call rather than one per name, since a
- * function usually needs two or three of them together.
+ * function usually needs two or three of them together. Callers that arrive
+ * while the read is running wait for it (H70); a failed read is not
+ * remembered, so the next call tries again.
  */
-async function loadVault(): Promise<void> {
-  if (vaultLoaded) return;
-  vaultLoaded = true;
-  try {
-    // public.app_secrets() rather than vault.decrypted_secrets: PostgREST only
-    // serves the schemas it is configured to expose, and vault is not one of
-    // them. The function is granted to service_role alone.
-    const { data, error } = await admin().rpc("app_secrets");
-    if (error) return;
-    for (const [name, value] of Object.entries((data ?? {}) as Record<string, string>)) {
-      // An env var set for this function is authoritative; never let Vault
-      // shadow a value someone deliberately configured.
-      if (value && !Deno.env.get(name)) cache.set(name, value);
-    }
-  } catch {
-    // No Vault, no access, or the extension is absent — callers handle the
-    // missing value and say so, which is better than throwing here.
-  }
-}
+const vault = makeVaultLoader(async () => {
+  // public.app_secrets() rather than vault.decrypted_secrets: PostgREST only
+  // serves the schemas it is configured to expose, and vault is not one of
+  // them. The function is granted to service_role alone.
+  const { data, error } = await admin().rpc("app_secrets");
+  // No Vault, no access, or the extension is absent: the loader treats a throw
+  // as "try again later" and callers handle the missing value and say so.
+  if (error) throw new Error("vault read failed");
+  return (data ?? {}) as Record<string, string>;
+});
 
 /** The value for `name`, or "" when it is configured nowhere. */
 export async function secret(name: string): Promise<string> {
+  // An env var set for this function is authoritative; Vault never shadows it.
   const fromEnv = Deno.env.get(name);
   if (fromEnv) return fromEnv;
-  await loadVault();
-  const fromVault = cache.get(name);
+  const fromVault = (await vault.load()).get(name);
   if (fromVault) return fromVault;
   return "";
 }
