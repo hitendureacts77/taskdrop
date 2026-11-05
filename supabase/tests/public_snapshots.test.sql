@@ -46,22 +46,22 @@ $$;
 -- The three lists as jsonb, in the order they came back.
 create or replace function pg_temp.trending(p_limit integer) returns jsonb
 language sql as $$
-  select coalesce(jsonb_agg(to_jsonb(x) order by x.ord), '[]'::jsonb)
+  select coalesce(jsonb_agg(to_jsonb(x) - 'ordinality' order by x.ordinality), '[]'::jsonb)
     from public.trending_categories(p_limit) with ordinality x
 $$;
 create or replace function pg_temp.trending_live(p_limit integer) returns jsonb
 language sql as $$
-  select coalesce(jsonb_agg(to_jsonb(x) order by x.ord), '[]'::jsonb)
+  select coalesce(jsonb_agg(to_jsonb(x) - 'ordinality' order by x.ordinality), '[]'::jsonb)
     from private.trending_categories_live(p_limit) with ordinality x
 $$;
 create or replace function pg_temp.earners(p_kind text, p_limit integer) returns jsonb
 language sql as $$
-  select coalesce(jsonb_agg(to_jsonb(x) order by x.ord), '[]'::jsonb)
+  select coalesce(jsonb_agg(to_jsonb(x) - 'ordinality' order by x.ordinality), '[]'::jsonb)
     from public.top_earners(p_kind, p_limit) with ordinality x
 $$;
 create or replace function pg_temp.earners_live(p_kind text, p_limit integer) returns jsonb
 language sql as $$
-  select coalesce(jsonb_agg(to_jsonb(x) order by x.ord), '[]'::jsonb)
+  select coalesce(jsonb_agg(to_jsonb(x) - 'ordinality' order by x.ordinality), '[]'::jsonb)
     from private.top_earners_live(p_kind, p_limit) with ordinality x
 $$;
 

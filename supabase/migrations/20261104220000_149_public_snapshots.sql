@@ -53,7 +53,7 @@ stable
 set search_path = public, pg_temp
 as $$
   select coalesce(
-    (select s.value ->> p_part = 'true'
+    (select (s.value -> p_part) = 'true'::jsonb
        from public.settings s
       where s.key = 'public_cache'
         and jsonb_typeof(s.value) = 'object'),
