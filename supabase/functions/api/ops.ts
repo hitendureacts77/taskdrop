@@ -13,6 +13,7 @@
 import { refusalFor } from "../_shared/controls.ts";
 import { type Ctx, type Db, type DbResult, GENERIC, OpError, type Op } from "./core.ts";
 import { MEDIA_OPS } from "./media.ts";
+import { sharedAnswer } from "./publicMemo.ts";
 import { READ_OPS } from "./reads.ts";
 import { WRITE_OPS } from "./writes.ts";
 
@@ -140,7 +141,8 @@ export async function runOp(name: unknown, args: unknown, ctx: Ctx, onUnexpected
   if (off) return { ok: false, error: off };
   const started = performance.now();
   try {
-    return { ok: true, data: (await op(ctx, a)) ?? null };
+    // Only the same-for-everyone reads, and only while the admin switch is on, may share one answer (3.5b layer D).
+    return { ok: true, data: (await sharedAnswer(name, a, ctx, () => op(ctx, a))) ?? null };
   } catch (e) {
     if (e instanceof OpError) return { ok: false, error: { message: e.message, code: e.code, details: e.details } };
     onUnexpected(e);
