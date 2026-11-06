@@ -284,10 +284,11 @@ export async function listDisputeReasons(taskIds: string[]): Promise<Map<string,
 // ------------------------------------------------------ profile & presence --
 
 /** Is this @handle free? */
-export async function usernameAvailable(username: string): Promise<boolean> {
+/** null: could not check (no connection). Not the same as taken; saving it will still catch a clash. */
+export async function usernameAvailable(username: string): Promise<boolean | null> {
   const handle = username.trim().toLowerCase();
   if (!/^[a-z0-9_]{3,20}$/.test(handle)) return false;
-  return quietly<boolean>('usernameAvailable', { username: handle }, false);
+  return quietly<boolean | null>('usernameAvailable', { username: handle }, null);
 }
 
 export type ProfileExtras = {
