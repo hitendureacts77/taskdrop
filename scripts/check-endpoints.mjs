@@ -72,12 +72,16 @@ export function problemsFor(name, text, config, tests = '') {
       for (const [re, why] of GUEST_DOOR) if (!re.test(text)) out.push(`${name}: ${why}`);
       for (const title of GUEST_TESTS) if (!tests.includes(title)) out.push(`${name}: the guest test "${title}" is missing`);
     }
-  } else if (door.kind === 'own-limits') {
-    if (!OWN_LIMIT.test(text)) out.push(`${name}: no limit by phone number or network address`);
-  } else if (door.kind === 'signature') {
-    if (!SIGNATURE.test(text)) out.push(`${name}: no check of the provider's signature or signing key`);
-  } else if (!door.why) {
-    out.push(`${name}: marked public with no reason`);
+  } else {
+    // These callers hold no Supabase login, so a new project must start with the platform check off (H73, task 2.18).
+    if (!publicInConfig) out.push(`${name}: needs verify_jwt = false in supabase/config.toml, or its callers are refused`);
+    if (door.kind === 'own-limits') {
+      if (!OWN_LIMIT.test(text)) out.push(`${name}: no limit by phone number or network address`);
+    } else if (door.kind === 'signature') {
+      if (!SIGNATURE.test(text)) out.push(`${name}: no check of the provider's signature or signing key`);
+    } else if (!door.why) {
+      out.push(`${name}: marked public with no reason`);
+    }
   }
   return out;
 }

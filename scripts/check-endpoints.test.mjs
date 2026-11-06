@@ -5,6 +5,9 @@ import { FUNCTIONS_DIR, GUEST_TESTS, problemsFor, readConfig, scanFunctions } fr
 
 const config = '[functions.api]\nverify_jwt = true\n\n[functions.app-config]\nverify_jwt = false\n';
 
+/** A config in which these functions have the platform login check off. */
+const noLogin = (...names) => names.map((n) => `[functions.${n}]\nverify_jwt = false\n`).join('\n');
+
 test('every server function today has a lock and a limit, or a reason', () => {
   assert.deepEqual(scanFunctions(FUNCTIONS_DIR, readConfig()), []);
 });
@@ -27,6 +30,15 @@ test('the places search keeps counting its quota', () => {
   assert.deepEqual(problemsFor('places-search', 'auth.getUser(); admin.rpc("take_places_quota")', config), []);
 });
 
+test('a door whose callers hold no login must say so in the config', () => {
+  const signed = 'x-razorpay-signature';
+  const open = '[functions.razorpayx-webhook]\nverify_jwt = false\n';
+  assert.deepEqual(problemsFor('razorpayx-webhook', signed, open), []);
+  const p = problemsFor('razorpayx-webhook', signed, config);
+  assert.equal(p.length, 1);
+  assert.match(p[0], /verify_jwt = false/);
+});
+
 test('a login function may not be switched to public in the config', () => {
   const both = 'await admin.auth.getUser(jwt); api_rate_hit';
   assert.equal(problemsFor('places-search', both, '[functions.places-search]\nverify_jwt = false\n').length, 1);
@@ -46,12 +58,12 @@ test('the api also keeps its guest door: exact public key, its own bounded limit
 });
 
 test('a webhook needs its signature check', () => {
-  assert.deepEqual(problemsFor('razorpay-webhook', 'req.headers.get("x-razorpay-signature")', config), []);
-  assert.equal(problemsFor('razorpay-webhook', 'return json({ ok: true })', config).length, 1);
-  assert.equal(problemsFor('inngest', 'serve({ client })', config).length, 1);
+  assert.deepEqual(problemsFor('razorpay-webhook', 'req.headers.get("x-razorpay-signature")', noLogin('razorpay-webhook')), []);
+  assert.equal(problemsFor('razorpay-webhook', 'return json({ ok: true })', noLogin('razorpay-webhook')).length, 1);
+  assert.equal(problemsFor('inngest', 'serve({ client })', noLogin('inngest')).length, 1);
 });
 
 test('the sign-in functions need their own limits', () => {
-  assert.deepEqual(problemsFor('phone-auth', 'admin.rpc("hit_auth_send_ip")', config), []);
-  assert.equal(problemsFor('password-auth', 'signIn()', config).length, 1);
+  assert.deepEqual(problemsFor('phone-auth', 'admin.rpc("hit_auth_send_ip")', noLogin('phone-auth')), []);
+  assert.equal(problemsFor('password-auth', 'signIn()', noLogin('password-auth')).length, 1);
 });
