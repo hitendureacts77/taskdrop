@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { guarded, captureSecurityEvent, captureServerError, logServer } from "../_shared/monitoring.ts";
+import { paidAmountMatches } from "../_shared/paymentAmount.ts";
 import { secret } from "../_shared/secrets.ts";
 
 /**
@@ -79,8 +80,8 @@ Deno.serve(guarded("razorpay-webhook", async (req: Request) => {
   let event: {
     event?: string;
     payload?: {
-      payment_link?: { entity?: { id?: string; status?: string } };
-      payment?: { entity?: { id?: string } };
+      payment_link?: { entity?: { id?: string; status?: string; amount_paid?: number } };
+      payment?: { entity?: { id?: string; amount?: number } };
     };
   };
   try {
@@ -139,6 +140,17 @@ Deno.serve(guarded("razorpay-webhook", async (req: Request) => {
 
   // The refundable id travels on the payment entity, not the link entity.
   const payId = event.payload?.payment?.entity?.id ?? null;
+
+  // Paid, but not the amount on record: hold it for a person to look at (H76, task 2.18). The row stays
+  // unpaid, so nothing is funded or credited; the payment id is kept so staff can refund it. Answer 200,
+  // because Razorpay retrying the same message cannot change the figure.
+  const reported = link.amount_paid ?? event.payload?.payment?.entity?.amount;
+  if (paid && !paidAmountMatches(row.amount_minor, reported)) {
+    if (payId) await admin.from("payments").update({ provider_payment_id: payId }).eq("id", row.id);
+    await logServer("error", "razorpay-webhook", "paid amount differs from the record, held", { payment_id: row.id, purpose: row.purpose });
+    await captureSecurityEvent("amount_mismatch", "razorpay-webhook");
+    return json({ ok: true, held: "amount_mismatch" });
+  }
 
   await admin
     .from("payments")

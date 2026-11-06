@@ -81,6 +81,8 @@ export async function captureServerError(
  *
  *   refused_login      a wrong sign-in code, a wrong password, a request with a bad or missing login
  *   app_check_failed   a request whose App Check token is not from the real app
+ *   amount_mismatch    Razorpay reported a different amount from the one on record; the payment
+ *                      is held and not marked paid (H76, task 2.18)
  *   bad_signature      a payment or payout message whose signature is wrong (a forged webhook)
  *   sms_code_sent      a real sign-in SMS went out (a sudden rise is SMS pumping)
  *   sms_budget_hit     the per-address or daily limit on sign-in codes stopped a request
@@ -88,7 +90,7 @@ export async function captureServerError(
  * One event per kind per instance per hour is plenty to make the issue count rise; at most 20 per kind per instance per hour
  * are sent, so an attack cannot use up the Sentry quota. No phone number, name, address or token is ever included: counts only.
  */
-export type SecurityKind = "refused_login" | "app_check_failed" | "bad_signature" | "sms_code_sent" | "sms_budget_hit";
+export type SecurityKind = "refused_login" | "app_check_failed" | "bad_signature" | "amount_mismatch" | "sms_code_sent" | "sms_budget_hit";
 const securitySeen = new Map<string, { windowStart: number; sent: number }>();
 const SECURITY_PER_HOUR = 20;
 
