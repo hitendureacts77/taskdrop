@@ -7,6 +7,7 @@ import { readFees } from "./reads.ts";
 import { roughPlace } from "../_shared/place.ts";
 import { PRICE_LIMITS, TOP_UP_PCTS } from "../_shared/rules.ts";
 import { contactIssueMessage, findContactIssue, maskContacts, nameCarriesContact, profileIssueMessage } from "../_shared/contacts.ts";
+import { PROFILE_OWNER_SELECT } from "./columns.ts";
 
 /**
  * Everything that changes something. The caller's id always comes from their
@@ -477,7 +478,7 @@ export const WRITE_OPS: Record<string, Op> = {
     // (payout destinations replaced it), so writing it made the whole update fail.
     // A caller that still sends it has the field ignored, like any other unknown one.
     if (bool(a, "onboarded")) patch.onboarded_at = nowIso(ctx);
-    const row = rows(await ctx.db.from("profiles").update(patch).eq("id", ctx.userId).select(), profileRefusal)[0];
+    const row = rows(await ctx.db.from("profiles").update(patch).eq("id", ctx.userId).select(PROFILE_OWNER_SELECT), profileRefusal)[0];
     if (!row) throw new OpError("Could not save your profile", "NOT_FOUND");
     return row;
   },
@@ -503,7 +504,7 @@ export const WRITE_OPS: Record<string, Op> = {
     if (bool(a, "workerOnboarded")) patch.worker_onboarded_at = nowIso(ctx);
     if (a.languages !== undefined) patch.languages = strings(a, "languages", 20, 40);
     if (a.intent !== undefined) patch.intent = a.intent == null ? null : oneOf(a, "intent", ["post", "earn", "both"]);
-    const row = rows(await ctx.db.from("profiles").update(patch).eq("id", ctx.userId).select(), profileRefusal)[0];
+    const row = rows(await ctx.db.from("profiles").update(patch).eq("id", ctx.userId).select(PROFILE_OWNER_SELECT), profileRefusal)[0];
     if (!row) throw new OpError("Could not save your profile", "NOT_FOUND");
     return row;
   },
