@@ -11,7 +11,7 @@ import { MAX_BODY_BYTES, REQUEST_ID_HEADER, readBody, requestIdFrom, withGateway
 import { type Db, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp, spendRate } from "./ops.ts";
 import { type Claim, type RepeatStore, REPEAT_KEY_HEADER, REPLAYED_HEADER, repeatKeyFrom, runOnce } from "./repeat.ts";
 import { PublicMemo } from "./publicMemo.ts";
-import { GuestLocalLimit, guestAddress, guestBusy, guestCost, guestRateKey, guestSpend, isGuestOp, isGuestToken, needsAccount, runGuestBatch, runGuestOp } from "./guest.ts";
+import { GuestCeiling, GuestLocalLimit, guestAddress, guestBusy, guestCost, guestNetKey, guestRateKey, guestSpend, isGuestOp, isGuestToken, needsAccount, runGuestBatch, runGuestOp } from "./guest.ts";
 
 /**
  * The app's one door to its data.
@@ -67,6 +67,8 @@ const publicMemo = new PublicMemo({
 
 /** The guests' stand-in limiter while api_guest_spend cannot be reached (per instance, light reads only). */
 const guestLocalLimit = new GuestLocalLimit();
+/** Set for the rest of the minute once the counter says all guests are over the hard ceiling: no more asking, no more writes. */
+const guestCeiling = new GuestCeiling();
 
 /** People the limiter refused lately: their reads wait for the limiter instead of running beside it. */
 const limitedLately = new RecentlyLimited();
@@ -107,7 +109,7 @@ Deno.serve(guarded("api", async (req: Request) => {
  * A guest's call (design D15): someone using the app before making an account. Only the reads in ./guest.ts
  * run, with the service key, through the SQL functions of migration 146, which decide what a guest may see.
  * Anything else answers NEEDS_ACCOUNT. The limiter counts each request's cost per network address (hashed, IPv6 by
- * /64) and for all guests together (migration 154, see GUEST_READS_PER_MINUTE in ./guest.ts), not per person.
+ * /64), per wider network (IPv6 /48, IPv4 /24) and for all guests together (migrations 154 and 157, see GUEST_READS_PER_MINUTE in ./guest.ts), not per person.
  */
 async function handleGuest(
   req: Request,
@@ -128,9 +130,10 @@ async function handleGuest(
 
   // Cost-weighted, per address (IPv6 by /64) and for all guests together (migration 154). If the counter cannot be
   // reached, this instance's own small budget applies with light reads only: bounded, never open (H67).
-  const key = await guestRateKey(guestAddress(req.headers));
-  const verdict = await guestSpend(admin as unknown as Db, key, guestCost(body.op, body.args), guestLocalLimit, (why) =>
-    background(log("warn", "guest rate limiter unavailable", { error: why })));
+  const address = guestAddress(req.headers);
+  const [key, net] = await Promise.all([guestRateKey(address), guestNetKey(address)]);
+  const verdict = await guestSpend(admin as unknown as Db, key, net, guestCost(body.op, body.args), guestLocalLimit, (why) =>
+    background(log("warn", "guest rate limiter unavailable", { error: why })), guestCeiling);
   if (verdict === "limited") {
     background(log("warn", "guest rate limited", { op: String(body.op) }));
     return refuse("You are going too fast. Please wait a moment and try again.", "RATE_LIMITED", 429);

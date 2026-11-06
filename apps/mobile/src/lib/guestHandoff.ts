@@ -6,14 +6,15 @@
  * shop's phone, someone else signing in later from the ordinary sign-in page must not find the guest's text
  * ("come to flat 302, call 98...") in their Drafts; then the guest's things are dropped instead.
  *
- * The sign-in page marks the hand-off while it is open (in memory) and on the device (for Google on the web,
- * where the page reloads on the way back). The mark counts for a short while only.
+ * The sign-in page marks the hand-off while it is open (in memory). Only for Google on the web, where the page
+ * reloads on the way back, a mark is also written to the device, right before the redirect starts; it counts for a
+ * short while only, and an app start that is not the return from Google clears it.
  *
  * Pure and free of React Native so it can be unit tested (guestHandoff.test.ts).
  */
 
 /** How long a hand-off mark kept on the device still counts: long enough for a Google round trip. */
-export const HANDOFF_WINDOW_MS = 30 * 60_000;
+export const HANDOFF_WINDOW_MS = 10 * 60_000;
 
 /**
  * True when this sign-in is the guest's own: the pop-up's sign-in page is open right now (`live`), or it was

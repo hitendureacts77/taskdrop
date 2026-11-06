@@ -84,7 +84,7 @@ export function ListingCard({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
           <Icon name="clock" size={12} color={t.colors.muted} />
           <RNText style={tx('500', 11, t.colors.muted)} numberOfLines={1}>
-            {deliveryLabel(task.time_limit_minutes)} · {roughPlace(task.loc_label) ?? 'Remote'}
+            {deliveryLabel(task.time_limit_minutes)} · {roughPlace(task.loc_label) ?? (task.loc_lat === null ? 'Remote' : 'Nearby')}
           </RNText>
           {!owner ? <RNText style={tx('600', 11, t.colors.goldInk)}> · {rating}</RNText> : null}
         </View>

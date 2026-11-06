@@ -7,7 +7,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { clientHeaders, installId } from '../lib/appInfo';
 import { postSignInRoute } from '../data/api';
-import { GUEST_DRAFTS_OWNER, clearGuestHandoff, guestHandoffLive, loadGuestChoice, saveGuestChoice, takeGuestHandoff } from '../lib/guest';
+import { GUEST_DRAFTS_OWNER, clearGuestHandoff, clearStaleGuestHandoff, dropGuestHandoffMark, guestHandoffLive, loadGuestChoice, saveGuestChoice, saveGuestHandoffMark, takeGuestHandoff } from '../lib/guest';
 import { clearDrafts, moveGuestDrafts } from '../lib/drafts';
 import { allowGuestSaves, dropGuestSaves } from '../lib/guestSaves';
 import { adoptGuestWizard, clearWizard, dropGuestWizard } from '../lib/postWizardStore';
@@ -136,12 +136,17 @@ async function settleGuestThings(userId: string, live: boolean): Promise<void> {
   await dropGuestWizard();
 }
 
-/** Signed out: the person's drafts and anything a guest left go from this device. */
-async function forgetDraftsOnDevice(userId: string | null): Promise<void> {
-  if (userId) await clearDrafts(userId);
+/** Anything a guest left on this device goes, and no hand-off is pending. Safe after every sign-out, however it came. */
+async function forgetGuestThingsOnDevice(): Promise<void> {
   await clearDrafts(GUEST_DRAFTS_OWNER);
   await dropGuestSaves();
   clearGuestHandoff();
+}
+
+/** The person chose to sign out: their drafts go too, and anything a guest left. */
+async function forgetDraftsOnDevice(userId: string | null): Promise<void> {
+  if (userId) await clearDrafts(userId);
+  await forgetGuestThingsOnDevice();
 }
 
 WebBrowser.maybeCompleteAuthSession();
@@ -248,6 +253,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let alive = true;
+    // A guest hand-off mark kept on the device counts only for the return from Google (the URL carries a code); any
+    // other start clears it (B31). Not awaited: the code is stripped from the URL synchronously below, and a mark is
+    // only read when a session appears, after this has been queued.
+    void clearStaleGuestHandoff(
+      Platform.OS === 'web' && typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('code'),
+    );
     (async () => {
       // Google lands back here on the web with a one-time `?code=` in the
       // URL -- detectSessionInUrl is off (see createBrowserClient, which
@@ -344,10 +355,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signedInAs = userId;
         guestSettling = guestSettling.then(() => settleGuestThings(userId, live)).catch(() => {});
       } else if (event === 'SIGNED_OUT') {
-        // However the session ended (sign-out, sign-out everywhere, a closed account): drafts stay with nobody.
-        const was = signedInAs;
+        // However the session ended (sign-out, sign-out everywhere, a refresh race between tabs, a closed account):
+        // what a guest left goes. The person's own drafts go only when they chose to sign out (signOut below clears
+        // them first); a forced sign-out must not delete text they wrote and will find again after signing in.
         signedInAs = null;
-        guestSettling = guestSettling.then(() => forgetDraftsOnDevice(was)).catch(() => {});
+        guestSettling = guestSettling.then(() => forgetGuestThingsOnDevice()).catch(() => {});
       }
       // Sentry sees the account id only, so a report can be matched to a person without naming them.
       setMonitoringUser(s?.user.id ?? null);
@@ -406,8 +418,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       // A same-tab redirect to Google and back, same as any "Continue with
       // Google" button -- this app reloads from scratch when it lands.
+      // The guest hand-off mark goes to the device only now, as the redirect starts (B31).
+      await saveGuestHandoffMark();
       const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
-      if (error) throw apiError(error);
+      if (error) {
+        await dropGuestHandoffMark();
+        throw apiError(error);
+      }
       return;
     }
 
