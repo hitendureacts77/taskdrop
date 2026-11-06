@@ -341,6 +341,118 @@ test("public snapshots: stale copy reports to Sentry and leaves one team alert; 
   assert.equal(saved.length, 1);
 });
 
+// ------------------------------------------------- stray ImageKit files --
+
+import { ORPHAN_MAX_DELETES, ORPHAN_PAGE, runStraySweep, sweepStrayImageKitFiles, type KnownFiles } from "./jobs.ts";
+
+const NOW = new Date("2026-11-05T12:00:00.000Z");
+const daysAgo = (d: number) => new Date(NOW.getTime() - d * 86_400_000).toISOString();
+type IkFile = { fileId: string; filePath: string; createdAt: string };
+const ikFile = (n: number, ageDays: number, folder = "local"): IkFile => ({ fileId: `f${n}`, filePath: `/${folder}/u/x/${n}.jpg`, createdAt: daysAgo(ageDays) });
+
+/** A fake ImageKit holding `files` (oldest first), recording every request. */
+function strayKit(files: IkFile[], deleteStatus = 204) {
+  const asked: string[] = [];
+  const fetcher = async (url: string, init?: { method?: string }) => {
+    const method = init?.method ?? "GET";
+    asked.push(`${method} ${url.replace("https://api.imagekit.io/v1", "")}`);
+    if (method === "DELETE") return { ok: deleteStatus < 300, status: deleteStatus, json: async () => null };
+    const q = new URL(url).searchParams;
+    const skip = Number(q.get("skip"));
+    const limit = Number(q.get("limit"));
+    return { ok: true, status: 200, json: async () => files.slice(skip, skip + limit) };
+  };
+  const deletes = () => asked.filter((a) => a.startsWith("DELETE")).map((a) => a.replace("DELETE /files/", ""));
+  return { fetcher, asked, deletes };
+}
+const knowing = (paths: string[] = [], fileIds: string[] = []): KnownFiles => async () => ({ paths: new Set(paths), fileIds: new Set(fileIds) });
+
+test("stray files: an old file with no media row is removed; one with a row (by path or by id), a young one and another folder are not", async () => {
+  const files = [
+    ikFile(1, 10), // stray
+    ikFile(2, 10), // known by path
+    ikFile(3, 10), // known by file id
+    ikFile(4, 10, "prod"), // another deployment's folder
+    ikFile(5, 1), // too young
+    { fileId: "f6", filePath: "/local/u/x/6.jpg", createdAt: "not a date" }, // age unknown
+  ];
+  const kit = strayKit(files);
+  const r = await sweepStrayImageKitFiles(IK, kit.fetcher, knowing([files[1].filePath], ["f3"]), { now: NOW });
+  assert.deepEqual(kit.deletes(), ["f1"]);
+  assert.deepEqual(r, { scanned: 6, strays: 1, deleted: 1, failed: 0, dryRun: false });
+});
+
+test("stray files: exactly two days old counts as old, a minute younger does not", async () => {
+  const edge: IkFile = { fileId: "e1", filePath: "/local/u/x/e1.jpg", createdAt: daysAgo(2) };
+  const young: IkFile = { fileId: "e2", filePath: "/local/u/x/e2.jpg", createdAt: new Date(NOW.getTime() - 2 * 86_400_000 + 60_000).toISOString() };
+  const kit = strayKit([edge, young]);
+  await sweepStrayImageKitFiles(IK, kit.fetcher, knowing(), { now: NOW });
+  assert.deepEqual(kit.deletes(), ["e1"]);
+});
+
+test("stray files: a dry run counts the strays and deletes nothing", async () => {
+  const kit = strayKit([ikFile(1, 10), ikFile(2, 10)]);
+  const r = await sweepStrayImageKitFiles(IK, kit.fetcher, knowing(), { now: NOW, dryRun: true });
+  assert.deepEqual(r, { scanned: 2, strays: 2, deleted: 0, failed: 0, dryRun: true });
+  assert.equal(kit.deletes().length, 0);
+});
+
+test("stray files: at most 200 are removed in one run, whatever is asked", async () => {
+  assert.equal(ORPHAN_MAX_DELETES, 200);
+  const files = Array.from({ length: 450 }, (_, i) => ikFile(i, 10));
+  const kit = strayKit(files);
+  const r = await sweepStrayImageKitFiles(IK, kit.fetcher, knowing(), { now: NOW, maxDeletes: 5000 });
+  assert.equal(kit.deletes().length, 200);
+  assert.equal(r.deleted, 200);
+  assert.equal(r.strays, 200);
+  // The cap is a ceiling the caller can only lower.
+  const small = strayKit(files);
+  await sweepStrayImageKitFiles(IK, small.fetcher, knowing(), { now: NOW, maxDeletes: 7 });
+  assert.equal(small.deletes().length, 7);
+});
+
+test("stray files: pages are read until a short page or a page that ends in a too-young file", async () => {
+  const many = Array.from({ length: ORPHAN_PAGE + 10 }, (_, i) => ikFile(i, 10));
+  const kit = strayKit(many);
+  const r = await sweepStrayImageKitFiles(IK, kit.fetcher, knowing(many.map((f) => f.filePath)), { now: NOW });
+  assert.equal(r.scanned, ORPHAN_PAGE + 10);
+  assert.equal(kit.asked.filter((a) => a.startsWith("GET")).length, 2);
+  assert.equal(kit.deletes().length, 0);
+  // A first page whose last file is too young ends the scan after one request.
+  const young = strayKit([ikFile(1, 10), ...Array.from({ length: ORPHAN_PAGE - 1 }, (_, i) => ikFile(i + 2, 0.5))]);
+  await sweepStrayImageKitFiles(IK, young.fetcher, knowing(), { now: NOW });
+  assert.equal(young.asked.filter((a) => a.startsWith("GET")).length, 1);
+});
+
+test("stray files: if the database cannot be asked, or a listing fails, nothing is removed", async () => {
+  const kit = strayKit([ikFile(1, 10)]);
+  const cannot: KnownFiles = async () => { throw new Error("media lookup: down"); };
+  await assert.rejects(sweepStrayImageKitFiles(IK, kit.fetcher, cannot, { now: NOW }), /media lookup/);
+  assert.equal(kit.deletes().length, 0);
+  const broken = async () => ({ ok: false, status: 500, json: async () => null });
+  await assert.rejects(sweepStrayImageKitFiles(IK, broken, knowing(), { now: NOW }), /HTTP 500/);
+});
+
+test("stray files: a failed delete is reported so Inngest retries, after the others were tried", async () => {
+  const kit = strayKit([ikFile(1, 10), ikFile(2, 10)], 500);
+  await assert.rejects(sweepStrayImageKitFiles(IK, kit.fetcher, knowing(), { now: NOW }), /2 of 2 could not be removed/);
+  assert.equal(kit.deletes().length, 2);
+});
+
+test("stray files: without ImageKit's keys the job does nothing at all", async () => {
+  let touched = 0;
+  const spy = async () => { touched++; return { ok: true, status: 200, json: async () => [] }; };
+  const known: KnownFiles = async () => { touched++; return { paths: new Set(), fileIds: new Set() }; };
+  assert.deepEqual(await runStraySweep(null, spy, known, { now: NOW }), { skipped: "ImageKit is not configured" });
+  assert.equal(touched, 0);
+});
+
+test("stray files: the result carries counts only, never a path or a file name", async () => {
+  const kit = strayKit([ikFile(1, 10)]);
+  const r = await sweepStrayImageKitFiles(IK, kit.fetcher, knowing(), { now: NOW });
+  assert.ok(Object.values(r).every((v) => typeof v === "number" || typeof v === "boolean"));
+});
+
 // ------------------------------------------------- plain lock-screen pushes (H42) --
 
 /** What the database writes for each sensitive kind (staging wording), with the private facts in it. */

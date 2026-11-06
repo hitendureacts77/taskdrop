@@ -10,7 +10,7 @@ a row in the `media` table.
 app            api (Edge Function)                         ImageKit              Postgres
  |  createUpload {purpose, kind:image, mime}                                          |
  |------------------>|  media_begin  ---------------------------------------------->  | pending row
- |<------------------|  signed upload token (30 min), folder, file name               |
+ |<------------------|  signed upload token (5 min), folder, file name                |
  |  POST the file ----------------------------------------------------->| stored (private)
  |  attachMedia {id, fileId}                                                          |
  |------------------>|  GET file details ---------------------------->|              |
@@ -81,8 +81,16 @@ exactly as before, and `media-purge` waits. Old app builds keep uploading to Sup
 ## Limits, on purpose
 
 * ImageKit's upload token is bound to a token and an expiry, **not** to a folder or file name. A person who tampers
-  with the request can put a file anywhere in the account for 30 minutes, but it can never be attached to anything
-  (the server checks the exact path), so it is only clutter. A bulk clean-up of stray files in ImageKit is a later job.
+  with the request can put a file anywhere in the account for 5 minutes (H41), but it can never be attached to anything
+  (the server checks the exact path), so it is only clutter. The weekly Inngest job `stray-imagekit-files` removes
+  files in this deployment's folder (`/<IMAGEKIT_ENV>/`) that have no `media` row and are over two days old, at most
+  200 a run. Files uploaded to other folders are not touched (they may belong to another deployment or to the owner);
+  also set the ImageKit account's own upload rules (allowed types, size, private by default).
+* Pictures go to ImageKit only in production (H38): there, `createUpload` refuses to send a picture to Supabase
+  Storage, because ImageKit removes a picture's location data when it serves it and the bucket does not. Staging keeps
+  the fallback. Videos and documents are served as uploaded, so a video keeps any location data inside it. The app
+  cannot strip it (no video re-encoder in the app or on the server), so the upload screen says so; a server step
+  (`ffmpeg -map_metadata -1`) is the real fix.
 * A person can hold at most 100 unfinished uploads; uploads and attaches share the 20-a-minute upload limit.
 * The server accepts JPEG, PNG, WebP, HEIC and HEIF, up to 15 MB. SVG is refused.
 
