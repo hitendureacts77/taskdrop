@@ -107,22 +107,31 @@ end;
 $$;
 
 -- What the current role can see that is NOT its own: rows whose owner column is someone else (the whole table when
--- it has no owner column). -1 when the role has no right to read the table at all.
+-- it has no owner column). -1 when the role has no right to read the table at all. A row on a task the caller is the
+-- poster of, or has an assignment on, is the caller's business (a chat has two sides), so it is not counted here; the
+-- stranger check below, who has no rows at all, is what proves such rows reach nobody else.
 create or replace function pg_temp.foreign_visible(p_table text, p_caller uuid) returns bigint
 language plpgsql as $$
 declare
   v_oc text := pg_temp.owner_col(p_table);
+  v_party text := '';
   v bigint;
 begin
+  if exists (select 1 from pg_attribute a
+              where a.attrelid = format('public.%I', p_table)::regclass
+                and a.attname = 'task_id' and a.attnum > 0 and not a.attisdropped) then
+    v_party := ' and not exists (select 1 from public.tasks t where t.id = x.task_id and t.poster_id = $1)'
+            || ' and not exists (select 1 from public.assignments s where s.task_id = x.task_id and s.worker_id = $1)';
+  end if;
   if p_table = 'task_private' then
     select count(*) into v from public.task_private tp
      where not exists (select 1 from public.tasks t where t.id = tp.task_id and t.poster_id = p_caller);
     return v;
   end if;
   if v_oc is null then
-    execute format('select count(*) from public.%I', p_table) into v;
+    execute format('select count(*) from public.%I x where true', p_table) || v_party into v using p_caller;
   else
-    execute format('select count(*) from public.%I where %I is distinct from $1', p_table, v_oc) into v using p_caller;
+    execute format('select count(*) from public.%I x where x.%I is distinct from $1', p_table, v_oc) || v_party into v using p_caller;
   end if;
   return v;
 exception when others then
@@ -366,6 +375,7 @@ declare
   v_col text;
   v_want text;
   v_seen text := '';
+  v_stranger uuid := gen_random_uuid();  -- has no rows anywhere
   v_allowed text[] := array['profiles', 'tasks', 'reviews', 'settings'];  -- readable by others on purpose
   r record;
   -- who may read OTHER people's rows (or, for tables with no owner, any row): none = nothing, some = at least one.
@@ -530,6 +540,16 @@ begin
     end loop;
     if v_after is distinct from v_before then
       raise exception 'FAIL: % changed the other person''s rows (before %, after %)', v_label, v_before, v_after;
+    end if;
+  end loop;
+
+  -- A stranger with no rows at all: nothing here is theirs and they are no party to anything, so every row counts.
+  perform pg_temp.as_owner();
+  perform pg_temp.become(v_stranger);
+  foreach v_t in array v_tables loop
+    v_n := pg_temp.foreign_visible(v_t, v_stranger);
+    if v_n > 0 and not (v_t = any (v_allowed)) then
+      raise exception 'FAIL: a stranger can read % row(s) in public.%', v_n, v_t;
     end if;
   end loop;
 
