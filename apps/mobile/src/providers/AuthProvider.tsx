@@ -7,9 +7,10 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { clientHeaders, installId } from '../lib/appInfo';
 import { postSignInRoute } from '../data/api';
-import { loadGuestChoice, saveGuestChoice } from '../lib/guest';
-import { moveGuestDrafts } from '../lib/drafts';
-import { adoptGuestWizard, clearWizard } from '../lib/postWizardStore';
+import { GUEST_DRAFTS_OWNER, clearGuestHandoff, guestHandoffLive, loadGuestChoice, saveGuestChoice, takeGuestHandoff } from '../lib/guest';
+import { clearDrafts, moveGuestDrafts } from '../lib/drafts';
+import { allowGuestSaves, dropGuestSaves } from '../lib/guestSaves';
+import { adoptGuestWizard, clearWizard, dropGuestWizard } from '../lib/postWizardStore';
 import { count, log, setMonitoringUser } from '../lib/monitoring';
 import { forgetEverything } from '../lib/freshness';
 
@@ -110,6 +111,37 @@ const GOOGLE_LINKED = 'Google is now linked to your account. You can sign in wit
 /** Made more than a minute ago: an account that existed before this sign-in. */
 function existedBefore(createdAt: string | undefined): boolean {
   return Boolean(createdAt) && Date.now() - new Date(createdAt!).getTime() > 60_000;
+}
+
+/** The account signed in on this device, as last heard from supabase-js (for clearing its drafts at sign-out). */
+let signedInAs: string | null = null;
+/** Guest hand-overs and clean-ups, one after another, so a second auth event never races the first. */
+let guestSettling: Promise<void> = Promise.resolve();
+
+/**
+ * A session appeared. If it is the guest's own sign-in from the pop-up (lib/guestHandoff.ts), what they made as a
+ * guest becomes the account's: drafts, saved tasks (moved when Home opens) and a half-made post. Otherwise someone
+ * else signed in on this phone, and the guest's things are dropped, never shown to them (hunt round 2, B31).
+ */
+async function settleGuestThings(userId: string, live: boolean): Promise<void> {
+  if (await takeGuestHandoff(live)) {
+    // The half-made post first: "Post my request" resumes right after this sign-in (lib/postWizardStore).
+    await adoptGuestWizard(userId);
+    await moveGuestDrafts(userId);
+    await allowGuestSaves(userId);
+    return;
+  }
+  await clearDrafts(GUEST_DRAFTS_OWNER);
+  await dropGuestSaves(userId);
+  await dropGuestWizard();
+}
+
+/** Signed out: the person's drafts and anything a guest left go from this device. */
+async function forgetDraftsOnDevice(userId: string | null): Promise<void> {
+  if (userId) await clearDrafts(userId);
+  await clearDrafts(GUEST_DRAFTS_OWNER);
+  await dropGuestSaves();
+  clearGuestHandoff();
 }
 
 WebBrowser.maybeCompleteAuthSession();
@@ -300,16 +332,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setMonitoringUser(data.session?.user.id ?? null);
       setReady(true);
     })();
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (s) {
-        // An account now: guest mode is over on this device (a later sign-out shows the sign-in page),
-        // and anything half-written as a guest moves into the account.
+        // An account now: guest mode is over on this device (a later sign-out shows the sign-in page).
         setGuestChosen(false);
         void saveGuestChoice(false);
-        void moveGuestDrafts(s.user.id);
-        // A post half-made as a guest (lib/postWizard) becomes this account's too.
-        void adoptGuestWizard(s.user.id);
+        // Read now, while the pop-up's sign-in page may still be showing; settled one sign-in at a time.
+        const live = guestHandoffLive();
+        const userId = s.user.id;
+        signedInAs = userId;
+        guestSettling = guestSettling.then(() => settleGuestThings(userId, live)).catch(() => {});
+      } else if (event === 'SIGNED_OUT') {
+        // However the session ended (sign-out, sign-out everywhere, a closed account): drafts stay with nobody.
+        const was = signedInAs;
+        signedInAs = null;
+        guestSettling = guestSettling.then(() => forgetDraftsOnDevice(was)).catch(() => {});
       }
       // Sentry sees the account id only, so a report can be matched to a person without naming them.
       setMonitoringUser(s?.user.id ?? null);
@@ -511,6 +549,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     forgetEverything();
     // A half-made post stays with its account: the next person on this device never sees it.
     await clearWizard();
+    // Nor this person's drafts, nor anything a guest left on the device (B31).
+    const { data } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+    await forgetDraftsOnDevice(data.session?.user.id ?? signedInAs);
     await supabase.auth.signOut();
   }, []);
 

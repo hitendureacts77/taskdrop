@@ -378,10 +378,11 @@ export function HomeScreen() {
   const focusTick = useFocusTick();
   const worker = mode === 'worker';
 
-  // Tasks saved while looking around move into the account the first time Home opens with it.
+  // Tasks saved while looking around move into the account the first time Home opens with it, but only
+  // when the guest signed in from the pop-up (AuthProvider hands them over; B31).
   useEffect(() => {
     if (userId) void moveGuestSaves(userId, setSaved);
-  }, [userId]);
+  }, [userId, focusTick]);
 
   const [liveTasks, setLiveTasks] = useState<LiveTask[] | null>(null);
   const [loading, setLoading] = useState(true);

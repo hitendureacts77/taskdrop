@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncExternalStore } from 'react';
+import { handoffFresh } from './guestHandoff';
 
 /**
  * Guest mode (design D15): use the whole app first, make the account only at the last step.
@@ -184,6 +185,43 @@ export function hasPendingAccountAction(): boolean {
 
 /** Whether the sign-in screen was opened from the pop-up (so it goes back, not to Home). */
 export const FROM_GUEST = 'fromGuest';
+
+// ------------------------------------------------------------ the hand-off --
+
+const HANDOFF_KEY = 'taskdrop.guest.handoff.v1';
+let handoffLive = false;
+
+/**
+ * The sign-in page opened from the pop-up (FROM_GUEST) is showing: a sign-in now is the guest's own, so their
+ * drafts, saves and half-made post may move into the account (lib/guestHandoff.ts). Kept on the device too, for
+ * Google on the web, where the page reloads on the way back.
+ */
+export function markGuestHandoff(): void {
+  handoffLive = true;
+  void AsyncStorage.setItem(HANDOFF_KEY, String(Date.now())).catch(() => {});
+}
+
+/** The pop-up's sign-in page has gone: a later sign-in is not a hand-off. */
+export function clearGuestHandoff(): void {
+  handoffLive = false;
+  void AsyncStorage.removeItem(HANDOFF_KEY).catch(() => {});
+}
+
+/** Whether the pop-up's sign-in page is showing right now. Read at once when a session appears. */
+export const guestHandoffLive = (): boolean => handoffLive;
+
+/** Whether this sign-in is the guest's own (`live` as read when it happened). Used up: the mark is removed. */
+export async function takeGuestHandoff(live: boolean): Promise<boolean> {
+  let markedAt: string | null = null;
+  try {
+    markedAt = await AsyncStorage.getItem(HANDOFF_KEY);
+    await AsyncStorage.removeItem(HANDOFF_KEY);
+  } catch {
+    // Unreadable: only the live mark counts.
+  }
+  handoffLive = false;
+  return handoffFresh(live, markedAt);
+}
 
 /** Thrown by the data layer when a guest tries something that needs an account. */
 export class NeedsAccountError extends Error {

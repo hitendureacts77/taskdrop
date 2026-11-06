@@ -31,7 +31,7 @@ import { BirthDateField, EMPTY_BIRTH_DATE, type BirthDateParts } from '../compon
 import { TurnedAway } from '../components/AgeGate';
 import { recordBirthDate } from '../data/age';
 import { KeyboardScrollView, RevealWhen } from '../components/KeyboardScrollView';
-import { FROM_GUEST, declineAccount, releaseAccountHold, runPendingAfterSignIn } from '../lib/guest';
+import { FROM_GUEST, clearGuestHandoff, declineAccount, markGuestHandoff, releaseAccountHold, runPendingAfterSignIn } from '../lib/guest';
 
 /**
  * The way in: one screen for new and returning people alike.
@@ -69,6 +69,13 @@ export function AccessScreen() {
   // Leaving this page any other way (the phone's Back) gives the guest's open sheet back, unless setup comes next.
   const toSetup = useRef(false);
   useEffect(() => (fromGuest ? () => { if (!toSetup.current) releaseAccountHold(); } : undefined), [fromGuest]);
+  // While this page (opened from the pop-up) shows, a sign-in is the guest's own: their drafts and saves may move
+  // into the account. Opened any other way, or once it has gone, they do not (B31, lib/guestHandoff.ts).
+  useEffect(() => {
+    if (!fromGuest) return;
+    markGuestHandoff();
+    return () => clearGuestHandoff();
+  }, [fromGuest]);
   // Sign-in methods the admin panel has switched off are not offered (the server refuses them too, except Google).
   const { features } = useAppConfig();
 
