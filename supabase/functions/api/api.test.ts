@@ -9,8 +9,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import {
   BUSY_CODE, GUEST_ALL_HARD_PER_MINUTE, GUEST_ALL_SOFT_PER_MINUTE, GUEST_COST, GUEST_LIMIT_MAX, GUEST_MAX_IDS, GUEST_MAX_OFFSET, GUEST_OPS,
-  GUEST_READS_PER_MINUTE, GuestLocalLimit, NEEDS_ACCOUNT, NEEDS_ACCOUNT_CODE, guestAddress, guestBusy, guestCost, guestRateKey, guestRateScope,
-  guestSpend, isGuestOp, isGuestToken, isHeavyGuestOp, runGuestBatch, runGuestOp,
+  GUEST_NET_PER_MINUTE, GUEST_READS_PER_MINUTE, GuestCeiling, GuestLocalLimit, NEEDS_ACCOUNT, NEEDS_ACCOUNT_CODE, guestAddress, guestBusy, guestCost,
+  guestNetKey, guestNetScope, guestRateKey, guestRateScope, guestSpend, isGuestOp, isGuestToken, isHeavyGuestOp, runGuestBatch, runGuestOp,
 } from "./guest.ts";
 import { WRITE_OPS } from "./writes.ts";
 import { MEDIA_OPS } from "./media.ts";
@@ -1825,6 +1825,25 @@ await t("guest: IPv6 callers share one limiter key per /64, IPv4 ones keep their
   assert.equal(await guestRateKey("::ffff:203.0.113.7"), await guestRateKey("203.0.113.7"));
 });
 
+await t("guest: addresses of one IPv6 /48 or IPv4 /24 share a network key; other networks and the address key differ", async () => {
+  assert.equal(guestNetScope("203.0.113.7"), "203.0.113.0/24");
+  assert.equal(guestNetScope("203.0.113.250"), "203.0.113.0/24");
+  assert.equal(guestNetScope("::ffff:203.0.113.7"), "203.0.113.0/24");
+  assert.equal(guestNetScope("2001:db8:1:2:aaaa:bbbb:cccc:dddd"), "2001:db8:1::/48");
+  assert.equal(guestNetScope("2001:0DB8:0001:ffff::1"), "2001:db8:1::/48");
+  assert.equal(guestNetScope("2001:db8::1"), "2001:db8:0::/48");
+  assert.equal(guestNetScope("not:an::ip::x"), "not:an::ip::x");
+  assert.equal(await guestNetKey("203.0.113.7"), await guestNetKey("203.0.113.8"));
+  assert.notEqual(await guestNetKey("203.0.113.7"), await guestNetKey("203.0.114.7"));
+  // Every /64 of one /48 is a different address key but one network key.
+  assert.notEqual(await guestRateKey("2001:db8:1:2::1"), await guestRateKey("2001:db8:1:3::1"));
+  assert.equal(await guestNetKey("2001:db8:1:2::1"), await guestNetKey("2001:db8:1:3::1"));
+  assert.notEqual(await guestNetKey("2001:db8:1:2::1"), await guestNetKey("2001:db8:2:2::1"));
+  assert.notEqual(await guestNetKey("203.0.113.7"), await guestRateKey("203.0.113.7"), "a network key is never an address key");
+  assert.match(await guestNetKey(""), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.ok(GUEST_NET_PER_MINUTE > GUEST_READS_PER_MINUTE && GUEST_NET_PER_MINUTE < GUEST_ALL_SOFT_PER_MINUTE);
+});
+
 await t("guest: the limiter cost is weighted per read and summed over a batch", () => {
   assert.equal(guestCost("listOpenTasks", {}), 1);
   assert.equal(guestCost("workersNear", {}), 5);
@@ -1851,15 +1870,18 @@ await t("guest: the limiter's answer is followed, and a down limiter falls back 
   const local = new GuestLocalLimit(3, 5, () => 0);
   for (const v of ["ok", "heavy_off", "limited", "busy"]) {
     const d = db({ data: v });
-    assert.equal(await guestSpend(d as unknown as Db, "k", 2, local), v);
-    assert.deepEqual(d.calls[0], { fn: "api_guest_spend", p_key: "k", p_cost: 2, p_limit: GUEST_READS_PER_MINUTE, p_soft: GUEST_ALL_SOFT_PER_MINUTE, p_hard: GUEST_ALL_HARD_PER_MINUTE });
+    assert.equal(await guestSpend(d as unknown as Db, "k", "n", 2, local), v);
+    assert.deepEqual(d.calls[0], {
+      fn: "api_guest_spend", p_key: "k", p_net: "n", p_cost: 2, p_limit: GUEST_READS_PER_MINUTE, p_net_limit: GUEST_NET_PER_MINUTE,
+      p_soft: GUEST_ALL_SOFT_PER_MINUTE, p_hard: GUEST_ALL_HARD_PER_MINUTE,
+    });
   }
   // Down three ways: an error, a throw, a strange answer. Never "ok"; the stand-in budget runs out.
   const why: string[] = [];
-  assert.equal(await guestSpend(db({ error: { message: "gone" } }) as unknown as Db, "a", 2, local, (w) => why.push(w)), "heavy_off");
-  assert.equal(await guestSpend(db(new Error("net")) as unknown as Db, "a", 1, local, (w) => why.push(w)), "heavy_off");
-  assert.equal(await guestSpend(db({ data: true }) as unknown as Db, "a", 1, local, (w) => why.push(w)), "limited", "per address");
-  assert.equal(await guestSpend(db({ data: true }) as unknown as Db, "b", 3, local), "busy", "the whole instance");
+  assert.equal(await guestSpend(db({ error: { message: "gone" } }) as unknown as Db, "a", "n", 2, local, (w) => why.push(w)), "heavy_off");
+  assert.equal(await guestSpend(db(new Error("net")) as unknown as Db, "a", "n", 1, local, (w) => why.push(w)), "heavy_off");
+  assert.equal(await guestSpend(db({ data: true }) as unknown as Db, "a", "n", 1, local, (w) => why.push(w)), "limited", "per address");
+  assert.equal(await guestSpend(db({ data: true }) as unknown as Db, "b", "n", 3, local), "busy", "the whole instance");
   assert.deepEqual(why, ["gone", "net", "unexpected answer"]);
   // A new minute starts afresh.
   let now = 0;
@@ -1868,6 +1890,43 @@ await t("guest: the limiter's answer is followed, and a down limiter falls back 
   assert.equal(l2.spend("a", 1), "limited");
   now = 60_000;
   assert.equal(l2.spend("a", 1), "heavy_off");
+});
+
+await t("guest: once the counter says busy, this instance answers busy for the rest of the minute without asking or writing", async () => {
+  let now = 120_000;
+  const calls: string[] = [];
+  const answers = ["busy", "ok"];
+  const d = {
+    rpc: (fn: string) => {
+      calls.push(fn);
+      return Promise.resolve({ data: answers.shift() ?? "ok", error: null });
+    },
+  } as unknown as Db;
+  const ceiling = new GuestCeiling(() => now);
+  const local = new GuestLocalLimit(3, 5, () => now);
+  assert.equal(ceiling.over(), false);
+  assert.equal(await guestSpend(d, "k", "n", 1, local, () => {}, ceiling), "busy");
+  assert.equal(calls.length, 1);
+  assert.equal(ceiling.over(), true);
+  // The rest of the minute: no database call at all, for any address.
+  now += 30_000;
+  assert.equal(await guestSpend(d, "k", "n", 1, local, () => {}, ceiling), "busy");
+  assert.equal(await guestSpend(d, "other", "n2", 5, local, () => {}, ceiling), "busy");
+  assert.equal(calls.length, 1, "no further query while the minute is over the ceiling");
+  // A new minute asks again.
+  now = 180_000;
+  assert.equal(ceiling.over(), false);
+  assert.equal(await guestSpend(d, "k", "n", 1, local, () => {}, ceiling), "ok");
+  assert.equal(calls.length, 2);
+  assert.equal(ceiling.over(), false, "an ok answer does not set it");
+  // The stand-in budget's own "busy" and refusals by address or network never set it.
+  const c2 = new GuestCeiling(() => now);
+  const down = { rpc: () => Promise.reject(new Error("down")) } as unknown as Db;
+  assert.equal(await guestSpend(down, "x", "n", 6, new GuestLocalLimit(10, 5, () => now), () => {}, c2), "busy");
+  assert.equal(c2.over(), false);
+  const lim = { rpc: () => Promise.resolve({ data: "limited", error: null }) } as unknown as Db;
+  assert.equal(await guestSpend(lim, "x", "n", 1, local, () => {}, c2), "limited");
+  assert.equal(c2.over(), false);
 });
 
 await t("guest: over the soft ceiling heavy reads answer BUSY without a query, light ones still run", async () => {

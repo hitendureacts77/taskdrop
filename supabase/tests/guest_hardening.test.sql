@@ -76,8 +76,9 @@ begin
   if private.guest_area_label('Koramangala, Bengaluru, Karnataka 560034, India') is distinct from 'Koramangala, Bengaluru' then
     raise exception 'FAIL: PIN code and country must go, got %', private.guest_area_label('Koramangala, Bengaluru, Karnataka 560034, India');
   end if;
-  if private.guest_area_label('Near Big Bazaar, Ameerpet, Hyderabad') is distinct from 'Ameerpet, Hyderabad' then
-    raise exception 'FAIL: a landmark must go, got %', private.guest_area_label('Near Big Bazaar, Ameerpet, Hyderabad');
+  -- (Four typed parts: since migration 157 a label of three or fewer parts shows its last part only.)
+  if private.guest_area_label('Near Big Bazaar, SR Nagar, Ameerpet, Hyderabad') is distinct from 'Ameerpet, Hyderabad' then
+    raise exception 'FAIL: a landmark must go, got %', private.guest_area_label('Near Big Bazaar, SR Nagar, Ameerpet, Hyderabad');
   end if;
   if private.guest_area_label('Remote') is distinct from 'Remote' or private.guest_area_label('Indiranagar') is distinct from 'Indiranagar' then
     raise exception 'FAIL: "Remote" and a plain area must be kept as they are';

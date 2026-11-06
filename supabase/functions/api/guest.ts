@@ -34,12 +34,16 @@ export const NEEDS_ACCOUNT_CODE = "NEEDS_ACCOUNT";
  * The guest limiter (hunt round 2, H63 and H67), in cost units per minute. A light read costs 1, a heavy one more
  * (GUEST_COST). Counted by api_guest_spend (migration 154) per network address and for all guests together:
  *   * per address: enough to browse by hand on a shared mobile network, far below scraping;
+ *   * per network (an IPv6 /48, an IPv4 /24, migration 157): one caller with many addresses of its own network cannot
+ *     use up the budget of everyone else; checked before the shared row;
  *   * all guests over the soft ceiling: only light reads run, heavy ones answer BUSY;
  *   * over the hard ceiling: nothing runs (503).
  * If the counter cannot be reached, a much smaller budget kept by this instance applies (GuestLocalLimit), with
  * light reads only: an outage of the limiter never opens the service key to everyone.
  */
 export const GUEST_READS_PER_MINUTE = 240;
+/** Per network (IPv6 /48, IPv4 /24): well above a few busy shared lines, far below what pushes all guests to BUSY. */
+export const GUEST_NET_PER_MINUTE = 1_200;
 export const GUEST_ALL_SOFT_PER_MINUTE = 6_000;
 export const GUEST_ALL_HARD_PER_MINUTE = 12_000;
 /** The per-instance stand-in while the counter is down: per address, and for the whole instance. */
@@ -124,22 +128,47 @@ export class GuestLocalLimit {
 }
 
 /**
- * Count one guest request (migration 154). If the counter errors, answers something unexpected or cannot be reached,
- * the instance's own small budget decides instead: bounded, never open. `onDown` hears why, for the log.
+ * Remembers, for the rest of the current minute, that the counter said "busy" (all guests over the hard ceiling), so
+ * this instance stops asking: a flood of refused requests then costs no database call and no write on the shared row.
+ * Fixed one-minute windows like the counter's own. Only the counter's own answer sets it, never the stand-in budget.
+ */
+export class GuestCeiling {
+  private window = -1;
+  constructor(private now: () => number = Date.now) {}
+  /** True while the current minute is known to be over the hard ceiling. */
+  over(): boolean {
+    return this.window === Math.floor(this.now() / 60_000);
+  }
+  mark(): void {
+    this.window = Math.floor(this.now() / 60_000);
+  }
+}
+
+/**
+ * Count one guest request (migration 157): against the address (`key`), the wider network (`net`) and all guests
+ * together. A minute already known to be over the hard ceiling answers "busy" at once, without asking. If the counter
+ * errors, answers something unexpected or cannot be reached, the instance's own small budget decides instead:
+ * bounded, never open. `onDown` hears why, for the log.
  */
 export async function guestSpend(
   db: Db,
   key: string,
+  net: string,
   cost: number,
   local: GuestLocalLimit,
   onDown: (why: string) => void = () => {},
+  ceiling: GuestCeiling = new GuestCeiling(),
 ): Promise<GuestVerdict> {
+  if (ceiling.over()) return "busy";
   try {
     const r = await db.rpc("api_guest_spend", {
-      p_key: key, p_cost: cost, p_limit: GUEST_READS_PER_MINUTE,
+      p_key: key, p_net: net, p_cost: cost, p_limit: GUEST_READS_PER_MINUTE, p_net_limit: GUEST_NET_PER_MINUTE,
       p_soft: GUEST_ALL_SOFT_PER_MINUTE, p_hard: GUEST_ALL_HARD_PER_MINUTE,
     });
-    if (!r.error && (r.data === "ok" || r.data === "heavy_off" || r.data === "limited" || r.data === "busy")) return r.data;
+    if (!r.error && (r.data === "ok" || r.data === "heavy_off" || r.data === "limited" || r.data === "busy")) {
+      if (r.data === "busy") ceiling.mark();
+      return r.data;
+    }
     onDown(r.error ? r.error.message : "unexpected answer");
   } catch (e) {
     onDown(e instanceof Error ? e.message : String(e));
@@ -434,7 +463,16 @@ export const guestBusy = busy;
  * address itself is never stored. Everyone with no known address shares one key.
  */
 export async function guestRateKey(ip: string): Promise<string> {
-  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`guest|${guestRateScope(ip) || "unknown"}`)));
+  return hashedKey(`guest|${guestRateScope(ip) || "unknown"}`);
+}
+
+/** The limiter's key for the caller's wider network (IPv6 /48, IPv4 /24), hashed the same way, never equal to an address key. */
+export async function guestNetKey(ip: string): Promise<string> {
+  return hashedKey(`guestnet|${guestNetScope(ip) || "unknown"}`);
+}
+
+async function hashedKey(text: string): Promise<string> {
+  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
   const hex = [...bytes.slice(0, 16)].map((b) => b.toString(16).padStart(2, "0")).join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
@@ -446,21 +484,50 @@ export async function guestRateKey(ip: string): Promise<string> {
  */
 export function guestRateScope(ip: string): string {
   const s = ip.trim().toLowerCase().replace(/%.*$/, "");
+  const v4 = ipv4Of(s);
+  if (v4 !== null) return v4;
+  const groups = ipv6Groups(s);
+  if (!groups) return s;
+  return groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, "")).join(":") + "::/64";
+}
+
+/**
+ * What one network key stands for: an IPv6 address by its /48 (a site or a home is handed a /48, 65,536 /64 blocks
+ * each with its own address budget), an IPv4 address by its /24. Unreadable stays as sent.
+ */
+export function guestNetScope(ip: string): string {
+  const s = ip.trim().toLowerCase().replace(/%.*$/, "");
+  const v4 = ipv4Of(s);
+  if (v4 !== null) {
+    const o = v4.split(".");
+    return o.length === 4 && o.every((x) => /^\d{1,3}$/.test(x)) ? `${o.slice(0, 3).map((x) => String(Number(x))).join(".")}.0/24` : v4;
+  }
+  const groups = ipv6Groups(s);
+  if (!groups) return s;
+  return groups.slice(0, 3).map((g) => g.replace(/^0+(?=.)/, "")).join(":") + "::/48";
+}
+
+/** A plain IPv4 address, or one written the IPv6 way (::ffff:1.2.3.4), as the IPv4 address; null for anything else. */
+function ipv4Of(s: string): string | null {
   if (!s.includes(":")) return s;
   const mapped = s.match(/^(?:::|(?:0{1,4}:){5})ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);
-  if (mapped) return mapped[1];
+  return mapped ? mapped[1] : null;
+}
+
+/** The eight groups of an IPv6 address (each 1-4 hex digits), or null when it cannot be read. */
+function ipv6Groups(s: string): string[] | null {
   const halves = s.split("::");
-  if (halves.length > 2) return s;
+  if (halves.length > 2) return null;
   const head = halves[0] ? halves[0].split(":") : [];
   const tail = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
   // A trailing dotted IPv4 part counts as two groups.
   if (tail.length && tail[tail.length - 1].includes(".")) tail.splice(tail.length - 1, 1, "0", "0");
   if (head.length && head[head.length - 1].includes(".")) head.splice(head.length - 1, 1, "0", "0");
   const missing = 8 - head.length - tail.length;
-  if (missing < 0 || (halves.length === 1 && missing !== 0)) return s;
+  if (missing < 0 || (halves.length === 1 && missing !== 0)) return null;
   const groups = [...head, ...Array(missing).fill("0"), ...tail];
-  if (groups.some((g) => !/^[0-9a-f]{1,4}$/.test(g))) return s;
-  return groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, "")).join(":") + "::/64";
+  if (groups.some((g) => !/^[0-9a-f]{1,4}$/.test(g))) return null;
+  return groups;
 }
 
 /** The caller's address as the platform reports it (same rule as phone-auth: never true-client-ip or forwarded). */

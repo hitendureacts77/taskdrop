@@ -193,12 +193,43 @@ let handoffLive = false;
 
 /**
  * The sign-in page opened from the pop-up (FROM_GUEST) is showing: a sign-in now is the guest's own, so their
- * drafts, saves and half-made post may move into the account (lib/guestHandoff.ts). Kept on the device too, for
- * Google on the web, where the page reloads on the way back.
+ * drafts, saves and half-made post may move into the account (lib/guestHandoff.ts). Only in memory: that covers the
+ * in-app code and native Google. Nothing is written to the device here, so a mark cannot outlive an app kill and
+ * let an ordinary later sign-in take the guest's things (B31); see saveGuestHandoffMark for the web redirect.
  */
 export function markGuestHandoff(): void {
   handoffLive = true;
-  void AsyncStorage.setItem(HANDOFF_KEY, String(Date.now())).catch(() => {});
+}
+
+/**
+ * Right before the web Google redirect starts (the page reloads on the way back, so memory is lost): keep the mark on
+ * the device too, for a few minutes. Does nothing unless the pop-up's sign-in page is the one starting it.
+ */
+export async function saveGuestHandoffMark(): Promise<void> {
+  if (!handoffLive) return;
+  try {
+    await AsyncStorage.setItem(HANDOFF_KEY, String(Date.now()));
+  } catch {
+    // Not kept: the redirect still works, only the hand-over of the guest's things is lost.
+  }
+}
+
+/** The redirect did not happen (an error before leaving the page): the device mark goes again. */
+export async function dropGuestHandoffMark(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(HANDOFF_KEY);
+  } catch {
+    // Nothing to do.
+  }
+}
+
+/**
+ * On app start: a mark left on the device counts only when this start is the return from Google (the URL carries an
+ * OAuth code). Any other start (an app kill, a reload, a new visit) clears it.
+ */
+export async function clearStaleGuestHandoff(returningFromOAuth: boolean): Promise<void> {
+  if (returningFromOAuth) return;
+  await dropGuestHandoffMark();
 }
 
 /** The pop-up's sign-in page has gone: a later sign-in is not a hand-off. */
