@@ -12,6 +12,7 @@
  *   4. Edge Functions           supabase functions deploy  (up to 3 attempts, so a one-off network or API hiccup does not fail the build)
  *   5. Inngest sync             warning only, until the Inngest Cloud keys are set
  *   6. web export               npm run web:export
+ *   7. scan the build           scripts/scan-build.mjs apps/mobile/dist  (task 2.18 D: a key in the bundle, or a missing build, stops the deploy)
  *
  * Function secrets are NOT copied here any more (plan task 2.17, "one home per secret"): they are set
  * straight in Supabase from `.env.all-secrets` with `node scripts/set-function-secrets.mjs`.
@@ -127,6 +128,10 @@ if (!wantsBackend) {
 }
 
 must("web export", "npm", ["run", "web:export"]);
+
+// Task 2.18 part D (hole H72): scan what is about to be published. A key in the bundle, or no build at all, fails the build,
+// so the previous deployment stays live. It runs before the source-map step below, so the maps are scanned too.
+must("scan the web build for secrets", "node", ["scripts/scan-build.mjs", "apps/mobile/dist"]);
 
 // Readable stacks for web errors: send the source maps to Sentry, then delete them so they are never public.
 // A failure here is a warning: the site is fine without them, only Sentry's stacks are harder to read.
