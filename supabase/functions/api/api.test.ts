@@ -1988,4 +1988,112 @@ await t("guest: the admin panel's maintenance and update switches also stop a gu
   assert.ok(unreadable.ok, "unreadable switches never refuse");
 });
 
+// ------------------------------------------------ columns (task 2.18 A) --
+
+const SECRET_PROFILE = ["payout_upi", "sessions_revoked_at", "sessions_keep_session", "weekly_goal_minor", "referral_code"];
+const SECRET_TASK = ["funded_minor", "funded_credits_minor", "funded_via", "funding_payment_id", "locked_minor", "locked_bid_id", "payout_mode", "wallet_refunded_at", "preferred_worker_id"];
+const selectedColumns = (c: Call) => String(steps(c, "select")[0]?.[0] ?? "").split(",").map((x) => x.trim());
+const leaky = (list: string[], banned: string[]) => banned.filter((k) => list.includes(k));
+const MONEYED_TASK = (over: Record<string, unknown> = {}) => ({
+  id: TASK, poster_id: OTHER, status: "LOCKED", title: "t", benchmark_minor: 100, funded_at: "2026-10-01T00:00:00Z",
+  funded_minor: 103, funded_credits_minor: 3, funded_via: "wallet", funding_payment_id: "pay", locked_minor: 100, locked_bid_id: BID,
+  payout_mode: "one_time", wallet_refunded_at: null, preferred_worker_id: OTHER, ...over,
+});
+
+await t("answers about another person ask for no private profile column", async () => {
+  const f = fake(() => ({ data: [{ id: OTHER }], error: null }));
+  await runOp("getProfile", { userId: OTHER }, ctx(f));
+  await runOp("getPosterStats", { posterId: OTHER }, ctx(f));
+  await runOp("listActiveWorkers", {}, ctx(f));
+  const b = fake((c) => ({ data: c.table === "bids" ? [{ id: BID, worker_id: OTHER }] : [{ id: OTHER }], error: null }));
+  await runOp("listBidsForTask", { taskId: TASK }, ctx(b));
+  const g = fake((c) => ({ data: c.table === "tasks" ? [MONEYED_TASK()] : [{ id: OTHER }], error: null }));
+  await runOp("attachPosters", { taskIds: [TASK] }, ctx(g));
+  const profileReads = [...f.calls, ...b.calls, ...g.calls].filter((c) => c.table === "profiles");
+  assert.ok(profileReads.length >= 5);
+  for (const c of profileReads) assert.deepEqual(leaky(selectedColumns(c), SECRET_PROFILE), [], "a private profile column is asked for");
+  assert.ok(selectedColumns(profileReads[0]).includes("display_name"), "the public card still has its name");
+});
+
+await t("a person's own profile adds only the referral code and the weekly goal", async () => {
+  const f = fake(() => ({ data: { id: UID }, error: null }));
+  await runOp("getProfile", { userId: UID }, ctx(f));
+  const cols = selectedColumns(f.calls[0]);
+  assert.ok(cols.includes("referral_code") && cols.includes("weekly_goal_minor"));
+  assert.deepEqual(leaky(cols, ["payout_upi", "sessions_revoked_at", "sessions_keep_session"]), []);
+  // The profile writes answer with the same owner list, never every column.
+  const w = fake(() => ({ data: [{ id: UID }], error: null }));
+  await runOp("updateProfile", { displayName: "Asha" }, ctx(w));
+  const written = w.calls.find((c) => c.table === "profiles" && steps(c, "update").length > 0)!;
+  assert.deepEqual(leaky(selectedColumns(written), ["payout_upi", "sessions_revoked_at", "sessions_keep_session"]), []);
+  assert.ok(selectedColumns(written).includes("display_name"));
+});
+
+await t("the open feed and every list of other people's tasks ask for no funding or hiring column", async () => {
+  const f = fake(() => ({ data: [], error: null }));
+  await runOp("listOpenTasks", {}, ctx(f));
+  await runOp("searchTasks", { q: "tap" }, ctx(f));
+  await runOp("recommendedTasks", { skills: ["tap"] }, ctx(f));
+  await runOp("workerServices", { userId: OTHER }, ctx(f));
+  await runOp("listSavedTasks", {}, ctx(f));
+  const reads = f.calls.filter((x) => x.table === "tasks");
+  assert.ok(reads.length >= 4);
+  for (const c of reads) assert.deepEqual(leaky(selectedColumns(c), SECRET_TASK), []);
+  const saved = f.calls.find((c) => c.table === "saved_tasks")!;
+  assert.deepEqual(SECRET_TASK.filter((k) => String(steps(saved, "select")[0][0]).includes(k)), []);
+});
+
+await t("getTask and getTaskDetail keep the money fields for the poster and the hired worker, and drop them for anyone else", async () => {
+  const run = async (op: string, task: Record<string, unknown>, assignments: unknown[]) => {
+    const f = fake((c) => ({ data: c.table === "tasks" ? task : c.table === "assignments" ? assignments : c.table === "profiles" ? [] : null, error: null }));
+    const r = await runOp(op, { taskId: TASK }, ctx(f));
+    assert.ok(r.ok);
+    return (op === "getTask" ? r.data : (r.data as { task: unknown }).task) as Record<string, unknown>;
+  };
+  for (const op of ["getTask", "getTaskDetail"]) {
+    const stranger = await run(op, MONEYED_TASK(), []);
+    assert.deepEqual(SECRET_TASK.filter((k) => k in stranger), [], `${op}: a stranger saw a private task column`);
+    assert.equal(stranger.title, "t");
+    assert.equal(stranger.funded_at, "2026-10-01T00:00:00Z", "the public 'payment held' time stays");
+    const poster = await run(op, MONEYED_TASK({ poster_id: UID }), []);
+    assert.equal(poster.locked_minor, 100, `${op}: the poster keeps the agreed price`);
+    assert.equal(poster.funded_minor, 103);
+    const hired = await run(op, MONEYED_TASK(), [{ id: "a1", task_id: TASK, worker_id: UID, status: "started", escrow_minor: 103 }]);
+    assert.equal(hired.locked_minor, 100, `${op}: the hired worker keeps the agreed price`);
+  }
+});
+
+await t("attachPosters drops the money fields of tasks the caller is not a party to, and asks about hiring only when it must", async () => {
+  const open = MONEYED_TASK({ status: "OPEN", locked_minor: null });
+  const f = fake((c) => ({ data: c.table === "tasks" ? [open] : [{ id: OTHER }], error: null }));
+  const r = await runOp("attachPosters", { taskIds: [TASK] }, ctx(f));
+  assert.ok(r.ok);
+  assert.deepEqual(SECRET_TASK.filter((k) => k in (r.data as Record<string, unknown>[])[0]), []);
+  assert.equal(f.calls.filter((c) => c.table === "assignments").length, 0, "an OPEN task has nobody hired, so no extra read");
+  const mine = fake((c) => ({ data: c.table === "tasks" ? [MONEYED_TASK({ poster_id: UID })] : c.table === "assignments" ? [] : [{ id: UID }], error: null }));
+  const own = await runOp("attachPosters", { taskIds: [TASK] }, ctx(mine));
+  assert.equal(((own.ok && own.data) as Record<string, unknown>[])[0].locked_minor, 100);
+  const hiredFake = fake((c) => ({ data: c.table === "tasks" ? [MONEYED_TASK()] : c.table === "assignments" ? [{ task_id: TASK }] : [{ id: OTHER }], error: null }));
+  const hired = await runOp("attachPosters", { taskIds: [TASK] }, ctx(hiredFake));
+  assert.equal(((hired.ok && hired.data) as Record<string, unknown>[])[0].locked_minor, 100);
+  const strangerFake = fake((c) => ({ data: c.table === "tasks" ? [MONEYED_TASK()] : c.table === "assignments" ? [] : [{ id: OTHER }], error: null }));
+  const stranger = await runOp("attachPosters", { taskIds: [TASK] }, ctx(strangerFake));
+  assert.deepEqual(SECRET_TASK.filter((k) => k in ((stranger.ok && stranger.data) as Record<string, unknown>[])[0]), []);
+});
+
+await t("listMyBids keeps a task's money fields only where the caller's own offer was the one accepted", async () => {
+  const f = fake(() => ({
+    data: [
+      { id: BID, worker_id: UID, tasks: MONEYED_TASK({ locked_bid_id: BID }) },
+      { id: "b2", worker_id: UID, tasks: MONEYED_TASK({ id: TASK2, locked_bid_id: "someone-else" }) },
+    ],
+    error: null,
+  }));
+  const r = await runOp("listMyBids", {}, ctx(f));
+  assert.ok(r.ok);
+  const [won, lost] = r.data as { tasks: Record<string, unknown> }[];
+  assert.equal(won.tasks.locked_minor, 100);
+  assert.deepEqual(SECRET_TASK.filter((k) => k in lost.tasks), []);
+});
+
 console.log(`\n${passed} passed`);
