@@ -5,6 +5,7 @@ import { Screen } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import { Field, IconButton, Pill, PrimaryButton } from '../components/kit';
 import { Ripples } from '../components/Ripples';
+import { WelcomeStory } from '../components/WelcomeStory';
 import { requestTourOffer } from '../components/tour/tourStore';
 import { LocationSheet } from '../components/LocationSheet';
 import { tx } from '../components/primitives';
@@ -240,10 +241,9 @@ export function OnboardingScreen() {
       <>
         <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.7 })}>Welcome to TaskDrop!</RNText>
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21 })}>
-          Your marketplace to get work done and earn money nearby. Let’s set you up in under a minute.
+          Ask for anything. Someone gets it done for you.
         </RNText>
-        {bigCard('wallet', 'Earn money', 'Complete tasks near you and get paid safely')}
-        {bigCard('briefcase', 'Hire help', 'Post a task in plain words — we write the post')}
+        <WelcomeStory />
         <Field
           label="Have a referral code? (optional)"
           value={code}
@@ -289,19 +289,14 @@ export function OnboardingScreen() {
       </>
     );
     footer = (
-      <>
-        <PrimaryButton
-          label="Continue"
-          busy={busy}
-          disabled={!ok || free === false}
-          onPress={() => void run(async () => {
-            if (userId) await updateProfileExtras(userId, { username });
-          })}
-        />
-        <Pressable onPress={next} style={{ alignItems: 'center', paddingVertical: 12 }} accessibilityRole="button">
-          <RNText style={tx('700', 13, t.colors.muted)}>Skip for now</RNText>
-        </Pressable>
-      </>
+      <PrimaryButton
+        label="Continue"
+        busy={busy}
+        disabled={!ok || free === false}
+        onPress={() => void run(async () => {
+          if (userId) await updateProfileExtras(userId, { username });
+        })}
+      />
     );
   }
 
