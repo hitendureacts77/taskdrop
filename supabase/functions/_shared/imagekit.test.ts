@@ -10,8 +10,8 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import test from "node:test";
 import {
-  configFrom, deleteFile, fileDetails, findFileId, hmacSha1Hex, type ImageKitConfig, signedUrl, transformationFor,
-  uploadAuth, urlExpiry, userFolder,
+  configFrom, deleteFile, fileDetails, findFileId, hmacSha1Hex, type ImageKitConfig, listFiles, signedUrl, transformationFor,
+  UPLOAD_TOKEN_SECONDS, uploadAuth, urlExpiry, userFolder,
 } from "./imagekit.ts";
 
 // Made-up keys for the test only; they open nothing.
@@ -33,7 +33,8 @@ test("an upload is signed over token + expire and lasts under an hour", async ()
   const now = Date.UTC(2026, 9, 19, 10, 0, 0);
   const a = await uploadAuth(cfg, now, "tok-123");
   assert.equal(a.token, "tok-123");
-  assert.equal(a.expire, now / 1000 + 30 * 60);
+  assert.equal(a.expire, now / 1000 + 5 * 60);
+  assert.ok(UPLOAD_TOKEN_SECONDS <= 5 * 60, "an upload token lives a few minutes at most (H41)");
   assert.equal(a.signature, node(cfg.privateKey, `tok-123${a.expire}`));
   assert.ok(a.expire - now / 1000 < 60 * 60, "ImageKit rejects an expiry an hour or more away");
   const b = await uploadAuth(cfg, now);
@@ -135,4 +136,19 @@ test("a never-attached picture is found by its exact path", async () => {
   assert.equal(q.searchParams.get("path"), `/local/u/${UID}`);
   assert.match(q.searchParams.get("searchQuery") ?? "", /name = "abc\.jpg"/);
   assert.equal(await findFileId(cfg, fakeFetch(() => ({ status: 200, body: [] })).f, path), null);
+});
+
+test("listing files asks for files only, oldest first, one page at a time; a failure is thrown", async () => {
+  const page = fakeFetch(() => ({ status: 200, body: [{ fileId: "f1", filePath: "/local/u/x/a.jpg", createdAt: "2026-10-01T00:00:00.000Z" }] }));
+  const out = await listFiles(cfg, page.f, 1000, 500);
+  assert.equal(out[0].fileId, "f1");
+  const q = new URL(page.calls[0].url);
+  assert.equal(q.pathname, "/v1/files");
+  assert.equal(q.searchParams.get("type"), "file");
+  assert.equal(q.searchParams.get("sort"), "ASC_CREATED");
+  assert.equal(q.searchParams.get("skip"), "1000");
+  assert.equal(q.searchParams.get("limit"), "500");
+  assert.equal(page.calls[0].method, "GET");
+  assert.deepEqual(await listFiles(cfg, fakeFetch(() => ({ status: 200, body: { not: "a list" } })).f, 0, 10), []);
+  await assert.rejects(listFiles(cfg, fakeFetch(() => ({ status: 500 })).f, 0, 10), /HTTP 500/);
 });
