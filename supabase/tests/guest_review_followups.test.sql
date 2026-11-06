@@ -47,9 +47,9 @@ begin
   v_got := private.guest_area_label(chr(2350) || chr(2366) || chr(2343) || chr(2366) || chr(2346) || chr(2369) || chr(2352));
   if v_got is null then raise exception 'FAIL: a Devanagari area name must be kept'; end if;
 
-  -- ---- area label: three parts or fewer show the last part only ------------------------------
+  -- ---- area label: one or two parts shown whole, exactly three parts the last part only ----
   v_got := private.guest_area_label('Lotus Park, Hyderabad');
-  if v_got is distinct from 'Hyderabad' then raise exception 'FAIL: a two-part label shows its last part only, got %', v_got; end if;
+  if v_got is distinct from 'Lotus Park, Hyderabad' then raise exception 'FAIL: a two-part label (the stored area) is shown whole, got %', v_got; end if;
   v_got := private.guest_area_label('Raj Palace, Ameerpet, Hyderabad');
   if v_got is distinct from 'Hyderabad' then raise exception 'FAIL: a three-part label shows its last part only, got %', v_got; end if;
   v_got := private.guest_area_label('Flat 5, Raj Palace, Ameerpet, Hyderabad');

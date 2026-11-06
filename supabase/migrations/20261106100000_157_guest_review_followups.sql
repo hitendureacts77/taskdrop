@@ -13,9 +13,9 @@
 --
 --   2. private.guest_area_label (H61) is replaced by a stricter version:
 --        * a digit in any script counts as a digit (Devanagari, Telugu, Tamil, ...), not only 0-9;
---        * when the typed label has three or fewer comma parts, only the last kept part is shown: a
+--        * when the typed label has exactly three comma parts, only the last kept part is shown: a
 --          short label has no room for an area AND a building, and a building name that is not on the
---          word list ("Lotus Park, Hyderabad") would otherwise leak as the "area".
+--          word list ("Lotus Park, Hyderabad" typed as three parts) would otherwise leak as the "area".
 --      Longer labels still give the last two kept parts.
 --
 -- Only the service role may call the limiter. Nothing here writes outside private.api_rate.
@@ -98,7 +98,7 @@ grant execute on function public.api_guest_spend(uuid, uuid, integer, integer, i
 
 -- As in 154, with two changes (see the top): digits of any script, and a short label keeps its last part only.
 -- "Flat 302, Sai Residency, 5th Cross, Madhapur, Hyderabad" -> "Madhapur, Hyderabad";
--- "Ward 104 Kondapur" -> "Kondapur"; "Lotus Park, Hyderabad" -> "Hyderabad". Nothing left: null.
+-- "Ward 104 Kondapur" -> "Kondapur"; "Raj Palace, Ameerpet, Hyderabad" -> "Hyderabad". Nothing left: null.
 create or replace function private.guest_area_label(p_label text)
 returns text
 language plpgsql
@@ -137,8 +137,10 @@ begin
   end loop;
   v_n := cardinality(v_parts);
   if v_n = 0 then return null; end if;
-  -- Three typed parts or fewer: there is no room to tell an area from a building, so only the last part is shown.
-  if v_raw <= 3 then return v_parts[v_n]; end if;
+  -- One or two typed parts is the stored area ("Madhapur, Hyderabad"): show it whole. Exactly three typed parts leave
+  -- no room to tell an area from a building, so only the last kept part is shown.
+  if v_raw <= 2 then return array_to_string(v_parts, ', '); end if;
+  if v_raw = 3 then return v_parts[v_n]; end if;
   return array_to_string(v_parts[greatest(v_n - 1, 1):v_n], ', ');
 end;
 $$;
