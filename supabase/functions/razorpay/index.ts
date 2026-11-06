@@ -7,7 +7,8 @@ import { TOO_FAST, withinRate } from "../_shared/rateLimit.ts";
 import { safeReturnUrl } from "../_shared/returnUrl.ts";
 import { outsideCall } from "../_shared/timeouts.ts";
 import { STANDING_REFUSAL, mustRefuse, standingOf } from "../_shared/standing.ts";
-import { guarded, captureServerError, logServer } from "../_shared/monitoring.ts";
+import { guarded, captureSecurityEvent, captureServerError, logServer } from "../_shared/monitoring.ts";
+import { paidAmountMatches } from "../_shared/paymentAmount.ts";
 import { PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient, featureOffMessage } from "../_shared/controls.ts";
 
 /**
@@ -327,6 +328,14 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
     // A payment link is not refundable; the payment underneath it is. Grab
     // that id now, while we are already holding the link.
     const payId: string | null = link?.payments?.[0]?.payment_id ?? null;
+
+    // Paid, but not the amount on record: hold it, the same as the webhook does (H76, task 2.18).
+    if (paid && !paidAmountMatches(row.amount_minor, link.amount_paid)) {
+      if (payId) await admin.from("payments").update({ provider_payment_id: payId }).eq("id", row.id);
+      await logServer("error", "razorpay", "paid amount differs from the record, held", { payment_id: row.id, purpose: row.purpose });
+      await captureSecurityEvent("amount_mismatch", "razorpay");
+      return json({ ok: true, status: row.status, funded: false });
+    }
 
     await admin
       .from("payments")

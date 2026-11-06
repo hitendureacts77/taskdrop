@@ -27,6 +27,12 @@ verify_jwt = false
 [functions.password-auth]
 verify_jwt = false
 
+# RazorpayX has no Supabase session, so the platform check stays off; the function verifies RazorpayX's
+# signature before reading anything. Written here so a new project starts the same way (H73, task 2.18):
+# scripts/check-endpoints.mjs fails if a function with its own proof of sender loses this line.
+[functions.razorpayx-webhook]
+verify_jwt = false
+
 # api is the app's door for writes and money. It runs every operation as the
 # signed-in caller, so it needs a real session.
 [functions.api]
