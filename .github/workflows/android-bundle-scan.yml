@@ -1,0 +1,64 @@
+name: Android bundle scan
+
+# Task 2.18 part D (hole H72): builds the Android JavaScript bundle (Hermes bytecode) the way a native
+# build would, and scans what comes out for secrets. Runs on pull requests that touch the app or the
+# shared packages. It builds nothing for a store and publishes nothing: `expo export` only writes
+# apps/mobile/dist inside this job.
+#
+# It stores no secret. The two values below are the app's PUBLIC url and anon key, the same repository
+# *variables* the end-to-end workflow uses (Settings, Secrets and variables, Actions, Variables).
+# APP_VARIANT=staging is the variant those public values belong to (apps/mobile/variant.cjs); the build
+# guard inside app.config.js refuses a build that mixes staging and production, so this job also runs it.
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/**'
+      - 'scripts/scan-build.mjs'
+      - 'scripts/lib/secret-patterns.mjs'
+      - '.github/workflows/android-bundle-scan.yml'
+
+# Least privilege: the job only reads the code.
+permissions:
+  contents: read
+
+concurrency:
+  group: android-bundle-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: export the Android bundle and scan it
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_VARIANT: staging
+      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check the two variables are set
+        run: |
+          test -n "$EXPO_PUBLIC_SUPABASE_URL" && test -n "$EXPO_PUBLIC_SUPABASE_ANON_KEY" || { echo "::error::Set the repository variables EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY first."; exit 1; }
+
+      - name: Build guard (staging and production are not mixed)
+        run: node apps/mobile/scripts/build-guard.mjs --android
+
+      - name: Export the Android bundle
+        working-directory: apps/mobile
+        run: npx expo export --platform android
+
+      # Fails on a key in any file, and on a missing or empty apps/mobile/dist.
+      - name: Scan the Android bundle for secrets
+        run: node scripts/scan-build.mjs apps/mobile/dist
