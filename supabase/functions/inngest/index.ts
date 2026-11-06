@@ -23,6 +23,8 @@ import {
   MEDIA_PURGE_BATCH,
   ownFiles,
   purgeMediaBatch,
+  runStraySweep,
+  type KnownFiles,
   type OutboxRow,
   USER_EVENTS,
   userSyncArgs,
@@ -63,6 +65,7 @@ import {
  *   INNGEST_PUSH_RECEIPT_WAIT  how long push waits before reading Expo's receipts (default "15m"; tests only)
  *   IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, IMAGEKIT_URL_ENDPOINT, IMAGEKIT_ENV
  *                         ImageKit, for removing pictures (see docs/MEDIA.md); the media job waits without them
+ *   IMAGEKIT_ORPHAN_DRY_RUN  "1" makes the weekly stray-file job count and remove nothing
  */
 
 const dev = Deno.env.get("INNGEST_DEV") === "1";
@@ -325,6 +328,36 @@ const mediaPurge = inngest.createFunction(
   },
 );
 
+/** Asks `media` which of these ImageKit paths / file ids TaskDrop knows (any status). Throws if it cannot tell, so nothing is removed. */
+const knownMedia: KnownFiles = async (paths, fileIds) => {
+  const out = { paths: new Set<string>(), fileIds: new Set<string>() };
+  for (const part of chunk(paths, 100)) {
+    const { data, error } = await db.from("media").select("path").in("path", part);
+    if (error) throw new Error(`media lookup: ${error.message}`);
+    for (const r of data ?? []) out.paths.add(String((r as { path: string }).path));
+  }
+  for (const part of chunk(fileIds, 100)) {
+    const { data, error } = await db.from("media").select("provider_file_id").in("provider_file_id", part);
+    if (error) throw new Error(`media lookup: ${error.message}`);
+    for (const r of data ?? []) out.fileIds.add(String((r as { provider_file_id: string }).provider_file_id));
+  }
+  return out;
+};
+
+/**
+ * Weekly (Sunday 03:30 India time): removes ImageKit files in this deployment's folder that have no `media` row and are
+ * over two days old, at most 200 per run (hunt 2, H41; see sweepStrayImageKitFiles). Does nothing, without failing, until
+ * ImageKit's keys are set. IMAGEKIT_ORPHAN_DRY_RUN=1 only counts, for a first look.
+ */
+const strayImageKitFiles = inngest.createFunction(
+  { id: "stray-imagekit-files", triggers: [{ cron: "TZ=Asia/Kolkata 30 3 * * 0" }], concurrency: 1, retries: 3, onFailure: reportFailure("stray-imagekit-files") },
+  async ({ step }) => {
+    const cfg = await imageKitConfig(secret);
+    const dryRun = Deno.env.get("IMAGEKIT_ORPHAN_DRY_RUN") === "1";
+    return await step.run("remove strays", () => runStraySweep(cfg, fetch as never, knownMedia, { now: new Date(), dryRun }));
+  },
+);
+
 /** A job that was started and is past its time gets the OVERDUE label. Nothing else changes. */
 const overdueTasks = inngest.createFunction(
   { id: "overdue-tasks", triggers: [{ cron: "*/10 * * * *" }], concurrency: 1, onFailure: reportFailure("overdue-tasks") },
@@ -463,7 +496,7 @@ Deno.serve(serve({
   client: inngest,
   functions: [
     outboxSweeper, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile,
-    pushNotification, accountFiles, mediaPurge, overdueTasks, publicSnapshots, housekeeping, outboxWatchdog, smsPumpingWatch, taskReminders,
+    pushNotification, accountFiles, mediaPurge, strayImageKitFiles, overdueTasks, publicSnapshots, housekeeping, outboxWatchdog, smsPumpingWatch, taskReminders,
     userCreated, userUpdated, userDeleted, userSyncRepair,
     ...moneyJobs,
   ],

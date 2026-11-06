@@ -7,10 +7,14 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { GUEST_OPS, NEEDS_ACCOUNT, NEEDS_ACCOUNT_CODE, guestAddress, guestRateKey, isGuestOp, isGuestToken, runGuestBatch, runGuestOp } from "./guest.ts";
+import {
+  BUSY_CODE, GUEST_ALL_HARD_PER_MINUTE, GUEST_ALL_SOFT_PER_MINUTE, GUEST_COST, GUEST_LIMIT_MAX, GUEST_MAX_IDS, GUEST_MAX_OFFSET, GUEST_OPS,
+  GUEST_READS_PER_MINUTE, GuestLocalLimit, NEEDS_ACCOUNT, NEEDS_ACCOUNT_CODE, guestAddress, guestBusy, guestCost, guestRateKey, guestRateScope,
+  guestSpend, isGuestOp, isGuestToken, isHeavyGuestOp, runGuestBatch, runGuestOp,
+} from "./guest.ts";
 import { WRITE_OPS } from "./writes.ts";
 import { MEDIA_OPS } from "./media.ts";
-import { MAX_BATCH, OPS, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp, spendRate } from "./ops.ts";
+import { type Db, MAX_BATCH, OPS, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp, spendRate } from "./ops.ts";
 import {
   ControlsCache, featureOffMessage, OPEN_CONFIG, parseControls, publicConfig, readClient, refusalFor, type Controls,
 } from "../_shared/controls.ts";
@@ -531,6 +535,49 @@ await t("without ImageKit's keys, or for videos and documents, uploads go to Sup
   // A failed record must not fail the upload.
   const broken = fake((c) => (c.rpc === "media_begin" ? { data: null, error: { message: "no such function" } } : { data: [], error: null }));
   assert.ok((await runOp("createUpload", { purpose: "task", ext: "jpg" }, ctx(broken))).ok);
+});
+
+await t("in production a picture never goes to Supabase Storage, however it is labelled; staging, videos and documents still do (H38)", async () => {
+  const prod = parseControls({ platform: "android", environment: "production" })!;
+  const staging = parseControls({ platform: "android", environment: "staging" })!;
+  for (const args of [
+    { purpose: "task", kind: "image", mime: "image/jpeg", ext: "jpg" }, // ImageKit not configured
+    { purpose: "task", ext: "jpg" }, // an old app sends no kind
+    { purpose: "task", ext: "PNG" },
+    { purpose: "task", kind: "video", ext: "jpg" }, // a picture called a video
+    { purpose: "proof", kind: "file", ext: "heic" }, // a picture called a document
+  ]) {
+    const f = fake();
+    const r = await runOp("createUpload", args, ctx(f, { controls: prod }));
+    assert.ok(!r.ok && r.error.code === "UPLOAD", JSON.stringify(args));
+    assert.equal(f.storageCalls.length, 0, "no upload URL is handed out");
+    assert.equal(f.calls.filter((c) => c.rpc === "media_begin").length, 0);
+  }
+  // With ImageKit set, a production picture still goes to ImageKit.
+  const viaIk = await runOp("createUpload", { purpose: "task", kind: "image", mime: "image/jpeg", ext: "jpg" }, ctx(fake(), { controls: prod, imagekit: IK }));
+  assert.ok(viaIk.ok && (viaIk.data as { provider: string }).provider === "imagekit");
+  // Videos and documents are not pictures.
+  for (const args of [{ purpose: "task", kind: "video", ext: "mp4" }, { purpose: "proof", kind: "file", ext: "pdf" }]) {
+    assert.ok((await runOp("createUpload", args, ctx(fake(), { controls: prod }))).ok, JSON.stringify(args));
+  }
+  // Staging keeps the fallback.
+  assert.ok((await runOp("createUpload", { purpose: "task", ext: "jpg" }, ctx(fake(), { controls: staging }))).ok);
+});
+
+await t("a daily upload limit written by media_begin stops the upload, for pictures and for files; other failures do not leak", async () => {
+  const limit = { message: "You have reached today's upload limit. Please try again tomorrow.", code: "P0001" };
+  const refuse = () => fake((c) => (c.rpc === "media_begin" ? { data: null, error: limit } : { data: [], error: null }));
+  for (const [args, opts] of [
+    [{ purpose: "task", kind: "image", mime: "image/jpeg" }, { imagekit: IK }],
+    [{ purpose: "proof", kind: "video", ext: "mp4" }, {}],
+  ] as const) {
+    const r = await runOp("createUpload", args, ctx(refuse(), opts));
+    assert.ok(!r.ok && r.error.message === limit.message, JSON.stringify(args));
+  }
+  // A picture whose registry write fails for another reason still gets the plain message, not the database's.
+  const other = fake((c) => (c.rpc === "media_begin" ? { data: null, error: { message: "relation media does not exist", code: "42P01" } } : { data: [], error: null }));
+  const r = await runOp("createUpload", { purpose: "task", kind: "image", mime: "image/jpeg" }, ctx(other, { imagekit: IK }));
+  assert.ok(!r.ok && r.error.message === "Could not start the upload");
 });
 
 const pendingRow = { id: MEDIA_ID, path: MEDIA_PATH, provider: "imagekit", status: "pending", provider_file_id: null };
@@ -1763,6 +1810,98 @@ await t("guest: the rate key looks like a lowercase uuid, is stable, differs per
   assert.equal(guestAddress(new Headers({ "cf-connecting-ip": " 1.2.3.4 ", "x-forwarded-for": "9.9.9.9" })), "1.2.3.4");
   assert.equal(guestAddress(new Headers({ "x-forwarded-for": "5.6.7.8, 9.9.9.9" })), "5.6.7.8");
   assert.equal(guestAddress(new Headers()), "");
+});
+
+await t("guest: IPv6 callers share one limiter key per /64, IPv4 ones keep their own", async () => {
+  assert.equal(guestRateScope("203.0.113.7"), "203.0.113.7");
+  assert.equal(guestRateScope("2001:db8:1:2:aaaa:bbbb:cccc:dddd"), "2001:db8:1:2::/64");
+  assert.equal(guestRateScope("2001:0DB8:0001:0002::1"), "2001:db8:1:2::/64");
+  assert.equal(guestRateScope("2001:db8::1"), "2001:db8:0:0::/64");
+  assert.equal(guestRateScope("::ffff:203.0.113.7"), "203.0.113.7");
+  assert.equal(guestRateScope("fe80::1%eth0"), "fe80:0:0:0::/64");
+  assert.equal(guestRateScope("not:an::ip::x"), "not:an::ip::x");
+  assert.equal(await guestRateKey("2001:db8:1:2::1"), await guestRateKey("2001:db8:1:2:ffff::9"));
+  assert.notEqual(await guestRateKey("2001:db8:1:2::1"), await guestRateKey("2001:db8:1:3::1"));
+  assert.equal(await guestRateKey("::ffff:203.0.113.7"), await guestRateKey("203.0.113.7"));
+});
+
+await t("guest: the limiter cost is weighted per read and summed over a batch", () => {
+  assert.equal(guestCost("listOpenTasks", {}), 1);
+  assert.equal(guestCost("workersNear", {}), 5);
+  assert.equal(guestCost("createTask", {}), 1);
+  assert.equal(guestCost("batch", { calls: [{ op: "workersNear" }, { op: "getTask" }, { op: "placeBid" }] }), 6);
+  assert.equal(guestCost("batch", { calls: [{ op: "placeBid" }] }), 1, "a request always costs at least one");
+  assert.equal(guestCost("batch", { calls: Array.from({ length: MAX_BATCH }, () => ({ op: "workersNear" })) }), 100);
+  assert.equal(guestCost("batch", { calls: "x" }), 1);
+  for (const name of Object.keys(GUEST_COST)) assert.ok(isGuestOp(name), `${name} is weighted but not a guest read`);
+  assert.ok(isHeavyGuestOp("workersNear") && !isHeavyGuestOp("getTask"));
+});
+
+await t("guest: the limiter's answer is followed, and a down limiter falls back to a small bounded budget", async () => {
+  const db = (answer: { data?: unknown; error?: { message: string } | null } | Error) => {
+    const calls: Record<string, unknown>[] = [];
+    return {
+      calls,
+      rpc: (fn: string, args: Record<string, unknown>) => {
+        calls.push({ fn, ...args });
+        return answer instanceof Error ? Promise.reject(answer) : Promise.resolve({ data: answer.data ?? null, error: answer.error ?? null });
+      },
+    };
+  };
+  const local = new GuestLocalLimit(3, 5, () => 0);
+  for (const v of ["ok", "heavy_off", "limited", "busy"]) {
+    const d = db({ data: v });
+    assert.equal(await guestSpend(d as unknown as Db, "k", 2, local), v);
+    assert.deepEqual(d.calls[0], { fn: "api_guest_spend", p_key: "k", p_cost: 2, p_limit: GUEST_READS_PER_MINUTE, p_soft: GUEST_ALL_SOFT_PER_MINUTE, p_hard: GUEST_ALL_HARD_PER_MINUTE });
+  }
+  // Down three ways: an error, a throw, a strange answer. Never "ok"; the stand-in budget runs out.
+  const why: string[] = [];
+  assert.equal(await guestSpend(db({ error: { message: "gone" } }) as unknown as Db, "a", 2, local, (w) => why.push(w)), "heavy_off");
+  assert.equal(await guestSpend(db(new Error("net")) as unknown as Db, "a", 1, local, (w) => why.push(w)), "heavy_off");
+  assert.equal(await guestSpend(db({ data: true }) as unknown as Db, "a", 1, local, (w) => why.push(w)), "limited", "per address");
+  assert.equal(await guestSpend(db({ data: true }) as unknown as Db, "b", 3, local), "busy", "the whole instance");
+  assert.deepEqual(why, ["gone", "net", "unexpected answer"]);
+  // A new minute starts afresh.
+  let now = 0;
+  const l2 = new GuestLocalLimit(1, 10, () => now);
+  assert.equal(l2.spend("a", 1), "heavy_off");
+  assert.equal(l2.spend("a", 1), "limited");
+  now = 60_000;
+  assert.equal(l2.spend("a", 1), "heavy_off");
+});
+
+await t("guest: over the soft ceiling heavy reads answer BUSY without a query, light ones still run", async () => {
+  const f = guestFake();
+  const heavy = await runGuestOp("workersNear", { ...HERE, radiusKm: 10 }, ctx(f), () => {}, true);
+  assert.ok(!heavy.ok && heavy.error.code === BUSY_CODE);
+  assert.equal(f.calls.length, 0);
+  const light = await runGuestOp("getTask", { taskId: G1 }, ctx(f), () => {}, true);
+  assert.ok(light.ok);
+  const b = await runGuestBatch({ calls: [{ op: "workersNear", args: { ...HERE, radiusKm: 10 } }, { op: "getTask", args: { taskId: G1 } }] }, ctx(guestFake()), () => {}, true);
+  const out = (b as { data: { ok: boolean; error?: { code: string } }[] }).data;
+  assert.equal(out[0].error?.code, BUSY_CODE);
+  assert.equal(out[1].ok, true);
+  assert.equal(guestBusy().ok, false);
+});
+
+await t("guest: list sizes, ids and paging are capped for guests", async () => {
+  const f = guestFake();
+  await runGuestOp("listOpenTasks", { limit: 1e9 }, ctx(f));
+  assert.equal((f.calls.find((c) => c.rpc === "guest_open_posts")?.args as Record<string, unknown>)?.p_limit, GUEST_LIMIT_MAX);
+  const g = guestFake();
+  await runGuestOp("searchTasks", { limit: 500 }, ctx(g));
+  assert.equal((g.calls.find((c) => c.rpc === "guest_open_posts")?.args as Record<string, unknown>)?.p_limit, GUEST_LIMIT_MAX);
+  const tooMany = await runGuestOp("attachPosters", { taskIds: Array.from({ length: GUEST_MAX_IDS + 1 }, () => G1) }, ctx(guestFake()));
+  assert.ok(!tooMany.ok && tooMany.error.code === "BAD_ARGS");
+  const h = guestFake();
+  await runGuestOp("listFeedbackBoard", { offset: 9_000 }, ctx(h));
+  assert.equal((h.calls.find((c) => c.rpc === "guest_feedback_board_list")?.args as Record<string, unknown>)?.p_offset, GUEST_MAX_OFFSET);
+  const w = guestFake();
+  await runGuestOp("workersNear", { ...HERE, radiusKm: 10 }, ctx(w));
+  for (const c of w.calls.filter((x) => x.rpc)) {
+    const n = (c.args as { p_limit?: number }).p_limit;
+    assert.ok(n === undefined || n <= 300, `${c.rpc} asked for ${n}`);
+  }
 });
 
 await t("guest: only the public key with no person behind it is a guest token", () => {

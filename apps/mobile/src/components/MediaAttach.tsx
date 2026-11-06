@@ -239,6 +239,14 @@ export function MediaAttach({
         <RNText style={tx('400', 11, t.colors.muted, { marginTop: 8, lineHeight: 16 })}>
           One photo, or a video up to {MEDIA.MAX_VIDEO_SECONDS}s. Workers price far more accurately when they can see the job.{Platform.OS === 'web' ? ' You can also drop a file here.' : ''}
         </RNText>
+        {/* TaskDrop cannot strip a video's hidden details (H38), so say so. Photos lose theirs when they are shown. */}
+        <RNText
+          style={tx('400', 11, t.colors.muted, { marginTop: 4, lineHeight: 16 })}
+          accessibilityLabel="Videos keep location data"
+        >
+          Heads up: a video keeps any location your phone saved inside it, and people who view the task can see it. Turn off
+          location tags in your camera settings, or remove them first, if you do not want that.
+        </RNText>
         {error && (
           <RNText style={tx('600', 12, t.colors.signal, { marginTop: 8, lineHeight: 17 })}>
             {error}
