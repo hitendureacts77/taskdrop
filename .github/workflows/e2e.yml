@@ -67,6 +67,11 @@ jobs:
       - name: Build the web app
         run: npm run web:export
 
+      # Task 2.18 part D (hole H72): the build that was just made holds no secret, and it exists. A missing
+      # build fails here instead of being skipped.
+      - name: Scan the web build for secrets
+        run: node scripts/scan-build.mjs apps/mobile/dist
+
       - run: npx playwright test
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
