@@ -533,6 +533,22 @@ await t("without ImageKit's keys, or for videos and documents, uploads go to Sup
   assert.ok((await runOp("createUpload", { purpose: "task", ext: "jpg" }, ctx(broken))).ok);
 });
 
+await t("a daily upload limit written by media_begin stops the upload, for pictures and for files; other failures do not leak", async () => {
+  const limit = { message: "You have reached today's upload limit. Please try again tomorrow.", code: "P0001" };
+  const refuse = () => fake((c) => (c.rpc === "media_begin" ? { data: null, error: limit } : { data: [], error: null }));
+  for (const [args, opts] of [
+    [{ purpose: "task", kind: "image", mime: "image/jpeg" }, { imagekit: IK }],
+    [{ purpose: "proof", kind: "video", ext: "mp4" }, {}],
+  ] as const) {
+    const r = await runOp("createUpload", args, ctx(refuse(), opts));
+    assert.ok(!r.ok && r.error.message === limit.message, JSON.stringify(args));
+  }
+  // A picture whose registry write fails for another reason still gets the plain message, not the database's.
+  const other = fake((c) => (c.rpc === "media_begin" ? { data: null, error: { message: "relation media does not exist", code: "42P01" } } : { data: [], error: null }));
+  const r = await runOp("createUpload", { purpose: "task", kind: "image", mime: "image/jpeg" }, ctx(other, { imagekit: IK }));
+  assert.ok(!r.ok && r.error.message === "Could not start the upload");
+});
+
 const pendingRow = { id: MEDIA_ID, path: MEDIA_PATH, provider: "imagekit", status: "pending", provider_file_id: null };
 const goodFile = { fileId: "f1", filePath: MEDIA_PATH, fileType: "image", size: 2_000_000, isPrivateFile: true };
 

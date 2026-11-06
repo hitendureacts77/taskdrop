@@ -2,7 +2,7 @@ import {
   deleteFile, extensionFor, fileDetails, IMAGE_SIZES, IMAGE_TYPES, type ImageSize, MAX_IMAGE_BYTES, signedUrl, uploadAuth,
   UPLOAD_URL, userFolder,
 } from "../_shared/imagekit.ts";
-import { type Ctx, type Op, OpError, bad, oneOf, rows, str, take, uuid } from "./core.ts";
+import { type Ctx, type DbError, type Op, OpError, bad, oneOf, rows, str, take, toOpError, uuid } from "./core.ts";
 
 /**
  * Files. The server decides where a file goes, so the bucket layout, folders and
@@ -74,6 +74,13 @@ function kindFromExt(ext: string): "image" | "video" | "file" {
 
 const uploadFailed = (message = "Could not start the upload") => new OpError(message, "UPLOAD");
 
+/**
+ * What to tell the app when media_begin refuses. A refusal the database wrote on
+ * purpose (code P0001: too many uploads in progress, today's upload or size
+ * limit) is shown as written; any other failure stays the plain "could not start".
+ */
+const beginRefused = (e: DbError) => (e.code === "P0001" ? toOpError(e) : uploadFailed());
+
 export const MEDIA_OPS: Record<string, Op> = {
   /**
    * Where a new file goes.
@@ -95,7 +102,7 @@ export const MEDIA_OPS: Record<string, Op> = {
       const folder = userFolder(cfg, userId);
       take(await db.rpc("media_begin", {
         p_id: id, p_provider: "imagekit", p_purpose: purpose, p_kind: "image", p_mime: mime, p_path: `${folder}/${fileName}`,
-      }), () => uploadFailed());
+      }), beginRefused);
       const auth = await uploadAuth(cfg, (ctx.now?.() ?? new Date()).getTime());
       return {
         provider: "imagekit",
@@ -119,12 +126,14 @@ export const MEDIA_OPS: Record<string, Op> = {
     const path = `${userId}/${prefix}${Date.now()}-${random()}.${ext}`;
     const res = await db.storage.from(BUCKET).createSignedUploadUrl(path);
     if (res.error || !res.data?.signedUrl) throw uploadFailed();
-    // Recorded for the registry. Best effort: an upload must not fail because
-    // the registry could not be written (it is a ledger, not a gate, here).
+    // Recorded for the registry. The daily limits live in media_begin, so a
+    // refusal it wrote on purpose (P0001) stops the upload; any other failure
+    // to write the registry does not (it is a ledger first, here).
     const kind = a.kind === "video" || a.kind === "file" || a.kind === "image" ? a.kind : kindFromExt(ext);
     const logged = await db.rpc("media_begin", {
       p_id: crypto.randomUUID(), p_provider: "supabase", p_purpose: purpose, p_kind: kind, p_mime: null, p_path: path,
     });
+    if (logged.error?.code === "P0001") throw toOpError(logged.error);
     if (logged.error) console.error("api: could not record upload", logged.error.message);
     return { path, url: res.data.signedUrl as string };
   },
