@@ -177,6 +177,14 @@ export function BirthDateField({
   const [yearList] = useState(() => years());
   const all = value.day && value.month && value.year;
   const birth = parseBirthDate(value.day, value.month, value.year);
+  // Two wheels can land before the screen redraws. Each must build on what the
+  // other just picked, or the second overwrites the first and that wheel jumps back.
+  const latest = useRef(value);
+  latest.current = value;
+  const pick = (part: Partial<BirthDateParts>) => {
+    latest.current = { ...latest.current, ...part };
+    onChange(latest.current);
+  };
 
   let line = 'Swipe each column, or tap a row';
   if (all) line = birth ? `You are ${ageOn(birth)} years old` : 'That date does not exist. Check the day.';
@@ -194,9 +202,9 @@ export function BirthDateField({
       >
         <View pointerEvents="none" style={{ position: 'absolute', left: 10, right: 10, top: 12 + 28 + ROW * 2, height: ROW, borderRadius: 14, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line }} />
         <View style={{ flexDirection: 'row', gap: 6 }}>
-          <Wheel label="Day" items={dayList} value={value.day} onPick={(day) => onChange({ ...value, day })} flex={1} />
-          <Wheel label="Month" items={monthList} value={value.month} onPick={(month) => onChange({ ...value, month })} flex={1.6} />
-          <Wheel label="Year" items={yearList} value={value.year} onPick={(year) => onChange({ ...value, year })} flex={1.2} />
+          <Wheel label="Day" items={dayList} value={value.day} onPick={(day) => pick({ day })} flex={1} />
+          <Wheel label="Month" items={monthList} value={value.month} onPick={(month) => pick({ month })} flex={1.6} />
+          <Wheel label="Year" items={yearList} value={value.year} onPick={(year) => pick({ year })} flex={1.2} />
         </View>
       </View>
       <View style={{ alignItems: 'center', marginTop: 14 }}>
