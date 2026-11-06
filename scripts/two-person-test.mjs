@@ -276,7 +276,13 @@ async function main() {
       tasks: data(await asB('listMyTasks')), destinations: data(await asB('listPayoutDestinations')),
       wallet: data(await asB('getWallet')), notifications: data(await asB('listNotifications')),
     });
-    if (after !== before) bad('B\'s own state (tasks, payout destinations, wallet or notices) changed while A was trying things');
+    if (after !== before) {
+      // Names only, never values: says which of the four moved, so a real change can be told from background work.
+      const was = JSON.parse(before);
+      const now = JSON.parse(after);
+      const moved = Object.keys(was).filter((k) => JSON.stringify(was[k]) !== JSON.stringify(now[k]));
+      bad(`B's own state changed while A was trying things: ${moved.join(', ')}`);
+    }
     console.log(`A sent ${calls} calls over ${probedOps().length} operations; ${markers.length} private marks guarded.`);
   } finally {
     await asB('cancelTask', { taskId }).catch(() => {});
