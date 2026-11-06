@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncExternalStore } from 'react';
-import { adopt, isStale, validateSnapshot, type WizardSnapshot } from './postWizard';
+import { GUEST_OWNER, adopt, isStale, validateSnapshot, type WizardSnapshot } from './postWizard';
 
 /**
  * Where the half-made post (lib/postWizard.ts) is kept: on this device
@@ -74,6 +74,15 @@ export async function adoptGuestWizard(userId: string): Promise<void> {
     const next = adopt(s, userId);
     if (next !== s) await saveWizard(next);
   }
+}
+
+/**
+ * Someone signed in on this device without coming from the guest's pop-up (B31): a guest's half-made post is not
+ * theirs, so it goes. Another account's snapshot is left as it is (it is shown only to that account).
+ */
+export async function dropGuestWizard(): Promise<void> {
+  const s = memory ?? (await loadWizard());
+  if (s && s.owner === GUEST_OWNER) await clearWizard();
 }
 
 // ------------------------------------------------------- post when back --

@@ -44,8 +44,22 @@ export async function removeDraft(userId: string, id: string): Promise<void> {
 }
 
 /**
+ * Forget every draft kept for this owner (an account id, or GUEST_DRAFTS_OWNER). On sign-out the person's
+ * drafts go, so the next person on this phone or browser never finds them in storage (B31).
+ */
+export async function clearDrafts(userId: string): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(KEY(userId));
+  } catch {
+    // Left behind: still shown only to that same owner.
+  }
+}
+
+/**
  * A guest's drafts (kept under GUEST_DRAFTS_OWNER, lib/guest.ts) move into the account once there is one,
- * so the Drafts list in My Tasks still has them. Best-effort, like every draft write.
+ * so the Drafts list in My Tasks still has them. Only for the guest's own sign-in from the pop-up
+ * (AuthProvider, lib/guestHandoff.ts); anyone else's sign-in drops them with clearDrafts instead.
+ * Best-effort, like every draft write.
  */
 export async function moveGuestDrafts(userId: string): Promise<void> {
   const theirs = await listDrafts(GUEST_DRAFTS_OWNER);
