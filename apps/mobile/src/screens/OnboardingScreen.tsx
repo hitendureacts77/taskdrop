@@ -6,6 +6,7 @@ import { Icon, type IconName } from '../components/Icon';
 import { Field, IconButton, Pill, PrimaryButton } from '../components/kit';
 import { Ripples } from '../components/Ripples';
 import { WelcomeStory } from '../components/WelcomeStory';
+import { loadIntroSeen } from '../lib/intro';
 import { requestTourOffer } from '../components/tour/tourStore';
 import { LocationSheet } from '../components/LocationSheet';
 import { tx } from '../components/primitives';
@@ -46,6 +47,10 @@ export function OnboardingScreen() {
   useEffect(() => (quick ? releaseAccountHold : undefined), [quick]);
   const [step, setStep] = useState(quick ? 4 : 0);
   const [busy, setBusy] = useState(false);
+  const [introSeen, setIntroSeen] = useState<boolean | null>(null);
+  useEffect(() => {
+    void loadIntroSeen().then(setIntroSeen);
+  }, []);
 
   const [code, setCode] = useState('');
   const [username, setUsername] = useState('');
@@ -243,7 +248,8 @@ export function OnboardingScreen() {
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21 })}>
           Ask for anything. Someone gets it done for you.
         </RNText>
-        <WelcomeStory />
+        {/* A new install already played the story on the intro; it shows here only for a device that skipped past it. */}
+        {introSeen === false ? <WelcomeStory /> : null}
         <Field
           label="Have a referral code? (optional)"
           value={code}

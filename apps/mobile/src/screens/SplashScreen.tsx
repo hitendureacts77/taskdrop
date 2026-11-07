@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef } from 'react';
+import { useCallback, useContext, useEffect, useRef } from 'react';
 import { View, Text as RNText, Pressable, Animated, Easing } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
@@ -7,6 +7,8 @@ import { TopInsetUsedCtx } from '../components/topInsetUsed';
 import { tx } from '../components/primitives';
 import { dark } from '../theme';
 import { useReducedMotion } from '../lib/motion';
+import { loadIntroSeen } from '../lib/intro';
+import { afterSplash } from '../lib/introRoute';
 
 /** Every edge but the top, for when the staging ribbon or a banner has already used the status-bar gap. */
 const SIDES_AND_BOTTOM: Edge[] = ['right', 'bottom', 'left'];
@@ -47,6 +49,8 @@ const RING_STEP = 220;
  */
 export function SplashScreen() {
   const { reset } = useNav();
+  // A fresh install goes on to the intro, everyone else to sign-in (lib/introRoute.ts).
+  const leave = useCallback(() => void loadIntroSeen().then((seen) => reset(afterSplash(seen))), [reset]);
   const reduced = useReducedMotion();
   const topUsed = useContext(TopInsetUsedCtx);
 
@@ -88,9 +92,9 @@ export function SplashScreen() {
   // hung app -- so move on once the drop has landed and the rings are out.
   // Tapping still skips ahead.
   useEffect(() => {
-    const id = setTimeout(() => reset('welcome'), 2600);
+    const id = setTimeout(leave, 2600);
     return () => clearTimeout(id);
-  }, [reset]);
+  }, [leave]);
 
   const ringEase = Easing.bezier(0.15, 0.6, 0.3, 1);
   const riseEase = Easing.bezier(0.2, 0.8, 0.2, 1);
@@ -101,7 +105,7 @@ export function SplashScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: dark.bg }} edges={topUsed ? SIDES_AND_BOTTOM : undefined}>
-      <Pressable onPress={() => reset('welcome')} style={{ flex: 1, overflow: 'hidden' }} accessibilityLabel="Continue">
+      <Pressable onPress={leave} style={{ flex: 1, overflow: 'hidden' }} accessibilityLabel="Continue">
         {/* The stage: everything is centred on the point where the drop lands. */}
         <View pointerEvents="none" style={{ position: 'absolute', left: '50%', top: '45%', width: 0, height: 0 }}>
           {/* The glow of the splash. */}

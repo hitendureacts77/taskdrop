@@ -8,6 +8,7 @@ import { DetailSheetScreen } from '../screens/DetailSheetScreen';
 // Onboarding (Haiku agent)
 import { AccessScreen } from '../screens/AccessScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
+import { IntroScreen } from '../screens/IntroScreen';
 // Task flow (Sonnet agent)
 import { CreateScreen } from '../screens/CreateScreen';
 import { PostDetailsScreen } from '../screens/PostDetailsScreen';
@@ -60,6 +61,7 @@ export const REGISTRY: Partial<Record<ScreenName, ComponentType>> = {
   splash: SplashScreen,
   home: HomeScreen,
   // One way in for everyone: new and returning people share this screen.
+  intro: IntroScreen,
   welcome: AccessScreen,
   signup: AccessScreen,
   setup: OnboardingScreen,

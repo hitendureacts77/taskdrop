@@ -35,7 +35,7 @@ import { levelFor } from '../lib/levels';
 import { taskToFeedRow } from '../lib/openTask';
 import { statusBadge } from '../screens/MyTasksScreen';
 import { Icon } from './Icon';
-import { Badge, BottomSheet, Grid, SectionTitle, Shimmer, rupees, timeLeft } from './kit';
+import { Badge, Grid, SectionTitle, Shimmer, rupees, timeLeft } from './kit';
 import { WorkCard, categoryIcon } from './WorkCard';
 import { BidSheet } from './BidSheet';
 import { Rail, useRailItemWidth } from './Rail';
@@ -45,7 +45,7 @@ import { cardSurface } from './ui';
 import { useLayout } from '../lib/layout';
 import { useReducedMotion } from '../lib/motion';
 import type { IconName } from './Icon';
-import { HowItWorks } from './HowItWorks';
+import { HowSheet } from './HowSheet';
 import { LocationSheet, type PickedPlace } from './LocationSheet';
 import { resolveCurrentPlace } from '../lib/location';
 import { roughPlace } from '../lib/place';
@@ -281,9 +281,7 @@ function PostTop() {
         </Pressy>
       </HeroCard>
 
-      <BottomSheet visible={howOpen} onClose={() => setHowOpen(false)} title="How TaskDrop works" subtitle="Hiring, step by step">
-        <HowItWorks side="hire" />
-      </BottomSheet>
+      <HowSheet visible={howOpen} onClose={() => setHowOpen(false)} side="hire" />
 
       {/* What they already have going */}
       {active && active.length > 0 ? (
@@ -840,9 +838,7 @@ function EarnTop() {
           <RNText style={tx('700', 13, t.colors.accentDeep)}>See every open job ›</RNText>
         </Pressable>
       </View>
-      <BottomSheet visible={howOpen} onClose={() => setHowOpen(false)} title="How TaskDrop works" subtitle="Earning, step by step">
-        <HowItWorks side="earn" />
-      </BottomSheet>
+      <HowSheet visible={howOpen} onClose={() => setHowOpen(false)} side="earn" />
       <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void load()} />
       <LocationSheet
         visible={pickPlace}

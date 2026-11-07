@@ -4,6 +4,7 @@
  */
 export type ScreenName =
   | 'splash'
+  | 'intro'
   | 'welcome'
   | 'signup'
   | 'setup'
