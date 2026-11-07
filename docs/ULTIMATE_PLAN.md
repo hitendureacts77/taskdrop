@@ -4,7 +4,7 @@
 
 The clickable version is `docs/ULTIMATE_PLAN.html`. Open it in Chrome. Your ticks are saved there.
 
-**Rethought on 6 November 2026, your rule: finish every feature first, then do security and testing last.** The order is now: Step 1 finish every feature, then the **feature freeze** (Gate 1), then Steps 2 and 3 side by side on the finished app, with marketing (Step 4) beside them, then production (Step 5), launch (Step 6) and growth (Step 7). Task numbers did not change, so "done 2.3" and "start 2.14" still work. Five tasks moved to Step 1 because they are features: 3.3c, 3.5b, 4.3, 4.5 and 4.10. The security already finished stays finished. New: the feature finish list, tasks 2.18 to 2.21 and 3.6b, and the section "How every feature gets built" (the kit: Grill Me, Caveman, Chromatic, the six rubrics and what to take from ECC). The history of every earlier change is in the changelog at the end.
+**Rethought on 6 November 2026, your rule: finish every feature first, then do security and testing last.** The order is now: Step 1 finish every feature, then the **feature freeze** (Gate 1), then Steps 2 and 3 side by side on the finished app, with marketing (Step 4) beside them, then production (Step 5), launch (Step 6) and growth (Step 7). Task numbers did not change, so "done 2.3" and "start 2.14" still work. Five tasks moved to Step 1 because they are features: 3.3c, 3.5b, 4.3, 4.5 and 4.10. The security already finished stays finished. New: the feature finish list, tasks 2.22 to 2.25 and 3.6b, and the section "How every feature gets built" (the kit: Grill Me, Caveman, Chromatic, the six rubrics and what to take from ECC). The history of every earlier change is in the changelog at the end.
 
 ---
 
@@ -136,9 +136,9 @@ Build [feature] the plan's way: grill me first, then plan, failing test, small p
 | **Caveman** ([JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman)) | Shorter answers from Claude, so long sessions use fewer tokens | SAY `/caveman`, stop with "normal mode". `/ultracave` is shorter still | Its own test: 41% fewer output tokens than normal, but only about 5% fewer than simply asking Claude to be concise. It keeps full sentences for security warnings, for questions to you and for anything written into files. **Only the skill is installed**, not its plugin or CLI: the plugin auto-starts every session, the CLI sends usage data unless turned off, and its Auto mode sends your prompts to its cloud. Use it for long hunt and build sessions, not when you want a plain explanation |
 | **Chromatic** ([chromaui/chromatic-skills](https://github.com/chromaui/chromatic-skills)) | Takes pictures of each website screen and shows you exactly what changed | Set up in task 3.6b, after the freeze | 12 skills for setup and for debugging. They do nothing until you have a Chromatic account. The connector (plugin) comes in 3.6b |
 
-**ECC itself is not installed, on purpose.** It holds about 314 skills and 71 agents that overlap the gstack skills you already have. Its own page warns against stacking installs, says each extra tool eats into Claude's memory, and lists open problems on native Windows. You get its method from the table above, and its one unique piece, AgentShield, in task 2.20. A small trial is kept as F.16.
+**ECC itself is not installed, on purpose.** It holds about 314 skills and 71 agents that overlap the gstack skills you already have. Its own page warns against stacking installs, says each extra tool eats into Claude's memory, and lists open problems on native Windows. You get its method from the table above, and its one unique piece, AgentShield, in task 2.24. A small trial is kept as F.16.
 
-**The six rubrics** ([Code Consultant](https://codeconsultant.help/#rubrics) by Aaron Blum) are score sheets for AI-built apps, from 1 to 5. They are used in task 2.19, once at the start of security and testing and once at the end.
+**The six rubrics** ([Code Consultant](https://codeconsultant.help/#rubrics) by Aaron Blum) are score sheets for AI-built apps, from 1 to 5. They are used in task 2.23, once at the start of security and testing and once at the end.
 
 **How to spend fewer tokens every day** (ECC's advice, checked against this setup): one task per session; a fresh session after a big task, using `/context-save` and `/context-restore`; switch off connectors you are not using; `/caveman` during long runs; Sonnet 5.5 subagents for routine work and Opus 5.5 for the hard parts (your rule, 4 Nov).
 
@@ -319,10 +319,10 @@ Everything here is **new and separate** and is made in Step 5. Nothing is copied
 | 8 | **Errors and logs say nothing private.** No keys, phone numbers or codes in error messages, Sentry or the logs | **Mostly.** Sentry hides secrets; the OWASP checklist went through errors and logs line by line (built 4 Nov). The hunt read the background jobs and logs on 4 Nov: nothing private in them; one small leak fixed (B19, the export log kept the search text); lock-screen pushes show private detail (H42, your decision) | 2.13 C; 2.14 H |
 | 9 | **Uploads are safe and files are private.** Only real photos and videos of a fair size; nobody opens another person's file | **Mostly.** Private files only, shown through short-lived links; 20 uploads a minute and 15 MB each; a test that no file is public. The hunt (4 Nov) found photos in ImageKit are fine (ImageKit removes the hidden location). Left: your click to make the code folders private (H27), and the location stored inside videos and files kept in Supabase (H38, waiting for your answer) | 2.13 H; 2.14 H |
 | 10 | **Packages kept up to date.** Old libraries are where most holes come from | **Mostly.** `npm audit` on every change and every Monday (built 4 Nov); Dependabot suggests new versions. One accepted warning waits for review by 13 December | 2.6, 2.13 B |
-| 11 | **Attacked for real before launch.** Someone tries to break in on purpose and proves each hole | **In progress.** Claude's hunt: rounds 1 and 2 done 4 Nov; it found 2 Critical and 2 High (money could be created from nothing) and both Critical bugs and the High "old helper presses Start" are fixed and live (PR 236, migration 148); the High "direct database access" (H52) is the known open door H3 and closes in 3.9. Still to come: Strix (waiting for you), then 2 or 3 testers you invite | 2.14, **2.21**, **2.16**, 2.13 E |
+| 11 | **Attacked for real before launch.** Someone tries to break in on purpose and proves each hole | **In progress.** Claude's hunt: rounds 1 and 2 done 4 Nov; it found 2 Critical and 2 High (money could be created from nothing) and both Critical bugs and the High "old helper presses Start" are fixed and live (PR 236, migration 148); the High "direct database access" (H52) is the known open door H3 and closes in 3.9. Still to come: Strix (waiting for you), then 2 or 3 testers you invite | 2.14, **2.25**, **2.16**, 2.13 E |
 | 12 | **Notice fast, recover fast, guard your own logins.** Alarms, an emergency guide, backups, your accounts | **Partly.** Budget and Sentry alarms, the decoy key and the emergency guide are in place. Yours: the clicks in 2.2 to 2.4. Backups outside Supabase come with production. 2-step sign-in is deferred by you (H14) | 2.2 to 2.4, 2.10, 5.9, 6.5 |
 
-**When the rest happens (your rule, 6 Nov).** Everything still open in this table now waits for Gate 1, the feature freeze, and is finished in Steps 2 and 3 on the finished app. The automatic guards in rule 10 stay on until then. Two new jobs join it: the six rubrics give the app a score (2.19), and AgentShield checks Claude's own setup (2.20). The in-progress fixes from hunt round 2 that you already said yes to are allowed to finish.
+**When the rest happens (your rule, 6 Nov).** Everything still open in this table now waits for Gate 1, the feature freeze, and is finished in Steps 2 and 3 on the finished app. The automatic guards in rule 10 stay on until then. Two new jobs join it: the six rubrics give the app a score (2.23), and AgentShield checks Claude's own setup (2.24). The in-progress fixes from hunt round 2 that you already said yes to are allowed to finish.
 
 **Questions for you from the security work** (4 Nov). The full wording is in the Decisions list at the end. Each has a recommended answer; say it, or say your own.
 
@@ -1301,16 +1301,16 @@ build the email sequences
 
 **The last stretch: what is left, in order** (rethought 6 November 2026). Nothing here starts before Gate 1. The Strix, tester and quality rounds all run on the frozen code. Do one line at a time. Each line is one sentence to Claude, or a few clicks of yours.
 
-1. **Grill the attack plan** (2.18). `/grill-me` asks what you are afraid of losing and what is out of bounds.
-2. **Score the app, before** (2.19). All six rubrics, on both code folders. The low scores become the to-do list.
+1. **Grill the attack plan** (2.22). `/grill-me` asks what you are afraid of losing and what is out of bounds.
+2. **Score the app, before** (2.23). All six rubrics, on both code folders. The low scores become the to-do list.
 3. **Start Google's clock** (3.1 to 3.3). It takes 14 days, so everything below runs while the testers use the app.
 4. **Your clicks** (2.2, 2.3 and 2.4, about 1.5 hours): spending alerts, lock the places keys are kept, read the emergency guide once. Make both code folders private (2.13 H) and reply "fix" or "accept" to H30 and H31.
-5. **The final sweep** (2.21). Hunt round 3 on the frozen code, every automatic test, the secrets audit again, and part G of the hunt (every screen on the phone).
-6. **Check the AI tools themselves** (2.20). AgentShield reads Claude's own setup.
+5. **The final sweep** (2.25). Hunt round 3 on the frozen code, every automatic test, the secrets audit again, and part G of the hunt (every screen on the phone).
+6. **Check the AI tools themselves** (2.24). AgentShield reads Claude's own setup.
 7. **The pen test** (2.16 Strix, then 2.13 J the rush and spammer test, then 2.13 E, 2 or 3 people you invite). All against staging, never production and never the payment companies.
 8. **See every screen** (3.6b Chromatic, then 3.6 quality round 3).
 9. **Close the side door** (3.9, the switch-over; it closes H3 and H52).
-10. **Score the app, after** (2.19 again). Fix what is below target, then tick Gates 2b and 3. Step 5 may start.
+10. **Score the app, after** (2.23 again). Fix what is below target, then tick Gates 2b and 3. Step 5 may start.
 
 Every finding from 2.13 to 2.16 reaches you in one short form: a level, what happened, why it matters and what to do. Critical and High are always fixed. For everything else you reply "fix" or "accept".
 
@@ -1335,14 +1335,14 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 | 2.15 The secrets audit (added 4 Nov) | Done 4 Nov | H56 before launch (5.9); make the code folders private (2.13 H) |
 | 2.16 The AI attacker, Strix (added 4 Nov) | Not started | Waiting for you: Docker Desktop (not installed on this PC, checked 4 Nov) and an AI key with a spending limit, then say "start 2.16" |
 | 2.17 One home per secret (added 5 Nov) | Done 5 Nov | Nothing of yours. `push-payment-secrets.sh` now reads the master file too. Does not block Gate 2b; production (Step 5) uses `--production` |
-| 2.18 to 2.21 Grill, rubrics, AI tools check, final sweep (added 6 Nov) | Not started | They wait for Gate 1, the feature freeze |
+| 2.22 to 2.25 Grill, rubrics, AI tools check, final sweep (added 6 Nov) | Not started | They wait for Gate 1, the feature freeze |
 
 **On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
 
 **Two gates, so the tester clock does not add extra weeks.** Google's 12-tester, 14-day test (Step 3) is the longest fixed wait in this plan, and testers only touch fake money. So once Gate 1 has passed, **Gate 2a** lets Step 3 start beside the rest of Step 2, and **Gate 2b** must pass before Step 5 (production).
 
 <details id="t2-18" data-short="Grill the attack plan">
-<summary>[BOTH] <b>2.18</b> Grill the attack plan before any attack starts <small>· your time: 30 minutes · free · first job after Gate 1</small></summary>
+<summary>[BOTH] <b>2.22</b> Grill the attack plan before any attack starts <small>· your time: 30 minutes · free · first job after Gate 1</small></summary>
 
 **Why:** a pen test only finds what it looks for. This short interview decides what matters most, so the final sweep and Strix spend their time there. It uses Grill Me, installed 6 Nov.
 
@@ -1351,18 +1351,18 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 1. SAY:
 
 ```say
-start 2.18
+start 2.22
 ```
 
 2. Answer each round. "Yes" accepts Claude's recommended answer.
-3. Claude writes the answers into 2.21 and 2.16 as the priority list.
-4. TELL Claude: "done 2.18".
+3. Claude writes the answers into 2.25 and 2.16 as the priority list.
+4. TELL Claude: "done 2.22".
 
 **Done when:** every question is answered and the priority list is written into this plan.
 </details>
 
 <details id="t2-19" data-short="Six rubrics">
-<summary>[CLAUDE] <b>2.19</b> Score the app against the six rubrics, before and after <small>· your time: 15 minutes · free · run twice</small></summary>
+<summary>[CLAUDE] <b>2.23</b> Score the app against the six rubrics, before and after <small>· your time: 15 minutes · free · run twice</small></summary>
 
 **Why:** the rubrics from [Code Consultant](https://codeconsultant.help/#rubrics) (Aaron Blum) turn "is it good enough?" into a number from 1 to 5 for each line. They also cover things a pen test never looks at. Download: [all six rubrics](https://codeconsultant.help/rubrics-all.zip).
 
@@ -1382,7 +1382,7 @@ start 2.18
 1. SAY:
 
 ```say
-start 2.19
+start 2.23
 ```
 
 2. Claude reads the rubrics, scores both code folders with proof, and lists what would move each low score up one level. In short: score, why, and the fix.
@@ -1393,7 +1393,7 @@ start 2.19
 score the rubrics again
 ```
 
-5. TELL Claude: "done 2.19".
+5. TELL Claude: "done 2.23".
 
 **Done when:** both scores are in `docs/RUBRIC_SCORES.md`, and every line is on target or has your written "accept".
 </details>
@@ -2187,7 +2187,7 @@ start 2.15
 </details>
 
 <details id="t2-20" data-short="Check the AI tools">
-<summary>[CLAUDE] <b>2.20</b> Check the AI tools themselves with AgentShield <small>· your time: 5 minutes · free · before 2.16</small></summary>
+<summary>[CLAUDE] <b>2.24</b> Check the AI tools themselves with AgentShield <small>· your time: 5 minutes · free · before 2.16</small></summary>
 
 **Why:** Claude can read files, run commands and reach your accounts through its connectors. A bad skill, an unsafe hook or an instruction hidden in a file is a way in that no pen test of the app will see. [AgentShield](https://github.com/affaan-m/ECC) is the security scanner from ECC: it reads prompts, hooks, connector settings, permissions, secrets and agent files.
 
@@ -2196,29 +2196,29 @@ start 2.15
 1. SAY:
 
 ```say
-start 2.20
+start 2.24
 ```
 
 2. Reply "fix" or "accept" for each finding.
-3. TELL Claude: "done 2.20".
+3. TELL Claude: "done 2.24".
 
 **Done when:** every finding is fixed or accepted, and unused skills and connectors are removed or kept by your choice.
 </details>
 
 <details id="t2-21" data-short="Final sweep">
-<summary>[CLAUDE] <b>2.21</b> The final sweep: every check again, on the frozen code <small>· your time: 30 minutes · free · before 2.16</small></summary>
+<summary>[CLAUDE] <b>2.25</b> The final sweep: every check again, on the frozen code <small>· your time: 30 minutes · free · before 2.16</small></summary>
 
 **Why:** hunt rounds 1 and 2 ran on 3 and 4 November. Everything built since has not had that hard look. The sweep runs once, on the code you will launch.
 
 1. SAY:
 
 ```say
-start 2.21
+start 2.25
 ```
 
-2. Claude runs, in order, using the priority list from 2.18: hunt round 3 (2.14, every part, and part G on your phone); `/cso` and `/security-review` over all of the code; the secrets audit again on everything new (2.15); the two-person test, the lock-and-limit test, Semgrep and `npm audit`; and the money tests.
+2. Claude runs, in order, using the priority list from 2.22: hunt round 3 (2.14, every part, and part G on your phone); `/cso` and `/security-review` over all of the code; the secrets audit again on everything new (2.15); the two-person test, the lock-and-limit test, Semgrep and `npm audit`; and the money tests.
 3. Reply "fix" or "accept" for each finding, in the same short cards as 2.15. Critical and High are always fixed.
-4. TELL Claude: "done 2.21".
+4. TELL Claude: "done 2.25".
 
 **Done when:** every check has run on the frozen code, Critical and High are fixed with a test each, and everything else has your answer. Long runs may use `/caveman`, but every finding still reaches you in plain words.
 </details>
@@ -2323,8 +2323,8 @@ start 2.17
 > **GATE 2b: do not start Step 5 (production) until all of these are true**
 
 - [ ] Gate 2a has passed
-- [ ] Tasks 2.1 to 2.21 are ticked (2.13 part E may follow, by decision 15, before 6.5)
-- [ ] The rubric scores (2.19) are on target, or have your written "accept"
+- [ ] Tasks 2.1 to 2.25 are ticked (2.13 part E may follow, by decision 15, before 6.5)
+- [ ] The rubric scores (2.23) are on target, or have your written "accept"
 - [ ] The six proofs in task 2.10 are all true
 - [ ] Holes H2 to H10, H12, H17 and H22 to H34 are closed (H3 closes in 3.9 for staging and is never open in production; H11 closes in 5.2; H1, H15 and H16 in 5.9)
 - [ ] No Critical or High security problem is open, and every Medium from 2.14, 2.15 and 2.16 has your answer
@@ -2558,7 +2558,7 @@ start API calls
 <details id="t3-6b" data-short="Chromatic visual tests">
 <summary>[BOTH] <b>3.6b</b> Chromatic: see every website screen change <small>· your time: 20 minutes · free plan · after the freeze</small></summary>
 
-**Why:** [Chromatic](https://www.chromatic.com) takes a picture of every screen and shows what changed since the last approved picture, so a fix cannot quietly break a screen nobody looked at. It also runs accessibility checks, which feed the UX rubric (2.19). It starts after the freeze because the screens are final then, and each picture counts against the free limit.
+**Why:** [Chromatic](https://www.chromatic.com) takes a picture of every screen and shows what changed since the last approved picture, so a fix cannot quietly break a screen nobody looked at. It also runs accessibility checks, which feed the UX rubric (2.23). It starts after the freeze because the screens are final then, and each picture counts against the free limit.
 
 **What it covers.** The website, through the Playwright tests TaskDrop already has, so Storybook is not needed: the main screens at phone and laptop size, light and dark. **Not the Android app:** Chromatic's Android route needs Storybook for React Native, and its pages do not mention Expo. Android stays your phone check.
 
@@ -4713,7 +4713,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 <details id="c-changelog">
 <summary>[CARD] Every change to this plan, newest first</summary>
 
-- **2026-11-06 (plan rethought: features first, security and testing last):** You asked for Caveman, Grill Me and Chromatic to be installed, for the Code Consultant rubrics and ECC to be considered for security and pen testing, for security and testing to come after all the features, and for the plan to be optimised. **Installed** in `~/.claude/skills`: `caveman`, `ultracave`, `grill-me`, `grilling` and the 12 skills from `chromaui/chromatic-skills`, each read first, copied at a fixed commit, with no hooks, plugin or CLI. **Order changed:** Step 1 is now "Finish every feature" and ends in Gate 1, the feature freeze; Steps 2 and 3 run side by side after it, with Step 4 beside them. Task numbers are unchanged. **Moved to Step 1:** 3.3c, 3.5b, 4.3, 4.5, 4.10. **New:** the feature finish list (checked in the code), "The last stretch" path in Step 2, the section "How every feature gets built", tasks 2.18 (Grill Me on the attack plan), 2.19 (six rubrics, before and after), 2.20 (AgentShield), 2.21 (final sweep), 3.6b (Chromatic), F.16, rules 9 and 10, and decision 31. **Fixed while here:** the two decisions numbered 29 (the money one is now 30); a second copy of 5.6b that sat inside the 5.8 table; 1.9 and D11 still said "not built" though the code has them; the top of the plan replaced with today's state; the changelog folded. **ECC:** not installed, with the reasons in "How every feature gets built"; the one-day hackathon claim could not be confirmed from its page. **Not checked:** Chromatic's Playwright setup is to be confirmed against its docs in 3.6b; Expo support is not confirmed; rubric scores are not run yet. No app code, database or setting changed.
+- **2026-11-06 (plan rethought: features first, security and testing last):** You asked for Caveman, Grill Me and Chromatic to be installed, for the Code Consultant rubrics and ECC to be considered for security and pen testing, for security and testing to come after all the features, and for the plan to be optimised. **Installed** in `~/.claude/skills`: `caveman`, `ultracave`, `grill-me`, `grilling` and the 12 skills from `chromaui/chromatic-skills`, each read first, copied at a fixed commit, with no hooks, plugin or CLI. **Order changed:** Step 1 is now "Finish every feature" and ends in Gate 1, the feature freeze; Steps 2 and 3 run side by side after it, with Step 4 beside them. Task numbers are unchanged. **Moved to Step 1:** 3.3c, 3.5b, 4.3, 4.5, 4.10. **New:** the feature finish list (checked in the code), "The last stretch" path in Step 2, the section "How every feature gets built", tasks 2.22 (Grill Me on the attack plan), 2.23 (six rubrics, before and after), 2.24 (AgentShield), 2.25 (final sweep), 3.6b (Chromatic), F.16, rules 9 and 10, and decision 31. **Fixed while here:** the two decisions numbered 29 (the money one is now 30); a second copy of 5.6b that sat inside the 5.8 table; 1.9 and D11 still said "not built" though the code has them; the top of the plan replaced with today's state; the changelog folded. **ECC:** not installed, with the reasons in "How every feature gets built"; the one-day hackathon claim could not be confirmed from its page. **Not checked:** Chromatic's Playwright setup is to be confirmed against its docs in 3.6b; Expo support is not confirmed; rubric scores are not run yet. No app code, database or setting changed.
 - **2026-11-05 (2.17 finished: payment keys script):** `scripts/push-payment-secrets.sh` now reads the master file `.env.all-secrets` instead of `.env`, sends the three Razorpay names through a private temporary env file (never on the command line), prints names only (no value, no length), and has a `--production` mode that reads `PROD_<NAME>` and refuses the staging project. `docs/GOING_LIVE.md` follows. Nothing was sent: the Razorpay keys are already set.
 - **2026-11-05 (Razorpay asked for a PPI license):** Razorpay asked you for a PPI license and a registered entity (shop establishment, import and export code or utility bill) or GST, plus a business bank account. You asked whether a registered business is needed or whether an individual plan works. **Answer, saved in the plan:** an individual account will not work for a marketplace, and a PPI license (Private Limited company, about ₹5 crore net worth) is not realistic. The PPI request is about the wallet balance, so the fix is to change how money moves (Razorpay Route with held settlements, no stored balance), plus a sole proprietorship (GST, or Shop & Establishment with Udyam, a current account and a utility bill). **Changed:** a full note under S.4, a line in S.2 (the proprietorship papers), one more lawyer question in S.3, and new decision **29** (move to Route, keep the wallet, or wait for the lawyer). **Not built, not checked:** no code, account or setting changed. The ₹5 crore and ₹15 crore figures and the Route behaviour come from general knowledge; Razorpay's own pages only confirmed the individual and unregistered route. Confirm with Razorpay, your lawyer and your CA before relying on them.
 - **2026-11-05 (guest mode on the Android phone):** You asked for the beta update to be published and checked on the phone. **Published:** beta updates `edb64274` and `7f7e2f52` (runtime 1.1.0, Sentry maps uploaded; no native code changed since the 3 Nov APK, so they reach it). **Found on the phone:** as a guest every tab was blank, because the phone's tab code needed a signed-in person (the website was fine). **Fixed (PR 250):** the tabs show for guests, and are kept when a guest makes an account to finish an offer. **Checked on the phone after the fix:** Home in Hire and Earn, the Make your account pop-up in front of the offer sheet, Not now and Back from sign-in keep the filled offer. **Not done on the phone:** sign-up then the offer sent by itself (needs you to make the test account on the phone; it was checked on the website), and posting a task or publishing a service as a guest. Your own account on the phone is signed out.
