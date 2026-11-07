@@ -1,0 +1,593 @@
+{
+  "schema_version": 1,
+  "diagram_type": "erd",
+  "meta": {
+    "title": "TaskDrop core database tables",
+    "output": "taskdrop-database-erd.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/hitendureacts77/taskdrop.git",
+      "revision": "b2b054595896a0a5592ff204f346b000d45e74c7"
+    }
+  },
+  "layout": {
+    "mode": "grid",
+    "gapY": 38,
+    "gapX": 90
+  },
+  "entities": [
+    {
+      "id": "wallets",
+      "label": "wallets",
+      "tag": "people",
+      "row": 0,
+      "col": 0,
+      "attributes": [
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "key": [
+            "pk",
+            "fk"
+          ],
+          "references": "profiles.id"
+        },
+        {
+          "name": "balance_minor",
+          "type": "bigint"
+        },
+        {
+          "name": "clearing_minor",
+          "type": "bigint"
+        },
+        {
+          "name": "credits_minor",
+          "type": "bigint"
+        },
+        {
+          "name": "currency",
+          "type": "text"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20260911045820_001_core_schema.sql",
+          "line": 66,
+          "end_line": 72
+        }
+      ]
+    },
+    {
+      "id": "profiles",
+      "label": "profiles",
+      "tag": "people",
+      "row": 1,
+      "col": 0,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "username",
+          "type": "text"
+        },
+        {
+          "name": "display_name",
+          "type": "text"
+        },
+        {
+          "name": "poster_rating_avg",
+          "type": "numeric"
+        },
+        {
+          "name": "worker_rating_avg",
+          "type": "numeric"
+        },
+        {
+          "name": "skills",
+          "type": "text[]"
+        },
+        {
+          "name": "loc_label",
+          "type": "text"
+        },
+        {
+          "name": "deleted_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20260911045820_001_core_schema.sql",
+          "line": 31,
+          "end_line": 45
+        }
+      ]
+    },
+    {
+      "id": "payouts",
+      "label": "payouts",
+      "tag": "people",
+      "row": 2,
+      "col": 0,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "amount_minor",
+          "type": "bigint"
+        },
+        {
+          "name": "status",
+          "type": "payout_status"
+        },
+        {
+          "name": "via",
+          "type": "text"
+        },
+        {
+          "name": "provider_payout_id",
+          "type": "text"
+        },
+        {
+          "name": "sent_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "failure_note",
+          "type": "text"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20260913121000_009_payouts.sql",
+          "line": 10,
+          "end_line": 19
+        }
+      ]
+    },
+    {
+      "id": "payments",
+      "label": "payments",
+      "tag": "task core",
+      "row": 0,
+      "col": 1,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "task_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "tasks.id"
+        },
+        {
+          "name": "purpose",
+          "type": "payment_purpose"
+        },
+        {
+          "name": "amount_minor",
+          "type": "bigint"
+        },
+        {
+          "name": "status",
+          "type": "payment_status"
+        },
+        {
+          "name": "provider_ref",
+          "type": "text"
+        },
+        {
+          "name": "paid_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "refunded_minor",
+          "type": "bigint"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20260913045620_007_payments.sql",
+          "line": 10,
+          "end_line": 23
+        }
+      ]
+    },
+    {
+      "id": "tasks",
+      "label": "tasks",
+      "tag": "task core",
+      "row": 1,
+      "col": 1,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "poster_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "status",
+          "type": "task_status"
+        },
+        {
+          "name": "pillar",
+          "type": "pillar"
+        },
+        {
+          "name": "title",
+          "type": "text"
+        },
+        {
+          "name": "benchmark_minor",
+          "type": "bigint"
+        },
+        {
+          "name": "locked_bid_id",
+          "type": "uuid"
+        },
+        {
+          "name": "locked_minor",
+          "type": "bigint"
+        },
+        {
+          "name": "funded_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "funded_via",
+          "type": "text"
+        },
+        {
+          "name": "due_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "work_done_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "auto_complete_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "completed_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "clear_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20260911045820_001_core_schema.sql",
+          "line": 94,
+          "end_line": 120
+        }
+      ]
+    },
+    {
+      "id": "assignments",
+      "label": "assignments",
+      "tag": "task core",
+      "row": 2,
+      "col": 1,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "task_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "tasks.id"
+        },
+        {
+          "name": "bid_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "bids.id"
+        },
+        {
+          "name": "worker_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "status",
+          "type": "assignment_status"
+        },
+        {
+          "name": "escrow_minor",
+          "type": "bigint"
+        },
+        {
+          "name": "payout_mode",
+          "type": "payout_mode"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20260911045820_001_core_schema.sql",
+          "line": 143,
+          "end_line": 154
+        }
+      ]
+    },
+    {
+      "id": "reviews",
+      "label": "reviews",
+      "tag": "offers and chat",
+      "row": 1,
+      "col": 2,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "task_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "tasks.id"
+        },
+        {
+          "name": "author_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "subject_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "about_role",
+          "type": "app_role"
+        },
+        {
+          "name": "rating",
+          "type": "smallint"
+        },
+        {
+          "name": "comment",
+          "type": "text"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20260911045820_001_core_schema.sql",
+          "line": 161,
+          "end_line": 171
+        }
+      ]
+    },
+    {
+      "id": "bids",
+      "label": "bids",
+      "tag": "offers and chat",
+      "row": 2,
+      "col": 2,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "task_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "tasks.id"
+        },
+        {
+          "name": "worker_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "price_minor",
+          "type": "bigint"
+        },
+        {
+          "name": "time_limit_minutes",
+          "type": "integer"
+        },
+        {
+          "name": "is_locked",
+          "type": "boolean"
+        },
+        {
+          "name": "message",
+          "type": "text"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20260911045820_001_core_schema.sql",
+          "line": 128,
+          "end_line": 138
+        }
+      ]
+    },
+    {
+      "id": "messages",
+      "label": "messages",
+      "tag": "offers and chat",
+      "row": 0,
+      "col": 2,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "key": "pk"
+        },
+        {
+          "name": "task_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "tasks.id"
+        },
+        {
+          "name": "sender_id",
+          "type": "uuid",
+          "key": "fk",
+          "references": "profiles.id"
+        },
+        {
+          "name": "body",
+          "type": "text"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ],
+      "sources": [
+        {
+          "path": "supabase/migrations/20260913161000_012_messages.sql",
+          "line": 11,
+          "end_line": 18
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "id": "wallets_profiles",
+      "from": "wallets",
+      "to": "profiles",
+      "fromCardinality": "one",
+      "toCardinality": "one"
+    },
+    {
+      "id": "payouts_profiles",
+      "from": "payouts",
+      "to": "profiles",
+      "fromCardinality": "many",
+      "toCardinality": "one"
+    },
+    {
+      "id": "payments_profiles",
+      "from": "payments",
+      "to": "profiles",
+      "fromCardinality": "many",
+      "toCardinality": "one"
+    },
+    {
+      "id": "payments_tasks",
+      "from": "payments",
+      "to": "tasks",
+      "fromCardinality": "many",
+      "toCardinality": "one",
+      "fromOptional": true,
+      "identifying": false
+    },
+    {
+      "id": "tasks_profiles_p",
+      "from": "tasks",
+      "to": "profiles",
+      "fromCardinality": "many",
+      "toCardinality": "one",
+      "label": "poster"
+    },
+    {
+      "id": "bids_tasks",
+      "from": "bids",
+      "to": "tasks",
+      "fromCardinality": "many",
+      "toCardinality": "one"
+    },
+    {
+      "id": "assignments_tasks",
+      "from": "assignments",
+      "to": "tasks",
+      "fromCardinality": "many",
+      "toCardinality": "one"
+    },
+    {
+      "id": "assignments_bids",
+      "from": "assignments",
+      "to": "bids",
+      "fromCardinality": "many",
+      "toCardinality": "one"
+    },
+    {
+      "id": "reviews_tasks",
+      "from": "reviews",
+      "to": "tasks",
+      "fromCardinality": "many",
+      "toCardinality": "one"
+    },
+    {
+      "id": "messages_tasks",
+      "from": "messages",
+      "to": "tasks",
+      "fromCardinality": "many",
+      "toCardinality": "one"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "How to read it",
+      "items": [
+        "Key columns only; the full column list is in packages/db-types",
+        "Every user id is the auth.users id; profiles.id is the same value",
+        "Money columns end in _minor and count paise"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Money columns",
+      "items": [
+        "tasks.locked_minor is the chosen price; assignments.escrow_minor adds the poster fee",
+        "wallets keeps balance, clearing (7-day hold) and credits apart",
+        "payments are money in (escrow, top-up); payouts are money out"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Not shown",
+      "items": [
+        "Support, disputes, notifications, reports, settings, app controls",
+        "private.outbox and admin_alerts (see the architecture diagram)",
+        "Admin-only tables used by the separate admin panel"
+      ]
+    }
+  ]
+}
