@@ -16,13 +16,45 @@
  * Positive controls prove the marks are findable: B's own reads must contain them, or the run fails (a test
  * that cannot see the leak would pass for the wrong reason).
  *
- * Needs EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (public values); refuses any project but
- * staging. Runs on its own in .github/workflows/two-person.yml. Exit 1 if anything leaked or changed.
+ * The cache section (plan 3.5b task 8) runs first: the same-for-everyone reads (PUBLIC_MEMO_OPS) must give
+ * A, B and a guest byte-identical answers with nothing private in them, the never-reused money reads must
+ * re-ask every time and show a change at once, and B must never be handed A's answers right after A asked.
+ * cachePlan() in scripts/lib/two-person.mjs lists every step; --dry-run prints it.
  *
- *   node scripts/two-person-test.mjs
+ * Needs EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (public values); refuses any project but
+ * staging, and production (taskdrop.in, admin.taskdrop.in) by name. Runs on its own in
+ * .github/workflows/two-person.yml. Exit 1 if anything leaked or changed.
+ *
+ *   node scripts/two-person-test.mjs               everything
+ *   node scripts/two-person-test.mjs --cache-only  only the cache section
+ *   node scripts/two-person-test.mjs --dry-run     print the plan and the target check, call nothing, exit 0
  */
-import { api, signIn } from './lib/staging-session.mjs';
-import { leaked, phoneMarker, probedOps, readOpNames, stateOf, strings, uuidsByKey } from './lib/two-person.mjs';
+import {
+  cachePlan, differences, leaked, memoProbes, phoneMarker, privateHits, probedOps, readOpNames, stateOf, strings,
+  targetRefusal, uuidsByKey,
+} from './lib/two-person.mjs';
+
+const DRY_RUN = process.argv.includes('--dry-run');
+const CACHE_ONLY = process.argv.includes('--cache-only');
+
+if (DRY_RUN) {
+  const refusal = targetRefusal(process.env.EXPO_PUBLIC_SUPABASE_URL);
+  console.log(cachePlan().join('\n'));
+  console.log(CACHE_ONLY ? '\nThen stop (--cache-only).' : `\nThen the full two-person probe: A calls ${probedOps().length} operations with B's ids.`);
+  console.log(refusal ? `\nTarget: would refuse to run (${refusal}).` : '\nTarget: staging project, accepted.');
+  console.log('Dry run: nothing was called.');
+  process.exit(0);
+}
+
+{
+  const refusal = targetRefusal(process.env.EXPO_PUBLIC_SUPABASE_URL);
+  if (refusal) {
+    console.error(`Refusing to run: ${refusal}.`);
+    process.exit(1);
+  }
+}
+// Imported only now: it signs people in, and throws without the staging values.
+const { URL: BASE, KEY, api, headers: baseHeaders, signIn } = await import('./lib/staging-session.mjs');
 
 const A = { phone: '9990000003', label: 'Meera (stranger)' };
 const B = { phone: '9990000001', label: 'Asha (poster)' };
@@ -32,7 +64,9 @@ const UPI = `twop${rand}@okaxis`;
 const BUILDING = `Twop${rand} Residency`;
 
 const findings = [];
-const bad = (what) => findings.push(what);
+const bad = (what) => {
+  if (!findings.includes(what)) findings.push(what);
+};
 
 const rows = (r) => {
   const d = r.json?.ok ? r.json.data : null;
@@ -40,9 +74,127 @@ const rows = (r) => {
 };
 const data = (r) => (r.json?.ok ? r.json.data : null);
 
+/** One api call that also returns the response's Cache-Control header. Never throws. */
+async function apiWithHeaders(token, op, args = {}) {
+  try {
+    const res = await fetch(`${BASE}/functions/v1/api`, {
+      method: 'POST',
+      headers: { ...baseHeaders, Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ op, args }),
+    });
+    const text = await res.text();
+    let json = null;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      /* not JSON */
+    }
+    return { status: res.status, json, text, cacheControl: res.headers.get('cache-control') ?? '' };
+  } catch (e) {
+    return { status: 0, json: null, text: String(e), cacheControl: '' };
+  }
+}
+
+/** The private things of a signed-in person that no shared answer may carry. */
+async function markersOf(person, phone) {
+  const { data } = await person.client.auth.getUser(person.token).catch(() => ({ data: null }));
+  return { ids: [person.userId], other: [phoneMarker(phone), data?.user?.email || null].filter(Boolean) };
+}
+
+/** The cache section (plan 3.5b task 8). Adds its findings to `findings`. */
+/**
+ * A guest's call, the way the app makes it (design D15): only the project's public key in `apikey`, no Authorization.
+ * The newer "publishable" key works this way; the older key (a long token starting "eyJ") is refused by the gateway
+ * without an Authorization header. Set EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY to the publishable key to include guests.
+ */
+const GUEST_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || KEY;
+async function guestApi(op, args = {}) {
+  try {
+    const res = await fetch(`${BASE}/functions/v1/api`, {
+      method: 'POST',
+      headers: { apikey: GUEST_KEY, 'Content-Type': 'application/json', 'x-taskdrop-platform': 'web', 'x-taskdrop-app-version': '1.0.0' },
+      body: JSON.stringify({ op, args }),
+    });
+    const text = await res.text();
+    let json = null;
+    try { json = JSON.parse(text); } catch { /* not JSON */ }
+    return { status: res.status, json, text };
+  } catch (e) {
+    return { status: 0, json: null, text: String(e) };
+  }
+}
+
+async function cacheSection(a, b) {
+  const probe = await guestApi('trendingCategories', { limit: 1 });
+  const guestUsable = probe.json?.ok === true;
+  if (!guestUsable) console.log(`note: guest checks skipped, this key cannot act as a guest (status ${probe.status}). Set EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY to include them.`);
+  const [ma, mb] = [await markersOf(a, A.phone), await markersOf(b, B.phone)];
+  const markers = { ids: [...ma.ids, ...mb.ids], other: [...ma.other, ...mb.other] };
+
+  // ---- 1. shared reads: same bytes for A, B and a guest, nothing private
+  for (const { op, args, guest: guestMay } of memoProbes()) {
+    const name = `${op} ${JSON.stringify(args)}`;
+    let answers = null;
+    let diff = 'not asked';
+    for (let attempt = 0; attempt < 3 && diff; attempt++) {
+      if (attempt) await wait(2000);
+      const [ra, rb, rg] = await Promise.all([api(a.token, op, args), api(b.token, op, args), guestUsable ? guestApi(op, args) : Promise.resolve(null)]);
+      if (!ra.json?.ok || !rb.json?.ok) {
+        diff = `could not be read (A ${ra.status}, B ${rb.status}: ${(ra.json?.error?.message ?? rb.json?.error?.message ?? '').slice(0, 80)})`;
+        continue;
+      }
+      if (guestUsable && !guestMay && rg.json?.error?.code !== 'NEEDS_ACCOUNT') bad(`cache: ${name}: a guest was not told to make an account (${rg.status})`);
+      answers = guestMay && guestUsable ? { A: ra.json.data, B: rb.json.data, guest: rg?.json?.ok ? rg.json.data : { refused: rg?.status } } : { A: ra.json.data, B: rb.json.data };
+      diff = differences(answers);
+    }
+    if (diff) bad(`cache: ${name}: answers were not byte-identical: ${diff}`);
+    for (const [who, v] of Object.entries(answers ?? {})) {
+      const hits = privateHits(op, v, markers);
+      if (hits.length) bad(`cache: ${name}: ${who}'s answer carries something private: ${hits.slice(0, 5).join(' | ')}`);
+    }
+    await wait(250);
+  }
+
+  // ---- 2. never-reused money reads: re-asked every time, a change shows at once
+  for (const op of ['getWallet', 'listPayoutDestinations']) {
+    const r = await apiWithHeaders(b.token, op);
+    if (!/no-store/i.test(r.cacheControl)) bad(`cache: ${op} answered without "Cache-Control: no-store" (${r.cacheControl || 'none'})`);
+  }
+  const upi = `twopc${rand}@okaxis`;
+  const before = await api(b.token, 'listPayoutDestinations');
+  const added = await api(b.token, 'addPayoutDestination', { kind: 'upi', label: 'twopc', upiId: upi });
+  const addedId = data(added)?.id;
+  try {
+    if (!addedId) bad(`cache: could not add a payout destination to see a change (${added.status} ${added.text.slice(0, 100)})`);
+    else {
+      const after = await api(b.token, 'listPayoutDestinations');
+      if (leaked(before.text, [upi]).length) bad('cache: the payout list showed the destination before it was added');
+      if (!leaked(after.text, [upi]).length) bad('cache: the payout list asked a moment after a destination was added did not show it (an old answer was served)');
+    }
+  } finally {
+    if (addedId) await api(b.token, 'removePayoutDestination', { id: addedId }).catch(() => {});
+  }
+  if (addedId) {
+    const gone = await api(b.token, 'listPayoutDestinations');
+    if (leaked(gone.text, [upi]).length) bad('cache: the payout list still showed a destination a moment after it was removed (an old answer was served)');
+  }
+
+  // ---- 3. account switch: what A was just told never reaches B
+  for (const op of ['getWallet', 'listMyTasks', 'listNotifications']) {
+    await api(a.token, op);
+    const rb = await api(b.token, op);
+    if (leaked(rb.text, [a.userId]).length) bad(`cache: ${op}: B, asking right after A, was handed something with A's id`);
+    if (op === 'getWallet' && !leaked(rb.text, [b.userId]).length) bad('control: B\'s own wallet does not show B\'s id, so the switch check could not see a wrong person\'s answer');
+    await wait(250);
+  }
+}
+
 async function main() {
   const [a, b] = [await signIn(A.phone), await signIn(B.phone)];
   const asB = (op, args) => api(b.token, op, args);
+
+  await cacheSection(a, b);
+  if (CACHE_ONLY) return;
 
   // ---- B's private things
   const dest = await asB('addPayoutDestination', { kind: 'upi', label: 'twop', upiId: UPI });

@@ -30,7 +30,7 @@ function inline(text) {
     return `\u0000${codes.length - 1}\u0000`;
   });
   s = esc(s);
-  s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+|[\w./-]+\.(?:html|md))\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   s = s.replace(/(^|[\s(])(https?:\/\/[^\s<)]*[^\s<).,;:])/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
   s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   s = s.replace(/\u0000(\d+)\u0000/g, (_, n) => `<code>${esc(codes[Number(n)])}</code>`);

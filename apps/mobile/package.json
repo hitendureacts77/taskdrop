@@ -11,7 +11,11 @@
     "web:export": "expo export -p web --source-maps && node scripts/web-env-guard.mjs",
     "typecheck": "tsc --noEmit",
     "build:apk": "npx eas-cli build --platform android --profile preview",
-    "build:store": "npx eas-cli build --platform android --profile production"
+    "build:staging-apk": "npx eas-cli build --platform android --profile staging-apk",
+    "build:play-testing": "npx eas-cli build --platform android --profile staging-store",
+    "build:production-apk": "npx eas-cli build --platform android --profile production-apk",
+    "build:store": "npx eas-cli build --platform android --profile production",
+    "build:guard": "node scripts/build-guard.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",

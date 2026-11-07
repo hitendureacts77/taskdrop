@@ -4,6 +4,7 @@ import { reportError } from './errors';
 import { log } from './monitoring';
 import { isTransient, retryWhile } from './retry';
 import { parseEnvironment, type AppEnvironment } from './environment';
+import { setPublicCache } from './freshness';
 
 /**
  * What the admin panel has switched for this app: maintenance, a newer
@@ -38,6 +39,8 @@ export type AppConfig = {
     withdrawals: boolean;
     promotions: boolean;
     chatPhotos: boolean;
+    /** Plan 3.5b layer A: may the app reuse the same-for-everyone lists for a short time? Off unless the server says true. */
+    publicCache: boolean;
   };
   banner: { text: string; level: 'info' | 'warning' | 'critical'; link: string | null } | null;
 };
@@ -58,6 +61,7 @@ export const OPEN_CONFIG: AppConfig = {
     withdrawals: true,
     promotions: true,
     chatPhotos: true,
+    publicCache: false,
   },
   banner: null,
 };
@@ -91,6 +95,8 @@ export function normaliseConfig(raw: unknown): AppConfig {
       withdrawals: feature('withdrawals'),
       promotions: feature('promotions'),
       chatPhotos: feature('chatPhotos'),
+      // Unlike the others, missing or odd means OFF: reusing answers is the thing that must be opted into.
+      publicCache: f.publicCache === true,
     },
     banner: b && text(b.text) ? { text: text(b.text)!, level, link: text(b.link) } : null,
   };
@@ -154,6 +160,8 @@ export function refreshAppConfig(fresh = false): Promise<void> {
       if ('err' in out) throw out.err;
       if (!out.res.ok) return;
       const next = normaliseConfig(await out.res.json());
+      // Before anything else: the reuse helpers read this switch (lib/freshness.ts), and turning it off forgets what was kept.
+      setPublicCache(next.features.publicCache);
       if (!sameJson(next, current)) {
         current = next;
         for (const fn of [...listeners]) fn();

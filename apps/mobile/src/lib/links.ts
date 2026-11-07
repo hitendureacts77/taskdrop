@@ -23,8 +23,10 @@ export function appOrigin(): string | null {
  *
  * On the web that is the page the app is served from (a preview deploy returns
  * to itself, not to production). On a phone the checkout is a sheet that
- * closes as soon as it sees this address, so the page never has to load; the
- * production site is the fallback when EXPO_PUBLIC_APP_URL is not set.
+ * closes as soon as it sees this address, so the page never has to load; taskdrop.in
+ * (staging's address) is the fallback when EXPO_PUBLIC_APP_URL is not set. A production
+ * Android build refuses to start without EXPO_PUBLIC_APP_URL (variant.cjs, plan 5.0a),
+ * so production never falls back to the staging address.
  */
 export function paymentReturnUrl(): string {
   if (Platform.OS === 'web' && typeof window !== 'undefined') return `${window.location.origin}/`;

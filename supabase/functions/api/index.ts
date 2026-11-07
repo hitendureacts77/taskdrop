@@ -10,7 +10,8 @@ import { type SessionCutoff, type Standing, StandingCache, callerFromClaims, cut
 import { MAX_BODY_BYTES, REQUEST_ID_HEADER, readBody, requestIdFrom, withGatewayHeaders } from "./http.ts";
 import { type Db, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp, spendRate } from "./ops.ts";
 import { type Claim, type RepeatStore, REPEAT_KEY_HEADER, REPLAYED_HEADER, repeatKeyFrom, runOnce } from "./repeat.ts";
-import { GUEST_READS_PER_MINUTE, guestAddress, guestRateKey, isGuestOp, isGuestToken, needsAccount, runGuestBatch, runGuestOp } from "./guest.ts";
+import { PublicMemo } from "./publicMemo.ts";
+import { GuestCeiling, GuestLocalLimit, guestAddress, guestBusy, guestCost, guestNetKey, guestRateKey, guestSpend, isGuestOp, isGuestToken, needsAccount, runGuestBatch, runGuestOp } from "./guest.ts";
 
 /**
  * The app's one door to its data.
@@ -55,6 +56,20 @@ const IMAGE_OPS = new Set(["createUpload", "attachMedia", "signMedia"]);
 /** The admin panel's switches per platform and version, kept for half a minute per instance. */
 const controlsCache = new ControlsCache(30_000);
 
+/**
+ * The same-for-everyone answers (plan 3.5b layer D), shared by guests and signed-in callers of this server copy.
+ * Used only while the admin switch "public cache: memo" is on (see sharedAnswer). At most once a minute, one log
+ * line per op with its hit, miss, shared-wait and not-kept counts: op names and numbers only.
+ */
+const publicMemo = new PublicMemo({
+  report: (op, counts) => background(logServer("info", "api", "memo counts", { op, ...counts })),
+});
+
+/** The guests' stand-in limiter while api_guest_spend cannot be reached (per instance, light reads only). */
+const guestLocalLimit = new GuestLocalLimit();
+/** Set for the rest of the minute once the counter says all guests are over the hard ceiling: no more asking, no more writes. */
+const guestCeiling = new GuestCeiling();
+
 /** People the limiter refused lately: their reads wait for the limiter instead of running beside it. */
 const limitedLately = new RecentlyLimited();
 
@@ -93,7 +108,8 @@ Deno.serve(guarded("api", async (req: Request) => {
 /**
  * A guest's call (design D15): someone using the app before making an account. Only the reads in ./guest.ts
  * run, with the service key, through the SQL functions of migration 146, which decide what a guest may see.
- * Anything else answers NEEDS_ACCOUNT. The limiter counts per network address (hashed), not per person.
+ * Anything else answers NEEDS_ACCOUNT. The limiter counts each request's cost per network address (hashed, IPv6 by
+ * /64), per wider network (IPv6 /48, IPv4 /24) and for all guests together (migrations 154 and 157, see GUEST_READS_PER_MINUTE in ./guest.ts), not per person.
  */
 async function handleGuest(
   req: Request,
@@ -112,19 +128,21 @@ async function handleGuest(
   if (!isBatch && !isGuestOp(body.op)) return json(needsAccount());
   const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
-  const key = await guestRateKey(guestAddress(req.headers));
-  try {
-    const hit = await admin.rpc("api_rate_spend", {
-      p_user: key, p_bucket: "guest", p_limit: GUEST_READS_PER_MINUTE, p_cost: rateCost(body.op, body.args),
-    });
-    if (hit.error) background(log("warn", "rate limiter unavailable", { error: hit.error.message }));
-    else if (hit.data === false) {
-      background(log("warn", "guest rate limited", { op: String(body.op) }));
-      return refuse("You are going too fast. Please wait a moment and try again.", "RATE_LIMITED", 429);
-    }
-  } catch (e) {
-    background(log("warn", "rate limiter unavailable", { error: e instanceof Error ? e.message : String(e) }));
+  // Cost-weighted, per address (IPv6 by /64) and for all guests together (migration 154). If the counter cannot be
+  // reached, this instance's own small budget applies with light reads only: bounded, never open (H67).
+  const address = guestAddress(req.headers);
+  const [key, net] = await Promise.all([guestRateKey(address), guestNetKey(address)]);
+  const verdict = await guestSpend(admin as unknown as Db, key, net, guestCost(body.op, body.args), guestLocalLimit, (why) =>
+    background(log("warn", "guest rate limiter unavailable", { error: why })), guestCeiling);
+  if (verdict === "limited") {
+    background(log("warn", "guest rate limited", { op: String(body.op) }));
+    return refuse("You are going too fast. Please wait a moment and try again.", "RATE_LIMITED", 429);
   }
+  if (verdict === "busy") {
+    background(log("warn", "guest ceiling reached", { op: String(body.op) }));
+    return json(guestBusy(), 503);
+  }
+  const lightOnly = verdict === "heavy_off";
 
   const client = readClient(req.headers);
   background((async () => {
@@ -145,12 +163,14 @@ async function handleGuest(
   const signs = isBatch ? calls.some((c) => c.op === "signMedia") : body.op === "signMedia";
   const imagekit = signs ? await imageKitConfig(secret) : null;
   // No person: the nil id keeps the shared reads' types whole and matches nobody's rows.
-  const ctx = { db: admin as unknown as Db, userId: "00000000-0000-0000-0000-000000000000", client, controls, imagekit };
+  const ctx = { db: admin as unknown as Db, userId: "00000000-0000-0000-0000-000000000000", client, controls, imagekit, memo: publicMemo };
   const onUnexpected = (e: unknown) => {
     background(log("error", "guest op failed", { op: String(body.op), error: e instanceof Error ? e.message : String(e) }));
     background(captureServerError(e, { op: String(body.op), fn: "api", caller: "guest" }));
   };
-  return json(await (isBatch ? runGuestBatch(body.args, ctx, onUnexpected) : runGuestOp(body.op, body.args, ctx, onUnexpected)));
+  return json(await (isBatch
+    ? runGuestBatch(body.args, ctx, onUnexpected, lightOnly)
+    : runGuestOp(body.op, body.args, ctx, onUnexpected, lightOnly)));
 }
 
 async function handle(req: Request, requestId: string): Promise<Response> {
@@ -355,7 +375,7 @@ async function handle(req: Request, requestId: string): Promise<Response> {
   const isBatch = body.op === "batch";
   const needsImageKit = isBatch ? (batchCalls(body.args) ?? []).some((c) => IMAGE_OPS.has(c.op)) : IMAGE_OPS.has(String(body.op));
   const imagekit = needsImageKit ? await imageKitConfig(secret) : null;
-  const ctx = { db: db as unknown as Db, userId, callFunction, removeOwnFiles, client, controls, phoneVerified, imagekit };
+  const ctx = { db: db as unknown as Db, userId, callFunction, removeOwnFiles, client, controls, phoneVerified, imagekit, memo: publicMemo };
   const onUnexpected = (e: unknown) => {
     // Both finish in the background after the response is sent.
     background(log("error", "op failed", { op: String(body.op), user_id: userId, error: e instanceof Error ? e.message : String(e) }));

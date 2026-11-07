@@ -5,10 +5,11 @@
  *   node --experimental-strip-types --no-warnings --test supabase/functions/inngest/jobs.test.ts
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
-  ALERT_EVENTS, alertFor, call, chunk, compareProviderPayment, deadKeys, digestAlert, expoReceipts, expoSend, ownFiles,
-  readTickets, safeData, saveAlert, toEvents, tokenKey, tokensForKeys, userSyncArgs, USER_EVENTS, type Fetch, type Rpc,
+  ALERT_EVENTS, alertFor, call, checkSnapshotFreshness, chunk, compareProviderPayment, deadKeys, digestAlert, expoReceipts, expoSend, lockScreenSafe, ownFiles, PLAIN_PUSH,
+  readTickets, refreshPublicSnapshots, safeData, saveAlert, toEvents, tokenKey, tokensForKeys, userSyncArgs, USER_EVENTS, type Fetch, type PushMessage, type Rpc, type SnapshotMarker,
 } from "./jobs.ts";
 
 test("outbox rows become Inngest events keyed by the outbox id", () => {
@@ -276,4 +277,249 @@ test("pictures: a full batch says there may be more; an empty one does nothing",
   const none = purgeKit([], () => 204);
   assert.deepEqual(await purgeMediaBatch(none.rpc, IK, none.fetcher), { purged: 0, more: false });
   assert.deepEqual(none.marked, []);
+});
+
+// ------------------------------------------------------ public snapshots --
+
+function memoryMarker(initial: string | null = null) {
+  const m = { value: initial, sets: 0 } as { value: string | null; sets: number } & SnapshotMarker;
+  m.get = async () => m.value;
+  m.set = async (iso: string) => { m.value = iso; m.sets++; };
+  return m;
+}
+const T0 = new Date("2026-11-04T12:00:00Z");
+const minutesAgo = (n: number) => new Date(T0.getTime() - n * 60_000).toISOString();
+
+test("public snapshots: a finished refresh is recorded and reports the time taken", async () => {
+  const calls: string[] = [];
+  const rpc: Rpc = async (name) => { calls.push(name); return { data: { skipped: false, took_ms: { highlights: 3 } }, error: null }; };
+  const marker = memoryMarker();
+  const r = await refreshPublicSnapshots(rpc, marker, () => T0);
+  assert.deepEqual(calls, ["refresh_public_snapshots"]);
+  assert.equal(r.skipped, false);
+  assert.deepEqual(r.took_ms, { highlights: 3 });
+  assert.equal(marker.value, T0.toISOString());
+});
+
+test("public snapshots: another refresh already running is a success and records nothing", async () => {
+  const rpc: Rpc = async () => ({ data: { skipped: true }, error: null });
+  const marker = memoryMarker(minutesAgo(5));
+  const r = await refreshPublicSnapshots(rpc, marker, () => T0);
+  assert.deepEqual(r, { skipped: true });
+  assert.equal(marker.sets, 0);
+});
+
+test("public snapshots: a database error throws so Inngest retries and reports it", async () => {
+  const rpc: Rpc = async () => ({ data: null, error: { message: "boom" } });
+  const marker = memoryMarker();
+  await assert.rejects(refreshPublicSnapshots(rpc, marker, () => T0), /refresh_public_snapshots: boom/);
+  assert.equal(marker.sets, 0);
+  const odd: Rpc = async () => ({ data: null, error: null });
+  await assert.rejects(refreshPublicSnapshots(odd, marker, () => T0), /unexpected answer/);
+});
+
+test("public snapshots: stale copy reports to Sentry and leaves one team alert; fresh, unknown and old-alert cases stay quiet", async () => {
+  const saved: Array<Record<string, unknown>> = [];
+  const rpc: Rpc = async (name, args) => { if (name === "record_admin_alert") saved.push(args ?? {}); return { data: "alert-id", error: null }; };
+  const reports: string[] = [];
+  const report = async (m: string) => { reports.push(m); };
+
+  assert.deepEqual(await checkSnapshotFreshness(rpc, memoryMarker(minutesAgo(10)), report, () => T0), { ageMinutes: 10, stale: false });
+  assert.deepEqual(await checkSnapshotFreshness(rpc, memoryMarker(null), report, () => T0), { ageMinutes: null, stale: false });
+  assert.deepEqual(await checkSnapshotFreshness(rpc, memoryMarker("not a time"), report, () => T0), { ageMinutes: null, stale: false });
+  assert.equal(reports.length + saved.length, 0);
+
+  const r = await checkSnapshotFreshness(rpc, memoryMarker(minutesAgo(35)), report, () => T0);
+  assert.equal(r.stale, true);
+  assert.equal(reports.length, 1);
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].p_kind, "public_snapshots_stale");
+
+  // Much older: still reported to Sentry every run, but the team alert is not repeated.
+  await checkSnapshotFreshness(rpc, memoryMarker(minutesAgo(120)), report, () => T0);
+  assert.equal(reports.length, 2);
+  assert.equal(saved.length, 1);
+});
+
+// ------------------------------------------------- stray ImageKit files --
+
+import { ORPHAN_MAX_DELETES, ORPHAN_PAGE, runStraySweep, sweepStrayImageKitFiles, type KnownFiles } from "./jobs.ts";
+
+const NOW = new Date("2026-11-05T12:00:00.000Z");
+const daysAgo = (d: number) => new Date(NOW.getTime() - d * 86_400_000).toISOString();
+type IkFile = { fileId: string; filePath: string; createdAt: string };
+const ikFile = (n: number, ageDays: number, folder = "local"): IkFile => ({ fileId: `f${n}`, filePath: `/${folder}/u/x/${n}.jpg`, createdAt: daysAgo(ageDays) });
+
+/** A fake ImageKit holding `files` (oldest first), recording every request. */
+function strayKit(files: IkFile[], deleteStatus = 204) {
+  const asked: string[] = [];
+  const fetcher = async (url: string, init?: { method?: string }) => {
+    const method = init?.method ?? "GET";
+    asked.push(`${method} ${url.replace("https://api.imagekit.io/v1", "")}`);
+    if (method === "DELETE") return { ok: deleteStatus < 300, status: deleteStatus, json: async () => null };
+    const q = new URL(url).searchParams;
+    const skip = Number(q.get("skip"));
+    const limit = Number(q.get("limit"));
+    return { ok: true, status: 200, json: async () => files.slice(skip, skip + limit) };
+  };
+  const deletes = () => asked.filter((a) => a.startsWith("DELETE")).map((a) => a.replace("DELETE /files/", ""));
+  return { fetcher, asked, deletes };
+}
+const knowing = (paths: string[] = [], fileIds: string[] = []): KnownFiles => async () => ({ paths: new Set(paths), fileIds: new Set(fileIds) });
+
+test("stray files: an old file with no media row is removed; one with a row (by path or by id), a young one and another folder are not", async () => {
+  const files = [
+    ikFile(1, 10), // stray
+    ikFile(2, 10), // known by path
+    ikFile(3, 10), // known by file id
+    ikFile(4, 10, "prod"), // another deployment's folder
+    ikFile(5, 1), // too young
+    { fileId: "f6", filePath: "/local/u/x/6.jpg", createdAt: "not a date" }, // age unknown
+  ];
+  const kit = strayKit(files);
+  const r = await sweepStrayImageKitFiles(IK, kit.fetcher, knowing([files[1].filePath], ["f3"]), { now: NOW });
+  assert.deepEqual(kit.deletes(), ["f1"]);
+  assert.deepEqual(r, { scanned: 6, strays: 1, deleted: 1, failed: 0, dryRun: false });
+});
+
+test("stray files: exactly two days old counts as old, a minute younger does not", async () => {
+  const edge: IkFile = { fileId: "e1", filePath: "/local/u/x/e1.jpg", createdAt: daysAgo(2) };
+  const young: IkFile = { fileId: "e2", filePath: "/local/u/x/e2.jpg", createdAt: new Date(NOW.getTime() - 2 * 86_400_000 + 60_000).toISOString() };
+  const kit = strayKit([edge, young]);
+  await sweepStrayImageKitFiles(IK, kit.fetcher, knowing(), { now: NOW });
+  assert.deepEqual(kit.deletes(), ["e1"]);
+});
+
+test("stray files: a dry run counts the strays and deletes nothing", async () => {
+  const kit = strayKit([ikFile(1, 10), ikFile(2, 10)]);
+  const r = await sweepStrayImageKitFiles(IK, kit.fetcher, knowing(), { now: NOW, dryRun: true });
+  assert.deepEqual(r, { scanned: 2, strays: 2, deleted: 0, failed: 0, dryRun: true });
+  assert.equal(kit.deletes().length, 0);
+});
+
+test("stray files: at most 200 are removed in one run, whatever is asked", async () => {
+  assert.equal(ORPHAN_MAX_DELETES, 200);
+  const files = Array.from({ length: 450 }, (_, i) => ikFile(i, 10));
+  const kit = strayKit(files);
+  const r = await sweepStrayImageKitFiles(IK, kit.fetcher, knowing(), { now: NOW, maxDeletes: 5000 });
+  assert.equal(kit.deletes().length, 200);
+  assert.equal(r.deleted, 200);
+  assert.equal(r.strays, 200);
+  // The cap is a ceiling the caller can only lower.
+  const small = strayKit(files);
+  await sweepStrayImageKitFiles(IK, small.fetcher, knowing(), { now: NOW, maxDeletes: 7 });
+  assert.equal(small.deletes().length, 7);
+});
+
+test("stray files: pages are read until a short page or a page that ends in a too-young file", async () => {
+  const many = Array.from({ length: ORPHAN_PAGE + 10 }, (_, i) => ikFile(i, 10));
+  const kit = strayKit(many);
+  const r = await sweepStrayImageKitFiles(IK, kit.fetcher, knowing(many.map((f) => f.filePath)), { now: NOW });
+  assert.equal(r.scanned, ORPHAN_PAGE + 10);
+  assert.equal(kit.asked.filter((a) => a.startsWith("GET")).length, 2);
+  assert.equal(kit.deletes().length, 0);
+  // A first page whose last file is too young ends the scan after one request.
+  const young = strayKit([ikFile(1, 10), ...Array.from({ length: ORPHAN_PAGE - 1 }, (_, i) => ikFile(i + 2, 0.5))]);
+  await sweepStrayImageKitFiles(IK, young.fetcher, knowing(), { now: NOW });
+  assert.equal(young.asked.filter((a) => a.startsWith("GET")).length, 1);
+});
+
+test("stray files: if the database cannot be asked, or a listing fails, nothing is removed", async () => {
+  const kit = strayKit([ikFile(1, 10)]);
+  const cannot: KnownFiles = async () => { throw new Error("media lookup: down"); };
+  await assert.rejects(sweepStrayImageKitFiles(IK, kit.fetcher, cannot, { now: NOW }), /media lookup/);
+  assert.equal(kit.deletes().length, 0);
+  const broken = async () => ({ ok: false, status: 500, json: async () => null });
+  await assert.rejects(sweepStrayImageKitFiles(IK, broken, knowing(), { now: NOW }), /HTTP 500/);
+});
+
+test("stray files: a failed delete is reported so Inngest retries, after the others were tried", async () => {
+  const kit = strayKit([ikFile(1, 10), ikFile(2, 10)], 500);
+  await assert.rejects(sweepStrayImageKitFiles(IK, kit.fetcher, knowing(), { now: NOW }), /2 of 2 could not be removed/);
+  assert.equal(kit.deletes().length, 2);
+});
+
+test("stray files: without ImageKit's keys the job does nothing at all", async () => {
+  let touched = 0;
+  const spy = async () => { touched++; return { ok: true, status: 200, json: async () => [] }; };
+  const known: KnownFiles = async () => { touched++; return { paths: new Set(), fileIds: new Set() }; };
+  assert.deepEqual(await runStraySweep(null, spy, known, { now: NOW }), { skipped: "ImageKit is not configured" });
+  assert.equal(touched, 0);
+});
+
+test("stray files: the result carries counts only, never a path or a file name", async () => {
+  const kit = strayKit([ikFile(1, 10)]);
+  const r = await sweepStrayImageKitFiles(IK, kit.fetcher, knowing(), { now: NOW });
+  assert.ok(Object.values(r).every((v) => typeof v === "number" || typeof v === "boolean"));
+});
+
+// ------------------------------------------------- plain lock-screen pushes (H42) --
+
+/** What the database writes for each sensitive kind (staging wording), with the private facts in it. */
+const SENSITIVE: Record<string, { title: string; body: string; secrets: string[] }> = {
+  message: { title: "Ravi sent you a message", body: "Call me on 9876543210 at 12 Cross Road", secrets: ["Ravi", "9876543210", "Cross Road"] },
+  question: { title: 'Ravi asked about "Fix the flat"', body: "Is the lift working at Block C?", secrets: ["Ravi", "Fix the flat", "lift", "Block C"] },
+  payout_paid: { title: "Money sent to your account", body: "Your withdrawal of 100.00 rupees has been sent.", secrets: ["100", "rupees", "withdrawal"] },
+  payout_failed: { title: "Withdrawal could not be sent", body: "UPI id asha@okbank not found. The money is back in your wallet.", secrets: ["asha@okbank", "UPI", "money", "wallet"] },
+  wallet: { title: "₹500 added to your wallet", body: "Open your wallet to see why.", secrets: ["500", "₹"] },
+  wallet_refund: { title: "₹98 is back in your wallet", body: '"Fix the tap" was cancelled. ₹5 went to the worker.', secrets: ["98", "₹", "Fix the tap", "worker"] },
+  cancel_fine: { title: "Asha cancelled after you started", body: 'You were paid ₹5 for your time on "Fix the tap".', secrets: ["Asha", "₹", "Fix the tap"] },
+  support: { title: "Support replied", body: "Your refund of 450 is approved, ref ABC123", secrets: ["refund", "450", "ABC123"] },
+  security: { title: "Wrong password entered on your account", body: "Password sign-in is paused for 15 minutes.", secrets: ["password", "Password", "15 minutes"] },
+  admin_warning: { title: "A warning from TaskDrop", body: "You posted a phone number in a task. Please follow the rules.", secrets: ["phone number", "warning", "rules"] },
+};
+
+const pushOf = (kind: string, title: string, body: string): PushMessage => ({
+  to: T1, title, body, sound: "default", priority: "high", channelId: "default",
+  data: { notificationId: "n1", kind, taskId: "t1" },
+});
+
+test("every sensitive kind gets a plain line with none of its private facts, and every listed kind is covered", () => {
+  assert.deepEqual(Object.keys(SENSITIVE).sort(), Object.keys(PLAIN_PUSH).sort());
+  for (const [kind, s] of Object.entries(SENSITIVE)) {
+    const out = lockScreenSafe(pushOf(kind, s.title, s.body));
+    assert.equal(out.title, PLAIN_PUSH[kind].title, kind);
+    assert.equal(out.body, PLAIN_PUSH[kind].body, kind);
+    const shown = `${out.title} ${out.body}`;
+    for (const secret of s.secrets) assert.ok(!shown.includes(secret), `${kind} still shows "${secret}"`);
+    assert.ok(!/\d/.test(shown), `${kind} shows a digit`);
+    assert.ok(!/[₹@"]/.test(shown), `${kind} shows a rupee sign, @ or quote`);
+  }
+});
+
+test("a plain push keeps the deep link data and delivery settings, and the in-app text is not touched", () => {
+  const input = pushOf("message", "Ravi sent you a message", "See you at 5");
+  const frozen = structuredClone(input);
+  const out = lockScreenSafe(input);
+  assert.deepEqual(out.data, frozen.data);
+  assert.equal(out.to, T1);
+  assert.equal(out.sound, "default");
+  assert.equal(out.priority, "high");
+  assert.equal(out.channelId, "default");
+  // The input (what the database wrote, and what the notifications list shows) is unchanged.
+  assert.deepEqual(input, frozen);
+  assert.notEqual(out, input);
+});
+
+test("the database's direct push road (migration 155) uses the very same plain lines", () => {
+  const sql = readFileSync(new URL("../../migrations/20261105151000_155_plain_pushes.sql", import.meta.url), "utf8");
+  const rows = [...sql.matchAll(/when '([a-z_]+)'\s+then array\['([^']+)', '([^']+)'\]/g)];
+  assert.deepEqual(rows.map((r) => r[1]).sort(), Object.keys(PLAIN_PUSH).sort());
+  for (const [, kind, title, body] of rows) {
+    assert.deepEqual({ title, body }, PLAIN_PUSH[kind], kind);
+  }
+});
+
+test("other kinds (offers, task progress) keep the database wording", () => {
+  for (const kind of ["quote", "picked", "funded", "started", "submitted", "released", "cancelled", "dispute", "review_reminder", "due_reminder", "announcement", "feedback", "staff_alert", "bid", "locked", "review"]) {
+    const m = pushOf(kind, "Ravi offered ₹100", 'To do "Fix the tap".');
+    assert.equal(lockScreenSafe(m), m, kind);
+  }
+  // No kind, or odd data, is left alone and never throws.
+  const bare = { to: T1, title: "Hi", body: "There" };
+  assert.equal(lockScreenSafe(bare), bare);
+  const odd = { to: T1, title: "Hi", body: "There", data: { kind: 7 } };
+  assert.equal(lockScreenSafe(odd), odd);
+  const proto = pushOf("constructor", "Hi", "There");
+  assert.equal(lockScreenSafe(proto), proto);
 });

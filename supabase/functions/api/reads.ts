@@ -3,6 +3,12 @@ import {
   type Args, type Ctx, type Op, MONEY_MAX, bad, countBy, int, isoOrNull, limit, notExpired, num, oneOf, rows,
   rpcOp, str, strOrNull, strings, take, uuid, uuids,
 } from "./core.ts";
+import { noKeep } from "./publicMemo.ts";
+import {
+  ASSIGNMENT_SELECT, BID_SELECT, CREW_MESSAGE_SELECT, MESSAGE_SELECT, PROFILE_OWNER_SELECT, PROFILE_PUBLIC_SELECT, PROOF_SELECT,
+  NOTIFICATION_SELECT, PAYMENT_SELECT, PAYOUT_DESTINATION_SELECT, PAYOUT_SELECT, PROMOTION_SELECT, REVIEW_SELECT,
+  SUPPORT_MESSAGE_SELECT, SUPPORT_TICKET_SELECT, WALLET_SELECT, TASKS_PARTY_EMBED, TASKS_PUBLIC_EMBED, TASK_PARTY_SELECT, TASK_PUBLIC_SELECT, redactTask,
+} from "./columns.ts";
 
 /**
  * Everything the app reads. "My" queries always say whose rows they mean, using
@@ -14,11 +20,28 @@ import {
 type Row = Record<string, unknown>;
 type Task = Row & { id: string; poster_id: string; status: string; loc_lat: number | null; loc_lng: number | null };
 
-/** Profiles for a set of ids, keyed by id. */
+/**
+ * Task rows that may belong to someone else, with the money and hiring fields kept only on the ones the caller is a
+ * party to (task 2.18 A): their own posts, and tasks they are hired on. `hired` is the set of task ids the caller
+ * already knows they are hired on; without it, one lookup is made, and only when a row that is not the caller's own
+ * is past OPEN (an assignment exists only after the offer is accepted).
+ */
+async function forCaller<T extends Task>(ctx: Ctx, list: T[], hired?: Set<string>): Promise<T[]> {
+  const others = list.filter((t) => t.poster_id !== ctx.userId);
+  if (others.length === 0) return list;
+  let mine = hired ?? new Set<string>();
+  if (!hired && others.some((t) => t.status !== "OPEN")) {
+    const res = await ctx.db.from("assignments").select("task_id").in("task_id", others.map((t) => t.id)).eq("worker_id", ctx.userId);
+    mine = new Set(rows<{ task_id: string }>(res).map((r) => r.task_id));
+  }
+  return list.map((t) => (t.poster_id === ctx.userId || mine.has(t.id) ? t : redactTask(t)));
+}
+
+/** Profiles for a set of ids, keyed by id. Public fields only: the private ones are never in an answer about a person. */
 async function profilesById(ctx: Ctx, ids: (string | null | undefined)[]): Promise<Map<string, Row>> {
   const want = [...new Set(ids.filter((x): x is string => Boolean(x)))];
   if (want.length === 0) return new Map();
-  const people = rows<Row & { id: string }>(await ctx.db.from("profiles").select("*").in("id", want));
+  const people = rows<Row & { id: string }>(await ctx.db.from("profiles").select(PROFILE_PUBLIC_SELECT).in("id", want));
   return new Map(people.map((p) => [p.id, p]));
 }
 
@@ -26,7 +49,7 @@ async function profilesById(ctx: Ctx, ids: (string | null | undefined)[]): Promi
 function openTasksQuery(ctx: Ctx, kind: "request" | "service") {
   return ctx.db
     .from("tasks")
-    .select("*")
+    .select(TASK_PUBLIC_SELECT)
     .eq("status", "OPEN")
     .or(notExpired(ctx))
     .eq("kind", kind)
@@ -75,23 +98,32 @@ export const READ_OPS: Record<string, Op> = {
 
   listMyTasks: async (ctx, a) =>
     rows(
-      await ctx.db.from("tasks").select("*").eq("poster_id", ctx.userId).eq("kind", kindArg(a))
+      await ctx.db.from("tasks").select(TASK_PARTY_SELECT).eq("poster_id", ctx.userId).eq("kind", kindArg(a))
         .order("created_at", { ascending: false }),
     ),
 
-  listMyBids: async (ctx) =>
-    rows(await ctx.db.from("bids").select("*, tasks(*)").eq("worker_id", ctx.userId).order("created_at", { ascending: false })),
+  listMyBids: async (ctx) => {
+    const list = rows<Row & { id: string; tasks: Task | null }>(
+      await ctx.db.from("bids").select(`${BID_SELECT}, ${TASKS_PARTY_EMBED}`).eq("worker_id", ctx.userId)
+        .order("created_at", { ascending: false }),
+    );
+    // Only an accepted offer makes the bidder a party to the task; for the rest the money fields are dropped.
+    return list.map((b) => ({
+      ...b,
+      tasks: b.tasks && b.tasks.poster_id !== ctx.userId && b.tasks.locked_bid_id !== b.id ? redactTask(b.tasks) : b.tasks,
+    }));
+  },
 
   listMyAssignments: async (ctx) =>
     rows(
-      await ctx.db.from("assignments").select("*, tasks(*)").eq("worker_id", ctx.userId)
+      await ctx.db.from("assignments").select(`${ASSIGNMENT_SELECT}, ${TASKS_PARTY_EMBED}`).eq("worker_id", ctx.userId)
         .order("created_at", { ascending: false }),
     ),
 
   /** Incoming quotes on a task, cheapest first, each with the worker's profile. */
   listBidsForTask: async (ctx, a) => {
     const bids = rows<Row & { worker_id: string }>(
-      await ctx.db.from("bids").select("*").eq("task_id", uuid(a, "taskId")).order("price_minor"),
+      await ctx.db.from("bids").select(BID_SELECT).eq("task_id", uuid(a, "taskId")).order("price_minor"),
     );
     const people = await profilesById(ctx, bids.map((b) => b.worker_id));
     return bids.map((b) => ({ ...b, profiles: people.get(b.worker_id) ?? null }));
@@ -140,7 +172,7 @@ export const READ_OPS: Record<string, Op> = {
   attachPosters: async (ctx, a) => {
     const ids = uuids(a, "taskIds");
     if (ids.length === 0) return [];
-    const tasks = rows<Task>(await ctx.db.from("tasks").select("*").in("id", ids));
+    const tasks = await forCaller(ctx, rows<Task>(await ctx.db.from("tasks").select(TASK_PARTY_SELECT).in("id", ids)));
     const byId = new Map(tasks.map((t) => [t.id, t]));
     const people = await profilesById(ctx, tasks.map((t) => t.poster_id));
     // Same order the caller asked in; anything no longer visible drops out.
@@ -162,7 +194,17 @@ export const READ_OPS: Record<string, Op> = {
     return found.map((t) => ({ ...t, poster: people.get(t.poster_id) ?? null }));
   },
 
-  getTask: async (ctx, a) => take(await ctx.db.from("tasks").select("*").eq("id", uuid(a, "taskId")).maybeSingle()),
+  getTask: async (ctx, a) => {
+    const taskId = uuid(a, "taskId");
+    // The hired-worker check runs beside the read, so a worker's page waits no longer for it.
+    const [taskRes, hiredRes] = await Promise.all([
+      ctx.db.from("tasks").select(TASK_PARTY_SELECT).eq("id", taskId).maybeSingle(),
+      ctx.db.from("assignments").select("task_id").eq("task_id", taskId).eq("worker_id", ctx.userId).limit(1),
+    ]);
+    const task = take<Task | null>(taskRes);
+    if (!task) return null;
+    return (await forCaller(ctx, [task], new Set(rows<{ task_id: string }>(hiredRes).map((r) => r.task_id))))[0];
+  },
 
   /** The task, the assignment holding its escrow, and both people, in one round trip. */
   getTaskDetail: async (ctx, a) => {
@@ -170,15 +212,18 @@ export const READ_OPS: Record<string, Op> = {
     // The task, its holds and its typed address do not depend on each other: ask for all three at once
     // (this answer is what a job screen waits on, so each round trip saved is a shorter grey wait, B11).
     const [taskRes, assignmentsRes, privateRow] = await Promise.all([
-      ctx.db.from("tasks").select("*").eq("id", taskId).maybeSingle(),
-      ctx.db.from("assignments").select("*").eq("task_id", taskId).order("created_at", { ascending: false }),
+      ctx.db.from("tasks").select(TASK_PARTY_SELECT).eq("id", taskId).maybeSingle(),
+      ctx.db.from("assignments").select(ASSIGNMENT_SELECT).eq("task_id", taskId).order("created_at", { ascending: false }),
       // The typed address (migration 126): row-level security lets only the poster, the hired worker and staff read it.
       // A failed read (migration not applied yet) is just "no address", never a failed task page.
       ctx.db.from("task_private").select("address").eq("task_id", taskId).maybeSingle(),
     ]);
-    const task = take<Task | null>(taskRes);
-    if (!task) return null;
+    const taskRow = take<Task | null>(taskRes);
+    if (!taskRow) return null;
     const list = rows<Row & { status: string; worker_id: string }>(assignmentsRes);
+    // The poster and the hired worker see the money fields; anyone else who can read the task does not.
+    const hired = new Set(list.filter((x) => x.worker_id === ctx.userId).map(() => taskRow.id));
+    const task = (await forCaller(ctx, [taskRow], hired))[0];
     // A task can carry stale holds from workers who lost the race to start.
     const assignment = list.find((x) => x.status === "started" || x.status === "released") ?? list[0] ?? null;
     const people = await profilesById(ctx, [task.poster_id, assignment?.worker_id]);
@@ -194,7 +239,7 @@ export const READ_OPS: Record<string, Op> = {
   getPosterStats: async (ctx, a) => {
     const posterId = uuid(a, "posterId");
     const [profile, tasks] = await Promise.all([
-      ctx.db.from("profiles").select("*").eq("id", posterId).maybeSingle(),
+      ctx.db.from("profiles").select(PROFILE_PUBLIC_SELECT).eq("id", posterId).maybeSingle(),
       ctx.db.from("tasks").select("id").eq("poster_id", posterId),
     ]);
     return { profile: take(profile), requestsPosted: rows(tasks).length };
@@ -202,7 +247,7 @@ export const READ_OPS: Record<string, Op> = {
 
   getMyBid: async (ctx, a) =>
     take(
-      await ctx.db.from("bids").select("*").eq("task_id", uuid(a, "taskId")).eq("worker_id", ctx.userId).maybeSingle(),
+      await ctx.db.from("bids").select(BID_SELECT).eq("task_id", uuid(a, "taskId")).eq("worker_id", ctx.userId).maybeSingle(),
     ),
 
   /** Whether the caller may quote on a task, and why not when they may not. */
@@ -228,7 +273,7 @@ export const READ_OPS: Record<string, Op> = {
   },
 
   getProof: async (ctx, a) => {
-    const res = await ctx.db.from("task_proofs").select("*").eq("task_id", uuid(a, "taskId"))
+    const res = await ctx.db.from("task_proofs").select(PROOF_SELECT).eq("task_id", uuid(a, "taskId"))
       .order("created_at", { ascending: false }).limit(1).maybeSingle();
     return res.error ? null : (res.data ?? null);
   },
@@ -312,15 +357,16 @@ export const READ_OPS: Record<string, Op> = {
   /** Saved tasks still visible to the caller (open, or theirs). */
   listSavedTasks: async (ctx) =>
     rows<{ tasks: Row | null }>(
-      await ctx.db.from("saved_tasks").select("task_id, created_at, tasks(*)").eq("user_id", ctx.userId)
+      await ctx.db.from("saved_tasks").select(`task_id, created_at, ${TASKS_PUBLIC_EMBED}`).eq("user_id", ctx.userId)
         .order("created_at", { ascending: false }),
     ).map((r) => r.tasks).filter(Boolean),
 
   /** Tasks the caller is party to that are, or were, in dispute. */
   listMyDisputes: async (ctx) => {
     const [mine, worked] = await Promise.all([
-      ctx.db.from("tasks").select("*").eq("poster_id", ctx.userId).eq("status", "DISPUTED"),
-      ctx.db.from("assignments").select("tasks(*)").eq("worker_id", ctx.userId),
+      ctx.db.from("tasks").select(TASK_PARTY_SELECT).eq("poster_id", ctx.userId).eq("status", "DISPUTED"),
+      // Hired on each of these, so a party to every one.
+      ctx.db.from("assignments").select(TASKS_PARTY_EMBED).eq("worker_id", ctx.userId),
     ]);
     const asWorker = rows<{ tasks: Task | null }>(worked).map((r) => r.tasks)
       .filter((t): t is Task => Boolean(t) && t!.status === "DISPUTED");
@@ -344,10 +390,10 @@ export const READ_OPS: Record<string, Op> = {
 
   // ------------------------------------------------------------- people ----
   getProfile: async (ctx, a) => {
-    const row = take<Record<string, unknown> | null>(await ctx.db.from("profiles").select("*").eq("id", uuid(a, "userId")).maybeSingle());
-    // The old payout_upi column is empty since migration 073 and replaced by payout_destinations; it is never sent (hole H13, break-it run 2026-11-01).
-    if (row) delete row.payout_upi;
-    return row;
+    const id = uuid(a, "userId");
+    // Your own row adds the referral code and weekly goal; anyone else's is the public fields only.
+    // payout_upi (empty since migration 073, replaced by payout_destinations) and the sign-out cutoff fields are in no answer (H13, H45).
+    return take(await ctx.db.from("profiles").select(id === ctx.userId ? PROFILE_OWNER_SELECT : PROFILE_PUBLIC_SELECT).eq("id", id).maybeSingle());
   },
 
   isAdmin: async (ctx) => {
@@ -368,7 +414,7 @@ export const READ_OPS: Record<string, Op> = {
   /** Workers around lately, most recent first; only people who offer work; never the caller. */
   listActiveWorkers: async (ctx, a) => {
     const since = new Date((ctx.now?.() ?? new Date()).getTime() - 30 * 60_000).toISOString();
-    const res = await ctx.db.from("profiles").select("*").gt("last_seen_at", since).not("onboarded_at", "is", null)
+    const res = await ctx.db.from("profiles").select(PROFILE_PUBLIC_SELECT).gt("last_seen_at", since).not("onboarded_at", "is", null)
       // PostgREST wants the empty array literally: skills=neq.{}
       .filter("skills", "neq", "{}").neq("id", ctx.userId)
       .order("last_seen_at", { ascending: false }).limit(limit(a, "limit", 12));
@@ -439,7 +485,7 @@ export const READ_OPS: Record<string, Op> = {
   /** Reviews about someone in one role. Poster and worker reputations are never merged. */
   listReviewsAbout: async (ctx, a) => {
     const list = rows<Row & { author_id: string }>(
-      await ctx.db.from("reviews").select("*").eq("subject_id", uuid(a, "userId"))
+      await ctx.db.from("reviews").select(REVIEW_SELECT).eq("subject_id", uuid(a, "userId"))
         .eq("about_role", oneOf(a, "role", ["admin", "poster", "worker"]))
         .order("created_at", { ascending: false }).limit(limit(a, "limit", 10)),
     );
@@ -454,7 +500,7 @@ export const READ_OPS: Record<string, Op> = {
   crewOverview: rpcOp("crew_overview", (a) => ({ p_crew: uuid(a, "crewId") })),
   listCrewMessages: async (ctx, a) =>
     rows(
-      await ctx.db.from("crew_messages").select("*").eq("crew_id", uuid(a, "crewId"))
+      await ctx.db.from("crew_messages").select(CREW_MESSAGE_SELECT).eq("crew_id", uuid(a, "crewId"))
         .order("created_at", { ascending: true }).limit(limit(a, "limit", 200, 500)),
     ),
   /** Before-and-after photos a helper's customers let them show. */
@@ -495,7 +541,7 @@ export const READ_OPS: Record<string, Op> = {
 
   // -------------------------------------------------------------- money ----
   getWallet: async (ctx) =>
-    take(await ctx.db.from("wallets").select("*").eq("user_id", ctx.userId).maybeSingle()),
+    take(await ctx.db.from("wallets").select(WALLET_SELECT).eq("user_id", ctx.userId).maybeSingle()),
 
   /** Escrow tied up in live, paid-for jobs. With a side, only that side's. */
   getEscrowHeld: async (ctx, a) => {
@@ -519,12 +565,12 @@ export const READ_OPS: Record<string, Op> = {
     const uid = ctx.userId;
     const fees = await readFees(ctx);
     const [asWorker, asPoster, payouts, payments] = await Promise.all([
-      ctx.db.from("assignments").select("*, tasks(title)").eq("worker_id", uid),
+      ctx.db.from("assignments").select(`${ASSIGNMENT_SELECT}, tasks(title)`).eq("worker_id", uid),
       ctx.db.from("tasks")
         .select("id,title,status,locked_minor,updated_at,funded_at,funded_minor,wallet_refunded_at,assignments(escrow_minor)")
         .eq("poster_id", uid),
-      ctx.db.from("payouts").select("*").eq("user_id", uid),
-      ctx.db.from("payments").select("*").eq("user_id", uid).eq("status", "paid"),
+      ctx.db.from("payouts").select(PAYOUT_SELECT).eq("user_id", uid),
+      ctx.db.from("payments").select(PAYMENT_SELECT).eq("user_id", uid).eq("status", "paid"),
     ]);
     type Ev = { id: string; kind: string; title: string; meta: string; amountMinor: number; incoming: boolean; at: string };
     const events: Ev[] = [];
@@ -590,21 +636,22 @@ export const READ_OPS: Record<string, Op> = {
   },
 
   listPayouts: async (ctx, a) =>
-    rows(await ctx.db.from("payouts").select("*").eq("user_id", ctx.userId).order("created_at", { ascending: false }).limit(limit(a, "limit", 20))),
+    rows(await ctx.db.from("payouts").select(PAYOUT_SELECT).eq("user_id", ctx.userId).order("created_at", { ascending: false }).limit(limit(a, "limit", 20))),
 
   listPayoutDestinations: async (ctx) =>
     rows(
-      await ctx.db.from("payout_destinations").select("*").eq("user_id", ctx.userId)
+      await ctx.db.from("payout_destinations").select(PAYOUT_DESTINATION_SELECT).eq("user_id", ctx.userId)
         .order("is_default", { ascending: false }).order("created_at", { ascending: false }),
     ),
 
   listPromotions: async (ctx) =>
-    rows(await ctx.db.from("task_promotions").select("*").eq("user_id", ctx.userId).order("created_at", { ascending: false }).limit(20)),
+    rows(await ctx.db.from("task_promotions").select(PROMOTION_SELECT).eq("user_id", ctx.userId).order("created_at", { ascending: false }).limit(20)),
 
   /** The live ad auction's running order: { [taskId]: rank }. Rank 1 wins. */
   adAuctionRanks: async (ctx) => {
     const res = await ctx.db.rpc("ad_auction");
-    if (res.error) return {};
+    // Same `{}` as always, marked so the shared memo (3.5b layer D) never keeps an answer born of an error.
+    if (res.error) return noKeep({});
     const out: Record<string, number> = {};
     for (const r of (res.data ?? []) as { task_id: string; rank: number | null }[]) out[r.task_id] = Number(r.rank ?? 0);
     return out;
@@ -686,7 +733,7 @@ export const READ_OPS: Record<string, Op> = {
   listThreads: async (ctx) => {
     const LIVE = [...IN_PROGRESS];
     const [msgRes, postedRes, hiredRes] = await Promise.all([
-      ctx.db.from("messages").select("*").order("created_at", { ascending: false }).limit(300),
+      ctx.db.from("messages").select(MESSAGE_SELECT).order("created_at", { ascending: false }).limit(300),
       ctx.db.from("tasks").select("id,title,status,updated_at").eq("poster_id", ctx.userId).in("status", LIVE),
       ctx.db.from("assignments").select("task_id").eq("worker_id", ctx.userId).in("status", ["assigned", "started"]),
     ]);
@@ -721,7 +768,7 @@ export const READ_OPS: Record<string, Op> = {
 
   /** A task's thread, oldest first; with `after`, only messages newer than it. */
   listMessages: async (ctx, a) => {
-    let q = ctx.db.from("messages").select("*").eq("task_id", uuid(a, "taskId"));
+    let q = ctx.db.from("messages").select(MESSAGE_SELECT).eq("task_id", uuid(a, "taskId"));
     const after = isoOrNull(a, "after");
     if (after) q = q.gt("created_at", after);
     return rows(await q.order("created_at"));
@@ -735,10 +782,10 @@ export const READ_OPS: Record<string, Op> = {
 
   // ------------------------------------------------------- notifications ----
   listNotifications: async (ctx, a) =>
-    rows(await ctx.db.from("notifications").select("*").eq("user_id", ctx.userId).order("created_at", { ascending: false }).limit(limit(a, "limit", 50))),
+    rows(await ctx.db.from("notifications").select(NOTIFICATION_SELECT).eq("user_id", ctx.userId).order("created_at", { ascending: false }).limit(limit(a, "limit", 50))),
 
   getNotification: async (ctx, a) =>
-    take(await ctx.db.from("notifications").select("*").eq("id", uuid(a, "id")).eq("user_id", ctx.userId).maybeSingle()),
+    take(await ctx.db.from("notifications").select(NOTIFICATION_SELECT).eq("id", uuid(a, "id")).eq("user_id", ctx.userId).maybeSingle()),
 
   countUnreadNotifications: async (ctx) => {
     const res = await ctx.db.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", ctx.userId).is("read_at", null);
@@ -793,13 +840,13 @@ export const READ_OPS: Record<string, Op> = {
 
   // ------------------------------------------------------- support & more ----
   listTickets: async (ctx) =>
-    rows(await ctx.db.from("support_tickets").select("*").eq("user_id", ctx.userId).order("updated_at", { ascending: false })),
+    rows(await ctx.db.from("support_tickets").select(SUPPORT_TICKET_SELECT).eq("user_id", ctx.userId).order("updated_at", { ascending: false })),
 
   getTicket: async (ctx, a) => {
     const id = uuid(a, "ticketId");
-    const ticket = take(await ctx.db.from("support_tickets").select("*").eq("id", id).maybeSingle());
+    const ticket = take(await ctx.db.from("support_tickets").select(SUPPORT_TICKET_SELECT).eq("id", id).maybeSingle());
     if (!ticket) return null;
-    return { ticket, messages: rows(await ctx.db.from("support_messages").select("*").eq("ticket_id", id).order("created_at")) };
+    return { ticket, messages: rows(await ctx.db.from("support_messages").select(SUPPORT_MESSAGE_SELECT).eq("ticket_id", id).order("created_at")) };
   },
 
   countMyReferrals: async (ctx) => {

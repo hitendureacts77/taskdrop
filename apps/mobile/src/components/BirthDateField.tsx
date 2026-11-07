@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, ScrollView, Platform, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollViewInstance } from 'react-native';
+import { View, Text as RNText, Pressable, ScrollView, Platform, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollViewInstance } from 'react-native';
 import { ageOn, parseBirthDate } from '@taskdrop/rules';
 import { tx } from './primitives';
 import { useTheme } from '../providers/ThemeProvider';
@@ -35,41 +35,51 @@ function Wheel({
 }) {
   const t = useTheme();
   const ref = useRef<ScrollViewInstance>(null);
-  const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Where the wheel is right now, and whether a finger is on it.
+  const offset = useRef(0);
+  const dragging = useRef(false);
+  // The row this wheel went to by itself, so only a change from outside moves it again.
+  const landed = useRef(-1);
   const rows: Item[] = [{ value: '', label }, ...items];
   const chosen = Math.max(0, rows.findIndex((r) => r.value === value));
   const [near, setNear] = useState(chosen);
 
   // Follow the value when it is set from outside (a reset, or a clamped day).
   useEffect(() => {
+    if (landed.current === chosen) return;
     setNear(chosen);
     ref.current?.scrollTo({ y: chosen * ROW, animated: false });
   }, [chosen]);
 
-  const settleAt = (y: number) => {
-    const i = Math.min(rows.length - 1, Math.max(0, Math.round(y / ROW)));
+  useEffect(
+    () => () => {
+      if (settleTimer.current) clearTimeout(settleTimer.current);
+    },
+    [],
+  );
+
+  const rowAt = (y: number) => Math.min(rows.length - 1, Math.max(0, Math.round(y / ROW)));
+
+  const goTo = (i: number) => {
+    landed.current = i;
     ref.current?.scrollTo({ y: i * ROW, animated: true });
     setNear(i);
     if (rows[i].value !== value) onPick(rows[i].value);
   };
 
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const i = Math.min(rows.length - 1, Math.max(0, Math.round(y / ROW)));
-    if (i !== near) setNear(i);
-    // The web has no momentum-end event: settle shortly after the scrolling stops.
-    if (Platform.OS === 'web') {
-      if (settle.current) clearTimeout(settle.current);
-      settle.current = setTimeout(() => settleAt(y), 140);
-    }
+  // Only once the wheel has stopped. A finger back on it means it is not over yet.
+  const settle = () => {
+    if (!dragging.current) goTo(rowAt(offset.current));
   };
 
-  const step = (by: number) => {
-    const i = Math.min(rows.length - 1, Math.max(0, near + by));
-    ref.current?.scrollTo({ y: i * ROW, animated: true });
-    setNear(i);
-    onPick(rows[i].value);
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    offset.current = e.nativeEvent.contentOffset.y;
+    const i = rowAt(offset.current);
+    if (i !== near) setNear(i);
   };
+
+  const step = (by: number) => goTo(Math.min(rows.length - 1, Math.max(0, near + by)));
 
   return (
     <View
@@ -96,18 +106,35 @@ function Wheel({
         style={{ height: ROW * ROWS }}
         contentContainerStyle={{ paddingVertical: ROW * 2 }}
         showsVerticalScrollIndicator={false}
+        // Every screen with these wheels scrolls too. Without this Android gives
+        // the swipe to the page and the wheel never moves.
+        nestedScrollEnabled
+        overScrollMode="never"
         snapToInterval={ROW}
         decelerationRate="fast"
         scrollEventThrottle={16}
         onScroll={onScroll}
-        onMomentumScrollEnd={(e) => Platform.OS !== 'web' && settleAt(e.nativeEvent.contentOffset.y)}
-        onScrollEndDrag={(e) => Platform.OS !== 'web' && settleAt(e.nativeEvent.contentOffset.y)}
+        onScrollBeginDrag={() => {
+          dragging.current = true;
+          if (settleTimer.current) clearTimeout(settleTimer.current);
+        }}
+        onScrollEndDrag={() => {
+          dragging.current = false;
+          // A flick carries on after the finger lifts, and landing here would stop it dead.
+          // Give the fling a moment to start; iOS sends no fling event for a slow lift.
+          settleTimer.current = setTimeout(settle, 120);
+        }}
+        onMomentumScrollBegin={() => {
+          if (settleTimer.current) clearTimeout(settleTimer.current);
+        }}
+        onMomentumScrollEnd={settle}
       >
         {rows.map((r, i) => {
           const d = Math.abs(i - near);
           const size = d === 0 ? 23 : d === 1 ? 18 : 16;
           return (
-            <View key={r.label} style={{ height: ROW, alignItems: 'center', justifyContent: 'center' }}>
+            // A tap on a row picks it too, for anyone who finds the wheel fiddly.
+            <Pressable key={r.label} onPress={() => goTo(i)} style={{ height: ROW, alignItems: 'center', justifyContent: 'center' }}>
               <RNText
                 numberOfLines={1}
                 style={tx(
@@ -119,7 +146,7 @@ function Wheel({
               >
                 {r.label}
               </RNText>
-            </View>
+            </Pressable>
           );
         })}
       </ScrollView>
@@ -150,8 +177,16 @@ export function BirthDateField({
   const [yearList] = useState(() => years());
   const all = value.day && value.month && value.year;
   const birth = parseBirthDate(value.day, value.month, value.year);
+  // Two wheels can land before the screen redraws. Each must build on what the
+  // other just picked, or the second overwrites the first and that wheel jumps back.
+  const latest = useRef(value);
+  latest.current = value;
+  const pick = (part: Partial<BirthDateParts>) => {
+    latest.current = { ...latest.current, ...part };
+    onChange(latest.current);
+  };
 
-  let line = 'Scroll each column to pick your date';
+  let line = 'Swipe each column, or tap a row';
   if (all) line = birth ? `You are ${ageOn(birth)} years old` : 'That date does not exist. Check the day.';
 
   return (
@@ -167,9 +202,9 @@ export function BirthDateField({
       >
         <View pointerEvents="none" style={{ position: 'absolute', left: 10, right: 10, top: 12 + 28 + ROW * 2, height: ROW, borderRadius: 14, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line }} />
         <View style={{ flexDirection: 'row', gap: 6 }}>
-          <Wheel label="Day" items={dayList} value={value.day} onPick={(day) => onChange({ ...value, day })} flex={1} />
-          <Wheel label="Month" items={monthList} value={value.month} onPick={(month) => onChange({ ...value, month })} flex={1.6} />
-          <Wheel label="Year" items={yearList} value={value.year} onPick={(year) => onChange({ ...value, year })} flex={1.2} />
+          <Wheel label="Day" items={dayList} value={value.day} onPick={(day) => pick({ day })} flex={1} />
+          <Wheel label="Month" items={monthList} value={value.month} onPick={(month) => pick({ month })} flex={1.6} />
+          <Wheel label="Year" items={yearList} value={value.year} onPick={(year) => pick({ year })} flex={1.2} />
         </View>
       </View>
       <View style={{ alignItems: 'center', marginTop: 14 }}>

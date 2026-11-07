@@ -8,6 +8,7 @@
 import type { Client, Controls } from "../_shared/controls.ts";
 import type { Fetch as ImageKitFetch, ImageKitConfig } from "../_shared/imagekit.ts";
 import type { Standing, StandingReader } from "../_shared/standing.ts";
+import type { PublicMemo } from "./publicMemo.ts";
 
 export type DbError = { message: string; code?: string | null; details?: string | null };
 export type DbResult = { data: unknown; error: DbError | null; count?: number | null };
@@ -46,6 +47,11 @@ export type Ctx = {
   controls?: Controls | null;
   /** Whether the caller has a confirmed phone number; undefined when unknown. */
   phoneVerified?: boolean;
+  /**
+   * The server copy's shared answers (plan 3.5b layer D). Used only for the ops on PUBLIC_MEMO_OPS and only while
+   * `controls.public_cache_memo` is on; absent, null or off, every op runs as before.
+   */
+  memo?: PublicMemo | null;
   now?: () => Date;
 };
 

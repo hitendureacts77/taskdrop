@@ -7,10 +7,12 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { clientHeaders, installId } from '../lib/appInfo';
 import { postSignInRoute } from '../data/api';
-import { loadGuestChoice, saveGuestChoice } from '../lib/guest';
-import { moveGuestDrafts } from '../lib/drafts';
-import { adoptGuestWizard, clearWizard } from '../lib/postWizardStore';
+import { GUEST_DRAFTS_OWNER, clearGuestHandoff, clearStaleGuestHandoff, dropGuestHandoffMark, guestHandoffLive, loadGuestChoice, saveGuestChoice, saveGuestHandoffMark, takeGuestHandoff } from '../lib/guest';
+import { clearDrafts, moveGuestDrafts } from '../lib/drafts';
+import { allowGuestSaves, dropGuestSaves } from '../lib/guestSaves';
+import { adoptGuestWizard, clearWizard, dropGuestWizard } from '../lib/postWizardStore';
 import { count, log, setMonitoringUser } from '../lib/monitoring';
+import { forgetEverything } from '../lib/freshness';
 
 /**
  * Real Supabase auth: phone OTP via the phone-auth Edge Function, or Google
@@ -109,6 +111,42 @@ const GOOGLE_LINKED = 'Google is now linked to your account. You can sign in wit
 /** Made more than a minute ago: an account that existed before this sign-in. */
 function existedBefore(createdAt: string | undefined): boolean {
   return Boolean(createdAt) && Date.now() - new Date(createdAt!).getTime() > 60_000;
+}
+
+/** The account signed in on this device, as last heard from supabase-js (for clearing its drafts at sign-out). */
+let signedInAs: string | null = null;
+/** Guest hand-overs and clean-ups, one after another, so a second auth event never races the first. */
+let guestSettling: Promise<void> = Promise.resolve();
+
+/**
+ * A session appeared. If it is the guest's own sign-in from the pop-up (lib/guestHandoff.ts), what they made as a
+ * guest becomes the account's: drafts, saved tasks (moved when Home opens) and a half-made post. Otherwise someone
+ * else signed in on this phone, and the guest's things are dropped, never shown to them (hunt round 2, B31).
+ */
+async function settleGuestThings(userId: string, live: boolean): Promise<void> {
+  if (await takeGuestHandoff(live)) {
+    // The half-made post first: "Post my request" resumes right after this sign-in (lib/postWizardStore).
+    await adoptGuestWizard(userId);
+    await moveGuestDrafts(userId);
+    await allowGuestSaves(userId);
+    return;
+  }
+  await clearDrafts(GUEST_DRAFTS_OWNER);
+  await dropGuestSaves(userId);
+  await dropGuestWizard();
+}
+
+/** Anything a guest left on this device goes, and no hand-off is pending. Safe after every sign-out, however it came. */
+async function forgetGuestThingsOnDevice(): Promise<void> {
+  await clearDrafts(GUEST_DRAFTS_OWNER);
+  await dropGuestSaves();
+  clearGuestHandoff();
+}
+
+/** The person chose to sign out: their drafts go too, and anything a guest left. */
+async function forgetDraftsOnDevice(userId: string | null): Promise<void> {
+  if (userId) await clearDrafts(userId);
+  await forgetGuestThingsOnDevice();
 }
 
 WebBrowser.maybeCompleteAuthSession();
@@ -215,6 +253,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let alive = true;
+    // A guest hand-off mark kept on the device counts only for the return from Google (the URL carries a code); any
+    // other start clears it (B31). Not awaited: the code is stripped from the URL synchronously below, and a mark is
+    // only read when a session appears, after this has been queued.
+    void clearStaleGuestHandoff(
+      Platform.OS === 'web' && typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('code'),
+    );
     (async () => {
       // Google lands back here on the web with a one-time `?code=` in the
       // URL -- detectSessionInUrl is off (see createBrowserClient, which
@@ -299,16 +343,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setMonitoringUser(data.session?.user.id ?? null);
       setReady(true);
     })();
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (s) {
-        // An account now: guest mode is over on this device (a later sign-out shows the sign-in page),
-        // and anything half-written as a guest moves into the account.
+        // An account now: guest mode is over on this device (a later sign-out shows the sign-in page).
         setGuestChosen(false);
         void saveGuestChoice(false);
-        void moveGuestDrafts(s.user.id);
-        // A post half-made as a guest (lib/postWizard) becomes this account's too.
-        void adoptGuestWizard(s.user.id);
+        // Read now, while the pop-up's sign-in page may still be showing; settled one sign-in at a time.
+        const live = guestHandoffLive();
+        const userId = s.user.id;
+        signedInAs = userId;
+        guestSettling = guestSettling.then(() => settleGuestThings(userId, live)).catch(() => {});
+      } else if (event === 'SIGNED_OUT') {
+        // However the session ended (sign-out, sign-out everywhere, a refresh race between tabs, a closed account):
+        // what a guest left goes. The person's own drafts go only when they chose to sign out (signOut below clears
+        // them first); a forced sign-out must not delete text they wrote and will find again after signing in.
+        signedInAs = null;
+        guestSettling = guestSettling.then(() => forgetGuestThingsOnDevice()).catch(() => {});
       }
       // Sentry sees the account id only, so a report can be matched to a person without naming them.
       setMonitoringUser(s?.user.id ?? null);
@@ -367,8 +418,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       // A same-tab redirect to Google and back, same as any "Continue with
       // Google" button -- this app reloads from scratch when it lands.
+      // The guest hand-off mark goes to the device only now, as the redirect starts (B31).
+      await saveGuestHandoffMark();
       const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
-      if (error) throw apiError(error);
+      if (error) {
+        await dropGuestHandoffMark();
+        throw apiError(error);
+      }
       return;
     }
 
@@ -506,8 +562,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Emptied now, and again when the sign-out is heard (lib/gateway.ts): nothing is kept for the next person.
+    forgetEverything();
     // A half-made post stays with its account: the next person on this device never sees it.
     await clearWizard();
+    // Nor this person's drafts, nor anything a guest left on the device (B31).
+    const { data } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+    await forgetDraftsOnDevice(data.session?.user.id ?? signedInAs);
     await supabase.auth.signOut();
   }, []);
 

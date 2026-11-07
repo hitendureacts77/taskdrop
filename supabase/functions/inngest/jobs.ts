@@ -7,7 +7,7 @@
  * to run the sweeps it already has, and leaves messages for the team.
  */
 
-import { deleteFile, type Fetch as ImageKitFetch, findFileId, type ImageKitConfig } from "../_shared/imagekit.ts";
+import { deleteFile, type Fetch as ImageKitFetch, findFileId, type ImageKitConfig, listFiles } from "../_shared/imagekit.ts";
 
 /** The one database call shape these jobs need: supabase.rpc, narrowed. */
 export type Rpc = (
@@ -168,6 +168,43 @@ export type Fetch = (url: string, init: { method: string; headers: Record<string
 /** One message for one device, as the database built it (push_job_load). */
 export type PushMessage = { to: string } & Record<string, unknown>;
 
+/**
+ * H42 (owner decision 26): what a locked phone screen may show. For these kinds of
+ * notification the push carries a plain line only: no names, no amounts, no task
+ * titles, no typed text. The notification itself (the in-app list) keeps its full
+ * wording, and `data` (notificationId, kind, taskId) is untouched, so a tap still
+ * opens the same screen. Kinds not listed here keep the title and body the database
+ * wrote (offers, task progress and the like).
+ */
+export const PLAIN_PUSH: Readonly<Record<string, { title: string; body: string }>> = {
+  // Chat and task questions: a name, a task title and typed text.
+  message: { title: "You have a new message", body: "Open taskdrop to read it." },
+  question: { title: "You have a new question or answer", body: "Open taskdrop to read it." },
+  // Payouts: amounts and the bank's failure reason.
+  payout_paid: { title: "Your payout update is ready", body: "Open taskdrop to see it." },
+  payout_failed: { title: "Your payout update is ready", body: "Open taskdrop to see it." },
+  // Wallet: amounts, names and task titles.
+  wallet: { title: "Your wallet has an update", body: "Open taskdrop to see it." },
+  wallet_refund: { title: "Your wallet has an update", body: "Open taskdrop to see it." },
+  cancel_fine: { title: "Your wallet has an update", body: "Open taskdrop to see it." },
+  // Support replies carry the reply text.
+  support: { title: "You have an update from support", body: "Open taskdrop to read it." },
+  // Security alerts and staff warnings say what happened to the account.
+  security: { title: "A security alert on your account", body: "Open taskdrop to check your account." },
+  admin_warning: { title: "You have a notice from taskdrop", body: "Open taskdrop to read it." },
+};
+
+/**
+ * Swaps the title and body of a sensitive kind for its plain line. Anything else is
+ * returned as it was. The message `data` is never touched.
+ */
+export function lockScreenSafe(message: PushMessage): PushMessage {
+  const data = message.data;
+  const kind = data && typeof data === "object" ? (data as { kind?: unknown }).kind : undefined;
+  const plain = typeof kind === "string" && Object.hasOwn(PLAIN_PUSH, kind) ? PLAIN_PUSH[kind] : null;
+  return plain ? { ...message, title: plain.title, body: plain.body } : message;
+}
+
 type ExpoError = { details?: { error?: string } };
 export type PushTicket = ({ status?: string; id?: string } & ExpoError) | undefined;
 export type PushReceipt = ({ status?: string } & ExpoError) | undefined;
@@ -323,4 +360,156 @@ export async function purgeMediaBatch(
   if (done.length > 0) await call<number>(rpc, "media_mark_purged", { p_ids: done });
   if (failed > 0) throw new Error(`media purge: ${failed} of ${batch.length} pictures could not be removed`);
   return { purged: done.length, more: batch.length === MEDIA_PURGE_BATCH };
+}
+
+// ------------------------------------------------- stray ImageKit files --
+
+/** A file is only judged a stray once it is this old, so an upload still on its way to attachMedia is never touched. */
+export const ORPHAN_MIN_AGE_MS = 2 * 24 * 60 * 60 * 1000;
+/** Most files one weekly run removes. */
+export const ORPHAN_MAX_DELETES = 200;
+/** ImageKit files looked at per request (ImageKit allows up to 1000). */
+export const ORPHAN_PAGE = 1000;
+/** Pages looked at per run (oldest files first), so a run always ends. */
+export const ORPHAN_MAX_PAGES = 10;
+
+/** Which of these file paths / ImageKit file ids have a `media` row (any status). Must throw if it cannot tell. */
+export type KnownFiles = (paths: string[], fileIds: string[]) => Promise<{ paths: Set<string>; fileIds: Set<string> }>;
+
+export type OrphanSweep = { scanned: number; strays: number; deleted: number; failed: number; dryRun: boolean };
+
+/**
+ * Weekly clean-up of ImageKit files TaskDrop never registered (hunt 2, H41). The upload token is not tied to a folder or
+ * name, so a signed-in person can put files anywhere in the account; those never get a `media` row, so nothing removes them.
+ *
+ * A file is removed only when ALL of these hold: it sits in this deployment's own top folder (`/<env>/`; another
+ * deployment sharing the account has its own database, so its files look like strays from here), it was uploaded more than
+ * two days ago, and neither its path nor its file id is in `media`. If the database cannot be asked, nothing is removed.
+ * At most 200 files are removed per run; the rest wait for the next week. Strays are collected first and removed after,
+ * so the paging never shifts under the scan. With `dryRun` nothing is removed, only counted.
+ *
+ * Counts only: no path or file name is returned or logged (they contain user ids).
+ */
+export async function sweepStrayImageKitFiles(
+  cfg: ImageKitConfig,
+  fetcher: ImageKitFetch,
+  known: KnownFiles,
+  opts: { now: Date; dryRun?: boolean; maxDeletes?: number },
+): Promise<OrphanSweep> {
+  const dryRun = opts.dryRun === true;
+  const maxDeletes = Math.min(opts.maxDeletes ?? ORPHAN_MAX_DELETES, ORPHAN_MAX_DELETES);
+  const cutoff = opts.now.getTime() - ORPHAN_MIN_AGE_MS;
+  const prefix = `/${cfg.env}/`;
+  const strays: string[] = [];
+  let scanned = 0;
+
+  for (let page = 0; page < ORPHAN_MAX_PAGES && strays.length < maxDeletes; page++) {
+    const files = await listFiles(cfg, fetcher, page * ORPHAN_PAGE, ORPHAN_PAGE);
+    scanned += files.length;
+    const old = files.filter((f) => {
+      if (typeof f.fileId !== "string" || !f.fileId || typeof f.filePath !== "string" || !f.filePath.startsWith(prefix)) return false;
+      const made = Date.parse(f.createdAt ?? "");
+      return Number.isFinite(made) && made <= cutoff;
+    });
+    if (old.length > 0) {
+      const have = await known(old.map((f) => f.filePath), old.map((f) => f.fileId));
+      for (const f of old) {
+        if (strays.length >= maxDeletes) break;
+        if (!have.paths.has(f.filePath) && !have.fileIds.has(f.fileId)) strays.push(f.fileId);
+      }
+    }
+    // Oldest first: a short page is the end, and a last file still too new means everything after it is too new.
+    const lastMade = Date.parse(files[files.length - 1]?.createdAt ?? "");
+    if (files.length < ORPHAN_PAGE || (Number.isFinite(lastMade) && lastMade > cutoff)) break;
+  }
+
+  if (dryRun) return { scanned, strays: strays.length, deleted: 0, failed: 0, dryRun };
+
+  let deleted = 0;
+  let failed = 0;
+  for (const fileId of strays) {
+    try {
+      await deleteFile(cfg, fetcher, fileId);
+      deleted++;
+    } catch (e) {
+      failed++;
+      console.error("stray files: could not remove one", e instanceof Error ? e.message : e);
+    }
+  }
+  if (failed > 0) throw new Error(`stray files: ${failed} of ${strays.length} could not be removed`);
+  return { scanned, strays: strays.length, deleted, failed, dryRun };
+}
+
+/** The weekly job's body: a no-op, touching neither ImageKit nor the database, until ImageKit's keys are set (`cfg` is null). */
+export async function runStraySweep(
+  cfg: ImageKitConfig | null,
+  fetcher: ImageKitFetch,
+  known: KnownFiles,
+  opts: { now: Date; dryRun?: boolean },
+): Promise<OrphanSweep | { skipped: string }> {
+  if (!cfg) return { skipped: "ImageKit is not configured" };
+  return await sweepStrayImageKitFiles(cfg, fetcher, known, opts);
+}
+
+// ------------------------------------------------------ public snapshots --
+
+/** Plan 3.5b layer C: the kept copies are only used while younger than this (migration 149), so older means the job is behind. */
+export const SNAPSHOT_STALE_MINUTES = 30;
+/** The team alert is left only while the copy is this old or less, so a stale copy rings the bell once or twice, not every 10 minutes. */
+export const SNAPSHOT_ALERT_WINDOW_MINUTES = 45;
+/** The settings row that remembers when a refresh last finished (the kept table itself is closed to the service key). */
+export const SNAPSHOT_MARKER_KEY = "public_snapshots_last_ok";
+
+/** Where the time of the last finished refresh is kept. */
+export type SnapshotMarker = { get(): Promise<string | null>; set(iso: string): Promise<void> };
+
+/**
+ * Asks the database to work out Trending, Top helpers and today's numbers again.
+ * Another refresh already running is not a failure ({ skipped: true }). An error from the
+ * database throws, so Inngest retries and, after the last retry, reports it.
+ */
+export async function refreshPublicSnapshots(
+  rpc: Rpc,
+  marker: SnapshotMarker,
+  now: () => Date = () => new Date(),
+): Promise<{ skipped: boolean; took_ms?: unknown }> {
+  const r = await call<{ skipped?: unknown; took_ms?: unknown } | null>(rpc, "refresh_public_snapshots");
+  if (r === null || typeof r !== "object") throw new Error("refresh_public_snapshots: unexpected answer");
+  if (r.skipped === true) return { skipped: true };
+  await marker.set(now().toISOString());
+  return { skipped: false, took_ms: r.took_ms };
+}
+
+/** Minutes since the last finished refresh, or null when none was ever recorded or the value is not a time. */
+export function snapshotAgeMinutes(lastOk: string | null, now: Date): number | null {
+  if (!lastOk) return null;
+  const t = Date.parse(lastOk);
+  if (Number.isNaN(t)) return null;
+  return Math.max(0, (now.getTime() - t) / 60_000);
+}
+
+export function staleSnapshotAlert(ageMinutes: number): Alert {
+  const m = Math.floor(ageMinutes);
+  return {
+    kind: "public_snapshots_stale",
+    title: "Kept copies of the public lists are out of date",
+    body: `The last refresh finished ${m} minutes ago (the app falls back to live answers after ${SNAPSHOT_STALE_MINUTES}). Check the public-snapshots job in Inngest.`,
+  };
+}
+
+/**
+ * Staleness check: when the last finished refresh is older than 30 minutes, tell Sentry (every run, it groups
+ * them) and leave one team alert. Nothing recorded yet is not an alert (the switch may never have been used).
+ */
+export async function checkSnapshotFreshness(
+  rpc: Rpc,
+  marker: SnapshotMarker,
+  report: (message: string, ageMinutes: number) => Promise<void>,
+  now: () => Date = () => new Date(),
+): Promise<{ ageMinutes: number | null; stale: boolean }> {
+  const age = snapshotAgeMinutes(await marker.get(), now());
+  if (age === null || age <= SNAPSHOT_STALE_MINUTES) return { ageMinutes: age, stale: false };
+  await report(`public snapshots are ${Math.floor(age)} minutes old`, Math.floor(age));
+  if (age <= SNAPSHOT_ALERT_WINDOW_MINUTES) await saveAlert(rpc, staleSnapshotAlert(age), { age_minutes: Math.floor(age) });
+  return { ageMinutes: age, stale: true };
 }

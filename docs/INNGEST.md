@@ -59,12 +59,14 @@ also drops those fields from anything it stores, for an event queued before this
 | `push-notification` | event `notification.created` | reads the message from the database, sends it to Expo, waits 15 minutes, reads Expo's receipts and forgets devices that are gone |
 | `account-files` | event `user.deleted` | removes whatever files of the deleted account are still in storage (the api function already tried once); empty when nothing is left. Also marks the account's ImageKit pictures deleted (migration 109), except those a kept record still uses |
 | `media-purge` | every 10 min | marks pictures nobody finished uploading (pending for 24 h) as deleted, then removes deleted pictures from ImageKit in batches of 50, with retries. Waits, without failing, until the ImageKit secrets are set. See `docs/MEDIA.md` |
+| `stray-imagekit-files` | weekly, Sunday 03:30 India time | removes ImageKit files in this deployment's folder that have no `media` row (by path or file id) and are over 2 days old, at most 200 per run; no-op until the ImageKit secrets are set; removes nothing if the database cannot be asked. `IMAGEKIT_ORPHAN_DRY_RUN=1` only counts. Needs no migration (H41) |
+| `public-snapshots` | every 10 min | calls `refresh_public_snapshots()` (migration 149, plan 3.5b layer C): Trending, Top helpers and today's numbers are worked out once and kept. Another refresh already running counts as success. If the last finished refresh is over 30 minutes old it logs an error for Sentry and leaves one team alert (the time is kept in the settings row `public_snapshots_last_ok`) |
 | `overdue-tasks` | every 10 min | calls `run_overdue_tasks()`: a started job past its due time becomes `OVERDUE`. Only the label changes; no money moves |
 | `user-created` | event `user.signed_up` | records the person in the `user_sync` ledger |
 | `user-updated` | event `user.updated` | counts the update and keeps which fields changed in the ledger |
 | `user-deleted` | event `user.deleted` | marks the person deleted in the ledger. Deleted is final: a late update or sign-up cannot revive them |
 | `user-sync-repair` | daily 03:10 IST | calls `user_sync_repair()`: adds anyone the ledger missed, marks deleted or removed accounts as deleted. Normally reports all zeros |
-| `housekeeping` | hourly at :17 | calls `run_housekeeping()`: removes expired sign-in codes, send and search counters, rate counters, password attempts older than 30 days, notifications older than 90 days, admin live-feed rows older than 30 days (only rows nobody else is holding) |
+| `housekeeping` | hourly at :17 | calls `run_housekeeping()`: removes expired sign-in codes, send and search counters, rate counters, password attempts older than 30 days, notifications older than 90 days, admin live-feed rows older than 30 days (only rows nobody else is holding), free ad events (clicks) older than `ad_events_keep_days` (migration 152; paid events stay) |
 | `outbox-watchdog` | every 10 min | calls `run_outbox_watchdog()`: events unsent for 15+ minutes mean the bridge to Inngest is broken (wrong key, function not deployed or synced). Leaves one team alert, then stays quiet for six hours |
 | `task-reminders` | every 15 min | calls `run_task_reminders()`: tells a poster that finished work will be approved for them within 24 hours, and a worker that a started job is due within the hour. Once per task and person, as an in-app notification (and push when push is on). No money moves |
 
@@ -109,6 +111,8 @@ Pushes keep going out the old way, straight from the database, until the setting
 4. Try it on a phone: do something that notifies you and see a `push-notification` run and the buzz.
 
 To go back: `update public.settings set value = 'false' where key = 'push_via_inngest';` (at once, no deploy). The same file lists the two `cron.schedule` lines for the prunes.
+
+Lock-screen wording (H42, owner decision 26): pushes for chat, task questions, payouts, wallet, support, security and staff warnings carry a plain line ("You have a new message"), never a name, amount, task title or typed text. The list lives in `PLAIN_PUSH` in `supabase/functions/inngest/jobs.ts` and, for the direct road used while `push_via_inngest` is false, in `private.push_plain_line` (migration 155); a unit test keeps the two identical. The in-app notification text and the tap-through data are unchanged.
 
 The web has no push; in-app notifications and live updates do not go through Inngest.
 
