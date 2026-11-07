@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { noteFirstAction } from '../lib/appPrompt';
 import { View, Text as RNText, ScrollView, TextInput, Pressable, type TextInputInstance } from 'react-native';
 import { Screen, ScreenList, cardSurface } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
@@ -499,7 +500,10 @@ function FindWork() {
         <SearchBox
           value={q}
           onChange={setQ}
-          onSubmit={() => setQuery(q.trim())}
+          onSubmit={() => {
+            setQuery(q.trim());
+            if (q.trim()) noteFirstAction();
+          }}
           inputRef={searchRef}
           placeholder="E.g. data entry, logo design, home tutoring…"
           voice={voice}
