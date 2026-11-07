@@ -652,14 +652,14 @@ This usually takes 1 to 3 weeks. One thing to check with a CA: GST law has speci
 
 | | **Plan A: the wallet (built today)** | **Plan B: pay per task, the payment company holds the money** |
 |---|---|---|
-| **In one line** | One TaskDrop balance holds top-ups, earnings and refunds; it pays workers and can be withdrawn any time (migration 066, your decision of 29 Sep) | No balance at all. The poster pays for the task at checkout; the payment company holds it until approval, then pays the worker |
+| **In one line** | One real TaskDrop balance holds top-ups, earnings and refunds; it pays workers and can be withdrawn any time (migration 066, your decision of 29 Sep) | Pay per task, with a **virtual wallet that is only a ledger**. The poster pays for the task at checkout; the payment company holds the real money until approval, then pays the worker. TaskDrop keeps no real balance |
 | **Who holds the money** | TaskDrop (a balance in its own database) | The payment company (Cashfree Easy Split first, up to 45 days on hold; Razorpay Route "Settlements On Hold" is the fallback) |
 | **Top up and park money in the app** | Yes | No. Users cannot park money and withdraw it later |
 | **Paying a task** | From the balance, or by topping up first | UPI or card at checkout when the task is posted |
 | **How a worker gets paid** | Earnings land in the balance, clear after 7 days, then withdraw to UPI or bank | The worker completes KYC once; on approval the provider pays out to bank or UPI |
 | **Refunds** | Back into the balance (or out to the source) | Back to the original payment method, never into a balance |
 | **Credits** | Balance can include credits | Promo credit only: spendable on tasks, not withdrawable |
-| **Wallet screen** | Real balance | A record list only (tasks, earnings, pending holds, payouts); the provider holds the real money |
+| **Wallet screen** | Real balance: the number is money TaskDrop holds | **Virtual wallet = ledger**: the same screen, showing tasks, earnings, pending holds and payouts as records. The numbers are a view of what the provider holds, not money TaskDrop holds |
 | **RBI risk** | **High.** A balance that can be topped up, withdrawn and spent on other users looks like a regulated PPI wallet. The draft rules reportedly do not exempt marketplaces. Razorpay has already asked for a PPI licence (5 Nov), which needs a Private Limited company with about ₹5 crore net worth | **Low.** TaskDrop never holds a balance, so no PPI licence is needed |
 | **Provider catch** | Razorpay may refuse | Route needs more than ₹40 lakh domestic turnover, which a new TaskDrop will not have. Cashfree's turnover rule is not stated, so ask in writing. Stripe Connect is not true escrow and leaves KYC and AML with TaskDrop |
 | **Work to build** | None; already built | The money code changes: checkout payment, split and hold, worker KYC, refunds to source, and the wallet screen becomes a record list. Needs a design step first |
