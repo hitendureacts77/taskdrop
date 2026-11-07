@@ -3832,6 +3832,8 @@ Do not pay for bigger servers in advance. Claude watches these signals in **prod
 | 7 | Long YouTube videos | Its own search engine | Monthly, after launch | Subscribers |
 | 8 | Product Hunt, Show HN, r/SideProject, Indie Hackers | One-day spike and credibility | Launch week only. They bring founders, not Hyderabad customers | — |
 
+Founder communities (Indie Hackers, Everything Marketplaces, Indian Startups Group and more) are for **learning and swapping ideas**, not for finding customers. The list to join is in the card "Founder communities to join" below.
+
 **What the Ghosla story teaches** (the Indian rental marketplace on the same stack as TaskDrop, from the YouTube interview you saved)
 
 | What Ghosla did | What TaskDrop does |
@@ -3888,6 +3890,78 @@ Do not pay for bigger servers in advance. Claude watches these signals in **prod
 - PortSwigger Web Security Academy: free hands-on labs for every web attack. The best single course.
 - Supabase docs: "Row Level Security" and "Production checklist".
 - TryHackMe (beginner paths) and Hack The Box Academy (deeper).
+
+</details>
+
+<details id="c-communities">
+<summary>[CARD] Founder communities to join (to learn and swap ideas, not to find customers)</summary>
+
+**Why:** you build alone. These are places where other builders share what to do next, what broke for them, and what worked. They are for **learning and asking**, not for finding Hyderabad customers (that is the channel table above). Joining is free unless marked, takes about 10 minutes each, and is **your own click**: you make the accounts and accept each group's rules. Claude cannot join for you.
+
+**Found 7 November 2026** by reading public roundups (SaaSCity, SaaS Group, Hive Index, Backrr and others, dated September and October 2026). Claude did **not** open each community, so before you pay for anything, check the price and the join rules on the group's own site.
+
+**Start with these five (all free)**
+
+| Community | Why it fits TaskDrop | How to use it |
+|---|---|---|
+| [Indie Hackers](https://www.indiehackers.com/) | The main forum for bootstrapped builders | One milestone post: what TaskDrop is, how far you got, what you are stuck on, with real numbers (even small). A bare link gets ignored |
+| Reddit: [r/SaaS](https://www.reddit.com/r/SaaS/), [r/indiehackers](https://www.reddit.com/r/indiehackers/), [r/SideProject](https://www.reddit.com/r/SideProject/) | Pricing threads and feedback from strangers | Read each subreddit's rules first. r/SaaS allows self-promotion only in weekly threads. Comment helpfully for a couple of weeks before your own post. Always by hand |
+| [r/ClaudeAI](https://www.reddit.com/r/ClaudeAI/) and the official Claude Developers Discord ([discord.gg/anthropic](https://discord.gg/anthropic)) | You build TaskDrop with Claude Code | Workflow tips, skills, what to avoid |
+| X (Twitter) with #buildinpublic | Founders reply within minutes | Share real numbers; reply to others more than you broadcast. Optional: only if it does not eat your building time |
+| [Everything Marketplaces](https://www.everythingmarketplaces.com/) | The only community found that is specifically for marketplace founders (supply and demand, the cold start, trust) | Ask the cold-start questions: how to get workers first, how to keep a city "full". Check on the site whether it is free or paid |
+
+**India-specific**
+
+| Community | What it gives | Notes |
+|---|---|---|
+| Indian Startups Group (public Slack) | The largest open Slack for Indian founders, with a co-founder channel | Open to join |
+| Pushstart | Quick feedback and "roasts" of ideas and MVPs | Needs admin approval |
+| Headstart and eChai Ventures | Local meetups in 20+ cities, including smaller cities | Good for meeting people face to face in your launch city |
+| r/StartUpIndia | Ask there for the current WhatsApp and Telegram founder groups | Also the home of the "building in public" posts in the Marketing playbook |
+| Razorpay Rize | Free help with incorporation and compliance | Application-based. Useful when you form the company (S.2) |
+
+**Worth it later, or if you want to pay**
+
+| Community | What it is | Cost (check the site) |
+|---|---|---|
+| Early Stage Founders (Discord, about 3,000 members) | Finding first customers; pairs you with a founder at a similar stage | Free and paid tiers |
+| Lunadio (Discord, about 1,000 members) | Solo and bootstrapped builders helping each other | Free |
+| Ramen Club (Slack) | Live classes and a monthly demo day for founders building with AI | About £25 a month |
+| WIP | A daily "what I shipped" log that keeps you moving | About $29 a month. Thin on sales and marketplace questions |
+
+**Skip for now:** MicroConf Connect (B2B SaaS only; applications were paused until about 17 November), the ShipFast Discord (you must buy the boilerplate), and SaaStr, SaaStock and SaaS Alliance (aimed at scaling B2B companies).
+
+**First post draft (Indie Hackers, 7 November 2026).** Written at headline level on purpose, so nobody can copy the idea: no product name, no features, no fees, no money flow, no tech details. Change anything that does not sound like you.
+
+```say
+Title: Solo founder from India building a two-sided marketplace. How do you fill ONE city first?
+
+Hi everyone,
+
+I'm a solo founder in India, building a marketplace where people can get everyday things done by someone else. I'm building it with AI coding tools, and it's in testing now with a small group.
+
+I'm not here to pitch. I'm here to learn from people who have been through it.
+
+Where I'm stuck:
+1. Supply first or demand first? My guess is helpers first, in one city. Does that match what you saw?
+2. How did you get your first 20 to 50 people on the "doing" side without paying for ads?
+3. How did you build trust between strangers before you had any reviews?
+
+What I'm doing so far:
+- Testing with about 10 people, using fake data only
+- Planning to launch in one city, not all of India
+- Doing the slow, boring things first: legal, security, and talking to real users
+
+If you've built a marketplace, I'd love to hear what you wish you had done in your first 90 days.
+
+Thanks for reading!
+```
+
+**Keep the idea safe:** answer follow-up questions with "that's still being tested" or ask a question back. Never post screenshots, the name, the price or fee rules, or how the money is held. Share those only after launch, when the product is live and people can already use it. A good idea is hard to copy once real people use it, but do not hand out the blueprint before that.
+
+**A good first week:** join Indie Hackers, r/SaaS, r/indiehackers, Everything Marketplaces and the Claude Discord; then Indian Startups Group and Pushstart; then write the one Indie Hackers post. Keep to the Marketing playbook rules: one post per community, real people only, Reddit by hand, no link spam.
+
+**Reading list that goes with it:** the marketplace books and courses in the learning card above.
 
 </details>
 
@@ -4660,6 +4734,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-07 (founder communities saved):** You asked Claude to search for good SaaS and builder communities to join, to swap ideas and learn what to do next. Claude searched public roundups and saved the result as a new card in the Marketing playbook, "Founder communities to join": five free ones to start with (Indie Hackers, the SaaS and indie Reddit groups, the Claude communities, #buildinpublic on X, Everything Marketplaces), India-specific ones (Indian Startups Group, Pushstart, Headstart, eChai, r/StartUpIndia, Razorpay Rize), paid ones for later, and ones to skip (MicroConf Connect, ShipFast, SaaStr). Joining is your own click. The communities were not opened one by one, so check prices on their sites. No task added, no count changed.
 - **2026-11-07 (app download prompt and a simpler app: D17, D18, decision 31):** You asked for the website to recommend the Android app when people find TaskDrop, and for a simpler, high-class look because people find the app hard to use. Claude walked through `taskdrop.in` as a guest (phone and computer size), read the Home, tab and theme code, and drew 10 screens on one canvas: [simple redesign canvas](https://claude.ai/artifact/NprdWrye3bs6swEBGvDVgT). **New in 1.5:** D17 (the app bar, the one-time sheet, the `/get` install page, the QR code on computers) and D18 (an optional first-open choice, a calmer Home on both sides, posting in three steps, a next-step tracker on every task, one card rule). **New decision:** 31 (where `/get` points before Google Play). **Flagged:** B1 undoes part of D16 and B2 changes the Home order, so both need your OK. **Not built:** nothing in the app, database or settings changed. Say "approve D17", "approve D18", or what to change.
 - **2026-11-06 (Upwork proposals: new task 2.18):** You posted a security review job on Upwork, received 8 proposals, and asked for their best practices to go into this plan. Claude read all 8 in full, plus the two public worked examples one applicant linked, and checked each point against the code and staging, reading only. **Already done:** row rules on all 68 tables, signed-out table rights at zero, a private storage bucket, GraphQL off, no server key in `taskdrop.in`'s script files, webhook signatures on the raw bytes, and the person taken from the login token. **New:** task 2.18 with holes H71 to H76 (new doors start open, built bundles not always scanned, the RazorpayX webhook setting not in the code, column-level reads and 29 `select *` calls, the Android app never opened up, the webhook amount not compared), a chain review, one go-live security checklist, production first-day checks in 5.9, the rules and brief for hiring a tester, and decision 30. 2.18 joins Gate 2b. **Also corrected:** H34's design is merged (PR 269), and the guest follow-up (PR 268, migration 157) passed the guest door checks on staging. Nothing in the app, database or production changed.
 - **2026-11-06 (hunt round 2: the Medium finds fixed, H33 to H47 and the guest door):** Claude fixed the Medium findings from hunt round 2 in five app pull requests and two admin ones, all merged into `redesigned-2.0` and deployed to staging (production untouched). **Closed:** H33 (admin PR 45: only Admin and Support see or export the full phone and email, others see them masked, an audit row when a person's page opens), H39 and H40 (PR 259, migration 153: 10 texts a day per phone number, 20% of the day's 500 held for numbers that already have an account, counted only on real sends; place search capped at 150 a person and 3,000 in all, with OpenStreetMap as the fallback), H42 (PR 260, migration 155: lock-screen pushes for chat, questions, payouts, wallet, refunds, cancel fines, support, security and admin warnings are a plain line, decision 26 = plain line; offers and task updates keep their text), H43, H44 and H47 (PR 262, migration 152: ad click and view caps with pruning, upload count and bytes a day caps, 20 posts a day and 5 for a new account, same for feedback; a staging test run that posts more than 5 jobs as one new account a day needs `post_cap_new_day` raised), H41 (PR 263: the weekly job `stray-imagekit-files`, which needs a deploy to register, a dry run with `IMAGEKIT_ORPHAN_DRY_RUN=1` first, and does nothing until the ImageKit keys are set), and H61, H62, H63, H66, H67 and B31 (PR 264, migration 154: a fixed list of columns on the guest card, an area-only place label, a cost-weighted guest limiter with a bounded fallback, the shared-phone hand-off fix). **Partly closed:** H37 (admin PR 46: login cookies HttpOnly, Secure, SameSite Lax, 12 hours at most; the live panel and the authenticator use server routes; still open: the database-side 30-minute idle and 12-hour limit in `private.is_admin()`, and the Google button, which still uses the browser client so its one-time cookie is readable) and H38 (PR 263: pictures only through ImageKit in production, upload links expire in 5 minutes; the location inside videos is **not** stripped, a plain notice is shown instead, and the real fix is a server ffmpeg step, still open). **Independent review of PR 264:** nothing Critical or High; one Medium (a cheap way to push all guests into a "busy" answer), whose fix is in a follow-up PR in progress, with the review's Low notes. **Migrations used:** 152, 153, 154 and 155 (150 and 156 are unused; 157 is reserved for the guest follow-up). **Also:** PR 258 merged the handover folder `docs/handover-2026-11-05`. **Still open:** H34 (the wallet record list, design coming as `docs/WALLET_LEDGER_DESIGN.md`), H52 (task 3.9), Strix (2.16, needs your Docker and an AI key), part G of 2.14, the Low findings H45, H48, H49, H55, H56, H64, H65, H68, B18, B21, B30 and B32 (waiting for your "fix" or "accept"), decisions 17, 25 and the password questions H30 and H31, and making both code folders private (H27). **For you or for Chrome:** a manual Google sign-in check on the admin preview (https://taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app/): the cookie flags, sign-out, the live indicator and the authenticator. Decisions 18 and 27 were built with the recommended answers (say so if you want a different one).
