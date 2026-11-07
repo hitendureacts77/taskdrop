@@ -12,22 +12,29 @@
  *
  *   node scripts/load-test.mjs              # both phases
  *   node scripts/load-test.mjs --per 60     # reads per person in phase 1 (default 60)
+ *   node scripts/load-test.mjs --public     # read the same-for-everyone lists instead (plan 3.5b caches);
+ *                                           # run it with the `public_cache` switches on, then off, and compare
  *
  * Needs EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (public values). Exit 1 if a request failed
  * with a 5xx or a network error, or phase 2 never saw a 429.
  */
 import { api, signIn } from './lib/staging-session.mjs';
+import { memoProbes } from './lib/two-person.mjs';
 
 const per = Number(process.argv[process.argv.indexOf('--per') + 1]) || 60;
 const AT_ONCE = 4;
-const READS = [
-  ['getProfile', {}],
-  ['recommendedTasks', { limit: 10 }],
-  ['recommendedTasks', { limit: 10, skills: ['writing'] }],
-];
+const READS = process.argv.includes('--public')
+  ? memoProbes().map(({ op, args }) => [op, args])
+  : [
+      ['getProfile', {}],
+      ['recommendedTasks', { limit: 10 }],
+      ['recommendedTasks', { limit: 10, skills: ['writing'] }],
+    ];
 
 const pct = (sorted, p) => sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))] ?? 0;
 const summary = (label, samples) => {
+  const bodies = [...new Set(samples.filter((s) => s.body !== undefined).map((s) => s.body))];
+  for (const b of bodies.slice(0, 3)) console.log(`  a 5xx answer said: ${b}`);
   const ms = samples.map((s) => s.ms).sort((a, b) => a - b);
   const by = {};
   for (const s of samples) by[s.status] = (by[s.status] ?? 0) + 1;
@@ -38,7 +45,7 @@ async function timed(token, i) {
   const [op, args] = READS[i % READS.length];
   const t0 = performance.now();
   const r = await api(token, op, args);
-  return { ms: performance.now() - t0, status: r.status };
+  return { ms: performance.now() - t0, status: r.status, body: r.status >= 500 ? String(r.text ?? '').slice(0, 160) : undefined };
 }
 
 /** Runs `total` reads for one person, `AT_ONCE` at a time. */
