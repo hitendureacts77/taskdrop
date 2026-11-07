@@ -824,8 +824,9 @@ These came from your 30 Oct walkthrough (times are in your video):
 | D13 | Added and **built 3 Nov** (OTA on beta 3 Nov, update group f25514e7; phone check pending): on the Hire side, the Explore map and the full map show helpers by **what they offer, never their name**: a service icon and their newest service with its starting price ("AC repair · ₹399"), a dashed skill tag for someone with no service listed, "+N" for more services, green ring when active now. The faces-and-names row became "Services nearby". Tapping a helper opens a sheet with their name, face, rating, area, skills and swipeable service cards (each opens the service); "View full profile" and "Post a task" stay. Server: `workersNear` also sends each helper's newest open service and how many they list (people with a service but no skills now count); new read `workerServices`. No database change. Drawings: [helpers map services canvas](https://claude.ai/artifact/AHz9PQzM1SK8AV6BieW4Xk) |
 | D15 | Added and **approved 4 Nov; built 4 Nov** (migration 146, `api/guest.ts`, `lib/guest.ts`); **finished 5 Nov** (PR 243, migration 151: guests also read task questions, the Ideas board, the nearby pulse and shared before/after photos; the pop-up now opens in front of an open sheet, and the offer is sent by itself after sign-up; checked on the website; **on the Android phone 5 Nov** after PR 250 (beta updates edb64274 and 7f7e2f52): tabs, pop-up in front, Not now keeps the offer; sign-up then offer sent not yet tried on the phone): guest mode. The taskdrop.in sign-in page stays as it is (number, Text me a code, Google, Username) and gets one new button, **Continue as guest**. A guest can use the whole app: Home, Explore, the map, task and service pages, the full Post a request writer, the full Offer a service form, Drafts, Wallet and Profile with zeros. At the last step (Post my request, Publish service, + Add money, Withdraw, Edit my profile, Send offer, Hire, Messages) a **Make your account** pop-up opens: Create account, Sign in, or Not now. Create account runs today’s real steps in a sheet (number, date of birth, under 18 = “TaskDrop is for adults only.”, code, About you), then the action finishes by itself. Server: guest read-only calls for the feed, services, map pins and pulse (area names only, rate-limited, App Check) and a guest AI writer with a daily limit; posting, offers, money and chat stay refused without an account. Decisions 19 to 24. Drawings: [guest mode canvas](https://claude.ai/artifact/MMVE2kP8sj1GXV9RW9FoSX), files in `docs/design/guest-d15/` |
 | D16 | Added 6 Nov 2026 (PRs 265 and 270, on beta as update `665b4a8d`): **Welcome story.** The Welcome page drops the Earn money and Hire help cards and plays a five-part story by itself: Ask for anything, Offers come to you, Your money stays safe, Approve and they get paid, Need help or want to earn? The referral code box stays. Also fixed the same day: the birth-date wheels on Android phones (swipe and flick now work, and a tap on a row picks it) and a required username in first-time setup. **Checked by Claude on your phone (6 Nov):** the wheels swipe, flick and tap-to-pick on the update, and the story played all five parts on a test page in Expo Go, with no errors. **Open:** `[ ]` your own look at the story inside a real new sign-up, which Claude cannot reach because it does not create accounts, and your say on its look and speed |
-| D17 | Added 7 Nov 2026, **drawn, waiting for your approval** (nothing built): **the website offers the Android app.** (A1) In an Android phone's browser, a slim bar at the top of every page: the TaskDrop icon, "TaskDrop for Android", **Get app** and ✕; closing it hides it for 14 days. (A2) Once, after the visitor searches or opens a task, a sheet with three reasons (alerts the second someone replies, the live map, opens in one tap), **Download for Android** and **Keep using the website**. (A3) A page, `taskdrop.in/get`: the download button, version and size, three install steps (open the file, allow it once, Install then Open), a safety line ("only download TaskDrop from taskdrop.in"), and "On an iPhone? Use the website". (A4) On a computer: a **Get the app** button and a sidebar card with a QR code that opens `/get` on the phone. Never shown inside the installed app or on an iPhone. `/get` is one fixed address that points at the newest APK today and at Google Play later, so the bar, the sheet and the QR code never change (decision 31). **Note on "searches":** people who search Google only land on the production website once it is indexed (6.4); `taskdrop.in` is staging and tells search engines not to list it. Drawings: [simple redesign canvas](https://claude.ai/artifact/NprdWrye3bs6swEBGvDVgT), row 1 |
-| D18 | Added 7 Nov 2026, **drawn, waiting for your approval** (nothing built): **a simpler app, every feature kept.** You said people find the app hard to use. Seen on `taskdrop.in` on 7 Nov: the Hire / Earn switch is small and never explained; Home stacks six or more sections before the first job; one job card carries seven labels in four colours; "Set your location" is asked twice; the level card shows before any work is done; the + button sits on top of cards; after posting nothing says what happens next. **The drawings:** (B1, optional) the first open asks "What would you like to do?" with **Get something done**, **Earn money** and **Just look around**. This brings back the choice cards D16 took off the Welcome page on 6 Nov, so say "drop B1" to keep D16 as it is. (B2) Home, Hire side: the switch spelled out as "Get something done / Earn money"; your open task on top with a five-step bar and its next step; one big "describe it" box with the microphone; four idea tiles; one link to the services and helpers map. Busy on TaskDrop and Services near you move behind See all and the map. **This changes the Home order**, which needs your OK under the "Home matches the live app" rule. (B3) Home, Earn side: your area, search, four filters (Near me, Online, Today, Your skills), clean job cards, the level as one small line. (B4) Posting in three named steps (What · Where and when · Your price) with a live preview of the post the writer makes; today's seven steps fold into these three. (B5) Every task page shows a five-step tracker (Posted, Offers, Hire, Work, Mark done and pay) and one "Your next step" card with one button. (B6) One rule for every card: price top right, one line of place and time, at most one tag, one button. Light theme first, dark kept. The five tabs, all screens and all features stay; the + button hides only on Home, where the big box does the same job. **Before building:** a 10-minute test with 5 people using the method of 4.7, and PostHog session replays (3.3c) to see where people stop. Drawings: [simple redesign canvas](https://claude.ai/artifact/NprdWrye3bs6swEBGvDVgT), row 2 |
+| D17 | Added 7 Nov 2026, **drawn, waiting for your approval** (nothing built; **redrawn the same day in today's dark design**, after you said to keep the old design): **the website offers the Android app.** (A1) In an Android phone's browser, a slim bar at the top of every page: the TaskDrop icon, "TaskDrop for Android", **Get app** and ✕; closing it hides it for 14 days. (A2) Once, after the visitor searches or opens a task, a sheet with three reasons (alerts the second someone replies, the live map, opens in one tap), **Download for Android** and **Keep using the website**. (A3) A page, `taskdrop.in/get`: the download button, version and size, three install steps (open the file, allow it once, Install then Open), a safety line ("only download TaskDrop from taskdrop.in"), and "On an iPhone? Use the website". (A4) On a computer: a **Get the app** button and a sidebar card with a QR code that opens `/get` on the phone. Never shown inside the installed app or on an iPhone. `/get` is one fixed address that points at the newest APK today and at Google Play later, so the bar, the sheet and the QR code never change (decision 31). **Note on "searches":** people who search Google only land on the production website once it is indexed (6.4); `taskdrop.in` is staging and tells search engines not to list it. Drawings: [canvas](https://claude.ai/artifact/NprdWrye3bs6swEBGvDVgT), row 1, in today's look |
+| D18 | Added 7 Nov 2026, **turned down by you the same day: not to be built.** You said to keep the old design and only add the features you asked for. The lighter, simpler drawings (a calmer Home, posting in three steps, a next-step tracker, one card rule) were taken off the canvas, and nothing in the app changes. What was seen on `taskdrop.in` that day is kept in case it helps later: the Hire / Earn switch is small and not explained; Home stacks six or more sections before the first job; one job card carries seven labels; "Set your location" is asked twice; after posting nothing says what happens next |
+| D19 | Added 7 Nov 2026, **planned and drawn, waiting for your approval** (nothing built): **TaskDrop Together, a new vertical:** tasks that get better when more people join. Five features: City Hunt, Big Days, Same Here, Learner Seat and Help Swap. The full plan, what rivals have, the order to build and the rules are in task **1.11**. Drawn in today's dark design, and the Home order does not change. Drawings: [canvas](https://claude.ai/artifact/NprdWrye3bs6swEBGvDVgT), row 2. Decisions 32 to 34 |
 
 1. SAY (start with the three that testers will notice first):
 
@@ -1043,6 +1044,94 @@ approve 1.9
 3. TELL Claude: "done 1.10", or what still looks wrong.
 
 **Done when:** L1 to L5 are built and checked at the four sizes, `npm run check` is green, and you say "done 1.10". Android needs no app update for this (nothing changes on the phone layout).
+</details>
+
+<details id="t1-11" data-short="TaskDrop Together (new vertical)">
+<summary>[WAITING] <b>1.11</b> TaskDrop Together: a new vertical, tasks that get better when more people join <small>· planned 7 Nov · waiting for your approval · start words: "approve D19"</small></summary>
+
+**What you asked (7 Nov):** new features customers will love, as a new vertical that no one else has. Plan first, then the screens.
+
+**The idea in one line.** Every task app today is one person hiring one person. TaskDrop already lets one poster hire a crew. Together adds the shapes nobody offers: many people helping one person find something (**City Hunt**), one person planning many tasks for one big day (**Big Days**), neighbours sharing one helper (**Same Here**), a skilled helper bringing a learner (**Learner Seat**), and people trading help without money (**Help Swap**).
+
+**Checked against rivals (web search, 7 Nov).** Ideas that already exist elsewhere were dropped: errands for parents booked by their children from another city or country (Chestha, ElderTask, Ok Boss), paying someone nearby for a live photo of a place (ProxyPics, PhotoTask), and gifting a service (InstaService). For the five that were kept, this is the closest thing found:
+
+| Feature | Closest thing found | How TaskDrop's is different |
+|---|---|---|
+| City Hunt | A lost-and-found reward app (Bounty), and a medicine finder whose own staff phone pharmacies (Medfinder) | Any "find it" job, worked on by many people nearby at once, and only the find the poster accepts is paid. Nothing like it found in India |
+| Big Days | Fixed service packages in home-service apps | One date in, a whole plan out, across every kind of task, local and online, each done by a different helper, on one board |
+| Same Here | US apps that group neighbours for lawn care (StreetFair, OneNeighbor) | Any task, joined from a live post near you, in India, and each person pays only their own share |
+| Learner Seat | Training schemes (NSDC with Rapido), not on a real job | The learner works beside a trusted helper on a real job and earns a skill stamp |
+| Help Swap | Time-bank websites abroad (TimeRepublik) | Inside a paid task app, so someone with time but no money can start here and earn later |
+
+A search cannot prove that nobody has a feature; these are the closest things found.
+
+### The five features
+
+**1. City Hunt: "Find it for me".**
+
+- **For the poster:** drop a task as today. When the writer sees a "find" job (a medicine in stock, a spare part, a lost pet, a flat that fits a list, a tailor who does zardosi work), the options step suggests **Make it a Hunt**. The poster sets a reward (from ₹50), a time limit (2 hours, today or 3 days) and what counts as found (for example a photo of the shelf, the shop's name and its pin).
+- **For people earning:** a Hunt shows in the job lists they already see, with a gold **HUNT** tag and the reward. There is no offer and no waiting to be hired: tap **I'm looking**, then **Send a find** with a photo taken now, a pin and a note.
+- **The fair part, "unlock on accept":** the poster sees each find's photo blurred, how far away it is, when it was sent and which proof checks it passed, but not the shop's name or pin until they tap **This is it**, which pays the reward. **Not it** needs a reason. A poster who turns down finds and then closes the Hunt is shown to the admin, and a finder can report a problem, as on any task.
+- **Money:** the reward is held the same way as any task's payment (Plan A or Plan B, decision 29). If nothing is found by the time limit, the whole reward goes back.
+- **Not allowed:** finding a person, a phone number, someone's home address or their documents, or anything illegal. For a medicine, the finder only says where it is in stock; the poster buys it.
+- **Built from:** a new kind of task and a table of finds (a database change, asked first), the options step, the job lists, the map and alerts.
+
+**2. Big Days: "Plan my big day".**
+
+- A new idea tile, **Plan a big day**: Moving house, New baby, Wedding at home, Festival cleaning (Diwali, Sankranti), Parents visiting, Exam month, Opening a shop.
+- Pick the day. The writer (it runs on the phone and costs nothing) suggests the tasks, each on the right day. For a move on 15 Dec: clean the new flat on the 13th, packing help on the 14th, fit the fans and geyser on the 15th, deep clean the old flat on the 16th, move the internet connection (online) and help changing the address (online).
+- Tick the ones you want and change any line. **Post them** turns each one into a normal task with its date, all at once or each one two days before.
+- One board, **Your big day**, shows every task: offers, who is hired, what is done and the total spent.
+- **Built from:** today's writer, posts, Crew and Repeat. No new kind of payment; one small table for the board.
+
+**3. Same Here: share one helper with neighbours.**
+
+- On an open task near you of the same kind and the same week, a button: **Same here, I need this too**. While posting, the app may say: "2 neighbours within 600 m want AC service this week. Join them?"
+- The helper gives a group price once the group fills, for example ₹600 alone or ₹480 each for 3 or more, in one trip.
+- Each person pays only their own share, inside their own task. There is no shared pot, so no money is pooled.
+- Neighbours never see each other's names, flats or addresses; they see "3 people near Road 4".
+- **Why after launch:** it needs many posts in one small area. It is switched on area by area once there are enough (decision 33).
+
+**4. Learner Seat: a learner beside a trusted helper (Earn side).**
+
+- A helper at the Trusted level can bring one learner. Their offer says "Suresh may bring a learner, Ravi. You pay the same." The poster can say no.
+- The helper says up front what share of their pay the learner gets. TaskDrop's fee is taken once.
+- After 3 jobs of one kind, each marked good by the helper, the learner gets a **Learned with** stamp on their profile (for example "Tap repair · learned with Suresh, 3 jobs").
+- Helpers who teach get a **Teacher** badge and are alerted to new jobs a little sooner.
+- Learners are adults with a full account; in-person jobs only; the poster sees the learner's profile before saying yes.
+
+**5. Help Swap: help for help, no money.**
+
+- "I can teach spoken English for an hour. I need my laptop cleaned." The app shows people near you who need what you give and give what you need.
+- Hours given and hours received show on the profile. An hour is only an hour: it cannot be bought, sold, cashed or moved, so it is not money.
+- No fee. It brings in students, homemakers and retired people who have time, and many of them later earn on TaskDrop.
+- **Before building:** the lawyer (S.3) confirms that hours are not a payment instrument, and how swaps are taxed.
+
+### Where it shows, in today's design (the Home order does not change)
+
+- **Home, Hire side:** two new tiles at the start of the existing **Start from an idea** row: **Find it for me** and **Plan a big day**. The eight ideas stay; the row scrolls.
+- **Posting:** **Make it a Hunt** and **Let neighbours join** become choices in the existing options step, suggested with a reason and never switched on without a tap (your 1 Nov rule).
+- **Home, Earn side:** Hunts appear inside the existing **Jobs near you** and **Needed today** lists with the gold HUNT tag. No new section.
+- **Task pages:** the Same Here button and the group price; the learner line on an offer.
+- **Profile:** Learned with stamps, the Teacher badge and Swap hours.
+
+### The order to build
+
+| Phase | What | When | Why |
+|---|---|---|---|
+| A | City Hunt and Big Days | In Step 1, before Gate 1, if you say so (decision 33); about 1 to 2 weeks | The newest ideas, they work with few users, and both make strong launch posts |
+| B | Same Here and Learner Seat | After launch, area by area | They need many posts and many Trusted helpers in one place |
+| C | Help Swap | After the lawyer's yes | It needs the legal check first |
+
+**What is measured (PostHog, 3.3c):** Hunts posted and found, the time to the first find, and the share found before the time limit; Big Day plans started and the tasks posted from them; for Same Here, the groups that fill and the saving per person.
+
+**Steps:**
+
+1. LOOK at the [canvas](https://claude.ai/artifact/NprdWrye3bs6swEBGvDVgT), row 2.
+2. TELL Claude "approve D19", or what to change, with your answers to decisions 32 to 34.
+3. Claude builds Phase A on `redesigned-2.0` (asking before the database change), checks it on the website and the phone, then you look.
+
+**Done when:** Phase A is on the beta app and you have tried a Hunt and a Big Day. Phases B and C then move to Step 7 with their own start words.
 </details>
 
 > **GATE 1: do not start Step 3 until all of these are true** (Step 2 can start at the same time as Step 1)
@@ -4334,6 +4423,9 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 29 | **How money moves, given Razorpay's PPI request (5 Nov).** Razorpay asked for a PPI license because TaskDrop keeps a wallet balance. A PPI license needs a Private Limited company with about ₹5 crore net worth, which is not realistic now. Keep the wallet as built and risk Razorpay refusing, or move to **Razorpay Route** (the poster's money is held by Razorpay and sent straight to the helper's bank account, TaskDrop never holds a balance)? The note under S.4 has the full answer, the sole-proprietorship papers it needs, and a side-by-side of **Plan A (keep the wallet)** and **Plan B (pay per task, the payment company holds the money; Cashfree first because Route needs ₹40 lakh turnover)** | Open. Recommended: Route with settlements on hold. First ask Razorpay (S.4) and your lawyer (S.3) to confirm in writing that it removes the PPI request. Then say "design the Route money flow": Claude writes the design (no code) before anything in the money path changes. This stays a plan until you say so | "Decision 29: move to Route", "Decision 29: keep the wallet" or "Decision 29: wait for the lawyer" |
 | 30 | **A paid outside tester now?** (2.18 part J.) You have 8 proposals at $50 to $90. Decision 15 chose free invites first. At this price a tester gives a quick second opinion, not a full attack test | Open. Recommended: yes, one small fixed-price round on staging after H34 and Strix, with scope agreed first, and keep the free invites too. F.13 stays the full review | "Decision 30: paid round." or "Decision 30: free invites only." |
 | 31 | **Where `taskdrop.in/get` sends people before Google Play** (D17). Today there are only APKs from Expo links. A production APK installed from a link is expected to stop working once App Check is switched on (5.0d), so it cannot be the public download for long | Open. Recommended: on staging (`taskdrop.in`), `/get` serves the staging APK for testers; on production, the bar and `/get` point to Google Play from launch day (6.6), and the bar stays hidden until then. No public production APK | "Decision 31: staging APK now, Play at launch" or "Decision 31: public production APK" |
+| 32 | **TaskDrop Together** (D19, task 1.11). Build this new vertical, and call it "Together"? | Open. Recommended: yes, with the name "Together" and the five features in the order of 1.11 | "Decision 32: yes, Together." or "Decision 32: another name: …" |
+| 33 | **When Together comes** (1.11). Phase A (City Hunt and Big Days) in Step 1, before Gate 1, which adds about 1 to 2 weeks, or everything after launch? | Open. Recommended: Phase A before Gate 1; Same Here and Learner Seat after launch, area by area | "Decision 33: Phase A before launch." or "Decision 33: all after launch." |
+| 34 | **Help Swap at all** (1.11)? It earns nothing and needs the lawyer | Open. Recommended: yes, but only after the lawyer and after launch | "Decision 34: yes, after the lawyer." or "Decision 34: drop Help Swap." |
 
 ---
 
@@ -4754,6 +4846,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ## Changelog
 
+- **2026-11-07 (old design kept, and a new vertical, TaskDrop Together: D17 redrawn, D18 turned down, D19, task 1.11, decisions 32 to 34):** You turned down the simpler redesign (D18) and asked to keep today's design and only add what you asked for. **D17** (the app prompt on the website) was redrawn in today's dark design. **D18** is marked not to be built and its drawings were taken off the canvas. You also asked for new features customers will love, as a new vertical no one has, planned first and then drawn. Claude searched for rivals, dropped the ideas that already exist (errands for parents booked from far away, paid live photos of a place, gifting a service) and planned **TaskDrop Together** (D19, task 1.11): City Hunt, Big Days, Same Here, Learner Seat and Help Swap, with the order to build, the rules and what is measured. Drawn in today's design on row 2 of the [canvas](https://claude.ai/artifact/NprdWrye3bs6swEBGvDVgT). **New decisions:** 35 to 37. **Not built:** nothing in the app, database or settings changed. Say "approve D17", "approve D19", or what to change.
 - **2026-11-07 (payment Plan A and Plan B saved):** You asked what payment Plan A and Plan B are and how they differ, and for it to be stored here. Added a side-by-side table under the PPI note in S.4: **Plan A** keeps the wallet as built (top-up, withdraw any time, high RBI risk, nothing to build); **Plan B** is pay per task with the payment company holding the money (Cashfree Easy Split first, Razorpay Route as fallback once turnover passes ₹40 lakh), no stored balance, low RBI risk, but the money code changes and your 29 Sep wallet decision is reversed. Decision 29 now points to it and stays open. The RBI points come from law-firm summaries and need the lawyer. No task added, no count changed, no code changed.
 
 - **2026-11-07 (founder communities saved):** You asked Claude to search for good SaaS and builder communities to join, to swap ideas and learn what to do next. Claude searched public roundups and saved the result as a new card in the Marketing playbook, "Founder communities to join": five free ones to start with (Indie Hackers, the SaaS and indie Reddit groups, the Claude communities, #buildinpublic on X, Everything Marketplaces), India-specific ones (Indian Startups Group, Pushstart, Headstart, eChai, r/StartUpIndia, Razorpay Rize), paid ones for later, and ones to skip (MicroConf Connect, ShipFast, SaaStr). Joining is your own click. The communities were not opened one by one, so check prices on their sites. No task added, no count changed.
