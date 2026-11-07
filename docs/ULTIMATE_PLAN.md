@@ -862,6 +862,8 @@ These came from your 30 Oct walkthrough (times are in your video):
 | D13 | Added and **built 3 Nov** (OTA on beta 3 Nov, update group f25514e7; phone check pending): on the Hire side, the Explore map and the full map show helpers by **what they offer, never their name**: a service icon and their newest service with its starting price ("AC repair · ₹399"), a dashed skill tag for someone with no service listed, "+N" for more services, green ring when active now. The faces-and-names row became "Services nearby". Tapping a helper opens a sheet with their name, face, rating, area, skills and swipeable service cards (each opens the service); "View full profile" and "Post a task" stay. Server: `workersNear` also sends each helper's newest open service and how many they list (people with a service but no skills now count); new read `workerServices`. No database change. Drawings: [helpers map services canvas](https://claude.ai/artifact/AHz9PQzM1SK8AV6BieW4Xk) |
 | D15 | Added and **approved 4 Nov; built 4 Nov** (migration 146, `api/guest.ts`, `lib/guest.ts`); **finished 5 Nov** (PR 243, migration 151: guests also read task questions, the Ideas board, the nearby pulse and shared before/after photos; the pop-up now opens in front of an open sheet, and the offer is sent by itself after sign-up; checked on the website; **on the Android phone 5 Nov** after PR 250 (beta updates edb64274 and 7f7e2f52): tabs, pop-up in front, Not now keeps the offer; sign-up then offer sent not yet tried on the phone): guest mode. The taskdrop.in sign-in page stays as it is (number, Text me a code, Google, Username) and gets one new button, **Continue as guest**. A guest can use the whole app: Home, Explore, the map, task and service pages, the full Post a request writer, the full Offer a service form, Drafts, Wallet and Profile with zeros. At the last step (Post my request, Publish service, + Add money, Withdraw, Edit my profile, Send offer, Hire, Messages) a **Make your account** pop-up opens: Create account, Sign in, or Not now. Create account runs today’s real steps in a sheet (number, date of birth, under 18 = “TaskDrop is for adults only.”, code, About you), then the action finishes by itself. Server: guest read-only calls for the feed, services, map pins and pulse (area names only, rate-limited, App Check) and a guest AI writer with a daily limit; posting, offers, money and chat stay refused without an account. Decisions 19 to 24. Drawings: [guest mode canvas](https://claude.ai/artifact/MMVE2kP8sj1GXV9RW9FoSX), files in `docs/design/guest-d15/` |
 | D16 | Added 6 Nov 2026 (PRs 265 and 270, on beta as update `665b4a8d`): **Welcome story.** The Welcome page drops the Earn money and Hire help cards and plays a five-part story by itself: Ask for anything, Offers come to you, Your money stays safe, Approve and they get paid, Need help or want to earn? The referral code box stays. Also fixed the same day: the birth-date wheels on Android phones (swipe and flick now work, and a tap on a row picks it) and a required username in first-time setup. **Checked by Claude on your phone (6 Nov):** the wheels swipe, flick and tap-to-pick on the update, and the story played all five parts on a test page in Expo Go, with no errors. **Open:** `[ ]` your own look at the story inside a real new sign-up, which Claude cannot reach because it does not create accounts, and your say on its look and speed |
+| D17 | Added 7 Nov 2026, **drawn, waiting for your approval** (nothing built): **the website offers the Android app.** (A1) In an Android phone's browser, a slim bar at the top of every page: the TaskDrop icon, "TaskDrop for Android", **Get app** and ✕; closing it hides it for 14 days. (A2) Once, after the visitor searches or opens a task, a sheet with three reasons (alerts the second someone replies, the live map, opens in one tap), **Download for Android** and **Keep using the website**. (A3) A page, `taskdrop.in/get`: the download button, version and size, three install steps (open the file, allow it once, Install then Open), a safety line ("only download TaskDrop from taskdrop.in"), and "On an iPhone? Use the website". (A4) On a computer: a **Get the app** button and a sidebar card with a QR code that opens `/get` on the phone. Never shown inside the installed app or on an iPhone. `/get` is one fixed address that points at the newest APK today and at Google Play later, so the bar, the sheet and the QR code never change (decision 34). **Note on "searches":** people who search Google only land on the production website once it is indexed (6.4); `taskdrop.in` is staging and tells search engines not to list it. Drawings: [simple redesign canvas](https://claude.ai/artifact/NprdWrye3bs6swEBGvDVgT), row 1 |
+| D18 | Added 7 Nov 2026, **drawn, waiting for your approval** (nothing built): **a simpler app, every feature kept.** You said people find the app hard to use. Seen on `taskdrop.in` on 7 Nov: the Hire / Earn switch is small and never explained; Home stacks six or more sections before the first job; one job card carries seven labels in four colours; "Set your location" is asked twice; the level card shows before any work is done; the + button sits on top of cards; after posting nothing says what happens next. **The drawings:** (B1, optional) the first open asks "What would you like to do?" with **Get something done**, **Earn money** and **Just look around**. This brings back the choice cards D16 took off the Welcome page on 6 Nov, so say "drop B1" to keep D16 as it is. (B2) Home, Hire side: the switch spelled out as "Get something done / Earn money"; your open task on top with a five-step bar and its next step; one big "describe it" box with the microphone; four idea tiles; one link to the services and helpers map. Busy on TaskDrop and Services near you move behind See all and the map. **This changes the Home order**, which needs your OK under the "Home matches the live app" rule. (B3) Home, Earn side: your area, search, four filters (Near me, Online, Today, Your skills), clean job cards, the level as one small line. (B4) Posting in three named steps (What · Where and when · Your price) with a live preview of the post the writer makes; today's seven steps fold into these three. (B5) Every task page shows a five-step tracker (Posted, Offers, Hire, Work, Mark done and pay) and one "Your next step" card with one button. (B6) One rule for every card: price top right, one line of place and time, at most one tag, one button. Light theme first, dark kept. The five tabs, all screens and all features stay; the + button hides only on Home, where the big box does the same job. **Before building:** a 10-minute test with 5 people using the method of 4.7, and PostHog session replays (3.3c) to see where people stop. Drawings: [simple redesign canvas](https://claude.ai/artifact/NprdWrye3bs6swEBGvDVgT), row 2 |
 
 1. SAY (start with the three that testers will notice first):
 
@@ -4009,6 +4011,8 @@ Do not pay for bigger servers in advance. Claude watches these signals in **prod
 | 7 | Long YouTube videos | Its own search engine | Monthly, after launch | Subscribers |
 | 8 | Product Hunt, Show HN, r/SideProject, Indie Hackers | One-day spike and credibility | Launch week only. They bring founders, not Hyderabad customers | — |
 
+Founder communities (Indie Hackers, Everything Marketplaces, Indian Startups Group and more) are for **learning and swapping ideas**, not for finding customers. The list to join is in the card "Founder communities to join" below.
+
 **What the Ghosla story teaches** (the Indian rental marketplace on the same stack as TaskDrop, from the YouTube interview you saved)
 
 | What Ghosla did | What TaskDrop does |
@@ -4065,6 +4069,78 @@ Do not pay for bigger servers in advance. Claude watches these signals in **prod
 - PortSwigger Web Security Academy: free hands-on labs for every web attack. The best single course.
 - Supabase docs: "Row Level Security" and "Production checklist".
 - TryHackMe (beginner paths) and Hack The Box Academy (deeper).
+
+</details>
+
+<details id="c-communities">
+<summary>[CARD] Founder communities to join (to learn and swap ideas, not to find customers)</summary>
+
+**Why:** you build alone. These are places where other builders share what to do next, what broke for them, and what worked. They are for **learning and asking**, not for finding Hyderabad customers (that is the channel table above). Joining is free unless marked, takes about 10 minutes each, and is **your own click**: you make the accounts and accept each group's rules. Claude cannot join for you.
+
+**Found 7 November 2026** by reading public roundups (SaaSCity, SaaS Group, Hive Index, Backrr and others, dated September and October 2026). Claude did **not** open each community, so before you pay for anything, check the price and the join rules on the group's own site.
+
+**Start with these five (all free)**
+
+| Community | Why it fits TaskDrop | How to use it |
+|---|---|---|
+| [Indie Hackers](https://www.indiehackers.com/) | The main forum for bootstrapped builders | One milestone post: what TaskDrop is, how far you got, what you are stuck on, with real numbers (even small). A bare link gets ignored |
+| Reddit: [r/SaaS](https://www.reddit.com/r/SaaS/), [r/indiehackers](https://www.reddit.com/r/indiehackers/), [r/SideProject](https://www.reddit.com/r/SideProject/) | Pricing threads and feedback from strangers | Read each subreddit's rules first. r/SaaS allows self-promotion only in weekly threads. Comment helpfully for a couple of weeks before your own post. Always by hand |
+| [r/ClaudeAI](https://www.reddit.com/r/ClaudeAI/) and the official Claude Developers Discord ([discord.gg/anthropic](https://discord.gg/anthropic)) | You build TaskDrop with Claude Code | Workflow tips, skills, what to avoid |
+| X (Twitter) with #buildinpublic | Founders reply within minutes | Share real numbers; reply to others more than you broadcast. Optional: only if it does not eat your building time |
+| [Everything Marketplaces](https://www.everythingmarketplaces.com/) | The only community found that is specifically for marketplace founders (supply and demand, the cold start, trust) | Ask the cold-start questions: how to get workers first, how to keep a city "full". Check on the site whether it is free or paid |
+
+**India-specific**
+
+| Community | What it gives | Notes |
+|---|---|---|
+| Indian Startups Group (public Slack) | The largest open Slack for Indian founders, with a co-founder channel | Open to join |
+| Pushstart | Quick feedback and "roasts" of ideas and MVPs | Needs admin approval |
+| Headstart and eChai Ventures | Local meetups in 20+ cities, including smaller cities | Good for meeting people face to face in your launch city |
+| r/StartUpIndia | Ask there for the current WhatsApp and Telegram founder groups | Also the home of the "building in public" posts in the Marketing playbook |
+| Razorpay Rize | Free help with incorporation and compliance | Application-based. Useful when you form the company (S.2) |
+
+**Worth it later, or if you want to pay**
+
+| Community | What it is | Cost (check the site) |
+|---|---|---|
+| Early Stage Founders (Discord, about 3,000 members) | Finding first customers; pairs you with a founder at a similar stage | Free and paid tiers |
+| Lunadio (Discord, about 1,000 members) | Solo and bootstrapped builders helping each other | Free |
+| Ramen Club (Slack) | Live classes and a monthly demo day for founders building with AI | About £25 a month |
+| WIP | A daily "what I shipped" log that keeps you moving | About $29 a month. Thin on sales and marketplace questions |
+
+**Skip for now:** MicroConf Connect (B2B SaaS only; applications were paused until about 17 November), the ShipFast Discord (you must buy the boilerplate), and SaaStr, SaaStock and SaaS Alliance (aimed at scaling B2B companies).
+
+**First post draft (Indie Hackers, 7 November 2026).** Written at headline level on purpose, so nobody can copy the idea: no product name, no features, no fees, no money flow, no tech details. Change anything that does not sound like you.
+
+```say
+Title: Solo founder from India building a two-sided marketplace. How do you fill ONE city first?
+
+Hi everyone,
+
+I'm a solo founder in India, building a marketplace where people can get everyday things done by someone else. I'm building it with AI coding tools, and it's in testing now with a small group.
+
+I'm not here to pitch. I'm here to learn from people who have been through it.
+
+Where I'm stuck:
+1. Supply first or demand first? My guess is helpers first, in one city. Does that match what you saw?
+2. How did you get your first 20 to 50 people on the "doing" side without paying for ads?
+3. How did you build trust between strangers before you had any reviews?
+
+What I'm doing so far:
+- Testing with about 10 people, using fake data only
+- Planning to launch in one city, not all of India
+- Doing the slow, boring things first: legal, security, and talking to real users
+
+If you've built a marketplace, I'd love to hear what you wish you had done in your first 90 days.
+
+Thanks for reading!
+```
+
+**Keep the idea safe:** answer follow-up questions with "that's still being tested" or ask a question back. Never post screenshots, the name, the price or fee rules, or how the money is held. Share those only after launch, when the product is live and people can already use it. A good idea is hard to copy once real people use it, but do not hand out the blueprint before that.
+
+**A good first week:** join Indie Hackers, r/SaaS, r/indiehackers, Everything Marketplaces and the Claude Discord; then Indian Startups Group and Pushstart; then write the one Indie Hackers post. Keep to the Marketing playbook rules: one post per community, real people only, Reddit by hand, no link spam.
+
+**Reading list that goes with it:** the marketplace books and courses in the learning card above.
 
 </details>
 
@@ -4426,6 +4502,7 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 31 | **Do the spending alerts (2.2) now instead of last?** You asked for security to come last. The rest of 2.2 is 45 minutes of clicks that warn you about a surprise bill on staging, and it protects your wallet more than your code | Open. Recommended: yes, do the 2.2 clicks now; everything else waits | "Decision 31: yes." |
 | 32 | **A paid outside tester now?** (2.18 part J.) You have 8 proposals at $50 to $90. Decision 15 chose free invites first. At this price a tester gives a quick second opinion, not a full attack test | Open. Recommended: yes, one small fixed-price round on staging after H34 and Strix, with scope agreed first, and keep the free invites too. F.13 stays the full review | "Decision 32: paid round." or "Decision 32: free invites only." |
 | 33 | **A wait on a new payout destination** (H77). Today a new UPI ID can be paid at once, with no alert. A 24-hour wait on the first withdrawal to a new destination, with a message to the person, stops most stolen-account losses; the cost is that a helper who changes their UPI ID waits a day | Open. Recommended: yes, a 24-hour wait and a message, built with the wallet ledger (H34) because it changes the same function | "Decision 33: yes." or "Decision 33: no wait, message only." |
+| 34 | **Where `taskdrop.in/get` sends people before Google Play** (D17). Today there are only APKs from Expo links. A production APK installed from a link is expected to stop working once App Check is switched on (5.0d), so it cannot be the public download for long | Open. Recommended: on staging (`taskdrop.in`), `/get` serves the staging APK for testers; on production, the bar and `/get` point to Google Play from launch day (6.6), and the bar stays hidden until then. No public production APK | "Decision 34: staging APK now, Play at launch" or "Decision 34: public production APK" |
 
 ---
 
@@ -4852,6 +4929,8 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 <details id="c-changelog">
 <summary>[CARD] Every change to this plan, newest first</summary>
 
+- **2026-11-07 (founder communities saved):** You asked Claude to search for good SaaS and builder communities to join, to swap ideas and learn what to do next. Claude searched public roundups and saved the result as a new card in the Marketing playbook, "Founder communities to join": five free ones to start with (Indie Hackers, the SaaS and indie Reddit groups, the Claude communities, #buildinpublic on X, Everything Marketplaces), India-specific ones (Indian Startups Group, Pushstart, Headstart, eChai, r/StartUpIndia, Razorpay Rize), paid ones for later, and ones to skip (MicroConf Connect, ShipFast, SaaStr). Joining is your own click. The communities were not opened one by one, so check prices on their sites. No task added, no count changed.
+- **2026-11-07 (app download prompt and a simpler app: D17, D18, decision 34):** You asked for the website to recommend the Android app when people find TaskDrop, and for a simpler, high-class look because people find the app hard to use. Claude walked through `taskdrop.in` as a guest (phone and computer size), read the Home, tab and theme code, and drew 10 screens on one canvas: [simple redesign canvas](https://claude.ai/artifact/NprdWrye3bs6swEBGvDVgT). **New in 1.5:** D17 (the app bar, the one-time sheet, the `/get` install page, the QR code on computers) and D18 (an optional first-open choice, a calmer Home on both sides, posting in three steps, a next-step tracker on every task, one card rule). **New decision:** 34 (where `/get` points before Google Play). **Flagged:** B1 undoes part of D16 and B2 changes the Home order, so both need your OK. **Not built:** nothing in the app, database or settings changed. Say "approve D17", "approve D18", or what to change.
 - **2026-11-06 (2.18 built, parts A to F):** You said "start 2.18". Merged into `redesigned-2.0` and on staging, production untouched: PR 273 (H73, H76), PR 274 (H71, migration 156), PR 275 (H74), PRs 276 and admin 47 (H72), PR 277 (part B) and the chain review. **New from the work:** H77 (a new payout destination has no wait and no alert, decision 33) and H78 (`settings` readable by every signed-in person). **Changed from the plan:** no staff accounts were made on staging; staff roles are tested on the throwaway database. PostgreSQL's default on new functions stays, and a test covers it. **Still open:** part G (next Android build), part J (decision 32), and your answers.
 - **2026-11-06 (plan rethought: features first, security and testing last):** You asked for Caveman, Grill Me and Chromatic to be installed, for the Code Consultant rubrics and ECC to be considered for security and pen testing, for security and testing to come after all the features, and for the plan to be optimised. **Installed** in `~/.claude/skills`: `caveman`, `ultracave`, `grill-me`, `grilling` and the 12 skills from `chromaui/chromatic-skills`, each read first, copied at a fixed commit, with no hooks, plugin or CLI. **Order changed:** Step 1 is now "Finish every feature" and ends in Gate 1, the feature freeze; Steps 2 and 3 run side by side after it, with Step 4 beside them. Task numbers are unchanged. **Moved to Step 1:** 3.3c, 3.5b, 4.3, 4.5, 4.10. **New:** the feature finish list (checked in the code), "The last stretch" path in Step 2, the section "How every feature gets built", tasks 2.22 (Grill Me on the attack plan), 2.23 (six rubrics, before and after), 2.24 (AgentShield), 2.25 (final sweep), 3.6b (Chromatic), F.16, rules 9 and 10, and decision 31. **Fixed while here:** the two decisions numbered 29 (the money one is now 30); a second copy of 5.6b that sat inside the 5.8 table; 1.9 and D11 still said "not built" though the code has them; the top of the plan replaced with today's state; the changelog folded. **ECC:** not installed, with the reasons in "How every feature gets built"; the one-day hackathon claim could not be confirmed from its page. **Not checked:** Chromatic's Playwright setup is to be confirmed against its docs in 3.6b; Expo support is not confirmed; rubric scores are not run yet. No app code, database or setting changed.
 - **2026-11-06 (Upwork proposals: new task 2.18):** You posted a security review job on Upwork, received 8 proposals, and asked for their best practices to go into this plan. Claude read all 8 in full, plus the two public worked examples one applicant linked, and checked each point against the code and staging, reading only. **Already done:** row rules on all 68 tables, signed-out table rights at zero, a private storage bucket, GraphQL off, no server key in `taskdrop.in`'s script files, webhook signatures on the raw bytes, and the person taken from the login token. **New:** task 2.18 with holes H71 to H76 (new doors start open, built bundles not always scanned, the RazorpayX webhook setting not in the code, column-level reads and 29 `select *` calls, the Android app never opened up, the webhook amount not compared), a chain review, one go-live security checklist, production first-day checks in 5.9, the rules and brief for hiring a tester, and decision 32. 2.18 joins Gate 2b. **Also corrected:** H34's design is merged (PR 269), and the guest follow-up (PR 268, migration 157) passed the guest door checks on staging. Nothing in the app, database or production changed.
