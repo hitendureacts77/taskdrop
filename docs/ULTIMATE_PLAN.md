@@ -4,7 +4,9 @@
 
 The clickable version is `docs/ULTIMATE_PLAN.html`. Open it in Chrome. Your ticks are saved there.
 
-**Rethought on 6 November 2026, your rule: finish every feature first, then do security and testing last.** The order is now: Step 1 finish every feature, then the **feature freeze** (Gate 1), then Steps 2 and 3 side by side on the finished app, with marketing (Step 4) beside them, then production (Step 5), launch (Step 6) and growth (Step 7). Task numbers did not change, so "done 2.3" and "start 2.14" still work. Five tasks moved to Step 1 because they are features: 3.3c, 3.5b, 4.3, 4.5 and 4.10. The security already finished stays finished. New: the feature finish list, tasks 2.22 to 2.25 and 3.6b, and the section "How every feature gets built" (the kit: Grill Me, Caveman, Chromatic, the six rubrics and what to take from ECC). The history of every earlier change is in the changelog at the end.
+Rethought on 30 October 2026. What changed: the steps now follow the order a product owner would choose (fix what is broken, make it hacker-proof, prove it with testers, get ready to market, build production, launch, grow). Every slow task that waits on other people sits in one "Start now" track. Future ideas sit in a separate **Future scope** section, so they never count against your progress. The accounts for staging and production are drawn as two maps. Security and marketing each have their own section. The previous version is kept unchanged in `docs/archive/2026-10-30-before-rethink/`.
+
+Checked against best practice on 31 October 2026 (see the changelog). New: 2-step sign-in on your accounts (2.1b), money safety limits (2.11), the marketplace numbers (3.3b), a dispute and safety policy (4.9), backups you control and a real restore practice, a production that is safe from its first minute, releases in small slices, and an earlier start for the 14-day tester clock (Gate 2 is now two gates, 2a and 2b). Vercel security check (31 October): a table of what Vercel secures and what stays yours, holes H18 and H19, and a new task 5.8b (spending stop, firewall rule, preview safety). Advice from a WhatsApp group (3 November): a new task 2.13 (a lock and a limit on every server door, a code scanner, the OWASP checklist line by line, a way for security researchers to report, a spending stop on every paid service; then your three rules: one person never reaches another's data, every document private, sign-in sessions that can be ended), holes H22 to H28, and decisions 14 to 16. A second paste the same day (rate limits, a real sign-in provider, row rules, keys on the server, caching, background jobs, a load test) was checked too: it added part J (a load and abuse test, plus a check of slow work and caching) and hole H29. Made simpler on 4 November: the Security section now opens with "Security in one page", 12 plain checks (with Matt Palmer's checklist, the Betterleaks secrets audit and Strix folded in); the long tables sit in cards below it; Step 2 opens with the security path in order; and two tasks are new, 2.15 (the secrets audit) and 2.16 (the AI attacker). **Two copies, side by side (5 November):** `taskdrop.in` is now **staging**, production starts on the addresses Vercel makes, staging gets its own Android app (`com.taskdrop.app.staging`), and one step-by-step plan covers the staging and production websites, the staging and production Android apps and every backend tool (tasks 5.0a to 5.0e, the switchboard card, decision 28). Caching designed on 4 November: task 3.5b (keep the same-for-everyone lists ready, never anyone's own data, no Redis), holes H69 and H70, decision 29.
 
 ---
 
@@ -25,9 +27,9 @@ The clickable version is `docs/ULTIMATE_PLAN.html`. Open it in Chrome. Your tick
 - **SAY**: copy the text in the purple box into the Claude chat.
 - **TELL**: write in the chat what you saw. A screenshot is fine.
 
-**Ten rules:**
+**Eight rules:**
 
-1. **Go in order.** Start the whole **Start now** track as well. It is slow, so it runs beside Steps 1 to 4.
+1. **Go in order.** Start the whole **Start now** track in week 1 as well. It is slow, so it runs beside Steps 1 to 4.
 2. **Pass each gate.** A gate is a short checklist at the end of each step. Do not start the next step until every line is true.
 3. **Never paste a password, key or secret into the chat.** Claude will never ask you for one.
 4. **If a screen looks different** from the steps, stop and send Claude a screenshot. Websites rename their buttons.
@@ -35,56 +37,60 @@ The clickable version is `docs/ULTIMATE_PLAN.html`. Open it in Chrome. Your tick
 6. **Claude pushes, opens the pull request and merges it without asking you** (your rule, 31 Oct). Merging is never a question for you. Claude still asks you first only before: publishing an app update to testers, wiping or resetting data, rotating a key, or touching `main` or production.
 7. **After every new feature, check it fits the browser and the screen** (your rule, 1 Nov). Claude does not call a feature done until the website works in Chrome, Edge, Firefox and Safari (latest versions) at phone, tablet and laptop widths, and the Android app works on your phone: nothing cut off, no sideways scrolling, every button easy to reach and tap, text readable (also with bigger text and with the keyboard open). The steps are in the card "Fits every browser and screen".
 8. **Secrets live only in the server-side env file** (your rule, 1 Nov). Every secret, new or old, is stored only in `.env.all-secrets` on your PC and in the server-side store that needs it (Supabase function secrets or Vault, Vercel Sensitive variables, Expo Secret variables). Claude never puts a secret in the app or website code, in a name that starts with `EXPO_PUBLIC_` or `NEXT_PUBLIC_`, in Git, in this plan, in a pull request or in chat, and never prints one. Only public values (the Supabase public key, the Sentry address, Firebase web settings) may sit in public names. The details are in task 2.1.
-9. **Features first, security and testing last** (your rule, 6 Nov). No security round, pen test or tester round starts until Gate 1, the feature freeze, is passed, so that nothing is tested twice. After the freeze, only fixes go in. A new feature idea goes to Future scope, or it reopens the freeze and the tests that have run so far must run again.
-10. **The automatic guards never switch off.** "Security last" means the big audits and attacks wait. These stay on during feature work, cost you no time and are the reason waiting is safe: the checks on every pull request (tests, secret scan, Semgrep, the lock-and-limit test, the two-person test), Claude's security review before each merge, rule 8, row rules on every new table, and fake data only on staging. A Critical or High problem found by chance is fixed the same day.
 
 ---
 
-## Where you are today (6 November 2026)
+## Where you are today (30 October 2026)
 
 **Already done**
 
-- The app works on the website and on Android with fake money. Staging safety is live: the "Staging" ribbon, the block on real payment keys, the site hidden from Google, the staging notice in Terms and Privacy.
-- Built and merged: the phone walkthrough fixes, the designs through D15 (maps, helpers, guest mode; D6 dropped), the ideas from Qwikyo and Heplo, the desktop layouts, the admin app with staff roles, the app tour, Google sign-in, error alerts, uptime monitors, and the code for the two copies (5.0a).
-- A lot of security is finished and stays finished: secrets audit, OWASP check, a lock and a limit on every door, the two-person test, hunt rounds 1 and 2, with every Critical fixed. See the **Security** section.
+- The app works on the website and on Android with fake money (checked "finished" on 2026-10-28).
+- Staging safety is live: the "Staging" ribbon, the block on real payment keys, the site hidden from Google, the staging notice in Terms and Privacy.
+- The app tour, the admin app with staff roles, Google sign-in, error alerts (Sentry), uptime monitors and GitHub secret scanning all work.
+- Your 20-minute phone walkthrough (30 Oct): 11 fixes are merged into `redesigned-2.0` and published to the phone app (31 Oct, task 1.2).
 
 **Not done yet**
 
-- **Features:** the feature finish list at the top of Step 1. Four things are not built: PostHog, the public pages, smart alerts and email sequences.
-- **One big open question:** how money moves (decision 30, Razorpay's PPI request). If the answer is Route, the money code changes, so it must be settled before the freeze.
-- **Security and testing:** everything left in Steps 2 and 3, including the final hunt, Strix, the rubric scores, Chromatic and Google's 12 testers for 14 days.
-- **Business paperwork:** company, bank, lawyer, payment approval, SMS registration (Start now track).
-- **Production**, the real-money copy of TaskDrop, does not exist yet.
+- 4 phone problems from 28 Oct, about 8 small bugs, and 10 design changes you asked for. New on 31 Oct: content and alerts hidden behind the phone keyboard (task 1.8).
+- Security: Claude's check on 30 Oct found real open holes (see the **Security** section). None can move money today, because staging has only fake money, but every one must be closed before real money.
+- Google Play: 12 testers for 14 days have not started. (Google's ID check is done: verified 27 Oct, task S.1.)
+- All the business paperwork for real money: company, bank, lawyer, payment approval, SMS registration.
+- Production, the real-money copy of TaskDrop, does not exist yet.
 
 **The three things that matter most right now**
 
-1. **Keep the slow track moving** (S.2, S.3, S.4). Launch cannot happen without it, and the lawyer's answer also decides decision 30.
-2. **Finish the feature finish list** (Step 1).
-3. **Then freeze** (Gate 1), and only then start security and testing.
+1. **Start the slow track today** (S.1 and S.2). Google's ID check and the company paperwork take weeks, and launch cannot happen without them.
+2. **Fix the bugs you can see** (Step 1), so testers judge a good app, not a broken one.
+3. **Close the security holes** (Step 2) before anyone outside your circle uses the app.
 
-**Your next week, in order**
+**Your first week, in order**
 
-| Order | Do this | Task |
+| Day | Do this | Task |
 |---|---|---|
-| 1 | Meet the CA and ask the lawyer the money question | S.2, S.3, decision 30 |
-| 2 | Answer decisions 22, 25 and 31 (one line each). Decision 17 goes to your CA | Decisions list |
-| 3 | Check on your phone what is built: rival ideas, maps, guest mode. Look at the desktop layouts | 1.9, 1.10, D13 to D15 |
-| 4 | Make the PostHog account (20 minutes), then SAY "start 3.3c" | 3.3c |
-| 5 | SAY "start 4.3", then "start 4.5", then "start 4.10" | 4.3, 4.5, 4.10 |
+| 1 | Start Google Play's ID check (done: Google verified your identity on 27 Oct) | S.1 |
+| 1 | Book a meeting with a Chartered Accountant | S.2 |
+| 1 | Answer the decisions (deferred to future scope on 1 Nov 2026) | 1.1 |
+| 1 | Open the staging app on your phone twice and try the walkthrough fixes (done by Claude 31 Oct) | 1.2 |
+| 2 | Set up and protect your secrets file | 2.1 |
+| 2 | Turn on 2-step sign-in on your 8 most important accounts (deferred to future scope on 31 Oct 2026) | 2.1b |
+| 2 | Ask Razorpay and Cashfree for quotes (one email) (sent 31 Oct, waiting for their call back) | S.4 |
+| 3 | Name check and trademark search (1 hour) | S.5 |
+| 3 to 7 | Approve the design drawings Claude sends; say "start key protection" | 1.5, 2.5 |
 
 ---
 
 ## The map
 
 ```map
- START NOW: the slow track. Runs beside Steps 1 to 4. All done before Step 5.
+ START NOW (week 1): the slow track. Runs beside Steps 1 to 4. All done before Step 5.
  S.1 Play ID check   S.2 company + bank   S.3 lawyer   S.4 payment quotes
  S.5 name + trademark   S.6 SMS registration   S.7 legal contacts   S.8 payment approval
 
- STEP 1              GATE 1             STEP 2 Security + pen test    GATE 2b
- Finish every    ->  feature freeze ->  STEP 3 Real testers           GATE 3   ->  STEP 5       ->  STEP 6     ->  STEP 7
- feature             only fixes after   (both at once, on frozen code)             Build            Launch         Run and
-                                        STEP 4 Market, beside them    GATE 4       production       one city       grow
+ STEP 1          STEP 2            STEP 3            STEP 4            STEP 5             STEP 6            STEP 7
+ Fix what is  -> Make it        -> Prove it with  -> Get ready to   -> Build           -> Launch one     -> Run and
+ broken          hacker-proof      real testers      market            production         city              grow
+ week 1          weeks 1-3         weeks 3-6         weeks 4-8         1-2 weeks          real money        every week
+   GATE 1          GATE 2a, 2b       GATE 3            GATE 4            GATE 5             GATE 6
 
  FUTURE SCOPE (separate, not part of your progress): passkeys, iOS, second city, referrals, ads ...
 ```
@@ -103,44 +109,6 @@ The clickable version is `docs/ULTIMATE_PLAN.html`. Open it in Chrome. Your tick
 | Plan for the split | Section "The two copies, side by side" at the start of Step 5 | The same section |
 | Accounts | Today's account or project in every tool | Its own new account or project in every tool. Nothing is copied |
 | Cost | Free plans. Google Play $25 once | About $45 a month plus fees |
-
----
-
-## How every feature gets built (and which AI tool to use when)
-
-Added 6 November 2026. You asked for three skills to be installed, six rubrics to be added and Affaan Mustafa's ECC repo to be considered. This is what each one does for TaskDrop.
-
-**What ECC really teaches.** ECC's page says Affaan Mustafa won the Anthropic x Forum Ventures hackathon in September 2025 with @DRodriguezFX, building zenith.chat with agent workflows. The page gives no build time, so "in a single day" could not be confirmed. The speed comes from a method, not from the pack of files, and the method is free to copy:
-
-| Step of every feature | What happens | Tool you already have |
-|---|---|---|
-| 1. Challenge it | Claude asks hard questions, one round at a time, each with a recommended answer | `/grill-me` |
-| 2. Plan | A short written plan, nothing built yet. A screen gets your design sign-off first | `/spec`, then `/plan-eng-review` for risky work |
-| 3. Failing test first | A test that fails shows the feature is missing | `/verify` |
-| 4. Build small | One small pull request at a time. Work that does not overlap can run side by side in separate worktrees | `/captain` for several at once |
-| 5. Fresh eyes | A review with no memory of the build, so it sees what the builder missed | `/review`, `/code-review`, `/security-review` |
-| 6. Prove it | Tests, the website at every size (rule 7) and your phone. A feature is done only with proof | `/verify`, `/qa`, `/design-review` |
-| 7. Remember | Decisions go into this plan, so the next session starts from them | `/context-save`, `/learn` |
-
-Start a feature by saying, for example:
-
-```say
-Build [feature] the plan's way: grill me first, then plan, failing test, small pull requests, fresh review, proof.
-```
-
-**What is installed (6 Nov), all in your Claude skills folder:**
-
-| Tool | What it is for | How to use it | Good to know |
-|---|---|---|---|
-| **Grill Me** ([mattpocock/skills](https://github.com/mattpocock/skills)) | Finds the weak spots in a plan before anything is built | SAY `/grill-me` with your plan. "Yes" accepts Claude's recommended answer | It has two parts, `grill-me` and `grilling`. Both are installed. The other skills in that repo were left out |
-| **Caveman** ([JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman)) | Shorter answers from Claude, so long sessions use fewer tokens | SAY `/caveman`, stop with "normal mode". `/ultracave` is shorter still | Its own test: 41% fewer output tokens than normal, but only about 5% fewer than simply asking Claude to be concise. It keeps full sentences for security warnings, for questions to you and for anything written into files. **Only the skill is installed**, not its plugin or CLI: the plugin auto-starts every session, the CLI sends usage data unless turned off, and its Auto mode sends your prompts to its cloud. Use it for long hunt and build sessions, not when you want a plain explanation |
-| **Chromatic** ([chromaui/chromatic-skills](https://github.com/chromaui/chromatic-skills)) | Takes pictures of each website screen and shows you exactly what changed | Set up in task 3.6b, after the freeze | 12 skills for setup and for debugging. They do nothing until you have a Chromatic account. The connector (plugin) comes in 3.6b |
-
-**ECC itself is not installed, on purpose.** It holds about 314 skills and 71 agents that overlap the gstack skills you already have. Its own page warns against stacking installs, says each extra tool eats into Claude's memory, and lists open problems on native Windows. You get its method from the table above, and its one unique piece, AgentShield, in task 2.24. A small trial is kept as F.16.
-
-**The six rubrics** ([Code Consultant](https://codeconsultant.help/#rubrics) by Aaron Blum) are score sheets for AI-built apps, from 1 to 5. They are used in task 2.23, once at the start of security and testing and once at the end.
-
-**How to spend fewer tokens every day** (ECC's advice, checked against this setup): one task per session; a fresh session after a big task, using `/context-save` and `/context-restore`; switch off connectors you are not using; `/caveman` during long runs; Sonnet 5.5 subagents for routine work and Opus 5.5 for the hard parts (your rule, 4 Nov).
 
 ---
 
@@ -176,7 +144,6 @@ You use **two Google accounts**, plus one email alias. When Google shows an acco
 <div class="am-card"><div class="am-tool">Expo (EAS) <span>Android builds + updates</span></div><dl><dt>Workspace</dt><dd>account <code>hitendureacts</code></dd><dt>Project</dt><dd><code>@hitendureacts/taskdrop</code> (today)</dd><dt>Project ID</dt><dd><code>08aa002b-4eea-4952-a62a-ec9245e77953</code></dd><dt>Channel</dt><dd><code>staging</code> (was <code>beta</code> until 5.0c)</dd><dt>Android app</dt><dd>TaskDrop Staging, <code>com.taskdrop.app.staging</code></dd></dl></div>
 <div class="am-card"><div class="am-tool">Sentry <span>error alerts</span></div><dl><dt>Workspace</dt><dd>organization <code>hitendu</code></dd><dt>Projects</dt><dd><code>taskdrop</code> (app + server), <code>taskdrop-admin</code> (today)</dd></dl></div>
 <div class="am-card"><div class="am-tool">PostHog <span>funnels, task 3.3c</span></div><dl><dt>Account</dt><dd><b>hitendureacts@gmail.com</b> (not made yet)</dd><dt>Project</dt><dd><code>taskdrop-staging</code>, EU cloud</dd></dl></div>
-<div class="am-card"><div class="am-tool">Chromatic <span>website pictures, task 3.6b</span></div><dl><dt>Account</dt><dd><b>hitendureacts@gmail.com</b> (not made yet)</dd><dt>Plan</dt><dd>Free, staging only</dd></dl></div>
 <div class="am-card"><div class="am-tool">Inngest <span>background jobs</span></div><dl><dt>Workspace</dt><dd>organization <code>taskdrop</code> (today)</dd><dt>Plan</dt><dd>Hobby (free)</dd></dl></div>
 <div class="am-card"><div class="am-tool">ImageKit <span>photos</span></div><dl><dt>Account</dt><dd>"Hitendu"</dd><dt>ImageKit ID</dt><dd>not written down yet (Claude reads it in task 2.3)</dd></dl></div>
 <div class="am-card"><div class="am-tool">Razorpay <span>payments</span></div><dl><dt>Account</dt><dd>your business account</dd><dt>Mode</dt><dd><b>Test mode</b> only</dd></dl></div>
@@ -305,7 +272,7 @@ Everything here is **new and separate** and is made in Step 5. Nothing is copied
 
 **The honest goal.** No app can be made unhackable. TaskDrop aims for this: a break-in is **unlikely**, it is **noticed within minutes**, a stolen key **does little damage**, and recovery is **written down and fast**. Step 2 builds this. The tests are done the way a real attacker would work, but only against staging, never against production or the payment companies.
 
-**Security in one page** (made simpler on 4 November 2026). If you read only one thing about security, read this table. Its 12 checks hold everything: the checks already in this plan, every point from the 8 Upwork proposals (task 2.18), all 16 lines of [Matt Palmer's security checklist for vibe-coded apps](https://gist.github.com/mattppal/5c01ef4447e94515a03314db1ef2403e), the Betterleaks secrets audit you shared (task 2.15) and [Strix](https://github.com/usestrix/strix), the free AI attacker (task 2.16). What is left, in order, is **the last stretch** at the top of Step 2. The full detail (every hole, the Vercel table, the bug list) is in the card under the picture.
+**Security in one page** (made simpler on 4 November 2026). If you read only one thing about security, read this table. Its 12 checks hold everything: the checks already in this plan, every point from the 8 Upwork proposals (task 2.18), all 16 lines of [Matt Palmer's security checklist for vibe-coded apps](https://gist.github.com/mattppal/5c01ef4447e94515a03314db1ef2403e), the Betterleaks secrets audit you shared (task 2.15) and [Strix](https://github.com/usestrix/strix), the free AI attacker (task 2.16). What is left, in order, is the **security path** at the top of Step 2. The full detail (every hole, the Vercel table, the bug list) is in the card under the picture.
 
 | # | The check, in plain words | Where TaskDrop stands | Finished in |
 |---|---|---|---|
@@ -319,10 +286,8 @@ Everything here is **new and separate** and is made in Step 5. Nothing is copied
 | 8 | **Errors and logs say nothing private.** No keys, phone numbers or codes in error messages, Sentry or the logs | **Mostly.** Sentry hides secrets; the OWASP checklist went through errors and logs line by line (built 4 Nov). The hunt read the background jobs and logs on 4 Nov: nothing private in them; one small leak fixed (B19, the export log kept the search text); lock-screen pushes for chat, questions, money, support, security and admin warnings now show a plain line such as "You have a new message" (H42 closed 6 Nov, PR 260, your decision 26); offers and task updates keep their text. Left: a rare double push (B18, Low) | 2.13 C; 2.14 H |
 | 9 | **Uploads are safe and files are private.** Only real photos and videos of a fair size; nobody opens another person's file | **Mostly.** Private files only, shown through short-lived links; 20 uploads a minute and 15 MB each; a test that no file is public. The hunt (4 Nov) found photos in ImageKit are fine (ImageKit removes the hidden location). Left: your click to make the code folders private (H27), and the location stored inside videos (H38). **Fixed 5 and 6 Nov:** pictures go only through ImageKit in production, upload links expire after 5 minutes, a weekly job finds stray files in ImageKit (H41; needs a deploy to start and a dry run first), and a daily cap on stored files (H44). The location inside videos is **not** stripped yet: a plain notice tells people, and the real fix is a step on the server (ffmpeg), still open | 2.13 H; 2.14 H |
 | 10 | **Packages kept up to date.** Old libraries are where most holes come from | **Mostly.** `npm audit` on every change and every Monday (built 4 Nov); Dependabot suggests new versions. One accepted warning waits for review by 13 December | 2.6, 2.13 B |
-| 11 | **Attacked for real before launch.** Someone tries to break in on purpose and proves each hole | **In progress.** Claude's hunt: rounds 1 and 2 done 4 Nov; it found 2 Critical and 2 High (money could be created from nothing) and both Critical bugs and the High "old helper presses Start" are fixed and live (PR 236, migration 148); the High "direct database access" (H52) is the known open door H3 and closes in 3.9. **On 5 and 6 Nov the Medium finds were fixed** in five pull requests (259 to 264) and two admin ones (45, 46): H33, H39 to H44, H47, H61 to H63, H66, H67 and B31 are closed, H37 and H38 partly; all on staging, production untouched. Still to come: the wallet record list (H34, design done, waiting for your "start H34"), the outside testers' advice (2.18), Strix (waiting for you), then 2 or 3 testers you invite | 2.14, **2.25**, **2.16**, 2.13 E |
+| 11 | **Attacked for real before launch.** Someone tries to break in on purpose and proves each hole | **In progress.** Claude's hunt: rounds 1 and 2 done 4 Nov; it found 2 Critical and 2 High (money could be created from nothing) and both Critical bugs and the High "old helper presses Start" are fixed and live (PR 236, migration 148); the High "direct database access" (H52) is the known open door H3 and closes in 3.9. **On 5 and 6 Nov the Medium finds were fixed** in five pull requests (259 to 264) and two admin ones (45, 46): H33, H39 to H44, H47, H61 to H63, H66, H67 and B31 are closed, H37 and H38 partly; all on staging, production untouched. Still to come: the wallet record list (H34, design done, waiting for your "start H34"), the outside testers' advice (2.18), Strix (waiting for you), then 2 or 3 testers you invite | 2.14, **2.16**, 2.13 E |
 | 12 | **Notice fast, recover fast, guard your own logins.** Alarms, an emergency guide, backups, your accounts | **Partly.** Budget and Sentry alarms, the decoy key and the emergency guide are in place. Yours: the clicks in 2.2 to 2.4. Backups outside Supabase come with production. 2-step sign-in is deferred by you (H14) | 2.2 to 2.4, 2.10, 5.9, 6.5 |
-
-**When the rest happens (your rule, 6 Nov).** Everything still open in this table now waits for Gate 1, the feature freeze, and is finished in Steps 2 and 3 on the finished app. The automatic guards in rule 10 stay on until then. Two new jobs join it: the six rubrics give the app a score (2.23), and AgentShield checks Claude's own setup (2.24). The in-progress fixes from hunt round 2 that you already said yes to are allowed to finish.
 
 **Questions for you from the security work** (4 Nov). The full wording is in the Decisions list at the end. Each has a recommended answer; say it, or say your own.
 
@@ -350,7 +315,7 @@ Everything here is **new and separate** and is made in Step 5. Nothing is copied
 <details id="c-security-detail">
 <summary>[CARD] The detail: every hole found (H1 onwards), what Vercel gives you and what stays yours, and the bug list</summary>
 
-**The holes found (checked by Claude on 30 October 2026, on staging; H15 to H17 added on 31 October from the best-practices check; H18 and H19 added on 31 October from the Vercel security check; H20 and H21 added on 2 November from Supabase's rate-limit guide; H22 to H25 added on 3 November from the WhatsApp advice, task 2.13; H29 added on 3 November from a second paste, task 2.13 part J; H35 to H55 and H61 to H68 added on 4 November from the second round of the hunt, task 2.14; H56 added on 4 November from the secrets audit, task 2.15; H71 to H78 added on 6 November from the Upwork proposals and their review, task 2.18)**
+**The holes found (checked by Claude on 30 October 2026, on staging; H15 to H17 added on 31 October from the best-practices check; H18 and H19 added on 31 October from the Vercel security check; H20 and H21 added on 2 November from Supabase's rate-limit guide; H22 to H25 added on 3 November from the WhatsApp advice, task 2.13; H29 added on 3 November from a second paste, task 2.13 part J; H35 to H55 and H61 to H68 added on 4 November from the second round of the hunt, task 2.14; H56 added on 4 November from the secrets audit, task 2.15; H71 to H76 added on 6 November from the Upwork proposals, task 2.18)**
 
 Sources: Supabase's own security check on the staging database (rerun on 31 October: the same 113 functions, the same signed-out `get_app_controls`, the same 7 private tables and leaked-password protection off, so nothing new), `npm audit` on both code folders, the break-it pass of 25 October, and a read of both `vercel.json` files, the admin's `next.config.mjs` and `middleware.ts`, and the Edge Functions' CORS settings.
 
@@ -435,14 +400,12 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | H68 | Guests browse every post and profile without any 18+ question (the age check is only at sign-up) | Low (your decision) | **Waiting for your "fix" or "accept"** (decision 25) |
 | H69 | Two short memories in the app (answers reused for 30 seconds, and signed photo links) are kept per device, not per person. Signing in or out stops the reuse, but the photo links stay in memory for the next person on a shared phone. They only open pictures the server had already shown that phone, so nothing new is exposed (found 4 Nov while designing caching) | Low | 3.5b (layer A) |
 | H70 | When a new server copy starts, a second request that arrives while the first is still loading the secrets gets an empty value instead of waiting. That request can then fail, or skip a check, for no reason (found 4 Nov while designing caching) | Low | 3.5b (layer D) |
-| H71 | New doors start open: a new table could be read by every signed-in person, and a new function can be run by everyone, until a migration says otherwise. Nothing was open (all 68 tables have row rules) | Low | **Fixed 6 Nov (PR 274, migration 156):** a new table gives nobody any right, and a test fails the build on a table with no row rules or a function that can run signed out. PostgreSQL's own default on functions stays; the test covers it |
-| H72 | The built-bundle secret test skipped itself when no build was present, and the Android bundle was checked by hand once | Low | **Fixed 6 Nov (PR 276, admin PR 47):** the website build, the admin's browser files and the Android bundle are scanned, and a missing build fails |
-| H73 | `razorpayx-webhook` ran without Supabase's login check on staging, which is right, but the setting was not in the code. A new production project might have refused RazorpayX with no error in the app | Medium (production only) | **Fixed 6 Nov (PR 273):** the line is in `supabase/config.toml`, and a test fails if it goes |
-| H74 | Row rules guard rows, not columns. 29 database calls in `api` asked for every column, so a column added later would reach people unreviewed. No private value was found | Medium | **Fixed in `api` 6 Nov (PR 275):** fixed column lists, private and funding fields kept from people they do not belong to, and a test fails on an undecided column. The direct database door still shows every column of a visible row until 3.9 |
+| H71 | New doors start open. A new database function can be called by everyone, and a new table can be read by every signed-in person, until a migration says otherwise, and no test covers every table's row rules. Nothing is open today (all 68 tables have row rules, and the signed-out role can run 1 function, on purpose), so this is a trap for the next change, not a leak (found 6 Nov, 2.18) | Low | 2.18 part C |
+| H72 | The built-bundle secret test skips itself when no build is present, which is the case in the main CI check; the admin's test has the same "when one exists" shape, and the Android bundle was checked by hand once (1 Nov). Today's scan of `taskdrop.in` found no server key, and the source is scanned on every change (found 6 Nov, 2.18) | Low | 2.18 part D |
+| H73 | `razorpayx-webhook` runs without Supabase's login check on staging, which is right, but that setting is not in `supabase/config.toml` and `check-endpoints` does not look for it. On a new production project the function may be created with the login check on: RazorpayX sends no login, so payout updates would be refused with no error in the app. 5.9's test only covers the Razorpay webhook. Not proven on a new project; found by reading the settings on 6 Nov (2.18) | Medium (production only) | 2.18 part E |
+| H74 | Row rules guard rows, not columns. Every signed-in person can read 28 columns of `profiles` and 51 of `tasks`, including a task's funding fields, and 29 database calls in `api` ask for every column, so a column added later would reach people unreviewed. No private value was found (`payout_upi` is empty on every row; profile locations are rounded). The same trap as H62, for signed-in people. Includes H13 and H45 (found 6 Nov, 2.18) | Medium | 2.18 part A |
 | H75 | The built Android app has been checked from its settings and for keys, but never opened up the way an attacker would: entry points, app links, debug settings (found 6 Nov, 2.18) | Low | 2.18 part G |
-| H76 | The Razorpay webhook did not compare the amount Razorpay reports with the amount on record | Low | **Fixed 6 Nov (PR 273):** the webhook and the app's own check hold a mismatch unpaid and raise an alert |
-| H77 | **A new payout destination has no wait and no alert.** Anyone inside an account (a stolen SIM, H31) can add a UPI ID and withdraw the whole cleared balance, up to ₹1 lakh at once. New accounts have the 2.11 limits; established ones do not. Found by reading the code in the chain review, not run as an attack (6 Nov, 2.18 F) | Medium, High once money is real | **Decision 33.** The fix changes the withdrawal function, so it should land with the wallet ledger (H34) |
-| H78 | Every signed-in person can read every row of `settings` (30 on staging), including the anti-abuse limits and whether the test sign-in is on. No secret key is in it, but it shows where the limits sit (found 6 Nov, 2.18 A and B) | Low | **Your "fix" or "accept".** The direct door closing in 3.9 stops the plain read; the app's fee reads would keep working through `api` |
+| H76 | The Razorpay webhook does not compare the amount Razorpay reports with the amount on record. The signature is checked and the link is made by the server, so this is a second net, not a known way in (found 6 Nov, 2.18) | Low | 2.18 part E |
 | — | Accepted on purpose: an old Razorpay **test** key in the code history; `get_app_controls` readable signed out; 7 private tables closed to the app | Info | Nothing to do |
 
 **The bugs found (your walkthrough, the phone runs and the break-it pass)**
@@ -484,7 +447,7 @@ New holes and bugs found by the bug and security hunt (task 2.14) are added to t
 
 ---
 
-## START NOW: the slow track (runs beside Steps 1 to 4)
+## START NOW: the slow track (start in week 1, runs beside Steps 1 to 4)
 
 **Why start now:** each of these waits on other people (Google, banks, a lawyer, Razorpay, phone companies) for days or weeks. Starting costs little. Waiting only delays launch. **All eight must be done before Step 5.** Tick each one when it is finished, not when you start it.
 
@@ -645,10 +608,10 @@ This usually takes 1 to 3 weeks. One thing to check with a CA: GST law has speci
 
 - **S.2** now names the sole proprietorship papers as the minimum for Razorpay (GST or Shop & Establishment plus Udyam, a current account, a utility bill).
 - **S.3** already asks the lawyer "Does the wallet need RBI permission?". Add: "Is Razorpay Route with held settlements enough, so TaskDrop never holds a balance?".
-- **Decision 30** (below) is the one choice only you can make: keep the wallet as built and risk the PPI request, or move to Route. **It must be answered before the feature freeze (Gate 1):** moving to Route changes the money code, and security and testing must run on the final money code.
+- **Decision 29** (below) is the one choice only you can make: keep the wallet as built and risk the PPI request, or move to Route.
 - **Not built:** TaskDrop today keeps a wallet balance (earnings clear after 7 days, then withdraw through RazorpayX). Moving to Route would change the money flow, so it needs the lawyer's answer (S.3), Razorpay's written reply (S.4) and a design step before any code. Say "design the Route money flow" when you want that started.
 
-**Payment Plan A and Plan B, side by side (saved 7 Nov 2026, advice only, nothing built).** These are the two answers to decision 30. Plan A is what is built; Plan B is the fallback if Plan A is blocked. The RBI points come from law-firm summaries of the draft PPI directions of 22 Apr 2026 (the rbi.org.in links did not open), so your lawyer (S.3) must confirm them.
+**Payment Plan A and Plan B, side by side (saved 7 Nov 2026, advice only, nothing built).** These are the two answers to decision 29. Plan A is what is built; Plan B is the fallback if Plan A is blocked. The RBI points come from law-firm summaries of the draft PPI directions of 22 Apr 2026 (the rbi.org.in links did not open), so your lawyer (S.3) must confirm them.
 
 | | **Plan A: the wallet (built today)** | **Plan B: pay per task, the payment company holds the money** |
 |---|---|---|
@@ -666,7 +629,7 @@ This usually takes 1 to 3 weeks. One thing to check with a CA: GST law has speci
 | **Safe either way** | The wallet record list (H34) is safe to build under Plan A or Plan B | Same |
 | **Reverses an old decision** | No | **Yes**, your 29 Sep wallet decision, so it needs your yes first |
 
-**When to switch from A to B:** if the lawyer says Plan A needs an RBI PPI licence, or Razorpay or Cashfree refuse in writing, or the licence is out of reach. Until then, nothing changes. **What to ask first:** (1) Cashfree, in writing: does Easy Split need a turnover minimum, and does it allow a hold for a marketplace like TaskDrop? (2) The lawyer: is Plan B enough so TaskDrop never needs a PPI licence? **Fix at the same time:** the Cashfree sign-up text above says "the money stays with us"; that is Plan A wording and must read "the payment company holds it until approval" if you go with Plan B. This card does not change decision 30: it stays open (see decision 30 below).
+**When to switch from A to B:** if the lawyer says Plan A needs an RBI PPI licence, or Razorpay or Cashfree refuse in writing, or the licence is out of reach. Until then, nothing changes. **What to ask first:** (1) Cashfree, in writing: does Easy Split need a turnover minimum, and does it allow a hold for a marketplace like TaskDrop? (2) The lawyer: is Plan B enough so TaskDrop never needs a PPI licence? **Fix at the same time:** the Cashfree sign-up text above says "the money stays with us"; that is Plan A wording and must read "the payment company holds it until approval" if you go with Plan B. This card does not change decision 29: it stays open (see decision 29 below).
 </details>
 
 <details id="tS-5" data-short="Name and trademark">
@@ -741,30 +704,9 @@ Add the cancellations-and-refunds page and the contact-us page with the business
 
 ---
 
-## STEP 1: Finish every feature (until the list below is empty)
+## STEP 1: Fix what is broken (week 1)
 
-**Goal:** every feature TaskDrop will launch with is built and seen working, and every bug you have seen is fixed or has your written "accept". Gate 1 at the end of this step is the **feature freeze**. Security and testing start after it, so they only have to run once.
-
-**The feature finish list** (checked in the code on 6 November 2026). This is everything left before the freeze. Ideas that are not on it stay in Future scope.
-
-| Feature | State | What is left | Task |
-|---|---|---|---|
-| Ideas from Qwikyo and Heplo (questions, Speak your task, the two promises, near-you line, alerts card) | Built and merged | Your phone check | 1.9 |
-| Maps and helpers' services (D11 to D14) | Built, on the beta app | Your phone check | 1.5, D rows |
-| Guest mode (D15) | Built, website checked | On the phone: sign-up then the offer sent by itself; posting and publishing as a guest | D15 |
-| Desktop, phone browser and Android layouts | Built | Your look, then "done 1.10" | 1.10 |
-| Safe caching | Built, switched on in staging 5 Nov | Your phone check, and the per-screen request counts | 3.5b |
-| Welcome flow fixes and animations | In progress in another session | Finish and check | none yet |
-| **PostHog** on staging | **Not built** | Your account, then Claude | 3.3c |
-| **Public pages** for Google | **Not built** | Claude builds, you approve | 4.3 |
-| **Smart alerts** for workers | **Not built** | Design first, then build | 4.5 |
-| **Email sequences** | **Not built** | Design first, then build | 4.10 |
-
-**Decisions that change the code, so they come before the freeze:** decision 30 (how money moves, the biggest one; it may wait for the lawyer), 17 (name and PAN before a withdrawal), 22 (the tour in guest mode), 25 (an 18+ check for guests), and your OK on the Google-first sign-in screen (2.8).
-
-**Why these moved here:** 3.3c, 3.5b, 4.3, 4.5 and 4.10 are features, so they now sit at the end of Step 1. Their numbers did not change.
-
-**One warning.** Google's 12 testers for 14 days is now one of the last jobs, so launch can never be sooner than about 3 weeks after the freeze. That is the price of testing last, and it is why the slow track must not wait for this step.
+**Goal:** every bug you have seen is fixed or has your written "accept", and the design changes you asked for are decided. Testers should judge a good app, not a broken one.
 
 <details id="t1-1" data-short="Your decisions">
 <summary>[LATER] <b>1.1</b> Future scope: make your decisions <small>· 20 minutes · deferred 1 Nov 2026, no gate waits on it</small></summary>
@@ -878,11 +820,11 @@ These came from your 30 Oct walkthrough (times are in your video):
 | D8 | Poster things in green and worker things in blue, also on a poster's profile seen in Earn mode (19:00) |
 | D9 | Explore and the map easier to understand (17:00) |
 | D10 | An overall more premium, easier look (19:30) |
-| D11 | Added and approved 1 Nov, **built 1 Nov (PR 165):** calm animated map circles (the exact spot blurs into an area, the price pops, then still; only just-posted tasks ripple), nearby tasks merge into one circle with a count, and a full-screen map like Snap Map (zoomed out: busy areas glow; zoomed in: cards you swipe and a ring that follows). Workers see tasks (green, with prices); posters see helpers (blue, with face, main skill, rating, green dot when active now). Drawings: [map design canvas](https://claude.ai/artifact/V1H4cdfbWqiNeeQw2wZzRy) |
+| D11 | Added 1 Nov, **approved 1 Nov, not built yet:** calm animated map circles (the exact spot blurs into an area, the price pops, then still; only just-posted tasks ripple), nearby tasks merge into one circle with a count, and a full-screen map like Snap Map (zoomed out: busy areas glow; zoomed in: cards you swipe and a ring that follows). Workers see tasks (green, with prices); posters see helpers (blue, with face, main skill, rating, green dot when active now). Drawings: [map design canvas](https://claude.ai/artifact/V1H4cdfbWqiNeeQw2wZzRy) |
 | D13 | Added and **built 3 Nov** (OTA on beta 3 Nov, update group f25514e7; phone check pending): on the Hire side, the Explore map and the full map show helpers by **what they offer, never their name**: a service icon and their newest service with its starting price ("AC repair · ₹399"), a dashed skill tag for someone with no service listed, "+N" for more services, green ring when active now. The faces-and-names row became "Services nearby". Tapping a helper opens a sheet with their name, face, rating, area, skills and swipeable service cards (each opens the service); "View full profile" and "Post a task" stay. Server: `workersNear` also sends each helper's newest open service and how many they list (people with a service but no skills now count); new read `workerServices`. No database change. Drawings: [helpers map services canvas](https://claude.ai/artifact/AHz9PQzM1SK8AV6BieW4Xk) |
 | D15 | Added and **approved 4 Nov; built 4 Nov** (migration 146, `api/guest.ts`, `lib/guest.ts`); **finished 5 Nov** (PR 243, migration 151: guests also read task questions, the Ideas board, the nearby pulse and shared before/after photos; the pop-up now opens in front of an open sheet, and the offer is sent by itself after sign-up; checked on the website; **on the Android phone 5 Nov** after PR 250 (beta updates edb64274 and 7f7e2f52): tabs, pop-up in front, Not now keeps the offer; sign-up then offer sent not yet tried on the phone): guest mode. The taskdrop.in sign-in page stays as it is (number, Text me a code, Google, Username) and gets one new button, **Continue as guest**. A guest can use the whole app: Home, Explore, the map, task and service pages, the full Post a request writer, the full Offer a service form, Drafts, Wallet and Profile with zeros. At the last step (Post my request, Publish service, + Add money, Withdraw, Edit my profile, Send offer, Hire, Messages) a **Make your account** pop-up opens: Create account, Sign in, or Not now. Create account runs today’s real steps in a sheet (number, date of birth, under 18 = “TaskDrop is for adults only.”, code, About you), then the action finishes by itself. Server: guest read-only calls for the feed, services, map pins and pulse (area names only, rate-limited, App Check) and a guest AI writer with a daily limit; posting, offers, money and chat stay refused without an account. Decisions 19 to 24. Drawings: [guest mode canvas](https://claude.ai/artifact/MMVE2kP8sj1GXV9RW9FoSX), files in `docs/design/guest-d15/` |
 | D16 | Added 6 Nov 2026 (PRs 265 and 270, on beta as update `665b4a8d`): **Welcome story.** The Welcome page drops the Earn money and Hire help cards and plays a five-part story by itself: Ask for anything, Offers come to you, Your money stays safe, Approve and they get paid, Need help or want to earn? The referral code box stays. Also fixed the same day: the birth-date wheels on Android phones (swipe and flick now work, and a tap on a row picks it) and a required username in first-time setup. **Checked by Claude on your phone (6 Nov):** the wheels swipe, flick and tap-to-pick on the update, and the story played all five parts on a test page in Expo Go, with no errors. **Open:** `[ ]` your own look at the story inside a real new sign-up, which Claude cannot reach because it does not create accounts, and your say on its look and speed |
-| D17 | Added 7 Nov 2026, **drawn, waiting for your approval** (nothing built): **the website offers the Android app.** (A1) In an Android phone's browser, a slim bar at the top of every page: the TaskDrop icon, "TaskDrop for Android", **Get app** and ✕; closing it hides it for 14 days. (A2) Once, after the visitor searches or opens a task, a sheet with three reasons (alerts the second someone replies, the live map, opens in one tap), **Download for Android** and **Keep using the website**. (A3) A page, `taskdrop.in/get`: the download button, version and size, three install steps (open the file, allow it once, Install then Open), a safety line ("only download TaskDrop from taskdrop.in"), and "On an iPhone? Use the website". (A4) On a computer: a **Get the app** button and a sidebar card with a QR code that opens `/get` on the phone. Never shown inside the installed app or on an iPhone. `/get` is one fixed address that points at the newest APK today and at Google Play later, so the bar, the sheet and the QR code never change (decision 34). **Note on "searches":** people who search Google only land on the production website once it is indexed (6.4); `taskdrop.in` is staging and tells search engines not to list it. Drawings: [simple redesign canvas](https://claude.ai/artifact/NprdWrye3bs6swEBGvDVgT), row 1 |
+| D17 | Added 7 Nov 2026, **drawn, waiting for your approval** (nothing built): **the website offers the Android app.** (A1) In an Android phone's browser, a slim bar at the top of every page: the TaskDrop icon, "TaskDrop for Android", **Get app** and ✕; closing it hides it for 14 days. (A2) Once, after the visitor searches or opens a task, a sheet with three reasons (alerts the second someone replies, the live map, opens in one tap), **Download for Android** and **Keep using the website**. (A3) A page, `taskdrop.in/get`: the download button, version and size, three install steps (open the file, allow it once, Install then Open), a safety line ("only download TaskDrop from taskdrop.in"), and "On an iPhone? Use the website". (A4) On a computer: a **Get the app** button and a sidebar card with a QR code that opens `/get` on the phone. Never shown inside the installed app or on an iPhone. `/get` is one fixed address that points at the newest APK today and at Google Play later, so the bar, the sheet and the QR code never change (decision 31). **Note on "searches":** people who search Google only land on the production website once it is indexed (6.4); `taskdrop.in` is staging and tells search engines not to list it. Drawings: [simple redesign canvas](https://claude.ai/artifact/NprdWrye3bs6swEBGvDVgT), row 1 |
 | D18 | Added 7 Nov 2026, **drawn, waiting for your approval** (nothing built): **a simpler app, every feature kept.** You said people find the app hard to use. Seen on `taskdrop.in` on 7 Nov: the Hire / Earn switch is small and never explained; Home stacks six or more sections before the first job; one job card carries seven labels in four colours; "Set your location" is asked twice; the level card shows before any work is done; the + button sits on top of cards; after posting nothing says what happens next. **The drawings:** (B1, optional) the first open asks "What would you like to do?" with **Get something done**, **Earn money** and **Just look around**. This brings back the choice cards D16 took off the Welcome page on 6 Nov, so say "drop B1" to keep D16 as it is. (B2) Home, Hire side: the switch spelled out as "Get something done / Earn money"; your open task on top with a five-step bar and its next step; one big "describe it" box with the microphone; four idea tiles; one link to the services and helpers map. Busy on TaskDrop and Services near you move behind See all and the map. **This changes the Home order**, which needs your OK under the "Home matches the live app" rule. (B3) Home, Earn side: your area, search, four filters (Near me, Online, Today, Your skills), clean job cards, the level as one small line. (B4) Posting in three named steps (What · Where and when · Your price) with a live preview of the post the writer makes; today's seven steps fold into these three. (B5) Every task page shows a five-step tracker (Posted, Offers, Hire, Work, Mark done and pay) and one "Your next step" card with one button. (B6) One rule for every card: price top right, one line of place and time, at most one tag, one button. Light theme first, dark kept. The five tabs, all screens and all features stay; the + button hides only on Home, where the big box does the same job. **Before building:** a 10-minute test with 5 people using the method of 4.7, and PostHog session replays (3.3c) to see where people stop. Drawings: [simple redesign canvas](https://claude.ai/artifact/NprdWrye3bs6swEBGvDVgT), row 2 |
 
 1. SAY (start with the three that testers will notice first):
@@ -1036,7 +978,7 @@ fix the keyboard problem
 </details>
 
 <details id="t1-9" data-short="Ideas from Qwikyo and Heplo">
-<summary>[BOTH] <b>1.9</b> Add the best ideas from Qwikyo and Heplo, on today's design <small>· Built and merged (PR 196, seen in the code 6 Nov), waiting for your phone check · your time: 15 minutes</small></summary>
+<summary>[BOTH] <b>1.9</b> Add the best ideas from Qwikyo and Heplo, on today's design <small>· Drawn 2 Nov (version 2), waiting for your approval · your time: 15 minutes · design first, then build · does not reopen Gate 1</small></summary>
 
 **What happened (2 Nov):** you installed Qwikyo and Heplo on your phone and asked what TaskDrop should take from them. Claude used both apps and the staging TaskDrop app on your phone over USB. **Nothing was posted or saved in any app**; one test draft in TaskDrop's My Tasks was deleted, and Qwikyo's "Complete your profile" box was closed with Cancel, your names unchanged.
 
@@ -1072,11 +1014,11 @@ approve 1.9
 3. Claude then builds in this order, in small pull requests, and asks you before each app update: the bugs first (6 to 8), then 3, 4 and 5, then 1, then 2 (needs a new app build).
 4. TELL Claude: "done 1.9" when each is on your phone.
 
-**Done when:** every item is built and seen on your phone, or dropped. This is on the feature finish list, so Gate 1 waits for it.
+**Done when:** every item is built and seen on your phone, or dropped. **Gate 1 is not reopened:** testers can start Step 3 while this is built.
 </details>
 
 <details id="t1-10" data-short="Desktop, phone and Android layouts">
-<summary>[CLAUDE] <b>1.10</b> Make every screen fit a desktop browser, a phone browser and the Android app <small>· Planned and built 3 Nov · layout only, no new design</small></summary>
+<summary>[CLAUDE] <b>1.10</b> Make every screen fit a desktop browser, a phone browser and the Android app <small>· Planned and built 3 Nov · layout only, no new design · does not reopen Gate 1</small></summary>
 
 **What you saw (3 Nov):** on a desktop browser the "Work near you" map sat in a thin strip in the middle of the page with empty space on both sides. You asked for every screen to be checked on desktop, phone browser and Android, and for a plan, built in the same session.
 
@@ -1103,222 +1045,8 @@ approve 1.9
 **Done when:** L1 to L5 are built and checked at the four sizes, `npm run check` is green, and you say "done 1.10". Android needs no app update for this (nothing changes on the phone layout).
 </details>
 
-<details id="t3-3c" data-short="PostHog (staging)">
-<summary>[BOTH] <b>3.3c</b> PostHog on staging: see where the testers get stuck <small>· your time: 20 minutes · free to start</small></summary>
+> **GATE 1: do not start Step 3 until all of these are true** (Step 2 can start at the same time as Step 1)
 
-**Why:** 3.3b tells you how long tasks wait. PostHog shows where people give up on the way (signed up → posted a task → got a first offer → hired → paid) and replays the screen where they got stuck. Starting it with the 12 testers gives you real funnels before launch, so production (5.6b) starts with the events already proven.
-
-**What it records, and what it never does:**
-
-- Events are written once, in one tracking helper, and sent through the server (`api`). The first list: `User signed up`, `Task created`, `First offer received`, `Offer accepted`, `Task paid`.
-- People are known only by their internal number: never a name, phone number or email.
-- Screen recordings hide every text box, the chat, the money screens and the address. Nothing is recorded until the person says yes (a consent box on the website and on first start of the app).
-- PostHog has no India region. Claude picks the **EU (Frankfurt)** cloud, and the privacy policy says where the data is kept. Your lawyer (S.3) confirms the wording, and the Play data-safety form gets the matching rows (3.1, step 4).
-
-1. CLICK: sign up at https://posthog.com as **hitendureacts@gmail.com** → **Create project** → name it `taskdrop-staging` → region **EU**. Turn on 2-step sign-in the same day (2.1b).
-2. CLICK: **Project settings** → copy the **Project API key** (it starts with `phc_`). It is public by design, so it may be shared: give it to Claude. Do not make a personal API key.
-3. SAY:
-
-```say
-start posthog staging
-```
-
-4. Claude adds the tracking helper, the consent box, the hidden-text recording rules and the privacy-policy line, then opens the pull request. SAY "merge it".
-5. Use the staging app yourself: sign up, post a task. CLICK: PostHog → **Product analytics** → **New insight** → **Funnels** → steps `User signed up`, `Task created`, aggregating by **Unique users**. Your own steps must show up.
-6. TELL Claude: "done 3.3c".
-
-**Done when:** the staging funnel shows your own sign-up and task, and a recording shows no typed text.
-</details>
-
-<details id="t3-5b" data-short="Safe caching">
-<summary>[CLAUDE] <b>3.5b</b> Safe caching: keep the same-for-everyone lists ready, never anyone's own data <small>· added 4 Nov; built, and switched on in staging 5 Nov; your phone check is open · your time: 10 minutes · free (no new tool) · decision 29</small></summary>
-
-**What it is, in plain words:** some answers are the same for every person: the Trending list, the "Top helpers" list, the "today on TaskDrop" numbers, the promotion prices. Today the database works each one out again for every person who opens Home or Explore. Caching means working it out once, keeping the answer for a few minutes, and handing the same copy to everyone. Anything about one person (their money, their tasks, their offers, their chats) is **never** kept for someone else, and money is **never** shown from a kept copy. No Redis and no new paid tool: everything here uses what TaskDrop already has.
-
-**Why now, and why not more:** measured on staging on 4 Nov (`pg_stat_statements`, since 7 Sep, 72 profiles and 261 tasks): the database is nowhere near busy. The biggest app costs were the admin switches (`get_app_controls`, 43,181 calls, 148 s in all), the secret loader (`app_secrets`, 53,875 calls, 113 s, once per new server copy), the ad ranking (`ad_auction`, 2,528 calls at 25 ms each) and Trending (1,144 calls at 11 ms). "Top helpers" is cheap today (5 ms) but it counts every helper's jobs and offers each time, so it grows with every new user; it is the one that would hurt first in a busy city. So this task is preparation, built in a safe order, each layer with its own off switch, and measured before and after.
-
-**The five layers (each can be switched off on its own):**
-
-| Layer | What it does | How old an answer can be | Off switch |
-|---|---|---|---|
-| A. The app remembers | The phone keeps the same-for-everyone lists in memory for a few minutes, and wipes everything it remembers when anyone signs in or out | Trending and Top helpers 5 min, today's numbers 1 min, promotion prices 10 min, ad order 30 s. Your own screens keep today's 30-second rule (decision 5) | Admin switch "public cache: app" (reaches phones within 5 min) |
-| B. Browser and network | Unchanged on purpose: every `api` answer stays "never store", so no shared network cache can ever hand one person's answer to another. Only the public admin switches (`app-config`, 60 s) and the website's own files are cached | Website files: until a new release | Not needed |
-| C. The database keeps a ready copy | Every 10 minutes an Inngest job works out Trending, Top helpers and today's numbers once and saves them in one private table; the app's requests read the saved copy | 10 minutes; if the copy is ever older than 30 minutes, the live answer is used instead | Admin switch "public cache: snapshots" (instant) |
-| D. The server shares one answer | Inside each server copy, the same-for-everyone answer is kept for up to a minute, and 20 people asking at the same moment cause one database question, not 20 | 15 to 60 s | Admin switch "public cache: memo" (within 30 s) |
-| E. Never cached | Money, balances, escrow, payouts, fees, task status, offers, chat, notifications, addresses and phone numbers, sign-in state, admin numbers, and every list whose answer depends on who is asking | Always live | Not applicable: a test fails if anything here is ever cached |
-
-**When Redis would be worth it (the Part J rule, unchanged):** only if, after layers A to D are live, the rush test (2.13 J) or production (7.5) shows the database more than 70% busy for an hour, a reading screen slower than its target because of the database, or connections above 80% of the limit, **and** the slow part is something A to D cannot help. Even then the cheaper steps come first: a missing index, a bigger database, a read copy of the database. Redis is proposed only after those, needs your yes (it is a new tool with a cost and a new server-only secret), and would hold only same-for-everyone answers unless a per-person design is approved separately.
-
-**Your steps:**
-
-1. Answer decision 29 (in the Decisions list): is it fine that Trending, Top helpers and today's numbers can be up to 10 minutes old? Recommended: yes.
-2. SAY:
-
-```say
-start 3.5b
-```
-
-3. Claude builds it in the order below, proves no one can see another person's data and that money is never old, measures before and after, and merges it.
-4. After it is live, open Home and Explore on your phone once and TELL Claude whether anything looks wrong or old.
-
-**Done when:** all five layers are live on staging, the leak and money tests pass, the before-and-after numbers are written in `docs/API_CALLS.md`, and each off switch has been tried once.
-
-**For Claude: the design (checked against the code on 4 Nov)**
-
-| Layer | Files | Keys and times | Clears when | If it fails / undo | Leak risk and the guard |
-|---|---|---|---|---|---|
-| A. App | `apps/mobile/src/lib/freshness.ts` (one place for every rule), `lib/gateway.ts`, `data/extras.ts`, `data/api.ts`, `lib/media.ts`, `lib/live.ts`, `navigation/ScreenHost.tsx`, `providers/NavProvider.native.tsx`, `lib/appConfig.ts` | Key `<personId or guest>:op:args`. Public class: `trendingCategories` 5 min, `topEarners` 5 min, `platformHighlights` 1 min, `promotionTiers` 10 min, `adAuctionRanks` 30 s, shown at once and refreshed in the background after half its time. Personal class: today's 30 s rule. Memory only; nothing personal is written to the phone's storage | Every map is emptied (not only the change counter) on sign-in, sign-out, user change and guest to account. Personal entries also on any write or live ping (today's rule). `createTask` also clears Trending and today's numbers | Error: the answer is never kept (today's rule). Off: `features.publicCache=false` in `app-config` turns the public class off | Today the 30 s map and the signed-photo map are kept per device, not per person (H69). Fixed here: person in every key, maps wiped on sign-out. The **wallet leaves the 30 s rule**: it always asks again when shown |
-| B. HTTP | `supabase/functions/api/http.ts` (no change: `no-store` stays on every answer, public ones too), `vercel.json` | `/_expo/static` stays a year (immutable). `/assets/*` gets a year only if its file names carry a content hash (check the export first), otherwise one day. `index.html` stays revalidated | A new release changes the file names | Revert `vercel.json` | No new public GET door: it would undo batching and add an unguarded door. Nothing relies on a shared CDN in front of Supabase functions |
-| C. Database | New migration (next free number, 149 today) with its undo file in `supabase/undo/`; `supabase/functions/inngest/index.ts` + `jobs.ts`; `supabase/tests/` | Table `private.public_snapshots(key text primary key, body jsonb, refreshed_at timestamptz, took_ms int)`, row rules on, no policies, closed to everyone. `private.refresh_public_snapshots()` saves `highlights`, `trending` (the most, 20) and `top_earners:<kind>` for the 3 kinds (the most, 30), wrapped by a service-role-only function for Inngest. `platform_highlights`, `trending_categories` and `top_earners` keep their exact inputs and outputs (rule 2) and read the saved copy, cut to `p_limit`, when the switch is on and the copy is under 30 min old. Inngest `public-snapshots`: every 10 min, one at a time, 2 retries, `reportFailure` (about 4,300 runs a month, a small part of the free plan) | Every 10 min; a suspension or deletion is out within 10 min (or at once if that action already sends an outbox event) | Job fails: copy ages, then the live answer after 30 min, and Sentry is told. Off: `settings` row `public_cache.snapshots=false`. Undo: drop the table and the refresh function, restore the three old bodies | Only public profile fields and counts go in (the same SQL as today, so fixing B30 and B32 fixes both). **`platform_stats` is not cached anywhere:** it is admin-only and holds money totals; `docs/audit/SCALE_READINESS.md` row 12 called it public by mistake (corrected). Why not a materialised view: the answers take inputs, a refresh needs table ownership and locks, and the table is simpler to undo |
-| D. Server | New `supabase/functions/api/publicMemo.ts` (no Deno imports, tested from Node), `api/reads.ts`, `api/guest.ts`, `api/index.ts`, `_shared/controls.ts`, `_shared/secrets.ts` | Closed list `PUBLIC_MEMO_OPS`: `trendingCategories` 60 s, `topEarners` 60 s, `platformHighlights` 30 s, `promotionTiers` 60 s, `adAuctionRanks` 15 s; plus the guest-only shared post read (`posts()` in `guest.ts`, keyed without the guest's location) 15 s. Key `op:sorted args`. At most 500 entries per server copy; one database question for callers arriving together; each caller gets its own copy | TTL; a new server copy starts empty | Errors are never kept. Off: `public_cache.memo=false`, read through `get_app_controls` (new fields, added only) within 30 s. `secrets.ts`: the second caller during the first Vault read waits for it instead of getting an empty value (H70) | Signed-in feed reads are **never** shared: their answer depends on who is asking (row rules, blocked people). A test fails if any op is added to the list that is not a same-for-everyone read |
-| E. Never | `freshness.ts` exports `NEVER_REUSE`; `publicMemo.ts` exports the closed list | `getWallet`, `getEscrowHeld`, `listWalletActivity`, `listPayouts`, `listPayoutDestinations`, `feesSince`, `platformFees`, `settleClearedEarnings`, `getTask`, `getTaskDetail`, `canQuoteOn`, `getMyBid`, `listBidsForTask`, `taskContactPhone`, `getProof`, `listMessages`, `getNotification`, `accountDeletionCheck`, `ageStatus`, `isAdmin`, `platformStats`, and every write | Not applicable | Not applicable | The 5 s suspended-person memo in `api` stays 5 s and is never made longer |
-
-**Proof (all in `npm run check` or `npm run test:db`, and on staging):**
-
-| Test | Proves |
-|---|---|
-| Two-person test (`scripts/two-person-test.mjs`) | Person A, person B and a guest get exactly the same bytes for every op on the shared list (so nothing personal is inside); a second run with the memo on shows B never receives anything A caused to be kept |
-| Closed-list contract test (`api/contract.test.ts`) | Every op in `PUBLIC_MEMO_OPS` is one of the guest's shared reads; no op in `NEVER_REUSE` or any write is in it; every `api` answer, a memo hit included, carries `Cache-Control: no-store` |
-| App tests (`freshness.test.ts`, a new `media` test) | Sign in as A, read, sign out, sign in as B: nothing is reused; `NEVER_REUSE` ops can never pass through a reuse helper; the wallet asks again every time it is shown |
-| Money stays live (staging, two people) | B approves work; A opens the wallet within 30 s and sees the new balance on the first look; a withdrawal right after shows the live balance |
-| SQL tests | The refresh is service-role only; the saved copy and the live answer are the same rows; a copy older than 30 min or the switch off gives the live answer; a deleted or suspended helper is gone after one refresh; the saved copy holds only the listed public fields |
-| Off switches | Each switch tried once on staging, and the answer goes live within its time |
-
-**Seeing it work:** each server copy writes one log line every 5 minutes with hits and misses per op; the snapshot rows carry `refreshed_at` and `took_ms`, and Sentry is told if any copy is over 30 minutes old; before and after, Claude records the calls and total time of the three lists, `ad_auction`, `get_app_controls` and `app_secrets` from `pg_stat_statements`, and the request count of the standard walk (`node scripts/count-api-calls.mjs`). Not caching, but found on the way: the largest database time on staging is Realtime's change polling (1.4 million ms), not from this app's code (the app uses broadcast only); Claude checks where it comes from in 3.9.
-
-**Build order:** D's `secrets.ts` fix and the closed lists (E) first, then A, then C, then D's memo, then B; each merged on its own so any one can be undone.
-
-**Build status, 5 Nov 2026 (offline only: no database, no deployed service, nothing pushed or merged).** All five layers are written on the branch `feat/cache-integration`; `npm run check` is the proof for what is marked built. How each layer works now, its switch, the steps to turn it off and the measuring steps are in `docs/API_CALLS.md` section 8.
-
-| Item | State |
-|---|---|
-| D's `secrets.ts` fix (H70) and the closed lists (E: `NEVER_REUSE`, `PER_PERSON_REUSE`, `PUBLIC_MEMO_OPS`, and the contract test that classifies every `api` read) | Built, tested offline |
-| A. App: per-person keys and wipes on sign-in, sign-out, switch and deletion (H69), signed-link memory per person, wallet always asks, public reuse behind `public_cache.app` | Built, tested offline (`freshness.test.ts`, `signedLinks.test.ts`, `cacheLeak.test.ts`). Built with 15 to 60 s reuse (the server's own times), not the 5 minutes in the design table above; longer can be chosen later |
-| B. `no-store` unchanged; content-hashed `/assets/` files cached for a year in `vercel.json` | Built (the rule is in the file); not seen on a deployed site |
-| C. Migration 149, undo file, SQL tests, Inngest job `public-snapshots` | **Live in staging (5 Nov).** Applied by PR 253 (PR 249 first missed it: the deploy script skips versions older than the newest applied one, so 149 was renamed to `20261105140000`). The SQL test passed on a free in-memory Postgres and on CI's real Postgres. The job filled all five kept copies; they matched the live queries. A bug found on the way: the text "true" counted as on (fixed). Switch `snapshots` is ON |
-| D. Per-server memo with single-flight behind `public_cache.memo` | Built, tested offline (`publicMemo.test.ts`, `cacheLeak.test.ts`, `contract.test.ts`) |
-| Offline leak and money tests; the cache section of the two-person script | Built. Run by hand on staging with the switches off and after each switch was turned on: clean, guests included. PR 255 fixed the test's guest call (it used the wrong header). The money check ran on staging and passed |
-| `docs/API_CALLS.md` section 8: what each layer does, its switch, how to turn it off, how to measure | Written, with the first measured numbers (5 Nov, staging, small data). **Open:** per-screen request counts for two people and the load test |
-| Switching on, each off switch tried once on staging, the money check by hand, the before-and-after numbers, your phone check | **Switched on in staging (5 Nov):** `public_cache` = app, snapshots and memo all true. Database work for the three lists is 5 to 8 times lower; people feel no change at this size. Each switch was turned off once and back on (works). The money check was run on staging with all switches on (`scripts/money-freshness-check.mjs`, passed twice: the worker saw the new money on the first look). **Open:** the load test, your phone check, and production (nothing is on there) |
-
-**Found while checking the off switches (5 Nov):** with all three switches off, the lists and money behave as before, with three deliberate exceptions that have no switch because they are safety fixes: the app's 30-second memory and signed-link memory are now per person and wiped on sign-in and sign-out (H69), the wallet screen asks again every time it is shown, and a second request during a secrets load waits instead of getting an empty value (H70). Also: there is no admin-panel button for `public_cache` yet (the switch is a row in `settings`, changed in the SQL editor), and the 10-minute job keeps running when `snapshots` is off.
-</details>
-
-<details id="t4-3" data-short="Public pages">
-<summary>[CLAUDE] <b>4.3</b> Build the public pages that Google can read <small>· your time: 30 minutes</small></summary>
-
-**Why:** Google cannot properly read the app's screens. Plain, fast pages can be found on Google. They go live on the production web address (5.10), next to the production app, on launch day.
-
-**Pages:** Home, How it works, Earn with TaskDrop, Fees (3% service fee, 10% commission, the 5% cancel fine, shown plainly), Safety, Categories, Help, Contact, the legal pages, and a "Request TaskDrop in your area" form.
-
-1. SAY:
-
-```say
-build the public pages
-```
-
-2. Claude shows you the design first. Reply "approved" or say what to change.
-3. Claude builds them with a sitemap, so Google can list every page. You see them on staging first.
-
-**Done when:** the pages are approved and ready for launch.
-</details>
-
-<details id="t4-5" data-short="Smart alerts">
-<summary>[CLAUDE] <b>4.5</b> Smart alerts: tell the right workers about a new task (your idea) <small>· your time: 20 minutes</small></summary>
-
-**What it is:** when a task is posted, the app notifies workers who have done that kind of task before, are near the task's area (remote tasks: by category only), and were active recently. There is a daily limit so nobody is spammed, and every worker can switch the alerts off. It starts simple, without AI, and is measured by how fast tasks get their first offer.
-
-1. SAY:
-
-```say
-design smart alerts
-```
-
-2. Claude shows you the alert wording and any screen change as a picture first. Reply "approved" or say what to change.
-3. SAY:
-
-```say
-build smart alerts
-```
-
-4. Test it on staging with your testers, then SAY "merge it".
-
-**Done when:** merged, tested on staging, with a switch in the admin to turn it off.
-</details>
-
-<details id="t4-10" data-short="Email sequences">
-<summary>[BOTH] <b>4.10</b> Email sequences: welcome and nudge emails that stop when the person acts <small>· your time: 45 minutes · design first, then build</small></summary>
-
-**Why:** a new person who signs up and does nothing is lost. A few short, honest emails at the right time bring many of them back to post a first task or send a first offer. This task plans the whole system: who gets which email, when it stops, who sends it, and the rules that keep it from becoming spam.
-
-**Who gets email at all.** TaskDrop signs people in by phone, so many have no email address. Emails go only to people who gave one (Google sign-in, or an email they add in Profile) **and** ticked a box that says "send me tips and reminders" (not pre-ticked). Everyone else is reached by the app's alerts (4.5), as today.
-
-**Who does what** (decided by you, 2 Nov: Loops runs the sequences):
-
-| Part | Job |
-|---|---|
-| **The database** | Knows the facts (signed up, posted, got an offer, finished) and writes each one as an event through the outbox (`private.emit_event`), like every other background job |
-| **Inngest** | Only the messenger. It takes each event from the outbox and passes it to Loops with retries (a contact is created or updated, then an event such as `task_posted` is sent). It sends nothing for people who have not agreed, and it deletes the contact when an account is deleted. It does not time or write any email |
-| **Loops (loops.so)** | Runs the five sequences in its own builder (its "loops"): the waits, the "stop when they act" checks, the templates, the contact list, the one-click unsubscribe page and the sender reputation. A sequence stops because the contact's facts change (for example `hasPostedTask` becomes true) and each email step checks that fact first |
-| **The admin** | One switch per sequence: when off, the database stops sending that sequence's events, so nobody new enters it. A page shows how many contacts and events were sent. Sent, opened and unsubscribed counts are read in the Loops dashboard |
-
-**The five sequences** (wording is drafted by Claude and approved by you; plain words, no tricks):
-
-| # | Sequence | Emails | Stops when |
-|---|---|---|---|
-| 1 | Poster welcome | Day 0: "Post your first task in two minutes", with examples. Day 2: three real kinds of task people post (only if no task yet). Day 7: one last reminder (only if still no task) | The person posts a task |
-| 2 | Worker welcome | Day 0: finish your profile and set your price. Day 2: how to send an offer that gets chosen (only if no offer yet). Day 5: how many open tasks are near you now (area names only) | The person sends an offer |
-| 3 | No offers yet | 24 hours after posting, if nothing arrived: add more detail, a photo, or top up the price (the top-up bar). The 30-minute alert to nearby workers is 4.5, not this | The first offer arrives, or the task is closed |
-| 4 | After a finished task | Day 1: thank-you and a kind ask for an honest review (and the Google review link, see 7.3). Day 14: "need anything else done?" (posters) or "new tasks near you" (workers) | The person starts another task |
-| 5 | Come back | One email after 30 days away, one after 60 days. Then nothing more, ever (the sunset rule) | The person signs in |
-
-**Rules that protect people and the brand**
-
-- At most 1 email every 3 days to one person, across all sequences, and never before 9 am or after 8 pm India time.
-- Every email has a one-click unsubscribe, and it works at once. Turning it off in Profile does the same.
-- Never a phone number, exact address, someone else's name or private amounts. Fees are shown plainly. No false urgency and no "only 2 left" tricks.
-- When an account is deleted (087), the contact is removed from Loops too.
-- Receipts and security emails are a separate stream (they are not marketing and unsubscribing does not stop them). They are not built in this task; they use the same sender setup later.
-- **Staging never emails a stranger:** it sends only to an allow-list of your own and your testers' addresses.
-- The Privacy policy gets one plain line about these emails, and the lawyer (S.3) reads the consent wording. Do not claim legal compliance in the copy.
-
-**The sender address.** Emails go out from an address at `taskdrop.in` (for example `hello@taskdrop.in`) set up for sending only (SPF, DKIM and DMARC records), with replies going to `hitendureacts@gmail.com`. That keeps your decision 11 (no business mailbox, no cost). This is done on the **production** Loops account in Step 5, because `taskdrop.in` is production's. Staging uses Loops' own test sending until then.
-
-**Measure it.** The one number: of people who got the welcome email, how many posted a task or sent an offer within 7 days, compared with people who did not get it. Add it to the weekly numbers (7.1). If a sequence does not help after a month, turn it off.
-
-1. SAY:
-
-```say
-design the email sequences
-```
-
-2. **Done 2 Nov.** Claude sends every email's wording and a picture of the flow, plus the new "send me tips" tick-box on sign-up and Profile. Change what you want, then SAY "approved" (your rule: design before building). You approved the [design page](https://claude.ai/artifact/62YPmQz9FvqzUQgon67hfo).
-3. **Your turn, whenever you are ready:**
-   1. CLICK: https://app.loops.so and sign up with **hitendureacts@gmail.com**. This is the **staging** account; production gets its own in Step 5.
-   2. CLICK: **Settings** → **API** → create a key.
-   3. Save the key only in `.env.all-secrets` as `LOOPS_API_KEY`. Never paste it in the chat.
-   4. TELL Claude: "Loops key saved". If a screen looks different, send a screenshot.
-4. SAY:
-
-```say
-build the email sequences
-```
-
-5. Claude builds the database and Inngest part on staging. Loops has no way to create sequences from code, so Claude builds the five loops in the Loops editor in your Chrome, with your OK for each (or gives you the clicks if you prefer). Claude then sends you a test of each email at your own address. Check each one on your phone and on a laptop. Then SAY "merge it".
-6. TELL Claude: "done 4.10". In Step 5, when you make the production accounts, SAY "set up production email" and Claude walks you through the production Loops account, the three domain records, and rebuilding the five loops there by hand (nothing is shared with staging).
-
-**One rule changes.** The agent guide (`AGENTS.md`, rule 8) says Inngest is the only automation tool. Your decision 13 makes Loops the one exception, for email sequences only. Everything else stays on Inngest.
-
-**Two answers Claude still needs** (any time before the build): the **sign-off name** (the design uses "The taskdrop. team"; say if you want your own first name), and the **footer's business address** (it waits for the company paperwork in S.2, so the build uses a placeholder until then).
-
-**Done when:** the wording is approved, the five sequences work on staging with test emails to you, each can be switched off in the admin, and the unsubscribe link works.
-</details>
-
-> **GATE 1, the feature freeze: do not start Steps 2 and 3 until all of these are true**
-
-- [ ] Every line of the feature finish list is built and seen working, or moved to Future scope with your OK
-- [ ] Decisions 17, 22, 25 and 30 are answered, and the code follows the answers
-- [ ] You have said "freeze". From now on only fixes go in
 - [-] Every decision has an answer (1.1). **Future scope (your decision, 1 Nov 2026):** no gate waits on it; each open decision is answered when the task that needs it comes up.
 - [x] Bugs B1 to B12 are fixed, or you have written "accept" for a Low one. **Checked 1 Nov:** B1 to B12 are all fixed and merged (1.2, 1.3, 1.4; B13 was dropped). B8, B11 and B12 could not be seen on a phone (seed data, too quick, and a sign-in that needs signing out), so they were checked by code and tests only.
 - [x] Each design change D1 to D10 is built or dropped. **Checked 1 Nov:** D1 to D5 and D7 to D9 were built and merged on 31 Oct, D6 was dropped (1 Nov), and D10 is now built: Home's 32-point gap between sections and its softer cards also reach Explore, Profile and Wallet. Seen on your phone: D3 (the Drop a task composer), D5 (When step), D7 (Price only / Price + proposal), D8 (blue for workers) and D9 (the Google map on Home and Find work). Not seen: D1, because the birth-date wheels only show when a new number signs up and Claude does not create accounts; and the D10 spacing on Explore, Profile and Wallet, which needs a new app update.
@@ -1328,25 +1056,21 @@ build the email sequences
 
 ---
 
-## STEP 2: Make it hacker-proof, last and on the finished app (after Gate 1, beside Step 3, about 3 weeks)
+## STEP 2: Make it hacker-proof (weeks 1 to 3)
 
-**Goal:** nobody can steal your logins, your keys, your users' data or your money, and if someone tries, you hear about it within the hour. This step closes holes H2 to H12, H17, H20 to H29 and H71 to H77 from the Security section. H14 (2-step sign-in) is left open for now by your decision.
+**Goal:** nobody can steal your logins, your keys, your users' data or your money, and if someone tries, you hear about it within the hour. This step closes holes H2 to H12, H17, H20 to H29 and H71 to H76 from the Security section. H14 (2-step sign-in) is left open for now by your decision.
 
-**The last stretch: what is left, in order** (rethought 6 November 2026). Nothing here starts before Gate 1. The Strix, tester and quality rounds all run on the frozen code. Do one line at a time. Each line is one sentence to Claude, or a few clicks of yours.
+**The security path: what is left, in order** (made simpler on 4 November 2026). Do one line at a time. Each line is one sentence to Claude, or a few clicks of yours. The "Security in one page" table in the Security section shows what each line finishes.
 
-1. **Grill the attack plan** (2.22). `/grill-me` asks what you are afraid of losing and what is out of bounds.
-2. **Score the app, before** (2.23). All six rubrics, on both code folders. The low scores become the to-do list.
-3. **Start Google's clock** (3.1 to 3.3). It takes 14 days, so everything below runs while the testers use the app.
-4. **Your clicks** (2.2, 2.3 and 2.4, about 1.5 hours): spending alerts, lock the places keys are kept, read the emergency guide once. Make both code folders private (2.13 H) and reply "fix" or "accept" to H30 and H31.
-5. **The hunt's leftovers** (2.14). Rounds 1 and 2 are done and the Critical, High and Medium finds are fixed (see the hunt row above). Still open: the wallet record list (H34, design done), the admin's database-side idle limit and Google button (H37), the location inside videos (H38), and your "fix" or "accept" on the Low finds. Already done: the leaked-key search (2.15, 4 Nov) and the build of 2.13.
-6. **The outside testers' advice** (2.18, added and built 6 Nov). Parts A to F are done: H71 to H74 and H76 are closed, and one go-live checklist is written. Yours: decisions 32 and 33, and your OK for the next Android build (part G).
-7. **The final sweep** (2.25). Hunt round 3 on the frozen code, every automatic test, the secrets audit again, and part G of the hunt (every screen on the phone).
-8. **Check the AI tools themselves** (2.24). AgentShield reads Claude's own setup.
-9. **The pen test** (2.16 Strix, then 2.13 J the rush and spammer test, then 2.13 E, 2 or 3 people you invite). All against staging, never production and never the payment companies.
-10. **See every screen** (3.6b Chromatic, then 3.6 quality round 3).
-11. **One home per secret** (2.17, about 10 minutes of yours): the server keys are set straight in Supabase and the Vercel build stops copying them. Do it before Step 5.
-12. **Close the side door** (3.9, the switch-over; it closes H3 and H52).
-13. **Score the app, after** (2.23 again). Fix what is below target, then tick Gates 2b and 3. Step 5 may start.
+1. **Find every leaked key** (2.15). **Done 4 Nov:** nothing exposed that is a real live secret. One before-launch step is left (H56, the beta app's debug token), and the old test keys are accepted until you make the code folders private.
+2. **Finish 2.13** (Claude built it on 4 Nov). Yours: reply "fix" or "accept" to H30 and H31, make both code folders private (part H, after 2.15), and invite 2 or 3 testers (part E).
+3. **Your clicks** (2.2, 2.3 and 2.4, about 1.5 hours, any day): spending alerts, lock the places keys are kept, read the emergency guide once.
+4. **The hunt** (2.14). Rounds 1 and 2 done 4 Nov. The 2 Critical finds and the High "old helper presses Start" are fixed and live (migration 148); the High "direct database access" (H52) closes in 3.9. **The Medium finds were fixed on 5 and 6 Nov** (PRs 259 to 264, admin PRs 45 and 46, migrations 152 to 155); still open: the wallet record list (H34, design done), the admin's database-side idle limit and Google button (H37), the location inside videos (H38), and your "fix" or "accept" on the Low finds. Part G (every screen on the phone) is still to do.
+5. **The AI attacker** (2.16), after the hunt's fixes. Install Docker and make an AI key with a spending limit, then SAY "start 2.16".
+6. **The outside testers' advice** (2.18, added 6 Nov). Claude read the 8 Upwork proposals and checked each point on staging: six new holes (H71 to H76), one go-live checklist, and the rules for hiring a tester. SAY "start 2.18", and answer decision 30.
+7. **The small leftovers:** your OK on the Google-first sign-in screen (2.8). (The content policy now blocks, H9 closed 4 Nov, and the Android app test T11 passed 4 Nov.)
+8. **One home per secret** (2.17, about 10 minutes of yours): the server keys are set straight in Supabase and the Vercel build stops copying them. Do it before Step 5.
+9. **Tick Gate 2b.** Then Step 5 (production) may start.
 
 Every finding from 2.13 to 2.16 reaches you in one short form: a level, what happened, why it matters and what to do. Critical and High are always fixed. For everything else you reply "fix" or "accept".
 
@@ -1371,69 +1095,11 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 | 2.15 The secrets audit (added 4 Nov) | Done 4 Nov | H56 before launch (5.9); make the code folders private (2.13 H) |
 | 2.16 The AI attacker, Strix (added 4 Nov) | Not started | Waiting for you: Docker Desktop (not installed on this PC, checked 4 Nov) and an AI key with a spending limit, then say "start 2.16" |
 | 2.17 One home per secret (added 5 Nov) | Done 5 Nov | Nothing of yours. `push-payment-secrets.sh` now reads the master file too. Does not block Gate 2b; production (Step 5) uses `--production` |
-| 2.18 The outside testers' advice (added 6 Nov) | Parts A to F done 6 Nov | Decisions 32 and 33; part G with the next Android build; H78 "fix" or "accept" |
-| 2.22 to 2.25 Grill, rubrics, AI tools check, final sweep (added 6 Nov) | Not started | They wait for Gate 1, the feature freeze |
+| 2.18 The outside testers' advice (added 6 Nov) | Checked 6 Nov, fixes not started | Decision 30, then say "start 2.18" |
 
 **On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
 
-**Two gates, so the tester clock does not add extra weeks.** Google's 12-tester, 14-day test (Step 3) is the longest fixed wait in this plan, and testers only touch fake money. So once Gate 1 has passed, **Gate 2a** lets Step 3 start beside the rest of Step 2, and **Gate 2b** must pass before Step 5 (production).
-
-<details id="t2-18" data-short="Grill the attack plan">
-<summary>[BOTH] <b>2.22</b> Grill the attack plan before any attack starts <small>· your time: 30 minutes · free · first job after Gate 1</small></summary>
-
-**Why:** a pen test only finds what it looks for. This short interview decides what matters most, so the final sweep and Strix spend their time there. It uses Grill Me, installed 6 Nov.
-
-**The questions it must settle:** what would hurt most if stolen or broken (money, phone numbers, exact addresses, the admin); who the likely attacker is (a bored user, a fraud ring, a disgruntled helper); what is out of bounds (production, Razorpay, MSG91, Google, real people); what a "stop everything" finding looks like; and what you will accept for launch.
-
-1. SAY:
-
-```say
-start 2.22
-```
-
-2. Answer each round. "Yes" accepts Claude's recommended answer.
-3. Claude writes the answers into 2.25 and 2.16 as the priority list.
-4. TELL Claude: "done 2.22".
-
-**Done when:** every question is answered and the priority list is written into this plan.
-</details>
-
-<details id="t2-19" data-short="Six rubrics">
-<summary>[CLAUDE] <b>2.23</b> Score the app against the six rubrics, before and after <small>· your time: 15 minutes · free · run twice</small></summary>
-
-**Why:** the rubrics from [Code Consultant](https://codeconsultant.help/#rubrics) (Aaron Blum) turn "is it good enough?" into a number from 1 to 5 for each line. They also cover things a pen test never looks at. Download: [all six rubrics](https://codeconsultant.help/rubrics-all.zip).
-
-**They are written for web apps,** so Claude scores `taskdrop` (website and Android) and `taskdrop-admin` separately, and writes "does not apply" with a reason where a line does not fit a phone app. A score needs proof: a file, a test or a measured number. Results go in `docs/RUBRIC_SCORES.md`.
-
-| Rubric | What it scores | Target |
-|---|---|---|
-| **Security** | Input sanitization, auth and sessions, dependency security, secrets management | **4 on every line** |
-| **Bugs and correctness** | Error handling, state management, edge cases, type safety | **4 on every line** |
-| **Performance** | Bundle size, rendering efficiency, data fetching, Core Web Vitals | 3 or higher |
-| **UX and accessibility** | Keyboard navigation, semantic HTML, visual accessibility, loading and error states | 3 or higher |
-| **Design system** | Atomic design, design tokens, component reuse, spacing and layout, typography | 3 or higher |
-| **DRY, SOLID, SSOT, KISS** | Code duplication, single responsibility, source of truth, simplicity | 3 or higher |
-
-**Two lines will not reach 4, on purpose:** secrets management asks for automatic key rotation, which goes against your rule to never rotate keys (decision 4), and auth asks for 2-step sign-in, which you deferred (2.1b, admin authenticator). Claude shows these as "accepted by you" and does not chase them. Anything else under target is fixed, or needs your written "accept".
-
-1. SAY:
-
-```say
-start 2.23
-```
-
-2. Claude reads the rubrics, scores both code folders with proof, and lists what would move each low score up one level. In short: score, why, and the fix.
-3. Reply "fix" or "accept" for each line under target. Critical and High problems are always fixed.
-4. After step 9 of the last stretch, SAY:
-
-```say
-score the rubrics again
-```
-
-5. TELL Claude: "done 2.23".
-
-**Done when:** both scores are in `docs/RUBRIC_SCORES.md`, and every line is on target or has your written "accept".
-</details>
+**Two gates, so the tester clock starts sooner.** Google's 12-tester, 14-day test (Step 3) is the longest fixed wait in this plan, and testers only touch fake money. So **Gate 2a** (after 2.7) lets Step 3 start once the core protection is in place. Tasks 2.8 to 2.11 then run during the 14 days, and **Gate 2b** must pass before Step 5 (production).
 
 <details id="t2-1" data-short="Secrets file">
 <summary>[YOU] <b>2.1</b> Keep every secret safe in one file <small>· Done 1 Nov</small></summary>
@@ -1644,12 +1310,11 @@ run stop-ship tests
 
 > **GATE 2a: Step 3 (testers) may start when all of these are true**
 
-- [ ] Gate 1, the feature freeze, has passed
 - [ ] Tasks 2.1, 2.5, 2.6 and 2.7 are ticked
 - [ ] No Critical or High problem from 2.7 is open
 - [ ] Holes H4 to H9 and H12 are closed
 
-The rest of Step 2 carries on while the testers use the app. It must all be done by Gate 2b.
+Tasks 2.2 to 2.4 and 2.8 to 2.11 carry on while the testers use the app. They must all be done by Gate 2b.
 
 <details id="t2-8" data-short="SMS safety">
 <summary>[CLAUDE] <b>2.8</b> SMS safety (stop bots wasting SMS money) <small>· your time: 10 minutes · Built 1 Nov, Google-first screen waits for you</small></summary>
@@ -1955,7 +1620,7 @@ Every line gets one of three marks: **pass** (with the test or file that proves 
 3. A short "Report a security problem" part on the Support page, with the rules: test only with your own test accounts; never touch other people's data; no floods, no SMS sending in bulk, no tricking staff, no attacks on Razorpay, MSG91 or Google; give TaskDrop time to fix before telling anyone. TaskDrop promises a reply within 3 working days, no legal action against a good-faith report that follows the rules, and a name on a thank-you list. No cash reward at first.
 4. The rules go to the lawyer (S.3) with the Terms, because the "no legal action" promise is a legal text.
 
-**E. A first outside test before launch (decision 15: free invites, decided 3 Nov).** The free way first. You invite 2 or 3 people who know security (from that WhatsApp group, a college security club, or a researcher you trust) to test staging for one week under part D's rules, with their own test accounts and fake money only. Every finding goes through the same fix or accept rule. A paid outside review stays in F.13 (before a second city). If you prefer to pay now, you already have 8 proposals (6 Nov); decision 32 and 2.18 part J hold the rules. Nothing is paid without your yes. Part E needs part D live first, and must be finished before the go / no-go (6.5).
+**E. A first outside test before launch (decision 15: free invites, decided 3 Nov).** The free way first. You invite 2 or 3 people who know security (from that WhatsApp group, a college security club, or a researcher you trust) to test staging for one week under part D's rules, with their own test accounts and fake money only. Every finding goes through the same fix or accept rule. A paid outside review stays in F.13 (before a second city). If you prefer to pay now, you already have 8 proposals (6 Nov); decision 30 and 2.18 part J hold the rules. Nothing is paid without your yes. Part E needs part D live first, and must be finished before the go / no-go (6.5).
 
 **F. A spending stop on every paid service, and a cap per person.** Claude checks each row on the live dashboards (reading only; the clicks that change a setting are yours) and writes what it found here:
 
@@ -2225,43 +1890,6 @@ start 2.15
 
 </details>
 
-<details id="t2-20" data-short="Check the AI tools">
-<summary>[CLAUDE] <b>2.24</b> Check the AI tools themselves with AgentShield <small>· your time: 5 minutes · free · before 2.16</small></summary>
-
-**Why:** Claude can read files, run commands and reach your accounts through its connectors. A bad skill, an unsafe hook or an instruction hidden in a file is a way in that no pen test of the app will see. [AgentShield](https://github.com/affaan-m/ECC) is the security scanner from ECC: it reads prompts, hooks, connector settings, permissions, secrets and agent files.
-
-**The rules:** Claude reads the tool and picks one fixed version first, because ECC's page warns that a version number is not a security audit. It runs on `.claude`, `CLAUDE.md`, `AGENTS.md` and your installed skills, with values hidden. The paid `--opus` mode runs only with your OK. Results stay on your PC. Skills and connectors nobody uses are listed for removal, which also saves tokens.
-
-1. SAY:
-
-```say
-start 2.24
-```
-
-2. Reply "fix" or "accept" for each finding.
-3. TELL Claude: "done 2.24".
-
-**Done when:** every finding is fixed or accepted, and unused skills and connectors are removed or kept by your choice.
-</details>
-
-<details id="t2-21" data-short="Final sweep">
-<summary>[CLAUDE] <b>2.25</b> The final sweep: every check again, on the frozen code <small>· your time: 30 minutes · free · before 2.16</small></summary>
-
-**Why:** hunt rounds 1 and 2 ran on 3 and 4 November. Everything built since has not had that hard look. The sweep runs once, on the code you will launch.
-
-1. SAY:
-
-```say
-start 2.25
-```
-
-2. Claude runs, in order, using the priority list from 2.22: hunt round 3 (2.14, every part, and part G on your phone); `/cso` and `/security-review` over all of the code; the secrets audit again on everything new (2.15); the two-person test, the lock-and-limit test, Semgrep and `npm audit`; and the money tests.
-3. Reply "fix" or "accept" for each finding, in the same short cards as 2.15. Critical and High are always fixed.
-4. TELL Claude: "done 2.25".
-
-**Done when:** every check has run on the frozen code, Critical and High are fixed with a test each, and everything else has your answer. Long runs may use `/caveman`, but every finding still reaches you in plain words.
-</details>
-
 <details id="t2-16" data-short="AI attacker (Strix)">
 <summary>[BOTH] <b>2.16</b> The AI attacker: let Strix attack staging and prove what it finds <small>· your time: 45 minutes · about $5 to $15 of AI use · added 4 Nov, not started; still waiting for you: Docker is not installed on this PC (checked 4 Nov)</small></summary>
 
@@ -2360,11 +1988,9 @@ start 2.17
 </details>
 
 <details id="t2-18" data-short="Outside testers' advice">
-<summary>[BOTH] <b>2.18</b> The outside testers' advice: every point from the 8 Upwork proposals, checked, and the new ones closed <small>· your time: 30 minutes · added and built 6 Nov · parts A to F done; G, J and your decisions 30 and 31 are open</small></summary>
+<summary>[BOTH] <b>2.18</b> The outside testers' advice: every point from the 8 Upwork proposals, checked, and the new ones closed <small>· your time: 30 minutes · added 6 Nov · checked on staging the same day, fixes not started</small></summary>
 
-**Why:** on 6 November you posted a security review job on Upwork, received 8 proposals, and asked for the best practices in them to go into this plan. Claude read all 8 in full, plus the two public worked examples one of them linked (a database review and a server-function review), and checked each point against the code and staging the same day, reading only. Most of it TaskDrop already does. Six things are new, holes **H71 to H76**, and four working habits are new (parts F, H, I and J). 
-
-**Where it stands (6 Nov):** you said "start 2.18" and parts A to F are merged and on staging, production untouched. H71 to H74 and H76 are closed. **Open:** part G (needs the next Android build, which needs your OK), part J (decision 32), and H77 (decision 33), which the chain review found. Part I's checklist below is current.
+**Why:** on 6 November you posted a security review job on Upwork, received 8 proposals, and asked for the best practices in them to go into this plan. Claude read all 8 in full, plus the two public worked examples one of them linked (a database review and a server-function review), and checked each point against the code and staging the same day, reading only. Most of it TaskDrop already does. Six things are new, holes **H71 to H76**, and four working habits are new (parts F, H, I and J). Nothing was changed on staging, and no code changed: this task is the plan for it.
 
 **Read the proposals as sales letters.** None of the 8 has seen TaskDrop's code, their experience claims are not checked, and the prices ($50 to $90) buy a quick second opinion, not a full attack test. The advice below is here because it is good advice, not because of who wrote it.
 
@@ -2399,17 +2025,17 @@ start 2.17
 | Rate limits per person and address, narrow CORS, and prices set by the server | 1 | **Done.** 2.8, 2.13 A, H8, rule 1 | Nothing |
 | Formal risk frameworks (ISO 27005, ISO 31000, NIST); HashiCorp Vault, Kubernetes and Cloudflare | 2 | **Not needed now** | Listed in **Skipped on purpose** |
 
-**A. Columns, not only rows (closes H74). Done 6 Nov (PR 275).** `docs/SECURITY_COLUMNS.md` holds the decisions and `supabase/functions/api/columns.ts` the fixed lists. Calling the database directly still returns every column of a visible row until 3.9. The plan was: Claude writes one table of every column a signed-in person can read on `profiles`, `tasks` and the other tables open to many people: public, parties only, or private. Then the 29 `select *` calls in `api` become fixed column lists, private columns go, and a test fails when a table gains a column nobody has decided on, the same way the guest card works since H62. H13 and H45 close with the same list, if you answer "fix".
+**A. Columns, not only rows (closes H74).** Claude writes one table of every column a signed-in person can read on `profiles`, `tasks` and the other tables open to many people: public, parties only, or private. Then the 29 `select *` calls in `api` become fixed column lists, private columns go, and a test fails when a table gains a column nobody has decided on, the same way the guest card works since H62. H13 and H45 close with the same list, if you answer "fix".
 
-**B. Every role against every door (extends 2.13 G). Done 6 Nov (PR 277).** `supabase/tests/role_doors.test.sql` tests signed out, person A, person B and the five staff roles (admin, finance, support, sales, viewer) on CI's throwaway database, so no staff account was made on staging. `scripts/direct-door-test.mjs` knocks directly on all 68 tables on staging, signed out and as a seed person, and reads only row counts: 129 ok, 7 by design, 0 failed. `docs/SECURITY_ROLES.md` is the one table of who may do what, with the server functions that use the master key. The H52 door stays expected until 3.9, then the same script with `--gateway-only` proves it shut. **Limits:** staff checks cover the listed actions, and admin routes are checked for the staff-check call, with one route tested for a plain person's refusal. **Found:** H78.
+**B. Every role against every door (extends 2.13 G).** One test, run on staging, with these callers: signed out, person A, person B, and one test account for each staff role (admin, finance, support, sales, viewer). It knocks directly on every table, database function, server function and admin route, not only the `api` actions. Each finding carries the exact request. The result is one table, `docs/SECURITY_ROLES.md`: who may do what. The H52 door stays expected until 3.9, then the same test proves it shut.
 
-**C. New doors start closed (closes H71). Done 6 Nov (PR 274, migration 156, on staging).** A new table now gives nobody any right until its migration grants one, so a table the app reads needs its own `grant`. PostgreSQL also lets everyone run a new function, and that default can only be removed for all schemas at once, which would close the helpers in 51 SQL test files. So it stays, and `supabase/tests/new_doors_closed.test.sql` fails the build when a new function can run signed out, a table lacks row rules, or a view runs as its owner. Rights already given did not change.
+**C. New doors start closed (closes H71).** One migration changes the database defaults so a new function and a new table give nobody rights until a migration says so, and a test fails if any table lacks row rules or any new function is callable signed out without being on the list. Rights already given stay as they are, because migrations only add.
 
-**D. Scan what actually ships (closes H72). Done 6 Nov (PR 276, admin PR 47).** `scripts/scan-build.mjs` scans the website build inside the deploy, so a key stops it and the last good one stays live; the admin's browser files after `npm run build`; and the Android bundle on pull requests that touch the app. A missing build fails. It reads text as single bytes, so a key stored as UTF-16 in Android bytecode would be missed.
+**D. Scan what actually ships (closes H72).** The website build, the admin's browser files and the Android bundle are each scanned by the existing key patterns on every build, and a missing build fails the check instead of skipping it.
 
-**E. Function settings and webhooks (closes H73 and H76). Done 6 Nov (PR 273).** `razorpayx-webhook` has its login setting in `supabase/config.toml`, and `scripts/check-endpoints.mjs` fails if a door whose callers hold no login loses that line. The payment webhook and the app's own check compare the amount Razorpay reports with the amount on record: a mismatch stays unpaid, funds nothing, keeps the payment id for a refund, and raises an `amount_mismatch` alert. RazorpayX withdrawals have no such comparison: the server sets their amount. Not yet tried with a real Razorpay payment.
+**E. Function settings and webhooks (closes H73 and H76).** `razorpayx-webhook` gets its login setting in `supabase/config.toml`, and `scripts/check-endpoints.mjs` learns that a door marked as a webhook must be set this way, so a missing line fails the tests. Both webhooks compare the amount Razorpay reports with the stored amount, and a mismatch is held and raised as an alert. The list of which functions use the master key goes into part B's table.
 
-**F. Chain review. Done 6 Nov.** `docs/SECURITY_CHAINS.md` holds five chains and the ones that do not add up. It was done by reading, so nothing in it is a proven attack. Strix (2.16) and any outside tester are asked the same question. The two that matter most: a stolen SIM can add a new UPI ID and withdraw at once (H77, decision 33), and a stolen Gmail with no 2-step sign-in meets your rule of never replacing keys (H14, chain 2 in that file).
+**F. Chain review.** Claude takes every Low and Medium find, open or accepted, and asks which two or three together reach someone's money, data or account. Anything that does is rated as what it adds up to. Strix (2.16) and any outside tester are asked the same question.
 
 **G. The Android app, opened like an attacker (closes H75).** After the next Android build, Claude unpacks it and checks the list of open entry points, the app links, the debug settings, and every string for keys, including the debug token in H56. Done before the store build in 5.0d.
 
@@ -2423,8 +2049,8 @@ start 2.17
 | Direct database door shut | H3, H52 | Claude: production from day one (5.9), staging in 3.9 |
 | Wallet record list built and balancing | H34 | Claude, after your "start H34" |
 | Backups outside Supabase, and one real restore | H16 | 5.9, 6.5 |
-| A wait and an alert on a new payout destination | H77 | Your decision 31, then Claude |
-| Direct database door shut also closes column reads and `settings` | H74, H78 | With H3, in 3.9 and 5.9 |
+| Webhooks and function settings right in production | H73, H76 | Claude, part E |
+| New doors start closed; what ships is scanned; columns decided | H71, H72, H74 | Claude, parts A, C, D |
 | Android build inspected, debug token gone | H75, H56 | Claude, part G and 5.9 |
 | Admin time limits in the database, Google button | H37 | Claude |
 | Location inside videos stripped, or the notice accepted | H38 | Claude, or your "accept" |
@@ -2433,16 +2059,16 @@ start 2.17
 | Rush and spammer test passed | H29 | Claude, 2.13 J |
 | AI attacker run; an outside person has tested | 2.16, 2.13 E | Both |
 | Every screen checked on the phone | 2.14 part G | Both |
-| Your answers: PAN (decision 17), passwords (H30), text-message sign-in (H31), a replacement rule for a stolen key (chain 2) | Decisions | You |
+| Your answers: PAN (decision 17), passwords (H30), text-message sign-in (H31) | Decisions | You |
 
-**Can wait, with your "fix" or "accept":** H45, H48, H49, H55, H64, H65, H68 (decision 25), H69, H70, B18, B21, B30 and B32. Read H55 and H65 alongside chains 3 and 5 in `docs/SECURITY_CHAINS.md` before you answer. **Left open by your choice:** 2-step sign-in on your own accounts (H14); Claude reminds you once before Step 6.
+**Can wait, with your "fix" or "accept":** H45, H48, H49, H55, H64, H65, H68 (decision 25), H69, H70, B18, B21, B30 and B32. **Left open by your choice:** 2-step sign-in on your own accounts (H14); Claude reminds you once before Step 6.
 
-**J. If you hire an outside tester (decision 32).** Scope first, then a fixed price, paid through Upwork. Send the brief below and agree the dates in writing before anything is tested. Run it after H34 and Strix, so you do not pay to hear what is already known.
+**J. If you hire an outside tester (decision 30).** Scope first, then a fixed price, paid through Upwork. Send the brief below and agree the dates in writing before anything is tested. Run it after H34 and Strix, so you do not pay to hear what is already known.
 
 | Their question | The answer to send |
 |---|---|
 | Roles | Guest; one signed-in account that both hires and earns; staff roles admin, finance, support, sales, viewer |
-| Staging | A separate Supabase project with fake data and fake money, at `taskdrop.in`; test accounts for ordinary people (a staff test account only with your yes) |
+| Staging | A separate Supabase project with fake data and fake money, at `taskdrop.in`; Claude makes one test account per role (part B) |
 | Row rules and functions | Row rules on all 68 tables; 10 server functions, some use the master key after checking the caller |
 | Admin panel | A separate Next.js app; staff are added by an admin, and the server checks the role |
 | Mobile | Android is in scope (the staging build); iOS is not |
@@ -2458,34 +2084,32 @@ start 2.17
 
 **Your steps:**
 
-1. Answer decisions 32 and 33.
-2. Say yes to the next Android build when one is due (part G).
-3. SAY:
+1. Answer decision 30.
+2. SAY:
 
 ```say
 start 2.18
 ```
 
-4. Reply "fix" or "accept" to each Medium or Low finding, and to H78.
+3. Reply "fix" or "accept" to each Medium or Low finding.
 4. TELL Claude: "done 2.18".
 
-**Done when:** H71 to H76 are closed, each with a test that fails if the hole returns (done, except H75); `docs/SECURITY_ROLES.md` covers every role against every door (done); the chain review is written (done); the go-live checklist is current (done); 5.9 holds the first-day checks (done); and H77 has your answer. Part G follows the next Android build, and part J follows your decision 30.
+**Done when:** H71 to H76 are closed, each with a test that fails if the hole returns; `docs/SECURITY_ROLES.md` covers every role against every door; the chain review is written with the hunt's results; the go-live checklist is current; and 5.9 holds the first-day checks. Part G follows the next Android build, and part J follows your decision 30.
 </details>
 
 > **GATE 2b: do not start Step 5 (production) until all of these are true**
 
 - [ ] Gate 2a has passed
-- [ ] Tasks 2.1 to 2.16, 2.18 and 2.22 to 2.25 are ticked (2.13 part E may follow, by decision 15, before 6.5; 2.18 parts G and J follow the next Android build and decision 32, before 6.5)
-- [ ] The rubric scores (2.23) are on target, or have your written "accept"
+- [ ] Tasks 2.1 to 2.16 and 2.18 are ticked (2.13 part E may follow, by decision 15, before 6.5; 2.18 parts G and J follow the next Android build and decision 30, before 6.5)
 - [ ] The six proofs in task 2.10 are all true
-- [ ] Holes H2 to H10, H12, H17 and H22 to H34 and H71 to H77 are closed (H3 closes in 3.9 for staging and is never open in production; H11 closes in 5.2; H1, H15 and H16 in 5.9)
+- [ ] Holes H2 to H10, H12, H17 and H22 to H34 and H71 to H76 are closed (H3 closes in 3.9 for staging and is never open in production; H11 closes in 5.2; H1, H15 and H16 in 5.9)
 - [ ] No Critical or High security problem is open, and every Medium from 2.14, 2.15 and 2.16 has your answer
 
 ---
 
-## STEP 3: Prove it with real testers, last and on the finished app (after Gate 1, beside Step 2, about 3 weeks)
+## STEP 3: Prove it with real testers (weeks 3 to 6)
 
-**Goal:** the whole app works with fake money for 12 real testers for 14 days, you can see whether tasks get offers, and you know how to undo a bad release. **Needs S.1 done** (Google has checked your ID) **and Gates 1 and 2a passed.** Step 3 runs at the same time as the rest of Step 2, so the 14 days and the security work overlap.
+**Goal:** the whole app works with fake money for 12 real testers for 14 days, you can see whether tasks get offers, and you know how to undo a bad release. **Needs S.1 done** (Google has checked your ID) **and Gate 2a passed.** Step 3 runs at the same time as the rest of Step 2.
 
 **Keep staging awake.** Supabase pauses a free project after about a week with no activity. While testers use it every day this does not happen. In a quiet week, open the staging app once yourself. If it pauses anyway, tell Claude.
 
@@ -2670,6 +2294,33 @@ start marketplace numbers
 **Built 2 Nov (app PR 198, admin PR 38, merged; migration 141 applied to staging):** the admin **Reports** page has a new card, "Do tasks get offers, and get done?", with the typical wait for a first offer, the slowest 1 in 10, the share of tasks that got an offer, and the fill rate (tasks done and paid ÷ tasks posted), plus a table per category and per area (the 15 busiest). A task still being worked on counts as not filled yet, so the last few days look low. **Checked:** a SQL test with known timings (3 tasks, 2 offers, 1 done, median exactly 900 s; a group with no offers shows a dash, never 0), the real function answers on staging data, typecheck, lint and all admin tests green. The test caught a real bug first: tasks with no offer were counted as "0 seconds". **Not yet seen on screen:** the card needs your admin sign-in. Open **Reports** on the staging admin and TELL Claude "done 3.3b" or what looks wrong. The numbers are not yet in the weekly check (7.1).
 </details>
 
+<details id="t3-3c" data-short="PostHog (staging)">
+<summary>[BOTH] <b>3.3c</b> PostHog on staging: see where the testers get stuck <small>· your time: 20 minutes · free to start</small></summary>
+
+**Why:** 3.3b tells you how long tasks wait. PostHog shows where people give up on the way (signed up → posted a task → got a first offer → hired → paid) and replays the screen where they got stuck. Starting it with the 12 testers gives you real funnels before launch, so production (5.6b) starts with the events already proven.
+
+**What it records, and what it never does:**
+
+- Events are written once, in one tracking helper, and sent through the server (`api`). The first list: `User signed up`, `Task created`, `First offer received`, `Offer accepted`, `Task paid`.
+- People are known only by their internal number: never a name, phone number or email.
+- Screen recordings hide every text box, the chat, the money screens and the address. Nothing is recorded until the person says yes (a consent box on the website and on first start of the app).
+- PostHog has no India region. Claude picks the **EU (Frankfurt)** cloud, and the privacy policy says where the data is kept. Your lawyer (S.3) confirms the wording, and the Play data-safety form gets the matching rows (3.1, step 4).
+
+1. CLICK: sign up at https://posthog.com as **hitendureacts@gmail.com** → **Create project** → name it `taskdrop-staging` → region **EU**. Turn on 2-step sign-in the same day (2.1b).
+2. CLICK: **Project settings** → copy the **Project API key** (it starts with `phc_`). It is public by design, so it may be shared: give it to Claude. Do not make a personal API key.
+3. SAY:
+
+```say
+start posthog staging
+```
+
+4. Claude adds the tracking helper, the consent box, the hidden-text recording rules and the privacy-policy line, then opens the pull request. SAY "merge it".
+5. Use the staging app yourself: sign up, post a task. CLICK: PostHog → **Product analytics** → **New insight** → **Funnels** → steps `User signed up`, `Task created`, aggregating by **Unique users**. Your own steps must show up.
+6. TELL Claude: "done 3.3c".
+
+**Done when:** the staging funnel shows your own sign-up and task, and a recording shows no typed text.
+</details>
+
 <details id="t3-4" data-short="Tester rounds">
 <summary>[BOTH] <b>3.4</b> Two tester rounds (during the 14 days) <small>· 2 weeks, a few minutes a day</small></summary>
 
@@ -2707,30 +2358,78 @@ start API calls
 **Done 2 Nov 2026.** The trial reached `redesigned-2.0` on 1 Nov (PR 174). The 13-second wait is explained: Find work waited for two requests one after the other (the search, then the posters on the cards), both on newly started server copies while the Home's own requests were still running. Each spent about a second on the sign-in check and 1 to 2 seconds on queries that normally take a fifth of that (7.3 s + 5.8 s). Nothing was lost, and the 30-second rule played no part. **Fixed:** Find work now asks once (posts and posters together); the server checks the sign-in itself instead of asking the sign-in service on every call (P2-48), and still refuses suspended and deleted people on every call; a read with no answer after 15 seconds is asked again, so a screen cannot stay on "Loading..." for good. **New numbers** (today's app, which has more screens than on 29 Oct): **42 requests and 80 operations** for the same walk (44 and 82 until the server update that comes with this merge is live). Find work showed its list 1.8 s after the tap. Checked on the website at phone size and at desktop size. **Not checked:** the Android phone. Details: `docs/API_CALLS.md` section 7.
 </details>
 
-<details id="t3-6b" data-short="Chromatic visual tests">
-<summary>[BOTH] <b>3.6b</b> Chromatic: see every website screen change <small>· your time: 20 minutes · free plan · after the freeze</small></summary>
+<details id="t3-5b" data-short="Safe caching">
+<summary>[CLAUDE] <b>3.5b</b> Safe caching: keep the same-for-everyone lists ready, never anyone's own data <small>· added 4 Nov; built and tested offline 5 Nov on branch feat/cache-integration, not yet merged or on staging · your time: 10 minutes · free (no new tool) · decision 29</small></summary>
 
-**Why:** [Chromatic](https://www.chromatic.com) takes a picture of every screen and shows what changed since the last approved picture, so a fix cannot quietly break a screen nobody looked at. It also runs accessibility checks, which feed the UX rubric (2.23). It starts after the freeze because the screens are final then, and each picture counts against the free limit.
+**What it is, in plain words:** some answers are the same for every person: the Trending list, the "Top helpers" list, the "today on TaskDrop" numbers, the promotion prices. Today the database works each one out again for every person who opens Home or Explore. Caching means working it out once, keeping the answer for a few minutes, and handing the same copy to everyone. Anything about one person (their money, their tasks, their offers, their chats) is **never** kept for someone else, and money is **never** shown from a kept copy. No Redis and no new paid tool: everything here uses what TaskDrop already has.
 
-**What it covers.** The website, through the Playwright tests TaskDrop already has, so Storybook is not needed: the main screens at phone and laptop size, light and dark. **Not the Android app:** Chromatic's Android route needs Storybook for React Native, and its pages do not mention Expo. Android stays your phone check.
+**Why now, and why not more:** measured on staging on 4 Nov (`pg_stat_statements`, since 7 Sep, 72 profiles and 261 tasks): the database is nowhere near busy. The biggest app costs were the admin switches (`get_app_controls`, 43,181 calls, 148 s in all), the secret loader (`app_secrets`, 53,875 calls, 113 s, once per new server copy), the ad ranking (`ad_auction`, 2,528 calls at 25 ms each) and Trending (1,144 calls at 11 ms). "Top helpers" is cheap today (5 ms) but it counts every helper's jobs and offers each time, so it grows with every new user; it is the one that would hurt first in a busy city. So this task is preparation, built in a safe order, each layer with its own off switch, and measured before and after.
 
-**Free plan:** 5,000 pictures a month, Chrome only, no card (checked 6 Nov). Claude keeps it to the main screens so the limit holds. The paid plan starts at $179 a month and is not needed.
+**The five layers (each can be switched off on its own):**
 
-1. CLICK: sign up at https://www.chromatic.com with the GitHub account that owns the code, and make a project for `taskdrop`.
-2. CLICK: copy the project token into `.env.all-secrets` as `CHROMATIC_PROJECT_TOKEN` (rule 8). Never paste it into chat.
-3. SAY:
+| Layer | What it does | How old an answer can be | Off switch |
+|---|---|---|---|
+| A. The app remembers | The phone keeps the same-for-everyone lists in memory for a few minutes, and wipes everything it remembers when anyone signs in or out | Trending and Top helpers 5 min, today's numbers 1 min, promotion prices 10 min, ad order 30 s. Your own screens keep today's 30-second rule (decision 5) | Admin switch "public cache: app" (reaches phones within 5 min) |
+| B. Browser and network | Unchanged on purpose: every `api` answer stays "never store", so no shared network cache can ever hand one person's answer to another. Only the public admin switches (`app-config`, 60 s) and the website's own files are cached | Website files: until a new release | Not needed |
+| C. The database keeps a ready copy | Every 10 minutes an Inngest job works out Trending, Top helpers and today's numbers once and saves them in one private table; the app's requests read the saved copy | 10 minutes; if the copy is ever older than 30 minutes, the live answer is used instead | Admin switch "public cache: snapshots" (instant) |
+| D. The server shares one answer | Inside each server copy, the same-for-everyone answer is kept for up to a minute, and 20 people asking at the same moment cause one database question, not 20 | 15 to 60 s | Admin switch "public cache: memo" (within 30 s) |
+| E. Never cached | Money, balances, escrow, payouts, fees, task status, offers, chat, notifications, addresses and phone numbers, sign-in state, admin numbers, and every list whose answer depends on who is asking | Always live | Not applicable: a test fails if anything here is ever cached |
+
+**When Redis would be worth it (the Part J rule, unchanged):** only if, after layers A to D are live, the rush test (2.13 J) or production (7.5) shows the database more than 70% busy for an hour, a reading screen slower than its target because of the database, or connections above 80% of the limit, **and** the slow part is something A to D cannot help. Even then the cheaper steps come first: a missing index, a bigger database, a read copy of the database. Redis is proposed only after those, needs your yes (it is a new tool with a cost and a new server-only secret), and would hold only same-for-everyone answers unless a per-person design is approved separately.
+
+**Your steps:**
+
+1. Answer decision 29 (in the Decisions list): is it fine that Trending, Top helpers and today's numbers can be up to 10 minutes old? Recommended: yes.
+2. SAY:
 
 ```say
-start 3.6b
+start 3.5b
 ```
 
-4. Claude confirms the setup against Chromatic's current docs, adds it to the Playwright tests and to GitHub, and runs the first build. The first pictures become the baseline.
-5. LOOK at the pictures once, and accept them.
-6. TELL Claude: "done 3.6b".
+3. Claude builds it in the order below, proves no one can see another person's data and that money is never old, measures before and after, and merges it.
+4. After it is live, open Home and Explore on your phone once and TELL Claude whether anything looks wrong or old.
 
-**Optional, later:** the Chromatic connector lets Claude read builds directly. In a terminal, run `claude plugin marketplace add chromaui/chromatic-plugins`, then `claude plugin install chromatic@chromatic`, and sign in with `/mcp`. It adds hooks, so it is not installed yet.
+**Done when:** all five layers are live on staging, the leak and money tests pass, the before-and-after numbers are written in `docs/API_CALLS.md`, and each off switch has been tried once.
 
-**Done when:** a Chromatic build runs on every change to `redesigned-2.0`, the baseline is accepted, and no accessibility finding of level Serious or higher is open without your answer.
+**For Claude: the design (checked against the code on 4 Nov)**
+
+| Layer | Files | Keys and times | Clears when | If it fails / undo | Leak risk and the guard |
+|---|---|---|---|---|---|
+| A. App | `apps/mobile/src/lib/freshness.ts` (one place for every rule), `lib/gateway.ts`, `data/extras.ts`, `data/api.ts`, `lib/media.ts`, `lib/live.ts`, `navigation/ScreenHost.tsx`, `providers/NavProvider.native.tsx`, `lib/appConfig.ts` | Key `<personId or guest>:op:args`. Public class: `trendingCategories` 5 min, `topEarners` 5 min, `platformHighlights` 1 min, `promotionTiers` 10 min, `adAuctionRanks` 30 s, shown at once and refreshed in the background after half its time. Personal class: today's 30 s rule. Memory only; nothing personal is written to the phone's storage | Every map is emptied (not only the change counter) on sign-in, sign-out, user change and guest to account. Personal entries also on any write or live ping (today's rule). `createTask` also clears Trending and today's numbers | Error: the answer is never kept (today's rule). Off: `features.publicCache=false` in `app-config` turns the public class off | Today the 30 s map and the signed-photo map are kept per device, not per person (H69). Fixed here: person in every key, maps wiped on sign-out. The **wallet leaves the 30 s rule**: it always asks again when shown |
+| B. HTTP | `supabase/functions/api/http.ts` (no change: `no-store` stays on every answer, public ones too), `vercel.json` | `/_expo/static` stays a year (immutable). `/assets/*` gets a year only if its file names carry a content hash (check the export first), otherwise one day. `index.html` stays revalidated | A new release changes the file names | Revert `vercel.json` | No new public GET door: it would undo batching and add an unguarded door. Nothing relies on a shared CDN in front of Supabase functions |
+| C. Database | New migration (next free number, 149 today) with its undo file in `supabase/undo/`; `supabase/functions/inngest/index.ts` + `jobs.ts`; `supabase/tests/` | Table `private.public_snapshots(key text primary key, body jsonb, refreshed_at timestamptz, took_ms int)`, row rules on, no policies, closed to everyone. `private.refresh_public_snapshots()` saves `highlights`, `trending` (the most, 20) and `top_earners:<kind>` for the 3 kinds (the most, 30), wrapped by a service-role-only function for Inngest. `platform_highlights`, `trending_categories` and `top_earners` keep their exact inputs and outputs (rule 2) and read the saved copy, cut to `p_limit`, when the switch is on and the copy is under 30 min old. Inngest `public-snapshots`: every 10 min, one at a time, 2 retries, `reportFailure` (about 4,300 runs a month, a small part of the free plan) | Every 10 min; a suspension or deletion is out within 10 min (or at once if that action already sends an outbox event) | Job fails: copy ages, then the live answer after 30 min, and Sentry is told. Off: `settings` row `public_cache.snapshots=false`. Undo: drop the table and the refresh function, restore the three old bodies | Only public profile fields and counts go in (the same SQL as today, so fixing B30 and B32 fixes both). **`platform_stats` is not cached anywhere:** it is admin-only and holds money totals; `docs/audit/SCALE_READINESS.md` row 12 called it public by mistake (corrected). Why not a materialised view: the answers take inputs, a refresh needs table ownership and locks, and the table is simpler to undo |
+| D. Server | New `supabase/functions/api/publicMemo.ts` (no Deno imports, tested from Node), `api/reads.ts`, `api/guest.ts`, `api/index.ts`, `_shared/controls.ts`, `_shared/secrets.ts` | Closed list `PUBLIC_MEMO_OPS`: `trendingCategories` 60 s, `topEarners` 60 s, `platformHighlights` 30 s, `promotionTiers` 60 s, `adAuctionRanks` 15 s; plus the guest-only shared post read (`posts()` in `guest.ts`, keyed without the guest's location) 15 s. Key `op:sorted args`. At most 500 entries per server copy; one database question for callers arriving together; each caller gets its own copy | TTL; a new server copy starts empty | Errors are never kept. Off: `public_cache.memo=false`, read through `get_app_controls` (new fields, added only) within 30 s. `secrets.ts`: the second caller during the first Vault read waits for it instead of getting an empty value (H70) | Signed-in feed reads are **never** shared: their answer depends on who is asking (row rules, blocked people). A test fails if any op is added to the list that is not a same-for-everyone read |
+| E. Never | `freshness.ts` exports `NEVER_REUSE`; `publicMemo.ts` exports the closed list | `getWallet`, `getEscrowHeld`, `listWalletActivity`, `listPayouts`, `listPayoutDestinations`, `feesSince`, `platformFees`, `settleClearedEarnings`, `getTask`, `getTaskDetail`, `canQuoteOn`, `getMyBid`, `listBidsForTask`, `taskContactPhone`, `getProof`, `listMessages`, `getNotification`, `accountDeletionCheck`, `ageStatus`, `isAdmin`, `platformStats`, and every write | Not applicable | Not applicable | The 5 s suspended-person memo in `api` stays 5 s and is never made longer |
+
+**Proof (all in `npm run check` or `npm run test:db`, and on staging):**
+
+| Test | Proves |
+|---|---|
+| Two-person test (`scripts/two-person-test.mjs`) | Person A, person B and a guest get exactly the same bytes for every op on the shared list (so nothing personal is inside); a second run with the memo on shows B never receives anything A caused to be kept |
+| Closed-list contract test (`api/contract.test.ts`) | Every op in `PUBLIC_MEMO_OPS` is one of the guest's shared reads; no op in `NEVER_REUSE` or any write is in it; every `api` answer, a memo hit included, carries `Cache-Control: no-store` |
+| App tests (`freshness.test.ts`, a new `media` test) | Sign in as A, read, sign out, sign in as B: nothing is reused; `NEVER_REUSE` ops can never pass through a reuse helper; the wallet asks again every time it is shown |
+| Money stays live (staging, two people) | B approves work; A opens the wallet within 30 s and sees the new balance on the first look; a withdrawal right after shows the live balance |
+| SQL tests | The refresh is service-role only; the saved copy and the live answer are the same rows; a copy older than 30 min or the switch off gives the live answer; a deleted or suspended helper is gone after one refresh; the saved copy holds only the listed public fields |
+| Off switches | Each switch tried once on staging, and the answer goes live within its time |
+
+**Seeing it work:** each server copy writes one log line every 5 minutes with hits and misses per op; the snapshot rows carry `refreshed_at` and `took_ms`, and Sentry is told if any copy is over 30 minutes old; before and after, Claude records the calls and total time of the three lists, `ad_auction`, `get_app_controls` and `app_secrets` from `pg_stat_statements`, and the request count of the standard walk (`node scripts/count-api-calls.mjs`). Not caching, but found on the way: the largest database time on staging is Realtime's change polling (1.4 million ms), not from this app's code (the app uses broadcast only); Claude checks where it comes from in 3.9.
+
+**Build order:** D's `secrets.ts` fix and the closed lists (E) first, then A, then C, then D's memo, then B; each merged on its own so any one can be undone.
+
+**Build status, 5 Nov 2026 (offline only: no database, no deployed service, nothing pushed or merged).** All five layers are written on the branch `feat/cache-integration`; `npm run check` is the proof for what is marked built. How each layer works now, its switch, the steps to turn it off and the measuring steps are in `docs/API_CALLS.md` section 8.
+
+| Item | State |
+|---|---|
+| D's `secrets.ts` fix (H70) and the closed lists (E: `NEVER_REUSE`, `PER_PERSON_REUSE`, `PUBLIC_MEMO_OPS`, and the contract test that classifies every `api` read) | Built, tested offline |
+| A. App: per-person keys and wipes on sign-in, sign-out, switch and deletion (H69), signed-link memory per person, wallet always asks, public reuse behind `public_cache.app` | Built, tested offline (`freshness.test.ts`, `signedLinks.test.ts`, `cacheLeak.test.ts`). Built with 15 to 60 s reuse (the server's own times), not the 5 minutes in the design table above; longer can be chosen later |
+| B. `no-store` unchanged; content-hashed `/assets/` files cached for a year in `vercel.json` | Built (the rule is in the file); not seen on a deployed site |
+| C. Migration 149, undo file, SQL tests, Inngest job `public-snapshots` | **Live in staging (5 Nov).** Applied by PR 253 (PR 249 first missed it: the deploy script skips versions older than the newest applied one, so 149 was renamed to `20261105140000`). The SQL test passed on a free in-memory Postgres and on CI's real Postgres. The job filled all five kept copies; they matched the live queries. A bug found on the way: the text "true" counted as on (fixed). Switch `snapshots` is ON |
+| D. Per-server memo with single-flight behind `public_cache.memo` | Built, tested offline (`publicMemo.test.ts`, `cacheLeak.test.ts`, `contract.test.ts`) |
+| Offline leak and money tests; the cache section of the two-person script | Built. Run by hand on staging with the switches off and after each switch was turned on: clean, guests included. PR 255 fixed the test's guest call (it used the wrong header). The money check ran on staging and passed |
+| `docs/API_CALLS.md` section 8: what each layer does, its switch, how to turn it off, how to measure | Written, with the first measured numbers (5 Nov, staging, small data). **Open:** per-screen request counts for two people and the load test |
+| Switching on, each off switch tried once on staging, the money check by hand, the before-and-after numbers, your phone check | **Switched on in staging (5 Nov):** `public_cache` = app, snapshots and memo all true. Database work for the three lists is 5 to 8 times lower; people feel no change at this size. Each switch was turned off once and back on (works). The money check was run on staging with all switches on (`scripts/money-freshness-check.mjs`, passed twice: the worker saw the new money on the first look). **Open:** the load test, your phone check, and production (nothing is on there) |
+
+**Found while checking the off switches (5 Nov):** with all three switches off, the lists and money behave as before, with three deliberate exceptions that have no switch because they are safety fixes: the app's 30-second memory and signed-link memory are now per person and wiped on sign-in and sign-out (H69), the wallet screen asks again every time it is shown, and a second request during a secrets load waits instead of getting an empty value (H70). Also: there is no admin-panel button for `public_cache` yet (the switch is a row in `settings`, changed in the SQL editor), and the 10-minute job keeps running when `snapshots` is off.
 </details>
 
 <details id="t3-6" data-short="Quality tests round 3">
@@ -2824,8 +2523,7 @@ Do the switch-over, one step at a time.
 
 > **GATE 3 (staging exit gate): do not start Step 5 until all of these are true**
 
-- [ ] Gate 1, the feature freeze, still holds: nothing but fixes has gone in since
-- [ ] The automatic tests are green, and the Chromatic baseline is accepted (3.6b)
+- [ ] The automatic tests are green
 - [ ] Sentry has been quiet for 7 days, and the uptime monitors are green
 - [ ] The whole job works with fake money on the website, Android and the admin: post, offer, pay, work, approve, review, withdraw
 - [ ] Account deletion, report and block work, and push notifications arrive on Android
@@ -2837,9 +2535,9 @@ Do the switch-over, one step at a time.
 
 ---
 
-## STEP 4: Get ready to market (beside Steps 2 and 3, no new features)
+## STEP 4: Get ready to market (weeks 4 to 8, beside Step 3)
 
-**Goal:** on launch day, the launch city already has workers waiting, the public pages can be found on Google, and you know which messages work. The full strategy is in the **Marketing playbook** section below; these are the tasks. Tasks 4.3, 4.5 and 4.10 are features, so they moved to Step 1. Nothing left here adds a feature, so it can start any time.
+**Goal:** on launch day, the launch city already has workers waiting, the public pages can be found on Google, and you know which messages work. The full strategy is in the **Marketing playbook** section below; these are the tasks.
 
 <details id="t4-1" data-short="City and task types">
 <summary>[BOTH] <b>4.1</b> Confirm the launch city and find the first task types <small>· 30 minutes</small></summary>
@@ -2883,6 +2581,25 @@ write my marketing plan and the first 30 days of posts
 **Done when:** `docs/MARKETING.md` and the 30-day calendar are approved.
 </details>
 
+<details id="t4-3" data-short="Public pages">
+<summary>[CLAUDE] <b>4.3</b> Build the public pages that Google can read <small>· your time: 30 minutes</small></summary>
+
+**Why:** Google cannot properly read the app's screens. Plain, fast pages can be found on Google. They go live on the production web address (5.10), next to the production app, on launch day.
+
+**Pages:** Home, How it works, Earn with TaskDrop, Fees (3% service fee, 10% commission, the 5% cancel fine, shown plainly), Safety, Categories, Help, Contact, the legal pages, and a "Request TaskDrop in your area" form.
+
+1. SAY:
+
+```say
+build the public pages
+```
+
+2. Claude shows you the design first. Reply "approved" or say what to change.
+3. Claude builds them with a sitemap, so Google can list every page. You see them on staging first.
+
+**Done when:** the pages are approved and ready for launch.
+</details>
+
 <details id="t4-4" data-short="Business Profile">
 <summary>[YOU] <b>4.4</b> Google Business Profile for the launch city <small>· 30 minutes, then Google's check</small></summary>
 
@@ -2899,6 +2616,29 @@ write my marketing plan and the first 30 days of posts
 **Never** post fake reviews or ask friends to review a service they did not use.
 
 **Done when:** the profile shows "Verified".
+</details>
+
+<details id="t4-5" data-short="Smart alerts">
+<summary>[CLAUDE] <b>4.5</b> Smart alerts: tell the right workers about a new task (your idea) <small>· your time: 20 minutes</small></summary>
+
+**What it is:** when a task is posted, the app notifies workers who have done that kind of task before, are near the task's area (remote tasks: by category only), and were active recently. There is a daily limit so nobody is spammed, and every worker can switch the alerts off. It starts simple, without AI, and is measured by how fast tasks get their first offer.
+
+1. SAY:
+
+```say
+design smart alerts
+```
+
+2. Claude shows you the alert wording and any screen change as a picture first. Reply "approved" or say what to change.
+3. SAY:
+
+```say
+build smart alerts
+```
+
+4. Test it on staging with your testers, then SAY "merge it".
+
+**Done when:** merged, tested on staging, with a switch in the admin to turn it off.
 </details>
 
 <details id="t4-6" data-short="20+ workers">
@@ -3033,6 +2773,74 @@ draft the dispute policy and safety rules
 **Draft 2 Nov (PR 201): `docs/DISPUTE_POLICY_DRAFT.md`. Nothing is built.** It states how disputes work today (read from the code), the policy text, the not-allowed list and a 4-line safety card. **Five answers needed:** **A.** the Terms say TaskDrop "decides how the held money is split", but the app can only give everything to the worker or everything back to the poster. Recommended: keep all-or-nothing at launch and reword the Terms. **B.** acknowledge within 24 hours, decide within 3 working days (the lawyer confirms). **C.** the not-allowed list. **D.** the "share a job with a trusted contact" option is left out, because on 1 Nov you rejected Safety Shield, Live Track and Start Code. Say "include a plain share button" if you want it. **E.** who may decide disputes (today: admin and finance roles). Say "approved" with your answers and Claude builds it on staging.
 
 **Built 3 Nov (you said "Use my defaults", so A to E went the recommended way: all-or-nothing, 24 hours and 3 working days, the list as drafted, no share button, admin and finance decide).** One file holds the wording, `apps/mobile/src/legal/disputePolicy.ts`, so every place says the same thing. **Where it shows:** the **Support** page has three new answers ("If something goes wrong on a job", "Staying safe on a job", "What tasks are not allowed?"); the **Terms** reword the dispute line to "decides who receives the held money" (no more "split"), say the 24-hour and 3-day aims, and carry the not-allowed list (Terms updated 3 November 2026; `docs/legal/TERMS_OF_SERVICE.md` re-exported); the **Report a problem** sheet says "We aim to look within 24 hours. The payment stays on hold until we decide."; the **last posting step** has the one line "Not allowed: ..." with a **See all** link to Support; and the **4-line safety card** shows once, before a person's first in-person job (when posting a job at a place, and when sending the first offer on one), remembered per account on that phone. **Checked:** typecheck and all unit tests pass (5 new copy tests: payment stays held, no split, 24 hours and 3 days, no compliance claim, no Safety Shield or Live Track wording, the list covers your items). **Not seen on screen:** the web preview could not start from a temporary worktree, so look at it on staging after the merge. **No server or money code changed:** the report button, the held payment and the two outcomes are exactly as before. **Still yours:** send the policy and the Terms to your lawyer in S.3 (the 24-hour and 3-day numbers are marked as aims until they confirm), then TELL Claude "done 4.9".
+</details>
+
+<details id="t4-10" data-short="Email sequences">
+<summary>[BOTH] <b>4.10</b> Email sequences: welcome and nudge emails that stop when the person acts <small>· your time: 45 minutes · design first, then build</small></summary>
+
+**Why:** a new person who signs up and does nothing is lost. A few short, honest emails at the right time bring many of them back to post a first task or send a first offer. This task plans the whole system: who gets which email, when it stops, who sends it, and the rules that keep it from becoming spam.
+
+**Who gets email at all.** TaskDrop signs people in by phone, so many have no email address. Emails go only to people who gave one (Google sign-in, or an email they add in Profile) **and** ticked a box that says "send me tips and reminders" (not pre-ticked). Everyone else is reached by the app's alerts (4.5), as today.
+
+**Who does what** (decided by you, 2 Nov: Loops runs the sequences):
+
+| Part | Job |
+|---|---|
+| **The database** | Knows the facts (signed up, posted, got an offer, finished) and writes each one as an event through the outbox (`private.emit_event`), like every other background job |
+| **Inngest** | Only the messenger. It takes each event from the outbox and passes it to Loops with retries (a contact is created or updated, then an event such as `task_posted` is sent). It sends nothing for people who have not agreed, and it deletes the contact when an account is deleted. It does not time or write any email |
+| **Loops (loops.so)** | Runs the five sequences in its own builder (its "loops"): the waits, the "stop when they act" checks, the templates, the contact list, the one-click unsubscribe page and the sender reputation. A sequence stops because the contact's facts change (for example `hasPostedTask` becomes true) and each email step checks that fact first |
+| **The admin** | One switch per sequence: when off, the database stops sending that sequence's events, so nobody new enters it. A page shows how many contacts and events were sent. Sent, opened and unsubscribed counts are read in the Loops dashboard |
+
+**The five sequences** (wording is drafted by Claude and approved by you; plain words, no tricks):
+
+| # | Sequence | Emails | Stops when |
+|---|---|---|---|
+| 1 | Poster welcome | Day 0: "Post your first task in two minutes", with examples. Day 2: three real kinds of task people post (only if no task yet). Day 7: one last reminder (only if still no task) | The person posts a task |
+| 2 | Worker welcome | Day 0: finish your profile and set your price. Day 2: how to send an offer that gets chosen (only if no offer yet). Day 5: how many open tasks are near you now (area names only) | The person sends an offer |
+| 3 | No offers yet | 24 hours after posting, if nothing arrived: add more detail, a photo, or top up the price (the top-up bar). The 30-minute alert to nearby workers is 4.5, not this | The first offer arrives, or the task is closed |
+| 4 | After a finished task | Day 1: thank-you and a kind ask for an honest review (and the Google review link, see 7.3). Day 14: "need anything else done?" (posters) or "new tasks near you" (workers) | The person starts another task |
+| 5 | Come back | One email after 30 days away, one after 60 days. Then nothing more, ever (the sunset rule) | The person signs in |
+
+**Rules that protect people and the brand**
+
+- At most 1 email every 3 days to one person, across all sequences, and never before 9 am or after 8 pm India time.
+- Every email has a one-click unsubscribe, and it works at once. Turning it off in Profile does the same.
+- Never a phone number, exact address, someone else's name or private amounts. Fees are shown plainly. No false urgency and no "only 2 left" tricks.
+- When an account is deleted (087), the contact is removed from Loops too.
+- Receipts and security emails are a separate stream (they are not marketing and unsubscribing does not stop them). They are not built in this task; they use the same sender setup later.
+- **Staging never emails a stranger:** it sends only to an allow-list of your own and your testers' addresses.
+- The Privacy policy gets one plain line about these emails, and the lawyer (S.3) reads the consent wording. Do not claim legal compliance in the copy.
+
+**The sender address.** Emails go out from an address at `taskdrop.in` (for example `hello@taskdrop.in`) set up for sending only (SPF, DKIM and DMARC records), with replies going to `hitendureacts@gmail.com`. That keeps your decision 11 (no business mailbox, no cost). This is done on the **production** Loops account in Step 5, because `taskdrop.in` is production's. Staging uses Loops' own test sending until then.
+
+**Measure it.** The one number: of people who got the welcome email, how many posted a task or sent an offer within 7 days, compared with people who did not get it. Add it to the weekly numbers (7.1). If a sequence does not help after a month, turn it off.
+
+1. SAY:
+
+```say
+design the email sequences
+```
+
+2. **Done 2 Nov.** Claude sends every email's wording and a picture of the flow, plus the new "send me tips" tick-box on sign-up and Profile. Change what you want, then SAY "approved" (your rule: design before building). You approved the [design page](https://claude.ai/artifact/62YPmQz9FvqzUQgon67hfo).
+3. **Your turn, whenever you are ready:**
+   1. CLICK: https://app.loops.so and sign up with **hitendureacts@gmail.com**. This is the **staging** account; production gets its own in Step 5.
+   2. CLICK: **Settings** → **API** → create a key.
+   3. Save the key only in `.env.all-secrets` as `LOOPS_API_KEY`. Never paste it in the chat.
+   4. TELL Claude: "Loops key saved". If a screen looks different, send a screenshot.
+4. SAY:
+
+```say
+build the email sequences
+```
+
+5. Claude builds the database and Inngest part on staging. Loops has no way to create sequences from code, so Claude builds the five loops in the Loops editor in your Chrome, with your OK for each (or gives you the clicks if you prefer). Claude then sends you a test of each email at your own address. Check each one on your phone and on a laptop. Then SAY "merge it".
+6. TELL Claude: "done 4.10". In Step 5, when you make the production accounts, SAY "set up production email" and Claude walks you through the production Loops account, the three domain records, and rebuilding the five loops there by hand (nothing is shared with staging).
+
+**One rule changes.** The agent guide (`AGENTS.md`, rule 8) says Inngest is the only automation tool. Your decision 13 makes Loops the one exception, for email sequences only. Everything else stays on Inngest.
+
+**Two answers Claude still needs** (any time before the build): the **sign-off name** (the design uses "The taskdrop. team"; say if you want your own first name), and the **footer's business address** (it waits for the company paperwork in S.2, so the build uses a placeholder until then).
+
+**Done when:** the wording is approved, the five sequences work on staging with test emails to you, each can be switched off in the admin, and the unsubscribe link works.
 </details>
 
 > **GATE 4: do not start Step 5 until all of these are true**
@@ -3557,6 +3365,19 @@ Create the production Vercel projects taskdrop-production and taskdrop-admin-pro
 Never add `EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN` to production.
 
 **`taskdrop-admin-production` (the admin):**
+<details id="t5-6b" data-short="Production PostHog">
+<summary>[BOTH] <b>5.6b</b> Production PostHog project <small>· 15 minutes · free to start</small></summary>
+
+**Why separate:** real users' funnels are never mixed with the testers' and your own test clicks. Sign in at https://posthog.com as **hitendureacts@gmail.com** (the same organization as staging, 3.3c).
+
+1. CLICK: **Create project** → name `taskdrop-production` → region **EU** (the same as staging, so the privacy policy stays true).
+2. CLICK: **Project settings** → copy its **Project API key** (starts with `phc_`) and give it to Claude. It goes into the production Vercel project and the production server secrets with the other production values (5.8, 5.9). Never reuse staging's key.
+3. Claude copies the funnel from 3.3c into this project, and filters out your own and the testers' accounts by internal number.
+4. TELL Claude: "done 5.6b".
+
+**Done when:** an event made on production appears only in `taskdrop-production`, and one made on staging appears only in `taskdrop-staging` (add this to the 5.11 proof).
+</details>
+
 
 | Name | Value comes from | Type |
 |---|---|---|
@@ -4280,7 +4101,7 @@ These are recorded so nothing is lost. **None of them is needed to launch, and n
 
 **Start when:** before a second city, or when real money volume grows.
 
-**Earlier and smaller:** 2.13 already gives researchers a way to report (part D), part E (decision 15) lets 2 or 3 invited people test staging before launch, and 2.18 part J (decision 32) is a small paid test of staging. F.13 is the full paid review on top of that.
+**Earlier and smaller:** 2.13 already gives researchers a way to report (part D), part E (decision 15) lets 2 or 3 invited people test staging before launch, and 2.18 part J (decision 30) is a small paid test of staging. F.13 is the full paid review on top of that.
 </details>
 
 <details id="tF-14" data-short="More growth experiments">
@@ -4316,14 +4137,6 @@ These are recorded so nothing is lost. **None of them is needed to launch, and n
 5. TELL Claude: "done F.15", and paste Basheer's answers. Claude records them here and, if they change what the business must set up, adds that work to the plan.
 
 **Done when:** you have Basheer's answers written down.
-</details>
-
-<details id="tF-16" data-short="ECC small trial">
-<summary>[LATER] <b>F.16</b> Try ECC's smallest install <small>· 1 hour · free · only if the build method stops being enough</small></summary>
-
-**What it is:** [ECC](https://github.com/affaan-m/ECC) in its smallest form, with no hooks: `npx ecc-universal@2.2.3 install --profile minimal --target claude`. Only worth it if something gstack does not do keeps coming up. Claude reads the current version first, and it never goes beside another install method, because ECC's own page warns against that. The method and AgentShield are already in this plan.
-
-**Done when:** you have kept it or removed it.
 </details>
 
 ---
@@ -4518,11 +4331,9 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 27 | **Limits for new accounts and posting** (H47). Sign-up costs nothing while codes show on screen, and there is no daily cap on posting tasks or ideas | **Built with the recommended answer, 6 Nov (PR 262, migration 152):** 20 tasks and 20 ideas a day, 5 a day for a new account, and the same for feedback. Say it to change | "Decision 27: change the caps" to change |
 | 28 | **Production's web address.** You asked (5 Nov) for `taskdrop.in` to stay with staging and for production to start on the address Vercel makes. That is fine for building and testing. Three things may need a real name before real money: (1) **Razorpay's live review**, the **SMS registration** and the **Google Play listing** each ask for a website they can open; (2) **Google's sign-in consent screen** wants a home page on a domain you own, and `vercel.app` is shared; (3) customers and Google trust a `…vercel.app` address less. Keep it, swap `taskdrop.in` onto production at launch (5.10, option B, about 20 minutes, no rebuild; staging then uses its Vercel address), or buy a second domain for production? | Open. Recommended: keep the Vercel address while you build and rehearse, ask Razorpay in the quote email (S.4) whether it accepts a `.vercel.app` address, and **decide before task 5.3** (Google sign-in) and at the latest before 6.1. If any answer is no, swap | "Decision 28: keep the Vercel address", "Decision 28: swap taskdrop.in at launch" or "Decision 28: buy a second domain" |
 | 29 | **How old the same-for-everyone lists may be** (3.5b). Trending, Top helpers and today's numbers would be worked out once every 10 minutes and shared, instead of once per person. Money, tasks, offers and chats are never shown old | Open. Recommended: up to 10 minutes | "Decision 29: 10 minutes is fine" |
-| 30 | **How money moves, given Razorpay's PPI request (5 Nov).** Razorpay asked for a PPI license because TaskDrop keeps a wallet balance. A PPI license needs a Private Limited company with about ₹5 crore net worth, which is not realistic now. Keep the wallet as built and risk Razorpay refusing, or move to **Razorpay Route** (the poster's money is held by Razorpay and sent straight to the helper's bank account, TaskDrop never holds a balance)? The note under S.4 has the full answer, the sole-proprietorship papers it needs, and a side-by-side of **Plan A (keep the wallet)** and **Plan B (pay per task, the payment company holds the money; Cashfree first because Route needs ₹40 lakh turnover)** | Open. Recommended: Route with settlements on hold. First ask Razorpay (S.4) and your lawyer (S.3) to confirm in writing that it removes the PPI request. Then say "design the Route money flow": Claude writes the design (no code) before anything in the money path changes. This stays a plan until you say so | "Decision 30: move to Route", "Decision 30: keep the wallet" or "Decision 30: wait for the lawyer" |
-| 31 | **Do the spending alerts (2.2) now instead of last?** You asked for security to come last. The rest of 2.2 is 45 minutes of clicks that warn you about a surprise bill on staging, and it protects your wallet more than your code | Open. Recommended: yes, do the 2.2 clicks now; everything else waits | "Decision 31: yes." |
-| 32 | **A paid outside tester now?** (2.18 part J.) You have 8 proposals at $50 to $90. Decision 15 chose free invites first. At this price a tester gives a quick second opinion, not a full attack test | Open. Recommended: yes, one small fixed-price round on staging after H34 and Strix, with scope agreed first, and keep the free invites too. F.13 stays the full review | "Decision 32: paid round." or "Decision 32: free invites only." |
-| 33 | **A wait on a new payout destination** (H77). Today a new UPI ID can be paid at once, with no alert. A 24-hour wait on the first withdrawal to a new destination, with a message to the person, stops most stolen-account losses; the cost is that a helper who changes their UPI ID waits a day | Open. Recommended: yes, a 24-hour wait and a message, built with the wallet ledger (H34) because it changes the same function | "Decision 33: yes." or "Decision 33: no wait, message only." |
-| 34 | **Where `taskdrop.in/get` sends people before Google Play** (D17). Today there are only APKs from Expo links. A production APK installed from a link is expected to stop working once App Check is switched on (5.0d), so it cannot be the public download for long | Open. Recommended: on staging (`taskdrop.in`), `/get` serves the staging APK for testers; on production, the bar and `/get` point to Google Play from launch day (6.6), and the bar stays hidden until then. No public production APK | "Decision 34: staging APK now, Play at launch" or "Decision 34: public production APK" |
+| 29 | **How money moves, given Razorpay's PPI request (5 Nov).** Razorpay asked for a PPI license because TaskDrop keeps a wallet balance. A PPI license needs a Private Limited company with about ₹5 crore net worth, which is not realistic now. Keep the wallet as built and risk Razorpay refusing, or move to **Razorpay Route** (the poster's money is held by Razorpay and sent straight to the helper's bank account, TaskDrop never holds a balance)? The note under S.4 has the full answer, the sole-proprietorship papers it needs, and a side-by-side of **Plan A (keep the wallet)** and **Plan B (pay per task, the payment company holds the money; Cashfree first because Route needs ₹40 lakh turnover)** | Open. Recommended: Route with settlements on hold. First ask Razorpay (S.4) and your lawyer (S.3) to confirm in writing that it removes the PPI request. Then say "design the Route money flow": Claude writes the design (no code) before anything in the money path changes. This stays a plan until you say so | "Decision 29: move to Route", "Decision 29: keep the wallet" or "Decision 29: wait for the lawyer" |
+| 30 | **A paid outside tester now?** (2.18 part J.) You have 8 proposals at $50 to $90. Decision 15 chose free invites first. At this price a tester gives a quick second opinion, not a full attack test | Open. Recommended: yes, one small fixed-price round on staging after H34 and Strix, with scope agreed first, and keep the free invites too. F.13 stays the full review | "Decision 30: paid round." or "Decision 30: free invites only." |
+| 31 | **Where `taskdrop.in/get` sends people before Google Play** (D17). Today there are only APKs from Expo links. A production APK installed from a link is expected to stop working once App Check is switched on (5.0d), so it cannot be the public download for long | Open. Recommended: on staging (`taskdrop.in`), `/get` serves the staging APK for testers; on production, the bar and `/get` point to Google Play from launch day (6.6), and the bar stays hidden until then. No public production APK | "Decision 31: staging APK now, Play at launch" or "Decision 31: public production APK" |
 
 ---
 
@@ -4859,8 +4670,6 @@ Claude runs this before a feature is called done, and writes what it saw in the 
 | | DLT registration (SMS) | about ₹5,000 once |
 | | First 5,000 SMS (MSG91) | ₹1,250 + 18% GST |
 | | DMCA agent | $6 per 3 years |
-| Security and testing (Steps 2 and 3) | Chromatic, free plan: 5,000 pictures a month (3.6b) | free |
-| | Strix AI use (2.16) | about $5 to $15 |
 | Production (Step 5) | Supabase Pro, in its own organization (staging stays free) | $25 a month |
 | | Vercel Pro (includes $20 of usage, 1M CDN requests and 1 TB transfer; more is pay-as-you-go, stopped by the $50 limit from 5.8b) | $20 a month |
 | | Inngest paid plan, in its own organization (staging stays free) | check its billing page |
@@ -4909,8 +4718,6 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 | Tolvyn (AI cost limits, suggested in the WhatsApp advice, 3 Nov) | It only meters calls to AI services, and TaskDrop makes none. If an AI feature is ever added, the rule in 2.13 part F applies first (a provider limit, alerts, a cap per person) |
 | Clerk or Firebase for sign-in, and Redis now (second paste, 3 Nov) | Supabase Auth already is a real provider and a second one would split users from the database rules (Clerk was rejected earlier). Redis adds a service to run before any number shows it is needed: 2.13 part J measures first |
 | Posting tools, AI video tools, plugin packs, design galleries, courses | They add work, not users. Post by hand; real people on camera beat AI |
-| The full ECC pack (6 Nov) | About 314 skills and 71 agents that overlap gstack, with open problems on native Windows. Its method and AgentShield are in this plan; a small trial is F.16 |
-| Caveman's plugin, CLI and Auto mode (6 Nov) | The plugin auto-starts every session, the CLI sends usage data unless turned off, and Auto sends prompts to its cloud. The skill alone gives the short answers |
 | Buying more tools | What you have is enough |
 | Extra restrictions on staging's Google keys (website limit on the Firebase browser key) | Staging is a test copy with fake money. Production's keys are restricted at creation (5.3, Gate 5) |
 
@@ -4943,19 +4750,15 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 | **Rollback** | Undoing a release and going back to the last good version |
 
 ---
+| | PostHog (staging and production) | free plan (about 1 million events and 5,000 recordings a month); check the prices again when you sign up |
 
 ## Changelog
 
-<details id="c-changelog">
-<summary>[CARD] Every change to this plan, newest first</summary>
-
-- **2026-11-07 (payment Plan A and Plan B saved):** You asked what payment Plan A and Plan B are and how they differ, and for it to be stored here. Added a side-by-side table under the PPI note in S.4: **Plan A** keeps the wallet as built (top-up, withdraw any time, high RBI risk, nothing to build); **Plan B** is pay per task with the payment company holding the money (Cashfree Easy Split first, Razorpay Route as fallback once turnover passes ₹40 lakh), no stored balance, low RBI risk, but the money code changes and your 29 Sep wallet decision is reversed. Decision 30 now points to it and stays open. The RBI points come from law-firm summaries and need the lawyer. No task added, no count changed, no code changed.
+- **2026-11-07 (payment Plan A and Plan B saved):** You asked what payment Plan A and Plan B are and how they differ, and for it to be stored here. Added a side-by-side table under the PPI note in S.4: **Plan A** keeps the wallet as built (top-up, withdraw any time, high RBI risk, nothing to build); **Plan B** is pay per task with the payment company holding the money (Cashfree Easy Split first, Razorpay Route as fallback once turnover passes ₹40 lakh), no stored balance, low RBI risk, but the money code changes and your 29 Sep wallet decision is reversed. Decision 29 now points to it and stays open. The RBI points come from law-firm summaries and need the lawyer. No task added, no count changed, no code changed.
 
 - **2026-11-07 (founder communities saved):** You asked Claude to search for good SaaS and builder communities to join, to swap ideas and learn what to do next. Claude searched public roundups and saved the result as a new card in the Marketing playbook, "Founder communities to join": five free ones to start with (Indie Hackers, the SaaS and indie Reddit groups, the Claude communities, #buildinpublic on X, Everything Marketplaces), India-specific ones (Indian Startups Group, Pushstart, Headstart, eChai, r/StartUpIndia, Razorpay Rize), paid ones for later, and ones to skip (MicroConf Connect, ShipFast, SaaStr). Joining is your own click. The communities were not opened one by one, so check prices on their sites. No task added, no count changed.
-- **2026-11-07 (app download prompt and a simpler app: D17, D18, decision 34):** You asked for the website to recommend the Android app when people find TaskDrop, and for a simpler, high-class look because people find the app hard to use. Claude walked through `taskdrop.in` as a guest (phone and computer size), read the Home, tab and theme code, and drew 10 screens on one canvas: [simple redesign canvas](https://claude.ai/artifact/NprdWrye3bs6swEBGvDVgT). **New in 1.5:** D17 (the app bar, the one-time sheet, the `/get` install page, the QR code on computers) and D18 (an optional first-open choice, a calmer Home on both sides, posting in three steps, a next-step tracker on every task, one card rule). **New decision:** 34 (where `/get` points before Google Play). **Flagged:** B1 undoes part of D16 and B2 changes the Home order, so both need your OK. **Not built:** nothing in the app, database or settings changed. Say "approve D17", "approve D18", or what to change.
-- **2026-11-06 (2.18 built, parts A to F):** You said "start 2.18". Merged into `redesigned-2.0` and on staging, production untouched: PR 273 (H73, H76), PR 274 (H71, migration 156), PR 275 (H74), PRs 276 and admin 47 (H72), PR 277 (part B) and the chain review. **New from the work:** H77 (a new payout destination has no wait and no alert, decision 33) and H78 (`settings` readable by every signed-in person). **Changed from the plan:** no staff accounts were made on staging; staff roles are tested on the throwaway database. PostgreSQL's default on new functions stays, and a test covers it. **Still open:** part G (next Android build), part J (decision 32), and your answers.
-- **2026-11-06 (plan rethought: features first, security and testing last):** You asked for Caveman, Grill Me and Chromatic to be installed, for the Code Consultant rubrics and ECC to be considered for security and pen testing, for security and testing to come after all the features, and for the plan to be optimised. **Installed** in `~/.claude/skills`: `caveman`, `ultracave`, `grill-me`, `grilling` and the 12 skills from `chromaui/chromatic-skills`, each read first, copied at a fixed commit, with no hooks, plugin or CLI. **Order changed:** Step 1 is now "Finish every feature" and ends in Gate 1, the feature freeze; Steps 2 and 3 run side by side after it, with Step 4 beside them. Task numbers are unchanged. **Moved to Step 1:** 3.3c, 3.5b, 4.3, 4.5, 4.10. **New:** the feature finish list (checked in the code), "The last stretch" path in Step 2, the section "How every feature gets built", tasks 2.22 (Grill Me on the attack plan), 2.23 (six rubrics, before and after), 2.24 (AgentShield), 2.25 (final sweep), 3.6b (Chromatic), F.16, rules 9 and 10, and decision 31. **Fixed while here:** the two decisions numbered 29 (the money one is now 30); a second copy of 5.6b that sat inside the 5.8 table; 1.9 and D11 still said "not built" though the code has them; the top of the plan replaced with today's state; the changelog folded. **ECC:** not installed, with the reasons in "How every feature gets built"; the one-day hackathon claim could not be confirmed from its page. **Not checked:** Chromatic's Playwright setup is to be confirmed against its docs in 3.6b; Expo support is not confirmed; rubric scores are not run yet. No app code, database or setting changed.
-- **2026-11-06 (Upwork proposals: new task 2.18):** You posted a security review job on Upwork, received 8 proposals, and asked for their best practices to go into this plan. Claude read all 8 in full, plus the two public worked examples one applicant linked, and checked each point against the code and staging, reading only. **Already done:** row rules on all 68 tables, signed-out table rights at zero, a private storage bucket, GraphQL off, no server key in `taskdrop.in`'s script files, webhook signatures on the raw bytes, and the person taken from the login token. **New:** task 2.18 with holes H71 to H76 (new doors start open, built bundles not always scanned, the RazorpayX webhook setting not in the code, column-level reads and 29 `select *` calls, the Android app never opened up, the webhook amount not compared), a chain review, one go-live security checklist, production first-day checks in 5.9, the rules and brief for hiring a tester, and decision 32. 2.18 joins Gate 2b. **Also corrected:** H34's design is merged (PR 269), and the guest follow-up (PR 268, migration 157) passed the guest door checks on staging. Nothing in the app, database or production changed.
+- **2026-11-07 (app download prompt and a simpler app: D17, D18, decision 31):** You asked for the website to recommend the Android app when people find TaskDrop, and for a simpler, high-class look because people find the app hard to use. Claude walked through `taskdrop.in` as a guest (phone and computer size), read the Home, tab and theme code, and drew 10 screens on one canvas: [simple redesign canvas](https://claude.ai/artifact/NprdWrye3bs6swEBGvDVgT). **New in 1.5:** D17 (the app bar, the one-time sheet, the `/get` install page, the QR code on computers) and D18 (an optional first-open choice, a calmer Home on both sides, posting in three steps, a next-step tracker on every task, one card rule). **New decision:** 31 (where `/get` points before Google Play). **Flagged:** B1 undoes part of D16 and B2 changes the Home order, so both need your OK. **Not built:** nothing in the app, database or settings changed. Say "approve D17", "approve D18", or what to change.
+- **2026-11-06 (Upwork proposals: new task 2.18):** You posted a security review job on Upwork, received 8 proposals, and asked for their best practices to go into this plan. Claude read all 8 in full, plus the two public worked examples one applicant linked, and checked each point against the code and staging, reading only. **Already done:** row rules on all 68 tables, signed-out table rights at zero, a private storage bucket, GraphQL off, no server key in `taskdrop.in`'s script files, webhook signatures on the raw bytes, and the person taken from the login token. **New:** task 2.18 with holes H71 to H76 (new doors start open, built bundles not always scanned, the RazorpayX webhook setting not in the code, column-level reads and 29 `select *` calls, the Android app never opened up, the webhook amount not compared), a chain review, one go-live security checklist, production first-day checks in 5.9, the rules and brief for hiring a tester, and decision 30. 2.18 joins Gate 2b. **Also corrected:** H34's design is merged (PR 269), and the guest follow-up (PR 268, migration 157) passed the guest door checks on staging. Nothing in the app, database or production changed.
 - **2026-11-06 (hunt round 2: the Medium finds fixed, H33 to H47 and the guest door):** Claude fixed the Medium findings from hunt round 2 in five app pull requests and two admin ones, all merged into `redesigned-2.0` and deployed to staging (production untouched). **Closed:** H33 (admin PR 45: only Admin and Support see or export the full phone and email, others see them masked, an audit row when a person's page opens), H39 and H40 (PR 259, migration 153: 10 texts a day per phone number, 20% of the day's 500 held for numbers that already have an account, counted only on real sends; place search capped at 150 a person and 3,000 in all, with OpenStreetMap as the fallback), H42 (PR 260, migration 155: lock-screen pushes for chat, questions, payouts, wallet, refunds, cancel fines, support, security and admin warnings are a plain line, decision 26 = plain line; offers and task updates keep their text), H43, H44 and H47 (PR 262, migration 152: ad click and view caps with pruning, upload count and bytes a day caps, 20 posts a day and 5 for a new account, same for feedback; a staging test run that posts more than 5 jobs as one new account a day needs `post_cap_new_day` raised), H41 (PR 263: the weekly job `stray-imagekit-files`, which needs a deploy to register, a dry run with `IMAGEKIT_ORPHAN_DRY_RUN=1` first, and does nothing until the ImageKit keys are set), and H61, H62, H63, H66, H67 and B31 (PR 264, migration 154: a fixed list of columns on the guest card, an area-only place label, a cost-weighted guest limiter with a bounded fallback, the shared-phone hand-off fix). **Partly closed:** H37 (admin PR 46: login cookies HttpOnly, Secure, SameSite Lax, 12 hours at most; the live panel and the authenticator use server routes; still open: the database-side 30-minute idle and 12-hour limit in `private.is_admin()`, and the Google button, which still uses the browser client so its one-time cookie is readable) and H38 (PR 263: pictures only through ImageKit in production, upload links expire in 5 minutes; the location inside videos is **not** stripped, a plain notice is shown instead, and the real fix is a server ffmpeg step, still open). **Independent review of PR 264:** nothing Critical or High; one Medium (a cheap way to push all guests into a "busy" answer), whose fix is in a follow-up PR in progress, with the review's Low notes. **Migrations used:** 152, 153, 154 and 155 (150 and 156 are unused; 157 is reserved for the guest follow-up). **Also:** PR 258 merged the handover folder `docs/handover-2026-11-05`. **Still open:** H34 (the wallet record list, design coming as `docs/WALLET_LEDGER_DESIGN.md`), H52 (task 3.9), Strix (2.16, needs your Docker and an AI key), part G of 2.14, the Low findings H45, H48, H49, H55, H56, H64, H65, H68, B18, B21, B30 and B32 (waiting for your "fix" or "accept"), decisions 17, 25 and the password questions H30 and H31, and making both code folders private (H27). **For you or for Chrome:** a manual Google sign-in check on the admin preview (https://taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app/): the cookie flags, sign-out, the live indicator and the authenticator. Decisions 18 and 27 were built with the recommended answers (say so if you want a different one).
 - **2026-11-06 (birth-date wheels, first-time setup and Welcome page):** You reported three things on the Android phone and asked for them fixed. **Birth-date wheels:** the wheels sit inside a page that scrolls, and Android gave the swipe to the page; the wheel also stopped dead when the finger lifted. Fixed: the wheel now allows scrolling inside the page (`nestedScrollEnabled`), waits for a flick to finish before it settles, and a tap on a row also picks it. **Pick a username** is now required in first-time setup: "Skip for now" is removed, and a failed connection no longer shows "That username is taken". Guests who finish with only About you (decision 21) are still asked the full setup at a later sign-in. **Welcome page:** the Earn money and Hire help cards are gone. A self-playing five-part story replaces them: Ask for anything, Offers come to you, Your money stays safe, Approve and they get paid, Need help or want to earn? The referral code box is kept. **Status:** merged as PR 265 and published to beta as update `73b319b5` (runtime 1.1.0, Sentry maps uploaded). Claude checked the wheels on your phone with a made-up number, stopping before a code was sent, so no account was made. One small follow-up (PR 270) stops two wheels overwriting each other when they land together; it went out as update `665b4a8d` the same day, and the wheels were checked again on your phone. Your look at the story in a real sign-up is still open (see D16).
 - **2026-11-05 (2.17 finished: payment keys script):** `scripts/push-payment-secrets.sh` now reads the master file `.env.all-secrets` instead of `.env`, sends the three Razorpay names through a private temporary env file (never on the command line), prints names only (no value, no length), and has a `--production` mode that reads `PROD_<NAME>` and refuses the staging project. `docs/GOING_LIVE.md` follows. Nothing was sent: the Razorpay keys are already set.
@@ -5022,12 +4825,6 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 - **2026-10-31 (tasks 1.3 and 1.4 fixed, not merged):** Claude fixed bugs B2 to B5 (branch `fix/phone-problems-2026-10-31`) and B6 to B12 (branch `fix/small-bugs-pack-2026-10-31`), both from `redesigned-2.0`, checks green, nothing pushed. Found: B7 to B10 had mostly been fixed on 25 Oct already (a tap link, the accepted time, the offers text, the proof message); this adds a real Start button, the screen-reader action, the exact B10 wording and removes the last fallback to the post time. The chat keyboard fix (B3) is an Android safety net that lifts the message box only if it is still behind the keyboard; it could not be seen on a phone.
 
 - **2026-10-31 (decisions answered):** You answered the decisions table. **Changed:** staging gets no `beta.taskdrop.in` or `beta-admin.taskdrop.in`; it uses the addresses Vercel makes (`taskdrop-git-redesigned-20-hitenduteam.vercel.app` and `taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app`), and task 5.10 now only moves `taskdrop.in`, `www` and `admin` to production. Task 4.1 no longer asks you to pick five task types: they follow what posters and workers post, and the city is Hyderabad. **Decided:** 4 yes (replace a key only if confirmed leaked), 5 yes, 6 yes, 7 no (screenshots stay allowed), 8 refund the unused part only, 9 yes (separate staging app after launch), 11 keep the Gmail. **Still open:** 3 (waits for the payment quotes), 10 and 12.
-Summary of the 30 October to 5 November changes, moved here from the top of the plan on 6 November:
-
-Rethought on 30 October 2026. What changed: the steps now follow the order a product owner would choose (fix what is broken, make it hacker-proof, prove it with testers, get ready to market, build production, launch, grow). Every slow task that waits on other people sits in one "Start now" track. Future ideas sit in a separate **Future scope** section, so they never count against your progress. The accounts for staging and production are drawn as two maps. Security and marketing each have their own section. The previous version is kept unchanged in `docs/archive/2026-10-30-before-rethink/`.
-
-Checked against best practice on 31 October 2026 (see the changelog). New: 2-step sign-in on your accounts (2.1b), money safety limits (2.11), the marketplace numbers (3.3b), a dispute and safety policy (4.9), backups you control and a real restore practice, a production that is safe from its first minute, releases in small slices, and an earlier start for the 14-day tester clock (Gate 2 is now two gates, 2a and 2b). Vercel security check (31 October): a table of what Vercel secures and what stays yours, holes H18 and H19, and a new task 5.8b (spending stop, firewall rule, preview safety). Advice from a WhatsApp group (3 November): a new task 2.13 (a lock and a limit on every server door, a code scanner, the OWASP checklist line by line, a way for security researchers to report, a spending stop on every paid service; then your three rules: one person never reaches another's data, every document private, sign-in sessions that can be ended), holes H22 to H28, and decisions 14 to 16. A second paste the same day (rate limits, a real sign-in provider, row rules, keys on the server, caching, background jobs, a load test) was checked too: it added part J (a load and abuse test, plus a check of slow work and caching) and hole H29. Made simpler on 4 November: the Security section now opens with "Security in one page", 12 plain checks (with Matt Palmer's checklist, the Betterleaks secrets audit and Strix folded in); the long tables sit in cards below it; Step 2 opens with the security path in order; and two tasks are new, 2.15 (the secrets audit) and 2.16 (the AI attacker). **Two copies, side by side (5 November):** `taskdrop.in` is now **staging**, production starts on the addresses Vercel makes, staging gets its own Android app (`com.taskdrop.app.staging`), and one step-by-step plan covers the staging and production websites, the staging and production Android apps and every backend tool (tasks 5.0a to 5.0e, the switchboard card, decision 28). Caching designed on 4 November: task 3.5b (keep the same-for-everyone lists ready, never anyone's own data, no Redis), holes H69 and H70, decision 29.
-
 Entries from before the 30 October rethink use the old task numbers (for example 1.8, 1.9, 2.5b and 4.1 to 4.11). They are kept as they were written.
 
 - **2026-10-31 (S.1 done):** You showed the Play Console notifications: "Your identity has been verified successfully" (27 Oct) on the Personal account NLNarasimhaRaju. Home no longer shows the two Verify banners, so S.1 is done. Still open on this account: the 12 testers for 14 days (Step 3).
@@ -5045,5 +4842,3 @@ Entries from before the 30 October rethink use the old task numbers (for example
 - **2026-10-30 (latest):** Everything from the four other plan files is now here. New tasks 1.8 (lock down where keys are kept) and 1.9 (decoy key, security alerts, key emergency guide, six proofs). Alert emails added to 1.3, an app-code secret test added to 1.6, a monthly security check card, and a Reference section (phases and rules, testing, key safety, fewer requests).
 - **2026-10-30 (later):** One complete step-by-step plan. Every task opens to its own clicks. The paperwork track, the decisions, the costs and the emergency cards are now in this one file. Corrected the status: the staging safety, the app tour and the "app finished" check were already done on 26 to 28 October.
 - **2026-10-30:** First short version. The originals are in `docs/archive/2026-10-30-before-simplify/`.
-
-</details>

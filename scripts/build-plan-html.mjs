@@ -475,7 +475,7 @@ const JS = `
       head.className = 'rm-head';
       head.innerHTML = '<span class="rm-num">' + (paper ? 'S' : m[1]) + '</span><div><div class="rm-title"></div><div class="rm-when"></div></div>';
       head.querySelector('.rm-title').textContent = paper ? 'Start now: the slow track' : m[2].split(',')[0].trim();
-      head.querySelector('.rm-when').textContent = paper ? 'Keep all of these moving. They wait on Google, banks, lawyers and Razorpay, so they run beside Steps 1 to 4. All must be done before Step 5.' : (m[3] || '');
+      head.querySelector('.rm-when').textContent = paper ? 'Start all of these in week 1. They wait on Google, banks, lawyers and Razorpay, so they run beside Steps 1 to 4. All must be done before Step 5.' : (m[3] || '');
       card.appendChild(head);
       var bar = document.createElement('div');
       bar.className = 'rm-bar';
