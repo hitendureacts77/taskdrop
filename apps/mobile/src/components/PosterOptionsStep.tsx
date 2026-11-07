@@ -5,6 +5,7 @@ import { FadeIn, tx } from './primitives';
 import { rupees } from './kit';
 import { useTheme } from '../providers/ThemeProvider';
 import { CREW_MAX, crewShareMinor, crewSizeFrom, type OptionKey, type Suggestion } from '../lib/posterOptions';
+import { HUNT_NEEDS, HUNT_WINDOWS, defaultNeeds, needsFor, type HuntNeed, type HuntWindow } from '../lib/hunt';
 import type { Regular } from '../data/api';
 
 /**
@@ -23,6 +24,8 @@ export type PosterOptions = {
   preferWorker: { id: string; name: string } | null;
   wantPhotos: boolean;
   photosPublic: boolean;
+  /** City Hunt (D19): how long it runs and what a find must show; null = off. The reward is the task's price. */
+  hunt: { window: HuntWindow; needs: HuntNeed[] } | null;
 };
 
 export const NO_OPTIONS: PosterOptions = {
@@ -33,7 +36,24 @@ export const NO_OPTIONS: PosterOptions = {
   preferWorker: null,
   wantPhotos: false,
   photosPublic: false,
+  hunt: null,
 };
+
+/** The options a Hunt cannot be combined with (the server refuses them too). */
+export const NOT_WITH_HUNT: OptionKey[] = ['flash', 'crew', 'liveAnswer', 'repeat', 'regular'];
+
+/** A Hunt switched on with its starting choices: 2 hours, and the parts that suit where the work is. */
+export function huntOn(o: PosterOptions, remote: boolean): PosterOptions {
+  return {
+    ...o,
+    flash: false,
+    liveAnswer: false,
+    crewSize: 0,
+    repeat: null,
+    preferWorker: null,
+    hunt: { window: '2h', needs: defaultNeeds(remote) },
+  };
+}
 
 export { CREW_MAX };
 
@@ -52,12 +72,15 @@ export function isOn(o: PosterOptions, key: OptionKey): boolean {
       return o.preferWorker !== null;
     case 'photos':
       return o.wantPhotos;
+    case 'hunt':
+      return o.hunt !== null;
   }
 }
 
 /** The options that are on, as short words for the Review step. */
 export function optionsSummary(o: PosterOptions): string[] {
   const out: string[] = [];
+  if (o.hunt) out.push(`Hunt · ${HUNT_WINDOWS.find((w) => w.key === o.hunt!.window)?.label ?? ''}`);
   if (o.flash) out.push('Flash Drop');
   if (o.liveAnswer) out.push('Live answer');
   if (o.crewSize >= 2) out.push(`Crew of ${o.crewSize}`);
@@ -67,7 +90,8 @@ export function optionsSummary(o: PosterOptions): string[] {
   return out;
 }
 
-const META: Record<OptionKey, { title: string; icon: IconName; what: string; tone: 'signal' | 'accent' | 'purple' }> = {
+const META: Record<OptionKey, { title: string; icon: IconName; what: string; tone: 'signal' | 'accent' | 'purple' | 'gold' }> = {
+  hunt: { title: 'Make it a Hunt', icon: 'search', what: 'Many people look at once. Pay only the person who finds it', tone: 'gold' },
   flash: { title: 'Flash Drop', icon: 'bolt', what: 'The first helper nearby to accept gets it, within 30 minutes', tone: 'signal' },
   crew: { title: 'Get a crew', icon: 'users', what: 'Several helpers, the budget split evenly, one shared chat', tone: 'accent' },
   regular: { title: 'Offer to someone you hired first', icon: 'heart', what: 'They get 10 minutes to say yes, then everyone sees it', tone: 'purple' },
@@ -81,7 +105,7 @@ const META: Record<OptionKey, { title: string; icon: IconName; what: string; ton
  * taken off (owner, 2026-11-02); Offer-first still shows when "Book again"
  * arrives with someone chosen, so the poster can see it and switch it off.
  */
-const ALL: OptionKey[] = ['flash', 'crew', 'liveAnswer'];
+const ALL: OptionKey[] = ['hunt', 'flash', 'crew', 'liveAnswer'];
 
 export function PosterOptionsStep({
   value,
@@ -111,6 +135,10 @@ export function PosterOptionsStep({
 
   /** Why an option cannot be used for this task, or null. */
   const blocked = (key: OptionKey): string | null => {
+    if (key !== 'hunt' && value.hunt && NOT_WITH_HUNT.includes(key)) return 'Not with a Hunt';
+    if (key === 'hunt' && (value.flash || value.crewSize >= 2 || value.liveAnswer || value.repeat || value.preferWorker)) {
+      return 'Not with Flash Drop, a crew, Live answer, Repeat or a regular';
+    }
     if (remote && (key === 'flash' || key === 'crew' || key === 'liveAnswer')) return 'For jobs at a place';
     if (key === 'crew' && value.liveAnswer) return 'A Live answer is for one person';
     if (key === 'liveAnswer' && value.crewSize >= 2) return 'Not with a crew';
@@ -124,6 +152,8 @@ export function PosterOptionsStep({
         return onChange({ ...value, flash: !on });
       case 'liveAnswer':
         return onChange({ ...value, liveAnswer: !on });
+      case 'hunt':
+        return onChange(on ? { ...value, hunt: null } : huntOn(value, remote));
       case 'crew':
         return onChange({ ...value, crewSize: on ? 0 : crewSizeFrom(prompt) });
       case 'regular': {
@@ -136,6 +166,69 @@ export function PosterOptionsStep({
 
   const settings = (key: OptionKey) => {
     if (!isOn(value, key)) return null;
+    if (key === 'hunt' && value.hunt) {
+      const hunt = value.hunt;
+      const label = (text: string) => (
+        <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 0.6, marginTop: 14 })}>{text}</RNText>
+      );
+      const offered = HUNT_NEEDS.filter((n) => !(remote && n.key === 'pin'));
+      return (
+        <View>
+          {label('REWARD FOR THE FINDER')}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}>
+            <View
+              style={{
+                flex: 1,
+                height: 48,
+                borderRadius: 14,
+                borderWidth: 1.5,
+                borderColor: t.colors.gold,
+                backgroundColor: t.colors.bg,
+                justifyContent: 'center',
+                paddingHorizontal: 14,
+              }}
+            >
+              <RNText style={tx('800', 20, t.colors.ink, { fontVariant: ['tabular-nums'] })}>{rupees(priceMinor / 100)}</RNText>
+            </View>
+            <RNText style={tx('500', 12, t.colors.muted, { width: 130, lineHeight: 17 })}>
+              Your price. You pay only when you accept a find
+            </RNText>
+          </View>
+          {label('FIND IT WITHIN')}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+            {HUNT_WINDOWS.map((w) => (
+              <GoldPill
+                key={w.key}
+                text={w.label}
+                on={hunt.window === w.key}
+                onPress={() => onChange({ ...value, hunt: { ...hunt, window: w.key } })}
+              />
+            ))}
+          </View>
+          {label('A FIND MUST SHOW')}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+            {offered.map((n) => {
+              const on = hunt.needs.includes(n.key);
+              return (
+                <GoldPill
+                  key={n.key}
+                  text={`${on ? '✓' : '+'} ${n.label}`}
+                  on={on}
+                  onPress={() => {
+                    const next = on ? hunt.needs.filter((k) => k !== n.key) : [...hunt.needs, n.key];
+                    // At least one part, like the server.
+                    if (next.length > 0) onChange({ ...value, hunt: { ...hunt, needs: needsFor(next, remote) } });
+                  }}
+                />
+              );
+            })}
+          </View>
+          <RNText style={tx('500', 12, t.colors.goldInk, { marginTop: 12, lineHeight: 17 })}>
+            Nothing is taken now. You pay only when you tap This is it. Nothing found, nothing paid.
+          </RNText>
+        </View>
+      );
+    }
     if (key === 'crew') {
       const share = crewShareMinor(priceMinor, value.crewSize);
       return (
@@ -190,7 +283,10 @@ export function PosterOptionsStep({
         ? { bg: t.colors.signalSoft, fg: t.colors.signalDeep }
         : meta.tone === 'purple'
           ? { bg: t.colors.purpleSoft, fg: t.colors.purpleDeep }
-          : { bg: t.colors.accentSoft, fg: t.colors.accentDeep };
+          : meta.tone === 'gold'
+            ? { bg: t.colors.goldSoft, fg: t.colors.goldInk }
+            : { bg: t.colors.accentSoft, fg: t.colors.accentDeep };
+    const gold = meta.tone === 'gold';
     return (
       <FadeIn key={key} translateY={10} delay={Math.min(index, t.motion.staggerMax) * t.motion.stagger}>
         <View
@@ -198,8 +294,8 @@ export function PosterOptionsStep({
             padding: 14,
             borderRadius: 18,
             borderWidth: 1.5,
-            borderColor: on ? t.colors.accentBorder : t.colors.line,
-            backgroundColor: t.colors.surface,
+            borderColor: on ? (gold ? t.colors.gold : t.colors.accentBorder) : t.colors.line,
+            backgroundColor: on && gold ? t.colors.goldSoft : t.colors.surface,
             opacity: why && !on ? 0.6 : 1,
           }}
         >
@@ -216,7 +312,7 @@ export function PosterOptionsStep({
                 <RNText style={tx('600', 12, t.colors.text, { marginTop: 3, lineHeight: 17 })}>{meta.what}</RNText>
               ) : null}
             </View>
-            <Switch on={on} disabled={!!why && !on} label={title} onPress={() => toggle(key)} />
+            <Switch on={on} gold={gold} disabled={!!why && !on} label={title} onPress={() => toggle(key)} />
           </View>
           {settings(key)}
         </View>
@@ -284,7 +380,31 @@ export function PosterOptionsStep({
   );
 }
 
-function Switch({ on, disabled, label, onPress }: { on: boolean; disabled?: boolean; label: string; onPress: () => void }) {
+/** A choice inside the Hunt card: gold when chosen. */
+function GoldPill({ text, on, onPress }: { text: string; on: boolean; onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: on }}
+      style={({ pressed }) => ({
+        height: 34,
+        borderRadius: 999,
+        paddingHorizontal: 13,
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: on ? t.colors.gold : t.colors.line,
+        backgroundColor: on ? t.colors.goldSoft : t.colors.surface,
+        opacity: pressed ? 0.85 : 1,
+      })}
+    >
+      <RNText style={tx('700', 13, on ? t.colors.goldInk : t.colors.text)}>{text}</RNText>
+    </Pressable>
+  );
+}
+
+function Switch({ on, gold, disabled, label, onPress }: { on: boolean; gold?: boolean; disabled?: boolean; label: string; onPress: () => void }) {
   const t = useTheme();
   return (
     <Pressable
@@ -299,7 +419,7 @@ function Switch({ on, disabled, label, onPress }: { on: boolean; disabled?: bool
         height: 28,
         borderRadius: 999,
         padding: 3,
-        backgroundColor: on ? t.colors.accent : t.colors.line,
+        backgroundColor: on ? (gold ? t.colors.gold : t.colors.accent) : t.colors.line,
         justifyContent: 'center',
         alignItems: on ? 'flex-end' : 'flex-start',
       }}

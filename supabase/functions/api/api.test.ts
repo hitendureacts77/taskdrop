@@ -2096,4 +2096,100 @@ await t("listMyBids keeps a task's money fields only where the caller's own offe
   assert.deepEqual(SECRET_TASK.filter((k) => k in lost.tasks), []);
 });
 
+// ---------------------------------------------------------------- City Hunt --
+
+await t("hunt: createTask passes the Hunt choice through, and only when it is set", async () => {
+  const f = fake(() => ({ data: [{ id: TASK }], error: null }));
+  const base = { pillar: "services", title: "Find Lantus pens in stock", benchmarkMinor: 30000, timeLimitMinutes: 120 };
+  assert.ok((await runOp("createTask", { ...base, huntWindow: "2h", huntNeeds: ["photo", "place", "photo"] }, ctx(f))).ok);
+  const row = inserted(f.calls.find((c) => c.table === "tasks")!);
+  assert.equal(row.hunt_window, "2h");
+  assert.deepEqual(row.hunt_needs, ["photo", "place"]);
+  assert.equal("hunt_until" in row, false, "the database sets the end time");
+
+  const plain = fake(() => ({ data: [{ id: TASK }], error: null }));
+  assert.ok((await runOp("createTask", base, ctx(plain))).ok);
+  const plainRow = inserted(plain.calls.find((c) => c.table === "tasks")!);
+  assert.equal("hunt_window" in plainRow, false);
+  assert.equal("hunt_needs" in plainRow, false);
+
+  for (const bad of [{ huntWindow: "1w", huntNeeds: ["photo"] }, { huntWindow: "2h", huntNeeds: [] }, { huntWindow: "2h", huntNeeds: ["selfie"] }]) {
+    const r = await runOp("createTask", { ...base, ...bad }, ctx(fake()));
+    assert.equal(r.ok, false, JSON.stringify(bad));
+  }
+});
+
+await t("hunt: the operations call their SQL functions with checked arguments", async () => {
+  const cases: [string, Record<string, unknown>, string, Record<string, unknown>][] = [
+    ["huntLook", { taskId: TASK }, "hunt_look", { p_task: TASK }],
+    ["huntFinds", { taskId: TASK }, "hunt_finds_for_task", { p_task: TASK }],
+    ["huntAcceptFind", { findId: BID }, "hunt_accept_find", { p_find: BID }],
+    ["huntDeclineFind", { findId: BID, reason: "gone" }, "hunt_decline_find", { p_find: BID, p_reason: "gone" }],
+    ["huntAskPart", { findId: BID, part: "place" }, "hunt_ask_part", { p_find: BID, p_part: "place" }],
+    ["huntCounts", { taskIds: [TASK, TASK] }, "hunt_counts", { p_tasks: [TASK] }],
+  ];
+  for (const [op, args, rpc, want] of cases) {
+    const f = fake(() => ({ data: [], error: null }));
+    const r = await runOp(op, args, ctx(f));
+    assert.ok(r.ok, op);
+    const call = f.calls.find((c) => c.rpc === rpc);
+    assert.ok(call, `${op} calls ${rpc}`);
+    assert.deepEqual(call!.args, want, op);
+  }
+  const badCalls: [string, Record<string, unknown>][] = [
+    ["huntDeclineFind", { findId: BID, reason: "rude" }],
+    ["huntAskPart", { findId: BID, part: "everything" }],
+    ["huntAcceptFind", { findId: "not-a-uuid" }],
+    ["huntLook", {}],
+  ];
+  for (const [op, args] of badCalls) {
+    const f = fake();
+    const r = await runOp(op, args, ctx(f));
+    assert.equal(r.ok, false, op);
+    assert.equal(f.calls.length, 0, `${op} must not reach the database with bad arguments`);
+  }
+  assert.equal(rateBucket("huntAcceptFind"), "write");
+  assert.equal(rateBucket("huntSendFind"), "write");
+  assert.equal(rateBucket("huntFinds"), "read");
+});
+
+await t("hunt: a find's photo must be the finder's own, and a pin needs both coordinates", async () => {
+  const send = { taskId: TASK, placeName: "Apollo Pharmacy", lat: 17.45, lng: 78.36 };
+  const f = fake(() => ({ data: { id: "find" }, error: null }));
+  assert.ok((await runOp("huntSendFind", { ...send, photoPath: `${UID}/proof-1.jpg` }, ctx(f))).ok);
+  assert.deepEqual(f.calls.find((c) => c.rpc === "hunt_send_find")!.args, {
+    p_task: TASK, p_photo_path: `${UID}/proof-1.jpg`, p_place_name: "Apollo Pharmacy", p_lat: 17.45, p_lng: 78.36, p_price_note: null, p_note: null,
+  });
+  for (const bad of [{ photoPath: `${OTHER}/proof-1.jpg` }, { photoPath: `${UID}/../x.jpg` }, { lat: 17.45, lng: null }, { lat: 91, lng: 78 }]) {
+    const g = fake();
+    const r = await runOp("huntSendFind", { ...send, ...bad }, ctx(g));
+    assert.equal(r.ok, false, JSON.stringify(bad));
+    assert.equal(g.calls.some((c) => c.rpc === "hunt_send_find"), false);
+  }
+  // A picture reference must be the caller's own finished upload for proof.
+  const nobody = fake((c) => (c.table === "media" ? { data: [], error: null } : { data: { id: "find" }, error: null }));
+  const r = await runOp("huntSendFind", { ...send, photoPath: "media:55555555-5555-4555-8555-555555555555" }, ctx(nobody));
+  assert.equal(r.ok, false);
+  assert.equal(nobody.calls.some((c) => c.rpc === "hunt_send_find"), false);
+});
+
+await t("hunt: a short wallet on accept carries the shortfall like lockBid", async () => {
+  const f = fake(() => ({ data: null, error: { message: "Not enough money in your wallet", code: "P0001", details: "3000" } }));
+  const r = await runOp("huntAcceptFind", { findId: BID }, ctx(f));
+  assert.equal(r.ok, false);
+  if (!r.ok) {
+    assert.equal(r.error.message, "Not enough money in your wallet");
+    assert.equal(r.error.details, "3000");
+  }
+});
+
+await t("hunt: sending a find follows the offers switch and the phone rule", () => {
+  assert.equal(refusalFor("huntSendFind", controlsWith({ bidding: false }), {})?.code, "FEATURE_OFF");
+  assert.equal(
+    refusalFor("huntSendFind", controlsWith({ require_phone_verified: true }), {}, { phoneVerified: false })?.code,
+    "PHONE_REQUIRED",
+  );
+  assert.equal(refusalFor("huntAcceptFind", controlsWith({ bidding: false }), {}), null, "accepting is the poster's, not an offer");
+});
+
 console.log(`\n${passed} passed`);

@@ -2086,6 +2086,78 @@ export type Database = {
         }
         Relationships: []
       }
+      hunt_finds: {
+        Row: {
+          asked_at: string | null
+          asked_part: string | null
+          created_at: string
+          decided_at: string | null
+          decline_reason: string | null
+          finder_id: string
+          id: string
+          lat: number | null
+          lng: number | null
+          note: string | null
+          photo_path: string | null
+          place_name: string | null
+          price_note: string | null
+          status: string
+          task_id: string
+        }
+        Insert: {
+          asked_at?: string | null
+          asked_part?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decline_reason?: string | null
+          finder_id: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          note?: string | null
+          photo_path?: string | null
+          place_name?: string | null
+          price_note?: string | null
+          status?: string
+          task_id: string
+        }
+        Update: {
+          asked_at?: string | null
+          asked_part?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decline_reason?: string | null
+          finder_id?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          note?: string | null
+          photo_path?: string | null
+          place_name?: string | null
+          price_note?: string | null
+          status?: string
+          task_id?: string
+        }
+        Relationships: []
+      }
+      hunt_lookers: {
+        Row: {
+          created_at: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       task_proofs: {
         Row: {
           created_at: string
@@ -2185,6 +2257,9 @@ export type Database = {
           repeat_every: string | null
           repeated_from: string | null
           want_photos: boolean
+          hunt_needs: string[] | null
+          hunt_until: string | null
+          hunt_window: string | null
           updated_at: string
           wallet_refunded_at: string | null
           work_done_at: string | null
@@ -2238,6 +2313,9 @@ export type Database = {
           repeat_every?: string | null
           repeated_from?: string | null
           want_photos?: boolean
+          hunt_needs?: string[] | null
+          hunt_until?: string | null
+          hunt_window?: string | null
           updated_at?: string
           wallet_refunded_at?: string | null
           work_done_at?: string | null
@@ -2291,6 +2369,9 @@ export type Database = {
           repeat_every?: string | null
           repeated_from?: string | null
           want_photos?: boolean
+          hunt_needs?: string[] | null
+          hunt_until?: string | null
+          hunt_window?: string | null
           updated_at?: string
           wallet_refunded_at?: string | null
           work_done_at?: string | null
@@ -3636,6 +3717,62 @@ export type Database = {
           worker_name: string | null
         }[]
       }
+      hunt_look: { Args: { p_task: string }; Returns: Json }
+      hunt_counts: {
+        Args: { p_tasks: string[] }
+        Returns: {
+          finds: number
+          lookers: number
+          looking: boolean
+          my_finds: number
+          task_id: string
+        }[]
+      }
+      hunt_send_find: {
+        Args: {
+          p_lat: number | null
+          p_lng: number | null
+          p_note: string | null
+          p_photo_path: string | null
+          p_place_name: string | null
+          p_price_note: string | null
+          p_task: string
+        }
+        Returns: Database["public"]["Tables"]["hunt_finds"]["Row"]
+      }
+      hunt_finds_for_task: {
+        Args: { p_task: string }
+        Returns: {
+          asked_at: string | null
+          asked_part: string | null
+          created_at: string
+          decided_at: string | null
+          decline_reason: string | null
+          distance_km: number | null
+          finder_id: string
+          finder_name: string | null
+          finder_rating: number | null
+          finder_rating_count: number | null
+          has_photo: boolean
+          has_pin: boolean
+          has_place: boolean
+          has_price: boolean
+          id: string
+          lat: number | null
+          lng: number | null
+          mine: boolean
+          note: string | null
+          photo_path: string | null
+          place_name: string | null
+          price_note: string | null
+          status: string
+          task_id: string
+          unlocked: boolean
+        }[]
+      }
+      hunt_accept_find: { Args: { p_find: string }; Returns: Json }
+      hunt_decline_find: { Args: { p_find: string; p_reason: string }; Returns: Json }
+      hunt_ask_part: { Args: { p_find: string; p_part: string }; Returns: Json }
       worker_proof_photos: {
         Args: { p_worker: string }
         Returns: {

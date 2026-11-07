@@ -26,7 +26,7 @@ export const BATCHABLE_OPS: ReadonlySet<string> = new Set([
   // Reads that used to leave on their own beside a batch (poster Home's workers and trends, the wallet's fees).
   'listActiveWorkers', 'trendingCategories', 'platformHighlights', 'topEarners', 'feesSince', 'notificationSides',
   'getNotification', 'getProof', 'listMyDisputes', 'listDisputeReasons', 'listBlockedUsers', 'usernameAvailable',
-  'listTickets', 'getTicket', 'accountDeletionCheck', 'platformStats',
+  'listTickets', 'getTicket', 'accountDeletionCheck', 'platformStats', 'huntFinds', 'huntCounts',
 ]);
 
 export type Args = Record<string, unknown>;

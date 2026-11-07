@@ -20,7 +20,8 @@ export function jobPin(task: Task & { poster?: Profile | null }, now: number, la
     id: task.id,
     lat: task.loc_lat,
     lng: task.loc_lng,
-    label: label ?? rupees(task.benchmark_minor / 100),
+    // A City Hunt pin says so (D19): the reward goes to whoever finds it.
+    label: label ?? (task.hunt_until ? `Hunt ${rupees(task.benchmark_minor / 100)}` : rupees(task.benchmark_minor / 100)),
     amount: task.benchmark_minor / 100,
     fresh: isFresh(task.created_at, now),
     area: areaName(task.loc_label),

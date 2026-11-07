@@ -1,5 +1,6 @@
 import type { PickedPlace } from '../components/LocationSheet';
 import type { PosterOptions } from '../components/PosterOptionsStep';
+import type { HuntNeed, HuntWindow } from './hunt';
 import type { TaskMedia } from './media';
 import type { Answer, Brief, QuickQuestion, WhenKey, WritingStyle } from './taskBrief';
 
@@ -75,6 +76,7 @@ const DEFAULT_OPTS: PosterOptions = {
   preferWorker: null,
   wantPhotos: false,
   photosPublic: false,
+  hunt: null,
 };
 
 type Obj = Record<string, unknown>;
@@ -101,6 +103,16 @@ function validPlace(v: unknown): v is PickedPlace | null {
   if (v === null) return true;
   return isObj(v) && isStr(v.label) && numOrNull(v.lat) && numOrNull(v.lng) && (v.area === undefined || isStr(v.area));
 }
+function validHunt(v: unknown): boolean {
+  if (v === null || v === undefined) return true;
+  return (
+    isObj(v) &&
+    (v.window === '2h' || v.window === 'today' || v.window === '3d') &&
+    Array.isArray(v.needs) &&
+    v.needs.length > 0 &&
+    v.needs.every((n) => n === 'photo' || n === 'place' || n === 'pin' || n === 'price')
+  );
+}
 function readOpts(v: unknown): PosterOptions | null {
   if (!isObj(v)) return null;
   const o = { ...DEFAULT_OPTS, ...v } as Obj;
@@ -112,10 +124,12 @@ function readOpts(v: unknown): PosterOptions | null {
     (o.repeat !== null && o.repeat !== 'week' && o.repeat !== 'month') ||
     (prefer !== null && !(isObj(prefer) && isStr(prefer.id) && isStr(prefer.name))) ||
     typeof o.wantPhotos !== 'boolean' ||
-    typeof o.photosPublic !== 'boolean'
+    typeof o.photosPublic !== 'boolean' ||
+    !validHunt(o.hunt)
   ) {
     return null;
   }
+  const hunt = isObj(o.hunt) ? o.hunt : null;
   return {
     flash: o.flash,
     liveAnswer: o.liveAnswer,
@@ -124,6 +138,7 @@ function readOpts(v: unknown): PosterOptions | null {
     preferWorker: prefer ? { id: (prefer as Obj).id as string, name: (prefer as Obj).name as string } : null,
     wantPhotos: o.wantPhotos,
     photosPublic: o.photosPublic,
+    hunt: hunt ? { window: hunt.window as HuntWindow, needs: [...(hunt.needs as HuntNeed[])] } : null,
   };
 }
 

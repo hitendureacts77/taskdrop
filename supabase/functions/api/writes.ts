@@ -67,8 +67,37 @@ function posterOptions(ctx: Ctx, a: Args): Record<string, unknown> {
     preferred_worker_id: uuidOrNull(a, "preferWorkerId"),
     want_photos: wantPhotos,
     photos_public: wantPhotos && bool(a, "photosPublic"),
+    // City Hunt (migration 158): how long it runs and what a find must show. The database works out
+    // hunt_until from its own clock and refuses a Hunt combined with the options it cannot go with.
+    hunt_window: a.huntWindow == null ? null : oneOf(a, "huntWindow", HUNT_WINDOWS),
+    hunt_needs: a.huntWindow == null ? null : huntNeeds(a),
   };
   return Object.fromEntries(Object.entries(options).filter(([, v]) => v !== null && v !== false));
+}
+
+/** How long a Hunt runs, and what a find can be asked to show (the same lists as migration 158). */
+export const HUNT_WINDOWS = ["2h", "today", "3d"] as const;
+export const HUNT_NEEDS = ["photo", "place", "pin", "price"] as const;
+export const HUNT_DECLINE_REASONS = ["not_it", "gone", "too_far", "other"] as const;
+
+/** What a find must show: one to four of HUNT_NEEDS, no repeats. */
+function huntNeeds(a: Args): string[] {
+  const v = a.huntNeeds;
+  if (!Array.isArray(v) || v.length === 0 || v.length > HUNT_NEEDS.length) throw bad("huntNeeds");
+  if (v.some((x) => typeof x !== "string" || !(HUNT_NEEDS as readonly string[]).includes(x))) throw bad("huntNeeds");
+  return [...new Set(v as string[])];
+}
+
+/** A find's photo: the finder's own finished picture ("media:<id>", uploaded for proof) or a file in their own folder. */
+async function huntPhoto(ctx: Ctx, a: Args): Promise<string | null> {
+  const path = strOrNull(a, "photoPath", 300);
+  if (path === null) return null;
+  if (isMediaRef(path)) {
+    await assertOwnImage(ctx, path, ["proof"]);
+    return path;
+  }
+  if (!path.startsWith(`${ctx.userId}/`) || path.includes("..")) throw bad("photoPath");
+  return path;
 }
 
 /** A quote, a proof summary or a worker bio: anything the app would have hidden is refused. */
@@ -446,6 +475,38 @@ export const WRITE_OPS: Record<string, Op> = {
     take(await ctx.db.rpc("set_task_repeat", { p_task_id: taskId, p_every: every }));
     return { id: taskId, repeat_every: every };
   },
+
+  // ---- City Hunt (migration 158): every rule and every rupee is decided in SQL ----
+  /** "I'm looking": counted on the Hunt's card and page. */
+  huntLook: rpcOp("hunt_look", (a) => ({ p_task: uuid(a, "taskId") })),
+  /** A find: a photo taken now, the place's name, where the finder stands, a price, a short note. */
+  huntSendFind: async (ctx, a) => {
+    const taskId = uuid(a, "taskId");
+    const photo = await huntPhoto(ctx, a);
+    const lat = coordOrNull(a, "lat", 90);
+    const lng = coordOrNull(a, "lng", 180);
+    if ((lat === null) !== (lng === null)) throw bad("lat");
+    return take(await ctx.db.rpc("hunt_send_find", {
+      p_task: taskId,
+      p_photo_path: photo,
+      p_place_name: strOrNull(a, "placeName", 120),
+      p_lat: lat,
+      p_lng: lng,
+      p_price_note: strOrNull(a, "priceNote", 60),
+      p_note: strOrNull(a, "note", 300),
+    }));
+  },
+  /**
+   * "This is it": pays the finder through the normal job steps in one transaction (lock_bid, start_task,
+   * mark_work_done, confirm_release). A short wallet answers "Not enough money in your wallet" with the
+   * shortfall, like lockBid, so the app offers the same top-up.
+   */
+  huntAcceptFind: rpcOp("hunt_accept_find", (a) => ({ p_find: uuid(a, "findId") })),
+  huntDeclineFind: rpcOp("hunt_decline_find", (a) => ({
+    p_find: uuid(a, "findId"),
+    p_reason: oneOf(a, "reason", HUNT_DECLINE_REASONS),
+  })),
+  huntAskPart: rpcOp("hunt_ask_part", (a) => ({ p_find: uuid(a, "findId"), p_part: oneOf(a, "part", HUNT_NEEDS) })),
 
   /** A helper's own weekly earnings goal (Streaks). Null clears it. */
   setWeeklyGoal: async (ctx, a) => {

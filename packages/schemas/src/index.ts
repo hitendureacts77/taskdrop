@@ -101,3 +101,38 @@ export const reviewSchema = z.object({
   comment: z.string().max(1000).optional(),
 });
 export type Review = z.infer<typeof reviewSchema>;
+
+/*
+ * City Hunt (migration 158). The same lists the database and the api use: how long a Hunt runs,
+ * what a find must show, and why a poster says "Not it".
+ */
+export const huntWindowEnum = z.enum(['2h', 'today', '3d']);
+export type HuntWindow = z.infer<typeof huntWindowEnum>;
+export const huntNeedEnum = z.enum(['photo', 'place', 'pin', 'price']);
+export type HuntNeed = z.infer<typeof huntNeedEnum>;
+export const huntDeclineReasonEnum = z.enum(['not_it', 'gone', 'too_far', 'other']);
+export type HuntDeclineReason = z.infer<typeof huntDeclineReasonEnum>;
+
+/** The Hunt switches on a new post. */
+export const huntOptionsSchema = z.object({
+  huntWindow: huntWindowEnum,
+  huntNeeds: z.array(huntNeedEnum).min(1).max(4),
+});
+export type HuntOptions = z.infer<typeof huntOptionsSchema>;
+
+/** A find a finder sends. A pin is both coordinates or neither. */
+export const huntFindSchema = z
+  .object({
+    taskId: z.guid(),
+    photoPath: z.string().min(3).max(300).nullable().optional(),
+    placeName: z.string().trim().min(1).max(120).nullable().optional(),
+    lat: z.number().min(-90).max(90).nullable().optional(),
+    lng: z.number().min(-180).max(180).nullable().optional(),
+    priceNote: z.string().trim().min(1).max(60).nullable().optional(),
+    note: z.string().trim().min(1).max(300).nullable().optional(),
+  })
+  .refine((f) => (f.lat == null) === (f.lng == null), { message: 'A pin needs both coordinates' })
+  .refine((f) => f.photoPath != null || f.placeName != null || f.lat != null || f.priceNote != null, {
+    message: 'Add at least a photo, the place name, a pin or the price',
+  });
+export type HuntFind = z.infer<typeof huntFindSchema>;

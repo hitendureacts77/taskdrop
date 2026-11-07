@@ -35,6 +35,8 @@ import { PersonSheet } from '../components/PersonSheet';
 import { BidSheet } from '../components/BidSheet';
 import { roughPlace } from '../lib/place';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
+import { HuntFinderPanel } from '../components/Hunt';
+import { isHunt } from '../lib/hunt';
 
 /**
  * Task detail — pixel parity with docs/design/_design_markup.html lines
@@ -187,6 +189,7 @@ export function TaskDetailScreen() {
     lat: number | null;
     lng: number | null;
   } | null>(null);
+  const [huntTask, setHuntTask] = useState<Task | null>(null);
 
   useEffect(() => {
     if (!realId || (!userId && !guest)) return;
@@ -201,6 +204,12 @@ export function TaskDetailScreen() {
         ]);
         if (!alive) return;
         setMe(mine);
+        // A City Hunt takes finds, not offers (D19); its own panel replaces the offer box.
+        setHuntTask(td?.task && isHunt(td.task) ? td.task : null);
+        if (td?.task && isHunt(td.task) && userId && td.task.poster_id === userId) {
+          go('taskManage', { taskId: realId, title: td.task.title });
+          return;
+        }
         if (td?.task) {
           const kind = td.task.media_kind;
           setLive({
@@ -256,7 +265,7 @@ export function TaskDetailScreen() {
   const mediaSeconds = live ? live.mediaSeconds : detail.mediaSeconds;
 
   // A request carries the poster's budget; a service listing carries the worker's rate.
-  const priceLabel = worker ? 'BUDGET' : 'THEIR RATE';
+  const priceLabel = huntTask ? 'REWARD FOR THE FINDER' : worker ? 'BUDGET' : 'THEIR RATE';
   const delta = quote - detail.amountMinor;
   const deltaText =
     delta === 0 ? 'same as asked' : delta > 0 ? `+${formatINR(delta)} above` : `−${formatINR(-delta)} below`;
@@ -515,7 +524,11 @@ export function TaskDetailScreen() {
           <TaskQuestions taskId={realId} role="ask" posterName={other?.name} style={{ marginTop: t.spacing.xl }} />
         ) : null}
 
-        {worker && blocked ? (
+        {huntTask ? (
+          <View style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
+            <HuntFinderPanel task={huntTask} />
+          </View>
+        ) : worker && blocked ? (
           /* Say why instead of showing a price box that cannot be sent. The
              three reasons — own request, closed, already quoted — each leave
              the person somewhere different to go next. */

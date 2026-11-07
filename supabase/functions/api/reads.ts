@@ -505,6 +505,19 @@ export const READ_OPS: Record<string, Op> = {
     ),
   /** Before-and-after photos a helper's customers let them show. */
   workerProofPhotos: rpcOp("worker_proof_photos", (a) => ({ p_worker: uuid(a, "userId") })),
+
+  // ------------------------------------------------------- City Hunt ----
+  /**
+   * The finds on a Hunt (migration 158). The poster gets every find with the photo, place, pin, price and note
+   * left out until they accept it; a finder gets their own finds; anyone else gets nothing. Decided in SQL.
+   */
+  huntFinds: rpcOp("hunt_finds_for_task", (a) => ({ p_task: uuid(a, "taskId") })),
+  /** How many are looking and how many finds were sent, per Hunt, and the caller's own part. Numbers only. */
+  huntCounts: async (ctx, a) => {
+    const ids = uuids(a, "taskIds", 100);
+    if (ids.length === 0) return [];
+    return rows(await ctx.db.rpc("hunt_counts", { p_tasks: ids }));
+  },
   /** The Earn side's weekly goal, on-time streak and badge counts. */
   myStreaks: rpcOp("my_streaks"),
   /**

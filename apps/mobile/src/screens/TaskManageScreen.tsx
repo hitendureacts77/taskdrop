@@ -47,6 +47,8 @@ import { reportError } from '../lib/errors';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { TaskOptionsPanel } from '../components/TaskOptionsPanel';
 import { TaskQuestions } from '../components/TaskQuestions';
+import { HuntPosterPanel } from '../components/Hunt';
+import { isHunt } from '../lib/hunt';
 
 type QuoteFilter = 'newest' | 'cheapest' | 'budget' | 'rated' | 'fastest';
 const QUOTE_FILTERS: { key: QuoteFilter; label: string }[] = [
@@ -170,6 +172,8 @@ export function TaskManageScreen() {
   const base = task.locked_minor ?? task.benchmark_minor;
   const escrow = assignment?.escrow_minor ?? Math.round(base * (1 + fees.posterFee));
   const left = timeLeft(task.due_at);
+  // City Hunt (D19): while it is open the page is the Hunt's finds, not offers.
+  const hunting = isHunt(task) && task.status === 'OPEN';
 
   const events: Event[] = [
     { at: task.created_at, title: 'Task created', body: `“${task.title}” was posted`, icon: 'plus' as IconName },
@@ -544,9 +548,12 @@ export function TaskManageScreen() {
       />
       <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 20, marginTop: -4 }}>
         <Badge label={badge.label} tone={badge.tone} />
-        <Badge label={task.assignment_mode === 'auto' ? 'Auto-hire' : 'Choose from offers'} tone="neutral" />
+        <Badge
+          label={isHunt(task) ? 'Hunt' : task.assignment_mode === 'auto' ? 'Auto-hire' : 'Choose from offers'}
+          tone={isHunt(task) ? 'gold' : 'neutral'}
+        />
       </View>
-      {sideBySide ? null : (
+      {sideBySide || hunting ? null : (
         <View style={{ marginTop: 10 }}>
           {/* While the task is open the second tab is where quotes land; once
               someone is hired it is where that worker is. */}
@@ -558,7 +565,16 @@ export function TaskManageScreen() {
         </View>
       )}
 
-      {sideBySide ? (
+      {hunting ? (
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />}
+        >
+          <HuntPosterPanel task={task} onChanged={() => void load().catch((e) => reportError(e, 'task-manage'))} />
+          {overview}
+        </ScrollView>
+      ) : sideBySide ? (
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
@@ -587,7 +603,7 @@ export function TaskManageScreen() {
         </SwipeTabs>
       )}
 
-      {primary ? (
+      {primary && !hunting ? (
         <View style={{ paddingHorizontal: 20, paddingBottom: 16, paddingTop: 6 }}>
           <PrimaryButton label={primary.label} onPress={primary.onPress} disabled={row.act === 'compare' && bids.length === 0} />
         </View>
