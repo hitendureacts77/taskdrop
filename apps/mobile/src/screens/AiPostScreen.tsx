@@ -10,6 +10,8 @@ import { LocationSheet, type PickedPlace } from '../components/LocationSheet';
 import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
 import { Field, IconButton, PrimaryButton, rupees } from '../components/kit';
 import { removeDraft, saveDraft } from '../lib/drafts';
+import { markBigDayPosted } from '../lib/bigDayStore';
+import { bigDayParam } from '../lib/bigDays';
 import { GUEST_DRAFTS_OWNER, isNeedsAccount, needAccount } from '../lib/guest';
 import { useReducedMotion } from '../lib/motion';
 import { FadeIn, Pressy, tx } from '../components/primitives';
@@ -706,6 +708,9 @@ export function AiPostScreen() {
         photosPublic: (opts.wantPhotos && opts.photosPublic) || undefined,
       });
       if (draftId && draftOwner) void removeDraft(draftOwner, draftId);
+      // Posted from a big-day plan (screens/BigDayScreen): the plan's line remembers this task.
+      const bigDay = bigDayParam(params.bigDay);
+      if (bigDay) void markBigDayPosted(userId, bigDay.planId, bigDay.itemId, task.id);
       forget();
       setMode('poster');
       celebrate('Task posted');

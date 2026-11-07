@@ -9,6 +9,7 @@ import { clientHeaders, installId } from '../lib/appInfo';
 import { postSignInRoute } from '../data/api';
 import { GUEST_DRAFTS_OWNER, clearGuestHandoff, clearStaleGuestHandoff, dropGuestHandoffMark, guestHandoffLive, loadGuestChoice, saveGuestChoice, saveGuestHandoffMark, takeGuestHandoff } from '../lib/guest';
 import { clearDrafts, moveGuestDrafts } from '../lib/drafts';
+import { clearBigDays, moveGuestBigDays } from '../lib/bigDayStore';
 import { allowGuestSaves, dropGuestSaves } from '../lib/guestSaves';
 import { adoptGuestWizard, clearWizard, dropGuestWizard } from '../lib/postWizardStore';
 import { count, log, setMonitoringUser } from '../lib/monitoring';
@@ -128,10 +129,12 @@ async function settleGuestThings(userId: string, live: boolean): Promise<void> {
     // The half-made post first: "Post my request" resumes right after this sign-in (lib/postWizardStore).
     await adoptGuestWizard(userId);
     await moveGuestDrafts(userId);
+    await moveGuestBigDays(userId);
     await allowGuestSaves(userId);
     return;
   }
   await clearDrafts(GUEST_DRAFTS_OWNER);
+  await clearBigDays(GUEST_DRAFTS_OWNER);
   await dropGuestSaves(userId);
   await dropGuestWizard();
 }
@@ -139,13 +142,17 @@ async function settleGuestThings(userId: string, live: boolean): Promise<void> {
 /** Anything a guest left on this device goes, and no hand-off is pending. Safe after every sign-out, however it came. */
 async function forgetGuestThingsOnDevice(): Promise<void> {
   await clearDrafts(GUEST_DRAFTS_OWNER);
+  await clearBigDays(GUEST_DRAFTS_OWNER);
   await dropGuestSaves();
   clearGuestHandoff();
 }
 
 /** The person chose to sign out: their drafts go too, and anything a guest left. */
 async function forgetDraftsOnDevice(userId: string | null): Promise<void> {
-  if (userId) await clearDrafts(userId);
+  if (userId) {
+    await clearDrafts(userId);
+    await clearBigDays(userId);
+  }
   await forgetGuestThingsOnDevice();
 }
 
