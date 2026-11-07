@@ -10,6 +10,7 @@ import { Icon, type IconName } from './Icon';
 import { ModeSwitch } from './ModeSwitch';
 import { GuestSignInPill } from './GuestBits';
 import { Drop } from './Ripples';
+import { SideNavAppCard } from './AppQr';
 import { tx } from './primitives';
 import { useTourTarget } from './tour/targets';
 
@@ -195,6 +196,8 @@ export function SideNav({ rail = false }: { rail?: boolean }) {
 
         <View style={{ flex: 1, minHeight: 12 }} />
         <View style={{ borderTopWidth: 1, borderTopColor: t.colors.line, paddingTop: 12, gap: 4 }}>{lower.map(item)}</View>
+        {/* A QR to the Android app (web only; nothing on phones or Apple devices). */}
+        {rail ? null : <SideNavAppCard />}
       </ScrollView>
     </View>
   );
