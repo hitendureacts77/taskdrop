@@ -12,6 +12,7 @@ export const NATIVE_HEADER_SCREENS: readonly ScreenName[] = [
   'account',
   'active',
   'analytics',
+  'bigDay',
   'chat',
   'compare',
   'crew',

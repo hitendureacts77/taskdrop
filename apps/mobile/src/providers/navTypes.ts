@@ -54,6 +54,8 @@ export type ScreenName =
   // The public feedback board (migration 136).
   | 'ideas'
   | 'ideaDetail'
+  // D19 Together: plan a big day, and its board.
+  | 'bigDay'
   // Public: reachable signed out, and by link (?page=copyright etc.).
   | 'copyright'
   | 'terms'
