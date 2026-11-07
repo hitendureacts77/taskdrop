@@ -63,7 +63,9 @@ export type IconName =
   | 'calendar'
   | 'calendarTwo'
   | 'calendarWeek'
-  | 'calendarCheck';
+  | 'calendarCheck'
+  | 'download'
+  | 'smartphone';
 
 const STROKE: Partial<Record<IconName, string>> = {
   home: 'M4 10.6 12 4l8 6.6V20h-5v-6H9v6H4v-9.4Z',
@@ -123,6 +125,8 @@ const STROKE: Partial<Record<IconName, string>> = {
   calendarTwo: 'M3.5 6.5h17v13.5h-17zM3.5 10.5h17M8 4v3M16 4v3M8.5 15h.01M12 15h.01',
   calendarWeek: 'M3.5 6.5h17v13.5h-17zM3.5 10.5h17M8 4v3M16 4v3M7.5 14h9M7.5 17.5h5',
   calendarCheck: 'M3.5 6.5h17v13.5h-17zM3.5 10.5h17M8 4v3M16 4v3M9.5 15.5l2 2 3.5-3.5',
+  download: 'M12 4v11M7 10.5l5 5 5-5M5 20h14',
+  smartphone: 'M8.5 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM11 17.5h2',
   live: 'M9.5 12a2.5 2.5 0 1 0 5 0 2.5 2.5 0 1 0-5 0M6.5 6.5a8 8 0 0 0 0 11M17.5 6.5a8 8 0 0 1 0 11',
 };
 

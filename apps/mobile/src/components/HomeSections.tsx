@@ -40,6 +40,7 @@ import { WorkCard, categoryIcon } from './WorkCard';
 import { BidSheet } from './BidSheet';
 import { Rail, useRailItemWidth } from './Rail';
 import { HeroCard } from './Hero';
+import { GetAppButton } from './AppQr';
 import { Drop, Ripples } from './Ripples';
 import { cardSurface } from './ui';
 import { useLayout } from '../lib/layout';
@@ -313,6 +314,22 @@ function PostTop() {
       />
       <View style={{ marginTop: 12 }}>
         <Rail step={300} min={160}>
+          {/* D19: two new starting points ahead of the old eight. Hunt is built elsewhere; this tile only opens the writer with its flag. */}
+          <IdeaCard
+            icon="search"
+            title="Find it for me"
+            sub="Many look at once. Pay only the finder"
+            tag="NEW · HUNT"
+            gold
+            onPress={() => go('aiPost', { prompt: 'Find me ', hunt: true })}
+          />
+          <IdeaCard
+            icon="calendarCheck"
+            title="Plan a big day"
+            sub="Moving, a wedding, festival cleaning"
+            tag="NEW"
+            onPress={() => go('bigDay')}
+          />
           {TEMPLATES.slice(0, 8).map((x) => (
             <IdeaCard key={x.key} icon={x.icon} title={x.title} sub={x.sub} onPress={() => go('aiPost', { prompt: x.prompt })} />
           ))}
@@ -412,18 +429,19 @@ function AreaBar({
   flush?: boolean;
 }) {
   const t = useTheme();
+  // On a desktop browser the row also carries "Get the app" (a QR to the Android app; web only).
+  const { desktop } = useLayout();
   const area = label ? roughPlace(label) : null;
   const areaName = area ? area.split(',')[0]! : null;
-  return (
+  const bar = (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={area ? `Your area: ${area}. Change` : 'Set your area'}
       style={({ pressed }) => ({
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        marginHorizontal: flush ? 0 : 20,
-        marginTop: 4,
         paddingVertical: 6,
         gap: 10,
         opacity: pressed ? 0.7 : 1,
@@ -446,6 +464,12 @@ function AreaBar({
         </RNText>
       </View>
     </Pressable>
+  );
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: flush ? 0 : 20, marginTop: 4 }}>
+      {bar}
+      {desktop ? <GetAppButton /> : null}
+    </View>
   );
 }
 
@@ -929,13 +953,36 @@ function PublishedCard({ task, onPress }: { task: Task; onPress: () => void }) {
 }
 
 /** One of "Start from an idea". */
-function IdeaCard({ icon, title, sub, onPress }: { icon: IconName; title: string; sub: string; onPress: () => void }) {
+function IdeaCard({
+  icon,
+  title,
+  sub,
+  onPress,
+  tag,
+  gold,
+}: {
+  icon: IconName;
+  title: string;
+  sub: string;
+  onPress: () => void;
+  /** A small "NEW" tag under the text. */
+  tag?: string;
+  /** Gold styling, for the Hunt tile. */
+  gold?: boolean;
+}) {
   const t = useTheme();
   const width = useRailItemWidth(150);
+  const tint = gold ? t.colors.goldSoft : t.colors.accentSoft;
+  const ink = gold ? t.colors.goldInk : t.colors.accentDeep;
   return (
-    <Pressy onPress={onPress} scaleTo={0.97} label={title} style={[cardSurface(t), { width, padding: 14 }]}>
-      <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name={icon} size={18} color={t.colors.accentDeep} />
+    <Pressy
+      onPress={onPress}
+      scaleTo={0.97}
+      label={tag ? `${title}. New` : title}
+      style={[cardSurface(t), gold ? { borderColor: t.colors.gold } : null, { width, padding: 14 }]}
+    >
+      <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: tint, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={icon} size={18} color={ink} />
       </View>
       <RNText style={tx('800', 14, t.colors.ink, { marginTop: 12, letterSpacing: -0.2 })} numberOfLines={1}>
         {title}
@@ -943,6 +990,11 @@ function IdeaCard({ icon, title, sub, onPress }: { icon: IconName; title: string
       <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3, lineHeight: 17 })} numberOfLines={2}>
         {sub}
       </RNText>
+      {tag ? (
+        <View style={{ alignSelf: 'flex-start', marginTop: 8, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: tint }}>
+          <RNText style={tx('800', 10, ink, { letterSpacing: 0.8 })}>{tag}</RNText>
+        </View>
+      ) : null}
     </Pressy>
   );
 }

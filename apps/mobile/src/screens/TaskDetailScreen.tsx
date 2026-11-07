@@ -26,6 +26,7 @@ import {
 import { PRICE_LIMITS, distanceKm, formatDistance } from '@taskdrop/rules';
 import { ShareSheet, useShare } from '../components/ShareSheet';
 import { taskUrl } from '../lib/links';
+import { noteFirstAction } from '../lib/appPrompt';
 import { type Theme } from '../theme';
 import type { FeedRow } from './HomeScreen';
 import { FadeIn, tx } from '../components/primitives';
@@ -125,6 +126,10 @@ export function TaskDetailScreen() {
   const { userId, guest } = useAuth();
   const [busy, setBusy] = useState(false);
   const worker = mode === 'worker';
+  // Web, Android browsers: the one-time "get the app" sheet comes after a first look at a task.
+  useEffect(() => {
+    noteFirstAction();
+  }, []);
 
   const detail: Detail = useMemo(() => {
     const row = params.row;

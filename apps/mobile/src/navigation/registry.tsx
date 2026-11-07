@@ -54,6 +54,7 @@ import { RegularsScreen } from '../screens/RegularsScreen';
 import { StreaksScreen } from '../screens/StreaksScreen';
 import { IdeasScreen } from '../screens/IdeasScreen';
 import { IdeaDetailScreen } from '../screens/IdeaDetailScreen';
+import { BigDayScreen } from '../screens/BigDayScreen';
 
 
 // Registry. A name with no screen falls back to Placeholder (none today; registry.test.ts keeps it so).
@@ -107,6 +108,7 @@ export const REGISTRY: Partial<Record<ScreenName, ComponentType>> = {
   streaks: StreaksScreen,
   ideas: IdeasScreen,
   ideaDetail: IdeaDetailScreen,
+  bigDay: BigDayScreen,
   copyright: CopyrightScreen,
   terms: TermsScreen,
   privacy: PrivacyScreen,
