@@ -28,7 +28,7 @@ export const TABBED: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'pr
 export const KEEP_ALIVE: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'profile'];
 
 // Desktop web: screens shown before sign-in, and screens given the wide column.
-const PRE_AUTH: ScreenName[] = ['splash', 'welcome', 'signup', 'setup'];
+const PRE_AUTH: ScreenName[] = ['splash', 'intro', 'welcome', 'signup', 'setup'];
 // Pages anyone may read; signed out on desktop they get the sign-in frame.
 const PUBLIC: ScreenName[] = ['copyright', 'terms', 'privacy', 'support'];
 const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'orders', 'saved', 'wallet', 'spending', 'inbox', 'taskManage'];

@@ -25,7 +25,7 @@ export function showStagingUi(environment: AppEnvironment): boolean {
 }
 
 /** Sign-in, welcome and the public pages: the tester card waits until someone is past these. */
-const NO_CARD_SCREENS = ['splash', 'welcome', 'signup', 'setup', 'terms', 'privacy', 'support', 'copyright'];
+const NO_CARD_SCREENS = ['splash', 'intro', 'welcome', 'signup', 'setup', 'terms', 'privacy', 'support', 'copyright'];
 
 /**
  * Whether to open "How staging works" now. Only in staging, only when signed in
