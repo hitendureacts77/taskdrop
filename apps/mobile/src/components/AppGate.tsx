@@ -6,6 +6,9 @@ import { useTheme } from '../providers/ThemeProvider';
 import { showStagingUi } from '../lib/environment';
 import { PrimaryButton } from './kit';
 import { StagingRibbon } from './StagingRibbon';
+import { AppBanner } from './AppBanner';
+import { GetApp } from './GetApp';
+import { isGetPath } from '../lib/appDownload';
 import { TopInsetUsedCtx } from './topInsetUsed';
 import { tx } from './primitives';
 
@@ -27,7 +30,11 @@ export function AppGate({ children }: { children: ReactNode }) {
   const [dismissed, setDismissed] = useState<string | null>(null);
   useEffect(() => startAppConfig(), []);
 
-  const page = cfg.maintenance.on ? (
+  // taskdrop.in/get is public: it opens before maintenance, sign-in or anything else (web only).
+  const onGetPage = Platform.OS === 'web' && typeof window !== 'undefined' && isGetPath(window.location.pathname);
+  const page = onGetPage ? (
+    <GetApp />
+  ) : cfg.maintenance.on ? (
     <Maintenance message={cfg.maintenance.message} />
   ) : cfg.update.required ? (
     <UpdateNeeded url={cfg.update.url} />
@@ -40,6 +47,8 @@ export function AppGate({ children }: { children: ReactNode }) {
   const topUsed = ribbon || Boolean(banner);
   return (
     <View style={{ flex: 1 }}>
+      {/* Android phone browsers only (web): a slim "TaskDrop for Android" bar above everything. */}
+      <AppBanner />
       {ribbon ? <StagingRibbon topInset={insets.top} /> : null}
       {banner ? <Banner banner={banner} onDismiss={() => setDismissed(banner.text)} topInset={ribbon ? 0 : insets.top} /> : null}
       <SafeAreaInsetsContext.Consumer>

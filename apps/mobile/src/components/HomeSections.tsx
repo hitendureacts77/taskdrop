@@ -40,6 +40,7 @@ import { WorkCard, categoryIcon } from './WorkCard';
 import { BidSheet } from './BidSheet';
 import { Rail, useRailItemWidth } from './Rail';
 import { HeroCard } from './Hero';
+import { GetAppButton } from './AppQr';
 import { Drop, Ripples } from './Ripples';
 import { cardSurface } from './ui';
 import { useLayout } from '../lib/layout';
@@ -412,18 +413,19 @@ function AreaBar({
   flush?: boolean;
 }) {
   const t = useTheme();
+  // On a desktop browser the row also carries "Get the app" (a QR to the Android app; web only).
+  const { desktop } = useLayout();
   const area = label ? roughPlace(label) : null;
   const areaName = area ? area.split(',')[0]! : null;
-  return (
+  const bar = (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={area ? `Your area: ${area}. Change` : 'Set your area'}
       style={({ pressed }) => ({
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        marginHorizontal: flush ? 0 : 20,
-        marginTop: 4,
         paddingVertical: 6,
         gap: 10,
         opacity: pressed ? 0.7 : 1,
@@ -446,6 +448,12 @@ function AreaBar({
         </RNText>
       </View>
     </Pressable>
+  );
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: flush ? 0 : 20, marginTop: 4 }}>
+      {bar}
+      {desktop ? <GetAppButton /> : null}
+    </View>
   );
 }
 
