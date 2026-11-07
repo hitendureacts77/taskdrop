@@ -103,7 +103,7 @@ begin
   on conflict (id) do nothing;
   insert into public.profiles (id, display_name)
   values (v_asha, 'Asha'), (v_ravi, 'Ravi'), (v_meera, 'Meera'), (v_kiran, 'Kiran')
-  on conflict (id) do nothing;
+  on conflict (id) do update set display_name = excluded.display_name;
   update public.profiles set onboarded_at = coalesce(onboarded_at, now()), deleted_at = null
    where id in (v_asha, v_ravi, v_meera, v_kiran);
   insert into public.age_checks (user_id, birth_date, passed, min_age)
