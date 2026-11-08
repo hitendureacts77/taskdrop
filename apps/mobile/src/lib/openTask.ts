@@ -2,6 +2,7 @@ import type { TaskWithPoster } from '../data/api';
 import type { FeedRow } from '../screens/HomeScreen';
 import { formatDeadline } from '../components/DateTimeSheet';
 import { optionLabels } from '../components/OptionBadges';
+import { isHunt } from './hunt';
 
 const PILLAR_TAG: Record<string, FeedRow['tag']> = {
   services: 'SERVICES',
@@ -38,5 +39,6 @@ export function taskToFeedRow(task: TaskWithPoster): FeedRow {
     body: task.description ?? '',
     by: task.due_at ? formatDeadline(new Date(task.due_at)) : null,
     options: optionLabels(task).map((b) => b.label),
+    hunt: isHunt(task),
   };
 }

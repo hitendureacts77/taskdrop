@@ -43,7 +43,8 @@ test('dates: labels are the ones on the drawing', () => {
 });
 
 test('every event has 4 to 8 lines, a mix that makes sense, and unique ids', () => {
-  assert.equal(EVENTS.length, 7);
+  assert.equal(EVENTS.length, 8);
+  assert.equal(EVENTS[1]!.key, 'birthday');
   for (const e of EVENTS) {
     assert.ok(e.lines.length >= 4 && e.lines.length <= 8, `${e.key} has ${e.lines.length} lines`);
     const items = buildItems(e.key);

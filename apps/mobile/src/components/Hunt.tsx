@@ -12,6 +12,7 @@ import { FadeIn, Pressy, tx } from './primitives';
 import { cardSurface, formatINR } from './ui';
 import { TaskMediaThumb } from './TaskMediaThumb';
 import { AddFundsSheet } from './AddFundsSheet';
+import { ExplainerSheet } from './ExplainerSheet';
 import {
   WalletShortError, huntAcceptFind, huntAskPart, huntCounts, huntDeclineFind, huntFinds, huntLook, huntSendFind,
   type HuntCounts, type HuntFind, type Task,
@@ -26,6 +27,7 @@ import { resolveCurrentPlace } from '../lib/location';
 import { useFees } from '../lib/useFees';
 import { isNeedsAccount, needAccount } from '../lib/guest';
 import { reportError } from '../lib/errors';
+import { HUNT_LINK } from '../lib/explainers';
 
 /**
  * City Hunt (design D19): the Hunt's pieces. The gold tag on Earn cards, the
@@ -48,6 +50,23 @@ export function useHuntCounts(taskId: string | null, signedIn: boolean): [HuntCo
   }, [taskId, signedIn]);
   useEffect(load, [load]);
   return [c, load];
+}
+
+/** The small "How a Hunt works" link under a Hunt's text: opens the explainer sheet again. */
+export function HuntHelpLink({ onPress, marginTop = 10 }: { onPress: () => void; marginTop?: number }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={HUNT_LINK}
+      style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, marginTop, paddingVertical: 4 }}
+    >
+      <Icon name="help" size={15} color={t.colors.goldInk} />
+      <RNText style={tx('700', 12.5, t.colors.goldInk)}>{HUNT_LINK}</RNText>
+    </Pressable>
+  );
 }
 
 // --------------------------------------------------------------- the hero --
@@ -158,6 +177,7 @@ export function HuntPosterPanel({ task, onChanged }: { task: HuntTask; onChanged
   const [busy, setBusy] = useState<string | null>(null);
   const [accepting, setAccepting] = useState<HuntFind | null>(null);
   const [declining, setDeclining] = useState<HuntFind | null>(null);
+  const [help, setHelp] = useState(false);
   const [shortBy, setShortBy] = useState<{ minor: number; find: HuntFind } | null>(null);
   const phase = huntPhase(task, now);
   const reward = rupees(task.benchmark_minor / 100);
@@ -248,6 +268,8 @@ export function HuntPosterPanel({ task, onChanged }: { task: HuntTask; onChanged
           The photo, the shop’s name and the pin unlock when you tap This is it. That pays the finder.
         </RNText>
       </View>
+      <HuntHelpLink onPress={() => setHelp(true)} />
+      <ExplainerSheet which="hunt" visible={help} onClose={() => setHelp(false)} />
 
       {phase === 'reviewing' ? (
         <RNText style={tx('500', 12.5, t.colors.muted, { marginTop: 10, lineHeight: 18 })}>
@@ -419,6 +441,7 @@ export function HuntFinderPanel({ task }: { task: HuntTask }) {
   const [mine, setMine] = useState<HuntFind[]>([]);
   const [sheet, setSheet] = useState(false);
   const [looking, setLooking] = useState(false);
+  const [help, setHelp] = useState(false);
   const phase = huntPhase(task, now);
   const live = phase === 'live';
 
@@ -465,6 +488,8 @@ export function HuntFinderPanel({ task }: { task: HuntTask }) {
           ? `Find it, take a photo there and send it. If yours is the one the customer accepts, you get ${rupees(task.benchmark_minor / 100)}. Only the find that is accepted is paid.`
           : 'This Hunt is not taking finds any more.'}
       </RNText>
+      <HuntHelpLink onPress={() => setHelp(true)} marginTop={6} />
+      <ExplainerSheet which="huntFinder" visible={help} onClose={() => setHelp(false)} />
 
       {live ? (
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>

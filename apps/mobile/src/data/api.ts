@@ -376,6 +376,12 @@ export type QuoteVerdict =
 export const canQuoteOn = (taskId: string, _userId: string) =>
   quietly<QuoteVerdict>('canQuoteOn', { taskId }, { allowed: true });
 
+/** Which of these tasks this person has already sent an offer on (one offer per task, up to 100 ids). */
+export const myBidTaskIds = (taskIds: string[]) => quietly<string[]>('myBidTaskIds', { taskIds: taskIds.slice(0, 100) }, []);
+
+/** The server refused a second offer on the same task. */
+export const isDuplicateOffer = (e: unknown) => e instanceof ApiError && e.code === 'DUPLICATE';
+
 export type ProfileEdits = {
   displayName?: string;
   skills?: string[];

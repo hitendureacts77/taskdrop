@@ -321,6 +321,44 @@ await t("refused quotes and username clashes are worded for people", async () =>
   assert.ok(!dup.ok && dup.error.message === "That username is taken");
 });
 
+await t("one offer per task: a second send is a DUPLICATE, a late edit is CLOSED", async () => {
+  const sendWith = (error: { message: string; code: string }) =>
+    runOp("placeBid", { taskId: TASK, priceMinor: 2000, timeLimitMinutes: 1 }, ctx(fake(() => ({ data: null, error }))));
+  for (const error of [
+    { message: "You have already sent an offer for this task", code: "P0001" },
+    { message: "An offer cannot be taken back. You can change it until the customer picks someone.", code: "P0001" },
+    { message: 'duplicate key value violates unique constraint "bids_task_id_worker_id_key"', code: "23505" },
+  ]) {
+    const r = await sendWith(error);
+    assert.ok(!r.ok && r.error.code === "DUPLICATE", error.message);
+    assert.ok(!r.ok && /You can edit it, but not send a second one/.test(r.error.message), error.message);
+  }
+  const late = "This task is no longer taking offers, so your offer cannot be changed";
+  const edit = await runOp("updateBid", { bidId: BID, priceMinor: 2000, timeLimitMinutes: 1 },
+    ctx(fake(() => ({ data: null, error: { message: late, code: "P0001" } }))));
+  assert.ok(!edit.ok && edit.error.code === "CLOSED" && edit.error.message === late);
+});
+
+await t("myBidTaskIds answers only for the caller and checks its ids", async () => {
+  const bad = async (args: Record<string, unknown>) => {
+    const f = fake();
+    const r = await runOp("myBidTaskIds", args, ctx(f));
+    assert.ok(!r.ok && r.error.code === "BAD_ARGS", JSON.stringify(args).slice(0, 40));
+    assert.equal(f.calls.length, 0);
+  };
+  const empty = await runOp("myBidTaskIds", { taskIds: [] }, ctx(fake()));
+  assert.ok(empty.ok);
+  assert.deepEqual(empty.data, []);
+  const many = Array.from({ length: 101 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`);
+  await bad({ taskIds: many });
+  await bad({ taskIds: ["not-a-uuid"] });
+  const f = fake(() => ({ data: [{ task_id: TASK }, { task_id: TASK2 }], error: null }));
+  const r = await runOp("myBidTaskIds", { taskIds: [TASK, TASK2, OTHER] }, ctx(f));
+  assert.ok(r.ok);
+  assert.deepEqual(r.data, [TASK, TASK2]);
+  assert.ok(f.calls.some((c) => c.table === "bids"), "reads the offers table");
+});
+
 await t("an unexpected crash is hidden and reported", async () => {
   const boom = { rpc: async () => { throw new Error("secret stack detail"); }, from: () => { throw new Error("x"); }, storage: { from: () => ({}) } };
   let seen: unknown = null;
@@ -377,6 +415,9 @@ await t("canQuoteOn explains each refusal", async () => {
   assert.equal((await run({ poster_id: OTHER, status: "LOCKED", kind: "request" }))?.code, "closed");
   assert.equal((await run({ poster_id: OTHER, status: "OPEN", kind: "request" }, { id: BID }))?.code, "duplicate");
   assert.equal((await run({ poster_id: OTHER, status: "OPEN", kind: "request" }))?.allowed, true);
+  const hunt = await run({ poster_id: OTHER, status: "OPEN", kind: "request", hunt_window: "2h" });
+  assert.equal(hunt?.code, "closed");
+  assert.equal((await run({ poster_id: OTHER, status: "OPEN", kind: "request", hunt_window: null }))?.allowed, true);
 });
 
 await t("counts come back as plain objects, and notification sides are worked out server-side", async () => {

@@ -20,6 +20,8 @@ import {
   getPosterStats,
   getProfile,
   getTask,
+  getMyBid,
+  type Bid,
   type Profile,
   type Task,
 } from '../data/api';
@@ -38,6 +40,8 @@ import { roughPlace } from '../lib/place';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { HuntFinderPanel } from '../components/Hunt';
 import { isHunt } from '../lib/hunt';
+import { OFFER_COPY, isDuplicateOfferError } from '../lib/offerState';
+import { noteMyOffer } from '../lib/useMyOffers';
 
 /**
  * Task detail — pixel parity with docs/design/_design_markup.html lines
@@ -181,10 +185,11 @@ export function TaskDetailScreen() {
   // description and, until now, the fetched task was used only for the poster
   // and then discarded, so a worker deciding whether to quote could see neither
   // the description nor the photo.
-  // Why this person cannot quote here, asked before the button is drawn.
-  // Only ever "the task closed" or "you already quoted" — a worker looking at
-  // his own request is redirected to the poster side instead of refused.
-  const [blocked, setBlocked] = useState<string | null>(null);
+  // Why this person cannot send a new offer here, asked before the button is drawn.
+  // "The task closed" or "you already sent an offer" (then the offer is fetched so it can be edited) —
+  // a worker looking at his own request is redirected to the poster side instead of refused.
+  const [verdict, setVerdict] = useState<{ code: 'own' | 'closed' | 'duplicate'; reason: string } | null>(null);
+  const [myOffer, setMyOffer] = useState<Bid | null>(null);
   const [live, setLive] = useState<{
     body: string;
     mediaPath: string | null;
@@ -202,7 +207,7 @@ export function TaskDetailScreen() {
     void (async () => {
       try {
         // Whether this worker may quote is asked beside the task, not after it: one round trip, not two.
-        const [mine, td, verdict] = await Promise.all([
+        const [mine, td, verdictNow] = await Promise.all([
           userId ? getProfile(userId) : null,
           getTaskDetail(realId),
           worker && userId ? canQuoteOn(realId, userId) : null,
@@ -226,8 +231,8 @@ export function TaskDetailScreen() {
             lng: td.task.loc_lng ?? null,
           });
         }
-        if (verdict) {
-          if (!verdict.allowed && verdict.code === 'own') {
+        if (verdictNow) {
+          if (!verdictNow.allowed && verdictNow.code === 'own') {
             // Not a refusal — the wrong screen. Your own request has a poster
             // side, and what you want there is the quotes it has received.
             go('compare', {
@@ -237,7 +242,15 @@ export function TaskDetailScreen() {
             });
             return;
           }
-          setBlocked(verdict.allowed ? null : verdict.reason);
+          setVerdict(verdictNow.allowed ? null : { code: verdictNow.code, reason: verdictNow.reason });
+          if (!verdictNow.allowed && verdictNow.code === 'duplicate' && userId) {
+            const sent = await getMyBid(realId, userId).catch(() => null);
+            if (!alive) return;
+            if (sent) {
+              setMyOffer(sent);
+              noteMyOffer(userId, realId);
+            }
+          }
         }
         const posterId = td?.task.poster_id;
         if (!posterId) return;
@@ -328,11 +341,7 @@ export function TaskDetailScreen() {
   const [withProposal, setWithProposal] = useState(false);
   const [proposal, setProposal] = useState('');
   const proposalShort = withProposal && proposal.trim().length < 10;
-  const cta = worker
-    ? `${countering ? 'Send counteroffer' : 'Send offer'}${withProposal ? ' with proposal' : ''} · ${formatINR(quote)}`
-    : countering
-      ? 'Send a counteroffer'
-      : 'Send my offer';
+  const cta = `${countering ? 'Send counteroffer' : 'Send offer'}${withProposal ? ' with proposal' : ''} · ${formatINR(quote)}`;
 
   // The detailed bid: a proposal, hours and a delivery date on top of the
   // price. Same placeBid underneath, so the same checks apply.
@@ -362,22 +371,34 @@ export function TaskDetailScreen() {
           timeLimitMinutes: 240,
           ...(withProposal ? { message: maskContacts(proposal.trim()).text } : null),
         });
+        noteMyOffer(userId, realId);
         celebrate((countering ? 'Counteroffer sent · ' : 'Offer sent · ') + formatINR(quote));
         go('orders');
       } catch (e) {
         // placeBid already turns a policy refusal into a sentence. Whatever it
         // is, it also means the quote box should not still be offered.
         if (isNeedsAccount(e)) return;
+        if (isDuplicateOfferError(e)) {
+          // One offer per task: show the sent offer with an Edit button instead of a raw error.
+          const sent = await getMyBid(realId, userId).catch(() => null);
+          if (sent) setMyOffer(sent);
+          setVerdict({ code: 'duplicate', reason: OFFER_COPY.edit.note });
+          return;
+        }
         const msg = e instanceof Error ? e.message : 'Could not send the offer';
-        setBlocked(msg);
+        setVerdict({ code: 'closed', reason: msg });
         flash(msg);
       } finally {
         setBusy(false);
       }
-      return;
     }
-    if (guest) return needAccount('hire', () => void sendQuote());
-    go('escrow', { priceMinor: quote, title: detail.title, taskId: realId });
+  };
+
+  // Reverse direction: the customer asks this worker to do a task of their own. It starts a new request with
+  // the worker named first, so the same person can be sent many tasks (each is its own request).
+  const sendThemATask = () => {
+    if (!otherId) return flash('This is a sample listing');
+    go('aiPost', { prompt: `${detail.title}: `, preferWorker: { id: otherId, name: displayName } });
   };
 
   // Report and share: in the system header on phones, in the page's top row on the web.
@@ -525,7 +546,7 @@ export function TaskDetailScreen() {
           Phone numbers stay hidden until the work starts.
         </RNText>
 
-        {worker && realId && !blocked ? (
+        {worker && realId && !verdict ? (
           <TaskQuestions taskId={realId} role="ask" posterName={other?.name} style={{ marginTop: t.spacing.xl }} />
         ) : null}
 
@@ -533,20 +554,48 @@ export function TaskDetailScreen() {
           <View style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
             <HuntFinderPanel task={huntTask} />
           </View>
-        ) : worker && blocked ? (
+        ) : worker && verdict ? (
           /* Say why instead of showing a price box that cannot be sent. The
-             three reasons — own request, closed, already quoted — each leave
-             the person somewhere different to go next. */
+             reasons — closed, already sent an offer — each leave the person
+             somewhere different to go next. */
           <Card style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
             <RNText style={tx('600', 13, t.colors.muted, { marginBottom: 8 })}>
-              {/already quoted/i.test(blocked) ? 'OFFER SENT' : 'CLOSED FOR OFFERS'}
+              {verdict.code === 'duplicate' ? (myOffer?.is_locked ? 'OFFER ACCEPTED' : 'OFFER SENT') : 'CLOSED FOR OFFERS'}
             </RNText>
-            <RNText style={tx('600', 15, t.colors.ink, { lineHeight: 22 })}>{blocked}</RNText>
-            <Button
-              label={/already quoted/i.test(blocked) ? 'Edit my offer' : 'Find another request'}
-              onPress={() => (/already quoted/i.test(blocked) ? void openBid() : go('explore'))}
-              style={{ marginTop: t.spacing.lg }}
-            />
+            <RNText style={tx('600', 15, t.colors.ink, { lineHeight: 22 })}>
+              {verdict.code === 'duplicate'
+                ? myOffer?.is_locked
+                  ? OFFER_COPY.accepted.note
+                  : myOffer
+                    ? `Your offer: ${formatINR(myOffer.price_minor)}. You can change the price, message, hours or date until the customer picks someone.`
+                    : verdict.reason
+                : verdict.reason}
+            </RNText>
+            {verdict.code === 'duplicate' && myOffer?.is_locked ? null : (
+              <Button
+                label={verdict.code === 'duplicate' ? OFFER_COPY.edit.button! : OFFER_COPY.closed.button!}
+                onPress={() => (verdict.code === 'duplicate' ? void openBid() : go('explore'))}
+                style={{ marginTop: t.spacing.lg }}
+              />
+            )}
+          </Card>
+        ) : !worker ? (
+          /* Reverse direction: a customer looking at a worker's service. They do not "send an offer" to a
+             listing; they post their own task and the worker gets the first 10 minutes to answer it. */
+          <Card style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
+            <RNText style={tx('700', 11, t.colors.muted, { marginBottom: 10, letterSpacing: 1.2 })}>
+              {otherId && otherId === userId ? 'YOUR SERVICE' : 'SEND THEM A TASK'}
+            </RNText>
+            {otherId && otherId === userId ? (
+              <RNText style={tx('600', 15, t.colors.ink, { lineHeight: 22 })}>This is your own service.</RNText>
+            ) : (
+              <>
+                <RNText style={tx('600', 15, t.colors.ink, { lineHeight: 22 })}>
+                  {`Want ${displayName} to do this? Post your task and ${displayName} gets the first 10 minutes to send an offer. You can send them more than one task.`}
+                </RNText>
+                <Button label={`Send ${displayName} a task`} onPress={sendThemATask} style={{ marginTop: t.spacing.lg }} />
+              </>
+            )}
           </Card>
         ) : (
         <Card style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
@@ -665,11 +714,9 @@ export function TaskDetailScreen() {
             style={{ marginTop: t.spacing.lg }}
           />
           <RNText style={tx('500', 12, t.colors.muted, { marginTop: 10, textAlign: 'center' })}>
-            {worker
-              ? countering
-                ? 'Not happy with the price? Name your own. The customer can accept it or pass. One per task.'
-                : 'One offer per task. Phone numbers stay hidden until the work starts.'
-              : 'Your offer goes to this worker. They can accept it and start.'}
+            {countering
+              ? 'Not happy with the price? Name your own. You can send one offer per task and edit it later.'
+              : 'One offer per task. You can edit it later. Phone numbers stay hidden until the work starts.'}
           </RNText>
         </Card>
         )}
@@ -678,7 +725,11 @@ export function TaskDetailScreen() {
         task={bidTask}
         visible={bidTask !== null}
         onClose={() => setBidTask(null)}
-        onPlaced={() => go('myTasks')}
+        onPlaced={() => {
+          // An edit changes the price: refresh the "Your offer" card so it never shows the old one.
+          if (realId && userId) void getMyBid(realId, userId).then((b) => b && setMyOffer(b)).catch(() => {});
+          go('myTasks');
+        }}
       />
       <ReportSheet
         visible={reporting}

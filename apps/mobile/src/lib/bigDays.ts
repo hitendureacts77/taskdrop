@@ -8,7 +8,7 @@
 
 export type BigDayKind = 'person' | 'online';
 
-export type EventKey = 'moving' | 'baby' | 'wedding' | 'festival' | 'parents' | 'exam' | 'shop';
+export type EventKey = 'moving' | 'birthday' | 'baby' | 'wedding' | 'festival' | 'parents' | 'exam' | 'shop';
 
 /** A line of the built-in list. `offset` is days from the event day; null means any day. */
 type TemplateLine = { title: string; offset: number | null; kind: BigDayKind };
@@ -34,6 +34,19 @@ export const EVENTS: readonly EventDef[] = [
       { title: 'Fit fans and the geyser', offset: 0, kind: 'person' },
       { title: 'Deep clean the old flat', offset: 1, kind: 'person' },
       { title: 'Help changing my address', offset: null, kind: 'online' },
+    ],
+  },
+  {
+    key: 'birthday',
+    label: 'Birthday party',
+    dayLabel: 'Party day',
+    lines: [
+      { title: 'Design and send birthday e-invites', offset: -10, kind: 'online' },
+      { title: 'Make a photo slideshow or video', offset: -3, kind: 'online' },
+      { title: 'Order a cake from a home baker', offset: -2, kind: 'person' },
+      { title: 'Balloon and room decoration', offset: 0, kind: 'person' },
+      { title: 'Help with snacks and serving guests', offset: 0, kind: 'person' },
+      { title: 'Clear up after the party', offset: 1, kind: 'person' },
     ],
   },
   {

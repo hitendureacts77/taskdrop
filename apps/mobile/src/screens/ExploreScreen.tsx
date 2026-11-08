@@ -29,6 +29,7 @@ import { listSavedTaskIds, setSaved } from '../data/extras';
 import { listGuestSaves, setGuestSaved } from '../lib/guestSaves';
 import { IDEAS, TEMPLATES, TEMPLATE_TAGS, CATEGORIES, TOP_CATEGORIES, type TemplateTag } from '../lib/taskBrief';
 import { taskToFeedRow } from '../lib/openTask';
+import { useMyOffers } from '../lib/useMyOffers';
 import { useVoiceInput } from '../lib/speech';
 import { distanceKm } from '@taskdrop/rules';
 import { TopUpBadge } from '../components/TopUpBadge';
@@ -469,6 +470,9 @@ function FindWork() {
     go('taskDetail', { row: taskToFeedRow(task) });
   };
 
+  // Tasks this worker already sent an offer on: their button says Edit offer.
+  const offers = useMyOffers(userId, (shown ?? []).map((r) => r.id), !guest);
+
   return (
     <ScreenList
       above={<AppHeader />}
@@ -480,6 +484,7 @@ function FindWork() {
           task={task}
           index={i}
           saved={saved.has(task.id)}
+          quoted={offers.has(task.id)}
           onOpen={() => open(task)}
           onApply={() => setBidTask(task)}
           onToggleSave={() => void toggleSave(task.id)}

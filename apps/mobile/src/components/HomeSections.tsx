@@ -33,6 +33,7 @@ import { listGuestSaves, setGuestSaved } from '../lib/guestSaves';
 import { TEMPLATES } from '../lib/taskBrief';
 import { levelFor } from '../lib/levels';
 import { taskToFeedRow } from '../lib/openTask';
+import { useMyOffers } from '../lib/useMyOffers';
 import { statusBadge } from '../screens/MyTasksScreen';
 import { Icon } from './Icon';
 import { Badge, Grid, SectionTitle, Shimmer, rupees, timeLeft } from './kit';
@@ -318,7 +319,7 @@ function PostTop() {
           <IdeaCard
             icon="search"
             title="Find it for me"
-            sub="Many look at once. Pay only the finder"
+            sub="Medicine in stock, a spare part. Pay only the finder"
             tag="NEW · HUNT"
             gold
             onPress={() => go('aiPost', { prompt: 'Find me ', hunt: true })}
@@ -326,7 +327,7 @@ function PostTop() {
           <IdeaCard
             icon="calendarCheck"
             title="Plan a big day"
-            sub="Moving, a wedding, festival cleaning"
+            sub="Shifting house, a wedding, a birthday"
             tag="NEW"
             onPress={() => go('bigDay')}
           />
@@ -502,7 +503,12 @@ function EarnTop() {
   const [bidTask, setBidTask] = useState<Task | null>(null);
   const [showAll, setShowAll] = useState<Record<string, boolean>>({});
   const [howOpen, setHowOpen] = useState(false);
-
+  // Tasks this worker already sent an offer on: their button says Edit offer.
+  const offers = useMyOffers(
+    userId,
+    [...(recs ?? []), ...(near ?? []), ...(remote ?? []), ...urgent].map((x) => x.id),
+    !guest,
+  );
 
   const load = useCallback(async () => {
     if (!userId && !guest) return;
@@ -642,6 +648,7 @@ function EarnTop() {
       index={i}
       km={km}
       saved={saved.has(task.id)}
+      quoted={offers.has(task.id)}
       onOpen={() => go('taskDetail', { row: taskToFeedRow(task) })}
       onApply={() => setBidTask(task)}
       onToggleSave={() => void toggleSave(task.id)}

@@ -17,7 +17,10 @@ import { PROFILE_OWNER_SELECT } from "./columns.ts";
 /** A refused quote, in words a worker can act on. */
 function quoteRefusal(err: DbError): OpError {
   const raw = err.message ?? "";
-  if (/duplicate|unique/i.test(raw)) return new OpError("You have already sent an offer for this task", "DUPLICATE");
+  const alreadySent = "You have already sent an offer for this task. You can edit it, but not send a second one.";
+  if (/already sent an offer|cannot be taken back/i.test(raw)) return new OpError(alreadySent, "DUPLICATE");
+  if (/no longer taking offers/i.test(raw)) return new OpError(raw, "CLOSED");
+  if (/duplicate|unique/i.test(raw)) return new OpError(alreadySent, "DUPLICATE");
   if (/row-level security|violates.*policy/i.test(raw)) {
     return new OpError(
       "You cannot send an offer for this one — it is either your own request, or it is no longer open.",
