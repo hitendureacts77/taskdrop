@@ -3171,7 +3171,7 @@ Start 5.0a: make the code ready for two copies.
 <details id="t5-0b" data-short="Staging website and admin name">
 <summary>[BOTH] <b>5.0b</b> Staging website: confirm it, and give the staging admin a name <small>· 20 minutes · free</small></summary>
 
-**Where staging stands (checked 5 November through Vercel):** project `taskdrop` is built from `redesigned-2.0` and answers on `taskdrop.in` and `www.taskdrop.in`. Vercel's own addresses (`taskdrop-five.vercel.app`, and the branch address `taskdrop-git-redesigned-20-hitenduteam.vercel.app`) still work. The staging admin is `taskdrop-admin`, on Vercel's address only. There is no `admin.taskdrop.in` yet.
+**Where staging stands (checked 5 November through Vercel):** project `taskdrop` is built from `redesigned-2.0` and answers on `taskdrop.in` and `www.taskdrop.in`. Vercel's own addresses (`taskdrop-five.vercel.app`, and the branch address `taskdrop-git-redesigned-20-hitenduteam.vercel.app`) still work. The staging admin is `taskdrop-admin`. **Status (8 November): step 2 is done and `admin.taskdrop.in` opens the staging admin** (DNS record, Vercel domain, sign-in redirect and branch all set; see the notes under step 2). Waiting only for "done 5.0b".
 
 1. SAY:
 
@@ -3184,13 +3184,15 @@ Claude checks and reports: the "Staging: fake money and fake data" ribbon shows,
 2. **Optional, recommended: a name for the staging admin** (so everything staging lives under the domain you own). Skipping it is fine.
    - CLICK: https://www.spaceship.com → **Domains** → `taskdrop.in` → **DNS** → **Add record** → type **CNAME**, host `admin`, value `cname.vercel-dns.com` (if Vercel's **Domains** page shows a different value, use Vercel's) → **Save**.
    - CLICK: https://vercel.com → team **hitenduteam** → project **`taskdrop-admin`** → **Settings** → **Domains** → **Add** `admin.taskdrop.in`.
+   - **Then tie it to staging's branch** (the plan's first wording left this out, so the new name would have served `main`): **Settings** → **Domains** → `admin.taskdrop.in` → **Edit** → environment **Preview** → branch **`redesigned-2.0`** → **Save**.
+   - **Vercel's own login in front of previews.** A name tied to a Preview branch is a Preview address, so Vercel's login protection (Vercel Authentication) would put a Vercel sign-in in front of the admin's own sign-in. On 8 November you chose to turn that protection off for `taskdrop-admin`; the admin's own sign-in is the gate, and the pages say noindex.
    - SAY:
 
 ```say
 Add admin.taskdrop.in to the staging allow-lists.
 ```
 
-   Claude adds `https://admin.taskdrop.in/auth/callback` to the staging sign-in redirect list and `admin.taskdrop.in` to the staging admin's allowed origins, and confirms you can sign in there.
+   Claude adds `https://admin.taskdrop.in/auth/callback` to the staging sign-in redirect list (done 8 November) and confirms you can sign in there. The admin's allowed origins need no change: the admin calls the server from its own server actions, which send no Origin header, so `admin.taskdrop.in` is not in the server's browser allow-list. Claude checked on 8 November that the address answers `/login`, shows the Staging ribbon and sends noindex.
 3. Wait up to an hour for the address to work. TELL Claude: "done 5.0b".
 
 **Done when:** `taskdrop.in` is confirmed as staging and hidden from Google, and (if you did step 2) `admin.taskdrop.in` opens the staging admin.
@@ -4571,7 +4573,7 @@ Which login owns each tool is in "Your accounts map" near the top.
 | What | Address |
 |---|---|
 | Staging app | https://taskdrop.in (also Vercel's https://taskdrop-git-redesigned-20-hitenduteam.vercel.app) |
-| Staging admin | https://taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app (sign in to vercel.com first), or https://admin.taskdrop.in once 5.0b is done |
+| Staging admin | https://admin.taskdrop.in (since 8 November; no Vercel sign-in needed), or Vercel's branch address https://taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app |
 | Production app and admin (live from task 5.10) | The addresses Vercel makes, expected https://taskdrop-production.vercel.app and https://taskdrop-admin-production.vercel.app. `taskdrop.in` is staging's unless you swap it (decision 28) |
 | Staging Android app | TaskDrop Staging, `com.taskdrop.app.staging`: the install link comes from Claude after task 5.0c |
 | Old app / old admin (until 3.9) | https://taskdrop-five.vercel.app / https://taskdrop-admin.vercel.app |
