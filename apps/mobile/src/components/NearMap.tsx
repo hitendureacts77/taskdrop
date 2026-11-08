@@ -26,9 +26,9 @@ import {
   type MapArea,
   type MapJob,
 } from './NearMapParts';
-import { activeFirst, areaName, farText, firstName, jobPin, kmBetween, minePin, offerOf, personPin, togetherText } from './mapPins';
+import { activeFirst, areaName, farText, firstName, isNearby, jobPin, kmBetween, minePin, offerOf, personMeta, personPin } from './mapPins';
 import { Icon } from './Icon';
-import { rupees } from './kit';
+import { BottomSheet, PrimaryButton, rupees } from './kit';
 import { FadeIn, Pressy, tx } from './primitives';
 import { useReducedMotion } from '../lib/motion';
 import { taskToFeedRow } from '../lib/openTask';
@@ -67,9 +67,9 @@ const INDIA_ZOOM = 5;
 const noPick = () => {};
 
 /**
- * What the map shows. 'jobs' = open tasks, 'people' = helpers, 'mine' = "My people": the people
- * you finished a task with who chose to share a rounded spot (plan D20). Signed-in people only;
- * for anyone else 'mine' falls back to 'people'.
+ * What the map shows. 'jobs' = open tasks, 'people' = helpers, 'mine' = the "People" layer: the people
+ * you finished a task with, and other signed-in adults nearby, who chose to share a rounded spot
+ * (plan D20, owner decision 35b). Signed-in people only; for anyone else 'mine' falls back to 'people'.
  */
 export type NearMapLayer = 'jobs' | 'people' | 'mine';
 
@@ -313,9 +313,10 @@ export function NearMap({
   const pickedJob = mode === 'jobs' ? (shownJobs.find((j) => j.id === picked) ?? null) : null;
   const pickedHelper = kind === 'people' ? (shownPeople.find((w) => w.id === picked) ?? null) : null;
   const pickedPerson = mine ? (shownMine.find((p) => p.id === picked) ?? null) : null;
-  const pickedPersonId = pickedPerson?.id ?? null;
+  // Someone I have not worked with ("Everyone nearby") gets a small card with what the server sent: no profile is read.
+  const pickedPersonId = pickedPerson && !isNearby(pickedPerson) ? pickedPerson.id : null;
 
-  // The person sheet shows their reviews, so it needs their ratings: read once per person tapped.
+  // The person sheet shows their reviews, so it needs their ratings: read once per person tapped (my people only).
   useEffect(() => {
     setProfile(null);
     if (!pickedPersonId) return;
@@ -440,13 +441,13 @@ export function NearMap({
     close();
   };
 
-  const title = mode === 'jobs' ? 'Work near you' : mine ? 'Your people nearby' : 'Helpers near you';
+  const title = mode === 'jobs' ? 'Work near you' : mine ? 'People nearby' : 'Helpers near you';
   const sub = loading
     ? 'Looking around…'
     : count === 0
       ? mine && allMine.length === 0
         ? sharing
-          ? 'None of your people are sharing right now'
+          ? 'Nobody is sharing right now'
           : 'Nobody is sharing their spot yet'
         : `No ${words.many} ${searchedHere ? `within ${radius} km` : 'in this part of the map'} yet`
       : `${count} ${count === 1 ? words.one : words.many} ${searchedHere ? `within ${radius} km` : 'in this part of the map'}${mode === 'people' && live > 0 ? ` · ${live} active now` : ''}`;
@@ -470,12 +471,12 @@ export function NearMap({
         ? [chip('All', !narrow, () => setNarrow(false)), chip('Active now', narrow, () => setNarrow((v) => !v), t.colors.online)]
         : [chip('All', !narrow && !served, () => (setNarrow(false), setServed(false))), chip('Active now', narrow, () => setNarrow((v) => !v), t.colors.online), chip('Has services', served, () => setServed((v) => !v))];
 
-  // What the map shows: Jobs, Helpers or (signed in) My people. Only drawn when the parent handles the change (the tab), not on the route.
+  // What the map shows: Jobs, Helpers or (signed in) People. Only drawn when the parent handles the change (the tab), not on the route.
   const layerChips = onLayer ? (
     <View style={{ flexDirection: 'row', gap: 8 }}>
       {chip('Jobs', layer === 'jobs', () => onLayer('jobs'))}
       {chip('Helpers', layer === 'people', () => onLayer('people'))}
-      {canMine ? chip('My people', layer === 'mine', () => onLayer('mine')) : null}
+      {canMine ? chip('People', layer === 'mine', () => onLayer('mine')) : null}
     </View>
   ) : null;
 
@@ -495,7 +496,7 @@ export function NearMap({
       if (!closest) return null;
       return [
         { label: 'Active now', value: String(live), sub: live === 1 ? 'person with TaskDrop open' : 'people with TaskDrop open', strong: narrow, onPress: () => setNarrow((v) => !v) },
-        { label: 'Nearest', value: farText(closest.km), sub: `${firstName(closest.display_name)} · ${togetherText(closest.jobs)}`, onPress: () => pick(closest.id) },
+        { label: 'Nearest', value: farText(closest.km), sub: `${firstName(closest.display_name)} · ${personMeta(closest)}`, onPress: () => pick(closest.id) },
       ];
     }
     const near = [...shownPeople].sort((a, b) => a.km - b.km)[0];
@@ -510,10 +511,10 @@ export function NearMap({
   const empty =
     !loading && count === 0 ? (
       noneToShow ? (
-        // Nobody shows yet: either you are not sharing (offer to), or none of your people are.
+        // Nobody shows yet: either you are not sharing (offer to), or nobody around is.
         <View style={{ padding: 16, gap: 12, alignItems: 'flex-start' }}>
           <RNText style={tx('600', 13, t.colors.muted)}>
-            {sharing ? 'None of your people are sharing right now.' : 'Your people show up here when they share their spot. Share yours?'}
+            {sharing ? 'Nobody is sharing their spot nearby right now.' : 'People show up here when they share their spot. Share yours?'}
           </RNText>
           {sharing ? null : (
             <Pressy onPress={() => setShareOpen(true)} label="Share my spot" style={{ height: 40, paddingHorizontal: 18, borderRadius: 20, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}>
@@ -584,13 +585,24 @@ export function NearMap({
   const modals = (
     <>
       <PeopleMapSheet visible={shareOpen} onClose={() => setShareOpen(false)} onDone={(on) => on && setBeat((b) => b + 1)} />
-      {pickedPerson ? (
+      {pickedPerson && isNearby(pickedPerson) ? (
+        // Someone I have not worked with: a small card with only what the server sent. No profile, no chat.
+        <BottomSheet visible onClose={close} title={pickedPerson.display_name?.trim() || 'Someone'}>
+          <RNText style={tx('600', 14, t.colors.muted, { lineHeight: 20 })}>
+            {[personMeta(pickedPerson), presenceOf(pickedPerson.last_seen_at, now).label, farText(pickedPerson.km)].join(' · ')}
+          </RNText>
+          <RNText style={tx('500', 13, t.colors.muted, { marginTop: 10, lineHeight: 19 })}>
+            Shown on a rounded spot about 2 km wide, only while TaskDrop is open. To work with them, post a task or send an offer.
+          </RNText>
+          <PrimaryButton label="Close" tone="quiet" onPress={close} style={{ marginTop: 16 }} />
+        </BottomSheet>
+      ) : pickedPerson ? (
         <PersonSheet
           visible
           onClose={close}
           userId={pickedPerson.id}
           name={pickedPerson.display_name?.trim() || 'Someone'}
-          meta={[presenceOf(pickedPerson.last_seen_at, now).label, togetherText(pickedPerson.jobs)].join(' · ')}
+          meta={[presenceOf(pickedPerson.last_seen_at, now).label, personMeta(pickedPerson)].join(' · ')}
           rating={Number((personRole === 'poster' ? profile?.poster_rating_avg : profile?.worker_rating_avg) ?? 0)}
           ratingCount={(personRole === 'poster' ? profile?.poster_rating_count : profile?.worker_rating_count) ?? 0}
           role={personRole}

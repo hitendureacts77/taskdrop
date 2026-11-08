@@ -8,7 +8,7 @@ import type { Tables } from '@taskdrop/db-types';
 import { guestGate, primeProfile, type Task, type Profile } from './api';
 import { isGuestOp } from '../lib/guest';
 import type { Idea, IdeaComment, IdeaKind, IdeaStatus } from '../lib/ideas';
-import { PEOPLE_MAP_NOTICE } from '../lib/mapSpot';
+import { EVERYONE_MAP_NOTICE, PEOPLE_MAP_NOTICE, type MapAudience } from '../lib/mapSpot';
 
 /**
  * The second-wave features: notifications, saved tasks, help & support,
@@ -325,7 +325,12 @@ export async function touchPresence(_userId: string, spot?: { lat: number; lng: 
 
 // ------------------------------------------------------------------ my people --
 
-/** Someone I have finished a task with who chose to share a rounded spot (migration 159). Cells only, never exact. */
+/**
+ * Someone who chose to share a rounded spot (migrations 159 + 160). Cells only, never exact.
+ * kind 'mine': someone I finished a task with (full name, photo, job count, a ~550 m cell).
+ * kind 'nearby': another signed-in adult who chose "Everyone nearby" (first name only, no photo, no job count,
+ * a ~2 km cell). Older servers send no `kind`: those rows are always people I worked with.
+ */
 export type MapPerson = {
   id: string;
   display_name: string | null;
@@ -336,19 +341,24 @@ export type MapPerson = {
   km: number;
   jobs: number;
   spot_at: string;
+  kind?: 'mine' | 'nearby';
 };
 
-/** My people with a live rounded spot near a point, nearest first. Empty for guests and on any error. */
+/** People with a live rounded spot near a point, my people first, then nearest. Empty for guests and on any error. */
 export const mapPeople = (near: { lat: number; lng: number }, radiusKm: number) =>
   quietly<MapPerson[]>('mapPeople', { lat: near.lat, lng: near.lng, radiusKm }, []);
 
-export type MapSharing = { share_live: boolean; consented_at: string | null; notice_version: string };
+export type MapSharing = { share_live: boolean; consented_at: string | null; notice_version: string; audience?: MapAudience };
 
-/** My own "show my spot to my people" choice, or null when I never chose (or am signed out). */
+/** My own sharing choice, or null when I never chose (or am signed out). */
 export const getMapSharing = () => quietly<MapSharing | null>('mapSharing', {}, null);
 
-/** Save the choice. Turning it off also deletes my spot on the server. Throws on failure. */
+/** Save the choice. Turning it off also deletes my spot (and puts the audience back to my people). Throws on failure. */
 export const setMapSharing = (on: boolean) => act<null>('setMapSharing', { on, notice: PEOPLE_MAP_NOTICE });
+
+/** Choose who may see my spot. Sharing must already be on. Throws on failure. */
+export const setMapAudience = (audience: MapAudience) =>
+  act<null>('setMapAudience', { audience, notice: audience === 'everyone' ? EVERYONE_MAP_NOTICE : PEOPLE_MAP_NOTICE });
 
 /** Delete my shared spot right now (ghost mode) without changing the saved choice. Throws on failure. */
 export const clearMapSpot = () => act<null>('clearMapSpot', {});

@@ -3,7 +3,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import type { TaskWithPoster } from '../data/api';
 import type { MapPerson, NearbyWorker } from '../data/extras';
 import { presenceOf } from '../lib/presence';
-import { areaName, farText, firstName, initialsOf, offerOf, togetherText } from './mapPins';
+import { areaName, farText, firstName, initialsOf, offerOf, personMeta } from './mapPins';
 import { mapWords, type MapTone } from './JobsMap';
 import { TopUpBadge } from './TopUpBadge';
 import { categoryIcon } from './WorkCard';
@@ -94,9 +94,9 @@ export function Segmented<T extends string | number>({
   );
 }
 
-/** What the "My people" layer says about a pin (plan D20): a spot is a rounded cell, and it expires. */
+/** What the People layer says about a pin (plan D20 + 35b): a spot is a rounded cell, and it expires. */
 export const MINE_WORDS = {
-  privacy: 'Spots are rounded to about 500 m and vanish after 15 minutes.',
+  privacy: 'Spots are rounded (about 2 km for people you haven’t worked with) and vanish after 15 minutes.',
   legend: 'Tap a face to see who',
   one: 'person',
   many: 'people',
@@ -278,7 +278,7 @@ export function PersonRow({ person: p, now, on, onPress }: { person: MapPerson; 
   const c = useTone('people');
   const presence = presenceOf(p.last_seen_at, now);
   const name = firstName(p.display_name);
-  const meta = [togetherText(p.jobs), presence.label, farText(p.km)].join(' · ');
+  const meta = [personMeta(p), presence.label, farText(p.km)].join(' · ');
   return (
     <Pressable
       onPress={onPress}

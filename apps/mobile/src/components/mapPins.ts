@@ -99,9 +99,9 @@ export function personPin(w: NearbyWorker, now: number): JobPin | null {
 }
 
 /**
- * A person from "My people" (plan D20): a face with their initials and their first name.
- * Names are allowed here and only here, because these people already finished a task with
- * you. No area and no price: the spot is a rounded cell, never a place name.
+ * A person on the people layer (plan D20): a face with their initials and their first name.
+ * My people come with a photo; someone who chose "Everyone nearby" comes with a first name only and no photo
+ * (the server sends none). No area and no price: the spot is a rounded cell, never a place name.
  */
 export function minePin(p: MapPerson, now: number): JobPin {
   return {
@@ -123,6 +123,16 @@ export function activeFirst<T extends { last_seen_at: string | null; km: number 
 /** "2 jobs together" / "1 job together". */
 export function togetherText(jobs: number): string {
   return `${jobs} ${jobs === 1 ? 'job' : 'jobs'} together`;
+}
+
+/** A person who chose "Everyone nearby" and whom I have not worked with (they come back with less detail). */
+export function isNearby(p: { kind?: string }): boolean {
+  return p.kind === 'nearby';
+}
+
+/** What to say about how I know them: "2 jobs together" for my people, "Nearby" for everyone else. */
+export function personMeta(p: { kind?: string; jobs: number }): string {
+  return isNearby(p) ? 'Nearby' : togetherText(p.jobs);
 }
 
 /** "Madhapur" from a saved place, never a street. */
