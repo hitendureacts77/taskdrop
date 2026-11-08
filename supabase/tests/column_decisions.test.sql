@@ -33,7 +33,7 @@ declare
     'started_at', 'work_done_at', 'auto_complete_at', 'completed_at', 'clear_at', 'created_at', 'updated_at',
     'cleared_at', 'funded_at', 'category', 'skills', 'difficulty', 'assignment_mode', 'due_at', 'milestones', 'kind',
     'topup_pct', 'flash_until', 'live_answer', 'crew_id', 'crew_size', 'crew_slot', 'repeat_every', 'repeated_from',
-    'preferred_until', 'want_photos', 'photos_public'];
+    'preferred_until', 'want_photos', 'photos_public', 'hunt_until', 'hunt_window', 'hunt_needs'];
   -- tasks: the poster and the hired worker only.
   v_tasks_parties text[] := array[
     'funded_minor', 'funded_credits_minor', 'funded_via', 'funding_payment_id',

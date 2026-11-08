@@ -37,7 +37,7 @@ export const ACCOUNT_WRITES: ReadonlySet<string> = new Set([
   'replyTicket', 'reportContent', 'requestRevision', 'requestWithdrawal', 'resolveTicket', 'sendCrewMessage', 'sendFeedback',
   'sendMessage', 'setDefaultPayoutDestination', 'setRepeat', 'setSaved', 'setWeeklyGoal', 'startPromotion', 'startTask',
   'submitProof', 'submitReview', 'unblockUser', 'updateBid', 'updateListing', 'updateProfile', 'updateProfileExtras',
-  'voteFeedbackIdea',
+  'voteFeedbackIdea', 'huntLook', 'huntSendFind', 'huntAcceptFind', 'huntDeclineFind', 'huntAskPart',
 ]);
 
 /** Writes the app makes on its own (presence, ad counters, devices): signed out they simply do not happen. */

@@ -22,7 +22,7 @@ declare
     'benchmark_minor', 'time_limit_minutes', 'flag', 'status', 'assignment_mode', 'due_at',
     'media_kind', 'media_path', 'media_seconds', 'loc_lat', 'loc_lng', 'loc_label',
     'milestones', 'topup_pct', 'flash_until', 'live_answer', 'crew_id', 'crew_size', 'crew_slot',
-    'repeat_every', 'want_photos', 'photos_public', 'created_at', 'updated_at'];
+    'repeat_every', 'want_photos', 'photos_public', 'created_at', 'updated_at', 'hunt_until', 'hunt_window', 'hunt_needs'];
   -- Reviewed and never shown to a guest: money, hiring and the job's progress.
   v_never text[] := array[
     'funding_payment_id', 'funded_at', 'funded_via', 'funded_minor', 'funded_credits_minor', 'wallet_refunded_at',

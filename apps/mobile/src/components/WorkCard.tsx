@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import type { TaskWithPoster } from '../data/api';
@@ -12,6 +12,9 @@ import { roughPlace } from '../lib/place';
 import { cardSurface } from './ui';
 import { TopUpBadge } from './TopUpBadge';
 import { OptionBadges } from './OptionBadges';
+import { HuntTag } from './HuntTag';
+import { huntLook } from '../data/api';
+import { isHunt } from '../lib/hunt';
 import { fontFamilyFor } from '../theme';
 
 const CATEGORY_ICON: Record<string, IconName> = {
@@ -68,6 +71,21 @@ export const WorkCard = memo(function WorkCard({
   const rating =
     task.poster && task.poster.poster_rating_count > 0 ? Number(task.poster.poster_rating_avg).toFixed(1) : null;
   const live = task.flag === 'urgent';
+  // City Hunt (D19): a gold tag, the time left to find it, and I'm looking instead of Apply.
+  const hunt = isHunt(task);
+  const [looking, setLooking] = useState(false);
+  const lookThenOpen = async () => {
+    if (looking) return;
+    setLooking(true);
+    try {
+      await huntLook(task.id);
+    } catch {
+      /* the task page says why, and still lets them send a find */
+    } finally {
+      setLooking(false);
+      onOpen();
+    }
+  };
   const presence = presenceOf(task.poster?.last_seen_at);
 
   return (
@@ -104,7 +122,11 @@ export const WorkCard = memo(function WorkCard({
             <RNText style={tx('600', 11, t.colors.muted)} numberOfLines={1}>
               {categoryLabel(task)}
             </RNText>
-            <Badge label={task.assignment_mode === 'auto' ? 'Auto-hire' : 'Offer'} tone={task.assignment_mode === 'auto' ? 'accent' : 'neutral'} />
+            {hunt ? (
+              <HuntTag task={task} />
+            ) : (
+              <Badge label={task.assignment_mode === 'auto' ? 'Auto-hire' : 'Offer'} tone={task.assignment_mode === 'auto' ? 'accent' : 'neutral'} />
+            )}
             {task.difficulty ? <Badge label={task.difficulty} tone="blue" /> : null}
             {live ? <Badge label="Urgent" tone="signal" /> : null}
             <OptionBadges task={task} />
@@ -131,7 +153,7 @@ export const WorkCard = memo(function WorkCard({
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 9 }}>
             <RNText style={tx('800', 17, t.colors.accentDeep, { fontVariant: ['tabular-nums'], letterSpacing: -0.3 })}>{rupees(task.benchmark_minor / 100)}</RNText>
             <TopUpBadge pct={task.topup_pct} compact />
-            {left ? (
+            {left && !hunt ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                 <Icon name="clock" size={12} color={left === 'overdue' ? t.colors.signal : t.colors.gold} strokeWidth={2} />
                 <RNText style={tx('600', 11, left === 'overdue' ? t.colors.signal : t.colors.goldInk)}>{left}</RNText>
@@ -165,11 +187,11 @@ export const WorkCard = memo(function WorkCard({
               {rating ? ` · ★ ${rating}` : ''} · posted {timeAgo(task.created_at)}
             </RNText>
             <Pressy
-              onPress={onApply}
-              label={`Apply for ${task.title}`}
+              onPress={hunt ? () => void lookThenOpen() : onApply}
+              label={hunt ? `I’m looking for ${task.title}` : `Apply for ${task.title}`}
               style={{ backgroundColor: t.colors.btn, borderRadius: 999, height: 32, justifyContent: 'center', paddingHorizontal: 16 }}
             >
-              <RNText style={tx('700', 12, t.colors.onBtn)}>Apply</RNText>
+              <RNText style={tx('700', 12, t.colors.onBtn)}>{hunt ? 'I’m looking' : 'Apply'}</RNText>
             </Pressy>
           </View>
         </View>

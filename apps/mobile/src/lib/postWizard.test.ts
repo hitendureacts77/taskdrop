@@ -50,7 +50,7 @@ function snap(over: Partial<WizardSnapshot> = {}): WizardSnapshot {
     place: { label: 'Indiranagar, Bengaluru', lat: 12.97, lng: 77.64 },
     placeSource: 'home',
     remote: false,
-    opts: { flash: false, liveAnswer: false, crewSize: 0, repeat: 'week', preferWorker: null, wantPhotos: true, photosPublic: false },
+    opts: { flash: false, liveAnswer: false, crewSize: 0, repeat: 'week', preferWorker: null, wantPhotos: true, photosPublic: false, hunt: null },
     draftId: null,
     submitAfterAuth: true,
     ...over,
@@ -61,6 +61,13 @@ test('a snapshot survives a JSON round trip unchanged', () => {
   const s = snap();
   assert.deepEqual(validateSnapshot(JSON.parse(JSON.stringify(s))), s);
   assert.deepEqual(validateSnapshot(JSON.stringify(s)), s);
+});
+
+test('a Hunt choice survives the round trip, and an older snapshot without one reads as off', () => {
+  const hunted = snap({ opts: { ...snap().opts, repeat: null, hunt: { window: 'today', needs: ['photo', 'place'] } } });
+  assert.deepEqual(validateSnapshot(JSON.stringify(hunted)), hunted);
+  const { hunt: _hunt, ...older } = snap().opts;
+  assert.equal(validateSnapshot({ ...snap(), opts: older })?.opts.hunt, null);
 });
 
 test('a wrong version or a bad shape is refused', () => {
@@ -77,6 +84,8 @@ test('a wrong version or a bad shape is refused', () => {
   // Media is a bucket path only, never a link.
   assert.equal(validateSnapshot({ ...snap(), media: { kind: 'image', path: 'https://x.test/a.jpg' } }), null);
   assert.equal(validateSnapshot({ ...snap(), opts: { ...snap().opts, repeat: 'daily' } }), null);
+  assert.equal(validateSnapshot({ ...snap(), opts: { ...snap().opts, hunt: { window: '1w', needs: ['photo'] } } }), null);
+  assert.equal(validateSnapshot({ ...snap(), opts: { ...snap().opts, hunt: { window: '2h', needs: [] } } }), null);
 });
 
 test('older than a week is stale', () => {

@@ -71,3 +71,15 @@ test('reviewSchema enforces a 1–5 rating', () => {
   assert.equal(reviewSchema.safeParse({ ...base, rating: 6 }).success, false);
   assert.equal(reviewSchema.safeParse({ ...base, rating: 0 }).success, false);
 });
+
+test('a Hunt find needs at least one proof, and a pin needs both coordinates', async () => {
+  const { huntFindSchema, huntOptionsSchema } = await import('./index.ts');
+  const id = '22222222-2222-4222-8222-222222222222';
+  assert.equal(huntFindSchema.safeParse({ taskId: id, placeName: 'Apollo Pharmacy' }).success, true);
+  assert.equal(huntFindSchema.safeParse({ taskId: id }).success, false);
+  assert.equal(huntFindSchema.safeParse({ taskId: id, lat: 17.4 }).success, false);
+  assert.equal(huntFindSchema.safeParse({ taskId: id, lat: 17.4, lng: 78.3 }).success, true);
+  assert.equal(huntOptionsSchema.safeParse({ huntWindow: '2h', huntNeeds: ['photo', 'place'] }).success, true);
+  assert.equal(huntOptionsSchema.safeParse({ huntWindow: '1w', huntNeeds: ['photo'] }).success, false);
+  assert.equal(huntOptionsSchema.safeParse({ huntWindow: 'today', huntNeeds: [] }).success, false);
+});

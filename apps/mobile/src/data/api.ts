@@ -6,7 +6,7 @@ import { FUNCTIONS_REGION, currentUserId, supabase } from '../lib/supabase';
 import { subscribeLive } from '../lib/live';
 import { count, log } from '../lib/monitoring';
 import { noteChange, reusePublic, reuseWhileFresh } from '../lib/freshness';
-import type { Tables, Enums } from '@taskdrop/db-types';
+import type { Database, Tables, Enums } from '@taskdrop/db-types';
 
 /**
  * Every read and write the app performs, by name.
@@ -338,6 +338,9 @@ export type PosterOptionsInput = {
   wantPhotos?: boolean;
   /** Let the helper show the photos on their profile. */
   photosPublic?: boolean;
+  /** City Hunt (migration 158): how long it runs, and what a find must show. The reward is the price. */
+  huntWindow?: '2h' | 'today' | '3d';
+  huntNeeds?: ('photo' | 'place' | 'pin' | 'price')[];
 };
 
 export async function createTask(input: NewTask): Promise<Task> {
@@ -797,3 +800,33 @@ export type Streaks = {
 export const myStreaks = () => act<Streaks>('myStreaks');
 export const setWeeklyGoal = (goalMinor: number | null) =>
   act<{ weekly_goal_minor: number | null }>('setWeeklyGoal', { goalMinor });
+
+// ------------------------------------------------------------ City Hunt ----
+// Migration 158. Every rule (who may look or send, the 3-find cap, the time
+// limit, what stays locked until accepted) and every rupee is decided in SQL.
+
+/** One find as its reader may see it: the locked fields are null until the poster accepts it (or it is your own). */
+export type HuntFind = Database['public']['Functions']['hunt_finds_for_task']['Returns'][number];
+export type HuntCounts = Database['public']['Functions']['hunt_counts']['Returns'][number];
+
+export const huntFinds = (taskId: string) => act<HuntFind[]>('huntFinds', { taskId });
+export const huntCounts = (taskIds: string[]) =>
+  taskIds.length ? quietly<HuntCounts[]>('huntCounts', { taskIds: taskIds.slice(0, 100) }, []) : Promise.resolve([] as HuntCounts[]);
+export const huntLook = (taskId: string) =>
+  act<{ taskId: string; lookers: number; finds: number; looking: boolean }>('huntLook', { taskId });
+export const huntSendFind = (input: {
+  taskId: string;
+  photoPath: string | null;
+  placeName: string | null;
+  lat: number | null;
+  lng: number | null;
+  priceNote: string | null;
+  note: string | null;
+}) => act<Tables<'hunt_finds'>>('huntSendFind', input);
+/** "This is it": pays the finder. A short wallet throws WalletShortError with exactly what is missing. */
+export const huntAcceptFind = (findId: string) =>
+  act<{ taskId: string; findId: string; status: string; paidMinor: number | null }>('huntAcceptFind', { findId });
+export const huntDeclineFind = (findId: string, reason: 'not_it' | 'gone' | 'too_far' | 'other') =>
+  act<{ findId: string; status: string }>('huntDeclineFind', { findId, reason });
+export const huntAskPart = (findId: string, part: 'photo' | 'place' | 'pin' | 'price') =>
+  act<{ findId: string; askedPart: string }>('huntAskPart', { findId, part });

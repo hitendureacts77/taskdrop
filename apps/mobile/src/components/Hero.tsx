@@ -13,10 +13,12 @@ import { Drop, Ripples } from './Ripples';
 let gradientSeq = 0;
 
 /** A hero in a fixed side's colour, whatever mode the viewer is in. */
-export type HeroTone = 'mode' | 'hire' | 'earn';
+export type HeroTone = 'mode' | 'hire' | 'earn' | 'hunt';
 const STOPS = {
   hire: { light: ['#0D8A6F', '#0A6F58', '#064A3B'], dark: ['#0E8F72', '#0B5E4B', '#06372C'] },
   earn: { light: ['#4069F2', '#2F5BEA', '#1A3BA8'], dark: ['#3A62E8', '#2547BD', '#152C7A'] },
+  // City Hunt (D19): gold, deep enough under white text in both themes (#8A5A12 is 6:1 with white).
+  hunt: { light: ['#B9802F', '#8A5A12', '#5A3A0A'], dark: ['#B9802F', '#7A5218', '#3E2A0C'] },
 } as const;
 
 export function heroStops(t: ReturnType<typeof useTheme>, tone: HeroTone): readonly [string, string, string] {
@@ -66,6 +68,7 @@ export function HeroCard({
   rings = true,
   watermark = true,
   ringSize = 240,
+  tone = 'mode',
 }: {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -74,8 +77,11 @@ export function HeroCard({
   rings?: boolean;
   watermark?: boolean;
   ringSize?: number;
+  /** A fixed side's colour, or gold for a Hunt; the viewer's mode when not said. */
+  tone?: HeroTone;
 }) {
   const t = useTheme();
+  const mid = heroStops(t, tone)[1];
   return (
     <View
       style={[
@@ -83,8 +89,8 @@ export function HeroCard({
           borderRadius: radius,
           padding,
           overflow: 'hidden',
-          backgroundColor: t.colors.heroMid,
-          shadowColor: t.colors.heroMid,
+          backgroundColor: mid,
+          shadowColor: mid,
           shadowOpacity: t.isDark ? 0 : 0.35,
           shadowRadius: 26,
           shadowOffset: { width: 0, height: 16 },
@@ -93,7 +99,7 @@ export function HeroCard({
         style,
       ]}
     >
-      <HeroBackground radius={radius} />
+      <HeroBackground radius={radius} tone={tone} />
       {rings ? (
         <View
           pointerEvents="none"
@@ -112,7 +118,7 @@ export function HeroCard({
       ) : null}
       {watermark ? (
         <View pointerEvents="none" style={{ position: 'absolute', right: -14, bottom: -18, opacity: 0.12 }}>
-          <Drop size={130} fill="#FFFFFF" tick={t.colors.heroMid} />
+          <Drop size={130} fill="#FFFFFF" tick={mid} />
         </View>
       ) : null}
       {children}

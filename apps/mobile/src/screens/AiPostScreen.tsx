@@ -27,7 +27,8 @@ import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { useMode } from '../providers/ModeProvider';
 import { createTask, getProfile, getWallet, myRegulars, type Regular, type Task } from '../data/api';
-import { NO_OPTIONS, PosterOptionsStep, optionsSummary, type PosterOptions } from '../components/PosterOptionsStep';
+import { NO_OPTIONS, PosterOptionsStep, huntOn, optionsSummary, type PosterOptions } from '../components/PosterOptionsStep';
+import { needsFor } from '../lib/hunt';
 import { crewShareMinor, looksLikePlaceQuestion, suggestOptions } from '../lib/posterOptions';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { SafetyCardSheet } from '../components/SafetyCardSheet';
@@ -236,10 +237,14 @@ export function AiPostScreen() {
   // Options: all off until the poster switches one on. "Book again" from the
   // Regulars screen arrives with that person already chosen.
   const preferParam = params.preferWorker as { id?: unknown; name?: unknown } | undefined;
+  // "Find it for me" on Home opens the writer with the Hunt already on (City Hunt, D19); nothing
+  // else switches an option on without a tap.
   const [opts, setOpts] = useState<PosterOptions>(() =>
     typeof preferParam?.id === 'string' && typeof preferParam.name === 'string'
       ? { ...NO_OPTIONS, preferWorker: { id: preferParam.id, name: preferParam.name } }
-      : NO_OPTIONS,
+      : params.hunt === true
+        ? huntOn(NO_OPTIONS, false)
+        : NO_OPTIONS,
   );
   // People hired before, to pick from when "Book again" chose one.
   const [regulars, setRegulars] = useState<Regular[]>([]);
@@ -605,6 +610,11 @@ export function AiPostScreen() {
     modeBeforeFlash.current = null;
   };
   const changeOptions = (next: PosterOptions) => {
+    // A Hunt takes finds, not offers, so it never uses Auto-hire.
+    if (next.hunt && !opts.hunt && mode === 'auto') {
+      modeBeforeFlash.current = null;
+      setAssign('bids');
+    }
     if (next.flash && !opts.flash) {
       modeBeforeFlash.current = mode;
       setAssign('auto');
@@ -620,13 +630,26 @@ export function AiPostScreen() {
       setOpts((o) => ({ ...o, flash: false }));
       flash('Flash Drop is off: it needs Auto-hire');
     }
+    if (next === 'auto' && opts.hunt) {
+      setOpts((o) => ({ ...o, hunt: null }));
+      flash('Hunt is off: a Hunt takes finds, not offers');
+    }
   };
 
   // Work done remotely cannot use the options tied to a place.
   useEffect(() => {
     if (!remote) return;
     undoFlashMode();
-    setOpts((o) => ({ ...o, flash: false, liveAnswer: false, crewSize: 0, wantPhotos: false, photosPublic: false }));
+    // A Hunt works online too; only its pin goes.
+    setOpts((o) => ({
+      ...o,
+      flash: false,
+      liveAnswer: false,
+      crewSize: 0,
+      wantPhotos: false,
+      photosPublic: false,
+      hunt: o.hunt ? { ...o.hunt, needs: needsFor(o.hunt.needs, true) } : null,
+    }));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- undoFlashMode only reads a ref and a state setter
   }, [remote]);
 
@@ -706,6 +729,8 @@ export function AiPostScreen() {
         preferWorkerId: opts.preferWorker?.id,
         wantPhotos: opts.wantPhotos || undefined,
         photosPublic: (opts.wantPhotos && opts.photosPublic) || undefined,
+        huntWindow: opts.hunt?.window,
+        huntNeeds: opts.hunt ? needsFor(opts.hunt.needs, remote) : undefined,
       });
       if (draftId && draftOwner) void removeDraft(draftOwner, draftId);
       // Posted from a big-day plan (screens/BigDayScreen): the plan's line remembers this task.

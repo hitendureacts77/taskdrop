@@ -11,7 +11,7 @@
  * The keys stay so "Book again" and older tasks keep working.
  */
 
-export type OptionKey = 'flash' | 'crew' | 'regular' | 'repeat' | 'photos' | 'liveAnswer';
+export type OptionKey = 'flash' | 'crew' | 'regular' | 'repeat' | 'photos' | 'liveAnswer' | 'hunt';
 
 export type Suggestion = { key: OptionKey; reason: string };
 
@@ -30,12 +30,28 @@ const CREW = /\b(shift(?:ing)?|mov(?:e|ing)|relocat\w*|packers?|movers?|event|pa
 
 const quoted = (m: RegExpMatchArray | null) => (m ? `You said “${m[0].trim()}”` : '');
 
+const FIND_WORDS =
+  /\b(find(?:ing)?|in stock|lost|looking for|where can i (?:get|buy|find)|search(?:ing)? for|track down|hunt(?:ing)? for)\b/i;
+
+/**
+ * Whether what the poster wrote is a find job ("Find Lantus pens in stock near
+ * Kondapur", "Lost my cat", "Where can I get a 2016 Activa mirror"), and the
+ * words that made it one, for the reason shown with the suggestion.
+ */
+export function findWords(text: string): string | null {
+  const m = text.match(FIND_WORDS);
+  return m ? m[0] : null;
+}
+
 /**
  * The option worth suggesting for this task, if any. What the poster wrote
- * comes first (a crew job), then the When step ("Now" → Flash Drop).
+ * comes first (a find job, then a crew job), then the When step ("Now" → Flash Drop).
  */
 export function suggestOptions(i: SuggestInput): Suggestion[] {
   const out: Suggestion[] = [];
+  // A find job (find, in stock, lost, looking for...): many people can look at once (City Hunt, D19).
+  const find = findWords(i.text);
+  if (find) out.push({ key: 'hunt', reason: `You said “${find.trim()}”. A Hunt lets many people look at once` });
   const crew = i.remote ? null : i.text.match(CREW);
   if (crew) out.push({ key: 'crew', reason: quoted(crew) });
   if (i.whenNow && !i.remote) out.push({ key: 'flash', reason: 'You picked “Now” on the When step' });

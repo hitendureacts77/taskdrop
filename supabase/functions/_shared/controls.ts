@@ -89,6 +89,8 @@ const OP_FEATURE: Record<string, Feature> = {
   createTask: "posting",
   placeBid: "bidding",
   updateBid: "bidding",
+  // A find is a Hunt's offer.
+  huntSendFind: "bidding",
   requestWithdrawal: "withdrawals",
   startPromotion: "promotions",
 };
@@ -109,7 +111,7 @@ export type Refusal = {
 };
 
 /** The operations that need a confirmed phone while `require_phone_verified` is on. */
-const PHONE_OPS = new Set(["createTask", "placeBid", "updateBid", "requestWithdrawal"]);
+const PHONE_OPS = new Set(["createTask", "placeBid", "updateBid", "huntSendFind", "requestWithdrawal"]);
 export const PHONE_REQUIRED_MESSAGE = "Please confirm your phone number first. You can do it in Settings.";
 
 /** What the api knows about the caller, beyond the switches. */

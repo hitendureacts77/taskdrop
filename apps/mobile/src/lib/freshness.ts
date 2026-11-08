@@ -37,6 +37,8 @@ export const NEVER_REUSE: ReadonlySet<string> = new Set([
   'getTask', 'getTaskDetail', 'canQuoteOn', 'getMyBid', 'listBidsForTask', 'listMyBids', 'getProof',
   // chat and contacts
   'listMessages', 'listThreads', 'listCrewMessages', 'taskContactPhone', 'getNotification',
+  // City Hunt finds: what unlocks, and whether a find was accepted (money)
+  'huntFinds',
   // account state and admin numbers
   'accountDeletionCheck', 'ageStatus', 'isAdmin', 'platformStats',
 ]);
@@ -56,7 +58,7 @@ export const PER_PERSON_REUSE: ReadonlySet<string> = new Set([
   // people and profiles
   'listBlockedUsers', 'getProfile', 'usernameAvailable', 'listActiveWorkers', 'workersNear',
   'workerServices', 'listReviewsAbout', 'publicProfileStats', 'crewOverview', 'workerProofPhotos',
-  'myStreaks', 'myRegulars', 'countMyReferrals',
+  'myStreaks', 'myRegulars', 'countMyReferrals', 'huntCounts',
   // disputes, support, feedback
   'listMyDisputes', 'listDisputeReasons', 'listTickets', 'getTicket', 'listFeedbackBoard', 'getFeedbackPost',
   // counts and notifications

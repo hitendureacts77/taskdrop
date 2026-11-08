@@ -44,7 +44,7 @@ What this does **not** change: database grants and row rules. The old app still 
 
 A person's **own** profile read adds only `referral_code` and `weekly_goal_minor`. The sign-out fields and `payout_upi` are in no `api` answer at all.
 
-## tasks (51 columns; open posts are readable by everyone, the rest by the poster, the hired worker and anyone who made an offer)
+## tasks (54 columns; open posts are readable by everyone, the rest by the poster, the hired worker and anyone who made an offer)
 
 | Column | Level | Why |
 |---|---|---|
@@ -58,6 +58,7 @@ A person's **own** profile read adds only `referral_code` and `weekly_goal_minor
 | crew_id, crew_size, crew_slot | public | Crew jobs show their slots. |
 | repeat_every, repeated_from | public | "Posted again by itself" is shown on the post. |
 | preferred_until | public | The "asked a regular first" badge. |
+| hunt_until, hunt_window, hunt_needs | public | City Hunt (migration 158): when the Hunt ends and what a find must show, shown on the card (guests too). The finds themselves are in `hunt_finds`: the finder only, and the poster through `hunt_finds_for_task()`, masked until accepted. |
 | funded_at | public | When payment was held. The app shows "payment held" on screens; it is a time, not an amount. |
 | started_at, work_done_at, auto_complete_at, completed_at, clear_at, cleared_at | public | Progress times, shown on the task's timeline. |
 | created_at, updated_at | public | When posted and changed. |
