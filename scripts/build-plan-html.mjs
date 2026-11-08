@@ -88,11 +88,33 @@ function convert(md) {
       const rows = [];
       while (i < lines.length && lines[i].trim().startsWith('|')) rows.push(lines[i++]);
       const cells = (r) => r.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
-      const head = cells(rows[0]).map((c) => `<th>${inline(c)}</th>`).join('');
+      const headCells = cells(rows[0]);
+      // A table whose headers carry "(staging)" and "(production)" is drawn as two colour-coded
+      // sides, row by row: staging on the left, production on the right.
+      const stgCols = headCells.map((c, n) => (/\(staging\)/i.test(c) ? n : -1)).filter((n) => n >= 0);
+      const prdCols = headCells.map((c, n) => (/\(production\)/i.test(c) ? n : -1)).filter((n) => n >= 0);
+      if (stgCols.length && prdCols.length) {
+        const label = (c) => c.replace(/\s*\((staging|production)\)/i, '');
+        const sharedCols = headCells.map((_, n) => n).filter((n) => !stgCols.includes(n) && !prdCols.includes(n));
+        const side = (cs, cls) => `<div class="cmp-side ${cls}"><dl>${cs.map((n) => `<dt>${inline(label(headCells[n]))}</dt><dd>${cs.vals[n] ? inline(cs.vals[n]) : '<span class="none">none</span>'}</dd>`).join('')}</dl></div>`;
+        const cardsHtml = rows.slice(2).map((r) => {
+          const v = cells(r);
+          const stg = Object.assign([...stgCols], { vals: v });
+          const prd = Object.assign([...prdCols], { vals: v });
+          const name = v[sharedCols[0]] || '';
+          const extra = sharedCols.slice(1).map((n) => (v[n] ? `<span class="cmp-x"><i>${inline(headCells[n])}</i> ${inline(v[n])}</span>` : '')).join('');
+          return `<div class="cmp-row"><div class="cmp-tool"><span class="cmp-name">${inline(name)}</span>${extra}</div>${side(stg, 'stg')}${side(prd, 'prd')}</div>`;
+        }).join('');
+        out.push(`<div class="cmp"><div class="cmp-head"><div class="cmp-h stg"><b>STAGING</b> the test copy: fake money, fake data, testers only</div><div class="cmp-h prd"><b>PRODUCTION</b> the real copy: real money, real customers</div></div>${cardsHtml}</div>`);
+        continue;
+      }
+      const head = headCells.map((c) => `<th>${inline(c)}</th>`).join('');
       const body = rows.slice(2).map((r) => `<tr>${cells(r).map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`).join('');
-      // Tables with 6+ columns break out of the reading column so they fit without sideways scrolling.
-      const wide = cells(rows[0]).length >= 6;
-      out.push(`<div class="tablewrap${wide ? ' wide' : ''}"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`);
+      // Tables with 6+ columns keep a minimum width and scroll sideways only on narrow screens.
+      const wide = headCells.length >= 6;
+      // Two-sided tables ("Staging ... | Production ...") get colour-coded columns.
+      const sp = headCells.length >= 3 && /staging/i.test(headCells[1]) && /production/i.test(headCells[2]);
+      out.push(`<div class="tablewrap${wide ? ' wide' : ''}${sp ? ' sp' : ''}"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`);
       continue;
     }
 
@@ -177,7 +199,7 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 syste
 a { color: var(--blue); overflow-wrap: break-word; }
 code { background: var(--code); padding: 1px 6px; border-radius: 6px; font-size: .88em; word-break: break-word; }
 .bar-top { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
-.bar-inner { max-width: 960px; margin: 0 auto; padding: 10px 16px; display: grid; gap: 8px; }
+.bar-inner { max-width: none; margin: 0 auto; padding: 10px clamp(16px, 2.2vw, 48px); display: grid; gap: 8px; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
 .brand { font-weight: 800; font-size: 1.05rem; letter-spacing: -.01em; }
 .brand .dot { color: var(--jade); }
@@ -193,7 +215,7 @@ code { background: var(--code); padding: 1px 6px; border-radius: 6px; font-size:
 .nav { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
 .nav a { white-space: nowrap; text-decoration: none; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 99px; padding: 3px 10px; font-size: .8rem; }
 .nav a span { color: var(--muted); margin-left: 4px; }
-main { max-width: 960px; margin: 0 auto; padding: 8px 16px 80px; }
+main { max-width: none; margin: 0 auto; padding: 8px clamp(16px, 2.2vw, 48px) 80px; }
 h1 { font-size: 1.9rem; letter-spacing: -.02em; margin: 24px 0 8px; }
 h2 { font-size: 1.35rem; margin: 40px 0 10px; padding-top: 12px; border-top: 2px solid var(--line); display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 h2 .count { font-size: .8rem; font-weight: 600; color: var(--jade-deep); background: var(--jade-soft); padding: 2px 10px; border-radius: 99px; }
@@ -201,10 +223,50 @@ h2.paper { border-top-color: var(--gold); }
 h3 { font-size: 1.05rem; margin: 18px 0 6px; }
 hr { display: none; }
 .tablewrap { overflow-x: auto; margin: 10px 0; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
-.tablewrap.wide { overflow-x: visible; width: min(96vw, 1760px); margin-left: 50%; transform: translateX(-50%); }
-.tablewrap.wide table { font-size: .86rem; }
-.tablewrap.wide td:nth-child(3) { white-space: nowrap; }
-@media (max-width: 1000px) { .tablewrap.wide { overflow-x: auto; width: auto; margin-left: 0; transform: none; } .tablewrap.wide table { min-width: 1000px; } }
+.tablewrap.wide table { font-size: .88rem; min-width: 1100px; }
+/* Two-sided tables: staging column gold, production column jade */
+.tablewrap.sp th:nth-child(2), .tablewrap.sp td:nth-child(2) { background: color-mix(in srgb, var(--gold-soft) 55%, transparent); border-left: 3px solid var(--gold); }
+.tablewrap.sp th:nth-child(3), .tablewrap.sp td:nth-child(3) { background: color-mix(in srgb, var(--jade-soft) 55%, transparent); border-left: 3px solid var(--jade); }
+.tablewrap.sp th:nth-child(2) { color: var(--gold); font-size: .9rem; font-weight: 800; }
+.tablewrap.sp th:nth-child(3) { color: var(--jade-deep); font-size: .9rem; font-weight: 800; }
+.tablewrap.sp td:first-child { font-weight: 700; white-space: nowrap; }
+/* Side-by-side comparison, row by row (built from a table with (staging) and (production) headers) */
+.cmp { margin: 12px 0; }
+.cmp-head { position: sticky; top: var(--bar-h, 150px); z-index: 5; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 6px 0; background: var(--bg); }
+.cmp-h { border-radius: 12px; padding: 10px 14px; font-size: .95rem; border: 2px solid; }
+.cmp-h b { font-size: 1.15rem; letter-spacing: .05em; margin-right: 8px; }
+.cmp-h.stg { background: var(--gold-soft); border-color: var(--gold); color: var(--gold); }
+.cmp-h.prd { background: var(--jade-soft); border-color: var(--jade); color: var(--jade-deep); }
+.cmp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; margin: 0 0 14px; }
+.cmp-tool { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: baseline; background: var(--ink); color: var(--bg); border-radius: 10px 10px 0 0; padding: 7px 14px; }
+.cmp-name { font-weight: 800; font-size: 1.05rem; }
+.cmp-x { font-size: .84rem; opacity: .9; }
+.cmp-x i { font-style: normal; opacity: .65; margin-right: 4px; }
+.cmp-tool a { color: inherit; }
+.cmp-side { padding: 10px 14px; border: 2px solid; border-top: 0; background: var(--card); }
+.cmp-side.stg { border-color: var(--gold); border-left-width: 8px; border-radius: 0 0 0 12px; background: color-mix(in srgb, var(--gold-soft) 45%, var(--card)); }
+.cmp-side.prd { border-color: var(--jade); border-left-width: 8px; border-radius: 0 0 12px 0; background: color-mix(in srgb, var(--jade-soft) 45%, var(--card)); }
+.cmp-side dl { margin: 0; display: grid; grid-template-columns: 8.5em 1fr; gap: 6px 10px; }
+.cmp-side dt { color: var(--muted); font-size: .76rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding-top: 2px; }
+.cmp-side dd { margin: 0; font-size: .9rem; overflow-wrap: anywhere; }
+.cmp-side .none { color: var(--muted); font-style: italic; }
+@media (max-width: 900px) {
+  .cmp-head { grid-template-columns: 1fr; position: static; }
+  .cmp-row { grid-template-columns: 1fr; }
+  .cmp-side.stg { border-radius: 0; }
+  .cmp-side.prd { border-radius: 0 0 12px 12px; margin-top: 0; }
+  .cmp-side dl { grid-template-columns: 1fr; gap: 0; } .cmp-side dd { margin-bottom: 6px; }
+}
+/* Two maps drawn next to each other: staging left, production right */
+.sbs { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; margin: 12px 0; }
+.sbs-col { min-width: 0; border-radius: 16px; padding: 0 12px 12px; border: 3px solid; }
+.sbs-col.stg { border-color: var(--gold); background: color-mix(in srgb, var(--gold-soft) 28%, transparent); }
+.sbs-col.prd { border-color: var(--jade); background: color-mix(in srgb, var(--jade-soft) 28%, transparent); }
+.sbs-col > h3 { margin-top: 12px; }
+.sbs-col .am-cards { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+@media (max-width: 1100px) { .sbs { grid-template-columns: 1fr; } }
+.hint { flex: none; align-self: center; font-size: .72rem; font-weight: 700; color: var(--muted); border: 1px dashed var(--muted); border-radius: 99px; padding: 1px 9px; white-space: nowrap; }
+details[open] > summary .hint { display: none; }
 table { width: 100%; border-collapse: collapse; font-size: .92rem; }
 th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { background: var(--soft); font-size: .8rem; color: var(--muted); font-weight: 600; }
@@ -223,7 +285,8 @@ li.gate-item { list-style: none; margin-left: -24px; }
 li.gate-item label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; padding: 4px 6px; border-radius: 8px; }
 li.gate-item label:hover { background: var(--soft); }
 li.gate-item input { width: 18px; height: 18px; margin-top: 4px; accent-color: var(--coral); flex: none; }
-details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin: 10px 0; overflow: hidden; }
+details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin: 10px 0; }
+summary { border-radius: 14px; }
 details.done { opacity: .62; }
 details[open] { box-shadow: 0 4px 18px rgba(0,0,0,.06); }
 summary { list-style: none; cursor: pointer; padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start; }
@@ -399,11 +462,23 @@ const JS = `
     ttl.className = 'ttl';
     ttl.innerHTML = rest;
     s.appendChild(ttl);
+    var hint = document.createElement('span');
+    hint.className = 'hint';
+    hint.textContent = 'collapsed: click to open';
+    s.appendChild(hint);
     var chev = document.createElement('span');
     chev.className = 'chev';
     chev.textContent = '\\u25B8';
     s.appendChild(chev);
+    // Reference cards are shown open, so nothing important hides behind a click.
+    if (role === 'CARD') d.open = true;
   });
+
+  // The comparison header sticks just under the top bar, whatever its height.
+  var barTop = document.querySelector('.bar-top');
+  function setBarHeight() { document.documentElement.style.setProperty('--bar-h', barTop.offsetHeight + 'px'); }
+  setBarHeight();
+  window.addEventListener('resize', setBarHeight);
 
   // Gate ticks.
   Array.prototype.forEach.call(main.querySelectorAll('li.gate-item input'), function (cb, n) {
