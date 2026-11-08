@@ -1,0 +1,26 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-11-08T13:10:00Z" },
+  "title": "Map feel and smart panel D21",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1440, "h": 900, "title": "Desktop map: scroll or pinch to zoom, smart panel, no scroll bars" },
+    "ZoomStory.dc.html": { "x": 0, "y": 1243, "w": 1440, "h": 560, "title": "Motion: zooming out like Google Maps (never a blank screen)" },
+    "ListDesktop.dc.html": { "x": 0, "y": 2146, "w": 1440, "h": 1000, "title": "List view: no empty box, one List/Map switch, even cards" },
+    "PhoneMap.dc.html": { "x": 0, "y": 3489, "w": 390, "h": 844, "title": "Phone web: map, sheet resting low" },
+    "PhoneSheet.dc.html": { "x": 470, "y": 3489, "w": 390, "h": 844, "title": "Phone web: sheet pulled up, no scroll bar" },
+    "PhoneList.dc.html": { "x": 940, "y": 3489, "w": 390, "h": 844, "title": "Phone web: list view top" }
+  },
+  "order": ["Main.dc.html", "ZoomStory.dc.html", "ListDesktop.dc.html", "PhoneMap.dc.html", "PhoneSheet.dc.html", "PhoneList.dc.html"],
+  "notes": {
+    "t1": { "x": 0, "y": -300, "text": "D21 map feel: desktop (Earn mode, dark)", "kind": "title1", "maxW": 1840 },
+    "t2": { "x": 0, "y": 943, "text": "D21 zoom motion", "kind": "title1", "maxW": 1840 },
+    "t3": { "x": 0, "y": 1846, "text": "D21 Explore list", "kind": "title1", "maxW": 1840 },
+    "t4": { "x": 0, "y": 3189, "text": "D21 phone browser", "kind": "title1", "maxW": 1840 },
+    "s1": { "x": 1520, "y": 0, "w": 340, "text": "From your 8 Nov video:\n\n1. Scroll wheel, trackpad pinch and double-click zoom the MAP (today they zoom the whole browser page).\n2. Zoom is smooth; the old map stays on screen while the new one loads, so it never goes blank.\n3. The map stays on India; you cannot drift to America.\n4. Results refresh by themselves when you stop moving. \"Search this area\" and the top km bar are gone.\n5. + and − stay as two small buttons at the bottom right (for people without a mouse wheel), like Google Maps.\n6. The panel: one big hero card, everything fits, no scroll bar.\n\nAll names, prices and areas are sample data.", "fill": "blue", "size": "m" },
+    "s2": { "x": 1520, "y": 2146, "w": 340, "text": "List view changes:\n\n1. The empty grey \"Jobs near you\" box is gone. With an area: a short live map strip. Without one: a one-line \"Set your area\" card.\n2. One List/Map switch (today there are two Map buttons).\n3. Cards: same height, title in 2 lines, at most 2 tags, price and Apply on one line.\n4. Filter chips slide sideways with no scroll bar.\n\nEvery filter, tab and category stays.", "fill": "green", "size": "m" },
+    "s3": { "x": 1410, "y": 3489, "w": 340, "text": "Phone browser: pinch to zoom the map, two fingers never zoom the page. The Android app already uses Google Maps and keeps it; only the Expo Go fallback changes.\n\nThe sheet grows by dragging its handle; inside it the list scrolls with no bar.", "fill": "gray", "size": "m" }
+  },
+  "designSystems": []
+}

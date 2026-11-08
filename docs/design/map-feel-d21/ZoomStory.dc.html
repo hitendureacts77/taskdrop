@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Zoom motion, D21</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#8FA8FF}a:hover{color:#B7C7FF}
+</style>
+</helmet>
+<div style="width: 1440px; height: 560px; box-sizing: border-box; padding: 32px; background: #0E1012; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #F2F3F1; display: flex; flex-direction: column; gap: 20px">
+
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px">
+
+<figure style="margin: 0; display: flex; flex-direction: column; gap: 10px">
+<div style="height: 300px; border-radius: 18px; background: #1A1E22; border: 1px solid #2A2F34; position: relative; overflow: hidden">
+<svg aria-hidden="true" viewBox="0 0 320 300" style="position: absolute; inset: 0; width: 100%; height: 100%"><path d="M0 150 C100 140 200 170 320 140 M160 0 C170 100 150 200 175 300 M0 60 L320 80 M0 240 L320 220 M60 0 L80 300 M260 0 L250 300" stroke="#2D3339" stroke-width="8" fill="none"></path><path d="M0 110 L320 115 M0 195 L320 190 M115 0 L120 300 M215 0 L210 300" stroke="#24292E" stroke-width="3" fill="none"></path></svg>
+<div style="position: absolute; left: 70px; top: 70px; padding: 4px 9px; border-radius: 999px; background: #2FBF96; color: #06231A; font-size: 12px; font-weight: 800">₹2,000</div>
+<div style="position: absolute; left: 170px; top: 60px; padding: 4px 9px; border-radius: 999px; background: #F2F3F1; color: #0E1012; font-size: 12px; font-weight: 800">₹900</div>
+<div style="position: absolute; left: 60px; top: 170px; padding: 4px 9px; border-radius: 999px; background: #F2F3F1; color: #0E1012; font-size: 12px; font-weight: 800">₹750</div>
+<div style="position: absolute; left: 200px; top: 160px; padding: 4px 9px; border-radius: 999px; background: #F2F3F1; color: #0E1012; font-size: 12px; font-weight: 800">₹600</div>
+<div style="position: absolute; left: 130px; top: 240px; padding: 4px 9px; border-radius: 999px; background: #F2F3F1; color: #0E1012; font-size: 12px; font-weight: 800">₹400</div>
+<div style="position: absolute; left: 140px; top: 120px; width: 120px; height: 90px; border-radius: 50%; border: 1.5px dashed rgba(47,191,150,0.45)"></div>
+</div>
+<figcaption style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 0.6px; color: #57D1AE">1 · STREET (zoom 15)</span>
+<span style="font-size: 13px; font-weight: 600; color: #C9CDD2; line-height: 19px">Every job in an area has its own pin, spread round the area (D12). Tap a pin, the job card opens.</span>
+</figcaption>
+</figure>
+
+<figure style="margin: 0; display: flex; flex-direction: column; gap: 10px">
+<div style="height: 300px; border-radius: 18px; background: #1A1E22; border: 1px solid #2A2F34; position: relative; overflow: hidden">
+<svg aria-hidden="true" viewBox="0 0 320 300" style="position: absolute; inset: 0; width: 100%; height: 100%"><path d="M0 150 C100 140 200 170 320 140 M160 0 C170 100 150 200 175 300 M0 70 L320 90 M30 0 L60 300 M280 0 L270 300" stroke="#2D3339" stroke-width="5" fill="none"></path><path d="M0 110 L320 115 M0 220 L320 210 M110 0 L120 300 M215 0 L210 300 M0 40 L320 30 M0 260 L320 270" stroke="#24292E" stroke-width="2" fill="none"></path></svg>
+<div style="position: absolute; left: 120px; top: 120px; display: flex; flex-direction: column; align-items: center; gap: 3px">
+<div style="padding: 5px 10px; border-radius: 999px; background: #2FBF96; color: #06231A; font-size: 13px; font-weight: 800">₹2,000</div>
+<div style="padding: 2px 7px; border-radius: 7px; background: #0E1012; font-size: 10.5px; font-weight: 700">Financial District · 12</div>
+</div>
+<div style="position: absolute; left: 30px; top: 40px; display: flex; flex-direction: column; align-items: center; gap: 3px">
+<div style="padding: 4px 9px; border-radius: 999px; background: #F2F3F1; color: #0E1012; font-size: 12px; font-weight: 800">₹1,200</div>
+<div style="padding: 2px 7px; border-radius: 7px; background: #0E1012; font-size: 10.5px; font-weight: 700">Gachibowli · 2</div>
+</div>
+<div style="position: absolute; left: 220px; top: 210px; display: flex; flex-direction: column; align-items: center; gap: 3px">
+<div style="padding: 4px 9px; border-radius: 999px; background: #F2F3F1; color: #0E1012; font-size: 12px; font-weight: 800">₹1,100</div>
+<div style="padding: 2px 7px; border-radius: 7px; background: #0E1012; font-size: 10.5px; font-weight: 700">Mehdipatnam</div>
+</div>
+</div>
+<figcaption style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 0.6px; color: #57D1AE">2 · CITY (zoom 11 to 14)</span>
+<span style="font-size: 13px; font-weight: 600; color: #C9CDD2; line-height: 19px">Pins in one area fold into one: the biggest offer and how many jobs. They glide into each other (200 ms), never jump.</span>
+</figcaption>
+</figure>
+
+<figure style="margin: 0; display: flex; flex-direction: column; gap: 10px">
+<div style="height: 300px; border-radius: 18px; background: #1A1E22; border: 1px solid #2A2F34; position: relative; overflow: hidden">
+<svg aria-hidden="true" viewBox="0 0 320 300" style="position: absolute; inset: 0; width: 100%; height: 100%"><g opacity="0.55"><path d="M40 150 C110 143 180 160 280 140 M160 40 C166 110 152 190 172 260 M80 70 L240 80 M80 230 L240 220" stroke="#2D3339" stroke-width="4" fill="none"></path></g><path d="M0 150 C100 140 200 170 320 140 M0 100 L320 104 M0 200 L320 196 M100 0 L106 300 M220 0 L216 300" stroke="#2A2F34" stroke-width="2" fill="none"></path></svg>
+<div style="position: absolute; left: 40px; top: 40px; right: 40px; bottom: 40px; border-radius: 12px; border: 1.5px dashed rgba(107,140,255,0.5)"></div>
+<div style="position: absolute; left: 140px; top: 130px; padding: 5px 10px; border-radius: 999px; background: #2FBF96; color: #06231A; font-size: 13px; font-weight: 800">₹2,000</div>
+<div style="position: absolute; left: 50px; bottom: 50px; padding: 4px 8px; border-radius: 8px; background: #172036; color: #8FA8FF; font-size: 11px; font-weight: 800">old map, shrinking</div>
+<div style="position: absolute; right: 12px; top: 12px; padding: 4px 8px; border-radius: 8px; background: #12271F; color: #57D1AE; font-size: 11px; font-weight: 800">new map fades in</div>
+</div>
+<figcaption style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 0.6px; color: #57D1AE">3 · WHILE ZOOMING</span>
+<span style="font-size: 13px; font-weight: 600; color: #C9CDD2; line-height: 19px">The map you were looking at shrinks smoothly under your fingers. The sharper map fades in on top. The screen is never blank or black.</span>
+</figcaption>
+</figure>
+
+<figure style="margin: 0; display: flex; flex-direction: column; gap: 10px">
+<div style="height: 300px; border-radius: 18px; background: #182329; border: 1px solid #2A2F34; position: relative; overflow: hidden">
+<svg aria-hidden="true" viewBox="0 0 320 300" style="position: absolute; inset: 0; width: 100%; height: 100%"><path d="M95 20 L215 25 L250 80 L230 150 L190 230 L160 285 L135 230 L100 160 L75 100 Z" fill="#1E2523" stroke="#3A4248" stroke-width="2"></path></svg>
+<div style="position: absolute; left: 150px; top: 150px; display: flex; flex-direction: column; align-items: center; gap: 3px">
+<div style="padding: 5px 10px; border-radius: 999px; background: #2FBF96; color: #06231A; font-size: 13px; font-weight: 800">₹2,000</div>
+<div style="padding: 2px 7px; border-radius: 7px; background: #0E1012; font-size: 10.5px; font-weight: 700">Hyderabad · 19 jobs</div>
+</div>
+<div style="position: absolute; left: 118px; top: 214px; display: flex; flex-direction: column; align-items: center; gap: 3px">
+<div style="padding: 4px 9px; border-radius: 999px; background: #F2F3F1; color: #0E1012; font-size: 12px; font-weight: 800">₹2,600</div>
+<div style="padding: 2px 7px; border-radius: 7px; background: #0E1012; font-size: 10.5px; font-weight: 700">Bengaluru · 2</div>
+</div>
+<div style="position: absolute; left: 12px; bottom: 12px; right: 12px; padding: 6px 10px; border-radius: 10px; background: rgba(14,16,18,0.9); font-size: 11px; font-weight: 700; color: #C9CDD2">The map stops at India's edge</div>
+</div>
+<figcaption style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 0.6px; color: #57D1AE">4 · COUNTRY (zoom 4 to 8)</span>
+<span style="font-size: 13px; font-weight: 600; color: #C9CDD2; line-height: 19px">One pin per city. You can pan round India only; no flying off to another country. Zoom back in and the city opens into its areas.</span>
+</figcaption>
+</figure>
+
+</div>
+
+<div style="border-radius: 16px; background: #16191C; border: 1px solid #2A2F34; padding: 14px 18px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px">
+<div style="display: flex; flex-direction: column; gap: 3px"><span style="font-size: 11px; font-weight: 800; color: #9AA0A6; letter-spacing: 0.6px">MOUSE WHEEL</span><span style="font-size: 13px; font-weight: 600; color: #F2F3F1; line-height: 18px">Zooms round the mouse pointer, eased (about 250 ms a notch). The page itself never zooms.</span></div>
+<div style="display: flex; flex-direction: column; gap: 3px"><span style="font-size: 11px; font-weight: 800; color: #9AA0A6; letter-spacing: 0.6px">TRACKPAD AND TOUCH PINCH</span><span style="font-size: 13px; font-weight: 600; color: #F2F3F1; line-height: 18px">The map follows your fingers exactly, at any in-between zoom, then glides to rest.</span></div>
+<div style="display: flex; flex-direction: column; gap: 3px"><span style="font-size: 11px; font-weight: 800; color: #9AA0A6; letter-spacing: 0.6px">DOUBLE-CLICK OR DOUBLE-TAP</span><span style="font-size: 13px; font-weight: 600; color: #F2F3F1; line-height: 18px">One step closer, round that spot, in 300 ms. Drag flicks keep moving and slow down.</span></div>
+<div style="display: flex; flex-direction: column; gap: 3px"><span style="font-size: 11px; font-weight: 800; color: #9AA0A6; letter-spacing: 0.6px">REDUCED MOTION</span><span style="font-size: 13px; font-weight: 600; color: #F2F3F1; line-height: 18px">With "reduce motion" on, zoom jumps without gliding and pins swap without moving.</span></div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":560}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phone list, D21</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#8FA8FF}a:hover{color:#B7C7FF}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #0E1012; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #F2F3F1">
+
+<div style="padding: 16px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; gap: 10px">
+<h1 style="flex: 1; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.4px">Find work</h1>
+<div aria-label="View" style="display: flex; padding: 3px; border-radius: 13px; background: #16191C; border: 1px solid #2A2F34">
+<button style="height: 32px; padding: 0 12px; border-radius: 10px; border: 0; background: #2A2F34; color: #F2F3F1; font-size: 12.5px; font-weight: 800">List</button>
+<button style="height: 32px; padding: 0 12px; border-radius: 10px; border: 0; background: transparent; color: #9AA0A6; font-size: 12.5px; font-weight: 700">Map</button>
+</div>
+</div>
+
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 18px; background: #16191C; border: 1px solid #2A2F34; text-decoration: none; color: #F2F3F1">
+<div style="width: 44px; height: 44px; border-radius: 14px; background: #12271F; color: #57D1AE; display: flex; align-items: center; justify-content: center; flex-shrink: 0">
+<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>
+</div>
+<div style="flex: 1; min-width: 0">
+<div style="font-size: 14px; font-weight: 800">Set your area</div>
+<div style="font-size: 12px; font-weight: 600; color: #9AA0A6">See jobs and prices near you</div>
+</div>
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9AA0A6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+</a>
+<div style="font-size: 11.5px; font-weight: 600; color: #9AA0A6; margin-top: -6px">Shown to a guest, or to anyone without an area. With an area, this is the short live map strip instead.</div>
+
+<div style="display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; border-radius: 16px; background: #16191C; border: 1px solid #2A2F34">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9AA0A6" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<label style="flex: 1; display: flex"><span style="position: absolute; left: -9999px">Search jobs</span><input placeholder="Data entry, home tutoring…" style="flex: 1; height: 40px; border: 0; background: transparent; color: #F2F3F1; font: 600 14px 'Plus Jakarta Sans', sans-serif; outline: none; min-width: 0"></label>
+</div>
+
+<div style="display: flex; gap: 8px; overflow: hidden; white-space: nowrap; margin-right: -16px">
+<button style="height: 34px; padding: 0 14px; border-radius: 17px; flex-shrink: 0; border: 1px solid #2FBF96; background: #12271F; color: #57D1AE; font-size: 12.5px; font-weight: 700">All</button>
+<button style="height: 34px; padding: 0 14px; border-radius: 17px; flex-shrink: 0; border: 1px solid #2A2F34; background: transparent; color: #C9CDD2; font-size: 12.5px; font-weight: 700">Nearby</button>
+<button style="height: 34px; padding: 0 14px; border-radius: 17px; flex-shrink: 0; border: 1px solid #2A2F34; background: transparent; color: #C9CDD2; font-size: 12.5px; font-weight: 700">Remote</button>
+<button style="height: 34px; padding: 0 14px; border-radius: 17px; flex-shrink: 0; border: 1px solid #2A2F34; background: transparent; color: #C9CDD2; font-size: 12.5px; font-weight: 700">Auto-hire</button>
+<button style="height: 34px; padding: 0 14px; border-radius: 17px; flex-shrink: 0; border: 1px solid #2A2F34; background: transparent; color: #C9CDD2; font-size: 12.5px; font-weight: 700">Due soon</button>
+</div>
+
+<div style="display: flex; align-items: center">
+<span style="flex: 1; font-size: 14px; font-weight: 800">19 jobs</span>
+<button style="height: 30px; padding: 0 12px; border-radius: 15px; border: 1px solid #2A2F34; background: transparent; color: #C9CDD2; font-size: 12px; font-weight: 700">Highest pay first</button>
+</div>
+
+<article style="padding: 14px; border-radius: 18px; background: #16191C; border: 1px solid #2A2F34; display: flex; flex-direction: column; gap: 7px">
+<div style="display: flex; align-items: center; gap: 6px"><span style="font-size: 11.5px; font-weight: 700; color: #9AA0A6">Tutoring</span><span style="padding: 2px 8px; border-radius: 999px; background: #2A2216; color: #E8BE80; font-size: 10.5px; font-weight: 800">Top offer</span></div>
+<h2 style="margin: 0; font-size: 15px; font-weight: 800; line-height: 20px">Maths tuition for a class 9 student, 3 evenings</h2>
+<div style="font-size: 12px; font-weight: 600; color: #9AA0A6">Financial District · 5 km · by Ravi</div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="font-size: 19px; font-weight: 800">₹2,000</span><span style="font-size: 11.5px; font-weight: 700; color: #E0A85A">2 days left</span><span style="flex: 1"></span><button style="height: 36px; padding: 0 16px; border-radius: 18px; border: 0; background: #2FBF96; color: #06231A; font-size: 13px; font-weight: 800">Apply</button></div>
+</article>
+
+<article style="padding: 14px; border-radius: 18px; background: #16191C; border: 1px solid #2A2F34; display: flex; flex-direction: column; gap: 7px">
+<div style="display: flex; align-items: center; gap: 6px"><span style="font-size: 11.5px; font-weight: 700; color: #9AA0A6">Moving</span><span style="padding: 2px 8px; border-radius: 999px; background: #172036; color: #8FA8FF; font-size: 10.5px; font-weight: 800">Crew 1 of 3</span></div>
+<h2 style="margin: 0; font-size: 15px; font-weight: 800; line-height: 20px">Move a sofa and a bed to the 3rd floor</h2>
+<div style="font-size: 12px; font-weight: 600; color: #9AA0A6">Manikonda · 4.7 km · by Sneha</div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="font-size: 19px; font-weight: 800">₹1,500</span><span style="font-size: 11.5px; font-weight: 700; color: #E0A85A">17 h left</span><span style="flex: 1"></span><button style="height: 36px; padding: 0 16px; border-radius: 18px; border: 0; background: #2FBF96; color: #06231A; font-size: 13px; font-weight: 800">Apply</button></div>
+</article>
+</div>
+
+<nav aria-label="Tabs" style="position: absolute; left: 0; right: 0; bottom: 0; height: 72px; background: #0E1012; border-top: 1px solid #1E2226; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center; text-align: center; font-size: 11px; font-weight: 700">
+<a href="#" style="color: #9AA0A6; text-decoration: none">Home</a>
+<a href="#" aria-current="page" style="color: #57D1AE; text-decoration: none; font-weight: 800">Find work</a>
+<a href="#" style="color: #9AA0A6; text-decoration: none">My Work</a>
+<a href="#" style="color: #9AA0A6; text-decoration: none">Wallet</a>
+<a href="#" style="color: #9AA0A6; text-decoration: none">Profile</a>
+</nav>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
