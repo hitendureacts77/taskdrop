@@ -50,7 +50,11 @@ export async function signInWithPhone(page: Page, phone: string): Promise<void> 
     };
     page.on("response", watch);
     await page.goto("/");
-    await page.getByPlaceholder("98765 43210").fill(phone);
+    // The front door opens with the story and "Create my account"; the number box comes after it.
+    const phoneField = page.getByPlaceholder("98765 43210");
+    await page.getByRole("button", { name: "Create my account" }).or(phoneField).first().waitFor();
+    if (!(await phoneField.isVisible().catch(() => false))) await page.getByRole("button", { name: "Create my account" }).click();
+    await phoneField.fill(phone);
     await page.getByText("Text me a code").click();
     // A refusal (the one-a-minute cooldown) shows no code box; the wait below then ends and it tries again.
     await typeTestCode(page, 10_000).catch(() => null);
@@ -172,4 +176,7 @@ export function must<T>(r: ApiResult<T>, what: string): T {
 
 export async function expectSignedIn(page: Page) {
   await expect(page.getByText("Wallet").first()).toBeVisible();
+  // A fresh browser is first shown "How staging works", which covers the screen until it is closed.
+  const staging = page.getByRole("button", { name: "Got it", exact: true });
+  if (await staging.isVisible({ timeout: 3000 }).catch(() => false)) await staging.click();
 }

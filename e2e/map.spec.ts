@@ -20,7 +20,7 @@ test.describe("signed in as the seed poster", () => {
     await page.getByText("Explore", { exact: true }).first().click();
     await expect(showList(page)).toBeVisible();
     // The chips are drawn once the map has an area to centre on; until then the area prompt takes their place.
-    await expect(layerChip(page, "Jobs").or(chooseArea(page))).toBeVisible();
+    await expect(layerChip(page, "Jobs").first().or(chooseArea(page))).toBeVisible();
     if (await chooseArea(page).isHidden()) {
       await expect(layerChip(page, "Helpers")).toBeVisible();
       await expect(layerChip(page, "My people")).toBeVisible();
@@ -67,7 +67,7 @@ test.describe("as a guest", () => {
 
   test("a guest sees the map but no My people chip", async ({ page }) => {
     await page.goto("/");
-    await page.getByLabel("Continue as guest").click();
+    await page.getByRole("button", { name: "Skip sign-up for now" }).click();
     await page.getByText("Explore", { exact: true }).first().click();
     await expect(showList(page)).toBeVisible();
     await expect(layerChip(page, "My people")).toHaveCount(0);
