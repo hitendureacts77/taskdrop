@@ -6,6 +6,7 @@ import { Icon } from './Icon';
 import { TILE, TILE_HEADERS, project, tileUrl, unproject } from './MapPicker.tiles';
 import { groupPins, metresPerPixel } from '../lib/mapCluster';
 import { SPREAD_ZOOM, layoutPins, topAmount, type MapItem } from '../lib/mapLayout';
+import { zoomToFit } from '../lib/mapReach';
 import { MAX_FRESH, areaAt, easeOut, introDelays, introEnd, rippleAt, tagAt } from '../lib/mapMotion';
 import { useMapClock } from './useMapClock';
 import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PricePin, TASK_PIN, TaskPin, type Face } from './MapMarkers';
@@ -67,6 +68,13 @@ export type JobsMapProps = {
   startAt?: { lat: number; lng: number };
   /** How far in the map starts (default 12, a city). Lower shows more of the country. */
   startZoom?: number;
+  /**
+   * Zoom the map to fit a circle of this radius round `at` whenever `key` changes (the 5 / 10 / 25 km
+   * buttons). It is not the person moving the map, so "Search this area" stays hidden.
+   */
+  fit?: { at: { lat: number; lng: number }; km: number; key: number } | null;
+  /** Where the reach ring is drawn; default `me`. */
+  ringAt?: { lat: number; lng: number };
 };
 
 /** Where the middle of the map has to be so a point sits in the middle of the part the bars leave uncovered. */
@@ -83,7 +91,7 @@ export function centreFor(
 export const CALLOUT_LIFT = 110;
 const CALLOUT_W = 300;
 
-const MIN_ZOOM = 5;
+const MIN_ZOOM = 4;
 export const MAX_ZOOM = 17;
 /** Pins closer than this many pixels join into one group. */
 export const CLUSTER_PX = 80;
@@ -168,6 +176,8 @@ export function JobsMap({
   onMoveEnd,
   startAt,
   startZoom = 12,
+  fit = null,
+  ringAt,
 }: JobsMapProps) {
   const t = useTheme();
   const start = me ?? startAt ?? (pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : DEFAULT_CENTRE);
@@ -205,6 +215,20 @@ export function JobsMap({
     setZoom(z);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusId]);
+
+  // The reach buttons: zoom to fit the circle in the part of the map the bars leave uncovered.
+  // Not the person's own move, so onMoveEnd is not called.
+  useEffect(() => {
+    if (!fit || size.w === 0) return;
+    moved.current = true;
+    const f = fillRef.current;
+    const w = size.w - (f?.left ?? 0);
+    const h = size.h - (f ? f.top + f.bottom : 0);
+    const z = Math.floor(zoomToFit(fit.km, fit.at.lat, Math.min(w, h)));
+    setCentre(clear(fit.at, z));
+    setZoom(z);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fit?.key, size.w > 0]);
 
   // The pan handler is made once, so it reads the latest callback through a ref.
   const onMoveEndRef = useRef(onMoveEnd);
@@ -283,7 +307,9 @@ export function JobsMap({
   };
 
   const you = me ? toScreen(me.lat, me.lng) : null;
-  const ringPx = me ? (ringKm * 1000) / metresPerPixel(me.lat, zoom) : 0;
+  const ringCentre = ringAt ?? me;
+  const ring = ringCentre ? toScreen(ringCentre.lat, ringCentre.lng) : null;
+  const ringPx = ringCentre ? (ringKm * 1000) / metresPerPixel(ringCentre.lat, zoom) : 0;
   const blue = t.colors.purple;
   const hue = people ? blue : t.colors.btn;
   // The poster is a dark dot on a map of helpers' faces, so the two never mix up.
@@ -341,9 +367,14 @@ export function JobsMap({
           />
         ))}
 
+        {ring ? (
+          <View pointerEvents="none" style={{ position: 'absolute', left: ring.x, top: ring.y, width: 0, height: 0, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ position: 'absolute', width: ringPx * 2, height: ringPx * 2, borderRadius: 999, borderWidth: 1, borderColor: blue + '77', borderStyle: 'dashed' }} />
+          </View>
+        ) : null}
+
         {you ? (
           <View pointerEvents="none" style={{ position: 'absolute', left: you.x, top: you.y, width: 0, height: 0, alignItems: 'center', justifyContent: 'center' }}>
-            <View style={{ position: 'absolute', width: ringPx * 2, height: ringPx * 2, borderRadius: 999, borderWidth: 1, borderColor: blue + '77', borderStyle: 'dashed' }} />
             <View style={{ position: 'absolute', width: 26, height: 26, borderRadius: 999, backgroundColor: youColor + '40' }} />
             <View style={{ position: 'absolute', width: 14, height: 14, borderRadius: 999, backgroundColor: youColor, borderWidth: 2.5, borderColor: '#FFFFFF' }} />
           </View>

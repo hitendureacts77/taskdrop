@@ -22,6 +22,8 @@ import {
   type JobsMapProps,
 } from './JobsMap.tiles';
 import { groupPins, metresPerPixel } from '../lib/mapCluster';
+import { zoomToFit } from '../lib/mapReach';
+import { useReducedMotion } from '../lib/motion';
 import { SPREAD_ZOOM, layoutPins } from '../lib/mapLayout';
 import { MAX_FRESH, areaAt, introDelays, introEnd, rippleAt, tagAt } from '../lib/mapMotion';
 import { useMapClock } from './useMapClock';
@@ -37,7 +39,7 @@ export { mapWords } from './JobsMap.tiles';
  */
 const IN_EXPO_GO = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
-const MIN_ZOOM = 5;
+const MIN_ZOOM = 4;
 const START_ZOOM = 12;
 const RING_KM = 10;
 const DEFAULT_CENTRE = { lat: 12.9716, lng: 77.5946 };
@@ -127,8 +129,9 @@ function YouDot({ at, color }: { at: { lat: number; lng: number }; color: string
   );
 }
 
-function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = RING_KM, tone = 'jobs', focusId = null, onExpand, fill, dim = false, onMoveEnd, startAt, startZoom = START_ZOOM }: Props) {
+function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = RING_KM, tone = 'jobs', focusId = null, onExpand, fill, dim = false, onMoveEnd, startAt, startZoom = START_ZOOM, fit = null, ringAt }: Props) {
   const t = useTheme();
+  const reduced = useReducedMotion();
   const mapRef = useRef<MapView>(null);
   const start = me ?? startAt ?? (pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : DEFAULT_CENTRE);
   const [size, setSize] = useState({ w: 0, h: height });
@@ -146,6 +149,36 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
       mapRef.current?.animateCamera({ center: { latitude: me.lat, longitude: me.lng }, zoom: START_ZOOM }, { duration: 400 });
     }
   }, [me]);
+
+  // The reach buttons: fly to fit the circle. The camera follows, but onRegionChangeComplete only
+  // reports the person's own gestures, so "Search this area" does not appear by itself.
+  useEffect(() => {
+    if (!fit || size.w === 0) return;
+    moved.current = true;
+    const w = size.w - (fill?.left ?? 0);
+    const h = size.h - (fill ? fill.top + fill.bottom : 0);
+    const z = zoomToFit(fit.km, fit.at.lat, Math.min(w, h));
+    if (Platform.OS === 'ios') {
+      // iOS may ignore the camera's zoom, so fit the circle's four edges instead.
+      const dLat = fit.km / 111.32;
+      const dLng = fit.km / (111.32 * Math.max(0.05, Math.cos((fit.at.lat * Math.PI) / 180)));
+      mapRef.current?.fitToCoordinates(
+        [
+          { latitude: fit.at.lat + dLat, longitude: fit.at.lng },
+          { latitude: fit.at.lat - dLat, longitude: fit.at.lng },
+          { latitude: fit.at.lat, longitude: fit.at.lng + dLng },
+          { latitude: fit.at.lat, longitude: fit.at.lng - dLng },
+        ],
+        { edgePadding: { top: 24, right: 24, bottom: 24, left: 24 }, animated: !reduced },
+      );
+    } else {
+      mapRef.current?.animateCamera(
+        { center: { latitude: fit.at.lat, longitude: fit.at.lng }, zoom: z },
+        { duration: reduced ? 0 : 400 },
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fit?.key, size.w > 0]);
 
   const onLayout = (e: LayoutChangeEvent) =>
     setSize({ w: Math.round(e.nativeEvent.layout.width), h: Math.round(e.nativeEvent.layout.height) });
@@ -252,7 +285,7 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
         {me ? (
           <>
             <Circle
-              center={{ latitude: me.lat, longitude: me.lng }}
+              center={{ latitude: (ringAt ?? me).lat, longitude: (ringAt ?? me).lng }}
               radius={ringKm * 1000}
               strokeColor={blue + '77'}
               strokeWidth={1}

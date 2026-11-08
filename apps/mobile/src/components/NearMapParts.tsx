@@ -31,11 +31,20 @@ export function useTone(tone: MapTone) {
 }
 
 /** Best offer and nearest (jobs), active now and nearest (helpers): two tiles that pick or filter. */
-export function StatTiles({ tiles, tone }: { tiles: { label: string; value: string; sub: string; strong?: boolean; onPress?: () => void }[]; tone: MapTone }) {
+export function StatTiles({
+  tiles,
+  tone,
+  summary,
+}: {
+  tiles: { label: string; value: string; sub: string; strong?: boolean; onPress?: () => void }[];
+  tone: MapTone;
+  /** One sentence that says what both tiles say, for screen readers. */
+  summary?: string;
+}) {
   const t = useTheme();
   const c = useTone(tone);
   return (
-    <View style={{ flexDirection: 'row', gap: 8 }}>
+    <View accessibilityLabel={summary} style={{ flexDirection: 'row', gap: 8 }}>
       {tiles.map((s) => (
         <Pressy
           key={s.label}
@@ -44,7 +53,9 @@ export function StatTiles({ tiles, tone }: { tiles: { label: string; value: stri
           scaleTo={0.97}
           style={{ flex: 1, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, gap: 2, backgroundColor: s.strong ? c.soft : t.colors.surface2, borderWidth: 1, borderColor: s.strong ? c.border : t.colors.line }}
         >
-          <RNText style={tx('700', 11, s.strong ? c.ink : t.colors.muted)}>{s.label}</RNText>
+          <RNText style={tx('700', 11, s.strong ? c.ink : t.colors.muted)} numberOfLines={1}>
+            {s.label}
+          </RNText>
           <RNText style={tx('800', 18, t.colors.ink, { fontVariant: ['tabular-nums'] })} numberOfLines={1}>
             {s.value}
           </RNText>
