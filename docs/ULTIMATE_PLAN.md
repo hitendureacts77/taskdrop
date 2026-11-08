@@ -1,33 +1,30 @@
 # TaskDrop: the ultimate plan
 
-**This is the only plan you need.** It is in order. Do the steps from top to bottom, click a task to open its steps, and tick it when it is done.
+**The only plan you need.** Three ways to use this page:
 
-The clickable version is `docs/ULTIMATE_PLAN.html`. Open it in Chrome. Your ticks are saved there.
-
-Rethought on 30 October 2026. What changed: the steps now follow the order a product owner would choose (fix what is broken, make it hacker-proof, prove it with testers, get ready to market, build production, launch, grow). Every slow task that waits on other people sits in one "Start now" track. Future ideas sit in a separate **Future scope** section, so they never count against your progress. The accounts for staging and production are drawn as two maps. Security and marketing each have their own section. The previous version is kept unchanged in `docs/archive/2026-10-30-before-rethink/`.
-
-Checked against best practice on 31 October 2026 (see the changelog). New: 2-step sign-in on your accounts (2.1b), money safety limits (2.11), the marketplace numbers (3.3b), a dispute and safety policy (4.9), backups you control and a real restore practice, a production that is safe from its first minute, releases in small slices, and an earlier start for the 14-day tester clock (Gate 2 is now two gates, 2a and 2b). Vercel security check (31 October): a table of what Vercel secures and what stays yours, holes H18 and H19, and a new task 5.8b (spending stop, firewall rule, preview safety). Advice from a WhatsApp group (3 November): a new task 2.13 (a lock and a limit on every server door, a code scanner, the OWASP checklist line by line, a way for security researchers to report, a spending stop on every paid service; then your three rules: one person never reaches another's data, every document private, sign-in sessions that can be ended), holes H22 to H28, and decisions 14 to 16. A second paste the same day (rate limits, a real sign-in provider, row rules, keys on the server, caching, background jobs, a load test) was checked too: it added part J (a load and abuse test, plus a check of slow work and caching) and hole H29. Made simpler on 4 November: the Security section now opens with "Security in one page", 12 plain checks (with Matt Palmer's checklist, the Betterleaks secrets audit and Strix folded in); the long tables sit in cards below it; Step 2 opens with the security path in order; and two tasks are new, 2.15 (the secrets audit) and 2.16 (the AI attacker). **Two copies, side by side (5 November):** `taskdrop.in` is now **staging**, production starts on the addresses Vercel makes, staging gets its own Android app (`com.taskdrop.app.staging`), and one step-by-step plan covers the staging and production websites, the staging and production Android apps and every backend tool (tasks 5.0a to 5.0e, the switchboard card, decision 28). Caching designed on 4 November: task 3.5b (keep the same-for-everyone lists ready, never anyone's own data, no Redis), holes H69 and H70, decision 29.
+- **Understand the app:** read **Your app in one page** (2 minutes).
+- **Set up the two copies:** follow **Staging and production, step by step**.
+- **Do the next task:** press the green **Next** button at the top, or pick a step in **The map**. Click a task to open its steps; tick it when it is done.
 
 ---
 
-## How to use this plan
+## Start here {open}
 
-**Every task has a tag:**
+<div id="dash"></div>
 
-| Tag | Means |
+**How to read a task**
+
+| Tag | Who does it |
 |---|---|
-| **You** | You do it yourself, in a browser or on your phone |
-| **Claude** | You copy one sentence to Claude. Claude does the work and reports back in plain words |
-| **Both** | Claude does part of it, you click the rest |
-| **Later** | Future scope. Shown so nothing is forgotten, but it is not part of your progress |
+| **You** | You, in a browser or on your phone |
+| **Claude** | You copy one sentence to Claude; Claude does the work and reports back |
+| **Both** | Claude does part, you click the rest |
+| **Later** | Future scope: shown so nothing is lost, never counted in your progress |
 
-**Every step inside a task is one of three kinds:**
+Inside a task, every line is one of three kinds: **CLICK** (you do it), **SAY** (copy the purple box to Claude), **TELL** (write what you saw; a screenshot is fine).
 
-- **CLICK**: you do it yourself.
-- **SAY**: copy the text in the purple box into the Claude chat.
-- **TELL**: write in the chat what you saw. A screenshot is fine.
-
-**Eight rules:**
+<details id="c-rules">
+<summary>[CARD] The eight rules (go in order, pass each gate, never paste a secret, and five more)</summary>
 
 1. **Go in order.** Start the whole **Start now** track in week 1 as well. It is slow, so it runs beside Steps 1 to 4.
 2. **Pass each gate.** A gate is a short checklist at the end of each step. Do not start the next step until every line is true.
@@ -37,45 +34,116 @@ Checked against best practice on 31 October 2026 (see the changelog). New: 2-ste
 6. **Claude pushes, opens the pull request and merges it without asking you** (your rule, 31 Oct). Merging is never a question for you. Claude still asks you first only before: publishing an app update to testers, wiping or resetting data, rotating a key, or touching `main` or production.
 7. **After every new feature, check it fits the browser and the screen** (your rule, 1 Nov). Claude does not call a feature done until the website works in Chrome, Edge, Firefox and Safari (latest versions) at phone, tablet and laptop widths, and the Android app works on your phone: nothing cut off, no sideways scrolling, every button easy to reach and tap, text readable (also with bigger text and with the keyboard open). The steps are in the card "Fits every browser and screen".
 8. **Secrets live only in the server-side env file** (your rule, 1 Nov). Every secret, new or old, is stored only in `.env.all-secrets` on your PC and in the server-side store that needs it (Supabase function secrets or Vault, Vercel Sensitive variables, Expo Secret variables). Claude never puts a secret in the app or website code, in a name that starts with `EXPO_PUBLIC_` or `NEXT_PUBLIC_`, in Git, in this plan, in a pull request or in chat, and never prints one. Only public values (the Supabase public key, the Sentry address, Firebase web settings) may sit in public names. The details are in task 2.1.
+</details>
 
 ---
 
-## Where you are today (30 October 2026)
+## Your app in one page {open}
 
-**Already done**
+**TaskDrop: "Ask for anything. Someone gets it done for you."** A person posts a task (in person nearby, or remote), helpers send offers, the poster picks one, and TaskDrop holds the money until the work is approved.
 
-- The app works on the website and on Android with fake money (checked "finished" on 2026-10-28).
-- Staging safety is live: the "Staging" ribbon, the block on real payment keys, the site hidden from Google, the staging notice in Terms and Privacy.
-- The app tour, the admin app with staff roles, Google sign-in, error alerts (Sentry), uptime monitors and GitHub secret scanning all work.
-- Your 20-minute phone walkthrough (30 Oct): 11 fixes are merged into `redesigned-2.0` and published to the phone app (31 Oct, task 1.2).
+```html
+<div class="fig">
+<div class="fig-title">How one task works</div>
+<div class="journey">
+<div class="jstep"><b>1. Post</b><small>Write one sentence ("What's on your mind?"). AI turns it into a task with a budget, a time and a place, or "remote".</small></div>
+<div class="jstep"><b>2. Offers</b><small>Helpers nearby see it on the list and the map and send offers. The poster can chat and compare.</small></div>
+<div class="jstep"><b>3. Accept</b><small>The poster accepts one offer. The money is held by TaskDrop (escrow), not paid yet.</small></div>
+<div class="jstep"><b>4. Done</b><small>The helper finishes. The poster has 3 days to approve or report a problem.</small></div>
+<div class="jstep"><b>5. Paid</b><small>The helper's earnings clear after 7 days and can be withdrawn to a bank.</small></div>
+</div>
+</div>
+```
 
-**Not done yet**
+**The people**
 
-- 4 phone problems from 28 Oct, about 8 small bugs, and 10 design changes you asked for. New on 31 Oct: content and alerts hidden behind the phone keyboard (task 1.8).
-- Security: Claude's check on 30 Oct found real open holes (see the **Security** section). None can move money today, because staging has only fake money, but every one must be closed before real money.
-- Google Play: 12 testers for 14 days have not started. (Google's ID check is done: verified 27 Oct, task S.1.)
-- All the business paperwork for real money: company, bank, lawyer, payment approval, SMS registration.
-- Production, the real-money copy of TaskDrop, does not exist yet.
+| Who | What they do |
+|---|---|
+| **Poster** | Asks for help, pays from the wallet, approves the work, leaves a review |
+| **Helper (worker)** | Finds tasks on the list or the map, sends offers, does the work, withdraws earnings |
+| **Guest** | Looks around without an account; signs up to post or offer |
+| **You and your staff** | Run the admin website: users, tasks, money, disputes, reports, app settings, staff roles |
 
-**The three things that matter most right now**
+**What is in the app today:** AI-assisted posting, Explore, Find Work, the nearby map of tasks and helpers, offers and chat, wallet top-up and withdrawal, promotions, streaks and reviews, push notifications, the app tour, guest mode, TaskDrop Together (City Hunt, Big Days), the Ideas and feedback board, account deletion and the 18+ age check.
 
-1. **Start the slow track today** (S.1 and S.2). Google's ID check and the company paperwork take weeks, and launch cannot happen without them.
-2. **Fix the bugs you can see** (Step 1), so testers judge a good app, not a broken one.
-3. **Close the security holes** (Step 2) before anyone outside your circle uses the app.
+**The money rules today** (production starts with the same, task 5.9): poster's service fee **3%**, helper's commission **10%**, a **5%** fine for cancelling after work starts, **3** days to approve, **7** days before earnings can be withdrawn.
 
-**Your first week, in order**
+**The parts and the tool behind each**
 
-| Day | Do this | Task |
+| Part | Tool | Job |
 |---|---|---|
-| 1 | Start Google Play's ID check (done: Google verified your identity on 27 Oct) | S.1 |
-| 1 | Book a meeting with a Chartered Accountant | S.2 |
-| 1 | Answer the decisions (deferred to future scope on 1 Nov 2026) | 1.1 |
-| 1 | Open the staging app on your phone twice and try the walkthrough fixes (done by Claude 31 Oct) | 1.2 |
-| 2 | Set up and protect your secrets file | 2.1 |
-| 2 | Turn on 2-step sign-in on your 8 most important accounts (deferred to future scope on 31 Oct 2026) | 2.1b |
-| 2 | Ask Razorpay and Cashfree for quotes (one email) (sent 31 Oct, waiting for their call back) | S.4 |
-| 3 | Name check and trademark search (1 hour) | S.5 |
-| 3 to 7 | Approve the design drawings Claude sends; say "start key protection" | 1.5, 2.5 |
+| Android app and website | One React Native (Expo) codebase | The same screens on the phone and in the browser |
+| Admin website | Next.js, its own repository | Only you and your staff sign in |
+| Server, database, sign-in | Supabase | `api` is the one front door: login, App Check and limits are checked there |
+| Background jobs | Inngest | Push messages, alerts, clean-ups, from database events |
+| Photos and videos | ImageKit | Uploads are signed by the server |
+| Payments and payouts | Razorpay, RazorpayX | Test mode in staging, live mode in production |
+| Sign-in text messages | MSG91 | Production only; staging shows the code on screen |
+| Push, maps, App Check, Google sign-in | Firebase and Google Cloud | Each key limited to its own app |
+| Errors and funnels | Sentry, PostHog | Where problems and drop-offs show up |
+| Hosting and phone builds | Vercel, Expo (EAS) | Vercel serves the websites; Expo builds and updates the Android app |
+| Code | GitHub | `redesigned-2.0` feeds staging; `main` feeds production |
+
+**There are two copies of everything.** **Staging** (`taskdrop.in`, fake money, testers) and **production** (real money, the public, built in Step 5). Code moves from staging to production; data and keys never do. Every tool and ID is in **Your accounts map**; the deeper drawings are in **Architecture and system design**.
+
+---
+
+## Staging and production, step by step {open}
+
+**The idea in one line:** staging already runs; production is built later as a **new project in every tool** (same Gmail, never the same keys), then switched on for real money. Click any step to open its full instructions.
+
+```steps
+# A · Staging, the test copy | Runs today on taskdrop.in. Finish these four now: they are free and do not wait for any gate.
+5.0a | Make the code know which copy it is | One switch sets the app name, package, icon, server and update channel. A build guard refuses a build that mixes the two copies.
+5.0b | Confirm taskdrop.in is staging, and name the staging admin | Claude checks the Staging ribbon and that Google cannot list it. Optional: point admin.taskdrop.in at the staging admin.
+5.0c | Install the staging Android app, TaskDrop Staging | Register com.taskdrop.app.staging in Firebase, allow it on the maps key, one build, install from the link, move testers to it.
+5.0e | Learn the release routine | Every merge into redesigned-2.0 reaches taskdrop.in and the staging app by itself. Production only gets code that ran a quiet day on staging.
+# B · Before production | Production costs money, so it waits for the gates and the paperwork.
+- | Pass Gate 4 and finish the slow track | Company and bank (S.2), lawyer (S.3), SMS registration (S.6) and payment approval (S.8). See [Start now](#start-now-the-slow-track-start-in-week-1-runs-beside-steps-1-to-4) and [Gate 4](#gate-4).
+- | Answer decision 28: does production need a real web name? | Google's sign-in screen, Razorpay and the SMS registration may refuse a vercel.app address. See [Decisions](#decisions-only-you-can-make-these).
+5.1 | Say "I want to launch" | Claude checks every gate and paper. From here, the production accounts start to cost money.
+# C · Production, one tool at a time | Sign in as hitendureacts@gmail.com, make a NEW project in each tool, and save every key only in the PROD_ section of .env.all-secrets. Nothing is copied from staging.
+5.2 | Supabase: organization "TaskDrop Production", project taskdrop-production | Pro plan ($25 a month), Mumbai, spend cap on, sign-in settings, production-only redirect addresses, daily backups.
+5.3 | Google Cloud and Firebase: project taskdrop-production | ₹1,000 budget alert, seven Google services, three restricted keys, Google sign-in, reCAPTCHA, the Android and web apps, push key, App Check (left off).
+5.4 | Inngest: organization "TaskDrop Production" | A paid plan; the Event key and Signing key go into the PROD_ section.
+5.5 | ImageKit: a second account, taskdropproduction | Sign up with hitendureacts+prod@gmail.com; turn on usage alerts.
+5.6 | Sentry: taskdrop-production and taskdrop-admin-production | Money, spike and security alerts; give Claude the two DSNs.
+5.6b | PostHog: project taskdrop-production | EU region; give Claude the project key.
+5.7 | Expo: project taskdrop-production | Production variables, the push key and the upload keystore; update channel "production".
+5.8 | Vercel: taskdrop-production and taskdrop-admin-production | Pro ($20 a month), built from main, every variable set, every secret marked Sensitive.
+5.8b | Harden the two Vercel projects | A $50 spending stop, previews with nothing real and a login, the firewall and an admin sign-in limit.
+5.9 | Claude connects everything | An empty database from main, every test shortcut off, a safety alarm, a nightly copy, main protected, your admin account.
+5.10 | Production web addresses | Vercel's addresses written into Supabase, reCAPTCHA and Firebase. Production open to Google; taskdrop.in stays hidden.
+5.0d | Production Android app | Rehearse with a production APK and a real SMS code, then the store file; App Check is switched on after the Play internal test.
+5.11 | Monitors, and prove the two copies are separate | Three uptime monitors; Claude proves no data, key, push, update or sign-in crosses between the copies.
+- | Pass Gate 5 | Every line must be true before real money. See [Gate 5](#gate-5).
+# D · Switch on real money (Step 6) | One part at a time, with a ₹10 test first.
+6.1 | Put the live keys into production yourself | Razorpay and RazorpayX keys into the Supabase Vault; MSG91, Inngest, ImageKit and Google keys into Vercel. Never in the chat.
+6.2 | Claude switches on real money, one part at a time | Live payments, then RazorpayX payouts, then the money jobs, each tested before the next.
+6.3 | The ₹10 real-money test | Post a ₹10 job, do it from a second account, approve it and withdraw: the money must reach your bank.
+6.4 | Google Search Console, Bing and your Business Profile | So people can find the production address.
+6.5 | Final launch check: your go or no-go | One restore practice, then Claude checks Gate 6 and you say GO.
+6.6 | Release on Google Play | Only after Gate 6: the production store file, then Google's review.
+6.7 | Launch day | Launch posts, help the first 10 posters and 10 helpers yourself, watch the alerts all day.
+# E · Every change after launch | The same path every time (the full routine is task 5.0e).
+- | Staging first | A change merges into redesigned-2.0 and goes to taskdrop.in and TaskDrop Staging by itself.
+- | You promote it | After a quiet day in Sentry, you merge redesigned-2.0 into main. A database change waits for your approval.
+- | Production follows | Vercel rebuilds both production sites; the Android update waits for your approval, then 20% of users, then everyone.
+```
+
+<details id="c-two-copies-glance">
+<summary>[CARD] At a glance: which copy uses what</summary>
+
+| | Staging (the test copy) | Production (the real copy) |
+|---|---|---|
+| Money and data | Fake. Razorpay test mode; test accounts | Real. Live keys; starts empty |
+| Website | `taskdrop.in`, hidden from Google | The Vercel address (expected `taskdrop-production.vercel.app`) |
+| Admin | `taskdrop-admin` (or `admin.taskdrop.in`) | `taskdrop-admin-production` |
+| Android app | TaskDrop Staging, `com.taskdrop.app.staging` | TaskDrop, `com.taskdrop.app` on Google Play |
+| Code branch | `redesigned-2.0` (automatic) | `main` (you promote) |
+| Sign-in code | Shown on screen | A real SMS |
+| Cost | Free plans | About $45 a month plus fees |
+</details>
 
 ---
 
@@ -3463,19 +3531,6 @@ Create the production Vercel projects taskdrop-production and taskdrop-admin-pro
 Never add `EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN` to production.
 
 **`taskdrop-admin-production` (the admin):**
-<details id="t5-6b" data-short="Production PostHog">
-<summary>[BOTH] <b>5.6b</b> Production PostHog project <small>· 15 minutes · free to start</small></summary>
-
-**Why separate:** real users' funnels are never mixed with the testers' and your own test clicks. Sign in at https://posthog.com as **hitendureacts@gmail.com** (the same organization as staging, 3.3c).
-
-1. CLICK: **Create project** → name `taskdrop-production` → region **EU** (the same as staging, so the privacy policy stays true).
-2. CLICK: **Project settings** → copy its **Project API key** (starts with `phc_`) and give it to Claude. It goes into the production Vercel project and the production server secrets with the other production values (5.8, 5.9). Never reuse staging's key.
-3. Claude copies the funnel from 3.3c into this project, and filters out your own and the testers' accounts by internal number.
-4. TELL Claude: "done 5.6b".
-
-**Done when:** an event made on production appears only in `taskdrop-production`, and one made on staging appears only in `taskdrop-staging` (add this to the 5.11 proof).
-</details>
-
 
 | Name | Value comes from | Type |
 |---|---|---|
@@ -3700,7 +3755,6 @@ Prove that staging and production are separate.
 </details>
 
 <details id="t6-2" data-short="Real money on">
-- a sign-up made on staging appears only in staging's PostHog, and the same for production
 <summary>[CLAUDE] <b>6.2</b> Switch on real money, one part at a time <small>· your time: 15 minutes</small></summary>
 
 **Order:** live payments in, then RazorpayX payouts (after you add money to its balance), then the money jobs (automatic refunds and payouts), each tested before the next.
@@ -4760,7 +4814,7 @@ Claude runs this before a feature is called done, and writes what it saw in the 
 
 ---
 
-## What it costs
+## What it costs {open}
 
 | When | What | Amount |
 |---|---|---|
@@ -4790,7 +4844,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ---
 
-## Risks: the 8 biggest, and what protects you
+## Risks: the 8 biggest, and what protects you {open}
 
 | Risk | What protects you |
 |---|---|
@@ -4805,7 +4859,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ---
 
-## Skipped on purpose (so you never have to think about them)
+## Skipped on purpose (so you never have to think about them) {open}
 
 | Idea | Why not |
 |---|---|
@@ -4824,7 +4878,7 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 
 ---
 
-## Words you will see
+## Words you will see {open}
 
 | Word | Meaning |
 |---|---|
@@ -4853,8 +4907,50 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 ---
 | | PostHog (staging and production) | free plan (about 1 million events and 5,000 recordings a month); check the prices again when you sign up |
 
+## Snapshot: where you were on 30 October 2026
+
+Kept for the record. The live picture is the **Start here** panel at the top of the page.
+
+**Already done**
+
+- The app works on the website and on Android with fake money (checked "finished" on 2026-10-28).
+- Staging safety is live: the "Staging" ribbon, the block on real payment keys, the site hidden from Google, the staging notice in Terms and Privacy.
+- The app tour, the admin app with staff roles, Google sign-in, error alerts (Sentry), uptime monitors and GitHub secret scanning all work.
+- Your 20-minute phone walkthrough (30 Oct): 11 fixes are merged into `redesigned-2.0` and published to the phone app (31 Oct, task 1.2).
+
+**Not done yet**
+
+- 4 phone problems from 28 Oct, about 8 small bugs, and 10 design changes you asked for. New on 31 Oct: content and alerts hidden behind the phone keyboard (task 1.8).
+- Security: Claude's check on 30 Oct found real open holes (see the **Security** section). None can move money today, because staging has only fake money, but every one must be closed before real money.
+- Google Play: 12 testers for 14 days have not started. (Google's ID check is done: verified 27 Oct, task S.1.)
+- All the business paperwork for real money: company, bank, lawyer, payment approval, SMS registration.
+- Production, the real-money copy of TaskDrop, does not exist yet.
+
+**The three things that matter most right now**
+
+1. **Start the slow track today** (S.1 and S.2). Google's ID check and the company paperwork take weeks, and launch cannot happen without them.
+2. **Fix the bugs you can see** (Step 1), so testers judge a good app, not a broken one.
+3. **Close the security holes** (Step 2) before anyone outside your circle uses the app.
+
+**Your first week, in order**
+
+| Day | Do this | Task |
+|---|---|---|
+| 1 | Start Google Play's ID check (done: Google verified your identity on 27 Oct) | S.1 |
+| 1 | Book a meeting with a Chartered Accountant | S.2 |
+| 1 | Answer the decisions (deferred to future scope on 1 Nov 2026) | 1.1 |
+| 1 | Open the staging app on your phone twice and try the walkthrough fixes (done by Claude 31 Oct) | 1.2 |
+| 2 | Set up and protect your secrets file | 2.1 |
+| 2 | Turn on 2-step sign-in on your 8 most important accounts (deferred to future scope on 31 Oct 2026) | 2.1b |
+| 2 | Ask Razorpay and Cashfree for quotes (one email) (sent 31 Oct, waiting for their call back) | S.4 |
+| 3 | Name check and trademark search (1 hour) | S.5 |
+| 3 to 7 | Approve the design drawings Claude sends; say "start key protection" | 1.5, 2.5 |
+
+---
+
 ## Changelog
 
+- **2026-11-08 (the page made simple to read and to move around):** You asked for the plan page to be easy to understand and navigate, with less text on screen but every step kept, and for the staging and production setup to be written step by step. New at the top: **Start here** (your progress, the next tasks and what waits on you), **Your app in one page**, and **Staging and production, step by step** (five parts, A to E, each step linked to its task). The page now has a side menu in groups, a search box, and a status on every task. Long background inside each section folds into a titled drawer; tasks, gates and every step inside them are unchanged. The duplicate copy of task 5.6b inside 5.8 was removed. The old opening notes and the 30 October snapshot moved to the end.
 - **2026-11-08 (D17, City Hunt and Big Days built and live; decisions 32 to 34 answered):** You said to drop Same Here, Learner Seat and Help Swap and to build the rest. **Live on `taskdrop.in`:** the app-download prompt (PR 283: phone bar, one-time sheet, `/get` page, computer button and QR code), Big Days with the two new Home tiles (PR 284), and City Hunt (PR 286, migration 158: many people look, the poster pays only the find they accept). Checked live: `/get`, the Home tiles, planning and saving a big day, and the City Hunt options card through to the review step; no console errors. All the database tests pass. A test added on 7 Nov (`role_doors`) wrongly counted the assigned worker reading a task's exact address as a leak; the policy allows it, so the test was fixed (no database change). **Notes:** a Hunt pays on accept, so there is no review window; Hunt decline reasons have no admin screen yet; a finder's pending finds do not show in My Work; a guest's post from a Big Day board loses its plan link; the APK link may expire. **Not done:** City Hunt end to end with two real accounts on the phone; the Android phone bar and QR scan on a real phone.
 
 - **2026-11-07 (old design kept, and a new vertical, TaskDrop Together: D17 redrawn, D18 turned down, D19, task 1.11, decisions 32 to 34):** You turned down the simpler redesign (D18) and asked to keep today's design and only add what you asked for. **D17** (the app prompt on the website) was redrawn in today's dark design. **D18** is marked not to be built and its drawings were taken off the canvas. You also asked for new features customers will love, as a new vertical no one has, planned first and then drawn. Claude searched for rivals, dropped the ideas that already exist (errands for parents booked from far away, paid live photos of a place, gifting a service) and planned **TaskDrop Together** (D19, task 1.11): City Hunt, Big Days, Same Here, Learner Seat and Help Swap, with the order to build, the rules and what is measured. Drawn in today's design on row 2 of the [canvas](https://claude.ai/artifact/NprdWrye3bs6swEBGvDVgT). **New decisions:** 35 to 37. **Not built:** nothing in the app, database or settings changed. Say "approve D17", "approve D19", or what to change.
@@ -4947,3 +5043,11 @@ Entries from before the 30 October rethink use the old task numbers (for example
 - **2026-10-30 (latest):** Everything from the four other plan files is now here. New tasks 1.8 (lock down where keys are kept) and 1.9 (decoy key, security alerts, key emergency guide, six proofs). Alert emails added to 1.3, an app-code secret test added to 1.6, a monthly security check card, and a Reference section (phases and rules, testing, key safety, fewer requests).
 - **2026-10-30 (later):** One complete step-by-step plan. Every task opens to its own clicks. The paperwork track, the decisions, the costs and the emergency cards are now in this one file. Corrected the status: the staging safety, the app tour and the "app finished" check were already done on 26 to 28 October.
 - **2026-10-30:** First short version. The originals are in `docs/archive/2026-10-30-before-simplify/`.
+
+### Notes that used to open this plan (moved here on 8 November 2026)
+
+The clickable version is `docs/ULTIMATE_PLAN.html`. Open it in Chrome. Your ticks are saved there.
+
+Rethought on 30 October 2026. What changed: the steps now follow the order a product owner would choose (fix what is broken, make it hacker-proof, prove it with testers, get ready to market, build production, launch, grow). Every slow task that waits on other people sits in one "Start now" track. Future ideas sit in a separate **Future scope** section, so they never count against your progress. The accounts for staging and production are drawn as two maps. Security and marketing each have their own section. The previous version is kept unchanged in `docs/archive/2026-10-30-before-rethink/`.
+
+Checked against best practice on 31 October 2026 (see the changelog). New: 2-step sign-in on your accounts (2.1b), money safety limits (2.11), the marketplace numbers (3.3b), a dispute and safety policy (4.9), backups you control and a real restore practice, a production that is safe from its first minute, releases in small slices, and an earlier start for the 14-day tester clock (Gate 2 is now two gates, 2a and 2b). Vercel security check (31 October): a table of what Vercel secures and what stays yours, holes H18 and H19, and a new task 5.8b (spending stop, firewall rule, preview safety). Advice from a WhatsApp group (3 November): a new task 2.13 (a lock and a limit on every server door, a code scanner, the OWASP checklist line by line, a way for security researchers to report, a spending stop on every paid service; then your three rules: one person never reaches another's data, every document private, sign-in sessions that can be ended), holes H22 to H28, and decisions 14 to 16. A second paste the same day (rate limits, a real sign-in provider, row rules, keys on the server, caching, background jobs, a load test) was checked too: it added part J (a load and abuse test, plus a check of slow work and caching) and hole H29. Made simpler on 4 November: the Security section now opens with "Security in one page", 12 plain checks (with Matt Palmer's checklist, the Betterleaks secrets audit and Strix folded in); the long tables sit in cards below it; Step 2 opens with the security path in order; and two tasks are new, 2.15 (the secrets audit) and 2.16 (the AI attacker). **Two copies, side by side (5 November):** `taskdrop.in` is now **staging**, production starts on the addresses Vercel makes, staging gets its own Android app (`com.taskdrop.app.staging`), and one step-by-step plan covers the staging and production websites, the staging and production Android apps and every backend tool (tasks 5.0a to 5.0e, the switchboard card, decision 28). Caching designed on 4 November: task 3.5b (keep the same-for-everyone lists ready, never anyone's own data, no Redis), holes H69 and H70, decision 29.
