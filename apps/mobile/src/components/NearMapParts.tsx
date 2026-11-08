@@ -1,9 +1,9 @@
 import { View, Text as RNText, Pressable } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import type { TaskWithPoster } from '../data/api';
-import type { NearbyWorker } from '../data/extras';
+import type { MapPerson, NearbyWorker } from '../data/extras';
 import { presenceOf } from '../lib/presence';
-import { areaName, farText, firstName, initialsOf, offerOf } from './mapPins';
+import { areaName, farText, firstName, initialsOf, offerOf, togetherText } from './mapPins';
 import { mapWords, type MapTone } from './JobsMap';
 import { TopUpBadge } from './TopUpBadge';
 import { categoryIcon } from './WorkCard';
@@ -94,11 +94,22 @@ export function Segmented<T extends string | number>({
   );
 }
 
-/** The two notes that used to sit over the map: privacy, and what a pin means. */
-export function MapNotes({ tone, legend = true }: { tone: MapTone; legend?: boolean }) {
+/** What the "My people" layer says about a pin (plan D20): a spot is a rounded cell, and it expires. */
+export const MINE_WORDS = {
+  privacy: 'Spots are rounded to about 500 m and vanish after 15 minutes.',
+  legend: 'Tap a face to see who',
+  one: 'person',
+  many: 'people',
+} as const;
+
+/**
+ * The two notes that used to sit over the map: privacy, and what a pin means.
+ * `mine` swaps in the "My people" words (still the blue people look).
+ */
+export function MapNotes({ tone, legend = true, mine = false }: { tone: MapTone; legend?: boolean; mine?: boolean }) {
   const t = useTheme();
   const c = useTone(tone);
-  const words = mapWords(tone);
+  const words = mine ? { ...mapWords(tone), ...MINE_WORDS } : mapWords(tone);
   return (
     <View style={{ gap: 6 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -254,6 +265,53 @@ export function HelperRow({ worker: w, now, on, onPress }: { worker: NearbyWorke
         <RNText style={tx('800', 14, o.price ? t.colors.ink : t.colors.muted, { fontVariant: ['tabular-nums'] })}>{o.price ? `from ${o.price}` : 'Skill only'}</RNText>
         {live ? <RNText style={tx('800', 10, t.colors.online)}>● Active</RNText> : null}
       </View>
+    </Pressable>
+  );
+}
+
+/**
+ * One of "My people" in the list (plan D20): "Asha", then "2 jobs together · Active now · 1.2 km".
+ * First name only, and the distance is to a rounded spot, never a place.
+ */
+export function PersonRow({ person: p, now, on, onPress }: { person: MapPerson; now: number; on: boolean; onPress: () => void }) {
+  const t = useTheme();
+  const c = useTone('people');
+  const presence = presenceOf(p.last_seen_at, now);
+  const name = firstName(p.display_name);
+  const meta = [togetherText(p.jobs), presence.label, farText(p.km)].join(' · ');
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: on }}
+      accessibilityLabel={`${name}, ${meta}`}
+      style={({ pressed }) => ({
+        height: ROW_H,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingHorizontal: 10,
+        borderRadius: 16,
+        borderWidth: 1.5,
+        borderColor: on ? c.hue : 'transparent',
+        backgroundColor: on ? c.soft : pressed ? t.colors.surface2 : 'transparent',
+      })}
+    >
+      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.soft, alignItems: 'center', justifyContent: 'center' }}>
+        <RNText style={tx('800', 13, c.ink)}>{initialsOf(p.display_name)}</RNText>
+        {presence.online ? (
+          <View style={{ position: 'absolute', right: -1, bottom: -1, width: 12, height: 12, borderRadius: 6, backgroundColor: t.colors.online, borderWidth: 2, borderColor: t.colors.surface }} />
+        ) : null}
+      </View>
+      <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+        <RNText style={tx('700', 13.5, t.colors.ink)} numberOfLines={1}>
+          {name}
+        </RNText>
+        <RNText style={tx('600', 11.5, t.colors.muted)} numberOfLines={1}>
+          {meta}
+        </RNText>
+      </View>
+      <Icon name="chevronRight" size={14} color={t.colors.muted} />
     </Pressable>
   );
 }

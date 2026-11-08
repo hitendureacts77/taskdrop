@@ -197,8 +197,8 @@ export function tourBeats(path: TourPath): TourBeat[] {
       title: 'Five tabs at the bottom',
       body:
         path === 'earn'
-          ? 'Home for what’s new, Find work for open jobs, My Work to track your jobs, Wallet for your earnings, Profile for you.'
-          : 'Home for what’s new, Explore for ideas, My Tasks to track your jobs, Wallet for your money, Profile for you.',
+          ? 'Home for what’s new, Find work for the map of open jobs, My Work to track your jobs, Wallet for your earnings, Profile for you.'
+          : 'Home for what’s new, Explore for the map of what’s around you, My Tasks to track your jobs, Wallet for your money, Profile for you.',
     },
   ];
 }

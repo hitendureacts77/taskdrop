@@ -1,5 +1,5 @@
 import type { Profile, Task } from '../data/api';
-import type { NearbyWorker } from '../data/extras';
+import type { MapPerson, NearbyWorker } from '../data/extras';
 import { isFresh } from '../lib/mapMotion';
 import { presenceOf } from '../lib/presence';
 import { roughPlace } from '../lib/place';
@@ -98,10 +98,31 @@ export function personPin(w: NearbyWorker, now: number): JobPin | null {
   };
 }
 
+/**
+ * A person from "My people" (plan D20): a face with their initials and their first name.
+ * Names are allowed here and only here, because these people already finished a task with
+ * you. No area and no price: the spot is a rounded cell, never a place name.
+ */
+export function minePin(p: MapPerson, now: number): JobPin {
+  return {
+    id: p.id,
+    lat: p.lat,
+    lng: p.lng,
+    label: firstName(p.display_name),
+    price: null,
+    face: { initials: initialsOf(p.display_name), live: presenceOf(p.last_seen_at, now).online, photo: p.avatar_url },
+  };
+}
+
 /** People with TaskDrop open come first, then nearest. */
-export function activeFirst(list: NearbyWorker[], now: number): NearbyWorker[] {
-  const live = (w: NearbyWorker) => (presenceOf(w.last_seen_at, now).online ? 0 : 1);
+export function activeFirst<T extends { last_seen_at: string | null; km: number }>(list: T[], now: number): T[] {
+  const live = (w: T) => (presenceOf(w.last_seen_at, now).online ? 0 : 1);
   return [...list].sort((a, b) => live(a) - live(b) || a.km - b.km);
+}
+
+/** "2 jobs together" / "1 job together". */
+export function togetherText(jobs: number): string {
+  return `${jobs} ${jobs === 1 ? 'job' : 'jobs'} together`;
 }
 
 /** "Madhapur" from a saved place, never a street. */

@@ -106,6 +106,20 @@ const ID = "22222222-2222-4222-8222-222222222222";
   console.log(`ok  - caching lists: ${memo.length} shared, ${NEVER_REUSE.size} never reused, ${PER_PERSON_REUSE.size} per person; ${reads.length} reads all classified`);
 }
 
+// ---------------------- the people map ops (D20, migration 159) are additions --
+// New ops exist, are classified the right way and are never open to guests; touchPresence stays an op the old
+// app can call with no arguments (its optional `spot` is an addition).
+{
+  for (const op of ["mapPeople", "mapSharing"]) {
+    assert.ok(op in NEW_OPS && rateBucket(op) === "read", `${op} is a read op`);
+    assert.ok(NEVER_REUSE.has(op) && !isPublicMemoOp(op), `${op} is never reused or shared`);
+  }
+  for (const op of ["setMapSharing", "clearMapSpot"]) assert.ok(op in NEW_OPS && rateBucket(op) === "write", `${op} is a write op`);
+  for (const op of ["mapPeople", "mapSharing", "setMapSharing", "clearMapSpot"]) assert.ok(!(op in GUEST_OPS), `${op} must not be a guest op`);
+  assert.ok("touchPresence" in NEW_OPS);
+  console.log("ok  - people map ops: listed, classified, closed to guests");
+}
+
 const OLD = oldAppDir(REPO);
 const oldApi = (await import(pathToFileURL(join(OLD, "supabase/functions/api/ops.ts")).href)) as typeof import("./ops.ts");
 

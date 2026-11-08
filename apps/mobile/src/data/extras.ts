@@ -8,6 +8,7 @@ import type { Tables } from '@taskdrop/db-types';
 import { guestGate, primeProfile, type Task, type Profile } from './api';
 import { isGuestOp } from '../lib/guest';
 import type { Idea, IdeaComment, IdeaKind, IdeaStatus } from '../lib/ideas';
+import { PEOPLE_MAP_NOTICE } from '../lib/mapSpot';
 
 /**
  * The second-wave features: notifications, saved tasks, help & support,
@@ -308,12 +309,49 @@ export async function updateProfileExtras(_userId: string, edits: ProfileExtras)
 
 let lastPresence = 0;
 
-/** Record that this person has TaskDrop open. At most every 45s; never throws. */
-export async function touchPresence(_userId: string): Promise<void> {
-  if (Date.now() - lastPresence < 45_000) return;
+/**
+ * Record that this person has TaskDrop open. At most every 45s; never throws. Resolves true when a request was
+ * made, false when the throttle skipped it (so a spot passed in was not sent).
+ * `spot` is the already-snapped map cell (lib/useMapSpot.ts nextSpot); it is sent only when given,
+ * so with sharing off the request carries no position at all.
+ */
+export async function touchPresence(_userId: string, spot?: { lat: number; lng: number } | null): Promise<boolean> {
+  if (Date.now() - lastPresence < 45_000) return false;
   lastPresence = Date.now();
-  await quietly('touchPresence', {}, null);
+  const shared = spot && Number.isFinite(spot.lat) && Number.isFinite(spot.lng) ? { spot: { lat: spot.lat, lng: spot.lng } } : {};
+  await quietly('touchPresence', shared, null);
+  return true;
 }
+
+// ------------------------------------------------------------------ my people --
+
+/** Someone I have finished a task with who chose to share a rounded spot (migration 159). Cells only, never exact. */
+export type MapPerson = {
+  id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  last_seen_at: string | null;
+  lat: number;
+  lng: number;
+  km: number;
+  jobs: number;
+  spot_at: string;
+};
+
+/** My people with a live rounded spot near a point, nearest first. Empty for guests and on any error. */
+export const mapPeople = (near: { lat: number; lng: number }, radiusKm: number) =>
+  quietly<MapPerson[]>('mapPeople', { lat: near.lat, lng: near.lng, radiusKm }, []);
+
+export type MapSharing = { share_live: boolean; consented_at: string | null; notice_version: string };
+
+/** My own "show my spot to my people" choice, or null when I never chose (or am signed out). */
+export const getMapSharing = () => quietly<MapSharing | null>('mapSharing', {}, null);
+
+/** Save the choice. Turning it off also deletes my spot on the server. Throws on failure. */
+export const setMapSharing = (on: boolean) => act<null>('setMapSharing', { on, notice: PEOPLE_MAP_NOTICE });
+
+/** Delete my shared spot right now (ghost mode) without changing the saved choice. Throws on failure. */
+export const clearMapSpot = () => act<null>('clearMapSpot', {});
 
 // ------------------------------------------------------------------ fees -----
 

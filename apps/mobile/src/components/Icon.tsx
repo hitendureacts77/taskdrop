@@ -48,6 +48,7 @@ export type IconName =
   | 'send'
   | 'tag'
   | 'compass'
+  | 'map'
   | 'briefcase'
   | 'list'
   | 'refresh'
@@ -110,6 +111,7 @@ const STROKE: Partial<Record<IconName, string>> = {
   send: 'M20.5 3.5 3.5 10.5l7 2.5 2.5 7 7.5-16.5ZM10.5 13l4-4',
   tag: 'M3.5 12.5V4h8.5l8.5 8.5-8.5 8.5-8.5-8.5ZM7.5 8h.01',
   compass: 'M3.5 12a8.5 8.5 0 1 0 17 0 8.5 8.5 0 1 0-17 0M15.5 8.5l-2 5-5 2 2-5 5-2Z',
+  map: 'M3.5 6.5 9 4.5l6 2 5.5-2v13l-5.5 2-6-2-5.5 2v-13ZM9 4.5v13M15 6.5v13',
   briefcase: 'M3.5 8h17v11h-17zM9 8V5.5h6V8M3.5 13h17',
   list: 'M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01',
   refresh: 'M19.5 11A7.5 7.5 0 0 0 6 7.5L4.5 9M4.5 13a7.5 7.5 0 0 0 13.5 3.5l1.5-1.5M4.5 4.5V9H9M19.5 19.5V15H15',

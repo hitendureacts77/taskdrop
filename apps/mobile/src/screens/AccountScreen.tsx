@@ -3,6 +3,7 @@ import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { BlockedPeopleCard } from '../components/BlockedPeopleCard';
+import { PeopleMapCard } from '../components/PeopleMapCard';
 import { Badge, ConfirmDialog, Field, PrimaryButton, SwipeTabs, TopBar, UnderlineTabs } from '../components/kit';
 import { nameCarriesContact } from '../lib/mask';
 import { tx } from '../components/primitives';
@@ -36,7 +37,7 @@ export function AccountScreen() {
   const t = useTheme();
   const { back, go, params } = useNav();
   const { flash, celebrate } = useActions();
-  const { userId, signOut, linkGoogle } = useAuth();
+  const { userId, signOut, linkGoogle, guest } = useAuth();
   const { reset } = useNav();
   const { pref, setPref } = useThemeControls();
   const { mode } = useMode();
@@ -395,6 +396,7 @@ export function AccountScreen() {
                 ))}
               </View>
             ) : null}
+            {guest || !userId ? null : <PeopleMapCard style={card} />}
             <BlockedPeopleCard style={card} />
           </>
         ) : null}
