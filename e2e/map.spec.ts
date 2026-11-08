@@ -49,6 +49,36 @@ test.describe("signed in as the seed poster", () => {
     await expect(page.getByRole("link", { name: "Help & support" })).toBeVisible();
   });
 
+  test("the side panel hides and comes back on a wide screen", async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto("/");
+    await expectSignedIn(page);
+    await page.getByText("Explore", { exact: true }).first().click();
+    await expect(showList(page)).toBeVisible();
+    // Without an area there is no panel to hide.
+    test.skip(await chooseArea(page).isVisible(), "this account has no area yet");
+    const heading = page.getByRole("heading", { name: /near you|people nearby/ });
+    await expect(heading).toBeVisible();
+    await page.getByRole("button", { name: "Hide the panel" }).click();
+    await expect(page.getByRole("button", { name: "Show the panel" })).toBeVisible();
+    await expect(heading).toBeHidden();
+    await page.getByRole("button", { name: "Show the panel" }).click();
+    await expect(heading).toBeVisible();
+  });
+
+  test("picking a reach updates the panel words", async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto("/");
+    await expectSignedIn(page);
+    await page.getByText("Explore", { exact: true }).first().click();
+    await expect(showList(page)).toBeVisible();
+    test.skip(await chooseArea(page).isVisible(), "this account has no area yet");
+    await page.getByLabel("How far", { exact: true }).getByRole("button", { name: "25 km" }).click();
+    await expect(page.getByText(/within 25 km/).first()).toBeVisible();
+    // Picking a reach is not the person moving the map.
+    await expect(page.getByRole("button", { name: "Search this area" })).toHaveCount(0);
+  });
+
   test("the Home search bar opens Explore as the list, not the map", async ({ page }) => {
     await page.goto("/");
     await expectSignedIn(page);
@@ -71,5 +101,18 @@ test.describe("as a guest", () => {
     await page.getByText("Explore", { exact: true }).first().click();
     await expect(showList(page)).toBeVisible();
     await expect(layerChip(page, "My people")).toHaveCount(0);
+  });
+
+  test("a guest can change the reach and still sees the layer chips", async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Skip sign-up for now" }).click();
+    await page.getByText("Explore", { exact: true }).first().click();
+    await expect(showList(page)).toBeVisible();
+    test.skip(await chooseArea(page).isVisible(), "a guest has no area yet");
+    await page.getByLabel("How far", { exact: true }).getByRole("button", { name: "10 km" }).click();
+    await expect(page.getByText(/within 10 km/).first()).toBeVisible();
+    await expect(layerChip(page, "Jobs")).toBeVisible();
+    await expect(layerChip(page, "Helpers")).toBeVisible();
   });
 });
