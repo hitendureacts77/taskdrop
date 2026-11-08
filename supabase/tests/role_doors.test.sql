@@ -125,7 +125,8 @@ begin
   end if;
   if p_table = 'task_private' then
     select count(*) into v from public.task_private tp
-     where not exists (select 1 from public.tasks t where t.id = tp.task_id and t.poster_id = p_caller);
+     where not exists (select 1 from public.tasks t where t.id = tp.task_id and t.poster_id = p_caller)
+       and not exists (select 1 from public.assignments s where s.task_id = tp.task_id and s.worker_id = p_caller);   -- the assigned worker may read it (policy task_private_parties_read)
     return v;
   end if;
   if v_oc is null then
