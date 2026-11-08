@@ -114,7 +114,7 @@ begin
   insert into public.profiles (id, display_name)
   values (v_a, 'Pmap A'), (v_b, 'Pmap B'), (v_c, 'Pmap C'), (v_d, 'Pmap D'),
          (v_e, 'Pmap E'), (v_f, 'Pmap F'), (v_g, 'Pmap G')
-  on conflict (id) do nothing;
+  on conflict (id) do update set display_name = excluded.display_name;
   insert into public.wallets (user_id)
   values (v_a), (v_b), (v_c), (v_d), (v_e), (v_f), (v_g) on conflict (user_id) do nothing;
 
