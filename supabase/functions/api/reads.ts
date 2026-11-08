@@ -547,6 +547,20 @@ export const READ_OPS: Record<string, Op> = {
       .slice(0, 20);
   },
 
+  /**
+   * The caller's people (finished a task together, migration 159) who chose to share, with a live spot rounded to
+   * a ~550 m cell, nearest first. The SQL function does the rounding and the checks; no exact position is ever read.
+   */
+  mapPeople: rpcOp("map_my_people", (a) => ({
+    p_lat: num(a, "lat", -90, 90),
+    p_lng: num(a, "lng", -180, 180),
+    p_radius_km: num(a, "radiusKm", 0, 50),
+  })),
+
+  /** The caller's own "show my spot to my people" choice: { share_live, consented_at, notice_version }, or null if never set. */
+  mapSharing: async (ctx) =>
+    take(await ctx.db.from("map_sharing").select("share_live, consented_at, notice_version").eq("user_id", ctx.userId).maybeSingle()),
+
   ageStatus: async (ctx) => {
     const res = await ctx.db.from("age_checks").select("passed").eq("user_id", ctx.userId).maybeSingle();
     return Boolean((take(res) as { passed?: boolean } | null)?.passed);

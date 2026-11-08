@@ -2192,4 +2192,107 @@ await t("hunt: sending a find follows the offers switch and the phone rule", () 
   assert.equal(refusalFor("huntAcceptFind", controlsWith({ bidding: false }), {}), null, "accepting is the poster's, not an offer");
 });
 
+
+// ------------------------------------------------------- people map (D20) --
+
+await t("people map: mapPeople passes the area to map_my_people and checks the ranges", async () => {
+  const f = fake(() => ({ data: [], error: null }));
+  const r = await runOp("mapPeople", { lat: 12.97, lng: 77.59, radiusKm: 10 }, ctx(f));
+  assert.ok(r.ok);
+  assert.equal(f.calls.length, 1);
+  assert.equal(f.calls[0].rpc, "map_my_people");
+  assert.deepEqual(f.calls[0].args, { p_lat: 12.97, p_lng: 77.59, p_radius_km: 10 });
+  for (const args of [{ lat: 91, lng: 0, radiusKm: 1 }, { lat: 0, lng: -181, radiusKm: 1 }, { lat: 0, lng: 0, radiusKm: 51 }, { lat: 0, lng: 0, radiusKm: -1 }, { lat: 0, lng: 0 }, { lat: "1", lng: 0, radiusKm: 1 }]) {
+    const g = fake();
+    const bad = await runOp("mapPeople", args, ctx(g));
+    assert.ok(!bad.ok && bad.error.code === "BAD_ARGS", JSON.stringify(args));
+    assert.equal(g.calls.length, 0);
+  }
+  assert.equal(rateBucket("mapPeople"), "read");
+});
+
+await t("people map: mapSharing reads only the caller's own row", async () => {
+  const f = fake(() => ({ data: { share_live: true, consented_at: "2026-11-08T00:00:00Z", notice_version: "v1" }, error: null }));
+  const r = await runOp("mapSharing", {}, ctx(f));
+  assert.ok(r.ok);
+  assert.equal(f.calls[0].table, "map_sharing");
+  assert.deepEqual(steps(f.calls[0], "eq"), [["user_id", UID]]);
+  assert.equal(rateBucket("mapSharing"), "read");
+});
+
+await t("people map: a guest gets NEEDS_ACCOUNT for every people-map op and nothing reaches the database", async () => {
+  for (const name of ["mapPeople", "mapSharing", "setMapSharing", "clearMapSpot"]) {
+    assert.equal(isGuestOp(name), false, name);
+    const f = guestFake();
+    const r = await runGuestOp(name, { lat: 12.97, lng: 77.59, radiusKm: 5, on: true, notice: "v1" }, ctx(f));
+    assert.equal(r.ok, false, name);
+    if (!r.ok) assert.equal(r.error.code, NEEDS_ACCOUNT_CODE, name);
+    assert.equal(f.calls.length, 0, name + " reached the database");
+  }
+});
+
+await t("people map: touchPresence without a spot is the old call, no map_spot_beat", async () => {
+  for (const args of [{}, { spot: null }]) {
+    const f = fake();
+    const r = await runOp("touchPresence", args, ctx(f));
+    assert.ok(r.ok);
+    assert.equal(f.calls.length, 1);
+    assert.equal(f.calls[0].table, "profiles");
+    assert.equal(f.calls.filter((c) => c.rpc === "map_spot_beat").length, 0);
+  }
+});
+
+await t("people map: touchPresence with a spot updates presence, then calls map_spot_beat once", async () => {
+  const f = fake();
+  const r = await runOp("touchPresence", { spot: { lat: 12.97, lng: 77.595 } }, ctx(f));
+  assert.ok(r.ok);
+  assert.equal(f.calls.length, 2);
+  assert.equal(f.calls[0].table, "profiles");
+  assert.equal(f.calls[1].rpc, "map_spot_beat");
+  assert.deepEqual(f.calls[1].args, { p_lat: 12.97, p_lng: 77.595 });
+});
+
+await t("people map: a failing map_spot_beat never fails the caller or the presence update", async () => {
+  const f = fake((c) => (c.rpc === "map_spot_beat" ? { data: null, error: { code: "42501", message: "permission denied" } } : { data: [{ id: "row" }], error: null }));
+  const r = await runOp("touchPresence", { spot: { lat: 12.97, lng: 77.595 } }, ctx(f));
+  assert.ok(r.ok);
+  assert.equal(f.calls.filter((c) => c.rpc === "map_spot_beat").length, 1);
+  // a thrown error is swallowed too
+  const g = fake();
+  const db = { ...g.db, rpc: async () => { throw new Error("boom"); } };
+  assert.ok((await runOp("touchPresence", { spot: { lat: 1, lng: 2 } }, { ...ctx(g), db: db as never })).ok);
+});
+
+await t("people map: a spot outside the real ranges, or not a position, is refused before anything is written", async () => {
+  for (const spot of [{ lat: 91, lng: 0 }, { lat: 0, lng: 181 }, { lat: "1", lng: 2 }, { lat: 1 }, { lat: NaN, lng: 2 }, [1, 2], "12,77", 5]) {
+    const f = fake();
+    const r = await runOp("touchPresence", { spot }, ctx(f));
+    assert.ok(!r.ok && r.error.code === "BAD_ARGS", JSON.stringify(spot));
+    assert.equal(f.calls.length, 0);
+  }
+});
+
+await t("people map: setMapSharing sends the choice and the notice version, and rejects a bad notice", async () => {
+  const f = fake(() => ({ data: null, error: null }));
+  const r = await runOp("setMapSharing", { on: true, notice: "v1" }, ctx(f));
+  assert.ok(r.ok);
+  assert.equal(f.calls[0].rpc, "map_sharing_set");
+  assert.deepEqual(f.calls[0].args, { p_on: true, p_notice: "v1" });
+  assert.ok((await runOp("setMapSharing", { on: false, notice: "v12" }, ctx(fake()))).ok);
+  for (const args of [{ on: true, notice: "1" }, { on: true, notice: "v" }, { on: true, notice: "vx" }, { on: true, notice: "v1; drop" }, { on: true, notice: "v" + "1".repeat(20) }, { on: true, notice: "" }, { on: true }, { on: true, notice: 1 }, { on: "yes", notice: "v1" }, { notice: "v1" }]) {
+    const g = fake();
+    const bad = await runOp("setMapSharing", args, ctx(g));
+    assert.ok(!bad.ok && bad.error.code === "BAD_ARGS", JSON.stringify(args));
+    assert.equal(g.calls.length, 0);
+  }
+  assert.equal(rateBucket("setMapSharing"), "write");
+});
+
+await t("people map: clearMapSpot calls map_spot_clear and is a write", async () => {
+  const f = fake(() => ({ data: null, error: null }));
+  assert.ok((await runOp("clearMapSpot", {}, ctx(f))).ok);
+  assert.equal(f.calls.length, 1);
+  assert.equal(f.calls[0].rpc, "map_spot_clear");
+  assert.equal(rateBucket("clearMapSpot"), "write");
+});
 console.log(`\n${passed} passed`);

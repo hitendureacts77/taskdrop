@@ -59,7 +59,7 @@ function Tabs() {
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name={TAB_ROUTE.explore.name} contentStyle={page} disableAutomaticContentInsets>
         <NativeTabs.Trigger.Label>{worker ? 'Find work' : 'Explore'}</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf={{ default: 'safari', selected: 'safari.fill' }} md="explore" />
+        <NativeTabs.Trigger.Icon sf={{ default: 'map', selected: 'map.fill' }} md="map" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger
         name={TAB_ROUTE.myTasks.name}

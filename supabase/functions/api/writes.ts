@@ -1,5 +1,5 @@
 import {
-  type Args, type Ctx, type DbError, type Op, MONEY_MAX, OpError, bad, bool, coordOrNull, int, isoOrNull, nowIso, numOrNull, oneOf, priceMinor,
+  type Args, type Ctx, type DbError, type Op, MONEY_MAX, OpError, bad, bool, coordOrNull, int, isoOrNull, nowIso, num, numOrNull, oneOf, priceMinor,
   rows, rpcOp, str, strOrNull, strings, take, toOpError, uuid, uuidOrNull, uuids,
 } from "./core.ts";
 import { assertOwnImage, isMediaRef } from "./media.ts";
@@ -182,6 +182,13 @@ async function keepAddress(ctx: Ctx, taskId: unknown, address: string | null): P
 
 const taskOnly = (a: Args) => ({ p_task_id: uuid(a, "taskId") });
 const description = (a: Args) => (typeof a.description === "string" ? a.description.slice(0, 20000) : "");
+
+/** A position for the people map: an object with a latitude and a longitude inside their real ranges. */
+function spotOf(v: unknown): { lat: number; lng: number } {
+  if (typeof v !== "object" || v === null || Array.isArray(v)) throw bad("spot");
+  const o = v as Args;
+  return { lat: num(o, "lat", -90, 90), lng: num(o, "lng", -180, 180) };
+}
 
 export const WRITE_OPS: Record<string, Op> = {
   // ---- the task lifecycle, where money moves (all decided in SQL) ----
@@ -570,15 +577,38 @@ export const WRITE_OPS: Record<string, Op> = {
     return row;
   },
 
-  /** "Has TaskDrop open." Best-effort; never fails the caller. */
-  touchPresence: async (ctx) => {
+  /**
+   * "Has TaskDrop open." Best-effort; never fails the caller. An optional `spot` ({ lat, lng }, already snapped on
+   * the device) is also handed to the database, which snaps it again and shows it only to the caller's people
+   * (migration 159). Without `spot` this is exactly the old call: one presence update, nothing else.
+   */
+  touchPresence: async (ctx, a) => {
+    const spot = a.spot == null ? null : spotOf(a.spot);
     try {
       await ctx.db.from("profiles").update({ last_seen_at: nowIso(ctx) }).eq("id", ctx.userId);
     } catch {
       /* presence is a nicety */
     }
+    if (spot) {
+      try {
+        await ctx.db.rpc("map_spot_beat", { p_lat: spot.lat, p_lng: spot.lng });
+      } catch {
+        /* the spot is a nicety too (a database error comes back as a result, not a throw; this covers a thrown one) */
+      }
+    }
     return null;
   },
+
+  /** Turn "show my spot to my people" on or off (migration 159). Off also deletes the live spot. */
+  setMapSharing: rpcOp("map_sharing_set", (a) => {
+    if (typeof a.on !== "boolean") throw bad("on");
+    const notice = str(a, "notice", 20);
+    if (!/^v\d+$/.test(notice)) throw bad("notice");
+    return { p_on: a.on, p_notice: notice };
+  }),
+
+  /** Delete the caller's live spot now (ghost mode), without changing the saved choice. */
+  clearMapSpot: rpcOp("map_spot_clear"),
 
   recordBirthDate: rpcOp("record_birth_date", (a) => {
     const v = str(a, "birthDate", 10, 10);

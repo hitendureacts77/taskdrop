@@ -127,16 +127,16 @@ function YouDot({ at, color }: { at: { lat: number; lng: number }; color: string
   );
 }
 
-function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = RING_KM, tone = 'jobs', focusId = null, onExpand, fill, dim = false, onMoveEnd }: Props) {
+function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = RING_KM, tone = 'jobs', focusId = null, onExpand, fill, dim = false, onMoveEnd, startAt, startZoom = START_ZOOM }: Props) {
   const t = useTheme();
   const mapRef = useRef<MapView>(null);
-  const start = me ?? (pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : DEFAULT_CENTRE);
+  const start = me ?? startAt ?? (pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : DEFAULT_CENTRE);
   const [size, setSize] = useState({ w: 0, h: height });
   const [region, setRegion] = useState<Region>({
     latitude: start.lat,
     longitude: start.lng,
-    latitudeDelta: deltaFor(START_ZOOM),
-    longitudeDelta: deltaFor(START_ZOOM),
+    latitudeDelta: deltaFor(startZoom),
+    longitudeDelta: deltaFor(startZoom),
   });
 
   // Once the first location arrives, start there; after that the map is the person's to move.

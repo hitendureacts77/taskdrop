@@ -63,6 +63,10 @@ export type JobsMapProps = {
   dim?: boolean;
   /** The person has moved the map; where its middle is now (for "Search this area"). */
   onMoveEnd?: (centre: { lat: number; lng: number }) => void;
+  /** Where the map starts when there is no `me` (default: the first pin, else Bengaluru). */
+  startAt?: { lat: number; lng: number };
+  /** How far in the map starts (default 12, a city). Lower shows more of the country. */
+  startZoom?: number;
 };
 
 /** Where the middle of the map has to be so a point sits in the middle of the part the bars leave uncovered. */
@@ -162,16 +166,18 @@ export function JobsMap({
   callout,
   dim = false,
   onMoveEnd,
+  startAt,
+  startZoom = 12,
 }: JobsMapProps) {
   const t = useTheme();
-  const start = me ?? (pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : DEFAULT_CENTRE);
+  const start = me ?? startAt ?? (pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : DEFAULT_CENTRE);
   // A place shown in the middle of the part the bars leave uncovered, not behind a side panel.
   const clear = (at: { lat: number; lng: number }, z: number) => {
     const p = centreFor(project(at.lat, at.lng, z), fill);
     return unproject(p.x, p.y, z);
   };
-  const [centre, setCentre] = useState(() => clear(start, 12));
-  const [zoom, setZoom] = useState(12);
+  const [centre, setCentre] = useState(() => clear(start, startZoom));
+  const [zoom, setZoom] = useState(startZoom);
   const [size, setSize] = useState({ w: 0, h: height });
 
   const centreRef = useRef(centre);

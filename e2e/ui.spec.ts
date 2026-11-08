@@ -67,6 +67,8 @@ test.describe("signed in as the seed poster", () => {
     await page.goto("/");
     await expectSignedIn(page);
     await page.getByText("Explore", { exact: true }).first().click();
+    // Explore opens on the full-screen map; the list is one tap away (the "List" pill).
+    await page.getByRole("button", { name: "Show the list" }).click();
     await expect(page.locator("body")).toContainText("₹", { timeout: 20_000 });
   });
 });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { noteFirstAction } from '../lib/appPrompt';
-import { View, Text as RNText, ScrollView, TextInput, Pressable, type TextInputInstance } from 'react-native';
+import { View, Text as RNText, ScrollView, TextInput, Pressable, Animated, Platform, type TextInputInstance, type StyleProp, type ViewStyle } from 'react-native';
 import { Screen, ScreenList, cardSurface } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
@@ -14,7 +14,7 @@ import { BidSheet } from '../components/BidSheet';
 import { HowItWorks } from '../components/HowItWorks';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { useTheme, ring } from '../providers/ThemeProvider';
-import { useNav, useFocusTick } from '../providers/NavProvider';
+import { useNav, useFocusTick, type NavParams, type ScreenName } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
@@ -25,7 +25,7 @@ import {
   type Task,
   type TaskWithPoster,
 } from '../data/api';
-import { listSavedTaskIds, setSaved } from '../data/extras';
+import { listSavedTaskIds, setSaved, remoteTasks } from '../data/extras';
 import { listGuestSaves, setGuestSaved } from '../lib/guestSaves';
 import { IDEAS, TEMPLATES, TEMPLATE_TAGS, CATEGORIES, TOP_CATEGORIES, type TemplateTag } from '../lib/taskBrief';
 import { taskToFeedRow } from '../lib/openTask';
@@ -34,9 +34,18 @@ import { distanceKm } from '@taskdrop/rules';
 import { TopUpBadge } from '../components/TopUpBadge';
 import { NearYou } from '../components/NearYou';
 import { JobsNearHero } from '../components/JobsNearHero';
+import { NearMap, type NearMapLayer } from '../components/NearMap';
+import { LocationSheet } from '../components/LocationSheet';
+import { useMyArea } from '../lib/useMyArea';
+import { useReducedMotion } from '../lib/motion';
+import { TABLET_CONTENT, WIDE_CONTENT, XL_CONTENT, XL_MIN_WIDTH, useLayout } from '../lib/layout';
 
 /**
- * Explore -- two different pages behind one tab.
+ * Explore -- the map of what is around you, with the old page one tap away.
+ *
+ * The tab opens on the full-screen map (plan D20: components/NearMap, the same
+ * map Home's cards open). A "List" pill switches to the page this tab always
+ * was, which has two faces:
  *
  * Posting: "Explore ideas". Search goes straight into the AI composer; below
  * it are the quick templates, a few things people often need, and how the
@@ -45,15 +54,202 @@ import { JobsNearHero } from '../components/JobsNearHero';
  * Earning: "Find work". Search and filters over open tasks -- quick accept,
  * quick earn, bid required, live, local, and by category -- with apply and
  * save on every card.
+ *
+ * Which one shows:
+ *  - Coming in from another tab lands on the map, every time.
+ *  - Arriving with a search or filter (Home's search bar) opens the list.
+ *  - Staying on the tab (or coming back from a job opened here) keeps the choice.
  */
+const LIST_INTENT = ['q', 'focusSearch', 'filter', 'category'] as const;
+const hasListIntent = (p: NavParams) => LIST_INTENT.some((k) => p[k] !== undefined);
+/** The screens that show the tab bar: entering Explore from one of them is "coming in from another tab". */
+const TAB_SCREENS: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'profile', 'search', 'orders'];
+const defaultLayer = (mode: string): NearMapLayer => (mode === 'worker' ? 'jobs' : 'people');
+/** The most remote jobs asked for; a full answer reads "50+". */
+const REMOTE_ASKED = 50;
+/** How long a view takes to fade in; shorter, and without the small rise, under reduced motion. */
+const VIEW_FADE_MS = 180;
+const VIEW_FADE_REDUCED_MS = 120;
+
 export function ExploreScreen() {
+  const t = useTheme();
   const { mode } = useMode();
-  return mode === 'worker' ? <FindWork /> : <ExploreIdeas />;
+  const { params, screen } = useNav();
+  const { userId } = useAuth();
+  const { area, loaded, choose } = useMyArea();
+  const { desktop, tablet, width } = useLayout();
+  const reduced = useReducedMotion();
+  const focusTick = useFocusTick();
+
+  // A list intent is "new" once per params object: the phone's own tab bar leaves old params
+  // behind, and those must not pull a later visit back to the list.
+  const consumed = useRef<NavParams | null>(hasListIntent(params) ? params : null);
+  const [view, setView] = useState<'map' | 'list'>(hasListIntent(params) ? 'list' : 'map');
+  // The list keeps its search, filters and scroll once opened, so it is built the first time and then only hidden.
+  const [listBuilt, setListBuilt] = useState(view === 'list');
+  if (view === 'list' && !listBuilt) setListBuilt(true);
+  const [layer, setLayer] = useState<NearMapLayer>(defaultLayer(mode));
+  const [pickPlace, setPickPlace] = useState(false);
+  const [remote, setRemote] = useState<number | null>(null);
+  const [remoteAsk, setRemoteAsk] = useState<{ filter: Filter; id: number } | undefined>(undefined);
+
+  // The tab stays mounted while another tab or a job is in front (R4), so the view is steered by where
+  // the person came from. The focus tick is no help: it does not move when the tab was seen under 30 s ago.
+  const lastScreen = useRef(screen);
+  const exitedTo = useRef<ScreenName | null>(null);
+  const intentSinceExit = useRef(false);
+  useEffect(() => {
+    const prev = lastScreen.current;
+    lastScreen.current = screen;
+    if (prev === 'explore' && screen !== 'explore') {
+      exitedTo.current = screen;
+      intentSinceExit.current = false;
+    }
+    if (hasListIntent(params) && params !== consumed.current) {
+      consumed.current = params;
+      intentSinceExit.current = true;
+      setView('list');
+      return;
+    }
+    if (screen === 'explore' && prev !== 'explore') {
+      // Back from a job opened here (not a tab) keeps the view; arriving any other way starts on the map.
+      const backFromOpened = prev === exitedTo.current && !TAB_SCREENS.includes(prev);
+      if (!backFromOpened && !intentSinceExit.current) setView('map');
+      intentSinceExit.current = false;
+    }
+  }, [screen, params]);
+
+  // Each side starts on its own layer, and starts over when the mode flips.
+  useEffect(() => setLayer(defaultLayer(mode)), [mode]);
+
+  // Remote jobs have no place on a map, so the Jobs layer says how many there are and where to find them.
+  const showRemote = view === 'map' && layer === 'jobs' && mode === 'worker';
+  useEffect(() => {
+    if (!showRemote) return;
+    let alive = true;
+    remoteTasks(REMOTE_ASKED)
+      .then((rows) => alive && setRemote(rows.length))
+      .catch(() => alive && setRemote(null));
+    return () => {
+      alive = false;
+    };
+  }, [showRemote, focusTick]);
+
+  const seeRemote = () => {
+    setRemoteAsk((r) => ({ filter: 'remote', id: (r?.id ?? 0) + 1 }));
+    setView('list');
+  };
+  const remoteLine =
+    showRemote && remote ? (
+      <Pressy onPress={seeRemote} label="See remote jobs" style={{ flexDirection: 'row', alignItems: 'center', minHeight: 32 }}>
+        <RNText numberOfLines={1} style={tx('500', 12.5, t.colors.muted)}>
+          {remote >= REMOTE_ASKED ? REMOTE_ASKED + '+' : remote} remote {remote === 1 ? "job isn't" : "jobs aren't"} on the map ·{' '}
+          <RNText style={tx('700', 12.5, t.colors.accentDeep)}>See them</RNText>
+        </RNText>
+      </Pressy>
+    ) : undefined;
+
+  // The list keeps the reading width the screen host used to give it; the map takes everything beside the menu.
+  const web = Platform.OS === 'web';
+  const listWidth: StyleProp<ViewStyle> = {
+    width: '100%',
+    alignSelf: 'center',
+    maxWidth: web ? (desktop ? (width >= XL_MIN_WIDTH ? XL_CONTENT : WIDE_CONTENT) : tablet ? TABLET_CONTENT : undefined) : undefined,
+  };
+
+  const centre = area ? { lat: area.lat, lng: area.lng } : null;
+  return (
+    <View style={{ flex: 1 }}>
+      {view === 'map' ? (
+        <FadeIn key="map" duration={reduced ? VIEW_FADE_REDUCED_MS : VIEW_FADE_MS} translateY={reduced ? 0 : 8} style={{ flex: 1 }}>
+          {userId && !loaded ? (
+            <View style={{ flex: 1, backgroundColor: t.colors.surface2 }} />
+          ) : (
+            <NearMap
+              layer={layer}
+              onLayer={setLayer}
+              centre={centre}
+              leading={{ kind: 'list', onPress: () => setView('list') }}
+              footer={remoteLine}
+              onChooseArea={() => setPickPlace(true)}
+            />
+          )}
+        </FadeIn>
+      ) : null}
+      {listBuilt ? (
+        <ViewSwap on={view === 'list'} reduced={reduced} style={listWidth}>
+          {mode === 'worker' ? (
+            <FindWork onMap={() => setView('map')} initialFilter={remoteAsk} />
+          ) : (
+            <ExploreIdeas onMap={() => setView('map')} />
+          )}
+        </ViewSwap>
+      ) : null}
+      <LocationSheet
+        visible={pickPlace}
+        askForDetails={false}
+        onCancel={() => setPickPlace(false)}
+        onPick={(p) => {
+          setPickPlace(false);
+          void choose(p);
+        }}
+      />
+    </View>
+  );
+}
+
+/** The list page, built once and then only hidden, fading in each time it is shown. */
+function ViewSwap({ on, reduced, style, children }: { on: boolean; reduced: boolean; style: StyleProp<ViewStyle>; children: React.ReactNode }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const rise = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!on) return;
+    const ms = reduced ? VIEW_FADE_REDUCED_MS : VIEW_FADE_MS;
+    opacity.setValue(0);
+    rise.setValue(reduced ? 0 : 8);
+    const anim = Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: ms, useNativeDriver: true }),
+      Animated.timing(rise, { toValue: 0, duration: ms, useNativeDriver: true }),
+    ]);
+    anim.start();
+    return () => anim.stop();
+  }, [on, reduced, opacity, rise]);
+  return (
+    <Animated.View style={[{ flex: 1, display: on ? 'flex' : 'none' }, style, { opacity, transform: [{ translateY: rise }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
+
+/** "Map": back from the list to the full-screen map. */
+function MapPill({ onPress }: { onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <Pressy
+      onPress={onPress}
+      label="Show the map"
+      scaleTo={0.94}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        height: 44,
+        paddingHorizontal: 15,
+        borderRadius: 999,
+        backgroundColor: t.colors.surface,
+        borderWidth: 1.5,
+        borderColor: t.colors.line,
+      }}
+    >
+      <Icon name="map" size={15} color={t.colors.accentDeep} strokeWidth={2} />
+      <RNText style={tx('700', 13, t.colors.accentDeep)} numberOfLines={1}>Map</RNText>
+    </Pressy>
+  );
 }
 
 // ------------------------------------------------------------ poster side ---
 
-function ExploreIdeas() {
+function ExploreIdeas({ onMap }: { onMap: () => void }) {
   const t = useTheme();
   const { go } = useNav();
   const { flash } = useActions();
@@ -93,6 +289,9 @@ function ExploreIdeas() {
   return (
     <Screen padded={false}>
       <AppHeader />
+      <View style={{ alignItems: 'flex-end', paddingHorizontal: 20, paddingBottom: 2 }}>
+        <MapPill onPress={onMap} />
+      </View>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         {/* The hero: who can help near you, and what tasks round here pay. */}
         <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
@@ -340,7 +539,7 @@ const FILTERS: { key: Filter; label: string; icon?: Parameters<typeof Pill>[0]['
 const LOCAL_KM = 10;
 const QUICK_EARN_MAX_MINOR = 30000; // ₹300 and under
 
-function FindWork() {
+function FindWork({ onMap, initialFilter }: { onMap: () => void; initialFilter?: { filter: Filter; id: number } }) {
   const t = useTheme();
   const { go, params } = useNav();
   const { flash, setOpenTask } = useActions();
@@ -348,7 +547,7 @@ function FindWork() {
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState(typeof params.q === 'string' ? params.q : '');
   const [query, setQuery] = useState(typeof params.q === 'string' ? params.q : '');
-  const [filter, setFilter] = useState<Filter>(typeof params.filter === 'string' ? (params.filter as Filter) : 'all');
+  const [filter, setFilter] = useState<Filter>(typeof params.filter === 'string' ? (params.filter as Filter) : (initialFilter?.filter ?? 'all'));
   const [cat, setCat] = useState<string | null>(typeof params.category === 'string' ? params.category : null);
   const [rows, setRows] = useState<TaskWithPoster[] | null>(null);
   const focusTick = useFocusTick();
@@ -357,6 +556,15 @@ function FindWork() {
   const [view, setView] = useState<'list' | 'map'>('list');
   const [pinId, setPinId] = useState<string | null>(null);
   const searchRef = useRef<TextInputInstance>(null);
+
+  // "See them" on the map's remote-jobs line: show the remote jobs, whatever was filtered before.
+  const filterAsk = initialFilter?.id;
+  useEffect(() => {
+    if (!filterAsk || !initialFilter) return;
+    setFilter(initialFilter.filter);
+    setCat(null);
+    setTab(0);
+  }, [filterAsk]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Arriving from the home search bar: start clean (no leftover filters that
   // would hide every result) and put the cursor in the search box.
@@ -508,6 +716,7 @@ function FindWork() {
           placeholder="E.g. data entry, logo design, home tutoring…"
           voice={voice}
           tone="purple"
+          right={<MapPill onPress={onMap} />}
         />
         <View style={{ marginTop: 16 }}>
           <UnderlineTabs tabs={['Jobs', 'Busy now', 'How it works']} active={tab} onPick={setTab} />

@@ -34,7 +34,7 @@ export function BottomTabBar() {
 
   const tabs: Array<{ key: ScreenName; icon: IconName; label: string }> = [
     { key: 'home', icon: 'home', label: 'Home' },
-    { key: 'explore', icon: 'compass', label: 'Explore' },
+    { key: 'explore', icon: 'map', label: 'Explore' },
     { key: 'myTasks', icon: 'orders', label: mode === 'worker' ? 'My Work' : 'My Tasks' },
     { key: 'wallet', icon: 'wallet', label: 'Wallet' },
     { key: 'profile', icon: 'user', label: 'Profile' },

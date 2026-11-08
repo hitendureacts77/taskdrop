@@ -33,7 +33,7 @@ const PRE_AUTH: ScreenName[] = ['splash', 'intro', 'welcome', 'signup', 'setup']
 const PUBLIC: ScreenName[] = ['copyright', 'terms', 'privacy', 'support'];
 const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'orders', 'saved', 'wallet', 'spending', 'inbox', 'taskManage'];
 // Screens that fill everything beside the menu: a full map has no reading column.
-const FULL: ScreenName[] = ['nearMap'];
+const FULL: ScreenName[] = ['nearMap', 'explore'];
 
 
 export function ScreenHost() {
