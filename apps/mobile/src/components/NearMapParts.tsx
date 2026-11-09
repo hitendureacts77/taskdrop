@@ -578,6 +578,7 @@ export function ReachEditor({
   minKm,
   maxKm,
   parse,
+  plain = false,
 }: {
   initial: number | null;
   onSet: (km: number) => void;
@@ -585,9 +586,13 @@ export function ReachEditor({
   minKm: number;
   maxKm: number;
   parse: (s: string) => number | null;
+  /** Inside a sheet that already has a title and a card: no box and no heading of its own. */
+  plain?: boolean;
 }) {
   const t = useTheme();
-  const [text, setText] = useState(initial ? String(initial) : '');
+  // Starts on the last custom distance, else 45 (the example), already selected: type to replace it. An empty box looked
+  // like it held a number (a faint "45") and Set then refused it.
+  const [text, setText] = useState(String(initial ?? 45));
   const [bad, setBad] = useState(false);
   const submit = () => {
     const km = parse(text);
@@ -595,10 +600,18 @@ export function ReachEditor({
     onSet(km);
   };
   return (
-    <View style={{ gap: 10, padding: 14, borderRadius: 16, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
-      <RNText accessibilityRole="header" style={tx('800', 14, t.colors.ink)}>
-        Set your distance
-      </RNText>
+    <View
+      style={
+        plain
+          ? { gap: 10 }
+          : { gap: 10, padding: 14, borderRadius: 16, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 6 }
+      }
+    >
+      {plain ? null : (
+        <RNText accessibilityRole="header" style={tx('800', 14, t.colors.ink)}>
+          Set your distance
+        </RNText>
+      )}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <TextInput
           value={text}
@@ -608,11 +621,12 @@ export function ReachEditor({
           }}
           onSubmitEditing={submit}
           autoFocus
+          selectTextOnFocus
           keyboardType="number-pad"
           inputMode="numeric"
           maxLength={3}
           returnKeyType="done"
-          placeholder="45"
+          placeholder="km"
           placeholderTextColor={t.colors.muted}
           accessibilityLabel="Distance in kilometres"
           style={{ width: 84, height: 42, borderRadius: 12, borderWidth: 1, borderColor: bad ? t.colors.signalDeep : t.colors.line, backgroundColor: t.colors.surface2, paddingHorizontal: 12, textAlign: 'center', ...tx('800', 16, t.colors.ink, { fontVariant: ['tabular-nums'] }) }}

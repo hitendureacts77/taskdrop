@@ -53,6 +53,7 @@ function GlJobsMap({
   startZoom = 12,
   fit = null,
   ringAt,
+  bare = false,
 }: JobsMapProps & { lib: MapLib | null }) {
   const t = useTheme();
   const reduce = useReducedMotion();
@@ -79,6 +80,7 @@ function GlJobsMap({
       zoom: startZoom - GL_TO_TILE,
       // Inside a page the wheel scrolls the page; Ctrl + scroll or a pinch zooms the map.
       cooperativeGestures: !fill,
+      interactive: !bare,
     });
     noRotation(m);
     if (fill) m.setPadding({ top: fill.top, bottom: fill.bottom, left: fill.left ?? 0, right: 0 });
@@ -282,7 +284,7 @@ function GlJobsMap({
             </View>
           )}
         </View>
-      ) : onExpand ? (
+      ) : bare ? null : onExpand ? (
         <View style={{ position: 'absolute', right: 8, top: 8 }}>{control('Open the full map', onExpand, <Icon name="expand" size={16} color={t.colors.ink} />)}</View>
       ) : null}
     </View>
