@@ -1,7 +1,8 @@
 # TaskDrop: the ultimate plan
 
-**The only plan you need.** Three ways to use this page:
+**The only plan you need.** Four ways to use this page:
 
+- **See what changed on 9 November:** read **The CEO review** below: seven changes that make this the cheapest safe path to launch.
 - **Understand the app:** read **Your app in one page** (2 minutes).
 - **Set up the two copies:** follow **Staging and production, step by step**.
 - **Do the next task:** press the green **Next** button at the top, or pick a step in **The map**. Click a task to open its steps; tick it when it is done.
@@ -24,7 +25,7 @@
 Inside a task, every line is one of three kinds: **CLICK** (you do it), **SAY** (copy the purple box to Claude), **TELL** (write what you saw; a screenshot is fine).
 
 <details id="c-rules">
-<summary>[CARD] The eight rules (go in order, pass each gate, never paste a secret, and five more)</summary>
+<summary>[CARD] The ten rules (go in order, pass each gate, never paste a secret, and seven more)</summary>
 
 1. **Go in order.** Start the whole **Start now** track in week 1 as well. It is slow, so it runs beside Steps 1 to 4.
 2. **Pass each gate.** A gate is a short checklist at the end of each step. Do not start the next step until every line is true.
@@ -34,7 +35,52 @@ Inside a task, every line is one of three kinds: **CLICK** (you do it), **SAY** 
 6. **Claude pushes, opens the pull request and merges it without asking you** (your rule, 31 Oct). Merging is never a question for you. Claude still asks you first only before: publishing an app update to testers, wiping or resetting data, rotating a key, or touching `main` or production.
 7. **After every new feature, check it fits the browser and the screen** (your rule, 1 Nov). Claude does not call a feature done until the website works in Chrome, Edge, Firefox and Safari (latest versions) at phone, tablet and laptop widths, and the Android app works on your phone: nothing cut off, no sideways scrolling, every button easy to reach and tap, text readable (also with bigger text and with the keyboard open). The steps are in the card "Fits every browser and screen".
 8. **Secrets live only in the server-side env file** (your rule, 1 Nov). Every secret, new or old, is stored only in `.env.all-secrets` on your PC and in the server-side store that needs it (Supabase function secrets or Vault, Vercel Sensitive variables, Expo Secret variables). Claude never puts a secret in the app or website code, in a name that starts with `EXPO_PUBLIC_` or `NEXT_PUBLIC_`, in Git, in this plan, in a pull request or in chat, and never prints one. Only public values (the Supabase public key, the Sentry address, Firebase web settings) may sit in public names. The details are in task 2.1.
+9. **Feature freeze until launch** (CEO review, 9 Nov; decision 37). Once 1.12 and the D20 map tab are finished, only fixes go in. Every new idea goes to **Future scope**, however good it is. A new feature must be tested, secured and explained again, and it moves launch day.
+10. **Spend only when a number says so** (CEO review, 9 Nov). Before launch, money goes only to what launch cannot happen without (see **What it costs**). A tool is upgraded only when its limit warns (task 7.5). No paid ads until a free post has clearly worked.
 </details>
+
+---
+
+## The CEO review, 9 November 2026: the cheapest safe path to launch {open}
+
+**The short answer.** The plan is safe and complete, but it was not yet the cheapest or the fastest way to launch. The code is weeks ahead of the paperwork, new features kept arriving before the first real customer, and the way money moves (decision 29) is still open, although almost everything after Step 4 depends on it. The seven changes below fix that. They are already written into this plan, and every task number stays the same.
+
+| # | Change | Why it saves money or time | Where |
+|---|---|---|---|
+| 1 | **Freeze the features now.** Finish the map work in progress (1.12 and the D20 map tab), then build nothing new before launch. New ideas go to Future scope | Every new feature must be tested, secured and explained again. No customer has asked for one yet, because there are no customers yet | Gate 1, decision 37 |
+| 2 | **Do the paperwork this week.** S.2 first (a sole proprietorship with GST and Udyam, and a current account), then one fixed-fee lawyer (S.3) and the trademark (S.5) | S.2 has not started, and S.6, S.8 and decisions 10 and 17 all wait for it. Paperwork, not code, now decides launch day | Start now |
+| 3 | **Settle the money flow before production.** Recommended: Plan B (pay per task; the payment company holds the money until approval, Cashfree first). Say "design the Plan B money flow" now: a design costs nothing, and the code waits for Cashfree's and the lawyer's written yes | The wallet (Plan A) needs an RBI PPI licence, which needs about ₹5 crore net worth. Building production, KYC and security tests on the wallet and then switching means doing all of it twice | Decision 29 |
+| 4 | **Give production the real name.** At launch, `taskdrop.in` moves to production and staging moves to `staging.taskdrop.in` (free, same domain) | The payment company, the SMS registration, Google sign-in and Google Play each want a real website. The pages Google can read (4.3) and the Business Profile (4.4) only help if they sit on the address customers use. No second domain to buy | Decision 28 |
+| 5 | **Keep the monthly bill near $45.** Only Supabase Pro ($25) and Vercel Pro ($20) are paid at launch. Inngest, Sentry, PostHog, ImageKit, Loops and Expo start on free plans in their own production accounts, and one is upgraded only when its limit warns (7.5) | Task 5.4 asked for Inngest's paid plan; its free plan already gives production its own 50,000 runs a month, and 3.5c moves the database-only jobs to pg_cron, so far fewer runs are used | 5.4, What it costs |
+| 6 | **Test security once, on the final code.** The automatic guards keep running on every change. The AI attacker (2.16) and any paid tester (decision 30) run after the money flow is built | Testing money code that is about to be rewritten is wasted money | 2.16, decision 30 |
+| 7 | **Launch in 2 or 3 neighbourhoods, not all of Hyderabad.** Workers first, then posters, in the same few square kilometres | A task needs an offer within 30 minutes, and that only happens where workers are close together. A whole city is too big to fill at once | 4.1, 4.6, decision 38 |
+
+**Parked until after launch** (nothing is deleted; say "unpark" and the number to bring one back): **1.9** (ideas from Qwikyo and Heplo), **3.5b** (caching: the database is far from busy), **4.10** (email sequences: with no users there is no one to nudge, so they start in month 2).
+
+**New in S.2: a tax that can eat the margin.** For house-keeping tasks such as cleaning, plumbing and carpentry done by a worker who is not GST-registered, GST law (section 9(5)) makes the platform pay the GST, reportedly 5% of the task price with no credit back. On a ₹150 cleaning task that is about ₹7.50, more than half of what TaskDrop keeps. The CA must answer this before the fees are final. The sums are in **What it costs**.
+
+**What decides launch day now**
+
+| When | You | Claude |
+|---|---|---|
+| This week | Book the CA (S.2). Email Cashfree (S.4). Shortlist two fixed-fee lawyers (S.3). File the trademark (S.5). Answer decisions 29, 37 and 38. Look at the new map (1.12) | Fix what you find in 1.12, then freeze. Write the Plan B design if you say so |
+| Weeks 1 to 3 | GST and the current account arrive (S.2), then the SMS registration (S.6) and the payment company's KYC (S.8). Recruit workers in the launch areas (4.6) | Build Plan B after the written yes. Get Gate 2a ticked so the Google Play closed test (3.1 to 3.3) can start: its 14 days are the longest fixed wait |
+| Weeks 3 to 6 | The 14-day test runs. Your clicks in 2.2 to 2.4 | One security round on the final code (2.16, decision 30), then Gates 2b, 3 and 4 |
+| Weeks 6 to 8 | Production accounts (Step 5), the ₹10 test (6.3), GO (6.5) | Connect production (5.9), prove the copies are separate (5.11), launch day |
+
+This is an estimate, not a promise: launch in about 8 to 10 weeks is realistic if S.2 starts this week. Banks, Google and the payment company set their own pace.
+
+**Your next seven days**
+
+| Day | Do this | Task |
+|---|---|---|
+| 1 | Book a CA. Ask the S.2 questions, including the new GST one | S.2 |
+| 1 | Answer decision 29 (recommended: Plan B), 37 (freeze) and 38 (launch areas) | Decisions |
+| 2 | Email Cashfree: may TaskDrop use Easy Split, is there a turnover minimum, and can a split be held until the poster approves? | S.4 |
+| 2 | Send `docs/LAWYER_BRIEF.md` to two fixed-fee lawyers, with the Plan B question first | S.3 |
+| 3 | Trademark search, then file the word "taskdrop" in class 35 as an individual (₹4,500) | S.5 |
+| 3 to 7 | Look at the new map (D21, built 9 Nov) on taskdrop.in on your laptop and say "done 1.12" or what to fix, so the freeze can start | 1.12 |
+| 3 to 7 | Your clicks: spending alerts, lock the key stores, read the emergency guide once | 2.2, 2.3, 2.4 |
 
 ---
 
@@ -100,12 +146,13 @@ Inside a task, every line is one of three kinds: **CLICK** (you do it), **SAY** 
 5.0e | Learn the release routine | Every merge into redesigned-2.0 reaches taskdrop.in and the staging app by itself. Production only gets code that ran a quiet day on staging.
 # B · Before production | Production costs money, so it waits for the gates and the paperwork.
 - | Pass Gate 4 and finish the slow track | Company and bank (S.2), lawyer (S.3), SMS registration (S.6) and payment approval (S.8). See [Start now](#start-now-the-slow-track-start-in-week-1-runs-beside-steps-1-to-4) and [Gate 4](#gate-4).
-- | Answer decision 28: does production need a real web name? | Google's sign-in screen, Razorpay and the SMS registration may refuse a vercel.app address. See [Decisions](#decisions-only-you-can-make-these).
+- | Answer decision 29: how money moves | Recommended: Plan B, pay per task with the payment company holding the money. Production is built once, on the final money flow. See [Decisions](#decisions-only-you-can-make-these).
+- | Answer decision 28: does production need a real web name? | Recommended: `taskdrop.in` moves to production at launch and staging moves to `staging.taskdrop.in`. Google's sign-in screen, the payment company and the SMS registration may refuse a vercel.app address. See [Decisions](#decisions-only-you-can-make-these).
 5.1 | Say "I want to launch" | Claude checks every gate and paper. From here, the production accounts start to cost money.
 # C · Production, one tool at a time | Sign in as hitendureacts@gmail.com, make a NEW project in each tool, and save every key only in the PROD_ section of .env.all-secrets. Nothing is copied from staging.
 5.2 | Supabase: organization "TaskDrop Production", project taskdrop-production | Pro plan ($25 a month), Mumbai, spend cap on, sign-in settings, production-only redirect addresses, daily backups.
 5.3 | Google Cloud and Firebase: project taskdrop-production | ₹1,000 budget alert, seven Google services, three restricted keys, Google sign-in, reCAPTCHA, the Android and web apps, push key, App Check (left off).
-5.4 | Inngest: organization "TaskDrop Production" | A paid plan; the Event key and Signing key go into the PROD_ section.
+5.4 | Inngest: organization "TaskDrop Production" | The free plan to start (its own 50,000 runs a month); upgrade only when the limit warns. The Event key and Signing key go into the PROD_ section.
 5.5 | ImageKit: a second account, taskdropproduction | Sign up with hitendureacts+prod@gmail.com; turn on usage alerts.
 5.6 | Sentry: taskdrop-production and taskdrop-admin-production | Money, spike and security alerts; give Claude the two DSNs.
 5.6b | PostHog: project taskdrop-production | EU region; give Claude the project key.
@@ -155,9 +202,9 @@ Inside a task, every line is one of three kinds: **CLICK** (you do it), **SAY** 
  S.5 name + trademark   S.6 SMS registration   S.7 legal contacts   S.8 payment approval
 
  STEP 1          STEP 2            STEP 3            STEP 4            STEP 5             STEP 6            STEP 7
- Fix what is  -> Make it        -> Prove it with  -> Get ready to   -> Build           -> Launch one     -> Run and
- broken          hacker-proof      real testers      market            production         city              grow
- week 1          weeks 1-3         weeks 3-6         weeks 4-8         1-2 weeks          real money        every week
+ Finish, then -> Make it        -> Prove it with  -> Get ready to   -> Build           -> Launch one     -> Run and
+ freeze          hacker-proof      real testers      market            production         city              grow
+ now             weeks 1-3         weeks 3-6         weeks 4-8         1-2 weeks          real money        every week
    GATE 1          GATE 2a, 2b       GATE 3            GATE 4            GATE 5             GATE 6
 
  FUTURE SCOPE (separate, not part of your progress): passkeys, iOS, second city, referrals, ads ...
@@ -530,6 +577,8 @@ New holes and bugs found by the bug and security hunt (task 2.14) are added to t
 
 Best order: S.1 and S.2 on day 1. S.3, S.4 and S.5 in the first week. S.6, S.7 and S.8 after S.2 (they ask for your PAN and bank account).
 
+**Behind schedule (CEO review, 9 Nov):** only S.1 is done and S.4 is waiting for a reply. **S.2 is now the most important task in the whole plan**, because S.6, S.8 and decisions 10 and 17 all wait for it, and none of them can be hurried later.
+
 <details id="tS-1" data-short="Verify Play account">
 <summary>[YOU] <b>S.1</b> Verify your Google Play account (start now: Google takes days) <small>· Done 27 Oct (Google notified "Your identity has been verified successfully"; seen 31 Oct)</small></summary>
 
@@ -548,23 +597,26 @@ Your Play account is the **Personal** account **NLNarasimhaRaju**, owned by `nar
 </details>
 
 <details id="tS-2" data-short="Company, PAN, bank">
-<summary>[YOU] <b>S.2</b> Business basics: who owns TaskDrop, PAN, GST, bank account <small>· 1 to 3 weeks · bank and CA fees</small></summary>
+<summary>[YOU] <b>S.2</b> Business basics: who owns TaskDrop, PAN, GST, bank account <small>· start this week: S.6, S.8 and decisions 10 and 17 wait for it · 1 to 3 weeks · bank and CA fees</small></summary>
 
 **Why:** Razorpay, the SMS registration and the lawyer all ask for these first.
 
 1. Book one meeting with a **Chartered Accountant (CA)**. Ask which business type fits TaskDrop: sole proprietor (simplest, uses your own PAN), LLP, or private limited company (the usual choice if you want investors later). This plan is not tax or legal advice. The CA decides with you.
+   **CEO recommendation (9 Nov):** a sole proprietorship with GST and Udyam. It is the cheapest and fastest, uses your own PAN, meets the payment companies' list, and lets you file the trademark at the lower fee (S.5). Turn it into a private limited company later, only if you raise money. Ask the CA for one fixed fee that covers the registration and the six questions below.
    Also ask the CA these marketplace questions. Their answers can change how payouts are built, so write them down:
    - Is TaskDrop an "e-commerce operator" for GST? Must we collect tax at source (TCS) on what workers earn through us?
    - Must we deduct income tax (TDS) when we pay workers? At what rate, and above what amount?
    - Must workers give us their PAN before they can withdraw?
-   - Is GST due on our 3% service fee and on the worker commission? What must our invoice show?
+   - Is GST due on our 3% service fee and on the worker commission? Should our fees be shown with GST included or added on top? What must our invoice show?
+   - **New (9 Nov):** for house-keeping tasks (cleaning, plumbing, carpentry and similar) done by a worker who is not GST-registered, must TaskDrop pay the GST itself under section 9(5) of the CGST Act (reportedly 5%, with no input credit)? Which of our task types count, and may we add it to the poster's price?
+   - Must we register for GST from day one as an e-commerce operator, even with a small turnover?
 2. Get the documents the CA says you need: PAN (a business PAN for an LLP or company), a GST registration if required, and address proof.
 3. Open a **current account** in the business name at any bank. Ask for net banking and UPI.
    Razorpay's list (5 Nov) is: a registered entity (shop establishment, import and export code or utility bill) or GST, plus a business bank account. A **sole proprietorship** with GST, or a Shop & Establishment certificate with Udyam, meets it. The "Individual / Unregistered" Razorpay account does not suit a marketplace. See the Razorpay PPI note under S.4.
 4. If you chose an LLP or a company: ask the CA about a free **D-U-N-S number** for it. You need one for decision 10 (a Google Play organization account).
-5. TELL Claude: "done S.2. Business type: ___, name: ___", and paste the CA's answers to the four marketplace questions. Do not send account numbers. Claude records the answers and, if tax must be deducted or PAN collected, adds that work to the plan before Step 5.
+5. TELL Claude: "done S.2. Business type: ___, name: ___", and paste the CA's answers to the marketplace questions. Do not send account numbers. Claude records the answers and, if tax must be deducted or PAN collected, adds that work to the plan before Step 5.
 
-**Done when:** you have the business name, its PAN, a current account and the CA's written answers to the four marketplace questions.
+**Done when:** you have the business name, its PAN, a current account and the CA's written answers to the marketplace questions. If section 9(5) applies, Claude reworks the fee sums in **What it costs** and you set the fees before Gate 6.
 </details>
 
 <details id="tS-3" data-short="Lawyer">
@@ -576,7 +628,7 @@ Your Play account is the **Personal** account **NLNarasimhaRaju**, owned by `nar
 2. Email each one. Attach `docs/LAWYER_BRIEF.md` (it explains how TaskDrop moves money). Add the links https://taskdrop.in/?page=terms and https://taskdrop.in/?page=privacy. Ask for a **fixed-fee quote**.
 3. The questions to ask:
    - May TaskDrop hold a poster's money until they approve, then pay the worker? Or must a payment company (for example Razorpay Route) hold it?
-   - Does the wallet need RBI permission? Razorpay asked for a PPI license on 5 Nov. Is Razorpay Route with held settlements enough, so TaskDrop never holds a balance (see the note under S.4)?
+   - Does the wallet need RBI permission? Razorpay asked for a PPI license on 5 Nov. Is Plan B enough, so TaskDrop never holds a balance: pay per task, with Cashfree Easy Split or Razorpay Route holding the money until approval (see the note under S.4)? **Ask this one first** (CEO review, 9 Nov): its answer decides how production is built.
    - Please review our Terms and Privacy pages.
    - What do we need for India's data law (DPDP)? How fast must a data breach be reported, and to whom? How long may we keep chats, photos and ID details after an account is deleted?
    - Above what amount must we check a worker's identity (KYC) before paying them out?
@@ -710,13 +762,13 @@ This usually takes 1 to 3 weeks. One thing to check with a CA: GST law has speci
 </details>
 
 <details id="tS-5" data-short="Name and trademark">
-<summary>[YOU] <b>S.5</b> Check the name, file the trademark, claim the handles <small>· 1 hour, then filing · trademark fee</small></summary>
+<summary>[YOU] <b>S.5</b> Check the name, file the trademark, claim the handles <small>· 1 hour, then filing · ₹4,500 for one class</small></summary>
 
 1. **Company names.** CLICK: https://www.mca.gov.in → **MCA services** → **Check Company/LLP name**. Search "taskdrop". Note what you find.
 2. **Trademarks.** CLICK: https://tmrsearch.ipindia.gov.in/eregister → **Trade Mark Search** (or start from https://ipindia.gov.in). Search the word "taskdrop" and "task drop" in classes **9** (app), **35** (online marketplace) and **42** (software).
 3. **Social handles.** CLICK: https://namechk.com → type "taskdrop" and see which handles are free.
 4. TELL Claude what you found.
-5. If the name is free: file the trademark for the word "taskdrop" and the drop-and-check logo in classes 9, 35 and 42. File yourself on IP India or through your lawyer. The fee is lower for individuals, startups and small businesses. Check the current fee on IP India.
+5. If the name is free: file the word "taskdrop" in **class 35** (online marketplace) first, as an individual or a Udyam MSME: **₹4,500** a class on e-filing, against ₹9,000 for a company or LLP (checked 9 Nov 2026; confirm on IP India). Classes 9 and 42 and the drop-and-check logo are each another filing: add them when money comes in (CEO review: all six at once would cost about ₹27,000). File yourself on IP India or through your lawyer.
 6. Claim the free handles on Instagram, X, YouTube, LinkedIn (a company page) and Reddit.
 7. TELL Claude: "done S.5".
 
@@ -781,7 +833,7 @@ Add the cancellations-and-refunds page and the contact-us page with the business
 
 ---
 
-## STEP 1: Fix what is broken (week 1)
+## STEP 1: Finish the features, then freeze (fix what is broken first)
 
 **Goal:** every bug you have seen is fixed or has your written "accept", and the design changes you asked for are decided. Testers should judge a good app, not a broken one.
 
@@ -1057,7 +1109,7 @@ fix the keyboard problem
 </details>
 
 <details id="t1-9" data-short="Ideas from Qwikyo and Heplo">
-<summary>[BOTH] <b>1.9</b> Add the best ideas from Qwikyo and Heplo, on today's design <small>· Drawn 2 Nov (version 2), waiting for your approval · your time: 15 minutes · design first, then build · does not reopen Gate 1</small></summary>
+<summary>[LATER] <b>1.9</b> Add the best ideas from Qwikyo and Heplo, on today's design <small>· Parked 9 Nov (CEO review: feature freeze) · drawn 2 Nov, kept for after launch · say "unpark 1.9" to bring it back</small></summary>
 
 **What happened (2 Nov):** you installed Qwikyo and Heplo on your phone and asked what TaskDrop should take from them. Claude used both apps and the staging TaskDrop app on your phone over USB. **Nothing was posted or saved in any app**; one test draft in TaskDrop's My Tasks was deleted, and Qwikyo's "Complete your profile" box was closed with Cancel, your names unchanged.
 
@@ -1236,6 +1288,7 @@ A search cannot prove that nobody has a feature; these are the closest things fo
 - [x] Each design change D1 to D10 is built or dropped. **Checked 1 Nov:** D1 to D5 and D7 to D9 were built and merged on 31 Oct, D6 was dropped (1 Nov), and D10 is now built: Home's 32-point gap between sections and its softer cards also reach Explore, Profile and Wallet. Seen on your phone: D3 (the Drop a task composer), D5 (When step), D7 (Price only / Price + proposal), D8 (blue for workers) and D9 (the Google map on Home and Find work). Not seen: D1, because the birth-date wheels only show when a new number signs up and Claude does not create accounts; and the D10 spacing on Explore, Profile and Wallet, which needs a new app update.
 - [x] Every notification reads clearly on your phone (1.7). **Checked 1 Nov:** the new words were read on your own phone ("A worker offered ₹400 ..."), and every other line of the table was read from what the staging test runs saved. Old alerts keep their old words.
 - [x] Nothing is hidden behind the keyboard: the 16-spot keyboard pass is green on your phone (1.8). **Accepted by you, 1 Nov 2026, as it stands:** 14 of 16 spots seen working on the phone; review text, proof of work, payout details and a confirm dialog opened with the keyboard up were not opened (they need money in a wallet), and the bigger-text and navigation-style repeats were not done (they change the phone settings). Open them again if a tester finds one hidden.
+- [ ] **Feature freeze** (CEO review, 9 Nov; decision 37): 1.12 (D21) and the D20 map tab are finished or dropped. From here only fixes go in; every new idea goes to Future scope
 - [x] `npm run check` is green on `redesigned-2.0` (Claude reports this). **Checked 31 Oct:** typecheck, lint and 62 tests passed (exit 0) on the code of `redesigned-2.0` at `ce62f5c`.
 
 ---
@@ -1250,8 +1303,8 @@ A search cannot prove that nobody has a feature; these are the closest things fo
 2. **Finish 2.13** (Claude built it on 4 Nov). Yours: reply "fix" or "accept" to H30 and H31, make both code folders private (part H, after 2.15), and invite 2 or 3 testers (part E).
 3. **Your clicks** (2.2, 2.3 and 2.4, about 1.5 hours, any day): spending alerts, lock the places keys are kept, read the emergency guide once.
 4. **The hunt** (2.14). Rounds 1 and 2 done 4 Nov. The 2 Critical finds and the High "old helper presses Start" are fixed and live (migration 148); the High "direct database access" (H52) closes in 3.9. **The Medium finds were fixed on 5 and 6 Nov** (PRs 259 to 264, admin PRs 45 and 46, migrations 152 to 155); still open: the wallet record list (H34, design done), the admin's database-side idle limit and Google button (H37), the location inside videos (H38), and your "fix" or "accept" on the Low finds. Part G (every screen on the phone) is still to do.
-5. **The AI attacker** (2.16), after the hunt's fixes. Install Docker and make an AI key with a spending limit, then SAY "start 2.16".
-6. **The outside testers' advice** (2.18, added 6 Nov). Claude read the 8 Upwork proposals and checked each point on staging: six new holes (H71 to H76), one go-live checklist, and the rules for hiring a tester. SAY "start 2.18", and answer decision 30.
+5. **The AI attacker** (2.16), after the hunt's fixes **and after the money flow (decision 29) is built**, so it attacks the code that goes live (CEO review, 9 Nov). Install Docker and make an AI key with a spending limit, then SAY "start 2.16".
+6. **The outside testers' advice** (2.18, added 6 Nov). Claude read the 8 Upwork proposals and checked each point on staging: six new holes (H71 to H76), one go-live checklist, and the rules for hiring a tester. SAY "start 2.18", and answer decision 30 (recommended: one paid round, after the money flow is built).
 7. **The small leftovers:** your OK on the Google-first sign-in screen (2.8). (The content policy now blocks, H9 closed 4 Nov, and the Android app test T11 passed 4 Nov.)
 8. **One home per secret** (2.17, about 10 minutes of yours): the server keys are set straight in Supabase and the Vercel build stops copying them. Do it before Step 5.
 9. **Tick Gate 2b.** Then Step 5 (production) may start.
@@ -2543,7 +2596,7 @@ start API calls
 </details>
 
 <details id="t3-5b" data-short="Safe caching">
-<summary>[CLAUDE] <b>3.5b</b> Safe caching: keep the same-for-everyone lists ready, never anyone's own data <small>· added 4 Nov; built and tested offline 5 Nov on branch feat/cache-integration, not yet merged or on staging · your time: 10 minutes · free (no new tool) · decision 29</small></summary>
+<summary>[LATER] <b>3.5b</b> Safe caching: keep the same-for-everyone lists ready, never anyone's own data <small>· Parked 9 Nov (CEO review: the database is far from busy) · built offline on branch feat/cache-integration, kept · decision 29b · say "unpark 3.5b" when 7.5 says so</small></summary>
 
 **What it is, in plain words:** some answers are the same for every person: the Trending list, the "Top helpers" list, the "today on TaskDrop" numbers, the promotion prices. Today the database works each one out again for every person who opens Home or Explore. Caching means working it out once, keeping the answer for a few minutes, and handing the same copy to everyone. Anything about one person (their money, their tasks, their offers, their chats) is **never** kept for someone else, and money is **never** shown from a kept copy. No Redis and no new paid tool: everything here uses what TaskDrop already has.
 
@@ -2890,6 +2943,8 @@ Do the switch-over, one step at a time.
 
 **Why:** a marketplace dies when a posted task gets no offer. One city that is full of workers beats ten empty ones.
 
+**CEO review (9 Nov), decision 38:** start in 2 or 3 neighbouring areas of Hyderabad, not the whole city. Pick them from where the testers and the first workers live, and where people already ask for help in local groups. Add the next area only when most tasks in the first ones get an offer within 30 minutes.
+
 1. The city is **Hyderabad** (decided 2026-10-31, the city in your Terms).
 2. You do not pick the task types in advance. They follow what posters and workers actually post. Online (remote) tasks can be offered all over India from day one.
 3. SAY the text below. Claude reads the tasks and worker profiles in the app (fake data now, real data after launch) and lists the five most common task types, with how many workers there are for each:
@@ -2988,7 +3043,7 @@ build smart alerts
 </details>
 
 <details id="t4-6" data-short="20+ workers">
-<summary>[YOU] <b>4.6</b> Line up 20+ workers in the launch city <small>· 2 to 3 weeks, an hour a day</small></summary>
+<summary>[YOU] <b>4.6</b> Line up 20+ workers in the launch areas <small>· 2 to 3 weeks, an hour a day</small></summary>
 
 **Why:** posters leave if nobody offers. Workers first, then posters.
 
@@ -3122,7 +3177,7 @@ draft the dispute policy and safety rules
 </details>
 
 <details id="t4-10" data-short="Email sequences">
-<summary>[BOTH] <b>4.10</b> Email sequences: welcome and nudge emails that stop when the person acts <small>· your time: 45 minutes · design first, then build</small></summary>
+<summary>[LATER] <b>4.10</b> Email sequences: welcome and nudge emails that stop when the person acts <small>· Parked 9 Nov (CEO review): start in month 2, once there are users to welcome · design first, then build</small></summary>
 
 **Why:** a new person who signs up and does nothing is lost. A few short, honest emails at the right time bring many of them back to post a first task or send a first offer. This task plans the whole system: who gets which email, when it stops, who sends it, and the rules that keep it from becoming spam.
 
@@ -3194,9 +3249,8 @@ build the email sequences
 - [ ] Gate 3 has passed
 - [ ] Gate 2b has passed (all of Step 2, including 2.8 to 2.11)
 - [ ] The dispute policy and safety rules (4.9) are live on staging
-- [ ] The email sequences (4.10) work on staging and can be switched off
 - [ ] The whole Start now track (S.1 to S.8) is finished
-- [ ] At least 20 workers are lined up in the launch city
+- [ ] At least 20 workers are lined up in the launch areas (decision 38)
 - [ ] The public pages and the marketing plan are approved
 - [ ] You know your 2 best video hooks
 
@@ -3589,16 +3643,16 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 </details>
 
 <details id="t5-4" data-short="Production Inngest">
-<summary>[YOU] <b>5.4</b> Production Inngest: a separate organization <small>· 15 minutes · paid plan</small></summary>
+<summary>[YOU] <b>5.4</b> Production Inngest: a separate organization <small>· 15 minutes · free to start</small></summary>
 
 **Why separate:** the free plan's run limit (50,000 a month) was already more than half used by testers alone. In a separate organization, staging tests can never use up production's runs, and the keys are different.
 
 1. CLICK: https://app.inngest.com → your name or organization menu → **Create organization** → name it **TaskDrop Production**. If Inngest does not offer this, sign up for a second Inngest account with **`hitendureacts+prod@gmail.com`** (Gmail delivers it to your normal inbox), and tell Claude.
-2. CLICK: in the new organization → **Settings** → **Billing** → choose a paid plan. Check the price on that page first.
+2. Stay on the **free plan** (CEO review, 9 Nov): production gets its own 50,000 runs a month, and staging's tests no longer count against it. Claude checks the run count in the weekly numbers (7.1); when it passes about 70% of the month's limit, CLICK **Settings** → **Billing** and choose a paid plan, after checking the price on that page.
 3. CLICK: copy the **Event key** and the **Signing key** straight into the `PROD_` section of `.env.all-secrets`. You put them into production in task 6.1, never into the chat.
 4. TELL Claude: "done 5.4".
 
-**Done when:** the production organization exists on a paid plan, and its two keys are in `.env.all-secrets`.
+**Done when:** the production organization exists (free plan to start), and its two keys are in `.env.all-secrets`.
 </details>
 
 <details id="t5-5" data-short="Production ImageKit">
@@ -4149,7 +4203,11 @@ Do not pay for bigger servers in advance. Claude watches these signals in **prod
 
 ## Marketing playbook: how TaskDrop gets its first users
 
-**The big idea.** A marketplace grows by being **full in one place**, not visible everywhere. One city where every task gets an offer fast beats ten cities where nothing happens. So: **workers first, then posters**, in **one city**, starting with a handful of task types. Online (remote) tasks can be offered across India from day one, because they do not need workers nearby.
+**The big idea.** A marketplace grows by being **full in one place**, not visible everywhere. One city where every task gets an offer fast beats ten cities where nothing happens. So: **workers first, then posters**, in **one city, area by area** (2 or 3 neighbourhoods first, decision 38), starting with a handful of task types.
+
+**The budget (CEO review, 9 Nov): ₹0 on ads** until most tasks get an offer within 30 minutes for 4 weeks in a row. Before that, the only costs are your time and printed QR posters for resident associations, colleges and shops in the launch areas.
+
+**The first 50 tasks are yours.** Watch every new task in the admin. If one has no offer after 15 minutes, call or message the workers you recruited (4.6) yourself. It does not scale, and it is meant not to: it is how the first posters learn that TaskDrop works, and it tells you which task types and areas need more workers. Online (remote) tasks can be offered across India from day one, because they do not need workers nearby.
 
 **What TaskDrop says** (the same everywhere)
 
@@ -4663,14 +4721,16 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 25 | **An 18+ check for guests** (H68). The age check is only at sign-up, so a guest sees every post and profile without it. Add a one-tap "I am 18 or older" before guest mode? | Open. Recommended: yes, because the Terms are 18+ only | "Decision 25: add the 18+ tap" or "Decision 25: accept" |
 | 26 | **Lock-screen notifications** (H42). They show the other person's name, the task, rupee amounts and the start of a chat message to anyone who sees the phone | **Decided: plain line (the recommended answer). Built 6 Nov (PR 260, migration 155):** chat, questions, money, support, security and admin warnings show a plain line on the lock screen and keep the detail inside the app; offers and task updates keep their text | Nothing to say |
 | 27 | **Limits for new accounts and posting** (H47). Sign-up costs nothing while codes show on screen, and there is no daily cap on posting tasks or ideas | **Built with the recommended answer, 6 Nov (PR 262, migration 152):** 20 tasks and 20 ideas a day, 5 a day for a new account, and the same for feedback. Say it to change | "Decision 27: change the caps" to change |
-| 28 | **Production's web address.** You asked (5 Nov) for `taskdrop.in` to stay with staging and for production to start on the address Vercel makes. That is fine for building and testing. Three things may need a real name before real money: (1) **Razorpay's live review**, the **SMS registration** and the **Google Play listing** each ask for a website they can open; (2) **Google's sign-in consent screen** wants a home page on a domain you own, and `vercel.app` is shared; (3) customers and Google trust a `…vercel.app` address less. Keep it, swap `taskdrop.in` onto production at launch (5.10, option B, about 20 minutes, no rebuild; staging then uses its Vercel address), or buy a second domain for production? | Open. Recommended: keep the Vercel address while you build and rehearse, ask Razorpay in the quote email (S.4) whether it accepts a `.vercel.app` address, and **decide before task 5.3** (Google sign-in) and at the latest before 6.1. If any answer is no, swap | "Decision 28: keep the Vercel address", "Decision 28: swap taskdrop.in at launch" or "Decision 28: buy a second domain" |
-| 29 | **How old the same-for-everyone lists may be** (3.5b). Trending, Top helpers and today's numbers would be worked out once every 10 minutes and shared, instead of once per person. Money, tasks, offers and chats are never shown old | Open. Recommended: up to 10 minutes | "Decision 29: 10 minutes is fine" |
-| 29 | **How money moves, given Razorpay's PPI request (5 Nov).** Razorpay asked for a PPI license because TaskDrop keeps a wallet balance. A PPI license needs a Private Limited company with about ₹5 crore net worth, which is not realistic now. Keep the wallet as built and risk Razorpay refusing, or move to **Razorpay Route** (the poster's money is held by Razorpay and sent straight to the helper's bank account, TaskDrop never holds a balance)? The note under S.4 has the full answer, the sole-proprietorship papers it needs, and a side-by-side of **Plan A (keep the wallet)** and **Plan B (pay per task, the payment company holds the money; Cashfree first because Route needs ₹40 lakh turnover)** | Open. Recommended: Route with settlements on hold. First ask Razorpay (S.4) and your lawyer (S.3) to confirm in writing that it removes the PPI request. Then say "design the Route money flow": Claude writes the design (no code) before anything in the money path changes. This stays a plan until you say so | "Decision 29: move to Route", "Decision 29: keep the wallet" or "Decision 29: wait for the lawyer" |
-| 30 | **A paid outside tester now?** (2.18 part J.) You have 8 proposals at $50 to $90. Decision 15 chose free invites first. At this price a tester gives a quick second opinion, not a full attack test | Open. Recommended: yes, one small fixed-price round on staging after H34 and Strix, with scope agreed first, and keep the free invites too. F.13 stays the full review | "Decision 30: paid round." or "Decision 30: free invites only." |
+| 28 | **Production's web address.** You asked (5 Nov) for `taskdrop.in` to stay with staging and for production to start on the address Vercel makes. That is fine for building and testing. Three things may need a real name before real money: (1) **Razorpay's live review**, the **SMS registration** and the **Google Play listing** each ask for a website they can open; (2) **Google's sign-in consent screen** wants a home page on a domain you own, and `vercel.app` is shared; (3) customers and Google trust a `…vercel.app` address less. Keep it, swap `taskdrop.in` onto production at launch (5.10, option B, about 20 minutes, no rebuild; staging then uses its Vercel address), or buy a second domain for production? | Open. **CEO recommendation (9 Nov): swap `taskdrop.in` onto production at launch** (5.10, option B, no rebuild) and give staging `staging.taskdrop.in`, which is free. Reasons: the payment company, the SMS registration, Google sign-in and Google Play all want a real website; the pages Google can read (4.3) and the Business Profile (4.4) only build up on the address customers use; and no second domain is bought. Decide before task 5.3 | "Decision 28: keep the Vercel address", "Decision 28: swap taskdrop.in at launch" or "Decision 28: buy a second domain" |
+| 29b | **How old the same-for-everyone lists may be** (3.5b). Trending, Top helpers and today's numbers would be worked out once every 10 minutes and shared, instead of once per person. Money, tasks, offers and chats are never shown old | **Parked with 3.5b (9 Nov, CEO review).** Nothing to decide before launch | "Decision 29b: 10 minutes is fine" |
+| 29 | **How money moves, given Razorpay's PPI request (5 Nov).** Razorpay asked for a PPI license because TaskDrop keeps a wallet balance. A PPI license needs a Private Limited company with about ₹5 crore net worth, which is not realistic now. Keep the wallet as built and risk Razorpay refusing, or move to **Razorpay Route** (the poster's money is held by Razorpay and sent straight to the helper's bank account, TaskDrop never holds a balance)? The note under S.4 has the full answer, the sole-proprietorship papers it needs, and a side-by-side of **Plan A (keep the wallet)** and **Plan B (pay per task, the payment company holds the money; Cashfree first because Route needs ₹40 lakh turnover)** | Open. **CEO recommendation (9 Nov): Plan B, and start the design now.** The PPI licence that Plan A needs is out of reach (about ₹5 crore net worth), so waiting for the lawyer to say so only costs weeks. Say "design the Plan B money flow": Claude writes the design (no code) this week. The code waits for Cashfree's written yes (S.4) and the lawyer's (S.3). Production (Step 5) and the security round (2.16) then run once, on the final flow | "Decision 29: move to Route", "Decision 29: keep the wallet" or "Decision 29: wait for the lawyer" |
+| 30 | **A paid outside tester now?** (2.18 part J.) You have 8 proposals at $50 to $90. Decision 15 chose free invites first. At this price a tester gives a quick second opinion, not a full attack test | Open. **CEO recommendation (9 Nov): yes, one small fixed-price round, but only after the money flow (decision 29) is built and Strix has run**, scoped to the money paths and sign-in, and keep the free invites too. F.13 stays the full review | "Decision 30: paid round." or "Decision 30: free invites only." |
 | 31 | **Where `taskdrop.in/get` sends people before Google Play** (D17). Today there are only APKs from Expo links. A production APK installed from a link is expected to stop working once App Check is switched on (5.0d), so it cannot be the public download for long | Open. Recommended: on staging (`taskdrop.in`), `/get` serves the staging APK for testers; on production, the bar and `/get` point to Google Play from launch day (6.6), and the bar stays hidden until then. No public production APK | "Decision 31: staging APK now, Play at launch" or "Decision 31: public production APK" |
 | 32 | **TaskDrop Together** (D19, task 1.11). Build this new vertical, and call it "Together"? | **Answered 7 Nov: yes.** Built: City Hunt and Big Days only | "Decision 32: yes, Together." or "Decision 32: another name: …" |
 | 33 | **When Together comes** (1.11). Phase A (City Hunt and Big Days) in Step 1, before Gate 1, which adds about 1 to 2 weeks, or everything after launch? | **Answered 7 Nov: Phase A before Gate 1.** Done 8 Nov. Same Here and Learner Seat dropped | "Decision 33: Phase A before launch." or "Decision 33: all after launch." |
 | 34 | **Help Swap at all** (1.11)? It earns nothing and needs the lawyer | **Answered 7 Nov: drop Help Swap.** | "Decision 34: yes, after the lawyer." or "Decision 34: drop Help Swap." |
+| 37 | **Feature freeze** (CEO review, 9 Nov). Once 1.12 (D21) and the D20 map tab are finished, build nothing new before launch, and put every new idea in Future scope? 1.9, 3.5b and 4.10 are parked until after launch | Open. **Recommended: yes.** Every feature added now must be tested, secured and explained again, and moves launch day | "Decision 37: freeze." or "Decision 37: not yet, I still want …" |
+| 38 | **Launch areas** (CEO review, 9 Nov; tasks 4.1 and 4.6). Start in 2 or 3 neighbouring areas of Hyderabad instead of the whole city? | Open. **Recommended: yes.** Choose them in 4.1 from where the first workers and testers live. Decision 2 (Hyderabad; task types follow what people post) stays | "Decision 38: yes, these areas: …" or "Decision 38: the whole city" |
 | 36 | **Map feel (D21, task 1.12).** 36a web map engine: MapLibre GL with OpenFreeMap (free, no key), our own tile map improved, or Google Maps on the web; 36b refresh by itself instead of "Search this area"; 36c keep small + / − buttons; 36d one List / Map switch, the in-list map removed; 36e clean the staging test data | **Answered 8 Nov ("I am approving the existing design"): the recommended answers, built 9 Nov.** Recommended were: 36a MapLibre + OpenFreeMap, 36b yes, 36c keep small, 36d yes, 36e yes (Claude asks before touching data) | "Decision 36: use the recommended answers." |
 
 ---
@@ -4999,39 +5059,63 @@ Claude runs this before a feature is called done, and writes what it saw in the 
 
 ## What it costs {open}
 
-| When | What | Amount |
+**The budget rule (CEO review, 9 Nov):** before launch, spend only on what launch cannot happen without, and upgrade a tool only when a number says so (7.5). No paid ads, paid tools, business email or second domain before launch.
+
+**Once, before launch**
+
+| What | Amount | Note |
 |---|---|---|
-| Now (staging) | Everything is on free plans. Only the Google Play account | **$25 once** |
-| Start now track (S.2 to S.8) | CA and bank | their fees |
-| | Lawyer | a fee (ask for a fixed quote) |
-| | Trademark | the IP India fee (lower for individuals, startups and small businesses) |
-| | DLT registration (SMS) | about ₹5,000 once |
-| | First 5,000 SMS (MSG91) | ₹1,250 + 18% GST |
-| | DMCA agent | $6 per 3 years |
-| Production (Step 5) | Supabase Pro, in its own organization (staging stays free) | $25 a month |
-| | Vercel Pro (includes $20 of usage, 1M CDN requests and 1 TB transfer; more is pay-as-you-go, stopped by the $50 limit from 5.8b) | $20 a month |
-| | Inngest paid plan, in its own organization (staging stays free) | check its billing page |
-| | Google Cloud and Firebase for production | pay as you use, with a budget alert |
-| | ImageKit, Sentry, Expo for production | free plans to start; pay only when a limit warns |
-| | PostHog (staging and production) | free plan (about 1 million events and 5,000 recordings a month); check the prices again when you sign up |
-| | Loops for production email (4.10), in its own account (staging has its own) | free plan to start; check its pricing page when contacts grow |
-| | Nightly database copy outside Supabase (5.9) | free at launch size (GitHub's free minutes and storage) |
-| From Step 6, optional | Supabase point-in-time recovery (go back to any minute) | a paid add-on; you note the price in 5.2 and decide |
-| | RazorpayX balance to pay workers | working money you hold |
-| Each payment | Razorpay, about 2% + GST | about ₹3.65 on a ₹150 task |
-| Every year | Domain `taskdrop.in` | about $6 |
+| Google Play account | $25 | Paid |
+| GST and Udyam registration (sole proprietorship) | free | Online (S.2) |
+| Current account | the bank's minimum balance | Compare two banks |
+| CA | their fee | Ask for one fixed fee: the registration and the S.2 questions |
+| Lawyer | a fixed fee | One written answer: money flow, Terms, Privacy, dispute policy (S.3) |
+| Trademark: the word "taskdrop", class 35 only | ₹4,500 | As an individual or Udyam MSME (₹9,000 for a company or LLP). Classes 9 and 42 and the logo later (S.5) |
+| DLT registration (SMS) | about ₹5,000 | Check the current fee with the operator (S.6) |
+| First 5,000 SMS (MSG91) | ₹1,250 + 18% GST | Google sign-in shown first keeps this low |
+| DMCA agent | $6 per 3 years | S.7 |
 
-**A ₹150 task, worked out:** the poster pays ₹154.50 (₹150 plus the 3% fee). The worker gets ₹135 (₹150 minus the 10% commission). Razorpay takes about ₹3.65. **TaskDrop keeps about ₹15.85.** Not counted: the cost of paying the worker out, and whether the fee comes back on a refund (that is what the S.4 quotes answer).
+**Every month, from production (Step 5)**
 
-Prices were checked between 26 and 29 October 2026. Check again when you pay. This is not tax advice.
+| What | Amount |
+|---|---|
+| Supabase Pro, in its own organization (staging stays free) | $25 |
+| Vercel Pro (includes $20 of usage, 1M CDN requests and 1 TB transfer; stopped at $50 by 5.8b) | $20 |
+| Inngest, ImageKit, Sentry, PostHog, Loops and Expo, each in its own production account | free plans; upgrade one only when its limit warns at about 70% |
+| Google Cloud and Firebase for production | pay as you use, with the ₹1,000 budget alert (5.3) |
+| Nightly database copy outside Supabase (5.9) | free (GitHub's free minutes and storage) |
+| Domain `taskdrop.in` | about $6 a year |
+| **Total** | **about $45 a month (roughly ₹4,000) plus the fee on each payment** |
+
+**Not bought, on purpose:** Supabase point-in-time recovery (daily backups and the nightly copy are enough at launch; look again after Step 6), a business email (decision 11), a second domain (decision 28), paid ads (F.8), and a paid security review before the money flow is final (decision 30). RazorpayX or payout balance is working money you hold, not a cost.
+
+**Each payment:** the payment company's fee, about 2% + GST (about ₹3.65 on a ₹150 task). Under Plan B, Cashfree Easy Split adds 0.2% per split (Cashfree's help page, checked 9 Nov 2026).
+
+**A ₹150 task, worked out with tax.** Assumptions, to be replaced by the CA's answers (S.2): TaskDrop's fees include GST, and TaskDrop absorbs any section 9(5) GST.
+
+| | Amount |
+|---|---|
+| The poster pays (₹150 plus the 3% fee) | ₹154.50 |
+| The worker gets (₹150 minus the 10% commission) | ₹135.00 |
+| TaskDrop's two fees (₹4.50 + ₹15.00) | ₹19.50 |
+| Payment fee, about 2% + GST | − ₹3.65 |
+| GST inside TaskDrop's fees (18%) | − ₹2.97 |
+| **TaskDrop keeps** | **about ₹12.90** |
+| Only for a house-keeping task by an unregistered worker, if section 9(5) applies (5% of ₹150) | − ₹7.50, leaving **about ₹5.40** |
+
+**When TaskDrop pays for its own tools:** about ₹4,000 a month ÷ about ₹12.90 a task ≈ **310 finished tasks a month, about 10 a day**. If most tasks are house-keeping under section 9(5), it is about 740 a month, which is why the fee is set only after the CA answers. The payout fee per withdrawal is not counted yet: the S.4 quotes give it.
+
+Prices were checked between 26 October and 9 November 2026. Check again when you pay. This is not tax advice.
 
 ---
 
-## Risks: the 8 biggest, and what protects you {open}
+## Risks: the 10 biggest, and what protects you {open}
 
 | Risk | What protects you |
 |---|---|
-| The way money is held is not allowed | The lawyer first (S.3). Money jobs stay off until the answer |
+| The way money is held is not allowed | Plan B (decision 29): TaskDrop never holds a balance. The lawyer (S.3) and the payment company (S.4) confirm in writing. Money jobs stay off until the answer |
+| Tax takes most of the margin | The CA's written answers in S.2, including GST section 9(5) on house-keeping tasks. The fees are set after that, before Gate 6 |
+| Launch keeps slipping because new features keep arriving | The feature freeze (Gate 1, decision 37). New ideas go to Future scope |
 | Posted tasks get no offers | One city, workers first (4.6), smart alerts (4.5), helping the first 20 users yourself |
 | A security hole moves money or leaks data | Tests 2.7 and 2.9; the switch-over (3.9) closes direct database access |
 | Bots run up bills (SMS, maps, photos) | Limits and alerts (2.2), SMS safety (2.8) |
@@ -5057,6 +5141,9 @@ Prices were checked between 26 and 29 October 2026. Check again when you pay. Th
 | Clerk or Firebase for sign-in, and Redis now (second paste, 3 Nov) | Supabase Auth already is a real provider and a second one would split users from the database rules (Clerk was rejected earlier). Redis adds a service to run before any number shows it is needed: 2.13 part J measures first |
 | Posting tools, AI video tools, plugin packs, design galleries, courses | They add work, not users. Post by hand; real people on camera beat AI |
 | Buying more tools | What you have is enough |
+| Paid plans before a limit warns (Inngest, Sentry, PostHog, ImageKit, Loops, Expo), and Supabase point-in-time recovery before launch | Free plans and daily backups cover a one-area launch. Task 7.5 says when to pay (CEO review, 9 Nov) |
+| A second domain for production | `staging.taskdrop.in` is free, and `taskdrop.in` moves to production at launch (decision 28) |
+| The trademark in three classes plus the logo, now | Class 35 for the word first (₹4,500); the rest when money comes in (S.5) |
 | Extra restrictions on staging's Google keys (website limit on the Firebase browser key) | Staging is a test copy with fake money. Production's keys are restricted at creation (5.3, Gate 5) |
 
 ---
@@ -5133,6 +5220,7 @@ Kept for the record. The live picture is the **Start here** panel at the top of 
 
 ## Changelog
 
+- **2026-11-09 (CEO review: the cheapest safe path to launch):** You asked whether this is the best plan, whether it follows good practice and whether it is cheap enough, and to reframe it as the CEO and CTO would. **Verdict:** safe and complete, but the code is weeks ahead of the paperwork, features kept arriving before the first customer, and the money flow was still open. **New section at the top:** **The CEO review** (seven changes, what decides launch day, your next seven days). **Changed:** rules 9 (feature freeze) and 10 (spend only when a number says so); a freeze line in Gate 1 and Step 1 renamed; S.2 marked as the most important task, with a sole-proprietorship recommendation and new CA questions on GST (section 9(5) on house-keeping tasks, fees with or without GST, registration from day one); S.3 asks the Plan B question first; S.5 files one class first (₹4,500); 5.4 Inngest starts on the free plan; 2.16 and decision 30 move after the money flow is built; 4.1, 4.6 and Gate 4 launch in 2 or 3 areas; the marketing playbook gets a ₹0 ad budget and "the first 50 tasks are yours"; **What it costs** rewritten with a one-time list, a monthly total of about $45, the ₹150 task worked out with tax (about ₹12.90 kept, about ₹5.40 if section 9(5) applies) and the break-even (about 310 tasks a month); two new risks; three new "skipped" lines. **Parked until after launch:** 1.9, 3.5b and 4.10 (Gate 4 no longer waits for 4.10). **Decisions:** 28, 29 and 30 carry CEO recommendations; the second decision 29 (caching) is now 29b; new 37 (freeze) and 38 (launch areas). **Checked on 9 Nov:** Inngest's free plan (50,000 runs a month), Cashfree Easy Split (0.2% per split, hold up to 45 days), trademark fees (₹4,500 or ₹9,000 a class), GST section 9(5) (house-keeping through a platform, 5% in a Goa advance ruling), and TDS section 194-O (0.1% since 1 Oct 2024). Tax points need your CA. No code, database, setting or account changed.
 - **2026-11-09 (D21 built and live: map zoom like Google Maps, smart panel, custom distance, tidy Explore list):** You approved D21 and asked for a custom distance. Built in PR 297 and merged, so it is live on `taskdrop.in`: the web map is now MapLibre with OpenFreeMap's free map (wheel, trackpad pinch and double-click zoom the map and never the page, smooth zoom with no blank screen, the map stays on India, small + and − on desktop only); the "Work near you" panel has the hero card, the three tiles, one controls row and no scroll bars; **Custom** opens "Set your distance" (1 to 100 km, kept on the device); jobs refresh by themselves when the map stops ("Search this area" and the top bar are gone); the List view has no empty box (a live map strip, or "Set your area" for a guest, whose area now stays on the device), one List / Map switch and even cards; scroll bars only show on hover across the website. Checked: `npm run check` green, 17 map tests and the UI tests pass on the built site, screenshots at 1440 and 390 wide. **Not done:** the Android app gets the new panel and cards only with an app update (ask Claude to publish it); not yet looked at on your laptop.
 - **2026-11-09 (task 3.5c: background jobs go hybrid, plan only):** You decided that jobs which only ask the database to do something move from Inngest to Supabase's own timer (pg_cron), the money sweeps stay on pg_cron for good, and Inngest keeps only outside calls and retries, because Inngest's free plan ran out once. New task **3.5c** in Step 3 with a detail drawer: every Inngest function checked against the code with its verdict (10 move, 10 stay, the 3 money copies are deleted), how a pg_cron failure still reaches the team and Sentry, how pg_cron and Inngest watch each other, the India-to-UTC schedule table, six pull requests in order, and five questions (Q1 to Q5). **Found:** there is no `ledger-check` job; push goes through Expo's service; and the money sweeps on pg_cron today report a failure nowhere (Q5 asks to fix that early). Expected effect: Inngest's timed runs fall from about 1,090 a day to about 430, or about 190 with Q2 and Q3. The new wording of agent rule 8 is written in the task and goes into `AGENTS.md` only when you say "start 3.5c". Nothing in the code or the database changed.
 - **2026-11-08 (map feel, smart panel and Explore list: D21, task 1.12, decision 36):** You sent a 3-minute video comparing Google Maps with the Explore map on `taskdrop.in`: pinching zoomed the whole page, zooming out went dark and drifted to America, the folded top bar was confusing, the List view showed an empty grey box, and the panel had a scroll bar and a squeezed hero. Claude read the video, found the causes in the code (no wheel or pinch on the web map, tiles thrown away on every zoom step, no bounds, guests' area never "loaded", 67 scroll areas with the browser's bar, pins and Best-paying areas counting differently) and drew D21 ([canvas](https://claude.ai/artifact/GZWrpbyrk6eYQvbXBNwdoT), files and the build plan in `docs/design/map-feel-d21/`). Nothing is built; task 1.12 waits for "approve D21".
