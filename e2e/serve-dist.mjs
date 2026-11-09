@@ -12,6 +12,7 @@ const port = Number(process.argv[2] || process.env.PORT || 8099);
 const types = {
   ".html": "text/html",
   ".js": "text/javascript",
+  ".mjs": "text/javascript",
   ".json": "application/json",
   ".png": "image/png",
   ".ico": "image/x-icon",

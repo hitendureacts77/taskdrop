@@ -33,9 +33,17 @@ export const GL_MAX_ZOOM = 17;
 
 let lib: Promise<MapLib> | null = null;
 
+/** Where the site serves MapLibre's worker (copied in by scripts/copy-map-worker.mjs). */
+const WORKER_PATH = '/map/maplibre-gl-worker.mjs';
+
 export function loadMapLib(): Promise<MapLib> {
-  // The package is a UMD bundle: the namespace may sit on `default`.
-  lib ??= import('maplibre-gl').then((m) => ((m as unknown as { default?: MapLib }).default ?? m) as MapLib);
+  lib ??= import('maplibre-gl').then((m) => {
+    // Bundlers may hand the namespace back on `default`.
+    const gl = ((m as unknown as { default?: MapLib }).default ?? m) as MapLib;
+    // MapLibre looks for its worker next to its own file, which Metro cannot tell it; the version busts old caches.
+    gl.setWorkerUrl(`${WORKER_PATH}?v=${gl.getVersion()}`);
+    return gl;
+  });
   return lib;
 }
 

@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# MapLibre map worker, copied in by scripts/copy-map-worker.mjs (plan D21)
+/public/map/
