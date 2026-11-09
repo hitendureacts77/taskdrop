@@ -787,10 +787,11 @@ const JS = `
     if (m) return { n: m[1], text: m[2].trim() };
     if (/^START NOW/.test(t)) return { n: 'S', text: 'Start now: the slow track' };
     if (/^FUTURE SCOPE/.test(t)) return { n: 'F', text: 'Future scope' };
+    if (/^The CEO review/.test(t)) return { n: '', text: 'The CEO review (9 Nov)' };
     return { n: '', text: t.split(/[:(]/)[0].trim() };
   }
   function groupOf(t) {
-    if (/^(Start here|Your app in one page|Staging and production, step by step|The map)/.test(t)) return 0;
+    if (/^(Start here|The CEO review|Your app in one page|Staging and production, step by step|The map)/.test(t)) return 0;
     if (/^(START NOW|STEP \\d)/.test(t)) return 1;
     if (/^(FUTURE SCOPE|Snapshot|Changelog)/.test(t)) return 3;
     return 2;
