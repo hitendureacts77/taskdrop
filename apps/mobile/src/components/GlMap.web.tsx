@@ -20,7 +20,7 @@ export function glStyleUrl(isDark: boolean): string {
   return isDark ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/positron';
 }
 
-/** The map stops here: India with a margin, so the edges can still sit beside a side panel. [west, south], [east, north]. */
+/** India with a margin. [west, south], [east, north]. The map no longer stops here (owner video, 9 Nov). */
 export const INDIA_BOUNDS: [[number, number], [number, number]] = [
   [58, -2],
   [108, 42],
@@ -28,7 +28,8 @@ export const INDIA_BOUNDS: [[number, number], [number, number]] = [
 
 /** GL zoom counts 512-px tiles; the rest of the app (and lib/mapLayout) counts 256-px ones, one level higher. */
 export const GL_TO_TILE = 1;
-export const GL_MIN_ZOOM = 3;
+/** Far enough out to see the whole world (owner video, 9 Nov: the map must move over the whole globe). */
+export const GL_MIN_ZOOM = 1;
 export const GL_MAX_ZOOM = 17;
 
 let lib: Promise<MapLib> | null = null;
@@ -76,14 +77,13 @@ export function useMapLib(): MapLib | 'loading' | null {
   return state;
 }
 
-/** Shared options for every map on the web: no tilting or turning, the map stays on India. */
+/** Shared options for every map on the web: no tilting or turning; the map moves over the whole world. */
 export function baseOptions(isDark: boolean): Partial<Gl.MapOptions> {
   return {
     style: glStyleUrl(isDark),
     minZoom: GL_MIN_ZOOM,
     maxZoom: GL_MAX_ZOOM,
-    maxBounds: INDIA_BOUNDS,
-    renderWorldCopies: false,
+    renderWorldCopies: true,
     dragRotate: false,
     pitchWithRotate: false,
     touchPitch: false,

@@ -22,7 +22,7 @@ import {
   type Task,
   type TaskWithPoster,
 } from '../data/api';
-import { listSavedTaskIds, setSaved, remoteTasks } from '../data/extras';
+import { listSavedTaskIds, setSaved } from '../data/extras';
 import { listGuestSaves, setGuestSaved } from '../lib/guestSaves';
 import { IDEAS, TEMPLATES, TEMPLATE_TAGS, CATEGORIES, TOP_CATEGORIES, type TemplateTag } from '../lib/taskBrief';
 import { taskToFeedRow } from '../lib/openTask';
@@ -62,8 +62,6 @@ const hasListIntent = (p: NavParams) => LIST_INTENT.some((k) => p[k] !== undefin
 /** The screens that show the tab bar: entering Explore from one of them is "coming in from another tab". */
 const TAB_SCREENS: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'profile', 'search', 'orders'];
 const defaultLayer = (mode: string): NearMapLayer => (mode === 'worker' ? 'jobs' : 'people');
-/** The most remote jobs asked for; a full answer reads "50+". */
-const REMOTE_ASKED = 50;
 /** How long a view takes to fade in; shorter, and without the small rise, under reduced motion. */
 const VIEW_FADE_MS = 180;
 const VIEW_FADE_REDUCED_MS = 120;
@@ -76,7 +74,6 @@ export function ExploreScreen() {
   const { area, loaded, choose } = useMyArea();
   const { desktop, tablet, width } = useLayout();
   const reduced = useReducedMotion();
-  const focusTick = useFocusTick();
 
   // A list intent is "new" once per params object: the phone's own tab bar leaves old params
   // behind, and those must not pull a later visit back to the list.
@@ -86,11 +83,11 @@ export function ExploreScreen() {
   const [listBuilt, setListBuilt] = useState(view === 'list');
   if (view === 'list' && !listBuilt) setListBuilt(true);
   const [layer, setLayer] = useState<NearMapLayer>(defaultLayer(mode));
-  const [pickPlace, setPickPlace] = useState(false);
-  const [remote, setRemote] = useState<number | null>(null);
+  // The place picker: for your own area, or for a place to look around (another city) without changing yours.
+  const [pickFor, setPickFor] = useState<'mine' | 'look' | null>(null);
+  const [lookAt, setLookAt] = useState<{ lat: number; lng: number; label: string } | null>(null);
   // What the list is filtered by, so the map opens with the same jobs.
   const [listFilter, setListFilter] = useState<{ category: string | null; query: string }>({ category: null, query: '' });
-  const [remoteAsk, setRemoteAsk] = useState<{ filter: Filter; id: number } | undefined>(undefined);
 
   // The tab stays mounted while another tab or a job is in front (R4), so the view is steered by where
   // the person came from. The focus tick is no help: it does not move when the tab was seen under 30 s ago.
@@ -121,33 +118,6 @@ export function ExploreScreen() {
   // Each side starts on its own layer, and starts over when the mode flips.
   useEffect(() => setLayer(defaultLayer(mode)), [mode]);
 
-  // Remote jobs have no place on a map, so the Jobs layer says how many there are and where to find them.
-  const showRemote = view === 'map' && layer === 'jobs' && mode === 'worker';
-  useEffect(() => {
-    if (!showRemote) return;
-    let alive = true;
-    remoteTasks(REMOTE_ASKED)
-      .then((rows) => alive && setRemote(rows.length))
-      .catch(() => alive && setRemote(null));
-    return () => {
-      alive = false;
-    };
-  }, [showRemote, focusTick]);
-
-  const seeRemote = () => {
-    setRemoteAsk((r) => ({ filter: 'remote', id: (r?.id ?? 0) + 1 }));
-    setView('list');
-  };
-  const remoteLine =
-    showRemote && remote ? (
-      <Pressy onPress={seeRemote} label="See remote jobs" style={{ flexDirection: 'row', alignItems: 'center', minHeight: 32 }}>
-        <RNText numberOfLines={1} style={tx('500', 12.5, t.colors.muted)}>
-          {remote >= REMOTE_ASKED ? REMOTE_ASKED + '+' : remote} remote {remote === 1 ? "job isn't" : "jobs aren't"} on the map ·{' '}
-          <RNText style={tx('700', 12.5, t.colors.accentDeep)}>See them</RNText>
-        </RNText>
-      </Pressy>
-    ) : undefined;
-
   // The list keeps the reading width the screen host used to give it; the map takes everything beside the menu.
   const web = Platform.OS === 'web';
   const listWidth: StyleProp<ViewStyle> = {
@@ -156,7 +126,10 @@ export function ExploreScreen() {
     maxWidth: web ? (desktop ? (width >= XL_MIN_WIDTH ? XL_CONTENT : WIDE_CONTENT) : tablet ? TABLET_CONTENT : undefined) : undefined,
   };
 
-  const centre = area ? { lat: area.lat, lng: area.lng } : null;
+  // From-home jobs now sit in the map's own list (plan D23), so the map no longer needs a line about them.
+  const centre = lookAt ? { lat: lookAt.lat, lng: lookAt.lng } : area ? { lat: area.lat, lng: area.lng } : null;
+  // A picked place keeps the name it was picked by ("Koramangala, Bengaluru"), not its ward.
+  const placeLabel = lookAt ? lookAt.label : area ? (roughPlace(area.label) ?? undefined) : undefined;
   return (
     <View style={{ flex: 1 }}>
       {view === 'map' ? (
@@ -170,9 +143,11 @@ export function ExploreScreen() {
               centre={centre}
               leading={{ kind: 'list', onPress: () => setView('list') }}
               listFilter={listFilter}
-              areaLabel={area ? (roughPlace(area.label) ?? undefined) : undefined}
-              footer={remoteLine}
-              onChooseArea={() => setPickPlace(true)}
+              areaLabel={placeLabel}
+              placeIsMine={!lookAt}
+              onChangePlace={() => setPickFor(area ? 'look' : 'mine')}
+              onUseMyPlace={() => setLookAt(null)}
+              onChooseArea={() => setPickFor('mine')}
             />
           )}
         </FadeIn>
@@ -180,19 +155,24 @@ export function ExploreScreen() {
       {listBuilt ? (
         <ViewSwap on={view === 'list'} reduced={reduced} style={listWidth}>
           {mode === 'worker' ? (
-            <FindWork onMap={() => setView('map')} initialFilter={remoteAsk} onFilter={setListFilter} />
+            <FindWork onMap={() => setView('map')} onFilter={setListFilter} />
           ) : (
             <ExploreIdeas onMap={() => setView('map')} />
           )}
         </ViewSwap>
       ) : null}
       <LocationSheet
-        visible={pickPlace}
+        visible={pickFor !== null}
         askForDetails={false}
-        onCancel={() => setPickPlace(false)}
+        onCancel={() => setPickFor(null)}
         onPick={(p) => {
-          setPickPlace(false);
-          void choose(p);
+          const forLook = pickFor === 'look';
+          setPickFor(null);
+          // Looking around another place never changes your own area.
+          if (forLook) {
+            if (p.lat != null && p.lng != null) setLookAt({ lat: p.lat, lng: p.lng, label: p.area ?? p.label });
+          }
+          else void choose(p);
         }}
       />
     </View>

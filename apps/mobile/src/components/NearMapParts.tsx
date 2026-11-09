@@ -17,7 +17,8 @@ import { Pressy, tx } from './primitives';
  * plan D14: the list lives here, so nothing sits across the bottom of the map.
  */
 
-export type MapJob = TaskWithPoster & { km: number; fresh: boolean };
+/** A job on the map or in its list. `remote`: a from-home job, which has no pin and no distance. */
+export type MapJob = TaskWithPoster & { km: number; fresh: boolean; remote?: boolean };
 
 /** Each list row is this tall, so the list can scroll a picked row into view. */
 export const ROW_H = 64;
@@ -160,9 +161,10 @@ function JustPosted({ tone }: { tone: MapTone }) {
   );
 }
 
-/** "Madhapur · under 1 km · by Ravi". */
+/** "Madhapur · under 1 km · by Ravi", or "From home · by Ravi". */
 export function jobMeta(j: MapJob): string {
-  return `${areaName(j.loc_label)} · ${farText(j.km)}${j.poster ? ` · by ${firstName(j.poster.display_name || j.poster.username)}` : ''}`;
+  const by = j.poster ? ` · by ${firstName(j.poster.display_name || j.poster.username)}` : '';
+  return j.remote ? `From home${by}` : `${areaName(j.loc_label)} · ${farText(j.km)}${by}`;
 }
 
 /** One job in the list. The picked one is outlined; tapping a row flies the map to it. */
@@ -188,7 +190,7 @@ export function JobRow({ job: j, on, onPress }: { job: MapJob; on: boolean; onPr
         backgroundColor: on ? c.soft : pressed ? t.colors.surface2 : 'transparent',
       })}
     >
-      <IconTile name={categoryIcon(j.category ?? '')} tone="jobs" />
+      <IconTile name={j.remote ? 'home' : categoryIcon(j.category ?? '')} tone={j.remote ? 'people' : 'jobs'} />
       <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
         <RNText style={tx('700', 13.5, t.colors.ink)} numberOfLines={1}>
           {j.title}
@@ -448,11 +450,10 @@ export function kmValue(km: number): string {
   return km < 1 ? 'under 1 km' : `${km.toFixed(km < 10 ? 1 : 0)} km`;
 }
 
-export type HeroTile = { label: string; value: string; sub?: string; onPress?: () => void };
-
 /**
- * The big card at the top of the panel and the low phone sheet (plan D21): the best offer near you, large, with
- * an Open button, and three small tiles under it. In the Helpers and My people layers it holds the nearest person.
+ * The big card at the top of the panel and the low phone sheet (plan D21, made simpler in D23): the best offer
+ * near you, large, what it is and where, one clear button, and one line that sums up the rest. In the Helpers
+ * and My people layers it holds the nearest person.
  */
 export function HeroCard({
   tone,
@@ -462,8 +463,8 @@ export function HeroCard({
   meta,
   onFocus,
   onOpen,
-  openLabel = 'Open',
-  tiles,
+  openLabel = 'View job',
+  summary,
   compact = false,
 }: {
   tone: MapTone;
@@ -475,7 +476,8 @@ export function HeroCard({
   onFocus?: () => void;
   onOpen: () => void;
   openLabel?: string;
-  tiles: HeroTile[];
+  /** One line under the card: "4 jobs within 10 km · 3 from home". */
+  summary?: string;
   /** Phone: a smaller amount and tighter spacing. */
   compact?: boolean;
 }) {
@@ -494,8 +496,8 @@ export function HeroCard({
           <RNText style={tx('700', compact ? 12.5 : 13.5, t.colors.ink)} numberOfLines={1}>
             {title}
           </RNText>
-          {meta && !compact ? (
-            <RNText style={tx('600', 12, t.colors.muted)} numberOfLines={1}>
+          {meta ? (
+            <RNText style={tx('600', compact ? 11.5 : 12, t.colors.muted)} numberOfLines={1}>
               {meta}
             </RNText>
           ) : null}
@@ -509,30 +511,11 @@ export function HeroCard({
           {compact ? null : <Icon name="chevronRight" size={14} color={t.colors.onBtn} />}
         </Pressy>
       </View>
-      <View style={{ flexDirection: 'row', gap: compact ? 6 : 8 }}>
-        {tiles.map((s) => (
-          <Pressy
-            key={s.label}
-            onPress={s.onPress}
-            disabled={!s.onPress}
-            label={`${s.label}: ${s.value}${s.sub ? `, ${s.sub}` : ''}`}
-            scaleTo={0.97}
-            style={{ flex: 1, minWidth: 0, paddingHorizontal: compact ? 8 : 10, paddingVertical: compact ? 7 : 9, borderRadius: compact ? 10 : 12, gap: 1, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: c.border }}
-          >
-            <RNText style={tx('700', compact ? 10 : 10.5, t.colors.muted)} numberOfLines={1}>
-              {s.label}
-            </RNText>
-            <RNText style={tx('800', compact ? 13 : 15, t.colors.ink, { fontVariant: ['tabular-nums'] })} numberOfLines={1}>
-              {s.value}
-            </RNText>
-            {s.sub && !compact ? (
-              <RNText style={tx('600', 10.5, t.colors.text)} numberOfLines={1}>
-                {s.sub}
-              </RNText>
-            ) : null}
-          </Pressy>
-        ))}
-      </View>
+      {summary ? (
+        <RNText style={tx('700', compact ? 11.5 : 12, c.ink)} numberOfLines={1}>
+          {summary}
+        </RNText>
+      ) : null}
     </View>
   );
 }
@@ -648,8 +631,18 @@ export function ReachEditor({
 }
 
 /** The quiet pill at the top of the map: how many are in this part of the map, or that it is looking. */
-export function StatusPill({ text, busy }: { text: string; busy: boolean }) {
+export function StatusPill({ text, busy, onPress }: { text: string; busy: boolean; onPress?: () => void }) {
   const t = useTheme();
+  if (onPress) {
+    return (
+      <Pressy onPress={onPress} label={text} style={{ height: 34, paddingHorizontal: 14, borderRadius: 17, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.colors.ink }}>
+        <Icon name="compass" size={13} color={t.colors.bg} />
+        <RNText style={tx('800', 12.5, t.colors.bg)} numberOfLines={1}>
+          {text}
+        </RNText>
+      </Pressy>
+    );
+  }
   return (
     <View
       accessibilityRole="text"
