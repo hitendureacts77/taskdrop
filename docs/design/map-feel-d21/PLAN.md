@@ -1,6 +1,6 @@
-# Map feel, smart panel and Explore list: design and build plan (D21, proposed)
+# Map feel, smart panel and Explore list: design and build plan (D21)
 
-Status: **design drawn, waiting for your OK. Nothing built.** Written 8 Nov 2026 against `redesigned-2.0` at `efc9cab` (after PR 295).
+Status: **approved 8 Nov (with one addition: a Custom distance, 1 to 100 km), built and merged 9 Nov (PR 297), live on taskdrop.in.** Decisions 36a to 36d took the recommended answers; 36e (cleaning staging test data) was not done. Written 8 Nov 2026 against `redesigned-2.0` at `efc9cab` (after PR 295).
 Design canvas: https://claude.ai/artifact/GZWrpbyrk6eYQvbXBNwdoT (a copy of every board is in this folder).
 Source: your 3-minute screen recording of 8 Nov (17:53), desktop Chrome on `taskdrop.in`, Earn mode, signed out (guest).
 
