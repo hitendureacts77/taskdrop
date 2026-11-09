@@ -2616,6 +2616,168 @@ start 3.5b
 **Found while checking the off switches (5 Nov):** with all three switches off, the lists and money behave as before, with three deliberate exceptions that have no switch because they are safety fixes: the app's 30-second memory and signed-link memory are now per person and wiped on sign-in and sign-out (H69), the wallet screen asks again every time it is shown, and a second request during a secrets load waits instead of getting an empty value (H70). Also: there is no admin-panel button for `public_cache` yet (the switch is a row in `settings`, changed in the SQL editor), and the 10-minute job keeps running when `snapshots` is off.
 </details>
 
+<details id="t3-5c" data-short="Fewer Inngest runs">
+<summary>[CLAUDE] <b>3.5c</b> Background jobs, hybrid: database-only jobs move to pg_cron, Inngest keeps only outside calls <small>· added 9 Nov · Not started · your time: 20 minutes · free (no new tool) · answer Q1 to Q5 first</small></summary>
+
+**What it is, in plain words:** Inngest's free plan ran out once. Most of what Inngest runs on a timer is a job that only asks the database to do something (tidy old rows, mark overdue tasks, send reminders, write the daily digest). The database can run those itself with its own timer (pg_cron, already used for the three money sweeps). Inngest then keeps only the jobs that talk to the outside world (push to phones, ImageKit, Razorpay, file clean-up) or need retries one person at a time.
+
+**Your decision (9 Nov):** hybrid. Database-only jobs go to pg_cron, the money sweeps stay on pg_cron for good, Inngest keeps outside calls. This overrides agent rule 8 ("no new pg_cron jobs"); the new wording is in the detail drawer below and is written into `AGENTS.md` in PR 1, not before.
+
+**What changes for you:** nothing you can see in the app. Inngest's scheduled runs fall from about **1,090 a day to about 430** (about **190** with Q2 and Q3). Failures are not hidden: every pg_cron failure leaves a team alert in the admin and goes to Sentry (a money sweep failure as a "fatal" issue, which emails you), and the database and Inngest watch each other, so if either one stops, the other tells you.
+
+**Your steps:**
+
+1. Read Q1 to Q5 in the drawer "3.5c in detail" below, and answer them, or say "3.5c: use the recommendations".
+2. SAY:
+
+```say
+start 3.5c
+```
+
+3. Claude builds PR 1 to PR 5 in order, each merged on its own, and checks each one on staging before starting the next.
+4. In PR 5, Claude asks you to remove the setting `INNGEST_MONEY_JOBS` from the Supabase function secrets (it is a switch, not a key), or to OK Claude doing it.
+5. A week after PR 5: CLICK https://app.inngest.com → **Usage**, and TELL Claude the runs per day. CLICK **Functions**: anything listed as removed can be archived.
+
+**Done when:** every job in the table below runs where its verdict says; each pg_cron job has a green run on staging at its time; one forced failure was seen as a team alert and in Sentry; Inngest lists only the jobs that stay; `AGENTS.md`, `docs/INNGEST.md` and the architecture page say hybrid; the runs per day after a week are written here.
+
+**Status:** Not started (9 Nov). Plan only; nothing changed in the code or the database.
+</details>
+
+### 3.5c in detail: every background job, the design and the build steps (for Claude)
+
+**Checked against the code on 9 Nov** (`supabase/functions/inngest/index.ts` on `redesigned-2.0` at `e00ac34`; migrations 038, 041, 057, 063, 090, 097, 101, 103, 105, 113, 128, 132, 149; `supabase/cutover/`). Nothing was run on the database; what is live in `cron.job` on staging is checked in PR 1.
+
+**Every Inngest function today (20 always registered, 3 money sweeps only when `INNGEST_MONEY_JOBS=on`):**
+
+| # | Function | Trigger in code | What it does | Outside call | Needs retry / back-off / per-person order | Verdict | Why |
+|---|---|---|---|---|---|---|---|
+| 1 | `outbox-sweeper` | `*/5 * * * *` | Re-sends outbox events the pg_net fast path missed (`outbox_pending`, `step.sendEvent`, `outbox_mark_sent`) | Yes (it is the bridge into Inngest) | Yes | **Stays on Inngest** | Only Inngest can put events into Inngest. Also becomes pg_cron's watcher (design 5). Q2: every 10 min |
+| 2 | `outbox-prune` | 04:15 IST daily | `outbox_prune()`: sent events older than 14 days, team alerts older than 30 | No | No | **pg_cron** (PR 2) | One SQL function |
+| 3 | `team-alert` | events `support.opened`, `withdrawal.requested`, `payout.failed`, `dispute.opened` | `record_admin_alert` with the words built in `alertFor` | No | Small | **Stays on Inngest** | Event-driven, a few runs a day; moving it means new triggers, not a schedule. Not in this task |
+| 4 | `daily-digest` | 09:00 IST daily | `daily_digest()` totals, words built by `digestAlert` in `jobs.ts`, saved by `record_admin_alert` | No | No | **pg_cron** (PR 3) | The words move into SQL (design 7) |
+| 5 | `crm-rules` | `0 */3 * * *` (no time zone: UTC) | `run_crm_rules()`: admin automation follow-ups, once per rule per person | No | No | **pg_cron** (PR 2) | One SQL function |
+| 6 | `nightly-reconcile` | 02:30 IST daily | `run_reconciliation(3)`, then reads Razorpay payment links, `record_provider_reconciliation`, Sentry fatal on any difference | Yes (Razorpay) | Yes | **Stays on Inngest** | Outside call with a key |
+| 7 | `push-notification` | event `notification.created` | Loads the message, sends it to **Expo's push service** (which forwards to FCM), waits 15 min, reads receipts, removes dead tokens | Yes (Expo) | Yes (4 retries) | **Stays on Inngest** | Outside call |
+| 8 | `account-files` | event `user.deleted` | Removes a deleted account's files from Storage, marks its ImageKit pictures deleted | Yes (Storage API) | Yes (5 retries) | **Stays on Inngest** | Outside call |
+| 9 | `media-purge` | `*/10 * * * *` | `media_expire_pending()`, then removes deleted pictures from ImageKit in batches | Yes (ImageKit) | Yes (4 retries) | **Stays on Inngest** | Outside call. Q3: every 30 min |
+| 10 | `stray-imagekit-files` | Sunday 03:30 IST | Removes ImageKit files with no `media` row | Yes (ImageKit) | Yes (3 retries) | **Stays on Inngest** | Outside call |
+| 11 | `overdue-tasks` | `*/10 * * * *` | `run_overdue_tasks()`: label only, no money | No | No | **pg_cron** (PR 2) | One SQL function |
+| 12 | `public-snapshots` | `*/10 * * * *` | Age check of the kept lists (Sentry + one team alert), then `refresh_public_snapshots()` and the `public_snapshots_last_ok` settings row | No (Sentry report becomes the failure path, design 3) | No (the next tick is the retry; it has its own lock) | **pg_cron** (PR 3) | One SQL function plus a check that moves into SQL (design 6) |
+| 13 | `housekeeping` | `17 * * * *` | `run_housekeeping()`: expired codes, counters, old notifications, live feed, free ad events | No | No | **pg_cron** (PR 2) | One SQL function |
+| 14 | `outbox-watchdog` | `*/10 * * * *` | `run_outbox_watchdog()`: events unsent 15+ min mean Inngest is not receiving; one alert per 6 h | No | No | **pg_cron** (PR 4) | One SQL function, and it must not run on the system it watches |
+| 15 | `sms-pumping-watch` | `*/15 * * * *` | `run_sms_pumping_watch()`: many codes sent, few used; one alert per 6 h | No | No | **pg_cron** (PR 3) | One SQL function |
+| 16 | `task-reminders` | `*/15 * * * *` | `run_task_reminders()` (own advisory lock, once per task and person); writes notifications, whose push still goes through `push-notification` | No | No | **pg_cron** (PR 3) | One SQL function |
+| 17 | `user-created` | event `user.signed_up` | `user_sync_apply` | No | Yes (per-person order, 5 retries) | **Stays on Inngest** | Per-person concurrency |
+| 18 | `user-updated` | event `user.updated` | `user_sync_apply` | No | Yes (same) | **Stays on Inngest** | Per-person concurrency |
+| 19 | `user-deleted` | event `user.deleted` | `user_sync_apply` | No | Yes (same) | **Stays on Inngest** | Per-person concurrency |
+| 20 | `user-sync-repair` | 03:10 IST daily | `user_sync_repair()` | No | No | **pg_cron** (PR 2) | One SQL function |
+| 21 | `auto-complete-due` | `*/15` (off) | `run_auto_complete_due()` | No | No | **Already pg_cron, stays for good** (PR 5) | pg_cron job `auto-complete-due` runs `private.auto_complete_due()` today; the Inngest copy is deleted |
+| 22 | `settle-cleared-earnings` | `*/5` (off) | `settle_cleared_earnings()` | No | No | **Already pg_cron, stays for good** (PR 5) | pg_cron job `settle-cleared-often` (migration 063; the nightly copy went in 113) |
+| 23 | `settle-finished-campaigns` | `7 * * * *` (off) | `settle_finished_campaigns()` | No | No | **Already pg_cron, stays for good** (PR 5) | pg_cron job `settle-finished-campaigns` (migration 046) |
+| new | `job-failure-report` | event `job.failed` | Tells Sentry that a pg_cron job failed or stopped (design 3) | Yes (Sentry) | Yes (3 retries) | **New on Inngest** (PR 1) | Runs only when something fails |
+
+**Where the first list (9 Nov) was not quite right:**
+
+- There is **no `ledger-check` function**. The money check is `nightly-reconcile`, and it stays.
+- Push goes to **Expo's push service**, not to FCM directly. Still an outside call, still stays.
+- `crm-rules` has no time zone in code, so it runs at 00:00, 03:00 ... UTC (05:30, 08:30 ... IST). Kept as it is.
+- **The biggest finding:** the three money sweeps on pg_cron today report a failure nowhere. They are bare `select private.auto_complete_due()` lines; a failure only lands in `cron.job_run_details`, which nobody reads. A sweep that stops paying workers would be silent. PR 5 fixes that, and Q5 asks whether it should go first.
+- If `supabase/cutover/inngest_background_jobs.sql` was never run, the old pg_cron prunes `api-rate-prune` and `password-attempts-prune` still exist beside `housekeeping`. PR 1 reads `cron.job` on staging and writes the real list here.
+
+**The design**
+
+1. **Two private tables** (PR 1). Row rules on, no policies, closed to `anon`, `authenticated` and `service_role`:
+   - `private.cron_jobs` (the list of pg_cron jobs): `job text primary key`, `max_gap interval` (how late a green run may be before the job counts as stopped), `money boolean`, `timeout interval default '5 minutes'`, `once_per_ist_day boolean`, `created_at`.
+   - `private.job_runs` (one row per run): `id bigint identity`, `job`, `started_at` (clock time), `finished_at`, `status` (`ok`, `skipped` or `failed`), `result jsonb`, `sqlstate text`, `error text` (only `left(SQLERRM, 300)`, never the DETAIL part, which can hold row values). Index on `(job, started_at desc)`.
+2. **One wrapper, `private.run_cron_job(p_job text)`**, security definer, closed to every API role. Every pg_cron command is exactly `select private.run_cron_job('<job>')`. In order:
+   1. A job not in `private.cron_jobs` raises.
+   2. **Lock (Inngest's `concurrency: 1`):** `pg_try_advisory_xact_lock(hashtextextended('cron:' || p_job, 0))`. Taken by a slower run: write a `skipped` row (`{"reason":"still running"}`) and stop.
+   3. **Once a day:** for `once_per_ist_day` jobs, if an `ok` run exists for today's India date, write `skipped` (`done today`). This makes a catch-up run an hour later safe, and stops a second digest.
+   4. `set_config('statement_timeout', <timeout>, true)` and `lock_timeout` 10 s, so a stuck run cannot hold locks for long.
+   5. Inside `begin ... exception when others or query_canceled then ... end` (a sub-transaction): a fixed `case p_job` list that calls the existing function, for example `'overdue-tasks'` calls `public.run_overdue_tasks()`. No dynamic SQL. Success writes an `ok` row with the result.
+   6. On an error, the job's own half-done work is rolled back by the sub-transaction; a `failed` row is written with the SQLSTATE and the short message; then the failure report (3).
+   pg_cron runs each command as one transaction, the same as the single RPC Inngest made, so no job behaves differently. `private.assert_service_caller()` already lets a direct database session through (no JWT claims), so the existing functions need no change.
+3. **Failure report, `private.report_job_failure(job, sqlstate, run_id)`:**
+   - a team alert (`record_admin_alert('job_failed', 'Background job failed: <job>', ...)`) at most once per job per hour; for a money job, at most once per 15 minutes;
+   - `private.emit_event('job.failed', {job, sqlstate, run_id, money})`: ids and fixed codes only, never message text (the outbox rule);
+   - new Inngest function `job-failure-report` (event `taskdrop/job.failed`): `logServer` plus `captureServerError(new Error("pg_cron job <job> failed (<sqlstate>)"), {...}, money ? "fatal" : "error")`. "Fatal" reaches your email through the Sentry rule from task 2.10, like the money check's mismatch today.
+   - If Inngest is down, the team alert still lands at once and the event waits in the outbox until Inngest is back.
+4. **Heartbeat, `private.run_job_watchdog()`**, run by pg_cron job `job-watchdog` every 5 minutes (through the wrapper):
+   - a job whose last `ok` or `skipped` run is older than its `max_gap` (or none since it was added plus `max_gap`) counts as stopped; a row in `cron.job_run_details` with status `failed` for one of our commands in the last 15 minutes counts as failed (catches a run the wrapper could not record, for example a killed process). Both go through the failure report with SQLSTATE `STALE` or `CRON`.
+   - watches Inngest's money job too: no `reconciliation_runs` row (`ran_at`) in 26 hours means `nightly-reconcile` did not run, so one alert.
+   - once an hour, deletes `private.job_runs` rows older than 30 days and `cron.job_run_details` rows older than 7 days (this task adds about 1,300 pg_cron runs a day).
+5. **Who watches pg_cron if pg_cron itself stops?** Inngest. A new RPC `public.cron_health()` (service role only, `assert_service_caller`) returns the stopped jobs, whether one is a money job, and `report: true` at most once an hour (time kept in a `settings` row `cron_health_reported_at`). `outbox-sweeper` calls it **inside its existing "load unsent" step** (no extra step or run) and, when `report` is true, logs and tells Sentry (fatal if a money job). So the two watch each other: pg_cron's `outbox-watchdog` sees Inngest stuck, Inngest's sweeper sees pg_cron stuck. Only if both are down at once is nobody told; Supabase's own status emails cover that.
+6. **public-snapshots:** the wrapper's case runs the age check in SQL (the same rule as `checkSnapshotFreshness`: marker older than 30 minutes is a failure report; a `public_snapshots_stale` team alert only while 45 minutes or less), then `private.refresh_public_snapshots()`, and when it was not skipped, writes the same `public_snapshots_last_ok` row.
+7. **daily-digest:** a new `private.digest_alert(jsonb)` builds the same title and five lines as `digestAlert` in `jobs.ts` (same rupee format as `rupees()` there), then `record_admin_alert('digest', ...)`. Once a day, with a catch-up run an hour later.
+8. **Schedules.** pg_cron counts in UTC; India is UTC + 5:30 all year. The 10- and 15-minute jobs start at different minutes so no more than three run at once (Supabase advises at most 8 at a time, each under 10 minutes).
+
+| pg_cron job | Schedule (UTC) | India time | Before | `max_gap` | Once a day | Money |
+|---|---|---|---|---|---|---|
+| `housekeeping` | `17 * * * *` | :47 every hour | same (Inngest) | 2 h | no | no |
+| `outbox-prune`, catch-up `outbox-prune-catchup` | `45 22 * * *`, `45 23 * * *` | 04:15, 05:15 | 04:15 IST | 26 h | yes | no |
+| `user-sync-repair`, catch-up | `40 21 * * *`, `40 22 * * *` | 03:10, 04:10 | 03:10 IST | 26 h | yes | no |
+| `crm-rules` | `0 */3 * * *` | 05:30, 08:30 ... | same | 4 h | no | no |
+| `overdue-tasks` | `1-59/10 * * * *` | every 10 min | `*/10` | 30 min | no | no |
+| `public-snapshots` | `3-59/10 * * * *` | every 10 min | `*/10` | 30 min | no | no |
+| `outbox-watchdog` | `5-59/10 * * * *` | every 10 min | `*/10` | 30 min | no | no |
+| `task-reminders` | `2-59/15 * * * *` | every 15 min | `*/15` | 45 min | no | no |
+| `sms-pumping-watch` | `8-59/15 * * * *` | every 15 min | `*/15` | 45 min | no | no |
+| `daily-digest`, catch-up | `30 3 * * *`, `30 4 * * *` | 09:00, 10:00 | 09:00 IST | 26 h | yes | no |
+| `job-watchdog` (new) | `*/5 * * * *` | every 5 min | none | watched by Inngest (5) | no | no |
+| `auto-complete-due` (existing name) | `*/15 * * * *` | every 15 min | same, pg_cron | 45 min | no | **yes** |
+| `settle-cleared-often` (existing name) | `*/5 * * * *` | every 5 min | same, pg_cron | 15 min | no | **yes** |
+| `settle-finished-campaigns` (existing name) | `7 * * * *` | :37 every hour | same, pg_cron | 2 h | no | **yes** |
+
+9. **Running twice during the switch.** Each merge applies the migration first (the pg_cron job starts), then deploys the `inngest` function without the old job and syncs Inngest (`scripts/vercel-build.mjs`). For a few minutes both can run. The wrapper's lock only stops pg_cron from overlapping itself, so every job must be safe twice, and is:
+   - `housekeeping`, `outbox-prune`, `user-sync-repair`, `overdue-tasks`: deletes and a label, the same result twice.
+   - `crm-rules`: "not exists" and "on conflict do nothing"; two runs in the same second could in theory add one extra admin follow-up (no money). Do not merge within 10 minutes of a 3-hour mark (00:00, 03:00 ... UTC).
+   - `task-reminders` and `public-snapshots`: their own advisory locks and once-only guards.
+   - `outbox-watchdog`, `sms-pumping-watch`: 6-hour guard; worst case two alerts.
+   - `daily-digest`: worst case two digests; do not merge PR 3 between 08:50 and 09:10 IST.
+   - Money sweeps: already on pg_cron and the Inngest copies were never switched on, so there is no overlap. PR 5 only points the existing pg_cron jobs at the wrapper. Each sweep takes row locks and only touches work that is due (as today), so even a second run pays nobody twice. PR 5 first checks that Inngest does **not** list the three; if it does, someone turned `INNGEST_MONEY_JOBS` on: stop and ask.
+   - If the Inngest sync after a deploy fails (the build only warns), Inngest may still call a removed function; the new code does not serve it, so Inngest reports an error and nothing runs twice. Check the build log for `Successfully registered`.
+10. **`INNGEST_MONEY_JOBS` and `supabase/cutover/`.** The switch goes away (PR 5): the `sweep()` and `moneyJobs` code and its comment in `index.ts`, the name in `scripts/set-function-secrets.mjs` and `.env.example`, and (you, or Claude with your OK) `supabase secrets unset INNGEST_MONEY_JOBS` on staging. `supabase/cutover/inngest_money_jobs.sql` keeps its name but its SQL is replaced by a comment: "Retired by plan task 3.5c: the money sweeps stay on pg_cron for good. Do not unschedule them. The old file is in git history." So nobody can run it by mistake. `supabase/cutover/inngest_background_jobs.sql` stays (its push switch is still valid); its header gets one line saying `housekeeping` moved to pg_cron in 3.5c. `public.run_auto_complete_due()` stays (migrations never drop).
+11. **Security.** No new door for people. `run_cron_job`, `report_job_failure`, `run_job_watchdog` and `digest_alert` are private and closed to every API role; `cron_health` is service role only. pg_cron runs inside the database: no pg_net call, no Edge Function call, no new secret anywhere. Events carry ids and fixed codes only. `security-review` runs on each PR's diff.
+
+**The new wording for `AGENTS.md` (written in PR 1, not before):**
+
+- Rule 8 becomes: "**Background work: pg_cron for database-only schedules, Inngest for everything that leaves the database** (owner, 2026-11-09, plan task 3.5c). A job that is one SQL function on a timer, with no outside call, runs on Supabase pg_cron through `private.run_cron_job` (listed in `private.cron_jobs`, every run written to `private.job_runs`, failures sent to the team and Sentry). Anything that calls an outside service, needs retries with back-off, or must run one person at a time runs on Inngest. The three money sweeps stay on pg_cron. Events leave the database only through `private.emit_event` (the outbox). Do not add another automation tool. One owner-approved exception (2026-11-02, plan decision 13): email sequences run in Loops (loops.so); Inngest only passes contacts and events to it. Move one job at a time, removing the old job in the same deploy as its replacement."
+- The "Background jobs" sentence under Stack becomes: "**Background jobs:** hybrid (plan 3.5c). Postgres owns the rules and money, runs its own timed jobs on pg_cron (the money sweeps, prunes, reminders, watchdogs) and writes events to an outbox; Inngest runs outside calls and retries (push, file and ImageKit clean-up, Razorpay checks) (`supabase/functions/inngest/`, `docs/INNGEST.md`)."
+- `docs/INNGEST.md` becomes "Background jobs: pg_cron and Inngest": the split table gets a pg_cron column, the functions table keeps only Inngest's, a new "pg_cron jobs" table (the schedule table above), `job.failed` in the events table, "Moving the money sweeps off pg_cron" is replaced by "Why the money sweeps stay on pg_cron", and the closing "Do not add new pg_cron jobs" goes.
+- This plan's "Architecture and system design" table: the Inngest row says "Pushes, file and picture clean-up, the Razorpay check, retries"; a new pg_cron row says "Timed database jobs: money sweeps, prunes, reminders, watchdogs". The two diagrams (`taskdrop-architecture.html`, `taskdrop-outbox-dataflow.html`) are refreshed in PR 6.
+
+**The build: six pull requests, in this order.** Each on its own short-lived branch from `redesigned-2.0`, `npm run check` and `npm run test:db` green, a security-review note in the PR, merged by Claude. **Migration numbers:** 161 is the next free number on 9 Nov, but open PRs 290 and 293 hold 159 and 160, so re-check `supabase/migrations` and the open PRs when starting, and give the file a timestamp newer than every applied migration (`deploy-migrations.mjs` skips older versions; the 149 lesson). Each migration gets its undo file in `supabase/undo/`. A merge applies the migration on staging at once (the Vercel build), so merging is going live on staging.
+
+| PR | Who | What | Files | Tests (added to `npm run test:db`) | Done when | Undo | Check on staging after |
+|---|---|---|---|---|---|---|---|
+| **1. Foundation** (no job moves) | Claude | Tables, wrapper, failure report, watchdog, `cron_health`, `job-failure-report`; rule 8 and docs say hybrid | New migration `<ts>_161_cron_job_runner.sql`; `supabase/undo/161_cron_job_runner.down.sql`; new `supabase/tests/cron_jobs.test.sql` and its line in `package.json`; `supabase/functions/inngest/index.ts` (new function; sweeper's first step also calls `cron_health`); `jobs.ts` + `jobs.test.ts` (a pure `cronHealthReport()` helper); `AGENTS.md`; `docs/INNGEST.md`; this plan | Unknown job raises; `selftest-fail` (a case that raises on purpose) leaves one `failed` row, one `job_failed` alert and one `job.failed` outbox row whose data has only `job`, `sqlstate`, `run_id`, `money`; a second failure within the hour adds a row but no alert; the wrapper's source holds `pg_try_advisory_xact_lock` (one test file cannot open a second session); `max_gap` passed means one alert; once-a-day job run twice is `skipped`; `anon`, `authenticated` and `service_role` cannot run the private functions, `anon` and `authenticated` cannot run `cron_health`; `cron.job` has `job-watchdog` at `*/5 * * * *` calling the wrapper; `error` is 300 characters at most | Merged; `job-watchdog` has a green row every 5 min for an hour; Claude runs `select private.run_cron_job('selftest-fail')` once on staging and sees the alert, the outbox row, a `job-failure-report` run in Inngest and the Sentry issue | Revert the PR; run the undo file (unschedules `job-watchdog`; the tables stay, harmless) | `select jobname, schedule, active from cron.job order by 1;` written into this task; `push_via_inngest` value written here |
+| **2. Tidy jobs** | Claude | `housekeeping`, `outbox-prune`, `user-sync-repair`, `crm-rules`, `overdue-tasks` | Migration 162 (5 rows in `private.cron_jobs`, 7 `cron.schedule` lines with the two catch-ups) + undo; `index.ts` (remove the five functions); `docs/INNGEST.md` | Each of the five runs through the wrapper and leaves an `ok` row; each `cron.job` row has the schedule and command of the table above; the existing `inngest_jobs`, `watchdog_reminders` and `user_sync` tests still pass unchanged | Each job has a green run at its next time (the daily ones checked the next morning); Inngest no longer lists the five; no `job_failed` alert | Revert; run undo 162 (unschedules the seven) | Merge not within 10 min of 03:10 or 04:15 IST or a 3-hour UTC mark |
+| **3. Reminders, alerts and lists** | Claude | `task-reminders`, `sms-pumping-watch`, `daily-digest`, `public-snapshots` | Migration 163 (rows, schedules, `private.digest_alert`, the snapshot age check) + undo; `index.ts` (remove the four and their now unused imports); `jobs.ts` + `jobs.test.ts` (remove the helpers only those four used); `docs/INNGEST.md` | The digest words equal the old ones for a fixed input (copy the expected text from `jobs.test.ts` before deleting it); marker 40 min old gives one `public_snapshots_stale` alert and a failure report, 50 min old a report but no new alert; a refresh moves the marker; reminders through the wrapper twice send once; the SMS watch alerts once | A reminder still arrives; the kept lists are under 10 minutes old (`select key, refreshed_at from private.public_snapshots`); the next 09:00 IST digest arrives once; Inngest no longer lists the four | Revert; run undo 163 | Merge not between 08:50 and 09:10 IST |
+| **4. Watchdog, and fewer sweeper runs** | Claude | `outbox-watchdog` to pg_cron; the Razorpay-check heartbeat in `run_job_watchdog`; if Q2: sweeper every 10 min and the watchdog's "stuck" from 15 to 25 min; if Q3: `media-purge` every 30 min | Migration 164 (row, schedule; `create or replace` of `run_outbox_watchdog` with the same signature if Q2) + undo; `index.ts`; `docs/INNGEST.md` | Through the wrapper: an event unsent past the limit alerts once, a younger one does not; no `reconciliation_runs` row for 26 h alerts once, a recent row does not | Inngest lists only: `outbox-sweeper`, `team-alert`, `nightly-reconcile`, `push-notification`, `account-files`, `media-purge`, `stray-imagekit-files`, the three user functions and `job-failure-report` (11) | Revert; run undo 164 | `outbox-watchdog` green every 10 min |
+| **5. Money sweeps for good** | Claude; **you** for the secret | The three existing pg_cron jobs point at the wrapper (same names, same times) with `money = true`; the Inngest copies and `INNGEST_MONEY_JOBS` go; the cutover file is retired | Migration 165 (3 rows; `cron.schedule` with the existing names replaces the command in pg_cron 1.3 or newer: check `select extversion from pg_extension where extname = 'pg_cron'` first, else unschedule and schedule in one `do` block) + undo (puts the bare commands back, copied from the retired file's history); `index.ts`; `scripts/set-function-secrets.mjs`; `.env.example`; `supabase/cutover/inngest_money_jobs.sql`; `docs/INNGEST.md`; this plan's 3.5c | Using the money test set-ups (`money_rules.test.sql`, `hunt2_money.test.sql`): each sweep through the wrapper does its due work and a second run changes no balance or ledger row; a `money = true` self-test failure gives a `fatal`-marked event; the three `cron.job` commands call the wrapper | Each money job green at its cadence for 24 h; one test task auto-completes and settles as before (`scripts/money-freshness-check.mjs`, fake money); `INNGEST_MONEY_JOBS` gone from staging's secrets | Run undo 165, then revert | Before merging: Inngest does not list the three sweeps |
+| **6. Clean-up and measure** | Both | Diagrams refreshed (say "refresh the architecture diagrams"); task 5.4 note on the production Inngest plan (Q4); this task ticked with the runs per day | `docs/architecture/*`, this plan | none | You read Inngest's Usage page a week later and the number is written here | Not needed | Production is not touched in this task: the migrations reach it with everything else in Step 5 |
+
+**What you need to answer first (Q1 to Q5), each with the recommendation:**
+
+| # | Question | Recommended |
+|---|---|---|
+| Q1 | Rule 8 says "move one job at a time". Group the moves into PRs 2 to 4 (each job still swapped in the same deploy as its replacement), or one PR per job (about 14 PRs)? | **Group them.** Every job is safe to run twice and each PR has its own undo; 14 PRs only add waiting |
+| Q2 | `outbox-sweeper` from every 5 to every 10 minutes, and the watchdog's "stuck" from 15 to 25 minutes? Events normally go out at once by the fast path; the sweeper only catches misses | **Yes.** Saves 144 runs a day; a missed event can wait up to about 10 minutes more |
+| Q3 | `media-purge` from every 10 to every 30 minutes? A thrown-away picture stays in ImageKit up to 30 minutes (it is already hidden in the app) | **Yes.** Saves 96 runs a day. Making it run only when there is work is possible later |
+| Q4 | Production Inngest (task 5.4) says a paid plan. After this task, start production on the free plan and upgrade only when usage passes 70%? | **Yes, start free and watch.** Push grows with users; the Usage page tells you before the limit |
+| Q5 | The money sweeps report failures nowhere today. Build PR 5 right after PR 1 instead of last? | **Yes.** It is the worst silent failure, PR 1 is all it needs, and it changes no money rule |
+
+**Inngest runs per day, from the timers in the code** (event-driven runs such as push, team alerts and user events are not counted; they do not change):
+
+| | Runs a day | About a month |
+|---|---|---|
+| Today (money sweeps off): sweeper 288, overdue 144, snapshots 144, watchdog 144, media-purge 144, reminders 96, SMS watch 96, housekeeping 24, CRM 8, prune 1, digest 1, reconcile 1, user-sync repair 1, stray files 1 a week | **about 1,090** | about 33,000 |
+| Today if `INNGEST_MONEY_JOBS` had been switched on | about 1,500 | about 45,000 |
+| After PR 5: sweeper 288, media-purge 144, reconcile 1, stray files 1 a week (plus `job-failure-report`, about 0) | **about 430** (60% fewer) | about 13,000 |
+| With Q2 and Q3: sweeper 144, media-purge 48, reconcile 1 | **about 190** (82% fewer) | about 5,900 |
+
+Each moved job used one or two Inngest steps per run, so steps fall by about the same share. The database gains about 1,300 pg_cron runs a day, each a few milliseconds, at no cost.
+
 <details id="t3-6" data-short="Quality tests round 3">
 <summary>[CLAUDE] <b>3.6</b> Quality tests, round 3: speed, every screen, outages <small>· Website and server parts run 2 Nov (PR 200); phone parts and T12 still open · your time: 20 minutes</small></summary>
 
@@ -4971,6 +5133,7 @@ Kept for the record. The live picture is the **Start here** panel at the top of 
 
 ## Changelog
 
+- **2026-11-09 (task 3.5c: background jobs go hybrid, plan only):** You decided that jobs which only ask the database to do something move from Inngest to Supabase's own timer (pg_cron), the money sweeps stay on pg_cron for good, and Inngest keeps only outside calls and retries, because Inngest's free plan ran out once. New task **3.5c** in Step 3 with a detail drawer: every Inngest function checked against the code with its verdict (10 move, 10 stay, the 3 money copies are deleted), how a pg_cron failure still reaches the team and Sentry, how pg_cron and Inngest watch each other, the India-to-UTC schedule table, six pull requests in order, and five questions (Q1 to Q5). **Found:** there is no `ledger-check` job; push goes through Expo's service; and the money sweeps on pg_cron today report a failure nowhere (Q5 asks to fix that early). Expected effect: Inngest's timed runs fall from about 1,090 a day to about 430, or about 190 with Q2 and Q3. The new wording of agent rule 8 is written in the task and goes into `AGENTS.md` only when you say "start 3.5c". Nothing in the code or the database changed.
 - **2026-11-08 (map feel, smart panel and Explore list: D21, task 1.12, decision 36):** You sent a 3-minute video comparing Google Maps with the Explore map on `taskdrop.in`: pinching zoomed the whole page, zooming out went dark and drifted to America, the folded top bar was confusing, the List view showed an empty grey box, and the panel had a scroll bar and a squeezed hero. Claude read the video, found the causes in the code (no wheel or pinch on the web map, tiles thrown away on every zoom step, no bounds, guests' area never "loaded", 67 scroll areas with the browser's bar, pins and Best-paying areas counting differently) and drew D21 ([canvas](https://claude.ai/artifact/GZWrpbyrk6eYQvbXBNwdoT), files and the build plan in `docs/design/map-feel-d21/`). Nothing is built; task 1.12 waits for "approve D21".
 - **2026-11-08 (the page made simple to read and to move around):** You asked for the plan page to be easy to understand and navigate, with less text on screen but every step kept, and for the staging and production setup to be written step by step. New at the top: **Start here** (your progress, the next tasks and what waits on you), **Your app in one page**, and **Staging and production, step by step** (five parts, A to E, each step linked to its task). The page now has a side menu in groups, a search box, and a status on every task. Long background inside each section folds into a titled drawer; tasks, gates and every step inside them are unchanged. The duplicate copy of task 5.6b inside 5.8 was removed. The old opening notes and the 30 October snapshot moved to the end.
 - **2026-11-08 (D17, City Hunt and Big Days built and live; decisions 32 to 34 answered):** You said to drop Same Here, Learner Seat and Help Swap and to build the rest. **Live on `taskdrop.in`:** the app-download prompt (PR 283: phone bar, one-time sheet, `/get` page, computer button and QR code), Big Days with the two new Home tiles (PR 284), and City Hunt (PR 286, migration 158: many people look, the poster pays only the find they accept). Checked live: `/get`, the Home tiles, planning and saving a big day, and the City Hunt options card through to the review step; no console errors. All the database tests pass. A test added on 7 Nov (`role_doors`) wrongly counted the assigned worker reading a task's exact address as a leak; the policy allows it, so the test was fixed (no database change). **Notes:** a Hunt pays on accept, so there is no review window; Hunt decline reasons have no admin screen yet; a finder's pending finds do not show in My Work; a guest's post from a Big Day board loses its plan link; the APK link may expire. **Not done:** City Hunt end to end with two real accounts on the phone; the Android phone bar and QR scan on a real phone.
