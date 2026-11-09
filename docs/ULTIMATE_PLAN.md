@@ -1283,9 +1283,11 @@ A search cannot prove that nobody has a feature; these are the closest things fo
 </details>
 
 <details id="t1-13" data-short="Useful in the first minute (D22)">
-<summary>[CLAUDE] <b>1.13</b> Useful in the first minute: posters get it done, helpers see money, everyone comes back (D22) <small>· Planned 9 Nov · design first, nothing built · needs decision 39 (is it a fix inside the freeze?)</small></summary>
+<summary>[CLAUDE] <b>1.13</b> Useful in the first minute: posters get it done, helpers see money, everyone comes back (D22) <small>· Planned and drawn 9 Nov · nothing built · needs decision 39 (is it a fix inside the freeze?)</small></summary>
 
 **What you said (9 Nov):** you gave the app to a few people and, on opening it, they did not find it useful. Your goal: the moment someone opens TaskDrop, it should make their life easier, whether they want a task done or want to earn, and they should keep using it for a long time. You like the map (what work, where, when, for how much, who pays most) and want it to help both sides.
+
+**Drawings (9 Nov, [design canvas](https://claude.ai/artifact/C6hFHXK2YZirnPwKnWRCfS)):** eight phone screens in four rows, today on the left and D22 on the right: Hire Home, Earn Home, the first open, then the map with When and Sort and the coming-back cards and alerts. Orange tags (U1 to U7, A1 to E3) match the lists below; the numbers on the D22 screens are examples.
 
 **The goal in one line.** Within **60 seconds** of opening the app, a poster thinks "this can sort out my problem today" and a helper thinks "I can earn ₹___ near me today". Everything below serves that one moment, and then brings people back.
 
