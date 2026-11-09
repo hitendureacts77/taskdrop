@@ -122,7 +122,7 @@ export function CategoryPicker({ value, onChange }: { value: string; onChange: (
         <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 14, marginBottom: 4 })}>
           {needle ? `${results.length} OF ${CATEGORIES.length} MATCH` : `ALL ${CATEGORIES.length}`}
         </RNText>
-        <ScrollView style={{ maxHeight: 360 }} keyboardShouldPersistTaps="handled">
+        <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 360 }} keyboardShouldPersistTaps="handled">
           {results.length === 0 ? (
             <RNText style={tx('400', 14, t.colors.muted, { paddingVertical: 14 })}>No category matches. “Other” is always there.</RNText>
           ) : (

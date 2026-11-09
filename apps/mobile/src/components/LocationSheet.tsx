@@ -557,7 +557,7 @@ export function LocationSheet({
               elevation: 4,
             }}
           >
-            <ScrollView keyboardShouldPersistTaps="handled">
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {query.trim().length < 2 && recents.length > 0 && (
                 <>
                   <RNText

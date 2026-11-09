@@ -5,9 +5,6 @@ import { Screen, ScreenList, cardSurface } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
 import { EmptyState, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../components/kit';
-import { JobsMap, type JobPin } from '../components/JobsMap';
-import { jobPin } from '../components/mapPins';
-import { PersonTheme } from '../providers/ThemeProvider';
 import { TrendingSection } from '../components/Trending';
 import { WorkCard, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
@@ -31,12 +28,12 @@ import { IDEAS, TEMPLATES, TEMPLATE_TAGS, CATEGORIES, TOP_CATEGORIES, type Templ
 import { taskToFeedRow } from '../lib/openTask';
 import { useVoiceInput } from '../lib/speech';
 import { distanceKm } from '@taskdrop/rules';
-import { TopUpBadge } from '../components/TopUpBadge';
 import { NearYou } from '../components/NearYou';
 import { JobsNearHero } from '../components/JobsNearHero';
 import { NearMap, type NearMapLayer } from '../components/NearMap';
 import { LocationSheet } from '../components/LocationSheet';
 import { useMyArea } from '../lib/useMyArea';
+import { roughPlace } from '../lib/place';
 import { useReducedMotion } from '../lib/motion';
 import { TABLET_CONTENT, WIDE_CONTENT, XL_CONTENT, XL_MIN_WIDTH, useLayout } from '../lib/layout';
 
@@ -91,6 +88,8 @@ export function ExploreScreen() {
   const [layer, setLayer] = useState<NearMapLayer>(defaultLayer(mode));
   const [pickPlace, setPickPlace] = useState(false);
   const [remote, setRemote] = useState<number | null>(null);
+  // What the list is filtered by, so the map opens with the same jobs.
+  const [listFilter, setListFilter] = useState<{ category: string | null; query: string }>({ category: null, query: '' });
   const [remoteAsk, setRemoteAsk] = useState<{ filter: Filter; id: number } | undefined>(undefined);
 
   // The tab stays mounted while another tab or a job is in front (R4), so the view is steered by where
@@ -170,6 +169,8 @@ export function ExploreScreen() {
               onLayer={setLayer}
               centre={centre}
               leading={{ kind: 'list', onPress: () => setView('list') }}
+              listFilter={listFilter}
+              areaLabel={area ? (roughPlace(area.label) ?? undefined) : undefined}
               footer={remoteLine}
               onChooseArea={() => setPickPlace(true)}
             />
@@ -179,7 +180,7 @@ export function ExploreScreen() {
       {listBuilt ? (
         <ViewSwap on={view === 'list'} reduced={reduced} style={listWidth}>
           {mode === 'worker' ? (
-            <FindWork onMap={() => setView('map')} initialFilter={remoteAsk} />
+            <FindWork onMap={() => setView('map')} initialFilter={remoteAsk} onFilter={setListFilter} />
           ) : (
             <ExploreIdeas onMap={() => setView('map')} />
           )}
@@ -221,29 +222,34 @@ function ViewSwap({ on, reduced, style, children }: { on: boolean; reduced: bool
   );
 }
 
-/** "Map": back from the list to the full-screen map. */
-function MapPill({ onPress }: { onPress: () => void }) {
+/** The one List / Map switch (design D21): List is where you are, Map opens the full map. */
+function ViewSwitch({ onMap }: { onMap: () => void }) {
   const t = useTheme();
-  return (
+  const seg = (label: string, on: boolean, onPress?: () => void) => (
     <Pressy
+      key={label}
       onPress={onPress}
-      label="Show the map"
-      scaleTo={0.94}
+      label={on ? label + ' view, selected' : 'Show the ' + label.toLowerCase()}
+      scaleTo={0.95}
       style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        height: 44,
-        paddingHorizontal: 15,
-        borderRadius: 999,
-        backgroundColor: t.colors.surface,
-        borderWidth: 1.5,
-        borderColor: t.colors.line,
+        height: 34,
+        paddingHorizontal: 14,
+        borderRadius: 11,
+        justifyContent: 'center',
+        backgroundColor: on ? t.colors.line : 'transparent',
       }}
     >
-      <Icon name="map" size={15} color={t.colors.accentDeep} strokeWidth={2} />
-      <RNText style={tx('700', 13, t.colors.accentDeep)} numberOfLines={1}>Map</RNText>
+      <RNText style={tx(on ? '800' : '700', 13, on ? t.colors.ink : t.colors.muted)}>{label}</RNText>
     </Pressy>
+  );
+  return (
+    <View
+      accessibilityRole="tablist"
+      style={{ flexDirection: 'row', padding: 3, borderRadius: 14, backgroundColor: t.colors.surface2, borderWidth: 1, borderColor: t.colors.line }}
+    >
+      {seg('List', true)}
+      {seg('Map', false, onMap)}
+    </View>
   );
 }
 
@@ -290,7 +296,7 @@ function ExploreIdeas({ onMap }: { onMap: () => void }) {
     <Screen padded={false}>
       <AppHeader />
       <View style={{ alignItems: 'flex-end', paddingHorizontal: 20, paddingBottom: 2 }}>
-        <MapPill onPress={onMap} />
+        <ViewSwitch onMap={onMap} />
       </View>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         {/* The hero: who can help near you, and what tasks round here pay. */}
@@ -539,7 +545,15 @@ const FILTERS: { key: Filter; label: string; icon?: Parameters<typeof Pill>[0]['
 const LOCAL_KM = 10;
 const QUICK_EARN_MAX_MINOR = 30000; // ₹300 and under
 
-function FindWork({ onMap, initialFilter }: { onMap: () => void; initialFilter?: { filter: Filter; id: number } }) {
+function FindWork({
+  onMap,
+  initialFilter,
+  onFilter,
+}: {
+  onMap: () => void;
+  initialFilter?: { filter: Filter; id: number };
+  onFilter: (f: { category: string | null; query: string }) => void;
+}) {
   const t = useTheme();
   const { go, params } = useNav();
   const { flash, setOpenTask } = useActions();
@@ -552,9 +566,8 @@ function FindWork({ onMap, initialFilter }: { onMap: () => void; initialFilter?:
   const [rows, setRows] = useState<TaskWithPoster[] | null>(null);
   const focusTick = useFocusTick();
   const [allCats, setAllCats] = useState(false);
-  // List or map of the jobs that match the filters, and the pin that is open.
-  const [view, setView] = useState<'list' | 'map'>('list');
-  const [pinId, setPinId] = useState<string | null>(null);
+  // Tell the screen what is filtered, so the map view shows the same jobs.
+  useEffect(() => onFilter({ category: cat, query }), [cat, query]); // eslint-disable-line react-hooks/exhaustive-deps
   const searchRef = useRef<TextInputInstance>(null);
 
   // "See them" on the map's remote-jobs line: show the remote jobs, whatever was filtered before.
@@ -697,13 +710,16 @@ function FindWork({ onMap, initialFilter }: { onMap: () => void; initialFilter?:
       refreshing={refreshing}
       header={
         <>
-        {/* The hero: open jobs round the area you chose, on the map. */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
-          <JobsNearHero />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 10 }}>
+          <View style={{ flex: 1 }}>
+            <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Find work</RNText>
+            <RNText style={tx('500', 13, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>Every open job, near you and online</RNText>
+          </View>
+          <ViewSwitch onMap={onMap} />
         </View>
-        <View style={{ alignItems: 'center', paddingHorizontal: 20, paddingTop: 22 }}>
-          <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Browse jobs</RNText>
-          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4 })}>Every open job, filtered your way</RNText>
+        {/* The hero: a short map strip of open jobs round the area you chose. */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>
+          <JobsNearHero onOpenMap={onMap} />
         </View>
         <SearchBox
           value={q}
@@ -716,7 +732,6 @@ function FindWork({ onMap, initialFilter }: { onMap: () => void; initialFilter?:
           placeholder="E.g. data entry, logo design, home tutoring…"
           voice={voice}
           tone="purple"
-          right={<MapPill onPress={onMap} />}
         />
         <View style={{ marginTop: 16 }}>
           <UnderlineTabs tabs={['Jobs', 'Busy now', 'How it works']} active={tab} onPick={setTab} />
@@ -733,23 +748,21 @@ function FindWork({ onMap, initialFilter }: { onMap: () => void; initialFilter?:
             />
           ) : (
             <>
-              {/* Chips wrap onto new lines rather than running off the edge:
-                  every filter is visible, with its name, without sideways
-                  scrolling (which a mouse can't do). */}
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {/* One row that scrolls sideways (the page edge is the gutter), so the chips never pile up into lines. */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20 }}>
                 {FILTERS.map((f) => (
                   <Pill key={f.key} label={f.label} icon={f.icon} active={filter === f.key} onPress={() => setFilter(f.key)} />
                 ))}
-              </View>
+              </ScrollView>
               <RNText style={tx('600', 11, t.colors.muted, { marginTop: 14, letterSpacing: 0.6 })}>CATEGORY</RNText>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8, marginHorizontal: -20 }} contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20 }}>
                 {(allCats ? [...CATEGORIES] : cat && !TOP_CATEGORIES.includes(cat as (typeof TOP_CATEGORIES)[number]) ? [cat, ...TOP_CATEGORIES] : [...TOP_CATEGORIES]).map((c) => (
                   <Pill key={c} label={c} active={cat === c} onPress={() => setCat(cat === c ? null : c)} />
                 ))}
                 {CATEGORIES.length > TOP_CATEGORIES.length ? (
                   <Pill label={allCats ? 'Fewer' : `+${CATEGORIES.length - TOP_CATEGORIES.length} more`} onPress={() => setAllCats((v) => !v)} />
                 ) : null}
-              </View>
+              </ScrollView>
 
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 }}>
                 <RNText style={tx('700', 13, t.colors.ink, { flex: 1 })}>
@@ -757,9 +770,6 @@ function FindWork({ onMap, initialFilter }: { onMap: () => void; initialFilter?:
                     ? 'Loading…'
                     : `${shown.length} ${shown.length === 1 ? 'job' : 'jobs'}${filter === 'local' && me.lat !== null ? ` within ${LOCAL_KM} km` : ''}${query ? ` for “${query}”` : ''}`}
                 </RNText>
-                {(['list', 'map'] as const).map((v) => (
-                  <Pill key={v} label={v === 'list' ? 'List' : 'Map'} icon={v === 'list' ? 'list' : 'pin'} active={view === v} onPress={() => setView(v)} />
-                ))}
                 {filter !== 'all' || cat !== null || query !== '' ? (
                   <Pressable
                     onPress={() => {
@@ -774,17 +784,6 @@ function FindWork({ onMap, initialFilter }: { onMap: () => void; initialFilter?:
                   </Pressable>
                 ) : null}
               </View>
-              {view === 'map' && shown ? (
-                <PersonTheme role="poster">
-                  <JobsMapBlock
-                    rows={shown}
-                    me={me.lat !== null && me.lng !== null ? { lat: me.lat, lng: me.lng } : null}
-                    pinId={pinId}
-                    onPin={setPinId}
-                    onOpen={open}
-                  />
-                </PersonTheme>
-              ) : null}
               {filter === 'local' && me.lat === null ? (
                 <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6 })}>
                   Set your area on the home screen to see jobs within {LOCAL_KM} km.
@@ -818,72 +817,3 @@ function FindWork({ onMap, initialFilter }: { onMap: () => void; initialFilter?:
   );
 }
 
-
-/** "₹900", "₹1.2k", "₹25k": short enough to sit on a map pin. */
-function priceTag(minor: number): string {
-  const r = Math.round(minor / 100);
-  if (r < 1000) return '₹' + r;
-  const k = r / 1000;
-  return '₹' + (k >= 10 || Number.isInteger(k) ? Math.round(k) : k.toFixed(1)) + 'k';
-}
-
-/** The map of the matching jobs, with the picked one's card underneath. Remote jobs have no place, so they are counted instead of pinned. */
-function JobsMapBlock({
-  rows,
-  me,
-  pinId,
-  onPin,
-  onOpen,
-}: {
-  rows: TaskWithPoster[];
-  me: { lat: number; lng: number } | null;
-  pinId: string | null;
-  onPin: (id: string | null) => void;
-  onOpen: (task: TaskWithPoster) => void;
-}) {
-  const t = useTheme();
-  const located = rows.filter((r) => r.loc_lat !== null && r.loc_lng !== null);
-  const remote = rows.length - located.length;
-  const now = Date.now();
-  const pins = located.map((r) => jobPin(r, now, priceTag(r.benchmark_minor))).filter((p): p is JobPin => p !== null);
-  const picked = located.find((r) => r.id === pinId) ?? null;
-  return (
-    <View style={{ marginTop: 12 }}>
-      <JobsMap me={me} pins={pins} selectedId={pinId} onSelect={onPin} />
-      {picked ? (
-        <Pressable
-          onPress={() => onOpen(picked)}
-          accessibilityRole="button"
-          accessibilityLabel={'Open ' + picked.title}
-          style={({ pressed }) => ({
-            marginTop: 10,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 12,
-            padding: 14,
-            borderRadius: 16,
-            borderWidth: 1.5,
-            borderColor: t.colors.accent,
-            backgroundColor: t.colors.surface,
-            transform: [{ scale: pressed ? 0.985 : 1 }],
-          })}
-        >
-          <View style={{ flex: 1 }}>
-            <RNText numberOfLines={1} style={tx('700', 15, t.colors.ink)}>{picked.title}</RNText>
-            <RNText numberOfLines={1} style={tx('400', 12.5, t.colors.muted, { marginTop: 2 })}>{picked.loc_label ?? 'Nearby'}</RNText>
-          </View>
-          <View style={{ alignItems: 'flex-end', gap: 3 }}>
-            <RNText style={tx('800', 16, t.colors.accentDeep, { fontVariant: ['tabular-nums'] })}>{priceTag(picked.benchmark_minor)}</RNText>
-            <TopUpBadge pct={picked.topup_pct} compact />
-          </View>
-          <Icon name="chevronRight" size={16} color={t.colors.muted} />
-        </Pressable>
-      ) : (
-        <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 10 })}>
-          {located.length === 0 ? 'No job here has a place on the map.' : 'Tap a price tag to see the job.'}
-          {remote > 0 ? ' ' + remote + (remote === 1 ? ' remote job is' : ' remote jobs are') + ' in the list, not on the map.' : ''}
-        </RNText>
-      )}
-    </View>
-  );
-}

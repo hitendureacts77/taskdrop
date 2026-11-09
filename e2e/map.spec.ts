@@ -116,3 +116,87 @@ test.describe("as a guest", () => {
     await expect(layerChip(page, "Helpers")).toBeVisible();
   });
 });
+
+// D21 (docs/design/map-feel-d21/PLAN.md): the web map zooms like Google Maps. The wheel, a trackpad pinch
+// (Ctrl + wheel) and a double-click zoom the MAP and never the page, and the map stays on India.
+// The map element carries data-zoom and data-centre for these checks; tiles are never asserted.
+test.describe("D21: the map zooms like Google Maps (guest)", () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  const glMap = (page: Page) => page.locator("[data-zoom]").first();
+  const zoomOf = async (page: Page) => Number(await glMap(page).getAttribute("data-zoom"));
+  const openMap = async (page: Page) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Skip sign-up for now" }).click();
+    await page.getByText("Explore", { exact: true }).first().click();
+    await expect(glMap(page)).toHaveAttribute("data-zoom", /\d/);
+    // Remember whether the page let the browser handle the last wheel (it must not, over the map).
+    await page.evaluate(() => {
+      window.addEventListener("wheel", (e) => ((window as unknown as { lastWheelPrevented: boolean }).lastWheelPrevented = e.defaultPrevented));
+    });
+    const box = (await glMap(page).boundingBox())!;
+    return { x: box.x + box.width * 0.7, y: box.y + box.height / 2 };
+  };
+  const settle = (page: Page) => page.waitForTimeout(900);
+  const prevented = (page: Page) => page.evaluate(() => (window as unknown as { lastWheelPrevented?: boolean }).lastWheelPrevented);
+
+  test("the mouse wheel zooms the map in and out, and the page does not get the wheel", async ({ page }) => {
+    const at = await openMap(page);
+    const before = await zoomOf(page);
+    await page.mouse.move(at.x, at.y);
+    await page.mouse.wheel(0, -400);
+    await settle(page);
+    const zoomedIn = await zoomOf(page);
+    expect(zoomedIn).toBeGreaterThan(before);
+    expect(await prevented(page)).toBe(true);
+    await page.mouse.wheel(0, 400);
+    await settle(page);
+    expect(await zoomOf(page)).toBeLessThan(zoomedIn);
+  });
+
+  test("a trackpad pinch (Ctrl + wheel) zooms the map, not the browser page", async ({ page }) => {
+    const at = await openMap(page);
+    const before = await zoomOf(page);
+    await page.mouse.move(at.x, at.y);
+    await page.keyboard.down("Control");
+    await page.mouse.wheel(0, -200);
+    await page.keyboard.up("Control");
+    await settle(page);
+    expect(await zoomOf(page)).toBeGreaterThan(before);
+    // The browser's own zoom only happens when the page leaves Ctrl + wheel alone.
+    expect(await prevented(page)).toBe(true);
+  });
+
+  test("a double-click zooms in one step", async ({ page }) => {
+    const at = await openMap(page);
+    const before = await zoomOf(page);
+    await page.mouse.dblclick(at.x, at.y);
+    await settle(page);
+    expect(await zoomOf(page)).toBeGreaterThan(before + 0.5);
+  });
+
+  test("dragging far west stops at India's edge", async ({ page }) => {
+    const at = await openMap(page);
+    for (let i = 0; i < 6; i++) {
+      await page.mouse.move(at.x - 300, at.y);
+      await page.mouse.down();
+      await page.mouse.move(at.x + 300, at.y, { steps: 8 });
+      await page.mouse.up();
+    }
+    await settle(page);
+    const [, lng] = (await glMap(page).getAttribute("data-centre"))!.split(",").map(Number);
+    // INDIA_BOUNDS starts at 58°E; the middle of the screen can never be further west than that.
+    expect(lng).toBeGreaterThan(58);
+  });
+
+  test("the List view never shows an empty box at the top", async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Skip sign-up for now" }).click();
+    await page.getByText("Explore", { exact: true }).first().click();
+    await showList(page).click();
+    // A guest with no area sees the one-line card; with an area, the map strip and its button.
+    await expect(page.getByText("Set your area", { exact: true }).or(page.getByText("Open the map", { exact: true })).filter({ visible: true }).first()).toBeVisible({ timeout: 8000 });
+  });
+});
