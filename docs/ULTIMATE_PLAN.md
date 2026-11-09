@@ -2,6 +2,7 @@
 
 **The only plan you need.** Four ways to use this page:
 
+- **Make the app useful on first open:** read task **1.13** (D22) and answer decision 39.
 - **See what changed on 9 November:** read **The CEO review** below: seven changes that make this the cheapest safe path to launch.
 - **Understand the app:** read **Your app in one page** (2 minutes).
 - **Set up the two copies:** follow **Staging and production, step by step**.
@@ -1279,6 +1280,116 @@ A search cannot prove that nobody has a feature; these are the closest things fo
 4. TRY it on your laptop (pinch, scroll, zoom right out, the List view signed out). The panel and list changes reach the Android app only with an app update: Claude asks before publishing it.
 
 **Done when:** the six boards are built or dropped, the map zooms with the wheel and a pinch without zooming the page, no scroll bar shows in the panel, the List view has no empty box, `npm run check` and the map e2e tests pass, and you say "done 1.12".
+</details>
+
+<details id="t1-13" data-short="Useful in the first minute (D22)">
+<summary>[CLAUDE] <b>1.13</b> Useful in the first minute: posters get it done, helpers see money, everyone comes back (D22) <small>· Planned 9 Nov · design first, nothing built · needs decision 39 (is it a fix inside the freeze?)</small></summary>
+
+**What you said (9 Nov):** you gave the app to a few people and, on opening it, they did not find it useful. Your goal: the moment someone opens TaskDrop, it should make their life easier, whether they want a task done or want to earn, and they should keep using it for a long time. You like the map (what work, where, when, for how much, who pays most) and want it to help both sides.
+
+**The goal in one line.** Within **60 seconds** of opening the app, a poster thinks "this can sort out my problem today" and a helper thinks "I can earn ₹___ near me today". Everything below serves that one moment, and then brings people back.
+
+### What a new person sees today (checked on taskdrop.in, 9 Nov)
+
+Claude opened the website in Hire and Earn, opened the map, and read the code of the first screens. **Nothing was posted or changed** (the Hire / Earn switch was put back to Hire).
+
+- **Before Home:** a 2.6-second splash, then a 5-part story with **Create my account** (big) and **Skip for now** (small). Signing up means the phone code and then **6 setup steps** (Welcome, Username, What brings you here?, Skills, About you, Done) before the person sees anything useful.
+- **Home (Hire):** "Drop a task" with "Try: Reel editing · Govt form help", then Your published tasks, **Start from an idea** (10 tiles: Find it for me, Plan a big day, Get opinions, Price check, Hand off a task, Reel editing, Job referral, Talk to someone experienced, Grow my page, Logo & design), Busy on TaskDrop, and Services near you ("1 offered", that helper last seen 28 days ago). A one-line pulse (tasks done today, helpers nearby) exists but hides when both are zero.
+- **Posting:** 8 steps (Ask, Details, Post, When, Budget, Place, Extras, Review) before "Post my request".
+- **Home (Earn):** a blue card "Find your next job · Starter · 5 jobs to Trusted · 0 on the go", then a search box, Matches your skills, Jobs near you (3 / 10 / 25 / 50 km), Remote & online, Needed today.
+- **Becoming a helper:** switching to Earn asks for a bio of at least 20 letters, a skill and a language before **Start earning**.
+- **Map (Explore):** Earn shows "Best offer near you ₹2,000", nearest 2.1 km, open jobs, most pay, and price pins by area: good. Hire shows helpers ("Active now 0", "Skill only", no faces). No "when" filter; the job list has no sort by pay.
+- **Coming back:** offers and messages send a push. **No alert tells a helper about a new job near them** (4.5 is not built). Repeat, Regulars, Saved and Streaks exist but are deep inside Profile or the Extras step.
+
+### Why people did not find it useful
+
+| # | The problem | What the person thinks |
+|---|---|---|
+| U1 | **The first screen asks, but does not show.** An empty box ("What do you need done?") with two niche examples (Reel editing, Govt form help). Everyday jobs (cleaning, repairs, errands, which are the busiest on TaskDrop) are not one tap away | "What am I supposed to type?" |
+| U2 | **Ten idea tiles, mostly online and unusual** (Get opinions, Job referral, Grow my page, Logo & design). Clever, but not the problems people have every week | "This is not for me" |
+| U3 | **No proof it works near me.** Nothing says how many helpers are close, how fast they answer, or that tasks like mine got done here. The helpers map shows "Active now 0" and helpers without faces | "Will anyone even come?" |
+| U4 | **Dead-looking content.** A service "Last seen 28 days ago", your own tasks marked "overdue", seed jobs about to expire | "Nobody uses this" |
+| U5 | **Earn opens with a level bar, not money.** "Starter · 5 jobs to Trusted · 0 on the go". The best thing for a helper ("Best offer near you ₹2,000") is only inside the map | "How much can I make?" |
+| U6 | **Too many steps before anything useful.** A story, the phone code and 6 setup steps before Home; then 8 steps to post; a 20-letter bio before a helper can apply | "Too much" |
+| U7 | **Nothing brings people back.** Smart alerts for helpers (4.5) are not built; posters get no reminder to repeat a job they liked | They forget the app |
+
+### The fix: 5 parts
+
+**Part A · Posters: an everyday job posted in under a minute (Home, Hire)**
+
+- **A1 Everyday jobs first.** Under "Drop a task", six big tiles for the jobs people really need, picked from the busiest categories: Cleaning, Repairs (fan, tap, switch), Pick up & drop, Stand in a queue, Shifting help, Online help (forms, documents). One tap fills the composer with a ready sentence the person only edits. The "Try:" chips change to everyday examples too.
+- **A2 Proof line.** The pulse line that exists today grows into one clear line under the composer, real numbers only, hidden when zero: "12 helpers within 3 km · usually answer in 15 min · 31 tasks done near you this month". (Close to item 4 of the parked 1.9.)
+- **A6 Post now.** The 8 posting steps stay. From the When step onwards a **Post now** button posts with what is filled in; Details, Place and Extras stay open for anyone who wants them. A tile from A1 fills most steps already, so an everyday job is: tap the tile, check the words, pick when, type the price, Post now.
+- **A3 Two promises,** always visible near the button: "Pay only when it's done" and "Your number and address stay hidden until you choose someone". (Item 3 of 1.9.)
+- **A4 A shorter Home.** Ideas show 4 tiles (Find it for me, Plan a big day, Price check, See all); the rest stay one tap away under **See all** (nothing is removed). Sections with nothing fresh hide by themselves: a service whose helper was last seen more than 7 days ago, a "Busy" row with fewer than 3 tasks. Your own overdue tasks show as one line, "2 tasks need you", that opens My Tasks.
+- **A5 The first offer is guaranteed to be chased.** If a task has no offer after 20 minutes, the helpers who fit get a second, wider alert, and the admin sees it in a "Waiting for an offer" list so you can phone a helper yourself (the marketing playbook's "the first 50 tasks are yours"). The person sees "We're finding someone for you" instead of silence.
+
+**Part B · Helpers: money first (Home, Earn)**
+
+- **B1 Money at the top.** Earn Home opens with the map's hero card: "₹8,450 of work open within 5 km today · best ₹2,000 · nearest 2.1 km", with **Open map** and **Show jobs**. The level bar ("Starter") moves below the first jobs.
+- **B2 Jobs I can do now.** The first list is "Near you, today", sorted by pay, each card with when ("today 5 pm", "this week"), where (area, km) and pay. "Matches your skills" comes second, or first once skills are set.
+- **B3 Ready in 2 minutes.** A new helper only needs skills and an area to send the first offer; the 20-letter bio, photo, languages and services are asked after the first offer, with a nudge ("Helpers with a photo get picked 2 times more" only once the real number is known).
+- **B4 Tell me when a job comes.** One switch on Earn Home, "Alert me about jobs near me like these", which is task **4.5 Smart alerts**, brought forward from Step 4.
+
+**Part C · The first open: see first, sign up later**
+
+- **C1 Look around first.** After the story, **Look around** becomes as big as **Create my account** (today "Skip for now" is a small link). Guests already land on Home and are asked to sign in only at Post or Apply: that stays.
+- **C2 One question, then Home.** The first open asks only **"What brings you here?"** (Get something done / Earn money / Both, which already exists as setup step 3) and the area, then opens the right Home.
+- **C3 Setup in 2 steps, not 6.** After the phone code: name and area, then Home. Username, skills and About you are asked when they are first needed (the first post, the first offer, the profile page). Nothing is removed; it moves to the moment it is useful.
+
+**Part D · The map: what, where, when, how much (Explore)**
+
+You already have pay, place and the best offer on the map (D20, D21). What is missing is **time** and a fair way to compare.
+
+- **D1 When.** A **When** row on the map panel: **Now · Today · This week · Any**. Pins of jobs that start within 2 hours pulse gently (reduced-motion: no pulse).
+- **D2 Highest pay, fairly.** A **Sort: Highest pay · Nearest · Soonest** switch on the list, and for jobs with hours given, "≈ ₹300 an hour" under the price.
+- **D3 Helpers with faces (Hire map).** Helpers with a photo, a rating and "Active today" come first; a helper with no photo and no jobs is shown last. Each card gets **Ask for a price**, which starts a task for that helper with the job filled in.
+- **D4 Small map on Home.** A small, still map card on both Homes ("6 jobs on the map near you" / "12 helpers on the map near you"); one tap opens the full map.
+
+**Part E · Coming back for a long time (after the first task)**
+
+- **E1 Book again.** When a task is approved: "Book Ravi again?" with **Same job next week / next month**. It uses Repeat and Regulars, which already exist.
+- **E2 Reminders that help.** Only for jobs people did: "Your AC service was 3 months ago, book again?"; before festivals, Big Days suggestions (Diwali cleaning, Sankranti). At most one a week, and every reminder has an off switch.
+- **E3 Helpers: a reason to open every day.** A morning line at 8 am: "5 new jobs near you · best ₹1,200" (only when there are new ones), and on Sunday "This week you earned ₹2,400 · 3 jobs · ★ 4.9".
+- **E4 Trust grows.** After each job both sides rate; helpers with good ratings rise on the map and in lists; bad ones sink. Repeat posters see their regulars first.
+- **E5 Speed stays the promise.** The number to watch is **"first offer within 30 minutes"** (A5); if it drops below 7 in 10 tasks in an area, more helpers are found there before more posters are invited.
+
+### How we prove it worked: the 5-person test
+
+Before building and again after, Claude writes a short script and **you** run it with 5 people who have never used TaskDrop (friends' friends, neighbours, a shopkeeper):
+
+1. Hand them the phone, open the app, say nothing except: **"You need your kitchen cleaned tomorrow"** (poster) or **"You want to earn ₹500 this weekend"** (helper).
+2. Watch, and write down: seconds until they understood what the app does, seconds until they posted or applied, and where they stopped or frowned.
+3. Ask at the end: "Would you use this next week? For what?"
+
+**Today's measure is your 9 Nov test (not useful).** The target after D22: 4 of 5 people post or apply within **2 minutes**, without help.
+
+From the database (no new tool: posts, offers and sign-ins are already saved there; Claude adds them to the admin's numbers page), three numbers are watched every week (7.1): **share of new people who post or apply on day 1**, **minutes to the first offer**, and **share who come back within 7 and 30 days**.
+
+### The order, and what fits the freeze
+
+| Order | What | Kind of change | Before launch? |
+|---|---|---|---|
+| 1 | A1, A3, A4, A6, B1, B2, B3, C1, C2, C3 | Moves, hides and rewords what exists; no database change | **Yes**, if decision 39 says it is a fix |
+| 2 | A2, A5, B4 (4.5) | Small server work: reply-time count, the 20-minute check, job alerts | **Yes** (A5 and 4.5 are what makes the first task succeed) |
+| 3 | D1 to D4 | Map additions | Recommended yes for D1 and D2 (small); D3, D4 after launch |
+| 4 | E1 to E5 | Retention | After launch, in Step 7, once people have finished tasks |
+
+### Steps
+
+1. SAY your answer to **decision 39**.
+2. SAY:
+
+```say
+design D22
+```
+
+3. Claude draws the screens first (Home Hire, Home Earn, the first-open question, the map panel with When and Sort, the proof line and the "finding someone" state), phone and desktop, on one canvas. Nothing is built before you approve (your rule: design sign-off first).
+4. Run the **5-person test** on today's app (before), write down the three numbers.
+5. SAY "approve D22" (or what to change). Claude builds order 1, then order 2, in small pull requests; merging puts them on `taskdrop.in`; the Android app needs an update, and Claude asks you before publishing it.
+6. Run the **5-person test** again on the new app and TELL Claude the numbers: "done 1.13".
+
+**Done when:** order 1 and 2 are built and live, the 5-person test shows 4 of 5 posting or applying within 2 minutes, and `npm run check` is green. Order 3 and 4 move to Step 7 if not built before launch.
 </details>
 
 > **GATE 1: do not start Step 3 until all of these are true** (Step 2 can start at the same time as Step 1)
@@ -4731,6 +4842,7 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 34 | **Help Swap at all** (1.11)? It earns nothing and needs the lawyer | **Answered 7 Nov: drop Help Swap.** | "Decision 34: yes, after the lawyer." or "Decision 34: drop Help Swap." |
 | 37 | **Feature freeze** (CEO review, 9 Nov). Once 1.12 (D21) and the D20 map tab are finished, build nothing new before launch, and put every new idea in Future scope? 1.9, 3.5b and 4.10 are parked until after launch | **Decided by you, 2026-11-09: freeze.** Once 1.12 and the D20 map tab are finished, only fixes go in until launch; every new idea goes to Future scope. Done | Nothing to say |
 | 38 | **Launch areas** (CEO review, 9 Nov; tasks 4.1 and 4.6). Start in 2 or 3 neighbouring areas of Hyderabad instead of the whole city? | Open. **Recommended: yes.** Choose them in 4.1 from where the first workers and testers live. Decision 2 (Hyderabad; task types follow what people post) stays | "Decision 38: yes, these areas: …" or "Decision 38: the whole city" |
+| 39 | **Useful in the first minute (D22, task 1.13).** Testers did not find the app useful on opening it. Count D22 order 1 and 2 as a fix inside the feature freeze (decision 37), so it is built before launch? | Open. **Recommended: yes for order 1 and 2** (they move, hide and reword what exists, plus the first-offer chase and job alerts that make the first task succeed). The map additions D3, D4 and the coming-back part E wait for Step 7 | "Decision 39: yes, D22 order 1 and 2 before launch." or "Decision 39: after launch." |
 | 36 | **Map feel (D21, task 1.12).** 36a web map engine: MapLibre GL with OpenFreeMap (free, no key), our own tile map improved, or Google Maps on the web; 36b refresh by itself instead of "Search this area"; 36c keep small + / − buttons; 36d one List / Map switch, the in-list map removed; 36e clean the staging test data | **Answered 8 Nov ("I am approving the existing design"): the recommended answers, built 9 Nov.** Recommended were: 36a MapLibre + OpenFreeMap, 36b yes, 36c keep small, 36d yes, 36e yes (Claude asks before touching data) | "Decision 36: use the recommended answers." |
 
 ---
@@ -5220,6 +5332,7 @@ Kept for the record. The live picture is the **Start here** panel at the top of 
 
 ## Changelog
 
+- **2026-11-09 (task 1.13: useful in the first minute, plan only):** You gave the app to a few people and they did not find it useful on opening it. Claude looked at taskdrop.in in Hire and Earn, the map, and the code of the first screens (nothing posted or changed). **New task 1.13 (D22)** in Step 1: what a new person sees today, seven reasons it does not feel useful (U1 to U7), the fix in five parts (A posters, B helpers, C first open, D the map with When and Sort by pay, E coming back), a 5-person test before and after, three weekly numbers, and the order. **New decision 39:** count order 1 and 2 as a fix inside the freeze. Nothing in the code or the database changed.
 - **2026-11-09 (decision 29 corrected: the payment company is not chosen):** You said you have not yet decided between Razorpay and Cashfree. Plan B (pay per task, the payment company holds the money) stays decided; the plan no longer says "Cashfree first". **Decision 3** is open again, with a side-by-side list to compare Route and Easy Split; your next seven days now send the same Plan B questions to both companies. The Plan B design is written to work with either. No code, database or setting changed.
 - **2026-11-09 (decisions 29 and 37 answered):** You said yes to both. **Decision 29: Plan B** (pay per task; the payment company holds the money until approval), which reverses the 29 Sep wallet decision. **Decision 37: feature freeze** once 1.12 and the D20 map tab are finished. The Cashfree sign-up text under S.4 now uses Plan B wording, and the CEO review, the setup steps and your next seven days say what is next: "design the Plan B money flow" (design only; code waits for the chosen payment company's and the lawyer's written yes). No code, database or setting changed.
 - **2026-11-09 (CEO review: the cheapest safe path to launch):** You asked whether this is the best plan, whether it follows good practice and whether it is cheap enough, and to reframe it as the CEO and CTO would. **Verdict:** safe and complete, but the code is weeks ahead of the paperwork, features kept arriving before the first customer, and the money flow was still open. **New section at the top:** **The CEO review** (seven changes, what decides launch day, your next seven days). **Changed:** rules 9 (feature freeze) and 10 (spend only when a number says so); a freeze line in Gate 1 and Step 1 renamed; S.2 marked as the most important task, with a sole-proprietorship recommendation and new CA questions on GST (section 9(5) on house-keeping tasks, fees with or without GST, registration from day one); S.3 asks the Plan B question first; S.5 files one class first (₹4,500); 5.4 Inngest starts on the free plan; 2.16 and decision 30 move after the money flow is built; 4.1, 4.6 and Gate 4 launch in 2 or 3 areas; the marketing playbook gets a ₹0 ad budget and "the first 50 tasks are yours"; **What it costs** rewritten with a one-time list, a monthly total of about $45, the ₹150 task worked out with tax (about ₹12.90 kept, about ₹5.40 if section 9(5) applies) and the break-even (about 310 tasks a month); two new risks; three new "skipped" lines. **Parked until after launch:** 1.9, 3.5b and 4.10 (Gate 4 no longer waits for 4.10). **Decisions:** 28, 29 and 30 carry CEO recommendations; the second decision 29 (caching) is now 29b; new 37 (freeze) and 38 (launch areas). **Checked on 9 Nov:** Inngest's free plan (50,000 runs a month), Cashfree Easy Split (0.2% per split, hold up to 45 days), trademark fees (₹4,500 or ₹9,000 a class), GST section 9(5) (house-keeping through a platform, 5% in a Goa advance ruling), and TDS section 194-O (0.1% since 1 Oct 2024). Tax points need your CA. No code, database, setting or account changed.
