@@ -129,7 +129,7 @@ function YouDot({ at, color }: { at: { lat: number; lng: number }; color: string
   );
 }
 
-function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = RING_KM, tone = 'jobs', focusId = null, onExpand, fill, dim = false, onMoveEnd, startAt, startZoom = START_ZOOM, fit = null, ringAt }: Props) {
+function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = RING_KM, tone = 'jobs', focusId = null, onExpand, fill, dim = false, onMoveEnd, startAt, startZoom = START_ZOOM, fit = null, ringAt, bare = false }: Props) {
   const t = useTheme();
   const reduced = useReducedMotion();
   const mapRef = useRef<MapView>(null);
@@ -275,6 +275,8 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
         maxZoomLevel={MAX_ZOOM}
         rotateEnabled={false}
         pitchEnabled={false}
+        scrollEnabled={!bare}
+        zoomEnabled={!bare}
         showsCompass={false}
         showsMyLocationButton={false}
         toolbarEnabled={false}
@@ -437,6 +439,7 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
         })}
       </MapView>
 
+      {bare ? null : (
       <View style={{ position: 'absolute', right: 8, top: 8 + padTop, gap: 6 }}>
         {onExpand ? control('Open the full map', onExpand, <Icon name="expand" size={16} color={t.colors.ink} />) : null}
         {control('Zoom in', () => flyTo(here, Math.round(zoom) + 1), <RNText style={tx('700', 18, t.colors.ink)}>+</RNText>)}
@@ -453,9 +456,10 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
             )
           : null}
       </View>
+      )}
 
       {/* On the full map these notes live in the sheet (plan D14). */}
-      {fill ? null : (
+      {fill || bare ? null : (
       <>
       <View pointerEvents="none" style={{ position: 'absolute', left: 8, top: 8 + padTop, right: 56, flexDirection: 'row' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.bg, borderRadius: 10, borderWidth: 1, borderColor: t.colors.line, paddingHorizontal: 10, paddingVertical: 6, flexShrink: 1 }}>

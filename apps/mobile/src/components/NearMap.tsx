@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text as RNText, ScrollView, PanResponder, Platform, type ScrollViewInstance, type ViewInstance } from 'react-native';
+import { View, Text as RNText, ScrollView, PanResponder, Platform, Keyboard, type ScrollViewInstance, type ViewInstance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../providers/ThemeProvider';
@@ -48,7 +48,7 @@ import {
 import { REFRESH_DEBOUNCE_MS, createRefreshCache, refreshKey, shouldRefresh } from '../lib/mapRefresh';
 import { activeFirst, areaName, farText, firstName, jobPin, kmBetween, minePin, offerOf, personPin, togetherText } from './mapPins';
 import { Icon } from './Icon';
-import { rupees } from './kit';
+import { BottomSheet, rupees } from './kit';
 import { FadeIn, Pressy, tx } from './primitives';
 import { categoryLabel } from './WorkCard';
 import { useReducedMotion } from '../lib/motion';
@@ -616,6 +616,10 @@ export function NearMap({
     void AsyncStorage.setItem(CUSTOM_REACH_KEY, String(km)).catch(() => {});
     setReachOpen(false);
     chooseReach(km);
+    // The keyboard squeezes the map while it is open, and a fit made then zooms out too far (on a phone the
+    // whole of South India for 50 km). Close it, and fit again once the map is back to full size.
+    Keyboard.dismiss();
+    setTimeout(() => setFitKey((k) => k + 1), 450);
   };
   const togglePanel = () => {
     setPanelOpen((v) => !v);
@@ -1024,11 +1028,11 @@ export function NearMap({
               </Pressy>
             </View>
           ) : null}
-          {editorOpen ? (
-            <View style={{ alignSelf: 'stretch' }}>
-              <ReachEditor initial={customInitial} onSet={setCustom} onCancel={() => setEditorOpen(false)} minKm={MIN_REACH_KM} maxKm={MAX_REACH_KM} parse={parseReachKm} />
-            </View>
-          ) : null}
+          {/* A phone types in the app's own bottom sheet, which lifts itself above the keyboard (on the phone the
+              keyboard otherwise pushed the box and the map off the screen). */}
+          <BottomSheet visible={editorOpen} onClose={() => setEditorOpen(false)} title="Set your distance">
+            <ReachEditor plain initial={customInitial} onSet={setCustom} onCancel={() => setEditorOpen(false)} minKm={MIN_REACH_KM} maxKm={MAX_REACH_KM} parse={parseReachKm} />
+          </BottomSheet>
           {busy && !loading && !reachOpen && !editorOpen ? (
             <View style={{ alignItems: 'center' }}>
               <StatusPill text="Looking around…" busy />

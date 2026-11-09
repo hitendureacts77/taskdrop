@@ -99,6 +99,7 @@ export function JobsNearHero({ onOpenMap }: { onOpenMap?: () => void }) {
           }}
           height={STRIP_HEIGHT}
           ringKm={radius}
+          bare
         />
         <View
           pointerEvents="box-none"
@@ -113,7 +114,6 @@ export function JobsNearHero({ onOpenMap }: { onOpenMap?: () => void }) {
             gap: 3,
             justifyContent: 'center',
             backgroundColor: t.colors.surface,
-            opacity: 0.96,
             borderTopRightRadius: 20,
             borderBottomRightRadius: 20,
           }}

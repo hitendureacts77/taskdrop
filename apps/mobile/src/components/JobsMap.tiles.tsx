@@ -63,6 +63,8 @@ export type JobsMapProps = {
   fit?: { at: { lat: number; lng: number }; km: number; key: number } | null;
   /** Where the reach ring is drawn; default `me`. */
   ringAt?: { lat: number; lng: number };
+  /** A quiet preview (the Find work strip): no buttons, legend or notes, and the map does not move. */
+  bare?: boolean;
 };
 
 /** Where the middle of the map has to be so a point sits in the middle of the part the bars leave uncovered. */
@@ -110,6 +112,7 @@ export function JobsMap({
   startZoom = 12,
   fit = null,
   ringAt,
+  bare = false,
 }: JobsMapProps) {
   const t = useTheme();
   const start = me ?? startAt ?? (pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : DEFAULT_CENTRE);
@@ -260,7 +263,7 @@ export function JobsMap({
   const padBottom = fill ? fill.bottom : 0;
   return (
     <View onLayout={onLayout} style={frame}>
-      <View {...pan.panHandlers} style={{ flex: 1 }}>
+      <View {...(bare ? null : pan.panHandlers)} style={{ flex: 1 }}>
         {tiles.map((tile) => (
           <Image
             key={tile.key}
@@ -300,14 +303,16 @@ export function JobsMap({
         />
       </View>
 
+      {bare ? null : (
       <View style={{ position: 'absolute', right: fill ? 16 : 8, top: (fill ? 16 : 8) + padTop, gap: 6 }}>
         {onExpand ? control('Open the full map', onExpand, <Icon name="expand" size={16} color={t.colors.ink} />) : null}
         {control('Zoom in', () => zoomTo(zoom + 1), <RNText style={tx('700', 18, t.colors.ink)}>+</RNText>)}
         {control('Zoom out', () => zoomTo(zoom - 1), <RNText style={tx('700', 18, t.colors.ink)}>−</RNText>)}
         {me ? control('Back to my area', () => (moved.current = false, setCentre(clear(me, 12)), setZoom(12), onMoveEnd?.(me)), <Icon name="compass" size={18} color={blue} />) : null}
       </View>
+      )}
 
-      {fill ? null : (
+      {fill || bare ? null : (
       <>
       <View pointerEvents="none" style={{ position: 'absolute', left: 8, top: 8 + padTop, right: 56, flexDirection: 'row' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.bg, borderRadius: 10, borderWidth: 1, borderColor: t.colors.line, paddingHorizontal: 10, paddingVertical: 6, flexShrink: 1 }}>
