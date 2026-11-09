@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text as RNText, Pressable } from 'react-native';
+import { View, Text as RNText } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { attachPosters, type TaskWithPoster } from '../data/api';
@@ -8,7 +8,7 @@ import { taskToFeedRow } from '../lib/openTask';
 import { roughPlace } from '../lib/place';
 import { useMyArea } from '../lib/useMyArea';
 import { Icon } from './Icon';
-import { SectionTitle, Shimmer } from './kit';
+import { Shimmer, rupees } from './kit';
 import { JobsMap, type JobPin } from './JobsMap';
 import { jobPin } from './mapPins';
 import { LocationSheet } from './LocationSheet';
@@ -16,18 +16,19 @@ import { cardSurface } from './ui';
 import { Pressy, tx } from './primitives';
 
 const RADII = [3, 10, 25, 50];
+/** The strip is short on purpose: a taste of the map, the full one is a tap away. */
+const STRIP_HEIGHT = 150;
 
 /**
- * The worker's map, the hero of Find work: open jobs round the area they chose,
- * one soft circle per job's area (never its spot) with what it pays. Tap one to
- * open the job; the expand button opens the full-screen map. The area is the
- * one set on Home.
+ * The top of Find work: a short live map strip of open jobs round the area they
+ * chose (price pins), with what is near over its left side and "Open the map".
+ * Without an area it is one line that opens the area picker. Never an empty box.
  */
-export function JobsNearHero() {
+export function JobsNearHero({ onOpenMap }: { onOpenMap?: () => void }) {
   const t = useTheme();
   const { go } = useNav();
   const { area, loaded, choose } = useMyArea();
-  const [radius, setRadius] = useState(10);
+  const [radius, setRadius] = useState(25);
   const [rows, setRows] = useState<(TaskWithPoster & { km: number })[] | null>(null);
   const [at, setAt] = useState(0);
   const [pickPlace, setPickPlace] = useState(false);
@@ -54,80 +55,99 @@ export function JobsNearHero() {
     };
   }, [area, radius, loaded]);
 
-  const name = area ? roughPlace(area.label)?.split(',')[0] : null;
+  const name = area ? (roughPlace(area.label)?.split(',')[0] ?? area.label) : null;
   const pins = (rows ?? []).map((r) => jobPin(r, at)).filter((x): x is JobPin => x !== null);
+  const openMap = () => {
+    if (onOpenMap) onOpenMap();
+    else if (area) go('nearMap', { mode: 'jobs', centre: { lat: area.lat, lng: area.lng }, radiusKm: radius });
+  };
+  const nextRadius = () => setRadius((r) => RADII[(RADII.indexOf(r) + 1) % RADII.length]!);
+
+  let body: React.ReactNode;
+  if (!area && !loaded) {
+    body = <Shimmer height={STRIP_HEIGHT} />;
+  } else if (!area) {
+    body = (
+      <Pressy
+        onPress={() => setPickPlace(true)}
+        label="Set your area to see jobs and prices near you"
+        style={[cardSurface(t), { paddingVertical: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }]}
+      >
+        <Icon name="pin" size={18} color={t.colors.accentDeep} />
+        <View style={{ flex: 1 }}>
+          <RNText style={tx('800', 14, t.colors.ink)}>Set your area</RNText>
+          <RNText style={tx('500', 12.5, t.colors.muted, { marginTop: 1 })} numberOfLines={1}>See jobs and prices near you</RNText>
+        </View>
+        <Icon name="chevronRight" size={16} color={t.colors.muted} />
+      </Pressy>
+    );
+  } else if (rows === null) {
+    body = <Shimmer height={STRIP_HEIGHT} />;
+  } else {
+    const best = rows.reduce((m, r) => Math.max(m, r.benchmark_minor), 0);
+    const nearest = rows.reduce((m, r) => Math.min(m, r.km), Infinity);
+    const nearestText = Number.isFinite(nearest) ? (nearest < 1 ? '< 1 km' : `${nearest.toFixed(nearest < 10 ? 1 : 0)} km`) : '';
+    body = (
+      <View style={{ height: STRIP_HEIGHT, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface2 }}>
+        <JobsMap
+          me={area}
+          pins={pins}
+          selectedId={null}
+          onSelect={(id) => {
+            const hit = rows.find((r) => r.id === id);
+            if (hit) go('taskDetail', { row: taskToFeedRow(hit) });
+          }}
+          height={STRIP_HEIGHT}
+          ringKm={radius}
+        />
+        <View
+          pointerEvents="box-none"
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            maxWidth: '78%',
+            paddingVertical: 14,
+            paddingHorizontal: 16,
+            gap: 3,
+            justifyContent: 'center',
+            backgroundColor: t.colors.surface,
+            opacity: 0.96,
+            borderTopRightRadius: 20,
+            borderBottomRightRadius: 20,
+          }}
+        >
+          <RNText style={tx('800', 10.5, t.colors.accentDeep, { letterSpacing: 0.6 })} numberOfLines={1}>
+            {'NEAR ' + (name ?? 'YOU').toUpperCase()}
+          </RNText>
+          <Pressy onPress={nextRadius} label={`Change the distance, now ${radius} km`} style={{ alignSelf: 'flex-start' }}>
+            <RNText style={tx('800', 17, t.colors.ink, { letterSpacing: -0.3 })} numberOfLines={1}>
+              {rows.length === 0 ? `No jobs within ${radius} km` : `${rows.length} ${rows.length === 1 ? 'job' : 'jobs'} within ${radius} km`}
+            </RNText>
+          </Pressy>
+          {rows.length > 0 ? (
+            <RNText style={tx('600', 12, t.colors.text)} numberOfLines={1}>
+              {`Best offer ${rupees(best / 100)}${nearestText ? ` · nearest ${nearestText} away` : ''}`}
+            </RNText>
+          ) : (
+            <RNText style={tx('500', 12, t.colors.muted)} numberOfLines={1}>Tap the distance to widen it, or try remote work</RNText>
+          )}
+          <Pressy
+            onPress={openMap}
+            label="Open the map"
+            style={{ marginTop: 6, alignSelf: 'flex-start', height: 32, paddingHorizontal: 14, borderRadius: 16, backgroundColor: t.colors.btn, justifyContent: 'center' }}
+          >
+            <RNText style={tx('800', 12.5, t.colors.onBtn)}>Open the map</RNText>
+          </Pressy>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View>
-      <SectionTitle
-        title={name ? `Jobs near ${name}` : 'Jobs near you'}
-        icon="pin"
-        action={area ? 'Full map' : undefined}
-        onAction={() => area && go('nearMap', { mode: 'jobs', centre: { lat: area.lat, lng: area.lng }, radiusKm: radius })}
-        style={{ marginTop: 4 }}
-      />
-      {!area ? (
-        loaded ? (
-          <Pressy onPress={() => setPickPlace(true)} style={[cardSurface(t), { marginTop: 12, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
-            <Icon name="pin" size={18} color={t.colors.accentDeep} />
-            <RNText style={tx('600', 13.5, t.colors.ink, { flex: 1 })}>Set your area to see jobs near you on the map</RNText>
-            <Icon name="chevronRight" size={16} color={t.colors.muted} />
-          </Pressy>
-        ) : (
-          <Shimmer height={260} style={{ marginTop: 12 }} />
-        )
-      ) : (
-        <>
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-            {RADII.map((km) => (
-              <Pressable
-                key={km}
-                onPress={() => setRadius(km)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: radius === km }}
-                style={({ pressed }) => ({
-                  paddingVertical: 8,
-                  paddingHorizontal: 14,
-                  borderRadius: 999,
-                  borderWidth: 1.5,
-                  borderColor: radius === km ? t.colors.accent : t.colors.line,
-                  backgroundColor: radius === km ? t.colors.accentSoft : t.colors.surface,
-                  transform: [{ scale: pressed ? 0.94 : 1 }],
-                })}
-              >
-                <RNText style={tx(radius === km ? '700' : '600', 13, radius === km ? t.colors.accentDeep : t.colors.text)}>{km} km</RNText>
-              </Pressable>
-            ))}
-          </View>
-          {rows === null ? (
-            <Shimmer height={280} style={{ marginTop: 12 }} />
-          ) : (
-            <>
-              <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 10 })}>
-                {rows.length === 0
-                  ? radius < 50
-                    ? `No jobs within ${radius} km yet. Widen the radius, or try remote work below.`
-                    : 'No jobs within 50 km yet. Try remote work below, or another area.'
-                  : `${rows.length} open job${rows.length === 1 ? '' : 's'} within ${radius} km`}
-              </RNText>
-              <View style={{ marginTop: 12 }}>
-                <JobsMap
-                  me={area}
-                  pins={pins}
-                  selectedId={null}
-                  onSelect={(id) => {
-                    const hit = rows.find((r) => r.id === id);
-                    if (hit) go('taskDetail', { row: taskToFeedRow(hit) });
-                  }}
-                  onExpand={() => go('nearMap', { mode: 'jobs', centre: { lat: area.lat, lng: area.lng }, radiusKm: radius })}
-                  height={300}
-                  ringKm={radius}
-                />
-              </View>
-            </>
-          )}
-        </>
-      )}
+      {body}
       <LocationSheet
         visible={pickPlace}
         askForDetails={false}

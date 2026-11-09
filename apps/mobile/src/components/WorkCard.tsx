@@ -1,21 +1,18 @@
-import { memo, useState } from 'react';
+import { memo, useState, type ReactNode } from 'react';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import type { TaskWithPoster } from '../data/api';
 import { Icon, type IconName } from './Icon';
-import { Badge, rupees, timeAgo, timeLeft } from './kit';
+import { Badge, rupees, timeLeft } from './kit';
 import { FadeIn, Pressy, tx } from './primitives';
-import { descriptionPreview } from './TaskDescription';
-import { PresenceDot } from './PresenceDot';
 import { presenceOf } from '../lib/presence';
 import { roughPlace } from '../lib/place';
 import { cardSurface } from './ui';
 import { TopUpBadge } from './TopUpBadge';
-import { OptionBadges } from './OptionBadges';
+import { optionLabels } from './OptionBadges';
 import { HuntTag } from './HuntTag';
 import { huntLook } from '../data/api';
 import { isHunt } from '../lib/hunt';
-import { fontFamilyFor } from '../theme';
 
 const CATEGORY_ICON: Record<string, IconName> = {
   'Home Services': 'home',
@@ -66,7 +63,6 @@ export const WorkCard = memo(function WorkCard({
   km?: number;
 }) {
   const t = useTheme();
-  const preview = descriptionPreview(task.description, task.title);
   const left = timeLeft(task.due_at);
   const rating =
     task.poster && task.poster.poster_rating_count > 0 ? Number(task.poster.poster_rating_avg).toFixed(1) : null;
@@ -88,6 +84,27 @@ export const WorkCard = memo(function WorkCard({
   };
   const presence = presenceOf(task.poster?.last_seen_at);
 
+  // At most ONE tag, the most important: hunt, top offer, urgent, then the poster's options, difficulty, auto-hire.
+  const option = optionLabels(task)[0];
+  let tag: ReactNode = null;
+  if (hunt) tag = <HuntTag task={task} />;
+  else if (task.topup_pct && task.topup_pct > 0) tag = <TopUpBadge pct={task.topup_pct} compact />;
+  else if (live) tag = <Badge label="Urgent" tone="signal" />;
+  else if (option) tag = <Badge label={option.label} tone={option.tone} />;
+  else if (task.difficulty) tag = <Badge label={task.difficulty} tone="blue" />;
+  else if (task.assignment_mode === 'auto') tag = <Badge label="Auto-hire" tone="accent" />;
+
+  const place =
+    km !== undefined && Number.isFinite(km)
+      ? (task.loc_label ? (roughPlace(task.loc_label) ?? '') + ' · ' : '') + (km < 1 ? '< 1 km' : `${km.toFixed(km < 10 ? 1 : 0)} km`)
+      : task.loc_lat === null
+        ? 'Remote'
+        : task.loc_label
+          ? (roughPlace(task.loc_label) ?? 'Area not shared')
+          : '';
+  const poster = task.poster?.username ? '@' + task.poster.username : (task.poster?.display_name ?? 'someone');
+  const meta = [place, 'by ' + poster, rating ? '★ ' + rating : '', presence.label].filter(Boolean).join(' · ');
+
   return (
     <FadeIn duration={360} delay={Math.min(index, 6) * 60} translateY={8} style={{ marginTop: 12 }}>
       <Pressy
@@ -97,103 +114,56 @@ export const WorkCard = memo(function WorkCard({
         style={[
           cardSurface(t),
           {
-            flexDirection: 'row',
-            gap: 12,
+            // Fixed height: every card in a row is the same height (design D21).
+            height: 176,
+            gap: 8,
             // Urgent work keeps a coral edge, softened into the line.
             borderColor: live ? t.colors.signal : t.colors.line,
-            padding: 14,
+            padding: 16,
           },
         ]}
       >
-        <View
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 13,
-            backgroundColor: t.colors.accentSoft,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Icon name={categoryIcon(task.category)} size={22} color={t.colors.accentDeep} strokeWidth={1.7} />
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <RNText style={tx('600', 11, t.colors.muted)} numberOfLines={1}>
-              {categoryLabel(task)}
-            </RNText>
-            {hunt ? (
-              <HuntTag task={task} />
-            ) : (
-              <Badge label={task.assignment_mode === 'auto' ? 'Auto-hire' : 'Offer'} tone={task.assignment_mode === 'auto' ? 'accent' : 'neutral'} />
-            )}
-            {task.difficulty ? <Badge label={task.difficulty} tone="blue" /> : null}
-            {live ? <Badge label="Urgent" tone="signal" /> : null}
-            <OptionBadges task={task} />
-            <View style={{ flex: 1 }} />
-            {onToggleSave ? (
-              <Pressable
-                onPress={onToggleSave}
-                hitSlop={10}
-                accessibilityRole="button"
-                accessibilityLabel={saved ? 'Remove from saved' : 'Save for later'}
-              >
-                <Icon name="bookmark" size={18} color={saved ? t.colors.accentDeep : t.colors.muted} strokeWidth={saved ? 2.6 : 1.8} />
-              </Pressable>
-            ) : null}
-          </View>
-          <RNText style={tx('800', 15, t.colors.ink, { marginTop: 6, letterSpacing: -0.2, lineHeight: 20 })} numberOfLines={2}>
-            {task.title}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 24 }}>
+          <Icon name={categoryIcon(task.category)} size={14} color={t.colors.accentDeep} strokeWidth={1.9} />
+          <RNText style={tx('700', 11.5, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>
+            {categoryLabel(task)}
           </RNText>
-          {preview ? (
-            <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4, lineHeight: 18 })} numberOfLines={2}>
-              {preview}
-            </RNText>
-          ) : null}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 9 }}>
-            <RNText style={tx('800', 17, t.colors.accentDeep, { fontVariant: ['tabular-nums'], letterSpacing: -0.3 })}>{rupees(task.benchmark_minor / 100)}</RNText>
-            <TopUpBadge pct={task.topup_pct} compact />
-            {left && !hunt ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Icon name="clock" size={12} color={left === 'overdue' ? t.colors.signal : t.colors.gold} strokeWidth={2} />
-                <RNText style={tx('600', 11, left === 'overdue' ? t.colors.signal : t.colors.goldInk)}>{left}</RNText>
-              </View>
-            ) : null}
-            {km !== undefined && Number.isFinite(km) ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Icon name="pin" size={12} color={t.colors.accentDeep} strokeWidth={2} />
-                <RNText style={tx('600', 11, t.colors.accentDeep)}>{km < 1 ? '< 1 km' : `${km.toFixed(km < 10 ? 1 : 0)} km`}</RNText>
-              </View>
-            ) : task.loc_lat === null ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Icon name="globe" size={12} color={t.colors.aiInk} strokeWidth={2} />
-                <RNText style={tx('700', 11, t.colors.aiInk)}>Remote</RNText>
-              </View>
-            ) : task.loc_label ? (
-              <RNText style={tx('400', 11, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>
-                {roughPlace(task.loc_label) ?? 'Area not shared'}
-              </RNText>
-            ) : null}
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 9 }}>
-            {/* Whether the poster has TaskDrop open right now, like a chat app. */}
-            <PresenceDot lastSeen={task.poster?.last_seen_at} dotOnly />
-            <RNText style={tx('400', 11, t.colors.muted, { flex: 1 })} numberOfLines={1}>
-              {task.poster?.username ? '@' + task.poster.username : (task.poster?.display_name ?? 'someone')}
-              {' · '}
-              <RNText style={{ color: presence.online ? t.colors.online : t.colors.muted, fontFamily: presence.online ? fontFamilyFor('600') : undefined }}>
-                {presence.label}
-              </RNText>
-              {rating ? ` · ★ ${rating}` : ''} · posted {timeAgo(task.created_at)}
-            </RNText>
-            <Pressy
-              onPress={hunt ? () => void lookThenOpen() : onApply}
-              label={hunt ? `I’m looking for ${task.title}` : `Apply for ${task.title}`}
-              style={{ backgroundColor: t.colors.btn, borderRadius: 999, height: 32, justifyContent: 'center', paddingHorizontal: 16 }}
+          {tag}
+          <View style={{ flex: 1 }} />
+          {onToggleSave ? (
+            <Pressable
+              onPress={onToggleSave}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={saved ? 'Remove from saved' : 'Save for later'}
             >
-              <RNText style={tx('700', 12, t.colors.onBtn)}>{hunt ? 'I’m looking' : 'Apply'}</RNText>
-            </Pressy>
-          </View>
+              <Icon name="bookmark" size={18} color={saved ? t.colors.accentDeep : t.colors.muted} strokeWidth={saved ? 2.6 : 1.8} />
+            </Pressable>
+          ) : null}
+        </View>
+        <RNText style={tx('800', 15, t.colors.ink, { letterSpacing: -0.2, lineHeight: 20, height: 40 })} numberOfLines={2}>
+          {task.title}
+        </RNText>
+        <RNText style={tx('600', 12, t.colors.muted)} numberOfLines={1}>
+          {meta}
+        </RNText>
+        <View style={{ flex: 1 }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <RNText style={tx('800', 20, t.colors.accentDeep, { fontVariant: ['tabular-nums'], letterSpacing: -0.3 })}>{rupees(task.benchmark_minor / 100)}</RNText>
+          {left && !hunt ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 1 }}>
+              <Icon name="clock" size={12} color={left === 'overdue' ? t.colors.signal : t.colors.gold} strokeWidth={2} />
+              <RNText style={tx('700', 11.5, left === 'overdue' ? t.colors.signal : t.colors.goldInk)} numberOfLines={1}>{left}</RNText>
+            </View>
+          ) : null}
+          <View style={{ flex: 1 }} />
+          <Pressy
+            onPress={hunt ? () => void lookThenOpen() : onApply}
+            label={hunt ? `I’m looking for ${task.title}` : `Apply for ${task.title}`}
+            style={{ backgroundColor: t.colors.btn, borderRadius: 999, height: 36, justifyContent: 'center', paddingHorizontal: 16 }}
+          >
+            <RNText style={tx('800', 13, t.colors.onBtn)}>{hunt ? 'I’m looking' : 'Apply'}</RNText>
+          </Pressy>
         </View>
       </Pressy>
     </FadeIn>

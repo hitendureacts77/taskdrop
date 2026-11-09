@@ -1,8 +1,10 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../providers/AuthProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useFocusTick } from '../providers/NavProvider';
 import { getProfile, updateProfile } from '../data/api';
+import { GUEST_AREA_KEY, parseGuestArea, serializeGuestArea } from './guestArea';
 import type { PickedPlace } from '../components/LocationSheet';
 
 export type MyArea = { label: string; lat: number; lng: number };
@@ -21,8 +23,21 @@ export function useMyArea(): { area: MyArea | null; loaded: boolean; choose: (pi
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (!userId) return;
     let alive = true;
+    if (!userId) {
+      // A guest has no profile: the area lives on the device, and is known at once.
+      AsyncStorage.getItem(GUEST_AREA_KEY)
+        .then((raw) => {
+          if (!alive) return;
+          const saved = parseGuestArea(raw);
+          setArea((cur) => (cur && saved && cur.lat === saved.lat && cur.lng === saved.lng ? cur : saved));
+        })
+        .catch(() => {})
+        .finally(() => alive && setLoaded(true));
+      return () => {
+        alive = false;
+      };
+    }
     getProfile(userId)
       .then((p) => {
         if (!alive) return;
@@ -44,7 +59,10 @@ export function useMyArea(): { area: MyArea | null; loaded: boolean; choose: (pi
       if (picked.lat === null || picked.lng === null) return flash('Drop a pin on the map to set your area');
       const next = { label: picked.area || picked.label, lat: picked.lat, lng: picked.lng };
       setArea(next);
-      if (!userId) return;
+      if (!userId) {
+        await AsyncStorage.setItem(GUEST_AREA_KEY, serializeGuestArea(next)).catch(() => {});
+        return;
+      }
       await updateProfile(userId, { locLabel: next.label, locLat: next.lat, locLng: next.lng }).catch((e) =>
         flash(e instanceof Error ? e.message : 'Could not save your area'),
       );

@@ -242,7 +242,7 @@ export function PayoutDestinationSheet({
             Where your money goes
           </RNText>
 
-          <ScrollView keyboardShouldPersistTaps="handled" style={{ marginTop: 4 }}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 4 }}>
             {loading ? (
               <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 20 }}>
                 <ActivityIndicator size="small" color={t.colors.accent} />

@@ -82,3 +82,62 @@ export function reachWords({
   }
   return { bestLabel, nearestLabel, pitch };
 }
+
+/** The reaches you can pick in one tap; "Custom" adds one more. */
+export const REACH_PRESETS = [5, 10, 25];
+/** A custom distance is a whole number of km in this range. */
+export const MIN_REACH_KM = 1;
+export const MAX_REACH_KM = 100;
+/** The server's own limit for the "My people" call. */
+export const PEOPLE_MAX_KM = 50;
+/** Where the last custom distance is kept on the device. */
+export const CUSTOM_REACH_KEY = 'taskdrop.map.customReachKm';
+
+/** Straight-line distance in km (haversine). */
+export function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  return haversineKm(a, b);
+}
+
+/** Round to a whole number of km and keep it in 1 to 100. */
+export function clampReach(n: number): number {
+  if (!Number.isFinite(n)) return MIN_REACH_KM;
+  return Math.min(MAX_REACH_KM, Math.max(MIN_REACH_KM, Math.round(n)));
+}
+
+/**
+ * What someone typed into the "Set your distance" box: "45", " 45 km ", "45.4" -> 45 (a number above 100 is
+ * clamped to 100). Empty, 0, negative or anything that is not a number -> null.
+ */
+export function parseReachKm(input: string): number | null {
+  const m = /^\s*(\d+(?:\.\d+)?)\s*(?:km)?\s*$/i.exec(input);
+  if (!m) return null;
+  const n = Math.round(Number(m[1]));
+  return n < MIN_REACH_KM ? null : clampReach(n);
+}
+
+/** What was saved on the device, or null when it is missing or not a valid distance. */
+export function parseSavedReach(raw: string | null | undefined): number | null {
+  return raw == null ? null : parseReachKm(raw);
+}
+
+/**
+ * The distances to offer: 5 / 10 / 25, the saved custom one and the one in use (when they are not already
+ * there), smallest first. `on` marks the one in use.
+ */
+export function reachChoices(radius: number, saved: number | null): { km: number; on: boolean }[] {
+  const all = new Set<number>(REACH_PRESETS);
+  if (saved !== null) all.add(saved);
+  all.add(radius);
+  return [...all].sort((a, b) => a - b).map((km) => ({ km, on: km === radius }));
+}
+
+/** The "My people" call never reaches past its server limit. */
+export function peopleReach(radius: number): number {
+  return Math.min(radius, PEOPLE_MAX_KM);
+}
+
+/** How many of these were posted on the same calendar day as `now`. */
+export function postedToday(list: { created_at: string }[], now: number): number {
+  const day = new Date(now).toDateString();
+  return list.filter((j) => new Date(j.created_at).toDateString() === day).length;
+}

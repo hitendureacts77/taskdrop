@@ -147,7 +147,7 @@ export function BottomSheet({
                 </Pressable>
               </View>
             ) : null}
-            <KeyboardScrollView
+            <KeyboardScrollView showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6 }}
               keyboardShouldPersistTaps="handled"
             >

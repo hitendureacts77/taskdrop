@@ -236,7 +236,7 @@ export function AddressForm({
         </Pressable>
       </View>
 
-      <ScrollView
+      <ScrollView showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: 20,
           paddingTop: 18,

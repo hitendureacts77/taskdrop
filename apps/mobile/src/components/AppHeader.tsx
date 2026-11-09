@@ -258,7 +258,7 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
               transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [360, 0] }) }],
             }}
           >
-            <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 44 }}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingTop: 44 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <RNText style={tx('800', 18, t.colors.ink)}>Profile</RNText>
                 <IconButton icon="close" label="Close" onPress={onClose} />

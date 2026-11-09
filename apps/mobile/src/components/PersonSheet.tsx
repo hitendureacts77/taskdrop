@@ -145,7 +145,7 @@ export function PersonSheet({
             WHAT PEOPLE SAID
           </RNText>
 
-          <ScrollView style={{ marginTop: 4 }}>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 4 }}>
             {reviews === null ? (
               <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 16 }}>
                 <ActivityIndicator size="small" color={t.colors.muted} />

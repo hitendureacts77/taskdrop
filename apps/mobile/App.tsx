@@ -14,6 +14,7 @@ import { TourHost } from './src/components/tour/TourHost';
 import { WebShell } from './src/components/WebShell';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { AppProviders, Background, ScreenBoundary, ThemedStatusBar } from './src/AppProviders';
+import './src/lib/webScrollbar';
 
 /**
  * The web app (the phone apps start in app/_layout.tsx instead, where the
