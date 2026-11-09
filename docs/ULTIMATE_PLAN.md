@@ -1283,11 +1283,23 @@ A search cannot prove that nobody has a feature; these are the closest things fo
 </details>
 
 <details id="t1-13" data-short="Useful in the first minute (D22)">
-<summary>[CLAUDE] <b>1.13</b> Useful in the first minute: posters get it done, helpers see money, everyone comes back (D22) <small>· Planned and drawn 9 Nov · nothing built · needs decision 39 (is it a fix inside the freeze?)</small></summary>
+<summary>[CLAUDE] <b>1.13</b> Useful in the first minute: posters get it done, helpers see money, everyone comes back (D22) <small>· Planned and drawn 9 Nov, v3 adds the other tabs · nothing built · needs decision 39 (is it a fix inside the freeze?)</small></summary>
 
 **What you said (9 Nov):** you gave the app to a few people and, on opening it, they did not find it useful. Your goal: the moment someone opens TaskDrop, it should make their life easier, whether they want a task done or want to earn, and they should keep using it for a long time. You like the map (what work, where, when, for how much, who pays most) and want it to help both sides.
 
 **Drawings (9 Nov, [design canvas](https://claude.ai/artifact/C6hFHXK2YZirnPwKnWRCfS)):** eight phone screens in four rows, today on the left and D22 on the right: Hire Home, Earn Home, the first open, then the map with When and Sort and the coming-back cards and alerts. Orange tags (U1 to U7, A1 to E3) match the lists below; the numbers on the D22 screens are examples.
+
+**v3 (9 Nov, later, your asks):** the canvas now has 13 screens in six rows. Hire Home is drawn as the whole scroll, with a dashed line where the phone's first screen ends; Earn Home gets filters plus a full filter sheet; the map is a full-screen tab on both sides; My Tasks, Wallet and Profile are drawn too. What you asked, and where it is:
+
+| You asked | In the design |
+|---|---|
+| "Your published tasks" on Home | **Back on Home**, right under the ideas: a row of cards, each with its one next step (**Choose** when offers wait, **Track** when the helper is on the way). A passed date says "Move the date", never a red "overdue" |
+| "How TaskDrop works" is missing | **H2:** always on Home, above the fold: 1 Say what you need (we write it, free) · 2 Pick an offer (stars and price, number hidden) · 3 Pay when done (held safely till you approve). "Watch 30 s" opens the How sheet that exists today |
+| Find it for me and Plan a big day as icons; ideas no other app has as the hero | **H1 "Only on TaskDrop":** a second hero card right under the ask box with five big icons: Find it for me (NEW), Plan a big day, Many hands (crew job, several helpers on one task), Get opinions, Price check. All five exist today; they move up from the idea rail. The everyday tiles (A1) move below the fold |
+| Fix the other tabs; a map tab that fills the screen, like Snapchat | **Map tab, M1 to M5 (Explore is renamed Map):** edge to edge, no header, no List pill; your face top left, the area pill in the middle, search top right; filter chips float on the map; a layers button (Jobs / Helpers / My people); busy areas glow. Earn: one small card for the best job, swipe sideways for the next, pull up for the list. Hire: helper faces with what they do and the price, people you hired before with a gold ring (opt-in, D20), and **"Ask these 12 helpers"** with a Post box on the map. The tab bar is see-through over the map. **My Tasks, T1 to T3:** a 5-step track and one next-step button per task; a passed date offers Move the date / Raise the price / Close; Recently done with Book again. **Wallet, W1 and W2:** "Yours to use" and "Held safely", every held rupee tied to its task and what releases it; works for Plan A or Plan B. **Profile, P1 and P2:** you as others see you, a big Hire / Earn switch, finish your profile one step at a time, My regulars as faces, the menu cut to 5 rows |
+| Better filters for workers: price, time, location, money | **B5:** a filter bar on Earn Home (₹ floor, When, distance, ₹ per hour) with Sort: Highest pay / Best ₹ per hour / Nearest / Soonest, quick picks (Quick cash under 1 h, ₹1,000+ jobs, Walk to it 1 km) and "Alert me for these" (4.5). The filter sheet asks four things: **price** of the job (a range, with how many jobs sit at each price), **money** I earn (a ₹ per hour floor; fixed price / open to offers / first to accept), **time** (day, time of day, how long it takes) and **location** (1 to 25 km, from where I am / my home / an area, online on or off), plus type of work |
+
+Notes on v3: A4 ("ideas cut to 4 tiles") is replaced by H1. "How long it takes" and "≈ ₹ an hour" show only for jobs whose post gives the hours. Renaming Explore to **Map** changes a product rule ("Explore becomes Find work" in Earn): the Earn tab would also be **Map**, with Find work as the list inside it. Say so if you want to keep the old names.
 
 **The goal in one line.** Within **60 seconds** of opening the app, a poster thinks "this can sort out my problem today" and a helper thinks "I can earn ₹___ near me today". Everything below serves that one moment, and then brings people back.
 
@@ -1372,9 +1384,9 @@ From the database (no new tool: posts, offers and sign-ins are already saved the
 
 | Order | What | Kind of change | Before launch? |
 |---|---|---|---|
-| 1 | A1, A3, A4, A6, B1, B2, B3, C1, C2, C3 | Moves, hides and rewords what exists; no database change | **Yes**, if decision 39 says it is a fix |
+| 1 | A1, A3, A6, H1, H2, published tasks with next step, B1, B2, B3, B5 (on the filters the list already has), C1, C2, C3, M1 to M3 (map layout), T1 to T3, W1, W2, P1, P2 | Moves, hides and rewords what exists; no database change | **Yes**, if decision 39 says it is a fix |
 | 2 | A2, A5, B4 (4.5) | Small server work: reply-time count, the 20-minute check, job alerts | **Yes** (A5 and 4.5 are what makes the first task succeed) |
-| 3 | D1 to D4 | Map additions | Recommended yes for D1 and D2 (small); D3, D4 after launch |
+| 3 | D1 to D4, M4, M5, and B5's ₹ per hour, time of day and how long | Map additions and new filter fields | Recommended yes for D1, D2 and the B5 fields (small); D3, D4, M4, M5 after launch |
 | 4 | E1 to E5 | Retention | After launch, in Step 7, once people have finished tasks |
 
 ### Steps
@@ -5334,6 +5346,7 @@ Kept for the record. The live picture is the **Start here** panel at the top of 
 
 ## Changelog
 
+- **2026-11-09 (task 1.13 v3, design only):** You asked for Your published tasks and How TaskDrop works on Home, Find it for me and Plan a big day as hero icons (ideas no other app has), a full-screen map tab like Snapchat, the other tabs fixed, and price, time, location and money filters for workers. The canvas now has 13 screens: Hire Home (whole scroll), Earn Home with filters, a filter sheet, the Map tab for both sides, My Tasks, Wallet and Profile. Task 1.13 gained a v3 table (H1, H2, B5, M1 to M5, T1 to T3, W1, W2, P1, P2) and the order table lists them. Nothing in the code or the database changed.
 - **2026-11-09 (task 1.13: useful in the first minute, plan only):** You gave the app to a few people and they did not find it useful on opening it. Claude looked at taskdrop.in in Hire and Earn, the map, and the code of the first screens (nothing posted or changed). **New task 1.13 (D22)** in Step 1: what a new person sees today, seven reasons it does not feel useful (U1 to U7), the fix in five parts (A posters, B helpers, C first open, D the map with When and Sort by pay, E coming back), a 5-person test before and after, three weekly numbers, and the order. **New decision 39:** count order 1 and 2 as a fix inside the freeze. Nothing in the code or the database changed.
 - **2026-11-09 (decision 29 corrected: the payment company is not chosen):** You said you have not yet decided between Razorpay and Cashfree. Plan B (pay per task, the payment company holds the money) stays decided; the plan no longer says "Cashfree first". **Decision 3** is open again, with a side-by-side list to compare Route and Easy Split; your next seven days now send the same Plan B questions to both companies. The Plan B design is written to work with either. No code, database or setting changed.
 - **2026-11-09 (decisions 29 and 37 answered):** You said yes to both. **Decision 29: Plan B** (pay per task; the payment company holds the money until approval), which reverses the 29 Sep wallet decision. **Decision 37: feature freeze** once 1.12 and the D20 map tab are finished. The Cashfree sign-up text under S.4 now uses Plan B wording, and the CEO review, the setup steps and your next seven days say what is next: "design the Plan B money flow" (design only; code waits for the chosen payment company's and the lawyer's written yes). No code, database or setting changed.
