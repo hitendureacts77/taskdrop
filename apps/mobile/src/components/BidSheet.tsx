@@ -13,6 +13,8 @@ import { Icon } from './Icon';
 import { SafetyCardSheet } from './SafetyCardSheet';
 import { markSafetyCardSeen, needsSafetyCard } from '../lib/safetyCard';
 import { tx } from './primitives';
+import { OFFER_COPY, isDuplicateOfferError } from '../lib/offerState';
+import { noteMyOffer } from '../lib/useMyOffers';
 
 const HOURS_LINE = /^Estimated time: ([\d.]+) hours?$/m;
 const DATE_LINE = /^Can deliver by: (.+)$/m;
@@ -178,6 +180,7 @@ export function BidSheet({
         celebrate(`Offer updated · ${rupees(asked)}`);
       } else {
         await placeBid({ taskId: task.id, workerId: userId, ...fields });
+        noteMyOffer(userId, task.id);
         onClose();
         celebrate(
           auto
@@ -188,6 +191,16 @@ export function BidSheet({
       onPlaced?.();
     } catch (e) {
       if (isNeedsAccount(e)) return;
+      if (isDuplicateOfferError(e) && !existing) {
+        // One offer per task: this person already sent one (another phone, or before signing up). Open it as an edit.
+        const mine = await getMyBid(task.id, userId).catch(() => null);
+        if (mine && !mine.is_locked) {
+          noteMyOffer(userId, task.id);
+          setExisting(mine);
+          flash('You already sent an offer for this task. We opened it as an edit. Tap Save changes.');
+          return;
+        }
+      }
       flash(e instanceof Error ? e.message : 'Could not send your offer');
     } finally {
       setBusy(false);
@@ -226,6 +239,12 @@ export function BidSheet({
                 </RNText>
               ) : null}
             </View>
+
+            {!blocked ? (
+              <RNText style={tx('500', 12, t.colors.muted, { marginTop: 8, lineHeight: 17 })}>
+                {existing ? OFFER_COPY.edit.note : OFFER_COPY.send.note}
+              </RNText>
+            ) : null}
 
             {blocked ? (
               <View style={{ marginTop: 12, backgroundColor: t.colors.signalSoft, borderRadius: 10, padding: 12 }}>

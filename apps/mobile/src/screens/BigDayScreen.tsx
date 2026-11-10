@@ -11,7 +11,9 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useFocusTick, useNav } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { useActions } from '../providers/AppStateProvider';
+import { ExplainerSheet, useExplainerOnce } from '../components/ExplainerSheet';
 import { listMyTasks, type Task } from '../data/api';
+import { BIG_DAY_LINK } from '../lib/explainers';
 import { GUEST_DRAFTS_OWNER } from '../lib/guest';
 import { listBigDays, releaseBigDayItem, removeBigDay, saveBigDay } from '../lib/bigDayStore';
 import {
@@ -116,6 +118,23 @@ export function BigDayScreen() {
   );
 }
 
+/** The small link that opens "What is Plan a big day?" again. */
+function HowLink({ onPress }: { onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={BIG_DAY_LINK}
+      hitSlop={8}
+      style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 20 }}
+    >
+      <Icon name="help" size={16} color={t.colors.accentDeep} />
+      <RNText style={tx('700', 13, t.colors.accentDeep)}>{BIG_DAY_LINK}</RNText>
+    </Pressable>
+  );
+}
+
 // -------------------------------------------------------------- planner ---
 
 function Planner({
@@ -134,6 +153,8 @@ function Planner({
   const [pickDate, setPickDate] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Opens by itself the first time this account (or guest) plans a day on this device.
+  const help = useExplainerOnce('bigDay', owner ?? GUEST_DRAFTS_OWNER, true);
 
   const def = eventDef(draft.event);
   const today = todayKey();
@@ -226,8 +247,11 @@ function Planner({
             </Pressable>
           </HeroCard>
         </FadeIn>
+        <View style={{ marginTop: 6 }}>
+          <HowLink onPress={help.show} />
+        </View>
 
-        <View style={{ paddingHorizontal: 20, paddingTop: 20, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Icon name="sparkle" size={16} color={t.colors.ai} />
           <RNText style={tx('800', 18, t.colors.ink, { flex: 1, letterSpacing: -0.3 })}>Your plan</RNText>
           <RNText style={tx('700', 12.5, t.colors.muted)}>
@@ -282,6 +306,16 @@ function Planner({
           const key = dayKey(d);
           setDraft((p) => ({ ...p, day: key < todayKey() ? todayKey() : key }));
           setPickDate(false);
+        }}
+      />
+
+      <ExplainerSheet
+        which="bigDay"
+        visible={help.open}
+        onClose={help.close}
+        onExample={(ex) => {
+          if (ex.event) setEvent(ex.event as EventKey);
+          help.close();
         }}
       />
     </Screen>
@@ -420,8 +454,10 @@ function Board({
   }, [load]);
 
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Read-only here: the examples are plain cards and it never opens by itself.
+  const [helpOpen, setHelpOpen] = useState(false);
 
-  const post = async (item: BigDayItem, state: BigDayState) => {
+  const post =async (item: BigDayItem, state: BigDayState) => {
     // A cancelled task lets go of its line, so the new post can take its place.
     if (state === 'cancelled' && owner) await releaseBigDayItem(owner, plan.id, item.id);
     go('aiPost', { prompt: postPrompt(plan, item, today), bigDay: { planId: plan.id, itemId: item.id } });
@@ -540,7 +576,10 @@ function Board({
           </RNText>
         ) : null}
 
-        <View style={{ paddingHorizontal: 20, paddingTop: 20, gap: 10 }}>
+        <View style={{ paddingTop: 12 }}>
+          <HowLink onPress={() => setHelpOpen(true)} />
+        </View>
+        <View style={{ paddingHorizontal: 20, paddingTop: 8, gap: 10 }}>
           <PrimaryButton
             label="Plan another day"
             tone="quiet"
@@ -566,6 +605,8 @@ function Board({
         onConfirm={() => void remove()}
         onCancel={() => setConfirmDelete(false)}
       />
+
+      <ExplainerSheet which="bigDay" visible={helpOpen} onClose={() => setHelpOpen(false)} />
     </Screen>
   );
 }

@@ -52,6 +52,7 @@ export const WorkCard = memo(function WorkCard({
   onApply,
   onToggleSave,
   km,
+  quoted,
 }: {
   task: TaskWithPoster;
   index?: number;
@@ -61,6 +62,8 @@ export const WorkCard = memo(function WorkCard({
   onToggleSave?: () => void;
   /** Distance from the worker's area, when the list is sorted by it. */
   km?: number;
+  /** This worker already sent an offer on the task: one per task, so the button edits it. */
+  quoted?: boolean;
 }) {
   const t = useTheme();
   const left = timeLeft(task.due_at);
@@ -159,10 +162,10 @@ export const WorkCard = memo(function WorkCard({
           <View style={{ flex: 1 }} />
           <Pressy
             onPress={hunt ? () => void lookThenOpen() : onApply}
-            label={hunt ? `I’m looking for ${task.title}` : `Apply for ${task.title}`}
+            label={hunt ? `I’m looking for ${task.title}` : quoted ? `Edit your offer for ${task.title}` : `Apply for ${task.title}`}
             style={{ backgroundColor: t.colors.btn, borderRadius: 999, height: 36, justifyContent: 'center', paddingHorizontal: 16 }}
           >
-            <RNText style={tx('800', 13, t.colors.onBtn)}>{hunt ? 'I’m looking' : 'Apply'}</RNText>
+            <RNText style={tx('800', 13, t.colors.onBtn)}>{hunt ? 'I’m looking' : quoted ? 'Edit offer' : 'Apply'}</RNText>
           </Pressy>
         </View>
       </Pressy>

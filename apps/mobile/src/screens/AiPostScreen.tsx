@@ -32,6 +32,8 @@ import { needsFor } from '../lib/hunt';
 import { crewShareMinor, looksLikePlaceQuestion, suggestOptions } from '../lib/posterOptions';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { SafetyCardSheet } from '../components/SafetyCardSheet';
+import { ExplainerSheet, useExplainerOnce } from '../components/ExplainerSheet';
+import { HuntHelpLink } from '../components/Hunt';
 import { markSafetyCardSeen, needsSafetyCard } from '../lib/safetyCard';
 import { NOT_ALLOWED_LINE } from '../legal/disputePolicy';
 import type { TaskMedia } from '../lib/media';
@@ -270,6 +272,9 @@ export function AiPostScreen() {
   const viewer = userId ?? (guest ? GUEST_DRAFTS_OWNER : null);
   // Nothing is saved until the kept post, if any, has been put back.
   const [hydrated, setHydrated] = useState(false);
+  // "What is a Hunt?": opens by itself the first time this person (or guest) starts a Hunt on this
+  // device, never for a resumed post, and any "How a Hunt works" link opens it again.
+  const huntHelp = useExplainerOnce('hunt', viewer ?? GUEST_DRAFTS_OWNER, hydrated && params.hunt === true && params.resume !== true);
   // "Post my request" was pressed as a guest in this page session: post it when the sign-in signal comes.
   const resumeArmed = useRef(false);
   // Posted or closed: nothing more is saved.
@@ -967,6 +972,7 @@ export function AiPostScreen() {
         <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10, lineHeight: 19 })}>
           Say it the way you would tell a friend. We turn it into a clear post, then ask only what is missing.
         </RNText>
+        {opts.hunt !== null ? <HuntHelpLink onPress={huntHelp.show} /> : null}
         {promptIssue ? (
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, backgroundColor: t.colors.signalSoft, borderRadius: 12, padding: 11 }}>
             <Icon name="shield" size={15} color={t.colors.signalDeep} />
@@ -1411,6 +1417,7 @@ export function AiPostScreen() {
         prompt={prompt}
         remote={remote}
         priceMinor={price * 100}
+        onHuntHelp={huntHelp.show}
       />
     );
   }
@@ -1727,6 +1734,17 @@ export function AiPostScreen() {
           setSafetyOpen(false);
           if (userId) void markSafetyCardSeen(userId);
           void post(true);
+        }}
+      />
+
+      <ExplainerSheet
+        which="hunt"
+        visible={huntHelp.open}
+        onClose={huntHelp.close}
+        onExample={(ex) => {
+          if (ex.prompt) setPrompt(ex.prompt);
+          if (!opts.hunt) changeOptions(huntOn(opts, remote));
+          huntHelp.close();
         }}
       />
 

@@ -13,8 +13,9 @@ import { placeBid } from '../data/api';
 import { tx } from '../components/primitives';
 import { TaskDescription } from '../components/TaskDescription';
 import { KeyboardSafe } from '../components/KeyboardSafe';
+import { isDuplicateOfferError } from '../lib/offerState';
+import { noteMyOffer } from '../lib/useMyOffers';
 
-const BY_CHIPS = ['Today, 8:00 PM', 'Tomorrow, 11:00 AM', '12 Sep, 2:00 PM'];
 const STEP = 5000; // ₹50 in paise
 
 type SheetRow = {
@@ -51,7 +52,6 @@ export function DetailSheetScreen() {
   const asked = row.amountMinor ?? (worker ? 450000 : 120000);
 
   const [quote, setQuote] = useState(asked);
-  const [by, setBy] = useState<string | null>(null);
 
   const rise = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -65,14 +65,7 @@ export function DetailSheetScreen() {
     delta === 0 ? 'same as asked' : delta > 0 ? `+${formatINR(delta)} above` : `−${formatINR(-delta)} below`;
   const deltaInk = delta === 0 ? t.colors.muted : delta > 0 ? t.colors.gold : t.colors.accentDeep;
 
-  const blocked = !worker && !by;
-  const cta = worker
-    ? 'Send offer'
-    : blocked
-      ? 'Set a completion date and time'
-      : quote === asked
-        ? 'Accept and pay'
-        : 'Suggest your price and pay';
+  const cta = worker ? 'Send offer' : `Send ${who} a task`;
 
   // Only a real task has a uuid; the design sample rows do not.
   const realId = row.id && /^[0-9a-f-]{36}$/i.test(row.id) ? row.id : null;
@@ -96,22 +89,27 @@ export function DetailSheetScreen() {
           priceMinor: quote,
           timeLimitMinutes: 240,
         });
+        noteMyOffer(userId, realId);
         celebrate(`Offer sent · ${formatINR(quote)}`);
         go('orders');
       } catch (e) {
         if (isNeedsAccount(e)) return;
-        const msg = e instanceof Error ? e.message : 'Could not send the offer';
-        // The unique index on (task_id, worker_id) is the "one quote per task" rule.
-        flash(/duplicate|unique/i.test(msg) ? 'You have already sent an offer for this task' : msg);
+        if (isDuplicateOfferError(e)) {
+          // One offer per task: open the task, where the sent offer can be edited.
+          flash('You already sent an offer for this task. Opening it so you can edit it.');
+          go('taskDetail', { row });
+          return;
+        }
+        flash(e instanceof Error ? e.message : 'Could not send the offer');
       } finally {
         setBusy(false);
       }
       return;
     }
 
-    if (blocked) return flash('Set a completion date and time first');
-    if (guest) return needAccount('hire', () => void send());
-    go('escrow', { title, priceMinor: quote, who, by, taskId: realId });
+    // Reverse direction: a customer asks this worker to do a task of their own; a listing cannot be paid
+    // for directly, so this starts a new request.
+    go('aiPost', { prompt: `${title}: ` });
   };
 
   const label = (s: string, extra?: TextStyle) => (
@@ -208,7 +206,8 @@ export function DetailSheetScreen() {
             </View>
           </View>
 
-          {label('YOUR OFFER', { marginTop: 20 })}
+          {worker ? label('YOUR OFFER', { marginTop: 20 }) : null}
+          {worker ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 12 }}>
             <StepBtn sign="−" onPress={() => setQuote((q) => Math.max(STEP, q - STEP))} />
             <View style={{ flex: 1, alignItems: 'center' }}>
@@ -222,47 +221,7 @@ export function DetailSheetScreen() {
             </View>
             <StepBtn sign="+" onPress={() => setQuote((q) => q + STEP)} />
           </View>
-
-          {!worker && (
-            <>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'baseline',
-                  justifyContent: 'space-between',
-                  marginTop: 22,
-                }}
-              >
-                {label('COMPLETE BY · REQUIRED')}
-                <RNText style={tx('600', 13, by ? t.colors.ink : t.colors.signal)}>
-                  {by ?? 'Pick a date and time'}
-                </RNText>
-              </View>
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 11 }}>
-                {BY_CHIPS.map((c) => {
-                  const on = by === c;
-                  return (
-                    <Pressable
-                      key={c}
-                      onPress={() => setBy(c)}
-                      style={({ pressed }) => ({
-                        flex: 1,
-                        borderRadius: 10,
-                        paddingVertical: 11,
-                        alignItems: 'center',
-                        backgroundColor: on ? t.colors.accentSoft : 'transparent',
-                        borderWidth: 1,
-                        borderColor: on ? t.colors.accent : t.colors.line,
-                        transform: [{ scale: pressed ? 0.96 : 1 }],
-                      })}
-                    >
-                      <RNText style={tx('600', 12, on ? t.colors.ink : t.colors.muted)}>{c}</RNText>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </>
-          )}
+          ) : null}
 
           {worker && (
             <View
@@ -283,8 +242,8 @@ export function DetailSheetScreen() {
 
           <RNText style={tx('400', 12, t.colors.muted, { marginTop: 12, lineHeight: 18 })}>
             {worker
-              ? 'One offer per task. Phone numbers stay hidden until the work starts.'
-              : 'Your offer goes to this worker. They can accept it and start.'}
+              ? 'One offer per task. You can edit it later. Phone numbers stay hidden until the work starts.'
+              : 'Post your task and this worker gets the first 10 minutes to send an offer. You can send them more than one task.'}
           </RNText>
         </ScrollView>
 
@@ -292,23 +251,19 @@ export function DetailSheetScreen() {
           <Pressable
             onPress={() => void send()}
             style={({ pressed }) => ({
-              backgroundColor: blocked ? t.colors.surface2 : t.colors.accent,
+              backgroundColor: t.colors.accent,
               borderRadius: 999,
               paddingVertical: 16,
               alignItems: 'center',
               transform: [{ scale: pressed ? 0.96 : 1 }],
-              ...(blocked
-                ? {}
-                : {
-                    shadowColor: t.colors.accent,
-                    shadowOpacity: 0.35,
-                    shadowRadius: 22,
-                    shadowOffset: { width: 0, height: 8 },
-                    elevation: 6,
-                  }),
+              shadowColor: t.colors.accent,
+              shadowOpacity: 0.35,
+              shadowRadius: 22,
+              shadowOffset: { width: 0, height: 8 },
+              elevation: 6,
             })}
           >
-            <RNText style={tx('700', 16, blocked ? t.colors.muted : t.colors.onAccent)}>{cta}</RNText>
+            <RNText style={tx('700', 16, t.colors.onAccent)}>{cta}</RNText>
           </Pressable>
         </KeyboardSafe>
       </Animated.View>

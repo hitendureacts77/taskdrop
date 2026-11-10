@@ -353,6 +353,23 @@ Nothing here is new testing; it is the moment you decide.
 - [ ] **T14.9** **Go / no-go** signed by you, with the date and the version (commit and build number).
 - [ ] **T14.10** **After launch:** re-run T3 (access grid), T2.3 (bundle scan) and T7.2 (operation grid) after every release for the first month; review Sentry and the money reconcile daily; re-run this plan quarterly and after any big change.
 
+## T15: One offer per task, Hunt and Plan a big day explainers (2026-11-08)
+
+By hand on web and Android with two test accounts (a poster and a worker), after migration 159 is applied to the test project and the build is deployed. None of these is ticked yet.
+
+- [ ] **T15.1 (You)** **Explore: Apply becomes Edit offer.** As the worker, send an offer from Find work, then go back to the list. *Pass:* that card now says "Edit offer" and opens the offer sheet with your price and message filled in; there is no way to send a second one.
+- [ ] **T15.2 (You)** **Task detail shows "OFFER SENT".** Open the same task. *Pass:* the card says "OFFER SENT" with "Your offer: ₹X" and an "Edit your offer" button (not "CLOSED FOR OFFERS"); changing the price saves.
+- [ ] **T15.3 (You)** **Home feed shows a single "Edit your offer".** Open Home in Earn mode. *Pass:* a task you already offered on shows one button, "Edit your offer", not Counteroffer and Accept; tapping it opens the task.
+- [ ] **T15.4 (You)** **Guest sign-up resume goes into an edit.** As a guest, start an offer, sign up with a number that already offered on that task, and resume. *Pass:* the sheet opens as an edit with your typed fields kept and the line "We opened it as an edit. Tap Save changes."; no error flash.
+- [ ] **T15.5 (Both)** **A losing worker cannot edit after the task is LOCKED.** The poster picks someone else; the other worker tries to change their price. *Pass:* refused with "This task is no longer taking offers"; the offer is unchanged.
+- [ ] **T15.6 (Claude)** **Deleting an offer straight through PostgREST is refused.** As a signed-in worker, `DELETE /rest/v1/bids?id=eq.<own bid>` with the user token. *Pass:* error "An offer cannot be taken back. You can change it until the customer picks someone."; the row is still there. Deleting the task or the account as admin still cascades.
+- [ ] **T15.7 (You)** **Hunt explainer.** Open Home and tap "Find it for me" as a new account. *Pass:* the "What is a Hunt?" sheet opens by itself once and shows the live service fee; tapping an example fills the post box and turns Hunt on; closing it any way counts as seen; "How a Hunt works" reopens it (also inside the Hunt settings); on a Hunt a worker sees "I’m looking", never a Send offer button.
+- [ ] **T15.8 (You)** **Plan a big day explainer.** Open Plan a big day as a new account. *Pass:* "What is Plan a big day?" opens once; tapping "Birthday party" selects that event; "How Plan a big day works" reopens it (also above "Plan another day"); the planner lists 8 events with Birthday second.
+- [ ] **T15.9 (You)** **How TaskDrop works sheet (Hire side).** Open the pill. *Pass:* two new rows, "Find it for me (Hunt)" and "Plan a big day"; each opens its explainer in place; "Start a Hunt" opens the Hunt post screen, "Plan my day" opens Plan a big day.
+- [ ] **T15.10 (You)** **Service listing: Send {name} a task.** As a poster, open another person’s service listing. *Pass:* the card reads "SEND THEM A TASK" with "Send {name} a task"; it opens the post flow with the first-chance option already on for that person; on your own listing it says "This is your own service." and has no button.
+- [ ] **T15.11 (Both)** **Several tasks to the same worker.** Send the same worker two different tasks from the listing, then check their Earn side. *Pass:* both arrive with the 10-minute head start; the worker can offer once on each.
+- [ ] **T15.12 (You)** **Regulars "Book again" still works.** Hire a worker, finish the task, then use Book again. *Pass:* unchanged from before: the new request goes to that worker first.
+
 ---
 
 # Part B: reference

@@ -3,8 +3,9 @@ import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 import { useTheme } from '../providers/ThemeProvider';
 import type { Theme } from '../theme';
 import { tx } from './primitives';
+import type { ExplainerScene } from '../lib/explainers';
 
-type Scene = 'describe' | 'quotes' | 'escrow' | 'done' | 'find' | 'quote' | 'work' | 'paid';
+export type Scene = ExplainerScene;
 
 type Step = { scene: Scene; title: string; body: string };
 
@@ -23,14 +24,29 @@ const EARN: Step[] = [
 ];
 
 /**
- * How TaskDrop works, as pictures: four small illustrated scenes joined by a
- * dashed path, for whichever side the person is on.
+ * How TaskDrop works, as pictures: small illustrated scenes joined by a dashed
+ * path, for whichever side the person is on. `steps`, `tone` and `soft` let a
+ * sheet tell a different story in its own colours (the Hunt and Big Day
+ * explainers); `onTone` is the colour of the step number on the tone circle.
+ * Left out, the picture is the hire / earn story, unchanged.
  */
-export function HowItWorks({ side = 'hire' }: { side?: 'hire' | 'earn' }) {
+export function HowItWorks({
+  side = 'hire',
+  steps: custom,
+  tone: toneOverride,
+  soft: softOverride,
+  onTone = '#FFFFFF',
+}: {
+  side?: 'hire' | 'earn';
+  steps?: Step[];
+  tone?: string;
+  soft?: string;
+  onTone?: string;
+}) {
   const t = useTheme();
-  const steps = side === 'earn' ? EARN : HIRE;
-  const tone = side === 'earn' ? t.colors.purpleDeep : t.colors.accentDeep;
-  const soft = side === 'earn' ? t.colors.purple + '1F' : t.colors.accentSoft;
+  const steps = custom ?? (side === 'earn' ? EARN : HIRE);
+  const tone = toneOverride ?? (side === 'earn' ? t.colors.purpleDeep : t.colors.accentDeep);
+  const soft = softOverride ?? (side === 'earn' ? t.colors.purple + '1F' : t.colors.accentSoft);
 
   return (
     <View style={{ marginTop: 14 }}>
@@ -65,7 +81,7 @@ export function HowItWorks({ side = 'hire' }: { side?: 'hire' | 'earn' }) {
                     borderColor: t.colors.bg,
                   }}
                 >
-                  <RNText style={tx('800', 11, '#FFFFFF')}>{i + 1}</RNText>
+                  <RNText style={tx('800', 11, onTone)}>{i + 1}</RNText>
                 </View>
               </View>
               <View style={{ flex: 1 }}>

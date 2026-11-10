@@ -7,6 +7,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { CREW_MAX, crewShareMinor, crewSizeFrom, type OptionKey, type Suggestion } from '../lib/posterOptions';
 import { HUNT_NEEDS, HUNT_WINDOWS, defaultNeeds, needsFor, type HuntNeed, type HuntWindow } from '../lib/hunt';
 import type { Regular } from '../data/api';
+import { HuntHelpLink } from './Hunt';
 
 /**
  * The Options step of posting (owner, 2026-11-01): the extras a poster can
@@ -115,6 +116,7 @@ export function PosterOptionsStep({
   prompt,
   remote,
   priceMinor,
+  onHuntHelp,
 }: {
   value: PosterOptions;
   onChange: (next: PosterOptions) => void;
@@ -124,11 +126,16 @@ export function PosterOptionsStep({
   remote: boolean;
   /** The posted budget, for the crew split. */
   priceMinor: number;
+  /** Opens the "How a Hunt works" sheet; the link shows inside the Hunt's settings. */
+  onHuntHelp?: () => void;
 }) {
   const t = useTheme();
   const suggested = suggestions.map((s) => s.key);
   // Kept for the whole visit, so switching Offer-first off does not hide it.
   const [bookedAgain] = useState(value.preferWorker !== null);
+  // Who was chosen when this step opened ("Book again", or a service listing's owner who is not a
+  // regular), so Offer-first can be switched back on for them after being switched off.
+  const [firstPick] = useState(value.preferWorker);
   const offered: OptionKey[] = bookedAgain ? ['regular', ...ALL] : ALL;
   const rest = offered.filter((k) => !suggested.includes(k));
   const [moreOpen, setMoreOpen] = useState(suggested.length === 0);
@@ -158,8 +165,9 @@ export function PosterOptionsStep({
         return onChange({ ...value, crewSize: on ? 0 : crewSizeFrom(prompt) });
       case 'regular': {
         // Shown only once "Book again" chose someone; it can switch back on after being switched off.
-        const pick = regulars[0]?.profile;
-        return onChange({ ...value, preferWorker: on || !pick ? null : { id: pick.id, name: pick.display_name } });
+        const first = regulars[0]?.profile;
+        const pick = firstPick ?? (first ? { id: first.id, name: first.display_name } : null);
+        return onChange({ ...value, preferWorker: on || !pick ? null : pick });
       }
     }
   };
@@ -226,6 +234,7 @@ export function PosterOptionsStep({
           <RNText style={tx('500', 12, t.colors.goldInk, { marginTop: 12, lineHeight: 17 })}>
             Nothing is taken now. You pay only when you tap This is it. Nothing found, nothing paid.
           </RNText>
+          {onHuntHelp ? <HuntHelpLink onPress={onHuntHelp} marginTop={8} /> : null}
         </View>
       );
     }

@@ -34,7 +34,7 @@ export const NEVER_REUSE: ReadonlySet<string> = new Set([
   'getWallet', 'getEscrowHeld', 'listWalletActivity', 'listPayouts', 'listPayoutDestinations',
   'feesSince', 'platformFees', 'settleClearedEarnings', 'myStats', 'listPromotions',
   // task status and offers
-  'getTask', 'getTaskDetail', 'canQuoteOn', 'getMyBid', 'listBidsForTask', 'listMyBids', 'getProof',
+  'getTask', 'getTaskDetail', 'canQuoteOn', 'getMyBid', 'myBidTaskIds', 'listBidsForTask', 'listMyBids', 'getProof',
   // chat and contacts
   'listMessages', 'listThreads', 'listCrewMessages', 'taskContactPhone', 'getNotification',
   // City Hunt finds: what unlocks, and whether a find was accepted (money)

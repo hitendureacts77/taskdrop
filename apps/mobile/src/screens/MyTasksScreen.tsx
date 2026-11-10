@@ -37,6 +37,7 @@ import { openPostedTask, openRow, toneInk, workerAssignmentRow, workerBidRow, ty
 import { ListingCard } from '../components/ListingCard';
 import { AlertsCard } from '../components/AlertsCard';
 import { taskToFeedRow } from '../lib/openTask';
+import { useMyOffers } from '../lib/useMyOffers';
 
 /**
  * My Tasks (posting) / My Work (earning).
@@ -632,6 +633,7 @@ function MyWork() {
   const [bidTask, setBidTask] = useState<Task | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [failed, setFailed] = useState(false);
+  const offers = useMyOffers(userId, (saved ?? []).map((r) => r.id), !guest);
 
   const load = useCallback(async () => {
     if (!userId) {
@@ -784,6 +786,7 @@ function MyWork() {
                     task={task}
                     index={i}
                     saved={savedIds.has(task.id)}
+                    quoted={offers.has(task.id)}
                     onOpen={() => go('taskDetail', { row: taskToFeedRow(task) })}
                     onApply={() => setBidTask(task)}
                     onToggleSave={() => void unsave(task.id)}

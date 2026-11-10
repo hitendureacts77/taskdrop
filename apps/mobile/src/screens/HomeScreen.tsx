@@ -15,6 +15,9 @@ import { useActions } from '../providers/AppStateProvider';
 import { searchTasks, attachPosters, placeBid, kindFor } from '../data/api';
 import { useAuth } from '../providers/AuthProvider';
 import { isNeedsAccount, needAccount } from '../lib/guest';
+import { isHunt } from '../lib/hunt';
+import { isDuplicateOfferError } from '../lib/offerState';
+import { noteMyOffer, useMyOffers } from '../lib/useMyOffers';
 import { moveGuestSaves } from '../lib/guestSaves';
 import { setSaved } from '../data/extras';
 import { type Theme } from '../theme';
@@ -66,6 +69,8 @@ export type FeedRow = {
   by: string | null;
   /** The poster's options (Flash Drop, crew, photos...), as short labels; absent on older rows. */
   options?: string[];
+  /** A City Hunt: finders send finds, not offers. */
+  hunt?: boolean;
 };
 
 // Must match the pillar names in CreateScreen.tsx exactly — this list and
@@ -87,6 +92,7 @@ type LiveTask = {
   media_kind: string | null;
   media_path: string | null;
   media_seconds: number | null;
+  hunt_until?: string | null;
   poster: {
     display_name: string;
     poster_rating_avg: number | string;
@@ -135,6 +141,7 @@ function liveToFeedRow(task: LiveTask, worker: boolean): FeedRow {
     dur: task.media_seconds ? `${task.media_seconds}s` : null,
     body: '',
     by: null,
+    hunt: isHunt(task),
   };
 }
 
@@ -240,6 +247,7 @@ const FeedCard = memo(function FeedCard({
   onOpen,
   onCounter,
   onAccept,
+  quoted,
   mediaUrl,
   t,
 }: {
@@ -249,11 +257,16 @@ const FeedCard = memo(function FeedCard({
   onOpen: () => void;
   onCounter: () => void;
   onAccept: () => void;
+  /** This worker already sent an offer on the task: one per task, so the card offers an edit instead. */
+  quoted?: boolean;
   /** Signed once for the whole page, not once per card. */
   mediaUrl?: string | null;
   t: Theme;
 }) {
   const priceLabel = worker ? 'THEIR OFFER' : 'THEIR RATE';
+  // A Hunt takes finds, and a second offer on the same task is refused: either way one button opens the task.
+  const hunt = worker && Boolean(row.hunt);
+  const single = hunt || (worker && Boolean(quoted));
   return (
     <FadeIn duration={400} delay={Math.min(index, 8) * 70} translateY={10} style={{ marginTop: 12 }}>
       <Pressy containsControls
@@ -335,6 +348,7 @@ const FeedCard = memo(function FeedCard({
             <RNText style={tx('400', 10, t.colors.muted, { letterSpacing: 1.4 })}>{priceLabel}</RNText>
             <RNText style={tx('800', 19, t.colors.accentDeep, { marginTop: 3 })}>{formatINR(row.amountMinor)}</RNText>
           </View>
+          {single ? null : (
           <Pressy
             onPress={onCounter}
             style={{
@@ -347,8 +361,10 @@ const FeedCard = memo(function FeedCard({
           >
             <RNText style={tx('600', 13, t.colors.muted)}>Counteroffer</RNText>
           </Pressy>
+          )}
           <Pressy
-            onPress={onAccept}
+            onPress={single ? onOpen : onAccept}
+            label={single ? (hunt ? `I’m looking for ${row.title}` : `Edit your offer for ${row.title}`) : undefined}
             style={{
               backgroundColor: t.colors.btn,
               borderRadius: 999,
@@ -361,7 +377,7 @@ const FeedCard = memo(function FeedCard({
               elevation: 3,
             }}
           >
-            <RNText style={tx('700', 13, t.colors.onAccent)}>Accept</RNText>
+            <RNText style={tx('700', 13, t.colors.onAccent)}>{hunt ? 'I’m looking' : quoted ? 'Edit your offer' : 'Accept'}</RNText>
           </Pressy>
         </View>
       </Pressy>
@@ -542,9 +558,13 @@ export function HomeScreen() {
   };
 
   const [quoting, setQuoting] = useState<string | null>(null);
+  // Tasks this worker already sent an offer on: their card says Edit your offer.
+  const offers = useMyOffers(userId, feed.map((row) => row.id), worker);
 
   const onAccept = async (row: FeedRow) => {
     if (!worker) return openRow(row);
+    // A Hunt takes finds, not offers; the task page has the finder panel.
+    if (row.hunt) return openRow(row);
 
     // Sample rows have ids like "w1"; only a real task can be quoted on.
     if (!/^[0-9a-f-]{36}$/i.test(row.id)) {
@@ -562,12 +582,19 @@ export function HomeScreen() {
         priceMinor: row.amountMinor,
         timeLimitMinutes: 240,
       });
+      noteMyOffer(userId, row.id);
       celebrate('Offer sent at ' + formatINR(row.amountMinor));
       go('orders');
     } catch (e) {
       if (isNeedsAccount(e)) return;
-      const msg = e instanceof Error ? e.message : 'Could not send that offer';
-      flash(/duplicate|unique/i.test(msg) ? 'You have already sent an offer for this task' : msg);
+      if (isDuplicateOfferError(e)) {
+        // One offer per task: the task page shows the sent offer with an edit button.
+        noteMyOffer(userId, row.id);
+        flash('You already sent an offer for this task. Opening it so you can edit it.');
+        openRow(row);
+        return;
+      }
+      flash(e instanceof Error ? e.message : 'Could not send that offer');
     } finally {
       setQuoting(null);
     }
@@ -688,6 +715,7 @@ export function HomeScreen() {
             onOpen={() => openRow(item)}
             onCounter={() => openRow(item)}
             onAccept={() => void onAccept(item)}
+            quoted={offers.has(item.id)}
             mediaUrl={item.mediaPath ? (mediaUrls[item.mediaPath] ?? null) : undefined}
             t={t}
           />

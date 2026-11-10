@@ -137,6 +137,14 @@ export const READ_OPS: Record<string, Op> = {
     return countBy(list, (r) => r.task_id);
   },
 
+  /** Which of these tasks the caller has already sent an offer on (one offer per task). */
+  myBidTaskIds: async (ctx, a) => {
+    const ids = uuids(a, "taskIds", 100);
+    if (ids.length === 0) return [];
+    return rows<{ task_id: string }>(await ctx.db.from("bids").select("task_id").eq("worker_id", ctx.userId).in("task_id", ids))
+      .map((r) => r.task_id);
+  },
+
   /** Open tasks matching the search screen's filters. Every filter is optional. */
   searchTasks: async (ctx, a) => {
     // Checked before anything is asked of the database.
@@ -253,8 +261,8 @@ export const READ_OPS: Record<string, Op> = {
   /** Whether the caller may quote on a task, and why not when they may not. */
   canQuoteOn: async (ctx, a) => {
     const taskId = uuid(a, "taskId");
-    const res = await ctx.db.from("tasks").select("poster_id,status,kind").eq("id", taskId).maybeSingle();
-    const t = res.data as { poster_id: string; status: string; kind: string } | null;
+    const res = await ctx.db.from("tasks").select("poster_id,status,kind,hunt_window").eq("id", taskId).maybeSingle();
+    const t = res.data as { poster_id: string; status: string; kind: string; hunt_window: string | null } | null;
     if (res.error || !t) return { allowed: true }; // let the write decide
     if (t.poster_id === ctx.userId) {
       return { allowed: false, code: "own", reason: "This is your own request — you cannot send an offer for it." };
@@ -266,9 +274,10 @@ export const READ_OPS: Record<string, Op> = {
         reason: "This is a worker’s service, not a request — only requests take offers.",
       };
     }
+    if (t.hunt_window) return { allowed: false, code: "closed", reason: "This is a Hunt: send a find instead of an offer." };
     if (t.status !== "OPEN") return { allowed: false, code: "closed", reason: "This request is no longer open for offers." };
     const mine = await ctx.db.from("bids").select("id").eq("task_id", taskId).eq("worker_id", ctx.userId).maybeSingle();
-    if (mine.data) return { allowed: false, code: "duplicate", reason: "You have already sent an offer for this task." };
+    if (mine.data) return { allowed: false, code: "duplicate", reason: "You already sent an offer for this task. You can edit it until the customer picks someone." };
     return { allowed: true };
   },
 

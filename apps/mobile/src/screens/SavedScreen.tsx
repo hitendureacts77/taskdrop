@@ -12,15 +12,17 @@ import { useAuth } from '../providers/AuthProvider';
 import { loadGuestSavedTasks, setGuestSaved } from '../lib/guestSaves';
 import { listSavedTasks, setSaved } from '../data/extras';
 import { taskToFeedRow } from '../lib/openTask';
+import { useMyOffers } from '../lib/useMyOffers';
 
 /** Tasks saved for later, from the bookmark on any task card. */
 export function SavedScreen() {
   const { back, go } = useNav();
   const { flash } = useActions();
   const { setMode } = useMode();
-  const { guest } = useAuth();
+  const { guest, userId } = useAuth();
   const [rows, setRows] = useState<TaskWithPoster[] | null>(null);
   const [bidTask, setBidTask] = useState<Task | null>(null);
+  const offers = useMyOffers(userId, (rows ?? []).map((r) => r.id), !guest);
 
   useEffect(() => {
     let alive = true;
@@ -67,6 +69,7 @@ export function SavedScreen() {
               task={task}
               index={i}
               saved
+              quoted={offers.has(task.id)}
               onOpen={() => go('taskDetail', { row: taskToFeedRow(task) })}
               onApply={() => setBidTask(task)}
               onToggleSave={() => void unsave(task.id)}
