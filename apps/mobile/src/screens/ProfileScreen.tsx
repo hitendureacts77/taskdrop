@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, Animated, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
-import { Screen } from '../components/ui';
+import { Avatar, Screen, cardSurface } from '../components/ui';
 import { useTheme, useThemeControls } from '../providers/ThemeProvider';
 import { useNav, type ScreenName, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useSwitchMode } from '../lib/useSwitchMode';
 import { useAuth } from '../providers/AuthProvider';
-import { getProfile, listReviewsAbout, type Profile, type Review } from '../data/api';
+import { getProfile, listReviewsAbout, myRegulars, type Profile, type Regular, type Review } from '../data/api';
+import { verificationState } from '../data/extras';
 import { imageSource, signedMediaUrl } from '../lib/media';
 import { tx } from '../components/primitives';
 import { Icon, type IconName } from '../components/Icon';
@@ -39,31 +40,50 @@ function SlideIn({ delay, children }: { delay: number; children: React.ReactNode
   );
 }
 
-// The account pages both sides share. Anything already a tab (wallet, my
-// tasks) or a header icon (messages, notifications) is not repeated here.
-const SHARED_ROWS: { icon: IconName; label: string; go: ScreenName }[] = [
+// The account pages both sides share, grouped as one card. Anything already a
+// tab (wallet, my tasks) or a header icon (messages, notifications) is not
+// repeated here. Terms, Privacy and Sign out sit in a line of links below.
+type MenuRow = { icon: IconName; label: string; go: ScreenName; act?: () => void };
+
+const SHARED_ROWS: MenuRow[] = [
   { icon: 'edit' as IconName, label: 'Edit my profile', go: 'profileEdit' },
   { icon: 'gavel' as IconName, label: 'My complaints', go: 'disputes' },
-  { icon: 'settings' as IconName, label: 'Account & settings', go: 'account' },
+  { icon: 'trending' as IconName, label: 'Ideas & feedback', go: 'ideas' },
   { icon: 'help' as IconName, label: 'Help & support', go: 'help' },
+  { icon: 'settings' as IconName, label: 'Account & settings', go: 'account' },
 ];
 
-const WORKER_ROWS: { icon: IconName; label: string; go: ScreenName }[] = [
+const WORKER_ROWS: MenuRow[] = [
   { icon: 'briefcase' as IconName, label: 'Work for you', go: 'myQuotes' },
   { icon: 'trophy' as IconName, label: 'Streaks and badges', go: 'streaks' },
   { icon: 'bolt' as IconName, label: 'Promote my service', go: 'promote' },
   { icon: 'bookmark' as IconName, label: 'Saved tasks', go: 'saved' },
   ...SHARED_ROWS,
-  { icon: 'logout' as IconName, label: 'Sign out', go: 'splash' },
 ];
 
-const POSTER_ROWS: { icon: IconName; label: string; go: ScreenName }[] = [
+const POSTER_ROWS: MenuRow[] = [
   { icon: 'heart' as IconName, label: 'My regulars', go: 'regulars' },
   { icon: 'bolt' as IconName, label: 'Promote a request', go: 'promote' },
   ...SHARED_ROWS,
-  { icon: 'logout' as IconName, label: 'Sign out', go: 'splash' },
 ];
 
+/** How much of the profile is filled in, and the one next thing missing (only fields the profile already has). */
+function profileProgress(
+  p: Profile,
+  worker: boolean,
+): { done: number; total: number; next: { label: string; hint: string } | null } {
+  const steps = [
+    { ok: !!p.avatar_url, label: 'Add a photo', hint: 'A face helps people trust you.' },
+    { ok: !!p.loc_label, label: 'Add your area', hint: 'Shows tasks and people close to you.' },
+    {
+      ok: !!(worker ? p.worker_bio : p.bio)?.trim(),
+      label: 'Write a line about you',
+      hint: worker ? 'Customers read this before they pick you.' : 'Helpers read this before they send an offer.',
+    },
+    ...(worker ? [{ ok: (p.skills ?? []).length > 0, label: 'Add your skills', hint: 'So the right tasks find you.' }] : []),
+  ];
+  return { done: steps.filter((x) => x.ok).length, total: steps.length, next: steps.find((x) => !x.ok) ?? null };
+}
 
 /** '3 Sep' — the short form the design's review rows use. */
 function formatReviewDate(iso: string): string {
@@ -85,18 +105,6 @@ export function ProfileScreen() {
   // earning, jade for posting.
   const band = t.colors.heroMid;
 
-  // Mode slider: "Post a Request" left, "Find Work" right.
-  const slide = useRef(new Animated.Value(worker ? 1 : 0)).current;
-  useEffect(() => {
-    const anim = Animated.timing(slide, {
-      toValue: worker ? 1 : 0,
-      duration: 320,
-      useNativeDriver: false,
-    });
-    anim.start();
-    return () => anim.stop();
-  }, [worker, slide]);
-
   const { userId, guest, signOut } = useAuth();
   const focusTick = useFocusTick();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -105,23 +113,23 @@ export function ProfileScreen() {
   // <Image> can load it. Null just means we fall back to the initial.
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [regulars, setRegulars] = useState<Regular[]>([]);
+  const [verified, setVerified] = useState<{ phone: boolean; email: boolean } | null>(null);
 
   // A worker sees their earnings here. A customer's spending is deliberately
   // not on the profile, where it would be in front of them every visit: it
   // lives under Account & settings → App, for whoever goes looking.
-  const memberRows = worker
+  const memberRows: MenuRow[] = worker
     ? [{ icon: 'trending' as IconName, label: 'My earnings and jobs', go: 'analytics' as ScreenName }, ...WORKER_ROWS]
     : POSTER_ROWS;
-  // A guest keeps Help, the tour, feedback and the legal pages; the rest is about an account they do not have yet.
-  const guestRows: { icon: IconName; label: string; go: ScreenName; act?: () => void }[] = [
+  // A guest keeps Help, the tour and feedback; the rest is about an account they do not have yet.
+  const guestRows: MenuRow[] = [
     { icon: 'edit', label: 'Edit my profile', go: 'profileEdit', act: () => needAccount('profile') },
     { icon: 'sparkle', label: TOUR_COPY.menuLabel, go: 'profile', act: () => startTour(worker ? 'earn' : 'hire') },
     { icon: 'trending', label: 'Ideas & feedback', go: 'ideas' },
     { icon: 'help', label: 'Help & support', go: 'help' },
-    { icon: 'flag', label: 'Terms', go: 'terms' },
-    { icon: 'lock', label: 'Privacy', go: 'privacy' },
   ];
-  const rows: { icon: IconName; label: string; go: ScreenName; act?: () => void }[] = guest ? guestRows : memberRows;
+  const rows: MenuRow[] = guest ? guestRows : memberRows;
 
   // Poster and worker reputations are separate, so re-fetch when the mode flips.
   useEffect(() => {
@@ -155,33 +163,65 @@ export function ProfileScreen() {
     };
   }, [userId, worker, focusTick]);
 
+  // The regulars row is the poster's; the check chips say what is verified today.
+  useEffect(() => {
+    if (!userId || guest) return;
+    let alive = true;
+    void myRegulars()
+      .then((r) => alive && setRegulars(r))
+      .catch(() => {});
+    void verificationState()
+      .then((v) => alive && setVerified(v))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [userId, guest, focusTick]);
+
   const displayName = guest ? 'Guest' : (profile?.display_name ?? 'Your profile');
   const ratingAvg = worker ? profile?.worker_rating_avg : profile?.poster_rating_avg;
   const ratingCount = worker ? profile?.worker_rating_count : profile?.poster_rating_count;
   const initial = displayName.trim().charAt(0).toUpperCase() || '?';
 
-  // A brand-new account has no rating yet — say so rather than showing 0.0.
-  const roleLine = guest
+  // The rating for the side you are on, as others see it. A brand-new account
+  // has none yet: say so rather than showing 0.0.
+  const hasRating = !!ratingCount && ratingCount > 0;
+  const ratingLine = guest
     ? 'Looking around'
-    : ratingCount && ratingCount > 0
-      ? '★ ' + Number(ratingAvg ?? 0).toFixed(1) + (worker ? ' worker · ' : ' customer · ') + ratingCount +
-        (worker ? (ratingCount === 1 ? ' job done' : ' jobs done') : (ratingCount === 1 ? ' request' : ' requests'))
+    : hasRating
+      ? '★ ' + Number(ratingAvg ?? 0).toFixed(1) + (worker ? ' as a helper' : ' as a poster')
       : worker
-        ? 'New worker · no reviews yet'
-        : 'New customer · no reviews yet';
+        ? 'New helper · no reviews yet'
+        : 'New poster · no reviews yet';
+  const doneLine =
+    !guest && hasRating
+      ? ratingCount + (worker ? (ratingCount === 1 ? ' job done' : ' jobs done') : ratingCount === 1 ? ' task done' : ' tasks done')
+      : null;
+  const progress = profile && !guest ? profileProgress(profile, worker) : null;
   const themeNote =
     pref === 'system' ? `Following your device · currently ${t.isDark ? 'dark' : 'light'}` : 'Set by you';
+
+  const chips: string[] = [];
+  if (!guest) {
+    if (verified?.phone) chips.push('Phone checked');
+    chips.push('18+ confirmed'); // everyone passes the age gate at sign-up
+    if (profile?.loc_label) chips.push(profile.loc_label);
+  }
+
+  const sectionLabel = (text: string, extra?: object) => (
+    <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, ...extra })}>{text}</RNText>
+  );
 
   return (
     <Screen padded={false}>
       <AppHeader />
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        {/* Band header */}
+        {/* Band header: you as others see you */}
         <View
           style={{
             paddingHorizontal: 20,
             paddingTop: 20,
-            paddingBottom: 26,
+            paddingBottom: 22,
             borderBottomLeftRadius: 28,
             borderBottomRightRadius: 28,
             overflow: 'hidden',
@@ -213,16 +253,40 @@ export function ProfileScreen() {
             </View>
             {/* You have the app open, so you're active -- shown the way others see it. */}
             <View style={{ position: 'absolute', left: 50, top: 48, width: 15, height: 15, borderRadius: 999, backgroundColor: '#4ADE9A', borderWidth: 2.5, borderColor: band }} />
-            <View>
+            <View style={{ flex: 1 }}>
               <RNText style={tx('800', 22, '#FFFFFF', { letterSpacing: -0.5 })} numberOfLines={1}>
                 {displayName}
               </RNText>
-              <RNText style={tx('400', 13, 'rgba(255,255,255,0.78)', { marginTop: 4 })}>
-                {roleLine}
+              <RNText style={tx('600', 13, 'rgba(255,255,255,0.88)', { marginTop: 4 })}>
+                {ratingLine}
+                {doneLine ? ' · ' + doneLine : ''}
               </RNText>
               <RNText style={tx('600', 12, '#86EFAC', { marginTop: 4 })}>● Active now</RNText>
             </View>
           </View>
+          {chips.length > 0 ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
+              {chips.map((c) => (
+                <View
+                  key={c}
+                  style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.16)' }}
+                >
+                  <RNText style={tx('700', 11.5, '#FFFFFF')}>{c}</RNText>
+                </View>
+              ))}
+            </View>
+          ) : null}
+          {userId && !guest ? (
+            <Pressable
+              onPress={() => go('publicProfile', { userId, role: worker ? 'worker' : 'poster' })}
+              accessibilityRole="link"
+              accessibilityLabel="See your profile as others see it"
+              hitSlop={8}
+              style={{ alignSelf: 'flex-start', marginTop: 14 }}
+            >
+              <RNText style={tx('700', 13, '#FFFFFF')}>See as others ›</RNText>
+            </Pressable>
+          ) : null}
         </View>
 
         {guest ? (
@@ -232,41 +296,32 @@ export function ProfileScreen() {
         ) : null}
 
         <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 }}>
-          <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>MODE</RNText>
-          <View
-            style={{
-              flexDirection: 'row',
-              gap: 8,
-              marginTop: 11,
-              backgroundColor: t.colors.surface2,
-              borderRadius: 14,
-              padding: 4,
-              position: 'relative',
-            }}
-          >
-            <Animated.View
-              style={{
-                position: 'absolute',
-                top: 4,
-                bottom: 4,
-                width: '50%',
-                left: slide.interpolate({ inputRange: [0, 1], outputRange: ['0%', '50%'] }),
-                backgroundColor: t.colors.surface,
-                borderRadius: 10,
-                shadowColor: '#000',
-                shadowOpacity: t.isDark ? 0 : 0.08,
-                shadowRadius: 4,
-                shadowOffset: { width: 0, height: 1 },
-              }}
-            />
+          {sectionLabel('MODE')}
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 11 }}>
             {(['poster', 'worker'] as const).map((m) => {
               const on = mode === m;
               return (
-                <Pressable key={m} onPress={() => void switchMode(m)} style={{ flex: 1, paddingVertical: 11 }}>
-                  <RNText
-                    style={tx('700', 14, on ? t.colors.ink : t.colors.muted, { textAlign: 'center' })}
-                  >
-                    {m === 'poster' ? 'Post a Request' : 'Find Work'}
+                <Pressable
+                  key={m}
+                  onPress={() => void switchMode(m)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    borderRadius: 18,
+                    paddingVertical: 16,
+                    paddingHorizontal: 12,
+                    backgroundColor: on ? t.colors.accentSoft : t.colors.surface,
+                    borderWidth: 2,
+                    borderColor: on ? t.colors.accent : t.colors.line,
+                    transform: [{ scale: pressed ? 0.97 : 1 }],
+                  })}
+                >
+                  <RNText style={tx('800', 15, on ? t.colors.accentDeep : t.colors.ink, { textAlign: 'center' })}>
+                    {m === 'poster' ? 'Getting things done' : 'Earning money'}
+                  </RNText>
+                  <RNText style={tx('700', 12, on ? t.colors.accentDeep : t.colors.muted, { textAlign: 'center', marginTop: 3 })}>
+                    {m === 'poster' ? 'Hire' : 'Earn'}
                   </RNText>
                 </Pressable>
               );
@@ -276,15 +331,118 @@ export function ProfileScreen() {
             {worker ? 'You browse tasks and send offers.' : 'You post requests and pick a worker.'}
           </RNText>
 
+          {progress && progress.next ? (
+            <View style={{ ...cardSurface(t, 18), padding: 16, marginTop: 24 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                <RNText style={tx('800', 15, t.colors.ink)}>Finish your profile</RNText>
+                <RNText style={tx('700', 12, t.colors.muted)}>
+                  {progress.done} of {progress.total}
+                </RNText>
+              </View>
+              <View style={{ height: 6, borderRadius: 999, backgroundColor: t.colors.surface2, marginTop: 10, overflow: 'hidden' }}>
+                <View
+                  style={{
+                    height: '100%',
+                    width: `${Math.round((progress.done / progress.total) * 100)}%`,
+                    backgroundColor: t.colors.accent,
+                    borderRadius: 999,
+                  }}
+                />
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14 }}>
+                <View style={{ flex: 1 }}>
+                  <RNText style={tx('700', 14, t.colors.ink)}>{progress.next.label}</RNText>
+                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2, lineHeight: 17 })}>{progress.next.hint}</RNText>
+                </View>
+                <Pressable
+                  onPress={() => go('profileEdit')}
+                  accessibilityRole="button"
+                  accessibilityLabel={progress.next.label}
+                  style={({ pressed }) => ({
+                    paddingHorizontal: 18,
+                    height: 38,
+                    borderRadius: 999,
+                    backgroundColor: t.colors.btn,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: pressed ? 0.85 : 1,
+                  })}
+                >
+                  <RNText style={tx('800', 13, t.colors.onBtn)}>Add</RNText>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+
+          {!worker && !guest && regulars.length > 0 ? (
+            <View style={{ marginTop: 28 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                {sectionLabel('MY REGULARS')}
+                <Pressable onPress={() => go('regulars')} hitSlop={8} accessibilityRole="link">
+                  <RNText style={tx('700', 12, t.colors.accentDeep)}>See all ›</RNText>
+                </Pressable>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingTop: 12 }}>
+                {regulars.map((r) => (
+                  <Pressable
+                    key={r.profile.id}
+                    onPress={() => go('aiPost', { preferWorker: { id: r.profile.id, name: r.profile.display_name } })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Book ${r.profile.display_name} again`}
+                    style={({ pressed }) => ({ width: 64, alignItems: 'center', opacity: pressed ? 0.8 : 1 })}
+                  >
+                    <Avatar name={r.profile.display_name} size={52} />
+                    <RNText style={tx('600', 12, t.colors.ink, { marginTop: 6, textAlign: 'center' })} numberOfLines={1}>
+                      {r.profile.display_name.split(' ')[0]}
+                    </RNText>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          <View style={{ ...cardSurface(t, 18), marginTop: 28, paddingHorizontal: 14 }}>
+            {rows.map((r, i) => (
+              <Pressable
+                key={r.label}
+                onPress={() => (r.act ? r.act() : go(r.go))}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 15,
+                  paddingVertical: 14,
+                  borderBottomWidth: i === rows.length - 1 ? 0 : 1,
+                  borderBottomColor: t.colors.line,
+                  transform: [{ scale: pressed ? 0.985 : 1 }],
+                })}
+              >
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 11,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: t.colors.surface2,
+                  }}
+                >
+                  <Icon name={r.icon} size={18} color={t.colors.ink} strokeWidth={1.8} />
+                </View>
+                <RNText style={tx('600', 15.5, t.colors.ink, { flex: 1 })}>{r.label}</RNText>
+                <Icon name="chevronRight" size={16} color={t.colors.muted} />
+              </Pressable>
+            ))}
+          </View>
+
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'baseline',
               justifyContent: 'space-between',
-              marginTop: 32,
+              marginTop: 28,
             }}
           >
-            <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>THEME</RNText>
+            {sectionLabel('THEME')}
             <RNText style={tx('400', 12, t.colors.muted)}>{themeNote}</RNText>
           </View>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 11 }}>
@@ -314,53 +472,7 @@ export function ProfileScreen() {
             })}
           </View>
 
-          <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 32, marginBottom: 4 })}>
-            MY TASKDROP
-          </RNText>
-          {rows.map((r) => (
-            <Pressable
-              key={r.label}
-              onPress={() => {
-                if (r.act) return r.act();
-                if (r.go !== 'splash') return go(r.go);
-                setConfirmSignOut(true);
-              }}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 15,
-                paddingVertical: 15,
-                borderBottomWidth: 1,
-                borderBottomColor: t.colors.line,
-                transform: [{ scale: pressed ? 0.985 : 1 }],
-              })}
-            >
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 11,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: r.go === 'splash' ? t.colors.signalSoft : t.colors.surface2,
-                }}
-              >
-                <Icon name={r.go === 'splash' ? 'back' : r.icon} size={18} color={r.go === 'splash' ? t.colors.signalDeep : t.colors.ink} strokeWidth={1.8} />
-              </View>
-              <RNText
-                style={tx('600', 15.5, r.go === 'splash' ? t.colors.signalDeep : t.colors.ink, { flex: 1 })}
-              >
-                {r.label}
-              </RNText>
-              <Icon name="chevronRight" size={16} color={t.colors.muted} />
-            </Pressable>
-          ))}
-
-          {guest ? null : (
-            <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 32 })}>
-              {worker ? 'WORKER REVIEWS' : 'CUSTOMER REVIEWS'}
-            </RNText>
-          )}
+          {guest ? null : sectionLabel(worker ? 'WORKER REVIEWS' : 'CUSTOMER REVIEWS', { marginTop: 32 })}
           {!guest && reviews.length === 0 && (
             <RNText style={tx('400', 13, t.colors.muted, { marginTop: 12, lineHeight: 19.5 })}>
               {worker
@@ -392,6 +504,21 @@ export function ProfileScreen() {
               </View>
             </SlideIn>
           ))}
+
+          {/* Terms, Privacy and Sign out: one small line of links. */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 18, marginTop: 32, paddingVertical: 8 }}>
+            <Pressable onPress={() => go('terms')} hitSlop={8} accessibilityRole="link">
+              <RNText style={tx('600', 12.5, t.colors.muted)}>Terms</RNText>
+            </Pressable>
+            <Pressable onPress={() => go('privacy')} hitSlop={8} accessibilityRole="link">
+              <RNText style={tx('600', 12.5, t.colors.muted)}>Privacy</RNText>
+            </Pressable>
+            {guest ? null : (
+              <Pressable onPress={() => setConfirmSignOut(true)} hitSlop={8} accessibilityRole="button">
+                <RNText style={tx('700', 12.5, t.colors.signalDeep)}>Sign out</RNText>
+              </Pressable>
+            )}
+          </View>
         </View>
       </ScrollView>
       <ConfirmDialog

@@ -18,6 +18,7 @@ import {
   getWallet,
   getEscrowHeld,
   listPayouts,
+  listMyTasks,
   listWalletActivity,
   settleClearedEarnings,
   type WalletEvent,
@@ -61,6 +62,22 @@ export const MIN_WITHDRAW_MINOR = 10000;
 /** "8074413313@ybl" -> "80••••3313@ybl": enough to recognise, not to read off a screen. */
 function maskDigits(text: string): string {
   return text.replace(/\d{8,}/g, (d) => d.slice(0, 2) + '••••' + d.slice(-4));
+}
+
+/** In plain words, what lets a held amount go (or come back), by the task's status. */
+function releaseLine(status: string | undefined): string {
+  switch (status) {
+    case 'LOCKED':
+      return 'Waiting for the helper to start';
+    case 'WORK_DONE':
+      return 'Check the work, then release';
+    case 'REVISION_REQUESTED':
+      return 'Waiting for the helper to fix it';
+    case 'DISPUTED':
+      return 'Held until the problem is sorted';
+    default:
+      return 'Goes to the helper when you approve';
+  }
 }
 
 export function WalletScreen({ insights = false }: { insights?: boolean } = {}) {
@@ -158,6 +175,24 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
   // The ledger could not be loaded (offline): say so instead of "nothing here yet".
   const [ledgerFailed, setLedgerFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // Task id -> status, only to say in words what releases each held amount.
+  // Optional: without it the rows fall back to the plain "goes to the helper" line.
+  const [taskStatus, setTaskStatus] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!userId || guest) return;
+    let alive = true;
+    Promise.all([listMyTasks(userId, 'request'), listMyTasks(userId, 'service')])
+      .then(([a, b]) => {
+        if (!alive) return;
+        const m: Record<string, string> = {};
+        for (const x of [...a, ...b]) m[x.id] = x.status;
+        setTaskStatus(m);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [userId, guest, focusTick]);
 
   const refresh = async () => {
     if (!userId) return;
@@ -361,6 +396,8 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
           {/* The money that matters to this side, big, with the part that is
               not spendable yet beside it. */}
           <HeroCard radius={24} padding={20}>
+            {worker ? (
+              <>
             {/* One wallet, the same in both modes: what was added, earned or
                 refunded is all here, spendable on tasks and withdrawable. */}
             <RNText style={tx('700', 13, 'rgba(255,255,255,0.85)')}>Available</RNText>
@@ -382,6 +419,47 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
                 +{formatINR(periodEarned)} earned this month
               </RNText>
             ) : null}
+              </>
+            ) : (
+              <>
+            {/* The poster's two numbers, side by side: what they can use now and
+                what TaskDrop is holding until they approve the work. */}
+            <View style={{ flexDirection: 'row', gap: 16 }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <RNText style={tx('700', 13, 'rgba(255,255,255,0.85)')}>Yours to use</RNText>
+                {loaded ? (
+                  <CountUp
+                    value={available}
+                    format={formatINR}
+                    style={tx('800', 30, '#FFFFFF', { letterSpacing: -1, marginTop: 4, fontVariant: ['tabular-nums'] })}
+                  />
+                ) : (
+                  <RNText style={tx('800', 30, '#FFFFFF', { letterSpacing: -1, marginTop: 4 })}>—</RNText>
+                )}
+              </View>
+              <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.3)' }} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <RNText style={tx('700', 13, 'rgba(255,255,255,0.85)')}>
+                  {ledgerLoading || held.length === 0
+                    ? 'Held safely'
+                    : `Held safely for ${held.length} task${held.length === 1 ? '' : 's'}`}
+                </RNText>
+                <RNText
+                  style={tx('800', 30, '#FFFFFF', { letterSpacing: -1, marginTop: 4, fontVariant: ['tabular-nums'] })}
+                >
+                  {loaded ? formatINR(heldMinor) : '—'}
+                </RNText>
+              </View>
+            </View>
+            {shown.pending > 0 || shown.earningEscrow > 0 ? (
+              <RNText style={tx('500', 12, 'rgba(255,255,255,0.85)', { marginTop: 10, lineHeight: 18 })}>
+                {shown.earningEscrow > 0 ? `Coming to you from work you are doing ${formatINR(shown.earningEscrow)}` : ''}
+                {shown.earningEscrow > 0 && shown.pending > 0 ? '\n' : ''}
+                {shown.pending > 0 ? `Payouts requested to your personal bank ${formatINR(shown.pending)}` : ''}
+              </RNText>
+            ) : null}
+              </>
+            )}
           </HeroCard>
   
           {guest ? <GuestNote /> : null}
@@ -468,22 +546,39 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
             <View style={card}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Icon name="lock" size={16} color={t.colors.gold} />
-                <RNText style={tx('800', 14, t.colors.ink, { flex: 1 })}>Locked in tasks in progress</RNText>
-                <RNText style={tx('600', 11, t.colors.goldInk)}>
-                  {held.length} task{held.length === 1 ? '' : 's'}
-                </RNText>
+                <RNText style={tx('800', 14, t.colors.ink, { flex: 1 })}>Where your held money is</RNText>
               </View>
-              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 17 })}>
-                Can’t be withdrawn until the task is done. It goes to the worker only when you approve the work, and comes back to you if the task is cancelled.
-              </RNText>
               {held.map((h) => (
-                <View key={h.id} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-                  <RNText style={tx('500', 13, t.colors.ink, { flex: 1 })} numberOfLines={1}>
-                    {h.meta.split(' · ')[0]}
+                <View key={h.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <RNText style={tx('600', 13, t.colors.ink)} numberOfLines={1}>
+                      {h.meta.split(' · ')[0]}
+                    </RNText>
+                    <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2, lineHeight: 17 })}>
+                      {releaseLine(taskStatus[h.id.replace(/^p-/, '')])}
+                    </RNText>
+                  </View>
+                  <RNText style={tx('700', 13, t.colors.goldInk, { fontVariant: ['tabular-nums'] })}>
+                    {formatINR(h.amountMinor)}
                   </RNText>
-                  <RNText style={tx('700', 13, t.colors.goldInk)}>{formatINR(h.amountMinor)}</RNText>
                 </View>
               ))}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: 8,
+                  marginTop: 14,
+                  paddingTop: 12,
+                  borderTopWidth: 1,
+                  borderTopColor: t.colors.line,
+                }}
+              >
+                <Icon name="shield" size={16} color={t.colors.accentDeep} />
+                <RNText style={tx('400', 12, t.colors.muted, { flex: 1, lineHeight: 17 })}>
+                  If something goes wrong, report a problem. The money stays held until it is sorted.
+                </RNText>
+              </View>
             </View>
           ) : null}
   
