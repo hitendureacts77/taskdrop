@@ -10,6 +10,12 @@ const showMap = (page: Page) => page.getByRole("button", { name: "Show the map" 
 const layerChip = (page: Page, name: string) => page.getByRole("button", { name, exact: true });
 // A person with no area yet sees this prompt in place of the chips.
 const chooseArea = (page: Page) => page.getByRole("button", { name: "Choose your area" });
+// Plan D23: the distance, pay, type of work and order are set in one Filters sheet.
+const pickDistance = async (page: Page, km: number) => {
+  await page.getByRole("button", { name: /^Filters/ }).first().click();
+  await page.getByRole("button", { name: `${km} km`, exact: true }).last().click();
+  await page.getByRole("button", { name: /^Show [0-9]+ |^No .* yet · Show anyway/ }).click();
+};
 
 test.describe("signed in as the seed poster", () => {
   test.use({ storageState: ASHA.state });
@@ -66,17 +72,32 @@ test.describe("signed in as the seed poster", () => {
     await expect(heading).toBeVisible();
   });
 
-  test("picking a reach updates the panel words", async ({ page }) => {
+  test("picking a distance in Filters updates the panel words", async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 });
     await page.goto("/");
     await expectSignedIn(page);
     await page.getByText("Explore", { exact: true }).first().click();
     await expect(showList(page)).toBeVisible();
     test.skip(await chooseArea(page).isVisible(), "this account has no area yet");
-    await page.getByLabel("How far", { exact: true }).getByRole("button", { name: "25 km" }).click();
+    await pickDistance(page, 25);
     await expect(page.getByText(/within 25 km/).first()).toBeVisible();
     // Picking a reach is not the person moving the map.
     await expect(page.getByRole("button", { name: "Search this area" })).toHaveCount(0);
+  });
+
+  test("the From home switch shows only jobs with no pin, and All brings the rest back", async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto("/");
+    await expectSignedIn(page);
+    await page.getByLabel("Earn mode").first().click();
+    await page.getByText("Explore", { exact: true }).first().click();
+    await expect(showList(page)).toBeVisible();
+    test.skip(await chooseArea(page).isVisible(), "this account has no area yet");
+    await page.getByRole("button", { name: "From home", exact: true }).first().click();
+    await expect(page.getByRole("heading", { name: "Work from home" })).toBeVisible();
+    await expect(page.getByText(/from anywhere/).first()).toBeVisible();
+    await page.getByRole("button", { name: "All", exact: true }).first().click();
+    await expect(page.getByRole("heading", { name: "Work near you" })).toBeVisible();
   });
 
   test("the Home search bar opens Explore as the list, not the map", async ({ page }) => {
@@ -110,15 +131,15 @@ test.describe("as a guest", () => {
     await page.getByText("Explore", { exact: true }).first().click();
     await expect(showList(page)).toBeVisible();
     test.skip(await chooseArea(page).isVisible(), "a guest has no area yet");
-    await page.getByLabel("How far", { exact: true }).getByRole("button", { name: "10 km" }).click();
-    await expect(page.getByText(/within 10 km/).first()).toBeVisible();
+    await pickDistance(page, 50);
+    await expect(page.getByText(/within 50 km/).first()).toBeVisible();
     await expect(layerChip(page, "Jobs")).toBeVisible();
     await expect(layerChip(page, "Helpers")).toBeVisible();
   });
 });
 
 // D21 (docs/design/map-feel-d21/PLAN.md): the web map zooms like Google Maps. The wheel, a trackpad pinch
-// (Ctrl + wheel) and a double-click zoom the MAP and never the page, and the map stays on India.
+// (Ctrl + wheel) and a double-click zoom the MAP and never the page. Since D23 the map moves over the whole world.
 // The map element carries data-zoom and data-centre for these checks; tiles are never asserted.
 test.describe("D21: the map zooms like Google Maps (guest)", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
@@ -176,7 +197,7 @@ test.describe("D21: the map zooms like Google Maps (guest)", () => {
     expect(await zoomOf(page)).toBeGreaterThan(before + 0.5);
   });
 
-  test("dragging far west stops at India's edge", async ({ page }) => {
+  test("dragging far west goes past India (owner video, 9 Nov: move over the whole globe)", async ({ page }) => {
     const at = await openMap(page);
     for (let i = 0; i < 6; i++) {
       await page.mouse.move(at.x - 300, at.y);
@@ -186,8 +207,8 @@ test.describe("D21: the map zooms like Google Maps (guest)", () => {
     }
     await settle(page);
     const [, lng] = (await glMap(page).getAttribute("data-centre"))!.split(",").map(Number);
-    // INDIA_BOUNDS starts at 58°E; the middle of the screen can never be further west than that.
-    expect(lng).toBeGreaterThan(58);
+    // The map used to stop at 58°E (INDIA_BOUNDS); now it carries on west.
+    expect(lng).toBeLessThan(58);
   });
 
   test("the List view never shows an empty box at the top", async ({ page }) => {

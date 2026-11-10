@@ -39,7 +39,8 @@ export { mapWords } from './JobsMap.tiles';
  */
 const IN_EXPO_GO = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
-const MIN_ZOOM = 4;
+/** Out to the whole world (owner video, 9 Nov). */
+const MIN_ZOOM = 2;
 const START_ZOOM = 12;
 const RING_KM = 10;
 const DEFAULT_CENTRE = { lat: 12.9716, lng: 77.5946 };

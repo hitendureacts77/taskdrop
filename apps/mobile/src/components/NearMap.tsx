@@ -6,7 +6,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { attachPosters, getProfile, type Profile } from '../data/api';
-import { mapPeople, tasksNear, workersNear, type MapPerson, type NearbyWorker } from '../data/extras';
+import { mapPeople, remoteTasks, tasksNear, workersNear, type MapPerson, type NearbyWorker } from '../data/extras';
 import { JobsMap, mapWords, type JobPin } from './JobsMap';
 import { HelperSheet } from './HelperSheet';
 import { PersonSheet } from './PersonSheet';
@@ -22,29 +22,17 @@ import {
   MINE_WORDS,
   PersonRow,
   PrivacyLine,
-  ReachControl,
-  ReachEditor,
   ROW_GAP,
   ROW_H,
   Segmented,
   StatusPill,
   kmValue,
-  type HeroTile,
   type MapArea,
   type MapJob,
 } from './NearMapParts';
-import {
-  CUSTOM_REACH_KEY,
-  MAX_REACH_KM,
-  MIN_REACH_KM,
-  REACH_PRESETS,
-  parseReachKm,
-  parseSavedReach,
-  peopleReach,
-  postedToday,
-  reachChoices,
-  withinReach,
-} from '../lib/mapReach';
+import { FiltersButton, FiltersPanel, PlaceRow, QuickChip, WorkSwitch, payLabel } from './MapFilterParts';
+import { distanceKm, peopleReach, postedToday, withinReach } from '../lib/mapReach';
+import { DEFAULT_FILTERS, FILTERS_KEY, KM_STEPS, SORT_LABELS, changedFilters, filterJobs, jobsSummary, parseSavedFilters, type MapFilters } from '../lib/mapFilters';
 import { REFRESH_DEBOUNCE_MS, createRefreshCache, refreshKey, shouldRefresh } from '../lib/mapRefresh';
 import { activeFirst, areaName, farText, firstName, jobPin, kmBetween, minePin, offerOf, personPin, togetherText } from './mapPins';
 import { Icon } from './Icon';
@@ -78,8 +66,10 @@ const HELPER_H = 430;
  */
 const WIDE_KM = 20000;
 const ITEMS = 200;
-/** The "₹1,000+" filter. */
-const HIGH_PAY = 1000;
+/** The most from-home jobs asked for. */
+const REMOTE_ITEMS = 50;
+/** The In person / From home switch in the low phone sheet. */
+const WORK_ROW_H = 46;
 /** The phone's top pill. */
 const TOP_BAR_H = 70;
 
@@ -200,6 +190,9 @@ export function NearMap({
   onChooseArea,
   areaLabel,
   listFilter,
+  placeIsMine = true,
+  onChangePlace,
+  onUseMyPlace,
 }: {
   layer: NearMapLayer;
   /** Given: show the layer switch (Jobs, Helpers). Undefined: no switch (route use). */
@@ -219,6 +212,12 @@ export function NearMap({
   areaLabel?: string;
   /** The Explore list's category and search, applied to the jobs shown (Jobs layer only). */
   listFilter?: NearMapListFilter;
+  /** False when `centre` is a place the person picked to look around (another city), not their own area. */
+  placeIsMine?: boolean;
+  /** "Change" on the place row: the parent opens its place picker. */
+  onChangePlace?: () => void;
+  /** "My area" on the place row, shown while looking around another place. */
+  onUseMyPlace?: () => void;
 }) {
   const t = useTheme();
   const { go } = useNav();
@@ -239,10 +238,12 @@ export function NearMap({
   const tick = useFocusTick();
   const root = useRef<ViewInstance>(null);
 
-  const [radius, setRadius] = useState(() => (typeof radiusKm === 'number' ? radiusKm : 5));
-  // The last custom distance, kept on this device.
-  const [savedCustom, setSavedCustom] = useState<number | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
+  // Where, how far, pay, in person or from home, and the order (plan D23). Kept on this device.
+  const [filters, setFilters] = useState<MapFilters>(() => (typeof radiusKm === 'number' ? { ...DEFAULT_FILTERS, km: radiusKm } : DEFAULT_FILTERS));
+  const radius = filters.km;
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // From-home jobs: no pin, so they are asked for on their own and only join the list.
+  const [remoteJobs, setRemoteJobs] = useState<MapJob[] | null>(null);
   // Where the results were looked up; it follows the map once it stops moving far enough (lib/mapRefresh).
   const [searchAt, setSearchAt] = useState<Point | null>(home);
   const [movedTo, setMovedTo] = useState<Point | null>(null);
@@ -259,13 +260,12 @@ export function NearMap({
   const [now, setNow] = useState(() => Date.now());
   const [picked, setPicked] = useState<string | null>(null);
   const [focus, setFocus] = useState<string | null>(null);
-  // "Active now" for helpers, "₹1,000+" for jobs.
+  // "Active now" (helpers and my people).
   const [narrow, setNarrow] = useState(false);
   // Helpers only: just those who list a service.
   const [served, setServed] = useState(false);
   const [tab, setTab] = useState<'jobs' | 'areas'>('jobs');
   const [sheetUp, setSheetUp] = useState(false);
-  const [reachOpen, setReachOpen] = useState(false);
   // Desktop: the side panel can be minimised to give the map the whole screen.
   const [panelOpen, setPanelOpen] = useState(true);
   // Goes up when the map should zoom to fit the chosen reach.
@@ -275,12 +275,14 @@ export function NearMap({
   const reduced = useReducedMotion();
   const list = useRef<ScrollViewInstance>(null);
 
-  // The saved custom distance, and whether the tip was already closed once.
+  // The saved filters (unless the parent set the distance), and whether the tip was already closed once.
   useEffect(() => {
     let alive = true;
-    void AsyncStorage.getItem(CUSTOM_REACH_KEY)
-      .then((v) => alive && setSavedCustom(parseSavedReach(v)))
-      .catch(() => {});
+    if (typeof radiusKm !== 'number') {
+      void AsyncStorage.getItem(FILTERS_KEY)
+        .then((v) => alive && v && setFilters(parseSavedFilters(v)))
+        .catch(() => {});
+    }
     if (Platform.OS === 'web' && desktop && browserInfo().touch === 0) {
       void AsyncStorage.getItem(TIP_KEY)
         .then((v) => alive && setTip(v !== '1'))
@@ -289,6 +291,8 @@ export function NearMap({
     return () => {
       alive = false;
     };
+    // Read once per screen size; a distance from the parent is handled below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [desktop]);
   const closeTip = () => {
     setTip(false);
@@ -303,8 +307,7 @@ export function NearMap({
     setServed(false);
     setTab('jobs');
     setSheetUp(false);
-    setReachOpen(false);
-    setEditorOpen(false);
+    setFiltersOpen(false);
     // Leaving My people drops their spots from memory.
     if (kind !== 'mine') setPeopleMine(null);
   }, [kind]);
@@ -317,7 +320,7 @@ export function NearMap({
   }, [centre?.lat, centre?.lng]);
   useEffect(() => {
     if (typeof radiusKm === 'number') {
-      setRadius(radiusKm);
+      setFilters((f) => ({ ...f, km: radiusKm }));
       setFitKey((k) => k + 1);
     }
   }, [radiusKm]);
@@ -409,6 +412,22 @@ export function NearMap({
     // `tick` and `beat` only matter for My people: they re-ask on return, on a live change, and every minute.
   }, [kind, searchAt?.lat, searchAt?.lng, mine ? radius : 0, mine ? tick : 0, mine ? beat : 0]);
 
+  // From-home jobs (Jobs layer): they have no pin, so they join the list and the best offer, never the map.
+  useEffect(() => {
+    if (mode !== 'jobs') return;
+    let alive = true;
+    void once('remote', async () => {
+      const r = await remoteTasks(REMOTE_ITEMS);
+      const at = Date.now();
+      return (await attachPosters(r)).map((x) => ({ ...x, km: 0, fresh: isFresh(x.created_at, at), remote: true }));
+    })
+      .then((rows) => alive && setRemoteJobs(rows))
+      .catch(() => alive && setRemoteJobs((cur) => cur ?? []));
+    return () => {
+      alive = false;
+    };
+  }, [mode, tick]);
+
   // My people refresh every PEOPLE_POLL_MS, but only while this screen is the one being looked at and the
   // app is in front: leave the tab, switch layer or background the app and nothing is asked.
   useEffect(() => {
@@ -424,17 +443,20 @@ export function NearMap({
     };
   }, [mine, focused]);
 
-  // Highest offer first, the order of the list and of "Best offer". The Explore list's category and search narrow it too.
+  // The Explore list's category and search narrow the jobs too.
   const filterCategory = listFilter?.category ?? null;
   const filterQuery = (listFilter?.query ?? '').trim().toLowerCase();
+  const matchesList = useMemo(
+    () => (j: MapJob) =>
+      (!filterCategory || categoryLabel(j) === filterCategory) && (!filterQuery || `${j.title} ${j.description ?? ''}`.toLowerCase().includes(filterQuery)),
+    [filterCategory, filterQuery],
+  );
+  const pinnedPool = useMemo(() => (jobs ?? []).filter(matchesList), [jobs, matchesList]);
+  const homePool = useMemo(() => (remoteJobs ?? []).filter(matchesList), [remoteJobs, matchesList]);
+  // On the map: every pinned job at or above the pay floor (none while only from-home jobs are asked for), highest first.
   const shownJobs = useMemo(
-    () =>
-      (jobs ?? [])
-        .filter((j) => !narrow || j.benchmark_minor >= HIGH_PAY * 100)
-        .filter((j) => !filterCategory || categoryLabel(j) === filterCategory)
-        .filter((j) => !filterQuery || `${j.title} ${j.description ?? ''}`.toLowerCase().includes(filterQuery))
-        .sort((a, b) => b.benchmark_minor - a.benchmark_minor),
-    [jobs, narrow, filterCategory, filterQuery],
+    () => (filters.work === 'remote' ? [] : pinnedPool.filter((j) => j.benchmark_minor >= filters.minPay * 100).sort((a, b) => b.benchmark_minor - a.benchmark_minor)),
+    [pinnedPool, filters.work, filters.minPay],
   );
   const shownPeople = useMemo(
     () => (kind === 'people' ? (people ?? []) : []).filter((w) => (!narrow || presenceOf(w.last_seen_at, now).online) && (!served || Boolean(w.top_service))),
@@ -443,11 +465,15 @@ export function NearMap({
   // Spots older than 15 minutes are never drawn, even if the last answer is still on screen.
   const allMine = useMemo(() => activeFirst((peopleMine ?? []).filter((p) => isSpotFresh(p.spot_at, now)), now), [peopleMine, now]);
   const shownMine = useMemo(() => allMine.filter((p) => !narrow || presenceOf(p.last_seen_at, now).online), [allMine, narrow, now]);
-  // The map shows what the last search found; the list, cards and counts only what is inside the reach of where it searched.
-  const reachLat = (searchAt ?? home)?.lat;
-  const reachLng = (searchAt ?? home)?.lng;
+  // The map shows what the last search found, wherever it was dragged. The list, cards, counts and the ring are
+  // always around the place (your area, or the one you picked), never around where the map was dragged to:
+  // that sent "10 km" somewhere else (owner video, 9 Nov).
+  const reachLat = home?.lat;
+  const reachLng = home?.lng;
   const reachAt = useMemo(() => (reachLat != null && reachLng != null ? { lat: reachLat, lng: reachLng } : null), [reachLat, reachLng]);
-  const listJobs = useMemo(() => (reachAt ? withinReach(shownJobs, reachAt, radius) : []), [shownJobs, reachAt, radius]);
+  const listJobs = useMemo(() => filterJobs(pinnedPool, homePool, reachAt, filters), [pinnedPool, homePool, reachAt, filters]);
+  const nearJobs = useMemo(() => listJobs.filter((j) => !j.remote), [listJobs]);
+  const homeCount = listJobs.length - nearJobs.length;
   const listPeople = useMemo(() => (reachAt ? withinReach(shownPeople, reachAt, radius) : []), [shownPeople, reachAt, radius]);
   const listMine = useMemo(() => (reachAt ? withinReach(shownMine, reachAt, radius, (p) => p) : []), [shownMine, reachAt, radius]);
   const mapIds = useMemo(
@@ -467,11 +493,14 @@ export function NearMap({
           : shownPeople.map((w) => personPin(w, now)).filter((p): p is JobPin => p !== null),
     [mode, mine, shownJobs, shownMine, shownPeople, now],
   );
-  const loading = mode === 'jobs' ? jobs === null : mine ? peopleMine === null : people === null;
+  const loading = mode === 'jobs' ? jobs === null && remoteJobs === null : mine ? peopleMine === null : people === null;
   const count = ids.length;
-  // On the map but outside the reach.
+  // On the map, inside the reach or not.
   const total = mapIds.length;
-  const areas = useMemo(() => bestAreas(listJobs), [listJobs]);
+  const areas = useMemo(() => bestAreas(nearJobs), [nearJobs]);
+  // The map was dragged well away from the place: offer the way back.
+  const placeName = (areaLabel ?? '').split(',')[0]?.trim() || 'your area';
+  const away = Boolean(home && movedTo && distanceKm(home, movedTo) > Math.max(radius * 1.5, 3));
   const live = (mine ? listMine : listPeople).filter((w) => presenceOf(w.last_seen_at, now).online).length;
 
   // A filter, a new search or fresh results can take the picked one away; then nothing stays picked (or dimmed).
@@ -509,7 +538,6 @@ export function NearMap({
     setPicked(id);
     setFocus(id);
     if (!id) return;
-    setReachOpen(false);
     if (wide) {
       setTab('jobs');
       setTimeout(() => scrollToRow(id), 0);
@@ -603,57 +631,36 @@ export function NearMap({
     );
   }
 
-  // A reach button: filter the list to it and zoom the map to fit its circle.
-  const chooseReach = (r: number) => {
-    setRadius(r);
+  // Back to the place: forget the drag and fit the ring round the place again.
+  const backToPlace = () => {
+    setMovedTo(null);
     setFitKey((k) => k + 1);
-    setEditorOpen(false);
+  };
+  // "Show N jobs" in the Filters sheet: use them now and keep them on this device.
+  const applyFilters = (f: MapFilters) => {
+    setFilters(f);
+    setFiltersOpen(false);
     close();
-  };
-  // "Set" in the custom editor: use it now and keep it on this device.
-  const setCustom = (km: number) => {
-    setSavedCustom(km);
-    void AsyncStorage.setItem(CUSTOM_REACH_KEY, String(km)).catch(() => {});
-    setReachOpen(false);
-    chooseReach(km);
-    // The keyboard squeezes the map while it is open, and a fit made then zooms out too far (on a phone the
-    // whole of South India for 50 km). Close it, and fit again once the map is back to full size.
+    if (f.work === 'remote') setTab('jobs');
+    void AsyncStorage.setItem(FILTERS_KEY, JSON.stringify(f)).catch(() => {});
+    // The sheet covers part of the map while it closes; fit again once it is gone.
     Keyboard.dismiss();
-    setTimeout(() => setFitKey((k) => k + 1), 450);
+    backToPlace();
+    setTimeout(() => setFitKey((k) => k + 1), 400);
   };
+  const setWork = (work: MapFilters['work']) => applyFilters({ ...filters, work });
   const togglePanel = () => {
     setPanelOpen((v) => !v);
     setFitKey((k) => k + 1);
   };
 
-  const title = mode === 'jobs' ? 'Work near you' : mine ? 'Your people nearby' : 'Helpers near you';
-  const sub = loading
-    ? 'Looking around…'
-    : `${areaLabel ? `${areaLabel} · ` : ''}within ${radius} km${mode === 'people' && live > 0 ? ` · ${live} active now` : ''}`;
+  const fromHome = mode === 'jobs' && filters.work === 'remote';
+  const title = mode === 'jobs' ? (fromHome ? 'Work from home' : 'Work near you') : mine ? 'Your people nearby' : 'Helpers near you';
+  const within = fromHome ? 'from anywhere' : `within ${radius} km`;
+  const sub = loading ? 'Looking around…' : `${placeName} · ${within}${mode === 'people' && live > 0 ? ` · ${live} active now` : ''}`;
   const countWords = `${count} ${count === 1 ? words.one : words.many}`;
-  const pillText = busy ? 'Looking around…' : count === 0 ? `No ${words.many} in this part of the map` : `${countWords} in this part of the map`;
-  const choices = reachChoices(radius, savedCustom);
-  const nextReach = choices.find((c) => c.km > radius)?.km ?? null;
-  const customInitial = REACH_PRESETS.includes(radius) ? savedCustom : radius;
-
-  const chip = (label: string, on: boolean, onPress: () => void, dot?: string) => (
-    <Pressy
-      key={label}
-      onPress={onPress}
-      label={label}
-      style={{ height: 32, paddingHorizontal: 13, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 6, ...(on ? { backgroundColor: t.colors.ink } : glass) }}
-    >
-      {dot ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }} /> : null}
-      <RNText style={tx(on ? '800' : '700', 12, on ? t.colors.bg : t.colors.ink)}>{label}</RNText>
-    </Pressy>
-  );
-  // The filters beside the tabs (jobs) or in place of them (helpers, my people).
-  const filterChips =
-    mode === 'jobs'
-      ? [chip(`${rupees(HIGH_PAY)}+`, narrow, () => setNarrow((v) => !v))]
-      : mine
-        ? [chip('Active now', narrow, () => setNarrow((v) => !v), t.colors.online)]
-        : [chip('Active now', narrow, () => setNarrow((v) => !v), t.colors.online), chip('Has services', served, () => setServed((v) => !v))];
+  const pillText = busy ? 'Looking around…' : fromHome ? 'From-home jobs are in the list, not on the map' : total === 0 ? `No ${words.many} on this part of the map` : `${total} ${total === 1 ? words.one : words.many} on the map`;
+  const nextReach = KM_STEPS.find((k) => k > radius) ?? null;
 
   // What the map shows: Jobs, Helpers or (signed in) My people. Only drawn when the parent handles the change (the tab), not on the route.
   const layerOptions = [
@@ -663,10 +670,27 @@ export function NearMap({
   ];
   const layerSwitch = onLayer ? <Segmented label="Show" value={layer} onChange={onLayer} options={layerOptions} /> : null;
 
-  // The hero card: the best offer (jobs), or the nearest person (helpers, my people), and three tiles under it.
-  const bestJob = listJobs[0];
-  const nearJob = [...listJobs].sort((a, b) => a.km - b.km)[0];
-  const topArea = areas[0];
+  // The small chips that say what is set and open the Filters sheet; helpers keep their two on/off chips.
+  const openFilters = () => setFiltersOpen(true);
+  const quickChips =
+    mode === 'jobs'
+      ? [
+          ...(fromHome ? [] : [<QuickChip key="km" label={`${radius} km`} open onPress={openFilters} />]),
+          <QuickChip key="pay" label={payLabel(filters.minPay)} open on={filters.minPay > 0} onPress={openFilters} />,
+          // The order shows only once changed; it is always in the Filters sheet.
+          ...(filters.sort === 'pay' ? [] : [<QuickChip key="sort" label={`${SORT_LABELS[filters.sort]} first`} open on onPress={openFilters} />]),
+        ]
+      : [
+          <QuickChip key="km" label={`${radius} km`} open onPress={openFilters} />,
+          <QuickChip key="live" label="Active now" on={narrow} dot={t.colors.online} onPress={() => setNarrow((v) => !v)} />,
+          ...(mine ? [] : [<QuickChip key="served" label="Has services" on={served} onPress={() => setServed((v) => !v)} />]),
+        ];
+  const placeRow = (
+    <PlaceRow label={placeName} mine={placeIsMine} {...(onChangePlace ? { onChange: onChangePlace } : {})} {...(onUseMyPlace ? { onUseMine: onUseMyPlace } : {})} />
+  );
+
+  // The hero card: the best offer (jobs), or the nearest person (helpers, my people), and one line that sums up the rest.
+  const bestJob = [...listJobs].sort((a, b) => b.benchmark_minor - a.benchmark_minor)[0];
   const hero = ((): {
     label: string;
     value: string;
@@ -675,31 +699,27 @@ export function NearMap({
     onFocus: () => void;
     onOpen: () => void;
     openLabel?: string;
-    tiles: HeroTile[];
+    summary: string;
   } | null => {
     if (mode === 'jobs') {
-      if (!bestJob || !nearJob || !topArea) return null;
+      if (!bestJob) return null;
       const p = bestJob.poster;
       const rating = p && p.poster_rating_count > 0 ? `${Number(p.poster_rating_avg).toFixed(1)} ★` : null;
-      const today = postedToday(listJobs, now);
+      const today = postedToday([bestJob], now) > 0 ? 'posted today' : null;
+      const where = bestJob.remote ? ['From home'] : [areaName(bestJob.loc_label), kmValue(bestJob.km)];
       return {
-        label: 'BEST OFFER NEAR YOU',
+        label: bestJob.remote ? 'BEST OFFER FROM HOME' : 'BEST OFFER NEAR YOU',
         value: rupees(bestJob.benchmark_minor / 100),
         title: bestJob.title,
-        meta: [areaName(bestJob.loc_label), kmValue(bestJob.km), p ? `by ${firstName(p.display_name || p.username)}` : null, rating].filter(Boolean).join(' · '),
-        onFocus: () => pick(bestJob.id),
+        meta: [...where, p ? `by ${firstName(p.display_name || p.username)}` : null, rating, today].filter(Boolean).join(' · '),
+        onFocus: () => (bestJob.remote ? openJob(bestJob) : pick(bestJob.id)),
         onOpen: () => openJob(bestJob),
-        tiles: [
-          { label: 'Nearest', value: kmValue(nearJob.km), sub: `${areaName(nearJob.loc_label)} · ${rupees(nearJob.benchmark_minor / 100)}`, onPress: () => pick(nearJob.id) },
-          { label: 'Open jobs', value: String(count), ...(today > 0 ? { sub: `${today} posted today` } : {}), onPress: () => setTab('jobs') },
-          { label: 'Most pay', value: topArea.name, sub: `${topArea.count} ${topArea.count === 1 ? 'job' : 'jobs'} there`, onPress: () => pick(topArea.top.id) },
-        ],
+        summary: jobsSummary(nearJobs.length, homeCount, radius, filters.work),
       };
     }
     if (mine) {
       const closest = [...listMine].sort((a, b) => a.km - b.km)[0];
       if (!closest) return null;
-      const most = [...listMine].sort((a, b) => b.jobs - a.jobs)[0]!;
       return {
         label: 'NEAREST OF YOUR PEOPLE',
         value: kmValue(closest.km),
@@ -708,17 +728,12 @@ export function NearMap({
         onFocus: () => pick(closest.id),
         onOpen: () => pick(closest.id),
         openLabel: 'View',
-        tiles: [
-          { label: 'Active now', value: String(live), sub: live === 1 ? 'person with TaskDrop open' : 'people with TaskDrop open', onPress: () => setNarrow((v) => !v) },
-          { label: 'Your people', value: String(count), sub: `within ${radius} km` },
-          { label: 'Most together', value: firstName(most.display_name), sub: togetherText(most.jobs), onPress: () => pick(most.id) },
-        ],
+        summary: `${countWords} within ${radius} km · ${live} active now`,
       };
     }
     const near = [...listPeople].sort((a, b) => a.km - b.km)[0];
     if (!near) return null;
     const o = offerOf(near);
-    const withServices = listPeople.filter((w) => Boolean(w.top_service)).length;
     const top = topLabel(listPeople.map((w) => offerOf(w).what));
     return {
       label: 'NEAREST HELPER',
@@ -728,19 +743,37 @@ export function NearMap({
       onFocus: () => pick(near.id),
       onOpen: () => pick(near.id),
       openLabel: 'View',
-      tiles: [
-        { label: 'Active now', value: String(live), sub: live === 1 ? 'helper with TaskDrop open' : 'helpers with TaskDrop open', onPress: () => setNarrow((v) => !v) },
-        { label: 'Helpers', value: String(count), sub: `${withServices} with services`, onPress: () => setServed((v) => !v) },
-        { label: 'Top service', value: top?.name ?? 'Skills', sub: top ? `${top.n} ${top.n === 1 ? 'helper' : 'helpers'}` : undefined },
-      ],
+      summary: `${countWords} within ${radius} km · ${live} active now${top ? ` · most offer ${top.name}` : ''}`,
     };
   })();
   const heroCard = (compact: boolean) =>
     hero ? (
-      <HeroCard tone={mode} compact={compact} label={hero.label} value={hero.value} title={hero.title} {...(hero.meta ? { meta: hero.meta } : {})} onFocus={hero.onFocus} onOpen={hero.onOpen} {...(hero.openLabel ? { openLabel: hero.openLabel } : {})} tiles={hero.tiles} />
+      <HeroCard
+        tone={mode}
+        compact={compact}
+        label={hero.label}
+        value={hero.value}
+        title={hero.title}
+        {...(hero.meta ? { meta: hero.meta } : {})}
+        onFocus={hero.onFocus}
+        onOpen={hero.onOpen}
+        {...(hero.openLabel ? { openLabel: hero.openLabel } : {})}
+        summary={hero.summary}
+      />
     ) : null;
 
   const noneToShow = mine && allMine.length === 0;
+  const jobFilters = mode === 'jobs' && (filters.minPay > 0 || filters.work !== 'all');
+  const filtered = narrow || served || Boolean(filterCategory) || Boolean(filterQuery) || jobFilters;
+  const emptyText = fromHome
+    ? filters.minPay > 0
+      ? 'No from-home jobs at this pay yet.'
+      : 'No from-home jobs right now. Check back soon.'
+    : total > 0
+      ? `No ${words.many} within ${radius} km of ${placeName} yet. ${total} more on the map further out.`
+      : filtered
+        ? 'Nothing matches these filters yet.'
+        : `No ${words.many} near ${placeName} yet.`;
   const empty =
     !loading && count === 0 ? (
       noneToShow ? (
@@ -756,13 +789,30 @@ export function NearMap({
           )}
         </View>
       ) : (
-        <RNText style={tx('600', 13, t.colors.muted, { padding: 16 })}>
-          {total > 0
-            ? `No ${words.many} within ${radius} km yet. ${total} more on the map further out: ${nextReach ? `try ${nextReach} km or zoom out` : 'zoom out'}.`
-            : narrow || served || filterCategory || filterQuery
-              ? 'Nothing matches this filter yet.'
-              : `No ${words.many} here yet. Try a bigger distance.`}
-        </RNText>
+        // Say why it is empty and offer the one tap that fixes it.
+        <View style={{ padding: 16, gap: 12, alignItems: 'flex-start' }}>
+          <RNText style={tx('600', 13, t.colors.muted)}>{emptyText}</RNText>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {nextReach && !fromHome ? (
+              <Pressy
+                onPress={() => applyFilters({ ...filters, km: nextReach })}
+                label={`Show within ${nextReach} km`}
+                style={{ height: 40, paddingHorizontal: 16, borderRadius: 20, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <RNText style={tx('800', 13, t.colors.onBtn)}>Show within {nextReach} km</RNText>
+              </Pressy>
+            ) : null}
+            {jobFilters ? (
+              <Pressy
+                onPress={() => applyFilters({ ...filters, minPay: 0, work: 'all' })}
+                label="Clear filters"
+                style={{ height: 40, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: t.colors.line, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <RNText style={tx('700', 13, t.colors.ink)}>Clear filters</RNText>
+              </Pressy>
+            ) : null}
+          </View>
+        </View>
       )
     ) : null;
 
@@ -775,10 +825,10 @@ export function NearMap({
     ) : tab === 'areas' ? (
       areas.map((a, i) => <AreaRow key={a.name} area={a} best={areas[0]!.top.benchmark_minor} first={i === 0} onPress={() => pick(a.top.id)} />)
     ) : (
-      listJobs.map((j) => <JobRow key={j.id} job={j} on={picked === j.id} onPress={() => pick(j.id)} />)
+      listJobs.map((j) => <JobRow key={j.id} job={j} on={picked === j.id} onPress={() => (j.remote ? openJob(j) : pick(j.id))} />)
     ));
 
-  // The tab row: "Jobs · 15" / "Best-paying areas" with the ₹1,000+ chip at the right; helpers get just the chips.
+  // The tab row (jobs only): "Jobs · 15" / "Best-paying areas". From-home jobs have no area, so that tab goes then.
   const tabButton = (value: 'jobs' | 'areas', label: string) => {
     const on = tab === value;
     return (
@@ -793,28 +843,56 @@ export function NearMap({
       </Pressy>
     );
   };
-  const tabRow = (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 8, borderBottomWidth: 1, borderColor: t.colors.line }}>
-      {mode === 'jobs' ? (
-        <>
-          {tabButton('jobs', count > 0 ? `Jobs · ${count}` : 'Jobs')}
-          {tabButton('areas', 'Best-paying areas')}
-        </>
-      ) : null}
+  const tabRow =
+    mode === 'jobs' ? (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 8, borderBottomWidth: 1, borderColor: t.colors.line }}>
+        {tabButton('jobs', count > 0 ? `Jobs · ${count}` : 'Jobs')}
+        {fromHome ? null : tabButton('areas', 'Best-paying areas')}
+      </View>
+    ) : null;
+
+  // The controls: what the map shows, where, in person or from home, and the chips with the Filters button.
+  const chipRow = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      {quickChips}
       <View style={{ flex: 1 }} />
-      <View style={{ flexDirection: 'row', gap: 6 }}>{filterChips}</View>
+      <FiltersButton count={mode === 'jobs' ? changedFilters(filters) : 0} onPress={openFilters} />
+    </View>
+  );
+  const controls = (
+    <View style={{ gap: 10 }}>
+      {layerSwitch}
+      {placeRow}
+      {mode === 'jobs' ? <WorkSwitch value={filters.work} onChange={setWork} /> : null}
+      {chipRow}
     </View>
   );
 
-  // One row: what the map shows on the left, how far on the right; the custom editor opens right under it.
-  const controls = (
-    <View style={{ gap: 10 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-        {layerSwitch ?? <View />}
-        <ReachControl choices={choices} onPick={chooseReach} onCustom={() => setEditorOpen((v) => !v)} customOn={editorOpen} />
-      </View>
-      {editorOpen && wide ? <ReachEditor initial={customInitial} onSet={setCustom} onCancel={() => setEditorOpen(false)} minKm={MIN_REACH_KM} maxKm={MAX_REACH_KM} parse={parseReachKm} /> : null}
-    </View>
+  // How many a draft of the filters would show, for the sheet's button.
+  const countFor = (f: MapFilters) =>
+    mode === 'jobs'
+      ? filterJobs(pinnedPool, homePool, reachAt, f).length
+      : !reachAt
+        ? 0
+        : mine
+          ? withinReach(shownMine, reachAt, f.km, (p) => p).length
+          : withinReach(shownPeople, reachAt, f.km).length;
+  const filtersSheet = (
+    <BottomSheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters">
+      <FiltersPanel
+        initial={filters}
+        jobs={mode === 'jobs'}
+        place={{
+          label: placeName,
+          mine: placeIsMine,
+          ...(onChangePlace ? { onChange: () => (setFiltersOpen(false), onChangePlace()) } : {}),
+          ...(onUseMyPlace ? { onUseMine: () => (setFiltersOpen(false), onUseMyPlace()) } : {}),
+        }}
+        count={countFor}
+        words={{ one: words.one, many: words.many }}
+        onApply={applyFilters}
+      />
+    </BottomSheet>
   );
 
   const privacyText = mine ? MINE_WORDS.privacy : mode === 'people' ? words.privacy : 'Pins show the area, never the exact spot. Each shows the biggest offer there.';
@@ -842,6 +920,7 @@ export function NearMap({
   const personRole = profile && profile.poster_rating_count > profile.worker_rating_count ? 'poster' : 'worker';
   const modals = (
     <>
+      {filtersSheet}
       <PeopleMapSheet visible={shareOpen} onClose={() => setShareOpen(false)} onDone={(on) => on && setBeat((b) => b + 1)} />
       {pickedPerson ? (
         <PersonSheet
@@ -948,7 +1027,7 @@ export function NearMap({
           ) : null}
 
           <View pointerEvents="box-none" style={{ position: 'absolute', left: centreLeft, right: 76, top: PANEL_GAP + insets.top, alignItems: 'center' }}>
-            <StatusPill text={pillText} busy={busy} />
+            <StatusPill text={away && !busy ? `Back to ${placeName}` : pillText} busy={busy} {...(away && !busy ? { onPress: backToPlace } : {})} />
           </View>
 
           {tip ? (
@@ -968,7 +1047,8 @@ export function NearMap({
 
   // Phones: the map fills the screen; one sheet holds the hero card and the list, a picked job becomes one card.
   const topBar = insets.top + TOP_BAR_H;
-  const sheetLow = SHEET_LOW + (footer ? FOOTER_H : 0);
+  // The low sheet: the hero card, one row of chips, and (jobs) the In person / From home switch.
+  const sheetLow = SHEET_LOW + (footer ? FOOTER_H : 0) + (mode === 'jobs' ? WORK_ROW_H : 0);
   const sheetHigh = Math.max(sheetLow + 120, screenH - bottomInset - topBar - 190);
   const bottom = (pickedHelper ? HELPER_H : pickedJob ? CARD_H : sheetLow) + insets.bottom;
   const here = pickedJob && step ? { title: `${areaName(pickedJob.loc_label)} area`, sub: `${step.here} ${step.here === 1 ? words.one : words.many} here · ${farText(pickedJob.km)} from you` } : null;
@@ -980,7 +1060,7 @@ export function NearMap({
       <View style={{ flex: 1, marginBottom: bottomInset }}>
         {map({ top: topBar, bottom: bottom + 16 })}
 
-        {/* Top bar: what this map shows, how many, and how far */}
+        {/* Top bar: what this map shows, where, how many; the distance button opens the Filters sheet. */}
         <View style={{ position: 'absolute', left: 12, right: 12, top: insets.top + 10, gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <View style={{ flex: 1, height: 46, borderRadius: 23, ...glass, flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 6, gap: 8, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4 }}>
@@ -989,51 +1069,27 @@ export function NearMap({
                   {here ? here.title : title}
                 </RNText>
                 <RNText style={tx('600', 11, t.colors.muted)} numberOfLines={1}>
-                  {here ? here.sub : loading ? 'Looking around…' : `${countWords} · within ${radius} km`}
+                  {here ? here.sub : loading ? 'Looking around…' : `${countWords} · ${placeName} · ${within}`}
                 </RNText>
               </View>
               {here ? null : (
                 <Pressy
-                  onPress={() => (setEditorOpen(false), setReachOpen((v) => !v))}
-                  label={`How far: ${radius} km. Change`}
-                  style={{ height: 34, paddingHorizontal: 12, borderRadius: 17, borderWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface2, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                  onPress={openFilters}
+                  label={fromHome ? 'Filters' : `How far: ${radius} km. Change`}
+                  style={{ height: 34, paddingHorizontal: 12, borderRadius: 17, borderWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface2, flexDirection: 'row', alignItems: 'center', gap: 5 }}
                 >
-                  <RNText style={tx('700', 12, t.colors.ink)}>{radius} km</RNText>
-                  <View style={{ transform: [{ rotate: reachOpen ? '-90deg' : '90deg' }] }}>
-                    <Icon name="chevronRight" size={12} color={t.colors.text} />
-                  </View>
+                  <Icon name="filter" size={12} color={t.colors.ink} />
+                  <RNText style={tx('700', 12, t.colors.ink)}>{fromHome ? 'Filters' : `${radius} km`}</RNText>
                 </Pressy>
               )}
             </View>
             {leadingControl(46)}
           </View>
-          {reachOpen ? (
-            <View style={{ alignSelf: 'flex-end', ...glass, borderRadius: 16, padding: 4, gap: 2, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
-              {choices.map((c) => (
-                <Pressy
-                  key={c.km}
-                  onPress={() => (chooseReach(c.km), setReachOpen(false))}
-                  label={`${c.km} km`}
-                  style={{ height: 40, minWidth: 130, paddingHorizontal: 14, borderRadius: 12, justifyContent: 'center', backgroundColor: c.on ? t.colors.surface2 : 'transparent' }}
-                >
-                  <RNText style={tx(c.on ? '800' : '600', 13, t.colors.ink)}>Within {c.km} km</RNText>
-                </Pressy>
-              ))}
-              <Pressy
-                onPress={() => (setReachOpen(false), setEditorOpen(true))}
-                label="Custom distance"
-                style={{ height: 40, minWidth: 130, paddingHorizontal: 14, borderRadius: 12, justifyContent: 'center' }}
-              >
-                <RNText style={tx('700', 13, t.colors.ink)}>Custom…</RNText>
-              </Pressy>
+          {away && !busy ? (
+            <View style={{ alignItems: 'center' }}>
+              <StatusPill text={`Back to ${placeName}`} busy={false} onPress={backToPlace} />
             </View>
-          ) : null}
-          {/* A phone types in the app's own bottom sheet, which lifts itself above the keyboard (on the phone the
-              keyboard otherwise pushed the box and the map off the screen). */}
-          <BottomSheet visible={editorOpen} onClose={() => setEditorOpen(false)} title="Set your distance">
-            <ReachEditor plain initial={customInitial} onSet={setCustom} onCancel={() => setEditorOpen(false)} minKm={MIN_REACH_KM} maxKm={MAX_REACH_KM} parse={parseReachKm} />
-          </BottomSheet>
-          {busy && !loading && !reachOpen && !editorOpen ? (
+          ) : busy && !loading ? (
             <View style={{ alignItems: 'center' }}>
               <StatusPill text="Looking around…" busy />
             </View>
@@ -1076,7 +1132,7 @@ export function NearMap({
                       {title}
                     </RNText>
                     <RNText style={tx('600', 12, t.colors.muted)} numberOfLines={1}>
-                      {loading ? 'Looking around…' : `${countWords} · within ${radius} km`}
+                      {loading ? 'Looking around…' : `${countWords} · ${within}`}
                     </RNText>
                   </View>
                   <Pressy
@@ -1094,10 +1150,7 @@ export function NearMap({
             {sheetUp ? (
               <View style={{ flex: 1 }}>
                 <View style={{ paddingHorizontal: 16, gap: 10, paddingBottom: 4 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                    {layerSwitch ?? <View />}
-                    <ReachControl choices={choices} onPick={chooseReach} onCustom={() => setEditorOpen((v) => !v)} customOn={editorOpen} />
-                  </View>
+                  {controls}
                   {tabRow}
                 </View>
                 <FadeList contentStyle={{ padding: 8, gap: ROW_GAP, paddingBottom: 28 }}>{rows}</FadeList>
@@ -1106,14 +1159,15 @@ export function NearMap({
                 </View>
               </View>
             ) : (
-              <View style={{ paddingHorizontal: 16, gap: 12 }}>
+              <View style={{ paddingHorizontal: 16, gap: 10 }}>
                 {heroCard(true) ?? (loading ? <RNText style={tx('600', 13, t.colors.muted, { paddingVertical: 8 })}>Looking around…</RNText> : empty)}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  {onLayer
-                    ? layerOptions.map((o) => chip(o.label, layer === o.value, () => onLayer(o.value)))
-                    : null}
-                  {filterChips}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  {onLayer ? layerOptions.map((o) => <QuickChip key={o.value} label={o.label} on={layer === o.value} onPress={() => onLayer(o.value)} />) : null}
+                  {mode === 'jobs' ? null : quickChips.slice(1)}
+                  <View style={{ flex: 1 }} />
+                  <FiltersButton count={mode === 'jobs' ? changedFilters(filters) : 0} onPress={openFilters} />
                 </View>
+                {mode === 'jobs' ? <WorkSwitch value={filters.work} onChange={setWork} /> : null}
                 {footer ?? null}
               </View>
             )}

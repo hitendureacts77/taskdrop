@@ -77,7 +77,8 @@ export function centreFor(
   return { x: p.x - (fill.left ?? 0) / 2, y: p.y + (fill.bottom - fill.top) / 2 - lift };
 }
 
-const MIN_ZOOM = 4;
+/** Out to the whole world (owner video, 9 Nov). */
+const MIN_ZOOM = 2;
 export const MAX_ZOOM = 17;
 /** Same reach as the "Near me" filter, drawn as a ring. */
 const RING_KM = 10;
