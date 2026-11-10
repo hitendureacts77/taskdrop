@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TaskDrop Debug Loop</title>
+<meta name="description" content="The recurring debugging plan for TaskDrop: rounds of find, fix and recheck until the bug count settles. Plan task 2.19.">
+<style>
+:root {
+  --bg: #f7f6f2;
+  --surface: #ffffff;
+  --surface-2: #f0eee8;
+  --ink: #1d1d1b;
+  --ink-2: #55534d;
+  --line: #dedbd2;
+  --accent: #2f5bd3;
+  --accent-soft: #e6ecfb;
+  --say: #6b3fd1;
+  --say-soft: #f1ebfd;
+  --crit: #b42318;
+  --crit-soft: #fdecea;
+  --high: #b54708;
+  --high-soft: #fdf0e3;
+  --med: #8a6d00;
+  --med-soft: #fbf5dc;
+  --low: #3f6212;
+  --low-soft: #ecf5df;
+  --code: #f3f1ea;
+  --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141412; --surface: #1d1d1a; --surface-2: #262622; --ink: #ecebe6; --ink-2: #a9a69c;
+    --line: #36352f; --accent: #8aa8ff; --accent-soft: #1f2a48; --say: #b79bff; --say-soft: #2a2140;
+    --crit: #ff8a80; --crit-soft: #3a1d1b; --high: #ffb27a; --high-soft: #3a2a1b; --med: #e8cf6a;
+    --med-soft: #36301a; --low: #a8d67a; --low-soft: #223019; --code: #262622;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141412; --surface: #1d1d1a; --surface-2: #262622; --ink: #ecebe6; --ink-2: #a9a69c;
+  --line: #36352f; --accent: #8aa8ff; --accent-soft: #1f2a48; --say: #b79bff; --say-soft: #2a2140;
+  --crit: #ff8a80; --crit-soft: #3a1d1b; --high: #ffb27a; --high-soft: #3a2a1b; --med: #e8cf6a;
+  --med-soft: #36301a; --low: #a8d67a; --low-soft: #223019; --code: #262622;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+a { color: var(--accent); }
+code { font: 0.9em/1.4 ui-monospace, "Cascadia Code", Consolas, monospace; background: var(--code); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 32px 16px 80px; }
+header.top { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.eyebrow { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); margin: 0 0 6px; }
+h1 { font-size: clamp(28px, 5vw, 40px); line-height: 1.15; margin: 0 0 10px; letter-spacing: -.01em; }
+h2 { font-size: 24px; margin: 56px 0 12px; letter-spacing: -.01em; scroll-margin-top: 16px; }
+h3 { font-size: 18px; margin: 28px 0 8px; }
+p.lede { font-size: 18px; color: var(--ink-2); max-width: 70ch; margin: 0; }
+.theme-btn { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 14px; cursor: pointer; }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }
+.pill { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line); }
+.pill b { color: var(--ink); }
+nav.toc { margin: 28px 0 0; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+nav.toc ol { margin: 0; padding-left: 20px; columns: 2; column-gap: 32px; }
+nav.toc li { font-size: 15px; break-inside: avoid; }
+@media (max-width: 640px) { nav.toc ol { columns: 1; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow); }
+.grid { display: grid; gap: 14px; }
+.grid.two { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.grid.three { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.card h3 { margin-top: 0; }
+.card p:last-child, .card ul:last-child, .card ol:last-child { margin-bottom: 0; }
+.say { position: relative; background: var(--say-soft); border: 1px solid color-mix(in srgb, var(--say) 35%, transparent); border-radius: 12px; padding: 14px 92px 14px 16px; margin: 12px 0; font-weight: 600; color: var(--ink); }
+.say::before { content: "SAY"; display: block; font-size: 11px; letter-spacing: .1em; color: var(--say); margin-bottom: 2px; font-weight: 700; }
+.say button { position: absolute; top: 12px; right: 12px; border: 1px solid var(--say); background: transparent; color: var(--say); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.diagram { margin: 18px 0 0; }
+.diagram svg { width: 100%; height: auto; display: block; }
+.diagram .arc { fill: none; stroke: var(--ink-2); stroke-width: 2; }
+.diagram .node rect { fill: var(--surface); stroke: var(--accent); stroke-width: 1.6; }
+.diagram .node.hot rect { fill: var(--accent-soft); }
+.diagram .t1 { font: 600 15px system-ui, sans-serif; fill: var(--ink); text-anchor: middle; }
+.diagram .t2 { font: 13px system-ui, sans-serif; fill: var(--ink-2); text-anchor: middle; }
+.diagram .center1 { font: 700 20px system-ui, sans-serif; fill: var(--ink); text-anchor: middle; }
+.diagram .center2 { font: 14px system-ui, sans-serif; fill: var(--ink-2); text-anchor: middle; }
+.diagram .exit rect { fill: var(--low-soft); stroke: var(--low); stroke-width: 1.6; }
+.diagram .exit text { fill: var(--ink); }
+.diagram #ah path { fill: var(--ink-2); }
+.diagram #ah2 path { fill: var(--low); }
+.diagram .exitline { stroke: var(--low); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.table-wrap { overflow-x: auto; margin: 12px 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+th { background: var(--surface-2); font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-2); }
+tr:last-child td { border-bottom: 0; }
+td.n { white-space: nowrap; font-weight: 700; }
+.lvl { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.lvl.c { background: var(--crit-soft); color: var(--crit); }
+.lvl.h { background: var(--high-soft); color: var(--high); }
+.lvl.m { background: var(--med-soft); color: var(--med); }
+.lvl.l { background: var(--low-soft); color: var(--low); }
+ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+ol.steps > li { counter-increment: s; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px 16px 64px; position: relative; }
+ol.steps > li::before { content: counter(s); position: absolute; left: 16px; top: 14px; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: var(--surface); font-weight: 700; display: grid; place-items: center; }
+ol.steps h3 { margin: 2px 0 6px; }
+.meta { font-size: 13px; color: var(--ink-2); margin: 0 0 8px; }
+.out { font-size: 14px; color: var(--ink-2); margin: 8px 0 0; }
+.out b { color: var(--ink); }
+.flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 12px 0; }
+.flow span { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font-size: 14px; }
+.flow i { font-style: normal; color: var(--ink-2); }
+.note { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 16px 0; }
+.warn { border-left-color: var(--high); background: var(--high-soft); }
+pre.tpl { background: var(--code); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; overflow-x: auto; font: 13.5px/1.55 ui-monospace, "Cascadia Code", Consolas, monospace; margin: 12px 0; }
+.src { display: grid; gap: 12px; }
+.src .card h3 { font-size: 16px; margin-bottom: 4px; }
+.src .kind { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+ul.tight { margin: 6px 0; padding-left: 20px; }
+ul.tight li { margin: 3px 0; }
+footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div>
+    <p class="eyebrow">TaskDrop · plan task 2.19 · written 10 November 2026</p>
+    <h1>The debug loop</h1>
+    <p class="lede">A repeating round of <b>find → fix → recheck</b>. Each round looks for new bugs, fixes the worst ones, proves the old fixes still hold, and tells you what is still open. Rounds repeat until the number of new bugs settles near zero.</p>
+  </div>
+  <button class="theme-btn" id="theme" type="button" aria-label="Switch light or dark">Light / dark</button>
+</header>
+
+<div class="pills">
+  <span class="pill">Status: <b>plan only, round 0 not run</b></span>
+  <span class="pill">Rounds before launch: <b>at least 3, at most 8</b></span>
+  <span class="pill">One round: <b>about half a day of Claude, 10–15 min of yours</b></span>
+  <span class="pill">After launch: <b>one round a week</b></span>
+  <span class="pill">Where: <b>staging only, fake money</b></span>
+</div>
+
+<div class="say">start debug round<button type="button" data-copy="start debug round">Copy</button></div>
+<p class="meta">That one sentence runs the next round. Claude reads the bug ledger and the last round's report from the files, so any new Claude session can pick up where the last one stopped.</p>
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="#glance">The loop at a glance</a></li>
+    <li><a href="#rounds">How many rounds, and when to stop</a></li>
+    <li><a href="#round">One round, step by step</a></li>
+    <li><a href="#charters">What each round looks at</a></li>
+    <li><a href="#ledger">The bug ledger</a></li>
+    <li><a href="#fix">How one bug gets fixed</a></li>
+    <li><a href="#report">The round report you read</a></li>
+    <li><a href="#rules">Rules and safety</a></li>
+    <li><a href="#tools">Tools it uses</a></li>
+    <li><a href="#sources">Where these ideas come from</a></li>
+    <li><a href="#plan">How it fits the ultimate plan</a></li>
+  </ol>
+</nav>
+
+<!-- 1 -->
+<h2 id="glance">1. The loop at a glance</h2>
+<p>Eight steps make one round. Step 8 decides: go round again, or stop because the app has settled. The ledger file is the memory between rounds, so nothing found is ever lost and nothing fixed is ever assumed.</p>
+
+<div class="card diagram" role="img" aria-label="Eight steps in a circle: 1 Pin, 2 Collect, 3 Sweep, 4 Explore, 5 Log and triage, 6 Fix, 7 Recheck, 8 Report. From Report an arrow leads out to: converged, switch to the weekly rhythm.">
+<svg viewBox="0 0 820 560" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"/></marker>
+    <marker id="ah2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"/></marker>
+  </defs>
+  <path class="arc" d="M478.6 96.6 A265 195 0 0 1 542.5 116.1" marker-end="url(#ah)"/>
+  <path class="arc" d="M639.5 187.5 A265 195 0 0 1 666.0 234.5" marker-end="url(#ah)"/>
+  <path class="arc" d="M666.0 335.5 A265 195 0 0 1 639.5 382.5" marker-end="url(#ah)"/>
+  <path class="arc" d="M542.5 453.9 A265 195 0 0 1 478.6 473.4" marker-end="url(#ah)"/>
+  <path class="arc" d="M341.4 473.4 A265 195 0 0 1 277.5 453.9" marker-end="url(#ah)"/>
+  <path class="arc" d="M180.5 382.5 A265 195 0 0 1 154.0 335.5" marker-end="url(#ah)"/>
+  <path class="arc" d="M154.0 234.5 A265 195 0 0 1 180.5 187.5" marker-end="url(#ah)"/>
+  <path class="arc" d="M277.5 116.1 A265 195 0 0 1 341.4 96.6" marker-end="url(#ah)"/>
+  <g class="node"><rect x="336.0" y="63.0" width="148" height="54" rx="12"/><text x="410.0" y="86.0" class="t1">1 · Pin</text><text x="410.0" y="105.0" class="t2">fix the target</text></g>
+  <g class="node"><rect x="523.4" y="120.1" width="148" height="54" rx="12"/><text x="597.4" y="143.1" class="t1">2 · Collect</text><text x="597.4" y="162.1" class="t2">read the signals</text></g>
+  <g class="node"><rect x="601.0" y="258.0" width="148" height="54" rx="12"/><text x="675.0" y="281.0" class="t1">3 · Sweep</text><text x="675.0" y="300.0" class="t2">every check, twice</text></g>
+  <g class="node"><rect x="523.4" y="395.9" width="148" height="54" rx="12"/><text x="597.4" y="418.9" class="t1">4 · Explore</text><text x="597.4" y="437.9" class="t2">charter + golden path</text></g>
+  <g class="node"><rect x="336.0" y="453.0" width="148" height="54" rx="12"/><text x="410.0" y="476.0" class="t1">5 · Log &amp; triage</text><text x="410.0" y="495.0" class="t2">one entry per bug</text></g>
+  <g class="node hot"><rect x="148.6" y="395.9" width="148" height="54" rx="12"/><text x="222.6" y="418.9" class="t1">6 · Fix</text><text x="222.6" y="437.9" class="t2">failing test first</text></g>
+  <g class="node"><rect x="71.0" y="258.0" width="148" height="54" rx="12"/><text x="145.0" y="281.0" class="t1">7 · Recheck</text><text x="145.0" y="300.0" class="t2">on staging</text></g>
+  <g class="node"><rect x="148.6" y="120.1" width="148" height="54" rx="12"/><text x="222.6" y="143.1" class="t1">8 · Report</text><text x="222.6" y="162.1" class="t2">continue or stop?</text></g>
+  <text x="410" y="270" class="center1">One round</text>
+  <text x="410" y="296" class="center2">the ledger carries every bug</text>
+  <text x="410" y="316" class="center2">from one round to the next</text>
+  <path class="exitline" d="M190 120 L140 64" marker-end="url(#ah2)"/>
+  <g class="exit"><rect x="14" y="10" width="236" height="50" rx="12"/><text x="132" y="31" class="t1">Settled? Stop.</text><text x="132" y="50" class="t2">then one round a week</text></g>
+</svg>
+</div>
+
+<!-- 2 -->
+<h2 id="rounds">2. How many rounds, and when to stop</h2>
+<p>A fixed number of rounds would either stop too early or waste time. So the loop has a <b>floor</b>, a <b>ceiling</b> and a clear <b>stop test</b>.</p>
+
+<div class="grid three">
+  <div class="card"><h3>Floor: 3 rounds</h3><p>Even a quiet first round is not proof. Three rounds means every main area of the app (posting, earning, money) has had its own focused look.</p></div>
+  <div class="card"><h3>Ceiling: 8 rounds</h3><p>If round 8 still finds a Critical or High bug, more rounds will not help. The loop stops and does a <b>hot-spot review</b> instead (see below).</p></div>
+  <div class="card"><h3>Rhythm: every 2–3 days</h3><p>Long enough for fixes to reach staging and for you to answer "fix" or "accept". During the 14-day tester window, every 3–4 days, matched to the tester rounds (3.4).</p></div>
+</div>
+
+<h3>The stop test (all must be true)</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>#</th><th>Rule</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td class="n">S1</td><td>Two rounds in a row found <b>no new Critical or High</b> bug</td><td>One quiet round can be luck; two is a trend</td></tr>
+<tr><td class="n">S2</td><td><b>No Critical or High</b> bug is open</td><td>The same rule as the hunt (2.14) and Gate 3</td></tr>
+<tr><td class="n">S3</td><td>The last round found <b>2 or fewer new bugs</b>, and fewer than the round before</td><td>The find rate is falling, not just bouncing</td></tr>
+<tr><td class="n">S4</td><td>Every bug marked fixed is <b>rechecked on staging</b> (none stuck at "fixed, not rechecked")</td><td>"If you didn't fix it, it ain't fixed" (Agans' rule 9)</td></tr>
+<tr><td class="n">S5</td><td>Every automatic check passed <b>in both runs</b> of the last two rounds (no flaky test)</td><td>A test that passes only sometimes hides real bugs</td></tr>
+<tr><td class="n">S6</td><td>The <b>golden path</b> passed on the website, the Android app and the admin</td><td>Post → offer → pay → work → approve → review → withdraw is the business</td></tr>
+<tr><td class="n">S7</td><td>Every open Medium and Low has <b>your answer</b>: fix, accept, or after launch</td><td>Nothing open is forgotten; it is either queued or accepted on purpose</td></tr>
+</tbody></table></div>
+
+<div class="note warn"><b>Hot-spot review (the circuit breaker).</b> If round 8 is reached without settling, or one area (for example the map, or money) produces new bugs three rounds running, Claude stops looking for more bugs there. Instead it lists every bug from that area side by side, looks for the shared cause (one weak function, one missing test layer, one screen built in a hurry), and proposes one deeper fix for your yes. Then the loop starts again at round 1 for that area.</div>
+
+<h3>The calendar</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Round</th><th>When</th><th>Main focus</th></tr></thead>
+<tbody>
+<tr><td class="n">Round 0</td><td>Once, at the start (about 1 hour)</td><td>Set up: create the ledger, copy in the bugs still open today (B18, B21, B30, B32), take a baseline of every check and of Sentry, write the golden path down</td></tr>
+<tr><td class="n">Rounds 1–3</td><td>Now, during the feature freeze, every 2–3 days</td><td>Charters A to C (poster, helper, money). Most bugs are found here</td></tr>
+<tr><td class="n">Rounds 4–8</td><td>Through Step 3, matched to the tester rounds</td><td>Charters D to H, plus everything testers report. Stop as soon as the stop test passes</td></tr>
+<tr><td class="n">Weekly</td><td>After the stop test, and after launch (Step 7)</td><td>One shorter round each week (sweep, signals, recheck, one charter), and one after every production release</td></tr>
+</tbody></table></div>
+
+<!-- 3 -->
+<h2 id="round">3. One round, step by step</h2>
+<p>Every round does the same eight steps in the same order. The result of each step is written down before the next starts.</p>
+
+<ol class="steps">
+<li>
+  <h3>Pin: fix the target</h3>
+  <p class="meta">Claude · 5 minutes</p>
+  <p>Write down exactly what is being tested: the commit of <code>redesigned-2.0</code>, what is live on staging (<code>taskdrop.in</code>, the admin, the server functions), and the Android app build and update group on your phone. Every bug found this round belongs to this snapshot.</p>
+  <p class="out"><b>Why:</b> a bug report that does not say which version it is from cannot be rechecked. Also lets Claude say "this worked in round 2, broke in round 3" and search only the changes in between.</p>
+</li>
+<li>
+  <h3>Collect: read the signals since the last round</h3>
+  <p class="meta">Claude · 20 minutes</p>
+  <ul class="tight">
+    <li><b>Sentry</b> (app, server functions, admin): new issues, and old ones that came back</li>
+    <li><b>Vercel</b> runtime errors and <b>Supabase</b> logs and advisor warnings</li>
+    <li><b>People</b>: the Ideas &amp; feedback board, Help &amp; support messages, testers' reports (3.4), anything you said in chat</li>
+    <li><b>Usage</b>: PostHog drop-offs and rage clicks (once 3.3c is on), Uptime Robot</li>
+    <li><b>The ledger</b>: bugs fixed last round that still need a recheck</li>
+  </ul>
+  <p class="out"><b>Gives:</b> the "reported" list. Each item is checked by hand before it becomes a bug; a signal is not yet proof.</p>
+</li>
+<li>
+  <h3>Sweep: run every automatic check, twice</h3>
+  <p class="meta">Claude · 30–40 minutes, mostly waiting</p>
+  <p><code>npm run check</code> (typecheck, lint, unit tests), <code>npm run test:contract</code>, <code>npm run test:db</code>, <code>npm run test:e2e</code> (Playwright, including the monkey and break-it tests), <code>npm run audit:gate</code>, and the admin's <code>typecheck</code>, <code>lint</code> and <code>test</code>. Everything runs <b>twice</b>.</p>
+  <p class="out"><b>Gives:</b> red tests (real bugs or broken tests) and <b>flaky</b> tests (passed once, failed once). A flaky test is logged as a bug of its own.</p>
+</li>
+<li>
+  <h3>Explore: this round's charter, plus the golden path</h3>
+  <p class="meta">Claude, with you for the phone parts · 1–2 hours</p>
+  <p>Each round has one <b>charter</b> from the deck in section 4: a focus area and a list of things to try on purpose (wrong order, double taps, back button, slow network, an empty list, a very long text). Claude uses the real website in Chrome and, when your phone is connected, the Android app. Every round also runs the <b>golden path</b> once from start to end, so a broken core never hides behind a narrow charter.</p>
+  <p class="out"><b>Gives:</b> new bugs, each with steps, expected, actual and a screenshot or log as proof.</p>
+</li>
+<li>
+  <h3>Log &amp; triage: one ledger entry per bug</h3>
+  <p class="meta">Claude · 15 minutes</p>
+  <p>Each finding is first matched against the ledger: the same cause as an old bug means the old entry is <b>reopened</b>, not a new number. New bugs get the next number (from <b>B33</b>), a level and a status. Security holes keep their H numbers in the plan's Security section; the ledger links to them.</p>
+  <p class="out"><b>Order of fixing:</b> Critical → High → anything that blocks testing → Medium you said "fix" to → Low you said "fix" to. At most about <b>8 fixes a round</b>, so a round stays short; the rest carry over and say how many rounds old they are.</p>
+</li>
+<li>
+  <h3>Fix: failing test first, then the cause</h3>
+  <p class="meta">Claude · most of the round</p>
+  <p>Each bug follows the fix routine in section 6. Short branch per bug (or small group), pull request into <code>redesigned-2.0</code>, merged when every check is green. Critical and High are always fixed. Medium and Low wait for your "fix".</p>
+  <p class="out"><b>Gives:</b> merged pull requests, each bug marked <b>fixed, not rechecked</b>.</p>
+</li>
+<li>
+  <h3>Recheck: prove it on staging</h3>
+  <p class="meta">Claude · 20–30 minutes</p>
+  <p>Once the fixes are live on staging, Claude repeats each bug's <b>original steps</b> there (not just on the computer), and runs the sweep once more to make sure no fix broke something else. Fixes that need the Android app are rechecked after the next app update, which Claude asks you about first.</p>
+  <p class="out"><b>Gives:</b> <b>verified</b> or <b>reopened</b> for each fixed bug.</p>
+</li>
+<li>
+  <h3>Report: what is new, what is fixed, what is still open</h3>
+  <p class="meta">Claude writes it · you read it in 10–15 minutes</p>
+  <p>The round report (section 7) goes in <code>docs/debug-loop/ROUND-N.md</code>; the ledger's round table gets one new line; task 2.19 in the ultimate plan gets a one-line status. Then the stop test: <b>settled</b> (stop, go weekly), <b>go again</b> (the next charter is named), or <b>hot-spot review</b>.</p>
+  <p class="out"><b>Yours:</b> reply "fix", "accept" or "after launch" to each Medium and Low in the "needs your answer" list.</p>
+</li>
+</ol>
+
+<!-- 4 -->
+<h2 id="charters">4. What each round looks at (the charter deck)</h2>
+<p>Looking at everything every time finds less, because attention spreads thin. So each round takes the next charter. A charter is used again only after the whole deck has been used, or when its area becomes a hot spot.</p>
+
+<div class="table-wrap"><table>
+<thead><tr><th>Charter</th><th>Area</th><th>Things to try on purpose</th></tr></thead>
+<tbody>
+<tr><td class="n">A</td><td><b>The poster</b>: guest, sign-up, Home, Drop a task, offers, choose, pay</td><td>Post with every When choice and day chip, photos and videos, a very long or empty text, a price at the edges, go back mid-post, choose an offer twice, pay on a slow network</td></tr>
+<tr><td class="n">B</td><td><b>The helper</b>: Earn, the map, filters, See all bar, offer, start, proof, withdraw</td><td>Filters with no results, custom distance, from-home jobs, offer then withdraw, start before being chosen, proof with no photo, withdraw below the minimum</td></tr>
+<tr><td class="n">C</td><td><b>Money and a task's life</b>: every status from posted to reviewed, cancel, dispute, top-up</td><td>Each move at the wrong time or as the wrong person, two people acting at the same second, totals that must add up (the money tests in <code>test:db</code>)</td></tr>
+<tr><td class="n">D</td><td><b>Accounts and safety</b>: phone code, Google, guest mode, age gate, delete account, report, block</td><td>Sign in on two devices, sign out of all, a deleted account's old links, a guest's drafts on a shared phone</td></tr>
+<tr><td class="n">E</td><td><b>The admin panel</b>: every staff role, App controls, support, exports, reports</td><td>Each role on each page, the read-only role pressing buttons, maintenance mode on and off, an export of an empty list</td></tr>
+<tr><td class="n">F</td><td><b>Talk and alerts</b>: chat, task questions, push notifications, notification words, Ideas board</td><td>A message while offline, a push to a phone that is asleep, a double alert after a slow moment, the words on the lock screen</td></tr>
+<tr><td class="n">G</td><td><b>The edges</b>: slow and no network, bigger text, keyboard, dark mode, desktop and tablet widths, four browsers</td><td>Airplane mode in the middle of a step, the back button everywhere, rotate the phone, the rule-7 screen check (Chrome, Edge, Firefox, Safari)</td></tr>
+<tr><td class="n">H</td><td><b>The newest parts</b>: Together (City Hunt, Big Days), the first-minute Home (1.13), the map tab</td><td>Newest code has the most bugs. Also the hot spot of the last rounds, whatever it is</td></tr>
+</tbody></table></div>
+
+<div class="note"><b>The golden path, every round:</b> sign in → post a task → a second account offers → choose and pay (test mode) → start → send proof → approve → review both ways → withdraw request. Website every round; Android whenever your phone is connected; the admin sees the task, the money and the review. The pay step uses the existing e2e money test or you; Claude never types into a payment page.</div>
+
+<!-- 5 -->
+<h2 id="ledger">5. The bug ledger</h2>
+<p>One file, <code>docs/debug-loop/LEDGER.md</code>, holds every bug the loop has ever seen. It is the answer to "what is new, and what is still not fixed" at any moment, and it is what lets every round start fresh from files instead of from memory.</p>
+
+<h3>The life of a bug</h3>
+<div class="flow">
+  <span>New</span><i>→</i><span>Confirmed</span><i>→</i><span>Fixing</span><i>→</i><span>Fixed, not rechecked</span><i>→</i><span>Verified</span><i>→</i><span>Closed</span>
+</div>
+<p class="meta">Side doors: <b>Reopened</b> (a recheck failed, or it came back later), <b>Accepted</b> (your "accept"), <b>After launch</b> (your choice, goes to Future scope), <b>Cannot reproduce</b> (tried three ways, kept for two rounds in case it returns), <b>Duplicate of B..</b>. A Verified bug becomes Closed after one more round with no sign of it.</p>
+
+<h3>Levels (the same as tasks 2.7 and 2.14)</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Level</th><th>Means</th><th>Rule</th></tr></thead>
+<tbody>
+<tr><td><span class="lvl c">Critical</span></td><td>Money or private data at risk, or the app cannot be used at all</td><td>Fixed in this round, before anything else</td></tr>
+<tr><td><span class="lvl h">High</span></td><td>A main step of the golden path fails, or wrong data is shown to someone</td><td>Fixed in this round</td></tr>
+<tr><td><span class="lvl m">Medium</span></td><td>A feature is broken but there is a way around it; confusing or misleading screens</td><td>Your "fix", "accept" or "after launch"</td></tr>
+<tr><td><span class="lvl l">Low</span></td><td>Looks wrong, rare, or fake-data only</td><td>Your answer; fixed in batches</td></tr>
+</tbody></table></div>
+<p class="meta">Level says how bad it is. Order (section 3, step 5) says what is fixed first. The two are kept apart on purpose: a Low bug that stops testers from testing goes before a Medium nobody reaches.</p>
+
+<h3>One ledger entry</h3>
+<pre class="tpl">### B33 · Offer button stays live after the task is cancelled
+- Level: Medium · Status: Fixed, not rechecked · Area: helper (charter B)
+- Seen first: round 2 (commit 5d65cde, web) · Rounds open: 1
+- Where: website and Android · Found by: explore
+- Steps: 1. As Ravi, open task "Fix a tap" 2. As Asha, cancel it 3. As Ravi, press Make offer
+- Expected: "This task is no longer open" · Actual: the offer is sent
+- Proof: screenshot round-2/b33.png, Sentry issue link
+- Cause: the offer check reads the cached task, not the database row
+- Test: e2e "offer on a cancelled task is refused" (failed before, passes after)
+- Fix: PR #___ · Recheck on staging: ___</pre>
+
+<h3>The round table at the top of the ledger</h3>
+<p>One line per round, so the trend is visible at a glance:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Round</th><th>Date</th><th>New</th><th>Fixed + verified</th><th>Reopened</th><th>Open: C / H / M / L</th><th>Flaky tests</th><th>Settled?</th></tr></thead>
+<tbody>
+<tr><td class="n">0</td><td>—</td><td>—</td><td>—</td><td>—</td><td>0 / 0 / 0 / 4</td><td>—</td><td>Not run</td></tr>
+</tbody></table></div>
+<p class="meta">A healthy run looks like a falling "New" column (for example 12, 7, 4, 2, 1) with "Reopened" staying at 0. A "New" column that does not fall after three rounds is a hot spot.</p>
+
+<!-- 6 -->
+<h2 id="fix">6. How one bug gets fixed (the fix routine)</h2>
+<p>Seven steps, the same for every bug. They come from the debugging books and talks in section 10, and from gstack's <code>/qa</code> loop, which this PC already has.</p>
+
+<div class="grid two">
+  <div class="card"><h3>1. Make it fail on demand</h3><p>Write down the exact steps that show the bug, every time. If it cannot be made to fail, it cannot be proven fixed: it stays "Confirmed" and gets more logging, not a guess.</p></div>
+  <div class="card"><h3>2. Write the failing test first</h3><p>A unit, database, contract or Playwright test that fails <b>because of this bug</b>. Screens only Android can show get a written recheck step instead, and the report says so.</p></div>
+  <div class="card"><h3>3. Look, then guess</h3><p>Read the logs, Sentry and the data first. Then write one cause to test, try to prove it wrong, and write the result in the entry. One change at a time.</p></div>
+  <div class="card"><h3>4. Cut the search in half</h3><p>If it worked in an earlier round, compare the two pinned commits and halve the changes until one is left (<code>git bisect</code>). If one input triggers it, shrink the input until only the trigger is left.</p></div>
+  <div class="card"><h3>5. Fix the cause, small</h3><p>The smallest change that removes the cause, not the symptom. No new features while fixing (the freeze). Anything bigger becomes your question.</p></div>
+  <div class="card"><h3>6. Green, then merge</h3><p>The new test passes, the whole sweep passes, a pull request into <code>redesigned-2.0</code>, merged. A fix with a database migration waits for your yes first.</p></div>
+  <div class="card"><h3>7. Recheck on staging</h3><p>The original steps, on staging, after the fix is live. Only then "Verified". The test stays in the suite forever, so every later round rechecks it for free.</p></div>
+  <div class="card"><h3>Who does what</h3><p>Opus works out hard causes; Sonnet helpers run sweeps and rechecks (your model split). A fresh look by a second agent is used when a cause is still unclear after two tries.</p></div>
+</div>
+
+<!-- 7 -->
+<h2 id="report">7. The round report you read</h2>
+<p>Short on purpose: the numbers first, then only what needs you.</p>
+<pre class="tpl"># Debug round 3 · 16 Nov 2026 · charter C (money and a task's life)
+Pinned: redesigned-2.0 @ abc1234 · staging web + admin · Android update group ____
+
+## In one line
+4 new (0 Critical, 1 High fixed), 6 fixed and verified, 0 reopened. Not settled yet (rule S3).
+
+## New this round            ## Fixed and verified
+B41 High  ... fixed, verified B35 ... (test: ...)
+B42 Medium ... needs you      B36 ...
+
+## Still open (oldest first) ## Reopened
+B21 Low · open 3 rounds      none
+
+## Needs your answer (reply "fix", "accept" or "after launch")
+B42 Medium: ...   recommended: fix
+B43 Low: ...      recommended: accept
+
+## Signals: Sentry 2 new / 1 came back · e2e 48 of 48 twice · flaky 0
+## Stop test: S1 no · S2 yes · S3 no · S4 yes · S5 yes · S6 web yes, Android not seen · S7 no
+## Next round: 4, charter D (accounts and safety), in 2-3 days</pre>
+
+<!-- 8 -->
+<h2 id="rules">8. Rules and safety</h2>
+<div class="grid two">
+  <div class="card"><h3>Where</h3><ul class="tight">
+    <li>Staging only. Never production, never the payment companies' live systems</li>
+    <li>Only the fake people (Asha, Ravi, Meera) and test accounts</li>
+    <li>Claude never types into a payment page</li>
+  </ul></div>
+  <div class="card"><h3>Asks you first</h3><ul class="tight">
+    <li>An app update to the testers' phones</li>
+    <li>A fix that adds a database migration (merging one applies it to staging)</li>
+    <li>Wiping or resetting test data, any key change</li>
+  </ul></div>
+  <div class="card"><h3>The freeze holds</h3><ul class="tight">
+    <li>The loop only fixes. A finding that is really a new idea goes to Future scope</li>
+    <li>A fix that needs a design change becomes your question with a sketch</li>
+  </ul></div>
+  <div class="card"><h3>Nothing quietly dropped</h3><ul class="tight">
+    <li>Every finding gets an entry, even "cannot reproduce"</li>
+    <li>Nothing is marked fixed without a recheck on staging</li>
+    <li>Anything Claude could not check (no phone, no money in the wallet) is named in the report</li>
+  </ul></div>
+</div>
+
+<!-- 9 -->
+<h2 id="tools">9. Tools it uses</h2>
+<p>Almost everything is already in place. Nothing here costs money.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Job</th><th>Tool</th><th>State</th></tr></thead>
+<tbody>
+<tr><td>Automatic checks</td><td><code>npm run check</code>, <code>test:contract</code>, <code>test:db</code>, <code>test:e2e</code> (Playwright: money, rules, map, monkey, break-it and more), <code>audit:gate</code>; the admin's checks</td><td>In place</td></tr>
+<tr><td>Website exploring</td><td>Claude in Chrome on <code>taskdrop.in</code>; gstack <code>/qa-only</code> for a report-only pass; a branch build on <code>127.0.0.1:8099</code> before merge</td><td>In place</td></tr>
+<tr><td>Android exploring</td><td>Your phone over USB (adb), the staging app and its updates</td><td>In place; needs your phone connected</td></tr>
+<tr><td>Signals</td><td>Sentry (app, server, admin), Vercel runtime errors, Supabase logs and advisors, Uptime Robot</td><td>In place</td></tr>
+<tr><td>Signals, later</td><td>PostHog on staging (task 3.3c)</td><td>When 3.3c is done</td></tr>
+<tr><td>Root cause</td><td>gstack <code>/investigate</code>, <code>git bisect</code>, the graphify code map</td><td>In place</td></tr>
+<tr><td>Android golden path, automatic (optional)</td><td>Maestro: short written flows that tap through the app; Expo's own recommended tool. Free</td><td>Only if round 3 shows Android-only bugs keep slipping through. Your yes first</td></tr>
+</tbody></table></div>
+
+<!-- 10 -->
+<h2 id="sources">10. Where these ideas come from</h2>
+<p>Each source gave one part of the loop. Links open the original.</p>
+<div class="src">
+  <div class="card"><span class="kind">Book and site</span><h3><a href="https://debuggingrules.com/" target="_blank" rel="noopener">David Agans, "Debugging: The 9 Indispensable Rules"</a></h3><p>The fix routine: make it fail, quit thinking and look, divide and conquer, change one thing at a time, keep an audit trail (the ledger), get a fresh view, and "if you didn't fix it, it ain't fixed" (the recheck step and rule S4).</p></div>
+  <div class="card"><span class="kind">YouTube talk</span><h3><a href="https://www.youtube.com/watch?v=FihU5JxmnBg" target="_blank" rel="noopener">Stuart Halloway, "Debugging with the Scientific Method" (Clojure/conj 2015)</a></h3><p>Step 3 of the fix routine: one stated guess at a time, try to prove it wrong, shrink the search space, and write every step down. That is why each ledger entry has a "Cause" line.</p></div>
+  <div class="card"><span class="kind">GitHub repo and YouTube</span><h3><a href="https://github.com/uds-se/debuggingbook" target="_blank" rel="noopener">Andreas Zeller, "The Debugging Book" (uds-se/debuggingbook)</a> · <a href="https://www.youtube.com/watch?v=-nOxI6Ev_I4" target="_blank" rel="noopener">intro video</a></h3><p>Step 4 of the fix routine: shrink a failing input to the smallest one that still fails, and find the change that broke it automatically. The pinned commit per round makes this possible.</p></div>
+  <div class="card"><span class="kind">GitHub repo</span><h3><a href="https://github.com/garrytan/gstack/blob/main/qa/SKILL.md" target="_blank" rel="noopener">garrytan/gstack, the /qa skill</a></h3><p>The test → fix → verify shape of a round, the "write a failing regression test before the repair" rule, a report per run, and a report-only mode. Already installed on this PC.</p></div>
+  <div class="card"><span class="kind">GitHub repo and YouTube</span><h3><a href="https://github.com/ghuntley/how-to-ralph-wiggum" target="_blank" rel="noopener">Geoffrey Huntley, the "Ralph" loop (ghuntley/how-to-ralph-wiggum)</a> · <a href="https://www.youtube.com/watch?v=_IK18goX4X8" target="_blank" rel="noopener">video</a></h3><p>The idea of running the same instruction again and again with the state kept in files, not in the chat, until a stop rule is met. That is why one sentence, "start debug round", is enough and why the ledger is a file.</p></div>
+  <div class="card"><span class="kind">Docs and GitHub</span><h3><a href="https://playwright.dev/docs/test-agents" target="_blank" rel="noopener">Playwright Test Agents (planner, generator, healer)</a></h3><p>Explore → write the test → repair a broken test as three separate jobs. TaskDrop's e2e tests already use Playwright, so new regression tests go there.</p></div>
+  <div class="card"><span class="kind">GitHub repo</span><h3><a href="https://github.com/mobile-dev-inc/maestro" target="_blank" rel="noopener">mobile-dev-inc/maestro</a> · <a href="https://docs.expo.dev/eas/workflows/examples/e2e-tests/" target="_blank" rel="noopener">Expo's guide</a></h3><p>The optional Android golden-path flow in section 9.</p></div>
+  <div class="card"><span class="kind">Zine and blog</span><h3><a href="https://jvns.ca/blog/2022/12/08/a-debugging-manifesto/" target="_blank" rel="noopener">Julia Evans, "A debugging manifesto" and "The Pocket Guide to Debugging"</a></h3><p>The attitude behind the rules: every bug has a logical reason, question your own guesses, and take the "cannot reproduce" ones seriously instead of closing them.</p></div>
+  <div class="card"><span class="kind">GitHub triage guides</span><h3><a href="https://github.com/traefik/contributors-guide/blob/master/issue_triage.md" target="_blank" rel="noopener">Traefik's issue triage guide</a> · <a href="https://github.com/eclipse-che/che/issues/18160" target="_blank" rel="noopener">Eclipse Che: keep severity and priority apart</a></h3><p>Triage right after finding, match against what is already known before giving a new number, and keep "how bad" (level) apart from "what first" (order).</p></div>
+  <div class="card"><span class="kind">Guides</span><h3><a href="https://qasphere.com/blog/bug-bash" target="_blank" rel="noopener">How to run a bug bash: charters, time boxes, follow-up</a></h3><p>The charter deck: one focused area per session with a time box, then triage before the energy is gone.</p></div>
+</div>
+
+<!-- 11 -->
+<h2 id="plan">11. How it fits the ultimate plan</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Where</th><th>What changes</th></tr></thead>
+<tbody>
+<tr><td>New task <b>2.19</b> (Step 2)</td><td>"The debug loop": start with "start debug round"; done when the stop test passes</td></tr>
+<tr><td>Gate 3 (staging exit)</td><td>A new line: the debug loop has settled (the stop test passes)</td></tr>
+<tr><td>The bugs table (Security section)</td><td>New bugs from B33 live in <code>docs/debug-loop/LEDGER.md</code>; the table points there</td></tr>
+<tr><td>Task 7.2 (Step 7)</td><td>After launch: one debug round a week, and one after every production release</td></tr>
+<tr><td>Related tasks</td><td>2.14 (the hunt, security first) and 3.6 (quality round 3) are one-off deep passes; 2.19 is the repeating pass that keeps the app clean between them and after them</td></tr>
+</tbody></table></div>
+
+<footer>
+  Written 10 November 2026 for TaskDrop. Plan only: nothing has run yet. The first sentence to Claude is "start debug round", which runs round 0 (setup) and then round 1.
+</footer>
+
+</div>
+<script>
+(function () {
+  var root = document.documentElement;
+  var btn = document.getElementById('theme');
+  try { var saved = localStorage.getItem('dl-theme'); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
+  btn.addEventListener('click', function () {
+    var dark = root.getAttribute('data-theme') === 'dark' ||
+      (!root.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    var next = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('dl-theme', next); } catch (e) {}
+  });
+  document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var text = b.getAttribute('data-copy');
+      var done = function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1500); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { window.prompt('Copy this:', text); });
+      } else { window.prompt('Copy this:', text); }
+    });
+  });
+})();
+</script>
+</body>
+</html>

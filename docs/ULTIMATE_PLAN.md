@@ -562,7 +562,7 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | B31 | On a shared phone, a guest's drafts and saved tasks move into whichever account signs in next. Drafts are free text, often with a flat number or a phone number | Medium | **Fixed 6 Nov (PR 264):** a guest's drafts and saves move into an account only when the guest signs in from the sign-up pop-up's own sign-in page |
 | B32 | The home counter "open tasks" counts posts nobody can see (59 shown, 38 live) | Low | **Waiting for your "fix" or "accept"** |
 
-New holes and bugs found by the bug and security hunt (task 2.14) are added to these two tables, holes from H30 and bugs from B15, each with its proof and the task that fixes it.
+New holes and bugs found by the bug and security hunt (task 2.14) are added to these two tables, holes from H30 and bugs from B15, each with its proof and the task that fixes it. **From 10 Nov, new bugs come from the debug loop (task 2.19)** and live in `docs/debug-loop/LEDGER.md`, numbered from B33, with their status after every round; B18, B21, B30 and B32 are copied there as its starting list. New security holes still go in the holes table above.
 
 **Hunt round 2 (4 Nov) in numbers:** 38 findings (H35 to H55, H61 to H68, B16 to B21, B30 to B32): 2 Critical (H51, H53), 2 High (H52, H54), 17 Medium and 17 Low. The numbers H56 to H60 are not all used: H56 came from the secrets audit (2.15), and H57 to H60 are simply unused. Critical and High are always fixed; the Critical and High fixes are merged and live (PR 236, migration 148), except H52, which is the known open door H3 and closes in 3.9. The Medium and Low ones marked "Waiting" need your "fix" or "accept".
 
@@ -1464,6 +1464,7 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 | 2.16 The AI attacker, Strix (added 4 Nov) | Not started | Waiting for you: Docker Desktop (not installed on this PC, checked 4 Nov) and an AI key with a spending limit, then say "start 2.16" |
 | 2.17 One home per secret (added 5 Nov) | Done 5 Nov | Nothing of yours. `push-payment-secrets.sh` now reads the master file too. Does not block Gate 2b; production (Step 5) uses `--production` |
 | 2.18 The outside testers' advice (added 6 Nov) | Checked 6 Nov, fixes not started | Decision 30, then say "start 2.18" |
+| 2.19 The debug loop (added 10 Nov) | Planned 10 Nov ([DEBUGGING_PLAN.html](DEBUGGING_PLAN.html)), round 0 not run | Say "start debug round"; then your "fix" or "accept" after each round. Gate 3 waits for it to settle; Gate 2b does not |
 
 **On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
 
@@ -2465,6 +2466,42 @@ start 2.18
 **Done when:** H71 to H76 are closed, each with a test that fails if the hole returns; `docs/SECURITY_ROLES.md` covers every role against every door; the chain review is written with the hunt's results; the go-live checklist is current; and 5.9 holds the first-day checks. Part G follows the next Android build, and part J follows your decision 30.
 </details>
 
+<details id="t2-19" data-short="Debug loop">
+<summary>[BOTH] <b>2.19</b> The debug loop: find, fix and recheck in rounds until new bugs settle near zero <small>· your time: 10 to 15 minutes a round · added 10 Nov · plan only, round 0 not run · does not reopen Gate 1</small></summary>
+
+**Why:** the hunt (2.14) and quality round 3 (3.6) are one-off deep passes. Bugs keep arriving between them: every fix can break something, testers find new ones, and Sentry shows errors nobody reported. You asked for a repeating cycle that shows, every time, which bugs are new and which are still not fixed. The full plan, with the loop drawn, is [DEBUGGING_PLAN.html](DEBUGGING_PLAN.html). It was built from David Agans' nine debugging rules, Stuart Halloway's talk "Debugging with the Scientific Method" (YouTube), Andreas Zeller's Debugging Book (GitHub `uds-se/debuggingbook`), gstack's `/qa` loop (GitHub `garrytan/gstack`), the "Ralph" loop (GitHub `ghuntley/how-to-ralph-wiggum`), Playwright's test agents, Maestro, Julia Evans' debugging guide, and open-source triage guides; the page links each one and says what it gave.
+
+**One round, eight steps** (about half a day of Claude, 10 to 15 minutes of yours):
+
+1. **Pin.** Write down the commit, what is live on staging and the Android build being tested.
+2. **Collect.** Sentry (app, server, admin), Vercel and Supabase errors, the Ideas board, support messages, testers' reports, PostHog once 3.3c is on, and the bugs waiting for a recheck.
+3. **Sweep.** Every automatic check (`npm run check`, `test:contract`, `test:db`, `test:e2e`, `audit:gate`, the admin's checks), run **twice**, so a flaky test shows up.
+4. **Explore.** One charter from a deck of eight (A poster, B helper, C money and a task's life, D accounts and safety, E admin, F talk and alerts, G the edges, H the newest parts), plus the golden path every round: post, offer, pay, work, approve, review, withdraw.
+5. **Log and triage.** One entry per bug in `docs/debug-loop/LEDGER.md`: matched against old bugs first (the same cause reopens the old number), new numbers from **B33**, a level as in 2.7. At most about 8 fixes a round.
+6. **Fix.** Make it fail on demand, write a test that fails because of it, find the cause, the smallest fix, all checks green, a pull request into `redesigned-2.0`.
+7. **Recheck.** The original steps again on staging once the fix is live, and the sweep once more. Only then "Verified".
+8. **Report.** `docs/debug-loop/ROUND-N.md`: new, fixed and verified, still open, reopened, and the list that needs your "fix", "accept" or "after launch". Then the stop test.
+
+**How many rounds:** at least 3, at most 8 before launch, every 2 to 3 days (every 3 to 4 days during the tester window, matched to 3.4). **The loop stops when** two rounds in a row found no new Critical or High, none is open, the last round found 2 or fewer new bugs and fewer than the round before, every fix is rechecked on staging, no test is flaky, the golden path passes on the website, Android and the admin, and every open Medium and Low has your answer. If round 8 is reached without that, or one area produces new bugs three rounds running, Claude stops and does a **hot-spot review** of that area instead. After the stop, and after launch, one shorter round a week (task 7.2).
+
+**The rules:** staging only, fake people only, Claude never types into a payment page. Claude asks you first before an app update to phones, a fix that adds a database migration, a wipe or reset, or a key change. The freeze holds: the loop only fixes, and a finding that is really a new idea goes to Future scope.
+
+**Today's open bugs** (B18, B21, B30, B32, all Low, waiting for your answer) are already in the ledger as the starting list.
+
+1. SAY:
+
+```say
+start debug round
+```
+
+2. The first time, Claude runs round 0 (set up the ledger's baseline, the golden path, Sentry's starting count) and then round 1.
+3. Read the round report; reply "fix", "accept" or "after launch" to each Medium and Low it lists.
+4. SAY "start debug round" again after 2 or 3 days, until the report says **settled**.
+5. TELL Claude: "done 2.19".
+
+**Done when:** a round report says the stop test passes, and the ledger shows every bug as Verified, Closed, Accepted or After launch.
+</details>
+
 > **GATE 2b: do not start Step 5 (production) until all of these are true**
 
 - [ ] Gate 2a has passed
@@ -3060,6 +3097,7 @@ Do the switch-over, one step at a time.
 - [ ] 12 testers have used the closed test for 14 days
 - [ ] The lawyer has answered (S.3), or you have decided to launch with the money jobs off and pay workers by hand
 - [ ] No Critical or High problem is open (security or quality)
+- [ ] The debug loop (2.19) has settled: a round report says its stop test passes
 - [ ] You have read the two marketplace numbers (3.3b) for at least 2 weeks
 - [ ] The switch-over (3.9) is done on staging, or has a date. Production does not wait for it, because production is built already switched over (5.9)
 
@@ -4274,8 +4312,9 @@ Run the after-release checks.
 
 2. Claude re-runs the most important security tests (keys, database rules, server permissions) and checks Sentry and the money totals.
 3. Every quarter, and after any big change, SAY "run the full test plan again". All attack-style tests run on **staging**, never on production.
+4. Every week, and after every production release, SAY "start debug round" (task 2.19): one shorter round of the debug loop, on staging, so new bugs from real use are found and old fixes are rechecked.
 
-**Done when:** the first month is over with no money problem.
+**Done when:** the first month is over with no money problem, and the weekly debug round is a habit.
 </details>
 
 <details id="t7-3" data-short="Weekly marketing rhythm">
@@ -5351,6 +5390,7 @@ Kept for the record. The live picture is the **Start here** panel at the top of 
 
 ## Changelog
 
+- **2026-11-10 (task 2.19: the debug loop, plan only):** You asked for a repeating debugging cycle that shows the new bugs and the ones still not fixed, built from GitHub repos and YouTube videos. **New task 2.19** in Step 2 and a full plan page, `docs/DEBUGGING_PLAN.html`: eight steps a round (pin, collect, sweep twice, explore one charter plus the golden path, log and triage, fix with a failing test first, recheck on staging, report), at least 3 and at most 8 rounds before launch, a seven-rule stop test, a hot-spot review when it does not settle, and a weekly round after launch (added to 7.2). New file `docs/debug-loop/LEDGER.md` holds every bug from B33 on, with B18, B21, B30 and B32 as its starting list. **Gate 3** gains one line: the debug loop has settled. Gate 2b does not wait for it. Sources: Agans' nine rules, Halloway's scientific-method talk, Zeller's Debugging Book, gstack `/qa`, the Ralph loop, Playwright test agents, Maestro, Julia Evans, open-source triage guides. Nothing was run; no code, database or setting changed.
 - **2026-11-10 (D24: full-screen phone map with a pull-up bar, from your third map video):** You showed the phone map half covered by the bottom card and asked for the full map by default and a scroll-up bar that is easy to see and brings the list. Built in task 1.12: the slim bar, tap / drag / wheel to open the list, the sheet follows the finger, the list uses the whole screen. **Not done:** the Android app gets it only with an app update (Claude asks first).
 - **2026-11-10 (plan review, wording only):** Production's web address now says in the step list and the at-a-glance card that it depends on decision 28 (still open). The one-page money text says the wallet flow is what staging does today and that Plan B may change it. A stray PostHog row was removed and decisions 29b and 36 were put back in order. No decision changed.
 - **2026-11-10 (task 1.13 approved, building):** You approved D22 after two changes: "How TaskDrop works" is a ? icon on the Home card (Hire and Earn), and no per-hour pay anywhere (tasks are a fixed price), so "≈ ₹ an hour", "Best ₹ per hour" and "how long it takes" were taken out of the design. Decision 39 is answered yes. The first build pull request changes the Hire Home: the ask card says "What do you need done?" with a Post button and day chips (Right now, Today, In 2 days, This week) that open the composer with that day picked; "Only on TaskDrop" with five big icons; published tasks show their next step; six everyday tiles; the other ideas stay as "More ideas".
