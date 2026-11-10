@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text as RNText, ScrollView, PanResponder, Platform, Keyboard, type ScrollViewInstance, type ViewInstance } from 'react-native';
+import { Animated, Easing, View, Text as RNText, ScrollView, PanResponder, Platform, Keyboard, type ScrollViewInstance, type ViewInstance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../providers/ThemeProvider';
@@ -52,10 +52,11 @@ import { useMapSharing } from '../lib/useMapSpot';
 /** The desktop side panel. */
 const PANEL_W = 400;
 const PANEL_GAP = 16;
-/** The phone sheet resting low: the hero card and the layer chips over the map. */
-const SHEET_LOW = 250;
-/** About how much taller the low sheet gets when a `footer` line sits under the stats. */
-const FOOTER_H = 40;
+/**
+ * The phone sheet resting low: a slim bar (handle, one line on the best offer or nearest helper with
+ * "See all", the layer chips), so the map fills the screen (owner video, 10 Nov: plan D24).
+ */
+const PEEK_H = 118;
 /** About how tall a picked job's card is on a phone, so the map keeps its pin above it. */
 const CARD_H = 300;
 /** About how tall a tapped helper's sheet is, so the map keeps their pin above it. */
@@ -68,8 +69,6 @@ const WIDE_KM = 20000;
 const ITEMS = 200;
 /** The most from-home jobs asked for. */
 const REMOTE_ITEMS = 50;
-/** The In person / From home switch in the low phone sheet. */
-const WORK_ROW_H = 46;
 /** The phone's top pill. */
 const TOP_BAR_H = 70;
 
@@ -1059,10 +1058,22 @@ export function NearMap({
 
   // Phones: the map fills the screen; one sheet holds the hero card and the list, a picked job becomes one card.
   const topBar = insets.top + TOP_BAR_H;
-  // The low sheet: the hero card, one row of chips, and (jobs) the In person / From home switch.
-  const sheetLow = SHEET_LOW + (footer ? FOOTER_H : 0) + (mode === 'jobs' ? WORK_ROW_H : 0);
-  const sheetHigh = Math.max(sheetLow + 120, screenH - bottomInset - topBar - 190);
+  // The low sheet is a slim bar; everything else (hero card, controls, list, footer) is one pull away.
+  const sheetLow = PEEK_H;
+  // Pulled up, the list takes nearly all the screen; a strip of map stays above it to show where it went.
+  const sheetHigh = Math.max(sheetLow + 120, screenH - bottomInset - topBar - 90);
   const bottom = (pickedHelper ? HELPER_H : pickedJob ? CARD_H : sheetLow) + insets.bottom;
+  // The low bar's line: the best offer or nearest person, else why there is nothing yet.
+  const peekTitle = hero
+    ? `${hero.label.charAt(0)}${hero.label.slice(1).toLowerCase()} · ${hero.value}`
+    : loading
+      ? 'Looking around…'
+      : count === 0
+        ? fromHome
+          ? 'No from-home jobs right now'
+          : `No ${words.many} within ${radius} km yet`
+        : countWords;
+  const peekSub = hero ? hero.title : loading ? '' : 'Swipe up for the list';
   const here = pickedJob && step ? { title: `${areaName(pickedJob.loc_label)} area`, sub: `${step.here} ${step.here === 1 ? words.one : words.many} here · ${farText(pickedJob.km)} from you` } : null;
 
   return (
@@ -1161,31 +1172,73 @@ export function NearMap({
           >
             {sheetUp ? (
               <View style={{ flex: 1 }}>
-                <View style={{ paddingHorizontal: 16, gap: 10, paddingBottom: 4 }}>
-                  {controls}
-                  {tabRow}
-                </View>
-                <FadeList contentStyle={{ padding: 8, gap: ROW_GAP, paddingBottom: 28 }}>{rows}</FadeList>
+                {/* The controls and the best offer (or nearest helper) scroll with the list, so a short screen still shows the list. */}
+                <FadeList contentStyle={{ padding: 8, gap: ROW_GAP, paddingBottom: 28 }}>
+                  <View style={{ paddingHorizontal: 8, gap: 10, paddingBottom: 8 }}>
+                    {controls}
+                    {footer ?? null}
+                    {heroCard(true)}
+                    {tabRow}
+                  </View>
+                  {rows}
+                </FadeList>
                 <View style={{ paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1, borderColor: t.colors.line }}>
                   <PrivacyLine text={privacyText} tone={mode} />
                 </View>
               </View>
             ) : (
               <View style={{ paddingHorizontal: 16, gap: 10 }}>
-                {heroCard(true) ?? (loading ? <RNText style={tx('600', 13, t.colors.muted, { paddingVertical: 8 })}>Looking around…</RNText> : empty)}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                {/* One line on what is best here, and the clear way up to the list. */}
+                <Pressy onPress={() => setSheetUp(true)} label={`${peekTitle}${peekSub ? `, ${peekSub}` : ''}. See all`} scaleTo={0.99} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <RNText style={tx('800', 14.5, t.colors.ink, { fontVariant: ['tabular-nums'] })} numberOfLines={1}>
+                      {peekTitle}
+                    </RNText>
+                    {peekSub ? (
+                      <RNText style={tx('600', 12, t.colors.muted)} numberOfLines={1}>
+                        {peekSub}
+                      </RNText>
+                    ) : null}
+                  </View>
+                  <View style={{ height: 36, paddingLeft: 12, paddingRight: 14, borderRadius: 18, backgroundColor: t.colors.btn, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <PeekArrow color={t.colors.onBtn} reduced={reduced} />
+                    <RNText style={tx('800', 13, t.colors.onBtn)}>See all</RNText>
+                  </View>
+                </Pressy>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   {onLayer ? layerOptions.map((o) => <QuickChip key={o.value} label={o.label} on={layer === o.value} onPress={() => onLayer(o.value)} />) : null}
-                  {mode === 'jobs' ? null : quickChips.slice(1)}
                   <View style={{ flex: 1 }} />
                   <FiltersButton count={mode === 'jobs' ? changedFilters(filters) : 0} onPress={openFilters} />
                 </View>
-                {mode === 'jobs' ? <WorkSwitch value={filters.work} onChange={setWork} /> : null}
-                {footer ?? null}
               </View>
             )}
           </MapSheet>
         )}
       </View>
     </View>
+  );
+}
+
+/** The "See all" arrow: points up and gives a few small nudges after the map opens, then rests. */
+function PeekArrow({ color, reduced }: { color: string; reduced: boolean }) {
+  const y = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reduced) return;
+    const nudge = Animated.sequence([
+      Animated.timing(y, { toValue: -3, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(y, { toValue: 0, duration: 320, easing: Easing.in(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.delay(900),
+    ]);
+    const run = Animated.loop(nudge, { iterations: 3 });
+    const id = setTimeout(() => run.start(), 700);
+    return () => {
+      clearTimeout(id);
+      run.stop();
+    };
+  }, [reduced, y]);
+  return (
+    <Animated.View style={{ transform: [{ translateY: y }, { rotate: '-90deg' }] }}>
+      <Icon name="chevronRight" size={14} color={color} />
+    </Animated.View>
   );
 }
