@@ -114,8 +114,8 @@ const ID = "22222222-2222-4222-8222-222222222222";
     assert.ok(op in NEW_OPS && rateBucket(op) === "read", `${op} is a read op`);
     assert.ok(NEVER_REUSE.has(op) && !isPublicMemoOp(op), `${op} is never reused or shared`);
   }
-  for (const op of ["setMapSharing", "clearMapSpot"]) assert.ok(op in NEW_OPS && rateBucket(op) === "write", `${op} is a write op`);
-  for (const op of ["mapPeople", "mapSharing", "setMapSharing", "clearMapSpot"]) assert.ok(!(op in GUEST_OPS), `${op} must not be a guest op`);
+  for (const op of ["setMapSharing", "setMapAudience", "clearMapSpot"]) assert.ok(op in NEW_OPS && rateBucket(op) === "write", `${op} is a write op`);
+  for (const op of ["mapPeople", "mapSharing", "setMapSharing", "setMapAudience", "clearMapSpot"]) assert.ok(!(op in GUEST_OPS), `${op} must not be a guest op`);
   assert.ok("touchPresence" in NEW_OPS);
   console.log("ok  - people map ops: listed, classified, closed to guests");
 }

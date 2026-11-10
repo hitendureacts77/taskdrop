@@ -548,18 +548,20 @@ export const READ_OPS: Record<string, Op> = {
   },
 
   /**
-   * The caller's people (finished a task together, migration 159) who chose to share, with a live spot rounded to
-   * a ~550 m cell, nearest first. The SQL function does the rounding and the checks; no exact position is ever read.
+   * Who is on the map around a point (migrations 159 + 160): the caller's people (finished a task together) who
+   * chose to share, with a live spot rounded to a ~550 m cell (kind "mine"), and other signed-in adults who chose
+   * "everyone nearby" (kind "nearby": first name only, no photo, a ~2 km cell, within 25 km). Nearest first. The SQL
+   * function does the rounding and every check; no exact position is ever read.
    */
-  mapPeople: rpcOp("map_my_people", (a) => ({
+  mapPeople: rpcOp("map_people_around", (a) => ({
     p_lat: num(a, "lat", -90, 90),
     p_lng: num(a, "lng", -180, 180),
     p_radius_km: num(a, "radiusKm", 0, 50),
   })),
 
-  /** The caller's own "show my spot to my people" choice: { share_live, consented_at, notice_version }, or null if never set. */
+  /** The caller's own sharing choice: { share_live, consented_at, notice_version, audience }, or null if never set. */
   mapSharing: async (ctx) =>
-    take(await ctx.db.from("map_sharing").select("share_live, consented_at, notice_version").eq("user_id", ctx.userId).maybeSingle()),
+    take(await ctx.db.from("map_sharing").select("share_live, consented_at, notice_version, audience").eq("user_id", ctx.userId).maybeSingle()),
 
   ageStatus: async (ctx) => {
     const res = await ctx.db.from("age_checks").select("passed").eq("user_id", ctx.userId).maybeSingle();

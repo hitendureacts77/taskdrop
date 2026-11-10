@@ -34,9 +34,9 @@ import { FiltersButton, FiltersPanel, PlaceRow, QuickChip, WorkSwitch, payLabel 
 import { distanceKm, peopleReach, postedToday, withinReach } from '../lib/mapReach';
 import { DEFAULT_FILTERS, FILTERS_KEY, KM_STEPS, SORT_LABELS, changedFilters, filterJobs, jobsSummary, parseSavedFilters, type MapFilters } from '../lib/mapFilters';
 import { REFRESH_DEBOUNCE_MS, createRefreshCache, refreshKey, shouldRefresh } from '../lib/mapRefresh';
-import { activeFirst, areaName, farText, firstName, jobPin, kmBetween, minePin, offerOf, personPin, togetherText } from './mapPins';
+import { activeFirst, areaName, farText, firstName, isNearby, jobPin, kmBetween, minePin, offerOf, personMeta, personPin } from './mapPins';
 import { Icon } from './Icon';
-import { BottomSheet, rupees } from './kit';
+import { BottomSheet, PrimaryButton, rupees } from './kit';
 import { FadeIn, Pressy, tx } from './primitives';
 import { categoryLabel } from './WorkCard';
 import { useReducedMotion } from '../lib/motion';
@@ -97,9 +97,9 @@ function once<T>(key: string, make: () => Promise<T>): Promise<T> {
 }
 
 /**
- * What the map shows. 'jobs' = open tasks, 'people' = helpers, 'mine' = "My people": the people
- * you finished a task with who chose to share a rounded spot (plan D20). Signed-in people only;
- * for anyone else 'mine' falls back to 'people'.
+ * What the map shows. 'jobs' = open tasks, 'people' = helpers, 'mine' = the "People" layer: the people
+ * you finished a task with, and other signed-in adults nearby, who chose to share a rounded spot
+ * (plan D20, owner decision 35b). Signed-in people only; for anyone else 'mine' falls back to 'people'.
  */
 export type NearMapLayer = 'jobs' | 'people' | 'mine';
 
@@ -514,9 +514,10 @@ export function NearMap({
   const pickedJob = mode === 'jobs' ? (shownJobs.find((j) => j.id === picked) ?? null) : null;
   const pickedHelper = kind === 'people' ? (shownPeople.find((w) => w.id === picked) ?? null) : null;
   const pickedPerson = mine ? (shownMine.find((p) => p.id === picked) ?? null) : null;
-  const pickedPersonId = pickedPerson?.id ?? null;
+  // Someone I have not worked with ("Everyone nearby") gets a small card with what the server sent: no profile is read.
+  const pickedPersonId = pickedPerson && !isNearby(pickedPerson) ? pickedPerson.id : null;
 
-  // The person sheet shows their reviews, so it needs their ratings: read once per person tapped.
+  // The person sheet shows their reviews, so it needs their ratings: read once per person tapped (my people only).
   useEffect(() => {
     setProfile(null);
     if (!pickedPersonId) return;
@@ -655,7 +656,7 @@ export function NearMap({
   };
 
   const fromHome = mode === 'jobs' && filters.work === 'remote';
-  const title = mode === 'jobs' ? (fromHome ? 'Work from home' : 'Work near you') : mine ? 'Your people nearby' : 'Helpers near you';
+  const title = mode === 'jobs' ? (fromHome ? 'Work from home' : 'Work near you') : mine ? 'People nearby' : 'Helpers near you';
   const within = fromHome ? 'from anywhere' : `within ${radius} km`;
   const sub = loading ? 'Looking around…' : `${placeName} · ${within}${mode === 'people' && live > 0 ? ` · ${live} active now` : ''}`;
   const countWords = `${count} ${count === 1 ? words.one : words.many}`;
@@ -666,7 +667,7 @@ export function NearMap({
   const layerOptions = [
     { value: 'jobs' as NearMapLayer, label: 'Jobs' },
     { value: 'people' as NearMapLayer, label: 'Helpers' },
-    ...(canMine ? [{ value: 'mine' as NearMapLayer, label: 'My people' }] : []),
+    ...(canMine ? [{ value: 'mine' as NearMapLayer, label: 'People' }] : []),
   ];
   const layerSwitch = onLayer ? <Segmented label="Show" value={layer} onChange={onLayer} options={layerOptions} /> : null;
 
@@ -721,10 +722,10 @@ export function NearMap({
       const closest = [...listMine].sort((a, b) => a.km - b.km)[0];
       if (!closest) return null;
       return {
-        label: 'NEAREST OF YOUR PEOPLE',
+        label: 'NEAREST PERSON',
         value: kmValue(closest.km),
         title: firstName(closest.display_name),
-        meta: `${togetherText(closest.jobs)} · ${presenceOf(closest.last_seen_at, now).label}`,
+        meta: `${personMeta(closest)} · ${presenceOf(closest.last_seen_at, now).label}`,
         onFocus: () => pick(closest.id),
         onOpen: () => pick(closest.id),
         openLabel: 'View',
@@ -777,10 +778,10 @@ export function NearMap({
   const empty =
     !loading && count === 0 ? (
       noneToShow ? (
-        // Nobody shows yet: either you are not sharing (offer to), or none of your people are.
+        // Nobody shows yet: either you are not sharing (offer to), or nobody around is.
         <View style={{ padding: 16, gap: 12, alignItems: 'flex-start' }}>
           <RNText style={tx('600', 13, t.colors.muted)}>
-            {sharing ? 'None of your people are sharing right now.' : 'Your people show up here when they share their spot. Share yours?'}
+            {sharing ? 'Nobody is sharing their spot nearby right now.' : 'People show up here when they share their spot. Share yours?'}
           </RNText>
           {sharing ? null : (
             <Pressy onPress={() => setShareOpen(true)} label="Share my spot" style={{ height: 40, paddingHorizontal: 18, borderRadius: 20, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}>
@@ -922,13 +923,24 @@ export function NearMap({
     <>
       {filtersSheet}
       <PeopleMapSheet visible={shareOpen} onClose={() => setShareOpen(false)} onDone={(on) => on && setBeat((b) => b + 1)} />
-      {pickedPerson ? (
+      {pickedPerson && isNearby(pickedPerson) ? (
+        // Someone I have not worked with: a small card with only what the server sent. No profile, no chat.
+        <BottomSheet visible onClose={close} title={pickedPerson.display_name?.trim() || 'Someone'}>
+          <RNText style={tx('600', 14, t.colors.muted, { lineHeight: 20 })}>
+            {[personMeta(pickedPerson), presenceOf(pickedPerson.last_seen_at, now).label, farText(pickedPerson.km)].join(' · ')}
+          </RNText>
+          <RNText style={tx('500', 13, t.colors.muted, { marginTop: 10, lineHeight: 19 })}>
+            Shown on a rounded spot about 2 km wide, only while TaskDrop is open. To work with them, post a task or send an offer.
+          </RNText>
+          <PrimaryButton label="Close" tone="quiet" onPress={close} style={{ marginTop: 16 }} />
+        </BottomSheet>
+      ) : pickedPerson ? (
         <PersonSheet
           visible
           onClose={close}
           userId={pickedPerson.id}
           name={pickedPerson.display_name?.trim() || 'Someone'}
-          meta={[presenceOf(pickedPerson.last_seen_at, now).label, togetherText(pickedPerson.jobs)].join(' · ')}
+          meta={[presenceOf(pickedPerson.last_seen_at, now).label, personMeta(pickedPerson)].join(' · ')}
           rating={Number((personRole === 'poster' ? profile?.poster_rating_avg : profile?.worker_rating_avg) ?? 0)}
           ratingCount={(personRole === 'poster' ? profile?.poster_rating_count : profile?.worker_rating_count) ?? 0}
           role={personRole}

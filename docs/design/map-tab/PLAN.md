@@ -38,8 +38,8 @@ Owner request: Explore opens the full map (like Instagram's map page), and a Sna
 | 10 | Tile source on web | Keep the current tiles (`tile.openstreetmap.org`, `MapPicker.tiles.tsx` L62) for staging. | See risk R1: production needs a decision. |
 
 **Owner-only decisions to put in ULTIMATE_PLAN after the build (as decision 35 and design D20; the next free numbers on 8 Nov):**
-- **35a**: is the label still "Explore" with a map icon (default), or rename the tab "Map"? Renaming touches the tour copy, the Earn-mode rename rule in AGENTS.md and the e2e tests.
-- **35b**: may strangers ever see live spots? Default **no**.
+- **35a**: ANSWERED 8 Nov by the owner: the tab stays **"Explore"** (with the map icon). No rename.
+- **35b**: ANSWERED 8 Nov by the owner: **yes, strangers can see live spots.** Built as migration 160: it is a second opt-in. A sharer picks "My people" (default, and every existing sharer stays on it) or "Everyone nearby" (needs notice v2; switching sharing off puts it back to My people). A stranger sees less than someone you worked with: first name only, no photo, no job count, a ~2 km cell (0.02 degrees, not the 550 m one), within 25 km, nearest 30; the viewer must be a signed-in adult, blocks hold both ways, closed accounts never show, guests see nothing. The layer chip is now "People".
 - **35c**: production map tiles: a paid tile provider (e.g. MapTiler/Stadia/Carto) vs. OSM. This must be settled before launch (R1).
 - 35d: an admin kill switch for the people layer before launch (decision 9).
 
@@ -392,7 +392,7 @@ No pg_cron, no Inngest job. There is one row per user (upsert), expired rows are
 **Risks**
 - **R1 Tile cost and policy (web + Expo Go).** The web map pulls tiles from `tile.openstreetmap.org`. Making the map the Explore landing multiplies tile loads, and OSM's public tile policy does not allow heavy app traffic. This is fine for ~10 staging testers. For production the owner must pick a provider (decision 35c). The tile URL lives in one function (`tileUrl`), so swapping it is a one-line change plus a key in the server env and a referrer allow-list.
 - **R2 Android Google Maps quota.** Installed builds use the Maps SDK for Android (`EXPO_GOOGLE_MAPS_API_KEY`, app.config.js). Dynamic maps on the mobile SDK are believed to carry no per-load charge. This was not checked in the console. The memory notes say the Android Maps key restriction is still open.
-- **R3 Stalking via repeated observation.** A 550 m cell shown live can still narrow down a home over days. It is mitigated by the "my people" only rule, the 15 min expiry, ghost mode and blocks. Strangers never see it (35b).
+- **R3 Stalking via repeated observation.** A 550 m cell shown live can still narrow down a home over days. It is mitigated by the 15 min expiry, ghost mode and blocks, and (since 35b) strangers only see a coarser ~2 km cell and only for people who chose "Everyone nearby".
 - **R4 KEEP_ALIVE + view reset.** Explore stays mounted, so the "reset to map on re-entry" logic must key off the focus tick and not fight the list intents. This is covered by the e2e case (4).
 - **R5 Migration auto-apply.** Merging WP1 applies it to staging immediately. Keep it additive. If a later fix is needed, ship a new migration (forward-only).
 - **R6 Desktop FULL change.** Moving `explore` into `FULL` makes the list view responsible for its own max width. Compare against today's widths at 1024, 1440 and 1680.

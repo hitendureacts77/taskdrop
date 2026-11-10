@@ -607,6 +607,15 @@ export const WRITE_OPS: Record<string, Op> = {
     return { p_on: a.on, p_notice: notice };
   }),
 
+  /** Choose who may see my spot (migration 160): "people" (default) or "everyone" nearby. Sharing must already be on. */
+  setMapAudience: rpcOp("map_audience_set", (a) => {
+    const audience = str(a, "audience", 12);
+    if (audience !== "people" && audience !== "everyone") throw bad("audience");
+    const notice = str(a, "notice", 20);
+    if (!/^v\d+$/.test(notice)) throw bad("notice");
+    return { p_audience: audience, p_notice: notice };
+  }),
+
   /** Delete the caller's live spot now (ghost mode), without changing the saved choice. */
   clearMapSpot: rpcOp("map_spot_clear"),
 

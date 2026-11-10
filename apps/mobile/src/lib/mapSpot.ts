@@ -16,6 +16,10 @@ export const PEOPLE_POLL_MS = 60_000;
 export const BEAT_REFRESH_MS = 10 * 60_000;
 /** Version of the consent wording the person agreed to; sent with setMapSharing. */
 export const PEOPLE_MAP_NOTICE = 'v1';
+/** Wording for the second, separate choice "Everyone nearby" (owner decision 35b, migration 160). */
+export const EVERYONE_MAP_NOTICE = 'v2';
+/** Who may see my spot: the people I finished a task with (default), or also other signed-in adults nearby. */
+export type MapAudience = 'people' | 'everyone';
 
 export type Cell = { lat: number; lng: number };
 

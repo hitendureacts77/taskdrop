@@ -29,7 +29,7 @@ test.describe("signed in as the seed poster", () => {
     await expect(layerChip(page, "Jobs").first().or(chooseArea(page))).toBeVisible();
     if (await chooseArea(page).isHidden()) {
       await expect(layerChip(page, "Helpers")).toBeVisible();
-      await expect(layerChip(page, "My people")).toBeVisible();
+      await expect(layerChip(page, "People")).toBeVisible();
     }
   });
 
@@ -116,12 +116,12 @@ test.describe("signed in as the seed poster", () => {
 test.describe("as a guest", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test("a guest sees the map but no My people chip", async ({ page }) => {
+  test("a guest sees the map but no People chip", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Skip sign-up for now" }).click();
     await page.getByText("Explore", { exact: true }).first().click();
     await expect(showList(page)).toBeVisible();
-    await expect(layerChip(page, "My people")).toHaveCount(0);
+    await expect(layerChip(page, "People")).toHaveCount(0);
   });
 
   test("a guest can change the reach and still sees the layer chips", async ({ page }) => {

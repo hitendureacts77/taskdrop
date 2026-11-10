@@ -2195,12 +2195,12 @@ await t("hunt: sending a find follows the offers switch and the phone rule", () 
 
 // ------------------------------------------------------- people map (D20) --
 
-await t("people map: mapPeople passes the area to map_my_people and checks the ranges", async () => {
+await t("people map: mapPeople passes the area to map_people_around and checks the ranges", async () => {
   const f = fake(() => ({ data: [], error: null }));
   const r = await runOp("mapPeople", { lat: 12.97, lng: 77.59, radiusKm: 10 }, ctx(f));
   assert.ok(r.ok);
   assert.equal(f.calls.length, 1);
-  assert.equal(f.calls[0].rpc, "map_my_people");
+  assert.equal(f.calls[0].rpc, "map_people_around");
   assert.deepEqual(f.calls[0].args, { p_lat: 12.97, p_lng: 77.59, p_radius_km: 10 });
   for (const args of [{ lat: 91, lng: 0, radiusKm: 1 }, { lat: 0, lng: -181, radiusKm: 1 }, { lat: 0, lng: 0, radiusKm: 51 }, { lat: 0, lng: 0, radiusKm: -1 }, { lat: 0, lng: 0 }, { lat: "1", lng: 0, radiusKm: 1 }]) {
     const g = fake();
@@ -2212,7 +2212,7 @@ await t("people map: mapPeople passes the area to map_my_people and checks the r
 });
 
 await t("people map: mapSharing reads only the caller's own row", async () => {
-  const f = fake(() => ({ data: { share_live: true, consented_at: "2026-11-08T00:00:00Z", notice_version: "v1" }, error: null }));
+  const f = fake(() => ({ data: { share_live: true, consented_at: "2026-11-08T00:00:00Z", notice_version: "v1", audience: "people" }, error: null }));
   const r = await runOp("mapSharing", {}, ctx(f));
   assert.ok(r.ok);
   assert.equal(f.calls[0].table, "map_sharing");
@@ -2221,10 +2221,10 @@ await t("people map: mapSharing reads only the caller's own row", async () => {
 });
 
 await t("people map: a guest gets NEEDS_ACCOUNT for every people-map op and nothing reaches the database", async () => {
-  for (const name of ["mapPeople", "mapSharing", "setMapSharing", "clearMapSpot"]) {
+  for (const name of ["mapPeople", "mapSharing", "setMapSharing", "setMapAudience", "clearMapSpot"]) {
     assert.equal(isGuestOp(name), false, name);
     const f = guestFake();
-    const r = await runGuestOp(name, { lat: 12.97, lng: 77.59, radiusKm: 5, on: true, notice: "v1" }, ctx(f));
+    const r = await runGuestOp(name, { lat: 12.97, lng: 77.59, radiusKm: 5, on: true, notice: "v1", audience: "people" }, ctx(f));
     assert.equal(r.ok, false, name);
     if (!r.ok) assert.equal(r.error.code, NEEDS_ACCOUNT_CODE, name);
     assert.equal(f.calls.length, 0, name + " reached the database");
@@ -2286,6 +2286,22 @@ await t("people map: setMapSharing sends the choice and the notice version, and 
     assert.equal(g.calls.length, 0);
   }
   assert.equal(rateBucket("setMapSharing"), "write");
+});
+
+await t("people map: setMapAudience sends the audience and the notice, and rejects anything else", async () => {
+  const f = fake(() => ({ data: null, error: null }));
+  const r = await runOp("setMapAudience", { audience: "everyone", notice: "v2" }, ctx(f));
+  assert.ok(r.ok);
+  assert.equal(f.calls[0].rpc, "map_audience_set");
+  assert.deepEqual(f.calls[0].args, { p_audience: "everyone", p_notice: "v2" });
+  assert.ok((await runOp("setMapAudience", { audience: "people", notice: "v2" }, ctx(fake()))).ok);
+  for (const args of [{ audience: "all", notice: "v2" }, { audience: "Everyone", notice: "v2" }, { audience: "", notice: "v2" }, { audience: "everyone" }, { audience: "everyone", notice: "2" }, { audience: "everyone", notice: "v2; drop" }, { audience: 1, notice: "v2" }, { notice: "v2" }]) {
+    const g = fake();
+    const bad = await runOp("setMapAudience", args, ctx(g));
+    assert.ok(!bad.ok && bad.error.code === "BAD_ARGS", JSON.stringify(args));
+    assert.equal(g.calls.length, 0);
+  }
+  assert.equal(rateBucket("setMapAudience"), "write");
 });
 
 await t("people map: clearMapSpot calls map_spot_clear and is a write", async () => {
