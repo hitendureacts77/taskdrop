@@ -397,7 +397,7 @@ Everything here is **new and separate** and is made in Step 5. Nothing is copied
 
 **The honest goal.** No app can be made unhackable. TaskDrop aims for this: a break-in is **unlikely**, it is **noticed within minutes**, a stolen key **does little damage**, and recovery is **written down and fast**. Step 2 builds this. The tests are done the way a real attacker would work, but only against staging, never against production or the payment companies.
 
-**Security in one page** (made simpler on 4 November 2026). If you read only one thing about security, read this table. Its 12 checks hold everything: the checks already in this plan, every point from the 8 Upwork proposals (task 2.18), all 16 lines of [Matt Palmer's security checklist for vibe-coded apps](https://gist.github.com/mattppal/5c01ef4447e94515a03314db1ef2403e), the Betterleaks secrets audit you shared (task 2.15) and [Strix](https://github.com/usestrix/strix), the free AI attacker (task 2.16). What is left, in order, is the **security path** at the top of Step 2. The full detail (every hole, the Vercel table, the bug list) is in the card under the picture.
+**Security in one page** (made simpler on 4 November 2026). If you read only one thing about security, read this table. Its 12 checks hold everything: the checks already in this plan, every point from the 8 Upwork proposals (task 2.18), all 16 lines of [Matt Palmer's security checklist for vibe-coded apps](https://gist.github.com/mattppal/5c01ef4447e94515a03314db1ef2403e), the Betterleaks secrets audit you shared (task 2.15) and [Strix](https://github.com/usestrix/strix), the free AI attacker (task 2.16), and the 41-item audit prompt from the vibe-coded security guide (task 2.20). What is left, in order, is the **security path** at the top of Step 2. The full detail (every hole, the Vercel table, the bug list) is in the card under the picture.
 
 | # | The check, in plain words | Where TaskDrop stands | Finished in |
 |---|---|---|---|
@@ -1436,9 +1436,10 @@ design D22
 4. **The hunt** (2.14). Rounds 1 and 2 done 4 Nov. The 2 Critical finds and the High "old helper presses Start" are fixed and live (migration 148); the High "direct database access" (H52) closes in 3.9. **The Medium finds were fixed on 5 and 6 Nov** (PRs 259 to 264, admin PRs 45 and 46, migrations 152 to 155); still open: the wallet record list (H34, design done), the admin's database-side idle limit and Google button (H37), the location inside videos (H38), and your "fix" or "accept" on the Low finds. Part G (every screen on the phone) is still to do.
 5. **The AI attacker** (2.16), after the hunt's fixes **and after the money flow (decision 29) is built**, so it attacks the code that goes live (CEO review, 9 Nov). Install Docker and make an AI key with a spending limit, then SAY "start 2.16".
 6. **The outside testers' advice** (2.18, added 6 Nov). Claude read the 8 Upwork proposals and checked each point on staging: six new holes (H71 to H76), one go-live checklist, and the rules for hiring a tester. SAY "start 2.18", and answer decision 30 (recommended: one paid round, after the money flow is built).
-7. **The small leftovers:** your OK on the Google-first sign-in screen (2.8). (The content policy now blocks, H9 closed 4 Nov, and the Android app test T11 passed 4 Nov.)
-8. **One home per secret** (2.17, about 10 minutes of yours): the server keys are set straight in Supabase and the Vercel build stops copying them. Do it before Step 5.
-9. **Tick Gate 2b.** Then Step 5 (production) may start.
+7. **The audit prompt** (2.20, added 10 Nov). One checklist of 41 items run on the app and the admin, a verdict for every item with the file and line as proof. SAY "start 2.20".
+8. **The small leftovers:** your OK on the Google-first sign-in screen (2.8). (The content policy now blocks, H9 closed 4 Nov, and the Android app test T11 passed 4 Nov.)
+9. **One home per secret** (2.17, about 10 minutes of yours): the server keys are set straight in Supabase and the Vercel build stops copying them. Do it before Step 5.
+10. **Tick Gate 2b.** Then Step 5 (production) may start.
 
 Every finding from 2.13 to 2.16 reaches you in one short form: a level, what happened, why it matters and what to do. Critical and High are always fixed. For everything else you reply "fix" or "accept".
 
@@ -1465,6 +1466,7 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 | 2.17 One home per secret (added 5 Nov) | Done 5 Nov | Nothing of yours. `push-payment-secrets.sh` now reads the master file too. Does not block Gate 2b; production (Step 5) uses `--production` |
 | 2.18 The outside testers' advice (added 6 Nov) | Checked 6 Nov, fixes not started | Decision 30, then say "start 2.18" |
 | 2.19 The debug loop (added 10 Nov) | Planned 10 Nov ([DEBUGGING_PLAN.html](DEBUGGING_PLAN.html)), round 0 not run | Say "start debug round"; then your "fix" or "accept" after each round. Gate 3 waits for it to settle; Gate 2b does not |
+| 2.20 The audit prompt for vibe-coded apps (added 10 Nov) | Not run | Say "start 2.20"; then your "fix" or "accept" on the Medium and Low finds. Does not block Gate 2b unless it finds a Critical or High |
 
 **On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
 
@@ -2500,6 +2502,429 @@ start debug round
 5. TELL Claude: "done 2.19".
 
 **Done when:** a round report says the stop test passes, and the ledger shows every bug as Verified, Closed, Accepted or After launch.
+</details>
+
+<details id="t2-20" data-short="Audit prompt">
+<summary>[BOTH] <b>2.20</b> The 8-section audit prompt for vibe-coded apps: one checklist verdict per item, on both code folders <small>· your time: about 5 minutes · added 10 Nov · not run yet · read-only, does not reopen Gate 1</small></summary>
+
+**Why:** you shared a security guide for vibe-coded apps (Google Doc "Security For Vibe-Coded Apps (+ Prompt)", from Maker School). Its numbers: about 45% of AI-written code brings in a serious hole, and most exposed Supabase databases came from row-rule mistakes. Its fix list (secrets, row rules, server-side checks, packages, sign-in checks, then limits, CORS and file uploads) is already covered by the Security table and by tasks 2.5 to 2.16. What the guide adds is a different way to check: one prompt that makes the AI give **every** checklist item its own PASS, FAIL, PARTIAL or N/A verdict with the file and line as proof, then a posture rating, quick wins and a fix order. It is a second pair of eyes with a fixed list, so nothing is skipped, and it costs one run.
+
+**What it covers (41 items, 8 sections) and where TaskDrop already has the answer:**
+
+| Prompt section | Items | Already covered by |
+|---|---|---|
+| 1. Secrets and environment variables | 1.1 to 1.6 | 2.5, 2.15, the bundle secret test (H72 is the gap) |
+| 2. Database: row rules, storage, `SECURITY DEFINER` | 2.1 to 2.8 | 2.7, 2.12, 2.13 A and G, 2.18 C and A (H71, H74) |
+| 3. Sign-in and sessions | 3.1 to 3.8 | 2.8b, 2.13 C and I (H26, H30, H31) |
+| 4. Server-side checks and hostile input | 4.1 to 4.6 | 2.9, 2.13 B, Semgrep, 2.18 E (H76: webhook amount) |
+| 5. Packages | 5.1 to 5.5 | 2.6 (`npm audit`, Dependabot) |
+| 6. Rate limits | 6.1 to 6.3 | 2.8, 2.11, 2.13 A and J (H24, H29) |
+| 7. CORS | 7.1 to 7.2 | 2.6, 2.13 A |
+| 8. File uploads | 8.1 to 8.3 | The Phase 6 media registry; this run is the first full check of upload rules |
+
+**How Claude runs it:**
+
+1. Run the prompt below, word for word, against the app (`Taskdrop user`, which holds `supabase/`) and again against the admin (`taskdrop-admin`). Two runs, because the admin is a separate Next.js site.
+2. TaskDrop is Expo and React Native with Supabase Edge Functions, not a plain Next.js site. The prompt says to adapt: items about `middleware.ts`, httpOnly cookies and `NEXT_PUBLIC_` apply to the admin and the website; on the phone app they become the Expo public prefix `EXPO_PUBLIC_`, the secure token store and the `api` door. Claude writes the adaptation next to each verdict instead of marking it N/A.
+3. Read-only. Staging only. No secret value is printed; a finding names the file and line, never the key.
+4. Every FAIL goes in the holes table as the next H number (from H77) with its level, in the same short form as 2.13 to 2.16. Critical and High are always fixed. A FAIL that is already a known hole points at the old number instead of adding a new one.
+5. The report goes in `docs/SECURITY_AUDIT_PROMPT.md`: the rating, the Critical and High list, the quick wins, the fix order, what is already done right, and the one-line summary of all 41 verdicts for each folder.
+6. Repeat the run after Step 3 changes the money flow, and once more before Step 5, so the final code gets the same list.
+
+**The prompt** (copy it with the button; it is the guide's text, unchanged except that the two "copy everything" marker lines are removed):
+
+```say
+<role>
+You are a senior application security engineer specializing in
+AI-generated codebases. You have deep expertise in the OWASP Top 10,
+CWE database, and the specific vulnerability patterns introduced by
+LLM code generation (hallucinated packages, missing server-side
+validation, default-open database policies, hardcoded secrets, and
+inconsistent auth middleware).
+
+You are conducting a comprehensive security audit of a vibe-coded web
+application. "Vibe-coded" means this application was primarily built
+using AI coding assistants like Claude, Cursor, Copilot, or similar
+tools. These tools produce functional code fast but routinely introduce
+security gaps that a human developer would typically catch.
+
+Your job is to find every one of those gaps.
+</role>
+
+<methodology>
+Work through the codebase in two passes:
+
+PASS 1 — DISCOVERY
+Read the entire codebase before making any findings. Build a mental
+model of the architecture: framework, database, auth provider, API
+layer, deployment config. Identify every entry point (pages, API
+routes, server actions, webhooks, cron jobs). Map the data flow from
+user input to database and back.
+
+PASS 2 — SYSTEMATIC AUDIT
+Work through each section of the checklist below. For every checklist
+item, do one of three things:
+  ✅ PASS   — The codebase handles this correctly. Cite the file/line.
+  ❌ FAIL   — A vulnerability exists. Document it fully (see format).
+  ⚠️ PARTIAL — Some coverage but gaps remain. Explain what's missing.
+  ⬚ N/A    — Not applicable to this codebase. State why briefly.
+
+Do not skip items. Do not summarize groups of items together. Every
+single checklist item gets its own explicit verdict.
+</methodology>
+
+<output_format>
+For every ❌ FAIL finding, use this exact structure:
+
+┌─────────────────────────────────────────────────────────┐
+│ FINDING #[number]                                       │
+├──────────┬──────────────────────────────────────────────┤
+│ Severity │ CRITICAL / HIGH / MEDIUM / LOW               │
+│ Category │ e.g., Secret Exposure, Missing RLS, etc.     │
+│ Location │ file/path.ts:line_number                     │
+│ CWE      │ CWE-XXX (Name)                              │
+├──────────┴──────────────────────────────────────────────┤
+│ What's wrong:                                           │
+│ [Plain English description of the vulnerability]        │
+│                                                         │
+│ Why it matters:                                         │
+│ [What an attacker could actually do with this]          │
+│                                                         │
+│ The vulnerable code:                                    │
+│ ```                                                     │
+│ [exact code snippet]                                    │
+│ ```                                                     │
+│                                                         │
+│ The fix:                                                │
+│ ```                                                     │
+│ [corrected code snippet, ready to copy/paste]           │
+│ ```                                                     │
+│                                                         │
+│ Effort: ~[X] minutes                                    │
+└─────────────────────────────────────────────────────────┘
+</output_format>
+
+<audit_checklist>
+
+## Section 1: Environment Variables And Secret Management
+
+Search every file in the codebase for each of the following. This
+includes source files, config files, scripts, and any .env files
+that may have been committed to the repository.
+
+- [ ] 1.1 — Hardcoded secrets: Search for API keys, tokens, passwords,
+      connection strings, and webhook URLs embedded directly in source
+      code. Common patterns to grep for:
+        sk_live_, sk_test_, sk-, pk_live_,
+        Bearer, eyJ (base64 JWT prefix),
+        ghp_, gho_, github_pat_,
+        xoxb-, xoxp- (Slack tokens),
+        AKIA (AWS access keys),
+        any 32+ character alphanumeric strings in quotes
+
+- [ ] 1.2 — .gitignore coverage: Verify that .env, .env.local,
+      .env.production, and .env*.local are all in .gitignore. Check
+      git history for any previously committed .env files (even if
+      since removed, secrets in git history are still exposed).
+
+- [ ] 1.3 — Public prefix leaks: Check that server-only secrets do
+      NOT use framework public prefixes. In Next.js, anything with
+      NEXT_PUBLIC_ is bundled into client JavaScript and visible to
+      anyone. In Vite, the prefix is VITE_. In Create React App, it
+      is REACT_APP_. Keys that must NEVER be public-prefixed include:
+        - Database service role keys
+        - Stripe secret keys
+        - OpenAI / Anthropic API keys
+        - SMTP credentials
+        - Any key that grants write/admin access
+
+- [ ] 1.4 — Console/error leaks: Search for console.log, console.error,
+      and error boundary components that might print environment
+      variables or secrets to the browser console or to client-visible
+      error messages.
+
+- [ ] 1.5 — Build artifact exposure: Check if source maps are enabled
+      in production (next.config.js productionBrowserSourceMaps,
+      vite sourcemap config, etc). Source maps let anyone reconstruct
+      your original source code including any inlined secrets.
+
+- [ ] 1.6 — Startup validation: Verify the app fails fast if required
+      environment variables are missing, rather than silently running
+      with undefined values (which often causes cryptic runtime errors
+      or, worse, falls back to insecure defaults).
+
+## Section 2: Database Security
+
+If the app uses Supabase, Firebase, or any database with client-side
+access, this section is critical. If using a traditional server-only
+database (e.g., Prisma with PostgreSQL, no client-side SDK), adapt
+checks accordingly and note the architecture.
+
+- [ ] 2.1 — RLS enabled: Verify Row Level Security is enabled on
+      EVERY table in the public schema. Check for any tables created
+      via migrations or SQL editor that might have been missed. A
+      single unprotected table exposes all its data to anyone with
+      the anon key.
+
+- [ ] 2.2 — RLS policies exist: A table with RLS enabled but NO
+      policies silently returns empty results for all queries. This
+      looks like a bug, not a security issue, and is a common AI
+      mistake. Verify every RLS-enabled table has at least SELECT
+      and INSERT policies.
+
+- [ ] 2.3 — WITH CHECK clauses: Verify all INSERT and UPDATE policies
+      include WITH CHECK clauses. Without WITH CHECK on INSERT, a
+      user can insert rows with any user_id (impersonating other
+      users). Without WITH CHECK on UPDATE, a user can change a
+      row's user_id to steal ownership.
+
+- [ ] 2.4 — Policy identity source: Ensure RLS policies use
+      auth.uid() for identity, NOT auth.jwt()->'user_metadata'.
+      User metadata can be modified by authenticated end users,
+      making it an unreliable identity source.
+
+- [ ] 2.5 — Service role key isolation: The service_role key bypasses
+      all RLS. Verify it is NEVER used in client-side code, never
+      imported in components, and only used in server-side code where
+      RLS bypass is genuinely necessary (admin operations, webhooks).
+
+- [ ] 2.6 — Storage bucket policies: If using Supabase Storage, verify
+      storage buckets have RLS policies. By default, storage buckets
+      are publicly accessible.
+
+- [ ] 2.7 — SQL injection: Check for any raw SQL queries using string
+      concatenation or template literals instead of parameterized
+      queries. The Supabase client library is safe by default, but
+      raw .rpc() calls or pg/postgres.js queries may not be.
+
+- [ ] 2.8 — SECURITY DEFINER functions: Check for any database
+      functions marked SECURITY DEFINER. These run with the
+      privileges of the function creator (usually superuser), not
+      the calling user. Verify they don't expose data or bypass RLS.
+
+## Section 3: Authentication And Session Management
+
+- [ ] 3.1 — Auth middleware exists: Verify authentication middleware
+      (e.g., Next.js middleware.ts, Express middleware, etc.) exists
+      and runs on protected routes. Check the matcher config to
+      ensure it covers all necessary paths.
+
+- [ ] 3.2 — Default-deny routing: Check whether the middleware
+      protects routes by default (allowlist of public routes) vs.
+      protecting routes by exception (blocklist of protected routes).
+      Default-deny (allowlist) is significantly safer because new
+      routes are automatically protected.
+
+- [ ] 3.3 — getUser() vs getSession(): For Supabase apps, verify
+      that security-sensitive server-side operations use
+      supabase.auth.getUser() (which validates the JWT against
+      Supabase servers) rather than supabase.auth.getSession()
+      (which only reads the local JWT without verification).
+
+- [ ] 3.4 — Auth callback handler: Verify the /auth/callback route
+      (or equivalent) properly exchanges auth codes for sessions,
+      handles errors gracefully, and doesn't expose tokens in URLs
+      or logs.
+
+- [ ] 3.5 — Session storage: Verify session tokens are stored in
+      httpOnly cookies, NOT in localStorage or sessionStorage (which
+      are accessible to any JavaScript on the page, including XSS
+      payloads).
+
+- [ ] 3.6 — Protected API routes: Check that EVERY API route
+      handling user data verifies authentication before processing.
+      Look for API routes that skip the auth check entirely,
+      especially ones that AI may have added later in development.
+
+- [ ] 3.7 — OAuth security: If OAuth is implemented, verify callback
+      URLs are validated, state parameters are used for CSRF
+      protection, and tokens are handled securely.
+
+- [ ] 3.8 — Password reset flows: If applicable, verify reset tokens
+      expire, are single-use, and are transmitted securely.
+
+## Section 4: Server-Side Validation
+
+- [ ] 4.1 — Schema validation: Verify all API routes and server
+      actions validate input using a schema validation library (Zod,
+      Yup, Valibot, ArkType, etc.) on the server side. Frontend
+      validation is UX, not security. Every input must be re-checked
+      server-side.
+
+- [ ] 4.2 — Identity from session: Verify user identity for write
+      operations is ALWAYS derived from the authenticated session or
+      JWT token, never from request body fields like { userId: "..." }.
+      An attacker can send any userId they want in a request body.
+
+- [ ] 4.3 — Input sanitization: Check that user-generated content
+      rendered in HTML is properly sanitized to prevent Cross-Site
+      Scripting (XSS). Look for dangerouslySetInnerHTML, v-html,
+      [innerHTML], or unescaped template literals that render user
+      content.
+
+- [ ] 4.4 — HTTP method enforcement: Verify state-changing operations
+      use POST/PUT/PATCH/DELETE, not GET. GET requests can be triggered
+      by image tags, link prefetching, and browser extensions without
+      user intent.
+
+- [ ] 4.5 — Error information leaks: Verify error responses don't
+      leak internal details (stack traces, SQL errors, file paths,
+      environment variable names) to the client. Check both API
+      routes and error boundary components.
+
+- [ ] 4.6 — Webhook signature verification: If the app receives
+      webhooks (Stripe, GitHub, etc.), verify it validates the
+      webhook signature before processing. Without verification,
+      anyone can send fake webhook events to your endpoint.
+
+## Section 5: Dependency And Package Security
+
+- [ ] 5.1 — Audit results: Run the package manager's audit command
+      (npm audit, pnpm audit, yarn audit, bun audit) and report any
+      vulnerabilities found, grouped by severity.
+
+- [ ] 5.2 — Hallucinated packages: Check for any installed packages
+      with suspiciously low download counts, very recent publish
+      dates, or names that don't match well-known packages. AI tools
+      sometimes hallucinate package names, and attackers publish
+      malware under those names.
+
+- [ ] 5.3 — Lockfile committed: Verify a lockfile (package-lock.json,
+      pnpm-lock.yaml, yarn.lock, bun.lockb) is committed to the
+      repository. Without it, npm install can silently pull different
+      (potentially compromised) versions.
+
+- [ ] 5.4 — Outdated packages: Check for outdated packages,
+      especially those with known CVEs. Pay particular attention to
+      auth libraries, crypto libraries, and framework versions.
+
+- [ ] 5.5 — Unused dependencies: AI tends to install packages it
+      ends up not using. Each unused package is unnecessary attack
+      surface. Check for packages in package.json that aren't
+      imported anywhere in the codebase.
+
+## Section 6: Rate Limiting
+
+- [ ] 6.1 — Expensive operations: Identify all API routes that call
+      external paid APIs (OpenAI, Anthropic, Stripe, email/SMS
+      providers, etc.) and verify they have rate limiting. Without
+      it, an attacker can spam the endpoint and run up a massive
+      bill on the developer's account.
+
+- [ ] 6.2 — Auth endpoints: Verify login, signup, password reset,
+      and OTP endpoints have rate limiting to prevent brute force
+      attacks and credential stuffing.
+
+- [ ] 6.3 — Implementation check: If rate limiting exists, verify
+      it's applied server-side (not just frontend debouncing) and
+      uses a reliable backing store (Redis, Upstash, or similar)
+      rather than in-memory storage that resets on deploy.
+
+## Section 7: CORS Configuration
+
+- [ ] 7.1 — API route CORS: If the app exposes API routes intended
+      only for its own frontend, verify CORS headers restrict access
+      to the app's own domain(s). Check for Access-Control-Allow-
+      Origin: * on sensitive endpoints.
+
+- [ ] 7.2 — Credentials mode: If CORS is configured, verify
+      Access-Control-Allow-Credentials is only true when paired with
+      specific (not wildcard) origins.
+
+## Section 8: File Upload Security
+
+- [ ] 8.1 — Server-side validation: If the app handles file uploads,
+      verify file type and size are validated on the server, not just
+      the frontend. Check MIME type, not just file extension (users
+      can rename malware.exe to photo.jpg).
+
+- [ ] 8.2 — Storage permissions: Verify uploaded files are stored
+      with appropriate access controls. Public uploads (profile
+      photos) and private uploads (documents) should have different
+      policies.
+
+- [ ] 8.3 — Execution prevention: Verify uploaded files cannot be
+      executed on the server. Check that upload directories are not
+      in the web root's executable path.
+
+</audit_checklist>
+
+<final_report>
+After completing all checklist items, compile your findings into this
+structure:
+
+## 1. Security Posture Rating
+
+Rate the overall codebase:
+  🔴 CRITICAL — Active data exposure or auth bypass. Stop and fix now.
+  🟠 NEEDS WORK — Significant gaps that would be exploitable.
+  🟡 ACCEPTABLE — Minor issues, no immediate data exposure risk.
+  🟢 STRONG — Well-secured with only informational findings.
+
+Include a one-paragraph executive summary explaining the rating.
+
+## 2. Critical And High Findings
+
+List all CRITICAL and HIGH severity findings here for immediate
+visibility, even though they appear in the section-by-section results
+above. These are the "stop everything and fix this" items.
+
+## 3. Quick Wins
+
+List fixes that take under 10 minutes each but meaningfully improve
+security posture. These are satisfying to knock out and build momentum.
+
+## 4. Prioritized Remediation Plan
+
+A numbered list of ALL findings ordered by:
+  1st — Severity (critical before high before medium before low)
+  2nd — Effort (quick fixes before complex refactors within each tier)
+
+For each item, include the estimated fix time so the developer can
+plan their work.
+
+## 5. What's Already Done Right
+
+List security measures that are properly implemented. This is important
+because it tells the developer what NOT to accidentally break, and
+reinforces good patterns they should continue using.
+
+## 6. Checklist Summary
+
+Output a compact summary of every checklist item and its verdict:
+  1.1 ✅  1.2 ✅  1.3 ❌  1.4 ✅  1.5 ⚠️  1.6 ⬚ ...
+This gives an at-a-glance view of coverage.
+</final_report>
+
+<instructions>
+Begin the audit now.
+
+Read the full codebase before producing any findings. Understand the
+architecture first. Then work through every checklist item one by one.
+
+Be thorough but practical. Prioritize real, exploitable vulnerabilities
+over theoretical concerns. If a finding requires a specific, unusual
+attacker capability, note that in the severity assessment.
+
+Do not group multiple checklist items into a single response. Each item
+gets its own explicit pass/fail/partial/n-a verdict.
+
+If you are uncertain about a finding, flag it as ⚠️ PARTIAL and
+explain what you'd need to verify.
+</instructions>
+```
+
+1. SAY:
+
+```say
+start 2.20
+```
+
+2. Claude runs the prompt on both folders and writes the report.
+3. Read the rating and the Critical and High list; reply "fix" or "accept" to each Medium and Low.
+4. TELL Claude: "done 2.20".
+
+**Done when:** both reports are written, every FAIL has an H number or points at an old one, no Critical or High is open, and every Medium and Low has your answer.
 </details>
 
 > **GATE 2b: do not start Step 5 (production) until all of these are true**
