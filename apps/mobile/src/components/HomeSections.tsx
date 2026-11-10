@@ -8,6 +8,7 @@ import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import {
   attachPosters,
+  countBidsByTask,
   getProfile,
   listMyTasks,
   myStats,
@@ -35,7 +36,7 @@ import { levelFor } from '../lib/levels';
 import { taskToFeedRow } from '../lib/openTask';
 import { statusBadge } from '../screens/MyTasksScreen';
 import { Icon } from './Icon';
-import { Badge, Grid, SectionTitle, Shimmer, rupees, timeLeft } from './kit';
+import { Grid, SectionTitle, Shimmer, rupees, timeLeft } from './kit';
 import { WorkCard, categoryIcon } from './WorkCard';
 import { BidSheet } from './BidSheet';
 import { Rail, useRailItemWidth } from './Rail';
@@ -99,6 +100,7 @@ function PostTop() {
   const { flash } = useActions();
   const { userId, guest } = useAuth();
   const [active, setActive] = useState<Task[] | null>(null);
+  const [offers, setOffers] = useState<Map<string, number>>(new Map());
   const [trending, setTrending] = useState<TrendingCategory[]>([]);
   const [howOpen, setHowOpen] = useState(false);
   const [place, setPlace] = useState<string | null>(null);
@@ -129,11 +131,15 @@ function PostTop() {
           })
           .catch(() => {}),
         listMyTasks(userId)
-          .then(
-            (rows) =>
-              alive() &&
-              setActive(rows.filter((r) => !['COMPLETED', 'AUTO_COMPLETED', 'CANCELLED'].includes(r.status)).slice(0, 4)),
-          )
+          .then(async (rows) => {
+            const live = rows.filter((r) => !['COMPLETED', 'AUTO_COMPLETED', 'CANCELLED'].includes(r.status)).slice(0, 4);
+            // Offers per open task, so each card can say its next step ("3 offers · choose").
+            const open = live.filter((r) => r.status === 'OPEN').map((r) => r.id);
+            const counts = open.length ? await countBidsByTask(open).catch(() => new Map<string, number>()) : new Map<string, number>();
+            if (!alive()) return;
+            setOffers(counts);
+            setActive(live);
+          })
           .catch(() => alive() && setActive([])),
         trendingCategories(5)
           .then((r) => alive() && setTrending(r.filter((c) => c.open_count > 0)))
@@ -158,7 +164,8 @@ function PostTop() {
     );
   };
 
-  const quick = TEMPLATES.filter((x) => x.hot).slice(0, 4);
+  // Get opinions and Price check sit in "Only on TaskDrop"; the rest stay here as more ideas.
+  const moreIdeas = TEMPLATES.filter((x) => !ONLY_HERE_KEYS.includes(x.key)).slice(0, 8);
 
   // The card is a doorway: one tap opens the full-screen composer with the
   // keyboard already up, like starting a quick post.
@@ -181,15 +188,17 @@ function PostTop() {
       <HeroCard style={{ marginTop: 10 }} padding={wideHero ? 30 : 20}>
         <View style={{ flexDirection: 'row', gap: 28 }}>
           <View style={{ flex: 1.25 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Icon name="edit" size={13} color="rgba(255,255,255,0.85)" />
-              <RNText style={tx('700', 11, 'rgba(255,255,255,0.85)', { letterSpacing: 1.3 })}>WE WRITE THE POST FOR YOU</RNText>
+            {/* D22: the question is the title; "How TaskDrop works" is the ? beside it. */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <RNText style={tx('800', wideHero ? 34 : 24, '#FFFFFF', { letterSpacing: -0.7, flex: 1, lineHeight: wideHero ? 40 : 30 })}>
+                What do you need done?
+              </RNText>
+              <HowButton onPress={() => setHowOpen(true)} />
             </View>
-            <RNText style={tx('800', wideHero ? 36 : 28, '#FFFFFF', { letterSpacing: -0.9, marginTop: 8 })}>Drop a task</RNText>
             <Pressable
               onPress={openComposer}
               accessibilityRole="button"
-              accessibilityLabel="What do you need done? Opens the new task screen"
+              accessibilityLabel="Say what you need. Opens the new task screen"
               style={({ pressed }) => ({
                 marginTop: 14,
                 borderRadius: 16,
@@ -206,7 +215,7 @@ function PostTop() {
               })}
             >
               <RNText style={tx('400', 15, t.isDark ? 'rgba(213,217,221,0.75)' : t.colors.muted, { flex: 1, lineHeight: 22 })}>
-                What do you need done? E.g. service my scooter this week
+                Say it your way, e.g. clean my kitchen tomorrow
               </RNText>
               {/* Start by talking: the composer opens already listening. Only where the device can listen (lib/speech). */}
               {canSpeak ? (
@@ -229,58 +238,43 @@ function PostTop() {
                   <Icon name="mic" size={17} color={t.isDark ? '#FFFFFF' : t.colors.ink} strokeWidth={2} />
                 </Pressable>
               ) : null}
-              <View style={{ width: 38, height: 38, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: t.colors.btn }}>
-                <Icon name="edit" size={17} color={t.colors.onBtn} strokeWidth={2} />
+              <View style={{ height: 38, borderRadius: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.btn }}>
+                <RNText style={tx('800', 14, t.colors.onBtn)}>Post</RNText>
+                <Icon name="chevronRight" size={15} color={t.colors.onBtn} strokeWidth={2.4} />
               </View>
             </Pressable>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-              <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-                {/* Said out loud, so the two chips read as examples to try rather than the only choices. */}
-                <RNText style={tx('700', 12, 'rgba(255,255,255,0.85)')}>Try:</RNText>
-                {quick.slice(0, 2).map((x) => (
-                  <Pressable
-                    key={x.key}
-                    onPress={() => go('aiPost', { prompt: x.prompt })}
-                    accessibilityRole="button"
-                    style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 6,
-                      height: 32,
-                      borderRadius: 999,
-                      backgroundColor: hovered ? 'rgba(255,255,255,0.26)' : 'rgba(255,255,255,0.16)',
-                      paddingHorizontal: 12,
-                      transform: [{ scale: pressed ? 0.96 : 1 }],
-                    })}
-                  >
-                    <Icon name={x.icon} size={13} color="#FFFFFF" />
-                    <RNText style={tx('600', 12.5, '#FFFFFF')}>{x.title}</RNText>
-                  </Pressable>
-                ))}
-              </View>
+            {/* Pick a day first (A6): the composer opens with that day already chosen. */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 12 }}>
+              {DAY_CHIPS.map((d) => (
+                <Pressable
+                  key={d.key}
+                  onPress={() => go('aiPost', { when: d.key })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`New task for ${d.label.toLowerCase()}`}
+                  style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
+                    height: 32,
+                    borderRadius: 999,
+                    justifyContent: 'center',
+                    backgroundColor: hovered ? 'rgba(255,255,255,0.26)' : 'rgba(255,255,255,0.16)',
+                    paddingHorizontal: 13,
+                    transform: [{ scale: pressed ? 0.96 : 1 }],
+                  })}
+                >
+                  <RNText style={tx('700', 12.5, '#FFFFFF')}>{d.label}</RNText>
+                </Pressable>
+              ))}
             </View>
           </View>
           {wideHero ? <HeroArt /> : null}
         </View>
-        {/* Same spot as on the worker's home: a pill at the foot of the hero card. */}
-        <Pressy
-          onPress={() => setHowOpen(true)}
-          style={{
-            marginTop: 16,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
-            backgroundColor: 'rgba(255,255,255,0.16)',
-            borderRadius: 999,
-            height: 36,
-            paddingHorizontal: 14,
-            alignSelf: 'flex-start',
-          }}
-        >
-          <Icon name="help" size={14} color="#FFFFFF" />
-          <RNText style={tx('700', 12.5, '#FFFFFF')}>How TaskDrop works</RNText>
-        </Pressy>
       </HeroCard>
+
+      {/* D22 H1: what only TaskDrop does, as big icons right under the ask box. */}
+      <OnlyOnTaskDrop
+        onHunt={() => go('aiPost', { prompt: 'Find me ', hunt: true })}
+        onBigDay={() => go('bigDay')}
+        onPrompt={(prompt) => go('aiPost', { prompt })}
+      />
 
       <HowSheet visible={howOpen} onClose={() => setHowOpen(false)} side="hire" />
 
@@ -297,40 +291,31 @@ function PostTop() {
           <View style={{ marginTop: 10 }}>
             <Rail min={220}>
               {active.map((task) => (
-                <PublishedCard key={task.id} task={task} onPress={() => openPostedTask(task, go)} />
+                <PublishedCard
+                  key={task.id}
+                  task={task}
+                  offers={offers.get(task.id) ?? 0}
+                  onPress={() => openPostedTask(task, go)}
+                />
               ))}
             </Rail>
           </View>
         </>
       ) : null}
 
-      {/* Starting points */}
-      <SectionTitle
-        title="Start from an idea"
-        icon="sparkle"
-        action="See all"
-        onAction={() => go('explore')}
-        style={{ marginTop: 32 }}
-      />
+      {/* D22 A1: everyday jobs, one tap fills the composer. */}
+      <SectionTitle title="Everyday help" icon="wrench" style={{ marginTop: 32 }} />
+      <View style={{ marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+        {EVERYDAY.map((x) => (
+          <EverydayTile key={x.title} item={x} onPress={() => go('aiPost', { prompt: x.prompt })} />
+        ))}
+      </View>
+
+      {/* Every other idea stays one swipe away. */}
+      <SectionTitle title="More ideas" icon="sparkle" style={{ marginTop: 32 }} />
       <View style={{ marginTop: 12 }}>
         <Rail step={300} min={160}>
-          {/* D19: two new starting points ahead of the old eight. Hunt is built elsewhere; this tile only opens the writer with its flag. */}
-          <IdeaCard
-            icon="search"
-            title="Find it for me"
-            sub="Many look at once. Pay only the finder"
-            tag="NEW · HUNT"
-            gold
-            onPress={() => go('aiPost', { prompt: 'Find me ', hunt: true })}
-          />
-          <IdeaCard
-            icon="calendarCheck"
-            title="Plan a big day"
-            sub="Moving, a wedding, festival cleaning"
-            tag="NEW"
-            onPress={() => go('bigDay')}
-          />
-          {TEMPLATES.slice(0, 8).map((x) => (
+          {moreIdeas.map((x) => (
             <IdeaCard key={x.key} icon={x.icon} title={x.title} sub={x.sub} onPress={() => go('aiPost', { prompt: x.prompt })} />
           ))}
         </Rail>
@@ -662,7 +647,11 @@ function EarnTop() {
       <View style={{ paddingHorizontal: 20, marginTop: 8 }}>
         {/* Where you stand, in one card: level, jobs on the go, availability. */}
         <HeroCard radius={24} padding={18} watermark={false} ringSize={200}>
-          <RNText style={tx('700', 12, 'rgba(255,255,255,0.82)')}>Find your next job</RNText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <RNText style={tx('700', 12, 'rgba(255,255,255,0.82)', { flex: 1 })}>Find your next job</RNText>
+            {/* D22 H2: "How TaskDrop works" is the ? in the card's corner, as on the Hire side. */}
+            <HowButton onPress={() => setHowOpen(true)} size={28} />
+          </View>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginTop: 6 }}>
             <View style={{ flex: 1 }}>
               <RNText style={tx('800', 26, '#FFFFFF', { letterSpacing: -0.7 })}>{level.name}</RNText>
@@ -688,23 +677,6 @@ function EarnTop() {
               <RNText style={tx('600', 11.5, 'rgba(255,255,255,0.85)')}>on the go</RNText>
             </View>
           </View>
-          <Pressy
-            onPress={() => setHowOpen(true)}
-            style={{
-              marginTop: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 8,
-              backgroundColor: 'rgba(255,255,255,0.16)',
-              borderRadius: 999,
-              height: 36,
-              paddingHorizontal: 14,
-              alignSelf: 'flex-start',
-            }}
-          >
-            <Icon name="help" size={14} color="#FFFFFF" />
-            <RNText style={tx('700', 12.5, '#FFFFFF')}>How TaskDrop works</RNText>
-          </Pressy>
         </HeroCard>
       </View>
 
@@ -925,29 +897,196 @@ function GrowBar({
   );
 }
 
-/** One of "Your published tasks". */
-function PublishedCard({ task, onPress }: { task: Task; onPress: () => void }) {
+/**
+ * What a poster should do next with one of their tasks (plan D22, A4): a line in caps and the
+ * one button. A date that has passed asks to move it instead of shouting "overdue".
+ */
+function nextStep(task: Task, offers: number): { line: string; button: string; tone: 'accent' | 'blue' | 'gold' } {
+  switch (task.status) {
+    case 'OPEN':
+      return offers > 0
+        ? { line: `${offers} offer${offers === 1 ? '' : 's'} waiting`, button: 'Choose', tone: 'accent' }
+        : { line: 'Waiting for offers', button: 'Open', tone: 'blue' };
+    case 'LOCKED':
+      return task.funded_at
+        ? { line: 'Helper about to start', button: 'Open', tone: 'blue' }
+        : { line: 'Pay to start', button: 'Pay', tone: 'accent' };
+    case 'TASK_STARTED':
+      return { line: 'Work underway', button: 'Track', tone: 'blue' };
+    case 'WORK_DONE':
+      return { line: 'Work done · check it', button: 'Review', tone: 'gold' };
+    case 'REVISION_REQUESTED':
+      return { line: 'Changes asked', button: 'Open', tone: 'gold' };
+    case 'OVERDUE':
+      return { line: 'The date has passed', button: 'Move the date', tone: 'gold' };
+    case 'DISPUTED':
+      return { line: 'Problem reported', button: 'Open', tone: 'gold' };
+    default:
+      return { line: statusBadge(task).label, button: 'Open', tone: 'blue' };
+  }
+}
+
+/** One of "Your published tasks": what it is, and the one next step. */
+function PublishedCard({ task, offers, onPress }: { task: Task; offers: number; onPress: () => void }) {
   const t = useTheme();
-  const width = useRailItemWidth(200);
-  const b = statusBadge(task);
-  const left = timeLeft(task.due_at);
+  const width = useRailItemWidth(220);
+  const step = nextStep(task, offers);
+  const ink = step.tone === 'accent' ? t.colors.accentDeep : step.tone === 'gold' ? t.colors.goldInk : t.colors.blue;
+  const left = task.status === 'OPEN' ? timeLeft(task.due_at) : null;
+  const strong = step.tone === 'accent';
   return (
-    <Pressy onPress={onPress} scaleTo={0.98} label={task.title} style={[cardSurface(t), { width, padding: 14 }]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name={categoryIcon(task.category)} size={15} color={t.colors.accentDeep} />
-        </View>
-        <Badge label={b.label} tone={b.tone} />
-      </View>
-      <RNText style={tx('700', 15, t.colors.ink, { marginTop: 12, lineHeight: 20, letterSpacing: -0.2 })} numberOfLines={2}>
+    <Pressy
+      onPress={onPress}
+      scaleTo={0.98}
+      label={`${task.title}. ${step.line}. ${step.button}`}
+      style={[cardSurface(t), strong ? { borderColor: t.colors.accentBorder } : null, { width, padding: 14 }]}
+    >
+      <RNText style={tx('800', 11, ink, { letterSpacing: 0.8 })} numberOfLines={1}>
+        {step.line.toUpperCase()}
+      </RNText>
+      <RNText style={tx('700', 15, t.colors.ink, { marginTop: 4, lineHeight: 20, letterSpacing: -0.2 })} numberOfLines={2}>
         {task.title}
       </RNText>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-        <RNText style={tx('800', 18, t.colors.accentDeep, { fontVariant: ['tabular-nums'], letterSpacing: -0.3 })}>
-          {rupees(task.benchmark_minor / 100)}
-        </RNText>
-        {left && task.status === 'OPEN' ? <RNText style={tx('600', 11, t.colors.goldInk)}>{left}</RNText> : null}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
+        <View style={{ flex: 1 }}>
+          <RNText style={tx('800', 16, t.colors.ink, { fontVariant: ['tabular-nums'] })}>{rupees(task.benchmark_minor / 100)}</RNText>
+          {left ? <RNText style={tx('600', 11, t.colors.muted)}>{left}</RNText> : null}
+        </View>
+        <View
+          style={{
+            height: 34,
+            borderRadius: 11,
+            paddingHorizontal: 13,
+            justifyContent: 'center',
+            backgroundColor: strong ? t.colors.btn : t.colors.accentSoft,
+          }}
+        >
+          <RNText style={tx('800', 12.5, strong ? t.colors.onBtn : t.colors.accentDeep)}>{step.button}</RNText>
+        </View>
       </View>
+    </Pressy>
+  );
+}
+
+/** The ? on a Home card: opens "How TaskDrop works" (plan D22, H2). */
+function HowButton({ onPress, size = 32 }: { onPress: () => void; size?: number }) {
+  return (
+    <Pressy
+      onPress={onPress}
+      label="How TaskDrop works"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 999,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(255,255,255,0.18)',
+      }}
+    >
+      <Icon name="help" size={Math.round(size * 0.55)} color="#FFFFFF" />
+    </Pressy>
+  );
+}
+
+/** The day chips under the ask box; the keys are the composer's own When choices. */
+const DAY_CHIPS: { key: string; label: string }[] = [
+  { key: 'now', label: 'Right now' },
+  { key: 'today', label: 'Today' },
+  { key: '2days', label: 'In 2 days' },
+  { key: 'week', label: 'This week' },
+];
+
+/** Templates shown as "Only on TaskDrop" icons, so the ideas rail does not repeat them. */
+const ONLY_HERE_KEYS = ['ask-people', 'find-quotes'];
+
+/**
+ * "Only on TaskDrop" (plan D22, H1): what other apps do not do, as big icons right under the
+ * ask box. Every one of them already exists; this only moves them to the top.
+ */
+function OnlyOnTaskDrop({
+  onHunt,
+  onBigDay,
+  onPrompt,
+}: {
+  onHunt: () => void;
+  onBigDay: () => void;
+  onPrompt: (prompt: string) => void;
+}) {
+  const t = useTheme();
+  const opinions = TEMPLATES.find((x) => x.key === 'ask-people');
+  const prices = TEMPLATES.find((x) => x.key === 'find-quotes');
+  const items: { icon: IconName; title: string; bg: string; ink: string; isNew?: boolean; onPress: () => void }[] = [
+    { icon: 'search', title: 'Find it\nfor me', bg: t.colors.gold, ink: t.colors.goldInk, isNew: true, onPress: onHunt },
+    { icon: 'calendarCheck', title: 'Plan a\nbig day', bg: t.colors.accent, ink: '#FFFFFF', onPress: onBigDay },
+    { icon: 'users', title: 'Many\nhands', bg: t.colors.blue, ink: '#FFFFFF', onPress: () => onPrompt('I need a few people together to ') },
+    { icon: 'chat', title: 'Get\nopinions', bg: t.colors.signal, ink: '#FFFFFF', onPress: () => onPrompt(opinions?.prompt ?? 'Ask people which they prefer: ') },
+    { icon: 'tag', title: 'Price\ncheck', bg: t.colors.purple, ink: '#FFFFFF', onPress: () => onPrompt(prices?.prompt ?? 'Find 3 shops near me that sell ') },
+  ];
+  return (
+    <View style={[cardSurface(t, 20), { marginTop: 14, padding: 14, borderColor: t.colors.gold }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Icon name="star" size={15} color={t.colors.goldInk} />
+        <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>Only on TaskDrop</RNText>
+      </View>
+      <View style={{ flexDirection: 'row', marginTop: 14 }}>
+        {items.map((x) => (
+          <Pressy
+            key={x.title}
+            onPress={x.onPress}
+            scaleTo={0.94}
+            label={x.isNew ? `${x.title.replace('\n', ' ')}. New` : x.title.replace('\n', ' ')}
+            style={{ flex: 1, alignItems: 'center' }}
+          >
+            <View style={{ width: 54, height: 54, borderRadius: 18, backgroundColor: x.bg, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name={x.icon} size={24} color={x.ink} strokeWidth={2.2} />
+              {x.isNew ? (
+                <View style={{ position: 'absolute', top: -6, right: -8, borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1, backgroundColor: t.colors.signalDeep }}>
+                  <RNText style={tx('800', 9, '#FFFFFF')}>NEW</RNText>
+                </View>
+              ) : null}
+            </View>
+            <RNText style={tx('700', 11.5, t.colors.ink, { marginTop: 7, textAlign: 'center', lineHeight: 14 })}>{x.title}</RNText>
+          </Pressy>
+        ))}
+      </View>
+      <RNText style={tx('500', 12, t.colors.muted, { marginTop: 12, lineHeight: 17 })}>
+        <RNText style={tx('700', 12, t.colors.goldInk)}>Find it for me: </RNText>
+        many people look at once, you pay only the one who finds it.
+      </RNText>
+    </View>
+  );
+}
+
+/** Everyday jobs (plan D22, A1): one tap fills the composer with a sentence to finish. */
+const EVERYDAY: { icon: IconName; title: string; sub: string; prompt: string }[] = [
+  { icon: 'sparkle', title: 'Cleaning', sub: 'Kitchen, bathroom', prompt: 'Deep clean my ' },
+  { icon: 'wrench', title: 'Repairs', sub: 'Fan, tap, switch', prompt: 'Fix my ' },
+  { icon: 'send', title: 'Pick up & drop', sub: 'Parcel, medicine', prompt: 'Pick up and drop ' },
+  { icon: 'users', title: 'Queue for me', sub: 'Bank, RTO', prompt: 'Stand in the queue for me at ' },
+  { icon: 'briefcase', title: 'Shifting help', sub: 'Pack, lift', prompt: 'Help me shift ' },
+  { icon: 'globe', title: 'Online help', sub: 'Forms, documents', prompt: 'Help me fill and submit my ' },
+];
+
+function EverydayTile({ item, onPress }: { item: (typeof EVERYDAY)[number]; onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <Pressy
+      onPress={onPress}
+      scaleTo={0.97}
+      label={`${item.title}. ${item.sub}`}
+      style={[cardSurface(t, 14), { flexGrow: 1, flexBasis: '30%', minWidth: 100, padding: 11 }]}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ width: 28, height: 28, borderRadius: 9, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name={item.icon} size={15} color={t.colors.accentDeep} />
+        </View>
+        <RNText style={tx('700', 13, t.colors.ink, { flex: 1, lineHeight: 16 })} numberOfLines={2}>
+          {item.title}
+        </RNText>
+      </View>
+      <RNText style={tx('400', 11.5, t.colors.muted, { marginTop: 6 })} numberOfLines={1}>
+        {item.sub}
+      </RNText>
     </Pressy>
   );
 }

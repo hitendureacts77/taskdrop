@@ -206,7 +206,10 @@ export function AiPostScreen() {
   const [media, setMedia] = useState<TaskMedia | null>(null);
 
   // When.
-  const [whenKey, setWhenKey] = useState<WhenKey | 'custom'>('today');
+  // Home's day chips (plan D22, A6) open the composer with the day already picked.
+  const [whenKey, setWhenKey] = useState<WhenKey | 'custom'>(() =>
+    WHEN_OPTIONS.some((o) => o.key === params.when) ? (params.when as WhenKey) : 'today',
+  );
   const [customDue, setCustomDue] = useState<Date | null>(null);
   const [showDate, setShowDate] = useState(false);
 
