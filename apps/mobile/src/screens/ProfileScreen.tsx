@@ -195,7 +195,7 @@ export function ProfileScreen() {
         : 'New poster · no reviews yet';
   const doneLine =
     !guest && hasRating
-      ? ratingCount + (worker ? (ratingCount === 1 ? ' job done' : ' jobs done') : ratingCount === 1 ? ' task done' : ' tasks done')
+      ? ratingCount + (ratingCount === 1 ? ' review' : ' reviews')
       : null;
   const progress = profile && !guest ? profileProgress(profile, worker) : null;
   const themeNote =
@@ -204,7 +204,6 @@ export function ProfileScreen() {
   const chips: string[] = [];
   if (!guest) {
     if (verified?.phone) chips.push('Phone checked');
-    chips.push('18+ confirmed'); // everyone passes the age gate at sign-up
     if (profile?.loc_label) chips.push(profile.loc_label);
   }
 

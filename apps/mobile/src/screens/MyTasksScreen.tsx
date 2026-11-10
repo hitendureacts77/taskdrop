@@ -506,13 +506,13 @@ function PostedCard({
         justifyContent: 'center',
         paddingVertical: 13,
         borderRadius: 14,
-        backgroundColor: quiet ? t.colors.surface2 : t.colors.accentDeep,
+        backgroundColor: quiet ? t.colors.surface2 : t.colors.btn,
         borderWidth: quiet ? 1 : 0,
         borderColor: t.colors.line,
         transform: [{ scale: pressed ? 0.98 : 1 }],
       })}
     >
-      <RNText style={tx('800', 14, quiet ? t.colors.ink : '#FFFFFF')}>{label}</RNText>
+      <RNText style={tx('800', 14, quiet ? t.colors.ink : t.colors.onBtn)}>{label}</RNText>
     </Pressable>
   );
 
@@ -592,11 +592,14 @@ function PostedCard({
         </View>
         {nextLabel ? (
           <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: t.colors.line }}>
-            {datePassed ? (
+            {datePassed && task.status === 'OPEN' ? (
+              // There is no date edit yet, so a passed date offers a fresh post (or the offers that came in) and Close.
               <>
-                {bigButton('Move the date', onOpen)}
+                {quotes > 0 ? bigButton('Choose an offer', onOpen) : bigButton('Post again', onAgain)}
                 {bigButton('Close', onClose, true)}
               </>
+            ) : datePassed ? (
+              bigButton('Open', onOpen)
             ) : done ? (
               bigButton(nextLabel, onAgain)
             ) : (

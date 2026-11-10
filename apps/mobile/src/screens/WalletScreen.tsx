@@ -576,7 +576,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
               >
                 <Icon name="shield" size={16} color={t.colors.accentDeep} />
                 <RNText style={tx('400', 12, t.colors.muted, { flex: 1, lineHeight: 17 })}>
-                  If something goes wrong, report a problem. The money stays held until it is sorted.
+                  If the task is cancelled, it comes back to you. If something goes wrong, report a problem: the money stays held until it is sorted.
                 </RNText>
               </View>
             </View>
