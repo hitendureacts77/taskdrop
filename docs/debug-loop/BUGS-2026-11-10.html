@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bug list 10 Nov</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f6f7f5; --card: #ffffff; --ink: #14201c; --muted: #5d6b66; --line: #e2e7e4;
+  --jade: #0E8F72; --jade-deep: #0A6F58; --blue: #2F5BEA; --gold: #b7802f; --coral: #c9552d; --red: #b42318;
+  --chip-high: #fde8e6; --chip-med: #fdf1e0; --chip-low: #e8f1ee; --chip-known: #eceefb; --code: #eef2f0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1513; --card: #171f1c; --ink: #e8efec; --muted: #9aa8a2; --line: #26312d;
+    --jade: #2fbf9b; --jade-deep: #0A6F58; --blue: #7d9bff; --gold: #E0A85A; --coral: #E0724A; --red: #ff8a80;
+    --chip-high: #3a1d1b; --chip-med: #3a2c17; --chip-low: #18302a; --chip-known: #232744; --code: #1f2925;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1513; --card: #171f1c; --ink: #e8efec; --muted: #9aa8a2; --line: #26312d;
+  --jade: #2fbf9b; --jade-deep: #0A6F58; --blue: #7d9bff; --gold: #E0A85A; --coral: #E0724A; --red: #ff8a80;
+  --chip-high: #3a1d1b; --chip-med: #3a2c17; --chip-low: #18302a; --chip-known: #232744; --code: #1f2925;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 "Plus Jakarta Sans", system-ui, sans-serif; }
+main { max-width: 920px; margin: 0 auto; padding: 32px 16px 80px; }
+h1 { font-size: 28px; letter-spacing: -0.02em; margin: 0 0 4px; }
+h2 { font-size: 19px; margin: 40px 0 12px; letter-spacing: -0.01em; }
+p.lead { color: var(--muted); margin: 0 0 20px; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 18px 0; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 13px; }
+.progress { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; }
+.bar { flex: 1; height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--jade); transition: width .3s; }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+.bug { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; margin: 12px 0; }
+.bug.done { opacity: .55; }
+.bug header { display: flex; gap: 10px; align-items: flex-start; }
+.bug header input { margin-top: 5px; width: 18px; height: 18px; accent-color: var(--jade); flex: none; }
+.bug h3 { margin: 0; font-size: 16.5px; flex: 1; }
+.bug h3 small { color: var(--muted); font-weight: 600; margin-right: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px 28px; }
+.chip { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 99px; background: var(--chip-low); color: var(--jade); }
+.chip.high { background: var(--chip-high); color: var(--red); }
+.chip.med { background: var(--chip-med); color: var(--gold); }
+.chip.known { background: var(--chip-known); color: var(--blue); }
+.chip.area { background: transparent; border: 1px solid var(--line); color: var(--muted); font-weight: 600; }
+dl { margin: 8px 0 0 28px; display: grid; grid-template-columns: 110px 1fr; gap: 6px 14px; }
+dt { color: var(--muted); font-size: 13px; font-weight: 700; padding-top: 1px; }
+dd { margin: 0; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: var(--code); padding: 1px 5px; border-radius: 5px; overflow-wrap: anywhere; }
+pre { background: var(--code); border-radius: 10px; padding: 12px 14px; overflow-x: auto; font-size: 12.5px; margin: 8px 0; }
+pre code { background: none; padding: 0; }
+.box { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+.box ul { margin: 6px 0; padding-left: 20px; }
+.order { counter-reset: n; list-style: none; padding: 0; margin: 0; }
+.order li { counter-increment: n; padding: 8px 0 8px 36px; position: relative; border-top: 1px solid var(--line); }
+.order li:first-child { border-top: none; }
+.order li::before { content: counter(n); position: absolute; left: 0; top: 8px; width: 24px; height: 24px; border-radius: 50%; background: var(--jade-deep); color: #fff; font-weight: 800; font-size: 12px; display: grid; place-items: center; }
+.top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.theme { display: flex; gap: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 99px; padding: 3px; }
+.theme button { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 700; padding: 4px 10px; border-radius: 99px; cursor: pointer; }
+.theme button[aria-pressed="true"] { background: var(--jade-deep); color: #fff; }
+@media (max-width: 560px) { dl { grid-template-columns: 1fr; margin-left: 0; } dt { padding-top: 6px; } .chips { margin-left: 0; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div>
+      <h1>Bugs found on 10 Nov 2026</h1>
+      <p class="lead">From a sweep of staging (taskdrop.in) after loading the fake city. Tick each one as you finish it tomorrow; ticks stay in this browser only.</p>
+    </div>
+    <div class="theme" role="group" aria-label="Theme">
+      <button data-t="system" aria-pressed="true">System</button><button data-t="light" aria-pressed="false">Light</button><button data-t="dark" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+
+  <div class="summary">
+    <div class="stat"><b>10</b><span>new bugs (B33–B42)</span></div>
+    <div class="stat"><b>1</b><span>High</span></div>
+    <div class="stat"><b>4</b><span>Medium</span></div>
+    <div class="stat"><b>5</b><span>Low</span></div>
+    <div class="stat"><b>1</b><span>known bug that grew (B21)</span></div>
+  </div>
+  <div class="progress"><span id="pcount">0 of 11 done</span><div class="bar"><i id="pbar"></i></div></div>
+
+  <h2>Suggested order for tomorrow</h2>
+  <div class="box">
+    <ol class="order">
+      <li><b>B34</b> distance search cuts before it filters (one function, biggest effect now that there is real volume).</li>
+      <li><b>B35</b> "Services near you" is not near (same area of code, fix right after B34).</li>
+      <li><b>B33</b> Hire mode shows a request as a service.</li>
+      <li><b>B38</b> 13 old tasks still show their exact pin (one SQL backfill, ask before running on staging).</li>
+      <li><b>B37</b> rating totals not recalculated when a review goes.</li>
+      <li>The Lows (B36, B39–B42) and your answer on B21.</li>
+    </ol>
+  </div>
+
+  <h2>High</h2>
+
+  <article class="bug" data-id="B34">
+    <header><input type="checkbox" aria-label="Mark B34 done"><h3><small>B34</small>A distance search drops nearby tasks: it keeps the newest 20 first, then filters by distance</h3></header>
+    <div class="chips"><span class="chip high">High</span><span class="chip area">search and maps (charter B)</span><span class="chip area">server</span></div>
+    <dl>
+      <dt>What you see</dt><dd>Search with a radius (e.g. 5 km) returns only those of the 20 newest open tasks <i>anywhere</i> that happen to be near you. With 190 open requests on staging now, most tasks around Kondapur never show in a radius search; it can even return "no results" while dozens are 2 km away.</dd>
+      <dt>Why</dt><dd><code>supabase/functions/api/reads.ts</code> <code>searchTasks</code> (lines 149–178): <code>.limit(limit(a))</code> runs in SQL, then the distance filter runs on that page. Same pattern, larger caps: <code>tasksNear</code> (newest 200), <code>workersNear</code> (300 most recently seen), <code>recommendedTasks</code> (newest 60).</dd>
+      <dt>Fix</dt><dd>When <code>near</code> is given, pre-filter in SQL with a bounding box (<code>loc_lat between lat±r/111</code>, <code>loc_lng between lng±r/(111·cos lat)</code>), then sort by distance and cap. Do the same box in <code>tasksNear</code> and <code>workersNear</code>. Keep inputs and response shape (rule 2). Add an api test: 25 far-away newer tasks + 1 near older task → the near one is returned.</dd>
+      <dt>Check</dt><dd>On taskdrop.in, Search → 5 km around Kondapur: expect 20 results, all within 5 km (staging has 76 open requests in that box).</dd>
+    </dl>
+  </article>
+
+  <h2>Medium</h2>
+
+  <article class="bug" data-id="B35">
+    <header><input type="checkbox" aria-label="Mark B35 done"><h3><small>B35</small>Home "Services near you" shows the newest services worldwide (a Berlin cleaner for a Hyderabad user)</h3></header>
+    <div class="chips"><span class="chip med">Medium</span><span class="chip area">the poster (charter A)</span><span class="chip area">app</span></div>
+    <dl>
+      <dt>What you see</dt><dd>Hire → Home → "Services near you": 20 cards, mixed Remote, Financial District, Kompally and "Mitte, Berlin", in no distance order.</dd>
+      <dt>Why</dt><dd><code>apps/mobile/src/screens/HomeScreen.tsx</code> lines 425–437 pass <code>near</code> only when a search sent <code>nearLat/nearLng/radiusKm</code>; the plain Home feed sends none, so it gets the 20 newest listings on the whole platform.</dd>
+      <dt>Fix</dt><dd>Use the home place (the "Hyderabad" pill at the top) as <code>near</code> with a default radius (e.g. 25 km) plus remote listings, nearest first. Needs B34 first, or the radius will hide most results.</dd>
+      <dt>Check</dt><dd>Home in Hire mode lists only Hyderabad-area or Remote services, nearest first; nothing from Berlin, Dubai or Tokyo.</dd>
+    </dl>
+  </article>
+
+  <article class="bug" data-id="B33">
+    <header><input type="checkbox" aria-label="Mark B33 done"><h3><small>B33</small>In Hire mode, someone's request opens as if it were their service</h3></header>
+    <div class="chips"><span class="chip med">Medium</span><span class="chip area">task page (charter A/B)</span><span class="chip area">app</span></div>
+    <dl>
+      <dt>What you see</dt><dd>Hire → Explore → Jobs → open "Maths tuition for class 8" (a <i>request</i> by Kiran). It shows "THEIR RATE ₹4,750", "Jobs completed: 3 requests posted" and a button "Send Kiran Singh a task". Kiran is the one who needs a tutor. In Earn mode the same page is right ("Budget", questions, "Send offer").</dd>
+      <dt>Why</dt><dd><code>apps/mobile/src/screens/TaskDetailScreen.tsx</code>: <code>worker = mode === 'worker'</code> (line 132) drives the price label (line 286), the record row (line 298) and which panel shows. It should follow the task's <code>kind</code> (request vs service), not the Hire/Earn switch. The "Jobs completed" label with a "requests posted" value comes from the same mix.</dd>
+      <dt>Fix</dt><dd>Derive a <code>viewAs</code> from <code>live.kind</code>: a request is always shown as a request ("Budget", poster's record); in Hire mode show a small "Switch to Earn to send an offer" card instead of "Send them a task". A service keeps today's Hire view.</dd>
+      <dt>Check</dt><dd>Open the same job in both modes: price label is "Budget" in both; no "Send … a task" on a request.</dd>
+    </dl>
+  </article>
+
+  <article class="bug" data-id="B38">
+    <header><input type="checkbox" aria-label="Mark B38 done"><h3><small>B38</small>13 older tasks still publish their exact pin (5 are still open or locked)</h3></header>
+    <div class="chips"><span class="chip med">Medium</span><span class="chip area">privacy</span><span class="chip area">data</span></div>
+    <dl>
+      <dt>What you see</dt><dd>Staging rows whose public <code>tasks.loc_lat/loc_lng</code> have 4 decimals (~10 m) and no <code>task_private</code> row. Created 13 Sep – 31 Oct, around Kondapur. Everyone else's are rounded to 2 decimals (migration 074).</dd>
+      <dt>Why</dt><dd>They were written with triggers off (test scripts that use <code>session_replication_role = replica</code>), so the 074 rounding never ran. <code>test_data.sql</code> does the rounding by hand at its end; the other scripts do not.</dd>
+      <dt>Fix</dt><dd>One-off backfill (same SQL as the end of <code>supabase/seed/test_data.sql</code>: copy exact spot to <code>task_private</code>, round the public one). Then make <code>scripts/two-person-test.mjs</code> and friends round too, or add a nightly check that counts unrounded rows. Ask before running on staging.</dd>
+      <dt>Check</dt><dd><code>select count(*) from tasks where loc_lat &lt;&gt; round(loc_lat::numeric,2)::float8</code> returns 0.</dd>
+    </dl>
+  </article>
+
+  <article class="bug" data-id="B37">
+    <header><input type="checkbox" aria-label="Mark B37 done"><h3><small>B37</small>Profile says "★ 5.0 · 1 review" but the review list is empty</h3></header>
+    <div class="chips"><span class="chip med">Medium</span><span class="chip area">trust and reviews</span><span class="chip area">server</span></div>
+    <dl>
+      <dt>What you see</dt><dd>Your own profile (Tasker 3313): "★ 5.0 as a helper · 1 review", and under WORKER REVIEWS "Finish a job and the customer's review shows up here." My Work also says Completed 0.</dd>
+      <dt>Why</dt><dd><code>profiles.worker_rating_count = 1</code> but there are 0 rows in <code>reviews</code> about you: the review was removed (its task or author deleted, which cascades) and the stored average/count, set only by <code>submit_review</code> (migration 008), was never recalculated. 1 profile on staging is out of step today; it will grow with account deletion.</dd>
+      <dt>Fix</dt><dd>An <code>after delete</code> trigger on <code>reviews</code> (and on hide, if 121 does not already) that recomputes the subject's average and count for that role. Then one-off recompute for everyone.</dd>
+      <dt>Check</dt><dd>The count-mismatch query in the ledger entry returns 0; your profile shows "No reviews yet".</dd>
+    </dl>
+  </article>
+
+  <h2>Low</h2>
+
+  <article class="bug" data-id="B36">
+    <header><input type="checkbox" aria-label="Mark B36 done"><h3><small>B36</small>My Work "Done 3" while Completed says 0</h3></header>
+    <div class="chips"><span class="chip">Low</span><span class="chip area">the worker (charter D)</span><span class="chip area">app</span></div>
+    <dl>
+      <dt>What you see</dt><dd>Earn → My Work: top tiles "Completed 0 · Success 0%", tab "Done 3". The 3 are offers the customer did not pick ("NOT SELECTED").</dd>
+      <dt>Fix</dt><dd>Rename the tab to "Closed" (or split "Done" and "Not picked"), so the numbers do not contradict.</dd>
+    </dl>
+  </article>
+
+  <article class="bug" data-id="B39">
+    <header><input type="checkbox" aria-label="Mark B39 done"><h3><small>B39</small>8 live accounts finished onboarding without a passed age check</h3></header>
+    <div class="chips"><span class="chip">Low</span><span class="chip area">legal (18+)</span><span class="chip area">data</span></div>
+    <dl>
+      <dt>What you see</dt><dd>27 onboarded profiles have no passed <code>age_checks</code> row; 8 are not deleted, 2 were seen in the last 2 weeks, the newest made on 26 Oct (after the age gate went live).</dd>
+      <dt>Fix</dt><dd>Find the path that made the 26 Oct one (likely a test script with triggers off, or the guest hand-off); make the app ask for a birth date on next open when the check is missing. Do not delete accounts.</dd>
+    </dl>
+  </article>
+
+  <article class="bug" data-id="B40">
+    <header><input type="checkbox" aria-label="Mark B40 done"><h3><small>B40</small>People map: the list order disagrees with the "nearest person" card</h3></header>
+    <div class="chips"><span class="chip">Low</span><span class="chip area">maps</span><span class="chip area">app</span></div>
+    <dl>
+      <dt>What you see</dt><dd>Explore → People: card "NEAREST PERSON · under 1 km · Nandini", but the list below starts with Sai (~3.1 km), Suresh (~4.9 km), then Nandini.</dd>
+      <dt>Why</dt><dd>The card sorts by distance (<code>apps/mobile/src/components/NearMap.tsx</code> line 734); the list keeps the server's order (active first).</dd>
+      <dt>Fix</dt><dd>Your call: sort the list by distance too, or keep active-first and add a small "Active first" label.</dd>
+    </dl>
+  </article>
+
+  <article class="bug" data-id="B41">
+    <header><input type="checkbox" aria-label="Mark B41 done"><h3><small>B41</small>A ₹300 withdrawal has said "requested" since 5 Oct, with no word to the user</h3></header>
+    <div class="chips"><span class="chip">Low</span><span class="chip area">money</span><span class="chip area">app copy</span></div>
+    <dl>
+      <dt>What you see</dt><dd>Wallet: "Payouts requested to your personal bank ₹300"; Transactions → Withdrawals: "Nothing of this kind in this period." Payouts are paused for the lawyer's answer, so the wait is expected, but the screen does not say so and the request is hidden from the list.</dd>
+      <dt>Fix</dt><dd>Show pending withdrawals in the list whatever the period, with "Waiting: payouts are paused on staging".</dd>
+    </dl>
+  </article>
+
+  <article class="bug" data-id="B42">
+    <header><input type="checkbox" aria-label="Mark B42 done"><h3><small>B42</small>Seed account "Meera" is named with a security-test string</h3></header>
+    <div class="chips"><span class="chip">Low</span><span class="chip area">test data</span></div>
+    <dl>
+      <dt>What you see</dt><dd>The display name of seed account 9990000003 is a template-injection probe (<code>${7*7}{{7*7}}…</code>) left from a security round. It renders as plain text (good: no injection), but it looks broken to testers.</dd>
+      <dt>Fix</dt><dd><code>npm run seed:reset</code> rebuilds the four seed accounts (asks first), or rename it by hand.</dd>
+    </dl>
+  </article>
+
+  <h2>Known bug that grew</h2>
+  <article class="bug" data-id="B21">
+    <header><input type="checkbox" aria-label="Mark B21 answered"><h3><small>B21</small>Nothing ever expires: now 58 open tasks are past their due time (was 21 on 4 Nov)</h3></header>
+    <div class="chips"><span class="chip known">Known · Low</span><span class="chip area">a task's life (charter C)</span></div>
+    <dl>
+      <dt>What you see</dt><dd>Home "Your published tasks" shows four cards marked "overdue" that still say "WAITING FOR OFFERS" with an Open/Choose button; 2 locked tasks were never paid.</dd>
+      <dt>Needs</dt><dd>Your "fix" or "accept". Suggested fix: an Inngest job that moves OPEN past due to a closed state and tells the poster "Repost?".</dd>
+    </dl>
+  </article>
+
+  <h2>The fake city now on staging</h2>
+  <div class="box">
+    <p style="margin-top:0">Loaded on 10 Nov from <code>supabase/seed/fake_world.sql</code> (made by <code>scripts/fake-world.mjs</code>). Every fake account id starts with <code>fa4e0001-</code>; nothing else was changed.</p>
+    <ul>
+      <li><b>120 people</b>: 72 in Hyderabad (36 within ~4 km of Kondapur / Hitec City), 28 in 16 other Indian cities, 20 abroad (Dubai, Singapore, London, New Jersey, Toronto, Sydney, Berlin, Nairobi, Tokyo, Fremont, Kuala Lumpur, Doha). 86 offer work, 66 post.</li>
+      <li><b>437 tasks</b>: 190 open requests (76 around Kondapur, 30 remote, some urgent, topped-up or photo-wanted), 4 City Hunts, 68 service listings, 23 in progress with chats, 148 finished (14 today, for "done near you today"), 8 cancelled.</li>
+      <li><b>556 quotes</b>, <b>227 reviews</b> both ways, ratings worked out from them.</li>
+      <li><b>People map</b>: 60 people share a spot with "Everyone nearby". Their spots last 30 days, not the real 15 minutes.</li>
+      <li><b>Sign in as any of them</b>: phones <code>9888000001</code> to <code>9888000120</code> (the code fills in while dev_otp_for_all is on).</li>
+    </ul>
+    <p>"Active now" fades after a few minutes. To wake them before a test, run the two commented "Freshen" lines at the end of the SQL file. To remove everything:</p>
+    <pre><code>node scripts/run-seed-file.mjs supabase/seed/fake_world_remove.sql</code></pre>
+  </div>
+
+  <h2>What was checked</h2>
+  <div class="box">
+    <ul style="margin:0">
+      <li>Web on taskdrop.in, signed in as your account: Home (Hire and Earn), Explore map (Jobs, Helpers, People), a task page in both modes, My Work, Wallet, Messages, Notifications, Profile. No console errors.</li>
+      <li>Staging database: 12 integrity checks (expired tasks, unpaid locks, self-quotes, unrounded pins, map spots, age checks, rating counts).</li>
+      <li><code>npm run check</code> (typecheck, lint, unit tests): passes.</li>
+      <li>Not checked: Android app, admin app, guest (signed-out) mode, posting and paying a new task.</li>
+    </ul>
+  </div>
+</main>
+<script>
+(function () {
+  var KEY = "td-bugs-2026-11-10";
+  var done = {};
+  try { done = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { done = {}; }
+  var bugs = document.querySelectorAll(".bug");
+  function paint() {
+    var n = 0;
+    bugs.forEach(function (b) { var on = !!done[b.dataset.id]; b.classList.toggle("done", on); b.querySelector("input").checked = on; if (on) n++; });
+    document.getElementById("pcount").textContent = n + " of " + bugs.length + " done";
+    document.getElementById("pbar").style.width = (100 * n / bugs.length) + "%";
+  }
+  bugs.forEach(function (b) {
+    b.querySelector("input").addEventListener("change", function (e) {
+      done[b.dataset.id] = e.target.checked;
+      try { localStorage.setItem(KEY, JSON.stringify(done)); } catch (err) {}
+      paint();
+    });
+  });
+  paint();
+  var root = document.documentElement, btns = document.querySelectorAll(".theme button");
+  function setTheme(t) {
+    if (t === "system") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", t);
+    btns.forEach(function (x) { x.setAttribute("aria-pressed", String(x.dataset.t === t)); });
+    try { localStorage.setItem(KEY + "-theme", t); } catch (err) {}
+  }
+  btns.forEach(function (x) { x.addEventListener("click", function () { setTheme(x.dataset.t); }); });
+  var saved = "system";
+  try { saved = localStorage.getItem(KEY + "-theme") || "system"; } catch (err) {}
+  setTheme(saved);
+})();
+</script>
+</body>
+</html>
