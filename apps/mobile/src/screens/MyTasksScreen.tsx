@@ -4,7 +4,7 @@ import { Screen, cardSurface, formatINR } from '../components/ui';
 import { HeroCard } from '../components/Hero';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
-import { Badge, BottomSheet, ConfirmDialog, EmptyState, Grid, LoadFailed, MenuRow, Pill, PillTabs, Shimmer, StatTile, SwipeTabs, rupees, timeAgo, timeLeft } from '../components/kit';
+import { BottomSheet, ConfirmDialog, EmptyState, Grid, LoadFailed, MenuRow, Pill, PillTabs, Shimmer, StatTile, SwipeTabs, rupees, timeAgo, timeLeft } from '../components/kit';
 import { WorkCard, categoryIcon, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
 import { FadeIn, Pressy, tx } from '../components/primitives';
@@ -95,6 +95,29 @@ export function statusBadge(task: Task): { label: string; tone: 'accent' | 'gold
       return { label: 'Problem reported', tone: 'signal' };
     default:
       return { label: 'Cancelled', tone: 'neutral' };
+  }
+}
+
+const STAGES = ['Posted', 'Offers', 'Hired', 'Working', 'Done'] as const;
+
+/** How far along the 5-step track a task is (1-5); 0 for closed tasks, which show no track. */
+function stageOf(task: Task, quotes: number): number {
+  switch (task.status) {
+    case 'OPEN':
+      return quotes > 0 ? 2 : 1;
+    case 'LOCKED':
+      return 3;
+    case 'TASK_STARTED':
+    case 'OVERDUE':
+    case 'WORK_DONE':
+    case 'REVISION_REQUESTED':
+    case 'DISPUTED':
+      return 4;
+    case 'COMPLETED':
+    case 'AUTO_COMPLETED':
+      return 5;
+    default:
+      return 0;
   }
 }
 
@@ -361,6 +384,8 @@ function MyPosted() {
                 quotes={quotes.get(task.id) ?? 0}
                 onOpen={() => openPostedTask(task, go)}
                 onMenu={() => setMenu(task)}
+                onClose={() => setConfirmClose(task)}
+                onAgain={() => go('aiPost', { similar: task })}
               />
             ))}
             </Grid>
@@ -418,6 +443,8 @@ function PostedCard({
   service,
   onOpen,
   onMenu,
+  onClose,
+  onAgain,
 }: {
   task: Task;
   index: number;
@@ -426,6 +453,10 @@ function PostedCard({
   service?: boolean;
   onOpen: () => void;
   onMenu: () => void;
+  /** Opens the close-task confirm dialog (the same path as the menu's "Close task"). */
+  onClose: () => void;
+  /** Starts a new post from this one ("Create similar"). */
+  onAgain: () => void;
 }) {
   const t = useTheme();
   const badge = statusBadge(task);
@@ -440,22 +471,50 @@ function PostedCard({
   } as const;
   const stripe = tones[badge.tone];
 
-  // What the poster should do next, in words, so the card says more than a status.
-  const next: { label: string; tone: string } | null = service
+  // The date has passed: said calmly, in gold, never as a red "overdue".
+  const datePassed = !service && (task.status === 'OVERDUE' || (task.status === 'OPEN' && !!task.due_at && new Date(task.due_at).getTime() < Date.now()));
+  const stage = service ? 0 : stageOf(task, quotes);
+  const done = task.status === 'COMPLETED' || task.status === 'AUTO_COMPLETED';
+  const toneInkOf = { accent: t.colors.accentDeep, gold: t.colors.goldInk, signal: t.colors.signalDeep, blue: t.colors.blue, neutral: t.colors.muted } as const;
+  const topLine = datePassed ? (quotes > 0 ? 'THE DATE HAS PASSED' : 'THE DATE HAS PASSED · NO ONE PICKED IT') : badge.label.toUpperCase();
+  const topInk = datePassed ? t.colors.goldInk : toneInkOf[badge.tone];
+
+  // The one thing the poster should do next, as a big button at the foot of the card.
+  const nextLabel: string | null = service
     ? null
-    : task.status === 'OPEN'
-      ? quotes > 0
-        ? { label: `${quotes} offer${quotes === 1 ? '' : 's'} in · select one`, tone: t.colors.accentDeep }
-        : { label: 'Waiting for offers', tone: t.colors.blue }
-      : task.status === 'LOCKED' && !task.funded_at
-        ? { label: 'Pay to start', tone: t.colors.signalDeep }
-        : task.status === 'LOCKED'
-          ? { label: 'Waiting for the worker to start', tone: t.colors.accentDeep }
-        : task.status === 'WORK_DONE'
-          ? { label: 'Review the work and release', tone: t.colors.goldInk }
-          : task.status === 'TASK_STARTED'
-            ? { label: 'Work underway · track it', tone: t.colors.goldInk }
-            : null;
+    : done
+      ? 'Book again'
+      : task.status === 'OPEN'
+        ? quotes > 0
+          ? 'Choose an offer'
+          : 'Open'
+        : task.status === 'LOCKED' && !task.funded_at
+          ? 'Pay to start'
+          : task.status === 'WORK_DONE'
+            ? 'Review the work'
+            : task.status === 'LOCKED' || task.status === 'TASK_STARTED' || task.status === 'REVISION_REQUESTED'
+              ? 'Track'
+              : 'Open';
+  const bigButton = (label: string, onPress: () => void, quiet = false) => (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${task.title}`}
+      style={({ pressed }) => ({
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 13,
+        borderRadius: 14,
+        backgroundColor: quiet ? t.colors.surface2 : t.colors.accentDeep,
+        borderWidth: quiet ? 1 : 0,
+        borderColor: t.colors.line,
+        transform: [{ scale: pressed ? 0.98 : 1 }],
+      })}
+    >
+      <RNText style={tx('800', 14, quiet ? t.colors.ink : '#FFFFFF')}>{label}</RNText>
+    </Pressable>
+  );
 
   return (
     <FadeIn duration={340} delay={Math.min(index, 6) * 60} translateY={8} style={{ marginTop: 12 }}>
@@ -472,9 +531,9 @@ function PostedCard({
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Badge label={badge.label} tone={badge.tone} />
+              <RNText style={tx('800', 10.5, topInk, { letterSpacing: 1.2, flexShrink: 1 })} numberOfLines={1}>{topLine}</RNText>
               <RNText style={tx('600', 11, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>
-                {categoryLabel(task)} · {task.assignment_mode === 'auto' ? 'Auto-hire' : 'Offers'}
+                · {categoryLabel(task)}
               </RNText>
               <View style={{ flex: 1 }} />
               <Pressable onPress={onMenu} hitSlop={12} accessibilityRole="button" accessibilityLabel="Task options">
@@ -489,6 +548,22 @@ function PostedCard({
             ) : null}
           </View>
         </View>
+        {stage > 0 ? (
+          <View style={{ paddingHorizontal: 16, paddingBottom: 12 }} accessible accessibilityLabel={`Step ${stage} of 5: ${STAGES[stage - 1]}`}>
+            <View style={{ flexDirection: 'row', gap: 4 }}>
+              {STAGES.map((name, k) => (
+                <View key={name} style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: k < stage ? t.colors.accent : t.colors.line }} />
+              ))}
+            </View>
+            <View style={{ flexDirection: 'row', gap: 4, marginTop: 5 }}>
+              {STAGES.map((name, k) => (
+                <RNText key={name} numberOfLines={1} style={tx(k === stage - 1 ? '800' : '500', 10, k === stage - 1 ? t.colors.ink : t.colors.muted, { flex: 1 })}>
+                  {name}
+                </RNText>
+              ))}
+            </View>
+          </View>
+        ) : null}
         <View
           style={{
             flexDirection: 'row',
@@ -502,10 +577,10 @@ function PostedCard({
           }}
         >
           <RNText style={tx('800', 17, t.colors.ink, { fontVariant: ['tabular-nums'], letterSpacing: -0.3 })}>{rupees((task.locked_minor ?? task.benchmark_minor) / 100)}</RNText>
-          {left ? (
+          {left && !datePassed ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Icon name="clock" size={12} color={left === 'overdue' ? t.colors.signal : t.colors.goldInk} />
-              <RNText style={tx('600', 11.5, left === 'overdue' ? t.colors.signal : t.colors.goldInk)}>{left}</RNText>
+              <Icon name="clock" size={12} color={t.colors.goldInk} />
+              <RNText style={tx('600', 11.5, t.colors.goldInk)}>{left}</RNText>
             </View>
           ) : null}
           {task.funded_at && task.status !== 'COMPLETED' && task.status !== 'AUTO_COMPLETED' ? (
@@ -514,14 +589,21 @@ function PostedCard({
               <RNText style={tx('600', 11.5, t.colors.accentDeep)}>Held safely</RNText>
             </View>
           ) : null}
-          <View style={{ flex: 1 }} />
-          {next ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 1 }}>
-              <RNText style={tx('700', 12, next.tone, { flexShrink: 1 })} numberOfLines={1}>{next.label}</RNText>
-              <Icon name="chevronRight" size={14} color={next.tone} />
-            </View>
-          ) : null}
         </View>
+        {nextLabel ? (
+          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: t.colors.line }}>
+            {datePassed ? (
+              <>
+                {bigButton('Move the date', onOpen)}
+                {bigButton('Close', onClose, true)}
+              </>
+            ) : done ? (
+              bigButton(nextLabel, onAgain)
+            ) : (
+              bigButton(nextLabel, onOpen)
+            )}
+          </View>
+        ) : null}
       </Pressy>
     </FadeIn>
   );
