@@ -215,7 +215,7 @@ function PostTop() {
               })}
             >
               <RNText style={tx('400', 15, t.isDark ? 'rgba(213,217,221,0.75)' : t.colors.muted, { flex: 1, lineHeight: 22 })}>
-                Say it your way, e.g. clean my kitchen tomorrow
+                Say it your way: clean my kitchen
               </RNText>
               {/* Start by talking: the composer opens already listening. Only where the device can listen (lib/speech). */}
               {canSpeak ? (
@@ -899,7 +899,7 @@ function GrowBar({
 
 /**
  * What a poster should do next with one of their tasks (plan D22, A4): a line in caps and the
- * one button. A date that has passed asks to move it instead of shouting "overdue".
+ * one button. A date that has passed says so plainly instead of a red "overdue".
  */
 function nextStep(task: Task, offers: number): { line: string; button: string; tone: 'accent' | 'blue' | 'gold' } {
   switch (task.status) {
@@ -918,7 +918,7 @@ function nextStep(task: Task, offers: number): { line: string; button: string; t
     case 'REVISION_REQUESTED':
       return { line: 'Changes asked', button: 'Open', tone: 'gold' };
     case 'OVERDUE':
-      return { line: 'The date has passed', button: 'Move the date', tone: 'gold' };
+      return { line: 'The date has passed', button: 'Open', tone: 'gold' };
     case 'DISPUTED':
       return { line: 'Problem reported', button: 'Open', tone: 'gold' };
     default:
@@ -988,9 +988,8 @@ function HowButton({ onPress, size = 32 }: { onPress: () => void; size?: number 
   );
 }
 
-/** The day chips under the ask box; the keys are the composer's own When choices. */
+/** The day chips under the ask box; the keys are the composer's own When choices ("Right now" stays in the composer). */
 const DAY_CHIPS: { key: string; label: string }[] = [
-  { key: 'now', label: 'Right now' },
   { key: 'today', label: 'Today' },
   { key: '2days', label: 'In 2 days' },
   { key: 'week', label: 'This week' },
@@ -1016,7 +1015,7 @@ function OnlyOnTaskDrop({
   const opinions = TEMPLATES.find((x) => x.key === 'ask-people');
   const prices = TEMPLATES.find((x) => x.key === 'find-quotes');
   const items: { icon: IconName; title: string; bg: string; ink: string; isNew?: boolean; onPress: () => void }[] = [
-    { icon: 'search', title: 'Find it\nfor me', bg: t.colors.gold, ink: t.colors.goldInk, isNew: true, onPress: onHunt },
+    { icon: 'search', title: 'Find it\nfor me', bg: t.colors.goldSoft, ink: t.colors.goldInk, isNew: true, onPress: onHunt },
     { icon: 'calendarCheck', title: 'Plan a\nbig day', bg: t.colors.accent, ink: '#FFFFFF', onPress: onBigDay },
     { icon: 'users', title: 'Many\nhands', bg: t.colors.blue, ink: '#FFFFFF', onPress: () => onPrompt('I need a few people together to ') },
     { icon: 'chat', title: 'Get\nopinions', bg: t.colors.signal, ink: '#FFFFFF', onPress: () => onPrompt(opinions?.prompt ?? 'Ask people which they prefer: ') },
@@ -1037,7 +1036,18 @@ function OnlyOnTaskDrop({
             label={x.isNew ? `${x.title.replace('\n', ' ')}. New` : x.title.replace('\n', ' ')}
             style={{ flex: 1, alignItems: 'center' }}
           >
-            <View style={{ width: 54, height: 54, borderRadius: 18, backgroundColor: x.bg, alignItems: 'center', justifyContent: 'center' }}>
+            <View
+              style={{
+                width: 54,
+                height: 54,
+                borderRadius: 18,
+                backgroundColor: x.bg,
+                borderWidth: x.isNew ? 1.5 : 0,
+                borderColor: t.colors.gold,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
               <Icon name={x.icon} size={24} color={x.ink} strokeWidth={2.2} />
               {x.isNew ? (
                 <View style={{ position: 'absolute', top: -6, right: -8, borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1, backgroundColor: t.colors.signalDeep }}>
@@ -1074,13 +1084,13 @@ function EverydayTile({ item, onPress }: { item: (typeof EVERYDAY)[number]; onPr
       onPress={onPress}
       scaleTo={0.97}
       label={`${item.title}. ${item.sub}`}
-      style={[cardSurface(t, 14), { flexGrow: 1, flexBasis: '30%', minWidth: 100, padding: 11 }]}
+      style={[cardSurface(t, 14), { flexGrow: 1, flexBasis: '40%', minWidth: 140, padding: 12 }]}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <View style={{ width: 28, height: 28, borderRadius: 9, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={item.icon} size={15} color={t.colors.accentDeep} />
         </View>
-        <RNText style={tx('700', 13, t.colors.ink, { flex: 1, lineHeight: 16 })} numberOfLines={2}>
+        <RNText style={tx('700', 13.5, t.colors.ink, { flex: 1, lineHeight: 17 })} numberOfLines={1}>
           {item.title}
         </RNText>
       </View>
