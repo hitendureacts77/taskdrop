@@ -3878,7 +3878,7 @@ Interested? Reply with your name, area and the kind of work you do.
 </details>
 
 <details id="t4-7" data-short="Real-people video tests">
-<summary>[BOTH] <b>4.7</b> Test 10 short videos with real people <small>· 2 weeks, 1 hour a week · free</small></summary>
+<summary>[BOTH] <b>4.7</b> Test 10 short videos with real people, and record 4 explainers <small>· 2 weeks, 1 to 2 hours a week · free</small></summary>
 
 **Why:** short videos are free to post, and they tell you which message makes people care before you spend any money. This is the "silent video" method from the videos you saved, done honestly: real people, real tasks.
 
@@ -3895,7 +3895,33 @@ write 10 video hooks for TaskDrop
 
 **Rules:** real people only. Never present an AI-made person as a customer. Never copy another creator's video. If you use AI for a drawing or a voice, label it.
 
-**Done when:** you know your 2 best hooks.
+**Part B: the explainer series "TaskDrop in 60 seconds"** (added 11 Nov, from the Upwork escrow video you shared). The hook videos above win attention; explainers win trust. Each one answers one question that stops someone from posting or sending an offer, in under 60 seconds, like the 54-second "How to Use Escrow on Upwork" guide (Guide With Samuel, YouTube): a question, a plain answer, one pro tip, then the next episode. They keep working for months: YouTube search, the Support page, Google Business Profile, and a reply when someone asks "is it safe?" in a group.
+
+**The beats (60 seconds):** 0 to 4 s the worry as a question ("Worried about paying a stranger before the job is done?"); 4 to 10 s the answer in one line; 10 to 38 s how it works in 3 steps, over a screen recording of the app; 38 to 48 s one pro tip; 48 to 54 s a question for the comments; 54 to 60 s the next episode and the link. Vertical 9:16, captions burned in, title "How to ___ on TaskDrop", one playlist.
+
+**What the scripts may claim** (checked against the code on 11 Nov):
+
+| The Upwork video says | TaskDrop today | Say |
+|---|---|---|
+| Money held until the work is approved | **Built** (TaskDrop's wallet in staging; the payment company under Plan B) | "Your money is held safely until you approve the work." Never "escrow", never "guaranteed" |
+| Approve and the money is released | **Built.** 3 days to approve or report, then it completes by itself; earnings clear after 7 days, then UPI or bank | "Approve, and the worker gets paid. You have 3 days to check." |
+| Milestones, each paid separately | **Partly.** A job can be split into 2 to 6 steps, but the steps are a checklist: the money is released **once**, at approval | "Split a big job into steps so you both know what done means." Never "paid per step" until it is built |
+| Disputes | **Built.** "Report a problem"; the admin team looks at it | "Report it before approving, and our team looks at it." No promise about the outcome |
+
+**The episodes:** before launch, 1 how your money is held until you approve, 2 how to post a task in plain words, 3 how to find work near you or online and send an offer, 4 when and how you get paid. After launch, one a week in the 7.3 rhythm: 5 comparing offers, 6 every fee shown before you pay, 7 reporting a problem, 8 online tasks from anywhere, 9 one account to hire and earn, 10 your address stays hidden until you choose. After that, a question asked 3 times in comments or Support becomes the next episode.
+
+1. SAY:
+
+```say
+write the explainer script for episode 1
+```
+
+2. Claude writes the script with the beats above, using only the app's own words and the claims in the table.
+3. CLICK: record the screen on your phone after the feature freeze (Gate 1), on staging with made-up names and fake money; never show a real person's name, phone number or address. Read the fees and days from the app on the day you record. Use your own voice, or a labelled AI voice.
+4. CLICK: add captions in a free editor, post to YouTube and Instagram Reels, and add it to the playlist.
+5. Repeat for episodes 2 to 4. If a screen changes later, re-record that episode.
+
+**Done when:** you know your 2 best hooks, and explainers 1 to 4 are recorded and posted.
 </details>
 
 <details id="t4-8" data-short="Launch posts">
@@ -4063,7 +4089,7 @@ build the email sequences
 - [ ] At least 20 workers are lined up in the launch areas (decision 38)
 - [ ] The public pages and the marketing plan are approved
 - [ ] The pages a link lands on load fast on a phone: Lighthouse performance 70 or more on the phone-sized test (3.6, F1), or you have written "F1: accept"
-- [ ] You know your 2 best video hooks
+- [ ] You know your 2 best video hooks, and explainers 1 to 4 are posted
 
 ---
 
@@ -4970,6 +4996,7 @@ Run the after-release checks.
 | Every day | Reply to every comment, review and message the same day | 10 minutes |
 | Monday | The weekly numbers (7.1), then SAY "draft this week's posts" | 15 minutes |
 | Tuesday or Thursday | One short video (Reels and Shorts) using a hook that worked in 4.7 | 30 minutes |
+| Friday | One "TaskDrop in 60 seconds" explainer (episodes 5 to 10 of 4.7 part B, then the question asked most in comments or Support). SAY "write the explainer script for episode N" | 1 hour |
 | Wednesday | One LinkedIn founder post (what you learned this week) | 15 minutes |
 | After each finished task | Ask the poster, kindly, for an honest Google review. Never ask friends to review a service they did not use | 1 minute |
 | Once a month | One helpful page with real numbers, for example "What a plumber costs in Hyderabad (TaskDrop data)", and a look at Search Console (6.4) | 1 hour |
@@ -5035,7 +5062,7 @@ Do not pay for bigger servers in advance. Claude watches these signals in **prod
 <div class="fig">
 <div class="fig-title">From now to three months after launch</div>
 <div class="tl">
-<div class="tl-col"><b>Before launch</b><small>Steps 3 and 4, about 6 weeks</small><ul><li>Claim the handles (S.5)</li><li>Google Business Profile (4.4)</li><li>Public pages and the "request your area" form (4.3)</li><li>Recruit 20+ workers (4.6)</li><li>Test 10 video hooks (4.7)</li><li>Write the launch posts (4.8)</li></ul></div>
+<div class="tl-col"><b>Before launch</b><small>Steps 3 and 4, about 6 weeks</small><ul><li>Claim the handles (S.5)</li><li>Google Business Profile (4.4)</li><li>Public pages and the "request your area" form (4.3)</li><li>Recruit 20+ workers (4.6)</li><li>Test 10 video hooks (4.7)</li><li>Record explainers 1 to 4 (4.7 B)</li><li>Write the launch posts (4.8)</li></ul></div>
 <div class="tl-col c2"><b>Launch week</b><small>Step 6</small><ul><li>City subreddit and WhatsApp groups, by hand</li><li>LinkedIn founder story</li><li>Product Hunt and Show HN, Tuesday to Thursday</li><li>Personally help the first 10 posters and 10 workers</li><li>Reply to every comment the same day</li></ul></div>
 <div class="tl-col c3"><b>Days 1 to 30</b><small>Find what works</small><ul><li>The weekly rhythm (7.3)</li><li>Answer real "need help" posts with real offers</li><li>Ask every finished poster for an honest review</li><li>Watch: offers within 30 minutes</li></ul></div>
 <div class="tl-col c4"><b>Days 31 to 90</b><small>Do more of what works</small><ul><li>Helpful pages with real price data</li><li>City and category pages only where real workers exist</li><li>Longer YouTube videos ("earn on weekends in Hyderabad")</li><li>More workers where tasks got no offer</li></ul></div>
@@ -5052,7 +5079,7 @@ Do not pay for bigger servers in advance. Claude watches these signals in **prod
 | 2 | Reddit (city subreddits; r/IndianStartups for building in public) | High trust, and Reddit posts rank on Google | Read each subreddit's rules; help first (9 to 1); never paste the same post into many places | Visits and sign-ups per post |
 | 3 | Google Business Profile and Google reviews | Local searches show it on Maps | Verified profile (4.4); honest reviews from finished tasks | Profile views, calls |
 | 4 | Public pages and helpful articles | Grows every month on its own | Price guides with real data, "how to earn on weekends" | Search clicks |
-| 5 | Instagram Reels and YouTube Shorts (the same clips) | Shows a real task done in 15 seconds | One short a week, real people | Views to sign-ups |
+| 5 | Instagram Reels and YouTube Shorts (the same clips) | Shows a real task done in 15 seconds; a 60-second explainer answers "is it safe?" | One hook short and one explainer a week, real people (4.7) | Views to sign-ups; explainers: watched to the end |
 | 6 | LinkedIn | Your founder story; small offices that post tasks | One post a week | Business sign-ups |
 | 7 | Long YouTube videos | Its own search engine | Monthly, after launch | Subscribers |
 | 8 | Product Hunt, Show HN, r/SideProject, Indie Hackers | One-day spike and credibility | Launch week only. They bring founders, not Hyderabad customers | — |
@@ -6074,6 +6101,7 @@ Kept for the record. The live picture is the **Start here** panel at the top of 
 
 ## Changelog
 
+- **2026-11-11 (explainer videos, from the Upwork escrow video):** You shared "How to Use Escrow on Upwork" (a 54-second how-to), asked if it is built, and asked for a similar video plan. **Built:** money held until approval, release on approval or after 3 days, "Report a problem". **Partly built:** a job splits into 2 to 6 steps, but they are a checklist and the money is released once, so no video may say "paid per step". **Added:** task 4.7 part B, the "TaskDrop in 60 seconds" explainer series (the 60-second beats, what scripts may claim, 10 episodes: 4 before launch, then one a week); a Friday row in the 7.3 rhythm; the playbook timeline and channel 5; the Gate 4 line. No new task, so the task count is unchanged. The same plan is in section 3b of your local `marketing strategy.html`.
 - **2026-11-11 (the CEO defaults accepted):** You said "Use the CEO defaults". **Decided:** 10 (stay on the personal Google Play account while a sole proprietorship), 12 (the recommended new-account limits), 17 (PAN screen after the CA answers, before Step 5), 22 (the tour runs in guest mode), 25 (an "I am 18 or older" tap for guests), 28 (`taskdrop.in` moves to production at launch; staging moves to `staging.taskdrop.in`), 30 (one small paid tester round after the Plan B flow is built), 31 (staging APK now, Google Play from launch day), 40 (Android tablets: level 1, "never broken"), 41 (the freeze day is Sunday 22 November 2026), and F1 in 3.6 (fix the slow first load the cheap way). **38** is answered yes (2 or 3 areas), but the area names are still open. **Decision 3** (Razorpay or Cashfree) stays open until both written quotes arrive. The Decisions table, the defaults card, the setup guide, the at-a-glance card, Gate 1 and tasks 1.14, 2.14, 2.18 and 3.6 now say so. **Not built:** the 18+ tap (25), the tour in guest mode (22), 1.14 and F1 each wait for their start words. No code, database, setting or account changed.
 - **2026-11-11 (CEO rewrite: the plan on one page, every screen, and the scaling ladder):** You asked for the plan to be made simpler and easier to follow, checked against good practice with fresh research, cheaper, ready to scale, with pictures, and for a plan to make the app fit every phone, tablet and laptop. **New at the top: The plan on one page** (the verdict, the road to launch as one picture with three lanes, the three clocks that decide launch day, a "do these now" table, a card with the CEO default for every open decision, answered by one sentence, and a best-practice card: 12 habits kept, 9 changed). The 9 November CEO review stays, closed, as the reasons. A repeated "two copies" table was removed from The map. **New task 1.14** (fits every screen): the website already chooses one of four layouts by width; the Android app always used the phone layout and asked to stay upright, and Android 16 (required by Google Play since 31 August 2026) ignores that on screens 600 and wider. Level 1 "never broken" before launch (layout by width on Android, six test sizes instead of two, a size test on every pull request, small phones, big text, short laptops, an emulator pass), level 2 after launch. **New rules 11** (no new kind of check before launch; Step 2 now says when each of the six checks runs) **and 12** (layout by width; eight layout rules). **How it grows** is now a scaling ladder with the price of each step and the number that says when to climb, three things to keep true, and an area ladder for opening the next area and city. **Changed:** Gate 1 (the freeze now names 1.13 and a freeze day), Gate 3 (1.14 level 1), Gate 4 (fast landing pages), 3.3 (ask 20 testers, start today), 3.6 (CEO default for F1: fix the slow first load the cheap way), 7.5 (prices), What it costs (cost at each size; what to do if Expo's free builds run out), the "Fits every browser and screen" card (more widths, tablets and foldables), five new words. **New decisions:** 40 (Android tablets at launch; recommended level 1) and 41 (the freeze day; recommended Sunday 22 November). **Checked online on 11 Nov:** Google Play's target level and testing rules, Android 16 and 17 large-screen rules, Supabase prices, RBI's payment aggregator directions of 15 September 2025, the DPDP rules' dates, StatCounter's phone screen sizes for India. **Checked in the code:** `apps/mobile/src/lib/layout.ts`, `app.json`, the Playwright config, and the Android target level (36). No code, database, setting or account changed; nothing was built.
 - **2026-11-10 (task 2.19: the debug loop, plan only):** You asked for a repeating debugging cycle that shows the new bugs and the ones still not fixed, built from GitHub repos and YouTube videos. **New task 2.19** in Step 2 and a full plan page, `docs/DEBUGGING_PLAN.html`: eight steps a round (pin, collect, sweep twice, explore one charter plus the golden path, log and triage, fix with a failing test first, recheck on staging, report), at least 3 and at most 8 rounds before launch, a seven-rule stop test, a hot-spot review when it does not settle, and a weekly round after launch (added to 7.2). New file `docs/debug-loop/LEDGER.md` holds every bug from B33 on, with B18, B21, B30 and B32 as its starting list. **Gate 3** gains one line: the debug loop has settled. Gate 2b does not wait for it. Sources: Agans' nine rules, Halloway's scientific-method talk, Zeller's Debugging Book, gstack `/qa`, the Ralph loop, Playwright test agents, Maestro, Julia Evans, open-source triage guides. Nothing was run; no code, database or setting changed.
