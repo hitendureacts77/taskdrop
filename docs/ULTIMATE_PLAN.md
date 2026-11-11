@@ -20,7 +20,6 @@ Everything below those four is detail. You open it only when a task sends you th
 - **The product is ahead. The paperwork is behind.** Nothing in the code decides launch day any more. The CA, the payment company and Google's 14-day test do.
 - **The plan grew faster than it got done.** The top of this page had five summaries that said the same things, and Step 2 grew to 20 tasks with six whole-app checks. This page replaces the five summaries, and rule 11 stops new checks.
 - **The freeze had no date,** so work kept arriving after it (1.13, the map bar). It now has one: **Sunday 22 November** (decision 41, decided 11 Nov).
-- **One new money feature was planned today, not built:** posters may pay when posting (Funded, recommended) or after the work is done (Not funded), task **1.15**, built with the Plan B money flow (decision 48).
 - **One real gap was found today:** on an Android tablet or an unfolded foldable the app shows a stretched phone screen, and Android no longer lets an app stay upright there. The fix is task **1.14**.
 
 **The road to launch, as one picture**
@@ -31,7 +30,7 @@ Everything below those four is detail. You open it only when a task sends you th
 <div class="fig-sub">Inside a lane, a line cannot start before the line above it is done. Launch waits for the slowest lane, and today that is lane 1.</div>
 <div class="tl">
 <div class="tl-col c3"><b>Lane 1: Paperwork</b><small>You · the slowest lane, 3 to 6 weeks</small><ul><li><strong>First:</strong> S.2 business, GST and the bank account</li><li><strong>Then:</strong> S.6 SMS registration and S.8 the payment company's approval (both need S.2)</li><li><strong>Beside them:</strong> S.4 two written quotes, which answer decision 3 (Razorpay or Cashfree), and S.3 the lawyer's written yes</li></ul></div>
-<div class="tl-col c2"><b>Lane 2: Product</b><small>Claude · waits for lane 1 in the middle</small><ul><li><strong>First:</strong> finish 1.13 and 1.14, then freeze (Gate 1, 22 November)</li><li><strong>Then:</strong> build the Plan B money flow, with Funded and Not funded tasks (1.15) in the same build. It needs decision 3 and the lawyer's yes from lane 1</li><li><strong>Then:</strong> one security round on the final code (2.16, decision 30), and Gate 2b</li></ul></div>
+<div class="tl-col c2"><b>Lane 2: Product</b><small>Claude · waits for lane 1 in the middle</small><ul><li><strong>First:</strong> finish 1.13 and 1.14, then freeze (Gate 1, 22 November)</li><li><strong>Then:</strong> build the Plan B money flow. It needs decision 3 and the lawyer's yes from lane 1</li><li><strong>Then:</strong> one security round on the final code (2.16, decision 30), and Gate 2b</li></ul></div>
 <div class="tl-col"><b>Lane 3: Proof</b><small>Testers and workers · 14 days that cannot be shortened</small><ul><li><strong>First:</strong> Gate 2a, the Play Console app and the store file (3.1, 3.2)</li><li><strong>Then:</strong> 12 testers for 14 days (3.3), while the debug loop (2.19) runs</li><li><strong>Beside them:</strong> 20 workers in 2 or 3 areas (4.6), then Gates 3 and 4</li></ul></div>
 </div>
 <div class="fig-sub" style="margin:14px 0 8px">When all three lanes are done:</div>
@@ -57,7 +56,7 @@ Launch day is about **two weeks after the last of these three clocks finishes** 
 | 2 | Send the Plan B questions to Razorpay and Cashfree (S.4) and the brief to two lawyers (S.3) | Check Gate 2a and tick it (its four tasks show as done; Claude checks its holes list) |
 | 3 | **Name your 2 or 3 launch areas** (decision 38). The other defaults are recorded: you said "Use the CEO defaults" on 11 Nov | Get one store file built (3.2). Expo's free builds are used up until 1 December, so first a free build on this PC from a folder with no spaces in its name |
 | 4 | Message **20** people for the Google Play test (3.3). Finding them takes days, so start before the store file is ready | Run the audit prompt (2.20, read-only) and fix the six holes from 2.18 |
-| 5 | Your clicks: 2.2, 2.3 and 2.4 (about 1.5 hours), and look at the new map on your laptop ("done 1.12") | Write the Plan B design when you say "design the Plan B money flow". It now includes 1.15 (Funded and Not funded tasks, planned 11 Nov) |
+| 5 | Your clicks: 2.2, 2.3 and 2.4 (about 1.5 hours), and look at the new map on your laptop ("done 1.12") | Write the Plan B design when you say "design the Plan B money flow" |
 
 <details id="c-ceo-defaults">
 <summary>[CARD] The CEO defaults: accepted by you on 11 November. Still open: decision 3 and the area names</summary>
@@ -785,11 +784,6 @@ Here are the payment quotes:
 
 4. Claude fills a comparison table (it includes the cost of switching: Razorpay is already built, Cashfree would take about one phase of work) and recommends one.
 5. Make decision 3 in the "Decisions" section.
-
-**Two more questions, added 11 Nov for task 1.15** (ask them on the call back, or in a short follow-up email, if the first email has gone):
-
-- Can you hold a payment from the moment a task is **posted** until the poster approves the work (sometimes days before anyone is hired), and refund it in full if no one is hired?
-- For a task paid **after** the work is done, can the payment taken at approval be split to the worker and to us in the same way, straight away?
 
 **Done when:** both quotes are in and you have chosen.
 
@@ -1619,65 +1613,6 @@ start 1.14
 **Checked online on 11 Nov 2026:** Google Play's target level rule (Android 16, API 36, from 31 August 2026); Android 16's and Android 17's rules for screens 600 and wider (Android Developers); Google's size classes, which change at 600, 840, 1200 and 1600 wide (TaskDrop changes at 600, 1024 and 1600, which is close enough to keep); and the most common phone screens in India (StatCounter, October 2026: 360 × 800 first, the rest between 360 and 432 wide).
 </details>
 
-<details id="t1-15" data-short="Funded and Not funded tasks (D25)">
-<summary>[CLAUDE] <b>1.15</b> Funded and Not funded tasks: pay when posting (recommended) or pay after the work is done (D25) <small>· added 11 Nov · plan only, nothing built · built with the Plan B money flow (decision 48) · your time: 15 minutes · free</small></summary>
-
-**What you asked (11 Nov):** let a poster skip paying up front and pay after the work is done. Mark every card **Funded** or **Not funded**, add a filter for it on the map, and when a Not funded job is approved the poster pays in TaskDrop: the helper gets the money and TaskDrop takes its commission. When a poster picks pay later, warn them that helpers may not take the task. The aim is to push posters to **pay while posting**, so a Funded task gives helpers assurance and they choose it first. You then said: "Don't build the feature, just build the plan."
-
-**The full design:** `docs/design/pay-after/PLAN.md` (screens, words, money, the database steps, every edge case).
-
-**The flow in one picture**
-
-```html
-<div class="fig">
-<div class="fig-title">Two ways to pay for a task <span class="pill mut">Pay now is the default</span></div>
-<div class="fig-sub">From the moment a Not funded poster pays, the job is exactly a Funded job: the same commission, clearing days and withdrawal.</div>
-<div class="tl">
-<div class="tl-col c2"><b>Funded (recommended)</b><small>pay when posting</small><ul><li>Budget + 3% fee paid from the wallet when posting (top up by card if short)</li><li>TaskDrop holds it. It goes to the helper only when the work is approved</li><li>A cheaper offer: the difference comes back at once</li><li>No one hired: everything comes back</li><li>Shown first to helpers; Flash Drop and Auto-hire are Funded only</li></ul></div>
-<div class="tl-col c4"><b>Not funded</b><small>pay after the work is done</small><ul><li>A warning pop-up first: helpers may not take it</li><li>Hired for free; the helper may start at once</li><li>"Approve and pay ₹X" when the work is sent</li><li>Silent for 3 days: paid from the wallet, or Payment due</li><li>Payment due: no posting or hiring until it is paid; reminders, then staff</li></ul></div>
-</div>
-</div>
-```
-
-**What changes for each person**
-
-| Who | What they see |
-|---|---|
-| **Poster, posting** | "When do you pay?": **Pay now** (recommended) or **Pay after it's done**. Choosing pay later opens a pop-up: *"Helpers may not take this task. Workers may not accept this task because it is pay later. They will show you less interest. If you pay now, the money is kept safe at TaskDrop in escrow and does not go to the helper until the work is done and you approve it."* Buttons: **Pay now instead** (main) or Pay later anyway. A Funded post ends with "Pay ₹1,030 and post" |
-| **Helper, looking for work** | A green **Funded** or amber **Not funded** badge on every card, a **Payment** filter on the map (All · Funded only · Not funded), Funded tasks first, and on a Not funded task the poster's record ("Paid 4 of 4 jobs after the work") and a note in the offer sheet |
-| **Poster, Not funded, work sent** | **Approve and pay ₹X**; a short wallet opens the top-up for exactly the gap |
-| **Poster with a payment due** | A red bar: "You owe ₹X for <task>. Pay now to keep posting." No posting, hiring or deleting the account until it is paid |
-| **Staff** | The Funded / Not funded label, an **Unpaid jobs** list, and the pay-later settings |
-
-**What protects the helper on a Not funded job:** a limit of ₹5,000 a task and 3 open at once per poster (admin settings); one unpaid job blocks the poster; paid from the wallet automatically after 3 days when it can be; reminders after 1 and 3 days and staff after 7; the poster's payment record on the task page; and the 5% fine for cancelling after the start, paid from the wallet at once. TaskDrop does not pay helpers from its own money when a poster never pays (that is F.16, later).
-
-**Money:** the amounts do not change (3% fee from the poster, the helper's commission, the 5% fine). Only the moment of paying moves: Funded pays when posting instead of when hiring; Not funded pays when approving. Under Plan B the payment company holds the money instead of TaskDrop's wallet; two questions for S.4 make sure it may (hold from posting until approval, and split a payment taken at approval).
-
-**Your decisions:** 42 to 48 in the Decisions section. 42 and 46 are what you asked for; the others have a recommended answer the build will use unless you say otherwise. **Decision 48: build it with the Plan B money flow** (recommended), because both change the same money steps and the freeze is 22 November.
-
-**Steps**
-
-1. READ `docs/design/pay-after/PLAN.md` (10 minutes). Change any wording you want, especially the pop-up.
-2. SAY your answers to 43, 44, 45, 47 and 48, or:
-
-```say
-Use the recommended answers for 43 to 48
-```
-
-3. When the Plan B money flow starts (or earlier, if you choose that in 48), SAY:
-
-```say
-start 1.15
-```
-
-4. Claude builds it in small pull requests into `redesigned-2.0` (database, api, app, admin), with the database tests for every money step. The website updates by itself; Claude asks you before publishing the Android app update.
-5. LOOK at it on staging: post one Funded task and one Not funded task (the pop-up must show), hire on both from a second account, approve and pay. TELL Claude: "done 1.15", or what looks wrong.
-
-**Done when:** both kinds work end to end on staging (posting, the pop-up, the badges, the map filter, hiring, approve and pay, a Payment due job blocking posting until it is paid, a Funded task refunded when no one is hired); every money step has a database test; the security review of the money changes found no Critical or High; and you say "done 1.15".
-
-**What it costs:** nothing extra.
-</details>
-
 > **GATE 1: do not start Step 3 until all of these are true** (Step 2 can start at the same time as Step 1)
 
 - [-] Every decision has an answer (1.1). **Future scope (your decision, 1 Nov 2026):** no gate waits on it; each open decision is answered when the task that needs it comes up.
@@ -1685,7 +1620,7 @@ start 1.15
 - [x] Each design change D1 to D10 is built or dropped. **Checked 1 Nov:** D1 to D5 and D7 to D9 were built and merged on 31 Oct, D6 was dropped (1 Nov), and D10 is now built: Home's 32-point gap between sections and its softer cards also reach Explore, Profile and Wallet. Seen on your phone: D3 (the Drop a task composer), D5 (When step), D7 (Price only / Price + proposal), D8 (blue for workers) and D9 (the Google map on Home and Find work). Not seen: D1, because the birth-date wheels only show when a new number signs up and Claude does not create accounts; and the D10 spacing on Explore, Profile and Wallet, which needs a new app update.
 - [x] Every notification reads clearly on your phone (1.7). **Checked 1 Nov:** the new words were read on your own phone ("A worker offered ₹400 ..."), and every other line of the table was read from what the staging test runs saved. Old alerts keep their old words.
 - [x] Nothing is hidden behind the keyboard: the 16-spot keyboard pass is green on your phone (1.8). **Accepted by you, 1 Nov 2026, as it stands:** 14 of 16 spots seen working on the phone; review text, proof of work, payout details and a confirm dialog opened with the keyboard up were not opened (they need money in a wallet), and the bigger-text and navigation-style repeats were not done (they change the phone settings). Open them again if a tester finds one hidden.
-- [ ] **Feature freeze** (CEO review, 9 Nov; decision 37): 1.12 (D21), the D20 map tab and 1.13 order 1 and 2 are finished or dropped. From here only fixes go in; every new idea goes to Future scope. **The freeze day is Sunday 22 November (decision 41, decided 11 Nov):** what is not built by then moves to after launch. Task 1.14 level 1 is a fix, so it may finish after the freeze day; task 1.15 (Funded and Not funded tasks) is built with the Plan B money flow (decision 48), which carries on after the freeze too; Gate 3 waits for it, this gate does not
+- [ ] **Feature freeze** (CEO review, 9 Nov; decision 37): 1.12 (D21), the D20 map tab and 1.13 order 1 and 2 are finished or dropped. From here only fixes go in; every new idea goes to Future scope. **The freeze day is Sunday 22 November (decision 41, decided 11 Nov):** what is not built by then moves to after launch. Task 1.14 level 1 is a fix, so it may finish after the freeze day; Gate 3 waits for it, this gate does not
 - [x] `npm run check` is green on `redesigned-2.0` (Claude reports this). **Checked 31 Oct:** typecheck, lint and 62 tests passed (exit 0) on the code of `redesigned-2.0` at `ce62f5c`.
 
 ---
@@ -5409,18 +5344,6 @@ These are recorded so nothing is lost. **None of them is needed to launch, and n
 **Done when:** you have Basheer's answers written down.
 </details>
 
-<details id="tF-16" data-short="Pay-later guarantee">
-<summary>[LATER] <b>F.16</b> Pay-later guarantee: TaskDrop pays the helper when a Not funded poster never pays <small>· after launch · needs the CA and the lawyer · costs money</small></summary>
-
-**What it is:** on a Not funded job (task 1.15) the helper carries the risk that the poster never pays. A guarantee would pay the helper from TaskDrop's money after, say, 14 days unpaid, and TaskDrop would then collect from the poster.
-
-**Why later:** it makes TaskDrop a lender and an insurer, with money at risk and rules to follow. Decide only once the numbers show how many Not funded jobs go unpaid (the Unpaid jobs list in the admin).
-
-**Start when:** after launch, if unpaid jobs are common enough that helpers avoid Not funded tasks.
-
-**Done when:** the CA and the lawyer have said how it may be done, and you have decided yes or no.
-</details>
-
 ---
 
 ## Architecture and system design
@@ -5654,13 +5577,6 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 39 | **Useful in the first minute (D22, task 1.13).** Testers did not find the app useful on opening it. Count D22 order 1 and 2 as a fix inside the feature freeze (decision 37), so it is built before launch? | **Decided 9 Nov: yes.** You approved the D22 design (v4) and said to start building, so D22 order 1 and 2 are built inside the freeze, before launch. Order 3 and 4 still wait for Step 7 | "Decision 39: yes, D22 order 1 and 2 before launch." or "Decision 39: after launch." |
 | 40 | **Android tablets and foldables at launch** (CEO rewrite, 11 Nov; task 1.14). Android now turns and resizes the app on screens 600 and wider, whatever the app asks. Make the app "never broken" there before launch by reusing today's layouts (level 1), design a full tablet app before launch (adds 1 to 2 weeks and reopens the freeze), or use Android's temporary switch that keeps the phone screen in a box (stops working with Android 17)? | **Decided by you, 2026-11-11** ("Use the CEO defaults"). **Level 1, "never broken"** (task 1.14), by reusing today's layouts. A full tablet design waits until PostHog shows tablets matter. Done | Nothing to say |
 | 41 | **The freeze day** (CEO rewrite, 11 Nov). Decision 37 froze features "once the map work is finished", with no date, and 1.13 and the map bar arrived after it. Set a day after which only fixes go in, whatever is finished? | **Decided by you, 2026-11-11** ("Use the CEO defaults"). **Sunday 22 November 2026.** What is not built by then moves to after launch (1.13 order 3 and 4 already do). Fixes, 1.14 level 1 and the Plan B money flow are not features and carry on. Done | Nothing to say |
-| 42 | **Not funded tasks** (task 1.15, D25). Let a poster hire without paying and pay after the work is done, with every card marked Funded or Not funded? | **Asked by you, 2026-11-11.** Yes. Plan only: `docs/design/pay-after/PLAN.md`. Built when you say "start 1.15" | Nothing to say |
-| 43 | **Pay-later limits** (1.15). The highest price, how many a poster may have open at once, and who may use it | **Recommended:** ₹5,000 a task (the same as the new-account limit, decision 12), 3 open or unpaid at once, every signed-in poster. One unpaid job blocks posting, hiring and deleting the account. All three are admin settings | "Decision 43: use the recommended limits." or your own numbers |
-| 44 | **Paying automatically** (1.15). When a Not funded poster says nothing for 3 days after the work is sent and their wallet holds enough, pay the helper from it automatically (the pop-up tells them)? | **Recommended:** yes, the same as a Funded job is released automatically today. A short wallet makes the job Payment due | "Decision 44: yes." or "Decision 44: no, always wait for the poster." |
-| 45 | **Commission on Not funded jobs** (1.15). The same commission and fee as a Funded job, or more? | **Recommended:** the same. A higher cut feels like a fine; the pop-up and the ranking already push posters to pay now | "Decision 45: the same." or "Decision 45: ___% more." |
-| 46 | **Funded means paid when posting** (1.15). The budget + fee is paid when the task is posted (not when hiring); a cheaper offer gives the difference back at once; everything comes back if no one is hired | **Asked by you, 2026-11-11** ("make payment while posting the task itself"). Yes. Tasks posted before the change keep today's pay-when-hiring | Nothing to say |
-| 47 | **Funded first** (1.15). Rank Funded tasks above Not funded ones in lists and in the alerts sent to nearby helpers (ties and a small lift; sorting by pay or distance still works)? | **Recommended:** yes | "Decision 47: yes." or "Decision 47: no ranking." |
-| 48 | **When to build 1.15.** It changes the money flow, so it is not a fix inside the freeze (decision 41, 22 November) | **Recommended:** build it together with the Plan B money flow, which already carries on past the freeze. Both change the same money steps, so they are built and security-tested once, not twice | "Decision 48: with Plan B." or "Decision 48: before the freeze." |
 
 ---
 
@@ -6090,9 +6006,6 @@ Prices were checked between 26 October and 11 November 2026. Check again when yo
 | **Production** | The real thing. Real money, real people |
 | **Gate** | A checkpoint. Every line must be true before you go on |
 | **The three clocks** | The three slow chains that decide launch day: the paperwork, the money flow, and Google's 14-day test (The plan on one page) |
-| **Funded** | The poster paid when posting; TaskDrop holds the money and pays the helper only when the work is approved (task 1.15) |
-| **Not funded** | The poster pays after the work is done, when they approve it (task 1.15) |
-| **Payment due** | A Not funded job whose work was accepted but not yet paid. The poster cannot post or hire until it is paid |
 | **Layout by width** | The app looks at how wide the window is, not at which device it is on, and picks the phone, tablet, laptop or big-monitor layout (task 1.14) |
 | **Scaling ladder** | The list of what to buy as TaskDrop grows, with the price of each step and the number that says when (Architecture, How it grows) |
 | **Read copy** | A second copy of the database that only answers reads (lists, search, the map), so the main one stays fast |
@@ -6161,7 +6074,6 @@ Kept for the record. The live picture is the **Start here** panel at the top of 
 
 ## Changelog
 
-- **2026-11-11 (task 1.15: Funded and Not funded tasks, plan only):** You asked for posters to be able to pay after the work is done, with every card marked Funded or Not funded, a filter on the map, payment in TaskDrop at approval with the commission taken, a warning pop-up when choosing pay later, and posters pushed to pay while posting. Then you said "Don't build the feature, just build the plan". **New task 1.15 (D25)** in Step 1 and a full design, `docs/design/pay-after/PLAN.md`: Funded now means paid **when posting** (difference back on a cheaper offer, full refund if no one is hired); Not funded is paid at approval or from the wallet after 3 days, else Payment due, which blocks posting and hiring; limits, reminders, the poster's payment record, an Unpaid jobs list for staff, Funded first in lists. **New decisions 42 to 48** (42 and 46 are yours; 48 recommends building it with the Plan B money flow). Two new questions in S.4, Future scope F.16 (a pay-later guarantee), three new words. Nothing in the code changed: a draft that had been started was taken out.
 - **2026-11-11 (the CEO defaults accepted):** You said "Use the CEO defaults". **Decided:** 10 (stay on the personal Google Play account while a sole proprietorship), 12 (the recommended new-account limits), 17 (PAN screen after the CA answers, before Step 5), 22 (the tour runs in guest mode), 25 (an "I am 18 or older" tap for guests), 28 (`taskdrop.in` moves to production at launch; staging moves to `staging.taskdrop.in`), 30 (one small paid tester round after the Plan B flow is built), 31 (staging APK now, Google Play from launch day), 40 (Android tablets: level 1, "never broken"), 41 (the freeze day is Sunday 22 November 2026), and F1 in 3.6 (fix the slow first load the cheap way). **38** is answered yes (2 or 3 areas), but the area names are still open. **Decision 3** (Razorpay or Cashfree) stays open until both written quotes arrive. The Decisions table, the defaults card, the setup guide, the at-a-glance card, Gate 1 and tasks 1.14, 2.14, 2.18 and 3.6 now say so. **Not built:** the 18+ tap (25), the tour in guest mode (22), 1.14 and F1 each wait for their start words. No code, database, setting or account changed.
 - **2026-11-11 (CEO rewrite: the plan on one page, every screen, and the scaling ladder):** You asked for the plan to be made simpler and easier to follow, checked against good practice with fresh research, cheaper, ready to scale, with pictures, and for a plan to make the app fit every phone, tablet and laptop. **New at the top: The plan on one page** (the verdict, the road to launch as one picture with three lanes, the three clocks that decide launch day, a "do these now" table, a card with the CEO default for every open decision, answered by one sentence, and a best-practice card: 12 habits kept, 9 changed). The 9 November CEO review stays, closed, as the reasons. A repeated "two copies" table was removed from The map. **New task 1.14** (fits every screen): the website already chooses one of four layouts by width; the Android app always used the phone layout and asked to stay upright, and Android 16 (required by Google Play since 31 August 2026) ignores that on screens 600 and wider. Level 1 "never broken" before launch (layout by width on Android, six test sizes instead of two, a size test on every pull request, small phones, big text, short laptops, an emulator pass), level 2 after launch. **New rules 11** (no new kind of check before launch; Step 2 now says when each of the six checks runs) **and 12** (layout by width; eight layout rules). **How it grows** is now a scaling ladder with the price of each step and the number that says when to climb, three things to keep true, and an area ladder for opening the next area and city. **Changed:** Gate 1 (the freeze now names 1.13 and a freeze day), Gate 3 (1.14 level 1), Gate 4 (fast landing pages), 3.3 (ask 20 testers, start today), 3.6 (CEO default for F1: fix the slow first load the cheap way), 7.5 (prices), What it costs (cost at each size; what to do if Expo's free builds run out), the "Fits every browser and screen" card (more widths, tablets and foldables), five new words. **New decisions:** 40 (Android tablets at launch; recommended level 1) and 41 (the freeze day; recommended Sunday 22 November). **Checked online on 11 Nov:** Google Play's target level and testing rules, Android 16 and 17 large-screen rules, Supabase prices, RBI's payment aggregator directions of 15 September 2025, the DPDP rules' dates, StatCounter's phone screen sizes for India. **Checked in the code:** `apps/mobile/src/lib/layout.ts`, `app.json`, the Playwright config, and the Android target level (36). No code, database, setting or account changed; nothing was built.
 - **2026-11-10 (task 2.19: the debug loop, plan only):** You asked for a repeating debugging cycle that shows the new bugs and the ones still not fixed, built from GitHub repos and YouTube videos. **New task 2.19** in Step 2 and a full plan page, `docs/DEBUGGING_PLAN.html`: eight steps a round (pin, collect, sweep twice, explore one charter plus the golden path, log and triage, fix with a failing test first, recheck on staging, report), at least 3 and at most 8 rounds before launch, a seven-rule stop test, a hot-spot review when it does not settle, and a weekly round after launch (added to 7.2). New file `docs/debug-loop/LEDGER.md` holds every bug from B33 on, with B18, B21, B30 and B32 as its starting list. **Gate 3** gains one line: the debug loop has settled. Gate 2b does not wait for it. Sources: Agans' nine rules, Halloway's scientific-method talk, Zeller's Debugging Book, gstack `/qa`, the Ralph loop, Playwright test agents, Maestro, Julia Evans, open-source triage guides. Nothing was run; no code, database or setting changed.
