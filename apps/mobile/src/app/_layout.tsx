@@ -7,6 +7,7 @@ import { AppProviders, Background, ThemedStatusBar } from '../AppProviders';
 import { NativeRoot } from '../navigation/NativeRoot';
 import { decideStart } from '../navigation/nativeStart';
 import { withMonitoring } from '../lib/monitoring';
+import { usesWorkerColours } from '../lib/roleColours';
 
 /**
  * Root of the iOS and Android apps. The web build does not come through here
@@ -20,9 +21,9 @@ function Routes() {
   if (!ready) return <View style={{ flex: 1, backgroundColor: '#0F1012' }} />;
   decideStart(postAuthRoute === 'setup' ? 'setup' : session || guest ? null : 'splash');
   return (
-    // Signed in and earning: the whole app turns royal blue. Sign-up and the
+    // Earning, signed in or as a guest: the whole app turns royal blue. Sign-up and the
     // welcome screens keep the brand green.
-    <RoleTheme worker={Boolean(session) && mode === 'worker'}>
+    <RoleTheme worker={usesWorkerColours({ session, guest, mode })}>
       <ThemedStatusBar />
       <Background />
       <NativeRoot />

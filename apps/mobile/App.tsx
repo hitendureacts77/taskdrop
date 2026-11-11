@@ -14,6 +14,7 @@ import { TourHost } from './src/components/tour/TourHost';
 import { WebShell } from './src/components/WebShell';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { AppProviders, Background, ScreenBoundary, ThemedStatusBar } from './src/AppProviders';
+import { usesWorkerColours } from './src/lib/roleColours';
 import './src/lib/webScrollbar';
 
 /**
@@ -26,9 +27,9 @@ function Routes() {
   const { mode } = useMode();
   if (!ready) return <View style={{ flex: 1, backgroundColor: '#0F1012' }} />;
   return (
-    // Signed in and earning: the whole app turns royal blue. Sign-up and the
+    // Earning, signed in or as a guest: the whole app turns royal blue. Sign-up and the
     // welcome screens keep the brand green.
-    <RoleTheme worker={Boolean(session) && mode === 'worker'}>
+    <RoleTheme worker={usesWorkerColours({ session, guest, mode })}>
     <NavProvider initial={postAuthRoute ?? (session || guest ? 'home' : 'splash')}>
       <ThemedStatusBar />
       <Background />
