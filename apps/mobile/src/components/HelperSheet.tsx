@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text as RNText, ScrollView } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
+import { useMode } from '../providers/ModeProvider';
 import { workerServices, type NearbyWorker } from '../data/extras';
 import type { Task } from '../data/api';
 import { taskToFeedRow } from '../lib/openTask';
@@ -32,6 +33,7 @@ function doneIn(minutes: number | null | undefined): string | null {
 export function HelperSheet({ worker: w, onClose }: { worker: NearbyWorker; onClose?: () => void }) {
   const t = useTheme();
   const { go } = useNav();
+  const { mode } = useMode();
   const reduced = useReducedMotion();
   const listed = (w.service_count ?? (w.top_service ? 1 : 0)) > 0;
   const [services, setServices] = useState<Task[] | null>(listed ? null : []);
@@ -171,12 +173,15 @@ export function HelperSheet({ worker: w, onClose }: { worker: NearbyWorker; onCl
         >
           <RNText style={tx('700', 14, t.colors.ink)}>View full profile</RNText>
         </Pressy>
-        <Pressy
-          onPress={() => go('aiPost')}
-          style={{ flex: 1, height: 44, borderRadius: 999, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <RNText style={tx('800', 14, t.colors.onBtn)}>Post a task</RNText>
-        </Pressy>
+        {/* Only in Hire mode: an Earn-mode helper has no reason to post a task for another helper. */}
+        {mode === 'poster' ? (
+          <Pressy
+            onPress={() => go('aiPost')}
+            style={{ flex: 1, height: 44, borderRadius: 999, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <RNText style={tx('800', 14, t.colors.onBtn)}>Post a task</RNText>
+          </Pressy>
+        ) : null}
       </View>
     </View>
   );

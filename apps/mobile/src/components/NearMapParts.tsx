@@ -78,7 +78,8 @@ export function Segmented<T extends string | number>({
   label,
   grow = false,
 }: {
-  options: { value: T; label: string }[];
+  /** `locked`: the other mode's side; it shows a lock and the parent opens a switch sheet instead. */
+  options: { value: T; label: string; locked?: boolean; lockedHint?: string }[];
   value: T;
   onChange: (v: T) => void;
   label: string;
@@ -95,8 +96,10 @@ export function Segmented<T extends string | number>({
             onPress={() => onChange(o.value)}
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
-            style={{ flex: grow ? 1 : undefined, height: grow ? 34 : 28, paddingHorizontal: 11, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.colors.line : 'transparent' }}
+            {...(o.locked ? { accessibilityLabel: o.label, accessibilityHint: o.lockedHint ?? 'Locked. Opens a switch to the other mode' } : {})}
+            style={{ flex: grow ? 1 : undefined, height: grow ? 34 : 28, paddingHorizontal: 11, borderRadius: 11, flexDirection: 'row', gap: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.colors.line : 'transparent' }}
           >
+            {o.locked ? <Icon name="lock" size={11} color={t.colors.muted} /> : null}
             <RNText style={tx(on ? '800' : '700', 12, on ? t.colors.ink : t.colors.muted)} numberOfLines={1}>
               {o.label}
             </RNText>
@@ -421,10 +424,10 @@ export function JobCard({
         {step && step.count > 1 ? arrow('Previous job', step.prev, true) : null}
         <Pressy
           onPress={onOpen}
-          label={`Open task: ${j.title}`}
+          label={`Send a quote on: ${j.title}`}
           style={{ flex: 1, height: big ? 48 : 44, borderRadius: big ? 16 : 14, backgroundColor: t.colors.btn, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
         >
-          <RNText style={tx('800', big ? 15 : 14, t.colors.onBtn)}>Open task</RNText>
+          <RNText style={tx('800', big ? 15 : 14, t.colors.onBtn)}>Send quote</RNText>
           <Icon name="chevronRight" size={16} color={t.colors.onBtn} />
         </Pressy>
         {step && step.count > 1 ? arrow('Next job', step.next, false) : null}

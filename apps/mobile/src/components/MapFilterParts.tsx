@@ -75,12 +75,29 @@ export function WorkSwitch({ value, onChange }: { value: WorkType; onChange: (w:
 }
 
 /** A chip that says what is set ("10 km", "Any pay") and opens the Filters sheet; or a plain on/off chip. */
-export function QuickChip({ label, onPress, on = false, open = false, dot }: { label: string; onPress: () => void; on?: boolean; open?: boolean; dot?: string }) {
+export function QuickChip({
+  label,
+  onPress,
+  on = false,
+  open = false,
+  dot,
+  locked = false,
+  lockedHint = 'Locked. Opens a switch to the other mode',
+}: {
+  label: string;
+  onPress: () => void;
+  on?: boolean;
+  open?: boolean;
+  dot?: string;
+  /** The other mode's side: a lock before the label (plan D26). */
+  locked?: boolean;
+  lockedHint?: string;
+}) {
   const t = useTheme();
   return (
     <Pressy
       onPress={onPress}
-      label={open ? `${label}. Change` : label}
+      label={locked ? `${label}. ${lockedHint}` : open ? `${label}. Change` : label}
       style={{
         height: 32,
         paddingHorizontal: 12,
@@ -91,6 +108,7 @@ export function QuickChip({ label, onPress, on = false, open = false, dot }: { l
         ...(on ? { backgroundColor: t.colors.ink } : { backgroundColor: t.colors.bg, borderWidth: 1, borderColor: t.colors.line }),
       }}
     >
+      {locked ? <Icon name="lock" size={11} color={t.colors.muted} /> : null}
       {dot ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }} /> : null}
       <RNText style={tx(on ? '800' : '700', 12, on ? t.colors.bg : t.colors.ink)} numberOfLines={1}>
         {label}

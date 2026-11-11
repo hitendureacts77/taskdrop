@@ -33,7 +33,10 @@ import { NearYou } from '../components/NearYou';
 import { JobsNearHero } from '../components/JobsNearHero';
 import { NearMap, type NearMapLayer } from '../components/NearMap';
 import { LocationSheet } from '../components/LocationSheet';
+import { LocationPrompt } from '../components/LocationPrompt';
 import { useMyArea } from '../lib/useMyArea';
+import { useLivePlace } from '../lib/useLivePlace';
+import { locationAskedThisLaunch, markLocationAsked, shouldAskForLocation } from '../lib/locationAsk';
 import { roughPlace } from '../lib/place';
 import { useReducedMotion } from '../lib/motion';
 import { TABLET_CONTENT, WIDE_CONTENT, XL_CONTENT, XL_MIN_WIDTH, useLayout } from '../lib/layout';
@@ -127,15 +130,35 @@ export function ExploreScreen() {
     maxWidth: web ? (desktop ? (width >= XL_MIN_WIDTH ? XL_CONTENT : WIDE_CONTENT) : tablet ? TABLET_CONTENT : undefined) : undefined,
   };
 
-  // From-home jobs now sit in the map's own list (plan D23), so the map no longer needs a line about them.
-  const centre = lookAt ? { lat: lookAt.lat, lng: lookAt.lng } : area ? { lat: area.lat, lng: area.lng } : null;
+  // Where you are right now (plan D26): read quietly while the map is showing, asked for once per launch.
+  const onMap = view === 'map' && screen === 'explore';
+  const { live, status, locate } = useLivePlace(onMap);
+  const [prompt, setPrompt] = useState<null | 'ask' | 'type'>(null);
+  const asked = shouldAskForLocation({ status, askedThisLaunch: locationAskedThisLaunch(), lookingElsewhere: !!lookAt });
+  useEffect(() => {
+    if (onMap && asked) {
+      markLocationAsked();
+      setPrompt('ask');
+    }
+  }, [onMap, asked]);
+  // With no saved area yet, the place you are in becomes it, so the lists stop saying "Set your area".
+  const savedLive = useRef(false);
+  useEffect(() => {
+    if (live && loaded && !area && !savedLive.current) {
+      savedLive.current = true;
+      void choose({ label: live.label, area: live.label, lat: live.lat, lng: live.lng });
+    }
+  }, [live, loaded, area, choose]);
+
+  // The place picked to look around, else where you are, else your saved area; none shows the India map and its card.
+  const centre = lookAt ? { lat: lookAt.lat, lng: lookAt.lng } : live ? { lat: live.lat, lng: live.lng } : area ? { lat: area.lat, lng: area.lng } : null;
   // A picked place keeps the name it was picked by ("Koramangala, Bengaluru"), not its ward.
-  const placeLabel = lookAt ? lookAt.label : area ? (roughPlace(area.label) ?? undefined) : undefined;
+  const placeLabel = lookAt ? lookAt.label : live ? (roughPlace(live.label) ?? 'Your location') : area ? (roughPlace(area.label) ?? undefined) : undefined;
   return (
     <View style={{ flex: 1 }}>
       {view === 'map' ? (
         <FadeIn key="map" duration={reduced ? VIEW_FADE_REDUCED_MS : VIEW_FADE_MS} translateY={reduced ? 0 : 8} style={{ flex: 1 }}>
-          {userId && !loaded ? (
+          {userId && !loaded && !live ? (
             <View style={{ flex: 1, backgroundColor: t.colors.surface2 }} />
           ) : (
             <NearMap
@@ -148,7 +171,13 @@ export function ExploreScreen() {
               placeIsMine={!lookAt}
               onChangePlace={() => setPickFor(area ? 'look' : 'mine')}
               onUseMyPlace={() => setLookAt(null)}
-              onChooseArea={() => setPickFor('mine')}
+              onChooseArea={() => setPrompt('type')}
+              onUseLocation={() => {
+                void locate().then((p) => {
+                  if (!p) setPrompt('ask');
+                });
+              }}
+              meKind={live && !lookAt ? 'live' : 'area'}
             />
           )}
         </FadeIn>
@@ -162,6 +191,25 @@ export function ExploreScreen() {
           )}
         </ViewSwap>
       ) : null}
+      <LocationPrompt
+        visible={prompt !== null}
+        initialStep={prompt ?? 'ask'}
+        status={status}
+        onTurnOn={async () => {
+          const p = await locate();
+          if (p) {
+            setPrompt(null);
+            return true;
+          }
+          return false;
+        }}
+        onPickTyped={(p) => {
+          setPrompt(null);
+          setLookAt(null);
+          void choose(p);
+        }}
+        onClose={() => setPrompt(null)}
+      />
       <LocationSheet
         visible={pickFor !== null}
         askForDetails={false}

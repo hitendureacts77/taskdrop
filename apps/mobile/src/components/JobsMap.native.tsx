@@ -111,26 +111,34 @@ function PinMarker({
   );
 }
 
-function YouDot({ at, color }: { at: { lat: number; lng: number }; color: string }) {
+/** The "you" marker box: the dot's centre is 22 px down, the "You" pill hangs below it. */
+const YOU_BOX = { w: 80, h: 64, dotY: 22 };
+
+/** Static halo here (an animated view would not survive the marker snapshot); above every pin. */
+function YouDot({ at, color, kind }: { at: { lat: number; lng: number }; color: string; kind: 'live' | 'area' }) {
   const t = useTheme();
-  const [tracking] = useSnapshot(t.isDark, color);
+  const [tracking] = useSnapshot(t.isDark, color, kind);
   return (
     <Marker
       coordinate={{ latitude: at.lat, longitude: at.lng }}
-      anchor={{ x: 0.5, y: 0.5 }}
-      zIndex={1}
+      anchor={{ x: 0.5, y: YOU_BOX.dotY / YOU_BOX.h }}
+      zIndex={1000}
       tracksViewChanges={tracking}
       tappable={false}
+      accessibilityLabel={kind === 'live' ? 'Your location' : 'Your area'}
     >
-      <View style={{ width: 30, height: 30, alignItems: 'center', justifyContent: 'center' }} collapsable={false}>
-        <View style={{ position: 'absolute', width: 26, height: 26, borderRadius: 999, backgroundColor: color + '40' }} />
-        <View style={{ width: 14, height: 14, borderRadius: 999, backgroundColor: color, borderWidth: 2.5, borderColor: '#FFFFFF' }} />
+      <View style={{ width: YOU_BOX.w, height: YOU_BOX.h, alignItems: 'center' }} collapsable={false}>
+        <View style={{ position: 'absolute', top: YOU_BOX.dotY - 22, width: 44, height: 44, borderRadius: 999, backgroundColor: color + '2E' }} />
+        <View style={{ position: 'absolute', top: YOU_BOX.dotY - 9, width: 18, height: 18, borderRadius: 999, backgroundColor: color, borderWidth: 3, borderColor: '#FFFFFF', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 3 }} />
+        <View style={{ position: 'absolute', top: YOU_BOX.dotY + 14, backgroundColor: t.colors.ink, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+          <RNText style={tx('800', 11, t.colors.bg)}>{kind === 'live' ? 'You' : 'Your area'}</RNText>
+        </View>
       </View>
     </Marker>
   );
 }
 
-function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = RING_KM, tone = 'jobs', focusId = null, onExpand, fill, dim = false, onMoveEnd, startAt, startZoom = START_ZOOM, fit = null, ringAt, bare = false }: Props) {
+function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = RING_KM, tone = 'jobs', focusId = null, onExpand, fill, dim = false, onMoveEnd, startAt, startZoom = START_ZOOM, fit = null, ringAt, bare = false, meKind = 'area' }: Props) {
   const t = useTheme();
   const reduced = useReducedMotion();
   const mapRef = useRef<MapView>(null);
@@ -244,8 +252,6 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
 
   const blue = t.colors.purple;
   const hue = people ? blue : t.colors.btn;
-  // The poster is a dark dot on a map of helpers' faces, so the two never mix up.
-  const youColor = people ? t.colors.ink : blue;
   const words = mapWords(tone);
   const mpp = metresPerPixel(region.latitude, zoom);
   const hex = (n: number) => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2, '0');
@@ -296,7 +302,7 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
               fillColor="transparent"
               zIndex={0}
             />
-            <YouDot at={me} color={youColor} />
+            <YouDot at={me} color={blue} kind={meKind} />
           </>
         ) : null}
 
