@@ -1,21 +1,31 @@
 import { useEffect, useState } from 'react';
-import { View, Text as RNText } from 'react-native';
+import { View, Text as RNText, TextInput } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 import { Slider } from './Slider';
-import { rupees } from './kit';
 import { Pressy, tx } from './primitives';
 import { Segmented } from './NearMapParts';
-import { DEFAULT_FILTERS, KM_STEPS, PAY_STEPS, SORT_LABELS, WORK_LABELS, type JobSort, type MapFilters, type WorkType } from '../lib/mapFilters';
+import {
+  DEFAULT_FILTERS,
+  KM_STEPS,
+  MAX_PRICE,
+  PRICE_PRESETS,
+  SORT_LABELS,
+  WORK_LABELS,
+  cleanPrice,
+  dropOptions,
+  hasPrice,
+  priceLabel,
+  type JobSort,
+  type MapFilters,
+  type WorkType,
+} from '../lib/mapFilters';
 
 /**
- * The Explore map's filter controls (plan D23, owner video 9 Nov): the place the search is around, the
- * In person / From home switch, small chips that say what is set, and one Filters sheet that holds
- * everything, with a button that says how many it will show.
+ * The Find work filter controls (plan D23, then D27 / task 1.17), the same on the map and the list: the place
+ * the search is around, All / Nearby / Remote, chips that say what is set (each with an x), and one Filters
+ * sheet that holds everything, with a button that says how many it will show. No category (owner, 11 Nov).
  */
-
-/** "Any pay" / "₹1,000+". */
-export const payLabel = (minPay: number) => (minPay > 0 ? `${rupees(minPay)}+` : 'Any pay');
 
 /** Where the map looks: your own area, or a place you picked (a city, an area). Tap to change it. */
 export function PlaceRow({
@@ -61,12 +71,12 @@ export function PlaceRow({
   );
 }
 
-/** All / In person / From home, full width. */
+/** All / Nearby / Remote, full width. */
 export function WorkSwitch({ value, onChange }: { value: WorkType; onChange: (w: WorkType) => void }) {
   return (
     <Segmented
       grow
-      label="Type of work"
+      label="Nearby or remote"
       value={value}
       onChange={onChange}
       options={(['all', 'local', 'remote'] as WorkType[]).map((w) => ({ value: w, label: WORK_LABELS[w] }))}
@@ -74,7 +84,7 @@ export function WorkSwitch({ value, onChange }: { value: WorkType; onChange: (w:
   );
 }
 
-/** A chip that says what is set ("10 km", "Any pay") and opens the Filters sheet; or a plain on/off chip. */
+/** A chip that says what is set ("10 km", "Any price") and opens the Filters sheet; a plain on/off chip; or a set filter with an x. */
 export function QuickChip({
   label,
   onPress,
@@ -83,6 +93,7 @@ export function QuickChip({
   dot,
   locked = false,
   lockedHint = 'Locked. Opens a switch to the other mode',
+  clear = false,
 }: {
   label: string;
   onPress: () => void;
@@ -92,12 +103,14 @@ export function QuickChip({
   /** The other mode's side: a lock before the label (plan D26). */
   locked?: boolean;
   lockedHint?: string;
+  /** A set filter: an x after the label, and a tap takes it off. */
+  clear?: boolean;
 }) {
   const t = useTheme();
   return (
     <Pressy
       onPress={onPress}
-      label={locked ? `${label}. ${lockedHint}` : open ? `${label}. Change` : label}
+      label={locked ? `${label}. ${lockedHint}` : clear ? `${label}. Remove` : open ? `${label}. Change` : label}
       style={{
         height: 32,
         paddingHorizontal: 12,
@@ -113,12 +126,68 @@ export function QuickChip({
       <RNText style={tx(on ? '800' : '700', 12, on ? t.colors.bg : t.colors.ink)} numberOfLines={1}>
         {label}
       </RNText>
+      {clear ? <Icon name="close" size={11} color={on ? t.colors.bg : t.colors.text} /> : null}
       {open ? (
         <View style={{ transform: [{ rotate: '90deg' }] }}>
           <Icon name="chevronRight" size={11} color={on ? t.colors.bg : t.colors.text} />
         </View>
       ) : null}
     </Pressy>
+  );
+}
+
+/**
+ * The job filters that are set, one chip each with an x that takes it off (the order, once changed, too).
+ * A fragment, so the map can wrap them and the list can scroll them sideways.
+ */
+export function JobChips({ filters: f, onChange }: { filters: MapFilters; onChange: (f: MapFilters) => void }) {
+  const chips: { key: string; label: string; next: MapFilters }[] = [];
+  if (hasPrice(f)) chips.push({ key: 'price', label: priceLabel(f), next: { ...f, minPay: 0, maxPay: 0 } });
+  if (f.auto) chips.push({ key: 'auto', label: 'Auto-hire', next: { ...f, auto: false } });
+  if (f.offers) chips.push({ key: 'offers', label: 'Open to offers', next: { ...f, offers: false } });
+  if (f.dueSoon) chips.push({ key: 'due', label: 'Due in 24 h', next: { ...f, dueSoon: false } });
+  if (f.sort !== 'pay') chips.push({ key: 'sort', label: `${SORT_LABELS[f.sort]} first`, next: { ...f, sort: 'pay' } });
+  return (
+    <>
+      {chips.map((c) => (
+        <QuickChip key={c.key} label={c.label} on clear onPress={() => onChange(c.next)} />
+      ))}
+    </>
+  );
+}
+
+/**
+ * Nothing (or little) matches: one button per filter that could be loosened, each saying how many jobs
+ * it would then show. `count` measures a draft of the filters.
+ */
+export function DropFilters({ filters, count, onChange }: { filters: MapFilters; count: (f: MapFilters) => number; onChange: (f: MapFilters) => void }) {
+  const t = useTheme();
+  const options = dropOptions(filters)
+    .map((o) => ({ ...o, n: count(o.next) }))
+    .filter((o) => o.n > 0);
+  if (options.length === 0) return null;
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+      {options.map((o, i) => (
+        <Pressy
+          key={o.key}
+          onPress={() => onChange(o.next)}
+          label={`${o.label}, shows ${o.n} ${o.n === 1 ? 'job' : 'jobs'}`}
+          style={{
+            height: 40,
+            paddingHorizontal: 16,
+            borderRadius: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+            ...(i === 0 ? { backgroundColor: t.colors.btn } : { borderWidth: 1, borderColor: t.colors.line }),
+          }}
+        >
+          <RNText style={tx(i === 0 ? '800' : '700', 13, i === 0 ? t.colors.onBtn : t.colors.ink)}>
+            {o.label} · {o.n}
+          </RNText>
+        </Pressy>
+      ))}
+    </View>
   );
 }
 
@@ -142,11 +211,14 @@ export function FiltersButton({ count, onPress }: { count: number; onPress: () =
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   const t = useTheme();
   return (
     <View style={{ gap: 8 }}>
-      <RNText style={tx('800', 12.5, t.colors.muted)}>{title}</RNText>
+      <View>
+        <RNText style={tx('800', 12.5, t.colors.muted)}>{title}</RNText>
+        {hint ? <RNText style={tx('500', 12, t.colors.muted, { marginTop: 2 })}>{hint}</RNText> : null}
+      </View>
       {children}
     </View>
   );
@@ -162,9 +234,55 @@ function Choices<T extends string | number>({ options, value, onChange }: { opti
   );
 }
 
+/** A price box: whole rupees, empty = open end. */
+function PriceBox({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  const t = useTheme();
+  return (
+    <View style={{ flex: 1, minWidth: 0, height: 44, borderRadius: 14, borderWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 6 }}>
+      <RNText style={tx('700', 12, t.colors.muted)}>{label} ₹</RNText>
+      <TextInput
+        value={value > 0 ? String(value) : ''}
+        onChangeText={(s) => {
+          const n = Number(s.replace(/[^0-9]/g, ''));
+          onChange(Number.isFinite(n) ? Math.min(MAX_PRICE, n) : 0);
+        }}
+        placeholder="Any"
+        placeholderTextColor={t.colors.muted}
+        keyboardType="number-pad"
+        inputMode="numeric"
+        maxLength={7}
+        accessibilityLabel={`${label} price in rupees`}
+        style={[tx('700', 14, t.colors.ink, { fontVariant: ['tabular-nums'] }), { flex: 1, minWidth: 0, paddingVertical: 0 }]}
+      />
+    </View>
+  );
+}
+
+/** An on/off card with a title and one line under it (more than one can be on). */
+function Toggle({ icon, title, sub, on, onPress }: { icon: IconName; title: string; sub: string; on: boolean; onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <Pressy
+      onPress={onPress}
+      label={`${title}. ${sub}. ${on ? 'On' : 'Off'}`}
+      scaleTo={0.98}
+      style={{ flex: 1, minWidth: 150, borderRadius: 14, borderWidth: on ? 2 : 1, borderColor: on ? t.colors.ink : t.colors.line, backgroundColor: t.colors.surface, padding: on ? 11 : 12, flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}
+    >
+      <Icon name={icon} size={16} color={t.colors.ink} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <RNText style={tx('800', 13, t.colors.ink)}>{title}</RNText>
+        <RNText style={tx('500', 12, t.colors.muted, { marginTop: 2 })}>{sub}</RNText>
+      </View>
+      <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: on ? 0 : 1.5, borderColor: t.colors.line, backgroundColor: on ? t.colors.ink : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+        {on ? <Icon name="check" size={12} color={t.colors.bg} /> : null}
+      </View>
+    </Pressy>
+  );
+}
+
 /**
- * Everything in one place: where, how far, pay, type of work and order (jobs), or where and how far (helpers).
- * Nothing changes until "Show N jobs", which says how many the choice will show.
+ * Everything in one place: where, Nearby or remote, how far, price, how they hire, due date and order (jobs),
+ * or where and how far (helpers). Nothing changes until "Show N jobs", which says how many the choice will show.
  */
 export function FiltersPanel({
   initial,
@@ -175,7 +293,7 @@ export function FiltersPanel({
   onApply,
 }: {
   initial: MapFilters;
-  /** The Jobs layer: pay, type of work and order too. */
+  /** The Jobs layer: the job filters too. */
   jobs: boolean;
   place: { label: string; mine: boolean; onChange?: () => void; onUseMine?: () => void };
   /** How many the draft would show. */
@@ -188,12 +306,20 @@ export function FiltersPanel({
   // Opened again: start from what is in use.
   useEffect(() => setF(initial), [initial]);
   const set = (part: Partial<MapFilters>) => setF((cur) => ({ ...cur, ...part }));
-  const n = count(f);
+  // The boxes may hold a ceiling under the floor while typing; it is put right on Show.
+  const ready = { ...f, ...cleanPrice(f.minPay, f.maxPay) };
+  const n = count(ready);
+  const preset = PRICE_PRESETS.findIndex((p) => p.min === f.minPay && p.max === f.maxPay);
   return (
     <View style={{ gap: 18 }}>
       <Section title="Where">
         <PlaceRow label={place.label} mine={place.mine} {...(place.onChange ? { onChange: place.onChange } : {})} {...(place.onUseMine ? { onUseMine: place.onUseMine } : {})} />
       </Section>
+      {jobs ? (
+        <Section title="Nearby or remote">
+          <WorkSwitch value={f.work} onChange={(work) => set({ work })} />
+        </Section>
+      ) : null}
       {jobs && f.work === 'remote' ? null : (
         <Section title={`How far · ${f.km} km`}>
           <Slider value={f.km} min={1} max={100} onChange={(km) => set({ km: Math.round(km) })} accessibilityLabel="How far, in km" />
@@ -202,11 +328,27 @@ export function FiltersPanel({
       )}
       {jobs ? (
         <>
-          <Section title="Pay">
-            <Choices options={PAY_STEPS.map((p) => ({ value: p, label: payLabel(p) }))} value={f.minPay} onChange={(minPay) => set({ minPay })} />
+          <Section title={`Price · ${priceLabel(ready)}`}>
+            <Choices
+              options={PRICE_PRESETS.map((p, i) => ({ value: i, label: priceLabel({ minPay: p.min, maxPay: p.max }) }))}
+              value={preset}
+              onChange={(i) => set({ minPay: PRICE_PRESETS[i]!.min, maxPay: PRICE_PRESETS[i]!.max })}
+            />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <PriceBox label="Min" value={f.minPay} onChange={(minPay) => set({ minPay })} />
+              <PriceBox label="Max" value={f.maxPay} onChange={(maxPay) => set({ maxPay })} />
+            </View>
           </Section>
-          <Section title="Type of work">
-            <WorkSwitch value={f.work} onChange={(work) => set({ work })} />
+          <Section title="How they hire" hint="Pick one, both, or neither for all jobs">
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              <Toggle icon="bolt" title="Auto-hire" sub="The first good offer gets the job" on={f.auto} onPress={() => set({ auto: !f.auto })} />
+              <Toggle icon="gavel" title="Open to counter offers" sub="Send your own price" on={f.offers} onPress={() => set({ offers: !f.offers })} />
+            </View>
+          </Section>
+          <Section title="When">
+            <View style={{ flexDirection: 'row' }}>
+              <Toggle icon="clock" title="Due in 24 hours" sub="Urgent jobs and ones due by tomorrow" on={f.dueSoon} onPress={() => set({ dueSoon: !f.dueSoon })} />
+            </View>
           </Section>
           <Section title="Show first">
             <Choices options={(['pay', 'near', 'new'] as JobSort[]).map((s) => ({ value: s, label: SORT_LABELS[s] }))} value={f.sort} onChange={(sort) => set({ sort })} />
@@ -218,7 +360,7 @@ export function FiltersPanel({
           <RNText style={tx('700', 14, t.colors.text)}>Reset</RNText>
         </Pressy>
         <Pressy
-          onPress={() => onApply(f)}
+          onPress={() => onApply(ready)}
           label={`Show ${n} ${n === 1 ? words.one : words.many}`}
           style={{ flex: 1, height: 48, borderRadius: 16, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}
         >
