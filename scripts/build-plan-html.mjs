@@ -550,6 +550,9 @@ footer { margin-top: 48px; color: var(--muted); font-size: .85rem; }
   h2 { font-size: 1.2rem; }
   summary { gap: 8px; padding: 11px 10px; }
   .badge { display: none; }
+  details.drawer > summary { flex-wrap: wrap; }
+  details.drawer > summary .dr-ttl { min-width: 0; overflow-wrap: anywhere; }
+  details.drawer > summary .dr-meta { order: 3; flex-basis: 100%; padding-left: 32px; }
   .body { padding: 4px 12px 14px; }
   .say { padding-right: 14px; padding-top: 40px; }
   .say::before { position: absolute; top: 14px; left: 14px; }
@@ -791,7 +794,7 @@ const JS = `
     return { n: '', text: t.split(/[:(]/)[0].trim() };
   }
   function groupOf(t) {
-    if (/^(Start here|The CEO review|Your app in one page|Staging and production, step by step|The map)/.test(t)) return 0;
+    if (/^(The plan on one page|Start here|The CEO review|Your app in one page|Staging and production, step by step|The map)/.test(t)) return 0;
     if (/^(START NOW|STEP \\d)/.test(t)) return 1;
     if (/^(FUTURE SCOPE|Snapshot|Changelog)/.test(t)) return 3;
     return 2;

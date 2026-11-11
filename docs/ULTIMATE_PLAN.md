@@ -1,12 +1,125 @@
 # TaskDrop: the ultimate plan
 
-**The only plan you need.** Four ways to use this page:
+**The only plan you need.** Read it in this order:
 
-- **Make the app useful on first open:** task **1.13** (D22) is approved and being built, one screen at a time.
-- **See what changed on 9 November:** read **The CEO review** below: seven changes that make this the cheapest safe path to launch.
-- **Understand the app:** read **Your app in one page** (2 minutes).
-- **Set up the two copies:** follow **Staging and production, step by step**.
-- **Do the next task:** press the green **Next** button at the top, or pick a step in **The map**. Click a task to open its steps; tick it when it is done.
+1. **The plan on one page** (5 minutes): the road to launch as one picture, the three things that decide launch day, and what to do now. Rewritten on 11 November.
+2. **Start here:** your progress, and the green **Next** button at the top, which always opens the next task. Click a task to open its steps; tick it when it is done.
+3. **Your app in one page** (2 minutes), if you want to see how TaskDrop works.
+4. **Staging and production, step by step,** when you set up the two copies.
+
+Everything below those four is detail. You open it only when a task sends you there.
+
+---
+
+## The plan on one page {open}
+
+**CEO rewrite, 11 November 2026.** The plan was read from top to bottom, the app's code was checked for screen sizes, and the rules and prices were checked online on the same day.
+
+**The verdict in four lines**
+
+- **The product is ahead. The paperwork is behind.** Nothing in the code decides launch day any more. The CA, the payment company and Google's 14-day test do.
+- **The plan grew faster than it got done.** The top of this page had five summaries that said the same things, and Step 2 grew to 20 tasks with six whole-app checks. This page replaces the five summaries, and rule 11 stops new checks.
+- **The freeze had no date,** so work kept arriving after it (1.13, the map bar). It now has one: **Sunday 22 November** (decision 41).
+- **One real gap was found today:** on an Android tablet or an unfolded foldable the app shows a stretched phone screen, and Android no longer lets an app stay upright there. The fix is task **1.14**.
+
+**The road to launch, as one picture**
+
+```html
+<div class="fig">
+<div class="fig-title">The road to launch <span class="pill mut">three lanes at the same time</span></div>
+<div class="fig-sub">Inside a lane, a line cannot start before the line above it is done. Launch waits for the slowest lane, and today that is lane 1.</div>
+<div class="tl">
+<div class="tl-col c3"><b>Lane 1: Paperwork</b><small>You · the slowest lane, 3 to 6 weeks</small><ul><li><strong>First:</strong> S.2 business, GST and the bank account</li><li><strong>Then:</strong> S.6 SMS registration and S.8 the payment company's approval (both need S.2)</li><li><strong>Beside them:</strong> S.4 two written quotes, which answer decision 3 (Razorpay or Cashfree), and S.3 the lawyer's written yes</li></ul></div>
+<div class="tl-col c2"><b>Lane 2: Product</b><small>Claude · waits for lane 1 in the middle</small><ul><li><strong>First:</strong> finish 1.13 and 1.14, then freeze (Gate 1, 22 November)</li><li><strong>Then:</strong> build the Plan B money flow. It needs decision 3 and the lawyer's yes from lane 1</li><li><strong>Then:</strong> one security round on the final code (2.16, decision 30), and Gate 2b</li></ul></div>
+<div class="tl-col"><b>Lane 3: Proof</b><small>Testers and workers · 14 days that cannot be shortened</small><ul><li><strong>First:</strong> Gate 2a, the Play Console app and the store file (3.1, 3.2)</li><li><strong>Then:</strong> 12 testers for 14 days (3.3), while the debug loop (2.19) runs</li><li><strong>Beside them:</strong> 20 workers in 2 or 3 areas (4.6), then Gates 3 and 4</li></ul></div>
+</div>
+<div class="fig-sub" style="margin:14px 0 8px">When all three lanes are done:</div>
+<div class="flowline"><span class="fb">Step 5: build production<br><small>about $45 a month starts here</small></span><span class="fa">&rarr;</span><span class="fb">6.3 The ₹10 real-money test</span><span class="fa">&rarr;</span><span class="fb">6.5 You say GO</span><span class="fa">&rarr;</span><span class="fb">6.6 Google Play</span><span class="fa">&rarr;</span><span class="fb"><strong>6.7 Launch day</strong></span></div>
+</div>
+```
+
+**The three clocks that decide launch day**
+
+| Clock | Why it is slow | It starts on | Whose move |
+|---|---|---|---|
+| **1. Paperwork:** S.2, then S.6 and S.8 | GST, the bank and the payment company's check take 3 to 6 weeks, and nothing in the code can shorten them | The day you book the CA | **You** |
+| **2. The money flow:** S.4 and S.3, then decision 3, then the Plan B build and one security round | The Plan B code waits for two written answers: the payment company's and the lawyer's | The day both quotes are in | You, then Claude |
+| **3. Google's 14 days:** Gate 2a, 3.1, 3.2, then 3.3 | Google fixes it: 12 testers, opted in for 14 days in a row. It cannot be shortened, but it can start early | The day the 12th tester joins | You and Claude |
+
+Launch day is about **two weeks after the last of these three clocks finishes** (Step 5 and Step 6). If S.2 starts this week, 8 to 10 weeks is realistic. It is an estimate, not a promise.
+
+**Do these now**
+
+| | You (about 4 hours this week) | Claude |
+|---|---|---|
+| 1 | **Book the CA** (S.2). It is the most important task in the plan: S.6, S.8 and decisions 10 and 17 all wait for it | Finish 1.13 (order 1 and 2), then 1.14 level 1 |
+| 2 | Send the Plan B questions to Razorpay and Cashfree (S.4) and the brief to two lawyers (S.3) | Check Gate 2a and tick it (its four tasks show as done; Claude checks its holes list) |
+| 3 | SAY "use the CEO defaults" (the card below), and name your 2 or 3 launch areas (decision 38) | Get one store file built (3.2). Expo's free builds are used up until 1 December, so first a free build on this PC from a folder with no spaces in its name |
+| 4 | Message **20** people for the Google Play test (3.3). Finding them takes days, so start before the store file is ready | Run the audit prompt (2.20, read-only) and fix the six holes from 2.18 |
+| 5 | Your clicks: 2.2, 2.3 and 2.4 (about 1.5 hours), and look at the new map on your laptop ("done 1.12") | Write the Plan B design when you say "design the Plan B money flow" |
+
+<details id="c-ceo-defaults">
+<summary>[CARD] The open decisions, with the CEO default for each (one sentence answers them all)</summary>
+
+Twelve decisions are open. Eleven have a default, and one of those (38) also needs your area names. To accept them all, SAY:
+
+```say
+Use the CEO defaults. Decision 38: these areas: ___
+```
+
+| # | Question | CEO default |
+|---|---|---|
+| 3 | Razorpay or Cashfree | **No default.** Take the cheaper one that says yes in writing (S.4). This is the only decision that must wait |
+| 10 | Google Play account type | Stay personal while TaskDrop is a sole proprietorship. Move to an organization account only if S.2 makes a company |
+| 12 | Limits for new accounts | The recommended limits (₹5,000 a task and ₹5,000 of withdrawals a day, for 30 days and 3 finished tasks) |
+| 17 | Name and PAN before a withdrawal | Wait for the CA's answer in S.2, then add the screen before Step 5 |
+| 22 | The hands-on tour in guest mode | Yes |
+| 25 | An "I am 18 or older" tap for guests | Yes, add it |
+| 28 | Production's web address | `taskdrop.in` moves to production at launch; staging moves to `staging.taskdrop.in` |
+| 30 | A paid outside tester | One small fixed-price round, after the Plan B flow is built |
+| 31 | Where `taskdrop.in/get` sends people | The staging APK now, Google Play from launch day |
+| 38 | Launch areas | 2 or 3 neighbouring areas. **You name them** |
+| 40 | Android tablets at launch | "Never broken" (task 1.14, level 1). The full tablet design waits until after launch |
+| 41 | The freeze day | Sunday 22 November |
+| F1 (in 3.6) | The website's slow first load on a phone | Fix it, the cheap way: load heavy parts late, and make the pages a link lands on fast |
+</details>
+
+<details id="c-best-practice">
+<summary>[CARD] The best-practice check, 11 November: 12 habits kept, 9 changed</summary>
+
+**Kept, because they are already the right way to do it**
+
+| Habit | Why it is right |
+|---|---|
+| Two separate copies, staging and production, with nothing shared | A test can never touch real money or real people |
+| The app asks, the server decides; one front door (`api`); row rules in the database | Anyone can read app code, so no rule may live there |
+| Every payment message recorded once; money moved in one database step | Money can never be paid twice or half-moved |
+| Plan B: pay per task, the payment company holds the money | TaskDrop never holds a balance, so it needs no RBI wallet licence. RBI's payment rules of September 2025 leave the timing of the payout to the contract between the payment company and the merchant, so **"hold until the poster approves" must be written in that contract**. Ask for it in S.4 |
+| Free plans until a limit warns; a spending stop and budget alerts on every tool | The bill stays near $45 a month and cannot run away |
+| Secrets in one file and the server stores, never in the app | A leaked app cannot leak a key |
+| Workers first, in 2 or 3 areas | A task only gets an offer fast where workers are close together |
+| Daily backups, a nightly copy outside Supabase, and a practised restore | A backup that was never restored is only a hope |
+| New versions to 20% of phones first | A bad release reaches few people |
+| Feature freeze before launch | Each new feature must be tested, secured and explained again |
+| The lawyer is asked about the data law (DPDP) and complaint times | The data law applies in full from **13 May 2027**; the consent notice, the breach notice and deletion must be ready before then |
+| Google's 12 testers for 14 days is planned, with two gates so it starts early | It is still Google's rule for a personal account (checked 11 Nov) |
+
+**Changed today, because they were not yet the best way**
+
+| # | Before | Now | Where |
+|---|---|---|---|
+| 1 | The freeze had no date, and work kept arriving | A freeze day, Sunday 22 November. What is not built by then moves to after launch | Gate 1, decision 41 |
+| 2 | Six whole-app checks, added one by one, with no order | One order, each run once, and no new kind of check before launch | Rule 11, top of Step 2 |
+| 3 | Five summaries at the top of the plan | One page (this one). The 9 November review stays below, closed, as the reasons | Top of the plan |
+| 4 | The Android app always used the phone layout and was locked upright | Laid out by width on every device. Tablets and foldables are "never broken" at launch | Task 1.14, decision 40 |
+| 5 | The automatic browser tests ran at two sizes (390 and 1280) | Six sizes, from 320 to 1920, with a check on every screen for sideways scrolling | Task 1.14 |
+| 6 | "How it grows" had no prices and no numbers for the business | The scaling ladder: what to buy at each step, what it costs, and the number that says when. Plus the area ladder for opening the next area and city | Architecture, How it grows |
+| 7 | 15 people asked for the Google Play test | 20, because Google counts only the testers who stay opted in for all 14 days, and some always leave | 3.3 |
+| 8 | The store file waited for Expo's free builds | A free build on this PC first; one month of Expo's paid plan only if that fails, because three lost weeks cost more than the fee | 3.2 |
+| 9 | The website's first load scored 35 of 100 on a phone-sized test, and the fix was left open | Fix it the cheap way before marketing starts: target 70 on the pages a link lands on | 3.6 (F1), Gate 4 |
+
+**Checked online on 11 November 2026:** Google Play's target level (new apps must target Android 16, API 36, since 31 August 2026); Android 16's rule for large screens; Google Play's testing rule for personal accounts; Supabase's prices (Pro $25, bigger database sizes, point-in-time recovery $100 a month); RBI's payment aggregator directions (15 September 2025); the DPDP rules' dates; and the most common phone screens in India (StatCounter, October 2026). Prices change: check again when you pay.
+</details>
 
 ---
 
@@ -26,7 +139,7 @@
 Inside a task, every line is one of three kinds: **CLICK** (you do it), **SAY** (copy the purple box to Claude), **TELL** (write what you saw; a screenshot is fine).
 
 <details id="c-rules">
-<summary>[CARD] The ten rules (go in order, pass each gate, never paste a secret, and seven more)</summary>
+<summary>[CARD] The twelve rules (go in order, pass each gate, never paste a secret, and nine more)</summary>
 
 1. **Go in order.** Start the whole **Start now** track in week 1 as well. It is slow, so it runs beside Steps 1 to 4.
 2. **Pass each gate.** A gate is a short checklist at the end of each step. Do not start the next step until every line is true.
@@ -38,11 +151,15 @@ Inside a task, every line is one of three kinds: **CLICK** (you do it), **SAY** 
 8. **Secrets live only in the server-side env file** (your rule, 1 Nov). Every secret, new or old, is stored only in `.env.all-secrets` on your PC and in the server-side store that needs it (Supabase function secrets or Vault, Vercel Sensitive variables, Expo Secret variables). Claude never puts a secret in the app or website code, in a name that starts with `EXPO_PUBLIC_` or `NEXT_PUBLIC_`, in Git, in this plan, in a pull request or in chat, and never prints one. Only public values (the Supabase public key, the Sentry address, Firebase web settings) may sit in public names. The details are in task 2.1.
 9. **Feature freeze until launch** (CEO review, 9 Nov; decision 37). Once 1.12 and the D20 map tab are finished, only fixes go in. Every new idea goes to **Future scope**, however good it is. A new feature must be tested, secured and explained again, and it moves launch day.
 10. **Spend only when a number says so** (CEO review, 9 Nov). Before launch, money goes only to what launch cannot happen without (see **What it costs**). A tool is upgraded only when its limit warns (task 7.5). No paid ads until a free post has clearly worked.
+11. **No new kind of check before launch** (CEO rewrite, 11 Nov). Step 2 already holds six whole-app checks. Each one runs once, in the order written at the top of Step 2. A new idea for a check becomes one round of the debug loop (2.19), never a new task.
+12. **Every screen is laid out by its width, never by the device** (CEO rewrite, 11 Nov). A new screen must work from 320 to 1920 wide, on Android and in the browser. The eight layout rules are in task 1.14.
 </details>
 
 ---
 
-## The CEO review, 9 November 2026: the cheapest safe path to launch {open}
+## The CEO review, 9 November 2026: the cheapest safe path to launch
+
+**This section is the reasons behind the plan.** The up-to-date picture and to-do list are in **The plan on one page** above (11 November); where the two differ, that page wins.
 
 **The short answer.** The plan is safe and complete, but it was not yet the cheapest or the fastest way to launch. The code is weeks ahead of the paperwork, new features kept arriving before the first real customer, and the way money moves (decision 29) is still open, although almost everything after Step 4 depends on it. The seven changes below fix that. They are already written into this plan, and every task number stays the same.
 
@@ -211,20 +328,7 @@ This is an estimate, not a promise: launch in about 8 to 10 weeks is realistic i
  FUTURE SCOPE (separate, not part of your progress): passkeys, iOS, second city, referrals, ads ...
 ```
 
-**The two copies of TaskDrop**
-
-| | Staging (now) | Production (from Step 5) |
-|---|---|---|
-| Money | Fake. Razorpay test mode | Real. Live Razorpay keys, real UPI and bank |
-| Data | Fake. Test accounts Asha, Ravi, Meera and what testers create | Real customers. Starts empty |
-| Who uses it | You and invited testers | The public |
-| Sign-in code | Shown on screen. Any phone number works | Real SMS |
-| Web address | `taskdrop.in` and `www.taskdrop.in` (admin: Vercel's address, or `admin.taskdrop.in`, task 5.0b). Hidden from Google | The addresses Vercel makes for the production projects: expected `taskdrop-production.vercel.app` and `taskdrop-admin-production.vercel.app`. A real name can be added later (decision 28) |
-| Code branch | `redesigned-2.0` | `main` (you promote by hand) |
-| Android app | **TaskDrop Staging**, `com.taskdrop.app.staging`, an APK from an Expo link. Updates by itself on the `staging` channel (task 5.0c) | **TaskDrop**, `com.taskdrop.app`: a production APK for you to rehearse with, and the store file for Google Play (task 5.0d). Update channel `production` |
-| Plan for the split | Section "The two copies, side by side" at the start of Step 5 | The same section |
-| Accounts | Today's account or project in every tool | Its own new account or project in every tool. Nothing is copied |
-| Cost | Free plans. Google Play $25 once | About $45 a month plus fees |
+**How the steps depend on each other** is drawn in **The plan on one page**. **The two copies** (staging and production) are compared in the card "At a glance: which copy uses what" above, and in full at the start of Step 5.
 
 ---
 
@@ -1412,6 +1516,103 @@ design D22
 **Done when:** order 1 and 2 are built and live, the 5-person test shows 4 of 5 posting or applying within 2 minutes, and `npm run check` is green. Order 3 and 4 move to Step 7 if not built before launch.
 </details>
 
+<details id="t1-14" data-short="Fits every screen">
+<summary>[CLAUDE] <b>1.14</b> Fits every phone, tablet and laptop: one layout that follows the width of the screen <small>· added 11 Nov · level 1 before launch (a fix, allowed inside the freeze) · your time: 20 minutes · free</small></summary>
+
+**What you asked (11 Nov):** TaskDrop must work on every mobile, tablet and laptop screen, and the plan must say how.
+
+**The short answer:** the website already does this well. The Android app does not: it shows the phone screen at any size. Level 1 below closes that gap before launch without a new design.
+
+**What is true today** (checked in the code on 11 Nov)
+
+| Where | Today | Verdict |
+|---|---|---|
+| Website, any device | Four layouts chosen by the width of the window (`apps/mobile/src/lib/layout.ts`). Task 1.10 checked 37 screens at 390, 820, 1440 and 1920 wide | **Good.** Not yet checked: small phones (320 to 360), a phone turned sideways, 200% zoom, short laptop screens |
+| Android phone | The phone layout, kept upright | **Good** |
+| Android tablet, an opened foldable, a Chromebook | The app uses the phone layout at any width and asks to stay upright | **Gap.** Since 31 August 2026 Google Play only accepts new apps built for Android 16, and TaskDrop is. On a screen 600 or wider, Android 16 ignores "stay upright" and "do not resize": the app turns and fills the screen. People would see a phone screen stretched across a tablet. A temporary switch can turn this off, but it stops working once an app is built for Android 17, and Google raises the required level every August |
+| The website installed as an app | Its settings file says "portrait" | Small gap: change it to "any" |
+| Automatic browser tests | Two sizes: 390 and 1280 wide | Too few to catch a broken size |
+| Admin website | Built for a laptop | Fine, staff use laptops. It must not break at tablet width |
+
+```html
+<div class="fig">
+<div class="fig-title">One app, four layouts, chosen by the width of the window</div>
+<div class="fig-sub">The same rule on the website and, after 1.14, in the Android app. Widths are in points (what a layout measures), not screen pixels.</div>
+<div class="tl">
+<div class="tl-col"><b>Phone</b><small>320 to 599 wide</small><ul><li>One column</li><li>Bottom tabs and the drop button</li><li>Sheets slide up from the bottom</li><li>Most phones in India are 360 to 432 wide</li></ul></div>
+<div class="tl-col c2"><b>Tablet</b><small>600 to 1023 wide</small><ul><li>Two columns</li><li>Content held to 720 wide, in the middle</li><li>Website: a slim icon rail. Android app: the bottom tabs stay at launch</li><li>Sheets become centred boxes</li></ul></div>
+<div class="tl-col c3"><b>Laptop</b><small>1024 to 1599 wide</small><ul><li>The full side menu</li><li>Two or three columns, feeds up to 1,120 wide</li><li>Forms and reading held to 760</li><li>The map fills the space</li></ul></div>
+<div class="tl-col c4"><b>Big monitor</b><small>1600 and wider</small><ul><li>The laptop layout</li><li>Feeds grow to 1,360 wide</li><li>Nothing stretches past that</li></ul></div>
+</div>
+</div>
+```
+
+**Three levels, so launch does not wait for a tablet design**
+
+| Level | The promise | When | A design for you to approve? |
+|---|---|---|---|
+| **1. Never broken** | On any screen from 320 to 1920 wide, upright or sideways: nothing cut off, nothing overlapping, no sideways scrolling, every button within reach, and nothing you typed is lost when the screen turns | Before launch (Gate 3). It is a fix, so it is allowed inside the freeze | No. It reuses today's layouts |
+| **2. Feels made for it** | Android tablets get the icon rail, and the list and the task side by side. The laptop task page shows the details on the left and the offers on the right. Keyboard shortcuts | After launch, once tablets and laptops are more than 1 visit in 20 (PostHog shows it) | Yes, design first |
+| **3. More devices** | iPhone and iPad (F.2) | Future scope | Yes |
+
+**Level 1: what Claude builds and checks**
+
+1. **One rule for every device.** The Android app chooses its layout by width, as the website does. From 600 wide it holds the content to 720 in the middle and shows two columns. The five bottom tabs stay: changing the app's navigation needs your OK, so it is level 2.
+2. **Turning and resizing lose nothing.** A half-written task, an offer, a chat message, the map's place and an open sheet all survive when a tablet is turned, a foldable is opened or the app is put in split-screen.
+3. **Small phones.** Every screen at 320 and 360 wide: no clipped button, no tab label on two lines, no price broken across lines.
+4. **A phone turned sideways, in the browser.** The bottom tabs and the main button must not cover the form. (The Android app stays upright on phones; that is still allowed.)
+5. **Big text.** Android's text size at 130% and 200%, and the browser zoomed to 200%: text may wrap, but nothing overlaps and no button loses its label.
+6. **Short laptop screens** (1366 × 768 and 1280 × 720). Sheets, dialogs and the map panel fit in the height and scroll inside themselves.
+7. **Touch and mouse.** Every tap target is at least 48 points. Anything that appears on hover can also be reached by a tap, for touch laptops and tablets.
+8. **The installed website:** orientation "portrait" becomes "any".
+9. **The automatic tests grow from two sizes to six:** 320, 360, 768, 1024, 1440 and 1920 wide. One new test opens every screen at every size and fails if the page scrolls sideways or a button sits outside the window. It runs on every pull request, so a new screen can never quietly break a size.
+10. **Android devices, for free.** In the emulator: a small phone (360 wide), a foldable (closed and open) and a 10-inch tablet (upright and sideways). If the emulator cannot run on this PC, Claude asks your phone over USB to behave like a tablet for a few minutes (`adb shell wm size`), then sets it back. Plus your own phone as it is.
+11. **The admin website** at 768, 1024 and 1440 wide. Fixes only where something is cut off.
+
+**Who checks which device**
+
+| Device | Size, in points | How | Who |
+|---|---|---|---|
+| Small phone | 320 and 360 wide | Browser test and Android emulator | Claude |
+| Usual phone | 390 to 432 wide | Browser test and your phone | Claude, you |
+| Phone sideways | about 800 × 360 | Browser test | Claude |
+| Foldable, opened | about 670 to 840 wide | Android emulator | Claude |
+| Tablet | 768 × 1024 and 1280 × 800 | Browser test and Android emulator | Claude |
+| Small laptop | 1280 × 720 and 1366 × 768 | Browser test | Claude |
+| Laptop | 1440 × 900 | Browser test and your laptop | Claude, you |
+| Big monitor | 1920 × 1080 | Browser test | Claude |
+| Browsers | Chrome, Edge, Firefox, Safari | The same tests in all three browser engines | Claude |
+
+**The eight layout rules for every new screen** (rule 12 in the rules card)
+
+1. Read the width from `useLayout`. Never choose a layout by asking "is this Android?".
+2. No fixed width for content. Boxes stretch up to a largest width: 760 for forms and reading, 1,120 for feeds.
+3. Lists use the shared column count (1, 2 or 3), never their own.
+4. Every tap target is at least 48 points, with 8 points between neighbours.
+5. No fixed height on anything that holds text. Text may wrap and grow.
+6. Pictures and maps keep their shape (a ratio), never a fixed size.
+7. Nothing sits under the status bar, the notch, the home bar or the keyboard (the helpers from 1.8).
+8. A screen is not done until it has been opened at 320, 768 and 1440 wide and the size test passes.
+
+**Steps**
+
+1. SAY:
+
+```say
+start 1.14
+```
+
+2. Claude writes the size tests first (they show what is broken), then the fixes, in small pull requests into `redesigned-2.0`. The website updates by itself. The Android app gets it as an app update, and Claude asks you before publishing it.
+3. LOOK at the website on your phone and your laptop. If you can borrow an Android tablet for five minutes, open the app on it and turn it sideways.
+4. TELL Claude: "done 1.14", or what looks wrong.
+
+**Done when:** the size test passes on every screen at the six sizes in the three browser engines; the Android pass (small phone, foldable, tablet) is written in the pull request with what was seen and what could not be checked; `npm run check` is green; and you say "done 1.14". Level 2 opens only after launch.
+
+**What it costs:** nothing. The emulator, the browser tests and the three engines are free.
+
+**Checked online on 11 Nov 2026:** Google Play's target level rule (Android 16, API 36, from 31 August 2026); Android 16's and Android 17's rules for screens 600 and wider (Android Developers); Google's size classes, which change at 600, 840, 1200 and 1600 wide (TaskDrop changes at 600, 1024 and 1600, which is close enough to keep); and the most common phone screens in India (StatCounter, October 2026: 360 × 800 first, the rest between 360 and 432 wide).
+</details>
+
 > **GATE 1: do not start Step 3 until all of these are true** (Step 2 can start at the same time as Step 1)
 
 - [-] Every decision has an answer (1.1). **Future scope (your decision, 1 Nov 2026):** no gate waits on it; each open decision is answered when the task that needs it comes up.
@@ -1419,7 +1620,7 @@ design D22
 - [x] Each design change D1 to D10 is built or dropped. **Checked 1 Nov:** D1 to D5 and D7 to D9 were built and merged on 31 Oct, D6 was dropped (1 Nov), and D10 is now built: Home's 32-point gap between sections and its softer cards also reach Explore, Profile and Wallet. Seen on your phone: D3 (the Drop a task composer), D5 (When step), D7 (Price only / Price + proposal), D8 (blue for workers) and D9 (the Google map on Home and Find work). Not seen: D1, because the birth-date wheels only show when a new number signs up and Claude does not create accounts; and the D10 spacing on Explore, Profile and Wallet, which needs a new app update.
 - [x] Every notification reads clearly on your phone (1.7). **Checked 1 Nov:** the new words were read on your own phone ("A worker offered ₹400 ..."), and every other line of the table was read from what the staging test runs saved. Old alerts keep their old words.
 - [x] Nothing is hidden behind the keyboard: the 16-spot keyboard pass is green on your phone (1.8). **Accepted by you, 1 Nov 2026, as it stands:** 14 of 16 spots seen working on the phone; review text, proof of work, payout details and a confirm dialog opened with the keyboard up were not opened (they need money in a wallet), and the bigger-text and navigation-style repeats were not done (they change the phone settings). Open them again if a tester finds one hidden.
-- [ ] **Feature freeze** (CEO review, 9 Nov; decision 37): 1.12 (D21) and the D20 map tab are finished or dropped. From here only fixes go in; every new idea goes to Future scope
+- [ ] **Feature freeze** (CEO review, 9 Nov; decision 37): 1.12 (D21), the D20 map tab and 1.13 order 1 and 2 are finished or dropped. From here only fixes go in; every new idea goes to Future scope. **The freeze day is Sunday 22 November (decision 41):** what is not built by then moves to after launch. Task 1.14 level 1 is a fix, so it may finish after the freeze day; Gate 3 waits for it, this gate does not
 - [x] `npm run check` is green on `redesigned-2.0` (Claude reports this). **Checked 31 Oct:** typecheck, lint and 62 tests passed (exit 0) on the code of `redesigned-2.0` at `ce62f5c`.
 
 ---
@@ -1427,6 +1628,16 @@ design D22
 ## STEP 2: Make it hacker-proof (weeks 1 to 3)
 
 **Goal:** nobody can steal your logins, your keys, your users' data or your money, and if someone tries, you hear about it within the hour. This step closes holes H2 to H12, H17, H20 to H29 and H71 to H76 from the Security section. H14 (2-step sign-in) is left open for now by your decision.
+
+**No new kind of check before launch (rule 11, CEO rewrite, 11 Nov).** Step 2 now holds six whole-app checks: the invited testers (2.13 E), the hunt (2.14), the AI attacker (2.16), the outside testers' advice (2.18), the debug loop (2.19) and the audit prompt (2.20). That is enough. Each runs **once**, at the time that makes it worth the most:
+
+| When | Check | Why then |
+|---|---|---|
+| Now | The audit prompt (2.20) and the six holes from 2.18 | 2.20 only reads, and takes 5 minutes of yours. The 2.18 holes are already known |
+| During the 14 tester days | The debug loop (2.19), one round at a time | Real people are using the app, so real bugs show up |
+| After the Plan B money flow is built | The AI attacker (2.16), then one small paid tester (decision 30) | Attacking money code that is about to be rewritten is wasted money |
+
+A new idea for a check becomes one round ("charter") of the debug loop. It does not become a new task.
 
 **The security path: what is left, in order** (made simpler on 4 November 2026). Do one line at a time. Each line is one sentence to Claude, or a few clicks of yours. The "Security in one page" table in the Security section shows what each line finishes.
 
@@ -3052,6 +3263,8 @@ If you would rather not type all this, SAY "Fill the Play Console for me" and wa
 
 **Why now:** the store file is a snapshot of the app. It is built from the finished code and goes only to the testing tracks, never to Production.
 
+**Do not wait for the "finished" app (CEO rewrite, 11 Nov).** Google's 14 days count from the day the 12th tester joins, and you may upload newer store files during the test. So build the first store file as soon as Gate 2a is ticked, even while 1.13 and 1.14 are still being built. **If Expo's free Android builds are used up** (they were, until 1 December): Claude first builds on this PC, for free, from a folder with no spaces in its name (the 10 November try failed in `C:\complete taskdrop\...`). If that fails after one day of trying, one month of Expo's Starter plan is the right spend: three lost weeks cost more than the fee. Claude asks you before anything is paid.
+
 1. SAY:
 
 ```say
@@ -3075,7 +3288,7 @@ The app is finished. Build the store version (AAB).
 
 **Why:** Google requires at least 12 testers who stay opted in for 14 days in a row before it allows a public release. It cannot be sped up.
 
-1. Send this message on WhatsApp to at least **15 people** (some will drop out). Mix people who will post tasks, people who want to earn, and a few who like breaking things. At least 12 must use Android.
+1. Send this message on WhatsApp to at least **20 people** (CEO rewrite, 11 Nov: Google counts only testers who stay opted in for all 14 days, and some always leave). Start today; you do not need the store file to ask. Mix people who will post tasks, people who want to earn, and a few who like breaking things. At least 12 must use Android.
 
 ```say
 Hi! I'm building taskdrop., an app where you ask for anything and someone gets it done for you. Tasks can be nearby (fix a tap) or online (write a logo brief). It's in testing and I'd love your help for two weeks. It takes about 10 minutes a day, and all money in it is fake.
@@ -3448,6 +3661,8 @@ run quality tests round 3
 **Done when:** no Critical or High problem is open and every Medium has your answer.
 
 **Part done 2 Nov (PR 200, results in `docs/QUALITY_ROUND3.md`):** Lighthouse on the website: accessibility **100** on phone and laptop; performance **35** (phone-sized) and **62** (laptop). A staging load test (`npm run test:load`): 180 reads from 3 people, no errors; one person sent 330 reads in a minute and exactly 300 were answered and 30 refused with 429. **No Critical or High problem.** **For your decision:** **F1 (Medium)** the website's first load is slow on a phone-class processor because the app is one 1.3 MB script; fixing means splitting it, which is real work. Fix, or accept for now (the Android app is not affected)? **F2 (Low)** the "Continue with Google" button's spoken name does not contain its visible text; a one-line fix. Fix or accept? **F3 is a launch trap, now in 5.10 and 5.11:** `vercel.json` tells Google not to list `taskdrop.in`, which becomes production's name. **Still to do:** speed on the phone, a full every-screen light/dark/screen-reader pass, T12 (what the app shows when SMS, payments or photos are down) and the nightly database copy script. The phone was not connected.
+
+**CEO default for F1 (11 Nov): fix it, the cheap way.** People will first meet TaskDrop through a link on a mid-range phone, and a slow first screen loses them before task 1.13 can help. Do not rebuild the app. Do two things: load the heavy parts (the map, the composer, the charts) only when a screen needs them, and make the pages a link lands on (the guest Home and the public pages of 4.3) show their first screen in under 3 seconds on a phone-sized test. **Target before Gate 4:** Lighthouse performance 70 or more on the phone-sized test for those pages (it was 35). SAY "F1: fix" to start, or "F1: accept".
 </details>
 
 <details id="t3-7" data-short="Release guide">
@@ -3523,6 +3738,7 @@ Do the switch-over, one step at a time.
 - [ ] The lawyer has answered (S.3), or you have decided to launch with the money jobs off and pay workers by hand
 - [ ] No Critical or High problem is open (security or quality)
 - [ ] The debug loop (2.19) has settled: a round report says its stop test passes
+- [ ] Every screen fits every size (1.14, level 1): the size test passes at the six widths, and the Android tablet and foldable pass is written down
 - [ ] You have read the two marketplace numbers (3.3b) for at least 2 weeks
 - [ ] The switch-over (3.9) is done on staging, or has a date. Production does not wait for it, because production is built already switched over (5.9)
 
@@ -3846,6 +4062,7 @@ build the email sequences
 - [ ] The whole Start now track (S.1 to S.8) is finished
 - [ ] At least 20 workers are lined up in the launch areas (decision 38)
 - [ ] The public pages and the marketing plan are approved
+- [ ] The pages a link lands on load fast on a phone: Lighthouse performance 70 or more on the phone-sized test (3.6, F1), or you have written "F1: accept"
 - [ ] You know your 2 best video hooks
 
 ---
@@ -4782,11 +4999,12 @@ draft this week's posts
 <details id="t7-5" data-short="Bigger servers">
 <summary>[BOTH] <b>7.5</b> When to pay for bigger servers <small>· only when a number says so</small></summary>
 
-Do not pay for bigger servers in advance. Claude watches these signals in **production** and tells you when one fires. The "How it grows" table in the Architecture section has the full picture.
+Do not pay for bigger servers in advance. Claude watches these signals in **production** and tells you when one fires. **The scaling ladder** in the Architecture section ("How it grows") has the full picture, with the price of each step.
 
 | Signal | What to do |
 |---|---|
-| The database is more than 70% busy for an hour a day | A bigger database size in Supabase (a few clicks, more per month) |
+| The database is more than 70% busy for an hour a day, or connections pass 80% of the limit | The next database size in Supabase: Small adds $15 a month, Medium $60 (a few clicks, about two minutes offline, so at night) |
+| About 100 paid tasks a day | Point-in-time recovery ($100 a month): the database can be put back to any minute |
 | The app gets slower than the speed targets | Claude finds the slow part first; extra servers only if needed |
 | Inngest or another plan's limit warns | Upgrade that one plan |
 | A second busy city | Read copies of the database and more caching (Claude plans it; the safe first layers are 3.5b) |
@@ -5269,14 +5487,43 @@ Already handled for you by Vercel and Supabase, so there is nothing to build: lo
 
 Deliberately not used: Cloudflare in front of Vercel (Vercel advises against it), splitting the app into many small services (microservices), and separate servers that you would have to run yourself.
 
-**How it grows**
+**How it grows: the scaling ladder** (rewritten 11 November 2026)
 
-| Stage | Users (rough) | What runs | Move on when |
-|---|---|---|---|
-| Now | You and about 12 testers | Free plans (staging only) | You say "I want to launch" |
-| Launch | Up to a few thousand a month | Production: Supabase Pro, Vercel Pro (the website is a static export, so almost no function calls; Pro includes 1M CDN requests and 1 TB of transfer a month, roughly 40,000 to 50,000 visits per million requests, an estimate to check against real numbers), Inngest paid | The database is busy more than 70% for an hour a day, the app is slower than its targets, or connections pass 80% of the limit |
-| One busy city | Tens of thousands a month | A bigger database, connection pooling, a read copy of the database for lists and search, cached lists | The same signals again |
-| Many cities | Hundreds of thousands and up | Read copies per region, busy tables split by city, a search service, a separate queue for chat | Only with real traffic data |
+**The rule:** never climb a step before its number fires. Task 7.5 watches the numbers. Every step is a few clicks or one small change, never a rewrite, because of the twelve design rules above.
+
+```html
+<div class="fig">
+<div class="fig-title">The scaling ladder: what runs, what it costs, and the number that says "climb"</div>
+<div class="fig-sub">Monthly cost of the tools only, without payment fees. Estimates from the prices checked on 11 November 2026.</div>
+<div class="layers">
+<div class="layer"><span class="ln">0</span><span class="lt"><b>Today: you and the testers</b><small>Staging on free plans. Climb when you say "I want to launch" (5.1).</small></span><span class="st ok">$0</span></div>
+<div class="layer"><span class="ln">1</span><span class="lt"><b>Launch: 2 or 3 areas, up to a few thousand people a month</b><small>Production on Supabase Pro (the smallest database size is included) and Vercel Pro. Every other tool on its free plan. Climb when the database is more than 70% busy for an hour a day, connections pass 80% of the limit, or a free plan warns at 70%.</small></span><span class="st ok">about $45</span></div>
+<div class="layer"><span class="ln">2</span><span class="lt"><b>A busy area: the first limit warns</b><small>The next database size (Small adds $15, Medium adds $60; a few clicks and about two minutes offline, so do it at night), and only the one plan that warned. Climb when about 100 tasks a day are paid for.</small></span><span class="st part">about $60 to $130</span></div>
+<div class="layer"><span class="ln">3</span><span class="lt"><b>Real money every day: about 100 paid tasks a day</b><small>Add point-in-time recovery ($100): the database can be put back to any minute, not only to last night. At this size TaskDrop keeps about ₹39,000 a month, so the step pays for itself. Climb when lists or the map get slower than their targets on the bigger database.</small></span><span class="st part">about $160 to $230</span></div>
+<div class="layer"><span class="ln">4</span><span class="lt"><b>One busy city: tens of thousands of people a month</b><small>First the free fix: switch on the parked caching (3.5b). Then a read copy of the database for lists, search and the map (it costs the same as the main database size), the Large size ($110), and Inngest's paid plan when its limit warns. Climb only with real traffic numbers.</small></span><span class="st part">about $350 to $500</span></div>
+<div class="layer"><span class="ln">5</span><span class="lt"><b>Many cities: hundreds of thousands and more</b><small>Read copies near each region, the busiest tables split by city, a search service, a separate queue for chat. Priced when you get there, from real numbers.</small></span><span class="st no">later</span></div>
+</div>
+</div>
+```
+
+**Why the ladder is cheap to climb.** These are already built, so no step needs a rewrite: every list is paged; server functions keep no memory, so more copies can run; slow work goes through the queue; photos come from ImageKit's network; the website is plain files on Vercel's network (almost no server work); money rules live in the database, in one step. Vercel and Supabase add servers by themselves.
+
+**Three things to keep true as the app grows** (Claude checks them in 3.6 and after any big change; no new task):
+
+1. **Every task and every helper carries its area and city,** so one city can be measured, cached and later split by itself.
+2. **No screen asks the database for "everything".** Each list asks for one page, near one place.
+3. **A load test at ten times the expected launch traffic passes on staging** before Gate 6. The 2 November test (180 reads from 3 people) is the start, not the proof.
+
+**The business grows on a ladder too.** Servers are the easy part. The hard part of a marketplace is that a new area is empty on day one, so open the next area only when the current one fills:
+
+| Step | Open it when | What you do |
+|---|---|---|
+| **Area 1 to 3** (launch) | You have 20 or more workers there (4.6) | Help the first 10 posters and 10 helpers yourself |
+| **The next area** | In the current areas, 6 of 10 tasks get an offer within 30 minutes, for 4 weeks in a row, and 3 of 10 posters post again within 30 days | Recruit workers there first (two weeks), then tell posters |
+| **The whole city** | Five areas pass that test | Smart alerts (4.5) and the Google Business Profile do more of the work |
+| **A second city** (F.4) | The first city pays for its own tools (about 310 finished tasks a month) and its numbers held for 3 months | Repeat the playbook from Step 4. Then, and only then, think about paid ads (F.8) and the outside security review (F.13) |
+
+If a number stays low for 8 weeks, change the area or the kind of task you ask people to post. Do not add features: the weekly numbers (7.1) say which of the two it is.
 
 **Where this comes from:** the code itself (checked 2026-10-30); the old plan's architecture section and attack-defence workstream (now in the archive); the backend-concepts list you saved (the first 24 of 111 points were readable); Vercel's own guidance on Cloudflare; and Supabase's production checklist. The architecture-tool reel you saved keeps its content behind a "comment to get the link" message, so it could not be read.
 
@@ -5328,6 +5575,8 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 37 | **Feature freeze** (CEO review, 9 Nov). Once 1.12 (D21) and the D20 map tab are finished, build nothing new before launch, and put every new idea in Future scope? 1.9, 3.5b and 4.10 are parked until after launch | **Decided by you, 2026-11-09: freeze.** Once 1.12 and the D20 map tab are finished, only fixes go in until launch; every new idea goes to Future scope. Done | Nothing to say |
 | 38 | **Launch areas** (CEO review, 9 Nov; tasks 4.1 and 4.6). Start in 2 or 3 neighbouring areas of Hyderabad instead of the whole city? | Open. **Recommended: yes.** Choose them in 4.1 from where the first workers and testers live. Decision 2 (Hyderabad; task types follow what people post) stays | "Decision 38: yes, these areas: …" or "Decision 38: the whole city" |
 | 39 | **Useful in the first minute (D22, task 1.13).** Testers did not find the app useful on opening it. Count D22 order 1 and 2 as a fix inside the feature freeze (decision 37), so it is built before launch? | **Decided 9 Nov: yes.** You approved the D22 design (v4) and said to start building, so D22 order 1 and 2 are built inside the freeze, before launch. Order 3 and 4 still wait for Step 7 | "Decision 39: yes, D22 order 1 and 2 before launch." or "Decision 39: after launch." |
+| 40 | **Android tablets and foldables at launch** (CEO rewrite, 11 Nov; task 1.14). Android now turns and resizes the app on screens 600 and wider, whatever the app asks. Make the app "never broken" there before launch by reusing today's layouts (level 1), design a full tablet app before launch (adds 1 to 2 weeks and reopens the freeze), or use Android's temporary switch that keeps the phone screen in a box (stops working with Android 17)? | Open. **Recommended: level 1, "never broken".** Phones are almost every user at launch, so a tablet design waits until PostHog shows tablets matter | "Decision 40: level 1." or "Decision 40: full tablet design." or "Decision 40: the temporary switch." |
+| 41 | **The freeze day** (CEO rewrite, 11 Nov). Decision 37 froze features "once the map work is finished", with no date, and 1.13 and the map bar arrived after it. Set a day after which only fixes go in, whatever is finished? | Open. **Recommended: Sunday 22 November.** What is not built by then moves to after launch (1.13 order 3 and 4 already do). Fixes, 1.14 level 1 and the Plan B money flow are not features and carry on | "Decision 41: 22 November." or "Decision 41: this day: ___" |
 
 ---
 
@@ -5572,7 +5821,7 @@ Claude runs this before a feature is called done, and writes what it saw in the 
 **Website (taskdrop.in pages, the app on the web, and the admin site)**
 
 1. Opens and works in the latest **Chrome, Edge, Firefox and Safari**. Claude runs the Playwright tests in all three engines (Chromium, Firefox, WebKit) and looks at the screens in Chrome.
-2. Checked at these widths: **360** (small phone), **390** (usual phone), **768** (tablet), **1280** (laptop) and **1920** (large screen). Also turned sideways on a phone.
+2. Checked at these widths: **320** and **360** (small phones), **390** (usual phone), **768** (tablet), **1024** (tablet sideways, small laptop), **1440** (laptop) and **1920** (large screen). Also turned sideways on a phone. From task 1.14 on, the size test does this by itself on every pull request.
 3. No sideways scrolling, nothing cut off or hidden behind the top bar or the bottom tabs, no text running over its box.
 4. Buttons and links are easy to tap (about 44 points) and sit away from the screen edges and the phone's notch and home bar.
 5. Text stays readable when the browser text size is raised, and the layout does not break.
@@ -5585,6 +5834,7 @@ Claude runs this before a feature is called done, and writes what it saw in the 
 2. Checked with the phone's **bigger text** setting on, and in both portrait and landscape where the app allows landscape.
 3. Nothing hides behind the status bar, the navigation bar or the keyboard.
 4. A smaller or older phone is checked in an emulator when one is available. If not, the gap is written down.
+5. A tablet and an opened foldable, upright and sideways (the emulator, or your phone asked to behave like a tablet, task 1.14): the layout follows the width, and nothing typed is lost when the screen turns.
 
 **Done when:** every line above is true, or the lines that could not be checked are written in the pull request. A feature that breaks on any browser or screen size is not done.
 
@@ -5701,7 +5951,11 @@ Claude runs this before a feature is called done, and writes what it saw in the 
 
 **When TaskDrop pays for its own tools:** about ₹4,000 a month ÷ about ₹12.90 a task ≈ **310 finished tasks a month, about 10 a day**. If most tasks are house-keeping under section 9(5), it is about 740 a month, which is why the fee is set only after the CA answers. The payout fee per withdrawal is not counted yet: the S.4 quotes give it.
 
-Prices were checked between 26 October and 9 November 2026. Check again when you pay. This is not tax advice.
+**What it costs as you grow:** the scaling ladder (Architecture, "How it grows") gives the monthly cost at each size: about $45 at launch, about $60 to $130 when the first limit warns, about $160 to $230 at 100 paid tasks a day, and about $350 to $500 for one busy city. No step is bought before its number fires.
+
+**If Expo's free Android builds run out before the store file is built (3.2):** first a free build on this PC; if that fails, one month of Expo's Starter plan (listed at $19 on 11 Nov; check the price). It is the one place where paying early is right, because Google's 14-day test cannot start without a store file.
+
+Prices were checked between 26 October and 11 November 2026. Check again when you pay. This is not tax advice.
 
 ---
 
@@ -5751,6 +6005,11 @@ Prices were checked between 26 October and 9 November 2026. Check again when you
 | **Staging** | The test copy. Fake money, fake data |
 | **Production** | The real thing. Real money, real people |
 | **Gate** | A checkpoint. Every line must be true before you go on |
+| **The three clocks** | The three slow chains that decide launch day: the paperwork, the money flow, and Google's 14-day test (The plan on one page) |
+| **Layout by width** | The app looks at how wide the window is, not at which device it is on, and picks the phone, tablet, laptop or big-monitor layout (task 1.14) |
+| **Scaling ladder** | The list of what to buy as TaskDrop grows, with the price of each step and the number that says when (Architecture, How it grows) |
+| **Read copy** | A second copy of the database that only answers reads (lists, search, the map), so the main one stays fast |
+| **Point-in-time recovery** | A paid Supabase extra: the database can be put back to any minute, not only to last night's backup |
 | **Critical / High / Medium / Low** | How serious a problem is. Critical or High blocks launch |
 | **Key / secret** | A password a program uses to reach a service. Never in the app, the code or the chat |
 | **Betterleaks** | A free scanner that looks for keys and passwords in the code and in all its old versions (task 2.15). The newer version of gitleaks |
@@ -5815,6 +6074,7 @@ Kept for the record. The live picture is the **Start here** panel at the top of 
 
 ## Changelog
 
+- **2026-11-11 (CEO rewrite: the plan on one page, every screen, and the scaling ladder):** You asked for the plan to be made simpler and easier to follow, checked against good practice with fresh research, cheaper, ready to scale, with pictures, and for a plan to make the app fit every phone, tablet and laptop. **New at the top: The plan on one page** (the verdict, the road to launch as one picture with three lanes, the three clocks that decide launch day, a "do these now" table, a card with the CEO default for every open decision, answered by one sentence, and a best-practice card: 12 habits kept, 9 changed). The 9 November CEO review stays, closed, as the reasons. A repeated "two copies" table was removed from The map. **New task 1.14** (fits every screen): the website already chooses one of four layouts by width; the Android app always used the phone layout and asked to stay upright, and Android 16 (required by Google Play since 31 August 2026) ignores that on screens 600 and wider. Level 1 "never broken" before launch (layout by width on Android, six test sizes instead of two, a size test on every pull request, small phones, big text, short laptops, an emulator pass), level 2 after launch. **New rules 11** (no new kind of check before launch; Step 2 now says when each of the six checks runs) **and 12** (layout by width; eight layout rules). **How it grows** is now a scaling ladder with the price of each step and the number that says when to climb, three things to keep true, and an area ladder for opening the next area and city. **Changed:** Gate 1 (the freeze now names 1.13 and a freeze day), Gate 3 (1.14 level 1), Gate 4 (fast landing pages), 3.3 (ask 20 testers, start today), 3.6 (CEO default for F1: fix the slow first load the cheap way), 7.5 (prices), What it costs (cost at each size; what to do if Expo's free builds run out), the "Fits every browser and screen" card (more widths, tablets and foldables), five new words. **New decisions:** 40 (Android tablets at launch; recommended level 1) and 41 (the freeze day; recommended Sunday 22 November). **Checked online on 11 Nov:** Google Play's target level and testing rules, Android 16 and 17 large-screen rules, Supabase prices, RBI's payment aggregator directions of 15 September 2025, the DPDP rules' dates, StatCounter's phone screen sizes for India. **Checked in the code:** `apps/mobile/src/lib/layout.ts`, `app.json`, the Playwright config, and the Android target level (36). No code, database, setting or account changed; nothing was built.
 - **2026-11-10 (task 2.19: the debug loop, plan only):** You asked for a repeating debugging cycle that shows the new bugs and the ones still not fixed, built from GitHub repos and YouTube videos. **New task 2.19** in Step 2 and a full plan page, `docs/DEBUGGING_PLAN.html`: eight steps a round (pin, collect, sweep twice, explore one charter plus the golden path, log and triage, fix with a failing test first, recheck on staging, report), at least 3 and at most 8 rounds before launch, a seven-rule stop test, a hot-spot review when it does not settle, and a weekly round after launch (added to 7.2). New file `docs/debug-loop/LEDGER.md` holds every bug from B33 on, with B18, B21, B30 and B32 as its starting list. **Gate 3** gains one line: the debug loop has settled. Gate 2b does not wait for it. Sources: Agans' nine rules, Halloway's scientific-method talk, Zeller's Debugging Book, gstack `/qa`, the Ralph loop, Playwright test agents, Maestro, Julia Evans, open-source triage guides. Nothing was run; no code, database or setting changed.
 - **2026-11-10 (D24: full-screen phone map with a pull-up bar, from your third map video):** You showed the phone map half covered by the bottom card and asked for the full map by default and a scroll-up bar that is easy to see and brings the list. Built in task 1.12: the slim bar, tap / drag / wheel to open the list, the sheet follows the finger, the list uses the whole screen. **Not done:** the Android app gets it only with an app update (Claude asks first).
 - **2026-11-10 (plan review, wording only):** Production's web address now says in the step list and the at-a-glance card that it depends on decision 28 (still open). The one-page money text says the wallet flow is what staging does today and that Plan B may change it. A stray PostHog row was removed and decisions 29b and 36 were put back in order. No decision changed.
