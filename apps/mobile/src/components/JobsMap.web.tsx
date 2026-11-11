@@ -8,7 +8,7 @@ import { SPREAD_ZOOM } from '../lib/mapLayout';
 import { zoomToFit } from '../lib/mapReach';
 import { tx } from './primitives';
 import { Icon } from './Icon';
-import { JobsMap as TileJobsMap, type JobsMapProps } from './JobsMap.tiles';
+import { JobsMap as TileJobsMap, YouMarker, type JobsMapProps } from './JobsMap.tiles';
 import { CALLOUT_LIFT, MapPinLayer } from './MapPinLayer';
 import { GL_TO_TILE, baseOptions, glStyleUrl, kmNorth, noRotation, useMapLib, type MapLib } from './GlMap.web';
 
@@ -54,6 +54,7 @@ function GlJobsMap({
   fit = null,
   ringAt,
   bare = false,
+  meKind = 'area',
 }: JobsMapProps & { lib: MapLib | null }) {
   const t = useTheme();
   const reduce = useReducedMotion();
@@ -174,10 +175,7 @@ function GlJobsMap({
     return { x: p.x, y: p.y };
   };
   const zoom = map ? map.getZoom() + GL_TO_TILE : startZoom;
-  const people = tone === 'people';
   const blue = t.colors.purple;
-  // The poster is a dark dot on a map of helpers' faces, so the two never mix up.
-  const youColor = people ? t.colors.ink : blue;
   const you = me && map ? toScreen(me.lat, me.lng) : null;
   const ringCentre = ringAt ?? me;
   const ring = ringCentre && map ? toScreen(ringCentre.lat, ringCentre.lng) : null;
@@ -221,12 +219,6 @@ function GlJobsMap({
             <View style={{ position: 'absolute', width: ringPx * 2, height: ringPx * 2, borderRadius: 999, borderWidth: 1, borderColor: blue + '77', borderStyle: 'dashed' }} />
           </View>
         ) : null}
-        {you ? (
-          <View pointerEvents="none" style={{ position: 'absolute', left: you.x, top: you.y, width: 0, height: 0, alignItems: 'center', justifyContent: 'center' }}>
-            <View style={{ position: 'absolute', width: 26, height: 26, borderRadius: 999, backgroundColor: youColor + '40' }} />
-            <View style={{ position: 'absolute', width: 14, height: 14, borderRadius: 999, backgroundColor: youColor, borderWidth: 2.5, borderColor: '#FFFFFF' }} />
-          </View>
-        ) : null}
         <MapPinLayer
           pins={pins}
           tone={tone}
@@ -241,6 +233,8 @@ function GlJobsMap({
           you={you}
           onGroup={intoGroup}
         />
+        {/* After the pins, so it is on top, and outside the dim layer. */}
+        {you ? <YouMarker x={you.x} y={you.y} kind={meKind} /> : null}
       </View>
     ) : null;
 

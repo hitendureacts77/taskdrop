@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Image, Text as RNText, Pressable, PanResponder, Platform, type LayoutChangeEvent } from 'react-native';
+import { View, Image, Text as RNText, Pressable, PanResponder, Platform, Animated, Easing, type LayoutChangeEvent } from 'react-native';
+import { useReducedMotion } from '../lib/motion';
 import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
 import { Icon } from './Icon';
@@ -65,7 +66,57 @@ export type JobsMapProps = {
   ringAt?: { lat: number; lng: number };
   /** A quiet preview (the Find work strip): no buttons, legend or notes, and the map does not move. */
   bare?: boolean;
+  /** What `me` is: a live position ("You") or a typed / saved area ("Your area", the default). */
+  meKind?: 'live' | 'area';
 };
+
+/**
+ * The "you" marker (plan explore-location-roles, part 2): an 18 px blue dot with a white rim
+ * and soft shadow, a 44 px halo behind it and a small pill under it. Drawn after the pins so
+ * nothing covers it, and never dimmed. The halo pulses gently unless motion is reduced.
+ * Place it at the point's screen position; the dot's centre sits exactly on it.
+ */
+export function YouMarker({ x, y, kind = 'area' }: { x: number; y: number; kind?: 'live' | 'area' }) {
+  const t = useTheme();
+  const reduced = useReducedMotion();
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reduced) {
+      pulse.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(Animated.timing(pulse, { toValue: 1, duration: 1800, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }));
+    loop.start();
+    return () => loop.stop();
+  }, [reduced, pulse]);
+  const blue = t.colors.purple;
+  const label = kind === 'live' ? 'You' : 'Your area';
+  return (
+    <View
+      pointerEvents="none"
+      accessibilityLabel={kind === 'live' ? 'Your location' : 'Your area'}
+      style={{ position: 'absolute', left: x, top: y, width: 0, height: 0, alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+    >
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 44,
+          height: 44,
+          borderRadius: 999,
+          backgroundColor: blue + '2E',
+          opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 0.35] }),
+          transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.35] }) }],
+        }}
+      />
+      <View style={{ position: 'absolute', width: 18, height: 18, borderRadius: 999, backgroundColor: blue, borderWidth: 3, borderColor: '#FFFFFF', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 3 }} />
+      <View style={{ position: 'absolute', top: 14, left: -50, width: 100, alignItems: 'center' }}>
+        <View style={{ backgroundColor: t.colors.ink, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+          <RNText style={tx('800', 11, t.colors.bg)}>{label}</RNText>
+        </View>
+      </View>
+    </View>
+  );
+}
 
 /** Where the middle of the map has to be so a point sits in the middle of the part the bars leave uncovered. */
 export function centreFor(
@@ -114,6 +165,7 @@ export function JobsMap({
   fit = null,
   ringAt,
   bare = false,
+  meKind = 'area',
 }: JobsMapProps) {
   const t = useTheme();
   const start = me ?? startAt ?? (pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : DEFAULT_CENTRE);
@@ -241,8 +293,6 @@ export function JobsMap({
   const ring = ringCentre ? toScreen(ringCentre.lat, ringCentre.lng) : null;
   const ringPx = ringCentre ? (ringKm * 1000) / metresPerPixel(ringCentre.lat, zoom) : 0;
   const blue = t.colors.purple;
-  // The poster is a dark dot on a map of helpers' faces, so the two never mix up.
-  const youColor = people ? t.colors.ink : blue;
   const words = mapWordsOf(tone);
 
   const control = (label: string, onPress: () => void, child: React.ReactNode) => (
@@ -281,13 +331,6 @@ export function JobsMap({
           </View>
         ) : null}
 
-        {you ? (
-          <View pointerEvents="none" style={{ position: 'absolute', left: you.x, top: you.y, width: 0, height: 0, alignItems: 'center', justifyContent: 'center' }}>
-            <View style={{ position: 'absolute', width: 26, height: 26, borderRadius: 999, backgroundColor: youColor + '40' }} />
-            <View style={{ position: 'absolute', width: 14, height: 14, borderRadius: 999, backgroundColor: youColor, borderWidth: 2.5, borderColor: '#FFFFFF' }} />
-          </View>
-        ) : null}
-
         <MapPinLayer
           pins={pins}
           tone={tone}
@@ -302,6 +345,9 @@ export function JobsMap({
           you={you}
           onGroup={(x, y) => zoomTo(Math.max(zoom + 2, SPREAD_ZOOM), unproject(x + left, y + top, zoom))}
         />
+
+        {/* After the pins, so it is on top, and outside the dim layer. */}
+        {you ? <YouMarker x={you.x} y={you.y} kind={meKind} /> : null}
       </View>
 
       {bare ? null : (

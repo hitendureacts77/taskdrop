@@ -5,10 +5,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
+import { useMode } from '../providers/ModeProvider';
 import { attachPosters, getProfile, type Profile } from '../data/api';
 import { mapPeople, remoteTasks, tasksNear, workersNear, type MapPerson, type NearbyWorker } from '../data/extras';
 import { JobsMap, mapWords, type JobPin } from './JobsMap';
 import { HelperSheet } from './HelperSheet';
+import { ModeLockSheet } from './ModeLockSheet';
 import { PersonSheet } from './PersonSheet';
 import { PeopleMapSheet } from './PeopleMapSheet';
 import { MapSheet } from './MapSheet';
@@ -187,6 +189,8 @@ export function NearMap({
   bottomInset = 0,
   footer,
   onChooseArea,
+  onUseLocation,
+  meKind = 'area',
   areaLabel,
   listFilter,
   placeIsMine = true,
@@ -205,8 +209,12 @@ export function NearMap({
   bottomInset?: number;
   /** Shown in the sheet's low state under the stats: e.g. the remote-jobs line. */
   footer?: React.ReactNode;
-  /** The "Choose your area" button on the empty card (the parent opens its area picker). */
+  /** "Type my area" on the empty card (the parent opens its typing step). */
   onChooseArea?: () => void;
+  /** "Use my location" on the empty card (the parent asks for the position). */
+  onUseLocation?: () => void;
+  /** Your marker says "You" (a live position) or "Your area" (typed or saved). */
+  meKind?: 'live' | 'area';
   /** The name of the person's area ("Financial District, Hyderabad"), for the panel's subtitle. */
   areaLabel?: string;
   /** The Explore list's category and search, applied to the jobs shown (Jobs layer only). */
@@ -226,7 +234,13 @@ export function NearMap({
   const { userId, guest } = useAuth();
   // "My people" is for signed-in people only; a guest (or a signed-out screen) gets the helpers map.
   const canMine = Boolean(userId) && !guest;
-  const kind: NearMapLayer = layer === 'mine' && !canMine ? 'people' : layer;
+  // One side per mode (plan D26): Hire sees helpers, Earn sees jobs; "People" (signed in) is on both. Any other layer falls back.
+  const { mode: appMode } = useMode();
+  const poster = appMode === 'poster';
+  const ownLayer: NearMapLayer = poster ? 'people' : 'jobs';
+  const kind: NearMapLayer = layer === ownLayer || (layer === 'mine' && canMine) ? layer : ownLayer;
+  // The other side's locked option was tapped: the switch sheet.
+  const [lockWant, setLockWant] = useState<'jobs' | 'helpers' | null>(null);
   const mine = kind === 'mine';
   // The look: 'mine' wears the helpers' blue faces.
   const mode: 'jobs' | 'people' = kind === 'jobs' ? 'jobs' : 'people';
@@ -616,11 +630,16 @@ export function NearMap({
                 }}
               >
                 <RNText accessibilityRole="header" style={tx('800', 18, t.colors.ink, { textAlign: 'center', letterSpacing: -0.3 })}>
-                  Choose your area to see what's around you
+                  Turn on location to see what's around you
                 </RNText>
+                {onUseLocation ? (
+                  <Pressy onPress={onUseLocation} label="Use my location" style={{ height: 46, paddingHorizontal: 22, borderRadius: 23, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}>
+                    <RNText style={tx('800', 14, t.colors.onBtn)}>Use my location</RNText>
+                  </Pressy>
+                ) : null}
                 {onChooseArea ? (
-                  <Pressy onPress={onChooseArea} label="Choose your area" style={{ height: 46, paddingHorizontal: 22, borderRadius: 23, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}>
-                    <RNText style={tx('800', 14, t.colors.onBtn)}>Choose your area</RNText>
+                  <Pressy onPress={onChooseArea} label="Type my area" style={{ height: 46, paddingHorizontal: 22, borderRadius: 23, borderWidth: 1.5, borderColor: t.colors.line, alignItems: 'center', justifyContent: 'center' }}>
+                    <RNText style={tx('800', 14, t.colors.ink)}>Type my area</RNText>
                   </Pressy>
                 ) : null}
               </View>
@@ -663,12 +682,22 @@ export function NearMap({
   const nextReach = KM_STEPS.find((k) => k > radius) ?? null;
 
   // What the map shows: Jobs, Helpers or (signed in) My people. Only drawn when the parent handles the change (the tab), not on the route.
-  const layerOptions = [
-    { value: 'jobs' as NearMapLayer, label: 'Jobs' },
-    { value: 'people' as NearMapLayer, label: 'Helpers' },
+  const layerOptions: { value: NearMapLayer; label: string; locked?: boolean; lockedHint?: string }[] = [
+    poster
+      ? { value: 'jobs', label: 'Jobs', locked: true, lockedHint: 'Locked. Opens a switch to Earn mode' }
+      : { value: 'jobs', label: 'Jobs' },
+    poster
+      ? { value: 'people', label: 'Helpers' }
+      : { value: 'people', label: 'Helpers', locked: true, lockedHint: 'Locked. Opens a switch to Hire mode' },
     ...(canMine ? [{ value: 'mine' as NearMapLayer, label: 'People' }] : []),
   ];
-  const layerSwitch = onLayer ? <Segmented label="Show" value={layer} onChange={onLayer} options={layerOptions} /> : null;
+  // A locked option opens the switch sheet instead of changing the layer.
+  const pickLayer = (l: NearMapLayer) => {
+    const o = layerOptions.find((x) => x.value === l);
+    if (o?.locked) setLockWant(l === 'jobs' ? 'jobs' : 'helpers');
+    else onLayer?.(l);
+  };
+  const layerSwitch = onLayer ? <Segmented label="Show" value={kind} onChange={pickLayer} options={layerOptions} /> : null;
 
   // The small chips that say what is set and open the Filters sheet; helpers keep their two on/off chips.
   const openFilters = () => setFiltersOpen(true);
@@ -901,6 +930,7 @@ export function NearMap({
     <JobsMap
       // With sharing on, your own pin sits on your rounded cell (what your people see), never on your exact spot.
       me={mine && sharing && myCell ? myCell : home}
+      meKind={mine && sharing && myCell ? 'area' : meKind}
       pins={pins}
       selectedId={picked}
       onSelect={pick}
@@ -921,6 +951,7 @@ export function NearMap({
   const modals = (
     <>
       {filtersSheet}
+      <ModeLockSheet visible={lockWant !== null} want={lockWant ?? 'jobs'} onClose={() => setLockWant(null)} />
       <PeopleMapSheet visible={shareOpen} onClose={() => setShareOpen(false)} onDone={(on) => on && setBeat((b) => b + 1)} />
       {pickedPerson && isNearby(pickedPerson) ? (
         // Someone I have not worked with: a small card with only what the server sent. No profile, no chat.
@@ -929,7 +960,7 @@ export function NearMap({
             {[personMeta(pickedPerson), presenceOf(pickedPerson.last_seen_at, now).label, farText(pickedPerson.km)].join(' · ')}
           </RNText>
           <RNText style={tx('500', 13, t.colors.muted, { marginTop: 10, lineHeight: 19 })}>
-            Shown on a rounded spot about 2 km wide, only while TaskDrop is open. To work with them, post a task or send an offer.
+            Shown on a rounded spot about 2 km wide, only while TaskDrop is open. {poster ? 'To work with them, post a task.' : 'To work with them, send a quote on one of their tasks.'}
           </RNText>
           <PrimaryButton label="Close" tone="quiet" onPress={close} style={{ marginTop: 16 }} />
         </BottomSheet>
@@ -1206,7 +1237,9 @@ export function NearMap({
                   </View>
                 </Pressy>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  {onLayer ? layerOptions.map((o) => <QuickChip key={o.value} label={o.label} on={layer === o.value} onPress={() => onLayer(o.value)} />) : null}
+                  {onLayer ? layerOptions.map((o) => (
+                    <QuickChip key={o.value} label={o.label} on={kind === o.value} onPress={() => pickLayer(o.value)} {...(o.locked ? { locked: true, ...(o.lockedHint ? { lockedHint: o.lockedHint } : {}) } : {})} />
+                  )) : null}
                   <View style={{ flex: 1 }} />
                   <FiltersButton count={mode === 'jobs' ? changedFilters(filters) : 0} onPress={openFilters} />
                 </View>
