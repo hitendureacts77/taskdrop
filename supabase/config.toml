@@ -45,6 +45,11 @@ verify_jwt = true
 [functions.app-config]
 verify_jwt = false
 
+# app-download sends the website's Download button to the newest Android build from Expo. A visitor
+# has no account, and nothing here is secret (it only redirects to https://expo.dev/artifacts/...).
+[functions.app-download]
+verify_jwt = false
+
 # Inngest calls this to run scheduled and event-driven jobs. It is not a user
 # session, so the platform JWT check is off; the function verifies Inngest's
 # own signature (INNGEST_SIGNING_KEY) on every request instead.

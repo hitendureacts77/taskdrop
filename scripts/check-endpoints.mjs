@@ -32,6 +32,7 @@ export const FUNCTIONS = {
   'razorpayx-webhook': { kind: 'signature' },
   inngest: { kind: 'signature' },
   'app-config': { kind: 'public', why: 'tells the app what the admin switched (maintenance, minimum version, banner); read before sign-in and holds nothing secret' },
+  'app-download': { kind: 'public', why: 'the website Download button (and QR) for visitors with no account; only redirects to the newest build under https://expo.dev/artifacts/, caches 60 s, holds no secret' },
 };
 
 const LOGIN = /\bauth\s*\.\s*(getUser|getClaims)\s*\(/;
