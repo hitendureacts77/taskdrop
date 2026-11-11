@@ -1065,6 +1065,7 @@ These came from your 30 Oct walkthrough (times are in your video):
 | D23 | Added and **approved 9 Nov** (your second map video; inside task 1.12): the ring and list stay on your place or a place you pick, the map moves over the whole world, All / In person / From home with from-home jobs in the list, one Filters sheet (where, distance slider, pay, type of work, order, "Show N jobs") in place of Custom, a simpler best-offer card. |
 | D24 | Added 10 Nov (your third map video; inside task 1.12): on a phone the Explore map fills the screen, and a slim pull-up bar (best offer or nearest helper on one line, a "See all" button, the Jobs / Helpers / People chips) opens the list with a tap, a drag or the mouse wheel; the list, filters and best-offer card scroll together so a short phone still shows the list. Desktop unchanged. |
 | D26 | Added 11 Nov 2026 (your video of Hire Home; task 1.16, [canvas](https://claude.ai/artifact/3h6ztDAE5yaAyQYhuhZwsZ)): **only the jobs no other app does.** Everyday help leaves Home; "No app does these" (Chase my refund, Make a call for me, Check before I buy, Shortlist for me, Speak for me, Govt form help) takes its place; More ideas becomes "Ideas for you" by audience; Busy becomes "Done near you"; Earn opens with "Earn from what you already know". Replaces D22 A1. Hire stays jade green, Earn royal blue (guests too, fixed in PR 323). **Drawn, waiting for your look; nothing built** |
+| D27 | Added 11 Nov 2026 (your message about filters and unique Home ideas; tasks 1.17 and 1.16, [D27 board](https://claude.ai/artifact/L9YwHsix5s7NtnuAfdWLE6)): **one Filters sheet for the Find work map and the Find work list** (Nearby or Remote, how far, price range, Auto-hire, Open to counter offers, any number of categories, due in 24 hours, show first), the same chips on both, a "drop one to see more" empty state; and **Home v2**: "No app does these" grows to 8 brand-new jobs plus an Idea book of 14, with 8 example stories. **Drawn, waiting for your look; nothing built** |
 
 1. SAY (start with the three that testers will notice first):
 
@@ -1682,6 +1683,18 @@ start 1.14
 
 The **5-person test** (1.13) with unique jobs instead of "clean my kitchen": *"This medicine is out of stock at your chemist"* (poster) and *"You speak Telugu and Hindi; earn ₹500 this weekend"* (helper). **Target:** 4 of 5 post or apply within 2 minutes, and 4 of 5 can say in one line what TaskDrop is for. After launch (7.1), one more weekly number: **the share of new tasks that are a unique kind** (target 7 in 10).
 
+### Ideas, second pass (11 Nov, later the same day; decision 46)
+
+You asked again for ideas that **no well-known app offers**, not the regular ones, with real use cases, and for Home to show them. Claude (Opus 5.5) thought them through and checked the boldest four on the web on 11 Nov: couriers only carry sealed packets (nobody collects a certificate at an office counter for you); OLX and the police only *advise* you to check a seller first; footfall counting is camera hardware for malls, and small shops are told to stand outside and count themselves; crowd apps only guess how busy a place is. None of the four exists as a service in India.
+
+**"No app does these" becomes 8 tiles** (if decision 46 says yes, these replace the six above): **Be my eyes there** (a live photo from a place in 15 minutes) · **Is this real?** (check a seller or landlord before you pay) · **From my hometown** (papers collected there and sent to you) · **Chase my refund** · **Count the crowd** (people walking past a shop spot) · **Read before I sign** (rent agreement or offer letter, risky lines marked, "a second pair of eyes, not legal advice") · **Speak for me** · **Name it for me** (pay only for the name you pick, built on Find it for me). A "See all 14" link opens the **Idea book**, which adds Day-and-night flat check, Go with Amma to the doctor, Teach my parents the phone, Ask a resident, Settle me in (first week in a new city) and Mystery visit. Make a call for me and Govt form help move to an "Also popular" row.
+
+**Your own list stays, in "Ideas for you":** Hand off a task, Rate it honestly (Get opinions), Job referral, Talk to someone who did it, Grow my page, Logo design, Reel editing, Make a call for me. A fifth audience chip, **My parents**, is added for people who live away from their parents.
+
+**Trust rules for the new jobs:** Is this real? helpers never pay or take anything; Read before I sign always says it is not legal advice; Go with Amma and Is this real? are offered only to helpers with a confirmed phone and 4.5 stars or more (decision 47).
+
+**Eight example stories** (Sravani's TC from Tenali, Imran's police verification, Lakshmi's two shop spots, Arjun's fake OLX seller, Neha's mother's eye check-up, Kiran's flat at 10 pm, Rahul's ₹8,400 refund, Priya's startup name) are on the [D27 board](https://claude.ai/artifact/L9YwHsix5s7NtnuAfdWLE6), with the Hire Home v2 phones (green), the Earn Home phone (blue: "What you know pays" chips now point at these jobs) and the full Idea book.
+
 ### Steps
 
 1. LOOK at the [D26 canvas](https://claude.ai/artifact/3h6ztDAE5yaAyQYhuhZwsZ) and SAY your answers to **decisions 42, 43 and 44**.
@@ -1696,6 +1709,59 @@ approve D26
 4. Run the 5-person test with the unique-job lines, and TELL Claude the numbers: "done 1.16".
 
 **Done when:** order 1 is live on `taskdrop.in`, Home shows no everyday tiles in either mode, Earn is blue and Hire is green for guests and signed-in people, `npm run check` is green, and the 5-person test meets the target.
+</details>
+
+<details id="t1-17" data-short="Find work filters">
+<summary>[CLAUDE] <b>1.17</b> One set of filters for the Find work map and the Find work list (D27) <small>· added 11 Nov, from your message · design drawn, waiting for your look · nothing built · decision 45</small></summary>
+
+**What you said (11 Nov):** add more filters, all optional, and put them in the Find work **list** too, not only on the map: Open to counter offers, Auto-hire, Price range, Nearby or Remote, and Category (each category on its own).
+
+**What is there today (checked in the code):** the map has a Filters sheet (where, how far, lowest pay, In person or From home, order: `apps/mobile/src/components/MapFilterParts.tsx`, `apps/mobile/src/lib/mapFilters.ts`). The list (`FindWork` in `apps/mobile/src/screens/ExploreScreen.tsx`) has its own row of pills where only **one** can be on at a time (Nearby, Remote, Auto-hire, Due soon, Under ₹300, Open to offers) and a category row with one category at a time. The two do not share anything except the category and the search.
+
+**Drawings:** [D27 board](https://claude.ai/artifact/L9YwHsix5s7NtnuAfdWLE6): the map with chips, the Filters sheet, the list with the same chips, the "nothing matches" screen, the rules, and the motion.
+
+### What changes
+
+| Filter | Shows a job when | Nothing picked means |
+|---|---|---|
+| Nearby or Remote | Nearby: it has a pin within your distance. Remote: it has no pin | Both |
+| How far (hidden for Remote) | Its pin is within the km you chose of your place, never of where the map was dragged | 10 km |
+| Price range (new: min **and** max) | Its price is between the two; quick picks Under ₹300, ₹300 to 1,000, ₹1,000 to 5,000, ₹5,000+ | Any price |
+| Auto-hire | The poster turned on auto-hire (quote their price or less, hired at once) | Both kinds |
+| Open to counter offers | The poster picks from offers (send your own price) | Both kinds |
+| Category (new: any number) | It is in any one of the categories picked; all 15 shown, each on its own | Every category |
+| Due in 24 hours | It is urgent or due within a day | Any date |
+| Show first | Best pay, Nearest or Newest; order only | Best pay |
+
+- **One filter set, two views.** It moves up into the Explore screen, so the map and the list show the same jobs; it is kept on the phone (the saved filters from D23 carry over). The search box still narrows both.
+- **The same chips on both:** a Filters button with the number on, then one chip per filter that is on, with ✕ to drop it. The list's one-at-a-time pills go; "Under ₹300" becomes a price quick pick, "Open to offers" becomes "Open to counter offers".
+- **Never a dead end:** when nothing matches, the list says which filter to drop and how many jobs that brings back ("Drop Auto-hire → 6 jobs").
+- **Labels use your words:** All · Nearby · Remote (the map said In person · From home).
+- **Hire side stays as it is:** Hire sees helpers only (your rule of 11 Nov).
+- **No database change and no server change:** every job already carries its price, category, pin and hire type; the list loads 60 jobs and filters them on the phone, as today. Sending the filters to the server comes later, when there are more jobs than that (order 2).
+
+### The order
+
+| Order | What | Who |
+|---|---|---|
+| 1 | The filter model: min and max price, the two hire types, many categories, due soon; reading old saved filters; one function used by map and list; tests | Opus 5.5 writes the rules, Sonnet 5.5 the tests |
+| 2 | The shared Filters sheet (price range bar, hire cards, category chips), the list chips and the "drop one" empty state | Sonnet 5.5 |
+| 3 | The map chips and the summary line read the new filters | Sonnet 5.5 |
+| 4 | Review, `npm run check`, a localhost web build, the Android phone over USB | Opus 5.5 |
+| 5 | Filters sent to the server search, when one area has more than 60 open jobs | After launch |
+
+### Steps
+
+1. LOOK at the [D27 board](https://claude.ai/artifact/L9YwHsix5s7NtnuAfdWLE6) and SAY your answer to **decision 45**.
+2. SAY:
+
+```say
+approve D27
+```
+
+   (or what to change). Claude builds orders 1 to 4 in one or two pull requests. Merging puts it on `taskdrop.in`; the Android app needs an update, and Claude asks you before publishing it.
+
+**Done when:** every filter in the table works the same on the map and the list, the chips match, the empty state names a filter to drop, saved filters from before still load, `npm run check` is green, and it is checked on the web and on the Android phone in Earn (blue), signed in and as a guest.
 </details>
 
 > **GATE 1: do not start Step 3 until all of these are true** (Step 2 can start at the same time as Step 1)
@@ -5692,6 +5758,9 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 42 | **Everyday jobs** (task 1.16). Home no longer offers cleaning, repairs, pick-up or shifting. If someone types one anyway: still post it (nothing is lost, "Ask for anything" stays true), or stop it with a note that names a better app? | **Open.** Recommended: **still post it, never advertise it.** Blocking turns away a paying person and needs a list of banned words | "Decision 42: still post them." or "Decision 42: block them." |
 | 43 | **Who we go after first** (task 1.16). Small shops and creators, people new in the city who work, students and job seekers; and as earners, "what you know pays" (students, homemakers, retired people, people with two languages) | **Open.** Recommended: **these three, in the launch areas of decision 38**; everyone else is welcome but is not where the first marketing goes | "Decision 43: yes, these three." or "Decision 43: ___ first." |
 | 44 | **D26 before the freeze?** (task 1.16). Order 1 is words, tiles and sections, with no database change, like D22 order 1 (decision 39). Count it as a fix, so it is built before Sunday 22 November? | **Open.** Recommended: **yes**: what Home offers is what people think TaskDrop is, and launching with the everyday tiles teaches the wrong idea | "Decision 44: yes, before the freeze." or "Decision 44: after launch." |
+| 45 | **Find work filters before the freeze?** (task 1.17). One filter set for map and list, price range, the two hire types, many categories; no database change. Count it as a fix to Find work, built before Sunday 22 November? | **Open.** Recommended: **yes**: the list's one-at-a-time pills already exist and are confusing next to the map's sheet | "Decision 45: yes." or "Decision 45: after launch." |
+| 46 | **The second idea pass** (task 1.16). Replace the six D26 tiles with the 8 new ones (Be my eyes there, Is this real?, From my hometown, Chase my refund, Count the crowd, Read before I sign, Speak for me, Name it for me) and add the Idea book of 14? | **Open.** Recommended: **yes**; the four boldest were checked on the web and no Indian app offers them | "Decision 46: yes." or "Decision 46: swap ___ for ___." |
+| 47 | **Trust-heavy jobs** (task 1.16). Offer Go with Amma to the doctor and Is this real? only to helpers with a confirmed phone and 4.5 stars or more? | **Open.** Recommended: **yes**; a new helper can earn the stars on easier jobs first | "Decision 47: yes." or "Decision 47: anyone." |
 
 ---
 
@@ -6189,6 +6258,7 @@ Kept for the record. The live picture is the **Start here** panel at the top of 
 
 ## Changelog
 
+- **2026-11-11 (D27: Find work filters everywhere, and a second pass at unique ideas):** You asked for more filters (Open to counter offers, Auto-hire, Price range, Nearby or Remote, Category), all optional, on the Find work list as well as the map, and again for innovative jobs no well-known app offers, with use cases, shown on Home; plan first, design first, Opus 5.5 for the complex parts and Sonnet 5.5 for the regular ones. **New task 1.17** (one filter set shared by map and list, price range, the two hire types, many categories, the same chips on both, a "drop one to see more" empty state; no database change). **Task 1.16 gets an "Ideas, second pass"**: 8 new tiles, an Idea book of 14, a My parents audience, trust rules, 8 example stories; the boldest four checked on the web. **New decisions 45 to 47.** Drawn on the [D27 board](https://claude.ai/artifact/L9YwHsix5s7NtnuAfdWLE6) (Opus wrote the spec, a Sonnet 5.5 helper drew it). No code, database, setting or account changed; nothing was built.
 - **2026-11-11 (D26: only the jobs no other app does, and the worker colour back):** Your video of Hire Home said Everyday help (cleaning, repairs, pick-up, queue, shifting, online help) is what big apps already do, and asked for only unique, creative tasks and a plan to reach the people who need them. **New task 1.16** with the core line ("If another app already does it, use that app. For everything else, there is TaskDrop"), three audiences plus earners, a "No app does these" section in place of Everyday help, "Ideas for you" by audience, "Done near you", an Earn Home that opens with "Earn from what you already know", new story words, a rival check, and decisions 42 to 44. Drawn on the [D26 canvas](https://claude.ai/artifact/3h6ztDAE5yaAyQYhuhZwsZ); nothing built. D22 A1 is marked replaced. **Fixed the same day (PR 323):** guests in Earn saw green because the blue palette needed a sign-in; Earn is now royal blue for everyone, with a test that guards it.
 - **2026-11-11 (explainer videos, from the Upwork escrow video):** You shared "How to Use Escrow on Upwork" (a 54-second how-to), asked if it is built, and asked for a similar video plan. **Built:** money held until approval, release on approval or after 3 days, "Report a problem". **Partly built:** a job splits into 2 to 6 steps, but they are a checklist and the money is released once, so no video may say "paid per step". **Added:** task 4.7 part B, the "TaskDrop in 60 seconds" explainer series (the 60-second beats, what scripts may claim, 10 episodes: 4 before launch, then one a week); a Friday row in the 7.3 rhythm; the playbook timeline and channel 5; the Gate 4 line. No new task, so the task count is unchanged. The same plan is in section 3b of your local `marketing strategy.html`.
 - **2026-11-11 (the CEO defaults accepted):** You said "Use the CEO defaults". **Decided:** 10 (stay on the personal Google Play account while a sole proprietorship), 12 (the recommended new-account limits), 17 (PAN screen after the CA answers, before Step 5), 22 (the tour runs in guest mode), 25 (an "I am 18 or older" tap for guests), 28 (`taskdrop.in` moves to production at launch; staging moves to `staging.taskdrop.in`), 30 (one small paid tester round after the Plan B flow is built), 31 (staging APK now, Google Play from launch day), 40 (Android tablets: level 1, "never broken"), 41 (the freeze day is Sunday 22 November 2026), and F1 in 3.6 (fix the slow first load the cheap way). **38** is answered yes (2 or 3 areas), but the area names are still open. **Decision 3** (Razorpay or Cashfree) stays open until both written quotes arrive. The Decisions table, the defaults card, the setup guide, the at-a-glance card, Gate 1 and tasks 1.14, 2.14, 2.18 and 3.6 now say so. **Not built:** the 18+ tap (25), the tour in guest mode (22), 1.14 and F1 each wait for their start words. No code, database, setting or account changed.
