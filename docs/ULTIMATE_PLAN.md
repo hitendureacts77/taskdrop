@@ -22,6 +22,24 @@ Everything below those four is detail. You open it only when a task sends you th
 - **The freeze had no date,** so work kept arriving after it (1.13, the map bar). It now has one: **Sunday 22 November** (decision 41, decided 11 Nov).
 - **One real gap was found today:** on an Android tablet or an unfolded foldable the app shows a stretched phone screen, and Android no longer lets an app stay upright there. The fix is task **1.14**.
 
+**Is this plan final? Yes for its shape, no for its answers (final pass, 11 Nov night).** The steps, gates, costs and order are final: from now on the plan changes only when you answer a decision, a task is done, or a bug or a rule (Google, RBI, GST) changes. Four things are still open, and none of them is Claude's to close:
+
+| Open | Who | What closes it |
+|---|---|---|
+| Decision 3: Razorpay or Cashfree | You | The two written quotes (S.4) |
+| Decision 38: the names of your 2 or 3 launch areas | You | SAY "Decision 38: these areas: ___" |
+| Decision 43: who the marketing speaks to first | You | Nothing waits on it before Step 4; 4.2 uses the recommended three unless you say otherwise |
+| The paperwork lane: S.2 not booked yet | You | Book the CA. It is still the one task that moves launch day most |
+
+**What the final pass changed** (the details are in the Changelog, 11 Nov night):
+
+1. **The money flow got a task: 2.21.** It was the longest piece of work left and the middle of lane 2, but it had no number, no steps and no gate line. It now has all three, plus an emergency stop for money that works without a new release.
+2. **Gate 3 gets a crash number,** the one Google itself uses: the closed test must stay under Google Play's bad-behaviour lines (1.09% of users with a crash, 0.47% with a freeze) before production is built.
+3. **Task 1.16 matches what was built.** You chose the Home order (D28) and the poster ideas (D29), and both are live, so 1.16 is now only a phone check and the 5-person test. Decisions 42, 44 and 47 are closed; 43 stays yours.
+4. **Step 2 has one list of what is left,** in order, instead of three lists that disagreed. The 1 November status table is brought up to date.
+5. **Rule 9 says what a fix is,** so the freeze on 22 November cannot leak again.
+6. **The plan is shorter:** the 380-line audit prompt moved to `docs/prompts/AUDIT_PROMPT_2_20.md`, and the 30 October snapshot and the 9 November to-do tables moved to `docs/archive/PLAN_HISTORY.md`. Nothing that is still true was removed.
+
 **The road to launch, as one picture**
 
 ```html
@@ -30,7 +48,7 @@ Everything below those four is detail. You open it only when a task sends you th
 <div class="fig-sub">Inside a lane, a line cannot start before the line above it is done. Launch waits for the slowest lane, and today that is lane 1.</div>
 <div class="tl">
 <div class="tl-col c3"><b>Lane 1: Paperwork</b><small>You · the slowest lane, 3 to 6 weeks</small><ul><li><strong>First:</strong> S.2 business, GST and the bank account</li><li><strong>Then:</strong> S.6 SMS registration and S.8 the payment company's approval (both need S.2)</li><li><strong>Beside them:</strong> S.4 two written quotes, which answer decision 3 (Razorpay or Cashfree), and S.3 the lawyer's written yes</li></ul></div>
-<div class="tl-col c2"><b>Lane 2: Product</b><small>Claude · waits for lane 1 in the middle</small><ul><li><strong>First:</strong> finish 1.13 and 1.14, then freeze (Gate 1, 22 November)</li><li><strong>Then:</strong> build the Plan B money flow. It needs decision 3 and the lawyer's yes from lane 1</li><li><strong>Then:</strong> one security round on the final code (2.16, decision 30), and Gate 2b</li></ul></div>
+<div class="tl-col c2"><b>Lane 2: Product</b><small>Claude · waits for lane 1 in the middle</small><ul><li><strong>First:</strong> finish 1.13 and 1.14, then freeze (Gate 1, 22 November)</li><li><strong>Then:</strong> build the Plan B money flow (2.21). It needs decision 3 and the lawyer's yes from lane 1</li><li><strong>Then:</strong> one security round on the final code (2.16, decision 30), and Gate 2b</li></ul></div>
 <div class="tl-col"><b>Lane 3: Proof</b><small>Testers and workers · 14 days that cannot be shortened</small><ul><li><strong>First:</strong> Gate 2a, the Play Console app and the store file (3.1, 3.2)</li><li><strong>Then:</strong> 12 testers for 14 days (3.3), while the debug loop (2.19) runs</li><li><strong>Beside them:</strong> 20 workers in 2 or 3 areas (4.6), then Gates 3 and 4</li></ul></div>
 </div>
 <div class="fig-sub" style="margin:14px 0 8px">When all three lanes are done:</div>
@@ -43,7 +61,7 @@ Everything below those four is detail. You open it only when a task sends you th
 | Clock | Why it is slow | It starts on | Whose move |
 |---|---|---|---|
 | **1. Paperwork:** S.2, then S.6 and S.8 | GST, the bank and the payment company's check take 3 to 6 weeks, and nothing in the code can shorten them | The day you book the CA | **You** |
-| **2. The money flow:** S.4 and S.3, then decision 3, then the Plan B build and one security round | The Plan B code waits for two written answers: the payment company's and the lawyer's | The day both quotes are in | You, then Claude |
+| **2. The money flow:** S.4 and S.3, then decision 3, then the Plan B build (2.21) and one security round | The Plan B code waits for two written answers: the payment company's and the lawyer's | The day both quotes are in | You, then Claude |
 | **3. Google's 14 days:** Gate 2a, 3.1, 3.2, then 3.3 | Google fixes it: 12 testers, opted in for 14 days in a row. It cannot be shortened, but it can start early | The day the 12th tester joins | You and Claude |
 
 Launch day is about **two weeks after the last of these three clocks finishes** (Step 5 and Step 6). If S.2 starts this week, 8 to 10 weeks is realistic. It is an estimate, not a promise.
@@ -56,7 +74,7 @@ Launch day is about **two weeks after the last of these three clocks finishes** 
 | 2 | Send the Plan B questions to Razorpay and Cashfree (S.4) and the brief to two lawyers (S.3) | Check Gate 2a and tick it (its four tasks show as done; Claude checks its holes list) |
 | 3 | **Name your 2 or 3 launch areas** (decision 38). The other defaults are recorded: you said "Use the CEO defaults" on 11 Nov | Get one store file built (3.2). Expo's free builds are used up until 1 December, so first a free build on this PC from a folder with no spaces in its name |
 | 4 | Message **20** people for the Google Play test (3.3). Finding them takes days, so start before the store file is ready | Run the audit prompt (2.20, read-only) and fix the six holes from 2.18 |
-| 5 | Your clicks: 2.2, 2.3 and 2.4 (about 1.5 hours), and look at the new map on your laptop ("done 1.12") | Write the Plan B design when you say "design the Plan B money flow" |
+| 5 | Your clicks: 2.2, 2.3 and 2.4 (about 1.5 hours), and look at the new map on your laptop ("done 1.12") | Write the Plan B design (2.21) when you say "design the Plan B money flow" |
 
 <details id="c-ceo-defaults">
 <summary>[CARD] The CEO defaults: accepted by you on 11 November. Still open: decision 3 and the area names</summary>
@@ -149,7 +167,7 @@ Inside a task, every line is one of three kinds: **CLICK** (you do it), **SAY** 
 6. **Claude pushes, opens the pull request and merges it without asking you** (your rule, 31 Oct). Merging is never a question for you. Claude still asks you first only before: publishing an app update to testers, wiping or resetting data, rotating a key, or touching `main` or production.
 7. **After every new feature, check it fits the browser and the screen** (your rule, 1 Nov). Claude does not call a feature done until the website works in Chrome, Edge, Firefox and Safari (latest versions) at phone, tablet and laptop widths, and the Android app works on your phone: nothing cut off, no sideways scrolling, every button easy to reach and tap, text readable (also with bigger text and with the keyboard open). The steps are in the card "Fits every browser and screen".
 8. **Secrets live only in the server-side env file** (your rule, 1 Nov). Every secret, new or old, is stored only in `.env.all-secrets` on your PC and in the server-side store that needs it (Supabase function secrets or Vault, Vercel Sensitive variables, Expo Secret variables). Claude never puts a secret in the app or website code, in a name that starts with `EXPO_PUBLIC_` or `NEXT_PUBLIC_`, in Git, in this plan, in a pull request or in chat, and never prints one. Only public values (the Supabase public key, the Sentry address, Firebase web settings) may sit in public names. The details are in task 2.1.
-9. **Feature freeze until launch** (CEO review, 9 Nov; decision 37). Once 1.12 and the D20 map tab are finished, only fixes go in. Every new idea goes to **Future scope**, however good it is. A new feature must be tested, secured and explained again, and it moves launch day.
+9. **Feature freeze on Sunday 22 November** (decisions 37 and 41). Until then, only what is already in Step 1 is finished (1.13, 1.14, the 1.16 and 1.17 checks). From 22 November only fixes go in. Every new idea goes to **Future scope**, however good it is: a new feature must be tested, secured and explained again, and it moves launch day. **A fix** is a change that makes something already in the app work, read or fit better; **a feature** is anything a person could not do before. When unsure, it is a feature.
 10. **Spend only when a number says so** (CEO review, 9 Nov). Before launch, money goes only to what launch cannot happen without (see **What it costs**). A tool is upgraded only when its limit warns (task 7.5). No paid ads until a free post has clearly worked.
 11. **No new kind of check before launch** (CEO rewrite, 11 Nov). Step 2 already holds six whole-app checks. Each one runs once, in the order written at the top of Step 2. A new idea for a check becomes one round of the debug loop (2.19), never a new task.
 12. **Every screen is laid out by its width, never by the device** (CEO rewrite, 11 Nov). A new screen must work from 320 to 1920 wide, on Android and in the browser. The eight layout rules are in task 1.14.
@@ -177,28 +195,6 @@ Inside a task, every line is one of three kinds: **CLICK** (you do it), **SAY** 
 
 **New in S.2: a tax that can eat the margin.** For house-keeping tasks such as cleaning, plumbing and carpentry done by a worker who is not GST-registered, GST law (section 9(5)) makes the platform pay the GST, reportedly 5% of the task price with no credit back. On a ₹150 cleaning task that is about ₹7.50, more than half of what TaskDrop keeps. The CA must answer this before the fees are final. The sums are in **What it costs**.
 
-**What decides launch day now**
-
-| When | You | Claude |
-|---|---|---|
-| This week | Book the CA (S.2). Send the Plan B questions to both Razorpay and Cashfree (S.4). Shortlist two fixed-fee lawyers (S.3). File the trademark (S.5). Answer decision 38 (29 and 37 done). Look at the new map (1.12) | Fix what you find in 1.12, then freeze. Write the Plan B design if you say so |
-| Weeks 1 to 3 | GST and the current account arrive (S.2), then the SMS registration (S.6) and the payment company's KYC (S.8). Recruit workers in the launch areas (4.6) | Build Plan B after the written yes. Get Gate 2a ticked so the Google Play closed test (3.1 to 3.3) can start: its 14 days are the longest fixed wait |
-| Weeks 3 to 6 | The 14-day test runs. Your clicks in 2.2 to 2.4 | One security round on the final code (2.16, decision 30), then Gates 2b, 3 and 4 |
-| Weeks 6 to 8 | Production accounts (Step 5), the ₹10 test (6.3), GO (6.5) | Connect production (5.9), prove the copies are separate (5.11), launch day |
-
-This is an estimate, not a promise: launch in about 8 to 10 weeks is realistic if S.2 starts this week. Banks, Google and the payment company set their own pace.
-
-**Your next seven days**
-
-| Day | Do this | Task |
-|---|---|---|
-| 1 | Book a CA. Ask the S.2 questions, including the new GST one | S.2 |
-| 1 | Say "design the Plan B money flow" (decisions 29 and 37 answered 9 Nov). Answer decision 38 (launch areas) | Decisions |
-| 2 | Send Razorpay and Cashfree the same Plan B questions: may TaskDrop use Route (Razorpay) or Easy Split (Cashfree), is there a turnover minimum, can the money be held until the poster approves, and what are all the fees? Their written answers decide decision 3 | S.4 |
-| 2 | Send `docs/LAWYER_BRIEF.md` to two fixed-fee lawyers, with the Plan B question first | S.3 |
-| 3 | Trademark search, then file the word "taskdrop" in class 35 as an individual (₹4,500) | S.5 |
-| 3 to 7 | Look at the new map (D21, built 9 Nov) on taskdrop.in on your laptop and say "done 1.12" or what to fix, so the freeze can start | 1.12 |
-| 3 to 7 | Your clicks: spending alerts, lock the key stores, read the emergency guide once | 2.2, 2.3, 2.4 |
 
 ---
 
@@ -1617,7 +1613,7 @@ start 1.14
 **Checked online on 11 Nov 2026:** Google Play's target level rule (Android 16, API 36, from 31 August 2026); Android 16's and Android 17's rules for screens 600 and wider (Android Developers); Google's size classes, which change at 600, 840, 1200 and 1600 wide (TaskDrop changes at 600, 1024 and 1600, which is close enough to keep); and the most common phone screens in India (StatCounter, October 2026: 360 × 800 first, the rest between 360 and 432 wide).
 </details>
 <details id="t1-16" data-short="Only unique tasks">
-<summary>[CLAUDE] <b>1.16</b> Only the jobs no other app does: who TaskDrop is for, and a Home that shows it (D26) <small>· added 11 Nov, from your video · design drawn, waiting for your look · nothing built · decisions 42 to 44</small></summary>
+<summary>[CLAUDE] <b>1.16</b> Only the jobs no other app does: who TaskDrop is for, and a Home that shows it (D26) <small>· added 11 Nov, from your video · Home built 11 Nov in your order (D28) with the poster ideas (D29), live on taskdrop.in · open: the Android phone check and the 5-person test · order 2 after launch</small></summary>
 
 **What you said (11 Nov, a 97-second video of Hire Home):** you do not want **Everyday help** (cleaning, repairs, pick-up and drop, queue, shifting, online help). Big apps already do those. You want only the unique tasks, like **Find it for me** and **Plan a big day**, and the creative ones from **More ideas** (Hand off a task, Reel editing). Replace Everyday help with more creative, innovative tasks, so every part of Home is unique. In the same message: **bring back the worker colour palette** (Hire green, Earn blue, always clearly different) and use Opus 5.5 for complex work, Sonnet 5.5 for regular builds.
 
@@ -1726,18 +1722,13 @@ You asked for ideas a poster can solve with the app, ones that pull posters in a
 - **Still to do:** the Android phone check (with the next app update), and the 5-person test of step 4 below with these cards.
 ### Steps
 
-1. LOOK at the [D26 canvas](https://claude.ai/artifact/3h6ztDAE5yaAyQYhuhZwsZ) and SAY your answers to **decisions 42, 43 and 44**.
-2. Claude checks each new tile on the web for an Indian app that already does it, and drops or renames any that has one (written in this task).
-3. SAY:
+**Final pass, 11 Nov night:** the old steps ("look at the D26 canvas", "approve D26") were overtaken the same evening, when you set the Home order yourself (D28) and Claude built the poster ideas (D29). Order 1 of the table above is therefore done in the form you chose. What is left:
 
-```say
-approve D26
-```
+1. LOOK at Home on `taskdrop.in`, as a guest and signed in, in Hire (green) and Earn (blue). SAY what to change, or nothing.
+2. With the next Android update (Claude asks you before publishing it), open Home on your phone and TELL Claude what you see.
+3. Run the 5-person test of 1.13 with the poster-idea cards and the unique-job lines, and TELL Claude the numbers: "done 1.16".
 
-   (or what to change). Claude builds order 1 in small pull requests (Sonnet 5.5 for the screens, Opus 5.5 for the review). Merging puts it on `taskdrop.in`; the Android app needs an update, and Claude asks you before publishing it.
-4. Run the 5-person test with the unique-job lines, and TELL Claude the numbers: "done 1.16".
-
-**Done when:** order 1 is live on `taskdrop.in`, Home shows no everyday tiles in either mode, Earn is blue and Hire is green for guests and signed-in people, `npm run check` is green, and the 5-person test meets the target.
+**Done when:** Home shows no everyday tiles in either mode on the website and the phone, Earn is blue and Hire is green for guests and signed-in people, `npm run check` is green, and the 5-person test meets the target. Order 2 (Ask someone there, Bargain for me) is a new feature: it waits until after launch.
 </details>
 
 <details id="t1-17" data-short="Find work filters">
@@ -1830,22 +1821,27 @@ done 1.17
 
 A new idea for a check becomes one round ("charter") of the debug loop. It does not become a new task.
 
-**The security path: what is left, in order** (made simpler on 4 November 2026). Do one line at a time. Each line is one sentence to Claude, or a few clicks of yours. The "Security in one page" table in the Security section shows what each line finishes.
+**What is left in Step 2, in order** (final pass, 11 Nov night: this list replaces the 4 November "security path"). Do one line at a time. Each line is one sentence to Claude, or a few clicks of yours.
 
-1. **Find every leaked key** (2.15). **Done 4 Nov:** nothing exposed that is a real live secret. One before-launch step is left (H56, the beta app's debug token), and the old test keys are accepted until you make the code folders private.
-2. **Finish 2.13** (Claude built it on 4 Nov). Yours: reply "fix" or "accept" to H30 and H31, make both code folders private (part H, after 2.15), and invite 2 or 3 testers (part E).
-3. **Your clicks** (2.2, 2.3 and 2.4, about 1.5 hours, any day): spending alerts, lock the places keys are kept, read the emergency guide once.
-4. **The hunt** (2.14). Rounds 1 and 2 done 4 Nov. The 2 Critical finds and the High "old helper presses Start" are fixed and live (migration 148); the High "direct database access" (H52) closes in 3.9. **The Medium finds were fixed on 5 and 6 Nov** (PRs 259 to 264, admin PRs 45 and 46, migrations 152 to 155); still open: the wallet record list (H34, design done), the admin's database-side idle limit and Google button (H37), the location inside videos (H38), and your "fix" or "accept" on the Low finds. Part G (every screen on the phone) is still to do.
-5. **The AI attacker** (2.16), after the hunt's fixes **and after the money flow (decision 29) is built**, so it attacks the code that goes live (CEO review, 9 Nov). Install Docker and make an AI key with a spending limit, then SAY "start 2.16".
-6. **The outside testers' advice** (2.18, added 6 Nov). Claude read the 8 Upwork proposals and checked each point on staging: six new holes (H71 to H76), one go-live checklist, and the rules for hiring a tester. SAY "start 2.18", and answer decision 30 (recommended: one paid round, after the money flow is built).
-7. **The audit prompt** (2.20, added 10 Nov). One checklist of 41 items run on the app and the admin, a verdict for every item with the file and line as proof. SAY "start 2.20".
-8. **The small leftovers:** your OK on the Google-first sign-in screen (2.8). (The content policy now blocks, H9 closed 4 Nov, and the Android app test T11 passed 4 Nov.)
-9. **One home per secret** (2.17, about 10 minutes of yours): the server keys are set straight in Supabase and the Vercel build stops copying them. Do it before Step 5.
-10. **Tick Gate 2b.** Then Step 5 (production) may start.
+| # | Do this | Who | Time | Needed for |
+|---|---|---|---|---|
+| 1 | **The audit prompt** (2.20): SAY "start 2.20". Read-only | Claude | 5 minutes of yours | Gate 2b, only if it finds a Critical or High |
+| 2 | **The six holes from the outside testers** (2.18, H71 to H76): SAY "start 2.18". Decision 30 is decided | Claude | 30 minutes of yours | Gate 2b |
+| 3 | **Your clicks:** spending alerts (2.2), lock the key stores (2.3), read the emergency guide (2.4, also proof 6 of 2.10) | You | about 1.5 hours | Gate 2b |
+| 4 | **The rest of 2.13:** make both code folders private (part H), invite 2 or 3 free testers (part E), the spend-stop clicks (part F) | You | 30 minutes | Gate 2b (part E may follow, before 6.5) |
+| 5 | **The rest of the hunt** (2.14): H34 wallet record list, H37 admin idle limit and Google button, H38 location inside videos, your "fix" or "accept" on the Low finds, part G on the phone | Both | 45 minutes of yours | Gate 2b |
+| 6 | **Your OK on the Google-first sign-in screen** (2.8) | You | 2 minutes | Gate 2b |
+| 7 | **The money flow, Plan B** (2.21): design now, build after decision 3 and the lawyer's yes | Claude, then you | see 2.21 | Gate 2b, then Step 5 |
+| 8 | **The AI attacker** (2.16), on the finished Plan B code, then one small paid tester (decision 30) | Both | 45 minutes of yours | Gate 2b |
+| 9 | **Tick Gate 2b.** Then Step 5 (production) may start once Gates 3 and 4 also pass | Claude | | Step 5 |
+
+**Beside these, during the 14 tester days:** the debug loop (2.19), one round at a time. Gate 3 waits for it to settle; Gate 2b does not.
+
+**Already done and not repeated:** the leaked-key search (2.15, 4 Nov), one home per secret (2.17, 5 Nov), key protection (2.5), the stop-ship tests (2.7), round 2 (2.9), the money limits (2.11) and Supabase's sign-in limits (2.8b).
 
 Every finding from 2.13 to 2.16 reaches you in one short form: a level, what happened, why it matters and what to do. Critical and High are always fixed. For everything else you reply "fix" or "accept".
 
-**Where Step 2 stands (1 Nov 2026).** Claude's side is done except what needs your phone or your answer.
+**Where Step 2 stands (brought up to date 11 Nov).** Claude's side is done except the open checks (2.18, 2.20), the money flow (2.21) and what needs your phone or your answer.
 
 | Task | State | What is left |
 |---|---|---|
@@ -1861,14 +1857,15 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 | 2.9 Security tests, round 2 | Done 4 Nov | T11 passed on build 1.1.0. Your answer on the account-existence messages (H49) |
 | 2.10 Alarms and emergency guide | Part done | Proof 6 (you read the guide); optional second Sentry rule for `fatal` issues |
 | 2.11 Money safety limits | Done | Nothing |
-| 2.13 The WhatsApp advice (added 3 Nov) | Built 4 Nov | Your replies to H30 and H31; the Make-private click (part H); invite the testers (part E); the spend-stop clicks in the part F table |
-| 2.14 The bug and security hunt (added 3 Nov) | Rounds 1 and 2 done 4 Nov; Medium finds fixed 5 and 6 Nov (staging) | H52 (direct database access) closes in 3.9; H34 wallet record list (design done); H37 database-side idle limit and Google button, with a manual Google sign-in check; H38 location inside videos; your "fix" or "accept" on the Low finds (H45, H48, H49, H55, H56, H64, H65, H68, B18, B21, B30, B32); decisions 17 and 25; part G (needs the phone) |
+| 2.13 The WhatsApp advice (added 3 Nov) | Built 4 Nov | H30 waits for the CA (decision 17); H31 was built 6 Nov (decision 18). Yours: the Make-private click (part H), invite the testers (part E), the spend-stop clicks in the part F table |
+| 2.14 The bug and security hunt (added 3 Nov) | Rounds 1 and 2 done 4 Nov; Medium finds fixed 5 and 6 Nov (staging) | H52 (direct database access) closes in 3.9; H34 wallet record list (design done); H37 database-side idle limit and Google button, with a manual Google sign-in check; H38 location inside videos; your "fix" or "accept" on the Low finds (H45, H48, H49, H55, H56, H64, H65, H68, B18, B21, B30, B32); part G (needs the phone). Decisions 17 and 25 were decided 11 Nov (CEO defaults) |
 | 2.15 The secrets audit (added 4 Nov) | Done 4 Nov | H56 before launch (5.9); make the code folders private (2.13 H) |
 | 2.16 The AI attacker, Strix (added 4 Nov) | Not started | Waiting for you: Docker Desktop (not installed on this PC, checked 4 Nov) and an AI key with a spending limit, then say "start 2.16" |
 | 2.17 One home per secret (added 5 Nov) | Done 5 Nov | Nothing of yours. `push-payment-secrets.sh` now reads the master file too. Does not block Gate 2b; production (Step 5) uses `--production` |
-| 2.18 The outside testers' advice (added 6 Nov) | Checked 6 Nov, fixes not started | Decision 30, then say "start 2.18" |
+| 2.18 The outside testers' advice (added 6 Nov) | Checked 6 Nov, fixes not started | Decision 30 was decided 11 Nov; say "start 2.18" |
 | 2.19 The debug loop (added 10 Nov) | Planned 10 Nov ([DEBUGGING_PLAN.html](DEBUGGING_PLAN.html)); Starter Story debugging lessons added 11 Nov (dig-deeper ladder, `BUG_PROMPT.md`; then "Advanced Debugging (Day 6)": code and live backend, context first, logs before code, fix path A or B); round 0 not run | Say "start debug round"; then your "fix" or "accept" after each round. Gate 3 waits for it to settle; Gate 2b does not |
 | 2.20 The audit prompt for vibe-coded apps (added 10 Nov) | Not run | Say "start 2.20"; then your "fix" or "accept" on the Medium and Low finds. Does not block Gate 2b unless it finds a Critical or High |
+| 2.21 The money flow, Plan B (added 11 Nov, final pass) | Not started | Say "design the Plan B money flow" now; the build waits for decision 3 (S.4) and the lawyer's yes (S.3) |
 
 **On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
 
@@ -2957,388 +2954,7 @@ start debug round
 5. The report goes in `docs/SECURITY_AUDIT_PROMPT.md`: the rating, the Critical and High list, the quick wins, the fix order, what is already done right, and the one-line summary of all 41 verdicts for each folder.
 6. Repeat the run after Step 3 changes the money flow, and once more before Step 5, so the final code gets the same list.
 
-**The prompt** (copy it with the button; it is the guide's text, unchanged except that the two "copy everything" marker lines are removed):
-
-```say
-<role>
-You are a senior application security engineer specializing in
-AI-generated codebases. You have deep expertise in the OWASP Top 10,
-CWE database, and the specific vulnerability patterns introduced by
-LLM code generation (hallucinated packages, missing server-side
-validation, default-open database policies, hardcoded secrets, and
-inconsistent auth middleware).
-
-You are conducting a comprehensive security audit of a vibe-coded web
-application. "Vibe-coded" means this application was primarily built
-using AI coding assistants like Claude, Cursor, Copilot, or similar
-tools. These tools produce functional code fast but routinely introduce
-security gaps that a human developer would typically catch.
-
-Your job is to find every one of those gaps.
-</role>
-
-<methodology>
-Work through the codebase in two passes:
-
-PASS 1 — DISCOVERY
-Read the entire codebase before making any findings. Build a mental
-model of the architecture: framework, database, auth provider, API
-layer, deployment config. Identify every entry point (pages, API
-routes, server actions, webhooks, cron jobs). Map the data flow from
-user input to database and back.
-
-PASS 2 — SYSTEMATIC AUDIT
-Work through each section of the checklist below. For every checklist
-item, do one of three things:
-  ✅ PASS   — The codebase handles this correctly. Cite the file/line.
-  ❌ FAIL   — A vulnerability exists. Document it fully (see format).
-  ⚠️ PARTIAL — Some coverage but gaps remain. Explain what's missing.
-  ⬚ N/A    — Not applicable to this codebase. State why briefly.
-
-Do not skip items. Do not summarize groups of items together. Every
-single checklist item gets its own explicit verdict.
-</methodology>
-
-<output_format>
-For every ❌ FAIL finding, use this exact structure:
-
-┌─────────────────────────────────────────────────────────┐
-│ FINDING #[number]                                       │
-├──────────┬──────────────────────────────────────────────┤
-│ Severity │ CRITICAL / HIGH / MEDIUM / LOW               │
-│ Category │ e.g., Secret Exposure, Missing RLS, etc.     │
-│ Location │ file/path.ts:line_number                     │
-│ CWE      │ CWE-XXX (Name)                              │
-├──────────┴──────────────────────────────────────────────┤
-│ What's wrong:                                           │
-│ [Plain English description of the vulnerability]        │
-│                                                         │
-│ Why it matters:                                         │
-│ [What an attacker could actually do with this]          │
-│                                                         │
-│ The vulnerable code:                                    │
-│ ```                                                     │
-│ [exact code snippet]                                    │
-│ ```                                                     │
-│                                                         │
-│ The fix:                                                │
-│ ```                                                     │
-│ [corrected code snippet, ready to copy/paste]           │
-│ ```                                                     │
-│                                                         │
-│ Effort: ~[X] minutes                                    │
-└─────────────────────────────────────────────────────────┘
-</output_format>
-
-<audit_checklist>
-
-## Section 1: Environment Variables And Secret Management
-
-Search every file in the codebase for each of the following. This
-includes source files, config files, scripts, and any .env files
-that may have been committed to the repository.
-
-- [ ] 1.1 — Hardcoded secrets: Search for API keys, tokens, passwords,
-      connection strings, and webhook URLs embedded directly in source
-      code. Common patterns to grep for:
-        sk_live_, sk_test_, sk-, pk_live_,
-        Bearer, eyJ (base64 JWT prefix),
-        ghp_, gho_, github_pat_,
-        xoxb-, xoxp- (Slack tokens),
-        AKIA (AWS access keys),
-        any 32+ character alphanumeric strings in quotes
-
-- [ ] 1.2 — .gitignore coverage: Verify that .env, .env.local,
-      .env.production, and .env*.local are all in .gitignore. Check
-      git history for any previously committed .env files (even if
-      since removed, secrets in git history are still exposed).
-
-- [ ] 1.3 — Public prefix leaks: Check that server-only secrets do
-      NOT use framework public prefixes. In Next.js, anything with
-      NEXT_PUBLIC_ is bundled into client JavaScript and visible to
-      anyone. In Vite, the prefix is VITE_. In Create React App, it
-      is REACT_APP_. Keys that must NEVER be public-prefixed include:
-        - Database service role keys
-        - Stripe secret keys
-        - OpenAI / Anthropic API keys
-        - SMTP credentials
-        - Any key that grants write/admin access
-
-- [ ] 1.4 — Console/error leaks: Search for console.log, console.error,
-      and error boundary components that might print environment
-      variables or secrets to the browser console or to client-visible
-      error messages.
-
-- [ ] 1.5 — Build artifact exposure: Check if source maps are enabled
-      in production (next.config.js productionBrowserSourceMaps,
-      vite sourcemap config, etc). Source maps let anyone reconstruct
-      your original source code including any inlined secrets.
-
-- [ ] 1.6 — Startup validation: Verify the app fails fast if required
-      environment variables are missing, rather than silently running
-      with undefined values (which often causes cryptic runtime errors
-      or, worse, falls back to insecure defaults).
-
-## Section 2: Database Security
-
-If the app uses Supabase, Firebase, or any database with client-side
-access, this section is critical. If using a traditional server-only
-database (e.g., Prisma with PostgreSQL, no client-side SDK), adapt
-checks accordingly and note the architecture.
-
-- [ ] 2.1 — RLS enabled: Verify Row Level Security is enabled on
-      EVERY table in the public schema. Check for any tables created
-      via migrations or SQL editor that might have been missed. A
-      single unprotected table exposes all its data to anyone with
-      the anon key.
-
-- [ ] 2.2 — RLS policies exist: A table with RLS enabled but NO
-      policies silently returns empty results for all queries. This
-      looks like a bug, not a security issue, and is a common AI
-      mistake. Verify every RLS-enabled table has at least SELECT
-      and INSERT policies.
-
-- [ ] 2.3 — WITH CHECK clauses: Verify all INSERT and UPDATE policies
-      include WITH CHECK clauses. Without WITH CHECK on INSERT, a
-      user can insert rows with any user_id (impersonating other
-      users). Without WITH CHECK on UPDATE, a user can change a
-      row's user_id to steal ownership.
-
-- [ ] 2.4 — Policy identity source: Ensure RLS policies use
-      auth.uid() for identity, NOT auth.jwt()->'user_metadata'.
-      User metadata can be modified by authenticated end users,
-      making it an unreliable identity source.
-
-- [ ] 2.5 — Service role key isolation: The service_role key bypasses
-      all RLS. Verify it is NEVER used in client-side code, never
-      imported in components, and only used in server-side code where
-      RLS bypass is genuinely necessary (admin operations, webhooks).
-
-- [ ] 2.6 — Storage bucket policies: If using Supabase Storage, verify
-      storage buckets have RLS policies. By default, storage buckets
-      are publicly accessible.
-
-- [ ] 2.7 — SQL injection: Check for any raw SQL queries using string
-      concatenation or template literals instead of parameterized
-      queries. The Supabase client library is safe by default, but
-      raw .rpc() calls or pg/postgres.js queries may not be.
-
-- [ ] 2.8 — SECURITY DEFINER functions: Check for any database
-      functions marked SECURITY DEFINER. These run with the
-      privileges of the function creator (usually superuser), not
-      the calling user. Verify they don't expose data or bypass RLS.
-
-## Section 3: Authentication And Session Management
-
-- [ ] 3.1 — Auth middleware exists: Verify authentication middleware
-      (e.g., Next.js middleware.ts, Express middleware, etc.) exists
-      and runs on protected routes. Check the matcher config to
-      ensure it covers all necessary paths.
-
-- [ ] 3.2 — Default-deny routing: Check whether the middleware
-      protects routes by default (allowlist of public routes) vs.
-      protecting routes by exception (blocklist of protected routes).
-      Default-deny (allowlist) is significantly safer because new
-      routes are automatically protected.
-
-- [ ] 3.3 — getUser() vs getSession(): For Supabase apps, verify
-      that security-sensitive server-side operations use
-      supabase.auth.getUser() (which validates the JWT against
-      Supabase servers) rather than supabase.auth.getSession()
-      (which only reads the local JWT without verification).
-
-- [ ] 3.4 — Auth callback handler: Verify the /auth/callback route
-      (or equivalent) properly exchanges auth codes for sessions,
-      handles errors gracefully, and doesn't expose tokens in URLs
-      or logs.
-
-- [ ] 3.5 — Session storage: Verify session tokens are stored in
-      httpOnly cookies, NOT in localStorage or sessionStorage (which
-      are accessible to any JavaScript on the page, including XSS
-      payloads).
-
-- [ ] 3.6 — Protected API routes: Check that EVERY API route
-      handling user data verifies authentication before processing.
-      Look for API routes that skip the auth check entirely,
-      especially ones that AI may have added later in development.
-
-- [ ] 3.7 — OAuth security: If OAuth is implemented, verify callback
-      URLs are validated, state parameters are used for CSRF
-      protection, and tokens are handled securely.
-
-- [ ] 3.8 — Password reset flows: If applicable, verify reset tokens
-      expire, are single-use, and are transmitted securely.
-
-## Section 4: Server-Side Validation
-
-- [ ] 4.1 — Schema validation: Verify all API routes and server
-      actions validate input using a schema validation library (Zod,
-      Yup, Valibot, ArkType, etc.) on the server side. Frontend
-      validation is UX, not security. Every input must be re-checked
-      server-side.
-
-- [ ] 4.2 — Identity from session: Verify user identity for write
-      operations is ALWAYS derived from the authenticated session or
-      JWT token, never from request body fields like { userId: "..." }.
-      An attacker can send any userId they want in a request body.
-
-- [ ] 4.3 — Input sanitization: Check that user-generated content
-      rendered in HTML is properly sanitized to prevent Cross-Site
-      Scripting (XSS). Look for dangerouslySetInnerHTML, v-html,
-      [innerHTML], or unescaped template literals that render user
-      content.
-
-- [ ] 4.4 — HTTP method enforcement: Verify state-changing operations
-      use POST/PUT/PATCH/DELETE, not GET. GET requests can be triggered
-      by image tags, link prefetching, and browser extensions without
-      user intent.
-
-- [ ] 4.5 — Error information leaks: Verify error responses don't
-      leak internal details (stack traces, SQL errors, file paths,
-      environment variable names) to the client. Check both API
-      routes and error boundary components.
-
-- [ ] 4.6 — Webhook signature verification: If the app receives
-      webhooks (Stripe, GitHub, etc.), verify it validates the
-      webhook signature before processing. Without verification,
-      anyone can send fake webhook events to your endpoint.
-
-## Section 5: Dependency And Package Security
-
-- [ ] 5.1 — Audit results: Run the package manager's audit command
-      (npm audit, pnpm audit, yarn audit, bun audit) and report any
-      vulnerabilities found, grouped by severity.
-
-- [ ] 5.2 — Hallucinated packages: Check for any installed packages
-      with suspiciously low download counts, very recent publish
-      dates, or names that don't match well-known packages. AI tools
-      sometimes hallucinate package names, and attackers publish
-      malware under those names.
-
-- [ ] 5.3 — Lockfile committed: Verify a lockfile (package-lock.json,
-      pnpm-lock.yaml, yarn.lock, bun.lockb) is committed to the
-      repository. Without it, npm install can silently pull different
-      (potentially compromised) versions.
-
-- [ ] 5.4 — Outdated packages: Check for outdated packages,
-      especially those with known CVEs. Pay particular attention to
-      auth libraries, crypto libraries, and framework versions.
-
-- [ ] 5.5 — Unused dependencies: AI tends to install packages it
-      ends up not using. Each unused package is unnecessary attack
-      surface. Check for packages in package.json that aren't
-      imported anywhere in the codebase.
-
-## Section 6: Rate Limiting
-
-- [ ] 6.1 — Expensive operations: Identify all API routes that call
-      external paid APIs (OpenAI, Anthropic, Stripe, email/SMS
-      providers, etc.) and verify they have rate limiting. Without
-      it, an attacker can spam the endpoint and run up a massive
-      bill on the developer's account.
-
-- [ ] 6.2 — Auth endpoints: Verify login, signup, password reset,
-      and OTP endpoints have rate limiting to prevent brute force
-      attacks and credential stuffing.
-
-- [ ] 6.3 — Implementation check: If rate limiting exists, verify
-      it's applied server-side (not just frontend debouncing) and
-      uses a reliable backing store (Redis, Upstash, or similar)
-      rather than in-memory storage that resets on deploy.
-
-## Section 7: CORS Configuration
-
-- [ ] 7.1 — API route CORS: If the app exposes API routes intended
-      only for its own frontend, verify CORS headers restrict access
-      to the app's own domain(s). Check for Access-Control-Allow-
-      Origin: * on sensitive endpoints.
-
-- [ ] 7.2 — Credentials mode: If CORS is configured, verify
-      Access-Control-Allow-Credentials is only true when paired with
-      specific (not wildcard) origins.
-
-## Section 8: File Upload Security
-
-- [ ] 8.1 — Server-side validation: If the app handles file uploads,
-      verify file type and size are validated on the server, not just
-      the frontend. Check MIME type, not just file extension (users
-      can rename malware.exe to photo.jpg).
-
-- [ ] 8.2 — Storage permissions: Verify uploaded files are stored
-      with appropriate access controls. Public uploads (profile
-      photos) and private uploads (documents) should have different
-      policies.
-
-- [ ] 8.3 — Execution prevention: Verify uploaded files cannot be
-      executed on the server. Check that upload directories are not
-      in the web root's executable path.
-
-</audit_checklist>
-
-<final_report>
-After completing all checklist items, compile your findings into this
-structure:
-
-## 1. Security Posture Rating
-
-Rate the overall codebase:
-  🔴 CRITICAL — Active data exposure or auth bypass. Stop and fix now.
-  🟠 NEEDS WORK — Significant gaps that would be exploitable.
-  🟡 ACCEPTABLE — Minor issues, no immediate data exposure risk.
-  🟢 STRONG — Well-secured with only informational findings.
-
-Include a one-paragraph executive summary explaining the rating.
-
-## 2. Critical And High Findings
-
-List all CRITICAL and HIGH severity findings here for immediate
-visibility, even though they appear in the section-by-section results
-above. These are the "stop everything and fix this" items.
-
-## 3. Quick Wins
-
-List fixes that take under 10 minutes each but meaningfully improve
-security posture. These are satisfying to knock out and build momentum.
-
-## 4. Prioritized Remediation Plan
-
-A numbered list of ALL findings ordered by:
-  1st — Severity (critical before high before medium before low)
-  2nd — Effort (quick fixes before complex refactors within each tier)
-
-For each item, include the estimated fix time so the developer can
-plan their work.
-
-## 5. What's Already Done Right
-
-List security measures that are properly implemented. This is important
-because it tells the developer what NOT to accidentally break, and
-reinforces good patterns they should continue using.
-
-## 6. Checklist Summary
-
-Output a compact summary of every checklist item and its verdict:
-  1.1 ✅  1.2 ✅  1.3 ❌  1.4 ✅  1.5 ⚠️  1.6 ⬚ ...
-This gives an at-a-glance view of coverage.
-</final_report>
-
-<instructions>
-Begin the audit now.
-
-Read the full codebase before producing any findings. Understand the
-architecture first. Then work through every checklist item one by one.
-
-Be thorough but practical. Prioritize real, exploitable vulnerabilities
-over theoretical concerns. If a finding requires a specific, unusual
-attacker capability, note that in the severity assessment.
-
-Do not group multiple checklist items into a single response. Each item
-gets its own explicit pass/fail/partial/n-a verdict.
-
-If you are uncertain about a finding, flag it as ⚠️ PARTIAL and
-explain what you'd need to verify.
-</instructions>
-```
+**The prompt** is in [`docs/prompts/AUDIT_PROMPT_2_20.md`](prompts/AUDIT_PROMPT_2_20.md) (moved out of the plan on 11 Nov to keep it short). Claude runs it word for word; you never paste it.
 
 1. SAY:
 
@@ -3353,10 +2969,52 @@ start 2.20
 **Done when:** both reports are written, every FAIL has an H number or points at an old one, no Critical or High is open, and every Medium and Low has your answer.
 </details>
 
+<details id="t2-21" data-short="Plan B money flow">
+<summary>[BOTH] <b>2.21</b> The money flow, Plan B: pay per task, the payment company holds the money <small>· added 11 Nov (final pass) · not started · design now, build after decision 3 and the lawyer's yes · the longest piece of Claude's work left before launch</small></summary>
+
+**Why this task exists:** decision 29 (9 Nov) chose Plan B, and everything after Step 4 depends on it: production, the ₹10 test, the AI attacker (2.16) and the paid tester (decision 30). Until the final pass it had no number, no steps and no gate line. Plan B means TaskDrop never holds a balance, so it needs no RBI wallet licence (PPI).
+
+**How money moves under Plan B**
+
+| Moment | What happens | Who holds the money |
+|---|---|---|
+| The poster accepts an offer | The poster pays the offer + 3% service fee to the payment company, for this one task | The payment company, on hold |
+| The worker finishes | Nothing moves yet. The poster has 3 days to approve or report | The payment company, on hold |
+| The poster approves, or 3 days pass | The server tells the payment company to release the worker's share to the worker's bank or UPI; TaskDrop's 3% and the 10% commission go to TaskDrop's account | The worker and TaskDrop |
+| The poster cancels before work starts | A full refund to the poster | Back to the poster |
+| The poster cancels after work starts | The 5% fine goes to the worker; the rest is refunded | Split |
+| A dispute | The money stays on hold until the dispute policy (4.9) decides | The payment company |
+
+**What changes in the app:** the wallet stops being a balance. It becomes a **record of each task's money** (paid, on hold, released, refunded), read from one ledger table, which also closes H34. Top-up and "pay from the wallet" go; "pay for this task" comes in. Workers add their bank or UPI once; the payment company checks it. The money constants stay in `packages/rules`.
+
+**Three safety rules built in, because they are the best practice for money:**
+
+1. **Each payment message is recorded once** (the existing webhook rule), and every release and refund has its own key, so a repeated message or a double tap can never pay twice.
+2. **A daily match:** each night the server compares its own ledger with the payment company's settlement report, and any difference raises the money-mismatch alarm from 2.11.
+3. **An emergency stop for money:** one switch in the admin app (Admin role only, written to the audit log) pauses new payments and releases within a minute, without a new release of the app. Refunds keep working. Its main use is a bug or an attack on launch day.
+
+**Steps**
+
+1. SAY:
+
+```say
+design the Plan B money flow
+```
+
+   Claude writes the design (screens, tables, server calls, the provider's API for both Razorpay Route and Cashfree Easy Split, and the undo for each database change) and shows it to you before building. A design costs nothing and works for either company.
+2. You send the S.4 answers when they arrive. **Decision 3** takes the cheaper company that agrees in writing to hold the money until the poster approves (RBI's rules leave that hold to the contract).
+3. The lawyer's written yes (S.3).
+4. SAY "build 2.21". Claude builds it on staging with the chosen company's **test keys**, in small pull requests, with `npm run test:db` money tests for every row of the table above.
+5. Claude runs the whole job with test money on the website and the Android app, and shows you the result.
+6. TELL Claude: "done 2.21".
+
+**Done when:** on staging, with test keys, every row of the table above works and is covered by a money test; a repeated payment message changes nothing; the daily match runs and its alarm fires on a planted difference; the emergency stop pauses payments and releases within a minute and undoes cleanly; no screen shows a wallet balance any more; and the security review of every pull request has no Critical or High open. The live keys only arrive in Step 6 (6.1).
+</details>
+
 > **GATE 2b: do not start Step 5 (production) until all of these are true**
 
 - [ ] Gate 2a has passed
-- [ ] Tasks 2.1 to 2.16 and 2.18 are ticked (2.13 part E may follow, by decision 15, before 6.5; 2.18 parts G and J follow the next Android build and decision 30, before 6.5)
+- [ ] Tasks 2.1 to 2.16, 2.18 and 2.21 are ticked (2.13 part E may follow, by decision 15, before 6.5; 2.18 parts G and J follow the next Android build and decision 30, before 6.5)
 - [ ] The six proofs in task 2.10 are all true
 - [ ] Holes H2 to H10, H12, H17 and H22 to H34 and H71 to H76 are closed (H3 closes in 3.9 for staging and is never open in production; H11 closes in 5.2; H1, H15 and H16 in 5.9)
 - [ ] No Critical or High security problem is open, and every Medium from 2.14, 2.15 and 2.16 has your answer
@@ -3947,6 +3605,7 @@ Do the switch-over, one step at a time.
 
 - [ ] The automatic tests are green
 - [ ] Sentry has been quiet for 7 days, and the uptime monitors are green
+- [ ] Over the 14 tester days, Play Console's Android vitals stay under Google's bad-behaviour lines: fewer than 1.09% of users see a crash and fewer than 0.47% see a freeze ("App not responding"). Above those lines Google shows the app less in the store (final pass, 11 Nov)
 - [ ] The whole job works with fake money on the website, Android and the admin: post, offer, pay, work, approve, review, withdraw
 - [ ] Account deletion, report and block work, and push notifications arrive on Android
 - [ ] 12 testers have used the closed test for 14 days
@@ -5159,6 +4818,7 @@ Sign in with the "Username" option on the sign-in screen. Username: playreviewer
 - [ ] Production is checked: backups on, test shortcuts off and the safety alarm quiet (holes H1, H15), leaked-password protection on (H11), live keys work, the Google keys still carry their restrictions (5.3), direct database access closed (H3)
 - [ ] Undo is ready: website rollback, app update rollback, database backups, the nightly copy outside Supabase, a written undo for each database change, and **one restore practised** (6.5, hole H16)
 - [ ] The new-account limits (2.11) and the dispute policy (4.9) are live in production
+- [ ] The emergency stop for money (2.21) has been switched on and off once in production, and you know where it is
 - [ ] If the CA said tax must be deducted or PAN collected (S.2), that is built and tested
 - [ ] No Critical or High problem is open, and every Medium has your written OK
 - [ ] You have said GO (6.5)
@@ -5819,12 +5479,12 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 39 | **Useful in the first minute (D22, task 1.13).** Testers did not find the app useful on opening it. Count D22 order 1 and 2 as a fix inside the feature freeze (decision 37), so it is built before launch? | **Decided 9 Nov: yes.** You approved the D22 design (v4) and said to start building, so D22 order 1 and 2 are built inside the freeze, before launch. Order 3 and 4 still wait for Step 7 | "Decision 39: yes, D22 order 1 and 2 before launch." or "Decision 39: after launch." |
 | 40 | **Android tablets and foldables at launch** (CEO rewrite, 11 Nov; task 1.14). Android now turns and resizes the app on screens 600 and wider, whatever the app asks. Make the app "never broken" there before launch by reusing today's layouts (level 1), design a full tablet app before launch (adds 1 to 2 weeks and reopens the freeze), or use Android's temporary switch that keeps the phone screen in a box (stops working with Android 17)? | **Decided by you, 2026-11-11** ("Use the CEO defaults"). **Level 1, "never broken"** (task 1.14), by reusing today's layouts. A full tablet design waits until PostHog shows tablets matter. Done | Nothing to say |
 | 41 | **The freeze day** (CEO rewrite, 11 Nov). Decision 37 froze features "once the map work is finished", with no date, and 1.13 and the map bar arrived after it. Set a day after which only fixes go in, whatever is finished? | **Decided by you, 2026-11-11** ("Use the CEO defaults"). **Sunday 22 November 2026.** What is not built by then moves to after launch (1.13 order 3 and 4 already do). Fixes, 1.14 level 1 and the Plan B money flow are not features and carry on. Done | Nothing to say |
-| 42 | **Everyday jobs** (task 1.16). Home no longer offers cleaning, repairs, pick-up or shifting. If someone types one anyway: still post it (nothing is lost, "Ask for anything" stays true), or stop it with a note that names a better app? | **Open.** Recommended: **still post it, never advertise it.** Blocking turns away a paying person and needs a list of banned words | "Decision 42: still post them." or "Decision 42: block them." |
-| 43 | **Who we go after first** (task 1.16). Small shops and creators, people new in the city who work, students and job seekers; and as earners, "what you know pays" (students, homemakers, retired people, people with two languages) | **Open.** Recommended: **these three, in the launch areas of decision 38**; everyone else is welcome but is not where the first marketing goes | "Decision 43: yes, these three." or "Decision 43: ___ first." |
-| 44 | **D26 before the freeze?** (task 1.16). Order 1 is words, tiles and sections, with no database change, like D22 order 1 (decision 39). Count it as a fix, so it is built before Sunday 22 November? | **Open.** Recommended: **yes**: what Home offers is what people think TaskDrop is, and launching with the everyday tiles teaches the wrong idea | "Decision 44: yes, before the freeze." or "Decision 44: after launch." |
+| 42 | **Everyday jobs** (task 1.16). Home no longer offers cleaning, repairs, pick-up or shifting. If someone types one anyway: still post it (nothing is lost, "Ask for anything" stays true), or stop it with a note that names a better app? | **Built as recommended (final pass, 11 Nov):** the app still posts an everyday job someone types; nothing is blocked and no other app is named. Say it to change | "Decision 42: still post them." or "Decision 42: block them." |
+| 43 | **Who we go after first** (task 1.16). Small shops and creators, people new in the city who work, students and job seekers; and as earners, "what you know pays" (students, homemakers, retired people, people with two languages) | **Open, and it blocks nothing before Step 4.** Recommended: **these three, in the launch areas only**. Task 4.2 uses them unless you say otherwise | "Decision 43: yes, these three." or "Decision 43: ___ first." |
+| 44 | **D26 before the freeze?** (task 1.16). Order 1 is words, tiles and sections, with no database change, like D22 order 1 (decision 39). Count it as a fix, so it is built before Sunday 22 November? | **Overtaken 11 Nov:** you set the Home order yourself (D28) and Claude built the poster ideas (D29), both before the freeze. Nothing to say | "Decision 44: yes, before the freeze." or "Decision 44: after launch." |
 | 45 | **Find work filters before the freeze?** (task 1.17). One filter set for map and list, price range, the two hire types, many categories; no database change. Count it as a fix to Find work, built before Sunday 22 November? | **Decided 11 Nov: yes, built** ("build it"), without the category filter | — |
 | 46 | **The second idea pass** (task 1.16). Replace the six D26 tiles with the 8 new ones (Be my eyes there, Is this real?, From my hometown, Chase my refund, Count the crowd, Read before I sign, Speak for me, Name it for me) and add the Idea book of 14? | **Decided 11 Nov: no.** You did not like these; the 18 poster ideas of D29 are built in their place | — |
-| 47 | **Trust-heavy jobs** (task 1.16). Offer Go with Amma to the doctor and Is this real? only to helpers with a confirmed phone and 4.5 stars or more? | **Open.** Recommended: **yes**; a new helper can earn the stars on easier jobs first | "Decision 47: yes." or "Decision 47: anyone." |
+| 47 | **Trust-heavy jobs** (task 1.16). Offer Go with Amma to the doctor and Is this real? only to helpers with a confirmed phone and 4.5 stars or more? | **Closed 11 Nov:** Go with Amma and Is this real? came from the second idea pass, which you turned down (decision 46), so they are not built. Nothing to say | "Decision 47: yes." or "Decision 47: anyone." |
 
 ---
 
@@ -6215,7 +5875,7 @@ Prices were checked between 26 October and 11 November 2026. Check again when yo
 | Tax takes most of the margin | The CA's written answers in S.2, including GST section 9(5) on house-keeping tasks. The fees are set after that, before Gate 6 |
 | Launch keeps slipping because new features keep arriving | The feature freeze (Gate 1, decision 37). New ideas go to Future scope |
 | Posted tasks get no offers | One city, workers first (4.6), smart alerts (4.5), helping the first 20 users yourself |
-| A security hole moves money or leaks data | Tests 2.7 and 2.9; the switch-over (3.9) closes direct database access |
+| A security hole moves money or leaks data | Tests 2.7 and 2.9; the switch-over (3.9) closes direct database access; the daily money match and the emergency stop for money (2.21) |
 | Bots run up bills (SMS, maps, photos) | Limits and alerts (2.2), SMS safety (2.8) |
 | Growth tricks backfire | Real people only. No fake reviews, no AI "customers", no copy-paste spam |
 | Someone steals one of your logins | Recovery codes in the secrets file, with device encryption and an encrypted backup (2.1). 2-step sign-in on every important account is deferred to future scope (2.1b) |
@@ -6279,49 +5939,9 @@ Prices were checked between 26 October and 11 November 2026. Check again when yo
 
 ---
 
-## Snapshot: where you were on 30 October 2026
-
-Kept for the record. The live picture is the **Start here** panel at the top of the page.
-
-**Already done**
-
-- The app works on the website and on Android with fake money (checked "finished" on 2026-10-28).
-- Staging safety is live: the "Staging" ribbon, the block on real payment keys, the site hidden from Google, the staging notice in Terms and Privacy.
-- The app tour, the admin app with staff roles, Google sign-in, error alerts (Sentry), uptime monitors and GitHub secret scanning all work.
-- Your 20-minute phone walkthrough (30 Oct): 11 fixes are merged into `redesigned-2.0` and published to the phone app (31 Oct, task 1.2).
-
-**Not done yet**
-
-- 4 phone problems from 28 Oct, about 8 small bugs, and 10 design changes you asked for. New on 31 Oct: content and alerts hidden behind the phone keyboard (task 1.8).
-- Security: Claude's check on 30 Oct found real open holes (see the **Security** section). None can move money today, because staging has only fake money, but every one must be closed before real money.
-- Google Play: 12 testers for 14 days have not started. (Google's ID check is done: verified 27 Oct, task S.1.)
-- All the business paperwork for real money: company, bank, lawyer, payment approval, SMS registration.
-- Production, the real-money copy of TaskDrop, does not exist yet.
-
-**The three things that matter most right now**
-
-1. **Start the slow track today** (S.1 and S.2). Google's ID check and the company paperwork take weeks, and launch cannot happen without them.
-2. **Fix the bugs you can see** (Step 1), so testers judge a good app, not a broken one.
-3. **Close the security holes** (Step 2) before anyone outside your circle uses the app.
-
-**Your first week, in order**
-
-| Day | Do this | Task |
-|---|---|---|
-| 1 | Start Google Play's ID check (done: Google verified your identity on 27 Oct) | S.1 |
-| 1 | Book a meeting with a Chartered Accountant | S.2 |
-| 1 | Answer the decisions (deferred to future scope on 1 Nov 2026) | 1.1 |
-| 1 | Open the staging app on your phone twice and try the walkthrough fixes (done by Claude 31 Oct) | 1.2 |
-| 2 | Set up and protect your secrets file | 2.1 |
-| 2 | Turn on 2-step sign-in on your 8 most important accounts (deferred to future scope on 31 Oct 2026) | 2.1b |
-| 2 | Ask Razorpay and Cashfree for quotes (one email) (sent 31 Oct, waiting for their call back) | S.4 |
-| 3 | Name check and trademark search (1 hour) | S.5 |
-| 3 to 7 | Approve the design drawings Claude sends; say "start key protection" | 1.5, 2.5 |
-
----
-
 ## Changelog
 
+- **2026-11-11 night (the final pass: "is the plan final?"):** You asked for a simple plan with the best and cheapest way to launch, and for anything not good to be changed. Claude read the plan end to end. **Answer:** the shape is final; four answers are still open (decision 3, decision 38's area names, decision 43, and booking the CA for S.2), written at the top of The plan on one page. **Changed:** (1) new task **2.21, the Plan B money flow**: it was the longest piece of work left and had no number, steps or gate line; it now has a design-then-build path, a daily money match and an emergency stop for money, and Gate 2b and Gate 6 check it. (2) **Gate 3** gets Google Play's own crash lines (1.09% crash, 0.47% freeze). (3) **Task 1.16** now matches what was built (D28 Home order, D29 poster ideas); decisions 42 (built as recommended), 44 (overtaken) and 47 (closed with 46) are settled; 43 stays open and blocks nothing before Step 4. (4) **Step 2** has one ordered list of what is left instead of the 4 November path, and its status table is brought up to date (decisions 17, 25 and 30 are decided). (5) **Rule 9** names the freeze day and says what counts as a fix. (6) **Shorter:** the 2.20 prompt moved to `docs/prompts/AUDIT_PROMPT_2_20.md`; the 30 October snapshot and the 9 November to-do tables moved to `docs/archive/PLAN_HISTORY.md`. The costs (about $45 a month) were checked and kept: Supabase Pro and Vercel Pro are the two things production cannot run without, and every other tool stays on a free plan until its limit warns.
 - **2026-11-11 (task 2.19: the second Starter Story debugging lesson folded in):** You shared the Starter Story Build lesson "Advanced Debugging (Day 6)" and asked for its practices in the debugging plan. All ten steps are in, changed from Lovable, RepoMix, ChatGPT and the Supabase GPT to Claude Code, the graphify code map and Supabase read on staging: a new **section 8 of [DEBUGGING_PLAN.html](DEBUGGING_PLAN.html)** and a paragraph in 2.19 (patch or rebuild one file, look in the code and the live backend both, the whole-codebase view through graphify with the repos kept private, database context first with a yes or no per action, the last hour of logs before code, one fix path A or B with "why this will work" and a keep-as-is list, retest after a hard refresh with a new error treated as a new bug, security hygiene, four copy-paste prompts). `docs/debug-loop/BUG_PROMPT.md` gains a phase 0, four evidence steps, the fix paths, a retest line, four "what not to do" lines and the four prompts; ledger entries now also say the fix path. The plan page's section numbers are fixed (two sections were both numbered 7). Plan only: no round has run, nothing in the app changed.
 - **2026-11-11 (D29 poster ideas, and 1.17 Find work filters built):** You asked for poster ideas people can solve with the app that bring posters in and can make money, to drop category from the filters, and then for Claude to decide and finish everything. **Built:** 18 poster ideas in 6 groups under Only on TaskDrop (task 1.16, D29; decision 46 marked "no"), and one filter set shared by the Find work map and list (task 1.17, decision 45 "yes"): Nearby or remote, how far, a price range, Auto-hire, Open to counter offers, due in 24 hours, show first, chips with ✕, one-tap "drop a filter" buttons, the list asking for 200 jobs. Checked in Chrome on localhost. Opus 5.5 did the filter rules and the review, a Sonnet 5.5 helper built the idea cards. No database or server change. Android phone check waits for the next app update.
 - **2026-11-11 (task 2.19: the Starter Story debugging lesson folded in):** You shared the Starter Story Build lesson "Debugging in Lovable: a practical framework to prevent the spiral" and asked for all of it in the debugging plan. Every step is in, changed from Lovable to Claude Code and Supabase: a new **dig-deeper ladder** in 2.19 and as section 7 of [DEBUGGING_PLAN.html](DEBUGGING_PLAN.html) (1 quick try, 2 precise report with UI / Backend / Both and an evidence pack of screenshot, clean console log and security rules, 3 restore and re-plan after two failed tries, 4 numbered diagnostic SQL run read-only on staging, 5 `[DBG-B<n>]` targeted logs removed in the same pull request, 6 retro and the template); the ground rules (test after every finished task, one bug at a time, evidence before code, clean console, hard refresh before a recheck fails); a new standing template `docs/debug-loop/BUG_PROMPT.md` with a bug report you can paste; ledger entries now say class, rung and tries. Plan only: no round has run, nothing in the app changed.
