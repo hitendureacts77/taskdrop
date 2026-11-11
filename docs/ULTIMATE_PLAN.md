@@ -1064,6 +1064,7 @@ These came from your 30 Oct walkthrough (times are in your video):
 | D21 | Added 8 Nov 2026, **approved 8 Nov, built and live on `taskdrop.in` 9 Nov (PR 297)** (task 1.12, [canvas](https://claude.ai/artifact/GZWrpbyrk6eYQvbXBNwdoT)): the map zooms like Google Maps (scroll, pinch, double-click, smooth, never blank, stays on India), jobs refresh by themselves instead of "Search this area", a smarter "Work near you" panel with a big hero card and no scroll bars, and a tidier Explore list with no empty box and one List / Map switch. Added on your approval: a **Custom** distance (type any number from 1 to 100 km, e.g. 45 or 50) next to 5, 10 and 25 km. |
 | D23 | Added and **approved 9 Nov** (your second map video; inside task 1.12): the ring and list stay on your place or a place you pick, the map moves over the whole world, All / In person / From home with from-home jobs in the list, one Filters sheet (where, distance slider, pay, type of work, order, "Show N jobs") in place of Custom, a simpler best-offer card. |
 | D24 | Added 10 Nov (your third map video; inside task 1.12): on a phone the Explore map fills the screen, and a slim pull-up bar (best offer or nearest helper on one line, a "See all" button, the Jobs / Helpers / People chips) opens the list with a tap, a drag or the mouse wheel; the list, filters and best-offer card scroll together so a short phone still shows the list. Desktop unchanged. |
+| D26 | Added 11 Nov 2026 (your video of Hire Home; task 1.16, [canvas](https://claude.ai/artifact/3h6ztDAE5yaAyQYhuhZwsZ)): **only the jobs no other app does.** Everyday help leaves Home; "No app does these" (Chase my refund, Make a call for me, Check before I buy, Shortlist for me, Speak for me, Govt form help) takes its place; More ideas becomes "Ideas for you" by audience; Busy becomes "Done near you"; Earn opens with "Earn from what you already know". Replaces D22 A1. Hire stays jade green, Earn royal blue (guests too, fixed in PR 323). **Drawn, waiting for your look; nothing built** |
 
 1. SAY (start with the three that testers will notice first):
 
@@ -1441,7 +1442,7 @@ Claude opened the website in Hire and Earn, opened the map, and read the code of
 
 **Part A · Posters: an everyday job posted in under a minute (Home, Hire)**
 
-- **A1 Everyday jobs first.** Under "Drop a task", six big tiles for the jobs people really need, picked from the busiest categories: Cleaning, Repairs (fan, tap, switch), Pick up & drop, Stand in a queue, Shifting help, Online help (forms, documents). One tap fills the composer with a ready sentence the person only edits. The "Try:" chips change to everyday examples too.
+- **A1 Everyday jobs first.** *(Replaced by D26, task 1.16, on 11 Nov: your video asked for no everyday tiles; Home offers only jobs no other app does.)* Under "Drop a task", six big tiles for the jobs people really need, picked from the busiest categories: Cleaning, Repairs (fan, tap, switch), Pick up & drop, Stand in a queue, Shifting help, Online help (forms, documents). One tap fills the composer with a ready sentence the person only edits. The "Try:" chips change to everyday examples too.
 - **A2 Proof line.** The pulse line that exists today grows into one clear line under the composer, real numbers only, hidden when zero: "12 helpers within 3 km · usually answer in 15 min · 31 tasks done near you this month". (Close to item 4 of the parked 1.9.)
 - **A6 Post now.** The 8 posting steps stay. From the When step onwards a **Post now** button posts with what is filled in; Details, Place and Extras stay open for anyone who wants them. A tile from A1 fills most steps already, so an everyday job is: tap the tile, check the words, pick when, type the price, Post now.
 - **A3 Two promises,** always visible near the button: "Pay only when it's done" and "Your number and address stay hidden until you choose someone". (Item 3 of 1.9.)
@@ -1611,6 +1612,90 @@ start 1.14
 **What it costs:** nothing. The emulator, the browser tests and the three engines are free.
 
 **Checked online on 11 Nov 2026:** Google Play's target level rule (Android 16, API 36, from 31 August 2026); Android 16's and Android 17's rules for screens 600 and wider (Android Developers); Google's size classes, which change at 600, 840, 1200 and 1600 wide (TaskDrop changes at 600, 1024 and 1600, which is close enough to keep); and the most common phone screens in India (StatCounter, October 2026: 360 × 800 first, the rest between 360 and 432 wide).
+</details>
+<details id="t1-16" data-short="Only unique tasks">
+<summary>[CLAUDE] <b>1.16</b> Only the jobs no other app does: who TaskDrop is for, and a Home that shows it (D26) <small>· added 11 Nov, from your video · design drawn, waiting for your look · nothing built · decisions 42 to 44</small></summary>
+
+**What you said (11 Nov, a 97-second video of Hire Home):** you do not want **Everyday help** (cleaning, repairs, pick-up and drop, queue, shifting, online help). Big apps already do those. You want only the unique tasks, like **Find it for me** and **Plan a big day**, and the creative ones from **More ideas** (Hand off a task, Reel editing). Replace Everyday help with more creative, innovative tasks, so every part of Home is unique. In the same message: **bring back the worker colour palette** (Hire green, Earn blue, always clearly different) and use Opus 5.5 for complex work, Sonnet 5.5 for regular builds.
+
+**The worker colour, fixed the same day (PR 323):** since guest mode, a guest who switched to Earn still saw green, because the blue only turned on with a sign-in. Now one rule (`apps/mobile/src/lib/roleColours.ts`) makes Earn royal blue for everyone, signed in or guest, and a test stops it from being removed again. Checked on a localhost build as a guest; the Android app gets it with its next update.
+
+**Drawings:** [D26 canvas](https://claude.ai/artifact/3h6ztDAE5yaAyQYhuhZwsZ): the plan on one page, Hire Home in green (the whole scroll), Earn Home in blue, and the first-open story.
+
+**The core in one line.** *If another app already does it, use that app. For everything else, there is TaskDrop.* The tagline stays: "Ask for anything. Someone gets it done for you." What changes is what we **show**: TaskDrop is the place for jobs that need a person's time, legs, judgment, language or know-how, and that no app sells as a product.
+
+### Who we go after first (decision 43)
+
+| Who | What they need that no app does | Where to find them |
+|---|---|---|
+| **Small shops and creators** (home bakers, boutiques, Instagram sellers) | Reels, page growth, real signups, supplier price checks, a mystery visit to their own shop, opinions on a new product | Local markets, Instagram, WhatsApp business groups. They come back every month |
+| **New in the city, working** (22 to 32, IT corridor) | Chase a refund, call an office, govt forms, check a flat or PG before renting, someone who speaks Telugu beside them | Office parks and PGs in the launch areas (decision 38), LinkedIn, flat-hunting groups |
+| **Students and job seekers** | A referral, a talk with someone who already did it, a resume fix, a mock interview, a revision plan | Colleges and coaching centres. Many also become earners |
+| **Earners: "what you know pays"** | Students, homemakers, retired people, people who speak two languages or know an area well. No tools or training needed, unlike repair and cleaning apps | The same colleges and neighbourhoods; every poster above can also earn |
+
+### What changes on Home (drawn on the canvas)
+
+**Hire Home (jade green):**
+
+- **The ask box** keeps "What do you need done?". The example changes from "clean my kitchen" to unique ones that rotate: "find this medicine near me", "get my refund from…", "check this used bike before I buy".
+- **Only on TaskDrop** (Find it for me, Plan a big day, Many hands, Get opinions, Price check) stays at the top.
+- **Everyday help is removed.** In its place, **"No app does these"**: six tiles, one tap fills the composer:
+
+| Tile | Under it | Today |
+|---|---|---|
+| Chase my refund | Refunds, claims, complaints | **New** template |
+| Make a call for me | Banks, offices, landlords | Exists (`make-call`), moves up |
+| Check before I buy | Used bike, phone, a flat | Grows from `check-this` (On-the-spot check) |
+| Shortlist for me | Schools, PGs, halls, visited | **New** template |
+| Speak for me | Telugu, Hindi, Kannada, Tamil | **New** template |
+| Govt form help | Filled in, ready to submit | Exists (`govt-form`), moves up |
+
+- **More ideas becomes "Ideas for you":** chips for who you are (My business, My career, New in the city, Studies, Family); the cards change with the chip, and the app remembers the choice on the device. Every idea that exists today stays; **Mystery visit** (a stranger tries your shop) is new.
+- **Busy on TaskDrop becomes "Done near you":** only the unique kinds, real numbers only, a row hides under 3 a week. Today it shows Home Services, Repairs and Errands, the everyday list again.
+
+**Earn Home (royal blue):** the hero says **"Earn from what you already know"** with the money line from D22 B1. Under it, **"What you know pays"**: chips (I speak 2 languages, I know my area, Good on calls, Good with forms, I edit videos, Cleared an exam, I have a bike) that set the helper's skills and show jobs that need them. Then **Hunts near you** (Find it for me rewards), then **Jobs that need you**, each card showing its kind. The level bar moves below the jobs (as D22 B1 already says).
+
+**The first-open story (D16)** gets new words only: 1 "No app for it?", 2 "Drop it on TaskDrop", 3 "Pay only when it's done", 4 (blue) "Earn from what you know".
+
+**Every drawing and every build keeps the two palettes:** Hire is jade green, Earn is royal blue, guests too. Never one palette for both.
+
+**This replaces D22 A1** ("Everyday jobs first", 1.13). D22 A1 was Claude's advice on 9 Nov; your video of 11 Nov overrules it.
+
+### Rival check (first pass, from what Claude knows; step 2 checks each new tile on the web)
+
+| On Home | Who already does it in India | D26 |
+|---|---|---|
+| Everyday help | Urban Company, Housejoy (cleaning, repairs); Swiggy Genie, Porter, Rapido (pick-up); NoBroker, Porter (shifting) | Removed from Home |
+| Only on TaskDrop | Nobody does pay-only-the-finder, life-event plans, crews, real opinions and shop prices together | Stays |
+| No app does these | No Indian app sells refund chasing, calls on your behalf, a used-bike check, visit-and-compare, or a language helper beside you | New section |
+| More ideas | Some exist online (Fiverr, Upwork, Topmate), but not local, same day, fixed price, pay when done | "Ideas for you" |
+
+### The order, and what fits the freeze
+
+| Order | What | Kind of change | Before launch? |
+|---|---|---|---|
+| 1 | Home Hire (ask box examples, remove Everyday help, "No app does these", "Ideas for you", "Done near you"), Earn hero and "What you know pays", the story words, three new templates, the fake staging tasks rewritten to unique jobs (so the map and lists match) | Words, tiles and sections; no database change | **Yes, if decision 44 says it counts as a fix** (like decision 39), before Sunday 22 November |
+| 2 | **Ask someone there** (a quick paid answer from a person at a place within 10 minutes), **Bargain for me** (a local who knows prices gets you a better deal), the kinds as map filters, numbers by kind on the admin numbers page | Server work, maybe a new money rule | After launch (Step 7) |
+| 3 | A page per audience on the website (`/for/business`, `/for/new-in-city`, `/for/students`), the "No app for that" post series (with 4.7 B), outreach per audience | Marketing (Step 4) | Pages before launch if 4.3 is built; posts from launch |
+
+### How we prove it worked
+
+The **5-person test** (1.13) with unique jobs instead of "clean my kitchen": *"This medicine is out of stock at your chemist"* (poster) and *"You speak Telugu and Hindi; earn ₹500 this weekend"* (helper). **Target:** 4 of 5 post or apply within 2 minutes, and 4 of 5 can say in one line what TaskDrop is for. After launch (7.1), one more weekly number: **the share of new tasks that are a unique kind** (target 7 in 10).
+
+### Steps
+
+1. LOOK at the [D26 canvas](https://claude.ai/artifact/3h6ztDAE5yaAyQYhuhZwsZ) and SAY your answers to **decisions 42, 43 and 44**.
+2. Claude checks each new tile on the web for an Indian app that already does it, and drops or renames any that has one (written in this task).
+3. SAY:
+
+```say
+approve D26
+```
+
+   (or what to change). Claude builds order 1 in small pull requests (Sonnet 5.5 for the screens, Opus 5.5 for the review). Merging puts it on `taskdrop.in`; the Android app needs an update, and Claude asks you before publishing it.
+4. Run the 5-person test with the unique-job lines, and TELL Claude the numbers: "done 1.16".
+
+**Done when:** order 1 is live on `taskdrop.in`, Home shows no everyday tiles in either mode, Earn is blue and Hire is green for guests and signed-in people, `npm run check` is green, and the 5-person test meets the target.
 </details>
 
 > **GATE 1: do not start Step 3 until all of these are true** (Step 2 can start at the same time as Step 1)
@@ -5604,6 +5689,9 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 39 | **Useful in the first minute (D22, task 1.13).** Testers did not find the app useful on opening it. Count D22 order 1 and 2 as a fix inside the feature freeze (decision 37), so it is built before launch? | **Decided 9 Nov: yes.** You approved the D22 design (v4) and said to start building, so D22 order 1 and 2 are built inside the freeze, before launch. Order 3 and 4 still wait for Step 7 | "Decision 39: yes, D22 order 1 and 2 before launch." or "Decision 39: after launch." |
 | 40 | **Android tablets and foldables at launch** (CEO rewrite, 11 Nov; task 1.14). Android now turns and resizes the app on screens 600 and wider, whatever the app asks. Make the app "never broken" there before launch by reusing today's layouts (level 1), design a full tablet app before launch (adds 1 to 2 weeks and reopens the freeze), or use Android's temporary switch that keeps the phone screen in a box (stops working with Android 17)? | **Decided by you, 2026-11-11** ("Use the CEO defaults"). **Level 1, "never broken"** (task 1.14), by reusing today's layouts. A full tablet design waits until PostHog shows tablets matter. Done | Nothing to say |
 | 41 | **The freeze day** (CEO rewrite, 11 Nov). Decision 37 froze features "once the map work is finished", with no date, and 1.13 and the map bar arrived after it. Set a day after which only fixes go in, whatever is finished? | **Decided by you, 2026-11-11** ("Use the CEO defaults"). **Sunday 22 November 2026.** What is not built by then moves to after launch (1.13 order 3 and 4 already do). Fixes, 1.14 level 1 and the Plan B money flow are not features and carry on. Done | Nothing to say |
+| 42 | **Everyday jobs** (task 1.16). Home no longer offers cleaning, repairs, pick-up or shifting. If someone types one anyway: still post it (nothing is lost, "Ask for anything" stays true), or stop it with a note that names a better app? | **Open.** Recommended: **still post it, never advertise it.** Blocking turns away a paying person and needs a list of banned words | "Decision 42: still post them." or "Decision 42: block them." |
+| 43 | **Who we go after first** (task 1.16). Small shops and creators, people new in the city who work, students and job seekers; and as earners, "what you know pays" (students, homemakers, retired people, people with two languages) | **Open.** Recommended: **these three, in the launch areas of decision 38**; everyone else is welcome but is not where the first marketing goes | "Decision 43: yes, these three." or "Decision 43: ___ first." |
+| 44 | **D26 before the freeze?** (task 1.16). Order 1 is words, tiles and sections, with no database change, like D22 order 1 (decision 39). Count it as a fix, so it is built before Sunday 22 November? | **Open.** Recommended: **yes**: what Home offers is what people think TaskDrop is, and launching with the everyday tiles teaches the wrong idea | "Decision 44: yes, before the freeze." or "Decision 44: after launch." |
 
 ---
 
@@ -6101,6 +6189,7 @@ Kept for the record. The live picture is the **Start here** panel at the top of 
 
 ## Changelog
 
+- **2026-11-11 (D26: only the jobs no other app does, and the worker colour back):** Your video of Hire Home said Everyday help (cleaning, repairs, pick-up, queue, shifting, online help) is what big apps already do, and asked for only unique, creative tasks and a plan to reach the people who need them. **New task 1.16** with the core line ("If another app already does it, use that app. For everything else, there is TaskDrop"), three audiences plus earners, a "No app does these" section in place of Everyday help, "Ideas for you" by audience, "Done near you", an Earn Home that opens with "Earn from what you already know", new story words, a rival check, and decisions 42 to 44. Drawn on the [D26 canvas](https://claude.ai/artifact/3h6ztDAE5yaAyQYhuhZwsZ); nothing built. D22 A1 is marked replaced. **Fixed the same day (PR 323):** guests in Earn saw green because the blue palette needed a sign-in; Earn is now royal blue for everyone, with a test that guards it.
 - **2026-11-11 (explainer videos, from the Upwork escrow video):** You shared "How to Use Escrow on Upwork" (a 54-second how-to), asked if it is built, and asked for a similar video plan. **Built:** money held until approval, release on approval or after 3 days, "Report a problem". **Partly built:** a job splits into 2 to 6 steps, but they are a checklist and the money is released once, so no video may say "paid per step". **Added:** task 4.7 part B, the "TaskDrop in 60 seconds" explainer series (the 60-second beats, what scripts may claim, 10 episodes: 4 before launch, then one a week); a Friday row in the 7.3 rhythm; the playbook timeline and channel 5; the Gate 4 line. No new task, so the task count is unchanged. The same plan is in section 3b of your local `marketing strategy.html`.
 - **2026-11-11 (the CEO defaults accepted):** You said "Use the CEO defaults". **Decided:** 10 (stay on the personal Google Play account while a sole proprietorship), 12 (the recommended new-account limits), 17 (PAN screen after the CA answers, before Step 5), 22 (the tour runs in guest mode), 25 (an "I am 18 or older" tap for guests), 28 (`taskdrop.in` moves to production at launch; staging moves to `staging.taskdrop.in`), 30 (one small paid tester round after the Plan B flow is built), 31 (staging APK now, Google Play from launch day), 40 (Android tablets: level 1, "never broken"), 41 (the freeze day is Sunday 22 November 2026), and F1 in 3.6 (fix the slow first load the cheap way). **38** is answered yes (2 or 3 areas), but the area names are still open. **Decision 3** (Razorpay or Cashfree) stays open until both written quotes arrive. The Decisions table, the defaults card, the setup guide, the at-a-glance card, Gate 1 and tasks 1.14, 2.14, 2.18 and 3.6 now say so. **Not built:** the 18+ tap (25), the tour in guest mode (22), 1.14 and F1 each wait for their start words. No code, database, setting or account changed.
 - **2026-11-11 (CEO rewrite: the plan on one page, every screen, and the scaling ladder):** You asked for the plan to be made simpler and easier to follow, checked against good practice with fresh research, cheaper, ready to scale, with pictures, and for a plan to make the app fit every phone, tablet and laptop. **New at the top: The plan on one page** (the verdict, the road to launch as one picture with three lanes, the three clocks that decide launch day, a "do these now" table, a card with the CEO default for every open decision, answered by one sentence, and a best-practice card: 12 habits kept, 9 changed). The 9 November CEO review stays, closed, as the reasons. A repeated "two copies" table was removed from The map. **New task 1.14** (fits every screen): the website already chooses one of four layouts by width; the Android app always used the phone layout and asked to stay upright, and Android 16 (required by Google Play since 31 August 2026) ignores that on screens 600 and wider. Level 1 "never broken" before launch (layout by width on Android, six test sizes instead of two, a size test on every pull request, small phones, big text, short laptops, an emulator pass), level 2 after launch. **New rules 11** (no new kind of check before launch; Step 2 now says when each of the six checks runs) **and 12** (layout by width; eight layout rules). **How it grows** is now a scaling ladder with the price of each step and the number that says when to climb, three things to keep true, and an area ladder for opening the next area and city. **Changed:** Gate 1 (the freeze now names 1.13 and a freeze day), Gate 3 (1.14 level 1), Gate 4 (fast landing pages), 3.3 (ask 20 testers, start today), 3.6 (CEO default for F1: fix the slow first load the cheap way), 7.5 (prices), What it costs (cost at each size; what to do if Expo's free builds run out), the "Fits every browser and screen" card (more widths, tablets and foldables), five new words. **New decisions:** 40 (Android tablets at launch; recommended level 1) and 41 (the freeze day; recommended Sunday 22 November). **Checked online on 11 Nov:** Google Play's target level and testing rules, Android 16 and 17 large-screen rules, Supabase prices, RBI's payment aggregator directions of 15 September 2025, the DPDP rules' dates, StatCounter's phone screen sizes for India. **Checked in the code:** `apps/mobile/src/lib/layout.ts`, `app.json`, the Playwright config, and the Android target level (36). No code, database, setting or account changed; nothing was built.
