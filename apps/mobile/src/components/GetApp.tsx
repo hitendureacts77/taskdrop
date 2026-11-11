@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text as RNText, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../providers/ThemeProvider';
-import { ANDROID_APK_URL, ANDROID_APP_VERSION, browserInfo, isAppleMobile } from '../lib/appDownload';
+import { apkDownloadUrl, browserInfo, isAppleMobile } from '../lib/appDownload';
 import { goTo } from '../lib/appPrompt';
 import { Icon } from './Icon';
 import { HeroCard } from './Hero';
@@ -23,18 +23,37 @@ const STEPS = [
  * The public download page, taskdrop.in/get (design D17). Shown by AppGate on
  * the web before anything else, so it opens for anyone, signed in or not. It
  * is the one fixed address the banner, the sheet and the QR code all point at;
- * when the app reaches Google Play only ANDROID_APK_URL (lib/appDownload.ts)
- * changes. On an iPhone the download is replaced by a way back to the website.
+ * when the app reaches Google Play only apkDownloadUrl (lib/appDownload.ts)
+ * changes. The Download button always gives the newest Android build (the
+ * app-download Edge Function asks Expo). On an iPhone the download is replaced
+ * by a way back to the website.
  */
 export function GetApp() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const { ua, touch } = browserInfo();
   const apple = isAppleMobile(ua, touch);
+  const downloadUrl = apkDownloadUrl(process.env.EXPO_PUBLIC_SUPABASE_URL);
+  const [version, setVersion] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof document !== 'undefined') document.title = 'Get TaskDrop for Android';
   }, []);
+
+  // Show which version the button will give. Best effort: with no answer the line just omits it.
+  useEffect(() => {
+    if (apple || !process.env.EXPO_PUBLIC_SUPABASE_URL) return;
+    let alive = true;
+    fetch(`${downloadUrl}?json=1`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { version?: string | null } | null) => {
+        if (alive && j?.version) setVersion(String(j.version).slice(0, 20));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [apple, downloadUrl]);
 
   const toWebsite = () => goTo('/');
 
@@ -91,10 +110,10 @@ export function GetApp() {
           ) : (
             <>
               <RNText style={tx('400', 13, 'rgba(255,255,255,0.85)', { marginTop: 8 })}>
-                Version {ANDROID_APP_VERSION} · Android 8 or newer
+                {version ? `Version ${version} · ` : ''}Android 8 or newer
               </RNText>
               <Pressable
-                onPress={() => goTo(ANDROID_APK_URL)}
+                onPress={() => goTo(downloadUrl)}
                 accessibilityRole="link"
                 accessibilityLabel="Download the app"
                 style={({ pressed }) => ({

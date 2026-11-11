@@ -21,7 +21,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** Server functions the app may call by name. Each one checks the caller itself. */
-export const ALLOWED_FUNCTIONS = ['api', 'app-config', 'places-search', 'razorpay', 'password-auth', 'phone-auth'];
+export const ALLOWED_FUNCTIONS = ['api', 'app-config', 'app-download', 'places-search', 'razorpay', 'password-auth', 'phone-auth'];
 
 /** The one file that makes the Supabase client (sign-in and function calls only). */
 const CLIENT_FILE = 'lib/supabase.ts';

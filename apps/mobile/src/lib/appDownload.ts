@@ -10,10 +10,14 @@
  * argument or is wrapped in try/catch (storage can be blocked or throw).
  */
 
-/** The newest beta build (EAS artifact). */
-export const ANDROID_APK_URL = 'https://expo.dev/artifacts/eas/k90BtDJNbV-_yOehTtP2bBTdWK_z449YcDrFV3MRyGE.apk';
-/** The app version that file contains. */
-export const ANDROID_APP_VERSION = '1.1.0';
+/**
+ * The Download button opens the `app-download` Edge Function, which sends the phone to the newest
+ * finished Android build from Expo (supabase/functions/app-download). No build address is kept here,
+ * so a new build never needs a code change. `base` is EXPO_PUBLIC_SUPABASE_URL (staging or production).
+ */
+export function apkDownloadUrl(base: string | null | undefined): string {
+  return `${(base ?? '').replace(/\/+$/, '')}/functions/v1/app-download`;
+}
 /** The fixed address of the download page on the website. */
 export const GET_PATH = '/get';
 

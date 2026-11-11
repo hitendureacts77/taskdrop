@@ -47,6 +47,7 @@ const COMMON = [
   "IMAGEKIT_ENV",
   "SENTRY_DSN",
   "SENTRY_ENVIRONMENT",
+  "EXPO_BUILDS_TOKEN", // read-only Expo token; lets app-download find the newest Android build (not EXPO_TOKEN, which can publish)
   "GOOGLE_MAPS_API_KEY",
   "FIREBASE_PROJECT_NUMBER",
   "ALLOWED_ORIGINS", // browser origins the functions answer; differs per environment

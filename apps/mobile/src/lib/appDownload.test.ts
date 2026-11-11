@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ANDROID_APK_URL,
+  apkDownloadUrl,
   BANNER_HIDE_DAYS,
   GET_PATH,
   isAndroidWeb,
@@ -21,8 +21,9 @@ const IPAD_DESKTOP = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKi
 const WINDOWS = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 const DAY = 24 * 60 * 60 * 1000;
 
-test('the download target is one https address and one fixed path', () => {
-  assert.ok(ANDROID_APK_URL.startsWith('https://'));
+test('the download target is the app-download function and one fixed path', () => {
+  assert.equal(apkDownloadUrl('https://abc.supabase.co'), 'https://abc.supabase.co/functions/v1/app-download');
+  assert.equal(apkDownloadUrl('https://abc.supabase.co/'), 'https://abc.supabase.co/functions/v1/app-download');
   assert.equal(GET_PATH, '/get');
 });
 
