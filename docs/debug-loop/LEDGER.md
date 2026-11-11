@@ -4,7 +4,7 @@ Every bug the debug loop has seen, in one place. The plan is in `docs/DEBUGGING_
 
 **Statuses:** New → Confirmed → Fixing → Fixed, not rechecked → Verified → Closed. Side doors: Reopened, Accepted, After launch, Cannot reproduce, Duplicate of B..
 **Levels:** Critical, High (always fixed this round), Medium, Low (your "fix", "accept" or "after launch").
-**Each new entry also says:** Class (UI, Backend or Both), Current vs Expected, Proof (screenshot, clean console log, security rules for Backend), Rung reached on the dig-deeper ladder (1 quick try … 6 retro) and Tries. Read `BUG_PROMPT.md` before fixing.
+**Each new entry also says:** Class (UI, Backend or Both), Current vs Expected, Proof (screenshot, clean console log, security rules for Backend), Rung reached on the dig-deeper ladder (1 quick try … 6 retro), Tries, and Fix path (A one whole fix, B one file rewritten; plan section 8). Read `BUG_PROMPT.md` before fixing.
 
 ## Rounds
 
