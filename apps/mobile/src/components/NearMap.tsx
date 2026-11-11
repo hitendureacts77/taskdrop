@@ -32,15 +32,15 @@ import {
   type MapArea,
   type MapJob,
 } from './NearMapParts';
-import { FiltersButton, FiltersPanel, PlaceRow, QuickChip, WorkSwitch, payLabel } from './MapFilterParts';
+import { DropFilters, FiltersButton, FiltersPanel, JobChips, PlaceRow, QuickChip, WorkSwitch } from './MapFilterParts';
 import { distanceKm, peopleReach, postedToday, withinReach } from '../lib/mapReach';
-import { DEFAULT_FILTERS, FILTERS_KEY, KM_STEPS, SORT_LABELS, changedFilters, filterJobs, jobsSummary, parseSavedFilters, type MapFilters } from '../lib/mapFilters';
+import { DEFAULT_FILTERS, KM_STEPS, changedFilters, clearJobFilters, filterJobs, jobsSummary, matchesJob, narrowsJobs, type MapFilters } from '../lib/mapFilters';
+import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
 import { REFRESH_DEBOUNCE_MS, createRefreshCache, refreshKey, shouldRefresh } from '../lib/mapRefresh';
 import { activeFirst, areaName, farText, firstName, isNearby, jobPin, kmBetween, minePin, offerOf, personMeta, personPin } from './mapPins';
 import { Icon } from './Icon';
 import { BottomSheet, PrimaryButton, rupees } from './kit';
 import { FadeIn, Pressy, tx } from './primitives';
-import { categoryLabel } from './WorkCard';
 import { useReducedMotion } from '../lib/motion';
 import { taskToFeedRow } from '../lib/openTask';
 import { isFresh } from '../lib/mapMotion';
@@ -69,7 +69,7 @@ const HELPER_H = 430;
  */
 const WIDE_KM = 20000;
 const ITEMS = 200;
-/** The most from-home jobs asked for. */
+/** The most remote jobs asked for. */
 const REMOTE_ITEMS = 50;
 /** The phone's top pill. */
 const TOP_BAR_H = 70;
@@ -104,8 +104,8 @@ function once<T>(key: string, make: () => Promise<T>): Promise<T> {
  */
 export type NearMapLayer = 'jobs' | 'people' | 'mine';
 
-/** The Explore list's own filters, applied to the jobs on the map (Jobs layer only). */
-export type NearMapListFilter = { category: string | null; query: string };
+/** The Explore list's search, applied to the jobs on the map too (Jobs layer only). The filters are shared (lib/jobFiltersStore). */
+export type NearMapListFilter = { query: string };
 
 /**
  * Is this screen the one being looked at? Phones: the tab or pushed screen is focused (expo-router, the
@@ -217,7 +217,7 @@ export function NearMap({
   meKind?: 'live' | 'area';
   /** The name of the person's area ("Financial District, Hyderabad"), for the panel's subtitle. */
   areaLabel?: string;
-  /** The Explore list's category and search, applied to the jobs shown (Jobs layer only). */
+  /** The Explore list's search, applied to the jobs shown (Jobs layer only). */
   listFilter?: NearMapListFilter;
   /** False when `centre` is a place the person picked to look around (another city), not their own area. */
   placeIsMine?: boolean;
@@ -251,8 +251,13 @@ export function NearMap({
   const tick = useFocusTick();
   const root = useRef<ViewInstance>(null);
 
-  // Where, how far, pay, in person or from home, and the order (plan D23). Kept on this device.
-  const [filters, setFilters] = useState<MapFilters>(() => (typeof radiusKm === 'number' ? { ...DEFAULT_FILTERS, km: radiusKm } : DEFAULT_FILTERS));
+  // Where, how far, Nearby or remote, price, how they hire, due date and the order (plan D23, D27). The tab shares
+  // them with the Find work list and keeps them on this device; a route that sets the distance keeps its own.
+  const shared = useJobFilters();
+  const own = typeof radiusKm === 'number';
+  const [local, setLocal] = useState<MapFilters>(() => ({ ...DEFAULT_FILTERS, km: radiusKm ?? DEFAULT_FILTERS.km }));
+  const filters = own ? local : shared;
+  const setFilters = own ? setLocal : setJobFilters;
   const radius = filters.km;
   const [filtersOpen, setFiltersOpen] = useState(false);
   // From-home jobs: no pin, so they are asked for on their own and only join the list.
@@ -288,14 +293,9 @@ export function NearMap({
   const reduced = useReducedMotion();
   const list = useRef<ScrollViewInstance>(null);
 
-  // The saved filters (unless the parent set the distance), and whether the tip was already closed once.
+  // Whether the tip was already closed once.
   useEffect(() => {
     let alive = true;
-    if (typeof radiusKm !== 'number') {
-      void AsyncStorage.getItem(FILTERS_KEY)
-        .then((v) => alive && v && setFilters(parseSavedFilters(v)))
-        .catch(() => {});
-    }
     if (Platform.OS === 'web' && desktop && browserInfo().touch === 0) {
       void AsyncStorage.getItem(TIP_KEY)
         .then((v) => alive && setTip(v !== '1'))
@@ -333,7 +333,7 @@ export function NearMap({
   }, [centre?.lat, centre?.lng]);
   useEffect(() => {
     if (typeof radiusKm === 'number') {
-      setFilters((f) => ({ ...f, km: radiusKm }));
+      setLocal((f) => ({ ...f, km: radiusKm }));
       setFitKey((k) => k + 1);
     }
   }, [radiusKm]);
@@ -456,20 +456,18 @@ export function NearMap({
     };
   }, [mine, focused]);
 
-  // The Explore list's category and search narrow the jobs too.
-  const filterCategory = listFilter?.category ?? null;
+  // The Explore list's search narrows the jobs too.
   const filterQuery = (listFilter?.query ?? '').trim().toLowerCase();
   const matchesList = useMemo(
-    () => (j: MapJob) =>
-      (!filterCategory || categoryLabel(j) === filterCategory) && (!filterQuery || `${j.title} ${j.description ?? ''}`.toLowerCase().includes(filterQuery)),
-    [filterCategory, filterQuery],
+    () => (j: MapJob) => !filterQuery || `${j.title} ${j.description ?? ''}`.toLowerCase().includes(filterQuery),
+    [filterQuery],
   );
   const pinnedPool = useMemo(() => (jobs ?? []).filter(matchesList), [jobs, matchesList]);
   const homePool = useMemo(() => (remoteJobs ?? []).filter(matchesList), [remoteJobs, matchesList]);
-  // On the map: every pinned job at or above the pay floor (none while only from-home jobs are asked for), highest first.
+  // On the map: every pinned job the price, hire type and due date allow (none while only remote jobs are asked for), highest first.
   const shownJobs = useMemo(
-    () => (filters.work === 'remote' ? [] : pinnedPool.filter((j) => j.benchmark_minor >= filters.minPay * 100).sort((a, b) => b.benchmark_minor - a.benchmark_minor)),
-    [pinnedPool, filters.work, filters.minPay],
+    () => (filters.work === 'remote' ? [] : pinnedPool.filter((j) => matchesJob(j, filters)).sort((a, b) => b.benchmark_minor - a.benchmark_minor)),
+    [pinnedPool, filters],
   );
   const shownPeople = useMemo(
     () => (kind === 'people' ? (people ?? []) : []).filter((w) => (!narrow || presenceOf(w.last_seen_at, now).online) && (!served || Boolean(w.top_service))),
@@ -661,7 +659,6 @@ export function NearMap({
     setFiltersOpen(false);
     close();
     if (f.work === 'remote') setTab('jobs');
-    void AsyncStorage.setItem(FILTERS_KEY, JSON.stringify(f)).catch(() => {});
     // The sheet covers part of the map while it closes; fit again once it is gone.
     Keyboard.dismiss();
     backToPlace();
@@ -674,11 +671,11 @@ export function NearMap({
   };
 
   const fromHome = mode === 'jobs' && filters.work === 'remote';
-  const title = mode === 'jobs' ? (fromHome ? 'Work from home' : 'Work near you') : mine ? 'People nearby' : 'Helpers near you';
+  const title = mode === 'jobs' ? (fromHome ? 'Remote work' : 'Work near you') : mine ? 'People nearby' : 'Helpers near you';
   const within = fromHome ? 'from anywhere' : `within ${radius} km`;
   const sub = loading ? 'Looking around…' : `${placeName} · ${within}${mode === 'people' && live > 0 ? ` · ${live} active now` : ''}`;
   const countWords = `${count} ${count === 1 ? words.one : words.many}`;
-  const pillText = busy ? 'Looking around…' : fromHome ? 'From-home jobs are in the list, not on the map' : total === 0 ? `No ${words.many} on this part of the map` : `${total} ${total === 1 ? words.one : words.many} on the map`;
+  const pillText = busy ? 'Looking around…' : fromHome ? 'Remote jobs are in the list, not on the map' : total === 0 ? `No ${words.many} on this part of the map` : `${total} ${total === 1 ? words.one : words.many} on the map`;
   const nextReach = KM_STEPS.find((k) => k > radius) ?? null;
 
   // What the map shows: Jobs, Helpers or (signed in) My people. Only drawn when the parent handles the change (the tab), not on the route.
@@ -705,9 +702,8 @@ export function NearMap({
     mode === 'jobs'
       ? [
           ...(fromHome ? [] : [<QuickChip key="km" label={`${radius} km`} open onPress={openFilters} />]),
-          <QuickChip key="pay" label={payLabel(filters.minPay)} open on={filters.minPay > 0} onPress={openFilters} />,
-          // The order shows only once changed; it is always in the Filters sheet.
-          ...(filters.sort === 'pay' ? [] : [<QuickChip key="sort" label={`${SORT_LABELS[filters.sort]} first`} open on onPress={openFilters} />]),
+          // Each set filter, with an x that takes it off; the rest are in the Filters sheet.
+          <JobChips key="set" filters={filters} onChange={applyFilters} />,
         ]
       : [
           <QuickChip key="km" label={`${radius} km`} open onPress={openFilters} />,
@@ -792,12 +788,12 @@ export function NearMap({
     ) : null;
 
   const noneToShow = mine && allMine.length === 0;
-  const jobFilters = mode === 'jobs' && (filters.minPay > 0 || filters.work !== 'all');
-  const filtered = narrow || served || Boolean(filterCategory) || Boolean(filterQuery) || jobFilters;
+  const jobFilters = mode === 'jobs' && narrowsJobs(filters);
+  const filtered = narrow || served || Boolean(filterQuery) || jobFilters;
   const emptyText = fromHome
-    ? filters.minPay > 0
-      ? 'No from-home jobs at this pay yet.'
-      : 'No from-home jobs right now. Check back soon.'
+    ? jobFilters
+      ? 'No remote jobs match these filters yet.'
+      : 'No remote jobs right now. Check back soon.'
     : total > 0
       ? `No ${words.many} within ${radius} km of ${placeName} yet. ${total} more on the map further out.`
       : filtered
@@ -821,8 +817,12 @@ export function NearMap({
         // Say why it is empty and offer the one tap that fixes it.
         <View style={{ padding: 16, gap: 12, alignItems: 'flex-start' }}>
           <RNText style={tx('600', 13, t.colors.muted)}>{emptyText}</RNText>
+          {jobFilters ? (
+            // One tap loosens one filter, and says how many jobs it would then show.
+            <DropFilters filters={filters} count={(f) => filterJobs(pinnedPool, homePool, reachAt, f).length} onChange={applyFilters} />
+          ) : null}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {nextReach && !fromHome ? (
+            {nextReach && !fromHome && !jobFilters ? (
               <Pressy
                 onPress={() => applyFilters({ ...filters, km: nextReach })}
                 label={`Show within ${nextReach} km`}
@@ -833,7 +833,7 @@ export function NearMap({
             ) : null}
             {jobFilters ? (
               <Pressy
-                onPress={() => applyFilters({ ...filters, minPay: 0, work: 'all' })}
+                onPress={() => applyFilters(clearJobFilters(filters))}
                 label="Clear filters"
                 style={{ height: 40, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: t.colors.line, alignItems: 'center', justifyContent: 'center' }}
               >
@@ -880,7 +880,7 @@ export function NearMap({
       </View>
     ) : null;
 
-  // The controls: what the map shows, where, in person or from home, and the chips with the Filters button.
+  // The controls: what the map shows, where, Nearby or remote, and the chips with the Filters button.
   const chipRow = (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
       {quickChips}
@@ -1101,7 +1101,7 @@ export function NearMap({
       ? 'Looking around…'
       : count === 0
         ? fromHome
-          ? 'No from-home jobs right now'
+          ? 'No remote jobs right now'
           : `No ${words.many} within ${radius} km yet`
         : countWords;
   const peekSub = hero ? hero.title : loading ? '' : 'Swipe up for the list';

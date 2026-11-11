@@ -4,7 +4,7 @@ import { View, Text as RNText, ScrollView, TextInput, Pressable, Animated, Platf
 import { Screen, ScreenList, cardSurface } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
-import { EmptyState, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../components/kit';
+import { BottomSheet, EmptyState, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../components/kit';
 import { TrendingSection } from '../components/Trending';
 import { WorkCard, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
@@ -17,21 +17,22 @@ import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import {
   searchTasksWithPosters,
-  getProfile,
   listMyTasks,
   type Task,
   type TaskWithPoster,
 } from '../data/api';
 import { listSavedTaskIds, setSaved } from '../data/extras';
 import { listGuestSaves, setGuestSaved } from '../lib/guestSaves';
-import { IDEAS, TEMPLATES, TEMPLATE_TAGS, CATEGORIES, TOP_CATEGORIES, type TemplateTag } from '../lib/taskBrief';
+import { IDEAS, TEMPLATES, TEMPLATE_TAGS, type TemplateTag } from '../lib/taskBrief';
 import { taskToFeedRow } from '../lib/openTask';
 import { useMyOffers } from '../lib/useMyOffers';
 import { useVoiceInput } from '../lib/speech';
-import { distanceKm } from '@taskdrop/rules';
 import { NearYou } from '../components/NearYou';
 import { JobsNearHero } from '../components/JobsNearHero';
 import { NearMap, type NearMapLayer } from '../components/NearMap';
+import { DropFilters, FiltersButton, FiltersPanel, JobChips, QuickChip, WorkSwitch } from '../components/MapFilterParts';
+import { changedFilters, clearJobFilters, filterList, narrowsJobs, type MapFilters } from '../lib/mapFilters';
+import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
 import { LocationSheet } from '../components/LocationSheet';
 import { LocationPrompt } from '../components/LocationPrompt';
 import { useMyArea } from '../lib/useMyArea';
@@ -91,7 +92,7 @@ export function ExploreScreen() {
   const [pickFor, setPickFor] = useState<'mine' | 'look' | null>(null);
   const [lookAt, setLookAt] = useState<{ lat: number; lng: number; label: string } | null>(null);
   // What the list is filtered by, so the map opens with the same jobs.
-  const [listFilter, setListFilter] = useState<{ category: string | null; query: string }>({ category: null, query: '' });
+  const [listFilter, setListFilter] = useState<{ query: string }>({ query: '' });
 
   // The tab stays mounted while another tab or a job is in front (R4), so the view is steered by where
   // the person came from. The focus tick is no help: it does not move when the tab was seen under 30 s ago.
@@ -185,7 +186,17 @@ export function ExploreScreen() {
       {listBuilt ? (
         <ViewSwap on={view === 'list'} reduced={reduced} style={listWidth}>
           {mode === 'worker' ? (
-            <FindWork onMap={() => setView('map')} onFilter={setListFilter} />
+            <FindWork
+              onMap={() => setView('map')}
+              onFilter={setListFilter}
+              at={centre}
+              place={{
+                label: placeLabel ?? 'Choose your area',
+                mine: !lookAt,
+                onChange: () => setPickFor(area ? 'look' : 'mine'),
+                onUseMine: () => setLookAt(null),
+              }}
+            />
           ) : (
             <ExploreIdeas onMap={() => setView('map')} />
           )}
@@ -559,29 +570,21 @@ export function SearchBox({
 
 // ------------------------------------------------------------ worker side ---
 
-type Filter = 'all' | 'quick_accept' | 'quick_earn' | 'bid' | 'live' | 'local' | 'remote';
-
-const FILTERS: { key: Filter; label: string; icon?: Parameters<typeof Pill>[0]['icon'] }[] = [
-  { key: 'all', label: 'All', icon: 'list' },
-  { key: 'local', label: 'Nearby', icon: 'pin' },
-  { key: 'remote', label: 'Remote', icon: 'compass' },
-  { key: 'quick_accept', label: 'Auto-hire', icon: 'bolt' },
-  { key: 'live', label: 'Due soon', icon: 'clock' },
-  { key: 'quick_earn', label: 'Under ₹300', icon: 'wallet' },
-  { key: 'bid', label: 'Open to offers', icon: 'gavel' },
-];
-
-const LOCAL_KM = 10;
-const QUICK_EARN_MAX_MINOR = 30000; // ₹300 and under
-
+/**
+ * Find work, the list (plan D27, task 1.17): the same filters as the map (lib/jobFiltersStore), around the same
+ * place, so both show the same jobs. Several filters at once; no category (owner, 11 Nov).
+ */
 function FindWork({
   onMap,
-  initialFilter,
   onFilter,
+  at,
+  place,
 }: {
   onMap: () => void;
-  initialFilter?: { filter: Filter; id: number };
-  onFilter: (f: { category: string | null; query: string }) => void;
+  onFilter: (f: { query: string }) => void;
+  /** The place the map is around (your area, or one you picked); null = none yet. */
+  at: { lat: number; lng: number } | null;
+  place: { label: string; mine: boolean; onChange: () => void; onUseMine: () => void };
 }) {
   const t = useTheme();
   const { go, params } = useNav();
@@ -590,31 +593,29 @@ function FindWork({
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState(typeof params.q === 'string' ? params.q : '');
   const [query, setQuery] = useState(typeof params.q === 'string' ? params.q : '');
-  const [filter, setFilter] = useState<Filter>(typeof params.filter === 'string' ? (params.filter as Filter) : (initialFilter?.filter ?? 'all'));
-  const [cat, setCat] = useState<string | null>(typeof params.category === 'string' ? params.category : null);
+  const filters = useJobFilters();
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [rows, setRows] = useState<TaskWithPoster[] | null>(null);
   const focusTick = useFocusTick();
-  const [allCats, setAllCats] = useState(false);
-  // Tell the screen what is filtered, so the map view shows the same jobs.
-  useEffect(() => onFilter({ category: cat, query }), [cat, query]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Tell the screen what is searched, so the map view shows the same jobs.
+  useEffect(() => onFilter({ query }), [query]); // eslint-disable-line react-hooks/exhaustive-deps
   const searchRef = useRef<TextInputInstance>(null);
-
-  // "See them" on the map's remote-jobs line: show the remote jobs, whatever was filtered before.
-  const filterAsk = initialFilter?.id;
-  useEffect(() => {
-    if (!filterAsk || !initialFilter) return;
-    setFilter(initialFilter.filter);
-    setCat(null);
-    setTab(0);
-  }, [filterAsk]); // eslint-disable-line react-hooks/exhaustive-deps
+  const applyFilters = (f: MapFilters) => {
+    setJobFilters(f);
+    setFiltersOpen(false);
+  };
+  const clearAll = () => {
+    setJobFilters(clearJobFilters(filters));
+    setQ('');
+    setQuery('');
+  };
 
   // Arriving from the home search bar: start clean (no leftover filters that
   // would hide every result) and put the cursor in the search box.
   const focusSearch = params.focusSearch;
   useEffect(() => {
     if (!focusSearch) return;
-    setFilter('all');
-    setCat(null);
+    setJobFilters(clearJobFilters(filters));
     setTab(0);
     setTimeout(() => searchRef.current?.focus(), 250);
   }, [focusSearch]);
@@ -624,12 +625,10 @@ function FindWork({
     if (handedQ === null) return;
     setQ(handedQ);
     setQuery(handedQ);
-    setFilter('all');
-    setCat(null);
+    setJobFilters(clearJobFilters(filters));
     setTab(0);
   }, [handedQ]);
   const [saved, setSavedIds] = useState<Set<string>>(new Set());
-  const [me, setMe] = useState<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
   const [bidTask, setBidTask] = useState<Task | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -640,13 +639,13 @@ function FindWork({
       if (guest) void listGuestSaves().then((ids) => setSavedIds(new Set(ids)));
       return;
     }
-    void getProfile(userId).then((p) => p && setMe({ lat: p.loc_lat, lng: p.loc_lng })).catch(() => {});
     void listSavedTaskIds().then(setSavedIds).catch(() => {});
   }, [userId, guest]);
 
   const load = useCallback(async () => {
     // One request: the posts and their posters together (it was two back to back, once 13 s on a busy server).
-    return searchTasksWithPosters({ q: query || undefined, limit: 60, kind: 'request' });
+    // 200 (the server's most), like the map, so the shared filters find the same jobs on both (D27).
+    return searchTasksWithPosters({ q: query || undefined, limit: 200, kind: 'request' });
   }, [query, focusTick]);
 
   useEffect(() => {
@@ -671,31 +670,15 @@ function FindWork({
     }
   };
 
-  const shown = useMemo(() => {
-    if (!rows) return null;
-    const soon = Date.now() + 24 * 3600000;
-    return rows.filter((r) => {
-      if (cat && categoryLabel(r) !== cat) return false;
-      switch (filter) {
-        case 'quick_accept':
-          return r.assignment_mode === 'auto';
-        case 'quick_earn':
-          return r.benchmark_minor <= QUICK_EARN_MAX_MINOR;
-        case 'bid':
-          return r.assignment_mode !== 'auto';
-        case 'live':
-          return r.flag === 'urgent' || (r.due_at ? new Date(r.due_at).getTime() < soon : false);
-        case 'remote':
-          return r.loc_lat === null;
-        case 'local': {
-          const km = distanceKm({ lat: me.lat, lng: me.lng }, { lat: r.loc_lat, lng: r.loc_lng });
-          return km !== null && km <= LOCAL_KM;
-        }
-        default:
-          return true;
-      }
-    });
-  }, [rows, filter, cat, me]);
+  const atLat = at?.lat;
+  const atLng = at?.lng;
+  const shown = useMemo(
+    () => (rows ? filterList(rows, atLat != null && atLng != null ? { lat: atLat, lng: atLng } : null, filters) : null),
+    [rows, atLat, atLng, filters],
+  );
+  // How many a draft of the filters would show, for the sheet's button and the one-tap ways out.
+  const countFor = (f: MapFilters) => (rows ? filterList(rows, at, f).length : 0);
+  const narrowed = narrowsJobs(filters);
 
   const toggleSave = async (id: string) => {
     const on = !saved.has(id);
@@ -775,69 +758,53 @@ function FindWork({
           ) : tab === 1 ? (
             <TrendingSection
               onCategory={(c) => {
-                setCat(c);
+                // No category filter (owner, 11 Nov): a busy category becomes the search.
+                setQ(c);
+                setQuery(c);
                 setTab(0);
               }}
             />
           ) : (
             <>
-              {/* One row that scrolls sideways (the page edge is the gutter), so the chips never pile up into lines. */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20 }}>
-                {FILTERS.map((f) => (
-                  <Pill key={f.key} label={f.label} icon={f.icon} active={filter === f.key} onPress={() => setFilter(f.key)} />
-                ))}
-              </ScrollView>
-              <RNText style={tx('600', 11, t.colors.muted, { marginTop: 14, letterSpacing: 0.6 })}>CATEGORY</RNText>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8, marginHorizontal: -20 }} contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20 }}>
-                {(allCats ? [...CATEGORIES] : cat && !TOP_CATEGORIES.includes(cat as (typeof TOP_CATEGORIES)[number]) ? [cat, ...TOP_CATEGORIES] : [...TOP_CATEGORIES]).map((c) => (
-                  <Pill key={c} label={c} active={cat === c} onPress={() => setCat(cat === c ? null : c)} />
-                ))}
-                {CATEGORIES.length > TOP_CATEGORIES.length ? (
-                  <Pill label={allCats ? 'Fewer' : `+${CATEGORIES.length - TOP_CATEGORIES.length} more`} onPress={() => setAllCats((v) => !v)} />
-                ) : null}
+              {/* The same filters as the map: Nearby or remote, then one row of what is set, each with an x. */}
+              <WorkSwitch value={filters.work} onChange={(work) => setJobFilters({ ...filters, work })} />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10, marginHorizontal: -20 }} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20 }}>
+                <FiltersButton count={changedFilters(filters)} onPress={() => setFiltersOpen(true)} />
+                {filters.work === 'remote' || !at ? null : <QuickChip label={`${filters.km} km`} open onPress={() => setFiltersOpen(true)} />}
+                <JobChips filters={filters} onChange={setJobFilters} />
               </ScrollView>
 
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 }}>
-                <RNText style={tx('700', 13, t.colors.ink, { flex: 1 })}>
+                <RNText style={tx('700', 13, t.colors.ink, { flex: 1 })} numberOfLines={2}>
                   {shown === null
                     ? 'Loading…'
-                    : `${shown.length} ${shown.length === 1 ? 'job' : 'jobs'}${filter === 'local' && me.lat !== null ? ` within ${LOCAL_KM} km` : ''}${query ? ` for “${query}”` : ''}`}
+                    : `${shown.length} ${filters.work === 'remote' ? 'remote ' : ''}${shown.length === 1 ? 'job' : 'jobs'}${at && filters.work !== 'remote' ? ` within ${filters.km} km of ${place.label.split(',')[0]}${filters.work === 'all' ? ', plus remote' : ''}` : ''}${query ? ` for “${query}”` : ''}`}
                 </RNText>
-                {filter !== 'all' || cat !== null || query !== '' ? (
-                  <Pressable
-                    onPress={() => {
-                      setFilter('all');
-                      setCat(null);
-                      setQ('');
-                      setQuery('');
-                    }}
-                    hitSlop={8}
-                  >
+                {narrowed || query !== '' ? (
+                  <Pressable onPress={clearAll} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear all filters">
                     <RNText style={tx('700', 12, t.colors.purpleDeep)}>Clear all</RNText>
                   </Pressable>
                 ) : null}
               </View>
-              {filter === 'local' && me.lat === null ? (
+              {filters.work === 'local' && !at ? (
                 <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6 })}>
-                  Set your area on the home screen to see jobs within {LOCAL_KM} km.
+                  Set your area on the map to see jobs within {filters.km} km.
                 </RNText>
               ) : null}
 
               {shown === null ? (
                 [0, 1, 2].map((i) => <Shimmer key={i} height={120} style={{ marginTop: 12 }} />)
               ) : shown.length === 0 ? (
-                <EmptyState
-                  icon="compass"
-                  title={query ? `No tasks match “${query}”` : 'No tasks match these filters'}
-                  body="Try removing a filter or searching for something broader."
-                  actionLabel="Clear filters"
-                  onAction={() => {
-                    setFilter('all');
-                    setCat(null);
-                    setQ('');
-                    setQuery('');
-                  }}
-                />
+                <View style={{ gap: 12 }}>
+                  <EmptyState
+                    icon="compass"
+                    title={query ? `No tasks match “${query}”` : 'No tasks match these filters'}
+                    body={narrowed ? 'One tap loosens a filter:' : 'Try searching for something broader.'}
+                    actionLabel="Clear filters"
+                    onAction={clearAll}
+                  />
+                  {narrowed ? <DropFilters filters={filters} count={countFor} onChange={setJobFilters} /> : null}
+                </View>
               ) : null}
             </>
           )}
@@ -846,6 +813,16 @@ function FindWork({
       }
     >
       <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void refresh()} />
+      <BottomSheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters">
+        <FiltersPanel
+          initial={filters}
+          jobs
+          place={{ ...place, onChange: () => (setFiltersOpen(false), place.onChange()), onUseMine: () => (setFiltersOpen(false), place.onUseMine()) }}
+          count={countFor}
+          words={{ one: 'job', many: 'jobs' }}
+          onApply={applyFilters}
+        />
+      </BottomSheet>
     </ScreenList>
   );
 }
