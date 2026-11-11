@@ -936,7 +936,7 @@ Add the cancellations-and-refunds page and the contact-us page with the business
 
 ## STEP 1: Finish the features, then freeze (fix what is broken first)
 
-**Goal:** every bug you have seen is fixed or has your written "accept", and the design changes you asked for are decided. Testers should judge a good app, not a broken one.
+**Goal:** every bug you have seen is fixed or has your written "accept", and the design changes you asked for are decided. Testers should judge a good app, not a broken one. Every screen change follows the card "Design from proven patterns" (under Cards).
 
 <details id="t1-1" data-short="Your decisions">
 <summary>[LATER] <b>1.1</b> Future scope: make your decisions <small>· 20 minutes · deferred 1 Nov 2026, no gate waits on it</small></summary>
@@ -5613,6 +5613,56 @@ Run the monthly secrets check.
 
 </details>
 
+<details id="c-design">
+<summary>[CARD] Design from proven patterns: borrow, fit it to TaskDrop, fix it in small steps (Starter Story lesson, 11 Nov)</summary>
+
+From the Starter Story Build lesson "Designing with Proven Patterns & Component Libraries". Every step is kept and changed from Lovable to Claude Code and the TaskDrop app. Use it for every screen change: in Step 1 before the freeze, and later for polish. Your rules still win over anything borrowed: Hire is always jade, Earn is always royal blue, the Home order follows the app, and you sign off the still design and its motion before Claude builds it.
+
+**1. Borrow, do not reinvent.** Proven layouts build faster and people already know how to use them. Where to look:
+
+| Source | What it gives | Cost |
+|---|---|---|
+| [Dribbble](https://dribbble.com) | Screenshots for ideas | Free |
+| [LandingFolio](https://www.landingfolio.com) | Real pages, filter by kind (marketplace, app, pricing, sign-up) | Free to browse |
+| [21st.dev](https://21st.dev) | Ready components with a prompt to copy (Claude already uses it) | Free: 2 code pulls a day |
+| [MidJourney](https://www.midjourney.com) | Made-to-fit pictures and icons | Paid, from about $10 a month; optional, only when a screen needs a real picture |
+
+Borrow the pattern (layout, spacing, motion), never another app's logo, words, pictures or whole look.
+
+**2. Pictures and icons.** Screenshot the spot where the picture goes (a task card, the Welcome story), describe the app and the spot, and ask for a MidJourney prompt that fits its size (for example `--v 7 --ar 1:1` for a square card). Make the picture, then hand the file to Claude, who adds it to the app in the right sizes for light and dark. Icons stay in the app's one icon set. **Tip:** always send a screenshot together with words; either one alone gives a worse result.
+
+**3. Components from 21st.dev.** Browse by kind (heroes, calls to action, testimonials, empty states), open one and copy its prompt. Then tell Claude which element to replace, what it should do, and paste the prompt. Claude rebuilds it in the app's own parts (`apps/mobile/src/components/`, colours from `apps/mobile/src/theme.ts`; admin styles for the admin site), so it works on Android and the web and keeps both palettes:
+
+```say
+Replace <the element, e.g. the big heading on Earn Home>.
+It should: <what you want, e.g. swap between two lines, "Earn nearby" and "on your own time", centred>.
+Keep: jade on Hire, royal blue on Earn, light and dark mode, the Home order.
+Here is the 21st.dev prompt: <paste>
+```
+
+**4. Fix the snags in small steps (the 3S way: Select, Screenshot, Sketch).** A borrowed part often looks off at first: a button not centred, text the same colour as its background. Point at the element, take a screenshot, mark the problem on it, and say it as "now / should be":
+
+```say
+Now: <what is wrong, e.g. the heading is dark text on a dark background and cannot be read>.
+Should be: <e.g. white, bold, matching the button below; the Subscribe button centred under the box>.
+```
+
+One fix at a time, check it, then the next. If it gets worse, SAY "undo the last design change" and Claude goes back to the version before.
+
+**5. Same problem everywhere: fix the shared part once.** If it repeats on many screens (every dropdown has a see-through background, every sheet has the wrong corners), do not fix screens one by one:
+
+```say
+Bug: <e.g. every dropdown has a see-through background>.
+Should be: <solid background, the same corners and shadow everywhere>.
+Fix it once in the shared component or the theme, so every screen gets it.
+```
+
+**6. Style words make the design sharper.** Pick two or three and use them in every design request. For TaskDrop: "warm and trustworthy", "calm and clear", "local and quick". Others to try: "bold and disruptive", "calm and elegant", "corporate and professional". To learn more of these words, follow Felix Haas (Head of Design at Lovable), who writes on design with AI on Substack.
+
+**Recap:** borrow proven designs (Dribbble, LandingFolio, 21st.dev), make pictures with MidJourney only if needed, copy 21st.dev prompts for hard parts, fix snags with 3S and "now / should be", fix repeated problems in the shared part, and use the same style words every time. Every change still passes the "Fits every browser and screen" card.
+
+</details>
+
 ---
 
 ## Reference: the details behind the tasks
@@ -5941,6 +5991,7 @@ Prices were checked between 26 October and 11 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-11 (a design card from the Starter Story lesson):** You shared the Starter Story Build lesson "Designing with Proven Patterns & Component Libraries" and asked for it in the plan. All six parts are in a new card under **Cards**, "Design from proven patterns", changed from Lovable to Claude Code and the TaskDrop app: where to borrow from (Dribbble, LandingFolio, 21st.dev, MidJourney as an optional paid extra), pictures made to fit a screenshot, 21st.dev prompts rebuilt in the app's own components and theme, the 3S way (Select, Screenshot, Sketch) with "now / should be" fixes one at a time, repeated problems fixed once in the shared component, and style words for TaskDrop. Your palette, Home order and sign-off rules stay above anything borrowed. Step 1's goal now points to the card. Plan only: nothing in the app changed.
 - **2026-11-11 night (the final pass: "is the plan final?"):** You asked for a simple plan with the best and cheapest way to launch, and for anything not good to be changed. Claude read the plan end to end. **Answer:** the shape is final; four answers are still open (decision 3, decision 38's area names, decision 43, and booking the CA for S.2), written at the top of The plan on one page. **Changed:** (1) new task **2.21, the Plan B money flow**: it was the longest piece of work left and had no number, steps or gate line; it now has a design-then-build path, a daily money match and an emergency stop for money, and Gate 2b and Gate 6 check it. (2) **Gate 3** gets Google Play's own crash lines (1.09% crash, 0.47% freeze). (3) **Task 1.16** now matches what was built (D28 Home order, D29 poster ideas); decisions 42 (built as recommended), 44 (overtaken) and 47 (closed with 46) are settled; 43 stays open and blocks nothing before Step 4. (4) **Step 2** has one ordered list of what is left instead of the 4 November path, and its status table is brought up to date (decisions 17, 25 and 30 are decided). (5) **Rule 9** names the freeze day and says what counts as a fix. (6) **Shorter:** the 2.20 prompt moved to `docs/prompts/AUDIT_PROMPT_2_20.md`; the 30 October snapshot and the 9 November to-do tables moved to `docs/archive/PLAN_HISTORY.md`. The costs (about $45 a month) were checked and kept: Supabase Pro and Vercel Pro are the two things production cannot run without, and every other tool stays on a free plan until its limit warns.
 - **2026-11-11 (task 2.19: the second Starter Story debugging lesson folded in):** You shared the Starter Story Build lesson "Advanced Debugging (Day 6)" and asked for its practices in the debugging plan. All ten steps are in, changed from Lovable, RepoMix, ChatGPT and the Supabase GPT to Claude Code, the graphify code map and Supabase read on staging: a new **section 8 of [DEBUGGING_PLAN.html](DEBUGGING_PLAN.html)** and a paragraph in 2.19 (patch or rebuild one file, look in the code and the live backend both, the whole-codebase view through graphify with the repos kept private, database context first with a yes or no per action, the last hour of logs before code, one fix path A or B with "why this will work" and a keep-as-is list, retest after a hard refresh with a new error treated as a new bug, security hygiene, four copy-paste prompts). `docs/debug-loop/BUG_PROMPT.md` gains a phase 0, four evidence steps, the fix paths, a retest line, four "what not to do" lines and the four prompts; ledger entries now also say the fix path. The plan page's section numbers are fixed (two sections were both numbered 7). Plan only: no round has run, nothing in the app changed.
 - **2026-11-11 (D29 poster ideas, and 1.17 Find work filters built):** You asked for poster ideas people can solve with the app that bring posters in and can make money, to drop category from the filters, and then for Claude to decide and finish everything. **Built:** 18 poster ideas in 6 groups under Only on TaskDrop (task 1.16, D29; decision 46 marked "no"), and one filter set shared by the Find work map and list (task 1.17, decision 45 "yes"): Nearby or remote, how far, a price range, Auto-hire, Open to counter offers, due in 24 hours, show first, chips with ✕, one-tap "drop a filter" buttons, the list asking for 200 jobs. Checked in Chrome on localhost. Opus 5.5 did the filter rules and the review, a Sonnet 5.5 helper built the idea cards. No database or server change. Android phone check waits for the next app update.
