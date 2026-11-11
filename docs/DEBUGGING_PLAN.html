@@ -127,7 +127,7 @@ footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px
 
 <header class="top">
   <div>
-    <p class="eyebrow">TaskDrop · plan task 2.19 · written 10 November 2026</p>
+    <p class="eyebrow">TaskDrop · plan task 2.19 · written 10 November 2026 · lesson steps added 11 November</p>
     <h1>The debug loop</h1>
     <p class="lede">A repeating round of <b>find → fix → recheck</b>. Each round looks for new bugs, fixes the worst ones, proves the old fixes still hold, and tells you what is still open. Rounds repeat until the number of new bugs settles near zero.</p>
   </div>
@@ -153,6 +153,7 @@ footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px
     <li><a href="#charters">What each round looks at</a></li>
     <li><a href="#ledger">The bug ledger</a></li>
     <li><a href="#fix">How one bug gets fixed</a></li>
+    <li><a href="#ladder">The dig-deeper ladder</a></li>
     <li><a href="#report">The round report you read</a></li>
     <li><a href="#rules">Rules and safety</a></li>
     <li><a href="#tools">Tools it uses</a></li>
@@ -224,7 +225,7 @@ footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px
 <div class="table-wrap"><table>
 <thead><tr><th>Round</th><th>When</th><th>Main focus</th></tr></thead>
 <tbody>
-<tr><td class="n">Round 0</td><td>Once, at the start (about 1 hour)</td><td>Set up: create the ledger, copy in the bugs still open today (B18, B21, B30, B32), take a baseline of every check and of Sentry, write the golden path down</td></tr>
+<tr><td class="n">Round 0</td><td>Once, at the start (about 1 hour)</td><td>Set up: create the ledger, copy in the bugs still open today (B18, B21, B30, B32), take a baseline of every check and of Sentry, write the golden path down, make the <code>diagnostics/</code> folder and read <code>BUG_PROMPT.md</code></td></tr>
 <tr><td class="n">Rounds 1–3</td><td>Now, during the feature freeze, every 2–3 days</td><td>Charters A to C (poster, helper, money). Most bugs are found here</td></tr>
 <tr><td class="n">Rounds 4–8</td><td>Through Step 3, matched to the tester rounds</td><td>Charters D to H, plus everything testers report. Stop as soon as the stop test passes</td></tr>
 <tr><td class="n">Weekly</td><td>After the stop test, and after launch (Step 7)</td><td>One shorter round each week (sweep, signals, recheck, one charter), and one after every production release</td></tr>
@@ -256,14 +257,15 @@ footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px
 <li>
   <h3>Sweep: run every automatic check, twice</h3>
   <p class="meta">Claude · 30–40 minutes, mostly waiting</p>
-  <p><code>npm run check</code> (typecheck, lint, unit tests), <code>npm run test:contract</code>, <code>npm run test:db</code>, <code>npm run test:e2e</code> (Playwright, including the monkey and break-it tests), <code>npm run audit:gate</code>, and the admin's <code>typecheck</code>, <code>lint</code> and <code>test</code>. Everything runs <b>twice</b>.</p>
+  <p><code>npm run check</code> (typecheck, lint, unit tests), <code>npm run test:contract</code>, <code>npm run test:db</code>, <code>npm run test:e2e</code> (Playwright, including the monkey and break-it tests), <code>npm run audit:gate</code>, and the admin's <code>typecheck</code>, <code>lint</code> and <code>test</code>. Everything runs <b>twice</b>. The sweep also searches the code for any leftover <code>[DBG-</code> debug log (section 7, rung 5); one found is a bug of its own.</p>
   <p class="out"><b>Gives:</b> red tests (real bugs or broken tests) and <b>flaky</b> tests (passed once, failed once). A flaky test is logged as a bug of its own.</p>
 </li>
 <li>
   <h3>Explore: this round's charter, plus the golden path</h3>
   <p class="meta">Claude, with you for the phone parts · 1–2 hours</p>
   <p>Each round has one <b>charter</b> from the deck in section 4: a focus area and a list of things to try on purpose (wrong order, double taps, back button, slow network, an empty list, a very long text). Claude uses the real website in Chrome and, when your phone is connected, the Android app. Every round also runs the <b>golden path</b> once from start to end, so a broken core never hides behind a narrow charter.</p>
-  <p class="out"><b>Gives:</b> new bugs, each with steps, expected, actual and a screenshot or log as proof.</p>
+  <p>Before each try, Claude <b>clears the browser console</b>, then reproduces, then copies every console line and failed network call at once, so the log holds only this bug. Each finding is <b>classified</b> on the spot: <b>UI</b> (looks or behaves wrong on screen, the data is right), <b>Backend</b> (sign-in, row-level security, storage, an Edge Function or a database function), or <b>Both</b>.</p>
+  <p class="out"><b>Gives:</b> new bugs, each with a class, steps, current and expected behaviour, and a screenshot or log as proof.</p>
 </li>
 <li>
   <h3>Log &amp; triage: one ledger entry per bug</h3>
@@ -280,13 +282,13 @@ footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px
 <li>
   <h3>Recheck: prove it on staging</h3>
   <p class="meta">Claude · 20–30 minutes</p>
-  <p>Once the fixes are live on staging, Claude repeats each bug's <b>original steps</b> there (not just on the computer), and runs the sweep once more to make sure no fix broke something else. Fixes that need the Android app are rechecked after the next app update, which Claude asks you about first.</p>
+  <p>Once the fixes are live on staging, Claude repeats each bug's <b>original steps</b> there (not just on the computer), and runs the sweep once more to make sure no fix broke something else. Before saying a fix did not work, Claude hard-refreshes the page (Ctrl+F5); a sign-in mix-up is retried after clearing that site's cookies and stored data, so an old cached page is never mistaken for a failed fix. Fixes that need the Android app are rechecked after the next app update, which Claude asks you about first.</p>
   <p class="out"><b>Gives:</b> <b>verified</b> or <b>reopened</b> for each fixed bug.</p>
 </li>
 <li>
   <h3>Report: what is new, what is fixed, what is still open</h3>
   <p class="meta">Claude writes it · you read it in 10–15 minutes</p>
-  <p>The round report (section 7) goes in <code>docs/debug-loop/ROUND-N.md</code>; the ledger's round table gets one new line; task 2.19 in the ultimate plan gets a one-line status. Then the stop test: <b>settled</b> (stop, go weekly), <b>go again</b> (the next charter is named), or <b>hot-spot review</b>.</p>
+  <p>The round report (section 8) goes in <code>docs/debug-loop/ROUND-N.md</code>; the ledger's round table gets one new line; task 2.19 in the ultimate plan gets a one-line status. Then the stop test: <b>settled</b> (stop, go weekly), <b>go again</b> (the next charter is named), or <b>hot-spot review</b>.</p>
   <p class="out"><b>Yours:</b> reply "fix", "accept" or "after launch" to each Medium and Low in the "needs your answer" list.</p>
 </li>
 </ol>
@@ -334,11 +336,13 @@ footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px
 <h3>One ledger entry</h3>
 <pre class="tpl">### B33 · Offer button stays live after the task is cancelled
 - Level: Medium · Status: Fixed, not rechecked · Area: helper (charter B)
+- Class: Both (UI shows the button, the server accepts the offer)
 - Seen first: round 2 (commit 5d65cde, web) · Rounds open: 1
 - Where: website and Android · Found by: explore
 - Steps: 1. As Ravi, open task "Fix a tap" 2. As Asha, cancel it 3. As Ravi, press Make offer
-- Expected: "This task is no longer open" · Actual: the offer is sent
-- Proof: screenshot round-2/b33.png, Sentry issue link
+- Current: the offer is sent · Expected: "This task is no longer open"
+- Proof: screenshot round-2/b33.png, console log round-2/b33-console.txt, Sentry issue link
+- Rung reached: 4 (diagnostic SQL diagnostics/B33.sql) · Tries: 1
 - Cause: the offer check reads the cached task, not the database row
 - Test: e2e "offer on a cancelled task is refused" (failed before, passes after)
 - Fix: PR #___ · Recheck on staging: ___</pre>
@@ -354,18 +358,76 @@ footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px
 
 <!-- 6 -->
 <h2 id="fix">6. How one bug gets fixed (the fix routine)</h2>
-<p>Seven steps, the same for every bug. They come from the debugging books and talks in section 10, and from gstack's <code>/qa</code> loop, which this PC already has.</p>
+<p>Seven steps, the same for every bug. They come from the debugging books and talks in section 11, and from gstack's <code>/qa</code> loop, which this PC already has. How hard to dig for the cause is set by the ladder in section 7.</p>
 
 <div class="grid two">
-  <div class="card"><h3>1. Make it fail on demand</h3><p>Write down the exact steps that show the bug, every time. If it cannot be made to fail, it cannot be proven fixed: it stays "Confirmed" and gets more logging, not a guess.</p></div>
+  <div class="card"><h3>1. Make it fail on demand</h3><p>Write down the exact steps that show the bug, every time, and say if it is UI, Backend or Both. If it cannot be made to fail, it cannot be proven fixed: it stays "Confirmed" and gets more logging, not a guess.</p></div>
   <div class="card"><h3>2. Write the failing test first</h3><p>A unit, database, contract or Playwright test that fails <b>because of this bug</b>. Screens only Android can show get a written recheck step instead, and the report says so.</p></div>
-  <div class="card"><h3>3. Look, then guess</h3><p>Read the logs, Sentry and the data first. Then write one cause to test, try to prove it wrong, and write the result in the entry. One change at a time.</p></div>
+  <div class="card"><h3>3. Look, then guess</h3><p>Collect the evidence pack first (section 7, rung 2): screenshot, current and expected behaviour, a clean console log, and for Backend bugs the security rules in force. Then write one cause to test, try to prove it wrong, and write the result in the entry. Before changing code, write the cause and the smallest fix in one or two lines.</p></div>
   <div class="card"><h3>4. Cut the search in half</h3><p>If it worked in an earlier round, compare the two pinned commits and halve the changes until one is left (<code>git bisect</code>). If one input triggers it, shrink the input until only the trigger is left.</p></div>
   <div class="card"><h3>5. Fix the cause, small</h3><p>The smallest change that removes the cause, not the symptom. No new features while fixing (the freeze). Anything bigger becomes your question.</p></div>
   <div class="card"><h3>6. Green, then merge</h3><p>The new test passes, the whole sweep passes, a pull request into <code>redesigned-2.0</code>, merged. A fix with a database migration waits for your yes first.</p></div>
   <div class="card"><h3>7. Recheck on staging</h3><p>The original steps, on staging, after the fix is live. Only then "Verified". The test stays in the suite forever, so every later round rechecks it for free.</p></div>
-  <div class="card"><h3>Who does what</h3><p>Opus works out hard causes; Sonnet helpers run sweeps and rechecks (your model split). A fresh look by a second agent is used when a cause is still unclear after two tries.</p></div>
+  <div class="card"><h3>One bug at a time</h3><p>Fixes are never stacked. One bug's fix is proven (its test passes, the sweep passes) before the next bug is touched, so when something breaks it is clear which change did it.</p></div>
+  <div class="card"><h3>Restore, don't pile on patches</h3><p>If two tries at a fix have failed, Claude stops patching. The branch goes back to the last good commit (the pinned one), and the bug is planned again as <b>one</b> whole fix from the evidence, instead of a third patch on top of two wrong ones.</p></div>
+  <div class="card"><h3>Who does what</h3><p>Opus works out hard causes; Sonnet helpers run sweeps, rechecks and collect the evidence packs (your model split, which also saves usage, as the lesson's "draft the prompt first" tip does). A fresh look by a second agent is used when a cause is still unclear after two tries.</p></div>
+  <div class="card"><h3>Learn from the slow ones</h3><p>A bug that needed three or more tries gets a short retro in its entry, and the lesson goes into <code>docs/debug-loop/BUG_PROMPT.md</code> (section 7, rung 6), so the next bug like it is found faster.</p></div>
 </div>
+
+<!-- 7 -->
+<h2 id="ladder">7. The dig-deeper ladder (how hard to look for the cause)</h2>
+<p>Most bugs are found on the first two rungs. A bug climbs one rung only when the rung below did not find the cause. The ledger entry says which rung it reached, so a round report shows which bugs were hard. This ladder comes from the Starter Story lesson on debugging (section 11), changed from the Lovable tool to how TaskDrop is built: Claude Code, Supabase, the <code>api</code> Edge Function, Chrome and your phone.</p>
+
+<ol class="steps">
+<li>
+  <h3>Rung 1 · The quick try</h3>
+  <p class="meta">When the error already names the place</p>
+  <p>A typecheck or lint error, a red Vercel build log, or a Sentry error whose stack points to one line of our code. Claude tries that one obvious fix and rechecks. If it does not work the first time, straight to rung 2: no second guess.</p>
+</li>
+<li>
+  <h3>Rung 2 · The precise bug report and the evidence pack</h3>
+  <p class="meta">Every bug that is not fixed on rung 1</p>
+  <ul class="tight">
+    <li><b>Reproduce</b> in a fresh browser tab (or the phone), with the console cleared first</li>
+    <li><b>Class:</b> UI, Backend or Both</li>
+    <li><b>Screenshot</b> of the exact element or state, and <b>current vs expected</b> in plain words</li>
+    <li><b>Console log and failed network calls</b>, copied all at once right after reproducing</li>
+    <li><b>Backend or Both:</b> the row-level security rules on the tables involved (read from <code>pg_policies</code>), the storage bucket's rules (on <code>storage.objects</code>) when files are involved, and the <code>api</code> Edge Function and Supabase logs for that minute</li>
+  </ul>
+  <p class="out"><b>Then:</b> name the cause (for UI: overflow, clipping, layer order, width, state not refreshed; for Backend: which rule or check refuses or lets through), and the smallest fix, <b>before</b> changing code. For a Backend fix, the exact rule or SQL change and why it is still safe (least access) is written into the pull request; a new database migration still waits for your yes.</p>
+</li>
+<li>
+  <h3>Rung 3 · Restore and re-plan</h3>
+  <p class="meta">After two failed tries at a fix</p>
+  <p>Back to the pinned commit, read the evidence again, write one whole plan for the fix. No third patch on top.</p>
+</li>
+<li>
+  <h3>Rung 4 · The diagnostic SQL script</h3>
+  <p class="meta">A Backend bug that is still unclear</p>
+  <p>Claude writes <code>docs/debug-loop/diagnostics/B&lt;n&gt;.sql</code>: numbered steps (STEP 1 … STEP N), each with a comment saying how to read its result. Typical steps: who the database thinks the user is (<code>auth.uid()</code>, run as the fake person inside a transaction that is always rolled back); the target row and its owner; what the security rule allows for this person; whether the stored file exists at that path and who may touch it; and a read-only select that copies the filter of the failing action. Claude runs each step on staging, read-only, and saves the results as JSON next to the round report.</p>
+  <p class="out"><b>Then:</b> a short cause summary, the exact rule or SQL change, any code change with file and line, and how to test it.</p>
+</li>
+<li>
+  <h3>Rung 5 · Targeted debug logs</h3>
+  <p class="meta">The trail is still cold</p>
+  <p>Claude adds a few log lines with one searchable prefix, for example <code>[DBG-B41]</code>, on every step of the broken path: the button handler (what was pressed, which task, which user id), the call to the server (which <code>api</code> operation and its input), the Edge Function (each check it passes or fails, the outcome), and the database step (the filter used and how many rows it changed). Only these lines, no other noise. Reproduce, read the <code>[DBG-B41]</code> lines, find the exact break point, make the smallest fix.</p>
+  <p class="out"><b>Rules:</b> no phone number, email, secret or exact address in any log line (AGENTS.md rule 9; ids only). The debug lines are removed in the same pull request as the fix, and the sweep checks that no <code>[DBG-</code> line is left. An Edge Function with debug lines goes only to staging.</p>
+</li>
+<li>
+  <h3>Rung 6 · Retro and the bug template</h3>
+  <p class="meta">After any bug that needed three or more tries</p>
+  <p>Claude writes three lines in the entry: why the first tries missed the cause, which evidence should have been collected first, and what a better first plan would have been. The lesson goes into <code>docs/debug-loop/BUG_PROMPT.md</code>, the standing template every round reads first: what to collect (phase 1), the cause checklist for UI, security rules, storage and Edge Functions (phase 2), one whole fix plan (phase 3), the test list (phase 4), and what not to do.</p>
+</li>
+</ol>
+
+<h3>When you find a bug yourself</h3>
+<p>Send it in chat in this shape. Claude reads <code>BUG_PROMPT.md</code>, follows it, says the plan, then fixes it (Critical and High at once; Medium and Low go into the ledger for your "fix" or "accept").</p>
+<div class="say">Read docs/debug-loop/BUG_PROMPT.md. I have a bug.<button type="button" data-copy="Read docs/debug-loop/BUG_PROMPT.md. I have a bug.&#10;What happens now: &#10;What should happen: &#10;Where: website / Android / admin, Hire or Earn, which screen&#10;Screenshot or video: ">Copy</button></div>
+<pre class="tpl">What happens now:   one or two sentences
+What should happen: one or two sentences
+Where:              website / Android / admin, Hire or Earn, which screen
+Screenshot or video: attach it</pre>
+<p class="meta">Claude collects the console log, the security rules and the server logs itself; you never need to open them.</p>
 
 <!-- 7 -->
 <h2 id="report">7. The round report you read</h2>
@@ -413,6 +475,15 @@ B43 Low: ...      recommended: accept
     <li>Nothing is marked fixed without a recheck on staging</li>
     <li>Anything Claude could not check (no phone, no money in the wallet) is named in the report</li>
   </ul></div>
+  <div class="card"><h3>Habits between rounds too</h3><ul class="tight">
+    <li><b>Test after every finished task:</b> whenever any build task ends, Claude opens what was just built and tries it straight away, not only in the next round</li>
+    <li><b>Evidence before code:</b> screenshot, console log, security rules or a SQL check come first</li>
+    <li><b>One fix at a time,</b> and <b>restore, then retry</b> instead of piling patches</li>
+  </ul></div>
+  <div class="card"><h3>Debug logs and SQL stay safe</h3><ul class="tight">
+    <li>Debug log lines carry ids only, never a phone, email, secret or exact address, and leave in the same pull request</li>
+    <li>Diagnostic SQL is read-only and always rolled back; any rule change is a migration that waits for your yes</li>
+  </ul></div>
 </div>
 
 <!-- 9 -->
@@ -426,6 +497,10 @@ B43 Low: ...      recommended: accept
 <tr><td>Android exploring</td><td>Your phone over USB (adb), the staging app and its updates</td><td>In place; needs your phone connected</td></tr>
 <tr><td>Signals</td><td>Sentry (app, server, admin), Vercel runtime errors, Supabase logs and advisors, Uptime Robot</td><td>In place</td></tr>
 <tr><td>Signals, later</td><td>PostHog on staging (task 3.3c)</td><td>When 3.3c is done</td></tr>
+<tr><td>Console and network evidence</td><td>Claude in Chrome: clear the console, reproduce, read every console line and failed network call</td><td>In place</td></tr>
+<tr><td>Security rules evidence</td><td>Supabase (read only): <code>pg_policies</code> for the tables, the storage bucket rules, <code>api</code> Edge Function and database logs</td><td>In place</td></tr>
+<tr><td>Diagnostic SQL (rung 4)</td><td>Supabase SQL on staging, read-only, inside a rolled-back transaction; scripts in <code>docs/debug-loop/diagnostics/</code></td><td>In place; folder made in round 0</td></tr>
+<tr><td>The bug template (rung 6)</td><td><code>docs/debug-loop/BUG_PROMPT.md</code>, read at the start of every round and every bug you report</td><td>Starting version written 11 Nov</td></tr>
 <tr><td>Root cause</td><td>gstack <code>/investigate</code>, <code>git bisect</code>, the graphify code map</td><td>In place</td></tr>
 <tr><td>Android golden path, automatic (optional)</td><td>Maestro: short written flows that tap through the app; Expo's own recommended tool. Free</td><td>Only if round 3 shows Android-only bugs keep slipping through. Your yes first</td></tr>
 </tbody></table></div>
@@ -440,10 +515,11 @@ B43 Low: ...      recommended: accept
   <div class="card"><span class="kind">GitHub repo</span><h3><a href="https://github.com/garrytan/gstack/blob/main/qa/SKILL.md" target="_blank" rel="noopener">garrytan/gstack, the /qa skill</a></h3><p>The test → fix → verify shape of a round, the "write a failing regression test before the repair" rule, a report per run, and a report-only mode. Already installed on this PC.</p></div>
   <div class="card"><span class="kind">GitHub repo and YouTube</span><h3><a href="https://github.com/ghuntley/how-to-ralph-wiggum" target="_blank" rel="noopener">Geoffrey Huntley, the "Ralph" loop (ghuntley/how-to-ralph-wiggum)</a> · <a href="https://www.youtube.com/watch?v=_IK18goX4X8" target="_blank" rel="noopener">video</a></h3><p>The idea of running the same instruction again and again with the state kept in files, not in the chat, until a stop rule is met. That is why one sentence, "start debug round", is enough and why the ledger is a file.</p></div>
   <div class="card"><span class="kind">Docs and GitHub</span><h3><a href="https://playwright.dev/docs/test-agents" target="_blank" rel="noopener">Playwright Test Agents (planner, generator, healer)</a></h3><p>Explore → write the test → repair a broken test as three separate jobs. TaskDrop's e2e tests already use Playwright, so new regression tests go there.</p></div>
-  <div class="card"><span class="kind">GitHub repo</span><h3><a href="https://github.com/mobile-dev-inc/maestro" target="_blank" rel="noopener">mobile-dev-inc/maestro</a> · <a href="https://docs.expo.dev/eas/workflows/examples/e2e-tests/" target="_blank" rel="noopener">Expo's guide</a></h3><p>The optional Android golden-path flow in section 9.</p></div>
+  <div class="card"><span class="kind">GitHub repo</span><h3><a href="https://github.com/mobile-dev-inc/maestro" target="_blank" rel="noopener">mobile-dev-inc/maestro</a> · <a href="https://docs.expo.dev/eas/workflows/examples/e2e-tests/" target="_blank" rel="noopener">Expo's guide</a></h3><p>The optional Android golden-path flow in section 10.</p></div>
   <div class="card"><span class="kind">Zine and blog</span><h3><a href="https://jvns.ca/blog/2022/12/08/a-debugging-manifesto/" target="_blank" rel="noopener">Julia Evans, "A debugging manifesto" and "The Pocket Guide to Debugging"</a></h3><p>The attitude behind the rules: every bug has a logical reason, question your own guesses, and take the "cannot reproduce" ones seriously instead of closing them.</p></div>
   <div class="card"><span class="kind">GitHub triage guides</span><h3><a href="https://github.com/traefik/contributors-guide/blob/master/issue_triage.md" target="_blank" rel="noopener">Traefik's issue triage guide</a> · <a href="https://github.com/eclipse-che/che/issues/18160" target="_blank" rel="noopener">Eclipse Che: keep severity and priority apart</a></h3><p>Triage right after finding, match against what is already known before giving a new number, and keep "how bad" (level) apart from "what first" (order).</p></div>
   <div class="card"><span class="kind">Guides</span><h3><a href="https://qasphere.com/blog/bug-bash" target="_blank" rel="noopener">How to run a bug bash: charters, time boxes, follow-up</a></h3><p>The charter deck: one focused area per session with a time box, then triage before the energy is gone.</p></div>
+  <div class="card"><span class="kind">Course lesson (members only), added 11 Nov</span><h3><a href="https://build.starterstory.com/programs/344/lessons/126739" target="_blank" rel="noopener">Starter Story Build, "Debugging in Lovable: a practical framework to prevent the spiral"</a></h3><p>All of its steps are in this plan, changed from Lovable to Claude Code and Supabase. Its ground rules (test after every finished task, one bug at a time, restore then retry, evidence before code, a clean console before reproducing) are in sections 6 and 9. Its "Try to fix" button became rung 1; its five framework steps became rungs 2, 4, 5 and 6 (classify UI / Backend / Both, console logs with the security and storage rules, the numbered diagnostic SQL script, targeted logs with one prefix, the retro and <code>BUG_PROMPT.md</code>); its "hard refresh and clear site data" tip is in the recheck step; its reusable bug prompt is the "When you find a bug yourself" box in section 7.</p></div>
 </div>
 
 <!-- 11 -->
@@ -455,11 +531,12 @@ B43 Low: ...      recommended: accept
 <tr><td>Gate 3 (staging exit)</td><td>A new line: the debug loop has settled (the stop test passes)</td></tr>
 <tr><td>The bugs table (Security section)</td><td>New bugs from B33 live in <code>docs/debug-loop/LEDGER.md</code>; the table points there</td></tr>
 <tr><td>Task 7.2 (Step 7)</td><td>After launch: one debug round a week, and one after every production release</td></tr>
+<tr><td>New file <code>docs/debug-loop/BUG_PROMPT.md</code> (11 Nov)</td><td>The standing bug template (section 7, rung 6); every round and every bug you report starts by reading it, and slow bugs add their lessons to it</td></tr>
 <tr><td>Related tasks</td><td>2.14 (the hunt, security first) and 3.6 (quality round 3) are one-off deep passes; 2.19 is the repeating pass that keeps the app clean between them and after them</td></tr>
 </tbody></table></div>
 
 <footer>
-  Written 10 November 2026 for TaskDrop. Plan only: nothing has run yet. The first sentence to Claude is "start debug round", which runs round 0 (setup) and then round 1.
+  Written 10 November 2026 for TaskDrop; the Starter Story debugging lesson's steps added 11 November (section 7). Plan only: nothing has run yet. The first sentence to Claude is "start debug round", which runs round 0 (setup) and then round 1.
 </footer>
 
 </div>
