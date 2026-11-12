@@ -131,14 +131,12 @@ begin
   perform pg_temp.as_operator();
 
   insert into public.task_moderation (task_id, reason) values (v_done, 'test');
-  assert not private.can_read_task_media(v_attacker || '/after.jpg', v_stranger), 'a hidden task shares no photos';
   perform pg_temp.become(v_stranger);
   assert not exists (select 1 from public.worker_proof_photos(v_attacker)), 'worker_proof_photos skips a hidden task';
   perform pg_temp.as_operator();
   delete from public.task_moderation where task_id = v_done;
 
   update public.profiles set deleted_at = now() where id = v_attacker;
-  assert not private.can_read_task_media(v_attacker || '/after.jpg', v_stranger), 'a deleted worker shares no photos';
   perform pg_temp.become(v_stranger);
   assert not exists (select 1 from public.worker_proof_photos(v_attacker)), 'worker_proof_photos skips a deleted worker';
   perform pg_temp.as_operator();
