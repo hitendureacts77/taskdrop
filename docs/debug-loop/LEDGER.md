@@ -10,7 +10,30 @@ Every bug the debug loop has seen, in one place. The plan is in `docs/DEBUGGING_
 
 | Round | Date | Pinned commit | Charter | New | Fixed + verified | Reopened | Open: C / H / M / L | Flaky tests | Settled? |
 |---|---|---|---|---|---|---|---|---|---|
-| 0 | not run | | setup | | | | 0 / 0 / 0 / 4 | | No |
+| 0 | 12 Nov 2026 | 122965a | setup: baseline `npm run check` green (102 + 103 tests) | | | | 0 / 1 / 5 / 8 | | No |
+| 1 | 12 Nov 2026 | 122965a | A+B+C sweep of the 11 open bugs (code-only; staging recheck pending) | 0 | 0 (10 fixed, not rechecked) | 0 | 0 / 0 / 0 / 4 after merge | not run twice yet | No |
+
+## Round 1 results (12 Nov 2026, PR 336)
+
+Status after the fixes, all "Fixed, not rechecked" until they are live on staging and checked there (S4). Fix path A for every one.
+
+| Bug | Result |
+|---|---|
+| B34 High | Fixed, not rechecked. Distance reads narrow to a lat/lng box in SQL before the cap (`reads.ts` `nearBox`, guest functions in migration 162). Tests: 25 newer far tasks + 1 near |
+| B35 | Fixed, not rechecked. Home uses the saved area (25 km) plus up to 10 remote listings |
+| B33 | Fixed, not rechecked. `taskPageView(mode, kind)` in `lib/taskView.ts` |
+| B36 | Fixed, not rechecked. Tab is "Closed" |
+| B37 | Fixed, not rechecked. Triggers in migration 163 recompute totals on delete or change |
+| B38 | Fixed, not rechecked. Migration 164 backfills older pins (idempotent) |
+| B30, B32 | Fixed, not rechecked. Migration 166 and `listActiveWorkers` |
+| B40 | Fixed, not rechecked. People list sorted nearest first |
+| B41 | Fixed, not rechecked. Pending withdrawals show with "Waiting: payouts are paused for now". Caveat: found from the wallet title text ("Withdrawal request"), no status field |
+| B21 | Needs the owner: nothing closes past-due OPEN tasks or releases unpaid locks (the `overdue-tasks` job only marks started jobs OVERDUE, and is off until the Inngest cutover). Owner decides the end status, the refund rule and the unpaid-lock timeout. Home now says "Date passed · not shown" instead of "Waiting for offers" |
+| B18 | Recommended: accept (owner's answer needed) |
+| B39 | Cause found: the 8 accounts all pre-date the age gate (13-27 Sep, gate is migration 082); a trigger blocks new sign-ups without a passed check, and the app's AgeGate asks on next open. Recommended: accept, or after launch |
+| B42 | Waits for the owner's yes (reseed) |
+
+New in round 1 (not yet numbered, to confirm on the phone): the Explore "Turn on location" sheet shows "Location is switched off on this device. Turn it on, then try again." the moment it opens, before any tap (seen on the installed 1.1.0 build, 12 Nov).
 
 ## Stop test (from the plan)
 
