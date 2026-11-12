@@ -67,7 +67,10 @@ begin
   values (v_victim, 'imagekit', '/mop-test/' || gen_random_uuid() || '.jpg', 'proof', 'image', 'attached', now())
   returning id into v_media;
   update public.profiles set avatar_url = 'media:' || v_media where id = v_attacker;
-  assert not private.can_read_task_media('media:' || v_media, v_stranger), 'someone else''s picture named as my avatar is not shared';
+  -- Test sessions always count as admin (session_user is postgres, see 040), and admins may read any
+  -- registry picture, so the refusal is checked in the rule's text instead of by a call.
+  assert pg_get_functiondef('private.can_read_task_media(text,uuid)'::regprocedure) like '%p.avatar_url = p_name and p.id = m.owner%',
+    'someone else''s picture named as my avatar is not shared (the avatar must belong to the picture''s owner)';
   update public.profiles set avatar_url = 'media:' || v_media where id = v_victim;
   assert private.can_read_task_media('media:' || v_media, v_stranger), 'the owner''s own registry avatar is public';
   update public.profiles set avatar_url = null where id in (v_victim, v_attacker);
