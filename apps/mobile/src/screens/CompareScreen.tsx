@@ -11,7 +11,7 @@ import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
-import { listBidsForTask, lockBid, getTask, WalletShortError, type Task } from '../data/api';
+import { listBidsForTask, lockBid, getTask, isOfferChanged, WalletShortError, type Task } from '../data/api';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { formatDeadline } from '../components/DateTimeSheet';
 import { FadeIn, Pressy, tx } from '../components/primitives';
@@ -80,6 +80,8 @@ export function CompareScreen() {
   // Goes up each time this screen comes back into view, so what it shows is
   // what the server says now, not what it knew before the offer was chosen.
   const focusTick = useFocusTick();
+  // Goes up when the server says an offer changed, so the new prices are fetched.
+  const [reloadTick, setReloadTick] = useState(0);
 
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
   // The params paint the screen on the first frame; the fetched row replaces
@@ -97,7 +99,7 @@ export function CompareScreen() {
     return () => {
       alive = false;
     };
-  }, [taskId, focusTick]);
+  }, [taskId, focusTick, reloadTick]);
 
   // Real quotes on this task. Without a task id (sample navigation) we keep the
   // design's example rows so the screen still reads correctly.
@@ -128,7 +130,7 @@ export function CompareScreen() {
     return () => {
       alive = false;
     };
-  }, [taskId, focusTick]);
+  }, [taskId, focusTick, reloadTick]);
 
   // No invented quotes. An empty list is a true statement about a new
   // request; four imaginary taskers with ratings is not.
@@ -160,14 +162,18 @@ export function CompareScreen() {
     if (pickRow.bidId) {
       setBusy(true);
       try {
-        await lockBid(pickRow.bidId);
+        // The price shown is the price charged: a changed offer is refused, not charged (B53).
+        await lockBid(pickRow.bidId, 'one_time', pickRow.priceMinor);
         setLockedBidId(pickRow.bidId);
         setTask((prev) => (prev ? { ...prev, status: 'LOCKED' } : prev));
         celebrate(`${pickRow.who} is hired · paid from your wallet`);
         if (taskId) go('taskManage', { taskId });
       } catch (e) {
         if (e instanceof WalletShortError) setShortBy(e.shortMinor);
-        else flash(e instanceof Error ? e.message : 'Could not choose that offer');
+        else if (isOfferChanged(e)) {
+          flash('The offer changed. Please review the new price.');
+          setReloadTick((n) => n + 1);
+        } else flash(e instanceof Error ? e.message : 'Could not choose that offer');
       } finally {
         setBusy(false);
       }

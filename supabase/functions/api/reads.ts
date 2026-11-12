@@ -118,6 +118,9 @@ export async function readFees(ctx: Ctx): Promise<LiveFees> {
   };
 }
 
+/** Paise as plain rupees for a wallet line: 2500 -> "25", 2550 -> "25.50". */
+const rupeesText = (minor: number) => (minor % 100 === 0 ? String(minor / 100) : (minor / 100).toFixed(2));
+
 /** What reaches a worker from an escrow: the price (escrow less the poster's fee), less commission. */
 const workerShareOfEscrow = (escrowMinor: number, fees: LiveFees) =>
   Math.round(Math.round(escrowMinor / (1 + fees.posterFee)) * (1 - fees.commission));
@@ -641,16 +644,22 @@ export const READ_OPS: Record<string, Op> = {
   listWalletActivity: async (ctx, a) => {
     const uid = ctx.userId;
     const fees = await readFees(ctx);
-    const [asWorker, asPoster, payouts, payments] = await Promise.all([
+    const [asWorker, asPoster, payouts, payments, finesRes] = await Promise.all([
       ctx.db.from("assignments").select(`${ASSIGNMENT_SELECT}, tasks(title)`).eq("worker_id", uid),
       ctx.db.from("tasks")
         .select("id,title,status,locked_minor,updated_at,funded_at,funded_minor,wallet_refunded_at,assignments(escrow_minor)")
         .eq("poster_id", uid),
       ctx.db.from("payouts").select(PAYOUT_SELECT).eq("user_id", uid),
       ctx.db.from("payments").select(PAYMENT_SELECT).eq("user_id", uid).eq("status", "paid"),
+      // Fines from a cancel after the work started (migration 170). Unreadable means "none known".
+      ctx.db.rpc("my_cancel_fines"),
     ]);
     type Ev = { id: string; kind: string; title: string; meta: string; amountMinor: number; incoming: boolean; at: string };
     const events: Ev[] = [];
+    type Fine = { task_id: string; fine_minor: number | string; side: string; at: string };
+    const fines = finesRes.error ? [] : ((finesRes.data ?? []) as Fine[]);
+    const posterFine = new Map<string, number>();
+    for (const f of fines) if (f.side === "poster") posterFine.set(f.task_id, Number(f.fine_minor) || 0);
 
     for (const x of rows<Row & { id: string; status: string; escrow_minor: number; updated_at: string; tasks: { title?: string } | null }>(asWorker)) {
       const title = x.tasks?.title ?? "Task";
@@ -683,8 +692,25 @@ export const READ_OPS: Record<string, Op> = {
       } else if (IN_PROGRESS.has(t.status)) {
         events.push({ id: "p-" + t.id, kind: "escrow", title: "Locked in a task", meta: t.title + " · can’t be withdrawn until it’s done", amountMinor: paid, incoming: false, at: t.updated_at });
       } else if (t.status === "CANCELLED" && t.wallet_refunded_at) {
-        events.push({ id: "r-" + t.id, kind: "topup", title: "Returned to your wallet", meta: t.title + " · not completed, full refund", amountMinor: paid, incoming: true, at: t.wallet_refunded_at });
+        // A cancel after the work started paid the worker a fine out of this money; the rest came back.
+        const fine = Math.min(posterFine.get(t.id) ?? 0, paid);
+        events.push(fine > 0
+          ? { id: "r-" + t.id, kind: "topup", title: "Returned to your wallet", meta: t.title + " · cancelled after work started, ₹" + rupeesText(fine) + " fine kept for the worker", amountMinor: paid - fine, incoming: true, at: t.wallet_refunded_at }
+          : { id: "r-" + t.id, kind: "topup", title: "Returned to your wallet", meta: t.title + " · not completed, full refund", amountMinor: paid, incoming: true, at: t.wallet_refunded_at });
       }
+    }
+
+    // The worker's side of the same fine: paid for the time already spent.
+    const workerTitles = new Map<string, string>();
+    for (const x of rows<{ task_id: string; tasks: { title?: string } | null }>(asWorker)) workerTitles.set(x.task_id, x.tasks?.title ?? "Task");
+    for (const f of fines) {
+      const amount = Number(f.fine_minor) || 0;
+      if (f.side !== "worker" || amount <= 0) continue;
+      events.push({
+        id: "f-" + f.task_id, kind: "clearing", title: "Paid for your time",
+        meta: (workerTitles.get(f.task_id) ?? "Task") + " · cancelled after you started",
+        amountMinor: amount, incoming: true, at: f.at,
+      });
     }
 
     for (const o of rows<{ id: string; status: string; destination: string | null; amount_minor: number; created_at: string }>(payouts)) {

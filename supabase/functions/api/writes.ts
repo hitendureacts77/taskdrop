@@ -30,6 +30,12 @@ function quoteRefusal(err: DbError): OpError {
   return toOpError(err);
 }
 
+/** A hire refused because the worker changed the offer's price after the poster looked (B53). */
+function offerChangedRefusal(err: DbError): OpError {
+  if (/offer changed/i.test(err.message ?? "")) return new OpError("The offer changed. Please review the new price.", "OFFER_CHANGED");
+  return toOpError(err);
+}
+
 /** A refused profile save, with the two cases a person can fix themselves. */
 function profileRefusal(err: DbError): OpError {
   const raw = err.message ?? "";
@@ -89,6 +95,15 @@ function huntNeeds(a: Args): string[] {
   if (!Array.isArray(v) || v.length === 0 || v.length > HUNT_NEEDS.length) throw bad("huntNeeds");
   if (v.some((x) => typeof x !== "string" || !(HUNT_NEEDS as readonly string[]).includes(x))) throw bad("huntNeeds");
   return [...new Set(v as string[])];
+}
+
+/**
+ * A plain storage path the caller saves on a row must be in their own folder, like createTask's media (B59):
+ * the read rule opens a file to anyone who can see the row, so a path into someone else's folder would share
+ * their private file. "media:<id>" references are checked separately with assertOwnImage.
+ */
+function assertOwnFolder(ctx: Ctx, path: unknown, field: string): void {
+  if (typeof path !== "string" || !path.startsWith(`${ctx.userId}/`) || path.includes("..")) throw bad(field);
 }
 
 /** A find's photo: the finder's own finished picture ("media:<id>", uploaded for proof) or a file in their own folder. */
@@ -195,10 +210,16 @@ function spotOf(v: unknown): { lat: number; lng: number } {
 
 export const WRITE_OPS: Record<string, Op> = {
   // ---- the task lifecycle, where money moves (all decided in SQL) ----
-  lockBid: rpcOp("lock_bid", (a) => ({
-    p_bid_id: uuid(a, "bidId"),
-    p_payout_mode: oneOf(a, "payoutMode", ["one_time", "milestones"], "one_time"),
-  })),
+  // The price the poster saw (B53, migration 167): the database refuses when the offer no longer
+  // says that. Old app builds send no price and keep the two-argument call.
+  lockBid: async (ctx, a) => {
+    const args: Record<string, unknown> = {
+      p_bid_id: uuid(a, "bidId"),
+      p_payout_mode: oneOf(a, "payoutMode", ["one_time", "milestones"], "one_time"),
+    };
+    if (a.expectedPriceMinor != null) args.p_expected_price_minor = int(a, "expectedPriceMinor", 0, MONEY_MAX);
+    return take(await ctx.db.rpc("lock_bid", args), offerChangedRefusal);
+  },
   payTaskFromWallet: rpcOp("pay_task_from_wallet", taskOnly),
   startTask: rpcOp("start_task", taskOnly),
   markWorkDone: rpcOp("mark_work_done", taskOnly),
@@ -431,6 +452,7 @@ export const WRITE_OPS: Record<string, Op> = {
     }
     for (const f of files as { path: string }[]) {
       if (isMediaRef(f.path)) await assertOwnImage(ctx, f.path, ["proof"]);
+      else assertOwnFolder(ctx, f.path, "files");
     }
     refuseHiddenContacts(a.summary);
     // The table wants at least 10 characters; say so in words instead of "check what you entered" (P2-40).
@@ -450,6 +472,8 @@ export const WRITE_OPS: Record<string, Op> = {
     const body = str(a, "body", 10000);
     // A chat photo kept in ImageKit is "::media::media:<id>", and must be the sender's own.
     if (body.startsWith("::media::media:")) await assertOwnImage(ctx, body.slice("::media::".length), ["chat"]);
+    // Any other chat photo is a plain storage path, and must be in the sender's own folder (B59).
+    else if (body.startsWith("::media::")) assertOwnFolder(ctx, body.slice("::media::".length), "body");
     // Until the work starts, contact details stay inside TaskDrop. The task is only looked up when the text needs it.
     if (!body.startsWith("::media::") && findContactIssue(body)) {
       const t = rows(await db.from("tasks").select("status").eq("id", uuid(a, "taskId")))[0] as { status?: string } | undefined;
@@ -544,6 +568,10 @@ export const WRITE_OPS: Record<string, Op> = {
     if (a.avatarUrl !== undefined) {
       patch.avatar_url = strOrNull(a, "avatarUrl", 500);
       if (isMediaRef(patch.avatar_url)) await assertOwnImage(ctx, patch.avatar_url, ["avatar"]);
+      // An outside picture link (http/https) stays as it was; a storage path must be the caller's own (B59).
+      else if (typeof patch.avatar_url === "string" && !/^https?:\/\//i.test(patch.avatar_url)) {
+        assertOwnFolder(ctx, patch.avatar_url, "avatarUrl");
+      }
     }
     // No payoutUpi: migration 073 took the legacy column off the editable list
     // (payout destinations replaced it), so writing it made the whole update fail.

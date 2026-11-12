@@ -5,9 +5,10 @@
 --
 -- Since migration 063 the money comes out of the poster's wallet at the moment
 -- they lock a quote (lock_bid -> private.fund_task_from_wallet), so an unpaid
--- quote cannot be locked at all. The older Razorpay-link path (fund_task, called
--- with a settled payment) still exists for tasks that reach LOCKED unfunded, and
--- its checks are asserted too. Rolls back; leaves nothing.
+-- quote cannot be locked at all. The older Razorpay-link path (fund_task_from_payment,
+-- service role, with a settled payment) still exists for tasks that reach LOCKED
+-- unfunded, and its checks are asserted too; the app-callable fund_task is closed
+-- (migration 169). Rolls back; leaves nothing.
 --
 -- Run with:  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/funding_rules.test.sql
 
@@ -149,6 +150,7 @@ begin
   values (v_poster, v_task, 'escrow', 103000, 'plink_unpaid', 'created')
   returning id into v_pay;
 
+  -- The old app-callable fund_task is closed to signed-in people (migration 169, B57).
   perform pg_temp.become(v_poster);
   v_failed := false;
   begin
@@ -156,28 +158,24 @@ begin
   exception when others then
     v_failed := true;
   end;
-  assert v_failed, 'a payment that has not settled must not fund a task';
+  assert v_failed, 'a signed-in poster cannot call fund_task';
 
+  -- The payment path the razorpay functions use (service role) refuses what it should.
   perform pg_temp.as_operator();
+  v_row := public.fund_task_from_payment(v_pay);
+  assert v_row.funded_at is null, 'a payment that has not settled must not fund a task';
+
   insert into public.payments (user_id, task_id, purpose, amount_minor, provider_ref, status, paid_at)
   values (v_poster, v_task, 'escrow', 102999, 'plink_short', 'paid', now())
   returning id into v_short;
+  v_row := public.fund_task_from_payment(v_short);
+  assert v_row.funded_at is null, 'an underpayment must not fund a task';
 
-  perform pg_temp.become(v_poster);
-  v_failed := false;
-  begin
-    perform public.fund_task(v_task, v_short);
-  exception when others then
-    v_failed := true;
-  end;
-  assert v_failed, 'an underpayment must not fund a task';
-
-  perform pg_temp.as_operator();
   update public.payments set status = 'paid', paid_at = now() where id = v_pay;
-  perform pg_temp.become(v_poster);
-  v_row := public.fund_task(v_task, v_pay);
+  v_row := public.fund_task_from_payment(v_pay);
   assert v_row.funded_at is not null, 'a settled payment should fund the task';
-  v_row := public.fund_task(v_task, v_pay);
+  assert v_row.funded_via = 'payment', 'a card payment marks the job paid by card';
+  v_row := public.fund_task_from_payment(v_pay);
   assert v_row.funded_at is not null, 'funding again should be harmless, not an error';
 
   raise notice 'funding_rules: all assertions passed';

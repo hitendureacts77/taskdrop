@@ -30,6 +30,7 @@ import { useApp } from '../providers/AppStateProvider';
 import {
   cancelTask,
   getTaskDetail,
+  isOfferChanged,
   listBidsForTask,
   lockBid,
   refundEscrow,
@@ -215,7 +216,8 @@ export function TaskManageScreen() {
     if (locking) return;
     setLocking(true);
     try {
-      await lockBid(pick.bidId);
+      // The price shown is the price charged: a changed offer is refused, not charged (B53).
+      await lockBid(pick.bidId, 'one_time', pick.priceMinor);
       setSelecting(null);
       celebrate(`${pick.name} is hired · paid from your wallet`);
       // The hire went through; if the screen cannot refresh now, the next pull-down will.
@@ -224,6 +226,11 @@ export function TaskManageScreen() {
       if (e instanceof WalletShortError) {
         setSelecting(null);
         setShortBy({ minor: e.shortMinor, pick });
+      } else if (isOfferChanged(e)) {
+        setSelecting(null);
+        setShortBy(null);
+        flash('The offer changed. Please review the new price.');
+        await load().catch((err) => reportError(err, 'task-manage'));
       } else {
         flash(e instanceof Error ? e.message : 'Could not choose that offer');
       }

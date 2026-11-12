@@ -297,6 +297,31 @@ await t("a message a SQL function wrote on purpose passes through, with its deta
   }
 });
 
+await t("B53: lockBid passes the price the poster saw, and old callers keep the two-argument call", async () => {
+  const f = fake(() => ({ data: { id: TASK }, error: null }));
+  assert.ok((await runOp("lockBid", { bidId: BID, expectedPriceMinor: 120000 }, ctx(f))).ok);
+  assert.deepEqual(f.calls[0].args, { p_bid_id: BID, p_payout_mode: "one_time", p_expected_price_minor: 120000 });
+  const g = fake(() => ({ data: { id: TASK }, error: null }));
+  assert.ok((await runOp("lockBid", { bidId: BID }, ctx(g))).ok);
+  assert.deepEqual(g.calls[0].args, { p_bid_id: BID, p_payout_mode: "one_time" });
+  for (const bad of [-1, 1.5, "100"]) {
+    const h = fake();
+    const r = await runOp("lockBid", { bidId: BID, expectedPriceMinor: bad }, ctx(h));
+    assert.ok(!r.ok && r.error.code === "BAD_ARGS", String(bad));
+    assert.equal(h.calls.length, 0);
+  }
+});
+
+await t("B53: a changed offer comes back as OFFER_CHANGED in plain words", async () => {
+  const r = await runOp("lockBid", { bidId: BID, expectedPriceMinor: 100000 },
+    ctx(fake(() => ({ data: null, error: { message: "The offer changed. Please review the new price.", code: "P0001" } }))));
+  assert.ok(!r.ok);
+  if (!r.ok) {
+    assert.equal(r.error.code, "OFFER_CHANGED");
+    assert.equal(r.error.message, "The offer changed. Please review the new price.");
+  }
+});
+
 await t("internal database wording never leaves the server", async () => {
   const leaky = [
     { message: 'new row violates row-level security policy for table "bids"', code: "42501", details: null },
@@ -388,6 +413,50 @@ await t("wallet activity is assembled on the server, newest first", async () => 
   assert.equal(ev[2].amountMinor, packageRules.workerNetPayout(Math.round(10300 / 1.03)));
   assert.equal(ev[1].title, "Withdrawal cancelled");
   assert.equal(ev[1].incoming, true);
+});
+
+await t("B58: a cancel after work started shows the refund less the fine, and the worker's fine", async () => {
+  const f = fake((c) => {
+    if (c.rpc === "my_cancel_fines") return { data: [
+      { task_id: "t3", fine_minor: 500, side: "poster", at: "2026-10-05T00:00:00Z" },
+      { task_id: "t9", fine_minor: 250, side: "worker", at: "2026-10-06T00:00:00Z" },
+    ], error: null };
+    if (c.table === "assignments") return { data: [{ id: "a9", task_id: "t9", status: "refunded", escrow_minor: 5150, updated_at: "2026-10-06T00:00:00Z", tasks: { title: "Garden" } }], error: null };
+    if (c.table === "tasks") return { data: [
+      { id: "t3", title: "Move", status: "CANCELLED", locked_minor: 10000, updated_at: "x", funded_at: null, funded_minor: 10300, wallet_refunded_at: "2026-10-05T00:00:00Z", assignments: [] },
+      { id: "t4", title: "Clean", status: "CANCELLED", locked_minor: 1000, updated_at: "x", funded_at: null, funded_minor: 1030, wallet_refunded_at: "2026-10-04T00:00:00Z", assignments: [] },
+    ], error: null };
+    return { data: [], error: null };
+  });
+  const r = await runOp("listWalletActivity", { limit: 10 }, ctx(f));
+  assert.ok(r.ok);
+  const ev = r.data as { id: string; kind: string; amountMinor: number; incoming: boolean; title: string; meta: string }[];
+  const fined = ev.find((e) => e.id === "r-t3");
+  assert.equal(fined?.amountMinor, 9800, "paid less the fine came back");
+  assert.match(fined?.meta ?? "", /fine kept for the worker/);
+  assert.doesNotMatch(fined?.meta ?? "", /full refund/);
+  const full = ev.find((e) => e.id === "r-t4");
+  assert.equal(full?.amountMinor, 1030);
+  assert.match(full?.meta ?? "", /full refund/);
+  const mine = ev.find((e) => e.id === "f-t9");
+  assert.equal(mine?.title, "Paid for your time");
+  assert.equal(mine?.kind, "clearing");
+  assert.equal(mine?.amountMinor, 250);
+  assert.equal(mine?.incoming, true);
+  assert.match(mine?.meta ?? "", /^Garden/);
+});
+
+await t("B58: an unreadable fines list still lists the wallet as before", async () => {
+  const f = fake((c) => {
+    if (c.rpc === "my_cancel_fines") return { data: null, error: { message: "function does not exist", code: "42883" } };
+    if (c.table === "tasks") return { data: [
+      { id: "t4", title: "Clean", status: "CANCELLED", locked_minor: 1000, updated_at: "x", funded_at: null, funded_minor: 1030, wallet_refunded_at: "2026-10-04T00:00:00Z", assignments: [] },
+    ], error: null };
+    return { data: [], error: null };
+  });
+  const r = await runOp("listWalletActivity", {}, ctx(f));
+  assert.ok(r.ok);
+  assert.deepEqual((r.data as { id: string; amountMinor: number }[]).map((e) => [e.id, e.amountMinor]), [["r-t4", 1030]]);
 });
 
 await t("escrow held counts only paid-for jobs, for the side asked", async () => {
@@ -840,6 +909,36 @@ await t("a media ref can only be saved on a record when it is the caller's own f
   const plain = fake();
   assert.ok((await runOp("sendMessage", { taskId: TASK, body: "hello" }, ctx(plain))).ok);
   assert.ok(!plain.calls.some((c) => c.table === "media"));
+});
+
+await t("a plain storage path can only be saved on a record when it is in the caller's own folder (B59)", async () => {
+  const theirs = `${OTHER}/proof-123.jpg`;
+  const refusedOps: [string, Record<string, unknown>, string][] = [
+    ["updateProfile", { avatarUrl: theirs }, "profiles"],
+    ["updateProfile", { avatarUrl: `${UID}/../${OTHER}/proof-123.jpg` }, "profiles"],
+    ["updateProfile", { avatarUrl: "proof-123.jpg" }, "profiles"],
+    ["sendMessage", { taskId: TASK, body: `::media::${theirs}` }, "messages"],
+    ["submitProof", { taskId: TASK, summary: "Finished the work", files: [{ path: theirs, kind: "image", name: "Photo" }] }, "task_proofs"],
+  ];
+  for (const [op, args, table] of refusedOps) {
+    const f = fake();
+    const r = await runOp(op, args, ctx(f));
+    assert.ok(!r.ok && r.error.code === "BAD_ARGS", `${op} ${JSON.stringify(args).slice(0, 60)}`);
+    assert.ok(!f.calls.some((c) => c.table === table), `${op} reached ${table}`);
+  }
+  // The caller's own folder, an outside picture link and clearing the avatar still work.
+  const allowed: [string, Record<string, unknown>][] = [
+    ["updateProfile", { avatarUrl: `${UID}/avatar.jpg` }],
+    ["updateProfile", { avatarUrl: "https://lh3.googleusercontent.com/a/photo.jpg" }],
+    ["updateProfile", { avatarUrl: null }],
+    ["sendMessage", { taskId: TASK, body: `::media::${UID}/chat.jpg` }],
+    ["submitProof", { taskId: TASK, summary: "Finished the work", files: [{ path: `${UID}/after.jpg`, kind: "image", name: "Photo" }] }],
+  ];
+  for (const [op, args] of allowed) {
+    const f = fake((c) => ({ data: c.table === "messages" ? { id: "m1" } : [{ id: "r1" }], error: null }));
+    const r = await runOp(op, args, ctx(f));
+    assert.ok(r.ok, `${op} ${JSON.stringify(args).slice(0, 60)}`);
+  }
 });
 
 await t("removing a media ref asks the database to discard it; only the owner's unused pictures go", async () => {

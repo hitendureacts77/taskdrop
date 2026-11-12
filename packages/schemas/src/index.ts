@@ -81,6 +81,8 @@ export type CreateBid = z.infer<typeof createBidSchema>;
 export const lockBidSchema = z.object({
   bidId: z.guid(),
   payoutMode: payoutModeEnum.default('one_time'),
+  /** The offer price the poster saw; the server refuses if the offer changed since (B53). */
+  expectedPriceMinor: minorAmount.optional(),
 });
 export type LockBid = z.infer<typeof lockBidSchema>;
 

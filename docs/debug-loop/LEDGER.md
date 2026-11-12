@@ -12,6 +12,7 @@ Every bug the debug loop has seen, in one place. The plan is in `docs/DEBUGGING_
 |---|---|---|---|---|---|---|---|---|---|
 | 0 | 12 Nov 2026 | 122965a | setup: baseline `npm run check` green (102 + 103 tests) | | | | 0 / 1 / 5 / 8 | | No |
 | 1 | 12 Nov 2026 | 122965a | A+B+C sweep of the 11 open bugs (code-only; staging recheck pending) | 0 | 0 (10 fixed, not rechecked) | 0 | 0 / 0 / 0 / 4 after merge | not run twice yet | No |
+| 2 | 12 Nov 2026 | 09b8338 | code hunt: money and task life, access and data exposure, app logic | 22 (B43-B64: 2 High, 11 Medium, 9 Low) | 0 (fixes written, not rechecked) | 0 | B55 M, B63 L open for the owner | not run twice yet | No |
 
 ## Round 1 results (12 Nov 2026, PR 336)
 
@@ -33,7 +34,45 @@ Status after the fixes, all "Fixed, not rechecked" until they are live on stagin
 | B39 | Cause found: the 8 accounts all pre-date the age gate (13-27 Sep, gate is migration 082); a trigger blocks new sign-ups without a passed check, and the app's AgeGate asks on next open. Recommended: accept, or after launch |
 | B42 | Waits for the owner's yes (reseed) |
 
-New in round 1 (not yet numbered, to confirm on the phone): the Explore "Turn on location" sheet shows "Location is switched off on this device. Turn it on, then try again." the moment it opens, before any tap (seen on the installed 1.1.0 build, 12 Nov).
+Not a bug (checked 12 Nov): the Explore "Turn on location" sheet showed "Location is switched off on this device" on open because the phone's location really was off (`settings get secure location_mode` = 0). The sheet reads the live status, so the message is right.
+
+## Round 2 results (12 Nov 2026, same PR 336)
+
+Three hunters (money and task life, access and data exposure, app logic) read the code, and I checked their claims against the code and staging. 22 new bugs: B43-B52 (app, fixed in commit 2864173), B53-B64 (backend). Status below is "Fixing" until the PR is merged and the fix is rechecked on staging.
+
+| Bug | Level | What | Status |
+|---|---|---|---|
+| B43 | Medium | Home: a 400 ms timer ended "loading" before the data arrived, so slow networks showed "No services listed yet", and a mode switch drew old rows with the new card | Fixed, not rechecked |
+| B44 | Medium | Failed loads looked empty on Home, Find work, Messages and Active job; now an error with retry | Fixed, not rechecked |
+| B45 | Medium | Chat chose the other person's role from the Hire/Earn mode, not from the task | Fixed, not rechecked |
+| B46 | Low | Chat: the first fetch could wipe a message that had just arrived; contact block stayed after work started | Fixed, not rechecked |
+| B47 | Medium | Posting and hiring showed the held amount in whole rupees (Rs 50 task: Rs 52, server holds Rs 51.50) | Fixed, not rechecked |
+| B48 | Low | Closing a task said "Could not close that task" when only the refresh failed | Fixed, not rechecked |
+| B49 | Low | Messages: search showed "No messages yet", list did not refresh on return | Fixed, not rechecked |
+| B50 | Low | Releasing payment added the worker's net to the poster's balance shown in the app | Fixed, not rechecked |
+| B51 | Low | Unhandled rejections in the offer sheet and offer checks | Fixed, not rechecked |
+| B52 | Low | "1 reviews", "Last seen 2 days ago" at 36 h, "Success 0%" with no stats, "Show 60 tasks" when capped, saved filters overwritten | Fixed, not rechecked |
+| B53 | High | A worker can raise an offer's price just before the poster taps Hire and the wallet is charged the new price (`lock_bid` reads the price at call time) | Fixing: migration 167 (expected price) |
+| B54 | High | Card-paid job whose worker walked off: the leftover card payment is never returned if the next hire is cheaper | Fixing: migration 168 |
+| B55 | Medium | Clearing settles a recomputed net, not the amount put into clearing (capped jobs, commission changes) | Confirmed, needs the owner (money design, waits for the lawyer's answer) |
+| B56 | Medium | Staging is missing part of migration 066 (payments.wallet_credited_*; older `fund_task_from_payment`) | Fixing: migration 168 |
+| B57 | Medium | Old `fund_task(task, payment)` still callable by any signed-in user | Fixing: migration 169 |
+| B58 | Medium | Wallet says "full refund" with the full amount after a cancel with a fine; worker's fine never shows | Fixing: `reads.ts` |
+| B59 | Medium-High | A user can make another user's private file readable by pointing their own avatar, message or proof at its storage path | Fixing: `writes.ts` + migration 171 |
+| B60 | Medium | The hired worker reads the exact pin before work starts (and after a refund) | Fixing: migration 172/173 |
+| B61 | Medium | Blocks and suspensions do not stop hiring (lock_bid, auto-hire, contact phone) | Fixing: migration 167 |
+| B62 | Low-Medium | Trigger `trg_keep_destination_with_open_payout` is disabled on staging (drift) | Fixing: migration 169/170 |
+| B63 | Low | Losing bidders see locked price / payment id; OPEN rows expose `preferred_worker_id` | Confirmed, after launch (needs column-grant change across the app) |
+| B64 | Low | Signed-in `worker_proof_photos` skips the deleted/hidden/owner filters the guest version has | Fixing: migration 173 |
+
+Found by the round-2 security review of these fixes (older code, not fixed yet):
+
+| Bug | Level | What | Status |
+|---|---|---|---|
+| B65 | Medium | `cancel_task` pays the worker the 5% fine into their wallet even when the job was paid by card; for a card job the refund trigger returns early, so the fine is not taken out of the poster's refund (TaskDrop pays it) | New, to confirm on staging data, then fix in round 3 |
+| B66 | Low | `private.blocked_between` can be executed by `anon` (tells anyone whether two accounts blocked each other) | New, round 3 |
+
+Not bugs: migrations 162-166 not on staging yet (they apply when PR 336 merges).
 
 ## Stop test (from the plan)
 
