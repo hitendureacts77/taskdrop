@@ -42,7 +42,7 @@ export const ACCOUNT_WRITES: ReadonlySet<string> = new Set([
 
 /** Writes the app makes on its own (presence, ad counters, devices): signed out they simply do not happen. */
 export const QUIET_WRITES: ReadonlySet<string> = new Set([
-  'markNotificationsRead', 'recordAdClick', 'recordAdImpression', 'recordBirthDate', 'recordDevice', 'registerPushToken',
+  'markNotificationsRead', 'recordAdClick', 'recordAdImpression', 'recordBirthDate', 'recordDevice', 'registerPushToken', 'forgetPushToken',
   'settleClearedEarnings', 'touchPresence',
 ]);
 

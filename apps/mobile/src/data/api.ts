@@ -401,8 +401,16 @@ export async function updateProfile(_userId: string, edits: ProfileEdits): Promi
 
 // ------------------------------------------------------------- lifecycle --
 
-export const lockBid = (bidId: string, payoutMode: Enums<'payout_mode'> = 'one_time') =>
-  act<Task>('lockBid', { bidId, payoutMode });
+/**
+ * Choose an offer. `expectedPriceMinor` is the price the poster saw: the server refuses with
+ * OFFER_CHANGED when the worker changed it since (isOfferChanged), so nobody is charged a price
+ * they did not see.
+ */
+export const lockBid = (bidId: string, payoutMode: Enums<'payout_mode'> = 'one_time', expectedPriceMinor?: number) =>
+  act<Task>('lockBid', expectedPriceMinor == null ? { bidId, payoutMode } : { bidId, payoutMode, expectedPriceMinor });
+
+/** The worker changed the offer's price after the poster looked; reload and show the new one. */
+export const isOfferChanged = (e: unknown) => e instanceof ApiError && e.code === 'OFFER_CHANGED';
 export const payTaskFromWallet = (taskId: string) => act<Task>('payTaskFromWallet', { taskId });
 export const startTask = (taskId: string) => act<Task>('startTask', { taskId });
 export const markWorkDone = (taskId: string) => act<Task>('markWorkDone', { taskId });

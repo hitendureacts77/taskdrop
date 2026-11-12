@@ -13,6 +13,7 @@ import {
   guestNetKey, guestNetScope, guestRateKey, guestRateScope, guestSpend, isGuestOp, isGuestToken, isHeavyGuestOp, runGuestBatch, runGuestOp,
 } from "./guest.ts";
 import { WRITE_OPS } from "./writes.ts";
+import { nearBox } from "./reads.ts";
 import { MEDIA_OPS } from "./media.ts";
 import { type Db, MAX_BATCH, OPS, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp, spendRate } from "./ops.ts";
 import {
@@ -257,7 +258,8 @@ await t("search text cannot break out of the filter grammar", async () => {
   const f = fake(() => ({ data: [], error: null }));
   await runOp("searchTasks", { q: "tap),status.eq.CANCELLED,(title" }, ctx(f));
   const ors = steps(f.calls[0], "or").map(([x]) => String(x));
-  assert.ok(ors[1].startsWith("title.ilike.%") && !/[(),]/.test(ors[1].replace(/^title\.ilike\.%|,description\.ilike\.%|%$/g, "").replace(/%,description\.ilike\.%/, "")), ors[1]);
+  const search = ors.find((x) => x.startsWith("title.ilike.%"))!;
+  assert.ok(search && !/[(),]/.test(search.replace(/^title\.ilike\.%|,description\.ilike\.%|%$/g, "").replace(/%,description\.ilike\.%/, "")), search);
 });
 
 await t("searchTasksWithPosters answers what searchTasks then attachPosters would, in one call", async () => {
@@ -293,6 +295,31 @@ await t("a message a SQL function wrote on purpose passes through, with its deta
   if (!r.ok) {
     assert.equal(r.error.message, "Not enough money in your wallet");
     assert.equal(r.error.details, "2500");
+  }
+});
+
+await t("B53: lockBid passes the price the poster saw, and old callers keep the two-argument call", async () => {
+  const f = fake(() => ({ data: { id: TASK }, error: null }));
+  assert.ok((await runOp("lockBid", { bidId: BID, expectedPriceMinor: 120000 }, ctx(f))).ok);
+  assert.deepEqual(f.calls[0].args, { p_bid_id: BID, p_payout_mode: "one_time", p_expected_price_minor: 120000 });
+  const g = fake(() => ({ data: { id: TASK }, error: null }));
+  assert.ok((await runOp("lockBid", { bidId: BID }, ctx(g))).ok);
+  assert.deepEqual(g.calls[0].args, { p_bid_id: BID, p_payout_mode: "one_time" });
+  for (const bad of [-1, 1.5, "100"]) {
+    const h = fake();
+    const r = await runOp("lockBid", { bidId: BID, expectedPriceMinor: bad }, ctx(h));
+    assert.ok(!r.ok && r.error.code === "BAD_ARGS", String(bad));
+    assert.equal(h.calls.length, 0);
+  }
+});
+
+await t("B53: a changed offer comes back as OFFER_CHANGED in plain words", async () => {
+  const r = await runOp("lockBid", { bidId: BID, expectedPriceMinor: 100000 },
+    ctx(fake(() => ({ data: null, error: { message: "The offer changed. Please review the new price.", code: "P0001" } }))));
+  assert.ok(!r.ok);
+  if (!r.ok) {
+    assert.equal(r.error.code, "OFFER_CHANGED");
+    assert.equal(r.error.message, "The offer changed. Please review the new price.");
   }
 });
 
@@ -389,6 +416,50 @@ await t("wallet activity is assembled on the server, newest first", async () => 
   assert.equal(ev[1].incoming, true);
 });
 
+await t("B58: a cancel after work started shows the refund less the fine, and the worker's fine", async () => {
+  const f = fake((c) => {
+    if (c.rpc === "my_cancel_fines") return { data: [
+      { task_id: "t3", fine_minor: 500, side: "poster", at: "2026-10-05T00:00:00Z" },
+      { task_id: "t9", fine_minor: 250, side: "worker", at: "2026-10-06T00:00:00Z" },
+    ], error: null };
+    if (c.table === "assignments") return { data: [{ id: "a9", task_id: "t9", status: "refunded", escrow_minor: 5150, updated_at: "2026-10-06T00:00:00Z", tasks: { title: "Garden" } }], error: null };
+    if (c.table === "tasks") return { data: [
+      { id: "t3", title: "Move", status: "CANCELLED", locked_minor: 10000, updated_at: "x", funded_at: null, funded_minor: 10300, wallet_refunded_at: "2026-10-05T00:00:00Z", assignments: [] },
+      { id: "t4", title: "Clean", status: "CANCELLED", locked_minor: 1000, updated_at: "x", funded_at: null, funded_minor: 1030, wallet_refunded_at: "2026-10-04T00:00:00Z", assignments: [] },
+    ], error: null };
+    return { data: [], error: null };
+  });
+  const r = await runOp("listWalletActivity", { limit: 10 }, ctx(f));
+  assert.ok(r.ok);
+  const ev = r.data as { id: string; kind: string; amountMinor: number; incoming: boolean; title: string; meta: string }[];
+  const fined = ev.find((e) => e.id === "r-t3");
+  assert.equal(fined?.amountMinor, 9800, "paid less the fine came back");
+  assert.match(fined?.meta ?? "", /fine kept for the worker/);
+  assert.doesNotMatch(fined?.meta ?? "", /full refund/);
+  const full = ev.find((e) => e.id === "r-t4");
+  assert.equal(full?.amountMinor, 1030);
+  assert.match(full?.meta ?? "", /full refund/);
+  const mine = ev.find((e) => e.id === "f-t9");
+  assert.equal(mine?.title, "Paid for your time");
+  assert.equal(mine?.kind, "clearing");
+  assert.equal(mine?.amountMinor, 250);
+  assert.equal(mine?.incoming, true);
+  assert.match(mine?.meta ?? "", /^Garden/);
+});
+
+await t("B58: an unreadable fines list still lists the wallet as before", async () => {
+  const f = fake((c) => {
+    if (c.rpc === "my_cancel_fines") return { data: null, error: { message: "function does not exist", code: "42883" } };
+    if (c.table === "tasks") return { data: [
+      { id: "t4", title: "Clean", status: "CANCELLED", locked_minor: 1000, updated_at: "x", funded_at: null, funded_minor: 1030, wallet_refunded_at: "2026-10-04T00:00:00Z", assignments: [] },
+    ], error: null };
+    return { data: [], error: null };
+  });
+  const r = await runOp("listWalletActivity", {}, ctx(f));
+  assert.ok(r.ok);
+  assert.deepEqual((r.data as { id: string; amountMinor: number }[]).map((e) => [e.id, e.amountMinor]), [["r-t4", 1030]]);
+});
+
 await t("escrow held counts only paid-for jobs, for the side asked", async () => {
   const data = [
     { escrow_minor: 100, worker_id: UID, tasks: { poster_id: OTHER, funded_at: "x" } },
@@ -443,6 +514,94 @@ await t("tasks near a point are filtered and ordered by distance on the server",
   assert.deepEqual((r.data as { id: string }[]).map((x) => x.id), ["near", "mid"]);
 });
 
+/**
+ * A fake that runs the simple filters (eq, neq, gte, lte, is, not is, in, filter neq {}, order, limit) on in-memory
+ * rows, so a test can show what a capped read leaves out (B34, B68). Other steps (select, or) pass every row.
+ */
+function tableFake(tables: Record<string, Record<string, unknown>[]>) {
+  return fake((c) => {
+    let list = [...(tables[c.table ?? ""] ?? [])];
+    let cap = Infinity;
+    for (const [name, args] of c.steps) {
+      const [col, a, b] = args as [string, unknown, unknown];
+      if (name === "eq") list = list.filter((r) => r[col] === a);
+      else if (name === "neq") list = list.filter((r) => r[col] !== a);
+      else if (name === "gte") list = list.filter((r) => r[col] != null && (r[col] as number) >= (a as number));
+      else if (name === "lte") list = list.filter((r) => r[col] != null && (r[col] as number) <= (a as number));
+      else if (name === "is" && a === null) list = list.filter((r) => r[col] == null);
+      else if (name === "not" && a === "is" && b === null) list = list.filter((r) => r[col] != null);
+      else if (name === "in") list = list.filter((r) => (a as unknown[]).includes(r[col]));
+      else if (name === "filter" && a === "neq" && b === "{}") list = list.filter((r) => Array.isArray(r[col]) && (r[col] as unknown[]).length > 0);
+      else if (name === "order") {
+        const asc = (a as { ascending?: boolean } | undefined)?.ascending !== false;
+        list.sort((x, y) => (String(x[col] ?? "") < String(y[col] ?? "") ? -1 : String(x[col] ?? "") > String(y[col] ?? "") ? 1 : 0) * (asc ? 1 : -1));
+      } else if (name === "limit") cap = Math.min(cap, args[0] as number);
+    }
+    return { data: list.slice(0, cap), error: null };
+  });
+}
+
+/** B34: `n` open posts far away (Mumbai), all newer than the one near post (Kondapur). */
+const KONDAPUR = { lat: 17.44, lng: 78.35 };
+function farAndNear(n: number, extra: Record<string, unknown> = {}) {
+  const far = Array.from({ length: n }, (_, i) => ({
+    id: `far-${i}`, poster_id: OTHER, status: "OPEN", kind: "request", loc_lat: 19.07, loc_lng: 72.87,
+    created_at: `2026-10-05T09:${String(i % 60).padStart(2, "0")}:00Z`, ...extra,
+  }));
+  const near = { id: "near", poster_id: OTHER, status: "OPEN", kind: "request", loc_lat: 17.46, loc_lng: 78.36, created_at: "2026-09-01T00:00:00Z", ...extra };
+  return [...far, near];
+}
+
+await t("B34: a radius search finds an older nearby task behind 25 newer far-away ones", async () => {
+  const f = tableFake({ tasks: farAndNear(25) });
+  const r = await runOp("searchTasks", { near: { ...KONDAPUR, radiusKm: 5 }, limit: 20, kind: "request" }, ctx(f));
+  assert.ok(r.ok);
+  assert.deepEqual((r.data as { id: string }[]).map((x) => x.id), ["near"]);
+  // No point given: newest first, capped, as before.
+  const plain = await runOp("searchTasks", { limit: 20, kind: "request" }, ctx(tableFake({ tasks: farAndNear(25) })));
+  assert.equal((plain.data as unknown[]).length, 20);
+});
+
+await t("B34: tasksNear finds an older nearby task behind 210 newer far-away ones", async () => {
+  const f = tableFake({ tasks: farAndNear(210) });
+  const r = await runOp("tasksNear", { ...KONDAPUR, radiusKm: 5, limit: 5 }, ctx(f));
+  assert.ok(r.ok);
+  assert.deepEqual((r.data as { id: string }[]).map((x) => x.id), ["near"]);
+});
+
+await t("B34: workersNear finds a nearby helper behind 310 more recently seen far-away ones", async () => {
+  const far = Array.from({ length: 310 }, (_, i) => ({
+    id: `far-${i}`, onboarded_at: "2026-01-01", deleted_at: null, skills: ["Cleaning"], loc_lat: 19.07, loc_lng: 72.87,
+    last_seen_at: `2026-10-05T09:${String(i % 60).padStart(2, "0")}:00Z`,
+  }));
+  const near = { id: "near", onboarded_at: "2026-01-01", deleted_at: null, skills: ["Plumbing"], loc_lat: 17.46, loc_lng: 78.36, last_seen_at: "2026-09-01T00:00:00Z" };
+  const f = tableFake({ profiles: [...far, near], tasks: [] });
+  const r = await runOp("workersNear", { ...KONDAPUR, radiusKm: 5, limit: 12 }, ctx(f));
+  assert.ok(r.ok);
+  assert.deepEqual((r.data as { id: string }[]).map((x) => x.id), ["near"]);
+});
+
+await t("B34: the search box holds the whole circle, and is dropped where it would wrap or be huge", () => {
+  const b = nearBox({ lat: 17.44, lng: 78.35 }, 5)!;
+  assert.ok(b.minLat < 17.44 - 5 / 111.2 && b.maxLat > 17.44 + 5 / 111.2);
+  assert.ok(b.minLng !== null && b.maxLng !== null && b.minLng < 78.35 && b.maxLng > 78.35);
+  // Every point on a 5 km circle is inside the box.
+  for (let deg = 0; deg < 360; deg += 5) {
+    const r = (deg * Math.PI) / 180;
+    const dLat = (5 / 111.195) * Math.cos(r);
+    const dLng = (5 / (111.195 * Math.cos((17.44 * Math.PI) / 180))) * Math.sin(r);
+    const p = { lat: 17.44 + dLat * 0.999, lng: 78.35 + dLng * 0.999 };
+    assert.ok(p.lat >= b.minLat && p.lat <= b.maxLat && p.lng >= b.minLng! && p.lng <= b.maxLng!, `point at ${deg} deg`);
+  }
+  const wrap = nearBox({ lat: 10, lng: 179.99 }, 50)!;
+  assert.equal(wrap.minLng, null);
+  assert.equal(wrap.maxLng, null);
+  const pole = nearBox({ lat: 89.9, lng: 10 }, 50)!;
+  assert.equal(pole.maxLat, 90);
+  assert.equal(pole.minLng, null);
+  assert.equal(nearBox({ lat: 17, lng: 78 }, 20000), null);
+});
+
 await t("helpers near a point come back nearest first, inside the radius, with only map-card fields", async () => {
   const here = { lat: 17.44, lng: 78.35 };
   const f = fake(() => ({ data: [
@@ -485,6 +644,75 @@ await t("helpers near a point carry their newest open service, and sellers witho
   const tasks = f.calls.find((c) => c.table === "tasks")!;
   assert.ok(tasks.steps.some(([n, args]) => n === "eq" && args[0] === "status" && args[1] === "OPEN"));
   assert.ok(tasks.steps.some(([n, args]) => n === "neq" && args[0] === "poster_id"));
+});
+
+await t("B86: every list of open tasks leaves out a City Hunt that has stopped taking finds", async () => {
+  const f = fake(() => ({ data: [], error: null }));
+  await runOp("listOpenTasks", {}, ctx(f));
+  await runOp("recommendedTasks", { skills: ["tap"] }, ctx(f));
+  await runOp("remoteTasks", {}, ctx(f));
+  const reads = f.calls.filter((x) => x.table === "tasks");
+  assert.ok(reads.length >= 3);
+  for (const c of reads) {
+    assert.ok(
+      c.steps.some(([n, args]) => n === "or" && String(args[0]).startsWith("hunt_until.is.null,hunt_until.gt.")),
+      "a read of open tasks must ask for hunt_until empty or ahead",
+    );
+  }
+});
+
+await t("B68: workersNear finds a nearby seller's older listing behind 600 newer far-away ones, and keeps unpinned listings", async () => {
+  const listing = (id: string, poster: string, at: { lat: number; lng: number } | null, created: string) => ({
+    id, poster_id: poster, status: "OPEN", kind: "service", title: id, benchmark_minor: 50000, category: null,
+    loc_lat: at?.lat ?? null, loc_lng: at?.lng ?? null, created_at: created,
+  });
+  const far = Array.from({ length: 600 }, (_, i) =>
+    listing(`far-${i}`, `far-seller-${i}`, { lat: 19.07, lng: 72.87 }, `2026-10-05T09:${String(i % 60).padStart(2, "0")}:00Z`));
+  const person = (id: string, skills: string[], lat: number, lng: number) =>
+    ({ id, onboarded_at: "2026-01-01", deleted_at: null, skills, loc_lat: lat, loc_lng: lng, last_seen_at: "2026-09-01T00:00:00Z" });
+  const f = tableFake({
+    profiles: [person("seller", [], 17.45, 78.36), person("helper", ["Plumbing"], 17.46, 78.35)],
+    tasks: [
+      ...far,
+      ...Array.from({ length: 600 }, (_, i) => listing(`remote-${i}`, `remote-seller-${i}`, null, `2026-10-04T09:${String(i % 60).padStart(2, "0")}:00Z`)),
+      listing("near-old", "seller", { lat: 17.45, lng: 78.36 }, "2026-08-01T00:00:00Z"),
+      listing("unpinned", "helper", null, "2026-10-05T10:00:00Z"),
+    ],
+  });
+  const r = await runOp("workersNear", { ...KONDAPUR, radiusKm: 5, limit: 12 }, ctx(f));
+  assert.ok(r.ok);
+  const byId = Object.fromEntries((r.data as { id: string; top_service: { id: string } | null }[]).map((x) => [x.id, x]));
+  assert.deepEqual(Object.keys(byId).sort(), ["helper", "seller"]);
+  assert.equal(byId.seller!.top_service?.id, "near-old");
+  assert.equal(byId.helper!.top_service?.id, "unpinned");
+});
+
+await t("B68: workersNear asks for sellers 100 ids at a time", async () => {
+  const sellers = Array.from({ length: 250 }, (_, i) => `seller-${i}`);
+  const f = fake((c) => {
+    if (c.table === "tasks") return { data: sellers.map((s) => ({ id: `s-${s}`, poster_id: s, title: "x", benchmark_minor: 100 })), error: null };
+    const asked = steps(c, "in")[0];
+    if (asked) return { data: (asked[1] as string[]).map((id) => ({ id, skills: [], loc_lat: 17.45, loc_lng: 78.36 })), error: null };
+    return { data: [], error: null };
+  });
+  const r = await runOp("workersNear", { ...KONDAPUR, radiusKm: 5, limit: 50 }, ctx(f));
+  assert.ok(r.ok);
+  const asks = f.calls.filter((c) => c.table === "profiles" && steps(c, "in").length > 0).map((c) => (steps(c, "in")[0]![1] as string[]).length);
+  assert.deepEqual(asks, [100, 100, 50]);
+  assert.equal((r.data as unknown[]).length, 50);
+});
+
+await t("B69: usernameAvailable says a reserved name is taken, as saving it would fail", async () => {
+  const f = fake(() => ({ data: null, error: null }));
+  for (const name of ["admin", "Admin", " support ", "taskdrop"]) {
+    const r = await runOp("usernameAvailable", { username: name }, ctx(f));
+    assert.ok(r.ok);
+    assert.equal(r.data, false, name);
+  }
+  assert.equal(f.calls.length, 0);
+  const free = await runOp("usernameAvailable", { username: "asha_k" }, ctx(f));
+  assert.ok(free.ok);
+  assert.equal(free.data, true);
 });
 
 await t("a helper's services are their open listings, asked by id", async () => {
@@ -753,6 +981,36 @@ await t("a media ref can only be saved on a record when it is the caller's own f
   const plain = fake();
   assert.ok((await runOp("sendMessage", { taskId: TASK, body: "hello" }, ctx(plain))).ok);
   assert.ok(!plain.calls.some((c) => c.table === "media"));
+});
+
+await t("a plain storage path can only be saved on a record when it is in the caller's own folder (B59)", async () => {
+  const theirs = `${OTHER}/proof-123.jpg`;
+  const refusedOps: [string, Record<string, unknown>, string][] = [
+    ["updateProfile", { avatarUrl: theirs }, "profiles"],
+    ["updateProfile", { avatarUrl: `${UID}/../${OTHER}/proof-123.jpg` }, "profiles"],
+    ["updateProfile", { avatarUrl: "proof-123.jpg" }, "profiles"],
+    ["sendMessage", { taskId: TASK, body: `::media::${theirs}` }, "messages"],
+    ["submitProof", { taskId: TASK, summary: "Finished the work", files: [{ path: theirs, kind: "image", name: "Photo" }] }, "task_proofs"],
+  ];
+  for (const [op, args, table] of refusedOps) {
+    const f = fake();
+    const r = await runOp(op, args, ctx(f));
+    assert.ok(!r.ok && r.error.code === "BAD_ARGS", `${op} ${JSON.stringify(args).slice(0, 60)}`);
+    assert.ok(!f.calls.some((c) => c.table === table), `${op} reached ${table}`);
+  }
+  // The caller's own folder, an outside picture link and clearing the avatar still work.
+  const allowed: [string, Record<string, unknown>][] = [
+    ["updateProfile", { avatarUrl: `${UID}/avatar.jpg` }],
+    ["updateProfile", { avatarUrl: "https://lh3.googleusercontent.com/a/photo.jpg" }],
+    ["updateProfile", { avatarUrl: null }],
+    ["sendMessage", { taskId: TASK, body: `::media::${UID}/chat.jpg` }],
+    ["submitProof", { taskId: TASK, summary: "Finished the work", files: [{ path: `${UID}/after.jpg`, kind: "image", name: "Photo" }] }],
+  ];
+  for (const [op, args] of allowed) {
+    const f = fake((c) => ({ data: c.table === "messages" ? { id: "m1" } : [{ id: "r1" }], error: null }));
+    const r = await runOp(op, args, ctx(f));
+    assert.ok(r.ok, `${op} ${JSON.stringify(args).slice(0, 60)}`);
+  }
 });
 
 await t("removing a media ref asks the database to discard it; only the owner's unused pictures go", async () => {
@@ -1618,11 +1876,11 @@ const SHARED_RPCS = new Set([
 /** A fake whose guest SQL functions answer sensibly; `media` is what guest_public_media lets through. */
 function guestFake(media: (paths: string[]) => string[] = (p) => p) {
   return fake((c) => {
-    if (c.rpc === "guest_open_posts") {
+    if (c.rpc === "guest_open_posts" || c.rpc === "guest_open_posts_near") {
       const a = c.args as { p_ids: string[] | null };
       return { data: guestPosts().filter((p) => !a.p_ids || a.p_ids.includes(p.id)), error: null };
     }
-    if (c.rpc === "guest_helpers") {
+    if (c.rpc === "guest_helpers" || c.rpc === "guest_helpers_near") {
       return {
         data: [
           { id: HELPER3, loc_lat: 28.6, loc_lng: 77.2, skills: ["a"], last_seen_at: "2026-10-05T09:50:00Z" },
@@ -1753,6 +2011,41 @@ await t("guest: attachPosters keeps the asked order and drops ids that were not 
   assert.deepEqual(list.map((p) => p.id), [G1, G3, G2]);
   assert.ok(list.every((p) => p.poster));
   assert.deepEqual(await runGuestOp("attachPosters", { taskIds: [] }, ctx(f)), { ok: true, data: [] });
+});
+
+await t("B34 guest: near reads go through the boxed SQL, so newer far-away rows cannot crowd out near ones", async () => {
+  type Box = { p_limit: number; p_min_lat?: number; p_max_lat?: number; p_min_lng?: number | null; p_max_lng?: number | null };
+  // Like the SQL: newest first, the box when given, then the cap.
+  const inBox = (r: { loc_lat: number; loc_lng: number }, a: Box) =>
+    a.p_min_lat === undefined || (r.loc_lat >= a.p_min_lat && r.loc_lat <= a.p_max_lat!
+      && (a.p_min_lng == null || (r.loc_lng >= a.p_min_lng && r.loc_lng <= a.p_max_lng!)));
+  const tasks = farAndNear(210, { poster: null }) as { id: string; loc_lat: number; loc_lng: number; created_at: string }[];
+  const people = [
+    ...Array.from({ length: 310 }, (_, i) => ({ id: `far-${i}`, loc_lat: 19.07, loc_lng: 72.87, skills: ["a"] })),
+    { id: "near", loc_lat: 17.46, loc_lng: 78.36, skills: ["a"] },
+  ];
+  const f = fake((c) => {
+    const a = c.args as Box;
+    if (c.rpc === "guest_open_posts" || c.rpc === "guest_open_posts_near") {
+      return { data: [...tasks].sort((x, y) => (x.created_at < y.created_at ? 1 : -1)).filter((r) => inBox(r, a)).slice(0, a.p_limit), error: null };
+    }
+    if (c.rpc === "guest_helpers" || c.rpc === "guest_helpers_near") return { data: people.filter((r) => inBox(r, a)).slice(0, a.p_limit), error: null };
+    return { data: [], error: null };
+  });
+  const s = await runGuestOp("searchTasks", { near: { ...KONDAPUR, radiusKm: 5 }, limit: 20 }, ctx(f));
+  assert.deepEqual((s as { data: { id: string }[] }).data.map((x) => x.id), ["near"]);
+  const n = await runGuestOp("tasksNear", { ...KONDAPUR, radiusKm: 5 }, ctx(f));
+  assert.deepEqual((n as { data: { id: string }[] }).data.map((x) => x.id), ["near"]);
+  const w = await runGuestOp("workersNear", { ...KONDAPUR, radiusKm: 5 }, ctx(f));
+  assert.deepEqual((w as { data: { id: string }[] }).data.map((x) => x.id), ["near"]);
+  assert.ok(f.calls.some((c) => c.rpc === "guest_open_posts_near") && f.calls.some((c) => c.rpc === "guest_helpers_near"));
+
+  // Before migration 162 is applied the _near function is missing: the old read still answers.
+  const old = fake((c) => (c.rpc?.endsWith("_near")
+    ? { data: null, error: { code: "PGRST202", message: "no such function" } }
+    : { data: [{ id: "near", poster_id: OTHER, loc_lat: 17.46, loc_lng: 78.36 }], error: null }));
+  const o = await runGuestOp("tasksNear", { ...KONDAPUR, radiusKm: 5 }, ctx(old));
+  assert.deepEqual((o as { data: { id: string }[] }).data.map((x) => x.id), ["near"]);
 });
 
 await t("guest: tasksNear and workersNear keep only what is in range, nearest first", async () => {
@@ -2054,6 +2347,17 @@ await t("answers about another person ask for no private profile column", async 
   assert.ok(profileReads.length >= 5);
   for (const c of profileReads) assert.deepEqual(leaky(selectedColumns(c), SECRET_PROFILE), [], "a private profile column is asked for");
   assert.ok(selectedColumns(profileReads[0]).includes("display_name"), "the public card still has its name");
+});
+
+await t("B30: listActiveWorkers never lists a deleted account", async () => {
+  const f = fake(() => ({ data: [], error: null }));
+  await runOp("listActiveWorkers", {}, ctx(f));
+  const read = f.calls.find((c) => c.table === "profiles");
+  assert.ok(read, "it reads profiles");
+  assert.ok(
+    read.steps.some(([name, args]) => name === "is" && args[0] === "deleted_at" && args[1] === null),
+    "deleted accounts are filtered out in the query",
+  );
 });
 
 await t("a person's own profile adds only the referral code and the weekly goal", async () => {

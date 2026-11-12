@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { mergeById } from '../lib/mergeById';
 import {
   View,
   Text as RNText,
@@ -17,7 +18,7 @@ import { Icon } from '../components/Icon';
 import { BackButton, BottomSheet, MenuRow, systemHeader } from '../components/kit';
 import { AvatarPresence } from '../components/PresenceDot';
 import { useTheme } from '../providers/ThemeProvider';
-import { useNav } from '../providers/NavProvider';
+import { useFocusTick, useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
@@ -52,8 +53,8 @@ import { KeyboardSafe } from '../components/KeyboardSafe';
  */
 
 type Message =
-  | { id: string; who: 'me' | 'them'; kind: 'text'; text: string }
-  | { id: string; who: 'me' | 'them'; kind: 'image'; path: string };
+  | { id: string; at: string; who: 'me' | 'them'; kind: 'text'; text: string }
+  | { id: string; at: string; who: 'me' | 'them'; kind: 'image'; path: string };
 
 /** Statuses from which contacts are unmasked for both sides. */
 const OPEN_STATUSES = ['TASK_STARTED', 'OVERDUE', 'WORK_DONE', 'REVISION_REQUESTED', 'COMPLETED', 'AUTO_COMPLETED', 'DISPUTED'];
@@ -120,6 +121,7 @@ export function ChatScreen() {
   const t = useTheme();
   const { params, back, go } = useNav();
   const { mode } = useMode();
+  const focusTick = useFocusTick();
   const { openTask, flash } = useApp();
   const { userId, guest } = useAuth();
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
@@ -133,6 +135,12 @@ export function ChatScreen() {
   const [reporting, setReporting] = useState<string | null>(null);
   const [escrowMinor, setEscrowMinor] = useState<number | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  // Whether I posted this task, from the task itself (null until it loads). Chat opens from
+  // notifications and Messages in either mode, so the Hire/Earn switch cannot say who the
+  // other person is.
+  const [iAmPoster, setIAmPoster] = useState<boolean | null>(null);
+  // The loader below, so a new message or coming back to the chat can refresh the task's status.
+  const refreshDetail = useRef<(() => Promise<void>) | null>(null);
   const [attachOpen, setAttachOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [calling, setCalling] = useState(false);
@@ -140,29 +148,45 @@ export function ChatScreen() {
   const scrollRef = useRef<ScrollViewInstance>(null);
 
   const contactsOpen = status !== null && OPEN_STATUSES.includes(status);
-  const counterpartyName = other?.display_name ?? (mode === 'worker' ? 'The customer' : 'The worker');
+  // Until the task loads, fall back to the mode; after that the task decides.
+  const meIsPoster = iAmPoster ?? mode !== 'worker';
+  const counterpartyName = other?.display_name ?? (meIsPoster ? 'The worker' : 'The customer');
   const rating =
-    other && (mode === 'worker' ? other.poster_rating_count : other.worker_rating_count) > 0
-      ? Number(mode === 'worker' ? other.poster_rating_avg : other.worker_rating_avg).toFixed(1)
+    other && (meIsPoster ? other.worker_rating_count : other.poster_rating_count) > 0
+      ? Number(meIsPoster ? other.worker_rating_avg : other.poster_rating_avg).toFixed(1)
       : null;
 
   const toBubble = (m: DbMessage): Message =>
     m.body.startsWith(CHAT_MEDIA_PREFIX)
-      ? { id: m.id, who: m.sender_id === userId ? 'me' : 'them', kind: 'image', path: m.body.slice(CHAT_MEDIA_PREFIX.length) }
-      : { id: m.id, who: m.sender_id === userId ? 'me' : 'them', kind: 'text', text: m.body };
+      ? { id: m.id, at: m.created_at, who: m.sender_id === userId ? 'me' : 'them', kind: 'image', path: m.body.slice(CHAT_MEDIA_PREFIX.length) }
+      : { id: m.id, at: m.created_at, who: m.sender_id === userId ? 'me' : 'them', kind: 'text', text: m.body };
 
   useEffect(() => {
     if (!taskId || !userId) return;
     let alive = true;
 
+    const statusNow = { current: null as string | null };
+    const applyDetail = (detail: Awaited<ReturnType<typeof getTaskDetail>>) => {
+      setIAmPoster(detail ? detail.task.poster_id === userId : null);
+      setOther(detail ? (detail.task.poster_id === userId ? detail.worker : detail.poster) : null);
+      setEscrowMinor(detail?.assignment?.escrow_minor ?? null);
+      setStatus(detail?.task.status ?? null);
+      statusNow.current = detail?.task.status ?? null;
+    };
+
+    // The task alone, to pick up a status change (work started) while the chat stays open.
+    refreshDetail.current = async () => {
+      const detail = await getTaskDetail(taskId);
+      if (alive) applyDetail(detail);
+    };
+
     void (async () => {
       try {
         const [rows, detail] = await Promise.all([listMessages(taskId), getTaskDetail(taskId)]);
         if (!alive) return;
-        setMessages(rows.map(toBubble));
-        setOther(detail ? (detail.task.poster_id === userId ? detail.worker : detail.poster) : null);
-        setEscrowMinor(detail?.assignment?.escrow_minor ?? null);
-        setStatus(detail?.task.status ?? null);
+        // Merge, not replace: a message that arrived live while this was loading stays.
+        setMessages((prev) => mergeById(prev, rows.map(toBubble), (m) => m.at));
+        applyDetail(detail);
       } catch (e) {
         if (alive) flash(e instanceof Error ? e.message : 'Could not open this chat');
       }
@@ -171,15 +195,28 @@ export function ChatScreen() {
     // Both sides see new messages without polling.
     const unsubscribe = subscribeToMessages(taskId, (m) => {
       if (!alive) return;
-      setMessages((prev) => (prev.some((p) => p.id === m.id) ? prev : [...prev, toBubble(m)]));
+      setMessages((prev) => (prev.some((p) => p.id === m.id) ? prev : mergeById(prev, [toBubble(m)], (b) => b.at)));
+      // Work may have started since the chat opened; once contacts are open there is nothing to wait for.
+      if (statusNow.current === null || !OPEN_STATUSES.includes(statusNow.current)) {
+        void refreshDetail.current?.().catch(() => {});
+      }
     });
 
     return () => {
       alive = false;
+      refreshDetail.current = null;
       unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId, userId]);
+
+  // Coming back to the chat: the status may have moved on (work started, contacts unlocked).
+  const lastFocusTick = useRef(focusTick);
+  useEffect(() => {
+    if (lastFocusTick.current === focusTick) return;
+    lastFocusTick.current = focusTick;
+    void refreshDetail.current?.().catch(() => {});
+  }, [focusTick]);
 
   const post = async (body: string) => {
     if (!taskId || !userId) {
@@ -187,7 +224,7 @@ export function ChatScreen() {
       return false;
     }
     const saved = await sendMessage(taskId, userId, body);
-    setMessages((prev) => (prev.some((p) => p.id === saved.id) ? prev : [...prev, toBubble(saved)]));
+    setMessages((prev) => (prev.some((p) => p.id === saved.id) ? prev : mergeById(prev, [toBubble(saved)], (b) => b.at)));
     return true;
   };
 
@@ -266,13 +303,13 @@ export function ChatScreen() {
   // The person and the call button: in the system header on phones, in the page's top row on the web.
   const person = (
   <Pressable
-    onPress={() => other && go('publicProfile', { userId: other.id, role: mode === 'worker' ? 'poster' : 'worker' })}
+    onPress={() => other && go('publicProfile', { userId: other.id, role: meIsPoster ? 'worker' : 'poster' })}
     accessibilityRole="button"
     accessibilityLabel={`${counterpartyName}'s profile`}
     style={systemHeader ? { flexDirection: 'row', alignItems: 'center', gap: 10, maxWidth: 230 } : { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}
   >
     <View>
-      <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: t.colors.purpleFill, alignItems: 'center', justifyContent: 'center' }}>
         <RNText style={tx('800', 16, '#FFFFFF')}>{counterpartyName.charAt(0).toUpperCase()}</RNText>
       </View>
       <AvatarPresence lastSeen={other?.last_seen_at} ring={t.colors.surface} />

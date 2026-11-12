@@ -27,7 +27,10 @@ export type Palette = {
   signalDeep: string;
   signalSoft: string;
   purple: string;
+  /** Earn-blue text and icons on surface, bg and purpleSoft: 4.5:1 or more in both themes (dark is the light tint). */
   purpleDeep: string;
+  /** Earn-blue FILL behind white text (avatars, count badges): the deep shade in both themes. Never for text. */
+  purpleFill: string;
   /** Earn-blue tinted background, for "remote"/earn tags on either side. */
   purpleSoft: string;
   ai: string;
@@ -71,6 +74,7 @@ export const light: Palette = {
   signalSoft: '#FBEDE7',
   purple: '#2F5BEA',
   purpleDeep: '#1E40AF',
+  purpleFill: '#1E40AF',
   purpleSoft: '#EAF0FE',
   ai: '#7F77DD',
   aiSoft: '#F0EFFC',
@@ -106,7 +110,8 @@ export const dark: Palette = {
   signalDeep: '#F08A66',
   signalSoft: '#2C1A14',
   purple: '#6B8CFF',
-  purpleDeep: '#4F6FE8',
+  purpleDeep: '#9DB4FF',
+  purpleFill: '#4F6FE8',
   purpleSoft: '#172036',
   ai: '#A39CF0',
   aiSoft: '#1E1C33',

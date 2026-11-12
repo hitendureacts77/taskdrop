@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   posterEscrowCharge,
+  posterServiceFee,
   workerNetPayout,
   platformRevenue,
   postStartCancelFine,
@@ -24,6 +25,19 @@ const RS_1000 = 100_000;
 
 test('poster escrow charge adds the 3% service fee', () => {
   assert.equal(posterEscrowCharge(RS_1000), 103_000);
+});
+
+test('poster escrow charge rounds in paise, not whole rupees', () => {
+  assert.equal(posterEscrowCharge(5_000), 5_150); // ₹50 -> ₹51.50
+  assert.equal(posterEscrowCharge(1_000), 1_030); // ₹10 -> ₹10.30
+  assert.equal(posterServiceFee(5_000), 150);
+  assert.equal(posterServiceFee(1_000), 30);
+});
+
+test('poster escrow charge and fee take a live rate', () => {
+  assert.equal(posterEscrowCharge(RS_1000, 0.05), 105_000);
+  assert.equal(posterServiceFee(RS_1000, 0.05), 5_000);
+  assert.equal(posterServiceFee(RS_1000, 0), 0);
 });
 
 test('worker net payout deducts the 10% commission', () => {

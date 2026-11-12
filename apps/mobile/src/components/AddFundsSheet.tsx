@@ -275,7 +275,7 @@ export function AddFundsSheet({
               </View>
 
               {error && (
-                <RNText style={tx('600', 12, t.colors.signal, { marginTop: 14, lineHeight: 18 })}>
+                <RNText style={tx('600', 12, t.colors.signalDeep, { marginTop: 14, lineHeight: 18 })}>
                   {error}
                 </RNText>
               )}

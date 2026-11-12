@@ -81,8 +81,13 @@ export function AccountScreen() {
       setFree(null);
       return;
     }
-    const id = setTimeout(() => void usernameAvailable(handle).then(setFree), 350);
-    return () => clearTimeout(id);
+    // alive: a slow answer for an earlier handle must not overwrite the answer for the one now typed (Y4).
+    let alive = true;
+    const id = setTimeout(() => void usernameAvailable(handle).then((ok) => alive && setFree(ok)), 350);
+    return () => {
+      alive = false;
+      clearTimeout(id);
+    };
   }, [username, profile?.username]);
 
   const handleOk = /^[a-z0-9_]{3,20}$/.test(username.trim().toLowerCase());
@@ -268,7 +273,7 @@ export function AccountScreen() {
               style={{ ...card, flexDirection: 'row', alignItems: 'center', gap: 10 }}
             >
               <Icon name="logout" size={18} color={t.colors.signal} />
-              <RNText style={tx('700', 14, t.colors.signal)}>Sign out on this device</RNText>
+              <RNText style={tx('700', 14, t.colors.signalDeep)}>Sign out on this device</RNText>
             </Pressable>
             <Pressable
               onPress={() => setConfirmSignOutAll(true)}
@@ -277,7 +282,7 @@ export function AccountScreen() {
               style={{ ...card, flexDirection: 'row', alignItems: 'center', gap: 10 }}
             >
               <Icon name="logout" size={18} color={t.colors.signal} />
-              <RNText style={tx('700', 14, t.colors.signal)}>Sign out of all devices</RNText>
+              <RNText style={tx('700', 14, t.colors.signalDeep)}>Sign out of all devices</RNText>
             </Pressable>
             <View style={card}>
               <RNText style={tx('800', 15, t.colors.ink)}>Delete account</RNText>
@@ -303,7 +308,7 @@ export function AccountScreen() {
                 accessibilityState={{ busy: checkingDelete }}
                 style={({ pressed }) => ({ marginTop: 14, opacity: pressed || checkingDelete ? 0.6 : 1 })}
               >
-                <RNText style={tx('700', 14, t.colors.signal)}>
+                <RNText style={tx('700', 14, t.colors.signalDeep)}>
                   {checkingDelete ? 'Checking…' : blockers && blockers.length > 0 ? 'Check again' : 'Delete my account…'}
                 </RNText>
               </Pressable>

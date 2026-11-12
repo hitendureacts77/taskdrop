@@ -4,7 +4,8 @@ import { Image } from 'expo-image';
 import Svg, { Circle } from 'react-native-svg';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { BackButton, ConfirmDialog, EmptyState, Field, systemHeader } from '../components/kit';
+import { BackButton, ConfirmDialog, EmptyState, Field, LoadFailed, systemHeader } from '../components/kit';
+import { reportError } from '../lib/errors';
 import { ReportProblemSheet } from '../components/ReportProblemSheet';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { useTheme } from '../providers/ThemeProvider';
@@ -77,6 +78,8 @@ export function ActiveScreen() {
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
 
   const [detail, setDetail] = useState<TaskDetail | null | undefined>(undefined);
+  // True when the load itself failed (offline, server hiccup), as opposed to a job that is really gone.
+  const [failed, setFailed] = useState(false);
   const [proof, setProof] = useState<Proof | null>(null);
   const [proofUrls, setProofUrls] = useState<Record<string, string>>({});
   const [now, setNow] = useState(Date.now());
@@ -92,16 +95,28 @@ export function ActiveScreen() {
 
   const load = useCallback(async () => {
     if (!taskId) return setDetail(null);
-    const [d, p] = await Promise.all([getTaskDetail(taskId).catch(() => null), getProof(taskId)]);
+    const [d, p] = await Promise.all([getTaskDetail(taskId), getProof(taskId)]);
     setDetail(d);
     setProof(p);
+    setFailed(false);
     const paths = (p?.files ?? []).filter((f) => f.kind !== 'file').map((f) => f.path);
     if (paths.length) setProofUrls(await signedMediaUrls(paths));
   }, [taskId]);
 
+  // On failure keep whatever is already on screen; with nothing yet, show the retry card.
+  const loadOrFail = useCallback(
+    () =>
+      load().catch((e) => {
+        reportError(e, 'active.load');
+        setFailed(true);
+        setDetail((prev) => prev ?? null);
+      }),
+    [load],
+  );
+
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadOrFail();
+  }, [loadOrFail]);
 
   const task = detail?.task ?? null;
   const status = task?.status;
@@ -149,7 +164,16 @@ export function ActiveScreen() {
         <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
           <BackButton onBack={back} />
         </View>
-        <EmptyState icon="briefcase" title="This job isn’t available" body="Open it again from My Work or My Tasks." />
+        {failed ? (
+          <LoadFailed
+            onRetry={() => {
+              setDetail(undefined);
+              void loadOrFail();
+            }}
+          />
+        ) : (
+          <EmptyState icon="briefcase" title="This job isn’t available" body="Open it again from My Work or My Tasks." />
+        )}
       </Screen>
     );
   }

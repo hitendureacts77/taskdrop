@@ -7,7 +7,6 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { reportError } from '../lib/errors';
-import { useFees } from '../lib/useFees';
 import {
   confirmRelease as confirmReleaseOnServer,
   requestRevision,
@@ -49,19 +48,10 @@ function countdown(iso: string | null): string {
 export function ConfirmScreen() {
   const t = useTheme();
   const { params, go } = useNav();
-  const { openTask, balance, escrow, roll, setDone, celebrate, flash } = useApp();
+  const { openTask, escrow, roll, setDone, celebrate, flash } = useApp();
 
   const title = typeof params.title === 'string' ? params.title : (openTask?.title ?? null);
 
-  // No invented price. This screen releases escrow to a worker, and a default
-  // here meant a task that did not exist still showed a confident payout.
-  const priceMinor =
-    typeof params.priceMinor === 'number'
-      ? params.priceMinor
-      : parseRupeeStringToMinor(openTask?.price);
-
-  const fees = useFees();
-  const releaseMinor = priceMinor === null ? 0 : Math.round(priceMinor * (1 - fees.commission));
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
   const [busy, setBusy] = useState(false);
   const [detail, setDetail] = useState<TaskDetail | null>(null);
@@ -119,7 +109,7 @@ export function ConfirmScreen() {
   const handleConfirm = async () => {
     if (busy) return;
     // Without a real task there is nothing to release. It used to skip the
-    // server call and still roll the balance and celebrate "Escrow released",
+    // server call and still roll the escrow and celebrate "Escrow released",
     // which is a success message for something that never happened.
     if (!taskId) {
       flash('This is a sample task — open a real one from your requests');
@@ -127,9 +117,8 @@ export function ConfirmScreen() {
     }
     setBusy(true);
     try {
-      // The commission split happens in Postgres; the numbers below only mirror it.
+      // The commission split happens in Postgres. Paying the worker never adds to the poster's balance; only the held escrow goes down.
       await confirmReleaseOnServer(taskId);
-      roll('balance', balance + releaseMinor);
       roll('escrow', Math.max(0, escrow - (escrowMinor ?? 0)));
       if (title) setDone(title, 2);
       // Not the worker's net — that figure is our commission made visible.

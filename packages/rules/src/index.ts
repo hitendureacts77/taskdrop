@@ -96,8 +96,23 @@ export type TaskFlag = (typeof TASK_FLAG)[number];
 // ---------------------------------------------------------------------------
 
 /** What the poster pays into escrow at lock: locked amount + 3% service fee. */
-export function posterEscrowCharge(lockedMinor: number): number {
-  return Math.round(lockedMinor * (1 + FEES.POSTER_SERVICE_FEE_PCT));
+export function posterEscrowCharge(
+  lockedMinor: number,
+  feePct: number = FEES.POSTER_SERVICE_FEE_PCT,
+): number {
+  return Math.round(lockedMinor * (1 + feePct));
+}
+
+/**
+ * The poster's service fee on its own, in paise: the escrow charge minus the
+ * locked amount, so the fee line and the held total always add up. `feePct` is
+ * the live rate when the admin has changed it.
+ */
+export function posterServiceFee(
+  lockedMinor: number,
+  feePct: number = FEES.POSTER_SERVICE_FEE_PCT,
+): number {
+  return posterEscrowCharge(lockedMinor, feePct) - lockedMinor;
 }
 
 /** What the worker nets on a completed order: locked amount minus the commission. */

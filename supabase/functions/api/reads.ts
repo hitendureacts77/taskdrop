@@ -1,6 +1,6 @@
 import { FEES, distanceKm } from "../_shared/rules.ts";
 import {
-  type Args, type Ctx, type Op, MONEY_MAX, bad, countBy, int, isoOrNull, limit, notExpired, num, oneOf, rows,
+  type Args, type Ctx, type Op, MONEY_MAX, RESERVED_USERNAMES, bad, countBy, int, isoOrNull, limit, notExpired, nowIso, num, oneOf, rows,
   rpcOp, str, strOrNull, strings, take, uuid, uuids,
 } from "./core.ts";
 import { noKeep } from "./publicMemo.ts";
@@ -45,18 +45,53 @@ async function profilesById(ctx: Ctx, ids: (string | null | undefined)[]): Promi
   return new Map(people.map((p) => [p.id, p]));
 }
 
-/** Open posts of one kind that the caller could take on (never their own). */
+/**
+ * Open posts of one kind that the caller could take on (never their own). A City Hunt that has stopped taking finds
+ * (hunt_until passed) stays OPEN while its poster reviews, but nobody can act on it any more, so it is left out (B86).
+ */
 function openTasksQuery(ctx: Ctx, kind: "request" | "service") {
   return ctx.db
     .from("tasks")
     .select(TASK_PUBLIC_SELECT)
     .eq("status", "OPEN")
     .or(notExpired(ctx))
+    .or(`hunt_until.is.null,hunt_until.gt.${nowIso(ctx)}`)
     .eq("kind", kind)
     .neq("poster_id", ctx.userId);
 }
 
 const kindArg = (a: Args) => oneOf(a, "kind", ["request", "service"], "request");
+
+export type NearBox = { minLat: number; maxLat: number; minLng: number | null; maxLng: number | null };
+
+/**
+ * A latitude/longitude box that holds every spot within `radius` km of `at`, for narrowing a distance read in SQL
+ * before the exact distance is worked out (B34: capping the newest rows first, then filtering by distance, dropped
+ * nearby posts). Slightly wider than the circle, never narrower: 111 km a degree (the exact figure is 111.2), and the
+ * longitude span is taken at the box edge farthest from the equator. The longitude bound is left off (null) where it
+ * would wrap past 180 degrees or reach a pole; past 2,000 km there is no box at all (null).
+ */
+export function nearBox(at: { lat: number; lng: number }, radius: number): NearBox | null {
+  if (!(radius >= 0) || radius > 2000) return null;
+  const dLat = radius / 111;
+  const minLat = Math.max(-90, at.lat - dLat);
+  const maxLat = Math.min(90, at.lat + dLat);
+  const edge = Math.max(Math.abs(minLat), Math.abs(maxLat));
+  if (edge >= 89) return { minLat, maxLat, minLng: null, maxLng: null };
+  const dLng = radius / (111 * Math.cos((edge * Math.PI) / 180));
+  if (at.lng - dLng < -180 || at.lng + dLng > 180) return { minLat, maxLat, minLng: null, maxLng: null };
+  return { minLat, maxLat, minLng: at.lng - dLng, maxLng: at.lng + dLng };
+}
+
+/** `q` narrowed to the box (PostgREST gte/lte on loc_lat and loc_lng); unchanged when there is no box. */
+function inBox<Q extends { gte(c: string, v: number): Q; lte(c: string, v: number): Q }>(q: Q, box: NearBox | null): Q {
+  if (!box) return q;
+  const out = q.gte("loc_lat", box.minLat).lte("loc_lat", box.maxLat);
+  return box.minLng !== null && box.maxLng !== null ? out.gte("loc_lng", box.minLng).lte("loc_lng", box.maxLng) : out;
+}
+
+/** How many rows a radius search reads inside its box before the exact distance cut, for a page of `n`. */
+export const nearFetch = (n: number) => Math.min(500, Math.max(n * 3, 200));
 
 /** A task still holding money: chosen and paid for, but not yet finished. */
 const IN_PROGRESS = new Set(["LOCKED", "TASK_STARTED", "OVERDUE", "WORK_DONE", "REVISION_REQUESTED", "DISPUTED"]);
@@ -86,6 +121,9 @@ export async function readFees(ctx: Ctx): Promise<LiveFees> {
     cancelFine: get("post_start_cancel_penalty_pct", FEES.POST_START_CANCEL_PENALTY_PCT),
   };
 }
+
+/** Paise as plain rupees for a wallet line: 2500 -> "25", 2550 -> "25.50". */
+const rupeesText = (minor: number) => (minor % 100 === 0 ? String(minor / 100) : (minor / 100).toFixed(2));
 
 /** What reaches a worker from an escrow: the price (escrow less the poster's fee), less commission. */
 const workerShareOfEscrow = (escrowMinor: number, fees: LiveFees) =>
@@ -164,16 +202,18 @@ export const READ_OPS: Record<string, Op> = {
     if (a.pillar != null) q = q.eq("pillar", str(a, "pillar", 40));
     if (typeof a.minMinor === "number") q = q.gte("benchmark_minor", int(a, "minMinor", 0, MONEY_MAX));
     if (typeof a.maxMinor === "number") q = q.lte("benchmark_minor", int(a, "maxMinor", 0, MONEY_MAX));
-    const found = rows<Task>(await q.order("created_at", { ascending: false }).limit(limit(a)));
+    const n = limit(a);
+    if (!near) return rows<Task>(await q.order("created_at", { ascending: false }).limit(n));
 
-    // Distance is filtered here rather than in SQL: there is no geo index on this
-    // table and the page is already capped. A task with no pin cannot be shown
-    // to be within any radius, so it is not.
-    if (!near) return found;
+    // With a point, SQL first narrows to a box around it and reads more than a page (B34: capping first and
+    // filtering after dropped nearby tasks behind newer far-away ones). The exact distance is then checked here,
+    // newest first as before, and only then is the page cut. A task with no pin cannot be shown to be within any
+    // radius, so it is not.
+    const found = rows<Task>(await inBox(q, nearBox(near, near.radius)).order("created_at", { ascending: false }).limit(nearFetch(n)));
     return found.filter((t) => {
       const km = distanceKm(near, { lat: t.loc_lat, lng: t.loc_lng });
       return km !== null && km <= near.radius;
-    });
+    }).slice(0, n);
   },
 
   /** Attach each task's poster profile, for feed rows that show identity. */
@@ -328,8 +368,10 @@ export const READ_OPS: Record<string, Op> = {
   tasksNear: async (ctx, a) => {
     const at = { lat: num(a, "lat", -90, 90), lng: num(a, "lng", -180, 180) };
     const radius = num(a, "radiusKm", 0, 20000);
+    // Narrowed to a box around the point before the cap, so newer far-away tasks cannot crowd out near ones (B34).
     const found = rows<Task>(
-      await openTasksQuery(ctx, "request").not("loc_lat", "is", null).order("created_at", { ascending: false }).limit(200),
+      await inBox(openTasksQuery(ctx, "request").not("loc_lat", "is", null), nearBox(at, radius))
+        .order("created_at", { ascending: false }).limit(200),
     );
     return found
       .map((t) => ({ ...t, km: distanceKm(at, { lat: t.loc_lat, lng: t.loc_lng }) ?? Infinity }))
@@ -414,6 +456,8 @@ export const READ_OPS: Record<string, Op> = {
   usernameAvailable: async (ctx, a) => {
     const handle = typeof a.username === "string" ? a.username.trim().toLowerCase() : "";
     if (!/^[a-z0-9_]{3,20}$/.test(handle)) return false;
+    // Saving a reserved name is refused (writes.ts), so it is never shown as free (B69).
+    if (RESERVED_USERNAMES.has(handle)) return false;
     const res = await ctx.db.from("profiles").select("id").eq("username", handle).maybeSingle();
     if (res.error) return false;
     const hit = res.data as { id: string } | null;
@@ -424,6 +468,7 @@ export const READ_OPS: Record<string, Op> = {
   listActiveWorkers: async (ctx, a) => {
     const since = new Date((ctx.now?.() ?? new Date()).getTime() - 30 * 60_000).toISOString();
     const res = await ctx.db.from("profiles").select(PROFILE_PUBLIC_SELECT).gt("last_seen_at", since).not("onboarded_at", "is", null)
+      .is("deleted_at", null) // deleted accounts never show in a list (B30)
       // PostgREST wants the empty array literally: skills=neq.{}
       .filter("skills", "neq", "{}").neq("id", ctx.userId)
       .order("last_seen_at", { ascending: false }).limit(limit(a, "limit", 12));
@@ -442,20 +487,35 @@ export const READ_OPS: Record<string, Op> = {
     const at = { lat: num(a, "lat", -90, 90), lng: num(a, "lng", -180, 180) };
     const radius = num(a, "radiusKm", 0, 20000);
     const cols = "id, display_name, username, avatar_url, skills, worker_rating_avg, worker_rating_count, last_seen_at, loc_lat, loc_lng, loc_label";
+    // Narrowed to a box around the point before the 300 cap, so people seen more recently far away cannot crowd
+    // out helpers nearby (B34).
+    const box = nearBox(at, radius);
     const people = () =>
-      ctx.db.from("profiles").select(cols)
-        .not("onboarded_at", "is", null).is("deleted_at", null).not("loc_lat", "is", null).neq("id", ctx.userId);
-    const [res, offers] = await Promise.all([
+      inBox(ctx.db.from("profiles").select(cols)
+        .not("onboarded_at", "is", null).is("deleted_at", null).not("loc_lat", "is", null).neq("id", ctx.userId), box);
+    // Open service listings, newest first. B68: one newest-500 read across the whole country let a nearby older
+    // listing drop out, so listings with a pin are read inside the same box, and listings with no pin (most of
+    // them: a service is often not tied to a spot) are read on their own. Which helper a listing belongs to, and
+    // how far away they are, still comes from the helper's public area below.
+    const listingQuery = () =>
+      ctx.db.from("tasks").select("id, poster_id, title, benchmark_minor, category, created_at")
+        .eq("status", "OPEN").or(notExpired(ctx)).eq("kind", "service").neq("poster_id", ctx.userId);
+    const [res, pinned, unpinned] = await Promise.all([
       // PostgREST wants the empty array literally: skills=neq.{}
       people().filter("skills", "neq", "{}").order("last_seen_at", { ascending: false, nullsFirst: false }).limit(300),
-      ctx.db.from("tasks").select("id, poster_id, title, benchmark_minor, category")
-        .eq("status", "OPEN").or(notExpired(ctx)).eq("kind", "service").neq("poster_id", ctx.userId)
-        .order("created_at", { ascending: false }).limit(500),
+      inBox(listingQuery(), box).order("created_at", { ascending: false }).limit(500),
+      listingQuery().is("loc_lat", null).order("created_at", { ascending: false }).limit(500),
     ]);
     // Listings fail soft: helpers still show, just without a service.
-    const listings = offers.error
-      ? []
-      : ((offers.data ?? []) as Row[]).filter((t) => typeof t.poster_id === "string").map((t) => ({
+    // With no box (a huge radius) both reads can return the same unpinned listing: keep it once.
+    const offerById = new Map<string, Row>();
+    for (const r of [pinned, unpinned]) {
+      if (r.error) continue;
+      for (const t of (r.data ?? []) as Row[]) if (typeof t.poster_id === "string") offerById.set(String(t.id), t);
+    }
+    const listings = [...offerById.values()]
+      .sort((x, y) => String(y.created_at ?? "").localeCompare(String(x.created_at ?? "")))
+      .map((t) => ({
         id: String(t.id), poster_id: String(t.poster_id), title: String(t.title ?? ""),
         price_minor: Number(t.benchmark_minor ?? 0), category: (t.category as string | null) ?? null,
       }));
@@ -463,9 +523,15 @@ export const READ_OPS: Record<string, Op> = {
     for (const l of listings) byPoster.set(l.poster_id, [...(byPoster.get(l.poster_id) ?? []), l]);
     const found = rows<Row & { id: string; loc_lat: number; loc_lng: number }>(res);
     const seen = new Set(found.map((p) => p.id));
-    const sellersOnly = [...byPoster.keys()].filter((id) => !seen.has(id)).slice(0, 300);
-    if (sellersOnly.length > 0) {
-      const more = await people().in("id", sellersOnly);
+    // Sellers with a listing pinned inside the box are asked for first, so unpinned listings from anywhere cannot
+    // crowd them out of the 300.
+    const posterIds = (r: typeof pinned) => (r.error ? [] : ((r.data ?? []) as Row[]).map((t) => t.poster_id));
+    const sellersOnly = [...new Set([...posterIds(pinned), ...posterIds(unpinned)])]
+      .filter((id): id is string => typeof id === "string" && !seen.has(id)).slice(0, 300);
+    // Up to 300 ids, asked 100 at a time so the request address stays short.
+    const chunks: string[][] = [];
+    for (let i = 0; i < sellersOnly.length; i += 100) chunks.push(sellersOnly.slice(i, i + 100));
+    for (const more of await Promise.all(chunks.map((ids) => people().in("id", ids)))) {
       if (!more.error) found.push(...((more.data ?? []) as typeof found));
     }
     return found
@@ -534,14 +600,16 @@ export const READ_OPS: Record<string, Op> = {
    * categories they did: the Regulars list and the "offer it to them first" hint.
    */
   myRegulars: async (ctx) => {
-    const done = rows<{ category: string | null; completed_at: string | null; assignments: { worker_id: string }[] | null }>(
-      await ctx.db.from("tasks").select("category, completed_at, assignments(worker_id)")
+    const done = rows<{ category: string | null; completed_at: string | null; assignments: { worker_id: string; status: string }[] | null }>(
+      await ctx.db.from("tasks").select("category, completed_at, assignments(worker_id, status)")
         .eq("poster_id", ctx.userId).in("status", ["COMPLETED", "AUTO_COMPLETED"])
         .order("completed_at", { ascending: false }).limit(200),
     );
     const byWorker = new Map<string, { jobs: number; categories: Set<string>; lastAt: string | null }>();
     for (const t of done) {
       for (const as of t.assignments ?? []) {
+        // Only the helper who was paid did the job: one who backed out (refunded) and was replaced did not (B67).
+        if (as.status !== "released") continue;
         const seen = byWorker.get(as.worker_id) ?? { jobs: 0, categories: new Set<string>(), lastAt: t.completed_at };
         seen.jobs += 1;
         if (t.category) seen.categories.add(t.category);
@@ -602,16 +670,22 @@ export const READ_OPS: Record<string, Op> = {
   listWalletActivity: async (ctx, a) => {
     const uid = ctx.userId;
     const fees = await readFees(ctx);
-    const [asWorker, asPoster, payouts, payments] = await Promise.all([
+    const [asWorker, asPoster, payouts, payments, finesRes] = await Promise.all([
       ctx.db.from("assignments").select(`${ASSIGNMENT_SELECT}, tasks(title)`).eq("worker_id", uid),
       ctx.db.from("tasks")
         .select("id,title,status,locked_minor,updated_at,funded_at,funded_minor,wallet_refunded_at,assignments(escrow_minor)")
         .eq("poster_id", uid),
       ctx.db.from("payouts").select(PAYOUT_SELECT).eq("user_id", uid),
       ctx.db.from("payments").select(PAYMENT_SELECT).eq("user_id", uid).eq("status", "paid"),
+      // Fines from a cancel after the work started (migration 170). Unreadable means "none known".
+      ctx.db.rpc("my_cancel_fines"),
     ]);
     type Ev = { id: string; kind: string; title: string; meta: string; amountMinor: number; incoming: boolean; at: string };
     const events: Ev[] = [];
+    type Fine = { task_id: string; fine_minor: number | string; side: string; at: string };
+    const fines = finesRes.error ? [] : ((finesRes.data ?? []) as Fine[]);
+    const posterFine = new Map<string, number>();
+    for (const f of fines) if (f.side === "poster") posterFine.set(f.task_id, Number(f.fine_minor) || 0);
 
     for (const x of rows<Row & { id: string; status: string; escrow_minor: number; updated_at: string; tasks: { title?: string } | null }>(asWorker)) {
       const title = x.tasks?.title ?? "Task";
@@ -644,8 +718,25 @@ export const READ_OPS: Record<string, Op> = {
       } else if (IN_PROGRESS.has(t.status)) {
         events.push({ id: "p-" + t.id, kind: "escrow", title: "Locked in a task", meta: t.title + " · can’t be withdrawn until it’s done", amountMinor: paid, incoming: false, at: t.updated_at });
       } else if (t.status === "CANCELLED" && t.wallet_refunded_at) {
-        events.push({ id: "r-" + t.id, kind: "topup", title: "Returned to your wallet", meta: t.title + " · not completed, full refund", amountMinor: paid, incoming: true, at: t.wallet_refunded_at });
+        // A cancel after the work started paid the worker a fine out of this money; the rest came back.
+        const fine = Math.min(posterFine.get(t.id) ?? 0, paid);
+        events.push(fine > 0
+          ? { id: "r-" + t.id, kind: "topup", title: "Returned to your wallet", meta: t.title + " · cancelled after work started, ₹" + rupeesText(fine) + " fine kept for the worker", amountMinor: paid - fine, incoming: true, at: t.wallet_refunded_at }
+          : { id: "r-" + t.id, kind: "topup", title: "Returned to your wallet", meta: t.title + " · not completed, full refund", amountMinor: paid, incoming: true, at: t.wallet_refunded_at });
       }
+    }
+
+    // The worker's side of the same fine: paid for the time already spent.
+    const workerTitles = new Map<string, string>();
+    for (const x of rows<{ task_id: string; tasks: { title?: string } | null }>(asWorker)) workerTitles.set(x.task_id, x.tasks?.title ?? "Task");
+    for (const f of fines) {
+      const amount = Number(f.fine_minor) || 0;
+      if (f.side !== "worker" || amount <= 0) continue;
+      events.push({
+        id: "f-" + f.task_id, kind: "clearing", title: "Paid for your time",
+        meta: (workerTitles.get(f.task_id) ?? "Task") + " · cancelled after you started",
+        amountMinor: amount, incoming: true, at: f.at,
+      });
     }
 
     for (const o of rows<{ id: string; status: string; destination: string | null; amount_minor: number; created_at: string }>(payouts)) {

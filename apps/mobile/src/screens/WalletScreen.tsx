@@ -12,6 +12,7 @@ import { useApp } from '../providers/AppStateProvider';
 import { reportError } from '../lib/errors';
 import { useAuth } from '../providers/AuthProvider';
 import { needAccount } from '../lib/guest';
+import { PENDING_WITHDRAWAL_NOTE, isPendingWithdrawal, withdrawalRows } from '../lib/walletPending';
 import { GuestNote } from '../components/GuestBits';
 import {
   getProfile,
@@ -350,12 +351,15 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
   const TX_FIRST = 7;
   const [txAll, setTxAll] = useState(false);
   useEffect(() => setTxAll(false), [txTab, worker, period]);
-  const txRows = inPeriod.filter((l) => {
-    if (txTab === 0) return true;
-    if (txTab === 1) return l.kind === 'clearing' || l.kind === 'incoming';
-    if (txTab === 2) return l.kind === 'escrow' || l.kind === 'released';
-    return l.kind === 'payout';
-  });
+  const txRows =
+    // Withdrawals also lists requests still waiting from before the period, so one never disappears.
+    txTab === 3
+      ? withdrawalRows(mine, inPeriod)
+      : inPeriod.filter((l) => {
+          if (txTab === 0) return true;
+          if (txTab === 1) return l.kind === 'clearing' || l.kind === 'incoming';
+          return l.kind === 'escrow' || l.kind === 'released';
+        });
 
   const shareCode = async () => {
     if (!code) return;
@@ -641,6 +645,9 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
                   <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>
                     {new Date(l.at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} · {maskDigits(l.meta)}
                   </RNText>
+                  {isPendingWithdrawal(l) ? (
+                    <RNText style={tx('600', 12, t.colors.muted, { marginTop: 2 })}>{PENDING_WITHDRAWAL_NOTE}</RNText>
+                  ) : null}
                 </View>
                 <RNText style={tx('700', 15, l.incoming ? t.colors.accentDeep : t.colors.ink)}>
                   {l.incoming ? '+' : ''}

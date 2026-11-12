@@ -241,6 +241,15 @@ export const nowIso = (ctx: Ctx) => (ctx.now?.() ?? new Date()).toISOString();
 /** PostgREST filter for tasks still takeable: no deadline, or a deadline still ahead. */
 export const notExpired = (ctx: Ctx) => `due_at.is.null,due_at.gt.${nowIso(ctx)}`;
 
+/**
+ * Names that would pass for the team or the product. Found 2026-10-24: "admin", "support" and "taskdrop" were all
+ * free to take. Saving one is refused (writes.ts) and usernameAvailable says it is taken (reads.ts, B69).
+ */
+export const RESERVED_USERNAMES: ReadonlySet<string> = new Set([
+  "admin", "administrator", "support", "help", "taskdrop", "task_drop", "team", "staff", "moderator", "mod", "official",
+  "system", "root", "security", "billing", "payments", "payment", "wallet", "careers", "legal", "privacy", "terms",
+]);
+
 /** Group rows by a key into a plain object (Maps do not survive JSON). */
 export function countBy<T>(list: T[], key: (x: T) => string): Record<string, number> {
   const out: Record<string, number> = {};

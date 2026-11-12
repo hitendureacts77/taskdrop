@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { myBidTaskIds } from '../data/api';
+import { reportError } from './errors';
 
 /**
  * Which tasks the signed-in worker has already sent an offer on, so a card can say "Edit offer" instead of
@@ -63,7 +64,14 @@ export function useMyOffers(userId: string | null, taskIds: readonly string[], e
     void (async () => {
       for (let i = 0; i < unseen.length; i += 100) {
         const batch = unseen.slice(i, i + 100);
-        const mine = await myBidTaskIds(batch);
+        let mine: string[];
+        try {
+          mine = await myBidTaskIds(batch);
+        } catch (e) {
+          // Leave this batch unmarked so a later list change tries again, but stop here: no retry loop, no unhandled rejection.
+          reportError(e, 'my-offers');
+          return;
+        }
         if (!alive) return;
         let mark = known.get(userId);
         if (!mark) known.set(userId, (mark = new Set()));

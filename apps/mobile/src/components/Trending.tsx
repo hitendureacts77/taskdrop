@@ -145,7 +145,7 @@ function EarnerCard({ e }: { e: Earner }) {
         opacity: pressed ? 0.8 : 1,
       })}
     >
-      <View style={{ width: 46, height: 46, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 46, height: 46, borderRadius: 999, backgroundColor: t.colors.purpleFill, alignItems: 'center', justifyContent: 'center' }}>
         <RNText style={tx('800', 18, '#FFFFFF')}>{(e.display_name || '?').trim().charAt(0).toUpperCase()}</RNText>
       </View>
       <RNText style={tx('700', 12, t.colors.ink, { marginTop: 8 })} numberOfLines={1}>{name}</RNText>

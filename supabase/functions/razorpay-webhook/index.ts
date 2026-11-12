@@ -50,6 +50,18 @@ async function signatureFor(raw: string, secretValue: string): Promise<string> {
   return [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/**
+ * Switch on the campaign a paid promotion payment was for (migration 177). Idempotent in the database:
+ * a payment that already runs its campaign is a no-op. Never fails the webhook; logged like the escrow calls.
+ */
+async function activatePromotion(admin: ReturnType<typeof createClient>, paymentId: string, step: string): Promise<void> {
+  const { error } = await admin.rpc("activate_promotion_from_payment", { p_payment_id: paymentId });
+  if (error) {
+    await logServer("error", "razorpay-webhook", "paid but could not switch on the promotion", { payment_id: paymentId, error: error.message });
+    await captureServerError(error, { fn: "razorpay-webhook", step });
+  }
+}
+
 Deno.serve(guarded("razorpay-webhook", async (req: Request) => {
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
@@ -132,6 +144,17 @@ Deno.serve(guarded("razorpay-webhook", async (req: Request) => {
         }
       }
     }
+    // A top-up whose credit failed the first time (W5): credit_topup locks the row and does nothing once
+    // credited_at is set, so asking again is safe.
+    if (row.purpose === "topup" && !row.credited_at) {
+      const { error: creditErr } = await admin.rpc("credit_topup", { p_payment_id: row.id });
+      if (creditErr) {
+        await logServer("error", "razorpay-webhook", "paid but could not credit top-up (retry)", { payment_id: row.id, error: creditErr.message });
+        await captureServerError(creditErr, { fn: "razorpay-webhook", step: "credit_topup_retry" });
+      }
+    }
+    // A paid promotion that is not running yet (W1): switch it on. Harmless if it already runs.
+    if (row.purpose === "promotion") await activatePromotion(admin, row.id, "activate_promotion_retry");
     return json({ ok: true, alreadySettled: true });
   }
 
@@ -189,6 +212,10 @@ Deno.serve(guarded("razorpay-webhook", async (req: Request) => {
       await captureServerError(creditErr, { fn: "razorpay-webhook", step: "credit_topup" });
     }
   }
+
+  // A settled promotion payment switches its campaign on here, so a payer who closes the tab still
+  // gets the campaign they paid for (W1). The app's own activate call is then a harmless repeat.
+  if (paid && row.purpose === "promotion") await activatePromotion(admin, row.id, "activate_promotion");
 
   await logServer("info", "razorpay-webhook", "payment link updated", { payment_id: row.id, purpose: row.purpose, status });
   return json({ ok: true, status });

@@ -21,6 +21,7 @@ import { openPostedTask, openRow, workerAssignmentRow } from '../lib/taskRows';
 import { taskToFeedRow } from '../lib/openTask';
 import { useApp } from '../providers/AppStateProvider';
 import { GuestScreen } from '../components/GuestBits';
+import { mergeById } from '../lib/mergeById';
 
 const ICON: Record<string, IconName> = {
   quote: 'tag',
@@ -67,8 +68,10 @@ export function NotificationsScreen() {
 
   const load = useCallback(async () => {
     const list = await listNotifications(80);
-    setSides(await notificationSides(list));
-    setAll(list);
+    const fetchedSides = await notificationSides(list);
+    setSides((cur) => new Map([...cur, ...fetchedSides]));
+    // Merge, not replace: an alert that arrived live while this was loading stays.
+    setAll((cur) => mergeById(cur ?? [], list, (n) => n.created_at, 'newestFirst'));
     setFailed(false);
   }, []);
 
@@ -91,7 +94,7 @@ export function NotificationsScreen() {
     if (!userId) return;
     return subscribeToNotifications(userId, (n) => {
       void notificationSides([n]).then((m) => setSides((cur) => new Map([...cur, ...m])));
-      setAll((cur) => [n, ...(cur ?? [])]);
+      setAll((cur) => mergeById(cur ?? [], [n], (x) => x.created_at, 'newestFirst'));
     });
   }, [userId]);
 

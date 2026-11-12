@@ -176,7 +176,7 @@ export function AddressForm({
         })}
       />
       {opts.invalid && (
-        <RNText style={tx('600', 12, t.colors.signal, { marginTop: 6 })}>
+        <RNText style={tx('600', 12, t.colors.signalDeep, { marginTop: 6 })}>
           A worker cannot find a building without this.
         </RNText>
       )}

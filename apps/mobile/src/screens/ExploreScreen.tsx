@@ -4,7 +4,8 @@ import { View, Text as RNText, ScrollView, TextInput, Pressable, Animated, Platf
 import { Screen, ScreenList, cardSurface } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
-import { BottomSheet, EmptyState, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../components/kit';
+import { BottomSheet, EmptyState, LoadFailed, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../components/kit';
+import { reportError } from '../lib/errors';
 import { TrendingSection } from '../components/Trending';
 import { WorkCard, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
@@ -31,6 +32,7 @@ import { NearYou } from '../components/NearYou';
 import { JobsNearHero } from '../components/JobsNearHero';
 import { NearMap, type NearMapLayer } from '../components/NearMap';
 import { DropFilters, FiltersButton, FiltersPanel, JobChips, QuickChip, WorkSwitch } from '../components/MapFilterParts';
+import { findWorkSearches, joinFindWork } from '../lib/findWorkRead';
 import { changedFilters, clearJobFilters, filterList, narrowsJobs, type MapFilters } from '../lib/mapFilters';
 import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
 import { LocationSheet } from '../components/LocationSheet';
@@ -596,6 +598,9 @@ function FindWork({
   const filters = useJobFilters();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [rows, setRows] = useState<TaskWithPoster[] | null>(null);
+  // True when the last load failed (offline, server hiccup): an empty list is then
+  // "could not load", not "no tasks match".
+  const [failed, setFailed] = useState(false);
   const focusTick = useFocusTick();
   // Tell the screen what is searched, so the map view shows the same jobs.
   useEffect(() => onFilter({ query }), [query]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -642,18 +647,35 @@ function FindWork({
     void listSavedTaskIds().then(setSavedIds).catch(() => {});
   }, [userId, guest]);
 
+  const atLat = at?.lat;
+  const atLng = at?.lng;
   const load = useCallback(async () => {
     // One request: the posts and their posters together (it was two back to back, once 13 s on a busy server).
-    // 200 (the server's most), like the map, so the shared filters find the same jobs on both (D27).
-    return searchTasksWithPosters({ q: query || undefined, limit: 200, kind: 'request' });
-  }, [query, focusTick]);
+    // 200 (the server's most), like the map, so the shared filters find the same jobs on both (D27). With a place
+    // the api narrows to `km` around it before it caps (Y1: the newest 200 nationwide hid older nearby jobs and
+    // "Nearest" / "Best pay" only sorted that slice), and remote jobs, which a radius search leaves out, come
+    // from a second read.
+    const { near, wide } = findWorkSearches(atLat != null && atLng != null ? { lat: atLat, lng: atLng } : null, filters.km, query);
+    const [nearRows, wideRows] = await Promise.all([near ? searchTasksWithPosters(near) : null, searchTasksWithPosters(wide)]);
+    return joinFindWork(nearRows, wideRows);
+  }, [query, focusTick, atLat, atLng, filters.km]);
 
   useEffect(() => {
     let alive = true;
     setRows(null);
+    setFailed(false);
     load()
-      .then((r) => alive && setRows(r))
-      .catch(() => alive && setRows([]));
+      .then((r) => {
+        if (!alive) return;
+        setRows(r);
+        setFailed(false);
+      })
+      .catch((e) => {
+        if (!alive) return;
+        reportError(e, 'explore.load');
+        setRows([]);
+        setFailed(true);
+      });
     return () => {
       alive = false;
     };
@@ -663,6 +685,7 @@ function FindWork({
     setRefreshing(true);
     try {
       setRows(await load());
+      setFailed(false);
     } catch {
       /* keep */
     } finally {
@@ -670,8 +693,6 @@ function FindWork({
     }
   };
 
-  const atLat = at?.lat;
-  const atLng = at?.lng;
   const shown = useMemo(
     () => (rows ? filterList(rows, atLat != null && atLng != null ? { lat: atLat, lng: atLng } : null, filters) : null),
     [rows, atLat, atLng, filters],
@@ -794,6 +815,8 @@ function FindWork({
 
               {shown === null ? (
                 [0, 1, 2].map((i) => <Shimmer key={i} height={120} style={{ marginTop: 12 }} />)
+              ) : shown.length === 0 && failed ? (
+                <LoadFailed onRetry={() => void refresh()} />
               ) : shown.length === 0 ? (
                 <View style={{ gap: 12 }}>
                   <EmptyState

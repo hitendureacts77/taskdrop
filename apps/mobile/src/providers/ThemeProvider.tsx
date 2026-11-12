@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, useColorScheme } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { makeTheme, type Theme } from '../theme';
+import { parseThemePref, type ThemePref } from '../lib/themePref';
 
 const FOCUS_STYLE_ID = 'taskdrop-focus-ring';
 
@@ -43,8 +45,6 @@ function useWebFocusRing(accent: string) {
   }, [accent]);
 }
 
-type ThemePref = 'system' | 'light' | 'dark';
-
 type ThemeCtx = {
   theme: Theme;
   pref: ThemePref;
@@ -54,9 +54,37 @@ type ThemeCtx = {
 
 const Ctx = createContext<ThemeCtx | null>(null);
 
+/** Where the Light / Dark / System choice is kept, so it survives closing the app. */
+const STORAGE_KEY = 'taskdrop.theme';
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const system = useColorScheme();
-  const [pref, setPref] = useState<ThemePref>('system');
+  const [pref, setPrefState] = useState<ThemePref>('system');
+  // Set once the person picks a theme this session, so a slow read of the saved
+  // value can never override a choice they have just made.
+  const chosen = useRef(false);
+
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((saved) => {
+        if (alive && !chosen.current && saved !== null) setPrefState(parseThemePref(saved));
+      })
+      .catch(() => {
+        /* nothing saved, or storage unavailable: keep System */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const setPref = useCallback((p: ThemePref) => {
+    chosen.current = true;
+    setPrefState(p);
+    AsyncStorage.setItem(STORAGE_KEY, p).catch(() => {
+      /* the choice still applies for this session */
+    });
+  }, []);
 
   const isDark = pref === 'system' ? system === 'dark' : pref === 'dark';
   const theme = useMemo(() => makeTheme(isDark), [isDark]);
@@ -69,7 +97,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setPref,
       toggle: () => setPref(isDark ? 'light' : 'dark'),
     }),
-    [theme, pref, isDark],
+    [theme, pref, isDark, setPref],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

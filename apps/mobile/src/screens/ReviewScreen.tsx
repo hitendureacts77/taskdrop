@@ -11,6 +11,7 @@ import { fontFamilyFor } from '../theme';
 import { tx } from '../components/primitives';
 import { KeyboardSafe } from '../components/KeyboardSafe';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
+import { REVIEW_COMMENT_MAX, praiseAllowed, reviewBody } from '../lib/reviewBody';
 
 /**
  * Ratings & review — pixel parity with docs/design/_design_markup.html lines
@@ -80,7 +81,8 @@ export function ReviewScreen() {
   const { openTask, celebrate, flash } = useApp();
 
   const [stars, setStars] = useState(5);
-  const [praise, setPraise] = useState<number[]>([0, 1]);
+  // Nothing is ticked for them: praise a poster never chose must not go out with the review.
+  const [praise, setPraise] = useState<number[]>([]);
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -110,10 +112,8 @@ export function ReviewScreen() {
         // reviews has no praise column, so the chips ride along in the comment
         // rather than being dropped on the floor.
         const tags = praise.map((i) => PRAISE[i]).filter(Boolean);
-        const body = [comment.trim(), tags.length ? tags.join(' · ') : '']
-          .filter(Boolean)
-          .join('\n');
-        await submitReview(taskId, stars, body);
+        // Praise only goes with a good rating (4-5 stars); reviewBody drops it below that.
+        await submitReview(taskId, stars, reviewBody(stars, tags, comment));
       }
       celebrate('Review posted');
       // My Tasks is a tab, so the bar stays; 'orders' is a pushed screen with none on phones.
@@ -172,14 +172,18 @@ export function ReviewScreen() {
           </RNText>
         </View>
 
-        <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 26 })}>
-          WHAT WENT WELL
-        </RNText>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 11 }}>
-          {PRAISE.map((label, i) => (
-            <PraiseChip key={label} label={label} active={praise.includes(i)} onPress={() => togglePraise(i)} />
-          ))}
-        </View>
+        {praiseAllowed(stars) && (
+          <>
+            <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 26 })}>
+              WHAT WENT WELL
+            </RNText>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 11 }}>
+              {PRAISE.map((label, i) => (
+                <PraiseChip key={label} label={label} active={praise.includes(i)} onPress={() => togglePraise(i)} />
+              ))}
+            </View>
+          </>
+        )}
 
         <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 22 })}>
           WRITE A REVIEW · OPTIONAL
@@ -190,6 +194,7 @@ export function ReviewScreen() {
           placeholder="Sourced exactly what I described and delivered a day early…"
           placeholderTextColor={t.colors.muted}
           multiline
+          maxLength={REVIEW_COMMENT_MAX}
           style={{
             ...cardSurface(t, 14),
             padding: 14,

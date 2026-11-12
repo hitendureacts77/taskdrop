@@ -615,7 +615,8 @@ function PostedCard({
 
 // --------------------------------------------------------------- worker -----
 
-const WORKER_TABS = ['Active', 'Offers', 'Done', 'Saved', 'My services'] as const;
+// "Closed", not "Done": it also holds offers the customer did not pick, which are not completed jobs.
+const WORKER_TABS = ['Active', 'Offers', 'Closed', 'Saved', 'My services'] as const;
 
 function MyWork() {
   const t = useTheme();
@@ -692,7 +693,8 @@ function MyWork() {
   );
 
   const w = stats && stats.role === 'worker' ? stats : null;
-  const success = w && w.quotesPlaced > 0 ? Math.round((w.quotesWon / w.quotesPlaced) * 100) : 0;
+  // No stats yet (or they failed), or no offers sent: a dash like the other tiles, not a made-up 0%.
+  const success = w && w.quotesPlaced > 0 ? `${Math.round((w.quotesWon / w.quotesPlaced) * 100)}%` : '–';
 
   // A pending quote opens back up for editing: price, pitch, hours, date.
   const editQuote = async (taskId?: string) => {
@@ -735,7 +737,7 @@ function MyWork() {
           <StatTile icon="wallet" label="Earned" value={w ? formatINR(w.earnedMinor) : '–'} />
           <StatTile icon="check" label="Completed" value={String(w?.jobsDone ?? '–')} tone="blue" />
           <StatTile icon="play" label="Active" value={String(w?.jobsLive ?? '–')} tone="gold" />
-          <StatTile icon="trending" label="Success" value={`${success}%`} tone="purple" />
+          <StatTile icon="trending" label="Success" value={success} tone="purple" />
         </View>
 
         <View style={{ marginTop: 16 }}>
@@ -797,7 +799,7 @@ function MyWork() {
           ) : list.length === 0 ? (
             <EmptyState
               icon="briefcase"
-              title={tab === 0 ? 'No active tasks' : tab === 1 ? 'No pending offers' : 'Nothing finished yet'}
+              title={tab === 0 ? 'No active tasks' : tab === 1 ? 'No pending offers' : 'Nothing closed yet'}
               body={tab === 0 ? 'Pick tasks from Explore to start working and earning.' : undefined}
               actionLabel="Browse tasks"
               onAction={() => go('explore')}

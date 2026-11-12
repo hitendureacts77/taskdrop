@@ -12,7 +12,8 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
-import { searchTasks, attachPosters, placeBid, kindFor } from '../data/api';
+import { searchTasks, attachPosters, placeBid, kindFor, getProfile } from '../data/api';
+import { HOME_FEED_RADIUS_KM, nearThenRemote } from '../lib/homePlace';
 import { useAuth } from '../providers/AuthProvider';
 import { isNeedsAccount, needAccount } from '../lib/guest';
 import { isHunt } from '../lib/hunt';
@@ -33,7 +34,8 @@ import { taskToFeedRow } from '../lib/openTask';
 import type { TaskWithPoster } from '../data/api';
 import { signedMediaUrls } from '../lib/media';
 import { adAuctionRanks, recordAdImpression, recordAdClick } from '../data/api';
-import { Grid, Shimmer } from '../components/kit';
+import { Grid, LoadFailed, Shimmer } from '../components/kit';
+import { reportError } from '../lib/errors';
 
 /**
  * Home feed — pixel parity with docs/design/_design_markup.html lines 35-139
@@ -402,6 +404,9 @@ export function HomeScreen() {
 
   const [liveTasks, setLiveTasks] = useState<LiveTask[] | null>(null);
   const [loading, setLoading] = useState(true);
+  // True when the last load failed (offline, server hiccup): an empty feed is then
+  // "could not load", not "nothing listed".
+  const [failed, setFailed] = useState(false);
   // Pillar filters are optional: none selected means "show everything", and
   // tapping the active chip clears it again.
   const [filter, setFilter] = useState<number | null>(null);
@@ -422,6 +427,21 @@ export function HomeScreen() {
     searchQ !== null || searchPillar !== null || searchMin !== null || nearLat !== null;
 
   const load = useCallback(async () => {
+    // Hire's plain Home ("Services near you", B35): around the home place (the area at the top, saved on the
+    // profile), nearest first, then remote listings. Two reads because a radius search leaves out posts with no
+    // pin; the api keeps its inputs. With no area known (or a guest), the newest listings as before.
+    if (!searching && !worker && userId) {
+      const me = await getProfile(userId).catch(() => null);
+      if (me?.loc_lat != null && me?.loc_lng != null) {
+        const at = { lat: me.loc_lat, lng: me.loc_lng };
+        const kind = kindFor('poster');
+        const [near, wide] = await Promise.all([
+          searchTasks({ near: { ...at, radiusKm: HOME_FEED_RADIUS_KM }, limit: 20, kind }),
+          searchTasks({ limit: 60, kind }),
+        ]);
+        return (await attachPosters(nearThenRemote(near, wide, at))) as unknown as LiveTask[];
+      }
+    }
     const rows = await searchTasks({
       q: searchQ ?? undefined,
       pillar: searchPillar,
@@ -436,7 +456,7 @@ export function HomeScreen() {
       kind: kindFor(worker ? 'worker' : 'poster'),
     });
     return (await attachPosters(rows)) as unknown as LiveTask[];
-  }, [searchQ, searchPillar, searchMin, searchMax, nearLat, nearLng, radiusKm, worker, focusTick]);
+  }, [searchQ, searchPillar, searchMin, searchMax, nearLat, nearLng, radiusKm, worker, focusTick, searching, userId]);
 
   useEffect(() => {
     let active = true;
@@ -447,8 +467,14 @@ export function HomeScreen() {
         // Outside a search an empty table falls back to the design's sample
         // feed; inside one, "no results" has to stay visible.
         setLiveTasks(rows);
+        setFailed(false);
       })
-      .catch(() => active && setLiveTasks([]))
+      .catch((e) => {
+        if (!active) return;
+        reportError(e, 'home.load');
+        setLiveTasks([]);
+        setFailed(true);
+      })
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
@@ -459,6 +485,7 @@ export function HomeScreen() {
     setRefreshing(true);
     try {
       setLiveTasks(await load());
+      setFailed(false);
     } catch {
       /* keep whatever is on screen */
     } finally {
@@ -466,12 +493,12 @@ export function HomeScreen() {
     }
   }, [load, searching]);
 
-  // Skeleton flash when switching mode, mirroring the design's setMode() window.
-  // (The fetch above owns `loading` for the initial load.)
+  // Switching mode drops the old mode's rows at once, so they are never drawn
+  // with the new mode's card. The fetch above owns `loading` and ends it only
+  // when the new load settles (a timer here once ended it early).
   useEffect(() => {
-    setLoading(true);
-    const id = setTimeout(() => setLoading(false), 400);
-    return () => clearTimeout(id);
+    setLiveTasks(null);
+    setFailed(false);
   }, [worker]);
 
   // Which listings are being paid for right now. Without this, promotion was
@@ -722,7 +749,9 @@ export function HomeScreen() {
         )}
         header={header}
         empty={
-          loading ? null : (
+          loading ? null : failed ? (
+            <LoadFailed onRetry={() => void refresh()} />
+          ) : (
             <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
                 <View
                   style={{
@@ -871,6 +900,8 @@ export function HomeScreen() {
                   <Shimmer key={i} height={230} style={{ width: 240, borderRadius: 20 }} />
                 ))}
               </View>
+            ) : failed && feed.length === 0 ? (
+              <LoadFailed onRetry={() => void refresh()} />
             ) : feed.length === 0 ? (
               <RNText style={tx('400', 13, t.colors.muted, { marginTop: 12 })}>No services listed nearby yet.</RNText>
             ) : (

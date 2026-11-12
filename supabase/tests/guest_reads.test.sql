@@ -244,3 +244,107 @@ end;
 $$;
 
 rollback;
+
+-- B34, migration 162: the guest distance reads take a box, applied before the
+-- cap, so newer posts and more recently seen helpers far away cannot crowd out
+-- the ones nearby. The 146 functions still answer calls of the old shape.
+
+begin;
+
+do $$
+declare
+  v_near    uuid := gen_random_uuid();
+  v_far1    uuid := gen_random_uuid();
+  v_far2    uuid := gen_random_uuid();
+  v_task    uuid;
+  v_far_a   uuid;
+  v_far_b   uuid;
+  v_fn      text;
+  v_ids     uuid[];
+begin
+  foreach v_fn in array array[
+    'public.guest_open_posts_near(text,integer,text,text,bigint,bigint,text,boolean,uuid,uuid[],double precision,double precision,double precision,double precision)',
+    'public.guest_helpers_near(integer,double precision,double precision,double precision,double precision)'
+  ] loop
+    if has_function_privilege('anon', v_fn, 'EXECUTE') or has_function_privilege('authenticated', v_fn, 'EXECUTE') then
+      raise exception 'FAIL: % must not be callable with the public key or a sign-in', v_fn;
+    end if;
+    if not has_function_privilege('service_role', v_fn, 'EXECUTE') then
+      raise exception 'FAIL: the api (service role) must be able to call %', v_fn;
+    end if;
+  end loop;
+
+  insert into auth.users (id, instance_id, aud, role, email, encrypted_password,
+                          email_confirmed_at, created_at, updated_at)
+  select u.id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+         'guestnear+' || u.id || '@taskdrop.test', '', now(), now(), now()
+  from (values (v_near), (v_far1), (v_far2)) as u(id);
+  insert into public.profiles (id, display_name)
+  values (v_near, 'Near Helper'), (v_far1, 'Far One'), (v_far2, 'Far Two')
+  on conflict (id) do nothing;
+  insert into public.wallets (user_id) values (v_near), (v_far1), (v_far2) on conflict (user_id) do nothing;
+
+  -- One older post in Kondapur, two newer ones in Mumbai.
+  insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, loc_lat, loc_lng)
+  values (v_near, 'services', 'Near post for the box test', 50000, 60, 17.4601, 78.3601)
+  returning id into v_task;
+  insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, loc_lat, loc_lng)
+  values (v_far1, 'services', 'Far post one for the box test', 50000, 60, 19.07, 72.87)
+  returning id into v_far_a;
+  insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, loc_lat, loc_lng)
+  values (v_far2, 'services', 'Far post two for the box test', 50000, 60, 19.07, 72.87)
+  returning id into v_far_b;
+  update public.tasks set created_at = now() - interval '30 days' where id = v_task;
+
+  -- Without a box the newest come first: a cap of 2 leaves the near post out.
+  select array_agg((x->>'id')::uuid) into v_ids
+    from public.guest_open_posts(p_kind => null, p_limit => 2, p_ids => array[v_task, v_far_a, v_far_b]) x;
+  if v_task = any(v_ids) then
+    raise exception 'FAIL: the old read should still be newest first and capped, got %', v_ids;
+  end if;
+
+  -- With a box around Kondapur the near post comes back even with a cap of 1.
+  select array_agg((x->>'id')::uuid) into v_ids
+    from public.guest_open_posts_near(p_kind => null, p_limit => 1, p_ids => array[v_task, v_far_a, v_far_b],
+                                      p_min_lat => 17.39, p_max_lat => 17.49, p_min_lng => 78.30, p_max_lng => 78.40) x;
+  if v_ids is distinct from array[v_task] then
+    raise exception 'FAIL: the boxed read should answer the near post, got %', v_ids;
+  end if;
+
+  -- Null longitude bounds (a box that would wrap) still narrow by latitude.
+  select array_agg((x->>'id')::uuid) into v_ids
+    from public.guest_open_posts_near(p_kind => null, p_limit => 10, p_ids => array[v_task, v_far_a, v_far_b],
+                                      p_min_lat => 17.39, p_max_lat => 17.49) x;
+  if v_ids is distinct from array[v_task] then
+    raise exception 'FAIL: latitude bounds alone should leave the far posts out, got %', v_ids;
+  end if;
+
+  -- A guest still never sees a hidden-money column or an exact spot through the new read.
+  if exists (select 1 from public.guest_open_posts_near(p_ids => array[v_task], p_kind => null,
+                                                        p_min_lat => 17.39, p_max_lat => 17.49) x
+              where x ? 'locked_bid_id' or (x->>'loc_lat')::float8 <> 17.46) then
+    raise exception 'FAIL: the boxed read must keep 146''s columns and two-decimal places';
+  end if;
+
+  -- Helpers: the near one was seen long ago, the far ones just now.
+  update public.profiles set onboarded_at = now(), skills = array['repairs'], loc_lat = 17.4601, loc_lng = 78.3601,
+                             last_seen_at = now() - interval '30 days'
+   where id = v_near;
+  update public.profiles set onboarded_at = now(), skills = array['repairs'], loc_lat = 19.07, loc_lng = 72.87,
+                             last_seen_at = now()
+   where id in (v_far1, v_far2);
+  select array_agg((x->>'id')::uuid) into v_ids
+    from public.guest_helpers_near(p_limit => 300, p_min_lat => 17.455, p_max_lat => 17.465,
+                                   p_min_lng => 78.355, p_max_lng => 78.365) x;
+  if not (v_near = any(coalesce(v_ids, '{}'))) or v_far1 = any(coalesce(v_ids, '{}')) or v_far2 = any(coalesce(v_ids, '{}')) then
+    raise exception 'FAIL: the boxed helpers read should answer the near helper only, got %', v_ids;
+  end if;
+  if not exists (select 1 from public.guest_helpers(p_limit => 300) x where (x->>'id')::uuid = v_far1) then
+    raise exception 'FAIL: the old helpers read should still answer calls of the old shape';
+  end if;
+
+  raise notice 'guest reads near ok';
+end;
+$$;
+
+rollback;

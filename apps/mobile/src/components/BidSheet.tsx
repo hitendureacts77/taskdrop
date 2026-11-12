@@ -7,6 +7,7 @@ import { isNeedsAccount, needAccount, useAccountHold } from '../lib/guest';
 import { canQuoteOn, getMyBid, placeBid, updateBid, type Bid, type Task } from '../data/api';
 import { MIN_PRICE_INR } from '../lib/limits';
 import { maskContacts } from '../lib/mask';
+import { reportError } from '../lib/errors';
 import { DateTimeSheet, formatDeadline } from './DateTimeSheet';
 import { BottomSheet, Field, PrimaryButton, rupees } from './kit';
 import { Icon } from './Icon';
@@ -121,6 +122,10 @@ export function BidSheet({
         }
         const verdict = await canQuoteOn(task.id, userId);
         if (alive && !verdict.allowed) setBlocked(verdict.reason);
+      } catch (e) {
+        // Could not check for an earlier offer: treat the job as open (the server still refuses a repeat), and say so.
+        reportError(e, 'bid-sheet');
+        if (alive) flash('Could not check your earlier offers. You can still send one.');
       } finally {
         if (alive) setLoading(false);
       }
@@ -158,9 +163,18 @@ export function BidSheet({
     if (!price.trim()) return flash('Enter your price');
     if (pitch.trim().length < 10) return flash('Tell the customer a little about why you');
     // A job with a place is in person; one without is remote.
-    if (!existing && task.loc_lat !== null && !safetySeen && (await needsSafetyCard(userId))) {
-      setSafetyOpen(true);
-      return;
+    if (!existing && task.loc_lat !== null && !safetySeen) {
+      let needsCard: boolean;
+      try {
+        needsCard = await needsSafetyCard(userId);
+      } catch (e) {
+        reportError(e, 'bid-sheet');
+        return flash('Could not send your offer just now. Please try again.');
+      }
+      if (needsCard) {
+        setSafetyOpen(true);
+        return;
+      }
     }
     setBusy(true);
     try {

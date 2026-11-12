@@ -16,6 +16,7 @@ import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { searchTasks, kindFor } from '../data/api';
 import { resolveCurrentPlace, locationPermission } from '../lib/location';
+import { searchCtaLabel, SEARCH_COUNT_LIMIT } from '../lib/searchCount';
 import { fontFamilyFor, type Theme } from '../theme';
 import type { Enums } from '@taskdrop/db-types';
 import { FadeIn, Pressy, tx } from '../components/primitives';
@@ -152,6 +153,7 @@ export function SearchScreen() {
   // active chip clears it again.
   const [pillar, setPillar] = useState<number | null>(null);
   const [count, setCount] = useState<number | null>(null);
+  const [countFailed, setCountFailed] = useState(false);
   // Nothing is assumed about where the user is until they ask for it.
   const [place, setPlace] = useState<string | null>(null);
   // The point the radius is measured from. A label with no coordinates cannot
@@ -190,10 +192,11 @@ export function SearchScreen() {
   useEffect(() => {
     let alive = true;
     setCount(null);
+    setCountFailed(false);
     const id = setTimeout(() => {
-      searchTasks({ ...filters, kind: kindFor(mode === 'worker' ? 'worker' : 'poster'), limit: 60 })
+      searchTasks({ ...filters, kind: kindFor(mode === 'worker' ? 'worker' : 'poster'), limit: SEARCH_COUNT_LIMIT })
         .then((rows) => alive && setCount(rows.length))
-        .catch(() => alive && setCount(0));
+        .catch(() => alive && setCountFailed(true));
     }, 250);
     return () => {
       alive = false;
@@ -201,7 +204,7 @@ export function SearchScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, pillar, budgetOn, radiusOn, radiusKm, placeAt?.lat, placeAt?.lng]);
+  }, [query, pillar, budgetOn, radiusOn, radiusKm, placeAt?.lat, placeAt?.lng, mode]);
 
   const useMyLocation = async () => {
     if (locating) return;
@@ -242,8 +245,7 @@ export function SearchScreen() {
     });
   };
 
-  const ctaLabel =
-    count === null ? 'Searching…' : count === 1 ? 'Show 1 task' : `Show ${count} tasks`;
+  const ctaLabel = searchCtaLabel(count, countFailed);
 
   const locationSheet = (
     <LocationSheet

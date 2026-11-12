@@ -24,7 +24,7 @@ import { type Args, type Ctx, type Db, GENERIC, MONEY_MAX, OpError, type Op, bad
 import { MEDIA_OPS } from "./media.ts";
 import { MAX_BATCH, type Reply, batchCalls } from "./ops.ts";
 import { sharedAnswer } from "./publicMemo.ts";
-import { READ_OPS } from "./reads.ts";
+import { type NearBox, READ_OPS, nearBox, nearFetch } from "./reads.ts";
 
 /** What a guest is told when they try something that needs an account. The app shows its own pop-up instead. */
 export const NEEDS_ACCOUNT = "Make your account first.";
@@ -196,11 +196,27 @@ type PostFilter = {
   pinned?: boolean | null;
   poster?: string | null;
   ids?: string[] | null;
+  /** Only posts pinned inside this box (B34): narrowed in SQL before the cap. */
+  box?: NearBox | null;
 };
+
+/** The box arguments of the *_near guest functions (migration 162). */
+const boxArgs = (b: NearBox) => ({ p_min_lat: b.minLat, p_max_lat: b.maxLat, p_min_lng: b.minLng, p_max_lng: b.maxLng });
+
+/**
+ * A guest read narrowed to a box: `fn`_near with the box, or `fn` itself without one. Until migration 162 is applied
+ * the _near function is missing (PostgREST PGRST202), and the old read answers as before.
+ */
+async function boxedRpc(ctx: Ctx, fn: string, args: Row, box: NearBox | null | undefined) {
+  if (!box) return await ctx.db.rpc(fn, args);
+  const res = await ctx.db.rpc(`${fn}_near`, { ...args, ...boxArgs(box) });
+  if ((res.error as { code?: string } | null)?.code === "PGRST202") return await ctx.db.rpc(fn, args);
+  return res;
+}
 
 /** Open posts through guest_open_posts. Each carries its poster's public card under `poster`. */
 async function posts(ctx: Ctx, f: PostFilter): Promise<Post[]> {
-  return rows<Post>(await ctx.db.rpc("guest_open_posts", {
+  return rows<Post>(await boxedRpc(ctx, "guest_open_posts", {
     p_kind: f.kind === undefined ? "request" : f.kind,
     p_limit: f.limit ?? 30,
     p_q: f.q ?? null,
@@ -211,7 +227,7 @@ async function posts(ctx: Ctx, f: PostFilter): Promise<Post[]> {
     p_pinned: f.pinned ?? null,
     p_poster: f.poster ?? null,
     p_ids: f.ids ?? null,
-  }));
+  }, f.box));
 }
 
 /** A post as the plain task row the signed-in operation answers (no poster attached). */
@@ -235,25 +251,29 @@ async function search(ctx: Ctx, a: Args): Promise<Post[]> {
     ? { lat: num(nearArg, "lat", -90, 90), lng: num(nearArg, "lng", -180, 180), radius: num(nearArg, "radiusKm", 0, 20000) }
     : null;
   const text = typeof a.q === "string" ? a.q.trim().slice(0, 200) : "";
+  const n = limit(a, "limit", 30, GUEST_LIMIT_MAX);
+  // With a point: a box in SQL and more than a page read, then the exact distance, then the page (B34, as signed in).
   const found = await posts(ctx, {
     kind: kindArg(a),
-    limit: limit(a, "limit", 30, GUEST_LIMIT_MAX),
+    limit: near ? nearFetch(n) : n,
     q: text || null,
     pillar: a.pillar != null ? str(a, "pillar", 40) : null,
     minMinor: typeof a.minMinor === "number" ? int(a, "minMinor", 0, MONEY_MAX) : null,
     maxMinor: typeof a.maxMinor === "number" ? int(a, "maxMinor", 0, MONEY_MAX) : null,
+    box: near ? nearBox(near, near.radius) : null,
   });
   if (!near) return found;
   return found.filter((t) => {
     const km = distanceKm(near, { lat: t.loc_lat, lng: t.loc_lng });
     return km !== null && km <= near.radius;
-  });
+  }).slice(0, n);
 }
 
 /** Helpers around a point with their newest open service, the shape workersNear answers. */
-async function helpers(ctx: Ctx): Promise<(Row & { id: string; loc_lat: number; loc_lng: number; top_service: Row | null; service_count: number })[]> {
+async function helpers(ctx: Ctx, box: NearBox | null): Promise<(Row & { id: string; loc_lat: number; loc_lng: number; top_service: Row | null; service_count: number })[]> {
   const [people, services] = await Promise.all([
-    ctx.db.rpc("guest_helpers", { p_limit: 300 }),
+    // Narrowed to the box before the 300 cap (B34).
+    boxedRpc(ctx, "guest_helpers", { p_limit: 300 }, box),
     posts(ctx, { kind: "service", limit: 300 }).catch(() => [] as Post[]),
   ]);
   const byPoster = new Map<string, Post[]>();
@@ -333,7 +353,7 @@ export const GUEST_OPS: Record<string, Op> = {
   tasksNear: async (ctx, a) => {
     const at = { lat: num(a, "lat", -90, 90), lng: num(a, "lng", -180, 180) };
     const radius = num(a, "radiusKm", 0, 20000);
-    const found = (await posts(ctx, { kind: "request", pinned: true, limit: 200 })).map(bare) as Post[];
+    const found = (await posts(ctx, { kind: "request", pinned: true, limit: 200, box: nearBox(at, radius) })).map(bare) as Post[];
     return within(found, at, radius).slice(0, limit(a, "limit", 5));
   },
 
@@ -349,7 +369,7 @@ export const GUEST_OPS: Record<string, Op> = {
   workersNear: async (ctx, a) => {
     const at = { lat: num(a, "lat", -90, 90), lng: num(a, "lng", -180, 180) };
     const radius = num(a, "radiusKm", 0, 20000);
-    return within(await helpers(ctx), at, radius).slice(0, limit(a, "limit", 12));
+    return within(await helpers(ctx, nearBox(at, radius)), at, radius).slice(0, limit(a, "limit", 12));
   },
 
   listActiveWorkers: async (ctx, a) => {
