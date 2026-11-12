@@ -38,7 +38,7 @@ Not a bug (checked 12 Nov): the Explore "Turn on location" sheet showed "Locatio
 
 ## Round 2 results (12 Nov 2026, same PR 336)
 
-Three hunters (money and task life, access and data exposure, app logic) read the code, and I checked their claims against the code and staging. 22 new bugs: B43-B52 (app, fixed in commit 2864173), B53-B64 (backend). Status below is "Fixing" until the PR is merged and the fix is rechecked on staging.
+Three hunters (money and task life, access and data exposure, app logic) read the code, and I checked their claims against the code and staging. 22 new bugs: B43-B52 (app, fixed in commit 2864173), B53-B64 (backend). Every fix is "Fixed, not rechecked" until PR 336 is merged and it is checked on staging.
 
 | Bug | Level | What | Status |
 |---|---|---|---|
@@ -52,18 +52,18 @@ Three hunters (money and task life, access and data exposure, app logic) read th
 | B50 | Low | Releasing payment added the worker's net to the poster's balance shown in the app | Fixed, not rechecked |
 | B51 | Low | Unhandled rejections in the offer sheet and offer checks | Fixed, not rechecked |
 | B52 | Low | "1 reviews", "Last seen 2 days ago" at 36 h, "Success 0%" with no stats, "Show 60 tasks" when capped, saved filters overwritten | Fixed, not rechecked |
-| B53 | High | A worker can raise an offer's price just before the poster taps Hire and the wallet is charged the new price (`lock_bid` reads the price at call time) | Fixing: migration 167 (expected price) |
+| B53 | High | A worker can raise an offer's price just before the poster taps Hire and the wallet is charged the new price (`lock_bid` reads the price at call time) | Fixed, not rechecked: migration 167 (expected price) |
 | B54 | High | Card-paid job whose worker walked off: the leftover card payment is never returned if the next hire is cheaper | Confirmed, needs the owner. A fix was written (migration 168, card money to the wallet at walk-off) but it contradicts test H53 in `hunt2_money.test.sql`, which keeps the card payment on the job on purpose, so it was taken out of this PR. Owner decides where the leftover goes: wallet at walk-off, or refunded at completion |
 | B55 | Medium | Clearing settles a recomputed net, not the amount put into clearing (capped jobs, commission changes) | Confirmed, needs the owner (money design, waits for the lawyer's answer) |
 | B56 | Medium | Staging is missing part of migration 066 (payments.wallet_credited_*; older `fund_task_from_payment`) | Confirmed, owner (same decision as B54) |
-| B57 | Medium | Old `fund_task(task, payment)` still callable by any signed-in user | Fixing: migration 169 |
-| B58 | Medium | Wallet says "full refund" with the full amount after a cancel with a fine; worker's fine never shows | Fixing: `reads.ts` |
-| B59 | Medium-High | A user can make another user's private file readable by pointing their own avatar, message or proof at its storage path | Fixing: `writes.ts` + migration 171 |
-| B60 | Medium | The hired worker reads the exact pin before work starts (and after a refund) | Fixing: migration 172/173 |
-| B61 | Medium | Blocks and suspensions do not stop hiring (lock_bid, auto-hire, contact phone) | Fixing: migration 167 |
-| B62 | Low-Medium | Trigger `trg_keep_destination_with_open_payout` is disabled on staging (drift) | Fixing: migration 169/170 |
+| B57 | Medium | Old `fund_task(task, payment)` still callable by any signed-in user | Fixed, not rechecked: migration 169 |
+| B58 | Medium | Wallet says "full refund" with the full amount after a cancel with a fine; worker's fine never shows | Fixed, not rechecked: `reads.ts` |
+| B59 | Medium-High | A user can make another user's private file readable by pointing their own avatar, message or proof at its storage path | Fixed, not rechecked: `writes.ts` + migration 171 |
+| B60 | Medium | The hired worker reads the exact pin before work starts (and after a refund) | Fixed, not rechecked: migration 172/173 |
+| B61 | Medium | Blocks and suspensions do not stop hiring (lock_bid, auto-hire, contact phone) | Fixed, not rechecked: migration 167 |
+| B62 | Low-Medium | Trigger `trg_keep_destination_with_open_payout` is disabled on staging (drift) | Fixed, not rechecked: migration 169/170 |
 | B63 | Low | Losing bidders see locked price / payment id; OPEN rows expose `preferred_worker_id` | Confirmed, after launch (needs column-grant change across the app) |
-| B64 | Low | Signed-in `worker_proof_photos` skips the deleted/hidden/owner filters the guest version has | Fixing: migration 173 |
+| B64 | Low | Signed-in `worker_proof_photos` skips the deleted/hidden/owner filters the guest version has | Fixed, not rechecked: migration 173 |
 
 Found by the round-2 security review of these fixes (older code, not fixed yet):
 
