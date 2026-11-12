@@ -29,6 +29,7 @@ security definer
 set search_path to 'public'
 as $function$
 begin
+  if auth.uid() is null then raise exception 'Sign in first'; end if;
   return public.lock_bid(p_bid_id, p_payout_mode, null::bigint);
 end $function$;
 
