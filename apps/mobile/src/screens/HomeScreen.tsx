@@ -12,7 +12,8 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
-import { searchTasks, attachPosters, placeBid, kindFor } from '../data/api';
+import { searchTasks, attachPosters, placeBid, kindFor, getProfile } from '../data/api';
+import { HOME_FEED_RADIUS_KM, nearThenRemote } from '../lib/homePlace';
 import { useAuth } from '../providers/AuthProvider';
 import { isNeedsAccount, needAccount } from '../lib/guest';
 import { isHunt } from '../lib/hunt';
@@ -422,6 +423,21 @@ export function HomeScreen() {
     searchQ !== null || searchPillar !== null || searchMin !== null || nearLat !== null;
 
   const load = useCallback(async () => {
+    // Hire's plain Home ("Services near you", B35): around the home place (the area at the top, saved on the
+    // profile), nearest first, then remote listings. Two reads because a radius search leaves out posts with no
+    // pin; the api keeps its inputs. With no area known (or a guest), the newest listings as before.
+    if (!searching && !worker && userId) {
+      const me = await getProfile(userId).catch(() => null);
+      if (me?.loc_lat != null && me?.loc_lng != null) {
+        const at = { lat: me.loc_lat, lng: me.loc_lng };
+        const kind = kindFor('poster');
+        const [near, wide] = await Promise.all([
+          searchTasks({ near: { ...at, radiusKm: HOME_FEED_RADIUS_KM }, limit: 20, kind }),
+          searchTasks({ limit: 60, kind }),
+        ]);
+        return (await attachPosters(nearThenRemote(near, wide, at))) as unknown as LiveTask[];
+      }
+    }
     const rows = await searchTasks({
       q: searchQ ?? undefined,
       pillar: searchPillar,
@@ -436,7 +452,7 @@ export function HomeScreen() {
       kind: kindFor(worker ? 'worker' : 'poster'),
     });
     return (await attachPosters(rows)) as unknown as LiveTask[];
-  }, [searchQ, searchPillar, searchMin, searchMax, nearLat, nearLng, radiusKm, worker, focusTick]);
+  }, [searchQ, searchPillar, searchMin, searchMax, nearLat, nearLng, radiusKm, worker, focusTick, searching, userId]);
 
   useEffect(() => {
     let active = true;

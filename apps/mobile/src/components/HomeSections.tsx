@@ -1031,6 +1031,10 @@ function GrowBar({
 function nextStep(task: Task, offers: number): { line: string; button: string; tone: 'accent' | 'blue' | 'gold' } {
   switch (task.status) {
     case 'OPEN':
+      // Past its date the feeds no longer show it (api notExpired, B21), so "waiting" would mislead.
+      if (task.due_at && new Date(task.due_at).getTime() <= Date.now()) {
+        return { line: 'Date passed · not shown', button: 'Open', tone: 'gold' };
+      }
       return offers > 0
         ? { line: `${offers} offer${offers === 1 ? '' : 's'} waiting`, button: 'Choose', tone: 'accent' }
         : { line: 'Waiting for offers', button: 'Open', tone: 'blue' };

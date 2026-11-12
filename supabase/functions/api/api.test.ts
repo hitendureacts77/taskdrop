@@ -13,6 +13,7 @@ import {
   guestNetKey, guestNetScope, guestRateKey, guestRateScope, guestSpend, isGuestOp, isGuestToken, isHeavyGuestOp, runGuestBatch, runGuestOp,
 } from "./guest.ts";
 import { WRITE_OPS } from "./writes.ts";
+import { nearBox } from "./reads.ts";
 import { MEDIA_OPS } from "./media.ts";
 import { type Db, MAX_BATCH, OPS, RATE_LIMITS, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp, spendRate } from "./ops.ts";
 import {
@@ -441,6 +442,92 @@ await t("tasks near a point are filtered and ordered by distance on the server",
   const r = await runOp("tasksNear", { ...here, radiusKm: 50, limit: 5 }, ctx(f));
   assert.ok(r.ok);
   assert.deepEqual((r.data as { id: string }[]).map((x) => x.id), ["near", "mid"]);
+});
+
+/**
+ * A fake that runs the simple filters (eq, neq, gte, lte, is, not is, order, limit) on in-memory rows, so a test can
+ * show what a capped read leaves out (B34). Other steps (select, or, filter) pass every row.
+ */
+function tableFake(tables: Record<string, Record<string, unknown>[]>) {
+  return fake((c) => {
+    let list = [...(tables[c.table ?? ""] ?? [])];
+    let cap = Infinity;
+    for (const [name, args] of c.steps) {
+      const [col, a, b] = args as [string, unknown, unknown];
+      if (name === "eq") list = list.filter((r) => r[col] === a);
+      else if (name === "neq") list = list.filter((r) => r[col] !== a);
+      else if (name === "gte") list = list.filter((r) => r[col] != null && (r[col] as number) >= (a as number));
+      else if (name === "lte") list = list.filter((r) => r[col] != null && (r[col] as number) <= (a as number));
+      else if (name === "is" && a === null) list = list.filter((r) => r[col] == null);
+      else if (name === "not" && a === "is" && b === null) list = list.filter((r) => r[col] != null);
+      else if (name === "order") {
+        const asc = (a as { ascending?: boolean } | undefined)?.ascending !== false;
+        list.sort((x, y) => (String(x[col] ?? "") < String(y[col] ?? "") ? -1 : String(x[col] ?? "") > String(y[col] ?? "") ? 1 : 0) * (asc ? 1 : -1));
+      } else if (name === "limit") cap = Math.min(cap, args[0] as number);
+    }
+    return { data: list.slice(0, cap), error: null };
+  });
+}
+
+/** B34: `n` open posts far away (Mumbai), all newer than the one near post (Kondapur). */
+const KONDAPUR = { lat: 17.44, lng: 78.35 };
+function farAndNear(n: number, extra: Record<string, unknown> = {}) {
+  const far = Array.from({ length: n }, (_, i) => ({
+    id: `far-${i}`, poster_id: OTHER, status: "OPEN", kind: "request", loc_lat: 19.07, loc_lng: 72.87,
+    created_at: `2026-10-05T09:${String(i % 60).padStart(2, "0")}:00Z`, ...extra,
+  }));
+  const near = { id: "near", poster_id: OTHER, status: "OPEN", kind: "request", loc_lat: 17.46, loc_lng: 78.36, created_at: "2026-09-01T00:00:00Z", ...extra };
+  return [...far, near];
+}
+
+await t("B34: a radius search finds an older nearby task behind 25 newer far-away ones", async () => {
+  const f = tableFake({ tasks: farAndNear(25) });
+  const r = await runOp("searchTasks", { near: { ...KONDAPUR, radiusKm: 5 }, limit: 20, kind: "request" }, ctx(f));
+  assert.ok(r.ok);
+  assert.deepEqual((r.data as { id: string }[]).map((x) => x.id), ["near"]);
+  // No point given: newest first, capped, as before.
+  const plain = await runOp("searchTasks", { limit: 20, kind: "request" }, ctx(tableFake({ tasks: farAndNear(25) })));
+  assert.equal((plain.data as unknown[]).length, 20);
+});
+
+await t("B34: tasksNear finds an older nearby task behind 210 newer far-away ones", async () => {
+  const f = tableFake({ tasks: farAndNear(210) });
+  const r = await runOp("tasksNear", { ...KONDAPUR, radiusKm: 5, limit: 5 }, ctx(f));
+  assert.ok(r.ok);
+  assert.deepEqual((r.data as { id: string }[]).map((x) => x.id), ["near"]);
+});
+
+await t("B34: workersNear finds a nearby helper behind 310 more recently seen far-away ones", async () => {
+  const far = Array.from({ length: 310 }, (_, i) => ({
+    id: `far-${i}`, onboarded_at: "2026-01-01", deleted_at: null, skills: ["Cleaning"], loc_lat: 19.07, loc_lng: 72.87,
+    last_seen_at: `2026-10-05T09:${String(i % 60).padStart(2, "0")}:00Z`,
+  }));
+  const near = { id: "near", onboarded_at: "2026-01-01", deleted_at: null, skills: ["Plumbing"], loc_lat: 17.46, loc_lng: 78.36, last_seen_at: "2026-09-01T00:00:00Z" };
+  const f = tableFake({ profiles: [...far, near], tasks: [] });
+  const r = await runOp("workersNear", { ...KONDAPUR, radiusKm: 5, limit: 12 }, ctx(f));
+  assert.ok(r.ok);
+  assert.deepEqual((r.data as { id: string }[]).map((x) => x.id), ["near"]);
+});
+
+await t("B34: the search box holds the whole circle, and is dropped where it would wrap or be huge", () => {
+  const b = nearBox({ lat: 17.44, lng: 78.35 }, 5)!;
+  assert.ok(b.minLat < 17.44 - 5 / 111.2 && b.maxLat > 17.44 + 5 / 111.2);
+  assert.ok(b.minLng !== null && b.maxLng !== null && b.minLng < 78.35 && b.maxLng > 78.35);
+  // Every point on a 5 km circle is inside the box.
+  for (let deg = 0; deg < 360; deg += 5) {
+    const r = (deg * Math.PI) / 180;
+    const dLat = (5 / 111.195) * Math.cos(r);
+    const dLng = (5 / (111.195 * Math.cos((17.44 * Math.PI) / 180))) * Math.sin(r);
+    const p = { lat: 17.44 + dLat * 0.999, lng: 78.35 + dLng * 0.999 };
+    assert.ok(p.lat >= b.minLat && p.lat <= b.maxLat && p.lng >= b.minLng! && p.lng <= b.maxLng!, `point at ${deg} deg`);
+  }
+  const wrap = nearBox({ lat: 10, lng: 179.99 }, 50)!;
+  assert.equal(wrap.minLng, null);
+  assert.equal(wrap.maxLng, null);
+  const pole = nearBox({ lat: 89.9, lng: 10 }, 50)!;
+  assert.equal(pole.maxLat, 90);
+  assert.equal(pole.minLng, null);
+  assert.equal(nearBox({ lat: 17, lng: 78 }, 20000), null);
 });
 
 await t("helpers near a point come back nearest first, inside the radius, with only map-card fields", async () => {
@@ -1618,11 +1705,11 @@ const SHARED_RPCS = new Set([
 /** A fake whose guest SQL functions answer sensibly; `media` is what guest_public_media lets through. */
 function guestFake(media: (paths: string[]) => string[] = (p) => p) {
   return fake((c) => {
-    if (c.rpc === "guest_open_posts") {
+    if (c.rpc === "guest_open_posts" || c.rpc === "guest_open_posts_near") {
       const a = c.args as { p_ids: string[] | null };
       return { data: guestPosts().filter((p) => !a.p_ids || a.p_ids.includes(p.id)), error: null };
     }
-    if (c.rpc === "guest_helpers") {
+    if (c.rpc === "guest_helpers" || c.rpc === "guest_helpers_near") {
       return {
         data: [
           { id: HELPER3, loc_lat: 28.6, loc_lng: 77.2, skills: ["a"], last_seen_at: "2026-10-05T09:50:00Z" },
@@ -1753,6 +1840,41 @@ await t("guest: attachPosters keeps the asked order and drops ids that were not 
   assert.deepEqual(list.map((p) => p.id), [G1, G3, G2]);
   assert.ok(list.every((p) => p.poster));
   assert.deepEqual(await runGuestOp("attachPosters", { taskIds: [] }, ctx(f)), { ok: true, data: [] });
+});
+
+await t("B34 guest: near reads go through the boxed SQL, so newer far-away rows cannot crowd out near ones", async () => {
+  type Box = { p_limit: number; p_min_lat?: number; p_max_lat?: number; p_min_lng?: number | null; p_max_lng?: number | null };
+  // Like the SQL: newest first, the box when given, then the cap.
+  const inBox = (r: { loc_lat: number; loc_lng: number }, a: Box) =>
+    a.p_min_lat === undefined || (r.loc_lat >= a.p_min_lat && r.loc_lat <= a.p_max_lat!
+      && (a.p_min_lng == null || (r.loc_lng >= a.p_min_lng && r.loc_lng <= a.p_max_lng!)));
+  const tasks = farAndNear(210, { poster: null }) as { id: string; loc_lat: number; loc_lng: number; created_at: string }[];
+  const people = [
+    ...Array.from({ length: 310 }, (_, i) => ({ id: `far-${i}`, loc_lat: 19.07, loc_lng: 72.87, skills: ["a"] })),
+    { id: "near", loc_lat: 17.46, loc_lng: 78.36, skills: ["a"] },
+  ];
+  const f = fake((c) => {
+    const a = c.args as Box;
+    if (c.rpc === "guest_open_posts" || c.rpc === "guest_open_posts_near") {
+      return { data: [...tasks].sort((x, y) => (x.created_at < y.created_at ? 1 : -1)).filter((r) => inBox(r, a)).slice(0, a.p_limit), error: null };
+    }
+    if (c.rpc === "guest_helpers" || c.rpc === "guest_helpers_near") return { data: people.filter((r) => inBox(r, a)).slice(0, a.p_limit), error: null };
+    return { data: [], error: null };
+  });
+  const s = await runGuestOp("searchTasks", { near: { ...KONDAPUR, radiusKm: 5 }, limit: 20 }, ctx(f));
+  assert.deepEqual((s as { data: { id: string }[] }).data.map((x) => x.id), ["near"]);
+  const n = await runGuestOp("tasksNear", { ...KONDAPUR, radiusKm: 5 }, ctx(f));
+  assert.deepEqual((n as { data: { id: string }[] }).data.map((x) => x.id), ["near"]);
+  const w = await runGuestOp("workersNear", { ...KONDAPUR, radiusKm: 5 }, ctx(f));
+  assert.deepEqual((w as { data: { id: string }[] }).data.map((x) => x.id), ["near"]);
+  assert.ok(f.calls.some((c) => c.rpc === "guest_open_posts_near") && f.calls.some((c) => c.rpc === "guest_helpers_near"));
+
+  // Before migration 162 is applied the _near function is missing: the old read still answers.
+  const old = fake((c) => (c.rpc?.endsWith("_near")
+    ? { data: null, error: { code: "PGRST202", message: "no such function" } }
+    : { data: [{ id: "near", poster_id: OTHER, loc_lat: 17.46, loc_lng: 78.36 }], error: null }));
+  const o = await runGuestOp("tasksNear", { ...KONDAPUR, radiusKm: 5 }, ctx(old));
+  assert.deepEqual((o as { data: { id: string }[] }).data.map((x) => x.id), ["near"]);
 });
 
 await t("guest: tasksNear and workersNear keep only what is in range, nearest first", async () => {
@@ -2054,6 +2176,17 @@ await t("answers about another person ask for no private profile column", async 
   assert.ok(profileReads.length >= 5);
   for (const c of profileReads) assert.deepEqual(leaky(selectedColumns(c), SECRET_PROFILE), [], "a private profile column is asked for");
   assert.ok(selectedColumns(profileReads[0]).includes("display_name"), "the public card still has its name");
+});
+
+await t("B30: listActiveWorkers never lists a deleted account", async () => {
+  const f = fake(() => ({ data: [], error: null }));
+  await runOp("listActiveWorkers", {}, ctx(f));
+  const read = f.calls.find((c) => c.table === "profiles");
+  assert.ok(read, "it reads profiles");
+  assert.ok(
+    read.steps.some(([name, args]) => name === "is" && args[0] === "deleted_at" && args[1] === null),
+    "deleted accounts are filtered out in the query",
+  );
 });
 
 await t("a person's own profile adds only the referral code and the weekly goal", async () => {

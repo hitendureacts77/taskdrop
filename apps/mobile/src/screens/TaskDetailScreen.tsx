@@ -41,6 +41,7 @@ import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { HuntFinderPanel } from '../components/Hunt';
 import { isHunt } from '../lib/hunt';
 import { OFFER_COPY, isDuplicateOfferError } from '../lib/offerState';
+import { taskPageView } from '../lib/taskView';
 import { noteMyOffer } from '../lib/useMyOffers';
 
 /**
@@ -198,6 +199,8 @@ export function TaskDetailScreen() {
     /** Where the job is (rounded for strangers by the database), not where the poster lives. */
     lat: number | null;
     lng: number | null;
+    /** A request someone posted, or a service someone offers. The page is drawn by this, not only by Hire/Earn. */
+    kind: 'request' | 'service' | null;
   } | null>(null);
   const [huntTask, setHuntTask] = useState<Task | null>(null);
 
@@ -229,6 +232,7 @@ export function TaskDetailScreen() {
             mediaSeconds: td.task.media_seconds ?? null,
             lat: td.task.loc_lat ?? null,
             lng: td.task.loc_lng ?? null,
+            kind: td.task.kind === 'request' || td.task.kind === 'service' ? td.task.kind : null,
           });
         }
         if (verdictNow) {
@@ -283,7 +287,9 @@ export function TaskDetailScreen() {
   const mediaSeconds = live ? live.mediaSeconds : detail.mediaSeconds;
 
   // A request carries the poster's budget; a service listing carries the worker's rate.
-  const priceLabel = huntTask ? 'REWARD FOR THE FINDER' : worker ? 'BUDGET' : 'THEIR RATE';
+  // Drawn by the task's kind: in Hire mode someone's request still shows its budget, not a rate.
+  const view = taskPageView(mode, live?.kind);
+  const priceLabel = huntTask ? 'REWARD FOR THE FINDER' : view.asRequest ? 'BUDGET' : 'THEIR RATE';
   const delta = quote - detail.amountMinor;
   const deltaText =
     delta === 0 ? 'same as asked' : delta > 0 ? `+${formatINR(delta)} above` : `−${formatINR(-delta)} below`;
@@ -295,7 +301,7 @@ export function TaskDetailScreen() {
   const sampleRecord = whoMetaParts[0] ?? null;
   const sampleDistance = whoMetaParts[1] ?? null;
 
-  const recordLabel = worker ? 'Requests posted' : 'Jobs completed';
+  const recordLabel = view.asRequest ? 'Requests posted' : 'Jobs completed';
   const recordValue = other
     ? other.ratingCount > 0
       ? other.record + ' · ★ ' + other.rating.toFixed(1)
@@ -579,7 +585,19 @@ export function TaskDetailScreen() {
               />
             )}
           </Card>
-        ) : !worker ? (
+        ) : view.panel === 'switchToEarn' ? (
+          /* Hire mode on someone's request: it is their ask, not a service. Offers are sent from Earn mode. */
+          <Card style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
+            <RNText style={tx('700', 11, t.colors.muted, { marginBottom: 10, letterSpacing: 1.2 })}>
+              {otherId && otherId === userId ? 'YOUR REQUEST' : 'SEND AN OFFER'}
+            </RNText>
+            <RNText style={tx('600', 15, t.colors.ink, { lineHeight: 22 })}>
+              {otherId && otherId === userId
+                ? 'This is your own request.'
+                : `${displayName} is asking for help with this. Switch to Earn to send an offer.`}
+            </RNText>
+          </Card>
+        ) : view.panel === 'sendTask' ? (
           /* Reverse direction: a customer looking at a worker's service. They do not "send an offer" to a
              listing; they post their own task and the worker gets the first 10 minutes to answer it. */
           <Card style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
@@ -750,7 +768,7 @@ export function TaskDetailScreen() {
         rating={other?.rating ?? 0}
         ratingCount={other?.ratingCount ?? 0}
         // A worker is looking at whoever posted the task, and vice versa.
-        role={worker ? 'poster' : 'worker'}
+        role={view.asRequest ? 'poster' : 'worker'}
       />
     </Screen>
   );

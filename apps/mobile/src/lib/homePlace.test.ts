@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pickDefaultPlace } from './homePlace.ts';
+import { HOME_FEED_RADIUS_KM, HOME_FEED_REMOTE_MAX, nearThenRemote, pickDefaultPlace } from './homePlace.ts';
 
 const home = (label: string, lat: number | null = 12.9, lng: number | null = 77.6) => ({ label, lat, lng, details: { tag: 'home' as const } });
 const work = (label: string) => ({ label, lat: 12.8, lng: 77.5, details: { tag: 'work' as const } });
@@ -39,4 +39,22 @@ test('nothing saved gives null', () => {
   assert.equal(pickDefaultPlace([], null), null);
   assert.equal(pickDefaultPlace(undefined, undefined), null);
   assert.equal(pickDefaultPlace([work('Office')], {}), null);
+});
+
+test('B35: Home lists nearby services nearest first, then remote ones, never far pinned ones', () => {
+  const at = { lat: 17.44, lng: 78.35 };
+  const near = [
+    { id: 'kompally', loc_lat: 17.54, loc_lng: 78.48 },
+    { id: 'kondapur', loc_lat: 17.46, loc_lng: 78.36 },
+  ];
+  const wide = [
+    { id: 'berlin', loc_lat: 52.52, loc_lng: 13.4 },
+    { id: 'remote-new', loc_lat: null, loc_lng: null },
+    { id: 'kondapur', loc_lat: 17.46, loc_lng: 78.36 },
+    { id: 'remote-old', loc_lat: null, loc_lng: null },
+  ];
+  assert.deepEqual(nearThenRemote(near, wide, at).map((t) => t.id), ['kondapur', 'kompally', 'remote-new', 'remote-old']);
+  const many = Array.from({ length: HOME_FEED_REMOTE_MAX + 5 }, (_, i) => ({ id: `r${i}`, loc_lat: null, loc_lng: null }));
+  assert.equal(nearThenRemote([], many, at).length, HOME_FEED_REMOTE_MAX);
+  assert.equal(HOME_FEED_RADIUS_KM, 25);
 });

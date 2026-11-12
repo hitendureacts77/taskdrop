@@ -485,8 +485,15 @@ export function NearMap({
   const listJobs = useMemo(() => filterJobs(pinnedPool, homePool, reachAt, filters), [pinnedPool, homePool, reachAt, filters]);
   const nearJobs = useMemo(() => listJobs.filter((j) => !j.remote), [listJobs]);
   const homeCount = listJobs.length - nearJobs.length;
-  const listPeople = useMemo(() => (reachAt ? withinReach(shownPeople, reachAt, radius) : []), [shownPeople, reachAt, radius]);
-  const listMine = useMemo(() => (reachAt ? withinReach(shownMine, reachAt, radius, (p) => p) : []), [shownMine, reachAt, radius]);
+  // Nearest first, so the list agrees with the "nearest person" card above it (the server's order is active-first).
+  const listPeople = useMemo(
+    () => (reachAt ? [...withinReach(shownPeople, reachAt, radius)].sort((a, b) => a.km - b.km) : []),
+    [shownPeople, reachAt, radius],
+  );
+  const listMine = useMemo(
+    () => (reachAt ? [...withinReach(shownMine, reachAt, radius, (p) => p)].sort((a, b) => a.km - b.km) : []),
+    [shownMine, reachAt, radius],
+  );
   const mapIds = useMemo(
     () => (mode === 'jobs' ? shownJobs.map((j) => j.id) : mine ? shownMine.map((p) => p.id) : shownPeople.map((p) => p.id)),
     [mode, mine, shownJobs, shownMine, shownPeople],

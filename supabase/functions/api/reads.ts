@@ -58,6 +58,37 @@ function openTasksQuery(ctx: Ctx, kind: "request" | "service") {
 
 const kindArg = (a: Args) => oneOf(a, "kind", ["request", "service"], "request");
 
+export type NearBox = { minLat: number; maxLat: number; minLng: number | null; maxLng: number | null };
+
+/**
+ * A latitude/longitude box that holds every spot within `radius` km of `at`, for narrowing a distance read in SQL
+ * before the exact distance is worked out (B34: capping the newest rows first, then filtering by distance, dropped
+ * nearby posts). Slightly wider than the circle, never narrower: 111 km a degree (the exact figure is 111.2), and the
+ * longitude span is taken at the box edge farthest from the equator. The longitude bound is left off (null) where it
+ * would wrap past 180 degrees or reach a pole; past 2,000 km there is no box at all (null).
+ */
+export function nearBox(at: { lat: number; lng: number }, radius: number): NearBox | null {
+  if (!(radius >= 0) || radius > 2000) return null;
+  const dLat = radius / 111;
+  const minLat = Math.max(-90, at.lat - dLat);
+  const maxLat = Math.min(90, at.lat + dLat);
+  const edge = Math.max(Math.abs(minLat), Math.abs(maxLat));
+  if (edge >= 89) return { minLat, maxLat, minLng: null, maxLng: null };
+  const dLng = radius / (111 * Math.cos((edge * Math.PI) / 180));
+  if (at.lng - dLng < -180 || at.lng + dLng > 180) return { minLat, maxLat, minLng: null, maxLng: null };
+  return { minLat, maxLat, minLng: at.lng - dLng, maxLng: at.lng + dLng };
+}
+
+/** `q` narrowed to the box (PostgREST gte/lte on loc_lat and loc_lng); unchanged when there is no box. */
+function inBox<Q extends { gte(c: string, v: number): Q; lte(c: string, v: number): Q }>(q: Q, box: NearBox | null): Q {
+  if (!box) return q;
+  const out = q.gte("loc_lat", box.minLat).lte("loc_lat", box.maxLat);
+  return box.minLng !== null && box.maxLng !== null ? out.gte("loc_lng", box.minLng).lte("loc_lng", box.maxLng) : out;
+}
+
+/** How many rows a radius search reads inside its box before the exact distance cut, for a page of `n`. */
+export const nearFetch = (n: number) => Math.min(500, Math.max(n * 3, 200));
+
 /** A task still holding money: chosen and paid for, but not yet finished. */
 const IN_PROGRESS = new Set(["LOCKED", "TASK_STARTED", "OVERDUE", "WORK_DONE", "REVISION_REQUESTED", "DISPUTED"]);
 
@@ -164,16 +195,18 @@ export const READ_OPS: Record<string, Op> = {
     if (a.pillar != null) q = q.eq("pillar", str(a, "pillar", 40));
     if (typeof a.minMinor === "number") q = q.gte("benchmark_minor", int(a, "minMinor", 0, MONEY_MAX));
     if (typeof a.maxMinor === "number") q = q.lte("benchmark_minor", int(a, "maxMinor", 0, MONEY_MAX));
-    const found = rows<Task>(await q.order("created_at", { ascending: false }).limit(limit(a)));
+    const n = limit(a);
+    if (!near) return rows<Task>(await q.order("created_at", { ascending: false }).limit(n));
 
-    // Distance is filtered here rather than in SQL: there is no geo index on this
-    // table and the page is already capped. A task with no pin cannot be shown
-    // to be within any radius, so it is not.
-    if (!near) return found;
+    // With a point, SQL first narrows to a box around it and reads more than a page (B34: capping first and
+    // filtering after dropped nearby tasks behind newer far-away ones). The exact distance is then checked here,
+    // newest first as before, and only then is the page cut. A task with no pin cannot be shown to be within any
+    // radius, so it is not.
+    const found = rows<Task>(await inBox(q, nearBox(near, near.radius)).order("created_at", { ascending: false }).limit(nearFetch(n)));
     return found.filter((t) => {
       const km = distanceKm(near, { lat: t.loc_lat, lng: t.loc_lng });
       return km !== null && km <= near.radius;
-    });
+    }).slice(0, n);
   },
 
   /** Attach each task's poster profile, for feed rows that show identity. */
@@ -328,8 +361,10 @@ export const READ_OPS: Record<string, Op> = {
   tasksNear: async (ctx, a) => {
     const at = { lat: num(a, "lat", -90, 90), lng: num(a, "lng", -180, 180) };
     const radius = num(a, "radiusKm", 0, 20000);
+    // Narrowed to a box around the point before the cap, so newer far-away tasks cannot crowd out near ones (B34).
     const found = rows<Task>(
-      await openTasksQuery(ctx, "request").not("loc_lat", "is", null).order("created_at", { ascending: false }).limit(200),
+      await inBox(openTasksQuery(ctx, "request").not("loc_lat", "is", null), nearBox(at, radius))
+        .order("created_at", { ascending: false }).limit(200),
     );
     return found
       .map((t) => ({ ...t, km: distanceKm(at, { lat: t.loc_lat, lng: t.loc_lng }) ?? Infinity }))
@@ -424,6 +459,7 @@ export const READ_OPS: Record<string, Op> = {
   listActiveWorkers: async (ctx, a) => {
     const since = new Date((ctx.now?.() ?? new Date()).getTime() - 30 * 60_000).toISOString();
     const res = await ctx.db.from("profiles").select(PROFILE_PUBLIC_SELECT).gt("last_seen_at", since).not("onboarded_at", "is", null)
+      .is("deleted_at", null) // deleted accounts never show in a list (B30)
       // PostgREST wants the empty array literally: skills=neq.{}
       .filter("skills", "neq", "{}").neq("id", ctx.userId)
       .order("last_seen_at", { ascending: false }).limit(limit(a, "limit", 12));
@@ -442,9 +478,12 @@ export const READ_OPS: Record<string, Op> = {
     const at = { lat: num(a, "lat", -90, 90), lng: num(a, "lng", -180, 180) };
     const radius = num(a, "radiusKm", 0, 20000);
     const cols = "id, display_name, username, avatar_url, skills, worker_rating_avg, worker_rating_count, last_seen_at, loc_lat, loc_lng, loc_label";
+    // Narrowed to a box around the point before the 300 cap, so people seen more recently far away cannot crowd
+    // out helpers nearby (B34).
+    const box = nearBox(at, radius);
     const people = () =>
-      ctx.db.from("profiles").select(cols)
-        .not("onboarded_at", "is", null).is("deleted_at", null).not("loc_lat", "is", null).neq("id", ctx.userId);
+      inBox(ctx.db.from("profiles").select(cols)
+        .not("onboarded_at", "is", null).is("deleted_at", null).not("loc_lat", "is", null).neq("id", ctx.userId), box);
     const [res, offers] = await Promise.all([
       // PostgREST wants the empty array literally: skills=neq.{}
       people().filter("skills", "neq", "{}").order("last_seen_at", { ascending: false, nullsFirst: false }).limit(300),

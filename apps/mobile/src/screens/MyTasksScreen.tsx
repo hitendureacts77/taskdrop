@@ -615,7 +615,8 @@ function PostedCard({
 
 // --------------------------------------------------------------- worker -----
 
-const WORKER_TABS = ['Active', 'Offers', 'Done', 'Saved', 'My services'] as const;
+// "Closed", not "Done": it also holds offers the customer did not pick, which are not completed jobs.
+const WORKER_TABS = ['Active', 'Offers', 'Closed', 'Saved', 'My services'] as const;
 
 function MyWork() {
   const t = useTheme();
@@ -797,7 +798,7 @@ function MyWork() {
           ) : list.length === 0 ? (
             <EmptyState
               icon="briefcase"
-              title={tab === 0 ? 'No active tasks' : tab === 1 ? 'No pending offers' : 'Nothing finished yet'}
+              title={tab === 0 ? 'No active tasks' : tab === 1 ? 'No pending offers' : 'Nothing closed yet'}
               body={tab === 0 ? 'Pick tasks from Explore to start working and earning.' : undefined}
               actionLabel="Browse tasks"
               onAction={() => go('explore')}
