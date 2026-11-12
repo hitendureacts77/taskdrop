@@ -38,7 +38,21 @@ function loadNotifications(): NotificationsModule | null {
  */
 
 let remoteRegistered = false;
+/** The push token this device last registered for the signed-in person, so sign-out can remove it. */
+let registeredToken: string | null = null;
 let configured = false;
+
+/**
+ * Sign-out: this device no longer belongs to anyone. Returns the token it had
+ * registered (null if none) so the caller can delete the row, and puts the
+ * local-notification route back on for the next person.
+ */
+export function forgetPushRegistration(): string | null {
+  const token = registeredToken;
+  registeredToken = null;
+  remoteRegistered = false;
+  return token;
+}
 
 function configure() {
   if (configured || Platform.OS === 'web') return;
@@ -134,6 +148,7 @@ async function register(ask: boolean): Promise<boolean> {
       appVersion,
       osVersion: osVersion(),
     });
+    registeredToken = token;
     remoteRegistered = true;
   } catch {
     /* local notifications still cover the app while it is open */

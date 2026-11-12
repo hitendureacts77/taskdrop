@@ -390,7 +390,7 @@ export function TaskManageScreen() {
             style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}
             accessibilityRole="button"
           >
-            <View style={{ width: 42, height: 42, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 42, height: 42, borderRadius: 999, backgroundColor: t.colors.purpleFill, alignItems: 'center', justifyContent: 'center' }}>
               <RNText style={tx('800', 16, '#FFFFFF')}>{worker.display_name.charAt(0).toUpperCase()}</RNText>
             </View>
             <View style={{ flex: 1 }}>
@@ -478,7 +478,7 @@ export function TaskManageScreen() {
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}
                     >
                       <View>
-                        <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
+                        <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: t.colors.purpleFill, alignItems: 'center', justifyContent: 'center' }}>
                           <RNText style={tx('800', 15, '#FFFFFF')}>{(who?.display_name || '?').charAt(0).toUpperCase()}</RNText>
                         </View>
                         <AvatarPresence lastSeen={who?.last_seen_at} ring={t.colors.surface} />

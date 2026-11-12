@@ -25,7 +25,7 @@ supabase.auth.onAuthStateChange((_event, session) => {
  * records, ad counters). Every other write tells lib/freshness.ts that what was read may be out of date.
  * settleClearedEarnings is told by its caller, and only when it actually moved money.
  */
-const BOOKKEEPING = new Set(['touchPresence', 'recordDevice', 'registerPushToken', 'recordAdImpression', 'recordAdClick', 'settleClearedEarnings']);
+const BOOKKEEPING = new Set(['touchPresence', 'recordDevice', 'registerPushToken', 'forgetPushToken', 'recordAdImpression', 'recordAdClick', 'settleClearedEarnings']);
 
 /** Which repeat key each write carries (./repeatKeys.ts). */
 const repeatKeys = new RepeatKeys(randomId);

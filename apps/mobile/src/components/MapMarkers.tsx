@@ -170,7 +170,7 @@ export function FacePin({
       <View style={[{ marginTop: top, borderRadius: size / 2 }, lift]}>
         <FaceDisc face={face} seed={seed} size={size} rim={on ? t.colors.purple : RIM} rimWidth={on ? 4 : 3} onImage={onImage} />
         {more > 0 ? (
-          <View style={{ position: 'absolute', right: -8, top: -4, height: 18, minWidth: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: RIM, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ position: 'absolute', right: -8, top: -4, height: 18, minWidth: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: RIM, backgroundColor: t.colors.purpleFill, alignItems: 'center', justifyContent: 'center' }}>
             <RNText style={tx('800', 9.5, '#FFFFFF')}>+{more}</RNText>
           </View>
         ) : null}
@@ -187,8 +187,8 @@ export function FacePin({
           borderRadius: 999,
           borderWidth: 1,
           borderStyle: skillOnly && !on ? 'dashed' : 'solid',
-          borderColor: on ? t.colors.purpleDeep : skillOnly ? t.colors.muted : t.colors.bg,
-          backgroundColor: on ? t.colors.purpleDeep : skillOnly ? t.colors.surface2 : t.colors.bg,
+          borderColor: on ? t.colors.purpleFill : skillOnly ? t.colors.muted : t.colors.bg,
+          backgroundColor: on ? t.colors.purpleFill : skillOnly ? t.colors.surface2 : t.colors.bg,
         }}
       >
         <RNText numberOfLines={1} style={tx('800', 11, on ? '#FFFFFF' : t.colors.ink, { flexShrink: 1 })}>
@@ -212,7 +212,7 @@ export function FaceStack({ faces, extra, label }: { faces: { face: Face; seed: 
           </View>
         ))}
         {extra > 0 ? (
-          <View style={{ height: 36, minWidth: 36, marginLeft: -9, paddingHorizontal: 7, borderRadius: 18, borderWidth: 2, borderColor: RIM, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ height: 36, minWidth: 36, marginLeft: -9, paddingHorizontal: 7, borderRadius: 18, borderWidth: 2, borderColor: RIM, backgroundColor: t.colors.purpleFill, alignItems: 'center', justifyContent: 'center' }}>
             <RNText style={tx('800', 12, '#FFFFFF')}>+{extra}</RNText>
           </View>
         ) : null}

@@ -79,9 +79,13 @@ begin
   v_escrow := round(v_bid.price_minor * (1 + v_fee));
   if v_escrow <= 0 then raise exception 'That quote has no valid price'; end if;
 
+  -- W3 (debug round 1): a re-hired worker's row becomes the newest again (created_at = now()), so
+  -- every "order by created_at desc" lookup of the task's worker finds them and not someone who
+  -- walked off in between, and their chat view starts again from now (176).
   insert into public.assignments (task_id, bid_id, worker_id, escrow_minor, payout_mode)
   values (v_task.id, v_bid.id, v_bid.worker_id, v_escrow, p_payout_mode)
-  on conflict (task_id, worker_id) do update set escrow_minor = excluded.escrow_minor, status = 'assigned';
+  on conflict (task_id, worker_id) do update
+    set escrow_minor = excluded.escrow_minor, status = 'assigned', created_at = now();
 
   update public.bids set is_locked = true where id = v_bid.id;
 
@@ -137,9 +141,11 @@ begin
     return new;
   end if;
 
+  -- W3: a re-hire becomes the newest assignment again, as in lock_bid.
   insert into public.assignments (task_id, bid_id, worker_id, escrow_minor, payout_mode)
   values (v_task.id, new.id, new.worker_id, v_escrow, v_mode)
-  on conflict (task_id, worker_id) do update set escrow_minor = excluded.escrow_minor, status = 'assigned';
+  on conflict (task_id, worker_id) do update
+    set escrow_minor = excluded.escrow_minor, status = 'assigned', created_at = now();
 
   update public.bids set is_locked = true where id = new.id;
 

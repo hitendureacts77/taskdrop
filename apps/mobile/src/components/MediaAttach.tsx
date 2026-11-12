@@ -248,7 +248,7 @@ export function MediaAttach({
           location tags in your camera settings, or remove them first, if you do not want that.
         </RNText>
         {error && (
-          <RNText style={tx('600', 12, t.colors.signal, { marginTop: 8, lineHeight: 17 })}>
+          <RNText style={tx('600', 12, t.colors.signalDeep, { marginTop: 8, lineHeight: 17 })}>
             {error}
           </RNText>
         )}
@@ -361,7 +361,7 @@ export function MediaAttach({
       )}
 
       {error && (
-        <RNText style={tx('600', 12, t.colors.signal, { marginTop: 8, lineHeight: 17 })}>
+        <RNText style={tx('600', 12, t.colors.signalDeep, { marginTop: 8, lineHeight: 17 })}>
           {error}
         </RNText>
       )}

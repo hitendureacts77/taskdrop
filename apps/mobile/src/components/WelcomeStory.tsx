@@ -426,7 +426,7 @@ function SceneBoth({ p, t }: Scene) {
               transform: [{ translateX: glide(p, flip, flip + 0.12, 0, KNOB) }],
             }}
           >
-            <Animated.View style={{ position: 'absolute', inset: 0, backgroundColor: c.purpleDeep, opacity: toEarn }} />
+            <Animated.View style={{ position: 'absolute', inset: 0, backgroundColor: c.purpleFill, opacity: toEarn }} />
           </Animated.View>
           {label('Hire', 'briefcase', 0, toHire)}
           {label('Earn', 'wallet', KNOB, toEarn)}

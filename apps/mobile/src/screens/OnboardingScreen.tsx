@@ -98,8 +98,13 @@ export function OnboardingScreen() {
       setFree(null);
       return;
     }
-    const id = setTimeout(() => void usernameAvailable(h).then(setFree), 350);
-    return () => clearTimeout(id);
+    // alive: a slow answer for an earlier handle must not overwrite the answer for the one now typed (Y4).
+    let alive = true;
+    const id = setTimeout(() => void usernameAvailable(h).then((ok) => alive && setFree(ok)), 350);
+    return () => {
+      alive = false;
+      clearTimeout(id);
+    };
   }, [username]);
 
   const progress = useRef(new Animated.Value(0)).current;

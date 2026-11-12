@@ -1,4 +1,4 @@
-import { ACCOUNT_CLOSED, apiError } from '../lib/errors';
+import { ACCOUNT_CLOSED, apiError, friendlyMessage, reportError } from '../lib/errors';
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
@@ -14,6 +14,8 @@ import { allowGuestSaves, dropGuestSaves } from '../lib/guestSaves';
 import { adoptGuestWizard, clearWizard, dropGuestWizard } from '../lib/postWizardStore';
 import { count, log, setMonitoringUser } from '../lib/monitoring';
 import { forgetEverything } from '../lib/freshness';
+import { forgetPushRegistration } from '../lib/push';
+import { callApi } from '../lib/gateway';
 
 /**
  * Real Supabase auth: phone OTP via the phone-auth Edge Function, or Google
@@ -94,13 +96,35 @@ export class AuthError extends Error {
 }
 
 async function callFn(body: Record<string, unknown>) {
-  const res = await fetch(FN_URL, {
-    method: 'POST',
-    headers: { apikey: ANON, 'Content-Type': 'application/json', ...clientHeaders(), 'x-taskdrop-install': await installId() },
-    body: JSON.stringify(body),
-  });
-  const json = (await res.json()) as Record<string, unknown>;
-  if (!res.ok) throw new AuthError(String(json.error ?? 'Something went wrong'), json);
+  let res: Response;
+  try {
+    res = await fetch(FN_URL, {
+      method: 'POST',
+      headers: { apikey: ANON, 'Content-Type': 'application/json', ...clientHeaders(), 'x-taskdrop-install': await installId() },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    // No answer at all ("Failed to fetch", "Network request failed"): say it in plain words.
+    reportError(e, 'phone-auth');
+    throw new Error(friendlyMessage({ message: e instanceof Error ? e.message : '' }));
+  }
+  // A gateway error (502/503) answers with an HTML page, not JSON.
+  let json: Record<string, unknown> | null = null;
+  try {
+    const parsed: unknown = await res.json();
+    if (parsed && typeof parsed === 'object') json = parsed as Record<string, unknown>;
+  } catch {
+    json = null;
+  }
+  if (!res.ok) {
+    if (typeof json?.error === 'string' && json.error) throw new AuthError(json.error, json);
+    reportError(new Error(`phone-auth answered ${res.status}`), 'phone-auth');
+    throw new AuthError(friendlyMessage({ message: '', status: res.status }), json ?? {});
+  }
+  if (!json) {
+    reportError(new Error('phone-auth answered with no JSON'), 'phone-auth');
+    throw new Error(friendlyMessage({ message: '' }));
+  }
   return json;
 }
 
@@ -576,6 +600,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Nor this person's drafts, nor anything a guest left on the device (B31).
     const { data } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
     await forgetDraftsOnDevice(data.session?.user.id ?? signedInAs);
+    // This phone stops getting the signed-out person's alerts. Needs the session, so before signOut; never blocks it.
+    try {
+      const token = forgetPushRegistration();
+      const me = data.session?.user.id;
+      if (token && me) {
+        await callApi('forgetPushToken', { token });
+      }
+    } catch (e) {
+      reportError(e, 'signout-push-token');
+    }
     await supabase.auth.signOut();
   }, []);
 

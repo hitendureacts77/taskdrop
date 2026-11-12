@@ -224,7 +224,7 @@ export function WithdrawScreen() {
           })}
         />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}>
-          <RNText style={tx('400', 12, overdrawn ? t.colors.signal : t.colors.muted, { flex: 1 })}>
+          <RNText style={tx('400', 12, overdrawn ? t.colors.signalDeep : t.colors.muted, { flex: 1 })}>
             {overdrawn
               ? `Only ${formatINR(availableMinor)} available.`
               : belowMin

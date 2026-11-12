@@ -309,7 +309,7 @@ export function ChatScreen() {
     style={systemHeader ? { flexDirection: 'row', alignItems: 'center', gap: 10, maxWidth: 230 } : { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}
   >
     <View>
-      <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: t.colors.purpleFill, alignItems: 'center', justifyContent: 'center' }}>
         <RNText style={tx('800', 16, '#FFFFFF')}>{counterpartyName.charAt(0).toUpperCase()}</RNText>
       </View>
       <AvatarPresence lastSeen={other?.last_seen_at} ring={t.colors.surface} />

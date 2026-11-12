@@ -1,6 +1,6 @@
 import { FEES, distanceKm } from "../_shared/rules.ts";
 import {
-  type Args, type Ctx, type Op, MONEY_MAX, bad, countBy, int, isoOrNull, limit, notExpired, num, oneOf, rows,
+  type Args, type Ctx, type Op, MONEY_MAX, RESERVED_USERNAMES, bad, countBy, int, isoOrNull, limit, notExpired, num, oneOf, rows,
   rpcOp, str, strOrNull, strings, take, uuid, uuids,
 } from "./core.ts";
 import { noKeep } from "./publicMemo.ts";
@@ -452,6 +452,8 @@ export const READ_OPS: Record<string, Op> = {
   usernameAvailable: async (ctx, a) => {
     const handle = typeof a.username === "string" ? a.username.trim().toLowerCase() : "";
     if (!/^[a-z0-9_]{3,20}$/.test(handle)) return false;
+    // Saving a reserved name is refused (writes.ts), so it is never shown as free (B69).
+    if (RESERVED_USERNAMES.has(handle)) return false;
     const res = await ctx.db.from("profiles").select("id").eq("username", handle).maybeSingle();
     if (res.error) return false;
     const hit = res.data as { id: string } | null;
@@ -487,17 +489,29 @@ export const READ_OPS: Record<string, Op> = {
     const people = () =>
       inBox(ctx.db.from("profiles").select(cols)
         .not("onboarded_at", "is", null).is("deleted_at", null).not("loc_lat", "is", null).neq("id", ctx.userId), box);
-    const [res, offers] = await Promise.all([
+    // Open service listings, newest first. B68: one newest-500 read across the whole country let a nearby older
+    // listing drop out, so listings with a pin are read inside the same box, and listings with no pin (most of
+    // them: a service is often not tied to a spot) are read on their own. Which helper a listing belongs to, and
+    // how far away they are, still comes from the helper's public area below.
+    const listingQuery = () =>
+      ctx.db.from("tasks").select("id, poster_id, title, benchmark_minor, category, created_at")
+        .eq("status", "OPEN").or(notExpired(ctx)).eq("kind", "service").neq("poster_id", ctx.userId);
+    const [res, pinned, unpinned] = await Promise.all([
       // PostgREST wants the empty array literally: skills=neq.{}
       people().filter("skills", "neq", "{}").order("last_seen_at", { ascending: false, nullsFirst: false }).limit(300),
-      ctx.db.from("tasks").select("id, poster_id, title, benchmark_minor, category")
-        .eq("status", "OPEN").or(notExpired(ctx)).eq("kind", "service").neq("poster_id", ctx.userId)
-        .order("created_at", { ascending: false }).limit(500),
+      inBox(listingQuery(), box).order("created_at", { ascending: false }).limit(500),
+      listingQuery().is("loc_lat", null).order("created_at", { ascending: false }).limit(500),
     ]);
     // Listings fail soft: helpers still show, just without a service.
-    const listings = offers.error
-      ? []
-      : ((offers.data ?? []) as Row[]).filter((t) => typeof t.poster_id === "string").map((t) => ({
+    // With no box (a huge radius) both reads can return the same unpinned listing: keep it once.
+    const offerById = new Map<string, Row>();
+    for (const r of [pinned, unpinned]) {
+      if (r.error) continue;
+      for (const t of (r.data ?? []) as Row[]) if (typeof t.poster_id === "string") offerById.set(String(t.id), t);
+    }
+    const listings = [...offerById.values()]
+      .sort((x, y) => String(y.created_at ?? "").localeCompare(String(x.created_at ?? "")))
+      .map((t) => ({
         id: String(t.id), poster_id: String(t.poster_id), title: String(t.title ?? ""),
         price_minor: Number(t.benchmark_minor ?? 0), category: (t.category as string | null) ?? null,
       }));
@@ -505,9 +519,15 @@ export const READ_OPS: Record<string, Op> = {
     for (const l of listings) byPoster.set(l.poster_id, [...(byPoster.get(l.poster_id) ?? []), l]);
     const found = rows<Row & { id: string; loc_lat: number; loc_lng: number }>(res);
     const seen = new Set(found.map((p) => p.id));
-    const sellersOnly = [...byPoster.keys()].filter((id) => !seen.has(id)).slice(0, 300);
-    if (sellersOnly.length > 0) {
-      const more = await people().in("id", sellersOnly);
+    // Sellers with a listing pinned inside the box are asked for first, so unpinned listings from anywhere cannot
+    // crowd them out of the 300.
+    const posterIds = (r: typeof pinned) => (r.error ? [] : ((r.data ?? []) as Row[]).map((t) => t.poster_id));
+    const sellersOnly = [...new Set([...posterIds(pinned), ...posterIds(unpinned)])]
+      .filter((id): id is string => typeof id === "string" && !seen.has(id)).slice(0, 300);
+    // Up to 300 ids, asked 100 at a time so the request address stays short.
+    const chunks: string[][] = [];
+    for (let i = 0; i < sellersOnly.length; i += 100) chunks.push(sellersOnly.slice(i, i + 100));
+    for (const more of await Promise.all(chunks.map((ids) => people().in("id", ids)))) {
       if (!more.error) found.push(...((more.data ?? []) as typeof found));
     }
     return found
@@ -576,14 +596,16 @@ export const READ_OPS: Record<string, Op> = {
    * categories they did: the Regulars list and the "offer it to them first" hint.
    */
   myRegulars: async (ctx) => {
-    const done = rows<{ category: string | null; completed_at: string | null; assignments: { worker_id: string }[] | null }>(
-      await ctx.db.from("tasks").select("category, completed_at, assignments(worker_id)")
+    const done = rows<{ category: string | null; completed_at: string | null; assignments: { worker_id: string; status: string }[] | null }>(
+      await ctx.db.from("tasks").select("category, completed_at, assignments(worker_id, status)")
         .eq("poster_id", ctx.userId).in("status", ["COMPLETED", "AUTO_COMPLETED"])
         .order("completed_at", { ascending: false }).limit(200),
     );
     const byWorker = new Map<string, { jobs: number; categories: Set<string>; lastAt: string | null }>();
     for (const t of done) {
       for (const as of t.assignments ?? []) {
+        // Only the helper who was paid did the job: one who backed out (refunded) and was replaced did not (B67).
+        if (as.status !== "released") continue;
         const seen = byWorker.get(as.worker_id) ?? { jobs: 0, categories: new Set<string>(), lastAt: t.completed_at };
         seen.jobs += 1;
         if (t.category) seen.categories.add(t.category);

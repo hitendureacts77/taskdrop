@@ -39,7 +39,7 @@ export const PATTERNS: RegExp[] = [
   /(?:\+?\d[\s\-.()]*){8,}\d/g,
   // Social handles written out: "@ravi_fixes", "insta: ravi", "whatsapp me on".
   /(?:^|\s)@[A-Za-z0-9_.]{3,}/g,
-  /\b(?:whats\s?app|insta(?:gram)?|telegram|snap(?:chat)?|call me on|ping me on)\b\s*[:\-]?\s*\S*/gi,
+  /\b(?:whats\s?app|insta(?:gram)?|telegram|snapchat|call me on|ping me on)\b\s*[:\-]?\s*\S*/gi,
 ];
 
 export function maskContacts(text: string): { text: string; masked: boolean } {

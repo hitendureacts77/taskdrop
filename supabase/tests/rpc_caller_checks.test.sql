@@ -91,7 +91,8 @@ begin
        'is_admin', 'has_role', 'is_task_poster', 'user_bid_on_task', 'user_assigned_task', 'task_open_for_bid',
        'can_use_task_thread', 'can_read_task_media', 'has_assignment', 'is_blocking', 'blocked_between',
        'bid_is_blocked', 'task_is_hidden', 'review_is_hidden', 'message_is_hidden', 'is_money_blind',
-       'assert_not_money_blind', 'setting_num', 'ad_ectr', 'is_crew_member', 'user_working_task'
+       'assert_not_money_blind', 'setting_num', 'ad_ectr', 'is_crew_member', 'user_working_task',
+       'can_read_task_message'
      ]);
   if cardinality(leaked) > 0 then
     raise exception 'T7: private SECURITY DEFINER functions the app roles can execute: %', leaked;

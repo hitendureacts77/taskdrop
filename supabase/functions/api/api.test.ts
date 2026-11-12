@@ -514,8 +514,8 @@ await t("tasks near a point are filtered and ordered by distance on the server",
 });
 
 /**
- * A fake that runs the simple filters (eq, neq, gte, lte, is, not is, order, limit) on in-memory rows, so a test can
- * show what a capped read leaves out (B34). Other steps (select, or, filter) pass every row.
+ * A fake that runs the simple filters (eq, neq, gte, lte, is, not is, in, filter neq {}, order, limit) on in-memory
+ * rows, so a test can show what a capped read leaves out (B34, B68). Other steps (select, or) pass every row.
  */
 function tableFake(tables: Record<string, Record<string, unknown>[]>) {
   return fake((c) => {
@@ -529,6 +529,8 @@ function tableFake(tables: Record<string, Record<string, unknown>[]>) {
       else if (name === "lte") list = list.filter((r) => r[col] != null && (r[col] as number) <= (a as number));
       else if (name === "is" && a === null) list = list.filter((r) => r[col] == null);
       else if (name === "not" && a === "is" && b === null) list = list.filter((r) => r[col] != null);
+      else if (name === "in") list = list.filter((r) => (a as unknown[]).includes(r[col]));
+      else if (name === "filter" && a === "neq" && b === "{}") list = list.filter((r) => Array.isArray(r[col]) && (r[col] as unknown[]).length > 0);
       else if (name === "order") {
         const asc = (a as { ascending?: boolean } | undefined)?.ascending !== false;
         list.sort((x, y) => (String(x[col] ?? "") < String(y[col] ?? "") ? -1 : String(x[col] ?? "") > String(y[col] ?? "") ? 1 : 0) * (asc ? 1 : -1));
@@ -641,6 +643,60 @@ await t("helpers near a point carry their newest open service, and sellers witho
   const tasks = f.calls.find((c) => c.table === "tasks")!;
   assert.ok(tasks.steps.some(([n, args]) => n === "eq" && args[0] === "status" && args[1] === "OPEN"));
   assert.ok(tasks.steps.some(([n, args]) => n === "neq" && args[0] === "poster_id"));
+});
+
+await t("B68: workersNear finds a nearby seller's older listing behind 600 newer far-away ones, and keeps unpinned listings", async () => {
+  const listing = (id: string, poster: string, at: { lat: number; lng: number } | null, created: string) => ({
+    id, poster_id: poster, status: "OPEN", kind: "service", title: id, benchmark_minor: 50000, category: null,
+    loc_lat: at?.lat ?? null, loc_lng: at?.lng ?? null, created_at: created,
+  });
+  const far = Array.from({ length: 600 }, (_, i) =>
+    listing(`far-${i}`, `far-seller-${i}`, { lat: 19.07, lng: 72.87 }, `2026-10-05T09:${String(i % 60).padStart(2, "0")}:00Z`));
+  const person = (id: string, skills: string[], lat: number, lng: number) =>
+    ({ id, onboarded_at: "2026-01-01", deleted_at: null, skills, loc_lat: lat, loc_lng: lng, last_seen_at: "2026-09-01T00:00:00Z" });
+  const f = tableFake({
+    profiles: [person("seller", [], 17.45, 78.36), person("helper", ["Plumbing"], 17.46, 78.35)],
+    tasks: [
+      ...far,
+      ...Array.from({ length: 600 }, (_, i) => listing(`remote-${i}`, `remote-seller-${i}`, null, `2026-10-04T09:${String(i % 60).padStart(2, "0")}:00Z`)),
+      listing("near-old", "seller", { lat: 17.45, lng: 78.36 }, "2026-08-01T00:00:00Z"),
+      listing("unpinned", "helper", null, "2026-10-05T10:00:00Z"),
+    ],
+  });
+  const r = await runOp("workersNear", { ...KONDAPUR, radiusKm: 5, limit: 12 }, ctx(f));
+  assert.ok(r.ok);
+  const byId = Object.fromEntries((r.data as { id: string; top_service: { id: string } | null }[]).map((x) => [x.id, x]));
+  assert.deepEqual(Object.keys(byId).sort(), ["helper", "seller"]);
+  assert.equal(byId.seller!.top_service?.id, "near-old");
+  assert.equal(byId.helper!.top_service?.id, "unpinned");
+});
+
+await t("B68: workersNear asks for sellers 100 ids at a time", async () => {
+  const sellers = Array.from({ length: 250 }, (_, i) => `seller-${i}`);
+  const f = fake((c) => {
+    if (c.table === "tasks") return { data: sellers.map((s) => ({ id: `s-${s}`, poster_id: s, title: "x", benchmark_minor: 100 })), error: null };
+    const asked = steps(c, "in")[0];
+    if (asked) return { data: (asked[1] as string[]).map((id) => ({ id, skills: [], loc_lat: 17.45, loc_lng: 78.36 })), error: null };
+    return { data: [], error: null };
+  });
+  const r = await runOp("workersNear", { ...KONDAPUR, radiusKm: 5, limit: 50 }, ctx(f));
+  assert.ok(r.ok);
+  const asks = f.calls.filter((c) => c.table === "profiles" && steps(c, "in").length > 0).map((c) => (steps(c, "in")[0]![1] as string[]).length);
+  assert.deepEqual(asks, [100, 100, 50]);
+  assert.equal((r.data as unknown[]).length, 50);
+});
+
+await t("B69: usernameAvailable says a reserved name is taken, as saving it would fail", async () => {
+  const f = fake(() => ({ data: null, error: null }));
+  for (const name of ["admin", "Admin", " support ", "taskdrop"]) {
+    const r = await runOp("usernameAvailable", { username: name }, ctx(f));
+    assert.ok(r.ok);
+    assert.equal(r.data, false, name);
+  }
+  assert.equal(f.calls.length, 0);
+  const free = await runOp("usernameAvailable", { username: "asha_k" }, ctx(f));
+  assert.ok(free.ok);
+  assert.equal(free.data, true);
 });
 
 await t("a helper's services are their open listings, asked by id", async () => {

@@ -32,6 +32,7 @@ import { NearYou } from '../components/NearYou';
 import { JobsNearHero } from '../components/JobsNearHero';
 import { NearMap, type NearMapLayer } from '../components/NearMap';
 import { DropFilters, FiltersButton, FiltersPanel, JobChips, QuickChip, WorkSwitch } from '../components/MapFilterParts';
+import { findWorkSearches, joinFindWork } from '../lib/findWorkRead';
 import { changedFilters, clearJobFilters, filterList, narrowsJobs, type MapFilters } from '../lib/mapFilters';
 import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
 import { LocationSheet } from '../components/LocationSheet';
@@ -646,11 +647,18 @@ function FindWork({
     void listSavedTaskIds().then(setSavedIds).catch(() => {});
   }, [userId, guest]);
 
+  const atLat = at?.lat;
+  const atLng = at?.lng;
   const load = useCallback(async () => {
     // One request: the posts and their posters together (it was two back to back, once 13 s on a busy server).
-    // 200 (the server's most), like the map, so the shared filters find the same jobs on both (D27).
-    return searchTasksWithPosters({ q: query || undefined, limit: 200, kind: 'request' });
-  }, [query, focusTick]);
+    // 200 (the server's most), like the map, so the shared filters find the same jobs on both (D27). With a place
+    // the api narrows to `km` around it before it caps (Y1: the newest 200 nationwide hid older nearby jobs and
+    // "Nearest" / "Best pay" only sorted that slice), and remote jobs, which a radius search leaves out, come
+    // from a second read.
+    const { near, wide } = findWorkSearches(atLat != null && atLng != null ? { lat: atLat, lng: atLng } : null, filters.km, query);
+    const [nearRows, wideRows] = await Promise.all([near ? searchTasksWithPosters(near) : null, searchTasksWithPosters(wide)]);
+    return joinFindWork(nearRows, wideRows);
+  }, [query, focusTick, atLat, atLng, filters.km]);
 
   useEffect(() => {
     let alive = true;
@@ -685,8 +693,6 @@ function FindWork({
     }
   };
 
-  const atLat = at?.lat;
-  const atLng = at?.lng;
   const shown = useMemo(
     () => (rows ? filterList(rows, atLat != null && atLng != null ? { lat: atLat, lng: atLng } : null, filters) : null),
     [rows, atLat, atLng, filters],

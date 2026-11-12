@@ -329,7 +329,7 @@ export function PayoutDestinationSheet({
                 )}
 
                 {error && (
-                  <RNText style={tx('600', 12, t.colors.signal, { marginTop: 12, lineHeight: 18 })}>
+                  <RNText style={tx('600', 12, t.colors.signalDeep, { marginTop: 12, lineHeight: 18 })}>
                     {error}
                   </RNText>
                 )}

@@ -13,6 +13,7 @@ import { Drop, Ripples } from '../components/Ripples';
 import { HeroBackground } from '../components/Hero';
 import { FloatCard } from '../components/BrandArt';
 import { useLayout } from '../lib/layout';
+import { isReadyMobile, normalizeMobileInput } from '../lib/phone';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { BottomSheet, Field, PrimaryButton } from '../components/kit';
@@ -121,7 +122,7 @@ export function AccessScreen() {
     Animated.timing(fill, { toValue: phone.length / 10, duration: 160, useNativeDriver: false }).start();
   }, [phone.length, fill]);
 
-  const numberReady = phone.length === 10;
+  const numberReady = isReadyMobile(phone);
   const complete = otp.length === 6;
 
   // Where to go once a session exists. Returning people go straight in; a
@@ -443,7 +444,7 @@ export function AccessScreen() {
                   <TextInput
                     ref={phoneRef}
                     value={spaced(phone)}
-                    onChangeText={(v) => setPhone(v.replace(/[^0-9]/g, '').slice(0, 10))}
+                    onChangeText={(v) => setPhone(normalizeMobileInput(v))}
                     onFocus={() => setPhoneFocused(true)}
                     onBlur={() => setPhoneFocused(false)}
                     onSubmitEditing={() => void sendCode()}
@@ -454,7 +455,6 @@ export function AccessScreen() {
                     inputMode="numeric"
                     autoComplete="tel-national"
                     textContentType="telephoneNumber"
-                    maxLength={11}
                     accessibilityLabel="Mobile number"
                     style={tx('700', 28, t.colors.ink, { flex: 1, minWidth: 0, padding: 0, letterSpacing: 1.2 })}
                   />

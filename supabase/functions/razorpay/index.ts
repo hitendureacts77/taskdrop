@@ -62,6 +62,24 @@ async function fundTask(admin: ReturnType<typeof createClient>, paymentId: strin
   }
 }
 
+/** Credit a paid top-up. credit_topup is idempotent per payment (it checks credited_at under a row lock). */
+async function creditTopup(admin: ReturnType<typeof createClient>, paymentId: string, step: string): Promise<void> {
+  const { error } = await admin.rpc("credit_topup", { p_payment_id: paymentId });
+  if (error) {
+    await logServer("error", "razorpay", "paid but could not credit top-up", { payment_id: paymentId, error: error.message });
+    await captureServerError(error, { fn: "razorpay", step });
+  }
+}
+
+/** Switch on the campaign a paid promotion payment was for (migration 177). Idempotent in the database. */
+async function activatePromotion(admin: ReturnType<typeof createClient>, paymentId: string, step: string): Promise<void> {
+  const { error } = await admin.rpc("activate_promotion_from_payment", { p_payment_id: paymentId });
+  if (error) {
+    await logServer("error", "razorpay", "paid but could not switch on the promotion", { payment_id: paymentId, error: error.message });
+    await captureServerError(error, { fn: "razorpay", step });
+  }
+}
+
 /** Whether the task behind a payment is actually funded right now. */
 async function taskIsFunded(
   admin: ReturnType<typeof createClient>,
@@ -141,6 +159,8 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
     const purpose = body.purpose === "topup" ? "topup" : body.purpose === "promotion" ? "promotion" : "escrow";
     // Which task the payment row is tied to. A promotion takes it from the campaign, not from the caller.
     let paymentTaskId: string | null = body.taskId ?? null;
+    // The campaign a promotion link is for, kept on the payment so the webhook can switch it on (migration 177).
+    let paymentPromotionId: string | null = null;
 
     // The admin panel's "top-ups" switch (migration 092), decided here: the
     // money comes in through this function, not the api one. If the switches
@@ -227,6 +247,7 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
       if (promo.status !== "pending") return json({ error: "That campaign is no longer waiting for payment" }, 409);
       amount = Number(promo.amount_minor);
       paymentTaskId = promo.task_id;
+      paymentPromotionId = promo.id;
     }
 
     if (!Number.isFinite(amount) || amount <= 0) return json({ error: "Invalid amount" }, 400);
@@ -281,6 +302,8 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
         amount_minor: amount,
         provider_ref: link.id,
         link_url: link.short_url,
+        // Only promotion rows carry it, so escrow and top-up inserts never depend on the new column.
+        ...(paymentPromotionId ? { promotion_id: paymentPromotionId } : {}),
       })
       .select()
       .single();
@@ -312,6 +335,10 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
         await fundTask(admin, row.id, row.task_id);
         funded = await taskIsFunded(admin, row.task_id);
       }
+      // A top-up whose credit failed the first time (W5), and a paid promotion not yet running (W1):
+      // both database functions are safe to ask again.
+      if (row.purpose === "topup" && !row.credited_at) await creditTopup(admin, row.id, "credit_topup_retry");
+      if (row.purpose === "promotion") await activatePromotion(admin, row.id, "activate_promotion_retry");
       return json({ ok: true, status: "paid", alreadySettled: true, funded });
     }
 
@@ -355,13 +382,10 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
     // withdrawable. credit_topup is idempotent per payment, so this and the
     // webhook can both call it. Escrow holds are attached to the assignment
     // when the quote is locked, so nothing to move here.
-    if (paid && row.purpose === "topup") {
-      const { error: creditErr } = await admin.rpc("credit_topup", { p_payment_id: row.id });
-      if (creditErr) {
-        await logServer("error", "razorpay", "paid but could not credit top-up", { payment_id: row.id, error: creditErr.message });
-        await captureServerError(creditErr, { fn: "razorpay", step: "credit_topup" });
-      }
-    }
+    if (paid && row.purpose === "topup") await creditTopup(admin, row.id, "credit_topup");
+    // A settled promotion payment switches its campaign on here too (W1), so it does not depend on the
+    // Promote screen still being open. The app's own activate call is then a harmless repeat.
+    if (paid && row.purpose === "promotion") await activatePromotion(admin, row.id, "activate_promotion");
     if (paid) await logServer("info", "razorpay", "payment settled by app check", { payment_id: row.id, purpose: row.purpose });
 
     // Settling the payment and funding the task are two different things, and

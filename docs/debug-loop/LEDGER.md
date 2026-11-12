@@ -13,6 +13,7 @@ Every bug the debug loop has seen, in one place. The plan is in `docs/DEBUGGING_
 | 0 | 12 Nov 2026 | 122965a | setup: baseline `npm run check` green (102 + 103 tests) | | | | 0 / 1 / 5 / 8 | | No |
 | 1 | 12 Nov 2026 | 122965a | A+B+C sweep of the 11 open bugs (code-only; staging recheck pending) | 0 | 0 (10 fixed, not rechecked) | 0 | 0 / 0 / 0 / 4 after merge | not run twice yet | No |
 | 2 | 12 Nov 2026 | 09b8338 | code hunt: money and task life, access and data exposure, app logic | 22 (B43-B64: 2 High, 11 Medium, 9 Low) | 0 (fixes written, not rechecked) | 0 | B55 M, B63 L open for the owner | not run twice yet | No |
+| 3 | 12 Nov 2026 | 07cdb1b | code hunt: alerts, jobs and webhooks; worker flow and search; screens round 2 had not read | 19 (B67-B85: 2 High, 9 Medium, 8 Low, B85 for the owner) | 0 (fixes written, not rechecked) | 0 | B85 needs the owner; B54/B55/B56 open from round 2 | not run twice yet | No |
 
 ## Round 1 results (12 Nov 2026, PR 336)
 
@@ -69,8 +70,36 @@ Found by the round-2 security review of these fixes (older code, not fixed yet):
 
 | Bug | Level | What | Status |
 |---|---|---|---|
-| B65 | Medium | `cancel_task` pays the worker the 5% fine into their wallet even when the job was paid by card; for a card job the refund trigger returns early, so the fine is not taken out of the poster's refund (TaskDrop pays it) | New, to confirm on staging data, then fix in round 3 |
-| B66 | Low | `private.blocked_between` can be executed by `anon` (tells anyone whether two accounts blocked each other) | New, round 3 |
+| B65 | Medium | `cancel_task` pays the worker the 5% fine into their wallet even when the job was paid by card; for a card job the refund trigger returns early, so the fine is not taken out of the poster's refund (TaskDrop pays it) | Not a bug (checked 12 Nov): the card refund is worked out by `escrow_refund_due` as paid minus the logged fine, so TaskDrop does not pay the fine itself; proved on staging in a rolled-back transaction. A test now locks that in |
+| B66 | Low | `private.blocked_between` can be executed by `anon` (tells anyone whether two accounts blocked each other) | Fixed, not rechecked: migration 174 revokes it from anon |
+
+## Round 3 results (12 Nov 2026, same PR 336)
+
+Hunters: alerts, jobs and webhooks (Opus); the worker flow and search (Opus); the screens round 2 had not read (Sonnet). B65 turned out not to be a bug and B66 is fixed (see above). New bugs from B67; every fix is "Fixed, not rechecked" until PR 336 is merged and it is checked on staging.
+
+| Bug | Level | What | Status |
+|---|---|---|---|
+| B67 | Medium | A worker who walks off still gets credit (jobs done, earnings, streaks, regulars, top helpers) when someone else finishes the job: the counters ignore the assignment status | Fixed, not rechecked: migration 175 |
+| B68 | Low | The helper map reads only the newest 500 service listings nationwide, so a nearby older listing can be missing (B34 pattern) | Fixed, not rechecked: `reads.ts` |
+| B69 | Low | The username check says "Available" for reserved names (e.g. admin), then Save fails | Fixed, not rechecked: `reads.ts` |
+| B70 | Medium | Find work reads the newest 200 open requests nationwide, then filters by distance on the phone (B34 pattern on this screen) | Fixed, not rechecked: `ExploreScreen.tsx` |
+| B71 | High | Compare picks and highlights offers by the worker's name; with two same-named workers, the poster can hire and pay the wrong offer | Fixed, not rechecked: `CompareScreen.tsx` |
+| B72 | High | A pasted +91 phone number is cut to a different 10-digit number, so the sign-in code goes to another person | Fixed, not rechecked: `lib/phone.ts` |
+| B73 | Medium | Phone sign-in shows raw errors ("JSON Parse error") on a bad server reply | Fixed, not rechecked: `AuthProvider.tsx` |
+| B74 | Medium | Sign-out never removes the device's push token, so the old account keeps getting alerts on a shared phone | Fixed, not rechecked: `AuthProvider.tsx`, `push.ts`, new api op `forgetPushToken` |
+| B75 | Medium | The Light/Dark choice is not saved across app restarts | Fixed, not rechecked: `ThemeProvider.tsx` |
+| B76 | Medium | Review form pre-ticks 5 stars and praise tags, so a 1-star review is posted with praise | Fixed, not rechecked: `ReviewScreen.tsx` |
+| B77 | Medium | Dark-mode Earn text (`purpleDeep`) fails 4.5:1 contrast | Fixed, not rechecked: `theme.ts` |
+| B78 | Low-Medium | Coral error text on white is 3.15:1 (needs `signalDeep`) at 14 sites | Fixed, not rechecked |
+| B79 | Low | Username check can show a stale answer; masking turns the word "snap" into dots; Compare shows "1 hrs" and "0.0" ratings | Fixed, not rechecked |
+| B80 | Medium-High | A paid promotion switches on only if the payer comes back to the same screen (webhook does not activate it) | Fixed, not rechecked: migration 177 + razorpay functions |
+| B81 | Medium | Chat and status notifications go to a worker who already walked off | Fixed, not rechecked: migration 176 |
+| B82 | Medium | Re-hiring a worker after others walked off prices the card link and settles clearing against the wrong worker | Fixed, not rechecked: migration 167 |
+| B83 | Medium | A newly hired worker can read the previous worker's whole chat | Fixed, not rechecked: migration 176 |
+| B84 | Low-Medium | A paid top-up whose credit failed once is never credited | Fixed, not rechecked: webhook + razorpay function |
+| B85 | Low-Medium | An escrow refund is recorded as done when requested; a later `refund.failed` from Razorpay is never seen | Confirmed, needs the owner (Razorpay webhook subscription and a new status column) |
+
+Questions for the owner (no bug claimed): after a revision the worker can mark the job done again without new proof (design?); reviews can be edited forever; a poster can ask for unlimited revisions with no timer; "five stars" streak counts hidden reviews; the withdraw screens promise "within 1 working day" while payouts are paused.
 
 Not bugs: migrations 162-166 not on staging yet (they apply when PR 336 merges).
 

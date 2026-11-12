@@ -1,5 +1,5 @@
 import {
-  type Args, type Ctx, type DbError, type Op, MONEY_MAX, OpError, bad, bool, coordOrNull, int, isoOrNull, nowIso, num, numOrNull, oneOf, priceMinor,
+  type Args, type Ctx, type DbError, type Op, MONEY_MAX, OpError, RESERVED_USERNAMES, bad, bool, coordOrNull, int, isoOrNull, nowIso, num, numOrNull, oneOf, priceMinor,
   rows, rpcOp, str, strOrNull, strings, take, toOpError, uuid, uuidOrNull, uuids,
 } from "./core.ts";
 import { assertOwnImage, isMediaRef } from "./media.ts";
@@ -157,12 +157,6 @@ async function noteDevice(ctx: Ctx, a: Args, push: boolean) {
     p_push: push,
   }));
 }
-
-/** Names that would pass for the team or the product. Found 2026-10-24: "admin", "support" and "taskdrop" were all free to take. */
-const RESERVED_USERNAMES = new Set([
-  "admin", "administrator", "support", "help", "taskdrop", "task_drop", "team", "staff", "moderator", "mod", "official",
-  "system", "root", "security", "billing", "payments", "payment", "wallet", "careers", "legal", "privacy", "terms",
-]);
 
 /** A deadline, or null. Not already past (a few minutes of clock difference are allowed), and not years away. */
 function dueAtOrNull(a: Args): string | null {
@@ -696,6 +690,12 @@ export const WRITE_OPS: Record<string, Op> = {
         /* a device record must never undo a registered token */
       }
     }
+    return null;
+  },
+
+  /** Sign-out: this phone stops getting the signed-out person's alerts. Only the caller's own row can go (RLS + the user_id filter). */
+  forgetPushToken: async ({ db, userId }, a) => {
+    take(await db.from("push_tokens").delete().eq("token", str(a, "token", 300)).eq("user_id", userId));
     return null;
   },
 

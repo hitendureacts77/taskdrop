@@ -19,6 +19,8 @@ import { TaskDescription } from '../components/TaskDescription';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { KeyboardSafe } from '../components/KeyboardSafe';
+import { hoursLabel } from '../lib/hoursLabel';
+import { offerKey, pickOffer } from '../lib/pickOffer';
 
 type Quote = {
   bidId?: string;
@@ -120,7 +122,7 @@ export function CompareScreen() {
             pro: false,
             meta: jobsLabel(b.profiles?.worker_rating_count ?? 0),
             priceMinor: b.price_minor,
-            eta: `${Math.round(b.time_limit_minutes / 60)} hrs`,
+            eta: hoursLabel(b.time_limit_minutes),
             lastSeen: b.profiles?.last_seen_at ?? null,
             chosen: b.is_locked,
           })),
@@ -145,7 +147,7 @@ export function CompareScreen() {
   // Once an offer is chosen the task is no longer OPEN: show that, not a live button.
   const decided = lockedBidId !== null || (task != null && task.status !== 'OPEN');
   const chosenRow = sorted.find((r) => r.chosen || (lockedBidId !== null && r.bidId === lockedBidId));
-  const pickRow = decided ? chosenRow : (sorted.find((r) => r.who === picked) ?? sorted[0]);
+  const pickRow = decided ? chosenRow : pickOffer(sorted, picked);
 
   // Sample navigation has no task behind it, so fall back to the design copy.
   const quoteCount = rows?.length ?? sorted.length;
@@ -265,13 +267,13 @@ export function CompareScreen() {
         </View>
 
         {sorted.map((row, i) => {
-          const selected = row.who === pickRow?.who;
+          const selected = pickRow !== undefined && offerKey(row) === offerKey(pickRow);
           const isChosen = decided && selected;
           return (
-            <FadeIn key={row.who} duration={340} delay={i * 70} style={{ marginTop: 11 }}>
+            <FadeIn key={offerKey(row)} duration={340} delay={i * 70} style={{ marginTop: 11 }}>
               <Pressy
                 onPress={() => {
-                  if (!decided) setPicked(row.who);
+                  if (!decided) setPicked(offerKey(row));
                 }}
                 scaleTo={0.985}
                 style={{
@@ -300,7 +302,9 @@ export function CompareScreen() {
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
                       <RNText style={tx('700', 15, t.colors.ink)}>{row.who}</RNText>
-                      <RNText style={tx('400', 12, t.colors.muted)}>★ {row.rating.toFixed(1)}</RNText>
+                      {row.rating > 0 ? (
+                        <RNText style={tx('400', 12, t.colors.muted)}>★ {row.rating.toFixed(1)}</RNText>
+                      ) : null}
                       {row.pro && (
                         <View style={{ backgroundColor: t.colors.accent, borderRadius: 4, paddingVertical: 2, paddingHorizontal: 5 }}>
                           <RNText style={tx('800', 9, t.colors.onAccent, { letterSpacing: 1.08 })}>PRO</RNText>
@@ -383,7 +387,7 @@ export function CompareScreen() {
               <RNText style={tx('400', 12, t.colors.muted)}>How an offer will appear</RNText>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: 12 }}>
-              <View style={{ width: 38, height: 38, borderRadius: 999, backgroundColor: t.colors.purpleDeep, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 38, height: 38, borderRadius: 999, backgroundColor: t.colors.purpleFill, alignItems: 'center', justifyContent: 'center' }}>
                 <RNText style={tx('800', 15, '#FFFFFF')}>R</RNText>
               </View>
               <View style={{ flex: 1 }}>
