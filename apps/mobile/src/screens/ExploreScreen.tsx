@@ -4,7 +4,8 @@ import { View, Text as RNText, ScrollView, TextInput, Pressable, Animated, Platf
 import { Screen, ScreenList, cardSurface } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
-import { BottomSheet, EmptyState, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../components/kit';
+import { BottomSheet, EmptyState, LoadFailed, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../components/kit';
+import { reportError } from '../lib/errors';
 import { TrendingSection } from '../components/Trending';
 import { WorkCard, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
@@ -596,6 +597,9 @@ function FindWork({
   const filters = useJobFilters();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [rows, setRows] = useState<TaskWithPoster[] | null>(null);
+  // True when the last load failed (offline, server hiccup): an empty list is then
+  // "could not load", not "no tasks match".
+  const [failed, setFailed] = useState(false);
   const focusTick = useFocusTick();
   // Tell the screen what is searched, so the map view shows the same jobs.
   useEffect(() => onFilter({ query }), [query]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -651,9 +655,19 @@ function FindWork({
   useEffect(() => {
     let alive = true;
     setRows(null);
+    setFailed(false);
     load()
-      .then((r) => alive && setRows(r))
-      .catch(() => alive && setRows([]));
+      .then((r) => {
+        if (!alive) return;
+        setRows(r);
+        setFailed(false);
+      })
+      .catch((e) => {
+        if (!alive) return;
+        reportError(e, 'explore.load');
+        setRows([]);
+        setFailed(true);
+      });
     return () => {
       alive = false;
     };
@@ -663,6 +677,7 @@ function FindWork({
     setRefreshing(true);
     try {
       setRows(await load());
+      setFailed(false);
     } catch {
       /* keep */
     } finally {
@@ -794,6 +809,8 @@ function FindWork({
 
               {shown === null ? (
                 [0, 1, 2].map((i) => <Shimmer key={i} height={120} style={{ marginTop: 12 }} />)
+              ) : shown.length === 0 && failed ? (
+                <LoadFailed onRetry={() => void refresh()} />
               ) : shown.length === 0 ? (
                 <View style={{ gap: 12 }}>
                   <EmptyState

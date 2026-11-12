@@ -693,7 +693,8 @@ function MyWork() {
   );
 
   const w = stats && stats.role === 'worker' ? stats : null;
-  const success = w && w.quotesPlaced > 0 ? Math.round((w.quotesWon / w.quotesPlaced) * 100) : 0;
+  // No stats yet (or they failed), or no offers sent: a dash like the other tiles, not a made-up 0%.
+  const success = w && w.quotesPlaced > 0 ? `${Math.round((w.quotesWon / w.quotesPlaced) * 100)}%` : '–';
 
   // A pending quote opens back up for editing: price, pitch, hours, date.
   const editQuote = async (taskId?: string) => {
@@ -736,7 +737,7 @@ function MyWork() {
           <StatTile icon="wallet" label="Earned" value={w ? formatINR(w.earnedMinor) : '–'} />
           <StatTile icon="check" label="Completed" value={String(w?.jobsDone ?? '–')} tone="blue" />
           <StatTile icon="play" label="Active" value={String(w?.jobsLive ?? '–')} tone="gold" />
-          <StatTile icon="trending" label="Success" value={`${success}%`} tone="purple" />
+          <StatTile icon="trending" label="Success" value={success} tone="purple" />
         </View>
 
         <View style={{ marginTop: 16 }}>

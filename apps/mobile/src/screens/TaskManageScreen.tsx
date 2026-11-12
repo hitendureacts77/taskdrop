@@ -44,6 +44,8 @@ import { useLayout } from '../lib/layout';
 import { formatDeadline } from '../components/DateTimeSheet';
 import { useFees } from '../lib/useFees';
 import { reportError } from '../lib/errors';
+import { countOf } from '../lib/plural';
+import { posterEscrowCharge } from '@taskdrop/rules';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { TaskOptionsPanel } from '../components/TaskOptionsPanel';
 import { TaskQuestions } from '../components/TaskQuestions';
@@ -170,7 +172,7 @@ export function TaskManageScreen() {
   const row = posterRow(task, bids.length);
   const milestones = milestonesOf(task.milestones);
   const base = task.locked_minor ?? task.benchmark_minor;
-  const escrow = assignment?.escrow_minor ?? Math.round(base * (1 + fees.posterFee));
+  const escrow = assignment?.escrow_minor ?? posterEscrowCharge(base, fees.posterFee);
   const left = timeLeft(task.due_at);
   // City Hunt (D19): while it is open the page is the Hunt's finds, not offers.
   const hunting = isHunt(task) && task.status === 'OPEN';
@@ -254,7 +256,8 @@ export function TaskManageScreen() {
       } catch {
         flash('Closed. Your refund is being processed — it can take a few days.');
       }
-      await load();
+      // The task is closed; if the screen cannot refresh now, the next pull-down will.
+      await load().catch((e) => reportError(e, 'task-manage'));
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not close that task');
     } finally {
@@ -387,7 +390,7 @@ export function TaskManageScreen() {
               <RNText style={tx('700', 15, t.colors.ink)}>{worker.display_name}</RNText>
               <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
                 {worker.worker_rating_count > 0
-                  ? `★ ${Number(worker.worker_rating_avg).toFixed(1)} · ${worker.worker_rating_count} reviews`
+                  ? `★ ${Number(worker.worker_rating_avg).toFixed(1)} · ${countOf(worker.worker_rating_count, 'review')}`
                   : 'New worker'}
               </RNText>
             </View>
@@ -651,7 +654,7 @@ export function TaskManageScreen() {
         title={selecting ? `Select ${selecting.name}?` : ''}
         message={
           selecting
-            ? `${rupees(Math.round(selecting.priceMinor * (1 + fees.posterFee)) / 100)} (the offer plus the ${Math.round(fees.posterFee * 100)}% service fee) is taken from your wallet and locked in this task until it is done. If the task is cancelled or not completed, all of it comes back. Phone numbers are shared once the work starts.`
+            ? `${formatINR(posterEscrowCharge(selecting.priceMinor, fees.posterFee))} (the offer plus the ${Math.round(fees.posterFee * 100)}% service fee) is taken from your wallet and locked in this task until it is done. If the task is cancelled or not completed, all of it comes back. Phone numbers are shared once the work starts.`
             : ''
         }
         confirmLabel="Choose and pay from wallet"

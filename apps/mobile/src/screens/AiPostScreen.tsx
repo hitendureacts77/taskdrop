@@ -20,7 +20,7 @@ import { KeyboardScrollView } from '../components/KeyboardScrollView';
 import { TaskDescription } from '../components/TaskDescription';
 import { roughPlace } from '../lib/place';
 import { MIN_PRICE_INR } from '../lib/limits';
-import { TOP_UP_PCTS } from '@taskdrop/rules';
+import { TOP_UP_PCTS, posterEscrowCharge, posterServiceFee } from '@taskdrop/rules';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
@@ -588,7 +588,8 @@ export function AiPostScreen() {
   // What is posted: the poster's own amount plus the top-up.
   const price = Math.round((budget ?? 0) * (1 + topUpPct / 100));
   const fees = useFees();
-  const feeRupees = Math.round(price * fees.posterFee);
+  // Fee and held total are worked out in paise, the way the server does it.
+  const feeMinor = posterServiceFee(price * 100, fees.posterFee);
 
   const milestones = useMemo(() => MILESTONE_PLANS[split] ?? [], [split]);
 
@@ -596,7 +597,7 @@ export function AiPostScreen() {
   // an offer at the full budget is accepted and paid for at once. A crew is
   // that for every helper's share.
   const crewSize = opts.crewSize >= 2 ? opts.crewSize : 1;
-  const autoNeedMinor = crewSize * Math.round(crewShareMinor(price * 100, crewSize) * (1 + fees.posterFee));
+  const autoNeedMinor = crewSize * posterEscrowCharge(crewShareMinor(price * 100, crewSize), fees.posterFee);
 
   // The people hired before, the one who did this kind of job first.
   const orderedRegulars = useMemo(
@@ -1485,9 +1486,9 @@ export function AiPostScreen() {
 
         <View style={{ marginTop: 12, ...cardSurface(t, 20), padding: 16, gap: 8 }}>
           <Row label="Task budget" value={rupees(price)} />
-          <Row label={`TaskDrop fee (${Math.round(fees.posterFee * 100)}%)`} value={rupees(feeRupees)} />
+          <Row label={`TaskDrop fee (${Math.round(fees.posterFee * 100)}%)`} value={formatINR(feeMinor)} />
           <View style={{ height: 1, backgroundColor: t.colors.line }} />
-          <Row label="Held safely when you accept an offer" value={formatINR(price * 100 + feeRupees * 100)} strong />
+          <Row label="Held safely when you accept an offer" value={formatINR(price * 100 + feeMinor)} strong />
           <RNText style={tx('400', 11, t.colors.muted, { lineHeight: 16 })}>
             The final figure follows the offer you accept. Nothing is charged now.
           </RNText>
@@ -1872,7 +1873,7 @@ function TopUpBar({
 }) {
   const t = useTheme();
   const pct = TOP_UP_STOPS[stop] ?? 0;
-  const fee = Math.round(price * feeRate);
+  const heldMinor = posterEscrowCharge(price * 100, feeRate);
   return (
     <View style={{ marginBottom: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -1922,7 +1923,7 @@ function TopUpBar({
       <RNText style={tx('500', 12, t.colors.text, { marginTop: 4, textAlign: 'center' })}>
         {pct ? `${rupees(base)} + ${rupees(price - base)} top up = ` : 'Workers see '}
         <RNText style={tx('800', 12, t.colors.ink)}>{rupees(price)}</RNText>
-        {` · with the ${Math.round(feeRate * 100)}% fee, ${rupees(price + fee)} is held`}
+        {` · with the ${Math.round(feeRate * 100)}% fee, ${formatINR(heldMinor)} is held`}
       </RNText>
     </View>
   );

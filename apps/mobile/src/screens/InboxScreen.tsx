@@ -2,15 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable, TextInput } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { EmptyState, Shimmer, TopBar, timeAgo } from '../components/kit';
+import { EmptyState, LoadFailed, Shimmer, TopBar, timeAgo } from '../components/kit';
 import { FadeIn, tx } from '../components/primitives';
 import { useTheme, ring } from '../providers/ThemeProvider';
-import { ScreenScope, useNav } from '../providers/NavProvider';
+import { ScreenScope, useFocusTick, useNav } from '../providers/NavProvider';
 import { useLayout } from '../lib/layout';
 import { ChatScreen } from './ChatScreen';
 import { listThreads, type Thread } from '../data/extras';
 import { useAuth } from '../providers/AuthProvider';
 import { GuestScreen } from '../components/GuestBits';
+import { reportError } from '../lib/errors';
 
 /**
  * Messages: every task conversation this person is in, newest first. A
@@ -20,23 +21,39 @@ export function InboxScreen() {
   const t = useTheme();
   const { back, go } = useNav();
   const { guest } = useAuth();
+  const focusTick = useFocusTick();
   const [threads, setThreads] = useState<Thread[] | null>(null);
+  // True when the last load failed (offline, server hiccup): an empty list is then
+  // "could not load", not "no messages".
+  const [failed, setFailed] = useState(false);
   const [q, setQ] = useState('');
   // Desktop (W6): the inbox on the left and the open conversation beside it.
   // A phone keeps opening the conversation as its own page.
   const { desktop } = useLayout();
   const [openId, setOpenId] = useState<string | null>(null);
+  // Bumped by "Try again" to run the load once more.
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (guest) return;
     let alive = true;
     listThreads()
-      .then((r) => alive && setThreads(r))
-      .catch(() => alive && setThreads([]));
+      .then((r) => {
+        if (!alive) return;
+        setThreads(r);
+        setFailed(false);
+      })
+      .catch((e) => {
+        if (!alive) return;
+        reportError(e, 'inbox.load');
+        // Keep whatever is already on screen; with nothing yet, show the retry card.
+        setThreads((prev) => prev ?? []);
+        setFailed(true);
+      });
     return () => {
       alive = false;
     };
-  }, [guest]);
+  }, [guest, focusTick, retry]);
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -85,6 +102,10 @@ export function InboxScreen() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
         {shown === null ? (
           [0, 1, 2].map((i) => <Shimmer key={i} height={64} style={{ marginTop: 12 }} />)
+        ) : shown.length === 0 && failed && (threads?.length ?? 0) === 0 ? (
+          <LoadFailed onRetry={() => setRetry((n) => n + 1)} />
+        ) : shown.length === 0 && q.trim() ? (
+          <EmptyState icon="search" title={`No matches for “${q.trim()}”`} body="Try a different word, or clear the search." />
         ) : shown.length === 0 ? (
           <EmptyState
             icon="chat"

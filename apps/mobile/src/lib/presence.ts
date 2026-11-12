@@ -19,6 +19,6 @@ export function presenceOf(lastSeen: string | null | undefined, now = Date.now()
   if (min < 60) return { online: false, label: `Away · ${min} min` };
   const h = Math.floor(min / 60);
   if (h < 24) return { online: false, label: min % 60 ? `Away · ${h}h ${min % 60}m` : `Away · ${h}h` };
-  const d = Math.round(h / 24);
+  const d = Math.floor(h / 24);
   return { online: false, label: d === 1 ? 'Last seen yesterday' : `Last seen ${d} days ago` };
 }
