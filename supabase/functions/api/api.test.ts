@@ -258,7 +258,8 @@ await t("search text cannot break out of the filter grammar", async () => {
   const f = fake(() => ({ data: [], error: null }));
   await runOp("searchTasks", { q: "tap),status.eq.CANCELLED,(title" }, ctx(f));
   const ors = steps(f.calls[0], "or").map(([x]) => String(x));
-  assert.ok(ors[1].startsWith("title.ilike.%") && !/[(),]/.test(ors[1].replace(/^title\.ilike\.%|,description\.ilike\.%|%$/g, "").replace(/%,description\.ilike\.%/, "")), ors[1]);
+  const search = ors.find((x) => x.startsWith("title.ilike.%"))!;
+  assert.ok(search && !/[(),]/.test(search.replace(/^title\.ilike\.%|,description\.ilike\.%|%$/g, "").replace(/%,description\.ilike\.%/, "")), search);
 });
 
 await t("searchTasksWithPosters answers what searchTasks then attachPosters would, in one call", async () => {
@@ -643,6 +644,21 @@ await t("helpers near a point carry their newest open service, and sellers witho
   const tasks = f.calls.find((c) => c.table === "tasks")!;
   assert.ok(tasks.steps.some(([n, args]) => n === "eq" && args[0] === "status" && args[1] === "OPEN"));
   assert.ok(tasks.steps.some(([n, args]) => n === "neq" && args[0] === "poster_id"));
+});
+
+await t("B86: every list of open tasks leaves out a City Hunt that has stopped taking finds", async () => {
+  const f = fake(() => ({ data: [], error: null }));
+  await runOp("listOpenTasks", {}, ctx(f));
+  await runOp("recommendedTasks", { skills: ["tap"] }, ctx(f));
+  await runOp("remoteTasks", {}, ctx(f));
+  const reads = f.calls.filter((x) => x.table === "tasks");
+  assert.ok(reads.length >= 3);
+  for (const c of reads) {
+    assert.ok(
+      c.steps.some(([n, args]) => n === "or" && String(args[0]).startsWith("hunt_until.is.null,hunt_until.gt.")),
+      "a read of open tasks must ask for hunt_until empty or ahead",
+    );
+  }
 });
 
 await t("B68: workersNear finds a nearby seller's older listing behind 600 newer far-away ones, and keeps unpinned listings", async () => {

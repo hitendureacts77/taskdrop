@@ -1,6 +1,6 @@
 import { FEES, distanceKm } from "../_shared/rules.ts";
 import {
-  type Args, type Ctx, type Op, MONEY_MAX, RESERVED_USERNAMES, bad, countBy, int, isoOrNull, limit, notExpired, num, oneOf, rows,
+  type Args, type Ctx, type Op, MONEY_MAX, RESERVED_USERNAMES, bad, countBy, int, isoOrNull, limit, notExpired, nowIso, num, oneOf, rows,
   rpcOp, str, strOrNull, strings, take, uuid, uuids,
 } from "./core.ts";
 import { noKeep } from "./publicMemo.ts";
@@ -45,13 +45,17 @@ async function profilesById(ctx: Ctx, ids: (string | null | undefined)[]): Promi
   return new Map(people.map((p) => [p.id, p]));
 }
 
-/** Open posts of one kind that the caller could take on (never their own). */
+/**
+ * Open posts of one kind that the caller could take on (never their own). A City Hunt that has stopped taking finds
+ * (hunt_until passed) stays OPEN while its poster reviews, but nobody can act on it any more, so it is left out (B86).
+ */
 function openTasksQuery(ctx: Ctx, kind: "request" | "service") {
   return ctx.db
     .from("tasks")
     .select(TASK_PUBLIC_SELECT)
     .eq("status", "OPEN")
     .or(notExpired(ctx))
+    .or(`hunt_until.is.null,hunt_until.gt.${nowIso(ctx)}`)
     .eq("kind", kind)
     .neq("poster_id", ctx.userId);
 }
