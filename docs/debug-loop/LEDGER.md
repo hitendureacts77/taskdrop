@@ -53,9 +53,9 @@ Three hunters (money and task life, access and data exposure, app logic) read th
 | B51 | Low | Unhandled rejections in the offer sheet and offer checks | Fixed, not rechecked |
 | B52 | Low | "1 reviews", "Last seen 2 days ago" at 36 h, "Success 0%" with no stats, "Show 60 tasks" when capped, saved filters overwritten | Fixed, not rechecked |
 | B53 | High | A worker can raise an offer's price just before the poster taps Hire and the wallet is charged the new price (`lock_bid` reads the price at call time) | Fixing: migration 167 (expected price) |
-| B54 | High | Card-paid job whose worker walked off: the leftover card payment is never returned if the next hire is cheaper | Fixing: migration 168 |
+| B54 | High | Card-paid job whose worker walked off: the leftover card payment is never returned if the next hire is cheaper | Confirmed, needs the owner. A fix was written (migration 168, card money to the wallet at walk-off) but it contradicts test H53 in `hunt2_money.test.sql`, which keeps the card payment on the job on purpose, so it was taken out of this PR. Owner decides where the leftover goes: wallet at walk-off, or refunded at completion |
 | B55 | Medium | Clearing settles a recomputed net, not the amount put into clearing (capped jobs, commission changes) | Confirmed, needs the owner (money design, waits for the lawyer's answer) |
-| B56 | Medium | Staging is missing part of migration 066 (payments.wallet_credited_*; older `fund_task_from_payment`) | Fixing: migration 168 |
+| B56 | Medium | Staging is missing part of migration 066 (payments.wallet_credited_*; older `fund_task_from_payment`) | Confirmed, owner (same decision as B54) |
 | B57 | Medium | Old `fund_task(task, payment)` still callable by any signed-in user | Fixing: migration 169 |
 | B58 | Medium | Wallet says "full refund" with the full amount after a cancel with a fine; worker's fine never shows | Fixing: `reads.ts` |
 | B59 | Medium-High | A user can make another user's private file readable by pointing their own avatar, message or proof at its storage path | Fixing: `writes.ts` + migration 171 |
