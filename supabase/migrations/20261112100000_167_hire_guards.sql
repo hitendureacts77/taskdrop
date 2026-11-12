@@ -47,6 +47,7 @@ declare
   v_fee    numeric;
   v_escrow bigint;
 begin
+  if auth.uid() is null then raise exception 'Sign in first'; end if;
   select * into v_bid from public.bids where id = p_bid_id;
   if not found then raise exception 'Quote not found'; end if;
 
