@@ -234,13 +234,13 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 ### Web explorer (taskdrop.in, staging)
 
 ### B87 · A guest's chosen area on Hire Home is forgotten after a reload
-- Level: Medium · Status: Confirmed · Area: the poster, guest mode (charter A) · Repo: app · Class: UI · Fix path: A
+- Level: Medium · Status: Fixed in PR 340 (13 Nov) · Area: the poster, guest mode (charter A) · Repo: app · Class: UI · Fix path: A
 - Current: guest picks an area, header shows it, a reload brings back "Set your location"; the saved guest area is never read by Home, while maps use it, so Home and Explore disagree. Expected: Home reads and writes the same guest area as `useMyArea`. The post flow's "Where" step also does not pre-fill it
 - File: `apps/mobile/src/components/HomeSections.tsx` `choosePlace` (about line 163, `if (!userId) return;`, no storage write) and `loadTop`. Proof: header zoom after reload; local storage key `taskdrop.guest.area.v1` holds an older value; no console errors
 - Seen first: 13 Nov round 4 (R4-W1)
 
 ### B88 · Typing "+91" plus a number key by key still gives a different valid number (B72 not fully fixed)
-- Level: High · Status: Confirmed · Area: sign-in (charter A) · Repo: app · Class: UI · Fix path: A
+- Level: High · Status: Fixed in PR 340 (13 Nov) · Area: sign-in (charter A) · Repo: app · Class: UI · Fix path: A
 - Current: typing +91 and ten digits one key at a time leaves the box on a different 10-digit number with a green tick, so the code goes to another person. Pasting the whole string is fixed. Expected: a typed country code is stripped too, or an eleventh digit is refused with a "drop the +91" hint
 - File: `apps/mobile/src/lib/phone.ts` `normalizeMobileInput`: typed one key at a time the value is already capped at 10 digits, so the 12-digit "91..." rule never runs. Proof: zoom of the field with the tick. Reopens the typing half of B72
 - Seen first: 13 Nov round 4 (R4-W2)
@@ -251,28 +251,28 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (R4-W3)
 
 ### B90 · The post flow accepts a price of nearly 10,00,00,00,000 rupees
-- Level: Medium · Status: Confirmed · Area: the poster, money (charter A/C) · Repo: app · Class: Both · Fix path: A
+- Level: Medium · Status: Fixed in PR 340 (13 Nov) · Area: the poster, money (charter A/C) · Repo: app · Class: Both · Fix path: A
 - Current: minus sign and decimals are dropped, but the budget becomes about Rs 9,99,99,99,999 with "Any amount works", Continue enabled, a fee of about Rs 3 crore on Review and an auto-hire line with the same amount. `createTaskSchema.benchmarkMinor` has no upper bound. Expected: a sane maximum on the client and on the server, with a hint above it
 - File: `packages/schemas/src/index.ts`. Related: the admin walk saw a Rs 9,99,99,999 job posted from the Android app the same day (seen in `round-4/admin-live.md`)
 - Seen first: 13 Nov round 4 (R4-W4)
 
 ### B91 · An "At a place" task can be posted with no place set
-- Level: Medium · Status: Confirmed · Area: the poster (charter A) · Repo: app · Class: UI · Fix path: A
+- Level: Medium · Status: Fixed in PR 340 (13 Nov) · Area: the poster (charter A) · Repo: app · Class: UI · Fix path: A
 - Current: at the Place step, "At a place" with "Set where the job is" left empty continues; Review says "Location not set" and "Post my request" works. Expected: an in-person task needs at least an area (default to the saved area), otherwise it never shows on a distance search or map
 - Seen first: 13 Nov round 4 (R4-W5)
 
 ### B92 · The composer counter shows 1687/1500 and Next stays enabled
-- Level: Low · Status: Confirmed · Area: the poster (charter A) · Repo: app · Class: UI · Fix path: A
+- Level: Low · Status: Fixed in PR 340 (13 Nov) · Area: the poster (charter A) · Repo: app · Class: UI · Fix path: A
 - Current: text over 1500 characters (reached by script; a voice transcript or idea chip could do it) shows the counter in the normal colour, Next enabled, and the AI writes from the full text. Expected: counter red and Next disabled over the limit, or the text cut at 1500
 - Seen first: 13 Nov round 4 (R4-W6)
 
 ### B93 · A wrong sign-in code gives no message
-- Level: Medium · Status: Confirmed · Area: sign-in (charter A) · Repo: app · Class: UI · Fix path: A
+- Level: Medium · Status: Withdrawn (the page does show "That code is not right"; the silence came from the test tool) · Area: sign-in (charter A) · Repo: app · Class: UI · Fix path: A
 - Current: after a wrong 6-digit code the page freezes a few seconds, then the boxes are empty again with no "That code is wrong" and no tries-left count. Expected: a plain error under the boxes, focus back on the first box
 - Seen first: 13 Nov round 4 (R4-W7)
 
 ### B94 · The sign-in hero says "Get help nearby. Or earn nearby."
-- Level: Low · Status: Confirmed · Area: copy (charter A) · Repo: app · Class: UI · Fix path: A
+- Level: Low · Status: Fixed in PR 340 (13 Nov) · Area: copy (charter A) · Repo: app · Class: UI · Fix path: A
 - Current: the headline suggests local-only, against the rule that tasks are local AND remote (the card does show a remote example). Expected: wording that covers both
 - Seen first: 13 Nov round 4 (R4-W8)
 
@@ -295,7 +295,7 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (backend-collect N3)
 
 ### B98 · `submitProof` takes a 5000-character summary and 30 files, the table allows 2000 and 10
-- Level: Low · Status: Confirmed · Area: worker flow (charter D) · Repo: app · Class: Backend · Fix path: A
+- Level: Low · Status: Fixed in PR 340 (13 Nov) · Area: worker flow (charter D) · Repo: app · Class: Backend · Fix path: A
 - Current: a direct API call over the limits returns a raw constraint error (log: `task_proofs_summary_check` violated 12 Nov). The app itself caps at 2000 and 10. Expected: the same limits in the API's input check, with a plain message
 - File: `supabase/functions/api/writes.ts` lines 438-460
 - Seen first: 13 Nov round 4 (backend-collect N4)
