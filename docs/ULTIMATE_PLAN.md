@@ -2878,6 +2878,8 @@ start 2.18
 <details id="t2-19" data-short="Debug loop">
 <summary>[BOTH] <b>2.19</b> The debug loop: find, fix and recheck in rounds until new bugs settle near zero <small>· your time: 10 to 15 minutes a round · added 10 Nov · rounds 0 to 3 run 12 Nov, not settled · does not reopen Gate 1</small></summary>
 
+**Status:** Round 4 run 13 Nov: 54+ findings logged B87-B140, fixes in progress (report: `docs/debug-loop/ROUND-4.md`; Android findings still to add).
+
 **Why:** the hunt (2.14) and quality round 3 (3.6) are one-off deep passes. Bugs keep arriving between them: every fix can break something, testers find new ones, and Sentry shows errors nobody reported. You asked for a repeating cycle that shows, every time, which bugs are new and which are still not fixed. The full plan, with the loop drawn, is [DEBUGGING_PLAN.html](DEBUGGING_PLAN.html). It was built from David Agans' nine debugging rules, Stuart Halloway's talk "Debugging with the Scientific Method" (YouTube), Andreas Zeller's Debugging Book (GitHub `uds-se/debuggingbook`), gstack's `/qa` loop (GitHub `garrytan/gstack`), the "Ralph" loop (GitHub `ghuntley/how-to-ralph-wiggum`), Playwright's test agents, Maestro, Julia Evans' debugging guide, and open-source triage guides; the page links each one and says what it gave.
 
 **One round, eight steps** (about half a day of Claude, 10 to 15 minutes of yours):
