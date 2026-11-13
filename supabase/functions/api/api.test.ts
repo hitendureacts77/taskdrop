@@ -2672,4 +2672,23 @@ await t("people map: clearMapSpot calls map_spot_clear and is a write", async ()
   assert.equal(f.calls[0].rpc, "map_spot_clear");
   assert.equal(rateBucket("clearMapSpot"), "write");
 });
+await t("B98: a proof over the table's limits is refused in plain words, before anything is written", async () => {
+  const file = (i: number) => ({ path: `${UID}/after${i}.jpg`, kind: "image", name: "Photo" });
+  const tooLong = fake();
+  const a = await runOp("submitProof", { taskId: TASK, summary: "x".repeat(2001), files: [] }, ctx(tooLong));
+  assert.ok(!a.ok && a.error.code === "BAD_ARGS");
+  if (!a.ok) assert.match(a.error.message, /at most 2000 characters/);
+  assert.ok(tooLong.calls.every((c) => c.steps.length === 0));
+  const tooMany = fake();
+  const b = await runOp("submitProof", { taskId: TASK, summary: "Finished the work", files: Array.from({ length: 11 }, (_, i) => file(i)) }, ctx(tooMany));
+  assert.ok(!b.ok && b.error.code === "BAD_ARGS");
+  if (!b.ok) assert.match(b.error.message, /at most 10 files/);
+  assert.ok(tooMany.calls.every((c) => c.steps.length === 0));
+  // Exactly the limits go through.
+  const ok = fake(() => ({ data: [{ id: "p1" }], error: null }));
+  const c = await runOp("submitProof", { taskId: TASK, summary: "x".repeat(2000), files: Array.from({ length: 10 }, (_, i) => file(i)) }, ctx(ok));
+  assert.ok(c.ok);
+  assert.equal(packageRules.PROOF_LIMITS.SUMMARY_MAX, serverRules.PROOF_LIMITS.SUMMARY_MAX, "the server's copy matches packages/rules");
+  assert.equal(packageRules.PROOF_LIMITS.FILES_MAX, serverRules.PROOF_LIMITS.FILES_MAX, "the server's copy matches packages/rules");
+});
 console.log(`\n${passed} passed`);

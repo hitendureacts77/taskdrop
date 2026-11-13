@@ -5,7 +5,7 @@ import {
 import { assertOwnImage, isMediaRef } from "./media.ts";
 import { readFees } from "./reads.ts";
 import { roughPlace } from "../_shared/place.ts";
-import { PRICE_LIMITS, TOP_UP_PCTS } from "../_shared/rules.ts";
+import { PRICE_LIMITS, PROOF_LIMITS, TOP_UP_PCTS } from "../_shared/rules.ts";
 import { contactIssueMessage, findContactIssue, maskContacts, nameCarriesContact, profileIssueMessage } from "../_shared/contacts.ts";
 import { PROFILE_OWNER_SELECT } from "./columns.ts";
 
@@ -440,8 +440,15 @@ export const WRITE_OPS: Record<string, Op> = {
   submitProof: async (ctx, a) => {
     const { db, userId } = ctx;
     const files = a.files ?? [];
+    // The table holds at most 10 files and 2000 characters; say so in words instead of a raw constraint error (B98).
+    if (Array.isArray(files) && files.length > PROOF_LIMITS.FILES_MAX) {
+      throw new OpError(`Add at most ${PROOF_LIMITS.FILES_MAX} files to one proof`, "BAD_ARGS");
+    }
+    if (typeof a.summary === "string" && a.summary.trim().length > PROOF_LIMITS.SUMMARY_MAX) {
+      throw new OpError(`Keep the summary to at most ${PROOF_LIMITS.SUMMARY_MAX} characters`, "BAD_ARGS");
+    }
     if (
-      !Array.isArray(files) || files.length > 30 ||
+      !Array.isArray(files) ||
       files.some((f) => !f || typeof f !== "object" || typeof (f as { path?: unknown }).path !== "string")
     ) {
       throw bad("files");
@@ -452,13 +459,13 @@ export const WRITE_OPS: Record<string, Op> = {
     }
     refuseHiddenContacts(a.summary);
     // The table wants at least 10 characters; say so in words instead of "check what you entered" (P2-40).
-    if (typeof a.summary !== "string" || a.summary.trim().length < 10) {
-      throw new OpError("Write at least 10 characters about what you did", "BAD_ARGS");
+    if (typeof a.summary !== "string" || a.summary.trim().length < PROOF_LIMITS.SUMMARY_MIN) {
+      throw new OpError(`Write at least ${PROOF_LIMITS.SUMMARY_MIN} characters about what you did`, "BAD_ARGS");
     }
     return rows(
       await db
         .from("task_proofs")
-        .insert({ task_id: uuid(a, "taskId"), worker_id: userId, summary: str(a, "summary", 5000, 0), files })
+        .insert({ task_id: uuid(a, "taskId"), worker_id: userId, summary: str(a, "summary", PROOF_LIMITS.SUMMARY_MAX, 0), files })
         .select(),
     )[0] ?? null;
   },

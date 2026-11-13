@@ -12,6 +12,7 @@ import {
   CANCEL_REASON,
   MEDIA,
   PRICE_LIMITS,
+  PROOF_LIMITS,
 } from '@taskdrop/rules';
 
 export const taskStatusEnum = z.enum(TASK_STATUS);
@@ -68,6 +69,14 @@ export const createTaskSchema = z.object({
     .optional(),
 });
 export type CreateTask = z.infer<typeof createTaskSchema>;
+
+/** A proof of work: a summary and up to ten files, the limits of the task_proofs table (B98). */
+export const submitProofSchema = z.object({
+  taskId: z.guid(),
+  summary: z.string().trim().min(PROOF_LIMITS.SUMMARY_MIN).max(PROOF_LIMITS.SUMMARY_MAX),
+  files: z.array(z.object({ path: z.string().min(1) }).passthrough()).max(PROOF_LIMITS.FILES_MAX).default([]),
+});
+export type SubmitProof = z.infer<typeof submitProofSchema>;
 
 /** A worker's quote — accept the posted price or counter on price and/or time. */
 export const createBidSchema = z.object({

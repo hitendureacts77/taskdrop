@@ -42,6 +42,13 @@ export const PRICE_LIMITS = {
   MAX_MINOR: 10_000_000,
 } as const;
 
+/** What a proof of work may hold: the same numbers as the task_proofs table constraints (B98). */
+export const PROOF_LIMITS = {
+  SUMMARY_MIN: 10,
+  SUMMARY_MAX: 2000,
+  FILES_MAX: 10,
+} as const;
+
 /**
  * The top-up bar's steps (owner decision 2026-11-01): percent a poster may add
  * on top of their own price to stand out. The posted price includes it; the
