@@ -14,7 +14,7 @@ If the file at fault already has three or more fix commits, or its area reopened
 4. Current behaviour and expected behaviour, one or two plain sentences each.
 5. Every console line and failed network call, copied right after reproducing.
 6. Backend or Both: the security rules on the tables involved (`select * from pg_policies where tablename in (...)`), the storage bucket rules (`pg_policies` on `storage.objects`) when files are involved, and the `api` Edge Function and Supabase logs for that minute.
-7. The pinned commit and where it was seen (website, Android build, admin).
+7. The pinned commit and where it was seen (website, Android build, admin). For an admin bug: the Vercel `taskdrop-admin` logs, Sentry project `taskdrop-admin`, the audit-log rows, and the staff role used; the fix is a pull request into the admin's `redesigned-2.0`.
 8. **Both places (Day 6).** The code is the repo; the live backend is Supabase staging. Check they agree: applied migrations against `supabase/migrations`, and the deployed `api` against the pinned commit.
 9. **The files at fault (Day 6).** `graphify query` for the `api` operation and every app call site, before reading code. Never make a repo public or upload code to an outside site (the lesson's RepoMix step is replaced by this).
 10. **Context first, don't fix yet (Day 6).** Backend or Both: columns, every rule (`pg_policies`) and the bucket rules for the tables involved, saved as `docs/debug-loop/diagnostics/B<n>-context.md`. Then answer for each action the bug touches: "Would a rule stop this person from reading, adding, changing, renaming or deleting here?" yes or no, with the rule's name.

@@ -4,16 +4,16 @@ Every bug the debug loop has seen, in one place. The plan is in `docs/DEBUGGING_
 
 **Statuses:** New → Confirmed → Fixing → Fixed, not rechecked → Verified → Closed. Side doors: Reopened, Accepted, After launch, Cannot reproduce, Duplicate of B..
 **Levels:** Critical, High (always fixed this round), Medium, Low (your "fix", "accept" or "after launch").
-**Each new entry also says:** Class (UI, Backend or Both), Current vs Expected, Proof (screenshot, clean console log, security rules for Backend), Rung reached on the dig-deeper ladder (1 quick try … 6 retro), Tries, and Fix path (A one whole fix, B one file rewritten; plan section 8). Read `BUG_PROMPT.md` before fixing.
+**Each new entry also says:** Repo (app or admin), Class (UI, Backend or Both), Current vs Expected, Proof (screenshot, clean console log, security rules for Backend), Rung reached on the dig-deeper ladder (1 quick try … 6 retro), Tries, and Fix path (A one whole fix, B one file rewritten; plan section 8). Read `BUG_PROMPT.md` before fixing.
 
 ## Rounds
 
-| Round | Date | Pinned commit | Charter | New | Fixed + verified | Reopened | Open: C / H / M / L | Flaky tests | Settled? |
+| Round | Date | Pinned commits (app / admin) | Charter | New | Fixed + verified | Reopened | Open: C / H / M / L | Flaky tests | Settled? |
 |---|---|---|---|---|---|---|---|---|---|
-| 0 | 12 Nov 2026 | 122965a | setup: baseline `npm run check` green (102 + 103 tests) | | | | 0 / 1 / 5 / 8 | | No |
-| 1 | 12 Nov 2026 | 122965a | A+B+C sweep of the 11 open bugs (code-only; staging recheck pending) | 0 | 0 (10 fixed, not rechecked) | 0 | 0 / 0 / 0 / 4 after merge | not run twice yet | No |
-| 2 | 12 Nov 2026 | 09b8338 | code hunt: money and task life, access and data exposure, app logic | 22 (B43-B64: 2 High, 11 Medium, 9 Low) | 0 (fixes written, not rechecked) | 0 | B55 M, B63 L open for the owner | not run twice yet | No |
-| 3 | 12 Nov 2026 | 07cdb1b | code hunt: alerts, jobs and webhooks; worker flow and search; screens round 2 had not read | 19 (B67-B85: 2 High, 9 Medium, 8 Low, B85 for the owner) | 0 (fixes written, not rechecked) | 0 | B85 needs the owner; B54/B55/B56 open from round 2 | not run twice yet | No |
+| 0 | 12 Nov 2026 | 122965a / n/a | setup: baseline `npm run check` green (102 + 103 tests) | | | | 0 / 1 / 5 / 8 | | No |
+| 1 | 12 Nov 2026 | 122965a / n/a | A+B+C sweep of the 11 open bugs (code-only; staging recheck pending) | 0 | 0 (10 fixed, not rechecked) | 0 | 0 / 0 / 0 / 4 after merge | not run twice yet | No |
+| 2 | 12 Nov 2026 | 09b8338 / n/a | code hunt: money and task life, access and data exposure, app logic | 22 (B43-B64: 2 High, 11 Medium, 9 Low) | 0 (fixes written, not rechecked) | 0 | B55 M, B63 L open for the owner | not run twice yet | No |
+| 3 | 12 Nov 2026 | 07cdb1b / n/a | code hunt: alerts, jobs and webhooks; worker flow and search; screens round 2 had not read | 19 (B67-B85: 2 High, 9 Medium, 8 Low, B85 for the owner) | 0 (fixes written, not rechecked) | 0 | B85 needs the owner; B54/B55/B56 open from round 2 | not run twice yet | No |
 
 ## Round 1 results (12 Nov 2026, PR 336)
 
