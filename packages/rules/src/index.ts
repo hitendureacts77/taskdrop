@@ -32,9 +32,21 @@ export const TIMING = {
   CLEARING_PERIOD_DAYS: 7,
 } as const;
 
-/** The smallest amount a task or an offer may carry (owner decision 2026-10-25: ₹20), in paise. */
+/**
+ * The smallest amount a task or an offer may carry (owner decision 2026-10-25: ₹20), in paise, and the
+ * most (B90, round 4: a default of ₹1,00,000 until the owner picks a number; change it here and in
+ * supabase/functions/_shared/rules.ts, a test keeps the two equal).
+ */
 export const PRICE_LIMITS = {
   MIN_MINOR: 2000,
+  MAX_MINOR: 10_000_000,
+} as const;
+
+/** What a proof of work may hold: the same numbers as the task_proofs table constraints (B98). */
+export const PROOF_LIMITS = {
+  SUMMARY_MIN: 10,
+  SUMMARY_MAX: 2000,
+  FILES_MAX: 10,
 } as const;
 
 /**

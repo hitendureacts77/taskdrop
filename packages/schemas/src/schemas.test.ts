@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createTaskSchema, createBidSchema, reviewSchema, taskMediaSchema } from './index.ts';
+import { PRICE_LIMITS } from '@taskdrop/rules';
+import { createTaskSchema, createBidSchema, reviewSchema, submitProofSchema, taskMediaSchema } from './index.ts';
 
 test('createTaskSchema accepts a valid task', () => {
   const r = createTaskSchema.safeParse({
@@ -19,6 +20,19 @@ test('createTaskSchema rejects a missing time limit', () => {
     benchmarkMinor: 50_000,
   });
   assert.equal(r.success, false);
+});
+
+test('createTaskSchema caps the price at PRICE_LIMITS.MAX_MINOR (B90)', () => {
+  const base = { pillar: 'services', title: 'A big job', timeLimitMinutes: 60 };
+  assert.equal(createTaskSchema.safeParse({ ...base, benchmarkMinor: PRICE_LIMITS.MAX_MINOR }).success, true);
+  assert.equal(createTaskSchema.safeParse({ ...base, benchmarkMinor: PRICE_LIMITS.MAX_MINOR + 1 }).success, false);
+  assert.equal(createTaskSchema.safeParse({ ...base, benchmarkMinor: 99_999_999_999 }).success, false);
+});
+
+test('createBidSchema caps the offer at PRICE_LIMITS.MAX_MINOR (B90)', () => {
+  const base = { taskId: '11111111-1111-4111-8111-111111111111', timeLimitMinutes: 60 };
+  assert.equal(createBidSchema.safeParse({ ...base, priceMinor: PRICE_LIMITS.MAX_MINOR }).success, true);
+  assert.equal(createBidSchema.safeParse({ ...base, priceMinor: PRICE_LIMITS.MAX_MINOR + 1 }).success, false);
 });
 
 test('createTaskSchema rejects a negative price', () => {
@@ -82,4 +96,14 @@ test('a Hunt find needs at least one proof, and a pin needs both coordinates', a
   assert.equal(huntOptionsSchema.safeParse({ huntWindow: '2h', huntNeeds: ['photo', 'place'] }).success, true);
   assert.equal(huntOptionsSchema.safeParse({ huntWindow: '1w', huntNeeds: ['photo'] }).success, false);
   assert.equal(huntOptionsSchema.safeParse({ huntWindow: 'today', huntNeeds: [] }).success, false);
+});
+
+test('submitProofSchema holds the proof table limits: 2000 characters, 10 files (B98)', () => {
+  const base = { taskId: '11111111-1111-4111-8111-111111111111', summary: 'Finished the work' };
+  const files = (n: number) => Array.from({ length: n }, (_, i) => ({ path: `u/${i}.jpg` }));
+  assert.equal(submitProofSchema.safeParse({ ...base, files: files(10) }).success, true);
+  assert.equal(submitProofSchema.safeParse({ ...base, files: files(11) }).success, false);
+  assert.equal(submitProofSchema.safeParse({ ...base, summary: 'x'.repeat(2000) }).success, true);
+  assert.equal(submitProofSchema.safeParse({ ...base, summary: 'x'.repeat(2001) }).success, false);
+  assert.equal(submitProofSchema.safeParse({ ...base, summary: 'short' }).success, false);
 });

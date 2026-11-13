@@ -363,7 +363,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
 
   const shareCode = async () => {
     if (!code) return;
-    const message = `I use TaskDrop to get things done and earn nearby. Sign up with my code ${code}.`;
+    const message = `I use TaskDrop to get things done and earn. Sign up with my code ${code}.`;
     try {
       await Share.share({ message });
     } catch {

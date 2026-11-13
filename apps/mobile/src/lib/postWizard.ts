@@ -232,3 +232,20 @@ export function ownerMatches(s: WizardSnapshot, viewer: string | null): boolean 
 export function adopt(s: WizardSnapshot, userId: string): WizardSnapshot {
   return s.owner === GUEST_OWNER && userId && userId !== GUEST_OWNER ? { ...s, owner: userId } : s;
 }
+
+/**
+ * An "At a place" request needs a pinned place, or it never shows on a distance search or the map (B91).
+ * A remote request needs none.
+ */
+export function placeMissing(remote: boolean, place: { lat: number | null; lng: number | null } | null): boolean {
+  if (remote) return false;
+  return !place || typeof place.lat !== 'number' || typeof place.lng !== 'number' || !Number.isFinite(place.lat) || !Number.isFinite(place.lng);
+}
+
+/** The plain words shown while a place is still missing. */
+export const PLACE_MISSING_LINE = 'Set where the job is, or switch to Remote / online.';
+
+/** The longest request the composer takes. A voice transcript or an idea chip can push past it (B92). */
+export const PROMPT_MAX = 1500;
+
+export const promptTooLong = (text: string): boolean => text.length > PROMPT_MAX;

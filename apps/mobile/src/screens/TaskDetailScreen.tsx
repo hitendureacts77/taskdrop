@@ -26,6 +26,7 @@ import {
   type Task,
 } from '../data/api';
 import { PRICE_LIMITS, distanceKm, formatDistance } from '@taskdrop/rules';
+import { MAX_PRICE_INR } from '../lib/limits';
 import { ShareSheet, useShare } from '../components/ShareSheet';
 import { taskUrl } from '../lib/links';
 import { noteFirstAction } from '../lib/appPrompt';
@@ -669,6 +670,7 @@ export function TaskDetailScreen() {
                 rupees={Math.round(quote / 100)}
                 onChangeRupees={(r) => setQuote((r ?? 0) * 100)}
                 min={MIN_QUOTE_MINOR / 100}
+                max={MAX_PRICE_INR}
                 style={tx('800', 34, t.colors.ink, { letterSpacing: -0.8 })}
               />
               <RNText style={tx('500', 12, deltaColor, { marginTop: 2 })}>{deltaText}</RNText>

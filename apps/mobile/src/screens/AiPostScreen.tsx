@@ -19,7 +19,7 @@ import { KeyboardSafe } from '../components/KeyboardSafe';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
 import { TaskDescription } from '../components/TaskDescription';
 import { roughPlace } from '../lib/place';
-import { MIN_PRICE_INR } from '../lib/limits';
+import { MAX_PRICE_INR, MIN_PRICE_INR, priceState } from '../lib/limits';
 import { TOP_UP_PCTS, posterEscrowCharge, posterServiceFee } from '@taskdrop/rules';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -59,8 +59,9 @@ import {
 } from '../lib/taskBrief';
 import { looksLikeGibberish } from '../lib/gibberish';
 import { pickDefaultPlace } from '../lib/homePlace';
+import { readGuestArea } from '../lib/guestAreaStore';
 import { loadRecentPlaces } from '../lib/recentPlaces';
-import { WIZARD_VERSION, isStale, normalize, ownerMatches, resumable, type WizardSnapshot } from '../lib/postWizard';
+import { PLACE_MISSING_LINE, PROMPT_MAX, WIZARD_VERSION, isStale, normalize, ownerMatches, placeMissing, promptTooLong, resumable, type WizardSnapshot } from '../lib/postWizard';
 import {
   clearWizard,
   loadWizard,
@@ -462,11 +463,13 @@ export function AiPostScreen() {
     if (!hydrated || (!userId && !guest)) return;
     let alive = true;
     void (async () => {
-      const [recents, profile] = await Promise.all([
+      const [recents, profile, guestArea] = await Promise.all([
         loadRecentPlaces().catch(() => []),
         userId ? getProfile(userId).catch(() => null) : Promise.resolve(null),
+        // A guest's area sits on the device, not on a profile (B87).
+        userId ? Promise.resolve(null) : readGuestArea(),
       ]);
-      const d = pickDefaultPlace(recents, profile);
+      const d = pickDefaultPlace(recents, profile, guestArea);
       if (!alive || !d || placeRef.current) return;
       setPlace({ label: d.label, lat: d.lat, lng: d.lng });
       setPlaceSource(d.source);
@@ -524,6 +527,7 @@ export function AiPostScreen() {
   const fromAsk = () => {
     const req = prompt.trim();
     if (req.length < 5) return flash('Tell us a bit more about what you need');
+    if (promptTooLong(prompt)) return flash(`That is too long. Keep it under ${PROMPT_MAX} characters.`);
     if (looksLikeGibberish(req)) return flash('That doesn’t read like a task yet. Say what you need in a few real words.');
     if (askedFor !== req) {
       const qs = askQuestions(req);
@@ -583,10 +587,15 @@ export function AiPostScreen() {
   const descIssue = findContactIssue(description);
   const canLeaveBrief =
     title.trim().length >= 4 && description.trim().length >= 10 && !titleIssue && !descIssue;
-  const budgetOk = (budget ?? 0) >= MIN_PRICE_INR;
   const topUpPct = TOP_UP_STOPS[topUpStop] ?? 0;
   // What is posted: the poster's own amount plus the top-up.
   const price = Math.round((budget ?? 0) * (1 + topUpPct / 100));
+  // The own amount must reach the smallest price, and what is posted (top-up included) must stay under the most (B90).
+  // At a place, with no place set: Continue and Post stay off (B91).
+  const noPlace = placeMissing(remote, place);
+  const budgetLow = priceState(budget) === 'low';
+  const budgetHigh = priceState(price) === 'high';
+  const budgetOk = (budget ?? 0) >= MIN_PRICE_INR && !budgetHigh;
   const fees = useFees();
   // Fee and held total are worked out in paise, the way the server does it.
   const feeMinor = posterServiceFee(price * 100, fees.posterFee);
@@ -959,7 +968,7 @@ export function AiPostScreen() {
           placeholderTextColor={t.colors.muted}
           multiline
           autoFocus
-          maxLength={1500}
+          maxLength={PROMPT_MAX}
           accessibilityLabel="What do you need done?"
           style={tx('500', 22, t.colors.ink, {
             minHeight: 180,
@@ -1282,9 +1291,11 @@ export function AiPostScreen() {
               >
                 {budget === null || budget === 0
                   ? 'Type any amount'
-                  : budgetOk
-                    ? 'Any amount works'
-                    : `The lowest price is ${rupees(MIN_PRICE_INR)}`}
+                  : budgetHigh
+                    ? `The most is ${rupees(MAX_PRICE_INR)}${topUpPct > 0 && !(budget !== null && budget > MAX_PRICE_INR) ? ' with the top-up. Lower the top-up or the price' : ''}`
+                    : budgetLow
+                      ? `The lowest price is ${rupees(MIN_PRICE_INR)}`
+                      : `From ${rupees(MIN_PRICE_INR)} up to ${rupees(MAX_PRICE_INR)}`}
               </RNText>
             </View>,
           )}
@@ -1364,6 +1375,11 @@ export function AiPostScreen() {
             </View>
             <RNText style={tx('700', 13, t.colors.accentDeep)}>{place ? 'Change' : 'Set'}</RNText>
           </Pressable>
+        ) : null}
+        {noPlace ? (
+          <RNText style={tx('600', 12, t.colors.signalDeep, { marginTop: 8 })} accessibilityLiveRegion="polite">
+            {PLACE_MISSING_LINE}
+          </RNText>
         ) : null}
 
         {label('HOW DO YOU WANT TO HIRE?')}
@@ -1527,7 +1543,7 @@ export function AiPostScreen() {
   const returning = reached > at(phase) + 1;
   const primary: { label: string; onPress: () => void; disabled?: boolean; busy?: boolean } =
     phase === 'what'
-      ? { label: 'Continue', onPress: fromAsk, disabled: prompt.trim().length < 5 || promptIssue !== null }
+      ? { label: 'Continue', onPress: fromAsk, disabled: prompt.trim().length < 5 || promptIssue !== null || promptTooLong(prompt) }
       : phase === 'picks'
         ? { label: brief ? 'Update my post' : 'Write my post', onPress: fromDetails }
         : phase === 'brief'
@@ -1541,7 +1557,7 @@ export function AiPostScreen() {
                   disabled: !budgetOk,
                 }
               : phase === 'providers'
-                ? { label: returning ? 'Save and review' : 'Continue', onPress: () => advance('providers') }
+                ? { label: returning ? 'Save and review' : 'Continue', onPress: () => advance('providers'), disabled: noPlace }
                 : phase === 'options'
                   ? {
                       label: returning
@@ -1551,7 +1567,7 @@ export function AiPostScreen() {
                           : `Continue with ${optionsSummary(opts).length} option${optionsSummary(opts).length === 1 ? '' : 's'}`,
                       onPress: () => advance('options'),
                     }
-                  : { label: 'Post my request', onPress: () => void post(), busy: posting };
+                  : { label: 'Post my request', onPress: () => void post(), busy: posting, disabled: noPlace };
 
   return (
     <Screen padded={false}>
@@ -1689,7 +1705,12 @@ export function AiPostScreen() {
               </Pressable>
             ) : null}
             <View style={{ flex: 1 }} />
-            <RNText style={tx('500', 12, t.colors.muted, { alignSelf: 'center' })}>{prompt.length} / 1500</RNText>
+            <RNText
+              style={tx(promptTooLong(prompt) ? '700' : '500', 12, promptTooLong(prompt) ? t.colors.signalDeep : t.colors.muted, { alignSelf: 'center' })}
+              accessibilityLiveRegion="polite"
+            >
+              {promptTooLong(prompt) ? `${prompt.length} / ${PROMPT_MAX}. Shorten it to go on` : `${prompt.length} / ${PROMPT_MAX}`}
+            </RNText>
           </>
         ) : null}
         {phase !== 'what' ? (
