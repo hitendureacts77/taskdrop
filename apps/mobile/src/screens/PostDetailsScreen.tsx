@@ -3,6 +3,7 @@ import { BackButton } from '../components/kit';
 import { View, Text as RNText, Pressable, TextInput, type TextStyle } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
 import { AmountField } from '../components/AmountField';
+import { MAX_PRICE_INR } from '../lib/limits';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -307,6 +308,7 @@ export function PostDetailsScreen() {
                 rupees={price}
                 onChangeRupees={setPrice}
                 min={100}
+                max={MAX_PRICE_INR}
                 placeholder="0"
                 // minWidth:0 lets the field shrink inside the half-width card so
                 // the "+" stepper never gets pushed out of view.

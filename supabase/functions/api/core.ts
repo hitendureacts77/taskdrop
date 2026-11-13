@@ -200,9 +200,10 @@ export function isoOrNull(a: Args, k: string): string | null {
  * A price for a task or an offer: a whole number of paise, at least the smallest amount (₹20).
  * Below that the answer says so in plain words, so the person can fix it.
  */
-export function priceMinor(a: Args, k: string, min: number): number {
-  const v = int(a, k, 0, MONEY_MAX);
+export function priceMinor(a: Args, k: string, min: number, max: number = MONEY_MAX): number {
+  const v = int(a, k, 0, Number.MAX_SAFE_INTEGER);
   if (v < min) throw new OpError(`The smallest amount is ₹${min / 100}.`, "BAD_ARGS");
+  if (v > max) throw new OpError(`The most is ₹${(max / 100).toLocaleString("en-IN")}.`, "BAD_ARGS");
   return v;
 }
 

@@ -19,7 +19,7 @@ import { KeyboardSafe } from '../components/KeyboardSafe';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
 import { TaskDescription } from '../components/TaskDescription';
 import { roughPlace } from '../lib/place';
-import { MIN_PRICE_INR } from '../lib/limits';
+import { MAX_PRICE_INR, MIN_PRICE_INR, priceState } from '../lib/limits';
 import { TOP_UP_PCTS, posterEscrowCharge, posterServiceFee } from '@taskdrop/rules';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -586,10 +586,13 @@ export function AiPostScreen() {
   const descIssue = findContactIssue(description);
   const canLeaveBrief =
     title.trim().length >= 4 && description.trim().length >= 10 && !titleIssue && !descIssue;
-  const budgetOk = (budget ?? 0) >= MIN_PRICE_INR;
   const topUpPct = TOP_UP_STOPS[topUpStop] ?? 0;
   // What is posted: the poster's own amount plus the top-up.
   const price = Math.round((budget ?? 0) * (1 + topUpPct / 100));
+  // The own amount must reach the smallest price, and what is posted (top-up included) must stay under the most (B90).
+  const budgetLow = priceState(budget) === 'low';
+  const budgetHigh = priceState(price) === 'high';
+  const budgetOk = (budget ?? 0) >= MIN_PRICE_INR && !budgetHigh;
   const fees = useFees();
   // Fee and held total are worked out in paise, the way the server does it.
   const feeMinor = posterServiceFee(price * 100, fees.posterFee);
@@ -1285,9 +1288,11 @@ export function AiPostScreen() {
               >
                 {budget === null || budget === 0
                   ? 'Type any amount'
-                  : budgetOk
-                    ? 'Any amount works'
-                    : `The lowest price is ${rupees(MIN_PRICE_INR)}`}
+                  : budgetHigh
+                    ? `The most is ${rupees(MAX_PRICE_INR)}${topUpPct > 0 && !(budget !== null && budget > MAX_PRICE_INR) ? ' with the top-up. Lower the top-up or the price' : ''}`
+                    : budgetLow
+                      ? `The lowest price is ${rupees(MIN_PRICE_INR)}`
+                      : `From ${rupees(MIN_PRICE_INR)} up to ${rupees(MAX_PRICE_INR)}`}
               </RNText>
             </View>,
           )}

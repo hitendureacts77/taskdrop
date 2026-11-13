@@ -1596,6 +1596,22 @@ await t("nonsense amounts, dates, places and reserved names are refused (break-i
   assert.equal((await runOp("createTask", { ...task, benchmarkMinor: 1999 }, ctx(fake()))).ok, false);
   assert.equal((await runOp("createTask", { ...task, benchmarkMinor: 2000 }, ctx(fake()))).ok, true);
   assert.equal(packageRules.PRICE_LIMITS.MIN_MINOR, serverRules.PRICE_LIMITS.MIN_MINOR, "the server's copy of the minimum matches packages/rules");
+  // B90: a ceiling too. ₹1,00,000 exactly is fine, one paisa over is refused in plain words, for tasks and for offers.
+  assert.equal(packageRules.PRICE_LIMITS.MAX_MINOR, serverRules.PRICE_LIMITS.MAX_MINOR, "the server's copy of the maximum matches packages/rules");
+  const MAX = serverRules.PRICE_LIMITS.MAX_MINOR;
+  assert.equal((await runOp("createTask", { ...task, benchmarkMinor: MAX }, ctx(fake()))).ok, true, "exactly the maximum is allowed");
+  for (const [op, args] of [
+    ["createTask", { ...task, benchmarkMinor: MAX + 1 }],
+    ["createTask", { ...task, benchmarkMinor: 99_999_999_999 }],
+    ["placeBid", { taskId: TASK, priceMinor: MAX + 1, timeLimitMinutes: 60 }],
+    ["updateBid", { bidId: BID, priceMinor: MAX + 1, timeLimitMinutes: 60 }],
+  ] as const) {
+    const f = fake();
+    const r = await runOp(op, args, ctx(f));
+    assert.equal(r.ok, false, op);
+    if (!r.ok) assert.match(r.error.message, /most is ₹1,00,000/);
+    assert.ok(f.calls.every((c) => c.steps.length === 0), op + " must not write anything");
+  }
   // The top-up (2026-11-01): only the bar's own steps, 0 when the old app leaves it out.
   assert.deepEqual([...packageRules.TOP_UP_PCTS], [...serverRules.TOP_UP_PCTS], "the server's copy of the top-up steps matches packages/rules");
   let f2 = fake();

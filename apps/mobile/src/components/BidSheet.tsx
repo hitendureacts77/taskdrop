@@ -5,7 +5,7 @@ import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { isNeedsAccount, needAccount, useAccountHold } from '../lib/guest';
 import { canQuoteOn, getMyBid, placeBid, updateBid, type Bid, type Task } from '../data/api';
-import { MIN_PRICE_INR } from '../lib/limits';
+import { MAX_PRICE_INR, MIN_PRICE_INR } from '../lib/limits';
 import { maskContacts } from '../lib/mask';
 import { reportError } from '../lib/errors';
 import { DateTimeSheet, formatDeadline } from './DateTimeSheet';
@@ -138,7 +138,12 @@ export function BidSheet({
   if (!task) return null;
   const budget = Math.round(task.benchmark_minor / 100);
   const asked = Number(price);
-  const priceError = price.trim() && (!Number.isFinite(asked) || asked < MIN_PRICE_INR) ? `Enter at least ₹${MIN_PRICE_INR}` : null;
+  const priceError =
+    price.trim() && (!Number.isFinite(asked) || asked < MIN_PRICE_INR)
+      ? `Enter at least ₹${MIN_PRICE_INR}`
+      : asked > MAX_PRICE_INR
+        ? `Enter at most ₹${MAX_PRICE_INR.toLocaleString('en-IN')}`
+        : null;
   const ready = !blocked && pitch.trim().length >= 10 && price.trim() !== '' && !priceError;
   const auto = !existing && task.assignment_mode === 'auto' && asked > 0 && asked <= budget;
   // A price other than the customer's budget is a counteroffer, and says so.

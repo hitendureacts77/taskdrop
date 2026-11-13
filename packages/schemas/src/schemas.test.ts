@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { PRICE_LIMITS } from '@taskdrop/rules';
 import { createTaskSchema, createBidSchema, reviewSchema, taskMediaSchema } from './index.ts';
 
 test('createTaskSchema accepts a valid task', () => {
@@ -19,6 +20,19 @@ test('createTaskSchema rejects a missing time limit', () => {
     benchmarkMinor: 50_000,
   });
   assert.equal(r.success, false);
+});
+
+test('createTaskSchema caps the price at PRICE_LIMITS.MAX_MINOR (B90)', () => {
+  const base = { pillar: 'services', title: 'A big job', timeLimitMinutes: 60 };
+  assert.equal(createTaskSchema.safeParse({ ...base, benchmarkMinor: PRICE_LIMITS.MAX_MINOR }).success, true);
+  assert.equal(createTaskSchema.safeParse({ ...base, benchmarkMinor: PRICE_LIMITS.MAX_MINOR + 1 }).success, false);
+  assert.equal(createTaskSchema.safeParse({ ...base, benchmarkMinor: 99_999_999_999 }).success, false);
+});
+
+test('createBidSchema caps the offer at PRICE_LIMITS.MAX_MINOR (B90)', () => {
+  const base = { taskId: '11111111-1111-4111-8111-111111111111', timeLimitMinutes: 60 };
+  assert.equal(createBidSchema.safeParse({ ...base, priceMinor: PRICE_LIMITS.MAX_MINOR }).success, true);
+  assert.equal(createBidSchema.safeParse({ ...base, priceMinor: PRICE_LIMITS.MAX_MINOR + 1 }).success, false);
 });
 
 test('createTaskSchema rejects a negative price', () => {

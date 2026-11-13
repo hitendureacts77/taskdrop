@@ -11,6 +11,7 @@ import {
   CANCELLED_BY,
   CANCEL_REASON,
   MEDIA,
+  PRICE_LIMITS,
 } from '@taskdrop/rules';
 
 export const taskStatusEnum = z.enum(TASK_STATUS);
@@ -57,7 +58,7 @@ export const createTaskSchema = z.object({
   pillar: pillarEnum,
   title: z.string().min(4).max(120),
   description: z.string().max(4000).default(''),
-  benchmarkMinor: minorAmount,
+  benchmarkMinor: minorAmount.max(PRICE_LIMITS.MAX_MINOR),
   /** Required task time limit, in minutes — drives the OVERDUE flag. */
   timeLimitMinutes: z.number().int().positive().max(60 * 24 * 30),
   flag: taskFlagEnum.default('none'),
@@ -71,7 +72,7 @@ export type CreateTask = z.infer<typeof createTaskSchema>;
 /** A worker's quote — accept the posted price or counter on price and/or time. */
 export const createBidSchema = z.object({
   taskId: z.guid(),
-  priceMinor: minorAmount,
+  priceMinor: minorAmount.max(PRICE_LIMITS.MAX_MINOR),
   timeLimitMinutes: z.number().int().positive().max(60 * 24 * 30),
   message: z.string().max(1000).optional(),
 });

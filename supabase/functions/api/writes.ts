@@ -317,7 +317,9 @@ export const WRITE_OPS: Record<string, Op> = {
       title: str(a, "title", 300),
       description: description(a),
       // A request needs at least the smallest amount; a service listing may say "from 0" while it is being set up.
-      benchmark_minor: a.kind === "service" ? int(a, "benchmarkMinor", 0, MONEY_MAX) : priceMinor(a, "benchmarkMinor", PRICE_LIMITS.MIN_MINOR),
+      benchmark_minor: a.kind === "service"
+        ? priceMinor(a, "benchmarkMinor", 0, PRICE_LIMITS.MAX_MINOR)
+        : priceMinor(a, "benchmarkMinor", PRICE_LIMITS.MIN_MINOR, PRICE_LIMITS.MAX_MINOR),
       time_limit_minutes: int(a, "timeLimitMinutes", 0, 10_000_000),
       flag: oneOf(a, "flag", ["none", "urgent", "unique"], "none"),
       media_kind: media?.kind ?? null,
@@ -383,7 +385,7 @@ export const WRITE_OPS: Record<string, Op> = {
         .update({
           title: str(a, "title", 300),
           description: description(a),
-          benchmark_minor: int(a, "priceMinor", 0, MONEY_MAX),
+          benchmark_minor: priceMinor(a, "priceMinor", 0, PRICE_LIMITS.MAX_MINOR),
           time_limit_minutes: int(a, "deliveryDays", 0, 3650) * 1440,
           category: strOrNull(a, "category", 100),
           loc_label: place.label,
@@ -407,7 +409,7 @@ export const WRITE_OPS: Record<string, Op> = {
         .insert({
           task_id: uuid(a, "taskId"),
           worker_id: userId,
-          price_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR),
+          price_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR, PRICE_LIMITS.MAX_MINOR),
           time_limit_minutes: int(a, "timeLimitMinutes", 0, 10_000_000),
           message: strOrNull(a, "message", 2000),
         })
@@ -422,7 +424,7 @@ export const WRITE_OPS: Record<string, Op> = {
       await db
         .from("bids")
         .update({
-          price_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR),
+          price_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR, PRICE_LIMITS.MAX_MINOR),
           time_limit_minutes: int(a, "timeLimitMinutes", 0, 10_000_000),
           message: strOrNull(a, "message", 2000),
         })

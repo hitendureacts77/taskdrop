@@ -16,6 +16,7 @@ export const FEES = {
 
 export const PRICE_LIMITS = {
   MIN_MINOR: 2000,
+  MAX_MINOR: 10_000_000,
 } as const;
 
 export const TOP_UP_PCTS = [0, 2, 3, 5, 10, 15, 20, 25] as const;
