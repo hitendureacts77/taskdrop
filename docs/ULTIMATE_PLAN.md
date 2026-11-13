@@ -497,7 +497,7 @@ Everything here is **new and separate** and is made in Step 5. Nothing is copied
 
 **The honest goal.** No app can be made unhackable. TaskDrop aims for this: a break-in is **unlikely**, it is **noticed within minutes**, a stolen key **does little damage**, and recovery is **written down and fast**. Step 2 builds this. The tests are done the way a real attacker would work, but only against staging, never against production or the payment companies.
 
-**Security in one page** (made simpler on 4 November 2026). If you read only one thing about security, read this table. Its 12 checks hold everything: the checks already in this plan, every point from the 8 Upwork proposals (task 2.18), all 16 lines of [Matt Palmer's security checklist for vibe-coded apps](https://gist.github.com/mattppal/5c01ef4447e94515a03314db1ef2403e), the Betterleaks secrets audit you shared (task 2.15) and [Strix](https://github.com/usestrix/strix), the free AI attacker (task 2.16), and the 41-item audit prompt from the vibe-coded security guide (task 2.20). What is left, in order, is the **security path** at the top of Step 2. The full detail (every hole, the Vercel table, the bug list) is in the card under the picture.
+**Security in one page** (made simpler on 4 November 2026). If you read only one thing about security, read this table. Its 12 checks hold everything: the checks already in this plan, every point from the 8 Upwork proposals (task 2.18), all 16 lines of [Matt Palmer's security checklist for vibe-coded apps](https://gist.github.com/mattppal/5c01ef4447e94515a03314db1ef2403e), the Betterleaks secrets audit you shared (task 2.15) and [Strix](https://github.com/usestrix/strix), the free AI attacker (task 2.16), and the 41-item audit prompt from the vibe-coded security guide (task 2.20). What is left, in order, is the **security path** at the top of Step 2. The full detail (every hole, the Vercel table, the bug list) is in the card under the picture. **Both code folders, every check (owner, 13 Nov).** Every check in this table, and every task from 2.5 to 2.20, covers the app and its server (`taskdrop`) **and** the admin panel (`taskdrop-admin`, staging `admin.taskdrop.in`). A finding in either folder takes the same H or B number series and the same "fix" or "accept" rule.
 
 | # | The check, in plain words | Where TaskDrop stands | Finished in |
 |---|---|---|---|
@@ -631,6 +631,10 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | H74 | Row rules guard rows, not columns. Every signed-in person can read 28 columns of `profiles` and 51 of `tasks`, including a task's funding fields, and 29 database calls in `api` ask for every column, so a column added later would reach people unreviewed. No private value was found (`payout_upi` is empty on every row; profile locations are rounded). The same trap as H62, for signed-in people. Includes H13 and H45 (found 6 Nov, 2.18) | Medium | 2.18 part A |
 | H75 | The built Android app has been checked from its settings and for keys, but never opened up the way an attacker would: entry points, app links, debug settings (found 6 Nov, 2.18) | Low | 2.18 part G |
 | H76 | The Razorpay webhook does not compare the amount Razorpay reports with the amount on record. The signature is checked and the link is made by the server, so this is a second net, not a known way in (found 6 Nov, 2.18) | Low | 2.18 part E |
+| H77 | The admin's rate limiter lets every call through when its counter cannot be reached (`src/lib/rate-limit.ts` returns "allowed" on an error), so the 10-a-minute admin sign-in limit and the authenticator limit vanish during a database hiccup (found 13 Nov) | Medium | 2.14 part F, round 3 |
+| H78 | The admin sends no security events to Sentry: failed staff sign-ins, wrong authenticator codes and calls refused for the wrong role are not tagged `security_event`, so the "Security spike" alert (2.10) cannot see an attack on the admin (found 13 Nov) | Medium | 2.14 part F, round 3 |
+| H79 | The admin's door check (`scripts/check-endpoints.mjs`) proves every route has a role check and a limit, but not that a plain person or a lower staff role is actually refused; only `live/token` is tested that way (`docs/SECURITY_ROLES.md` F3) | Low | 2.18 part B |
+| H80 | The admin has no browser tests: no Playwright smoke on `admin.taskdrop.in`, so a broken page or a lost role gate ships unseen, and the debug loop's "admin golden path" is not written down (found 13 Nov) | Low | 2.14 part G, 2.19 |
 | — | Accepted on purpose: an old Razorpay **test** key in the code history; `get_app_controls` readable signed out; 7 private tables closed to the app | Info | Nothing to do |
 
 **The bugs found (your walkthrough, the phone runs and the break-it pass)**
@@ -1829,7 +1833,7 @@ A new idea for a check becomes one round ("charter") of the debug loop. It does 
 | 2 | **The six holes from the outside testers** (2.18, H71 to H76): SAY "start 2.18". Decision 30 is decided | Claude | 30 minutes of yours | Gate 2b |
 | 3 | **Your clicks:** spending alerts (2.2), lock the key stores (2.3), read the emergency guide (2.4, also proof 6 of 2.10) | You | about 1.5 hours | Gate 2b |
 | 4 | **The rest of 2.13:** make both code folders private (part H), invite 2 or 3 free testers (part E), the spend-stop clicks (part F) | You | 30 minutes | Gate 2b (part E may follow, before 6.5) |
-| 5 | **The rest of the hunt** (2.14): H34 wallet record list, H37 admin idle limit and Google button, H38 location inside videos, your "fix" or "accept" on the Low finds, part G on the phone | Both | 45 minutes of yours | Gate 2b |
+| 5 | **The rest of the hunt** (2.14): H34 wallet record list, H37 admin idle limit and Google button, H38 location inside videos, the admin round 3 (F: H77, H78; G: H80, the admin smoke), your "fix" or "accept" on the Low finds, part G on the phone | Both | 45 minutes of yours | Gate 2b |
 | 6 | **Your OK on the Google-first sign-in screen** (2.8) | You | 2 minutes | Gate 2b |
 | 7 | **The money flow, Plan B** (2.21): design now, build after decision 3 and the lawyer's yes | Claude, then you | see 2.21 | Gate 2b, then Step 5 |
 | 8 | **The AI attacker** (2.16), on the finished Plan B code, then one small paid tester (decision 30) | Both | 45 minutes of yours | Gate 2b |
@@ -1858,12 +1862,12 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 | 2.10 Alarms and emergency guide | Part done | Proof 6 (you read the guide); optional second Sentry rule for `fatal` issues |
 | 2.11 Money safety limits | Done | Nothing |
 | 2.13 The WhatsApp advice (added 3 Nov) | Built 4 Nov | H30 waits for the CA (decision 17); H31 was built 6 Nov (decision 18). Yours: the Make-private click (part H), invite the testers (part E), the spend-stop clicks in the part F table |
-| 2.14 The bug and security hunt (added 3 Nov) | Rounds 1 and 2 done 4 Nov; Medium finds fixed 5 and 6 Nov (staging) | H52 (direct database access) closes in 3.9; H34 wallet record list (design done); H37 database-side idle limit and Google button, with a manual Google sign-in check; H38 location inside videos; your "fix" or "accept" on the Low finds (H45, H48, H49, H55, H56, H64, H65, H68, B18, B21, B30, B32); part G (needs the phone). Decisions 17 and 25 were decided 11 Nov (CEO defaults) |
+| 2.14 The bug and security hunt (added 3 Nov) | Rounds 1 and 2 done 4 Nov; Medium finds fixed 5 and 6 Nov (staging) | H52 (direct database access) closes in 3.9; H34 wallet record list (design done); H37 database-side idle limit and Google button, with a manual Google sign-in check; H38 location inside videos; your "fix" or "accept" on the Low finds (H45, H48, H49, H55, H56, H64, H65, H68, B18, B21, B30, B32); part G (needs the phone); admin round 3 (H77, H78, H80), added 13 Nov. Decisions 17 and 25 were decided 11 Nov (CEO defaults) |
 | 2.15 The secrets audit (added 4 Nov) | Done 4 Nov | H56 before launch (5.9); make the code folders private (2.13 H) |
 | 2.16 The AI attacker, Strix (added 4 Nov) | Not started | Waiting for you: Docker Desktop (not installed on this PC, checked 4 Nov) and an AI key with a spending limit, then say "start 2.16" |
 | 2.17 One home per secret (added 5 Nov) | Done 5 Nov | Nothing of yours. `push-payment-secrets.sh` now reads the master file too. Does not block Gate 2b; production (Step 5) uses `--production` |
-| 2.18 The outside testers' advice (added 6 Nov) | Checked 6 Nov, fixes not started | Decision 30 was decided 11 Nov; say "start 2.18" |
-| 2.19 The debug loop (added 10 Nov) | Planned 10 Nov ([DEBUGGING_PLAN.html](DEBUGGING_PLAN.html)); Starter Story debugging lessons added 11 Nov (dig-deeper ladder, `BUG_PROMPT.md`; then "Advanced Debugging (Day 6)": code and live backend, context first, logs before code, fix path A or B); round 0 not run | Say "start debug round"; then your "fix" or "accept" after each round. Gate 3 waits for it to settle; Gate 2b does not |
+| 2.18 The outside testers' advice (added 6 Nov) | Checked 6 Nov, fixes not started | Decision 30 was decided 11 Nov; part B now also proves admin refusals (H79); say "start 2.18" |
+| 2.19 The debug loop (added 10 Nov) | Planned 10 Nov ([DEBUGGING_PLAN.html](DEBUGGING_PLAN.html)); Starter Story debugging lessons added 11 Nov (dig-deeper ladder, `BUG_PROMPT.md`; then "Advanced Debugging (Day 6)": code and live backend, context first, logs before code, fix path A or B); rounds 0 to 3 run 12 Nov, not settled | Say "start debug round"; then your "fix" or "accept" after each round. Gate 3 waits for it to settle; Gate 2b does not |
 | 2.20 The audit prompt for vibe-coded apps (added 10 Nov) | Not run | Say "start 2.20"; then your "fix" or "accept" on the Medium and Low finds. Does not block Gate 2b unless it finds a Critical or High |
 | 2.21 The money flow, Plan B (added 11 Nov, final pass) | Not started | Say "design the Plan B money flow" now; the build waits for decision 3 (S.4) and the lawyer's yes (S.3) |
 
@@ -2526,12 +2530,13 @@ start 2.13
 
 | Check | What it finds |
 |---|---|
-| Rerun `npm run check`, `npm run test:db`, `npm run test:contract`, the break-it run and `scripts/security-round2.mjs fuzz` on today's code | Anything the last 60 changes broke |
+| Rerun `npm run check`, `npm run test:db`, `npm run test:contract`, the break-it run and `scripts/security-round2.mjs fuzz` on today's code; in the admin folder `npm run typecheck`, `npm run lint`, `npm test`, `npm audit --audit-level=moderate` and `npm run build` (which runs the shipped-files scan) | Anything the last 60 changes broke |
 | Supabase advisors (security and performance) on staging | Open row rules, functions without a fixed search path, missing indexes, new tables with no row rules |
 | Stricter code checks, run once without changing the rules for everyone: unhandled promises, a missing `await`, React hooks with missing inputs, unused code and unused exports | Forgotten errors and dead code that hides bugs |
 | `npm audit` in both code folders, the gitleaks scan over the history, and Semgrep (2.13 part B) run once early | Package warnings, secrets, unsafe code patterns |
 | Sentry: every unresolved issue of the last 30 days in the app, the server and the admin | Real crashes people already hit; each one becomes a bug or a "known, harmless" note |
 | Server logs on staging (Supabase and Vercel) for the last 7 days: every 500 answer and every slow call | Errors people saw only as "something went wrong" |
+| Vercel runtime logs for `taskdrop-admin` and the admin's audit log for the last 7 days | Admin errors staff saw, and any action with no matching audit row |
 
 **C. Follow the money.** The most important part. Claude reads every path that moves money from the tap to the database, line by line: paying for a task, top-ups, accepting an offer, the money held while work happens, releasing it at the end, cancels and refunds, promotion payments, withdrawals (`razorpayx-payouts`), manual payouts, and both webhooks. For each one Claude checks, and then tries on staging:
 
@@ -2556,7 +2561,9 @@ start 2.13
 
 **F. The admin app.** Claude reads every admin route and server action: each must check the staff role **on the server** (a hidden button is not a lock); no role can give itself a higher role; every change is written to the audit log; a request from another website cannot make an admin act; the 30-minute and 12-hour sign-outs hold; the admin's sign-in cookie is marked HttpOnly, Secure and SameSite (so page scripts cannot read it and other websites cannot send it); search and export show only what the role needs, never full phone numbers or addresses to a role that does not need them; and the admin never falls back to the master database key (H4 stays closed).
 
-**G. Bugs people would feel.** Every screen on the website (Playwright, in Chrome and Firefox) and on the Android phone, with one checklist: what it shows while loading, when empty, and on an error; a slow network and no network; every send button tapped twice; Back and the phone's back button at every step; the app closed half-way through posting, paying or sending proof, then opened again; a link to a task that is gone or belongs to someone else; signed out by time in the middle of a step; dates around midnight in India (IST against the server's UTC); long names, emoji and Hindi text; bigger text and the keyboard open. Anything that loses what a person typed, shows the wrong person, or gets stuck is at least Medium.
+**F, round 3: the admin, same depth as the app (added 13 Nov, owner: "include admin as well").** Claude reads, then tries on staging with one test login per staff role: (1) every tool that changes a person or money: refunds, payouts, the copyright (DMCA) takedowns, account deletion and its photo clean-up, suspensions, the settings switches, the team page and the money emergency stop (2.21); each must check the role and the authenticator code on the server and write one audit row naming the staff member; (2) every export (people, CRM, leads, reports): masked for roles that do not need full contacts (H33), formula-safe, and audited; (3) every server call that uses the master key (`src/lib/supabase/service.ts`) runs only after the role check; (4) a request from another website cannot make a server action or route act (Origin check, SameSite cookie); (5) no source map is served from `admin.taskdrop.in/_next/static` and `SENTRY_AUTH_TOKEN` stays build-only; (6) H77: the sign-in and authenticator limits fail closed, with a Sentry event when the counter is down; (7) H78: failed sign-ins, wrong codes and role refusals are reported to Sentry as `security_event`, so the 2.10 alert covers the admin. Each fix is a pull request into the admin's `redesigned-2.0` with a test that fails before it.
+
+**G. Bugs people would feel.** Every screen on the website (Playwright, in Chrome and Firefox) and on the Android phone, with one checklist: what it shows while loading, when empty, and on an error; a slow network and no network; every send button tapped twice; Back and the phone's back button at every step; the app closed half-way through posting, paying or sending proof, then opened again; a link to a task that is gone or belongs to someone else; signed out by time in the middle of a step; dates around midnight in India (IST against the server's UTC); long names, emoji and Hindi text; bigger text and the keyboard open. Anything that loses what a person typed, shows the wrong person, or gets stuck is at least Medium. The admin gets the same checklist in Chrome, plus a Playwright smoke on `admin.taskdrop.in` (closes H80): sign in as each staff role, open every page in the side menu, confirm each page loads with no console error, that a role's hidden pages answer "not authorised" when opened by address, and that one safe action per area (a note, a filter, an export) works and appears in the audit log. The smoke lives in the admin folder (`npm run test:e2e`) and is the "admin golden path" the debug loop (2.19) runs every round.
 
 **H. Background work and outside services.** Inngest jobs and the outbox: a job that runs twice must not send two notifications, two SMS or two payouts. Push messages go only to the right person and show no private detail on a locked screen. Photo uploads: only real images and videos of a fair size are kept, and the **location that phones store inside photos is removed** before anyone else can open them (nothing in the code does this today, checked 3 Nov). SMS and the place search: a cost cap per person and per day so nobody can run up your bill (with 2.13 part F). Sentry and the logs never hold phone numbers, codes or addresses.
 
@@ -2669,7 +2676,7 @@ start 2.15
 
 **The rules** (strict, because Strix really attacks):
 
-- **Staging only.** Its targets are a clean copy of the code and the staging addresses (the two Vercel addresses and the staging server). Never production, and never Razorpay, MSG91, Google or Vercel's own systems. Strix's own warning says the same: only systems you own.
+- **Staging only.** Its targets are a clean copy of both code folders (`taskdrop` and `taskdrop-admin`) and the staging addresses: the two Vercel addresses, the staging server and the admin at `admin.taskdrop.in`, signed in with the staff test logins from 2.18 part B (one per role, never your own). Never production, and never Razorpay, MSG91, Google or Vercel's own systems. Strix's own warning says the same: only systems you own.
 - **No secrets go to the AI.** Strix sends the code and the pages it sees to the AI company behind the key. So Claude gives it a fresh copy of the code with no `.env` files and no secrets file.
 - **Only fake people.** Staging's test sign-in (any phone number; the code is shown on screen) and the test accounts Asha, Ravi and Meera. No password is written into Strix's instructions.
 - **Small first.** The quick mode first, then the deeper mode. No flood tests (that is 2.13 part J's job).
@@ -2692,7 +2699,7 @@ start 2.16
 5. Reply "fix" or "accept" for each finding (the same short cards as 2.15). Critical and High are always fixed.
 6. TELL Claude: "done 2.16".
 
-**Done when:** Strix has run in both modes against staging; Claude has checked every finding by hand (real, or a false alarm); real Critical and High holes are fixed, each with a test that fails before the fix; every other finding has your answer; new holes are in the Security section under the next free H numbers; and the AI key is gone from `~/.strix`.
+**Done when:** Strix has run in both modes against staging, the app and the admin; Claude has checked every finding by hand (real, or a false alarm); real Critical and High holes are fixed, each with a test that fails before the fix; every other finding has your answer; new holes are in the Security section under the next free H numbers; and the AI key is gone from `~/.strix`.
 
 **Then keep it going:** Claude runs Strix again before Gate 5 and after big features. Running Strix on every pull request (its GitHub Action) is future scope: it would put the AI key in GitHub and cost money on every change.
 
@@ -2797,7 +2804,7 @@ start 2.17
 
 **A. Columns, not only rows (closes H74).** Claude writes one table of every column a signed-in person can read on `profiles`, `tasks` and the other tables open to many people: public, parties only, or private. Then the 29 `select *` calls in `api` become fixed column lists, private columns go, and a test fails when a table gains a column nobody has decided on, the same way the guest card works since H62. H13 and H45 close with the same list, if you answer "fix".
 
-**B. Every role against every door (extends 2.13 G).** One test, run on staging, with these callers: signed out, person A, person B, and one test account for each staff role (admin, finance, support, sales, viewer). It knocks directly on every table, database function, server function and admin route, not only the `api` actions. Each finding carries the exact request. The result is one table, `docs/SECURITY_ROLES.md`: who may do what. The H52 door stays expected until 3.9, then the same test proves it shut.
+**B. Every role against every door (extends 2.13 G).** One test, run on staging, with these callers: signed out, person A, person B, and one test account for each staff role (admin, finance, support, sales, viewer). It knocks directly on every table, database function, server function and admin route, not only the `api` actions. Each finding carries the exact request. The result is one table, `docs/SECURITY_ROLES.md`: who may do what. The H52 door stays expected until 3.9, then the same test proves it shut. For the admin, the same test calls each of its server actions and routes as signed out, a plain person and each lower staff role, and expects a refusal (403 or "not authorised"), not only a role check in the code; `scripts/check-endpoints.mjs` in the admin learns to fail a route that has no such test (closes H79).
 
 **C. New doors start closed (closes H71).** One migration changes the database defaults so a new function and a new table give nobody rights until a migration says so, and a test fails if any table lacks row rules or any new function is callable signed out without being on the list. Rights already given stay as they are, because migrations only add.
 
@@ -2823,6 +2830,7 @@ start 2.17
 | New doors start closed; what ships is scanned; columns decided | H71, H72, H74 | Claude, parts A, C, D |
 | Android build inspected, debug token gone | H75, H56 | Claude, part G and 5.9 |
 | Admin time limits in the database, Google button | H37 | Claude |
+| Admin limits fail closed, admin security events reach Sentry, every admin door refuses a lower role, admin smoke passes | H77, H78, H79, H80 | Claude, 2.14 F and G, 2.18 B |
 | Location inside videos stripped, or the notice accepted | H38 | Claude, or your "accept" |
 | Spending stops, firewall, leaked-password protection | H19, H11 | 5.8b, 5.2 |
 | Both code folders private | H27 | Your click |
@@ -2838,9 +2846,9 @@ start 2.17
 | Their question | The answer to send |
 |---|---|
 | Roles | Guest; one signed-in account that both hires and earns; staff roles admin, finance, support, sales, viewer |
-| Staging | A separate Supabase project with fake data and fake money, at `taskdrop.in`; Claude makes one test account per role (part B) |
+| Staging | A separate Supabase project with fake data and fake money, at `taskdrop.in`, and the admin at `admin.taskdrop.in`; Claude makes one test account per role, staff roles included (part B) |
 | Row rules and functions | Row rules on all 68 tables; 10 server functions, some use the master key after checking the caller |
-| Admin panel | A separate Next.js app; staff are added by an admin, and the server checks the role |
+| Admin panel | A separate Next.js app, in scope; staff are added by an admin, the server checks the role, money actions need an authenticator code, every change is audited. Try role escalation, exports, refunds and payouts, the DMCA and deletion tools, and cross-site requests |
 | Mobile | Android is in scope (the staging build); iOS is not |
 | Timeline | Your dates |
 
@@ -2868,17 +2876,17 @@ start 2.18
 </details>
 
 <details id="t2-19" data-short="Debug loop">
-<summary>[BOTH] <b>2.19</b> The debug loop: find, fix and recheck in rounds until new bugs settle near zero <small>· your time: 10 to 15 minutes a round · added 10 Nov · plan only, round 0 not run · does not reopen Gate 1</small></summary>
+<summary>[BOTH] <b>2.19</b> The debug loop: find, fix and recheck in rounds until new bugs settle near zero <small>· your time: 10 to 15 minutes a round · added 10 Nov · rounds 0 to 3 run 12 Nov, not settled · does not reopen Gate 1</small></summary>
 
 **Why:** the hunt (2.14) and quality round 3 (3.6) are one-off deep passes. Bugs keep arriving between them: every fix can break something, testers find new ones, and Sentry shows errors nobody reported. You asked for a repeating cycle that shows, every time, which bugs are new and which are still not fixed. The full plan, with the loop drawn, is [DEBUGGING_PLAN.html](DEBUGGING_PLAN.html). It was built from David Agans' nine debugging rules, Stuart Halloway's talk "Debugging with the Scientific Method" (YouTube), Andreas Zeller's Debugging Book (GitHub `uds-se/debuggingbook`), gstack's `/qa` loop (GitHub `garrytan/gstack`), the "Ralph" loop (GitHub `ghuntley/how-to-ralph-wiggum`), Playwright's test agents, Maestro, Julia Evans' debugging guide, and open-source triage guides; the page links each one and says what it gave.
 
 **One round, eight steps** (about half a day of Claude, 10 to 15 minutes of yours):
 
-1. **Pin.** Write down the commit, what is live on staging and the Android build being tested.
+1. **Pin.** Write down the commit of each code folder (app and admin), what is live on staging and on `admin.taskdrop.in`, and the Android build being tested.
 2. **Collect.** Sentry (app, server, admin), Vercel and Supabase errors, the Ideas board, support messages, testers' reports, PostHog once 3.3c is on, and the bugs waiting for a recheck.
-3. **Sweep.** Every automatic check (`npm run check`, `test:contract`, `test:db`, `test:e2e`, `audit:gate`, the admin's checks), run **twice**, so a flaky test shows up.
-4. **Explore.** One charter from a deck of eight (A poster, B helper, C money and a task's life, D accounts and safety, E admin, F talk and alerts, G the edges, H the newest parts), plus the golden path every round: post, offer, pay, work, approve, review, withdraw.
-5. **Log and triage.** One entry per bug in `docs/debug-loop/LEDGER.md`: matched against old bugs first (the same cause reopens the old number), new numbers from **B33**, a level as in 2.7. At most about 8 fixes a round.
+3. **Sweep.** Every automatic check (`npm run check`, `test:contract`, `test:db`, `test:e2e`, `audit:gate`, and in the admin `typecheck`, `lint`, `test`, `audit`, `build` and the admin smoke `test:e2e`), run **twice**, so a flaky test shows up.
+4. **Explore.** One charter from a deck of eight (A poster, B helper, C money and a task's life, D accounts and safety, E admin, F talk and alerts, G the edges, H the newest parts), plus the golden path every round: post, offer, pay, work, approve, review, withdraw. Charter E runs at least once in every three rounds, and the admin smoke runs every round.
+5. **Log and triage.** One entry per bug in `docs/debug-loop/LEDGER.md`, with its repo (app or admin): matched against old bugs first (the same cause reopens the old number), new numbers from **B33**, a level as in 2.7. At most about 8 fixes a round.
 6. **Fix.** Make it fail on demand, write a test that fails because of it, find the cause, the smallest fix, all checks green, a pull request into `redesigned-2.0`.
 7. **Recheck.** The original steps again on staging once the fix is live, and the sweep once more. Only then "Verified".
 8. **Report.** `docs/debug-loop/ROUND-N.md`: new, fixed and verified, still open, reopened, and the list that needs your "fix", "accept" or "after launch". Then the stop test.
@@ -2898,10 +2906,10 @@ start 2.18
 
 1. **Patch or rebuild?** A file with three or more fix commits, or an area reopened in two rounds, may get a clean rewrite of that one file instead of another patch; the entry says which and why. Never a whole-app restart; a rewrite that changes a screen's look is your question.
 2. **Reproduce, quick fix if there is one** (rung 1).
-3. **Look in both places:** the code (repo) and the live backend (Supabase staging). Claude checks they agree: applied migrations against the migration files, the deployed `api` against the pinned commit.
+3. **Look in both places:** the code (repo) and the live backend (Supabase staging). Claude checks they agree: applied migrations against the migration files, the deployed `api` against the pinned commit, and the admin deployment on `admin.taskdrop.in` against the pinned admin commit.
 4. **See the whole codebase without making it public:** the graphify code map lists the files at fault (the `api` operation and every app call site) instead of RepoMix. The repos stay private; no code goes to an outside site.
 5. **Context first, then the bug:** the columns, every security rule and the bucket rules for the tables involved, then a written yes or no per action ("would a rule stop this person reading, adding, changing, renaming or deleting here?") with the rule's name. Saved as `diagnostics/B<n>-context.md`.
-6. **Logs before code** when a server call failed: the last hour of `api` Edge Function, Postgres and Vercel logs and the Sentry event, saved as `diagnostics/B<n>-logs.json` with personal details removed; the fix plan is revised from them.
+6. **Logs before code** when a server call failed: the last hour of `api` Edge Function, Postgres and Vercel logs (both projects, `taskdrop` and `taskdrop-admin`), the admin audit log for admin bugs, and the Sentry event, saved as `diagnostics/B<n>-logs.json` with personal details removed; the fix plan is revised from them.
 7. **One fix path, never both:** **A** one whole fix, with 3 to 5 sentences on why it will work and a keep-as-is list (sign-in checks, secrets, no rule loosened, `api` inputs and replies unchanged); or **B** a full drop-in rewrite of the one failing file. Ledger entries say "Fix path A" or "B".
 8. **Retest like a pro:** hard refresh, original steps; still failing means logs again at once, and a **different** error is a new bug with its own entry.
 9. **Security hygiene:** nothing made public, no code, log or key in an outside chat, logs saved without personal details, a rule never loosened to make an error go away.
@@ -2950,7 +2958,7 @@ start debug round
 1. Run the prompt below, word for word, against the app (`Taskdrop user`, which holds `supabase/`) and again against the admin (`taskdrop-admin`). Two runs, because the admin is a separate Next.js site.
 2. TaskDrop is Expo and React Native with Supabase Edge Functions, not a plain Next.js site. The prompt says to adapt: items about `middleware.ts`, httpOnly cookies and `NEXT_PUBLIC_` apply to the admin and the website; on the phone app they become the Expo public prefix `EXPO_PUBLIC_`, the secure token store and the `api` door. Claude writes the adaptation next to each verdict instead of marking it N/A.
 3. Read-only. Staging only. No secret value is printed; a finding names the file and line, never the key.
-4. Every FAIL goes in the holes table as the next H number (from H77) with its level, in the same short form as 2.13 to 2.16. Critical and High are always fixed. A FAIL that is already a known hole points at the old number instead of adding a new one.
+4. Every FAIL goes in the holes table as the next H number (from H81) with its level, in the same short form as 2.13 to 2.16. Critical and High are always fixed. A FAIL that is already a known hole points at the old number instead of adding a new one.
 5. The report goes in `docs/SECURITY_AUDIT_PROMPT.md`: the rating, the Critical and High list, the quick wins, the fix order, what is already done right, and the one-line summary of all 41 verdicts for each folder.
 6. Repeat the run after Step 3 changes the money flow, and once more before Step 5, so the final code gets the same list.
 
@@ -3016,7 +3024,7 @@ design the Plan B money flow
 - [ ] Gate 2a has passed
 - [ ] Tasks 2.1 to 2.16, 2.18 and 2.21 are ticked (2.13 part E may follow, by decision 15, before 6.5; 2.18 parts G and J follow the next Android build and decision 30, before 6.5)
 - [ ] The six proofs in task 2.10 are all true
-- [ ] Holes H2 to H10, H12, H17 and H22 to H34 and H71 to H76 are closed (H3 closes in 3.9 for staging and is never open in production; H11 closes in 5.2; H1, H15 and H16 in 5.9)
+- [ ] Holes H2 to H10, H12, H17 and H22 to H34, H71 to H76, H77 and H78 are closed (H79 and H80, the admin's refusal test and smoke, before 6.5) (H3 closes in 3.9 for staging and is never open in production; H11 closes in 5.2; H1, H15 and H16 in 5.9)
 - [ ] No Critical or High security problem is open, and every Medium from 2.14, 2.15 and 2.16 has your answer
 
 ---
@@ -3518,8 +3526,8 @@ Each moved job used one or two Inngest steps per run, so steps fall by about the
 | Test | In plain words |
 |---|---|
 | T9 Speed | Request counts, how fast each screen opens on a mid-range phone, and a small load test on staging |
-| T10 Everything works | Every screen at every phone size, light and dark, keyboard use and screen-reader use |
-| T12 Recovery | What the app shows when SMS, payments or photos are down, and the undo for each database change. Staging's free plan has no backups, so the restore itself is practised on a scratch copy with the nightly-copy script Claude writes for production (5.9) |
+| T10 Everything works | Every screen at every phone size, light and dark, keyboard use and screen-reader use; the admin's pages at laptop width, light and dark |
+| T12 Recovery | What the app shows when SMS, payments or photos are down, and the undo for each database change. Staging's free plan has no backups, so the restore itself is practised on a scratch copy with the nightly-copy script Claude writes for production (5.9); the admin shows its error page, not a blank screen, when Supabase is down, and its emergency switches still save |
 | Lighthouse | Google's page-quality score for the website (speed, accessibility, best practices) |
 
 1. SAY:
@@ -3611,7 +3619,7 @@ Do the switch-over, one step at a time.
 - [ ] 12 testers have used the closed test for 14 days
 - [ ] The lawyer has answered (S.3), or you have decided to launch with the money jobs off and pay workers by hand
 - [ ] No Critical or High problem is open (security or quality)
-- [ ] The debug loop (2.19) has settled: a round report says its stop test passes
+- [ ] The debug loop (2.19) has settled: a round report says its stop test passes (its stop test includes the admin smoke passing twice in a row)
 - [ ] Every screen fits every size (1.14, level 1): the size test passes at the six widths, and the Android tablet and foldable pass is written down
 - [ ] You have read the two marketplace numbers (3.3b) for at least 2 weeks
 - [ ] The switch-over (3.9) is done on staging, or has a date. Production does not wait for it, because production is built already switched over (5.9)
@@ -4853,7 +4861,7 @@ Show me this week's numbers.
 Run the after-release checks.
 ```
 
-2. Claude re-runs the most important security tests (keys, database rules, server permissions) and checks Sentry and the money totals.
+2. Claude re-runs the most important security tests in both code folders (keys, database rules, server permissions, the admin role checks) and checks Sentry (app, server and admin), the admin audit log and the money totals.
 3. Every quarter, and after any big change, SAY "run the full test plan again". All attack-style tests run on **staging**, never on production.
 4. Every week, and after every production release, SAY "start debug round" (task 2.19): one shorter round of the debug loop, on staging, so new bugs from real use are found and old fixes are rechecked.
 
@@ -6028,6 +6036,7 @@ Prices were checked between 26 October and 11 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-13 (the admin panel joins every debugging and security check):** You asked for the admin to be included in the debugging and security plans. Opus 5.5 read the plan and the admin code; most of it was already covered (2.5, 2.6, 2.13, 2.14 F, 2.15, 2.18, 2.19, 2.20, Gate 3). **Added, with no new task numbers (rule 11):** new holes **H77 to H80** (the admin limiter fails open, no admin security events in Sentry, the admin door test never proves a refusal, no admin browser tests); **2.14 F round 3** (the admin at app depth) and the **admin Playwright smoke** in 2.14 G; the admin in the 2.16 Strix targets and the 2.18 J tester brief; admin refusals in 2.18 B; a repo field and admin sweep in 2.19; Gate 2b now needs H77 and H78 (H79 and H80 before 6.5); 2.20 now numbers from **H81**; "one page" rule that both code folders get every check. **Defaults chosen, change on request:** the admin sign-in and authenticator limits fail closed; the admin smoke runs in debug rounds first and in CI after the repos go private; Claude creates one fake staff login per role on staging. Nothing was run or built yet.
 - **2026-11-12 (the design card gets part 8, from the Starter Story "Dynamic Hero Sections" lesson):** You shared the Starter Story Build lesson "Dynamic Hero Sections with MidJourney & Lovable" and asked for it in the plan. It is now part 8 of the card **"Design from proven patterns"** (under Cards), changed from Lovable to Claude Code and the TaskDrop app: two screenshots (the hero you like and TaskDrop's own), a MidJourney V7 prompt written by Claude, a 5 to 10 second animated clip plus its still, and a muted looping video behind the top section with a layer that keeps the words readable and a fit for every screen size. Where it goes: the taskdrop.in landing page first, never Home or working screens. Changes from the lesson: the video is never embedded from MidJourney's link (it can expire, tells another company about every visit, and breaks the site's security rules); Claude compresses it and stores it with the site's own files; the still shows instead with reduce-motion, slow or data-saver connections, or if the video fails; and you sign off the still and the motion before Claude builds. Plan only: nothing in the app changed.
 - **2026-11-11 (the design card gets part 7, from the Starter Story Day 8 lesson):** You shared the Starter Story Build lesson "Live Designing with Magic Chat (Day 8)" and asked for its useful parts in the plan. They are now part 7 of the card **"Design from proven patterns"** (under Cards), changed from Lovable to Claude Code and the TaskDrop app: a plain placeholder in the right spot first, a screenshot plus one 21st.dev base component, a Magic Chat prompt kept under 500 characters, effects added one layer per round, the result rebuilt in the app's own components and theme (press instead of hover on phones, smooth on mid-range Android, off with reduce-motion), and the lesson's four snags with their fixes. One change from the lesson: its made-up testimonials are not copied; a quotes section shows only real tester or customer words with permission and stays hidden until there are some. Plan only: nothing in the app changed.
 - **2026-11-11 (a design card from the Starter Story lesson):** You shared the Starter Story Build lesson "Designing with Proven Patterns & Component Libraries" and asked for it in the plan. All six parts are in a new card under **Cards**, "Design from proven patterns", changed from Lovable to Claude Code and the TaskDrop app: where to borrow from (Dribbble, LandingFolio, 21st.dev, MidJourney as an optional paid extra), pictures made to fit a screenshot, 21st.dev prompts rebuilt in the app's own components and theme, the 3S way (Select, Screenshot, Sketch) with "now / should be" fixes one at a time, repeated problems fixed once in the shared component, and style words for TaskDrop. Your palette, Home order and sign-off rules stay above anything borrowed. Step 1's goal now points to the card. Plan only: nothing in the app changed.
