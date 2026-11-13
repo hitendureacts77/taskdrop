@@ -314,7 +314,7 @@ export function AccessScreen() {
 
   const heading =
     stage === 'number'
-      ? { title: 'Get help nearby.\nOr earn nearby.', sub: 'All it takes is your mobile number. New or returning — we’ll know.' }
+      ? { title: 'Get help, near or far.\nOr earn.', sub: 'All it takes is your mobile number. New or returning — we’ll know.' }
       : stage === 'birth'
       ? {
           title: 'Nice to meet\nyou.',
