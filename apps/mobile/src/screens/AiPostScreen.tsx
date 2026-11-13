@@ -61,7 +61,7 @@ import { looksLikeGibberish } from '../lib/gibberish';
 import { pickDefaultPlace } from '../lib/homePlace';
 import { readGuestArea } from '../lib/guestAreaStore';
 import { loadRecentPlaces } from '../lib/recentPlaces';
-import { PLACE_MISSING_LINE, WIZARD_VERSION, isStale, normalize, ownerMatches, placeMissing, resumable, type WizardSnapshot } from '../lib/postWizard';
+import { PLACE_MISSING_LINE, PROMPT_MAX, WIZARD_VERSION, isStale, normalize, ownerMatches, placeMissing, promptTooLong, resumable, type WizardSnapshot } from '../lib/postWizard';
 import {
   clearWizard,
   loadWizard,
@@ -527,6 +527,7 @@ export function AiPostScreen() {
   const fromAsk = () => {
     const req = prompt.trim();
     if (req.length < 5) return flash('Tell us a bit more about what you need');
+    if (promptTooLong(prompt)) return flash(`That is too long. Keep it under ${PROMPT_MAX} characters.`);
     if (looksLikeGibberish(req)) return flash('That doesn’t read like a task yet. Say what you need in a few real words.');
     if (askedFor !== req) {
       const qs = askQuestions(req);
@@ -967,7 +968,7 @@ export function AiPostScreen() {
           placeholderTextColor={t.colors.muted}
           multiline
           autoFocus
-          maxLength={1500}
+          maxLength={PROMPT_MAX}
           accessibilityLabel="What do you need done?"
           style={tx('500', 22, t.colors.ink, {
             minHeight: 180,
@@ -1542,7 +1543,7 @@ export function AiPostScreen() {
   const returning = reached > at(phase) + 1;
   const primary: { label: string; onPress: () => void; disabled?: boolean; busy?: boolean } =
     phase === 'what'
-      ? { label: 'Continue', onPress: fromAsk, disabled: prompt.trim().length < 5 || promptIssue !== null }
+      ? { label: 'Continue', onPress: fromAsk, disabled: prompt.trim().length < 5 || promptIssue !== null || promptTooLong(prompt) }
       : phase === 'picks'
         ? { label: brief ? 'Update my post' : 'Write my post', onPress: fromDetails }
         : phase === 'brief'
@@ -1704,7 +1705,12 @@ export function AiPostScreen() {
               </Pressable>
             ) : null}
             <View style={{ flex: 1 }} />
-            <RNText style={tx('500', 12, t.colors.muted, { alignSelf: 'center' })}>{prompt.length} / 1500</RNText>
+            <RNText
+              style={tx(promptTooLong(prompt) ? '700' : '500', 12, promptTooLong(prompt) ? t.colors.signalDeep : t.colors.muted, { alignSelf: 'center' })}
+              accessibilityLiveRegion="polite"
+            >
+              {promptTooLong(prompt) ? `${prompt.length} / ${PROMPT_MAX}. Shorten it to go on` : `${prompt.length} / ${PROMPT_MAX}`}
+            </RNText>
           </>
         ) : null}
         {phase !== 'what' ? (

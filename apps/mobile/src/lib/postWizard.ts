@@ -244,3 +244,8 @@ export function placeMissing(remote: boolean, place: { lat: number | null; lng: 
 
 /** The plain words shown while a place is still missing. */
 export const PLACE_MISSING_LINE = 'Set where the job is, or switch to Remote / online.';
+
+/** The longest request the composer takes. A voice transcript or an idea chip can push past it (B92). */
+export const PROMPT_MAX = 1500;
+
+export const promptTooLong = (text: string): boolean => text.length > PROMPT_MAX;

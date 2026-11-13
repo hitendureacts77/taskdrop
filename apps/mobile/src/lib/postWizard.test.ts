@@ -6,7 +6,9 @@ import {
   adopt,
   isStale,
   normalize,
+  PROMPT_MAX,
   placeMissing,
+  promptTooLong,
   ownerMatches,
   resumable,
   validateSnapshot,
@@ -135,4 +137,11 @@ test('B91: an At a place request needs a pinned place; remote needs none', () =>
   assert.equal(placeMissing(false, { lat: null, lng: null }), true);
   assert.equal(placeMissing(false, { lat: 17.45, lng: null }), true);
   assert.equal(placeMissing(false, { lat: 17.45, lng: 78.39 }), false);
+});
+
+test('B92: a request over 1500 characters is too long, exactly 1500 is fine', () => {
+  assert.equal(promptTooLong('a'.repeat(PROMPT_MAX)), false);
+  assert.equal(promptTooLong('a'.repeat(PROMPT_MAX + 1)), true);
+  assert.equal(promptTooLong('a'.repeat(1687)), true);
+  assert.equal(PROMPT_MAX, 1500);
 });
