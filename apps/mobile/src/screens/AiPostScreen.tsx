@@ -59,6 +59,7 @@ import {
 } from '../lib/taskBrief';
 import { looksLikeGibberish } from '../lib/gibberish';
 import { pickDefaultPlace } from '../lib/homePlace';
+import { readGuestArea } from '../lib/guestAreaStore';
 import { loadRecentPlaces } from '../lib/recentPlaces';
 import { WIZARD_VERSION, isStale, normalize, ownerMatches, resumable, type WizardSnapshot } from '../lib/postWizard';
 import {
@@ -462,11 +463,13 @@ export function AiPostScreen() {
     if (!hydrated || (!userId && !guest)) return;
     let alive = true;
     void (async () => {
-      const [recents, profile] = await Promise.all([
+      const [recents, profile, guestArea] = await Promise.all([
         loadRecentPlaces().catch(() => []),
         userId ? getProfile(userId).catch(() => null) : Promise.resolve(null),
+        // A guest's area sits on the device, not on a profile (B87).
+        userId ? Promise.resolve(null) : readGuestArea(),
       ]);
-      const d = pickDefaultPlace(recents, profile);
+      const d = pickDefaultPlace(recents, profile, guestArea);
       if (!alive || !d || placeRef.current) return;
       setPlace({ label: d.label, lat: d.lat, lng: d.lng });
       setPlaceSource(d.source);

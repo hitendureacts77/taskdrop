@@ -1,4 +1,5 @@
 import type { AddressDetails } from '@taskdrop/rules';
+import type { GuestArea } from './guestArea';
 
 /**
  * Where a new task should default to when the poster has not picked a place.
@@ -35,7 +36,11 @@ function hasCoords(lat: number | null | undefined, lng: number | null | undefine
   return typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng);
 }
 
-export function pickDefaultPlace(recents: readonly PlaceLike[] | null | undefined, profile: ProfileLike): DefaultPlace | null {
+export function pickDefaultPlace(
+  recents: readonly PlaceLike[] | null | undefined,
+  profile: ProfileLike,
+  guestArea?: GuestArea | null,
+): DefaultPlace | null {
   for (const p of recents ?? []) {
     if (p?.details?.tag !== 'home' || !p.label || !hasCoords(p.lat, p.lng)) continue;
     return { label: p.label, lat: p.lat, lng: p.lng as number, source: 'home' };
@@ -48,6 +53,10 @@ export function pickDefaultPlace(recents: readonly PlaceLike[] | null | undefine
       lng: profile?.loc_lng as number,
       source: 'profile',
     };
+  }
+  // A guest has no profile: the area they chose lives on the device (B87).
+  if (guestArea && hasCoords(guestArea.lat, guestArea.lng)) {
+    return { label: guestArea.label, lat: guestArea.lat, lng: guestArea.lng, source: 'profile' };
   }
   return null;
 }

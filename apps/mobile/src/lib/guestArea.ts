@@ -17,3 +17,12 @@ export function parseGuestArea(raw: string | null | undefined): GuestArea | null
 }
 
 export const serializeGuestArea = (a: GuestArea): string => JSON.stringify({ label: a.label, lat: a.lat, lng: a.lng });
+
+/** The part of a picked place that matters here (structural, so this file stays free of React Native). */
+type PickedLike = { label: string; area?: string; lat: number | null; lng: number | null };
+
+/** What to save for a guest after they pick a place: the area name and its pin, or null when there is no pin. */
+export function guestAreaFromPicked(picked: PickedLike): GuestArea | null {
+  if (picked.lat === null || picked.lng === null) return null;
+  return { label: picked.area || picked.label, lat: picked.lat, lng: picked.lng };
+}

@@ -53,6 +53,8 @@ import { HowSheet } from './HowSheet';
 import { LocationSheet, type PickedPlace } from './LocationSheet';
 import { resolveCurrentPlace } from '../lib/location';
 import { roughPlace } from '../lib/place';
+import { guestAreaFromPicked } from '../lib/guestArea';
+import { readGuestArea, saveGuestArea } from '../lib/guestAreaStore';
 import { Pressy, tx } from './primitives';
 
 /**
@@ -121,9 +123,14 @@ function PostTop() {
   const loadTop = useCallback(
     async (alive: () => boolean) => {
       if (!userId) {
-        // A guest sees what is trending; nothing of theirs to load.
+        // A guest sees what is trending, and the area they chose on this device (B87).
         if (guest)
           await Promise.all([
+            readGuestArea().then((a) => {
+              if (!alive() || !a) return;
+              setPlace(a.label);
+              return loadPulse({ lat: a.lat, lng: a.lng }, alive);
+            }),
             trendingCategories(5).then((r) => alive() && setTrending(r.filter((c) => c.open_count > 0))).catch(() => {}),
             listOpenTasks(30, 'request').then((r) => alive() && setPosted(r)).catch(() => {}),
           ]);
@@ -166,7 +173,11 @@ function PostTop() {
     const label = picked.area || picked.label;
     setPlace(label);
     void loadPulse({ lat: picked.lat, lng: picked.lng });
-    if (!userId) return;
+    if (!userId) {
+      const g = guestAreaFromPicked(picked);
+      if (g) await saveGuestArea(g);
+      return;
+    }
     await updateProfile(userId, { locLabel: label, locLat: picked.lat, locLng: picked.lng }).catch((e) =>
       flash(e instanceof Error ? e.message : 'Could not save your area'),
     );
@@ -632,8 +643,10 @@ function EarnTop() {
     setRating(Number(p?.worker_rating_avg ?? 0));
     setSkills(p?.skills ?? []);
     setSavedIds(ids);
+    // A guest's area sits on the device (B87); read it once, then the pin they pick stays in state.
+    const guestSaved = userId ? null : await readGuestArea();
     setPlace((cur) => {
-      if (!userId) return cur;
+      if (!userId) return cur ?? guestSaved;
       if (p?.loc_lat == null || p?.loc_lng == null) return null;
       // Same pin as before: keep the object, so the nearby list isn't refetched.
       if (cur && cur.lat === p.loc_lat && cur.lng === p.loc_lng) return cur;
@@ -711,7 +724,10 @@ function EarnTop() {
     if (picked.lat === null || picked.lng === null) return flash('Drop a pin on the map to set your area');
     const next = { label: picked.area || picked.label, lat: picked.lat, lng: picked.lng };
     setPlace(next);
-    if (!userId) return;
+    if (!userId) {
+      await saveGuestArea(next);
+      return;
+    }
     await updateProfile(userId, { locLabel: next.label, locLat: next.lat, locLng: next.lng }).catch((e) =>
       flash(e instanceof Error ? e.message : 'Could not save your area'),
     );

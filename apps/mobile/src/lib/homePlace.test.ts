@@ -58,3 +58,12 @@ test('B35: Home lists nearby services nearest first, then remote ones, never far
   assert.equal(nearThenRemote([], many, at).length, HOME_FEED_REMOTE_MAX);
   assert.equal(HOME_FEED_RADIUS_KM, 25);
 });
+
+test('B87: a guest with no profile starts the post from the area saved on the device', () => {
+  const guestArea = { label: 'Madhapur', lat: 17.45, lng: 78.39 };
+  assert.deepEqual(pickDefaultPlace([], null, guestArea), { label: 'Madhapur', lat: 17.45, lng: 78.39, source: 'profile' });
+  // A saved Home address and a profile pin still come first.
+  assert.equal(pickDefaultPlace([home('Flat 4')], null, guestArea)?.label, 'Flat 4');
+  assert.equal(pickDefaultPlace([], profile, guestArea)?.label, 'Indiranagar');
+  assert.equal(pickDefaultPlace([], null, null), null);
+});
