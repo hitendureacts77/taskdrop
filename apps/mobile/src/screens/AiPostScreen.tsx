@@ -61,7 +61,7 @@ import { looksLikeGibberish } from '../lib/gibberish';
 import { pickDefaultPlace } from '../lib/homePlace';
 import { readGuestArea } from '../lib/guestAreaStore';
 import { loadRecentPlaces } from '../lib/recentPlaces';
-import { WIZARD_VERSION, isStale, normalize, ownerMatches, resumable, type WizardSnapshot } from '../lib/postWizard';
+import { PLACE_MISSING_LINE, WIZARD_VERSION, isStale, normalize, ownerMatches, placeMissing, resumable, type WizardSnapshot } from '../lib/postWizard';
 import {
   clearWizard,
   loadWizard,
@@ -590,6 +590,8 @@ export function AiPostScreen() {
   // What is posted: the poster's own amount plus the top-up.
   const price = Math.round((budget ?? 0) * (1 + topUpPct / 100));
   // The own amount must reach the smallest price, and what is posted (top-up included) must stay under the most (B90).
+  // At a place, with no place set: Continue and Post stay off (B91).
+  const noPlace = placeMissing(remote, place);
   const budgetLow = priceState(budget) === 'low';
   const budgetHigh = priceState(price) === 'high';
   const budgetOk = (budget ?? 0) >= MIN_PRICE_INR && !budgetHigh;
@@ -1373,6 +1375,11 @@ export function AiPostScreen() {
             <RNText style={tx('700', 13, t.colors.accentDeep)}>{place ? 'Change' : 'Set'}</RNText>
           </Pressable>
         ) : null}
+        {noPlace ? (
+          <RNText style={tx('600', 12, t.colors.signalDeep, { marginTop: 8 })} accessibilityLiveRegion="polite">
+            {PLACE_MISSING_LINE}
+          </RNText>
+        ) : null}
 
         {label('HOW DO YOU WANT TO HIRE?')}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -1549,7 +1556,7 @@ export function AiPostScreen() {
                   disabled: !budgetOk,
                 }
               : phase === 'providers'
-                ? { label: returning ? 'Save and review' : 'Continue', onPress: () => advance('providers') }
+                ? { label: returning ? 'Save and review' : 'Continue', onPress: () => advance('providers'), disabled: noPlace }
                 : phase === 'options'
                   ? {
                       label: returning
@@ -1559,7 +1566,7 @@ export function AiPostScreen() {
                           : `Continue with ${optionsSummary(opts).length} option${optionsSummary(opts).length === 1 ? '' : 's'}`,
                       onPress: () => advance('options'),
                     }
-                  : { label: 'Post my request', onPress: () => void post(), busy: posting };
+                  : { label: 'Post my request', onPress: () => void post(), busy: posting, disabled: noPlace };
 
   return (
     <Screen padded={false}>

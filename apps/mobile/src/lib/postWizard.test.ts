@@ -6,6 +6,7 @@ import {
   adopt,
   isStale,
   normalize,
+  placeMissing,
   ownerMatches,
   resumable,
   validateSnapshot,
@@ -126,4 +127,12 @@ test('owner rules: guest snapshots may be adopted, one account never sees anothe
   assert.equal(ownerMatches(guest, null), false);
   assert.equal(adopt(guest, 'user-a').owner, 'user-a');
   assert.equal(adopt(a, 'user-b').owner, 'user-a');
+});
+
+test('B91: an At a place request needs a pinned place; remote needs none', () => {
+  assert.equal(placeMissing(true, null), false);
+  assert.equal(placeMissing(false, null), true);
+  assert.equal(placeMissing(false, { lat: null, lng: null }), true);
+  assert.equal(placeMissing(false, { lat: 17.45, lng: null }), true);
+  assert.equal(placeMissing(false, { lat: 17.45, lng: 78.39 }), false);
 });
