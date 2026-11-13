@@ -119,6 +119,20 @@ pre.tpl { background: var(--code); border: 1px solid var(--line); border-radius:
 .src .kind { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
 ul.tight { margin: 6px 0; padding-left: 20px; }
 ul.tight li { margin: 3px 0; }
+.cov { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 7px; border-radius: 999px; white-space: nowrap; margin-right: 4px; }
+.cov.ok { background: var(--low-soft); color: var(--low); }
+.cov.part { background: var(--med-soft); color: var(--med); }
+.cov.no { background: var(--crit-soft); color: var(--crit); }
+.cov.na { background: var(--surface-2); color: var(--ink-2); }
+table.matrix td { font-size: 13.5px; min-width: 130px; }
+table.matrix td:first-child { min-width: 120px; font-weight: 600; }
+table.matrix tr.grp td { background: var(--surface-2); font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-2); }
+.r4 { border: 1px solid var(--line); border-left: 4px solid var(--high); background: var(--surface); border-radius: 0 12px 12px 0; padding: 14px 16px; margin: 18px 0 0; }
+.r4 h3 { margin: 0 0 6px; font-size: 17px; }
+.done-means { font-size: 14px; margin: 6px 0 0; padding-left: 20px; }
+.done-means li::marker { content: "✓  "; color: var(--low); }
+ul.owner { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 10px; }
+ul.owner li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px 12px 16px; border-left: 4px solid var(--say); }
 footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 16px; }
 </style>
 </head>
@@ -127,7 +141,7 @@ footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px
 
 <header class="top">
   <div>
-    <p class="eyebrow">TaskDrop · plan task 2.19 · written 10 November 2026 · lesson steps added 11 November</p>
+    <p class="eyebrow">TaskDrop · plan task 2.19 · written 10 November 2026 · lesson steps added 11 November · whole-app coverage added 13 November</p>
     <h1>The debug loop</h1>
     <p class="lede">A repeating round of <b>find → fix → recheck</b>. Each round looks for new bugs, fixes the worst ones, proves the old fixes still hold, and tells you what is still open. Rounds repeat until the number of new bugs settles near zero.</p>
   </div>
@@ -135,7 +149,8 @@ footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px
 </header>
 
 <div class="pills">
-  <span class="pill">Status: <b>plan only, round 0 not run</b></span>
+  <span class="pill">Status: <b>rounds 0 to 4 run, not settled</b></span>
+  <span class="pill">Next: <b>round 5 (section 20)</b></span>
   <span class="pill">Rounds before launch: <b>at least 3, at most 8</b></span>
   <span class="pill">One round: <b>about half a day of Claude, 10–15 min of yours</b></span>
   <span class="pill">After launch: <b>one round a week</b></span>
@@ -144,6 +159,12 @@ footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px
 
 <div class="say">start debug round<button type="button" data-copy="start debug round">Copy</button></div>
 <p class="meta">That one sentence runs the next round. Claude reads the bug ledger and the last round's report from the files, so any new Claude session can pick up where the last one stopped.</p>
+
+<div class="r4" id="r4box">
+  <h3>Round 4 result (13 November 2026)</h3>
+  <p style="margin:0">The first round that walked the live website, the Android phone and the admin, and rechecked older fixes on staging. The exact counts (new bugs by level, fixed, verified) are kept in one place only: the round table at the top of <a href="debug-loop/LEDGER.md">debug-loop/LEDGER.md</a>, the round report is <a href="debug-loop/ROUND-4.md">debug-loop/ROUND-4.md</a>, and the walk notes are in <code>docs/debug-loop/round-4/</code>. In short: many new bugs, a few High (wrong UPI id on the admin pay screen, admin job list paging, a typed <code>+91</code> turning into someone else's number, abuse caps not live on staging), 18 older fixes verified on staging, nothing reopened. <b>Not settled.</b></p>
+  <p class="meta" style="margin:8px 0 0"><b>What round 4 could not cover</b> (repeated first in round 5, section 20): the live admin walk stopped when the Google session changed; no admin login per staff role; no 390 px or desktop widths; <code>test:db</code> did not run on this PC (no <code>DATABASE_URL</code>, no <code>psql</code>); the e2e suite was red and cut short at test 34 of 68; guest mode and phone sign-up only partly walked; Android guest mode and Android Earn money steps not walked at all.</p>
+</div>
 
 <nav class="toc" aria-label="Contents">
   <ol>
@@ -160,6 +181,14 @@ footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px
     <li><a href="#tools">Tools it uses</a></li>
     <li><a href="#sources">Where these ideas come from</a></li>
     <li><a href="#plan">How it fits the ultimate plan</a></li>
+    <li><a href="#coverage">The coverage map: what is tested, what is empty</a></li>
+    <li><a href="#guest">Guest mode charter</a></li>
+    <li><a href="#forms">The forms catalogue</a></li>
+    <li><a href="#security">The security layer you can trust</a></li>
+    <li><a href="#cleanup">The clean-up track (unneeded code)</a></li>
+    <li><a href="#engine">Running the loop to the end</a></li>
+    <li><a href="#round5">Round 5, charter by charter</a></li>
+    <li><a href="#changes">Changes to this page</a></li>
   </ol>
 </nav>
 
@@ -309,7 +338,11 @@ footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px
 <tr><td class="n">F</td><td><b>Talk and alerts</b>: chat, task questions, push notifications, notification words, Ideas board</td><td>A message while offline, a push to a phone that is asleep, a double alert after a slow moment, the words on the lock screen</td></tr>
 <tr><td class="n">G</td><td><b>The edges</b>: slow and no network, bigger text, keyboard, dark mode, desktop and tablet widths, four browsers</td><td>Airplane mode in the middle of a step, the back button everywhere, rotate the phone, the rule-7 screen check (Chrome, Edge, Firefox, Safari)</td></tr>
 <tr><td class="n">H</td><td><b>The newest parts</b>: Together (City Hunt, Big Days), the first-minute Home (1.13), the map tab</td><td>Newest code has the most bugs. Also the hot spot of the last rounds, whatever it is</td></tr>
+<tr><td class="n">I</td><td><b>Guest mode</b> (added 13 Nov): everything a signed-out person can reach, on the website and the Android app</td><td>The full list in section 15: every screen, every "make your account" moment, what must never show, sign-in mid-flow, deep links, offline</td></tr>
+<tr><td class="n">J</td><td><b>Forms</b> (added 13 Nov): every place a person or staff member types</td><td>The standard bad-input set in section 16, money fields first</td></tr>
+<tr><td class="n">K</td><td><b>Roles and doors</b> (added 13 Nov): one login per admin staff role, two people trying each other's things, abuse caps</td><td>The security layer in section 17</td></tr>
 </tbody></table></div>
+<p class="meta">Charters I, J and K were added after round 4 showed that guest mode, typed input and the admin roles kept falling between the other charters. The coverage map (section 14) decides which charter comes next: the emptiest important cell first.</p>
 
 <div class="note"><b>The golden path, every round:</b> sign in → post a task → a second account offers → choose and pay (test mode) → start → send proof → approve → review both ways → withdraw request. Website every round; Android whenever your phone is connected; the admin sees the task, the money and the review. The pay step uses the existing e2e money test or you; Claude never types into a payment page.</div>
 
@@ -597,10 +630,326 @@ B43 Low: ...      recommended: accept
 <tr><td>New file <code>docs/debug-loop/BUG_PROMPT.md</code> (11 Nov)</td><td>The standing bug template (section 7, rung 6); every round and every bug you report starts by reading it, and slow bugs add their lessons to it</td></tr>
 <tr><td>Section 8 (11 Nov, second lesson)</td><td>Advanced debugging: patch or rebuild, the code and the live backend both, context first, logs before code, fix path A or B, a new error is a new bug, four prompts in <code>BUG_PROMPT.md</code>; ledger entries also say the fix path</td></tr>
 <tr><td>Related tasks</td><td>2.14 (the hunt, security first) and 3.6 (quality round 3) are one-off deep passes; 2.19 is the repeating pass that keeps the app clean between them and after them</td></tr>
+<tr><td>Sections 14 to 20 (13 Nov)</td><td>The whole-app debugging plan: coverage map, guest charter, forms catalogue, security layer, clean-up track, how the loop runs to the end, and round 5. Task 2.19 points here; 2.14 parts F, G and J use the same per-role matrix and guest list, so nothing is tested twice under two names</td></tr>
 </tbody></table></div>
 
+<!-- 14 -->
+<h2 id="coverage">14. The coverage map: what is tested, and what is still empty</h2>
+<p>The app has three <b>surfaces</b> (the website, the Android app, the admin panel), several <b>modes</b> (a guest, a signed-in person hiring, a signed-in person earning, and five staff roles in the admin), and five <b>layers</b> to test in each. Every box below says who covers it and how well. It is written from what round 4 actually did, not from what was planned.</p>
+
+<div class="grid three">
+  <div class="card"><h3>The five layers</h3><ul class="tight">
+    <li><b>Screens and forms:</b> what you see and type</li>
+    <li><b>Server and database rules:</b> what the server lets each person do, whatever the screen shows</li>
+    <li><b>Money:</b> amounts, holds, fees, refunds, withdrawals add up</li>
+    <li><b>Privacy:</b> nobody sees an exact address, phone, email, wallet or chat that is not theirs</li>
+    <li><b>Abuse:</b> limits on spam, floods, huge numbers and repeat clicks</li>
+  </ul></div>
+  <div class="card"><h3>How to read a box</h3><p><span class="cov ok">Covered</span> walked or tested live in round 4 (or by a test that runs on every change), with results.</p><p><span class="cov part">Part</span> some of it, or only by reading the code.</p><p><span class="cov no">Empty</span> nobody has looked yet. <span class="cov na">n/a</span> does not apply.</p></div>
+  <div class="card"><h3>The rule it sets</h3><p>The next charter goes to the <b>emptiest important box</b>. Money and Privacy boxes come first. The loop cannot be called settled (section 2) while any Money or Privacy box is still <span class="cov no">Empty</span>.</p></div>
+</div>
+
+<div class="table-wrap"><table class="matrix">
+<thead><tr><th>Surface · mode</th><th>Screens and forms</th><th>Server and database rules</th><th>Money</th><th>Privacy</th><th>Abuse</th></tr></thead>
+<tbody>
+<tr class="grp"><td colspan="6">Website (taskdrop.in, staging)</td></tr>
+<tr><td>Guest</td><td><span class="cov part">Part</span>R4 web walk: Home, sign-in, age gate (R4-W1, W3). Explore, task pages, profiles, Ideas board not walked. Charter I</td><td><span class="cov part">Part</span>Guest door tested once (2.14 J, 4 Nov); guest SQL tests run in CI; B34 rechecked. Place search refuses guests (N6, unconfirmed). Charter I, K</td><td><span class="cov no">Empty</span>Must be nothing: no wallet, no pay page reachable. Never checked live. Charter I</td><td><span class="cov part">Part</span>2.14 J proved no exact place; not rechecked since the map and Home changes. Charter I</td><td><span class="cov no">Empty</span>Caps from migration 152 are not live on staging (N1). Charter K</td></tr>
+<tr><td>Signed in · Hire</td><td><span class="cov ok">Covered</span>R4: post flow, budget, place, composer (W4, W5, W6). Charter J for every other form</td><td><span class="cov ok">Covered</span>Rounds 2 and 3 code hunts; two-person test on every <code>api</code> change and weekly</td><td><span class="cov part">Part</span>Golden path not run end to end on web in R4; <code>money.spec</code> not reached (suite cut short). Round 5</td><td><span class="cov part">Part</span>Two-person test (automatic). Files and chat by hand not done. Charter K</td><td><span class="cov no">Empty</span>Price has no top limit (W4); post caps not live (N1). Charter K</td></tr>
+<tr><td>Signed in · Earn</td><td><span class="cov part">Part</span>Not walked on web in R4 (Android did). Charter B, J</td><td><span class="cov ok">Covered</span>Round 3 code hunt (worker flow, search); B53, B60, B61 verified on staging</td><td><span class="cov part">Part</span>Offer, proof, withdraw not walked on web in R4. Round 5 golden path</td><td><span class="cov part">Part</span>Exact address before being chosen: B60 verified in SQL, not by hand. Charter K</td><td><span class="cov no">Empty</span>Offer floods, proof size (N4) by hand. Charter K</td></tr>
+<tr class="grp"><td colspan="6">Android app (staging build + updates)</td></tr>
+<tr><td>Guest</td><td><span class="cov no">Empty</span>The Android walk was signed in the whole time. Charter I</td><td><span class="cov part">Part</span>Same server as the website (above); place search 401s seen from Android (N6). Charter I</td><td><span class="cov no">Empty</span>Charter I</td><td><span class="cov no">Empty</span>Charter I</td><td><span class="cov no">Empty</span>Charter I, K</td></tr>
+<tr><td>Signed in · Hire</td><td><span class="cov ok">Covered</span>R4 phone walk: post, close, My tasks, wallet, alerts, messages, back button, relaunch</td><td><span class="cov ok">Covered</span>Same server and tests as the website</td><td><span class="cov part">Part</span>Wallet seen, no pay or approve on the phone. Round 5 golden path</td><td><span class="cov part">Part</span>Chat thread opened; no second person. Charter K</td><td><span class="cov part">Part</span>₹9,99,99,999 budget accepted (seen from the admin). Charter K</td></tr>
+<tr><td>Signed in · Earn</td><td><span class="cov ok">Covered</span>R4: Find work, map, filters, See all, distance slider, job page, report</td><td><span class="cov ok">Covered</span>Same server and tests as the website</td><td><span class="cov no">Empty</span>No offer, start, proof or withdraw on the phone yet. Round 5 golden path</td><td><span class="cov part">Part</span>Job page seen before being chosen (area only, as it should). Charter K</td><td><span class="cov no">Empty</span>Charter K</td></tr>
+<tr class="grp"><td colspan="6">Admin panel (admin.taskdrop.in, staging)</td></tr>
+<tr><td>Admin (full)</td><td><span class="cov part">Part</span>Live walk: money, jobs, people, settings (R4-L1 to L15). 16 pages not walked after the session was lost; 767 px only. Charter E</td><td><span class="cov ok">Covered</span>Static review of every guard and route (R4-X1 to X19); role doors SQL test in CI</td><td><span class="cov part">Part</span>Pay screen bug found (L2); no confirm pressed on refund, payout or dispute. Charter E</td><td><span class="cov ok">Covered</span>CSV and contacts (L3), audit gaps (L4), exports masked by code</td><td><span class="cov part">Part</span>Server actions have no limit (X4, by code). Live replay not done. Charter K</td></tr>
+<tr><td>Finance</td><td><span class="cov no">Empty</span>No Finance login yet. Charter K</td><td><span class="cov part">Part</span>Read from the code; role doors SQL test in CI (throwaway database). Charter K</td><td><span class="cov part">Part</span>By code only. Charter K</td><td><span class="cov part">Part</span>Masking by code; staff contacts unmasked (X15). Charter K</td><td><span class="cov no">Empty</span>Charter K</td></tr>
+<tr><td>Support</td><td><span class="cov no">Empty</span>No Support login yet. Charter K</td><td><span class="cov part">Part</span>As Finance. Charter K</td><td><span class="cov part">Part</span>Must be refused on money; by code only. Charter K</td><td><span class="cov part">Part</span>Sees full contacts by design; audit row checked by code. Charter K</td><td><span class="cov no">Empty</span>Broadcast replay (X4). Charter K</td></tr>
+<tr><td>Sales</td><td><span class="cov no">Empty</span>No Sales login yet. Charter K</td><td><span class="cov part">Part</span>"Money blind" by code and SQL test; refund count leaks in page data (X10). Charter K</td><td><span class="cov part">Part</span>Must see no money; by code only. Charter K</td><td><span class="cov part">Part</span>Masked by code. Charter K</td><td><span class="cov no">Empty</span>Broadcast replay (X4). Charter K</td></tr>
+<tr><td>Viewer</td><td><span class="cov no">Empty</span>No Viewer login yet. Charter K</td><td><span class="cov part">Part</span>Can mark all alerts read (X5, by code). Charter K</td><td><span class="cov part">Part</span>Must change nothing; by code only. Charter K</td><td><span class="cov part">Part</span>Masked by code; staff contacts unmasked (X15). Charter K</td><td><span class="cov na">n/a</span>Viewer changes nothing</td></tr>
+<tr class="grp"><td colspan="6">Under every surface</td></tr>
+<tr><td>Database and server functions</td><td><span class="cov na">n/a</span></td><td><span class="cov ok">Covered</span>R4 backend collect: migrations, deploys, advisors, logs; SQL tests in CI on every pull request</td><td><span class="cov ok">Covered</span>Money checks all 0 rows on staging (R4); nightly reconcile runs (seed noise, N7)</td><td><span class="cov ok">Covered</span>Security advisors read; 12 orphan address rows found (N2)</td><td><span class="cov part">Part</span>Migration 152 not applied (N1); background job clock errors (N3)</td></tr>
+</tbody></table></div>
+<p class="meta">Count after round 4: of 60 boxes, 12 Covered, 29 Part, 17 Empty, 2 n/a. The Empty boxes cluster in four places: <b>guest mode on Android</b>, <b>money steps on the phone</b>, <b>the four lower admin roles</b>, and <b>abuse limits</b> almost everywhere (mostly because migration 152 is not on staging). Round 5 (section 20) is ordered to empty those first. Each round report adds one line: the count of Covered, Part and Empty, so you can see the map fill in.</p>
+
+<!-- 15 -->
+<h2 id="guest">15. Guest mode charter (charter I)</h2>
+<p>A guest is someone who tapped "Continue as guest": no account, no session. The server answers only a short list of public reads for a guest (the list is in <code>apps/mobile/src/lib/guest.ts</code> and must match <code>supabase/functions/api/guest.ts</code>; a unit test checks they are the same) and answers every other action with "make your account first". This charter proves that on the website <b>and</b> the Android app.</p>
+
+<h3>A. Every screen a guest can reach (open each one, on both)</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Screen</th><th>What must be true for a guest</th></tr></thead>
+<tbody>
+<tr><td>Sign-in page, "Continue as guest", intro story</td><td>Opens; the choice is remembered on that device (next start opens Home)</td></tr>
+<tr><td>Hire Home and Earn Home</td><td>Real public data, the area name only; the chosen area survives a reload (round 4 bug R4-W1)</td></tr>
+<tr><td>Explore / Find work, the map, filters, See all, near-me map</td><td>Tasks and helpers shown by area; pins rounded to about a kilometre; place search works for a guest (N6 says it may not)</td></tr>
+<tr><td>A task page, a person's public profile, reviews, proof photos</td><td>No exact address, no phone, no chat; offer count only</td></tr>
+<tr><td>Search, Ideas board and an idea, Pricing, Help, Legal pages, Support</td><td>Readable; anything that sends asks for an account</td></tr>
+<tr><td>Drop a task (composer, all wizard steps up to Review)</td><td>Works to the last step; the draft is kept on the device</td></tr>
+<tr><td>Tabs that need an account (My tasks, Messages, Wallet, Profile, Notifications)</td><td>A friendly "make your account" screen, never an error or a blank page</td></tr>
+</tbody></table></div>
+
+<h3>B. Every action that must ask for an account</h3>
+<p>Each one opens the one "Make your account" pop-up with the right headline, and the server refuses it if called directly: post, publish a service, send an offer, hire, chat, ask or answer a task question, save, report, block, vote or comment on an idea, send feedback, open a support ticket, add money, withdraw, add a payout id, review, City Hunt and Big Days actions, share on the people map. The list to test is <code>ACCOUNT_WRITES</code> in <code>guest.ts</code> (about 60 actions), so nothing is guessed. The quiet ones (presence, ad counters, push token) must simply not happen, with no error on screen.</p>
+
+<h3>C. What a guest must never see</h3>
+<ul class="tight">
+  <li>An exact address or an exact map pin (only the area name and a rounded spot)</li>
+  <li>Anyone's phone number, email, UPI id or bank details</li>
+  <li>Any wallet, balance, payment or withdrawal; any chat text</li>
+  <li>Anyone's private files (proof files, chat photos) through a signed link</li>
+  <li>Any staff or admin data</li>
+</ul>
+<p class="meta">How it is checked: on screen, and in the network tab (Claude reads every answer the server sent while the guest browsed, and searches it for the shape of a phone number, an email, a UPI id and a full-precision location).</p>
+
+<h3>D. Sign-up and the age gate</h3>
+<ul class="tight">
+  <li>Guest makes an account from the pop-up: new number, birth date, code. The half-made post, saves and drafts move into the new account</li>
+  <li>Under 18: refused with the plain message; trying again with an older date (R4-W3, your decision)</li>
+  <li>Exactly 18 today, 18 tomorrow, born 29 February, a date in the future, an empty date</li>
+  <li>Wrong code (R4-W7: no message today), an old code, the code typed slowly, pasted, auto-filled</li>
+  <li>The phone box: typed <code>+91 …</code> (R4-W2), pasted <code>+91</code>, spaces, 9 and 11 digits, a landline</li>
+  <li>Google sign-in on the website from the pop-up (the hand-off window: the guest's things move only if the guest started it)</li>
+</ul>
+
+<h3>E. Moving between guest and signed in, mid-flow</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>#</th><th>Move</th><th>Correct behaviour</th></tr></thead>
+<tbody>
+<tr><td class="n">T1</td><td>Guest half-way through posting → makes account from the pop-up</td><td>Lands back on Review with every field kept; posts once</td></tr>
+<tr><td class="n">T2</td><td>Guest → signs in from the ordinary sign-in page (not the pop-up)</td><td>The guest's drafts are dropped, never shown to the person signing in (shared phone rule, B31)</td></tr>
+<tr><td class="n">T3</td><td>Signed in → signs out in the middle of a post, an offer, a chat</td><td>Nothing private stays on screen or in the back stack; Back does not reopen the private page</td></tr>
+<tr><td class="n">T4</td><td>Signed in → sign-in expires mid-step (token runs out)</td><td>A calm "sign in again", and the step continues after; no data lost</td></tr>
+<tr><td class="n">T5</td><td>Signed in, signed out, then "Continue as guest" on the same device</td><td>No old person's name, wallet, messages or drafts anywhere (cache leak test)</td></tr>
+<tr><td class="n">T6</td><td>Guest in Hire, switches to Earn and back</td><td>Each side's colours (Hire jade, Earn blue) and the right tabs; no account asked just for switching</td></tr>
+<tr><td class="n">T7</td><td>Account deleted → old link or old device opened</td><td>Treated as signed out; nothing of the deleted account shows</td></tr>
+</tbody></table></div>
+
+<h3>F. Deep links and offline</h3>
+<ul class="tight">
+  <li><b>Deep links</b> (<code>taskdrop://</code> on Android, a web address on the website) to: a task, a closed task, a deleted task, someone else's private task page, a profile, an idea, a chat thread. A guest gets the public part or "make your account"; never a crash and never private data</li>
+  <li><b>Offline:</b> airplane mode on Home, on the map, half-way through the post wizard, on the pop-up's code step. A plain "you're offline" message, nothing lost, and the step works when the network is back</li>
+  <li><b>Slow network:</b> Chrome's slow 3G setting; the guest never sees "No tasks" when the answer is only late (B43 lesson)</li>
+</ul>
+<p class="out"><b>Done means:</b> every row of A, B and E checked on the website and the Android app, with a screenshot per row; the network search in C found nothing; the Guest rows of the coverage map turn <span class="cov ok">Covered</span>.</p>
+
+<!-- 16 -->
+<h2 id="forms">16. The forms catalogue (charter J)</h2>
+<p>Every place where someone types, in the app (the website and Android share one code) and in the admin. The list was taken from the code (the graphify code map first, then a search for every text box and form), not from memory. If a new form is added, it joins this list in the same pull request.</p>
+
+<h3>The standard bad-input set (try each on every form)</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Try</th><th>Correct behaviour</th></tr></thead>
+<tbody>
+<tr><td>Empty, and a single space</td><td>Refused with a plain message ("Type a number", "Write a few words"); a space never counts as filled (R4-X7, R4-L12 failed this)</td></tr>
+<tr><td>Very long text (5,000 characters), and exactly the limit plus one</td><td>Stopped at the limit with a counter that turns red; the server refuses more with a plain message, never a raw database error (N4, R4-W6)</td></tr>
+<tr><td>Emoji, Hindi, Telugu, Arabic (right-to-left)</td><td>Saved and shown as typed; the layout does not break or flip</td></tr>
+<tr><td><code>&lt;b&gt;x&lt;/b&gt;</code>, <code>&lt;script&gt;</code>, <code>${7*7}</code>, <code>{{7*7}}</code></td><td>Shown as plain text everywhere (screen, push, email, admin, CSV); never run</td></tr>
+<tr><td><code>' " ; -- </code> and <code>=1+1</code></td><td>Saved as text; a CSV cell starting with <code>=</code> is made safe (passed in R4)</td></tr>
+<tr><td><code>%</code> and <code>_</code> in a search</td><td>Searched as those characters, not "match everything" (R4-L10 failed this)</td></tr>
+<tr><td>Money: negative, zero, decimals (<code>10.555</code>), huge (<code>99999999999</code>), letters</td><td>Refused or rounded to paise with a hint; a sane top limit on the screen <b>and</b> the server (R4-W4 failed this)</td></tr>
+<tr><td>Dates and times: past, far future, around midnight in India</td><td>Refused where it makes no sense; India time on screen and in exports (R4-L11)</td></tr>
+<tr><td>Double tap on the send button; Enter pressed twice</td><td>One result only (one task, one offer, one message, one payment)</td></tr>
+<tr><td>Back button half-way; close and reopen the app half-way</td><td>Nothing sent by accident; what was typed is kept or the person is asked</td></tr>
+<tr><td>The same form in two tabs, sent from both</td><td>The second one is refused or shows the newer state; never two charges</td></tr>
+<tr><td>Slow network, then no network, while sending</td><td>A clear "sending…", then a retry; never a silent loss or a double send when the network returns</td></tr>
+</tbody></table></div>
+
+<h3>App forms (website and Android)</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Form</th><th>Where in the code</th><th>Extra checks</th></tr></thead>
+<tbody>
+<tr><td>Phone number, sign-in code, username and password</td><td><code>AccessScreen</code>, <code>lib/phone.ts</code></td><td>Typed <code>+91</code> (R4-W2), 9 and 11 digits, wrong code message (R4-W7), code limit</td></tr>
+<tr><td>Birth date (age gate)</td><td><code>OnboardingScreen</code>, <code>lib/birthDate.ts</code></td><td>18 today, 29 February, future date, retry with older date (R4-W3)</td></tr>
+<tr><td>Post composer and wizard: text, When, budget, place, extras, photos and videos</td><td><code>AiPostScreen</code>, <code>PostDetailsScreen</code>, <code>AmountField</code>, <code>AddressForm</code>, <code>LocationSheet</code>, <code>CategoryPicker</code></td><td>Huge price (R4-W4), in-person with no place (R4-W5), 1,501 characters (R4-W6), 61-second video, 51 MB file, wrong file type</td></tr>
+<tr><td>Offer (price and note), edit offer</td><td><code>BidSheet</code></td><td>Price above the task budget, zero, offer on a closed task, two offers at once</td></tr>
+<tr><td>Task questions and answers</td><td><code>TaskQuestions</code></td><td>Phone number or address typed into a public question</td></tr>
+<tr><td>Chat, crew chat</td><td><code>ChatScreen</code>, <code>CrewScreen</code></td><td>Message while offline, very long message, photo of the wrong type</td></tr>
+<tr><td>Proof of work (summary and files)</td><td><code>ActiveScreen</code></td><td>2,001-character summary and 11 files (N4), no photo, 50 MB edge</td></tr>
+<tr><td>Review (stars and words)</td><td><code>ReviewScreen</code></td><td>No stars, review twice, review before the work is approved</td></tr>
+<tr><td>Report, report a problem, dispute</td><td><code>ReportSheet</code>, <code>ReportProblemSheet</code></td><td>Empty reason, report yourself, report twice</td></tr>
+<tr><td>Add money, withdraw, payout UPI or bank</td><td><code>AddFundsSheet</code>, <code>WithdrawScreen</code>, <code>PayoutDestinationSheet</code></td><td>Below the minimum, more than the balance, UPI id shapes, bank number and IFSC shapes, change UPI with a withdrawal open (B62)</td></tr>
+<tr><td>Profile, worker setup, service listing</td><td><code>ProfileEditScreen</code>, <code>WorkerSetupScreen</code>, <code>ListingEditScreen</code></td><td>Name of only spaces, emoji name, price edges, a phone typed into the bio</td></tr>
+<tr><td>Search boxes and map filters (custom distance)</td><td><code>SearchScreen</code>, <code>ExploreScreen</code>, <code>InboxScreen</code>, <code>MyTasksScreen</code>, <code>MapFilterParts</code>, <code>NearMapParts</code></td><td><code>%</code>, <code>_</code>, very long search, distance 0, negative, 100000 km</td></tr>
+<tr><td>Location search and "set your area"</td><td><code>LocationPrompt</code>, <code>LocationSheet</code></td><td>Guest use (N6), no results, location turned off</td></tr>
+<tr><td>Feedback, Ideas board post and comment, Help ticket, copyright notice</td><td><code>FeedbackSheet</code>, <code>IdeaSheet</code>, <code>IdeasScreen</code>, <code>IdeaDetailScreen</code>, <code>HelpScreen</code>, <code>CopyrightScreen</code></td><td>Flood (daily caps from migration 152), HTML, empty</td></tr>
+<tr><td>Promote a task, weekly goal, Big Days, City Hunt</td><td><code>PromoteScreen</code>, <code>StreaksScreen</code>, <code>BigDayScreen</code>, <code>Hunt</code></td><td>Huge goal, negative goal, promote a closed task</td></tr>
+<tr><td>Account: end sessions, delete account</td><td><code>AccountScreen</code></td><td>Delete with a job in progress or money held, double tap</td></tr>
+</tbody></table></div>
+
+<h3>Admin forms</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Form</th><th>Where in the code (admin repo)</th><th>Extra checks</th></tr></thead>
+<tbody>
+<tr><td>Sign-in (username and password), authenticator code</td><td><code>app/login/page.tsx</code>, <code>MfaPanel</code></td><td>Wrong password ten times (limit), <code>?error=</code> text (R4-X11), a non-admin account (R4-X12)</td></tr>
+<tr><td>Settings numbers (fees, clearing days, limits)</td><td><code>views/MoreViews</code>, <code>lib/actions.ts updateSetting</code></td><td>Space saves 0 (R4-X7), <code>abc</code>, <code>-1</code> (passed in R4), huge numbers</td></tr>
+<tr><td>Automation rules, app switches, platform controls (banner, minimum version, end date)</td><td><code>RulesForms</code>, <code>settings/switches</code>, <code>ControlsForms</code></td><td>Banner link <code>javascript:</code>, version <code>abc</code>, end date in the past (not tested in R4); authenticator switch with nobody set up (R4-L8)</td></tr>
+<tr><td>Team: add staff, change role, notifications</td><td><code>StaffControls</code></td><td>Add yourself, raise your own role, remove the last admin</td></tr>
+<tr><td>People: notes, tags, suspend, warn, delete account, sign out everywhere</td><td><code>CrmForms</code>, <code>CrmOwnerForms</code>, <code>views/CrmViews</code></td><td>Tag <code>=1+1</code> (passed), reason with HTML (passed), double submit, audit row names the person (R4-L4)</td></tr>
+<tr><td>Segments and broadcast messages</td><td><code>CrmForms</code>, <code>lib/crm-actions.ts sendBroadcast</code></td><td>"Send to N" equals what is sent (R4-X3), replay twice (R4-X4)</td></tr>
+<tr><td>Leads and follow-ups</td><td><code>LeadForms</code>, <code>views/LeadsView</code></td><td>Empty name, phone shapes, date in the past</td></tr>
+<tr><td>Copyright notices: log, take down, counter-notice, restore</td><td><code>CopyrightForms</code></td><td>Unknown task id, take down twice</td></tr>
+<tr><td>Support reply, Ideas board status and reply, report decisions</td><td><code>ReplyBox</code>, <code>GrowthForms</code>, reports queue</td><td>Very long reply, HTML, decide twice</td></tr>
+<tr><td>Money: mark a payout paid (UTR), refund, cancel with refund, decide a dispute, stop a promotion</td><td><code>views/PayoutDetailView</code>, <code>views/MoneyView</code>, <code>views/TaskView</code>, disputes</td><td>UTR of a space (R4-L12), pay to the saved UPI id (R4-L2), two tabs pressing Pay, refund twice</td></tr>
+<tr><td>Top search, jobs and people search, devices tools, confirm dialogs</td><td><code>(dashboard)/layout.tsx</code>, <code>DevicesToolsCard</code>, <code>ConfirmAction</code></td><td><code>%</code> and <code>_</code> (R4-L10), paging (R4-L1)</td></tr>
+</tbody></table></div>
+<p class="out"><b>Done means:</b> each form has one line in the round report: which bad inputs were tried, on which surface, and pass or the bug number. Money forms first, then sign-in, then everything else. A form whose server limit differs from its screen limit is a bug even if the screen stops it (the server is the real lock, AGENTS.md rule 1).</p>
+
+<!-- 17 -->
+<h2 id="security">17. The security layer you can trust (charter K)</h2>
+<p>Each line below is one test: what it proves, how it runs, how often, who runs it, and what counts as a pass. "Automatic" means it runs by itself on GitHub; "by hand" means Claude runs it in a round. Nothing here touches production or real money.</p>
+
+<div class="table-wrap"><table>
+<thead><tr><th>Test</th><th>What it proves</th><th>How it runs</th><th>How often · who</th><th>Pass means</th></tr></thead>
+<tbody>
+<tr><td><b>1. Admin role matrix</b></td><td>Each staff role sees and does only its part: every page in the side menu, every hidden page typed by address, one action per area, every export</td><td>By hand in Chrome with one login per role (Admin, Finance, Support, Sales, Viewer), plus the admin Playwright smoke (H80) once it exists. The 9 live checks in <code>round-4/admin.md</code> section 4 are the starting list</td><td>Every round (smoke); full matrix every third round · Claude, after you sign each login in</td><td>The table in <code>SECURITY_ROLES.md</code> is true live: every "refused" is a refusal (403 or "not authorised"), every masked contact is masked, every staff action has one audit row naming the staff member and the person</td></tr>
+<tr><td><b>2. Person A against person B</b></td><td>A cannot read or change B's task, address, wallet, withdrawals, messages, files, reviews or profile</td><td>Automatic: two-person test (<code>two-person.yml</code>) on every <code>api</code> change and every Monday; role doors SQL test in CI. By hand: B's private file links, chat photos and proof files opened as A; B's task changed as A by address</td><td>Automatic always; by hand every round in charter K · Claude</td><td>Zero leaks; B's things unchanged</td></tr>
+<tr><td><b>3. Guest door</b></td><td>A signed-out caller gets only the public reads</td><td>Automatic: guest SQL tests in CI, the unit test that the two guest lists match. By hand: charter I, section 15 C network search</td><td>Every round with charter I · Claude</td><td>Every account action answers "make your account"; nothing private in any answer</td></tr>
+<tr><td><b>4. Money invariants</b></td><td>The money adds up: no negative wallet, no wallet without a person, one live worker per task, nothing refunded twice, every paid top-up credited, totals match</td><td>The read-only SQL checks from <code>round-4/backend-collect.md</code> run on staging; the money tests in <code>test:db</code> (CI); the nightly reconcile job</td><td>Every round · Claude (Opus reads any non-zero result)</td><td>Every check returns 0 rows; nightly reconcile has no difference that is not fake seed data (N7 removed first so real ones stand out)</td></tr>
+<tr><td><b>5. Limits and abuse caps</b></td><td>Floods are stopped: posts a day, feedback a day, ad clicks, media uploads, text messages, offers, admin sign-in tries, admin broadcasts</td><td>After migration 152 is on staging (your yes): its SQL test, then by hand on staging, one past each limit. Admin: limiter must refuse when its counter is down (H77); broadcasts and suspensions limited (R4-X4); a top price (R4-W4)</td><td>Once after 152, then every third round · Claude</td><td>The next try past each limit gets a plain refusal; nothing slips through when the counter is down</td></tr>
+<tr><td><b>6. Secrets and keys</b></td><td>No key, password or token in the code, the history, the website build, the Android bundle or a log</td><td><code>npm run secret-guard</code>; gitleaks on every pull request and Mondays (<code>secret-scan.yml</code>); Betterleaks (task 2.15); <code>scan-build</code> on the web build; the Android bundle scan; <code>npm run security:history</code></td><td>Every round (secret-guard and scan-build); weekly automatic · Claude</td><td>Zero findings. Keys are never rotated (your rule); a finding means the key is removed from where it leaked and you are told</td></tr>
+<tr><td><b>7. Outside packages</b></td><td>No known-dangerous package version</td><td><code>npm run audit:gate</code> (user, every pull request and Mondays); <code>npm audit --omit=dev</code> in the admin</td><td>Every round · Claude</td><td>No new advisory; every accepted one has a reason and a review date (the 3 moderate ones are due 13 December)</td></tr>
+<tr><td><b>8. Server functions and file storage</b></td><td>Each Edge Function checks sign-in where it should; each storage bucket lets people touch only their own files</td><td><code>supabase/config.toml</code> read against the function list (H73); a real upload to another person's path is refused (B59, so far structure only); place search for guests (N6); download page secret (N5)</td><td>Every third round · Claude</td><td>Every function's sign-in setting is written down and matches <code>SECURITY_ROLES.md</code>; the wrong-path upload is refused</td></tr>
+<tr><td><b>9. Admin only</b></td><td>The admin's own risks</td><td>Session ends after 30 minutes idle and 12 hours in total; a request from another website cannot act (Origin check); exports masked, formula-safe, numbers kept as numbers (R4-X16) and audited; audit log complete and readable (R4-L4, L13, H77 to H80); a non-admin Google sign-in is signed out (R4-X12); no source maps served; Sentry scrubbing still runs (the <code>traceLifecycle</code> warning)</td><td>Every third round, and after any admin sign-in change · Claude</td><td>Each item passes on <code>admin.taskdrop.in</code>, written in the round report with proof</td></tr>
+<tr><td><b>10. Code scans</b></td><td>Known bad patterns in new code</td><td>Semgrep on every pull request and Mondays; the <code>security-review</code> skill before every merge (AGENTS.md rule 9)</td><td>Automatic · Claude</td><td>No High finding open</td></tr>
+<tr><td><b>11. The one-off deep passes</b></td><td>What the repeating tests cannot imagine</td><td>2.14 (the hunt), 2.16 (Strix, the AI attacker), 2.18 (outside testers' advice), 2.20 (the audit prompt): each runs once, as written in the ultimate plan</td><td>Once each · as planned</td><td>Their findings are in the holes table (H numbers) and the ledger</td></tr>
+</tbody></table></div>
+<p class="meta">Who can trust it: every line has a written pass rule and leaves proof in the round report (a log, a screenshot or a query result). A line that could not run says so in the report, with the reason, and its coverage box stays <span class="cov part">Part</span> or <span class="cov no">Empty</span>. Nothing is marked safe because it was not looked at.</p>
+
+<!-- 18 -->
+<h2 id="cleanup">18. The clean-up track: removing code nobody needs</h2>
+<p>Leftover code hides bugs: an old screen nobody opens still has to be kept safe, an unused package can still carry a security warning, and a stale test that is always red teaches everyone to ignore red. This track removes such things, slowly and safely. It never adds a feature and never changes how a screen looks (the freeze holds).</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Kind</th><th>How it is found</th><th>Proof needed before removing</th></tr></thead>
+<tbody>
+<tr><td>Broken and stale e2e tests</td><td>Round 4: <code>accounts.spec</code> still expects the phone box on the first page (guest mode moved it); <code>map.spec</code> times out on the filters and zoom tests</td><td>The trace shows the test is wrong, not the app (a manual check of the same steps passes). Then the test is <b>fixed</b>, not deleted</td></tr>
+<tr><td>Duplicate and low-value tests</td><td>gstack <code>/test-audit</code> (finds tests that check the same thing twice and test-only code they keep alive)</td><td>The other test that covers the same thing is named in the pull request</td></tr>
+<tr><td>Unused exports and files</td><td><code>graphify query</code> and <code>graphify explain</code> on the symbol (no callers), then a search of the code</td><td>Graph shows no caller in either repo, the web and native builds both pass, and <code>npm run check</code> is green</td></tr>
+<tr><td>Unused packages</td><td>A one-off package check (for example <code>knip</code>, run once, nothing installed for good; Claude asks first)</td><td>No import in any file, and the web export and the Android bundle still build</td></tr>
+<tr><td>Leftover logs</td><td>The sweep's <code>[DBG-</code> search (0 found in round 4); about 7 plain <code>console.log</code> lines in the app and server functions</td><td>Each line read: removed, or changed to <code>lib/monitoring.ts</code>; never prints a phone, email or key</td></tr>
+<tr><td>TODO and FIXME notes</td><td>A search (2 found today)</td><td>Each becomes a ledger bug, a Future scope line, or is deleted because it is done</td></tr>
+</tbody></table></div>
+<div class="note warn"><b>Never removed, whatever a tool says:</b> any <code>api</code> operation or its inputs and replies; the old functions (<code>phone-auth</code>, <code>password-auth</code>, <code>razorpay</code> and the rest) while the old app shares the database; any database table, column or function (migrations only add, AGENTS.md rule 2); anything the old app or admin calls. <b>Rules:</b> one file (or one package) per pull request; a test or a graph proof in the pull request; all checks green; Claude asks you before removing anything a screen shows. The track runs only at the end of a round, after the bug fixes, and at most 5 removals a round.</div>
+
+<!-- 19 -->
+<h2 id="engine">19. Running the loop to the end</h2>
+
+<h3>Entry and exit for every round</h3>
+<div class="grid two">
+  <div class="card"><h3>A round may start when</h3><ul class="tight">
+    <li>The last round's fixes are merged, and live on staging (deploys match the pinned commits)</li>
+    <li>The owner-only steps the round needs are done, or the report will say they were skipped</li>
+    <li>The coverage map says which charter comes next</li>
+    <li>The e2e suite starts green, or its red tests are already ledger bugs</li>
+  </ul></div>
+  <div class="card"><h3>A round is finished when</h3><ul class="tight">
+    <li>Every Critical and High found is fixed and rechecked, or waits on you with a reason</li>
+    <li>The ledger, the round report and the coverage count are written</li>
+    <li>Every check that could not run is named</li>
+    <li>The stop test S1 to S7 is answered line by line</li>
+  </ul></div>
+</div>
+
+<h3>What runs by itself, and what runs by hand</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Check</th><th>Today</th><th>Target</th></tr></thead>
+<tbody>
+<tr><td>Typecheck, lint, unit tests, contract test, package audit, Semgrep</td><td>Automatic on every pull request</td><td>Same</td></tr>
+<tr><td><code>test:db</code> (the SQL money and access tests)</td><td>Automatic on every pull request, on a throwaway database in CI. Did not run on this PC in round 4</td><td>The CI result counts for the sweep. On this PC only when a fix touches money or rules, once <code>DATABASE_URL</code> and <code>psql</code> are set up (owner step 1)</td></tr>
+<tr><td>e2e suite (Playwright, website)</td><td>Automatic after every merge to <code>redesigned-2.0</code>; red and cut short in round 4</td><td>Green, then also <b>every night</b>. GitHub only runs timed jobs from <code>main</code>, so the nightly run starts when you promote; until then, every merge is the trigger</td></tr>
+<tr><td>Two-person test, secret scan, weekly package audit</td><td>Automatic (on change and Mondays)</td><td>Same</td></tr>
+<tr><td>Admin smoke (every page, every role)</td><td>Not built (H80)</td><td>Built in the admin repo, run in every round, then in CI after the repos go private</td></tr>
+<tr><td>Live walks: website, Android, admin; staging SQL checks; backend collect</td><td>By hand, in rounds</td><td>Same: the coverage map decides which</td></tr>
+</tbody></table></div>
+
+<h3>Time and cost per round</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Part</th><th>Time</th><th>Who</th></tr></thead>
+<tbody>
+<tr><td>Pin, collect, backend collect</td><td>45 minutes</td><td>One Sonnet helper; Opus reads the result</td></tr>
+<tr><td>Sweep, twice (both repos)</td><td>60 to 90 minutes, mostly waiting</td><td>One Sonnet helper</td></tr>
+<tr><td>Explore: one or two charters plus the golden path</td><td>2 to 3 hours</td><td>Two or three Sonnet helpers (website, Android, admin), one each, own browser tab</td></tr>
+<tr><td>Triage and fix (at most about 8 fixes)</td><td>2 to 4 hours</td><td>Opus for security, money and hard causes; Sonnet for plain fixes</td></tr>
+<tr><td>Recheck and report</td><td>45 minutes</td><td>Sonnet rechecks, Opus writes the report and the stop test</td></tr>
+<tr><td>You</td><td>15 to 30 minutes</td><td>Phone connected, sign-ins, "fix / accept / after launch"</td></tr>
+</tbody></table></div>
+<p class="meta">Cost: no new paid tool. The limit is Claude usage: a round is about one working day of it. If usage runs out mid-round, the round stops at the end of a step and the next session continues from the files (that is how round 4's pause was survived).</p>
+
+<h3>Which Claude does what</h3>
+<div class="grid two">
+  <div class="card"><h3>Opus 5.5</h3><ul class="tight">
+    <li>Plans each round and picks the charter from the coverage map</li>
+    <li>Everything about money, security rules, privacy and the admin roles</li>
+    <li>A cause still unclear after two tries; hot-spot reviews</li>
+    <li>Reads every Critical and High before it is called fixed; writes the report</li>
+  </ul></div>
+  <div class="card"><h3>Sonnet 5.5 helpers</h3><ul class="tight">
+    <li>Sweeps, reruns, the backend collect</li>
+    <li>Form walking (section 16) and screen walks with a checklist</li>
+    <li>Plain fixes with a clear cause, rechecks on staging</li>
+    <li>Clean-up track items</li>
+  </ul></div>
+</div>
+
+<h3>How the phone and Chrome are driven</h3>
+<ul class="tight">
+  <li><b>Website and admin:</b> Claude in Chrome, each helper in its own new tab. Widths checked every round: <b>390</b> (phone), <b>768</b> (tablet) and <b>1440</b> (desktop). Round 4's window would not resize, so the page width is set with Chrome's device emulation instead of the window size</li>
+  <li><b>Admin per role:</b> one Chrome profile per staff role, each signed in by you once. Claude never types a password and never uses Google's sign-in page. If a session changes or ends, the walk stops and asks you (round 4's lesson); it does not try to sign in itself</li>
+  <li><b>Android:</b> your phone on USB with the staging app, driven over adb (screenshots, taps, the screen's layout read as text). Guest mode on the phone means clearing the app's sign-in first, which Claude asks you about because it signs your test account out</li>
+  <li><b>Always:</b> staging only, fake people only, no payment page typed into, and every action that changes shared data undone and listed in the notes (as round 4's admin walk did)</li>
+</ul>
+
+<h3>What only you can do</h3>
+<ul class="owner">
+  <li><b>1. <code>DATABASE_URL</code> for <code>test:db</code>.</b> Install the PostgreSQL client (<code>psql</code>) on this PC and say yes to Claude loading <code>DATABASE_URL</code> from <code>.env.all-secrets</code> into that one command, never printed. Needed only for money or rule fixes; CI runs <code>test:db</code> on every pull request anyway.</li>
+  <li><b>2. One admin test login per staff role.</b> Finance, Support, Sales and Viewer (and Admin, which you have), on staging, fake people only. You create them or say yes to Claude creating them; you sign each one in, in its own Chrome profile. Their passwords stay in <code>.env.all-secrets</code>, and the admin smoke reads them from the CI secret store later.</li>
+  <li><b>3. <code>EXPO_BUILDS_TOKEN</code>.</b> Add it to <code>.env.all-secrets</code> and the Supabase function secrets, so the download page and its QR code find the newest Android build (N5).</li>
+  <li><b>4. Apply migration 152 to staging.</b> Your yes, so the abuse caps (posts, feedback, ad clicks, uploads) are live and charter K can test them (N1).</li>
+  <li><b>5. Sign back in to <code>admin.taskdrop.in</code>.</b> As the admin account, in Chrome, so the live admin walk can finish from "My security".</li>
+  <li><b>6. Phone on USB</b> with the staging app, and your yes to an app update when a round's fixes need the phone.</li>
+  <li><b>7. Your answers:</b> "fix", "accept" or "after launch" on each Medium and Low; the open decisions B21, B54, B55, B56 and B85; whether the age gate should remember a refusal (R4-W3).</li>
+  <li><b>8. Later, optional:</b> promote to <code>main</code> so the nightly e2e run can start; turn on Supabase's leaked-password protection (an advisor warning).</li>
+</ul>
+
+<!-- 20 -->
+<h2 id="round5">20. Round 5, charter by charter</h2>
+<p>Round 5 is bigger than the others because it pays back everything round 4 could not cover. It may run over two days; if time runs out, the order below holds and the rest moves to round 6. Every step lists what you will see when it is done.</p>
+<ol class="steps">
+<li><h3>Pin, and check the owner steps</h3><p class="meta">Opus · 20 minutes</p><p>Pin both repos and the Android build; confirm which owner steps (section 19) are done; skipped ones are named in the report.</p>
+<ul class="done-means"><li>The report's first lines show the pinned commits and an owner-step checklist</li></ul></li>
+<li><h3>Make the test suite honest</h3><p class="meta">Sonnet · 1 hour</p><p>Fix the three broken e2e areas from round 4 (the sign-up helper that expects the phone box on the first page; the map filters and zoom tests, after checking the zoom by hand), so a red test means a real bug again.</p>
+<ul class="done-means"><li>e2e has no red test that is not a ledger bug</li></ul></li>
+<li><h3>The full sweep, twice</h3><p class="meta">Sonnet · 90 minutes</p><p>All 14 e2e files (round 4 stopped at 34 of 68 tests), both runs; <code>test:db</code> read from CI (or run here after owner step 1); admin typecheck (delete the stale <code>.next</code> folder first), lint, tests, audit, build.</p>
+<ul class="done-means"><li>A table with every check, run 1 and run 2, and no "not run" line without a reason</li></ul></li>
+<li><h3>Recheck round 4's fixes on staging</h3><p class="meta">Sonnet · 45 minutes</p><p>Every bug from B87 that is "Fixed, not rechecked", with its original steps.</p>
+<ul class="done-means"><li>Each one Verified or Reopened in the ledger</li></ul></li>
+<li><h3>Guest mode on the website and Android (charter I)</h3><p class="meta">Sonnet, Opus reads the privacy part · 2 hours</p><p>Section 15 in full, including the network search and the seven moves T1 to T7. Place search for guests (N6).</p>
+<ul class="done-means"><li>Guest rows of the coverage map are Covered on both surfaces</li><li>A screenshot per screen, and "nothing private found" or the bug numbers</li></ul></li>
+<li><h3>Phone sign-up and the age gate, end to end</h3><p class="meta">Sonnet · 1 hour</p><p>Website and Android: new number, under 18, exactly 18, wrong code, typed and pasted <code>+91</code>, Google on the website from the guest pop-up.</p>
+<ul class="done-means"><li>R4-W2, W3 and W7 rechecked or confirmed; the e2e sign-up tests pass</li></ul></li>
+<li><h3>Finish the live admin walk</h3><p class="meta">Sonnet · 90 minutes · needs owner step 5</p><p>From "My security": disputes, reports, alerts, help requests, copyright notices, feedback board, promotions, customer hub, follow-ups, leads, segments, messages, business reports, team performance, devices; every export; platform controls form; at 390, 768 and 1440 px; a keyboard-only pass.</p>
+<ul class="done-means"><li>Every page of the side menu has a line in the report at three widths</li></ul></li>
+<li><h3>The admin role matrix (charter K, part 1)</h3><p class="meta">Opus · 2 hours · needs owner step 2</p><p>One login per role through every page and the 9 live checks in <code>round-4/admin.md</code> section 4 (Viewer marking alerts read, Sales page data, Support broadcast replay, the space in "Clearing period", the login <code>?error=</code> text, a non-admin Google sign-in, export timing).</p>
+<ul class="done-means"><li>The four lower admin roles in the coverage map are no longer Empty</li><li><code>SECURITY_ROLES.md</code> gets a "checked live on" date per role</li></ul></li>
+<li><h3>The golden path on all three, with money on the phone</h3><p class="meta">Sonnet drives, Opus checks the money · 90 minutes</p><p>Post, offer from a second account, hire and pay (test mode, the e2e money test or you), start, proof, approve, review both ways, withdraw request; on the website, on Android in both modes (the empty Earn money box), and seen from the admin.</p>
+<ul class="done-means"><li>Stop-test line S6 answered for website, Android and admin</li><li>Money invariants still 0 rows afterwards</li></ul></li>
+<li><h3>Forms, money ones first (charter J)</h3><p class="meta">Sonnet · 2 hours</p><p>The standard bad-input set on: budget, offer, add money, withdraw, payout UPI and bank, admin settings numbers, admin payout UTR, then sign-in and proof.</p>
+<ul class="done-means"><li>One line per form in the report: tried, passed or bug number</li></ul></li>
+<li><h3>Security layer, the parts now possible (charter K, part 2)</h3><p class="meta">Opus · 90 minutes · item 5 needs owner step 4</p><p>Section 17 lines 2 (by-hand files and messages), 4, 5 (after migration 152), 6, 7 and 9.</p>
+<ul class="done-means"><li>Each line has pass or a bug number, with proof</li></ul></li>
+<li><h3>Fix, recheck, clean up, report</h3><p class="meta">Opus and Sonnet · the rest of the round</p><p>Critical and High first, then the clean-up track (at most 5 removals), then the report with the new coverage count and the stop test.</p>
+<ul class="done-means"><li><code>ROUND-5.md</code>, a new round line in the ledger, and the coverage count (for example "Covered 30, Part 25, Empty 4")</li><li>The next round's charter named from the map</li></ul></li>
+</ol>
+
+<!-- 21 -->
+<h2 id="changes">21. Changes to this page</h2>
+<ul class="tight">
+  <li><b>13 November 2026:</b> after round 4, you asked for one plan that debugs the whole application (website, Android, admin; guest and signed in; screens, server, money, privacy, abuse; and removing code nobody needs). Added sections 14 to 21: the coverage map, the guest charter and the guest-to-signed-in moves, the forms catalogue taken from the code, the security layer with a pass rule per test, the clean-up track, how the loop runs to the end (automatic vs by hand, time per round, Opus and Sonnet split, phone and Chrome driving, owner-only steps), and round 5. New charters I, J and K in section 4; a round 4 result box at the top. Nothing in the app changed.</li>
+  <li><b>11 November 2026:</b> the two Starter Story debugging lessons (sections 7 and 8).</li>
+  <li><b>10 November 2026:</b> page written (sections 1 to 13).</li>
+</ul>
+
 <footer>
-  Written 10 November 2026 for TaskDrop; the two Starter Story debugging lessons added 11 November (sections 7 and 8). Plan only: nothing has run yet. The first sentence to Claude is "start debug round", which runs round 0 (setup) and then round 1.
+  Written 10 November 2026 for TaskDrop; the two Starter Story debugging lessons added 11 November (sections 7 and 8); the whole-app coverage plan and round 5 added 13 November (sections 14 to 21). Rounds 0 to 4 have run; the loop is not settled. The sentence to Claude is still "start debug round", which now runs round 5 (section 20).
 </footer>
 
 </div>
