@@ -11,6 +11,7 @@ import { useActions } from '../providers/AppStateProvider';
 import { myStreaks, setWeeklyGoal, type Streaks } from '../data/api';
 import { STREAK_GOAL, badgesFor, daysLeftInWeek, goalProgress } from '../lib/streaks';
 import { reportError } from '../lib/errors';
+import { wholeDigits } from '../lib/rupeeInput';
 
 const RING = 136;
 const STROKE = 14;
@@ -68,7 +69,7 @@ export function StreaksScreen() {
   const circ = Math.PI * (RING - STROKE);
 
   const saveGoal = async () => {
-    const rupeesTyped = Math.round(Number(goalText.replace(/[^0-9]/g, '')));
+    const rupeesTyped = Math.round(Number(wholeDigits(goalText)));
     if (saving) return;
     setSaving(true);
     try {

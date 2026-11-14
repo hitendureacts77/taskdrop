@@ -5,6 +5,7 @@ import { Icon, type IconName } from './Icon';
 import { Slider } from './Slider';
 import { Pressy, tx } from './primitives';
 import { Segmented } from './NearMapParts';
+import { wholeDigits } from '../lib/rupeeInput';
 import {
   DEFAULT_FILTERS,
   KM_STEPS,
@@ -243,7 +244,7 @@ function PriceBox({ label, value, onChange }: { label: string; value: number; on
       <TextInput
         value={value > 0 ? String(value) : ''}
         onChangeText={(s) => {
-          const n = Number(s.replace(/[^0-9]/g, ''));
+          const n = Number(wholeDigits(s));
           onChange(Number.isFinite(n) ? Math.min(MAX_PRICE, n) : 0);
         }}
         placeholder="Any"

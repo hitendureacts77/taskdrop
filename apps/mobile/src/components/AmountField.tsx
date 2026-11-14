@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { TextInput, type TextStyle, type StyleProp } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
+import { wholeDigits } from '../lib/rupeeInput';
 
 /**
  * A rupee amount the user can either step with +/− or type directly.
@@ -44,7 +45,7 @@ export function AmountField({
       value={display}
       onFocus={() => setDraft(rupees === null ? '' : String(rupees))}
       onChangeText={(text) => {
-        const digits = text.replace(/[^0-9]/g, '').slice(0, 10);
+        const digits = wholeDigits(text, 10);
         setDraft(digits);
         const typed = digits === '' ? null : Math.min(Number(digits), max ?? Infinity);
         if (typed !== null && max !== undefined && typed === max) setDraft(String(max));

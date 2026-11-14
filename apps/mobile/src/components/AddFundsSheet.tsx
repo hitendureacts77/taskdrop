@@ -18,6 +18,7 @@ import { PaymentSheet } from './PaymentSheet';
 import { createPaymentLink, syncPayment } from '../data/api';
 import { paymentReturnUrl } from '../lib/links';
 import { useKeyboardClearance } from '../lib/useKeyboardClearance';
+import { wholeDigits } from '../lib/rupeeInput';
 
 /**
  * Adding money to the wallet.
@@ -86,7 +87,7 @@ export function AddFundsSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
-  const amountMinor = Math.round((Number(rupees.replace(/[^0-9]/g, '')) || 0) * 100);
+  const amountMinor = Math.round((Number(wholeDigits(rupees)) || 0) * 100);
 
   const checkOnce = useCallback(
     async (id: string, amount: number): Promise<boolean> => {
@@ -224,7 +225,7 @@ export function AddFundsSheet({
                   onChangeText={(v) => {
                     // Digits only: a rupee field that accepts letters is a
                     // field that produces a confusing error later.
-                    setRupees(v.replace(/[^0-9]/g, ''));
+                    setRupees(wholeDigits(v));
                     setError(null);
                   }}
                   keyboardType="number-pad"
