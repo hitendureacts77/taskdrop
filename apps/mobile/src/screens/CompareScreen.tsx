@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { completeByDate } from '../lib/taskStatusText';
 import { BackButton } from '../components/kit';
 import { Icon } from '../components/Icon';
 import {
@@ -155,7 +156,7 @@ export function CompareScreen() {
     ? (STATUS_LABEL[task.status] ?? 'OPEN') + ' · ' + quoteCount + (quoteCount === 1 ? ' OFFER' : ' OFFERS')
     : 'OPEN · ' + quoteCount + (quoteCount === 1 ? ' OFFER' : ' OFFERS');
   const completeBy = task
-    ? formatDeadline(new Date(new Date(task.created_at).getTime() + task.time_limit_minutes * 60_000))
+    ? formatDeadline(completeByDate(task))
     : '9 Sep, 6 PM';
 
   const handleLock = async () => {
