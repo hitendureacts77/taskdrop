@@ -52,6 +52,7 @@ import { TaskOptionsPanel } from '../components/TaskOptionsPanel';
 import { TaskQuestions } from '../components/TaskQuestions';
 import { HuntPosterPanel } from '../components/Hunt';
 import { isHunt } from '../lib/hunt';
+import { paymentLine, showAssignmentChip } from '../lib/taskStatusText';
 
 type QuoteFilter = 'newest' | 'cheapest' | 'budget' | 'rated' | 'fastest';
 const QUOTE_FILTERS: { key: QuoteFilter; label: string }[] = [
@@ -358,7 +359,7 @@ export function TaskManageScreen() {
         {task.locked_minor ? detailRow('Accepted offer', rupees(task.locked_minor / 100)) : null}
         {detailRow(
           'Your payment',
-          task.funded_at ? `${formatINR(escrow)} held` : assignment ? `${formatINR(escrow)} due` : 'Paid when you accept an offer',
+          paymentLine(task, !!assignment, formatINR(escrow)),
         )}
         {task.due_at ? detailRow('Target date', formatDeadline(new Date(task.due_at)) + (left ? ` · ${left}` : '')) : null}
         {detailRow('Category', categoryLabel(task))}
@@ -558,10 +559,12 @@ export function TaskManageScreen() {
       />
       <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 20, marginTop: -4 }}>
         <Badge label={badge.label} tone={badge.tone} />
-        <Badge
-          label={isHunt(task) ? 'Hunt' : task.assignment_mode === 'auto' ? 'Auto-hire' : 'Choose from offers'}
-          tone={isHunt(task) ? 'gold' : 'neutral'}
-        />
+        {isHunt(task) || showAssignmentChip(task.status) ? (
+          <Badge
+            label={isHunt(task) ? 'Hunt' : task.assignment_mode === 'auto' ? 'Auto-hire' : 'Choose from offers'}
+            tone={isHunt(task) ? 'gold' : 'neutral'}
+          />
+        ) : null}
       </View>
       {sideBySide || hunting ? null : (
         <View style={{ marginTop: 10 }}>

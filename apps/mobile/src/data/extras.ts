@@ -257,8 +257,12 @@ export const topEarners = (kind: EarnerKind, limit = 10) => actPublic<Earner[]>(
 export type PublicStats = { jobsDone: number; tasksPosted: number; tasksCompletedAsPoster: number };
 export const publicProfileStats = (userId: string) => act<PublicStats>('publicProfileStats', { userId });
 
-/** Open tasks that match this worker's skills, best match first. */
-export const recommendedTasks = (skills: string[], limit = 10) => act<Task[]>('recommendedTasks', { skills, limit });
+/** A worker's area for the Earn Home lists: in-person tasks only within `radiusKm` of it, remote ones from anywhere (B156). */
+export type Reach = { lat: number; lng: number; radiusKm: number };
+
+/** Open tasks that match this worker's skills, best match first; with `near`, only those in reach of it. */
+export const recommendedTasks = (skills: string[], limit = 10, near?: Reach | null) =>
+  act<Task[]>('recommendedTasks', near ? { skills, limit, near } : { skills, limit });
 
 // ----------------------------------------------------------------- inbox ----
 
@@ -482,4 +486,5 @@ export const workersNear = (near: { lat: number; lng: number }, radiusKm: number
 /** One helper's open service listings, newest first (the helper sheet on the map). */
 export const workerServices = (userId: string, limit = 10) => act<Task[]>('workerServices', { userId, limit });
 
-export const urgentTasks = (limit = 3) => act<Task[]>('urgentTasks', { limit });
+/** Urgent open tasks, soonest due first; with `near`, only those in reach of it. */
+export const urgentTasks = (limit = 3, near?: Reach | null) => act<Task[]>('urgentTasks', near ? { limit, near } : { limit });
