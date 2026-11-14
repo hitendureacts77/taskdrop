@@ -16,6 +16,7 @@ import { markSafetyCardSeen, needsSafetyCard } from '../lib/safetyCard';
 import { tx } from './primitives';
 import { OFFER_COPY, isDuplicateOfferError } from '../lib/offerState';
 import { noteMyOffer } from '../lib/useMyOffers';
+import { wholeDigits } from '../lib/rupeeInput';
 
 const HOURS_LINE = /^Estimated time: ([\d.]+) hours?$/m;
 const DATE_LINE = /^Can deliver by: (.+)$/m;
@@ -275,7 +276,7 @@ export function BidSheet({
               label="Your price (₹)"
               style={{ marginTop: 16 }}
               value={price}
-              onChangeText={(v) => setPrice(v.replace(/[^0-9]/g, '').slice(0, 7))}
+              onChangeText={(v) => setPrice(wholeDigits(v, 7))}
               keyboardType="number-pad"
               inputMode="numeric"
               placeholder={`E.g. ${budget}`}
