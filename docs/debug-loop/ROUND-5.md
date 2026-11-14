@@ -9,7 +9,7 @@ Plan task 2.19, section 20 of `docs/DEBUGGING_PLAN.html`. Pinned: user repo `445
 | 1 | `psql` and `DATABASE_URL` for `test:db` | Not done: `psql` is not installed (`DATABASE_URL` is in `.env.all-secrets`). `test:db` did not run (B140 stays open) |
 | 2 | One admin login per staff role | Not done, so the role matrix is still code-only |
 | 3 | `EXPO_BUILDS_TOKEN` | Not done (B99) |
-| 4 | Migration 152 on staging | Not done: staging has 177 and no 152 (B95, High) |
+| 4 | Migration 152 on staging | **Done later the same day, with your yes (14 Nov):** applied as `152_abuse_caps`. Checked first: the helper functions and columns it uses exist, the live `media_begin`, `run_housekeeping` and `record_ad_impression` matched the versions it was written from, and no later migration redefines them. Afterwards: 2 triggers and 10 settings present, permissions as designed, and `abuse_caps.test.sql` (ads, uploads, jobs, crews, repeats, feedback) passed on staging inside a transaction that rolled back, with no leftover users, jobs or changed settings. Not yet rechecked through the app |
 | 5 | Sign back in to `admin.taskdrop.in` | Not done, so the live admin walk did not continue |
 | 6 | Phone on USB with the staging app | Phone connected (CPH2585) with the older `com.taskdrop.app` build 1.1.0 of 11 Nov; **the staging app `com.taskdrop.app.staging` (task 5.0c) is not installed**. The phone was in a call, so it was not driven |
 | 7 | Your answers on Medium and Low bugs | Not given |
@@ -28,17 +28,17 @@ Plan task 2.19, section 20 of `docs/DEBUGGING_PLAN.html`. Pinned: user repo `445
 | Finish the live admin walk; the admin role matrix | **Not run** (owner steps 2 and 5) |
 | The golden path on all three, with money on the phone | **Not run** (needs the phone, a second account and your yes) |
 | Forms, money ones first (charter J) | **Not run** |
-| Security layer parts now possible (charter K, part 2) | **Not run**; items that need migration 152 are blocked by B95 |
+| Security layer parts now possible (charter K, part 2) | **Not run**; migration 152 is now applied, so the abuse-limit checks can run in round 6 |
 | Backend collect (logs and advisors, last 24 hours) | Done. Postgres errors are all the app's own plain refusals (the cross-user and closed-door tests); direct calls to closed functions get 401 or 400 as they should. **B97 still happens** (about 35 a day, retries hide it). Security advisor: 149 `SECURITY DEFINER` functions are callable by the signed-in role (known; guarded inside, and covered by the `rpc_surface` tests), leaked-password protection is off (owner, optional). Performance advisor: 8 foreign keys without an index and 15 unused indexes (INFO only) |
 | Android (read only) | App 1.1.0 installed 11 Nov; 10,226 lines of device log: no crash, no ANR, and no phone number, email or token in the app's own lines |
 
 ## Counts
 
-New bugs this round: **11** (B142 to B152): 1 High (B142, fixed), 1 Medium (B150, cannot reproduce), 9 Low. Verified: 6. Fixed and waiting for a recheck on staging: the 13 admin fixes (B105, B106, B109 to B111, B113 to B116, B118 in part, B126, B135, B136) and B142. Open High: **B95** (needs your yes).
+New bugs this round: **11** (B142 to B152): 1 High (B142, fixed), 1 Medium (B150, cannot reproduce), 9 Low. Verified: 6. Fixed and waiting for a recheck on staging: the 13 admin fixes (B105, B106, B109 to B111, B113 to B116, B118 in part, B126, B135, B136) and B142. Open High: none known. B95 (applied 14 Nov) and B142 await a recheck through the app and the admin.
 
 ## The stop test (S1 to S7)
 
-**Not settled.** S1 no (round 4 found 4 High and round 5 found B142). S2 no (B95 is open). S3 no (11 new). S4 no (the admin fixes and B98 are not rechecked). S5 not shown (e2e not yet green, `test:db` not run). S6 no (not run on any surface this round). S7 no (no answers on the Medium and Low bugs yet).
+**Not settled.** S1 no (round 4 found 4 High and round 5 found B142). S2 yes by status (no Critical or High is open; B95 and B142 are fixed and waiting for a recheck). S3 no (11 new). S4 no (the admin fixes and B98 are not rechecked). S5 not shown (e2e not yet green, `test:db` not run). S6 no (not run on any surface this round). S7 no (no answers on the Medium and Low bugs yet).
 
 ## Not covered, so round 6 repeats it first
 
@@ -46,7 +46,6 @@ The live admin walk and role matrix; the golden path on the phone and the admin;
 
 ## Open for you
 
-- **Say yes to applying migration 152 on staging** (B95, High).
 - **Install `psql`** and say yes to loading `DATABASE_URL` into that one command, so `test:db` can run (B140).
 - **Install the staging Android app** (task 5.0c): the phone has the older `com.taskdrop.app`.
 - **Create the four lower admin logins** and sign in to `admin.taskdrop.in` once, so the role matrix and the admin walk can run.
