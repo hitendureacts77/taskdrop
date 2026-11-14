@@ -581,6 +581,76 @@ await t("B34: workersNear finds a nearby helper behind 310 more recently seen fa
   assert.deepEqual((r.data as { id: string }[]).map((x) => x.id), ["near"]);
 });
 
+/** B156: open requests around India, as staging had them: Pune, Kuala Lumpur, Gurugram, two near Kondapur, two remote. */
+const B156_TASKS = [
+  { id: "pune", title: "Buy fresh vegetables", skills: ["errands"], flag: "urgent", loc_lat: 18.507, loc_lng: 73.807, created_at: "2026-10-05T09:59:00Z", due_at: "2026-10-05T11:00:00Z" },
+  { id: "kl", title: "Maths tuition", skills: ["tutoring"], flag: "urgent", loc_lat: 3.13, loc_lng: 101.67, created_at: "2026-10-05T09:58:00Z", due_at: "2026-10-05T11:10:00Z" },
+  { id: "gurugram", title: "Passport office queue", skills: ["errands"], flag: "urgent", loc_lat: 28.49, loc_lng: 77.09, created_at: "2026-10-05T09:57:00Z", due_at: "2026-10-05T11:20:00Z" },
+  { id: "kondapur", title: "Pick up groceries", skills: ["errands"], flag: "urgent", loc_lat: 17.46, loc_lng: 78.36, created_at: "2026-09-01T00:00:00Z", due_at: "2026-10-05T12:00:00Z" },
+  { id: "kondapur-later", title: "Run errands", skills: ["errands"], flag: "none", loc_lat: 17.45, loc_lng: 78.34, created_at: "2026-09-02T00:00:00Z", due_at: null },
+  { id: "remote", title: "Proofread errands list", skills: ["errands"], flag: "urgent", loc_lat: null, loc_lng: null, created_at: "2026-10-01T00:00:00Z", due_at: "2026-10-05T13:00:00Z" },
+  { id: "remote-plain", title: "Design a logo", skills: ["design"], flag: "none", loc_lat: null, loc_lng: null, created_at: "2026-10-02T00:00:00Z", due_at: null },
+].map((x) => ({ ...x, poster_id: OTHER, status: "OPEN", kind: "request", category: null, description: "" }));
+
+await t("B156: recommendedTasks with near keeps in-person jobs within the radius and remote jobs from anywhere", async () => {
+  const r = await runOp("recommendedTasks", { skills: ["errands"], limit: 10, near: { ...KONDAPUR, radiusKm: 10 } }, ctx(tableFake({ tasks: B156_TASKS })));
+  assert.ok(r.ok);
+  const ids = (r.data as { id: string }[]).map((x) => x.id);
+  assert.deepEqual([...ids].sort(), ["kondapur", "kondapur-later", "remote", "remote-plain"]);
+  // Best skills match first, newest first among equals.
+  assert.deepEqual(ids, ["remote", "kondapur-later", "kondapur", "remote-plain"]);
+  // No point given: every open request, as before (older apps keep working).
+  const all = await runOp("recommendedTasks", { skills: ["errands"], limit: 10 }, ctx(tableFake({ tasks: B156_TASKS })));
+  assert.equal((all.data as unknown[]).length, B156_TASKS.length);
+});
+
+await t("B156: urgentTasks with near leaves out urgent jobs in other cities, soonest due first", async () => {
+  const r = await runOp("urgentTasks", { limit: 6, near: { ...KONDAPUR, radiusKm: 10 } }, ctx(tableFake({ tasks: B156_TASKS })));
+  assert.ok(r.ok);
+  assert.deepEqual((r.data as { id: string }[]).map((x) => x.id), ["kondapur", "remote"]);
+  const all = await runOp("urgentTasks", { limit: 6 }, ctx(tableFake({ tasks: B156_TASKS })));
+  assert.deepEqual((all.data as { id: string }[]).map((x) => x.id), ["pune", "kl", "gurugram", "kondapur", "remote"]);
+});
+
+await t("B156: a near job behind 70 newer far-away ones still matches the worker's skills", async () => {
+  const f = tableFake({ tasks: farAndNear(70, { title: "Errand", skills: ["errands"], description: "" }) });
+  const r = await runOp("recommendedTasks", { skills: ["errands"], near: { ...KONDAPUR, radiusKm: 5 } }, ctx(f));
+  assert.deepEqual((r.data as { id: string }[]).map((x) => x.id), ["near"]);
+});
+
+await t("B156: a bad near is refused before any read", async () => {
+  for (const near of ["here", { lat: 200, lng: 78, radiusKm: 5 }, { lat: 17, lng: 78 }]) {
+    const f = fake();
+    for (const op of ["recommendedTasks", "urgentTasks"]) {
+      const r = await runOp(op, { near }, ctx(f));
+      assert.ok(!r.ok && r.error.code === "BAD_ARGS", `${op} ${JSON.stringify(near)}`);
+    }
+    assert.equal(f.calls.length, 0);
+  }
+});
+
+await t("B156 guest: recommendedTasks and urgentTasks with near read pinned posts in the box and remote ones", async () => {
+  type A = { p_flag: string | null; p_pinned: boolean | null; p_limit: number; p_min_lat?: number; p_max_lat?: number; p_min_lng?: number | null; p_max_lng?: number | null };
+  const f = fake((c) => {
+    if (c.rpc !== "guest_open_posts" && c.rpc !== "guest_open_posts_near") return { data: [], error: null };
+    const a = c.args as A;
+    const list = B156_TASKS
+      .filter((r) => a.p_flag == null || r.flag === a.p_flag)
+      .filter((r) => a.p_pinned == null || (r.loc_lat !== null) === a.p_pinned)
+      .filter((r) => a.p_min_lat === undefined || (r.loc_lat !== null && r.loc_lat >= a.p_min_lat && r.loc_lat <= a.p_max_lat!
+        && (a.p_min_lng == null || (r.loc_lng! >= a.p_min_lng && r.loc_lng! <= a.p_max_lng!))))
+      .sort((x, y) => (x.created_at < y.created_at ? 1 : -1))
+      .slice(0, a.p_limit);
+    return { data: list.map((x) => ({ ...x, poster: null })), error: null };
+  });
+  const near = { ...KONDAPUR, radiusKm: 10 };
+  const rec = await runGuestOp("recommendedTasks", { skills: ["errands"], near }, ctx(f));
+  assert.deepEqual((rec as { data: { id: string }[] }).data.map((x) => x.id), ["remote", "kondapur-later", "kondapur", "remote-plain"]);
+  const urg = await runGuestOp("urgentTasks", { limit: 6, near }, ctx(f));
+  assert.deepEqual((urg as { data: { id: string }[] }).data.map((x) => x.id), ["kondapur", "remote"]);
+  assert.ok(f.calls.some((c) => c.rpc === "guest_open_posts_near"));
+});
+
 await t("B34: the search box holds the whole circle, and is dropped where it would wrap or be huge", () => {
   const b = nearBox({ lat: 17.44, lng: 78.35 }, 5)!;
   assert.ok(b.minLat < 17.44 - 5 / 111.2 && b.maxLat > 17.44 + 5 / 111.2);

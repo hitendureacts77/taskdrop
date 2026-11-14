@@ -24,7 +24,7 @@ import { type Args, type Ctx, type Db, GENERIC, MONEY_MAX, OpError, type Op, bad
 import { MEDIA_OPS } from "./media.ts";
 import { MAX_BATCH, type Reply, batchCalls } from "./ops.ts";
 import { sharedAnswer } from "./publicMemo.ts";
-import { type NearBox, READ_OPS, nearBox, nearFetch } from "./reads.ts";
+import { type Near, type NearBox, READ_OPS, inReach, nearArgOf, nearBox, nearFetch, newestFirst, soonestDue } from "./reads.ts";
 
 /** What a guest is told when they try something that needs an account. The app shows its own pop-up instead. */
 export const NEEDS_ACCOUNT = "Make your account first.";
@@ -70,6 +70,8 @@ export const GUEST_COST: Readonly<Record<string, number>> = {
   searchTasksWithPosters: 2,
   attachPosters: 2,
   recommendedTasks: 2,
+  // With `near` it is two reads, the pinned ones in a box and the remote ones (B156).
+  urgentTasks: 2,
   signMedia: 2,
 };
 
@@ -230,6 +232,18 @@ async function posts(ctx: Ctx, f: PostFilter): Promise<Post[]> {
   }, f.box));
 }
 
+/**
+ * Open posts in reach of `near` (B156), as the signed-in recommendedTasks and urgentTasks read them: pinned ones
+ * inside the box (in SQL, before the cap) and within the radius, plus remote ones (no pin) from anywhere.
+ */
+async function postsInReach(ctx: Ctx, near: Near, f: PostFilter): Promise<Post[]> {
+  const [pinned, remote] = await Promise.all([
+    posts(ctx, { ...f, pinned: true, box: nearBox(near, near.radius) }),
+    posts(ctx, { ...f, pinned: false }),
+  ]);
+  return [...pinned.filter(inReach(near)), ...remote];
+}
+
 /** A post as the plain task row the signed-in operation answers (no poster attached). */
 const bare = ({ poster: _poster, ...task }: Post): Row => task;
 
@@ -245,11 +259,7 @@ function within<T extends { loc_lat: unknown; loc_lng: unknown }>(list: T[], at:
 
 /** searchTasks' arguments, checked the same way. */
 async function search(ctx: Ctx, a: Args): Promise<Post[]> {
-  const nearArg = a.near as Args | null | undefined;
-  if (nearArg != null && typeof nearArg !== "object") throw bad("near");
-  const near = nearArg
-    ? { lat: num(nearArg, "lat", -90, 90), lng: num(nearArg, "lng", -180, 180), radius: num(nearArg, "radiusKm", 0, 20000) }
-    : null;
+  const near = nearArgOf(a);
   const text = typeof a.q === "string" ? a.q.trim().slice(0, 200) : "";
   const n = limit(a, "limit", 30, GUEST_LIMIT_MAX);
   // With a point: a box in SQL and more than a page read, then the exact distance, then the page (B34, as signed in).
@@ -338,7 +348,9 @@ export const GUEST_OPS: Record<string, Op> = {
 
   recommendedTasks: async (ctx, a) => {
     const n = limit(a, "limit", 10, 60);
-    const found = (await posts(ctx, { kind: "request", limit: 60 })).map(bare) as (Row & { title?: string; category?: string | null; skills?: string[] | null; description?: string })[];
+    const near = nearArgOf(a);
+    const f: PostFilter = { kind: "request", limit: 60 };
+    const found = (near ? (await postsInReach(ctx, near, f)).sort(newestFirst) : await posts(ctx, f)).map(bare) as (Row & { title?: string; category?: string | null; skills?: string[] | null; description?: string })[];
     const needles = strings(a, "skills").map((s) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()).filter(Boolean);
     if (needles.length === 0) return found.slice(0, n);
     const score = (t: (typeof found)[number]) => {
@@ -358,9 +370,10 @@ export const GUEST_OPS: Record<string, Op> = {
   },
 
   urgentTasks: async (ctx, a) => {
-    const found = (await posts(ctx, { kind: "request", flag: "urgent", limit: 60 })).map(bare) as (Row & { due_at?: string | null })[];
-    const due = (t: { due_at?: string | null }) => (t.due_at ? Date.parse(t.due_at) : Infinity);
-    return found.sort((x, y) => due(x) - due(y)).slice(0, limit(a, "limit", 3));
+    const near = nearArgOf(a);
+    const f: PostFilter = { kind: "request", flag: "urgent", limit: 60 };
+    const found = (near ? await postsInReach(ctx, near, f) : await posts(ctx, f)).map(bare) as (Row & { due_at?: string | null })[];
+    return found.sort(soonestDue).slice(0, limit(a, "limit", 3));
   },
 
   workerServices: async (ctx, a) =>
