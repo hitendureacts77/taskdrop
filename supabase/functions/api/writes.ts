@@ -5,7 +5,7 @@ import {
 import { assertOwnImage, isMediaRef } from "./media.ts";
 import { readFees } from "./reads.ts";
 import { roughPlace } from "../_shared/place.ts";
-import { PRICE_LIMITS, TOP_UP_PCTS } from "../_shared/rules.ts";
+import { PRICE_LIMITS, PROOF_LIMITS, TOP_UP_PCTS } from "../_shared/rules.ts";
 import { contactIssueMessage, findContactIssue, maskContacts, nameCarriesContact, profileIssueMessage } from "../_shared/contacts.ts";
 import { PROFILE_OWNER_SELECT } from "./columns.ts";
 
@@ -317,7 +317,9 @@ export const WRITE_OPS: Record<string, Op> = {
       title: str(a, "title", 300),
       description: description(a),
       // A request needs at least the smallest amount; a service listing may say "from 0" while it is being set up.
-      benchmark_minor: a.kind === "service" ? int(a, "benchmarkMinor", 0, MONEY_MAX) : priceMinor(a, "benchmarkMinor", PRICE_LIMITS.MIN_MINOR),
+      benchmark_minor: a.kind === "service"
+        ? priceMinor(a, "benchmarkMinor", 0, PRICE_LIMITS.MAX_MINOR)
+        : priceMinor(a, "benchmarkMinor", PRICE_LIMITS.MIN_MINOR, PRICE_LIMITS.MAX_MINOR),
       time_limit_minutes: int(a, "timeLimitMinutes", 0, 10_000_000),
       flag: oneOf(a, "flag", ["none", "urgent", "unique"], "none"),
       media_kind: media?.kind ?? null,
@@ -383,7 +385,7 @@ export const WRITE_OPS: Record<string, Op> = {
         .update({
           title: str(a, "title", 300),
           description: description(a),
-          benchmark_minor: int(a, "priceMinor", 0, MONEY_MAX),
+          benchmark_minor: priceMinor(a, "priceMinor", 0, PRICE_LIMITS.MAX_MINOR),
           time_limit_minutes: int(a, "deliveryDays", 0, 3650) * 1440,
           category: strOrNull(a, "category", 100),
           loc_label: place.label,
@@ -407,7 +409,7 @@ export const WRITE_OPS: Record<string, Op> = {
         .insert({
           task_id: uuid(a, "taskId"),
           worker_id: userId,
-          price_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR),
+          price_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR, PRICE_LIMITS.MAX_MINOR),
           time_limit_minutes: int(a, "timeLimitMinutes", 0, 10_000_000),
           message: strOrNull(a, "message", 2000),
         })
@@ -422,7 +424,7 @@ export const WRITE_OPS: Record<string, Op> = {
       await db
         .from("bids")
         .update({
-          price_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR),
+          price_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR, PRICE_LIMITS.MAX_MINOR),
           time_limit_minutes: int(a, "timeLimitMinutes", 0, 10_000_000),
           message: strOrNull(a, "message", 2000),
         })
@@ -438,8 +440,15 @@ export const WRITE_OPS: Record<string, Op> = {
   submitProof: async (ctx, a) => {
     const { db, userId } = ctx;
     const files = a.files ?? [];
+    // The table holds at most 10 files and 2000 characters; say so in words instead of a raw constraint error (B98).
+    if (Array.isArray(files) && files.length > PROOF_LIMITS.FILES_MAX) {
+      throw new OpError(`Add at most ${PROOF_LIMITS.FILES_MAX} files to one proof`, "BAD_ARGS");
+    }
+    if (typeof a.summary === "string" && a.summary.trim().length > PROOF_LIMITS.SUMMARY_MAX) {
+      throw new OpError(`Keep the summary to at most ${PROOF_LIMITS.SUMMARY_MAX} characters`, "BAD_ARGS");
+    }
     if (
-      !Array.isArray(files) || files.length > 30 ||
+      !Array.isArray(files) ||
       files.some((f) => !f || typeof f !== "object" || typeof (f as { path?: unknown }).path !== "string")
     ) {
       throw bad("files");
@@ -450,13 +459,13 @@ export const WRITE_OPS: Record<string, Op> = {
     }
     refuseHiddenContacts(a.summary);
     // The table wants at least 10 characters; say so in words instead of "check what you entered" (P2-40).
-    if (typeof a.summary !== "string" || a.summary.trim().length < 10) {
-      throw new OpError("Write at least 10 characters about what you did", "BAD_ARGS");
+    if (typeof a.summary !== "string" || a.summary.trim().length < PROOF_LIMITS.SUMMARY_MIN) {
+      throw new OpError(`Write at least ${PROOF_LIMITS.SUMMARY_MIN} characters about what you did`, "BAD_ARGS");
     }
     return rows(
       await db
         .from("task_proofs")
-        .insert({ task_id: uuid(a, "taskId"), worker_id: userId, summary: str(a, "summary", 5000, 0), files })
+        .insert({ task_id: uuid(a, "taskId"), worker_id: userId, summary: str(a, "summary", PROOF_LIMITS.SUMMARY_MAX, 0), files })
         .select(),
     )[0] ?? null;
   },

@@ -18,6 +18,7 @@ export function AmountField({
   onChangeRupees,
   style,
   min = 0,
+  max,
   align = 'center',
   placeholder = '₹0',
 }: {
@@ -25,6 +26,8 @@ export function AmountField({
   onChangeRupees: (next: number | null) => void;
   style?: StyleProp<TextStyle>;
   min?: number;
+  /** The most that can be typed; a bigger number becomes this. Leave out when the screen explains the limit itself. */
+  max?: number;
   align?: TextStyle['textAlign'];
   placeholder?: string;
 }) {
@@ -43,7 +46,9 @@ export function AmountField({
       onChangeText={(text) => {
         const digits = text.replace(/[^0-9]/g, '').slice(0, 10);
         setDraft(digits);
-        onChangeRupees(digits === '' ? null : Number(digits));
+        const typed = digits === '' ? null : Math.min(Number(digits), max ?? Infinity);
+        if (typed !== null && max !== undefined && typed === max) setDraft(String(max));
+        onChangeRupees(typed);
       }}
       onBlur={() => {
         setDraft(null);

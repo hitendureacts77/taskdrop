@@ -3,6 +3,7 @@ import { Icon } from '../components/Icon';
 import { View, Text as RNText, Pressable, Animated, ScrollView, type TextStyle } from 'react-native';
 import { formatINR } from '../components/ui';
 import { AmountField } from '../components/AmountField';
+import { MAX_PRICE_INR } from '../lib/limits';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -215,6 +216,7 @@ export function DetailSheetScreen() {
                 rupees={Math.round(quote / 100)}
                 onChangeRupees={(r) => setQuote((r ?? 0) * 100)}
                 min={1}
+                max={MAX_PRICE_INR}
                 style={tx('800', 30, t.colors.ink, { letterSpacing: -0.9 })}
               />
               <RNText style={tx('400', 11, deltaInk, { marginTop: 2 })}>{deltaText}</RNText>

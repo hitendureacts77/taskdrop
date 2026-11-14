@@ -16,6 +16,14 @@ export const FEES = {
 
 export const PRICE_LIMITS = {
   MIN_MINOR: 2000,
+  MAX_MINOR: 10_000_000,
+} as const;
+
+/** What a proof of work may hold: the same numbers as the task_proofs table constraints (B98). */
+export const PROOF_LIMITS = {
+  SUMMARY_MIN: 10,
+  SUMMARY_MAX: 2000,
+  FILES_MAX: 10,
 } as const;
 
 export const TOP_UP_PCTS = [0, 2, 3, 5, 10, 15, 20, 25] as const;
