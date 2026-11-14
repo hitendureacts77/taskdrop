@@ -5,7 +5,7 @@ import { Icon, type IconName } from './Icon';
 import { Slider } from './Slider';
 import { Pressy, tx } from './primitives';
 import { Segmented } from './NearMapParts';
-import { wholeDigits } from '../lib/rupeeInput';
+import { wholeDigits, wholeText } from '../lib/rupeeInput';
 import {
   DEFAULT_FILTERS,
   KM_STEPS,
@@ -238,13 +238,18 @@ function Choices<T extends string | number>({ options, value, onChange }: { opti
 /** A price box: whole rupees, empty = open end. */
 function PriceBox({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   const t = useTheme();
+  // What is on screen while typing: keeps a typed point so later keys are not added to the rupees (B167).
+  const [draft, setDraft] = useState<string | null>(null);
   return (
     <View style={{ flex: 1, minWidth: 0, height: 44, borderRadius: 14, borderWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 6 }}>
       <RNText style={tx('700', 12, t.colors.muted)}>{label} ₹</RNText>
       <TextInput
-        value={value > 0 ? String(value) : ''}
+        value={draft ?? (value > 0 ? String(value) : '')}
+        onBlur={() => setDraft(null)}
         onChangeText={(s) => {
-          const n = Number(wholeDigits(s));
+          const kept = wholeText(s, 7);
+          setDraft(kept);
+          const n = Number(wholeDigits(kept));
           onChange(Number.isFinite(n) ? Math.min(MAX_PRICE, n) : 0);
         }}
         placeholder="Any"

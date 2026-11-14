@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { wholeDigits } from './rupeeInput.ts';
+import { typeInto, wholeDigits, wholeText } from './rupeeInput.ts';
 
 test('B167: paise are dropped, not glued onto the rupees', () => {
   assert.equal(wholeDigits('250.50'), '250');
@@ -17,4 +17,18 @@ test('commas, spaces and the rupee sign are ignored', () => {
 
 test('the length cap applies to the whole rupees', () => {
   assert.equal(wholeDigits('12345678.90', 7), '1234567');
+});
+
+test('B167 recheck: typing key by key into a controlled box keeps the point, so paise never join the rupees', () => {
+  // The first fix only handled a pasted "250.50"; typed one key at a time it still became 25050.
+  assert.equal(typeInto('250.50', (t) => wholeDigits(t)), '25050');
+  assert.equal(typeInto('250.50', (t) => wholeText(t)), '250.');
+  assert.equal(wholeDigits(typeInto('250.50', (t) => wholeText(t))), '250');
+  assert.equal(typeInto('2.5', (t) => wholeText(t, 3)), '2.');
+  assert.equal(typeInto('1234567.9', (t) => wholeText(t, 7)), '1234567.');
+});
+
+test('a point with no rupees before it is not kept', () => {
+  assert.equal(wholeText('.5'), '');
+  assert.equal(wholeText('₹1,500.'), '1500.');
 });
