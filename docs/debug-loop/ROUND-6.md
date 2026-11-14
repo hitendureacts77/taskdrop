@@ -17,11 +17,11 @@ Plan task 2.19, run after you asked "are there no open vulnerabilities or bugs? 
 | Explore: charter J, money forms (website, 375 px, signed in as a fake person) | **New B167 (Medium, money)**: typing 250.50 in a rupee box gave ₹25,050. Fixed the same round in **PR 352** (8 boxes, one helper, tests). Also tried: a blank display name (correctly refused with "Add a display name"), HTML, emoji, Arabic and SQL characters in a task (shown as plain text, nothing ran), a price over the limit (correctly refused) |
 | Explore: charter K part 2 | Tried a person-A-against-person-B read through SQL, but the SQL tool's session counts as admin, so it cannot prove anything either way; this stays with `test:db` (B140) |
 | Recheck on the live sites, after the deploys | **Verified:** B113 (the money check lists all 6 late withdrawals, it showed 2), B130 (a crafted `?error=` text no longer shows), B119 (Sign out and both sign-in methods), B156 on the website (a guest in Madhapur sees only Kondapur jobs under "Needed today"). B120: the "could not check your access" page works and the real admin still gets in. B162 closed (no worker error on the live site). **Failed: B167.** Typed key by key on taskdrop.in, 250.50 still became ₹25,050: the boxes rebuild their text, so the point vanished as soon as it was typed. Fixed again in **PR 354** and proved on a local build by real typing ("Workers see ₹250"). Lesson: the first test fed a pasted string, not one key at a time |
-| Found during the recheck | **B168** (admin, Low): the real admin opening `/not-authorized` was told "not an admin account"; fixed in **admin PR 54**. **B169** (Low): a test task "[2p-test] tlo78d" open since 6 Nov shows on everyone's Home (removing it needs your yes). **B151** confirmed live: an Ended hunt still offers "I'm looking" |
+| Found during the recheck | **B168** (admin, Low): the real admin opening `/not-authorized` was told "not an admin account"; fixed in **admin PR 54**. **B169** (Low): a test task "[2p-test] tlo78d" open since 6 Nov shows on everyone's Home (removing it needs your yes). **B151** confirmed live: an Ended hunt still offered "I'm looking"; fixed in **PR 356**. After the PR 354 deploy, **B167 Verified** on taskdrop.in (typed key by key: "Workers see ₹250") and **B168 Verified** |
 
 ## Counts
 
-New this round: B163 to B169 (1 Medium, 6 Low), all listed in the ledger with their round. Fixed this round: 29 bugs across 8 pull requests (admin 52, 53, 54; app 350 to 354). Verified live: B113, B119, B130, B156 (web); plus 9 admin fixes rechecked in the round 5 add-on. Reopened: B167 (fixed again, waits for its live recheck). Open High: none.
+New this round: B163 to B169 (1 Medium, 6 Low), all listed in the ledger with their round. Fixed this round: 30 bugs across 9 pull requests (admin 52, 53, 54; app 350 to 354, 356). Verified live: B113, B119, B130, B156 (web), B167 (after PR 354), B168; plus 9 admin fixes rechecked in the round 5 add-on. Reopened then verified: B167. Open High: none.
 
 ## Deploys
 
@@ -30,7 +30,7 @@ Merging into `redesigned-2.0` deploys the website, the `api` function and the ad
 ## Still open, for your answer or later
 
 - **Needs you:** B169 (your yes to remove the leftover test task), B164 (a look change: the floating + button), B124 per-staff alert read state (a migration), B140 `test:db` (`psql` and your yes), B99 `EXPO_BUILDS_TOKEN`, the admin role matrix (add the 4 staff accounts to the admin allowlist), the staging APK, leaked-password protection.
-- **Open bugs to fix next round:** B151, B157, B165, B107, B108, B112, B117, B118, B122, B123, B125, B127, B132, B133 (rest), B134, B137, B143, B144, B145 to B149, B151, B152, B161.
+- **Open bugs to fix next round:** B157, B165, B107, B108, B112, B117, B118, B122, B123, B125, B127, B132, B133 (rest), B134, B137, B143, B144, B145 to B149, B151, B152, B161.
 - **Your fix / accept / after launch** on the Medium and Low list (S7), still not given.
 
 ## The stop test
