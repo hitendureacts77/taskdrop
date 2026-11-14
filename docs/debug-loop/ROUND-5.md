@@ -28,7 +28,7 @@ Plan task 2.19, section 20 of `docs/DEBUGGING_PLAN.html`. Pinned: user repo `445
 | Finish the live admin walk; the admin role matrix | **Not run** (owner steps 2 and 5) |
 | The golden path on all three, with money on the phone | **Not run** (needs the phone, a second account and your yes) |
 | Forms, money ones first (charter J) | **Not run** |
-| Security layer parts now possible (charter K, part 2) | **Not run**; items that need migration 152 are blocked by B95 |
+| Security layer parts now possible (charter K, part 2) | **Not run**; migration 152 is now applied, so the abuse-limit checks can run in round 6 |
 | Backend collect (logs and advisors, last 24 hours) | Done. Postgres errors are all the app's own plain refusals (the cross-user and closed-door tests); direct calls to closed functions get 401 or 400 as they should. **B97 still happens** (about 35 a day, retries hide it). Security advisor: 149 `SECURITY DEFINER` functions are callable by the signed-in role (known; guarded inside, and covered by the `rpc_surface` tests), leaked-password protection is off (owner, optional). Performance advisor: 8 foreign keys without an index and 15 unused indexes (INFO only) |
 | Android (read only) | App 1.1.0 installed 11 Nov; 10,226 lines of device log: no crash, no ANR, and no phone number, email or token in the app's own lines |
 
@@ -46,7 +46,6 @@ The live admin walk and role matrix; the golden path on the phone and the admin;
 
 ## Open for you
 
-- **Say yes to applying migration 152 on staging** (B95, High).
 - **Install `psql`** and say yes to loading `DATABASE_URL` into that one command, so `test:db` can run (B140).
 - **Install the staging Android app** (task 5.0c): the phone has the older `com.taskdrop.app`.
 - **Create the four lower admin logins** and sign in to `admin.taskdrop.in` once, so the role matrix and the admin walk can run.
