@@ -1,6 +1,6 @@
 # The debug loop: bug ledger (plan task 2.19)
 
-Every bug the debug loop has seen, in one place. The plan is in `docs/DEBUGGING_PLAN.html`. Each round starts by reading this file and the last `ROUND-N.md`, and ends by updating both. New bugs take the next number (after round 4: **B141**, the Android explorer's findings). Security holes keep their H numbers in the Security section of `docs/ULTIMATE_PLAN.md`; an entry here links to them.
+Every bug the debug loop has seen, in one place. Round reports: ROUND-4.md, ROUND-5.md. The plan is in `docs/DEBUGGING_PLAN.html`. Each round starts by reading this file and the last `ROUND-N.md`, and ends by updating both. New bugs take the next number (after round 4: **B141**, the Android explorer's findings). Security holes keep their H numbers in the Security section of `docs/ULTIMATE_PLAN.md`; an entry here links to them.
 
 **Statuses:** New → Confirmed → Fixing → Fixed, not rechecked → Verified → Closed. Side doors: Reopened, Accepted, After launch, Cannot reproduce, Duplicate of B..
 **Levels:** Critical, High (always fixed this round), Medium, Low (your "fix", "accept" or "after launch").
@@ -15,6 +15,7 @@ Every bug the debug loop has seen, in one place. The plan is in `docs/DEBUGGING_
 | 2 | 12 Nov 2026 | 09b8338 / n/a | code hunt: money and task life, access and data exposure, app logic | 22 (B43-B64: 2 High, 11 Medium, 9 Low) | 0 (fixes written, not rechecked) | 0 | B55 M, B63 L open for the owner | not run twice yet | No |
 | 3 | 12 Nov 2026 | 07cdb1b / n/a | code hunt: alerts, jobs and webhooks; worker flow and search; screens round 2 had not read | 19 (B67-B85: 2 High, 9 Medium, 8 Low, B85 for the owner) | 0 (fixes written, not rechecked) | 0 | B85 needs the owner; B54/B55/B56 open from round 2 | not run twice yet | No |
 | 4 | 13 Nov 2026 | e579a29 / db0161b (admin) | live web walk, backend collect + staging recheck of B30-B86, admin code review + partial live admin walk, sweep (checks, e2e); Android explorer to be added | 54 so far (B87-B140: 4 High, 23 Medium, 27 Low); Android from B141 | 0 yet (fixes in progress); 18 of the B30-B86 bugs rechecked and Verified on staging (some structure only) | 0 | counts after the fixes: to be filled in | none seen (e2e only partly run) | No |
+| 5 | 14 Nov 2026 | 445995f / 253f18a (admin, after PR 51) | started, not finished: sweep x2 (green), backend collect, recheck of B87-B94, admin fixes reviewed and merged, guest walk on the website (1920, 390, 768 px); admin roles, golden path, forms, security part 2 and Android not run (see ROUND-5.md) | 11 (B142-B152: 1 High fixed, 1 Medium cannot reproduce, 9 Low) | 6 verified (B87, B88, B90, B91, B92, B94); 14 fixed, not rechecked (admin PR 51) | 0 | open High: B95 (needs the owner); the rest in ROUND-5.md | e2e pending, no flaky seen in the sweep | No |
 
 ## Round 1 results (12 Nov 2026, PR 336)
 
@@ -234,13 +235,13 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 ### Web explorer (taskdrop.in, staging)
 
 ### B87 · A guest's chosen area on Hire Home is forgotten after a reload
-- Level: Medium · Status: Fixed in PR 340 (13 Nov) · Area: the poster, guest mode (charter A) · Repo: app · Class: UI · Fix path: A
+- Level: Medium · Status: Verified on staging (14 Nov, round 5; web at 1920 px) · Area: the poster, guest mode (charter A) · Repo: app · Class: UI · Fix path: A
 - Current: guest picks an area, header shows it, a reload brings back "Set your location"; the saved guest area is never read by Home, while maps use it, so Home and Explore disagree. Expected: Home reads and writes the same guest area as `useMyArea`. The post flow's "Where" step also does not pre-fill it
 - File: `apps/mobile/src/components/HomeSections.tsx` `choosePlace` (about line 163, `if (!userId) return;`, no storage write) and `loadTop`. Proof: header zoom after reload; local storage key `taskdrop.guest.area.v1` holds an older value; no console errors
 - Seen first: 13 Nov round 4 (R4-W1)
 
 ### B88 · Typing "+91" plus a number key by key still gives a different valid number (B72 not fully fixed)
-- Level: High · Status: Fixed in PR 340 (13 Nov) · Area: sign-in (charter A) · Repo: app · Class: UI · Fix path: A
+- Level: High · Status: Verified on staging (14 Nov, round 5; web at 1920 px) · Area: sign-in (charter A) · Repo: app · Class: UI · Fix path: A
 - Current: typing +91 and ten digits one key at a time leaves the box on a different 10-digit number with a green tick, so the code goes to another person. Pasting the whole string is fixed. Expected: a typed country code is stripped too, or an eleventh digit is refused with a "drop the +91" hint
 - File: `apps/mobile/src/lib/phone.ts` `normalizeMobileInput`: typed one key at a time the value is already capped at 10 digits, so the 12-digit "91..." rule never runs. Proof: zoom of the field with the tick. Reopens the typing half of B72
 - Seen first: 13 Nov round 4 (R4-W2)
@@ -251,18 +252,18 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (R4-W3)
 
 ### B90 · The post flow accepts a price of nearly 10,00,00,00,000 rupees
-- Level: Medium · Status: Fixed in PR 340 (13 Nov) · Area: the poster, money (charter A/C) · Repo: app · Class: Both · Fix path: A
+- Level: Medium · Status: Verified on staging (14 Nov, round 5; web at 1920 px) · Area: the poster, money (charter A/C) · Repo: app · Class: Both · Fix path: A
 - Current: minus sign and decimals are dropped, but the budget becomes about Rs 9,99,99,99,999 with "Any amount works", Continue enabled, a fee of about Rs 3 crore on Review and an auto-hire line with the same amount. `createTaskSchema.benchmarkMinor` has no upper bound. Expected: a sane maximum on the client and on the server, with a hint above it
 - File: `packages/schemas/src/index.ts`. Related: the admin walk saw a Rs 9,99,99,999 job posted from the Android app the same day (seen in `round-4/admin-live.md`)
 - Seen first: 13 Nov round 4 (R4-W4)
 
 ### B91 · An "At a place" task can be posted with no place set
-- Level: Medium · Status: Fixed in PR 340 (13 Nov) · Area: the poster (charter A) · Repo: app · Class: UI · Fix path: A
+- Level: Medium · Status: Verified on staging (14 Nov, round 5; web at 1920 px) · Area: the poster (charter A) · Repo: app · Class: UI · Fix path: A
 - Current: at the Place step, "At a place" with "Set where the job is" left empty continues; Review says "Location not set" and "Post my request" works. Expected: an in-person task needs at least an area (default to the saved area), otherwise it never shows on a distance search or map
 - Seen first: 13 Nov round 4 (R4-W5)
 
 ### B92 · The composer counter shows 1687/1500 and Next stays enabled
-- Level: Low · Status: Fixed in PR 340 (13 Nov) · Area: the poster (charter A) · Repo: app · Class: UI · Fix path: A
+- Level: Low · Status: Verified on staging (14 Nov, round 5; web at 1920 px) · Area: the poster (charter A) · Repo: app · Class: UI · Fix path: A
 - Current: text over 1500 characters (reached by script; a voice transcript or idea chip could do it) shows the counter in the normal colour, Next enabled, and the AI writes from the full text. Expected: counter red and Next disabled over the limit, or the text cut at 1500
 - Seen first: 13 Nov round 4 (R4-W6)
 
@@ -272,14 +273,14 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (R4-W7)
 
 ### B94 · The sign-in hero says "Get help nearby. Or earn nearby."
-- Level: Low · Status: Fixed in PR 340 (13 Nov) · Area: copy (charter A) · Repo: app · Class: UI · Fix path: A
+- Level: Low · Status: Verified on staging (14 Nov, round 5; web at 1920 px) · Area: copy (charter A) · Repo: app · Class: UI · Fix path: A
 - Current: the headline suggests local-only, against the rule that tasks are local AND remote (the card does show a remote example). Expected: wording that covers both
 - Seen first: 13 Nov round 4 (R4-W8)
 
 ### Backend collect and staging recheck
 
 ### B95 · Migration 152 (abuse caps H43/H44/H47) is not applied on staging
-- Level: High · Status: Confirmed · Area: abuse limits, security (H43/H44/H47) · Repo: app (`supabase/migrations/20261105150000_152_abuse_caps.sql`) · Class: Backend · Fix path: Needs migration (owner's yes): apply the existing file, do not rewrite it
+- Level: High · Status: Confirmed, still not applied on 14 Nov (round 5; staging has 177 but no 152) · Area: abuse limits, security (H43/H44/H47) · Repo: app (`supabase/migrations/20261105150000_152_abuse_caps.sql`) · Class: Backend · Fix path: Needs migration (owner's yes): apply the existing file, do not rewrite it
 - Current: staging has no `is_new_account`, `limit_daily_posts` or `limit_daily_feedback`, no `post_cap_day`, `ad_click_viewer_promo_day` or `media_uploads_day` settings, and `record_ad_click` has the old body. So the ad-click, ad-impression, media upload, daily post and feedback caps are not live. Expected: applied (it sorts between 151 and 153 and was skipped)
 - Seen first: 13 Nov round 4 (backend-collect N1)
 
@@ -289,13 +290,13 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (backend-collect N2, found while verifying B38)
 
 ### B97 · Inngest jobs fail with "JWT issued at future" one to five times an hour
-- Level: Medium · Status: Confirmed · Area: background jobs (charter F) · Repo: app · Class: Backend · Fix path: A
+- Level: Medium · Status: Confirmed, still about 35 a day on 14 Nov (round 5) · Area: background jobs (charter F) · Repo: app · Class: Backend · Fix path: A
 - Current: about 40 errors in 24 h across 8 steps (outbox pending, settle cleared earnings, outbox watchdog, media expire, auto-complete, a settings read), one message. Retries hide it, but each failed step is a delayed push or sweep. Expected: tolerate the clock skew (small `iat` margin or a re-issue) instead of relying on retry
 - File: `supabase/functions/inngest/jobs.ts` `call()` and the `db` client in `index.ts`
 - Seen first: 13 Nov round 4 (backend-collect N3)
 
 ### B98 · `submitProof` takes a 5000-character summary and 30 files, the table allows 2000 and 10
-- Level: Low · Status: Fixed in PR 340 (13 Nov) · Area: worker flow (charter D) · Repo: app · Class: Backend · Fix path: A
+- Level: Low · Status: Fixed in PR 340 (13 Nov); not rechecked (needs a signed-in worker mid-task) · Area: worker flow (charter D) · Repo: app · Class: Backend · Fix path: A
 - Current: a direct API call over the limits returns a raw constraint error (log: `task_proofs_summary_check` violated 12 Nov). The app itself caps at 2000 and 10. Expected: the same limits in the API's input check, with a plain message
 - File: `supabase/functions/api/writes.ts` lines 438-460
 - Seen first: 13 Nov round 4 (backend-collect N4)
@@ -307,7 +308,7 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (backend-collect N5)
 
 ### B100 · `places-search` answers 401 to signed-out callers
-- Level: Medium · Status: New (needs a guest repro on web and Android) · Area: guest mode, location · Repo: app · Class: UI/Backend · Fix path: A
+- Level: Medium · Status: Confirmed on the web (14 Nov, round 5): the browser then asks a third-party map service with the typed text and the GPS point (see B145); Android guest not checked · Area: guest mode, location · Repo: app · Class: UI/Backend · Fix path: A
 - Current: 20 x 401 in 24 h (15 within 2 minutes from a browser, 5 from the Android app) with no user role on the request; verify_jwt is on and guest mode has no session, so location search for guests may fail. Expected: guests can search for a place, or the app hides it with a plain message
 - File: `apps/mobile/src/lib/location.ts` lines 267-340, `supabase/config.toml` for places-search
 - Seen first: 13 Nov round 4 (backend-collect N6)
@@ -334,13 +335,13 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 ### Admin panel, live walk (admin.taskdrop.in, staging, 767 px wide)
 
 ### B105 · The admin jobs list paging skips 280 of 748 jobs and repeats others
-- Level: High · Status: Confirmed · Area: admin, jobs list · Repo: admin · Class: Backend · Fix path: A
+- Level: High · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin · Area: admin, jobs list · Repo: admin · Class: Backend · Fix path: A
 - Current: 25 pages show 748 rows but only 468 distinct jobs; page 2 repeats 19 of page 1's 30. 280 jobs cannot be reached by paging. The People list is fine (198 seen, 198 unique). Expected: each job exactly once
 - Cause: ordered by "last change" only; the fake seed wrote hundreds of jobs with one timestamp, so `range()` over a non-unique key is unstable. Add `id` as a tie-breaker. File: the jobs query behind `app/tasks/page.tsx`
 - Seen first: 13 Nov round 4 (R4-L1)
 
 ### B106 · The Pay screen's QR and copy button use a different UPI id than the one the withdrawal went to
-- Level: High · Status: Confirmed · Area: admin payouts (charter C/E) · Repo: admin · Class: Both · Fix path: A
+- Level: High · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin (UPI now pays the id saved on the withdrawal and warns when the account changed; bank accounts: see B142) · Area: admin payouts (charter C/E) · Repo: admin · Class: Both · Fix path: A
 - Current: on one seed worker's Rs 600 payout, step 1 (QR, "UPI", Copy) shows one id while the Details box says "Sent to" another; no warning that they differ. With real money, a worker who changes UPI after asking (or whoever took the account over) is paid to the new id. Also: "Paid: By RazorpayX" on a manual, unpaid withdrawal. Expected: pay the destination saved on the withdrawal (or say clearly the id changed and ask which to use); "Not paid yet" / "By hand"
 - Seen first: 13 Nov round 4 (R4-L2)
 
@@ -355,17 +356,17 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (R4-L4)
 
 ### B109 · Payouts: "Settled" says 10 paid for Rs 12,650 in 30 days, the Paid tab says 0
-- Level: Medium · Status: Confirmed · Area: admin payouts · Repo: admin · Class: Both · Fix path: A
+- Level: Medium · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin · Area: admin payouts · Repo: admin · Class: Both · Fix path: A
 - Current: "Last 30 days, paid in total Rs 12,650.00 (10)" beside tabs "All 25 · Paid 0 · Came back 0 · Cancelled 25"; the Paid tab says nothing in the last 30 days; the dashboard repeats Rs 12,650 / 10. Expected: the summary and the tab counts use the same window
 - Seen first: 13 Nov round 4 (R4-L5)
 
 ### B110 · "Ready to withdraw" includes earnings still clearing
-- Level: Medium · Status: Confirmed · Area: admin payouts, money position · Repo: admin · Class: UI · Fix path: A
+- Level: Medium · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin · Area: admin payouts, money position · Repo: admin · Class: UI · Fix path: A
 - Current: "Ready to withdraw Rs 1,58,146.00 (earnings people can still ask for)", which is ready Rs 1,43,301 + clearing Rs 9,945 + on the way Rs 4,900. Clearing money cannot be asked for and money on the way was already asked for. Expected: Rs 1,43,301, or relabel the sum
 - Seen first: 13 Nov round 4 (R4-L6)
 
 ### B111 · A cancelled job's timeline says "Approved, money released"
-- Level: Medium · Status: Confirmed · Area: admin job page · Repo: admin · Class: UI · Fix path: A
+- Level: Medium · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin · Area: admin job page · Repo: admin · Class: UI · Fix path: A
 - Current: a cancelled, never hired job shows "Approved, money released" at the cancel time, while "Where the money is now" says nobody is hired. Expected: a "Cancelled" step and "Approved" left at "Not yet"
 - Seen first: 13 Nov round 4 (R4-L7)
 
@@ -375,22 +376,22 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (R4-L8)
 
 ### B113 · The money check hides the oldest stuck withdrawals by default
-- Level: Medium · Status: Confirmed · Area: admin money check · Repo: admin · Class: UI · Fix path: A
+- Level: Medium · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin · Area: admin money check · Repo: admin · Class: UI · Fix path: A
 - Current: default "Last 30 days" shows "Withdrawal waiting too long: 2" while 7 wait 13 to 40 days; the 4 oldest appear only under "Last 90 days" (which says 6). The window filters by the date asked, so the worst cases drop out first. Expected: open problems always listed; the window only for closed history
 - Seen first: 13 Nov round 4 (R4-L9)
 
 ### B114 · Jobs search: the "held" total ignores the search, and `%` and `_` match everything
-- Level: Low · Status: Confirmed · Area: admin jobs · Repo: admin · Class: UI · Fix path: A
+- Level: Low · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin (a typed backslash is no longer stripped, so a search with one can miss rows) · Area: admin jobs · Repo: admin · Class: UI · Fix path: A
 - Current: "0 jobs, Rs 33,681.00 held in escrow for them"; searching `%` or `___` returns all 748 jobs (LIKE wildcards not escaped). Special characters render safely. Expected: the held sum follows the search; wildcards searched literally
 - Seen first: 13 Nov round 4 (R4-L10)
 
 ### B115 · CSV dates are UTC while the screen is India time
-- Level: Low · Status: Confirmed · Area: admin exports · Repo: admin · Class: Backend · Fix path: A
+- Level: Low · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin · Area: admin exports · Repo: admin · Class: Backend · Fix path: A
 - Current: a person who joined 5 Nov at 03:47 IST is `2026-11-04` in the CSV (same for Last seen). Expected: India time like the screen, or say UTC in the header. (Good: a tag `=1+1` came out as `'=1+1`, formula cells are neutralised)
 - Seen first: 13 Nov round 4 (R4-L11)
 
 ### B116 · The record-payment reference accepts a single space
-- Level: Low · Status: Confirmed (browser side; the server side was not tested because it would record a payment) · Area: admin payouts · Repo: admin · Class: UI · Fix path: A
+- Level: Low · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin (shape check in the browser and again on the server) · Area: admin payouts · Repo: admin · Class: UI · Fix path: A
 - Current: the UTR box is `required` with no pattern; a space or "x" passes. Expected: trim and require a UTR-shaped value (12 digits for UPI), checked on the server too
 - Seen first: 13 Nov round 4 (R4-L12)
 
@@ -400,7 +401,7 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (R4-L13)
 
 ### B118 · Status contradictions across the admin screens
-- Level: Low · Status: Confirmed · Area: admin copy and numbers · Repo: admin · Class: UI · Fix path: A (the seed items are Owner: reseed)
+- Level: Low · Status: Partly fixed in admin PR 51 (lock label, Poster pill, Devices wording); the Health vs Money check, Team authenticator text and seed dates remain · Area: admin copy and numbers · Repo: admin · Class: UI · Fix path: A (the seed items are Owner: reseed)
 - Current: System health says "Everything is working" while the Money check shows 14 differences (B101); Team text says an authenticator is needed to move money and for role changes while the switch is Off and nobody has one; the oldest payout still shows "You're paying" (claim lock never expires, 40 days); seed people "last seen 13 days ago" yet "joined 5 Nov"; list says "Worker" where the person page says "Worker · Poster"; Devices says iPhone "100% on the latest version (1.0.0)" while the app is 1.1.0
 - Seen first: 13 Nov round 4 (R4-L14)
 
@@ -445,7 +446,7 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (R4-X6)
 
 ### B126 · A space typed as a setting saves 0
-- Level: Medium · Status: Confirmed (by code; needs admin and authenticator code, so only by mistake) · Area: admin settings, money timing · Repo: admin · Class: Backend · Fix path: A
+- Level: Medium · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin · Area: admin settings, money timing · Repo: admin · Class: Backend · Fix path: A
 - Current: `actions.ts:366` trims, then `Number('')` is 0 and passes `isFinite`; `clearing_period_days` and `new_account_tasks` (min 0) accept it, so earnings would clear at once, with "Saved". Expected: an empty value is refused ("Type a number")
 - Seen first: 13 Nov round 4 (R4-X7)
 
@@ -490,12 +491,12 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (R4-X15)
 
 ### B135 · Negative money in exports is turned into text
-- Level: Low · Status: Confirmed (by code) · Area: admin exports · Repo: admin · Class: Backend · Fix path: A
+- Level: Low · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin · Area: admin exports · Repo: admin · Class: Backend · Fix path: A
 - Current: `csv.ts:11` prefixes any cell starting with `-` (formula guard), so a plain `-12.00` becomes `'-12.00` and column sums skip every negative wallet or revenue day. Expected: keep the guard for text but let plain numbers through
 - Seen first: 13 Nov round 4 (R4-X16)
 
 ### B136 · "Paid today" and "waiting since" use `updated_at`
-- Level: Low · Status: New (plausible; needs a row updated after it was paid or disputed) · Area: admin payouts and disputes · Repo: admin · Class: UI · Fix path: A
+- Level: Low · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin (uses sent_at and the dispute-opened time; a payout taken over by hand keeps its old sent_at) · Area: admin payouts and disputes · Repo: admin · Class: UI · Fix path: A
 - Current: `data/payouts.ts:50-63` counts "paid today" by `updated_at`; `data/disputes.ts:57,84` shows "waiting since" from the task's `updated_at`, which resets on any update. Expected: the real paid and dispute dates
 - Seen first: 13 Nov round 4 (R4-X17)
 
@@ -520,6 +521,64 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Level: Medium · Status: Confirmed · Area: tests (charter G) · Repo: app · Class: Backend · Fix path: Owner: provides `DATABASE_URL` or installs `psql`
 - Current: `psql` is not installed on this machine and `DATABASE_URL` is not in the shell (the script does not read `.env.all-secrets`). Expected: run it before any migration or money change counts as checked (AGENTS.md rule)
 - Seen first: 13 Nov round 4 (sweep)
+
+### B142 · A bank withdrawal is paid to whatever account is on file now, with no warning
+- Level: High · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked · Area: admin payouts (charter C/E) · Repo: admin · Class: Both · Fix path: A
+- Current: a worker asks to withdraw to a bank account ending 1234, deletes that account (the withdrawal's destination becomes empty) and adds another; the Pay screen then shows the new account's number with no notice. Expected: say the account changed and pay the new one only after a deliberate choice
+- Fix: compares the last 4 digits; if they differ it shows "Can't send yet" and offers "Pay the account on file now instead". File: `src/lib/payout-dest.ts` `payoutDestinations`
+- Seen first: 14 Nov round 5 (Opus review of the admin branch)
+
+### B143 · "Locked N days" counts from when the withdrawal was asked for, not from when it was locked
+- Level: Low · Status: New · Area: admin payouts · Repo: admin · Class: Both · Fix path: A (needs a migration: the lock time, `updated_at`, from the queue function)
+- Current: a withdrawal asked for 3 days ago and locked 5 minutes ago shows red "Locked 3 days: pay or give back". Expected: "You're paying". File: `src/lib/payout-dest.ts` `manualPayLabel`, used in `PayoutsView.tsx`
+- Seen first: 14 Nov round 5 (Opus review)
+
+### B144 · Paying the "account on file now" leaves no record of which account was paid
+- Level: Low · Status: New · Area: admin payouts · Repo: admin · Class: Both · Fix path: A
+- Current: after `?use=current` and recording the payment, "Sent to" still shows the account saved on the withdrawal. Expected: the note or the audit says which account was paid. File: `PayoutDetailView.tsx`, `actions.ts` `markPayout`
+- Seen first: 14 Nov round 5 (Opus review)
+
+### B145 · Guest place search sends the typed text and the real GPS point to a third-party map service
+- Level: Low (Medium if B100 is not fixed by routing guests to the server) · Status: Confirmed (website, 1920 px) · Area: guest mode, location, privacy (charter I) · Repo: app · Class: Both · Fix path: A (same cause as B100)
+- Current: as a guest on Explore, "Type my area" or "Use my location": the places-search function answers 401, then the browser calls the Nominatim search and reverse lookup itself, so a third party receives what was typed and the real position. Expected: a server route a guest may use (which hides the position and applies the limits), or an owner decision to accept it
+- Proof: network log "POST places-search 401" then "GET nominatim.openstreetmap.org/search" and "/reverse"
+- Seen first: 14 Nov round 5 (web helper)
+
+### B146 · A guest can ask for up to 100 helpers at once, and the radius and limit are the caller's choice
+- Level: Low · Status: New · Area: guest mode, abuse (charter I) · Repo: app · Class: Backend · Fix path: A
+- Current: `workersNear` with radiusKm 20000 and limit 200 returned 101 helpers (name, bio, languages, ratings, last seen) to a signed-out caller; the code says the limit is at most 100. Public by design, but a guest can scrape every helper in one call. Expected: a fixed radius and a lower limit for guests, plus the guest rate limit
+- Seen first: 14 Nov round 5 (web helper)
+
+### B147 · A person's area and recent places stay in the browser after sign-out
+- Level: Low · Status: New · Area: guest mode, privacy (charter I, move T5) · Repo: app · Class: UI · Fix path: A
+- Current: after sign-out and "Continue as guest" the old person's area and a recent-places entry with four or more decimals of coordinates remain in local storage and show on Home. Name, drafts and wallet did not leak. Expected: sign-out clears the saved area and recent places, or keeps only the rounded area the guest picked
+- Seen first: 14 Nov round 5 (web helper)
+
+### B148 · A task link that does not exist opens Home with no message
+- Level: Low · Status: New · Area: navigation (charter I) · Repo: app · Class: UI · Fix path: A
+- Current: `?task=00000000-0000-0000-0000-000000000000` shows Home silently. Expected: a plain "That task is not available"
+- Seen first: 14 Nov round 5 (web helper)
+
+### B149 · For a guest, the legal pages swap the app shell for the signed-out hero shell
+- Level: Low · Status: New · Area: legal pages, guest mode · Repo: app · Class: UI · Fix path: A or Accept
+- Current: Terms, Privacy and Copyright opened from Help replace the app frame with the signed-out hero page; Back returns fine. Expected: the same frame as the rest of the app
+- Seen first: 14 Nov round 5 (web helper)
+
+### B150 · A tab signed itself into an existing account with nobody typing
+- Level: Medium (cause unknown) · Status: Cannot reproduce (seen once, 14 Nov) · Area: sign-in (charter A) · Repo: app · Class: Both · Fix path: A once explained
+- Current: about 25 minutes into a guest walk on https://www.taskdrop.in in Chrome (no action by the helper), the tab showed the sign-in box with a phone number nobody typed, called phone-auth "send" (mode signin, an existing "Returning member" account, test mode, no SMS), and signed that account in; the guest draft moved into it. Expected: a guest tab never signs in by itself. Possible causes: Chrome autofill plus the staging auto-filled code (`dev_otp_for_all`), another driver of the same Chrome group, or an app bug. To try next: reproduce with a clean profile and autofill off, and look for a saved phone in the app's local storage
+- Seen first: 14 Nov round 5 (web helper)
+
+### B151 · Not verified: an ended Hunt appears under "Matches your skills" with an "I'm looking" button
+- Level: Low · Status: New (seen once by the controller at 768 px as a guest) · Area: Earn Home · Repo: app · Class: UI · Fix path: A
+- Current: a card marked "HUNT · REWARD ₹450 Ended" is listed with an active "I'm looking" button. Expected: ended Hunts are not offered. Needs a second look and a screenshot before a fix
+- Seen first: 14 Nov round 5 (controller)
+
+### B152 · Every page logs a console error: the site's content policy blocks Vercel's feedback script
+- Level: Low · Status: New (staging only) · Area: all pages, console cleanliness · Repo: app · Class: UI · Fix path: Accept or A (do not load the preview toolbar on staging)
+- Current: `Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates ... script-src`, twice per load. Harmless, but it hides real errors in a clean-console check. Expected: no console error on a normal load
+- Seen first: 14 Nov round 5 (controller)
+
 
 ### Android explorer findings: to be added (B141 onward)
 
