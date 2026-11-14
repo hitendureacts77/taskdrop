@@ -16,7 +16,7 @@ Every bug the debug loop has seen, in one place. Round reports: ROUND-4.md, ROUN
 | 3 | 12 Nov 2026 | 07cdb1b / n/a | code hunt: alerts, jobs and webhooks; worker flow and search; screens round 2 had not read | 19 (B67-B85: 2 High, 9 Medium, 8 Low, B85 for the owner) | 0 (fixes written, not rechecked) | 0 | B85 needs the owner; B54/B55/B56 open from round 2 | not run twice yet | No |
 | 4 | 13 Nov 2026 | e579a29 / db0161b (admin) | live web walk, backend collect + staging recheck of B30-B86, admin code review + partial live admin walk, sweep (checks, e2e); Android explorer to be added | 54 so far (B87-B140: 4 High, 23 Medium, 27 Low); Android from B141 | 0 yet (fixes in progress); 18 of the B30-B86 bugs rechecked and Verified on staging (some structure only) | 0 | counts after the fixes: to be filled in | none seen (e2e only partly run) | No |
 | 5 | 14 Nov 2026 | 445995f / 253f18a (admin, after PR 51) | started, not finished: sweep x2 (green), backend collect, recheck of B87-B94, admin fixes reviewed and merged, guest walk on the website (1920, 390, 768 px); admin roles, golden path, forms, security part 2 and Android not run (see ROUND-5.md) | 11 (B142-B152: 1 High fixed, 1 Medium cannot reproduce, 9 Low) + 10 from the signed-in web walk (B153-B162: 4 Medium, 6 Low) | 6 verified (B87, B88, B90, B91, B92, B94); 14 fixed, not rechecked (admin PR 51) | 0 | no open High known (B95 applied 14 Nov, awaiting recheck); the rest in ROUND-5.md | e2e pending, no flaky seen in the sweep | No |
-| 6 | 15 Nov 2026 | a76b9d8 / d8762b7 (admin) | fix round + charter J (money forms, 375 px) + charter K part 2 (backend advisors, logs); admin recheck of round 4 fixes (round 5 add-on) | 7 (B163-B169: 1 Medium, 6 Low; B162 closed) | 4 Verified live (B113, B119, B130, B156 web); 29 fixed in admin PR 52-54 and app PR 350-354, the rest not rechecked | B113 and B167 (both fixed again) | 0 / 0 / see ROUND-6 / see ROUND-6 | none (both sweeps green) | No |
+| 6 | 15 Nov 2026 | a76b9d8 / d8762b7 (admin) | fix round + charter J (money forms, 375 px) + charter K part 2 (backend advisors, logs); admin recheck of round 4 fixes (round 5 add-on) | 7 (B163-B169: 1 Medium, 6 Low; B162 closed) | 6 Verified live (B113, B119, B130, B156 web, B167, B168); 30 fixed in admin PR 52-54 and app PR 350-356, the rest not rechecked | B113 and B167 (both fixed again) | 0 / 0 / see ROUND-6 / see ROUND-6 | none (both sweeps green) | No |
 
 ## Round 1 results (12 Nov 2026, PR 336)
 
@@ -571,7 +571,7 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 14 Nov round 5 (web helper)
 
 ### B151 · Not verified: an ended Hunt appears under "Matches your skills" with an "I'm looking" button
-- Level: Low · Status: Confirmed (15 Nov, round 6, live, guest): an Ended hunt shows under Jobs near Madhapur with an "I'm looking" button · Area: Earn Home · Repo: app · Class: UI · Fix path: A
+- Level: Low · Status: Fixed in PR 356 (15 Nov, round 6): only a live hunt shows "I'm looking"; a reviewing or ended one shows "See it" and opens the hunt (the server already refused a look on an ended hunt); not rechecked · Area: Earn Home · Repo: app · Class: UI · Fix path: A
 - Current: a card marked "HUNT · REWARD ₹450 Ended" is listed with an active "I'm looking" button. Expected: ended Hunts are not offered. Needs a second look and a screenshot before a fix
 - Seen first: 14 Nov round 5 (controller)
 
@@ -665,13 +665,13 @@ Signed in to `admin.taskdrop.in` with the owner's existing Google session (no pa
 ### Round 6 (15 Nov 2026)
 
 ### B167 · Rupee fields turned "250.50" into ₹25,050
-- Level: Medium · Status: Fixed (PR 352, then PR 354). The recheck on taskdrop.in after PR 352 FAILED: typed key by key, 250.50 still gave ₹25,050, because the boxes are controlled and the point vanished as soon as it was typed. PR 354 keeps the point on screen and ignores keys after it; verified on a local build of PR 354 at 375 px ("Workers see ₹250"); recheck on taskdrop.in once deployed. Rung 3 (restore and re-plan), tries 2. Retro: the first test fed a whole pasted string, not one key at a time · Area: money forms (charter J) · Repo: app · Class: UI · Rung: 2 · Tries: 1 · Fix path: A
+- Level: Medium · Status: Verified (15 Nov, round 6, live on taskdrop.in after PR 354): typed key by key, 250.50 shows "250." and "Workers see ₹250 · ₹257.50 is held". PR 352 alone had failed this recheck (rung 3, 2 tries; retro: test one key at a time) · Area: money forms (charter J) · Repo: app · Class: UI · Rung: 2 · Tries: 1 · Fix path: A
 - Current: every rupee box removed every non-digit, so a typed decimal point vanished and the amount became 100 times bigger. Seen at 375 px in Post a task, Budget step: typing 250.50 showed "Workers see ₹25,050 · with the 3% fee, ₹25,801.50 is held"; "-5.5e3" became ₹553. The same code was in Add funds, the offer price, a service price, Withdraw, the map price filter, the weekly goal and the km box (2.5 km became 25). Expected: whole rupees only; anything after the point dropped (₹250)
 - Fix: one helper `apps/mobile/src/lib/rupeeInput.ts` `wholeDigits()` in all 8 boxes, with unit tests. The amount was always shown before sending, but a careless tap would have posted or added 100 times the money
 - Seen first: 15 Nov round 6 (signed-in web walk at 375 px, fake account +91 98880 00003)
 
 ### B168 · The admin "Not an admin account" page tells the real admin they are not an admin
-- Level: Low · Status: Fixed in admin PR 54 (15 Nov, round 6), not rechecked · Area: admin sign-in · Repo: admin · Class: UI · Fix path: A
+- Level: Low · Status: Verified (15 Nov, round 6, live): the real admin opening /not-authorized lands on the panel · Area: admin sign-in · Repo: admin · Class: UI · Fix path: A
 - Current: opening `/not-authorized` by address (or the back button) while signed in as the real admin said "Signed in as <owner>, but that account is not an admin account". Expected: a real admin is sent to the panel
 - Seen first: 15 Nov round 6, recheck of B119 on admin.taskdrop.in
 
