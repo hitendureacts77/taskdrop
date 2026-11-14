@@ -416,7 +416,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
             )}
             <RNText style={tx('500', 12, 'rgba(255,255,255,0.85)', { marginTop: 6, lineHeight: 18 })}>
               Amount frozen in ongoing tasks {formatINR(heldMinor + shown.earningEscrow)}
-              {'\n'}Payouts requested to your personal bank {formatINR(shown.pending)}
+              {'\n'}Withdrawals on their way to you {formatINR(shown.pending)}
             </RNText>
             {periodEarned > 0 ? (
               <RNText style={tx('700', 12, '#FFFFFF', { marginTop: 4 })}>
@@ -459,7 +459,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
               <RNText style={tx('500', 12, 'rgba(255,255,255,0.85)', { marginTop: 10, lineHeight: 18 })}>
                 {shown.earningEscrow > 0 ? `Coming to you from work you are doing ${formatINR(shown.earningEscrow)}` : ''}
                 {shown.earningEscrow > 0 && shown.pending > 0 ? '\n' : ''}
-                {shown.pending > 0 ? `Payouts requested to your personal bank ${formatINR(shown.pending)}` : ''}
+                {shown.pending > 0 ? `Withdrawals on their way to you ${formatINR(shown.pending)}` : ''}
               </RNText>
             ) : null}
               </>
