@@ -149,8 +149,8 @@ footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px
 </header>
 
 <div class="pills">
-  <span class="pill">Status: <b>rounds 0 to 4 run, not settled</b></span>
-  <span class="pill">Next: <b>round 5 (section 20)</b></span>
+  <span class="pill">Status: <b>rounds 0 to 6 run, not settled</b></span>
+  <span class="pill">Next: <b>round 7 (section 21)</b></span>
   <span class="pill">Rounds before launch: <b>at least 3, at most 8</b></span>
   <span class="pill">One round: <b>about half a day of Claude, 10–15 min of yours</b></span>
   <span class="pill">After launch: <b>one round a week</b></span>
@@ -164,6 +164,11 @@ footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px
   <h3>Round 4 result (13 November 2026)</h3>
   <p style="margin:0">The first round that walked the live website, the Android phone and the admin, and rechecked older fixes on staging. The exact counts (new bugs by level, fixed, verified) are kept in one place only: the round table at the top of <a href="debug-loop/LEDGER.md">debug-loop/LEDGER.md</a>, the round report is <a href="debug-loop/ROUND-4.md">debug-loop/ROUND-4.md</a>, and the walk notes are in <code>docs/debug-loop/round-4/</code>. In short: many new bugs, a few High (wrong UPI id on the admin pay screen, admin job list paging, a typed <code>+91</code> turning into someone else's number, abuse caps not live on staging), 18 older fixes verified on staging, nothing reopened. <b>Not settled.</b></p>
   <p class="meta" style="margin:8px 0 0"><b>What round 4 could not cover</b> (repeated first in round 5, section 20): the live admin walk stopped when the Google session changed; no admin login per staff role; no 390 px or desktop widths; <code>test:db</code> did not run on this PC (no <code>DATABASE_URL</code>, no <code>psql</code>); the e2e suite was red and cut short at test 34 of 68; guest mode and phone sign-up only partly walked; Android guest mode and Android Earn money steps not walked at all.</p>
+</div>
+
+<div class="r4" id="r6box">
+  <h3>Round 6 result (15 November 2026)</h3>
+  <p style="margin:0">30 bugs fixed in 9 pull requests, among them 10 admin security bugs, the last part of the High search bug B34, and a new money bug B167 (typing ₹250.50 gave ₹25,050), whose first fix failed its live recheck and was fixed again. 6 verified on the live sites. 7 new bugs (B163 to B169). <b>Not settled.</b> Everything still open, for you and for round 7, is in <a href="#open">section 21</a>.</p>
 </div>
 
 <nav class="toc" aria-label="Contents">
@@ -188,6 +193,7 @@ footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px
     <li><a href="#cleanup">The clean-up track (unneeded code)</a></li>
     <li><a href="#engine">Running the loop to the end</a></li>
     <li><a href="#round5">Round 5, charter by charter</a></li>
+    <li><a href="#open">Still open after round 6</a></li>
     <li><a href="#changes">Changes to this page</a></li>
   </ol>
 </nav>
@@ -903,8 +909,8 @@ B43 Low: ...      recommended: accept
   <li><b>1. <code>DATABASE_URL</code> for <code>test:db</code>.</b> Install the PostgreSQL client (<code>psql</code>) on this PC and say yes to Claude loading <code>DATABASE_URL</code> from <code>.env.all-secrets</code> into that one command, never printed. Needed only for money or rule fixes; CI runs <code>test:db</code> on every pull request anyway.</li>
   <li><b>2. One admin test login per staff role.</b> Finance, Support, Sales and Viewer (and Admin, which you have), on staging, fake people only. You create them or say yes to Claude creating them; you sign each one in, in its own Chrome profile. Their passwords stay in <code>.env.all-secrets</code>, and the admin smoke reads them from the CI secret store later.</li>
   <li><b>3. <code>EXPO_BUILDS_TOKEN</code>.</b> Add it to <code>.env.all-secrets</code> and the Supabase function secrets, so the download page and its QR code find the newest Android build (N5).</li>
-  <li><b>4. Apply migration 152 to staging.</b> Your yes, so the abuse caps (posts, feedback, ad clicks, uploads) are live and charter K can test them (N1).</li>
-  <li><b>5. Sign back in to <code>admin.taskdrop.in</code>.</b> As the admin account, in Chrome, so the live admin walk can finish from "My security".</li>
+  <li><b>4. Apply migration 152 to staging.</b> <i>Done 14 Nov.</i> Your yes, so the abuse caps (posts, feedback, ad clicks, uploads) are live and charter K can test them (N1).</li>
+  <li><b>5. Sign back in to <code>admin.taskdrop.in</code>.</b> <i>Done 14 Nov (your existing Google session was used); the walk ran, see section 21 for what is left.</i> As the admin account, in Chrome, so the live admin walk can finish from "My security".</li>
   <li><b>6. Phone on USB</b> with the staging app, and your yes to an app update when a round's fixes need the phone.</li>
   <li><b>7. Your answers:</b> "fix", "accept" or "after launch" on each Medium and Low; the open decisions B21, B54, B55, B56 and B85; whether the age gate should remember a refusal (R4-W3).</li>
   <li><b>8. Later, optional:</b> promote to <code>main</code> so the nightly e2e run can start; turn on Supabase's leaked-password protection (an advisor warning).</li>
@@ -941,15 +947,58 @@ B43 Low: ...      recommended: accept
 </ol>
 
 <!-- 21 -->
-<h2 id="changes">21. Changes to this page</h2>
+<h2 id="open">21. Still open after round 6 (15 November 2026)</h2>
+<p>Round 6 fixed 30 bugs in 9 pull requests (admin 52 to 54, app 350 to 356) and verified 6 of them on the live sites; the report is <a href="debug-loop/ROUND-6.md">debug-loop/ROUND-6.md</a> and every bug is in <a href="debug-loop/LEDGER.md">debug-loop/LEDGER.md</a>. This section is the one list of what is still open. Round 7 starts here, and each line moves to "done" in the next round's report.</p>
+
+<h3>What only you can do</h3>
+<ul class="owner">
+  <li><b>1. Let the admin role matrix run.</b> Create the four lower staff logins on staging (Finance, Support, Sales, Viewer, fake people) and add them to the admin allowlist (<code>ADMIN_EMAIL</code> / <code>ADMIN_PHONE</code>): today only your one account may sign in, so the roles can only be checked in the code.</li>
+  <li><b>2. <code>test:db</code>.</b> Install <code>psql</code> and say yes to Claude loading <code>DATABASE_URL</code> into that one command (B140). This is also the only way to prove the person-A-against-person-B rules: the database tool counts as admin, so it cannot.</li>
+  <li><b>3. Your yes to the B124 migration.</b> A per-person "read" state for admin alerts; today a Finance, Support or Sales person still marks an alert read for the whole team.</li>
+  <li><b>4. The Android app update.</b> The fixes reach the phone only through an app update. The merges ran your existing "Beta Android" workflow, which published an update to the beta channel; check which channel your phone's app uses, or install the staging app <code>com.taskdrop.app.staging</code> (task 5.0c). Until then B156 still shows on Android.</li>
+  <li><b>5. B169:</b> your yes to remove the leftover test task "[2p-test] tlo78d" (open since 6 Nov, shown on everyone's Home). On 15 Nov you said "not now".</li>
+  <li><b>6. B164:</b> a look decision. The floating "+" button covers whatever card scrolls under it: add space at the end of the list, or hide the button while scrolling.</li>
+  <li><b>7. <code>EXPO_BUILDS_TOKEN</code></b> in the function secrets, so the download page finds the newest Android build (B99).</li>
+  <li><b>8. Your answers</b> "fix", "accept" or "after launch" on each open Medium and Low (stop test S7), and on B21, B54, B55, B56, B85; B134 (who may see staff contacts); whether to remove the fake account +91 98880 99931 left by a helper in round 5.</li>
+  <li><b>9. Later, optional:</b> leaked-password protection in Supabase (advisor warning); promote to <code>main</code> for the nightly e2e run.</li>
+</ul>
+
+<h3>Fixed, waiting for a recheck on staging</h3>
 <ul class="tight">
+  <li><b>Admin (PR 53):</b> B121 rate limiter fails closed, B129 Sales money count, B131 non-admin Google sign-in, B128, B138; partly B124 and B133.</li>
+  <li><b>Admin (PR 52):</b> B163 the cancelled job's money box.</li>
+  <li><b>App (PR 350, 351, 353, 356):</b> B34 (last read), B153, B154, B155, B158, B159, B160, B166, B151; B156 on Android after the update.</li>
+</ul>
+
+<h3>Open bugs for round 7 (Claude can fix, about 8 a round)</h3>
+<ul class="tight">
+  <li><b>Medium:</b> B97 (Inngest "JWT issued at future", about 35 a day), B100 and B145 (place search for guests), B107 (phone number inside "Email" in the admin People list and export), B108 (admin audit gaps), B112 (authenticator switch warning), B122 (admin lists and exports stop at 1,000 rows), B123 (no rate limit or double-submit guard on admin actions), B125, B127 (admin security events to Sentry; B121 started it).</li>
+  <li><b>Low:</b> B157 (the "waiting for your approval" alert stays; needs a backend change), B165, B117, B118, B132, B133 (the rest), B137, B143 (needs a migration), B144, B146, B147, B148, B149, B152, B161, and the older B18, B30, B32, B36 to B42 waiting for your answer.</li>
+</ul>
+
+<h3>Not covered yet, so round 7 runs it first</h3>
+<ul class="tight">
+  <li>The admin role matrix (owner step 1 above) and the admin smoke test <code>npm run test:e2e</code> in the admin folder (H80, not written yet).</li>
+  <li>The golden path on all three with fake money: post, offer from a second account, hire and pay, proof, approve, review, withdraw (needs your yes for the money steps).</li>
+  <li><code>test:db</code> and the full e2e suite, each twice (stop test S5).</li>
+  <li>Android: guest mode, and the Earn money steps; recheck B156, B165 and the Wallet line after the app update.</li>
+  <li>Sign-up edge cases: under 18, exactly 18, a wrong code, a pasted <code>+91</code>.</li>
+  <li>The forms catalogue (section 16) beyond the money boxes: withdraw, payout UPI and bank, admin settings numbers, admin payout UTR, proof upload.</li>
+  <li>768 px for the signed-in screens; the clean-up track (section 18) has not started.</li>
+</ul>
+<p class="meta">Lesson from round 6, now in the loop: a recheck of a typed field types one key at a time. B167's first fix passed a test that pasted the whole amount and failed when a person typed it.</p>
+
+<!-- 22 -->
+<h2 id="changes">22. Changes to this page</h2>
+<ul class="tight">
+  <li><b>15 November 2026:</b> after round 6, you asked for everything still open to be kept in this plan. Added section 21 (what only you can do, fixes waiting for a recheck, open bugs for round 7, what is not covered yet) and the round 6 box at the top; owner steps 4 and 5 of section 19 marked done; "Next" is now round 7.</li>
   <li><b>13 November 2026:</b> after round 4, you asked for one plan that debugs the whole application (website, Android, admin; guest and signed in; screens, server, money, privacy, abuse; and removing code nobody needs). Added sections 14 to 21: the coverage map, the guest charter and the guest-to-signed-in moves, the forms catalogue taken from the code, the security layer with a pass rule per test, the clean-up track, how the loop runs to the end (automatic vs by hand, time per round, Opus and Sonnet split, phone and Chrome driving, owner-only steps), and round 5. New charters I, J and K in section 4; a round 4 result box at the top. Nothing in the app changed.</li>
   <li><b>11 November 2026:</b> the two Starter Story debugging lessons (sections 7 and 8).</li>
   <li><b>10 November 2026:</b> page written (sections 1 to 13).</li>
 </ul>
 
 <footer>
-  Written 10 November 2026 for TaskDrop; the two Starter Story debugging lessons added 11 November (sections 7 and 8); the whole-app coverage plan and round 5 added 13 November (sections 14 to 21). Rounds 0 to 4 have run; the loop is not settled. The sentence to Claude is still "start debug round", which now runs round 5 (section 20).
+  Written 10 November 2026 for TaskDrop; the two Starter Story debugging lessons added 11 November (sections 7 and 8); the whole-app coverage plan and round 5 added 13 November (sections 14 to 21). Rounds 0 to 6 have run; the loop is not settled. The sentence to Claude is still "start debug round", which now runs round 7 from the list in section 21.
 </footer>
 
 </div>
