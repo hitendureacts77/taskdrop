@@ -79,6 +79,7 @@ function guide(lines) {
 function convert(md) {
   const lines = md.split(/\r?\n/);
   const out = [];
+  const seenIds = new Map(); // two headings with the same title get -2, -3, so every id is unique
   let para = [];
   const flush = () => {
     if (para.length) {
@@ -119,7 +120,11 @@ function convert(md) {
       let title = m[2];
       const keepOpen = /\s*\{open\}\s*$/.test(title);
       title = title.replace(/\s*\{open\}\s*$/, '');
-      out.push(`<h${n} id="${slug(title)}"${keepOpen ? ' class="open-sec"' : ''}>${inline(title)}</h${n}>`);
+      const base = slug(title);
+      const seen = seenIds.get(base) || 0;
+      seenIds.set(base, seen + 1);
+      const hid = seen ? `${base}-${seen + 1}` : base;
+      out.push(`<h${n} id="${hid}"${keepOpen ? ' class="open-sec"' : ''}>${inline(title)}</h${n}>`);
       i++;
       continue;
     }
@@ -1166,9 +1171,23 @@ const JS = `
     return cur ? cur === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
   }
   var mermaidReady = false;
+  // mermaid.js is about 3 MB, so it is fetched only when a diagram first comes on screen
+  // (all of them sit in closed drawers), never while the page opens.
+  var mermaidState = 'none'; // none | loading | failed
   function drawVisible() {
     if (!diagrams.length) return;
+    var waiting = diagrams.some(function (d) { return !d.drawn && !d.pre.closest('details:not([open])'); });
+    if (!window.mermaid && waiting && mermaidState === 'none') {
+      mermaidState = 'loading';
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js';
+      s.onload = function () { mermaidState = 'none'; drawVisible(); };
+      s.onerror = function () { mermaidState = 'failed'; drawVisible(); };
+      document.head.appendChild(s);
+      return;
+    }
     if (!window.mermaid) {
+      if (mermaidState !== 'failed') return;
       diagrams.forEach(function (d) {
         if (d.pre.nextSibling) return;
         var n = document.createElement('div');
@@ -1275,7 +1294,6 @@ ${content}
 <footer>Made from <code>docs/ULTIMATE_PLAN.md</code> by <code>node scripts/build-plan-html.mjs</code>. Your ticks are saved in this browser only; a task marked "Done" in the plan starts ticked. Planning aid, not legal, tax or investment advice.</footer>
 </main>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
 <script>${JS}</script>
 </body>
 </html>

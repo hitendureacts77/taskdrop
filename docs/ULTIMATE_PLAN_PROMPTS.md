@@ -403,6 +403,37 @@ emulator -list-avds, adb devices, Windows Hypervisor Platform status) and tell m
 exact step from ULTIMATE_PLAN U11 that fails. Change nothing.
 ```
 
+**R17. Review and optimise the plan page (ULTIMATE_PLAN.html)**
+```text
+Review docs/ULTIMATE_PLAN.html (built from docs/ULTIMATE_PLAN.md by
+scripts/build-plan-html.mjs) and optimise it. Edit only the .md and the build
+script, then rebuild; never hand-edit the HTML.
+
+1. Find what is broken: corrupted lines, broken #links and card links, duplicate
+   ids, tasks or decisions referred to but missing, gate lines that do not match
+   their step, "Done" labels that disagree with the dashboard, tables with the
+   wrong column count, and HTML blocks that are not closed.
+2. Find what is stale or contradicts itself: dates, prices, decision states,
+   "next" lists, counts ("20 tasks", "64 tasks") and facts that the Decisions
+   table, the Changelog or a later section has since changed. The newest dated
+   statement wins; if two are equally new, list it as a question for me.
+3. Find what repeats: the same rule, table or advice written in two or more
+   places. Keep it once where it belongs and point to it from the others.
+4. Make the page lighter and faster to read on a laptop and a phone: smaller
+   HTML where the build repeats work, nothing that slows the first screen, and
+   long background folded under a ### drawer.
+5. Keep, without exception: every task, step, gate line and decision, and every
+   task number; the order of gate lines (tick ids depend on it); the {open}
+   sections; the "Done <date>" labels; the owner's rules 1 to 12. No new tasks,
+   no new decisions, no new advice. Plain words, short sentences.
+6. Work in two passes: a read-only review that writes a findings table
+   (where, what is wrong, the fix, safe or needs-owner), then apply only the safe
+   fixes. List the needs-owner ones for me at the end.
+7. Rebuild, check the page in a browser (no console errors, Next button, ticks,
+   drawers, phone width), add one Changelog line, and ship it through a short
+   branch and pull request into redesigned-2.0.
+```
+
 **R16. Weekly CEO review**
 ```text
 Act as TaskDrop's CEO. Read docs/ULTIMATE_PLAN.md and docs/UPGRADE_PLAN.md and give me
