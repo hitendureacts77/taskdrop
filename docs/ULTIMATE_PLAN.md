@@ -1,9 +1,10 @@
-# TaskDrop: the ultimate plan
+# TaskDrop: t- **2026-11-14, last (Claude ticks finished tasks itself):** You said you can see in the plan whether a task is done by its tick, and wanted Claude to tick the tasks it finishes. Rule 5 now says so: when Claude finishes a task it marks it **Done** in this plan and rebuilds this page in the same pull request, only when the task's "Done when" line is true. You tell Claude a task number only for tasks that only you can do.
+he ultimate plan
 
 **The only plan you need.** Read it in this order:
 
 1. **The plan on one page** (5 minutes): the road to launch as one picture, the three things that decide launch day, and what to do now. Rewritten on 11 November.
-2. **Start here:** your progress, and the green **Next** button at the top, which always opens the next task. Click a task to open its steps; tick it when it is done.
+2. **Start here:** your progress, and the green **Next** button at the top, which always opens the next task. Click a task to open its steps. Claude ticks every task it finishes (rule 5); tick the ones only you can do.
 3. **Your app in one page** (2 minutes), if you want to see how TaskDrop works.
 4. **The playbook,** whenever you wonder how something is done: coding, testing, debugging, security, Google Play, search, email, marketing.
 5. **Staging and production, step by step,** when you set up the two copies.
@@ -157,7 +158,7 @@ Inside a task, every line is one of three kinds: **CLICK** (you do it), **SAY** 
 2. **Pass each gate.** A gate is a short checklist at the end of each step. Do not start the next step until every line is true.
 3. **Never paste a password, key or secret into the chat.** Claude will never ask you for one.
 4. **If a screen looks different** from the steps, stop and send Claude a screenshot. Websites rename their buttons.
-5. **When you finish a task, tell Claude its number** (for example "done 2.1"), so Claude ticks it here as well.
+5. **Claude ticks every task it finishes, by itself** (your rule, 14 Nov). When Claude completes a task, or a part of one that has its own line, it marks the task **Done** in this plan and rebuilds this page (`node scripts/build-plan-html.mjs`) in the same pull request, so the tick shows as soon as the change is merged. It never waits for you to ask. Claude ticks only when the task's **Done when** line is true, and it writes in the pull request how it checked. If a part could not be checked, the task stays open and Claude says which part. For a task that only you can do (a login, a form, a payment), **tell Claude its number** (for example "done 2.1") and Claude ticks it then.
 6. **Claude pushes, opens the pull request and merges it without asking you** (your rule, 31 Oct). Merging is never a question for you. Claude still asks you first only before: publishing an app update to testers, wiping or resetting data, rotating a key, or touching `main` or production.
 7. **After every new feature, check it fits the browser and the screen** (your rule, 1 Nov). Claude does not call a feature done until the website works in Chrome, Edge, Firefox and Safari (latest versions) at phone, tablet and laptop widths, and the Android app works on your phone: nothing cut off, no sideways scrolling, every button easy to reach and tap, text readable (also with bigger text and with the keyboard open). The steps are in the card "Fits every browser and screen".
 8. **Secrets live only in the server-side env file** (your rule, 1 Nov). Every secret, new or old, is stored only in `.env.all-secrets` on your PC and in the server-side store that needs it (Supabase function secrets or Vault, Vercel Sensitive variables, Expo Secret variables). Claude never puts a secret in the app or website code, in a name that starts with `EXPO_PUBLIC_` or `NEXT_PUBLIC_`, in Git, in this plan, in a pull request or in chat, and never prints one. Only public values (the Supabase public key, the Sentry address, Firebase web settings) may sit in public names. The details are in task 2.1.
