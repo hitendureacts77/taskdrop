@@ -18,7 +18,7 @@ import { PaymentSheet } from './PaymentSheet';
 import { createPaymentLink, syncPayment } from '../data/api';
 import { paymentReturnUrl } from '../lib/links';
 import { useKeyboardClearance } from '../lib/useKeyboardClearance';
-import { wholeDigits } from '../lib/rupeeInput';
+import { wholeDigits, wholeText } from '../lib/rupeeInput';
 
 /**
  * Adding money to the wallet.
@@ -225,7 +225,7 @@ export function AddFundsSheet({
                   onChangeText={(v) => {
                     // Digits only: a rupee field that accepts letters is a
                     // field that produces a confusing error later.
-                    setRupees(wholeDigits(v));
+                    setRupees(wholeText(v));
                     setError(null);
                   }}
                   keyboardType="number-pad"
