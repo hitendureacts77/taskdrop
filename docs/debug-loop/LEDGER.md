@@ -15,7 +15,7 @@ Every bug the debug loop has seen, in one place. Round reports: ROUND-4.md, ROUN
 | 2 | 12 Nov 2026 | 09b8338 / n/a | code hunt: money and task life, access and data exposure, app logic | 22 (B43-B64: 2 High, 11 Medium, 9 Low) | 0 (fixes written, not rechecked) | 0 | B55 M, B63 L open for the owner | not run twice yet | No |
 | 3 | 12 Nov 2026 | 07cdb1b / n/a | code hunt: alerts, jobs and webhooks; worker flow and search; screens round 2 had not read | 19 (B67-B85: 2 High, 9 Medium, 8 Low, B85 for the owner) | 0 (fixes written, not rechecked) | 0 | B85 needs the owner; B54/B55/B56 open from round 2 | not run twice yet | No |
 | 4 | 13 Nov 2026 | e579a29 / db0161b (admin) | live web walk, backend collect + staging recheck of B30-B86, admin code review + partial live admin walk, sweep (checks, e2e); Android explorer to be added | 54 so far (B87-B140: 4 High, 23 Medium, 27 Low); Android from B141 | 0 yet (fixes in progress); 18 of the B30-B86 bugs rechecked and Verified on staging (some structure only) | 0 | counts after the fixes: to be filled in | none seen (e2e only partly run) | No |
-| 5 | 14 Nov 2026 | 445995f / 253f18a (admin, after PR 51) | started, not finished: sweep x2 (green), backend collect, recheck of B87-B94, admin fixes reviewed and merged, guest walk on the website (1920, 390, 768 px); admin roles, golden path, forms, security part 2 and Android not run (see ROUND-5.md) | 11 (B142-B152: 1 High fixed, 1 Medium cannot reproduce, 9 Low) | 6 verified (B87, B88, B90, B91, B92, B94); 14 fixed, not rechecked (admin PR 51) | 0 | no open High known (B95 applied 14 Nov, awaiting recheck); the rest in ROUND-5.md | e2e pending, no flaky seen in the sweep | No |
+| 5 | 14 Nov 2026 | 445995f / 253f18a (admin, after PR 51) | started, not finished: sweep x2 (green), backend collect, recheck of B87-B94, admin fixes reviewed and merged, guest walk on the website (1920, 390, 768 px); admin roles, golden path, forms, security part 2 and Android not run (see ROUND-5.md) | 11 (B142-B152: 1 High fixed, 1 Medium cannot reproduce, 9 Low) + 10 from the signed-in web walk (B153-B162: 4 Medium, 6 Low) | 6 verified (B87, B88, B90, B91, B92, B94); 14 fixed, not rechecked (admin PR 51) | 0 | no open High known (B95 applied 14 Nov, awaiting recheck); the rest in ROUND-5.md | e2e pending, no flaky seen in the sweep | No |
 
 ## Round 1 results (12 Nov 2026, PR 336)
 
@@ -578,6 +578,61 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Level: Low · Status: New (staging only) · Area: all pages, console cleanliness · Repo: app · Class: UI · Fix path: Accept or A (do not load the preview toolbar on staging)
 - Current: `Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates ... script-src`, twice per load. Harmless, but it hides real errors in a clean-console check. Expected: no console error on a normal load
 - Seen first: 14 Nov round 5 (controller)
+
+### Signed-in web walk (14 Nov, round 5 add-on): B153 to B162
+
+Signed in on a local web build of `a4fa24c` (http://127.0.0.1:8099, staging backend, staging test code shown on screen) as the fake account Harsha Naidu (+91 98880 00002, Kondapur, Hire and Earn). Walked Home (both modes), My Tasks (all tabs), a task with 5 offers, Compare offers, a completed task, Wallet, Messages, Notifications, Profile, My Work, Explore and one job page as a worker. Nothing was hired, paid or sent. Each claim below was checked against the code and, where it says so, the staging database (read only).
+
+### B153 · Compare offers shows the wrong "Complete by" date
+- Level: Medium · Status: Confirmed · Area: poster, choosing an offer · Repo: app · Class: UI · Fix path: A
+- Current: "Drop a birthday cake before 7 pm" shows "Target date 16 Nov, 7:04 AM · 37h left" on its task page but "COMPLETE BY 12 Nov, 9:24 AM" (already past) on Compare offers. `CompareScreen.tsx:157` works the date out as `created_at + time_limit_minutes` and never reads `due_at`; `TaskManageScreen.tsx:363` and `ActiveScreen.tsx:124` read `due_at` first. Expected: the same date everywhere: `due_at`, falling back to the time limit only when there is none
+- Proof: database row `due_at = 2026-11-16 01:34 UTC`, `created_at = 2026-11-10 03:54 UTC`, `time_limit_minutes = 2880`
+- Seen first: 14 Nov signed-in walk
+
+### B154 · A hired job that is running late says "No one picked it"
+- Level: Medium · Status: Confirmed · Area: My Tasks · Repo: app · Class: UI · Fix path: A
+- Current: "Set up a GST invoice template in Excel" is `OVERDUE` with a worker who started and ₹950 locked (Wallet: "₹978.50 held … goes to the helper when you approve"), but its card under In progress reads "THE DATE HAS PASSED · NO ONE PICKED IT". `MyTasksScreen.tsx:480` adds "no one picked it" whenever the open-offer count is 0, and a hired task has 0 open offers. Expected: "no one picked it" only for an `OPEN` task with no offers; a hired late job says it is late, calmly, as the comment at line 475 wants
+- Seen first: 14 Nov signed-in walk
+
+### B155 · A finished, paid task still says the money is "held"
+- Level: Medium (money wording) · Status: Confirmed · Area: task page (poster) · Repo: app · Class: UI · Fix path: A
+- Current: "Paint one accent wall" (`AUTO_COMPLETED`, assignment `released`, Wallet "Paid to worker ₹5,047") shows "Your payment: ₹5,047 held". `TaskManageScreen.tsx:361` says "held" whenever `funded_at` is set. Expected: "₹5,047 paid" once the task is completed or auto-completed, "refunded" once cancelled with a refund
+- Seen first: 14 Nov signed-in walk
+
+### B156 · Earn Home offers in-person jobs from other cities and countries
+- Level: Medium · Status: Confirmed · Area: Earn Home, "Matches your skills" and "Needed today" · Repo: app + backend · Class: Both · Fix path: A
+- Current: for a worker in Kondapur, "Matches your skills" lists "Buy fresh vegetables from Rythu Bazar" in Kothrud, Pune, and "Needed today" lists maths tuition in Bangsar, Kuala Lumpur and a passport-office queue in Cyber City, Gurugram. `recommendedTasks` and `urgentTasks` (`supabase/functions/api/reads.ts:343` and `:383`, same in `guest.ts`) take no place and no radius; `HomeSections.tsx:633` and `:656` send none. Expected: pinned (in-person) jobs only within the worker's area and radius, remote jobs from anywhere, like "Jobs near Kondapur" already does with `tasksNear`. Likely also explains B151
+- Seen first: 14 Nov signed-in walk
+
+### B157 · "Work is waiting for your approval" stays after the task approved itself
+- Level: Low · Status: New · Area: Notifications · Repo: app + backend · Class: Both · Fix path: A or Accept
+- Current: the only unread alert says "Paint one accent wall … approve it or report a problem … approved for you within 24 hours", but that task auto-completed a day ago and was paid. Expected: the alert is marked read (or says "Approved automatically") once the task is completed. Note the fake seed may have written this alert directly
+- Seen first: 14 Nov signed-in walk
+
+### B158 · A completed task still shows the "CHOOSE FROM OFFERS" chip
+- Level: Low · Status: New · Area: task page (poster) · Repo: app · Class: UI · Fix path: A
+- Current: the header chips of a COMPLETED task read "COMPLETED · CHOOSE FROM OFFERS". The second chip is the assignment mode, but it reads like a step still to do. Expected: hide the mode chip once a worker is hired
+- Seen first: 14 Nov signed-in walk
+
+### B159 · "Success" counts offers still waiting as lost
+- Level: Low · Status: New · Area: My Work stats · Repo: app · Class: UI · Fix path: A or Accept
+- Current: 1 job won, 5 offers still pending: Success shows 17%. `MyTasksScreen.tsx:697` divides won by all offers placed. Expected: won ÷ decided offers (won + not picked), or a dash until one is decided
+- Seen first: 14 Nov signed-in walk
+
+### B160 · The "Needs providers" chip shows its list under the wrong tab
+- Level: Low · Status: New · Area: My Tasks filters · Repo: app · Class: UI · Fix path: A
+- Current: with the Closed tab selected, tapping "Needs providers (1)" lists the OPEN cylinder task while the Closed tab stays highlighted. Expected: the chip switches to (or filters within) Open, and the highlighted tab matches what is shown
+- Seen first: 14 Nov signed-in walk
+
+### B161 · Fake seed data: offer accepted after the work started, "last seen" before the person's own offer
+- Level: Low · Status: New · Area: fake city seed (`scripts/fake-world.mjs`) · Repo: app (seed only) · Class: Backend · Fix path: A (regenerate)
+- Current: all 171 fake funded jobs have the assignment created after funding and start, so task timelines show "Offer accepted 3d ago" below "Work started 4d ago" (real jobs: 8 of 97, card-funded ones); fake workers show "Last seen 4 days ago" on an offer made 3 days ago. Expected: the generator writes dates in order (posted < offer < accepted = funded < started < done) and `last_seen` no older than the person's newest action. Not an app bug, but it makes the screens look broken in tests
+- Seen first: 14 Nov signed-in walk
+
+### B162 · Explore logs "Worker failed to load" twice from MapLibre
+- Level: Low · Status: New (seen on the local build only; check on taskdrop.in) · Area: Explore map · Repo: app · Class: UI · Fix path: A
+- Current: opening Explore on the local export logs `Error: Worker failed to load. Check that the worker URL is correct.` twice from `maplibre-gl-*.js`; the pins and bubbles still show. Expected: a clean console. Could be the plain local file server; check the same on https://www.taskdrop.in before fixing
+- Seen first: 14 Nov signed-in walk
 
 
 ### Android explorer findings: to be added (B141 onward)

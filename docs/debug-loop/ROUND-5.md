@@ -54,6 +54,27 @@ The live admin walk and role matrix; the golden path on the phone and the admin;
 - **B150:** if you saw a tab sign itself in during round 5, tell me what you did.
 - The helper left one fake account on staging, `+91 98880 99931` ("Tasker 9931"); say if you want it removed.
 
+## Add-on: the signed-in web walk (14 Nov, evening)
+
+You pointed out that the round only walked the site as a guest. So it was walked again **signed in**, on a local web build of `a4fa24c` (http://127.0.0.1:8099; branch previews cannot sign in), against staging, as the fake account Harsha Naidu (+91 98880 00002, Kondapur, both modes). Screens: Home in Hire and Earn, My Tasks (all tabs and the "Needs providers" chip), a task with 5 offers, Compare offers, a completed task, Wallet, Messages, Notifications, Profile, My Work (stats, offers), Explore and a job page as a worker. Nothing was hired, paid, posted or sent; the database was only read.
+
+**10 new: B153 to B162** (4 Medium, 6 Low), each checked against the code or the staging data:
+
+| Bug | Level | In one line |
+|---|---|---|
+| B153 | Medium | Compare offers shows a "Complete by" date that already passed (ignores `due_at`) |
+| B154 | Medium | A hired job running late says "No one picked it" |
+| B155 | Medium | A finished, paid task still says "₹5,047 held" |
+| B156 | Medium | Earn Home "Matches your skills" and "Needed today" show in-person jobs in Pune, Kuala Lumpur, Gurugram to a Kondapur worker |
+| B157 | Low | "Work is waiting for your approval" stays after the task approved itself |
+| B158 | Low | A completed task still shows "CHOOSE FROM OFFERS" |
+| B159 | Low | "Success" counts offers still waiting as lost (1 won of 6 = 17%) |
+| B160 | Low | "Needs providers" shows its list under the Closed tab |
+| B161 | Low | The fake seed writes dates out of order (accepted after started; last seen before own offer) |
+| B162 | Low | Explore logs "Worker failed to load" from MapLibre (local build; check on taskdrop.in) |
+
+Checked and **not** a bug: Harsha's pending offer on "Edit a 3-minute travel vlog" is on someone else's task with the same title (no one on staging has an offer on their own task). Not walked yet while signed in: posting a task, sending or editing an offer, hiring and paying, chat, Settings, the 390 and 768 px sizes. Those need your yes for anything that moves fake money.
+
 ## What is next
 
 1. Fix the Medium and Low app bugs the owner says "fix" to, B97 and B100 and B145 together first (one pull request for guests and places).
