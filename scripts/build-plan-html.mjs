@@ -81,7 +81,12 @@ function convert(md) {
   const out = [];
   let para = [];
   const flush = () => {
-    if (para.length) out.push(`<p>${inline(para.join(' '))}</p>`);
+    if (para.length) {
+      const txt = para.join(' ');
+      // "**In plain words:** ..." becomes the green explainer box that opens a section.
+      const plain = txt.match(/^\*\*In plain words:\*\*\s*(.*)$/);
+      out.push(plain ? `<p class="plain">${inline(plain[1])}</p>` : `<p>${inline(txt)}</p>`);
+    }
     para = [];
   };
   const LIST = /^(\s*)([-*]|\d+\.)\s+(.*)$/;
@@ -234,7 +239,19 @@ const CSS = `
 }
 * { box-sizing: border-box; }
 html { scroll-padding-top: calc(var(--bar-h, 110px) + 12px); }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16.5px/1.7 "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+/* Reading width: one comfortable column, centred beside the menu (tables keep their own scroll). */
+.sec, .intro, main > footer { max-width: 1060px; margin-left: auto; margin-right: auto; }
+main p { margin: 0 0 12px; }
+table { line-height: 1.5; }
+/* Done tasks fold away so each step shows only what is left. */
+.done-toggle { display: inline-flex; gap: 6px; align-items: center; margin: 2px 0 10px; border: 1px solid var(--line); background: var(--card); color: var(--muted); border-radius: 99px; padding: 4px 12px; font: inherit; font-size: .8rem; cursor: pointer; }
+.done-toggle:hover { border-color: var(--jade); color: var(--ink); }
+.done-toggle[hidden] { display: none; }
+body.hide-done details.task.done:not(.force-show):not(.q-hit) { display: none; }
+/* "In plain words": the one-line explainer at the top of a section. */
+.plain { background: var(--jade-soft); border-left: 4px solid var(--jade); border-radius: 10px; padding: 10px 14px; margin: 6px 0 14px; max-width: 82ch; }
+.plain::before { content: "IN PLAIN WORDS"; display: block; font-size: .66rem; font-weight: 800; letter-spacing: .08em; color: var(--jade-deep); margin-bottom: 2px; }
 a { color: var(--blue); overflow-wrap: break-word; }
 code { background: var(--code); padding: 1px 6px; border-radius: 6px; font-size: .88em; word-break: break-word; }
 
@@ -290,7 +307,7 @@ main p, main > ul, main > ol, .sec > ul, .sec > ol, .dr-body > p, .dr-body > ul,
 h1 { font-size: 1.8rem; letter-spacing: -.02em; margin: 20px 0 6px; }
 .intro p, .intro ul { max-width: 82ch; }
 .sec { margin: 0 0 8px; padding-top: 4px; }
-h2 { font-size: 1.4rem; margin: 36px 0 8px; padding-top: 14px; border-top: 2px solid var(--line); display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; letter-spacing: -.01em; }
+h2 { font-size: 1.45rem; margin: 52px 0 10px; padding-top: 18px; border-top: 2px solid var(--line); display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; letter-spacing: -.01em; }
 h2 .count { font-size: .78rem; font-weight: 600; color: var(--jade-deep); background: var(--jade-soft); padding: 2px 10px; border-radius: 99px; }
 h2.paper { border-top-color: var(--gold); }
 h2.future { border-top-color: var(--muted); border-top-style: dashed; }
@@ -617,6 +634,8 @@ const JS = `
         e.stopPropagation();
         state[d.id] = !isDone(d);
         save();
+        // A task you just ticked stays in view until the page is reloaded.
+        d.classList.add('force-show');
         render();
       });
       s.appendChild(tick);
@@ -721,7 +740,26 @@ const JS = `
     var nodes = sec.nodes.filter(function (n) { return n.tagName !== 'HR'; });
     if (sec.h.classList.contains('open-sec')) {
       nodes.forEach(function (n) { sec.el.appendChild(n); });
+    } else if (/^Changelog/.test(sec.h.textContent)) {
+      // The changelog shows its five newest entries; the rest fold into one drawer.
+      var list = null;
+      var rest = [];
+      var olderCount = 0;
+      nodes.forEach(function (n) {
+        if (!list && n.tagName === 'UL') { list = n; return; }
+        rest.push(n);
+      });
+      if (list) {
+        var older = document.createElement('ul');
+        Array.prototype.slice.call(list.children, 5).forEach(function (li) { older.appendChild(li); });
+        olderCount = older.children.length;
+        sec.el.appendChild(list);
+        if (olderCount) rest.unshift(older);
+      }
+      if (rest.length) sec.el.appendChild(makeDrawer(olderCount ? 'Older changes (' + olderCount + ')' : 'More', rest));
     } else {
+      // The section opens with its plain-words box (if any) and its first paragraph.
+      if (nodes.length && nodes[0].tagName === 'P' && nodes[0].classList.contains('plain')) sec.el.appendChild(nodes.shift());
       if (nodes.length && nodes[0].tagName === 'P') {
         var lede = nodes.shift();
         lede.classList.add('lede');
@@ -745,6 +783,7 @@ const JS = `
       for (var i = 0; i < nodes.length; i++) {
         var n = nodes[i];
         if (n.tagName === 'H3') { flush(); title = n.textContent; titleEl = n; continue; }
+        if (n.tagName === 'P' && n.classList.contains('plain')) { flush(); sec.el.appendChild(n); continue; }
         if (isTaskish(n)) { flush(); sec.el.appendChild(n); continue; }
         if (n.matches('blockquote.gate')) {
           flush();
@@ -772,11 +811,28 @@ const JS = `
       bar.innerHTML = '<i></i>';
       sec.h.insertAdjacentElement('afterend', bar);
       sec.bar = bar.firstChild;
+      var dt = document.createElement('button');
+      dt.type = 'button';
+      dt.className = 'done-toggle';
+      dt.addEventListener('click', function () { setHideDone(!document.body.classList.contains('hide-done')); });
+      bar.insertAdjacentElement('afterend', dt);
+      sec.doneBtn = dt;
     }
   });
 
+  // Done tasks are hidden by default (one switch for the whole page, remembered in this browser).
+  var hideDone = '1';
+  try { hideDone = localStorage.getItem(KEY + ':hidedone') || '1'; } catch (e) {}
+  document.body.classList.toggle('hide-done', hideDone === '1');
+  function setHideDone(on) {
+    document.body.classList.toggle('hide-done', on);
+    try { localStorage.setItem(KEY + ':hidedone', on ? '1' : '0'); } catch (e) {}
+    render();
+  }
+
   function openTask(d) {
     d.classList.remove('hidden', 'hide-role', 'hide-q');
+    d.classList.add('force-show');
     var p = d.parentNode;
     while (p && p !== main) { if (p.tagName === 'DETAILS') p.open = true; p = p.parentNode; }
     d.open = true;
@@ -794,7 +850,7 @@ const JS = `
     return { n: '', text: t.split(/[:(]/)[0].trim() };
   }
   function groupOf(t) {
-    if (/^(The plan on one page|Start here|The CEO review|Your app in one page|Staging and production, step by step|The map)/.test(t)) return 0;
+    if (/^(The plan on one page|Start here|The CEO review|Your app in one page|The playbook|Staging and production, step by step|The map)/.test(t)) return 0;
     if (/^(START NOW|STEP \\d)/.test(t)) return 1;
     if (/^(FUTURE SCOPE|Snapshot|Changelog)/.test(t)) return 3;
     return 2;
@@ -1026,6 +1082,11 @@ const JS = `
       sec.navBar.style.width = pct;
       sec.headCount.textContent = n + ' of ' + sec.tasks.length + ' done';
       sec.bar.style.width = pct;
+      if (sec.doneBtn) {
+        var hidden = document.body.classList.contains('hide-done');
+        sec.doneBtn.hidden = n === 0;
+        sec.doneBtn.textContent = hidden ? '\\u2713 Show the ' + n + ' done ' + (n === 1 ? 'task' : 'tasks') : 'Hide done tasks';
+      }
     });
     chips.forEach(function (c) { c.el.classList.toggle('done', isDone(c.d)); });
     rmBars.forEach(function (r) {
@@ -1162,7 +1223,7 @@ const JS = `
     var el = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
     if (!el) return;
     var p = el;
-    while (p && p !== main) { if (p.tagName === 'DETAILS') p.open = true; p = p.parentNode; }
+    while (p && p !== main) { if (p.tagName === 'DETAILS') { p.open = true; p.classList.add('force-show'); } p = p.parentNode; }
     setTimeout(function () { el.scrollIntoView({ block: 'start' }); }, 0);
   }
   window.addEventListener('hashchange', openHash);
@@ -1179,6 +1240,9 @@ const html = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TaskDrop ultimate plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
 <style>${CSS}</style>
 </head>
 <body>
