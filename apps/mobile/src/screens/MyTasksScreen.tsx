@@ -1,3 +1,4 @@
+import { datePassedLine, successPercent } from '../lib/taskStatusText';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable, TextInput, RefreshControl } from 'react-native';
 import { Screen, cardSurface, formatINR } from '../components/ui';
@@ -306,7 +307,11 @@ function MyPosted() {
         </View>
         {needCount > 0 ? (
           <View style={{ flexDirection: 'row', paddingHorizontal: 20, marginTop: 10 }}>
-            <Pill label="Needs providers" icon="users" count={needCount} active={needs} onPress={() => setNeeds(!needs)} />
+            <Pill label="Needs providers" icon="users" count={needCount} active={needs} onPress={() => {
+                if (!needs) setTab(0);
+                setNeeds(!needs);
+              }}
+            />
           </View>
         ) : null}
 
@@ -477,7 +482,7 @@ function PostedCard({
   const stage = service ? 0 : stageOf(task, quotes);
   const done = task.status === 'COMPLETED' || task.status === 'AUTO_COMPLETED';
   const toneInkOf = { accent: t.colors.accentDeep, gold: t.colors.goldInk, signal: t.colors.signalDeep, blue: t.colors.blue, neutral: t.colors.muted } as const;
-  const topLine = datePassed ? (quotes > 0 ? 'THE DATE HAS PASSED' : 'THE DATE HAS PASSED · NO ONE PICKED IT') : badge.label.toUpperCase();
+  const topLine = datePassed ? datePassedLine(task.status, quotes) : badge.label.toUpperCase();
   const topInk = datePassed ? t.colors.goldInk : toneInkOf[badge.tone];
 
   // The one thing the poster should do next, as a big button at the foot of the card.
@@ -694,7 +699,7 @@ function MyWork() {
 
   const w = stats && stats.role === 'worker' ? stats : null;
   // No stats yet (or they failed), or no offers sent: a dash like the other tiles, not a made-up 0%.
-  const success = w && w.quotesPlaced > 0 ? `${Math.round((w.quotesWon / w.quotesPlaced) * 100)}%` : '–';
+  const success = w ? successPercent(w.quotesPlaced, w.quotesWon, counts[1]) : '–';
 
   // A pending quote opens back up for editing: price, pitch, hours, date.
   const editQuote = async (taskId?: string) => {
