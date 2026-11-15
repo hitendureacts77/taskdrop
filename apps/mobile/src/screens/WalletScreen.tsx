@@ -83,7 +83,7 @@ function releaseLine(status: string | undefined): string {
 
 export function WalletScreen({ insights = false }: { insights?: boolean } = {}) {
   const t = useTheme();
-  const { desktop } = useLayout();
+  const { desktop, contentWidth } = useLayout();
   const { go, back } = useNav();
   const { mode } = useMode();
   const { balance, escrow, clearing, flash, celebrate } = useApp();
@@ -717,7 +717,8 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
       >
         {twoCol ? (
           <View style={{ flexDirection: 'row', gap: 24, alignItems: 'flex-start' }}>
-            <View style={{ width: 420 }}>
+            {/* D12: the summary column follows the page width, 380 to 480. */}
+            <View style={{ width: Math.min(480, Math.max(380, Math.round(0.36 * contentWidth('feed')))) }}>
               {summary}
               {referral}
             </View>

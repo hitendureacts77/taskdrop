@@ -5,6 +5,7 @@ import { Icon, type IconName } from '../components/Icon';
 import { EmptyState, LoadFailed, Shimmer, TopBar, UnderlineTabs, timeAgo } from '../components/kit';
 import { FadeIn, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
+import { useLayout } from '../lib/layout';
 import { useNav } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -55,6 +56,9 @@ const ICON: Record<string, IconName> = {
  */
 export function NotificationsScreen() {
   const t = useTheme();
+  const { desktop, contentWidth } = useLayout();
+  // On a wide desktop window the notifications are cards in two columns, not a phone-width strip.
+  const wide = desktop && contentWidth('feed') >= 800;
   const { back, go } = useNav();
   const { userId, guest } = useAuth();
   const { mode, setMode } = useMode();
@@ -113,6 +117,7 @@ export function NotificationsScreen() {
 
   const unread = (rows ?? []).filter((r) => !r.read_at);
   const shown = tab === 0 ? unread : (rows ?? []);
+  const twoCol = wide && rows !== null && shown.length > 0;
 
   const markAll = async () => {
     try {
@@ -188,7 +193,7 @@ export function NotificationsScreen() {
       <UnderlineTabs tabs={[`Unread (${unread.length})`, 'All']} active={tab} onPick={setTab} />
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
+        contentContainerStyle={twoCol ? { paddingHorizontal: 15, paddingBottom: 24, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start' } : { paddingHorizontal: 20, paddingBottom: 24 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />}
       >
         {rows === null ? (
@@ -203,7 +208,7 @@ export function NotificationsScreen() {
           />
         ) : (
           shown.map((n, i) => (
-            <FadeIn key={n.id} duration={280} delay={Math.min(i, 8) * 30}>
+            <FadeIn key={n.id} duration={280} delay={Math.min(i, 8) * 30} style={twoCol ? { width: '50%', paddingHorizontal: 5 } : undefined}>
               <Pressable
                 onPress={() => void open(n)}
                 accessibilityRole="button"

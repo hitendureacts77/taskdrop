@@ -34,9 +34,9 @@ const PRE_AUTH: ScreenName[] = ['splash', 'intro', 'welcome', 'signup', 'setup']
 const PUBLIC: ScreenName[] = ['copyright', 'terms', 'privacy', 'support'];
 // Desktop column classes (lib/layout.ts, docs/design/desktop-fit/PLAN.md Q1).
 // Feeds and lists: as wide as the window allows, up to FEED_MAX.
-const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'orders', 'saved', 'wallet', 'spending', 'inbox', 'taskManage'];
+const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'orders', 'saved', 'wallet', 'spending', 'inbox', 'taskManage', 'help', 'notifications'];
 // One list or one page of text: up to READ_MAX.
-const READ: ScreenName[] = ['notifications', 'search', 'chat', 'copyright', 'terms', 'privacy', 'support', 'ideas', 'ideaDetail'];
+const READ: ScreenName[] = ['search', 'chat', 'copyright', 'terms', 'privacy', 'support', 'ideas', 'ideaDetail'];
 // Screens that fill everything beside the menu: a full map has no reading column.
 const FULL: ScreenName[] = ['nearMap', 'explore'];
 // Everything else is a form or a single page: FORM_MAX, as before. (Task detail,
