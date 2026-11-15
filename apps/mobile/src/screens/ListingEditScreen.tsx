@@ -16,6 +16,7 @@ import { findContactIssue, contactIssueMessage } from '../lib/mask';
 import { roughPlace } from '../lib/place';
 import { LocationSheet } from '../components/LocationSheet';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
+import { wholeDigits, wholeText } from '../lib/rupeeInput';
 
 const DELIVERY = [1, 2, 3, 5, 7];
 const PREFIX = 'I will ';
@@ -63,7 +64,7 @@ export function ListingEditScreen() {
   }, [taskId]);
 
   const title = PREFIX + what.trim();
-  const priceNum = Number(price);
+  const priceNum = Number(wholeDigits(price));
   const issue = findContactIssue(what + ' ' + details);
   const missing =
     what.trim().length < 4
@@ -176,7 +177,7 @@ export function ListingEditScreen() {
         <View style={{ marginTop: 8 }}>
           <Field
             value={price}
-            onChangeText={(v) => setPrice(v.replace(/[^0-9]/g, '').slice(0, 7))}
+            onChangeText={(v) => setPrice(wholeText(v, 7))}
             keyboardType="number-pad"
             inputMode="numeric"
             placeholder="500"

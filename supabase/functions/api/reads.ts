@@ -1,6 +1,6 @@
 import { FEES, distanceKm } from "../_shared/rules.ts";
 import {
-  type Args, type Ctx, type Op, MONEY_MAX, RESERVED_USERNAMES, bad, countBy, int, isoOrNull, limit, notExpired, nowIso, num, oneOf, rows,
+  type Args, type Ctx, type DbResult, type Op, MONEY_MAX, RESERVED_USERNAMES, bad, countBy, int, isoOrNull, limit, notExpired, nowIso, num, oneOf, rows,
   rpcOp, str, strOrNull, strings, take, uuid, uuids,
 } from "./core.ts";
 import { noKeep } from "./publicMemo.ts";
@@ -92,6 +92,54 @@ function inBox<Q extends { gte(c: string, v: number): Q; lte(c: string, v: numbe
 
 /** How many rows a radius search reads inside its box before the exact distance cut, for a page of `n`. */
 export const nearFetch = (n: number) => Math.min(500, Math.max(n * 3, 200));
+
+export type Near = { lat: number; lng: number; radius: number };
+
+/** The optional `near` argument, `{ lat, lng, radiusKm }`, checked before anything is asked of the database; null when absent. */
+export function nearArgOf(a: Args): Near | null {
+  const nearArg = a.near as Args | null | undefined;
+  if (nearArg != null && typeof nearArg !== "object") throw bad("near");
+  return nearArg
+    ? { lat: num(nearArg, "lat", -90, 90), lng: num(nearArg, "lng", -180, 180), radius: num(nearArg, "radiusKm", 0, 20000) }
+    : null;
+}
+
+/**
+ * Whether a task is in reach of a worker at `near` (B156): a remote task (no pin) can be done from anywhere, an
+ * in-person one only within the radius.
+ */
+export const inReach = (near: Near) => (t: { loc_lat: unknown; loc_lng: unknown }): boolean => {
+  if (t.loc_lat == null) return true;
+  const km = distanceKm(near, { lat: t.loc_lat as number | null, lng: t.loc_lng as number | null });
+  return km !== null && km <= near.radius;
+};
+
+/**
+ * Open requests in reach of `near` (B156): pinned ones read inside the box around it (in SQL, before the cap, B34)
+ * and kept only within the radius, and remote ones from anywhere. `read` adds the list's own filter, order and cap
+ * to each of the two reads; the caller orders the merged list.
+ */
+async function requestsInReach(
+  ctx: Ctx,
+  near: Near,
+  read: (q: ReturnType<typeof openTasksQuery>) => PromiseLike<DbResult>,
+): Promise<Task[]> {
+  const [pinned, remote] = await Promise.all([
+    read(inBox(openTasksQuery(ctx, "request").not("loc_lat", "is", null), nearBox(near, near.radius))),
+    read(openTasksQuery(ctx, "request").is("loc_lat", null)),
+  ]);
+  return [...rows<Task>(pinned).filter(inReach(near)), ...rows<Task>(remote)];
+}
+
+/** Newest first, by `created_at`. */
+export const newestFirst = (x: { created_at?: unknown }, y: { created_at?: unknown }) =>
+  String(y.created_at ?? "").localeCompare(String(x.created_at ?? ""));
+
+/** Soonest due first, undated last (the urgent list's order). */
+export const soonestDue = (x: { due_at?: unknown }, y: { due_at?: unknown }) => {
+  const due = (t: { due_at?: unknown }) => (typeof t.due_at === "string" ? Date.parse(t.due_at) : Infinity);
+  return due(x) - due(y);
+};
 
 /** A task still holding money: chosen and paid for, but not yet finished. */
 const IN_PROGRESS = new Set(["LOCKED", "TASK_STARTED", "OVERDUE", "WORK_DONE", "REVISION_REQUESTED", "DISPUTED"]);
@@ -186,11 +234,7 @@ export const READ_OPS: Record<string, Op> = {
   /** Open tasks matching the search screen's filters. Every filter is optional. */
   searchTasks: async (ctx, a) => {
     // Checked before anything is asked of the database.
-    const nearArg = a.near as Args | null | undefined;
-    if (nearArg != null && typeof nearArg !== "object") throw bad("near");
-    const near = nearArg
-      ? { lat: num(nearArg, "lat", -90, 90), lng: num(nearArg, "lng", -180, 180), radius: num(nearArg, "radiusKm", 0, 20000) }
-      : null;
+    const near = nearArgOf(a);
 
     let q = openTasksQuery(ctx, kindArg(a));
     const text = typeof a.q === "string" ? a.q.trim().slice(0, 200) : "";
@@ -340,11 +384,19 @@ export const READ_OPS: Record<string, Op> = {
     return list.map((r) => ({ ...r, quotes: counts[r.id] ?? 0 }));
   },
 
+  /**
+   * Open requests that match the caller's skills, best match first. With `near` (`{ lat, lng, radiusKm }`, the
+   * worker's area), in-person requests are only those within the radius; remote ones come from anywhere (B156).
+   */
   recommendedTasks: async (ctx, a) => {
     const n = limit(a, "limit", 10, 60);
-    const found = rows<Task & { title: string; category: string | null; skills: string[] | null; description: string }>(
-      await openTasksQuery(ctx, "request").order("created_at", { ascending: false }).limit(60),
-    );
+    const near = nearArgOf(a);
+    const newest = (q: ReturnType<typeof openTasksQuery>) => q.order("created_at", { ascending: false }).limit(60);
+    const found = (near
+      ? (await requestsInReach(ctx, near, newest)).sort(newestFirst)
+      : rows<Task>(await newest(openTasksQuery(ctx, "request")))) as (Task & {
+      title: string; category: string | null; skills: string[] | null; description: string;
+    })[];
     const needles = strings(a, "skills")
       .map((s) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim())
       .filter(Boolean);
@@ -380,11 +432,16 @@ export const READ_OPS: Record<string, Op> = {
       .slice(0, limit(a, "limit", 5));
   },
 
-  urgentTasks: async (ctx, a) =>
-    rows(
-      await openTasksQuery(ctx, "request").eq("flag", "urgent").order("due_at", { ascending: true, nullsFirst: false })
-        .limit(limit(a, "limit", 3)),
-    ),
+  /** Urgent open requests, soonest due first. With `near`, only those in reach of it, as in recommendedTasks (B156). */
+  urgentTasks: async (ctx, a) => {
+    const n = limit(a, "limit", 3);
+    const near = nearArgOf(a);
+    const soonest = (q: ReturnType<typeof openTasksQuery>) =>
+      q.eq("flag", "urgent").order("due_at", { ascending: true, nullsFirst: false });
+    if (!near) return rows(await soonest(openTasksQuery(ctx, "request")).limit(n));
+    // The pinned read is cut to the circle after SQL, so each read takes more than a page.
+    return (await requestsInReach(ctx, near, (q) => soonest(q).limit(nearFetch(n)))).sort(soonestDue).slice(0, n);
+  },
 
   /** The people the caller has blocked, newest first, so they can be unblocked (migration 093/097). */
   listBlockedUsers: async (ctx) => {

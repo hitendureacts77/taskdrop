@@ -16,6 +16,7 @@ Every bug the debug loop has seen, in one place. Round reports: ROUND-4.md, ROUN
 | 3 | 12 Nov 2026 | 07cdb1b / n/a | code hunt: alerts, jobs and webhooks; worker flow and search; screens round 2 had not read | 19 (B67-B85: 2 High, 9 Medium, 8 Low, B85 for the owner) | 0 (fixes written, not rechecked) | 0 | B85 needs the owner; B54/B55/B56 open from round 2 | not run twice yet | No |
 | 4 | 13 Nov 2026 | e579a29 / db0161b (admin) | live web walk, backend collect + staging recheck of B30-B86, admin code review + partial live admin walk, sweep (checks, e2e); Android explorer to be added | 54 so far (B87-B140: 4 High, 23 Medium, 27 Low); Android from B141 | 0 yet (fixes in progress); 18 of the B30-B86 bugs rechecked and Verified on staging (some structure only) | 0 | counts after the fixes: to be filled in | none seen (e2e only partly run) | No |
 | 5 | 14 Nov 2026 | 445995f / 253f18a (admin, after PR 51) | started, not finished: sweep x2 (green), backend collect, recheck of B87-B94, admin fixes reviewed and merged, guest walk on the website (1920, 390, 768 px); admin roles, golden path, forms, security part 2 and Android not run (see ROUND-5.md) | 11 (B142-B152: 1 High fixed, 1 Medium cannot reproduce, 9 Low) + 10 from the signed-in web walk (B153-B162: 4 Medium, 6 Low) | 6 verified (B87, B88, B90, B91, B92, B94); 14 fixed, not rechecked (admin PR 51) | 0 | no open High known (B95 applied 14 Nov, awaiting recheck); the rest in ROUND-5.md | e2e pending, no flaky seen in the sweep | No |
+| 6 | 15 Nov 2026 | a76b9d8 / d8762b7 (admin) | fix round + charter J (money forms, 375 px) + charter K part 2 (backend advisors, logs); admin recheck of round 4 fixes (round 5 add-on) | 7 (B163-B169: 1 Medium, 6 Low; B162 closed) | 6 Verified live (B113, B119, B130, B156 web, B167, B168); 30 fixed in admin PR 52-54 and app PR 350-356, the rest not rechecked | B113 and B167 (both fixed again) | 0 / 0 / see ROUND-6 / see ROUND-6 | none (both sweeps green) | No |
 
 ## Round 1 results (12 Nov 2026, PR 336)
 
@@ -183,7 +184,7 @@ Found on 10 Nov 2026 in a sweep after loading the fake city (`supabase/seed/fake
 - Seen first: 10 Nov sweep
 
 ### B34 · A distance search keeps the newest 20 first, then filters by distance
-- Level: High · Status: Confirmed · Area: search and maps (charter B)
+- Level: High · Status: Fixed in round 1 (PR 336) for search, map and helpers; the last "newest first, then distance" read (`recommendedTasks`) fixed in PR 350 (15 Nov, round 6), not rechecked · Area: search and maps (charter B)
 - `api/reads.ts` `searchTasks` limits in SQL, then filters by km, so nearby tasks drop out once there is volume; same pattern in `tasksNear` (200), `workersNear` (300), `recommendedTasks` (60)
 - Seen first: 10 Nov sweep
 
@@ -335,13 +336,13 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 ### Admin panel, live walk (admin.taskdrop.in, staging, 767 px wide)
 
 ### B105 · The admin jobs list paging skips 280 of 748 jobs and repeats others
-- Level: High · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin · Area: admin, jobs list · Repo: admin · Class: Backend · Fix path: A
+- Level: High · Status: Verified (14 Nov, round 5, live staging admin) · Area: admin, jobs list · Repo: admin · Class: Backend · Fix path: A
 - Current: 25 pages show 748 rows but only 468 distinct jobs; page 2 repeats 19 of page 1's 30. 280 jobs cannot be reached by paging. The People list is fine (198 seen, 198 unique). Expected: each job exactly once
 - Cause: ordered by "last change" only; the fake seed wrote hundreds of jobs with one timestamp, so `range()` over a non-unique key is unstable. Add `id` as a tie-breaker. File: the jobs query behind `app/tasks/page.tsx`
 - Seen first: 13 Nov round 4 (R4-L1)
 
 ### B106 · The Pay screen's QR and copy button use a different UPI id than the one the withdrawal went to
-- Level: High · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin (UPI now pays the id saved on the withdrawal and warns when the account changed; bank accounts: see B142) · Area: admin payouts (charter C/E) · Repo: admin · Class: Both · Fix path: A
+- Level: High · Status: Verified (14 Nov, round 5, live staging admin) · Area: admin payouts (charter C/E) · Repo: admin · Class: Both · Fix path: A
 - Current: on one seed worker's Rs 600 payout, step 1 (QR, "UPI", Copy) shows one id while the Details box says "Sent to" another; no warning that they differ. With real money, a worker who changes UPI after asking (or whoever took the account over) is paid to the new id. Also: "Paid: By RazorpayX" on a manual, unpaid withdrawal. Expected: pay the destination saved on the withdrawal (or say clearly the id changed and ask which to use); "Not paid yet" / "By hand"
 - Seen first: 13 Nov round 4 (R4-L2)
 
@@ -356,17 +357,17 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (R4-L4)
 
 ### B109 · Payouts: "Settled" says 10 paid for Rs 12,650 in 30 days, the Paid tab says 0
-- Level: Medium · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin · Area: admin payouts · Repo: admin · Class: Both · Fix path: A
+- Level: Medium · Status: Verified (14 Nov, round 5, live staging admin) · Area: admin payouts · Repo: admin · Class: Both · Fix path: A
 - Current: "Last 30 days, paid in total Rs 12,650.00 (10)" beside tabs "All 25 · Paid 0 · Came back 0 · Cancelled 25"; the Paid tab says nothing in the last 30 days; the dashboard repeats Rs 12,650 / 10. Expected: the summary and the tab counts use the same window
 - Seen first: 13 Nov round 4 (R4-L5)
 
 ### B110 · "Ready to withdraw" includes earnings still clearing
-- Level: Medium · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin · Area: admin payouts, money position · Repo: admin · Class: UI · Fix path: A
+- Level: Medium · Status: Verified (14 Nov, round 5, live staging admin) · Area: admin payouts, money position · Repo: admin · Class: UI · Fix path: A
 - Current: "Ready to withdraw Rs 1,58,146.00 (earnings people can still ask for)", which is ready Rs 1,43,301 + clearing Rs 9,945 + on the way Rs 4,900. Clearing money cannot be asked for and money on the way was already asked for. Expected: Rs 1,43,301, or relabel the sum
 - Seen first: 13 Nov round 4 (R4-L6)
 
 ### B111 · A cancelled job's timeline says "Approved, money released"
-- Level: Medium · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin · Area: admin job page · Repo: admin · Class: UI · Fix path: A
+- Level: Medium · Status: Verified (14 Nov, round 5, live staging admin) · Area: admin job page · Repo: admin · Class: UI · Fix path: A
 - Current: a cancelled, never hired job shows "Approved, money released" at the cancel time, while "Where the money is now" says nobody is hired. Expected: a "Cancelled" step and "Approved" left at "Not yet"
 - Seen first: 13 Nov round 4 (R4-L7)
 
@@ -376,22 +377,22 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (R4-L8)
 
 ### B113 · The money check hides the oldest stuck withdrawals by default
-- Level: Medium · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin · Area: admin money check · Repo: admin · Class: UI · Fix path: A
+- Level: Medium · Status: Verified (15 Nov, round 6): reopened on 14 Nov because the "any date" read asked for 2020 to today and `admin_reconcile` refuses more than 400 days, so the page fell back to 30 days; fixed in admin PR 52 (asks for the last 400 days); live, the money check now lists all 6 late withdrawals · Area: admin money check · Repo: admin · Class: UI · Fix path: A
 - Current: default "Last 30 days" shows "Withdrawal waiting too long: 2" while 7 wait 13 to 40 days; the 4 oldest appear only under "Last 90 days" (which says 6). The window filters by the date asked, so the worst cases drop out first. Expected: open problems always listed; the window only for closed history
 - Seen first: 13 Nov round 4 (R4-L9)
 
 ### B114 · Jobs search: the "held" total ignores the search, and `%` and `_` match everything
-- Level: Low · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin (a typed backslash is no longer stripped, so a search with one can miss rows) · Area: admin jobs · Repo: admin · Class: UI · Fix path: A
+- Level: Low · Status: Verified (14 Nov, round 5, live staging admin) · Area: admin jobs · Repo: admin · Class: UI · Fix path: A
 - Current: "0 jobs, Rs 33,681.00 held in escrow for them"; searching `%` or `___` returns all 748 jobs (LIKE wildcards not escaped). Special characters render safely. Expected: the held sum follows the search; wildcards searched literally
 - Seen first: 13 Nov round 4 (R4-L10)
 
 ### B115 · CSV dates are UTC while the screen is India time
-- Level: Low · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin · Area: admin exports · Repo: admin · Class: Backend · Fix path: A
+- Level: Low · Status: Verified (14 Nov, round 5, live staging admin) · Area: admin exports · Repo: admin · Class: Backend · Fix path: A
 - Current: a person who joined 5 Nov at 03:47 IST is `2026-11-04` in the CSV (same for Last seen). Expected: India time like the screen, or say UTC in the header. (Good: a tag `=1+1` came out as `'=1+1`, formula cells are neutralised)
 - Seen first: 13 Nov round 4 (R4-L11)
 
 ### B116 · The record-payment reference accepts a single space
-- Level: Low · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin (shape check in the browser and again on the server) · Area: admin payouts · Repo: admin · Class: UI · Fix path: A
+- Level: Low · Status: Verified in the browser (14 Nov, round 5) · Area: admin payouts · Repo: admin · Class: UI · Fix path: A
 - Current: the UTR box is `required` with no pattern; a space or "x" passes. Expected: trim and require a UTR-shaped value (12 digits for UPI), checked on the server too
 - Seen first: 13 Nov round 4 (R4-L12)
 
@@ -406,20 +407,20 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (R4-L14)
 
 ### B119 · The "Not an admin account" page is a dead end
-- Level: Low · Status: Confirmed · Area: admin sign-in · Repo: admin · Class: UI · Fix path: A (same fix as B131)
+- Level: Low · Status: Verified (15 Nov, round 6, live): Sign out button and both sign-in methods explained · Area: admin sign-in · Repo: admin · Class: UI · Fix path: A (same fix as B131)
 - Current: `/not-authorized` has no Sign out or "Use another account"; the person must open `/login` by hand, which shows only Google's account chooser, not the username + password option. Expected: a Sign out button and links to both sign-in methods
 - Seen first: 13 Nov round 4 (R4-L15)
 
 ### Admin panel, code review (`Taskdrop administrator`, branch redesigned-2.0, HEAD db0161b; no live sign-in used)
 
 ### B120 · A failed staff-role read makes any staff member a full Admin in the panel
-- Level: Medium · Status: Confirmed (by code; the trigger is rare) · Area: admin roles (H33, H79) · Repo: admin · Class: Backend · Fix path: A
+- Level: Medium · Status: Fixed in admin PR 53; checked live 15 Nov: the "could not check your access" page shows and the real admin still gets in; the failure itself cannot be caused on staging · Area: admin roles (H33, H79) · Repo: admin · Class: Backend · Fix path: A
 - Current: `auth.ts:65-75` reads `user_roles` and `admin_staff` together and drops the `admin_staff` error; `asStaffRole(undefined)` returns `'admin'`, so every `staffGate()` passes and full contacts show and export. The database re-checks most writes, so the damage is mostly panel-side. Expected: a read error refuses; only a real "no row" means full admin
 - File: `src/lib/auth.ts:65-75`, `src/lib/staff-roles.ts:103-105`
 - Seen first: 13 Nov round 4 (R4-X1)
 
 ### B121 · The rate limiter lets every call through on error (H77)
-- Level: Medium · Status: Confirmed (by code) · Area: admin security (H77) · Repo: admin · Class: Backend · Fix path: A
+- Level: Medium · Status: Fixed in admin PR 53 (15 Nov, round 6): fails closed for every bucket but `admin-live`, each failure reported to Sentry; not rechecked · Area: admin security (H77) · Repo: admin · Class: Backend · Fix path: A
 - Current: on an RPC error or throw `rate-limit.ts:154-162` returns `true`, so the admin sign-in limit (10 a minute) and the authenticator limit vanish with only a console warning. Expected: fail closed for `admin-signin` and `admin-mfa` (probably exports too) with a Sentry event; keep open only for `admin-live`
 - Seen first: 13 Nov round 4 (R4-X2)
 
@@ -436,7 +437,7 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (R4-X4)
 
 ### B124 · Any staff role can mark all team alerts read for everyone
-- Level: Low · Status: Confirmed (by code) · Area: admin alerts · Repo: admin · Class: Both · Fix path: A for refusing Viewer and reporting 0 rows; Needs migration (owner's yes) if the read state becomes per staff member
+- Level: Low · Status: Partly fixed in admin PR 53 (15 Nov, round 6): Viewer refused on the server, honest "nothing changed" message; per-staff read state needs a migration (owner) · Area: admin alerts · Repo: admin · Class: Both · Fix path: A for refusing Viewer and reporting 0 rows; Needs migration (owner's yes) if the read state becomes per staff member
 - Current: `alerts-actions.ts:12-22` has `requireAdmin()` but no `staffGate`; `read_at` is one value shared by everyone, so a Viewer clears the list for all; for Sales the update touches 0 rows yet says "All alerts marked as read." Expected: per-staff read state, or at least Viewer refused and 0 rows reported
 - Seen first: 13 Nov round 4 (R4-X5)
 
@@ -456,22 +457,22 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (R4-X8)
 
 ### B128 · A broken regex leaves "ERROR:" in two admin messages
-- Level: Low · Status: Confirmed (by code) · Area: admin copy · Repo: admin · Class: UI · Fix path: A
+- Level: Low · Status: Fixed in admin PR 53 (15 Nov, round 6), not rechecked · Area: admin copy · Repo: admin · Class: UI · Fix path: A
 - Current: `session-actions.ts:55` and `admin-actions.ts:29` use `/^(error:s*)/i` (no backslash before `s`); every other file uses `\s*`. Expected: stripped like everywhere else
 - Seen first: 13 Nov round 4 (R4-X9)
 
 ### B129 · Sales (money-blind) still receives the refunds-owed count in page data
-- Level: Low · Status: Confirmed (by code) · Area: admin roles (H33) · Repo: admin · Class: Backend · Fix path: A
+- Level: Low · Status: Fixed in admin PR 53 (15 Nov, round 6), not rechecked · Area: admin roles (H33) · Repo: admin · Class: Backend · Fix path: A
 - Current: `layout.tsx:35` calls `getNavCounts()`, which reads `refunds_outstanding` with the service key and passes the raw counts to client components; `live.ts` zeroes them only on the live refresh. Expected: zero money counts for Sales in the layout too, and no service-key read for a role that may not see them
 - Seen first: 13 Nov round 4 (R4-X10)
 
 ### B130 · The login page shows any text passed in `?error=`
-- Level: Low · Status: Confirmed (by code) · Area: admin sign-in · Repo: admin · Class: UI · Fix path: A
+- Level: Low · Status: Verified (15 Nov, round 6, live): a crafted ?error= text no longer shows; known codes still do · Area: admin sign-in · Repo: admin · Class: UI · Fix path: A
 - Current: `login/page.tsx:29,178-179` shows the parameter as is (React escapes it, so no script), so a link can put a sentence in red on the real admin sign-in page; the callback also forwards Google's `error_description`. Expected: map known codes to fixed sentences, ignore unknown text
 - Seen first: 13 Nov round 4 (R4-X11)
 
 ### B131 · A non-admin Google sign-in keeps a live session on the admin domain
-- Level: Low · Status: Confirmed (by code) · Area: admin sign-in · Repo: admin · Class: Both · Fix path: A (same fix as B119)
+- Level: Low · Status: Fixed in admin PR 53 (15 Nov, round 6): the callback signs a non-admin out of the admin browser session; not rechecked · Area: admin sign-in · Repo: admin · Class: Both · Fix path: A (same fix as B119)
 - Current: `auth/callback/route.ts:25-33` exchanges the code and redirects without an admin check (the password route signs non-admins out); `/not-authorized` has no sign-out; cookies live until the 12 h cap. Expected: sign out a non-admin in the callback, or offer "Sign out"
 - Seen first: 13 Nov round 4 (R4-X12)
 
@@ -481,7 +482,7 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (R4-X13)
 
 ### B133 · View-only roles see live buttons that the server then refuses
-- Level: Low · Status: Confirmed (by code) · Area: admin roles · Repo: admin · Class: Both · Fix path: A
+- Level: Low · Status: Partly fixed in admin PR 53 (15 Nov, round 6): switches and help requests read-only for view roles; copyright, feedback, reports queue still show buttons the server refuses · Area: admin roles · Repo: admin · Class: Both · Fix path: A
 - Current: `settings/switches`, `support/[id]`, copyright, feedback and reports-queue pass their actions to every role that may see the page; the server refuses with "Your staff role (...) can't do this", so no hole, but a Viewer sees an active "Developer sign-in" switch. Expected: read-only rendering like `/settings` and the team page
 - Seen first: 13 Nov round 4 (R4-X14)
 
@@ -496,7 +497,7 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (R4-X16)
 
 ### B136 · "Paid today" and "waiting since" use `updated_at`
-- Level: Low · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked on the staging admin (uses sent_at and the dispute-opened time; a payout taken over by hand keeps its old sent_at) · Area: admin payouts and disputes · Repo: admin · Class: UI · Fix path: A
+- Level: Low · Status: Verified (14 Nov, round 5, live staging admin) · Area: admin payouts and disputes · Repo: admin · Class: UI · Fix path: A
 - Current: `data/payouts.ts:50-63` counts "paid today" by `updated_at`; `data/disputes.ts:57,84` shows "waiting since" from the task's `updated_at`, which resets on any update. Expected: the real paid and dispute dates
 - Seen first: 13 Nov round 4 (R4-X17)
 
@@ -506,7 +507,7 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (R4-X18)
 
 ### B138 · Admin test gaps: the fail-open default is locked in by a test
-- Level: Low · Status: Confirmed (by code) · Area: admin tests (H79) · Repo: admin · Class: Backend · Fix path: A (after B120, B121, B126)
+- Level: Low · Status: Fixed in admin PR 53 (15 Nov, round 6): the fail-open test replaced, new tests for B120 and B121 · Area: admin tests (H79) · Repo: admin · Class: Backend · Fix path: A (after B120, B121, B126)
 - Current: the last test in `staff-roles.test.ts` asserts `asStaffRole(undefined) === 'admin'`; no tests for `rate-limit.ts`, `checkAdmin`, `staff.ts`, `moneyMfaGate`, the `middleware.ts` timeouts, `updateSetting` number parsing, `crm.ts exportCsv` or `alerts-actions.ts`; `check-endpoints.test.mjs` only looks for the words `checkAdmin(` and `withinRate(`, so a route that ignores the result passes. Also: `npm run typecheck` fails on a stale generated file in `.next/types` (delete `.next`, not a source bug)
 - Seen first: 13 Nov round 4 (R4-X19)
 
@@ -523,7 +524,7 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 13 Nov round 4 (sweep)
 
 ### B142 · A bank withdrawal is paid to whatever account is on file now, with no warning
-- Level: High · Status: Fixed in admin PR 51 (14 Nov, round 5), not rechecked · Area: admin payouts (charter C/E) · Repo: admin · Class: Both · Fix path: A
+- Level: High · Status: Fixed in admin PR 51; normal case checked live 14 Nov (staging has no changed-account withdrawal to test the guard) · Area: admin payouts (charter C/E) · Repo: admin · Class: Both · Fix path: A
 - Current: a worker asks to withdraw to a bank account ending 1234, deletes that account (the withdrawal's destination becomes empty) and adds another; the Pay screen then shows the new account's number with no notice. Expected: say the account changed and pay the new one only after a deliberate choice
 - Fix: compares the last 4 digits; if they differ it shows "Can't send yet" and offers "Pay the account on file now instead". File: `src/lib/payout-dest.ts` `payoutDestinations`
 - Seen first: 14 Nov round 5 (Opus review of the admin branch)
@@ -570,7 +571,7 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 - Seen first: 14 Nov round 5 (web helper)
 
 ### B151 · Not verified: an ended Hunt appears under "Matches your skills" with an "I'm looking" button
-- Level: Low · Status: New (seen once by the controller at 768 px as a guest) · Area: Earn Home · Repo: app · Class: UI · Fix path: A
+- Level: Low · Status: Fixed in PR 356 (15 Nov, round 6): only a live hunt shows "I'm looking"; a reviewing or ended one shows "See it" and opens the hunt (the server already refused a look on an ended hunt); not rechecked · Area: Earn Home · Repo: app · Class: UI · Fix path: A
 - Current: a card marked "HUNT · REWARD ₹450 Ended" is listed with an active "I'm looking" button. Expected: ended Hunts are not offered. Needs a second look and a screenshot before a fix
 - Seen first: 14 Nov round 5 (controller)
 
@@ -584,43 +585,43 @@ Found in round 4. Sources: `round-4/web.md` (B87-B94), `round-4/backend-collect.
 Signed in on a local web build of `a4fa24c` (http://127.0.0.1:8099, staging backend, staging test code shown on screen) as the fake account Harsha Naidu (+91 98880 00002, Kondapur, Hire and Earn). Walked Home (both modes), My Tasks (all tabs), a task with 5 offers, Compare offers, a completed task, Wallet, Messages, Notifications, Profile, My Work, Explore and one job page as a worker. Nothing was hired, paid or sent. Each claim below was checked against the code and, where it says so, the staging database (read only).
 
 ### B153 · Compare offers shows the wrong "Complete by" date
-- Level: Medium · Status: Confirmed · Area: poster, choosing an offer · Repo: app · Class: UI · Fix path: A
+- Level: Medium · Status: Fixed in PR 351 (15 Nov, round 6): uses `due_at`; not rechecked · Area: poster, choosing an offer · Repo: app · Class: UI · Fix path: A
 - Current: "Drop a birthday cake before 7 pm" shows "Target date 16 Nov, 7:04 AM · 37h left" on its task page but "COMPLETE BY 12 Nov, 9:24 AM" (already past) on Compare offers. `CompareScreen.tsx:157` works the date out as `created_at + time_limit_minutes` and never reads `due_at`; `TaskManageScreen.tsx:363` and `ActiveScreen.tsx:124` read `due_at` first. Expected: the same date everywhere: `due_at`, falling back to the time limit only when there is none
 - Proof: database row `due_at = 2026-11-16 01:34 UTC`, `created_at = 2026-11-10 03:54 UTC`, `time_limit_minutes = 2880`
 - Seen first: 14 Nov signed-in walk
 
 ### B154 · A hired job that is running late says "No one picked it"
-- Level: Medium · Status: Confirmed · Area: My Tasks · Repo: app · Class: UI · Fix path: A
+- Level: Medium · Status: Fixed in PR 351 (15 Nov, round 6), not rechecked · Area: My Tasks · Repo: app · Class: UI · Fix path: A
 - Current: "Set up a GST invoice template in Excel" is `OVERDUE` with a worker who started and ₹950 locked (Wallet: "₹978.50 held … goes to the helper when you approve"), but its card under In progress reads "THE DATE HAS PASSED · NO ONE PICKED IT". `MyTasksScreen.tsx:480` adds "no one picked it" whenever the open-offer count is 0, and a hired task has 0 open offers. Expected: "no one picked it" only for an `OPEN` task with no offers; a hired late job says it is late, calmly, as the comment at line 475 wants
 - Seen first: 14 Nov signed-in walk
 
 ### B155 · A finished, paid task still says the money is "held"
-- Level: Medium (money wording) · Status: Confirmed · Area: task page (poster) · Repo: app · Class: UI · Fix path: A
+- Level: Medium (money wording) · Status: Fixed in PR 351 (15 Nov, round 6): "paid" / "refunded" after the end; not rechecked · Area: task page (poster) · Repo: app · Class: UI · Fix path: A
 - Current: "Paint one accent wall" (`AUTO_COMPLETED`, assignment `released`, Wallet "Paid to worker ₹5,047") shows "Your payment: ₹5,047 held". `TaskManageScreen.tsx:361` says "held" whenever `funded_at` is set. Expected: "₹5,047 paid" once the task is completed or auto-completed, "refunded" once cancelled with a refund
 - Seen first: 14 Nov signed-in walk
 
 ### B156 · Earn Home offers in-person jobs from other cities and countries
-- Level: Medium · Status: Confirmed · Area: Earn Home, "Matches your skills" and "Needed today" · Repo: app + backend · Class: Both · Fix path: A
+- Level: Medium · Status: Verified on the website (15 Nov, round 6, guest in Madhapur): "Needed today" lists only Kondapur jobs, "Matches your skills" only remote; Android needs an app update · Area: Earn Home, "Matches your skills" and "Needed today" · Repo: app + backend · Class: Both · Fix path: A
 - Current: for a worker in Kondapur, "Matches your skills" lists "Buy fresh vegetables from Rythu Bazar" in Kothrud, Pune, and "Needed today" lists maths tuition in Bangsar, Kuala Lumpur and a passport-office queue in Cyber City, Gurugram. `recommendedTasks` and `urgentTasks` (`supabase/functions/api/reads.ts:343` and `:383`, same in `guest.ts`) take no place and no radius; `HomeSections.tsx:633` and `:656` send none. Expected: pinned (in-person) jobs only within the worker's area and radius, remote jobs from anywhere, like "Jobs near Kondapur" already does with `tasksNear`. Likely also explains B151
 - Seen first: 14 Nov signed-in walk
 
 ### B157 · "Work is waiting for your approval" stays after the task approved itself
-- Level: Low · Status: New · Area: Notifications · Repo: app + backend · Class: Both · Fix path: A or Accept
+- Level: Low · Status: New; not an app-only fix (needs the alert marked read when the task completes, backend) · Area: Notifications · Repo: app + backend · Class: Both · Fix path: A or Accept
 - Current: the only unread alert says "Paint one accent wall … approve it or report a problem … approved for you within 24 hours", but that task auto-completed a day ago and was paid. Expected: the alert is marked read (or says "Approved automatically") once the task is completed. Note the fake seed may have written this alert directly
 - Seen first: 14 Nov signed-in walk
 
 ### B158 · A completed task still shows the "CHOOSE FROM OFFERS" chip
-- Level: Low · Status: New · Area: task page (poster) · Repo: app · Class: UI · Fix path: A
+- Level: Low · Status: Fixed in PR 351 (15 Nov, round 6), not rechecked · Area: task page (poster) · Repo: app · Class: UI · Fix path: A
 - Current: the header chips of a COMPLETED task read "COMPLETED · CHOOSE FROM OFFERS". The second chip is the assignment mode, but it reads like a step still to do. Expected: hide the mode chip once a worker is hired
 - Seen first: 14 Nov signed-in walk
 
 ### B159 · "Success" counts offers still waiting as lost
-- Level: Low · Status: New · Area: My Work stats · Repo: app · Class: UI · Fix path: A or Accept
+- Level: Low · Status: Fixed in PR 351 (15 Nov, round 6): won out of decided offers; not rechecked · Area: My Work stats · Repo: app · Class: UI · Fix path: A or Accept
 - Current: 1 job won, 5 offers still pending: Success shows 17%. `MyTasksScreen.tsx:697` divides won by all offers placed. Expected: won ÷ decided offers (won + not picked), or a dash until one is decided
 - Seen first: 14 Nov signed-in walk
 
 ### B160 · The "Needs providers" chip shows its list under the wrong tab
-- Level: Low · Status: New · Area: My Tasks filters · Repo: app · Class: UI · Fix path: A
+- Level: Low · Status: Fixed in PR 351 (15 Nov, round 6), not rechecked · Area: My Tasks filters · Repo: app · Class: UI · Fix path: A
 - Current: with the Closed tab selected, tapping "Needs providers (1)" lists the OPEN cylinder task while the Closed tab stays highlighted. Expected: the chip switches to (or filters within) Open, and the highlighted tab matches what is shown
 - Seen first: 14 Nov signed-in walk
 
@@ -630,10 +631,54 @@ Signed in on a local web build of `a4fa24c` (http://127.0.0.1:8099, staging back
 - Seen first: 14 Nov signed-in walk
 
 ### B162 · Explore logs "Worker failed to load" twice from MapLibre
-- Level: Low · Status: New (seen on the local build only; check on taskdrop.in) · Area: Explore map · Repo: app · Class: UI · Fix path: A
+- Level: Low · Status: Closed, not a bug on the live site (15 Nov, round 6): Explore on www.taskdrop.in logs no worker error; it came from the plain local file server · Area: Explore map · Repo: app · Class: UI · Fix path: A
 - Current: opening Explore on the local export logs `Error: Worker failed to load. Check that the worker URL is correct.` twice from `maplibre-gl-*.js`; the pins and bubbles still show. Expected: a clean console. Could be the plain local file server; check the same on https://www.taskdrop.in before fixing
 - Seen first: 14 Nov signed-in walk
 
+
+
+### Round 5 add-on: the live admin walk and the Android walk (14 Nov, night)
+
+Signed in to `admin.taskdrop.in` with the owner's existing Google session (no password typed) and rechecked the 13 round-4 admin fixes: 9 Verified (see each entry), B113 reopened and fixed. Then the phone (CPH2585, app `com.taskdrop.app` 1.1.0, signed in as the owner's test account "Tasker 3313") over USB: Home in both modes, Earn Home, My Tasks, a task, Wallet, Profile. Device log clean (no crash, no ANR). B156 also shows on Android. The admin role matrix could not run: only the one admin account is on the allowlist.
+
+### B163 · A cancelled job's admin money box still says the worker "gets" money and TaskDrop "will earn"
+- Level: Low · Status: Fixed in admin PR 52 (14 Nov), not rechecked · Area: admin job page, money · Repo: admin · Class: UI · Fix path: A
+- Current: on a CANCELLED job that had been funded, the money box shows "<worker> gets ₹…" and "TaskDrop will earn ₹…" although the money went back to the poster. Expected: neither line on a cancelled job
+- File: `src/components/views/TaskView.tsx`
+- Seen first: 14 Nov live admin walk
+
+### B164 · On Android Earn Home, the floating "+" button covers a job card's Apply button
+- Level: Low · Status: Confirmed; owner question (round 6): a floating button covers whatever scrolls under it, so the fix is a look change (more space at the end of the list, or hide the button while scrolling) · Area: Earn Home (Android) · Repo: app · Class: UI · Fix path: A
+- Current: with a job card scrolled to the bottom of the screen, the round "+" (Offer a service) sits on top of its "Apply" button; a tap there opens Offer a service. Expected: the list ends with room under the last card, or the button moves out of the way
+- Seen first: 14 Nov Android walk (1080 x 2376)
+
+### B165 · On Android My Tasks, a card's status line is cut to "THE DATE HAS PASSED · … · Home …"
+- Level: Low · Status: New (the wording changes with B154's fix in PR 351; recheck the length after an app update) · Area: My Tasks (Android) · Repo: app · Class: UI · Fix path: A
+- Current: the one-line status joins three facts and is cut in the middle, so the useful part is lost. Expected: the most important fact first and nothing important cut
+- Seen first: 14 Nov Android walk
+
+### B166 · Wallet says "Payouts requested to your personal bank" for a UPI withdrawal
+- Level: Low · Status: Fixed in PR 353 (15 Nov, round 6): says "Withdrawals on their way to you"; not rechecked · Area: Wallet (app and web) · Repo: app · Class: UI · Fix path: A
+- Current: `WalletScreen.tsx` (around lines 419 and 462) always says "personal bank", even when the money goes to a UPI id. Expected: "to your UPI id" or "to your bank account" to match the destination
+- Seen first: 14 Nov Android walk
+
+### Round 6 (15 Nov 2026)
+
+### B167 · Rupee fields turned "250.50" into ₹25,050
+- Level: Medium · Status: Verified (15 Nov, round 6, live on taskdrop.in after PR 354): typed key by key, 250.50 shows "250." and "Workers see ₹250 · ₹257.50 is held". PR 352 alone had failed this recheck (rung 3, 2 tries; retro: test one key at a time) · Area: money forms (charter J) · Repo: app · Class: UI · Rung: 2 · Tries: 1 · Fix path: A
+- Current: every rupee box removed every non-digit, so a typed decimal point vanished and the amount became 100 times bigger. Seen at 375 px in Post a task, Budget step: typing 250.50 showed "Workers see ₹25,050 · with the 3% fee, ₹25,801.50 is held"; "-5.5e3" became ₹553. The same code was in Add funds, the offer price, a service price, Withdraw, the map price filter, the weekly goal and the km box (2.5 km became 25). Expected: whole rupees only; anything after the point dropped (₹250)
+- Fix: one helper `apps/mobile/src/lib/rupeeInput.ts` `wholeDigits()` in all 8 boxes, with unit tests. The amount was always shown before sending, but a careless tap would have posted or added 100 times the money
+- Seen first: 15 Nov round 6 (signed-in web walk at 375 px, fake account +91 98880 00003)
+
+### B168 · The admin "Not an admin account" page tells the real admin they are not an admin
+- Level: Low · Status: Verified (15 Nov, round 6, live): the real admin opening /not-authorized lands on the panel · Area: admin sign-in · Repo: admin · Class: UI · Fix path: A
+- Current: opening `/not-authorized` by address (or the back button) while signed in as the real admin said "Signed in as <owner>, but that account is not an admin account". Expected: a real admin is sent to the panel
+- Seen first: 15 Nov round 6, recheck of B119 on admin.taskdrop.in
+
+### B169 · A two-person test task "[2p-test] tlo78d" has stayed open on staging since 6 Nov and shows on everyone's Home
+- Level: Low · Status: Confirmed · Area: test data (e2e clean-up) · Repo: app · Class: Both · Fix path: Owner: removing the row is a data clean-up (your yes); then make the two-person test cancel its task even when it fails half-way
+- Current: shown to a guest under "Matches your skills" and "Remote & online" on taskdrop.in. Staging also keeps 23 DISPUTED and 127 CANCELLED e2e tasks (B103 area). Expected: test runs leave nothing open
+- Seen first: 15 Nov round 6
 
 ### Android explorer findings: to be added (B141 onward)
 

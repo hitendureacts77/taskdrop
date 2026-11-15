@@ -12,8 +12,12 @@ import { TopUpBadge } from './TopUpBadge';
 import { optionLabels } from './OptionBadges';
 import { HuntTag } from './HuntTag';
 import { huntLook } from '../data/api';
+<<<<<<< HEAD
 import { isHunt } from '../lib/hunt';
 import { useLayout } from '../lib/layout';
+=======
+import { huntPhase, isHunt } from '../lib/hunt';
+>>>>>>> origin/redesigned-2.0
 
 const CATEGORY_ICON: Record<string, IconName> = {
   'Home Services': 'home',
@@ -74,6 +78,8 @@ export const WorkCard = memo(function WorkCard({
   const live = task.flag === 'urgent';
   // City Hunt (D19): a gold tag, the time left to find it, and I'm looking instead of Apply.
   const hunt = isHunt(task);
+  // An ended hunt (or one only reviewing finds) takes no new lookers: the button opens it instead (B151).
+  const huntOpen = hunt && huntPhase(task) === 'live';
   const [looking, setLooking] = useState(false);
   const lookThenOpen = async () => {
     if (looking) return;
@@ -165,11 +171,11 @@ export const WorkCard = memo(function WorkCard({
           ) : null}
           <View style={{ flex: 1 }} />
           <Pressy
-            onPress={hunt ? () => void lookThenOpen() : onApply}
-            label={hunt ? `I’m looking for ${task.title}` : quoted ? `Edit your offer for ${task.title}` : `Apply for ${task.title}`}
+            onPress={huntOpen ? () => void lookThenOpen() : hunt ? onOpen : onApply}
+            label={huntOpen ? `I’m looking for ${task.title}` : hunt ? `See ${task.title}` : quoted ? `Edit your offer for ${task.title}` : `Apply for ${task.title}`}
             style={{ backgroundColor: t.colors.btn, borderRadius: 999, height: 36, justifyContent: 'center', paddingHorizontal: 16 }}
           >
-            <RNText style={tx('800', 13, t.colors.onBtn)}>{hunt ? 'I’m looking' : quoted ? 'Edit offer' : 'Apply'}</RNText>
+            <RNText style={tx('800', 13, t.colors.onBtn)}>{huntOpen ? 'I’m looking' : hunt ? 'See it' : quoted ? 'Edit offer' : 'Apply'}</RNText>
           </Pressy>
         </View>
       </Pressy>

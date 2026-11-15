@@ -11,6 +11,7 @@ import { categoryIcon } from './WorkCard';
 import { Icon } from './Icon';
 import { rupees } from './kit';
 import { Pressy, tx } from './primitives';
+import { wholeText } from '../lib/rupeeInput';
 
 /**
  * The pieces of the full map's side panel (desktop) and bottom sheet (phone),
@@ -602,7 +603,7 @@ export function ReachEditor({
         <TextInput
           value={text}
           onChangeText={(v) => {
-            setText(v.replace(/[^0-9]/g, '').slice(0, 3));
+            setText(wholeText(v, 3));
             setBad(false);
           }}
           onSubmitEditing={submit}

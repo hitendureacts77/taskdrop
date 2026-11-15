@@ -623,6 +623,8 @@ function EarnTop() {
   const [bidTask, setBidTask] = useState<Task | null>(null);
   const [showAll, setShowAll] = useState<Record<string, boolean>>({});
   const [howOpen, setHowOpen] = useState(false);
+  // Bumped by each Home load: the area-dependent lists re-read on it.
+  const [listTick, setListTick] = useState(0);
   // Tasks this worker already sent an offer on: their button says Edit offer.
   const offers = useMyOffers(
     userId,
@@ -632,9 +634,8 @@ function EarnTop() {
 
   const load = useCallback(async () => {
     if (!userId && !guest) return;
-    // Remote and urgent work do not depend on the profile, so they are asked for beside it.
+    // Remote work does not depend on the profile, so it is asked for beside it.
     const remoteAsked = remoteTasks(8).catch((): Task[] => []);
-    const urgentAsked = urgentTasks(6).catch((): Task[] => []);
     // A guest has no stats or profile of their own; their saves sit on the phone.
     const [s, p, ids] = userId
       ? await Promise.all([
@@ -656,20 +657,43 @@ function EarnTop() {
       if (cur && cur.lat === p.loc_lat && cur.lng === p.loc_lng) return cur;
       return { label: p.loc_label ?? 'Your area', lat: p.loc_lat, lng: p.loc_lng };
     });
-    const [r, rem, urg] = await Promise.all([
-      recommendedTasks(p?.skills ?? [], 8).catch(() => []),
-      remoteAsked,
-      urgentAsked,
-    ]);
-    // One poster lookup for all three lists, each keeping its own order (a task no longer visible drops out).
-    const withPosters = new Map((await attachPosters([...r, ...rem, ...urg])).map((x) => [x.id, x]));
-    const posted = (list: Task[]) => list.flatMap((x) => withPosters.get(x.id) ?? []);
-    setRecs(posted(r));
-    setRemote(posted(rem));
-    setUrgent(posted(urg));
+    // The skills and urgent lists depend on the area, so they are read below, once the area is known.
+    setListTick((n) => n + 1);
+    const rem = await remoteAsked;
+    // A task no longer visible drops out.
+    const withPosters = new Map((await attachPosters(rem)).map((x) => [x.id, x]));
+    setRemote(rem.flatMap((x) => withPosters.get(x.id) ?? []));
   }, [userId, guest]);
 
   useHomeLoad(load);
+
+  // What fits the worker's skills and what is needed today, in reach of the area they chose: in-person jobs only
+  // within the radius, remote ones from anywhere (B156: these showed jobs in Pune and Kuala Lumpur to a worker in
+  // Hyderabad). Re-read on every Home load and whenever the area, the radius or the skills change. With no area
+  // set yet, every open job is shown, as before.
+  const skillsKey = skills.join('\n');
+  useEffect(() => {
+    if (listTick === 0) return;
+    let alive = true;
+    const reach = place ? { lat: place.lat, lng: place.lng, radiusKm: radius } : null;
+    const mySkills = skillsKey ? skillsKey.split('\n') : [];
+    void Promise.all([
+      recommendedTasks(mySkills, 8, reach).catch((): Task[] => []),
+      urgentTasks(6, reach).catch((): Task[] => []),
+    ])
+      .then(async ([r, urg]) => {
+        // One poster lookup for both lists, each keeping its own order (a task no longer visible drops out).
+        const withPosters = new Map((await attachPosters([...r, ...urg])).map((x) => [x.id, x]));
+        const posted = (list: Task[]) => list.flatMap((x) => withPosters.get(x.id) ?? []);
+        if (!alive) return;
+        setRecs(posted(r));
+        setUrgent(posted(urg));
+      })
+      .catch(() => alive && setRecs((cur) => cur ?? []));
+    return () => {
+      alive = false;
+    };
+  }, [listTick, place, radius, skillsKey]);
 
   const askedLocation = useRef(false);
   useEffect(() => {

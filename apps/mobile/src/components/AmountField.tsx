@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { TextInput, type TextStyle, type StyleProp } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
+import { wholeDigits, wholeText } from '../lib/rupeeInput';
 
 /**
  * A rupee amount the user can either step with +/− or type directly.
@@ -36,7 +37,7 @@ export function AmountField({
 
   // The typed digits show only while they still are the amount. A chip or a
   // slider that sets it from outside wins, even with the keypad open.
-  const typing = draft !== null && (draft === '' ? rupees === null : Number(draft) === rupees);
+  const typing = draft !== null && (draft === '' ? rupees === null : Number(wholeDigits(draft)) === rupees);
   const display = typing ? draft : rupees === null ? '' : `₹${rupees.toLocaleString('en-IN')}`;
 
   return (
@@ -44,8 +45,9 @@ export function AmountField({
       value={display}
       onFocus={() => setDraft(rupees === null ? '' : String(rupees))}
       onChangeText={(text) => {
-        const digits = text.replace(/[^0-9]/g, '').slice(0, 10);
-        setDraft(digits);
+        const kept = wholeText(text, 10);
+        setDraft(kept);
+        const digits = wholeDigits(kept);
         const typed = digits === '' ? null : Math.min(Number(digits), max ?? Infinity);
         if (typed !== null && max !== undefined && typed === max) setDraft(String(max));
         onChangeRupees(typed);
