@@ -12,12 +12,8 @@ import { TopUpBadge } from './TopUpBadge';
 import { optionLabels } from './OptionBadges';
 import { HuntTag } from './HuntTag';
 import { huntLook } from '../data/api';
-<<<<<<< HEAD
-import { isHunt } from '../lib/hunt';
-import { useLayout } from '../lib/layout';
-=======
 import { huntPhase, isHunt } from '../lib/hunt';
->>>>>>> origin/redesigned-2.0
+import { useLayout } from '../lib/layout';
 
 const CATEGORY_ICON: Record<string, IconName> = {
   'Home Services': 'home',
