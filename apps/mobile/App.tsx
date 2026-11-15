@@ -15,6 +15,7 @@ import { WebShell } from './src/components/WebShell';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { AppProviders, Background, ScreenBoundary, ThemedStatusBar } from './src/AppProviders';
 import { usesWorkerColours } from './src/lib/roleColours';
+import { useDesktopScale } from './src/lib/desktopScale';
 import './src/lib/webScrollbar';
 
 /**
@@ -64,6 +65,8 @@ function Routes() {
 }
 
 function AppRoot() {
+  // A desktop browser zooms the whole page with the window (lib/layout.ts).
+  useDesktopScale();
   return (
     <AppProviders>
       <Routes />

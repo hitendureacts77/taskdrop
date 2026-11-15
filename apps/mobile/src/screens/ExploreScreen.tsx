@@ -42,7 +42,8 @@ import { useLivePlace } from '../lib/useLivePlace';
 import { locationAskedThisLaunch, markLocationAsked, shouldAskForLocation } from '../lib/locationAsk';
 import { roughPlace } from '../lib/place';
 import { useReducedMotion } from '../lib/motion';
-import { TABLET_CONTENT, WIDE_CONTENT, XL_CONTENT, XL_MIN_WIDTH, useLayout } from '../lib/layout';
+import { TABLET_CONTENT, useLayout } from '../lib/layout';
+import { DesktopTopBar } from '../navigation/DesktopTopBar';
 
 /**
  * Explore -- the map of what is around you, with the old page one tap away.
@@ -79,7 +80,7 @@ export function ExploreScreen() {
   const { params, screen } = useNav();
   const { userId } = useAuth();
   const { area, loaded, choose } = useMyArea();
-  const { desktop, tablet, width } = useLayout();
+  const { desktop, tablet, contentWidth } = useLayout();
   const reduced = useReducedMotion();
 
   // A list intent is "new" once per params object: the phone's own tab bar leaves old params
@@ -130,7 +131,7 @@ export function ExploreScreen() {
   const listWidth: StyleProp<ViewStyle> = {
     width: '100%',
     alignSelf: 'center',
-    maxWidth: web ? (desktop ? (width >= XL_MIN_WIDTH ? XL_CONTENT : WIDE_CONTENT) : tablet ? TABLET_CONTENT : undefined) : undefined,
+    maxWidth: web ? (desktop ? contentWidth('feed') : tablet ? TABLET_CONTENT : undefined) : undefined,
   };
 
   // Where you are right now (plan D26): read quietly while the map is showing, asked for once per launch.
@@ -241,6 +242,15 @@ export function ExploreScreen() {
   );
 }
 
+/**
+ * The header of the list pages. The map fills the whole area beside the menu,
+ * so the screen host draws no desktop bar here; the lists bring their own.
+ */
+function ExploreHeader() {
+  const { desktop } = useLayout();
+  return desktop ? <DesktopTopBar /> : <AppHeader />;
+}
+
 /** The list page, built once and then only hidden, fading in each time it is shown. */
 function ViewSwap({ on, reduced, style, children }: { on: boolean; reduced: boolean; style: StyleProp<ViewStyle>; children: React.ReactNode }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -336,7 +346,7 @@ function ExploreIdeas({ onMap }: { onMap: () => void }) {
 
   return (
     <Screen padded={false}>
-      <AppHeader />
+      <ExploreHeader />
       <View style={{ alignItems: 'flex-end', paddingHorizontal: 20, paddingBottom: 2 }}>
         <ViewSwitch onMap={onMap} />
       </View>
@@ -728,7 +738,7 @@ function FindWork({
 
   return (
     <ScreenList
-      above={<AppHeader />}
+      above={<ExploreHeader />}
       tint={t.colors.purple}
       data={tab === 0 && shown ? shown : []}
       keyExtractor={(task) => task.id}

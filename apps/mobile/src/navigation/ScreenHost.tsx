@@ -9,7 +9,8 @@ import { roughPlace } from '../lib/place';
 import { BottomTabBar } from '../components/BottomTabBar';
 import { SideNav } from '../components/SideNav';
 import { DesktopAuthFrame } from '../components/DesktopAuthFrame';
-import { NARROW_CONTENT, TABLET_CONTENT, WIDE_CONTENT, XL_CONTENT, XL_MIN_WIDTH, useLayout } from '../lib/layout';
+import { TABLET_CONTENT, useLayout, type ColumnClass } from '../lib/layout';
+import { DesktopTopBar } from './DesktopTopBar';
 import { FadeIn } from '../components/primitives';
 import { useKeyboardOpen } from '../lib/useKeyboardOpen';
 import { CreateFab } from '../components/CreateFab';
@@ -31,16 +32,28 @@ export const KEEP_ALIVE: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet',
 const PRE_AUTH: ScreenName[] = ['splash', 'intro', 'welcome', 'signup', 'setup'];
 // Pages anyone may read; signed out on desktop they get the sign-in frame.
 const PUBLIC: ScreenName[] = ['copyright', 'terms', 'privacy', 'support'];
+// Desktop column classes (lib/layout.ts, docs/design/desktop-fit/PLAN.md Q1).
+// Feeds and lists: as wide as the window allows, up to FEED_MAX.
 const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'orders', 'saved', 'wallet', 'spending', 'inbox', 'taskManage'];
+// One list or one page of text: up to READ_MAX.
+const READ: ScreenName[] = ['notifications', 'search', 'chat', 'copyright', 'terms', 'privacy', 'support', 'ideas', 'ideaDetail'];
 // Screens that fill everything beside the menu: a full map has no reading column.
 const FULL: ScreenName[] = ['nearMap', 'explore'];
+// Everything else is a form or a single page: FORM_MAX, as before. (Task detail,
+// Profile, Settings and Help move to the feed width with their two-pane layouts.)
+function columnFor(screen: ScreenName): ColumnClass {
+  if (FULL.includes(screen)) return 'full';
+  if (WIDE.includes(screen)) return 'feed';
+  if (READ.includes(screen)) return 'read';
+  return 'form';
+}
 
 
 export function ScreenHost() {
   const t = useTheme();
   const { screen, params, go } = useNav();
   const { userId } = useAuth();
-  const { desktop, tablet, width } = useLayout();
+  const { desktop, tablet, gutter, contentWidth } = useLayout();
   const keyboardOpen = useKeyboardOpen();
   const Comp = REGISTRY[screen];
 
@@ -152,11 +165,16 @@ export function ScreenHost() {
     );
   }
   if (desktop) {
+    // A column of the screen's class with a gutter each side; full maps fill
+    // the whole area and keep their own floating controls.
+    const cls = columnFor(screen);
+    const full = cls === 'full';
     return (
       <View style={{ flex: 1, flexDirection: 'row', backgroundColor: t.colors.bg }}>
         <SideNav />
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <View style={{ flex: 1, width: '100%', maxWidth: FULL.includes(screen) ? undefined : WIDE.includes(screen) ? (width >= XL_MIN_WIDTH ? XL_CONTENT : WIDE_CONTENT) : NARROW_CONTENT }}>
+        <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: full ? 0 : gutter }}>
+          <View style={{ flex: 1, width: '100%', maxWidth: full ? undefined : contentWidth(cls) }}>
+            {full ? null : <DesktopTopBar />}
             {content}
           </View>
         </View>

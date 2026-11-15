@@ -241,7 +241,7 @@ export function UnderlineTabs({
 }
 
 /**
- * A feed of cards: one column on a phone, two or three side by side on a
+ * A feed of cards: one column on a phone, two to four side by side on a
  * desktop browser. On a phone it renders its children untouched, so wrapping
  * a list in it changes nothing there.
  */
