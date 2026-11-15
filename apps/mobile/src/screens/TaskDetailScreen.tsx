@@ -44,6 +44,8 @@ import { isHunt } from '../lib/hunt';
 import { OFFER_COPY, isDuplicateOfferError } from '../lib/offerState';
 import { taskPageView } from '../lib/taskView';
 import { noteMyOffer } from '../lib/useMyOffers';
+import { useLayout } from '../lib/layout';
+import { TwoPane } from '../components/TwoPane';
 
 /**
  * Task detail — pixel parity with docs/design/_design_markup.html lines
@@ -132,6 +134,8 @@ export function TaskDetailScreen() {
   const { userId, guest } = useAuth();
   const [busy, setBusy] = useState(false);
   const worker = mode === 'worker';
+  // Wide desktop: the task on the left, the price, offer and poster on the right (components/TwoPane.tsx).
+  const { twoPane: split, contentWidth } = useLayout();
   // Web, Android browsers: the one-time "get the app" sheet comes after a first look at a task.
   useEffect(() => {
     noteFirstAction();
@@ -430,14 +434,15 @@ export function TaskDetailScreen() {
     </View>
   );
 
-  return (
-    <Screen scroll padded={false}>
-      <FadeIn style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+  const headerRow = (
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <BackButton onBack={back} right={actions} />
-          {systemHeader ? null : actions}
+          {/* Two panes: report and share sit with the offer, on the right. */}
+          {systemHeader || split ? null : actions}
         </View>
+  );
 
+  const posterCard = (
         <Pressable
           onPress={() => setShowPerson(true)}
           accessibilityRole="button"
@@ -481,7 +486,10 @@ export function TaskDetailScreen() {
           </View>
           <Icon name="chevronRight" size={16} color={t.colors.muted} />
         </Pressable>
+  );
 
+  const titleBlock = (
+        <>
         <RNText style={tx('700', 10, tagInk(t, detail.tag), { letterSpacing: 1.6, marginTop: 16 })}>
           {detail.tag}
         </RNText>
@@ -499,11 +507,14 @@ export function TaskDetailScreen() {
             <TaskMediaThumb path={mediaPath} kind={mediaKind} seconds={mediaSeconds} radius={20} />
           </View>
         )}
+        </>
+  );
 
+  const priceRow = (
         <View
           style={{
             flexDirection: 'row',
-            marginTop: 18,
+            marginTop: split ? 0 : 18,
             borderTopWidth: 1,
             borderTopColor: t.colors.line,
             borderBottomWidth: 1,
@@ -524,15 +535,18 @@ export function TaskDetailScreen() {
             </View>
           ) : null}
         </View>
+  );
 
-        {detail.options?.length ? (
+  const optionsRow = detail.options?.length ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
             {detail.options.map((o) => (
               <Badge key={o} label={o} tone={o === 'Flash Drop' ? 'signal' : 'accent'} />
             ))}
           </View>
-        ) : null}
+        ) : null;
 
+  const detailBlock = (
+        <>
         {detailRows.map((r) => (
           <View
             key={r.label}
@@ -556,8 +570,10 @@ export function TaskDetailScreen() {
         {worker && realId && !verdict ? (
           <TaskQuestions taskId={realId} role="ask" posterName={other?.name} style={{ marginTop: t.spacing.xl }} />
         ) : null}
+        </>
+  );
 
-        {huntTask ? (
+  const offerPanel = huntTask ? (
           <View style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
             <HuntFinderPanel task={huntTask} />
           </View>
@@ -739,8 +755,10 @@ export function TaskDetailScreen() {
               : 'One offer per task. You can edit it later. Phone numbers stay hidden until the work starts.'}
           </RNText>
         </Card>
-        )}
-      </FadeIn>
+        );
+
+  const sheets = (
+      <>
       <BidSheet
         task={bidTask}
         visible={bidTask !== null}
@@ -772,6 +790,51 @@ export function TaskDetailScreen() {
         // A worker is looking at whoever posted the task, and vice versa.
         role={view.asRequest ? 'poster' : 'worker'}
       />
+      </>
+  );
+
+  if (split) {
+    // Two panes on a wide desktop: the offer is in view without scrolling.
+    return (
+      <Screen padded={false}>
+        <TwoPane
+          fixed="right"
+          width={Math.round(Math.min(440, Math.max(360, contentWidth('feed') * 0.3)))}
+          left={
+            <FadeIn>
+              {headerRow}
+              {titleBlock}
+              {optionsRow}
+              {detailBlock}
+            </FadeIn>
+          }
+          right={
+            <FadeIn>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 12 }}>{actions}</View>
+              {priceRow}
+              {offerPanel}
+              {posterCard}
+            </FadeIn>
+          }
+          single={null}
+        />
+        {sheets}
+      </Screen>
+    );
+  }
+
+  return (
+    <Screen scroll padded={false}>
+      <FadeIn style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+        {headerRow}
+        {posterCard}
+        {titleBlock}
+        {priceRow}
+        {optionsRow}
+        {detailBlock}
+        {offerPanel}
+      </FadeIn>
+      {sheets}
     </Screen>
   );
 }

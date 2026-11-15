@@ -15,6 +15,7 @@ import { useMode } from '../providers/ModeProvider';
 import { useSwitchMode } from '../lib/useSwitchMode';
 import { getProfile, updateProfile, type Profile } from '../data/api';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
+import { TwoPane } from '../components/TwoPane';
 import {
   accountDeletionCheck,
   deleteMyAccount,
@@ -176,12 +177,9 @@ export function AccountScreen() {
 
   const card = { ...cardSurface(t, 18), padding: 15, marginTop: 14 } as const;
 
-  return (
-    <Screen padded={false}>
-      <TopBar title="Account & settings" onBack={back} />
-      <UnderlineTabs tabs={TABS} active={tab} onPick={setTab} />
-      <SwipeTabs index={tab} count={TABS.length} onChange={setTab}>
-      <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
+  // The active tab's cards: under the tabs on a phone, beside them on a wide desktop.
+  const tabBody = (
+      <>
         {tab === 0 ? (
           <>
             <View style={card}>
@@ -405,8 +403,27 @@ export function AccountScreen() {
             <BlockedPeopleCard style={card} />
           </>
         ) : null}
-      </KeyboardScrollView>
-      </SwipeTabs>
+      </>
+  );
+
+  return (
+    <Screen padded={false}>
+      <TopBar title="Account & settings" onBack={back} />
+      <TwoPane
+        width={240}
+        left={<View style={{ paddingTop: 14 }}><UnderlineTabs vertical tabs={TABS} active={tab} onPick={setTab} /></View>}
+        right={tabBody}
+        single={
+          <>
+            <UnderlineTabs tabs={TABS} active={tab} onPick={setTab} />
+            <SwipeTabs index={tab} count={TABS.length} onChange={setTab}>
+            <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
+              {tabBody}
+            </KeyboardScrollView>
+            </SwipeTabs>
+          </>
+        }
+      />
       <ConfirmDialog
         visible={confirmSignOut}
         danger

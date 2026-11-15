@@ -39,11 +39,14 @@ const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'orders', 'saved', 'wa
 const READ: ScreenName[] = ['search', 'chat', 'copyright', 'terms', 'privacy', 'support', 'ideas', 'ideaDetail'];
 // Screens that fill everything beside the menu: a full map has no reading column.
 const FULL: ScreenName[] = ['nearMap', 'explore'];
-// Everything else is a form or a single page: FORM_MAX, as before. (Task detail,
-// Profile, Settings and Help move to the feed width with their two-pane layouts.)
-function columnFor(screen: ScreenName): ColumnClass {
+// Two-pane pages (components/TwoPane.tsx): the feed width when both panes fit,
+// otherwise their one column at FORM_MAX, as before.
+const TWO_PANE: ScreenName[] = ['taskDetail', 'profile', 'account', 'publicProfile'];
+// Everything else is a form or a single page: FORM_MAX, as before.
+function columnFor(screen: ScreenName, twoPane: boolean): ColumnClass {
   if (FULL.includes(screen)) return 'full';
   if (WIDE.includes(screen)) return 'feed';
+  if (TWO_PANE.includes(screen)) return twoPane ? 'feed' : 'form';
   if (READ.includes(screen)) return 'read';
   return 'form';
 }
@@ -53,7 +56,7 @@ export function ScreenHost() {
   const t = useTheme();
   const { screen, params, go } = useNav();
   const { userId } = useAuth();
-  const { desktop, tablet, gutter, contentWidth } = useLayout();
+  const { desktop, tablet, gutter, contentWidth, twoPane } = useLayout();
   const keyboardOpen = useKeyboardOpen();
   const Comp = REGISTRY[screen];
 
@@ -167,7 +170,7 @@ export function ScreenHost() {
   if (desktop) {
     // A column of the screen's class with a gutter each side; full maps fill
     // the whole area and keep their own floating controls.
-    const cls = columnFor(screen);
+    const cls = columnFor(screen, twoPane);
     const full = cls === 'full';
     return (
       <View style={{ flex: 1, flexDirection: 'row', backgroundColor: t.colors.bg }}>

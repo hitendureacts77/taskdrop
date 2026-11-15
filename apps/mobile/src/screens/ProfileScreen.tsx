@@ -20,6 +20,8 @@ import { GuestNote } from '../components/GuestBits';
 import { startTour } from '../components/tour/tourStore';
 import { TOUR_COPY } from '../lib/tour';
 import { needAccount } from '../lib/guest';
+import { useLayout } from '../lib/layout';
+import { TwoPane } from '../components/TwoPane';
 
 function SlideIn({ delay, children }: { delay: number; children: React.ReactNode }) {
   const v = useRef(new Animated.Value(0)).current;
@@ -94,6 +96,9 @@ function formatReviewDate(iso: string): string {
 
 export function ProfileScreen() {
   const t = useTheme();
+  // Wide desktop: you on the left, the menu and the rest on the right (components/TwoPane.tsx).
+  const { twoPane: split, contentWidth } = useLayout();
+  const padX = split ? 0 : 20;
   const { pref, setPref } = useThemeControls();
   const { go, reset } = useNav();
   const { mode } = useMode();
@@ -211,11 +216,8 @@ export function ProfileScreen() {
     <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, ...extra })}>{text}</RNText>
   );
 
-  return (
-    <Screen padded={false}>
-      <AppHeader />
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        {/* Band header: you as others see you */}
+  // Band header: you as others see you. A card with four round corners when it sits in a pane.
+  const hero = (
         <View
           style={{
             paddingHorizontal: 20,
@@ -223,6 +225,7 @@ export function ProfileScreen() {
             paddingBottom: 22,
             borderBottomLeftRadius: 28,
             borderBottomRightRadius: 28,
+            ...(split ? { borderRadius: 28 } : null),
             overflow: 'hidden',
           }}
         >
@@ -287,14 +290,16 @@ export function ProfileScreen() {
             </Pressable>
           ) : null}
         </View>
+  );
 
-        {guest ? (
-          <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
+  const guestNote = guest ? (
+          <View style={{ paddingHorizontal: padX, paddingTop: 4 }}>
             <GuestNote />
           </View>
-        ) : null}
+        ) : null;
 
-        <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 }}>
+  const modeBlock = (
+        <>
           {sectionLabel('MODE')}
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 11 }}>
             {(['poster', 'worker'] as const).map((m) => {
@@ -329,8 +334,10 @@ export function ProfileScreen() {
           <RNText style={tx('400', 12, t.colors.muted, { marginTop: 9, lineHeight: 18 })}>
             {worker ? 'You browse tasks and send offers.' : 'You post requests and pick a worker.'}
           </RNText>
+        </>
+  );
 
-          {progress && progress.next ? (
+  const progressCard = progress && progress.next ? (
             <View style={{ ...cardSurface(t, 18), padding: 16, marginTop: 24 }}>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <RNText style={tx('800', 15, t.colors.ink)}>Finish your profile</RNText>
@@ -371,9 +378,9 @@ export function ProfileScreen() {
                 </Pressable>
               </View>
             </View>
-          ) : null}
+          ) : null;
 
-          {!worker && !guest && regulars.length > 0 ? (
+  const regularsBlock = !worker && !guest && regulars.length > 0 ? (
             <View style={{ marginTop: 28 }}>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 {sectionLabel('MY REGULARS')}
@@ -398,9 +405,10 @@ export function ProfileScreen() {
                 ))}
               </ScrollView>
             </View>
-          ) : null}
+          ) : null;
 
-          <View style={{ ...cardSurface(t, 18), marginTop: 28, paddingHorizontal: 14 }}>
+  const menuCard = (
+          <View style={{ ...cardSurface(t, 18), marginTop: split ? 0 : 28, paddingHorizontal: 14 }}>
             {rows.map((r, i) => (
               <Pressable
                 key={r.label}
@@ -432,7 +440,11 @@ export function ProfileScreen() {
               </Pressable>
             ))}
           </View>
+  );
 
+  // Theme, reviews and the line of links: below the menu, in both layouts.
+  const rest = (
+        <>
           <View
             style={{
               flexDirection: 'row',
@@ -518,8 +530,45 @@ export function ProfileScreen() {
               </Pressable>
             )}
           </View>
-        </View>
-      </ScrollView>
+        </>
+  );
+
+  return (
+    <Screen padded={false}>
+      <AppHeader />
+      <TwoPane
+        width={Math.round(Math.min(480, Math.max(380, contentWidth('feed') * 0.34)))}
+        left={
+          <>
+            {hero}
+            {guestNote}
+            <View style={{ paddingTop: 20 }}>
+              {modeBlock}
+              {progressCard}
+              {regularsBlock}
+            </View>
+          </>
+        }
+        right={
+          <>
+            {menuCard}
+            {rest}
+          </>
+        }
+        single={
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+            {hero}
+            {guestNote}
+            <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 }}>
+              {modeBlock}
+              {progressCard}
+              {regularsBlock}
+              {menuCard}
+              {rest}
+            </View>
+          </ScrollView>
+        }
+      />
       <ConfirmDialog
         visible={confirmSignOut}
         danger

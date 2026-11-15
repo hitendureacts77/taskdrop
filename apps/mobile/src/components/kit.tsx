@@ -170,11 +170,14 @@ export function UnderlineTabs({
   active,
   onPick,
   inset = 20,
+  vertical = false,
 }: {
   tabs: string[];
   active: number;
   onPick: (i: number) => void;
   inset?: number;
+  /** Desktop only (Settings, two panes): the tabs as a list down the left, arrow keys move between them. */
+  vertical?: boolean;
 }) {
   const t = useTheme();
   const [spots, setSpots] = useState<{ x: number; w: number }[]>([]);
@@ -198,6 +201,48 @@ export function UnderlineTabs({
     anim.start();
     return () => anim.stop();
   }, [active, spots, left, width]);
+
+  if (vertical) {
+    // react-native-web passes onKeyDown to the DOM; React Native's View types do not list it.
+    const keys = {
+      onKeyDown: (e: { key: string; preventDefault: () => void }) => {
+        const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+        if (!step) return;
+        e.preventDefault();
+        onPick((active + step + tabs.length) % tabs.length);
+      },
+    } as object;
+    return (
+      <View accessibilityRole="tablist" style={{ gap: 4 }} {...keys}>
+        {tabs.map((label, i) => {
+          const on = active === i;
+          return (
+            <Pressable
+              key={label}
+              onPress={() => onPick(i)}
+              accessibilityRole="tab"
+              accessibilityLabel={label}
+              accessibilityState={{ selected: on }}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 12,
+                paddingHorizontal: 14,
+                borderRadius: 12,
+                backgroundColor: on ? t.colors.accentSoft : 'transparent',
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <View style={{ width: 3, height: 18, borderRadius: 3, marginRight: 11, backgroundColor: on ? t.colors.accent : 'transparent' }} />
+              <RNText style={tx(on ? '800' : '600', 14, on ? t.colors.ink : t.colors.muted)} numberOfLines={1}>
+                {label}
+              </RNText>
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  }
 
   return (
     <View style={{ marginHorizontal: inset }}>
