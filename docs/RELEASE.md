@@ -52,7 +52,7 @@ Claude runs this after each deploy (task 7.2 repeats it for the first month):
 4. **Admin:** the dashboard and **Reports** open.
 5. **Sentry:** no new issue since the deploy, and the "Security spike" rule has not fired.
 6. **Uptime monitors:** `api` health, the website and the admin are green.
-7. **Safety alarm:** `get_app_controls` shows test shortcuts off (production only, holes H1 and H15).
+7. **Safety alarm:** `get_app_controls` shows test shortcuts off, and the Inngest job `safety-alarm` last ran "all clear" (production only, holes H1 and H15).
 
 Any red: undo first (section 6), investigate after.
 
@@ -75,7 +75,7 @@ Rule of thumb: **for a feature, turn its switch off; for a bad deploy, roll back
 ## 7. Restore (data deleted or broken)
 
 1. Switch on **maintenance mode** in the admin so nothing new is written on top.
-2. Restore into a **scratch** project, never over the live one. Staging's free plan has no Supabase backups, so staging is restored from a nightly copy made by the dump script in `scripts/` (written in task 3.6, T12). Production uses Supabase's backups plus the nightly copy outside Supabase (5.9).
+2. Restore into a **scratch** project, never over the live one. Staging's free plan has no Supabase backups, so staging is restored from a nightly copy made by the dump script in `scripts/` (written in task 3.6, T12). Production uses Supabase's backups plus the nightly copy outside Supabase (5.9): the workflow `.github/workflows/production-backup.yml` keeps an encrypted copy for 30 days as a GitHub artifact. Build the scratch project from the migrations first, then `pg_restore --data-only` the rows you need from the decrypted copy (the steps are in the workflow's header).
 3. Check the missing rows in the scratch copy. Copy back only those rows, after Claude has looked at them.
 4. Write two lines in the audit trail of what was restored and why.
 

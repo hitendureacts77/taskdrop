@@ -6,6 +6,7 @@ import { devModeAllowed } from "../_shared/devMode.ts";
 import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
 import { guardKey } from "../_shared/keyGuard.ts";
 import { captureServerError, logServer } from "../_shared/monitoring.ts";
+import { alarmMessage, FORBIDDEN_IN_PRODUCTION, isProductionProject, safetyFindings } from "../_shared/safetyAlarm.ts";
 import { secret } from "../_shared/secrets.ts";
 import {
   ALERT_EVENTS,
@@ -430,6 +431,39 @@ const taskReminders = inngest.createFunction(
   async ({ step }) => ({ sent: await step.run("remind", () => call<Record<string, unknown>>(rpc, "run_task_reminders")) }),
 );
 
+/**
+ * The production safety alarm (plan task 5.9, holes H1 and H15). Every hour: is any test shortcut on in
+ * production (the on-screen sign-in code, the environment left at staging, a test-only function secret, a
+ * Razorpay test key)? If so, a `fatal` Sentry event, which the alert rule emails at once. Quiet on staging,
+ * where the shortcuts are meant to be on. Reads only; changes nothing.
+ */
+const safetyAlarm = inngest.createFunction(
+  { id: "safety-alarm", triggers: [{ cron: "23 * * * *" }], concurrency: 1, onFailure: reportFailure("safety-alarm") },
+  async ({ step }) => {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    if (!isProductionProject(supabaseUrl)) return { checked: false, reason: "not production" };
+    const findings = await step.run("check shortcuts", async () => {
+      const controls = await call<{ environment?: unknown }>(rpc, "get_app_controls", { p_platform: null, p_version: null });
+      const { data: otp, error } = await db.from("settings").select("value").eq("key", "dev_otp_for_all").maybeSingle();
+      if (error) throw new Error(`settings unreadable: ${error.message}`);
+      return safetyFindings({
+        supabaseUrl,
+        environment: controls?.environment,
+        devOtpForAll: otp?.value,
+        env: Object.fromEntries(FORBIDDEN_IN_PRODUCTION.map((name) => [name, Deno.env.get(name)])),
+        razorpayKeyIds: { RAZORPAY_KEY_ID: await secret("RAZORPAY_KEY_ID"), RAZORPAYX_KEY_ID: await secret("RAZORPAYX_KEY_ID") },
+      });
+    });
+    if (findings.length === 0) return { checked: true, allClear: true };
+    await step.run("raise alarm", async () => {
+      const message = alarmMessage(findings);
+      await logServer("error", "inngest", message, { job: "safety-alarm", findings: findings.map((f) => f.code).join(",") });
+      await captureServerError(new Error(message), { job: "safety-alarm" }, "fatal");
+    });
+    return { checked: true, allClear: false, findings: findings.map((f) => f.code) };
+  },
+);
+
 // ------------------------------------------------------------------- people --
 
 /**
@@ -496,7 +530,7 @@ Deno.serve(serve({
   client: inngest,
   functions: [
     outboxSweeper, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile,
-    pushNotification, accountFiles, mediaPurge, strayImageKitFiles, overdueTasks, publicSnapshots, housekeeping, outboxWatchdog, smsPumpingWatch, taskReminders,
+    pushNotification, accountFiles, mediaPurge, strayImageKitFiles, overdueTasks, publicSnapshots, housekeeping, outboxWatchdog, smsPumpingWatch, taskReminders, safetyAlarm,
     userCreated, userUpdated, userDeleted, userSyncRepair,
     ...moneyJobs,
   ],
