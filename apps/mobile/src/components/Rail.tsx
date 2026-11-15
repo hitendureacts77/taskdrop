@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useRef, useState } from 'react';
+import React, { Children, createContext, useContext, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, View, type ScrollViewInstance } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useLayout } from '../lib/layout';
@@ -35,8 +35,15 @@ export function Rail({ children, step = 260, min = 170 }: { children: React.Reac
 
   if (desktop || tablet) {
     const gap = 12;
-    const cols = viewW > 0 ? Math.max(1, Math.floor((viewW + gap) / (min + gap))) : 1;
-    const itemW = viewW > 0 ? Math.floor((viewW - gap * (cols - 1)) / cols) : min;
+    const fit = viewW > 0 ? Math.max(1, Math.floor((viewW + gap) / (min + gap))) : 1;
+    // Desktop: never more columns than cards, so 4 cards fill the row up to its edge, and when they need
+    // more than one row the rows are even (4 cards on 3 columns become 2 x 2, not 3 and 1). Tablet is as before.
+    const count = Children.toArray(children).length;
+    const rowsNeeded = Math.max(1, Math.ceil(count / fit));
+    const cols = desktop ? Math.max(1, Math.min(fit, Math.ceil(count / rowsNeeded))) : fit;
+    const colW = (viewW - gap * (cols - 1)) / cols;
+    // (Rounded down to 0.01 so the row never wraps for a rounding hair.)
+    const itemW = viewW > 0 ? (desktop ? Math.floor(colW * 100) / 100 : Math.floor(colW)) : min;
     return (
       <View onLayout={(e) => setViewW(e.nativeEvent.layout.width)} style={{ flexDirection: 'row', flexWrap: 'wrap', gap }}>
         {viewW > 0 ? <RailWidth.Provider value={itemW}>{children}</RailWidth.Provider> : null}

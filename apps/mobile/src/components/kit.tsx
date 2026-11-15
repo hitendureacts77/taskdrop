@@ -245,10 +245,13 @@ export function UnderlineTabs({
  * desktop browser. On a phone it renders its children untouched, so wrapping
  * a list in it changes nothing there.
  */
-export function Grid({ children, gap = 14 }: { children: React.ReactNode; gap?: number }) {
-  const { columns } = useLayout();
-  if (columns === 1) return <>{children}</>;
+export function Grid({ children, gap = 14, fill = false }: { children: React.ReactNode; gap?: number; fill?: boolean }) {
+  const { columns: fit, desktop } = useLayout();
+  if (fit === 1) return <>{children}</>;
   const items = React.Children.toArray(children);
+  // `fill` (desktop only): a short list spreads over the row (two cards on four columns take half each)
+  // instead of leaving the right side empty.
+  const columns = fill && desktop ? Math.min(fit, Math.max(2, items.length)) : fit;
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -gap / 2 }}>
       {items.map((child, i) => (

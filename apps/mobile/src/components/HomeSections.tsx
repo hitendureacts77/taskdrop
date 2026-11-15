@@ -98,8 +98,12 @@ export function HomeSections() {
 function PostTop() {
   const t = useTheme();
   // The wide composer gets its picture beside it (W2).
-  const { desktop } = useLayout();
+  const { desktop, contentWidth, columns } = useLayout();
   const wideHero = desktop;
+  // D11: 9 tiles, 3 per row (a full 3 x 3) up to three columns; at four columns 5 then 4, the second row stretching to fill.
+  const manageRow = columns >= 4 ? 5 : 3;
+  // D9: the hero is a 7/5 row (composer, art); the picture grows a little once the column is wide.
+  const artSize = contentWidth('feed') >= 1100 ? 260 : 220;
   const { go } = useNav();
   const { flash } = useActions();
   const { userId, guest } = useAuth();
@@ -204,7 +208,7 @@ function PostTop() {
           quick questions, writes the post and checks it with you. */}
       <HeroCard style={{ marginTop: 10 }} padding={wideHero ? 30 : 20}>
         <View style={{ flexDirection: 'row', gap: 28 }}>
-          <View style={{ flex: 1.25 }}>
+          <View style={wideHero ? { flex: 7, maxWidth: 720, justifyContent: 'center' } : { flex: 1.25 }}>
             {/* D22: the question is the title; "How TaskDrop works" is the ? beside it. */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <RNText style={tx('800', wideHero ? 34 : 24, '#FFFFFF', { letterSpacing: -0.7, flex: 1, lineHeight: wideHero ? 40 : 30 })}>
@@ -282,7 +286,7 @@ function PostTop() {
               ))}
             </View>
           </View>
-          {wideHero ? <HeroArt /> : null}
+          {wideHero ? <HeroArt size={artSize} /> : null}
         </View>
       </HeroCard>
 
@@ -299,9 +303,9 @@ function PostTop() {
 
       {/* Manage my tasks: the errands people hand off most; one tap fills the composer. */}
       <SectionTitle title="Manage my tasks" icon="briefcase" style={{ marginTop: 32 }} />
-      <View style={{ marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+      <View style={desktop ? { marginTop: 7, marginHorizontal: -5, flexDirection: 'row', flexWrap: 'wrap' } : { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
         {MANAGE.map((x) => (
-          <ManageTile key={x.title} item={x} onPress={() => go('aiPost', { prompt: x.prompt })} />
+          <ManageTile key={x.title} item={x} perRow={desktop ? manageRow : undefined} onPress={() => go('aiPost', { prompt: x.prompt })} />
         ))}
       </View>
 
@@ -316,7 +320,7 @@ function PostTop() {
             style={{ marginTop: 32 }}
           />
           <View style={{ marginTop: 10 }}>
-            <Rail min={220}>
+            <Rail min={desktop ? 240 : 220}>
               {active.map((task) => (
                 <PublishedCard
                   key={task.id}
@@ -733,8 +737,9 @@ function EarnTop() {
     );
   };
 
-  // Two per section to start with; "Show more" opens the rest in place.
-  const FIRST = 2;
+  // Two per section to start with (a full row on a desktop); "Show more" opens the rest in place.
+  const { desktop, columns } = useLayout();
+  const FIRST = desktop ? Math.max(2, columns) : 2;
   const more = (key: string, total: number) =>
     total > FIRST ? (
       <Pressable
@@ -870,7 +875,7 @@ function EarnTop() {
           <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10 })}>Nothing open right now. Check back soon.</RNText>
         ) : (
           <>
-            <Grid>{firstFew('recs', recs).map((task, i) => card(task, i))}</Grid>
+            <Grid fill>{firstFew('recs', recs).map((task, i) => card(task, i))}</Grid>
             {more('recs', recs.length)}
           </>
         )}
@@ -915,7 +920,7 @@ function EarnTop() {
               </View>
             ) : (
               <>
-                <Grid>{firstFew('near', near).map((task, i) => card(task, i, task.km))}</Grid>
+                <Grid fill>{firstFew('near', near).map((task, i) => card(task, i, task.km))}</Grid>
                 {more('near', near.length)}
               </>
             )}
@@ -955,7 +960,7 @@ function EarnTop() {
           <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10 })}>No remote jobs open right now.</RNText>
         ) : (
           <>
-            <Grid>{firstFew('remote', remote).map((task, i) => card(task, i))}</Grid>
+            <Grid fill>{firstFew('remote', remote).map((task, i) => card(task, i))}</Grid>
             {more('remote', remote.length)}
           </>
         )}
@@ -964,7 +969,7 @@ function EarnTop() {
         {urgent.length > 0 ? (
           <>
             <SectionTitle title="Needed today" icon="bolt" badge="Urgent" style={{ marginTop: 32 }} />
-            <Grid>{firstFew('urgent', urgent).map((task, i) => card(task, i))}</Grid>
+            <Grid fill>{firstFew('urgent', urgent).map((task, i) => card(task, i))}</Grid>
             {more('urgent', urgent.length)}
           </>
         ) : null}
@@ -1156,6 +1161,7 @@ function OnlyOnTaskDrop({
   onPrompt: (prompt: string) => void;
 }) {
   const t = useTheme();
+  const { desktop } = useLayout();
   const opinions = TEMPLATES.find((x) => x.key === 'ask-people');
   const prices = TEMPLATES.find((x) => x.key === 'find-quotes');
   const items: { icon: IconName; title: string; bg: string; ink: string; isNew?: boolean; onPress: () => void }[] = [
@@ -1171,20 +1177,25 @@ function OnlyOnTaskDrop({
         <Icon name="star" size={15} color={t.colors.goldInk} />
         <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>Only on TaskDrop</RNText>
       </View>
-      <View style={{ flexDirection: 'row', marginTop: 14 }}>
+      <View style={{ flexDirection: 'row', marginTop: 14, gap: desktop ? 10 : 0 }}>
         {items.map((x) => (
           <Pressy
             key={x.title}
             onPress={x.onPress}
             scaleTo={0.94}
             label={x.isNew ? `${x.title.replace('\n', ' ')}. New` : x.title.replace('\n', ' ')}
-            style={{ flex: 1, alignItems: 'center' }}
+            // Desktop (D10): each one is a card, the icon beside a one-line title, five equal columns.
+            style={
+              desktop
+                ? [cardSurface(t, 16), { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, minWidth: 0 }]
+                : { flex: 1, alignItems: 'center' }
+            }
           >
             <View
               style={{
-                width: 54,
-                height: 54,
-                borderRadius: 18,
+                width: desktop ? 44 : 54,
+                height: desktop ? 44 : 54,
+                borderRadius: desktop ? 15 : 18,
                 backgroundColor: x.bg,
                 borderWidth: x.isNew ? 1.5 : 0,
                 borderColor: t.colors.gold,
@@ -1192,14 +1203,20 @@ function OnlyOnTaskDrop({
                 justifyContent: 'center',
               }}
             >
-              <Icon name={x.icon} size={24} color={x.ink} strokeWidth={2.2} />
+              <Icon name={x.icon} size={desktop ? 21 : 24} color={x.ink} strokeWidth={2.2} />
               {x.isNew ? (
                 <View style={{ position: 'absolute', top: -6, right: -8, borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1, backgroundColor: t.colors.signalDeep }}>
                   <RNText style={tx('800', 9, '#FFFFFF')}>NEW</RNText>
                 </View>
               ) : null}
             </View>
-            <RNText style={tx('700', 11.5, t.colors.ink, { marginTop: 7, textAlign: 'center', lineHeight: 14 })}>{x.title}</RNText>
+            {desktop ? (
+              <RNText style={tx('700', 13, t.colors.ink, { flex: 1, flexShrink: 1, lineHeight: 17 })} numberOfLines={1}>
+                {x.title.replace('\n', ' ')}
+              </RNText>
+            ) : (
+              <RNText style={tx('700', 11.5, t.colors.ink, { marginTop: 7, textAlign: 'center', lineHeight: 14 })}>{x.title}</RNText>
+            )}
           </Pressy>
         ))}
       </View>
@@ -1285,7 +1302,7 @@ function PosterIdeas({ onPrompt }: { onPrompt: (prompt: string) => void }) {
   const t = useTheme();
   const [group, setGroup] = useState(POSTER_IDEAS[0].group);
   const ideas = (POSTER_IDEAS.find((g) => g.group === group) ?? POSTER_IDEAS[0]).ideas;
-  const width = useRailItemWidth(230);
+  const { desktop } = useLayout();
   return (
     <View style={{ marginTop: 14 }}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
@@ -1312,22 +1329,9 @@ function PosterIdeas({ onPrompt }: { onPrompt: (prompt: string) => void }) {
         })}
       </ScrollView>
       <View style={{ marginTop: 12 }}>
-        <Rail min={220}>
+        <Rail min={desktop ? 240 : 220}>
           {ideas.map((x) => (
-            <Pressy
-              key={x.title}
-              onPress={() => onPrompt(x.prompt)}
-              scaleTo={0.97}
-              label={`${x.title}. ${x.problem} ${x.price}`}
-              style={[cardSurface(t, 16), { width, padding: 12, gap: 8 }]}
-            >
-              <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={x.icon} size={19} color={t.colors.accentDeep} />
-              </View>
-              <RNText style={tx('800', 14, t.colors.ink, { lineHeight: 18 })} numberOfLines={2}>{x.title}</RNText>
-              <RNText style={tx('500', 12, t.colors.muted, { lineHeight: 17 })} numberOfLines={2}>{x.problem}</RNText>
-              <RNText style={tx('800', 13, t.colors.accentDeep, { fontVariant: ['tabular-nums'] })}>{x.price}</RNText>
-            </Pressy>
+            <IdeaCard key={x.title} idea={x} onPress={() => onPrompt(x.prompt)} />
           ))}
         </Rail>
       </View>
@@ -1335,14 +1339,35 @@ function PosterIdeas({ onPrompt }: { onPrompt: (prompt: string) => void }) {
   );
 }
 
-function ManageTile({ item, onPress }: { item: (typeof MANAGE)[number]; onPress: () => void }) {
+/** One poster idea. A component of its own so it can read the width the Rail's grid gives it. */
+function IdeaCard({ idea: x, onPress }: { idea: PosterIdea; onPress: () => void }) {
   const t = useTheme();
+  const width = useRailItemWidth(230);
   return (
     <Pressy
       onPress={onPress}
       scaleTo={0.97}
+      label={`${x.title}. ${x.problem} ${x.price}`}
+      style={[cardSurface(t, 16), { width, padding: 12, gap: 8 }]}
+    >
+      <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={x.icon} size={19} color={t.colors.accentDeep} />
+      </View>
+      <RNText style={tx('800', 14, t.colors.ink, { lineHeight: 18 })} numberOfLines={2}>{x.title}</RNText>
+      <RNText style={tx('500', 12, t.colors.muted, { lineHeight: 17 })} numberOfLines={2}>{x.problem}</RNText>
+      <RNText style={tx('800', 13, t.colors.accentDeep, { fontVariant: ['tabular-nums'] })}>{x.price}</RNText>
+    </Pressy>
+  );
+}
+
+function ManageTile({ item, onPress, perRow }: { item: (typeof MANAGE)[number]; onPress: () => void; perRow?: number }) {
+  const t = useTheme();
+  const tile = (
+    <Pressy
+      onPress={onPress}
+      scaleTo={0.97}
       label={item.title}
-      style={[cardSurface(t, 16), { flexGrow: 1, flexBasis: '30%', minHeight: 104, padding: 12, alignItems: 'center', justifyContent: 'center', gap: 9 }]}
+      style={[cardSurface(t, 16), { flexGrow: 1, flexBasis: perRow ? 0 : '30%', minHeight: 104, padding: 12, alignItems: 'center', justifyContent: 'center', gap: 9 }]}
     >
       <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name={item.icon} size={19} color={t.colors.accentDeep} />
@@ -1352,13 +1377,16 @@ function ManageTile({ item, onPress }: { item: (typeof MANAGE)[number]; onPress:
       </RNText>
     </Pressy>
   );
+  if (!perRow) return tile;
+  // Desktop (D11): the row length comes from the feed's columns; the gap is padding, so the shares add up to a full row.
+  return <View style={{ flexGrow: 1, flexBasis: `${100 / perRow - 0.01}%`, minWidth: 0, padding: 5, flexDirection: 'row' }}>{tile}</View>;
 }
 
 /**
  * The wide composer's picture: the drop at the centre of its ripples, with
  * people around it -- a task going out to whoever can do it.
  */
-function HeroArt() {
+function HeroArt({ size = 220 }: { size?: number }) {
   const t = useTheme();
   const people = [
     { k: 'R', x: 8, y: 22, on: true },
@@ -1371,50 +1399,50 @@ function HeroArt() {
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={{ flex: 0.75, minHeight: 230, alignItems: 'center', justifyContent: 'center' }}
+      style={{ flex: 5, minHeight: size + 10, alignItems: 'center', justifyContent: 'center' }}
     >
-      <View style={{ width: 220, height: 220, alignItems: 'center', justifyContent: 'center' }}>
-        <Ripples color="rgba(255,255,255,0.45)" size={220} count={3} duration={3800} />
+      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+        <Ripples color="rgba(255,255,255,0.45)" size={size} count={3} duration={3800} />
         <View style={{ position: 'absolute', width: 116, height: 116, borderRadius: 999, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)' }} />
         <Drop size={74} fill="#FFFFFF" tick={t.colors.heroMid} />
+        {people.map((p) => (
+          <View
+            key={p.k}
+            style={{
+              position: 'absolute',
+              left: `${p.x}%`,
+              top: `${p.y}%`,
+              width: 38,
+              height: 38,
+              borderRadius: 999,
+              backgroundColor: '#FFFFFF',
+              alignItems: 'center',
+              justifyContent: 'center',
+              shadowColor: '#000',
+              shadowOpacity: 0.2,
+              shadowRadius: 10,
+              shadowOffset: { width: 0, height: 4 },
+            }}
+          >
+            <RNText style={tx('800', 15, t.colors.purple)}>{p.k}</RNText>
+            {p.on ? (
+              <View
+                style={{
+                  position: 'absolute',
+                  right: -1,
+                  bottom: -1,
+                  width: 11,
+                  height: 11,
+                  borderRadius: 999,
+                  backgroundColor: '#4ADE9A',
+                  borderWidth: 2,
+                  borderColor: '#FFFFFF',
+                }}
+              />
+            ) : null}
+          </View>
+        ))}
       </View>
-      {people.map((p) => (
-        <View
-          key={p.k}
-          style={{
-            position: 'absolute',
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            width: 38,
-            height: 38,
-            borderRadius: 999,
-            backgroundColor: '#FFFFFF',
-            alignItems: 'center',
-            justifyContent: 'center',
-            shadowColor: '#000',
-            shadowOpacity: 0.2,
-            shadowRadius: 10,
-            shadowOffset: { width: 0, height: 4 },
-          }}
-        >
-          <RNText style={tx('800', 15, t.colors.purple)}>{p.k}</RNText>
-          {p.on ? (
-            <View
-              style={{
-                position: 'absolute',
-                right: -1,
-                bottom: -1,
-                width: 11,
-                height: 11,
-                borderRadius: 999,
-                backgroundColor: '#4ADE9A',
-                borderWidth: 2,
-                borderColor: '#FFFFFF',
-              }}
-            />
-          ) : null}
-        </View>
-      ))}
     </View>
   );
 }
