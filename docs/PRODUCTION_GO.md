@@ -94,6 +94,11 @@ Test sign-in (`dev_otp_for_all`) off · admin authenticator code (`admin_require
 
 Not covered from outside: a Razorpay key or debug token held as a function secret **value** (Supabase shows only names). The Inngest job `safety-alarm` checks those values from inside, every hour, once Inngest runs on production.
 
+## Two small things on the production website (15 Nov, found by the audit)
+
+- **Security reports go to production's own Sentry project.** `vercel.json` now has a rule for `taskdrop-production.vercel.app` with the production report address; every other address keeps staging's. A test keeps the two rule sets identical apart from that one address. After you promote to `main`, Claude checks the real header on the production address (Vercel's rule order decides which rule wins, and that can only be seen on the live address). When `taskdrop.in` moves to production at launch (5.10 option B), add `taskdrop\.in` and `www\.taskdrop\.in` to that rule's host list.
+- **Android app links (`/.well-known/assetlinks.json`).** The production build writes the file only when the Vercel variable `ANDROID_SHA256_CERT_FINGERPRINTS` is set (Production only; comma-separated SHA-256 fingerprints, not SHA-1). With no value nothing is written and the path answers as before. The value that matters for Play builds is the **app-signing key SHA-256** from Play Console → Test and release → App signing, which exists only after the app is in Play (6.6); add the upload key's SHA-256 too for the sideloaded production APK. The app also needs its own https link settings (an Android change and a new build), so links will not open the app until 6.6 even with the file in place.
+
 ## Emergency: running a production script from a laptop
 
 Only with you watching, and only if GitHub Actions is down. Every script refuses production unless `PRODUCTION_DEPLOY=1` is set **and** it runs in GitHub Actions, or `TASKDROP_PRODUCTION_FROM_LAPTOP` is set to the exact words `yes, this is production`. Even then, a seed or reset script has no production path at all.

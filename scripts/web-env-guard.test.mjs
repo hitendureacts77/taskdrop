@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, existsSync, writeFileSync, rmSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { applyToHtml, DEFAULT_ORIGIN, isProductionBuild, NOINDEX_META, originOf, ROBOTS_TXT, run, securityTxt, SECURITY_TXT_EXPIRES, SUPPORT_URL } from '../apps/mobile/scripts/web-env-guard.mjs';
+import { applyToHtml, assetLinks, DEFAULT_ORIGIN, fingerprintsOf, isProductionBuild, NOINDEX_META, originOf, PRODUCTION_ANDROID_PACKAGE, ROBOTS_TXT, run, securityTxt, SECURITY_TXT_EXPIRES, SUPPORT_URL } from '../apps/mobile/scripts/web-env-guard.mjs';
 
 const NL = String.fromCharCode(10);
 const HTML = '<!DOCTYPE html><html><head><title>TaskDrop</title></head><body></body></html>';
@@ -71,6 +71,70 @@ test('vercel.json: staging hosts are noindex, and the production addresses are n
     'taskdrop-production-a1b2c3d4e-hitenduteam.vercel.app',
     'taskdrop-production-git-main-hitenduteam.vercel.app',
   ]) assert.equal(hidden(host), false, `${host} must not send noindex`);
+});
+
+test('vercel.json: production reports security problems to its own Sentry project, with the same rules as staging (plan 5.10)', () => {
+  const cfg = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  const cspRules = cfg.headers.filter((r) => r.headers.some((h) => h.key === 'Content-Security-Policy'));
+  const everywhere = cspRules.find((r) => !r.has);
+  const production = cspRules.find((r) => r.has?.some((c) => c.type === 'host' && new RegExp(`^(?:${c.value})$`).test('taskdrop-production.vercel.app')));
+  assert.ok(everywhere && production, 'a catch-all rule and a production rule');
+  const value = (r) => r.headers.find((h) => h.key === 'Content-Security-Policy').value;
+  const split = (v) => { const i = v.indexOf('; report-uri '); return [v.slice(0, i), v.slice(i + '; report-uri '.length)]; };
+  const [stagingRules, stagingReport] = split(value(everywhere));
+  const [productionRules, productionReport] = split(value(production));
+  assert.equal(productionRules, stagingRules, 'only the report address may differ, so the two rule sets cannot drift');
+  assert.notEqual(productionReport, stagingReport, 'production must not report into the staging project');
+  assert.match(productionReport, /^https:\/\/o\d+\.ingest\.[a-z.]*sentry\.io\/api\/\d+\/security\/\?sentry_key=[0-9a-f]+$/);
+  // The production rule must never match a staging address, or staging errors would land in production's Sentry.
+  const hostRe = new RegExp(`^(?:${production.has.find((c) => c.type === 'host').value})$`);
+  for (const host of ['taskdrop.in', 'www.taskdrop.in', 'taskdrop-five.vercel.app', 'taskdrop-git-redesigned-20-hitenduteam.vercel.app']) {
+    assert.equal(hostRe.test(host), false, `${host} must keep staging's report address`);
+  }
+  assert.ok(cfg.headers.indexOf(production) > cfg.headers.indexOf(everywhere), 'the production rule comes after the catch-all so it wins');
+});
+
+const FP_A = Array.from({ length: 32 }, (_, i) => i.toString(16).padStart(2, '0').toUpperCase()).join(':');
+const FP_B = Array.from({ length: 32 }, () => 'AB').join(':');
+const SHA1 = '1F:22:C8:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:E5:D1';
+
+test('assetlinks.json: only real SHA-256 fingerprints count, and no fingerprint means no file', () => {
+  assert.deepEqual(fingerprintsOf(`${FP_A.toLowerCase()}, ${FP_B} ,${SHA1}, nonsense`), [FP_A, FP_B]);
+  assert.deepEqual(fingerprintsOf(undefined), []);
+  assert.equal(assetLinks([]), null);
+  const parsed = JSON.parse(assetLinks([FP_A, FP_B]));
+  assert.equal(parsed.length, 1);
+  assert.deepEqual(parsed[0].relation, ['delegate_permission/common.handle_all_urls']);
+  assert.equal(parsed[0].target.namespace, 'android_app');
+  assert.equal(parsed[0].target.package_name, PRODUCTION_ANDROID_PACKAGE);
+  assert.equal(PRODUCTION_ANDROID_PACKAGE, 'com.taskdrop.app', 'never the staging package');
+  assert.deepEqual(parsed[0].target.sha256_cert_fingerprints, [FP_A, FP_B]);
+});
+
+test('build: production with a fingerprint writes assetlinks.json; staging and production without one do not', () => {
+  const make = () => {
+    const dist = mkdtempSync(join(tmpdir(), 'wg-'));
+    writeFileSync(join(dist, 'index.html'), HTML);
+    return dist;
+  };
+  const file = (dist) => join(dist, '.well-known', 'assetlinks.json');
+  const a = make();
+  const b = make();
+  const c = make();
+  const d = make();
+  try {
+    run(a, 'production', 'x@example.in', 'https://prod.example', FP_A);
+    assert.equal(JSON.parse(readFileSync(file(a), 'utf8'))[0].target.sha256_cert_fingerprints[0], FP_A);
+    run(b, 'staging', 'x@example.in', 'https://stage.example', FP_A);
+    assert.equal(existsSync(file(b)), false, 'the staging app has its own package and gets no file');
+    run(c, 'production', 'x@example.in', 'https://prod.example', '');
+    assert.equal(existsSync(file(c)), false);
+    run(d, 'production', 'x@example.in', 'https://prod.example', FP_A);
+    run(d, 'production', 'x@example.in', 'https://prod.example', SHA1);
+    assert.equal(existsSync(file(d)), false, 'a stale file is removed when the fingerprints go away');
+  } finally {
+    for (const x of [a, b, c, d]) rmSync(x, { recursive: true, force: true });
+  }
 });
 
 test('security.txt names the support address and page, an expiry and the canonical address', () => {
