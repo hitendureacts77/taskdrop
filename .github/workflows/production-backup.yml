@@ -4,18 +4,28 @@ name: Production nightly backup
 # Supabase, for 30 days, on top of Supabase's own backups. The restore is practised in task 6.5
 # (docs/RELEASE.md section 7).
 #
+# WHERE the copy goes: a release file in the separate PRIVATE repository `hitendureacts77/taskdrop-backups`,
+# not an artifact of this repository. `taskdrop` is public, and a public repository's artifacts can be downloaded
+# by anyone signed in to GitHub; the copy is encrypted, but people's data does not go out in public even encrypted.
+# Making `taskdrop` itself private is not the answer on GitHub's free plan: the owner's Approve button
+# (required reviewers) works only in public repositories there (docs/PRODUCTION_GO.md, step 1). A private
+# repository's releases cost nothing and are outside Supabase. Copies older than 30 days are deleted by this job.
+#
 # Scheduled workflows run from the default branch (main), so this starts once the owner promotes it.
 # The secrets live only in the GitHub environment `production-backup` (no reviewer, because a nightly job
 # cannot wait for a click; only the `main` branch may use it). Values come from the PROD_ section of
 # .env.all-secrets and are never printed:
 #   secret   PROD_SUPABASE_DB_PASSWORD   the production database password
 #   secret   PROD_BACKUP_PASSPHRASE      encrypts the copy (AES-256); without it the copy cannot be opened
-#   variable PROD_SUPABASE_PROJECT_REF   the production project ref (not a secret)
+#   secret   PROD_BACKUP_REPO_TOKEN      a fine-grained GitHub token for taskdrop-backups ONLY, Contents: read and write
+#   variable PROD_SUPABASE_POOLER_HOST   optional: the Session pooler host, only if it is not aws-0-ap-south-1...
+# The same environment also holds PROD_SENTRY_DSN and PROD_SUPABASE_ACCESS_TOKEN for the hourly safety alarm
+# (.github/workflows/production-alarm.yml). The production ref is fixed below (also in scripts/lib/db.mjs).
 #
-# To open a copy: download the artifact, then
+# To open a copy (RELEASE.md section 7): download it from the taskdrop-backups release, then
 #   gpg --decrypt taskdrop-production-<stamp>.dump.gpg > taskdrop-production.dump
 #   pg_restore --list taskdrop-production.dump
-# Restore only into a scratch project, never over production (RELEASE.md section 7).
+# Restore only into a scratch project, never over production.
 
 on:
   schedule:
@@ -32,19 +42,31 @@ concurrency:
 jobs:
   backup:
     name: encrypted copy of the production database
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production-backup
     timeout-minutes: 60
     env:
-      PROJECT_REF: ${{ vars.PROD_SUPABASE_PROJECT_REF }}
+      PROJECT_REF: dyzskuzqcqbexssyrrxc
+      BACKUP_REPO: hitendureacts77/taskdrop-backups
+      POOLER_HOST: ${{ vars.PROD_SUPABASE_POOLER_HOST || 'aws-0-ap-south-1.pooler.supabase.com' }}
     steps:
-      - name: refuse anything but a production project ref
+      # Checked on every run, before anything is dumped: the copies must only ever land in a private repository.
+      - name: refuse a public or missing backup repository
+        env:
+          GH_TOKEN: ${{ secrets.PROD_BACKUP_REPO_TOKEN }}
         run: |
-          if ! printf '%s' "$PROJECT_REF" | grep -Eq '^[a-z0-9]{20}$'; then
-            echo "PROD_SUPABASE_PROJECT_REF is not set to a project ref"; exit 1
+          if [ -z "$GH_TOKEN" ]; then echo "::error::PROD_BACKUP_REPO_TOKEN is not set in production-backup"; exit 1; fi
+          private=$(gh api "repos/${BACKUP_REPO}" --jq .private || echo "missing")
+          if [ "$private" != "true" ]; then
+            echo "::error::${BACKUP_REPO} is missing, unreachable with the token, or public. Copies go only to a private repository."; exit 1
           fi
-          if [ "$PROJECT_REF" = "wjxvingpfbfvkfqhrguj" ]; then
-            echo "That is the staging project. This job backs up production only."; exit 1
+
+      # POOLER_HOST can come from a variable, so it must be Supabase's Mumbai pooler before the password is sent to it.
+      - name: refuse anything but production's pooler
+        run: |
+          if ! printf '%s' "$POOLER_HOST" | grep -Eq '^aws-[0-9]+-ap-south-1\.pooler\.supabase\.com$'; then
+            echo "PROD_SUPABASE_POOLER_HOST must look like aws-0-ap-south-1.pooler.supabase.com"; exit 1
           fi
 
       # Supabase runs Postgres 17; pg_dump must be at least the server's version.
@@ -60,6 +82,7 @@ jobs:
       # The direct database address is IPv6 only and GitHub's runners have no IPv6, so this uses Supabase's
       # session pooler (port 5432, which allows pg_dump). The password reaches pg_dump only through PGPASSWORD.
       - name: dump and encrypt
+        id: dump
         env:
           PGPASSWORD: ${{ secrets.PROD_SUPABASE_DB_PASSWORD }}
           PASSPHRASE: ${{ secrets.PROD_BACKUP_PASSPHRASE }}
@@ -75,7 +98,7 @@ jobs:
           # only that project holds. Owners and grants are left out: the restore target is built from the
           # migrations first, which set them.
           /usr/lib/postgresql/17/bin/pg_dump \
-            --host=aws-0-ap-south-1.pooler.supabase.com --port=5432 \
+            --host="$POOLER_HOST" --port=5432 \
             --username="postgres.${PROJECT_REF}" --dbname=postgres \
             --format=custom --compress=9 --no-owner --no-privileges \
             --schema=public --schema=private --schema=auth --schema=storage --schema=supabase_migrations \
@@ -86,12 +109,25 @@ jobs:
           printf '%s' "$PASSPHRASE" | gpg --batch --yes --quiet --pinentry-mode loopback --passphrase-fd 0 \
             --symmetric --cipher-algo AES256 --output "out/taskdrop-production-${stamp}.dump.gpg" out/db.dump
           shred -u out/db.dump
+          echo "stamp=${stamp}" >> "$GITHUB_OUTPUT"
           ls out
 
-      - name: keep the copy for 30 days
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: taskdrop-production-backup-${{ github.run_id }}
-          path: out/*.dump.gpg
-          retention-days: 30
-          if-no-files-found: error
+      - name: keep the copy (private repository, 30 days)
+        env:
+          GH_TOKEN: ${{ secrets.PROD_BACKUP_REPO_TOKEN }}
+          STAMP: ${{ steps.dump.outputs.stamp }}
+        run: |
+          set -euo pipefail
+          gh release create "backup-${STAMP}" "out/taskdrop-production-${STAMP}.dump.gpg" \
+            --repo "$BACKUP_REPO" --title "Production copy ${STAMP}" \
+            --notes "Encrypted nightly copy of the TaskDrop production database (AES-256, passphrase PROD_BACKUP_PASSPHRASE). Restore: docs/RELEASE.md section 7 in the taskdrop repository."
+          # Delete copies older than 30 days. Only releases this job made (tag backup-...) are ever touched.
+          cutoff=$(date -u -d '30 days ago' +%s)
+          gh release list --repo "$BACKUP_REPO" --limit 200 --json tagName,createdAt \
+            --jq '.[] | select(.tagName | startswith("backup-")) | "\(.tagName) \(.createdAt)"' |
+          while read -r tag created; do
+            if [ "$(date -u -d "$created" +%s)" -lt "$cutoff" ]; then
+              gh release delete "$tag" --repo "$BACKUP_REPO" --yes --cleanup-tag
+              echo "deleted old copy $tag"
+            fi
+          done
