@@ -113,7 +113,7 @@ function TourRunning({ path: first, withEarning }: { path: TourPath; withEarning
   const { mode, setMode } = useMode();
   const { go, reset } = useNav();
   const fees = useFees();
-  const { desktop, tablet } = useLayout();
+  const { desktop, tablet, height: designHeight } = useLayout();
 
   const [path, setPath] = useState<TourPath>(first);
   const [index, setIndex] = useState(0);
@@ -243,7 +243,8 @@ function TourRunning({ path: first, withEarning }: { path: TourPath; withEarning
   }, [beat.id, done, reduced, swap, t.motion.ui]);
 
   const lit = Boolean(beat.target && rect);
-  const cardOnTop = rect ? rect.y + rect.h / 2 > win.height / 2 : false;
+  // rect is in design px (measureTarget), so compare with the design height, not the real window.
+  const cardOnTop = rect ? rect.y + rect.h / 2 > designHeight / 2 : false;
   const dim = 'rgba(6,8,10,0.62)';
   const radius = rect ? Math.min(20, (rect.h + PAD * 2) / 2) : 0;
 

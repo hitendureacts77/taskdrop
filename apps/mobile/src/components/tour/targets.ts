@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { Dimensions, type ViewInstance } from 'react-native';
 import type { TourTarget } from '../../lib/tour';
+import { toDesignRect } from '../../lib/desktopScale';
 
 export type Rect = { x: number; y: number; w: number; h: number };
 
@@ -42,11 +43,16 @@ function measure(view: ViewInstance): Promise<Rect | null> {
   });
 }
 
-/** Where the target is in the window right now, or null if none of its Views is visible. */
+/**
+ * Where the target is in the window right now, or null if none of its Views is visible. In the
+ * page's design px: on a zoomed desktop page (lib/desktopScale) measures come in real window px,
+ * but the tour's overlay is drawn inside the zoomed page.
+ */
 export async function measureTarget(id: TourTarget): Promise<Rect | null> {
-  const { width, height } = Dimensions.get('window');
+  const { width, height } = toDesignRect(Dimensions.get('window'));
   for (const view of registry.get(id) ?? []) {
-    const r = await measure(view);
+    const m = await measure(view);
+    const r = m && toDesignRect(m);
     if (r && r.x < width && r.x + r.w > 0 && r.y < height && r.y + r.h > 0) return r;
   }
   return null;
