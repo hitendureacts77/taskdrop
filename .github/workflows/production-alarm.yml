@@ -1,0 +1,58 @@
+name: Production safety alarm
+
+# Plan task 5.9 (holes H1, H3, H15, H21, H56, H73): every hour, read production and alarm if a test shortcut is
+# on or a door is open. On a problem it sends one fatal event to the PRODUCTION Sentry project, whose alert rule
+# emails the owner, and the run fails (red). It only reads. Rules: scripts/lib/prod-safety.mjs.
+#
+# This is the outside half. The Inngest job `safety-alarm` is the inside half (it can read function-secret values);
+# this one still fires when Inngest is down, and it also checks the direct door, GraphQL, anon rights, each
+# function's login setting and the sign-up guard hook.
+#
+# Scheduled workflows run from the default branch (main), so this starts once the owner promotes it.
+# Environment `production-backup` (no reviewer, because an hourly job cannot wait for a click; only `main` may use
+# it) holds, by name:
+#   secret   PROD_SUPABASE_DB_PASSWORD    the production database password (shared with the nightly copy)
+#   secret   PROD_SENTRY_DSN              the production Sentry project's DSN (where the alarm goes)
+#   secret   PROD_SUPABASE_ACCESS_TOKEN   lets it read secret names, function login settings and sign-in settings.
+#                                         Without it those three are reported as "not checked" (a warning)
+#   variable PROD_SUPABASE_POOLER_HOST    optional, only if the Session pooler host is not aws-0-ap-south-1...
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-alarm
+  cancel-in-progress: false
+
+jobs:
+  alarm:
+    name: test shortcuts off, doors shut
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production-backup
+    timeout-minutes: 10
+    env:
+      PRODUCTION_DEPLOY: '1'
+      PROD_SUPABASE_POOLER_HOST: ${{ vars.PROD_SUPABASE_POOLER_HOST }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+      # The full lockfile install, so every package this job runs (it holds the database password) is the exact,
+      # integrity-checked one. Minutes are free while the repository is public (docs/PRODUCTION_GO.md step 1).
+      - run: npm ci --ignore-scripts
+      - name: check production
+        env:
+          PROD_SUPABASE_DB_PASSWORD: ${{ secrets.PROD_SUPABASE_DB_PASSWORD }}
+          PROD_SENTRY_DSN: ${{ secrets.PROD_SENTRY_DSN }}
+          PROD_SUPABASE_ACCESS_TOKEN: ${{ secrets.PROD_SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/production-alarm.mjs

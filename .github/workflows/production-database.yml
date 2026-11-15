@@ -1,0 +1,155 @@
+name: Production database and functions
+
+# Plan task 5.9 (docs/ULTIMATE_PLAN.md) and docs/RELEASE.md section 4: "a button, not a command, for production".
+#
+# Runs when the owner promotes code to `main` that touches supabase/**, or by hand (Actions -> this workflow ->
+# Run workflow, branch main). Two jobs:
+#
+#   plan    lists what would be applied. Connects to nothing and holds no secret.
+#   deploy  waits for the owner's Approve on the GitHub environment `production-database` (owner is the required
+#           reviewer; only `main` may use it), then:
+#             1. applies every migration production's history does not hold yet, in order, one transaction each
+#                (a fresh project: all of them), recording each in supabase_migrations.schema_migrations;
+#             2. production's first-day safety (supabase/production/first_day.sql + supabase/lockdown/gateway_only.sql)
+#                and the database checks: test sign-in off, admin MFA on, environment production, direct door shut;
+#             3. deploys every Edge Function in supabase/functions (login checks from supabase/config.toml);
+#             4. sets the function secrets from this environment's PROD_* secrets (scripts/set-function-secrets.mjs);
+#             5. asks Inngest to re-read the functions (a warning only, until the production Inngest keys exist);
+#             6. the full first-day check again, now including each function's login setting and the secret names.
+#
+# Secrets of the environment `production-database` (names only; values live in the PROD_ section of .env.all-secrets):
+#   PROD_SUPABASE_DB_PASSWORD     production database password (Supabase -> Project Settings -> Database)
+#   PROD_SUPABASE_ACCESS_TOKEN    a Supabase access token of the account that owns the production organization
+#   PROD_<NAME> for each function secret: INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY, INNGEST_MONEY_JOBS,
+#     INNGEST_PUSH_RECEIPT_WAIT, IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, IMAGEKIT_URL_ENDPOINT, IMAGEKIT_ENV,
+#     SENTRY_DSN, SENTRY_ENVIRONMENT, EXPO_BUILDS_TOKEN, GOOGLE_MAPS_API_KEY, FIREBASE_PROJECT_NUMBER, ALLOWED_ORIGINS,
+#     MSG91_AUTHKEY, MSG91_TEMPLATE_ID. A name not set is skipped and listed, never blanked in Supabase.
+# Variables of the same environment (not secret, both optional):
+#   PROD_SUPABASE_POOLER_HOST     only if the dashboard's Session pooler host is not aws-0-ap-south-1.pooler.supabase.com
+#   PROD_DASHBOARD_DONE           "yes" once the owner has done the Supabase dashboard steps in task 5.9 (sign-up guard
+#                                 hook on, Supabase phone and anonymous sign-in off). Until then those are warnings.
+#
+# The production ref is fixed below and in scripts/lib/db.mjs; the scripts refuse any other database, refuse staging
+# even when handed its address, and refuse to run outside GitHub Actions (docs/PRODUCTION_GO.md).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['supabase/**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-database
+  cancel-in-progress: false
+
+env:
+  PROD_SUPABASE_PROJECT_ID: dyzskuzqcqbexssyrrxc
+
+jobs:
+  plan:
+    name: plan (no connection, no secrets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: migrations in the code
+        run: |
+          : > "$RUNNER_TEMP/empty-history"
+          MIGRATION_HISTORY_FILE="$RUNNER_TEMP/empty-history" node scripts/deploy-migrations.mjs --dry-run --production
+          echo "Production applies only the files above that its own history does not hold yet (every file on an empty project)."
+      - name: first-day safety and checks
+        run: node scripts/production-first-day.mjs --dry-run
+      - name: functions to deploy
+        run: ls -d supabase/functions/*/ | grep -v '/_'
+      - name: function secret names (values are only in the deploy job)
+        run: node scripts/set-function-secrets.mjs --production --from-env --dry-run
+
+  deploy:
+    name: deploy to production (needs the owner's approval)
+    needs: plan
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production-database
+    timeout-minutes: 45
+    env:
+      PRODUCTION_DEPLOY: '1'
+      PROD_SUPABASE_POOLER_HOST: ${{ vars.PROD_SUPABASE_POOLER_HOST }}
+      DASHBOARD_FLAG: ${{ vars.PROD_DASHBOARD_DONE == 'yes' && '--strict' || '--dashboard-pending' }}
+    steps:
+      - name: main only
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then echo "Production deploys run from main only."; exit 1; fi
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+
+      - name: 1. apply new migrations
+        env:
+          PROD_SUPABASE_DB_PASSWORD: ${{ secrets.PROD_SUPABASE_DB_PASSWORD }}
+        run: node scripts/deploy-migrations.mjs --production
+
+      # Straight after the migrations: a fresh database comes out of migration 053 with "any phone signs in" on.
+      - name: 2. first-day safety (database)
+        env:
+          PROD_SUPABASE_DB_PASSWORD: ${{ secrets.PROD_SUPABASE_DB_PASSWORD }}
+        run: node scripts/production-first-day.mjs --database-only
+
+      - name: 3. deploy Edge Functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PROD_SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then echo "PROD_SUPABASE_ACCESS_TOKEN is not set in production-database"; exit 1; fi
+          for i in 1 2 3; do
+            if npx --yes supabase@2 functions deploy --project-ref "$PROD_SUPABASE_PROJECT_ID" --use-api; then exit 0; fi
+            echo "attempt $i failed"; sleep $((10 * i))
+          done
+          exit 1
+
+      - name: 4. function secrets
+        env:
+          PROD_SUPABASE_ACCESS_TOKEN: ${{ secrets.PROD_SUPABASE_ACCESS_TOKEN }}
+          PROD_INNGEST_EVENT_KEY: ${{ secrets.PROD_INNGEST_EVENT_KEY }}
+          PROD_INNGEST_SIGNING_KEY: ${{ secrets.PROD_INNGEST_SIGNING_KEY }}
+          PROD_INNGEST_MONEY_JOBS: ${{ secrets.PROD_INNGEST_MONEY_JOBS }}
+          PROD_INNGEST_PUSH_RECEIPT_WAIT: ${{ secrets.PROD_INNGEST_PUSH_RECEIPT_WAIT }}
+          PROD_IMAGEKIT_PUBLIC_KEY: ${{ secrets.PROD_IMAGEKIT_PUBLIC_KEY }}
+          PROD_IMAGEKIT_PRIVATE_KEY: ${{ secrets.PROD_IMAGEKIT_PRIVATE_KEY }}
+          PROD_IMAGEKIT_URL_ENDPOINT: ${{ secrets.PROD_IMAGEKIT_URL_ENDPOINT }}
+          PROD_IMAGEKIT_ENV: ${{ secrets.PROD_IMAGEKIT_ENV }}
+          PROD_SENTRY_DSN: ${{ secrets.PROD_SENTRY_DSN }}
+          PROD_SENTRY_ENVIRONMENT: ${{ secrets.PROD_SENTRY_ENVIRONMENT }}
+          PROD_EXPO_BUILDS_TOKEN: ${{ secrets.PROD_EXPO_BUILDS_TOKEN }}
+          PROD_GOOGLE_MAPS_API_KEY: ${{ secrets.PROD_GOOGLE_MAPS_API_KEY }}
+          PROD_FIREBASE_PROJECT_NUMBER: ${{ secrets.PROD_FIREBASE_PROJECT_NUMBER }}
+          PROD_ALLOWED_ORIGINS: ${{ secrets.PROD_ALLOWED_ORIGINS }}
+          PROD_MSG91_AUTHKEY: ${{ secrets.PROD_MSG91_AUTHKEY }}
+          PROD_MSG91_TEMPLATE_ID: ${{ secrets.PROD_MSG91_TEMPLATE_ID }}
+        run: node scripts/set-function-secrets.mjs --production --from-env
+
+      - name: 5. Inngest sync (warning only)
+        run: |
+          out=$(curl -sS -X PUT --max-time 30 "https://${PROD_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/inngest" || true)
+          case "$out" in
+            *"Successfully registered"*) echo "Inngest synced" ;;
+            *) echo "::warning::Inngest did not report success; set the production Inngest keys (docs/PRODUCTION_GO.md) and run again." ;;
+          esac
+
+      - name: 6. first-day checks (database, functions, secrets, sign-in settings)
+        env:
+          PROD_SUPABASE_DB_PASSWORD: ${{ secrets.PROD_SUPABASE_DB_PASSWORD }}
+          PROD_SUPABASE_ACCESS_TOKEN: ${{ secrets.PROD_SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/production-first-day.mjs $DASHBOARD_FLAG

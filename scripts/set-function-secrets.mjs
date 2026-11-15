@@ -12,6 +12,8 @@
  *   node scripts/set-function-secrets.mjs                    send every allow-listed name the file has
  *   node scripts/set-function-secrets.mjs --production ...   production: reads PROD_<NAME>, targets the
  *                                                            project in PROD_SUPABASE_PROJECT_ID
+ *   node scripts/set-function-secrets.mjs --production --from-env   the same, reading PROD_<NAME> from the
+ *                                                            environment (GitHub Actions, production-database)
  *
  * Rules the code enforces:
  *   - Only names on the allow-list are ever read from the file. LOGIN_, RECOVERY_, KEYSTORE_ names and
@@ -129,6 +131,15 @@ export function parseNames(stdout) {
     .filter((n) => n && n !== "NAME");
 }
 
+/**
+ * --from-env: the same shape as the parsed file, but only the names this script may ever read in production
+ * (PROD_<allow-listed name>, the project id and the access token). Nothing else in the environment is looked at.
+ */
+export function fromEnv(env) {
+  const wanted = [...allowList(true).map((n) => `PROD_${n}`), "PROD_SUPABASE_PROJECT_ID", "PROD_SUPABASE_ACCESS_TOKEN"];
+  return Object.fromEntries(wanted.filter((n) => typeof env[n] === "string").map((n) => [n, env[n]]));
+}
+
 function findSecretsFile(explicit) {
   const candidates = [];
   if (explicit) candidates.push(resolve(explicit));
@@ -157,12 +168,22 @@ function main() {
   const onlyMissing = has("--only-missing");
   const fileArg = argv.includes("--file") ? argv[argv.indexOf("--file") + 1] : undefined;
 
-  const path = findSecretsFile(fileArg);
-  if (!path) {
-    console.error("[set-function-secrets] .env.all-secrets not found (use --file or SECRETS_FILE).");
-    return 1;
+  let file;
+  if (has("--from-env")) {
+    // GitHub Actions (production-database environment): the values arrive as environment secrets, not a file.
+    if (!production) {
+      console.error("[set-function-secrets] --from-env is for --production only; staging reads .env.all-secrets.");
+      return 1;
+    }
+    file = fromEnv(process.env);
+  } else {
+    const path = findSecretsFile(fileArg);
+    if (!path) {
+      console.error("[set-function-secrets] .env.all-secrets not found (use --file or SECRETS_FILE).");
+      return 1;
+    }
+    file = parseEnv(readFileSync(path, "utf8"));
   }
-  const file = parseEnv(readFileSync(path, "utf8"));
   const project = resolveProject(file, production);
   if (!project.ok) {
     console.error(`[set-function-secrets] ${project.why}`);
