@@ -4820,7 +4820,7 @@ Set up production.
 | GitHub token `taskdrop-backups-writer` (Contents read/write, that repository only; **expires 14 Nov 2027: renew a month before**) | **Done** |
 | `main` protected: a pull request and the four CI checks are required, no force-push, no deletion, admins included | **Done** (checked: the four names match the CI jobs) |
 | Production Vercel projects `taskdrop-production` and `taskdrop-admin-production` exist | **Seen**; the firewall rules, $50 spending stop and rate rules could not be read from here: check them in the Vercel dashboard (5.8b) |
-| Supabase dashboard clicks: sign-up guard hook on, Phone and Anonymous sign-in off, rate limits; then the GitHub variable `PROD_DASHBOARD_DONE` = `yes` | **Yours** (`docs/PRODUCTION_GO.md` step 3) |
+| Supabase sign-in settings on production, done by Claude through the Supabase API with the new token and read back: sign-up guard hook on (`hook_before_user_created`, function present), IP forwarding on, token limit 300, code-check limit 60, Phone and Anonymous sign-in off; the GitHub variable `PROD_DASHBOARD_DONE` = `yes` | **Done** 15 Nov evening |
 | Promote `redesigned-2.0` to `main` (a pull request now) | **Yours** |
 | Approve the first "Production database and functions" run; then run "Production safety alarm" once: "all clear" | **Yours**, then Claude reads the run |
 | Live check of the security header on the production address (which of the two rules wins) | Claude, after the promotion |
