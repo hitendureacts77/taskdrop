@@ -4806,6 +4806,27 @@ Set up production.
 - **Not yet run against production** (no access from the build session): the workflows have only been checked by tests and a CI rehearsal. Your steps: the GitHub secrets, the `taskdrop-backups` repository and token, the dashboard clicks, promote to `main`, Approve, then the `main` protection command.
 
 **Part done 15 Nov (production `dyzskuzqcqbexssyrrxc`, free plan).** Checked by query: the database was empty, then all 182 migrations from `main` (796f182) were applied in order, one transaction each, with the same selection as `scripts/deploy-migrations.mjs` (182 history rows, 72 tables, all with row rules, no rows). Switched over and checked: `dev_otp_for_all` off, `admin_require_mfa` on, environment `production`, the money settings in the table above, the direct door closed (the public key gets "Not allowed" for a table, a database function and GraphQL; the schema listing is off), `pg_graphql` not installed, signed-out table rights zero, no live table broadcasts, and the database defaults match staging. The gateway secret in Vault is the `PROD_API_GATEWAY_SECRET` value. The safety alarm (Inngest `safety-alarm`, hourly) and the nightly encrypted copy (`.github/workflows/production-backup.yml`, 30 days) are in the code; both start only after the steps below. **Still open:** deploy the server functions and their production secrets (the saved Supabase access token cannot reach the production organization, so a production access token is needed); the sign-up guard hook, sign-in limits and IP forwarding in the dashboard (email sign-up is open until the hook is on); the GitHub environment `production-backup` with its two secrets and one variable; Inngest synced for production, then `push_via_inngest`; `main` protection; your admin account; a Google sign-in test.
+
+**Setup progress, 15 Nov evening (Claude, with the pull requests 370 and 371 merged into `redesigned-2.0`).** Nothing has run against production yet; `main` has not been promoted.
+
+| Step | Status |
+|---|---|
+| Approval-gated deploy, first-day safety SQL, hourly alarm, nightly backup built and merged | **Done** (PR 370) |
+| Production security-report address in `vercel.json`, and `assetlinks.json` for production builds (empty until Play gives the fingerprint, 6.6) | **Done** (PR 371) |
+| Private repository `taskdrop-backups` | **Done** |
+| GitHub environment `production-backup` (no approval, `main` only) | **Done** |
+| Secrets in `production-database` (13: database password, Inngest, ImageKit, Sentry, Google Maps, Firebase project number, allowed origins) and `production-backup` (5: database password, backup passphrase, backup token, Sentry, Supabase token) | **Done**, copied from `.env.all-secrets` without showing any value |
+| Supabase access token `github-production`, scoped to `taskdrop-production` only | **Done** (saved in the secrets file and both environments) |
+| GitHub token `taskdrop-backups-writer` (Contents read/write, that repository only; **expires 14 Nov 2027: renew a month before**) | **Done** |
+| `main` protected: a pull request and the four CI checks are required, no force-push, no deletion, admins included | **Done** (checked: the four names match the CI jobs) |
+| Production Vercel projects `taskdrop-production` and `taskdrop-admin-production` exist | **Seen**; the firewall rules, $50 spending stop and rate rules could not be read from here: check them in the Vercel dashboard (5.8b) |
+| Supabase dashboard clicks: sign-up guard hook on, Phone and Anonymous sign-in off, rate limits; then the GitHub variable `PROD_DASHBOARD_DONE` = `yes` | **Yours** (`docs/PRODUCTION_GO.md` step 3) |
+| Promote `redesigned-2.0` to `main` (a pull request now) | **Yours** |
+| Approve the first "Production database and functions" run; then run "Production safety alarm" once: "all clear" | **Yours**, then Claude reads the run |
+| Live check of the security header on the production address (which of the two rules wins) | Claude, after the promotion |
+| Left out on purpose (the workflow skips and lists them): money-jobs switch, push-receipt wait, Expo builds token, MSG91 (6.1) | Open |
+| Your admin account on production, a Google sign-in test, Inngest synced then push through Inngest, App Check debug token deleted (H56) | Open (item 8 in `docs/PRODUCTION_GO.md`) |
+
 </details>
 
 <details id="t5-10" data-short="Production web addresses">
