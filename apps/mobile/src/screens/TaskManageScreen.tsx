@@ -83,7 +83,7 @@ function milestonesOf(v: unknown): Milestone[] {
 export function TaskManageScreen() {
   const fees = useFees();
   const t = useTheme();
-  const { desktop, width } = useLayout();
+  const { twoPane } = useLayout();
   const { params, back, go } = useNav();
   const { flash, celebrate, setOpenTask, startedOf } = useApp();
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
@@ -282,8 +282,9 @@ export function TaskManageScreen() {
   );
 
   // Wide desktop (W4): Overview and the offers side by side, each under its
-  // own heading, in place of the tabs. Narrower screens keep the tabs.
-  const sideBySide = desktop && width >= 1280;
+  // own heading, in place of the tabs, once the column has room for two panes
+  // (lib/layout.ts). Narrower screens keep the tabs.
+  const sideBySide = twoPane;
   const offersLabel = task.status === 'OPEN' ? `Worker offers${bids.length ? ` (${bids.length})` : ''}` : 'Worker';
   const overview = (
     <>

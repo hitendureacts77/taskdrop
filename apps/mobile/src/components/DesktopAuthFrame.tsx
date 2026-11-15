@@ -1,5 +1,6 @@
-import { View, Text as RNText } from 'react-native';
+import { ScrollView, View, Text as RNText } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
+import { useLayout } from '../lib/layout';
 import { light } from '../theme';
 import { HeroBackground } from './Hero';
 import { FallingDrop, FloatCard } from './BrandArt';
@@ -19,78 +20,90 @@ const PATH: { n: string; title: string; body: string }[] = [
   { n: '3', title: 'Pay when it’s done', body: 'TaskDrop holds the money until you approve.' },
 ];
 
+/** The design height (px) the brand half needs at its full spacing. */
+const SHORT_HEIGHT = 780;
+
 export function DesktopAuthFrame({ children }: { children: React.ReactNode }) {
   const t = useTheme();
+  // Design px (the page is zoomed on a desktop): below this the brand half no longer fits, so it
+  // scrolls inside its gradient and the card loses some of its margin. Taller windows look as before.
+  const short = useLayout().height < SHORT_HEIGHT;
+  const pad = short ? 16 : 32;
   // The brand half is always the jade gradient, in both themes.
   return (
     <View style={{ flex: 1, flexDirection: 'row', backgroundColor: t.colors.bg }}>
-      <View style={{ flex: 1, paddingHorizontal: 44, paddingVertical: 40, justifyContent: 'space-between', overflow: 'hidden' }}>
+      <View style={{ flex: 1, overflow: 'hidden' }}>
         <HeroBackground radius={0} />
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 44, paddingVertical: short ? 28 : 40, justifyContent: 'space-between' }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Drop size={34} fill="#FFFFFF" tick={light.heroMid} />
+            <RNText style={tx('800', 26, '#FFFFFF', { letterSpacing: -0.9 })}>
+              taskdrop<RNText style={tx('800', 26, '#7FE3C4')}>.</RNText>
+            </RNText>
+          </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Drop size={34} fill="#FFFFFF" tick={light.heroMid} />
-          <RNText style={tx('800', 26, '#FFFFFF', { letterSpacing: -0.9 })}>
-            taskdrop<RNText style={tx('800', 26, '#7FE3C4')}>.</RNText>
-          </RNText>
-        </View>
-
-        <View style={{ maxWidth: 640 }}>
-          <RNText style={tx('800', 54, '#FFFFFF', { letterSpacing: -2.4, lineHeight: 56 })}>
-            Drop a task.{'\n'}Watch it ripple{'\n'}to people nearby.
-          </RNText>
-          <View style={{ flexDirection: 'row', gap: 12, marginTop: 28 }}>
-            {PATH.map((p) => (
-              <View
-                key={p.n}
-                style={{
-                  flex: 1,
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  borderWidth: 1,
-                  borderColor: 'rgba(255,255,255,0.16)',
-                  borderRadius: 18,
-                  padding: 16,
-                }}
-              >
-                <View style={{ width: 20, height: 20, borderRadius: 6, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
-                  <RNText style={tx('800', 11, light.heroMid)}>{p.n}</RNText>
+          <View style={{ maxWidth: 640 }}>
+            <RNText style={tx('800', 54, '#FFFFFF', { letterSpacing: -2.4, lineHeight: 56 })}>
+              Drop a task.{'\n'}Watch it ripple{'\n'}to people nearby.
+            </RNText>
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 28 }}>
+              {PATH.map((p) => (
+                <View
+                  key={p.n}
+                  style={{
+                    flex: 1,
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.16)',
+                    borderRadius: 18,
+                    padding: 16,
+                  }}
+                >
+                  <View style={{ width: 20, height: 20, borderRadius: 6, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
+                    <RNText style={tx('800', 11, light.heroMid)}>{p.n}</RNText>
+                  </View>
+                  <RNText style={tx('800', 16, '#FFFFFF', { marginTop: 12, letterSpacing: -0.3 })}>{p.title}</RNText>
+                  <RNText style={tx('400', 13, 'rgba(255,255,255,0.8)', { marginTop: 4, lineHeight: 20 })}>{p.body}</RNText>
                 </View>
-                <RNText style={tx('800', 16, '#FFFFFF', { marginTop: 12, letterSpacing: -0.3 })}>{p.title}</RNText>
-                <RNText style={tx('400', 13, 'rgba(255,255,255,0.8)', { marginTop: 4, lineHeight: 20 })}>{p.body}</RNText>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
-        </View>
 
-        {/* The drop falling onto its ripples, with what goes out around it. */}
-        <View style={{ height: 300, maxWidth: 640, alignItems: 'center', justifyContent: 'flex-end' }}>
-          <FallingDrop />
-          <FloatCard icon="wrench" title="Plumber · 1.2 km" sub="3 offers in 9 min" style={{ left: 0, top: 40 }} />
-          <FloatCard icon="globe" tone="ai" title="Logo design · Remote" sub="from ₹1,500" delay={1100} style={{ right: 0, top: 96 }} />
-          <View
-            style={{
-              position: 'absolute',
-              left: 50,
-              bottom: 30,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 8,
-              borderRadius: 999,
-              paddingVertical: 8,
-              paddingHorizontal: 14,
-              backgroundColor: 'rgba(255,255,255,0.12)',
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.3)',
-            }}
-          >
-            <Icon name="lock" size={13} color="#FFFFFF" />
-            <RNText style={tx('700', 13, '#FFFFFF')}>Payment held safely until you approve</RNText>
+          {/* The drop falling onto its ripples, with what goes out around it. */}
+          <View style={{ height: 300, maxWidth: 640, alignItems: 'center', justifyContent: 'flex-end' }}>
+            <FallingDrop />
+            <FloatCard icon="wrench" title="Plumber · 1.2 km" sub="3 offers in 9 min" style={{ left: 0, top: 40 }} />
+            <FloatCard icon="globe" tone="ai" title="Logo design · Remote" sub="from ₹1,500" delay={1100} style={{ right: 0, top: 96 }} />
+            <View
+              style={{
+                position: 'absolute',
+                left: 50,
+                bottom: 30,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                borderRadius: 999,
+                paddingVertical: 8,
+                paddingHorizontal: 14,
+                backgroundColor: 'rgba(255,255,255,0.12)',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.3)',
+              }}
+            >
+              <Icon name="lock" size={13} color="#FFFFFF" />
+              <RNText style={tx('700', 13, '#FFFFFF')}>Payment held safely until you approve</RNText>
+            </View>
           </View>
-        </View>
 
-        <RNText style={tx('500', 14, 'rgba(255,255,255,0.78)')}>One account for hiring and earning</RNText>
+          <RNText style={tx('500', 14, 'rgba(255,255,255,0.78)')}>One account for hiring and earning</RNText>
+        </ScrollView>
       </View>
 
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, paddingVertical: pad }}>
         <View
           style={{
             width: '100%',

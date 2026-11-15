@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text as RNText, ScrollView, Pressable } from 'react-native';
+import { View, Text as RNText, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { Screen, cardSurface } from '../components/ui';
 import { HeroBackground, heroStops } from '../components/Hero';
@@ -19,6 +19,8 @@ import { AvatarPresence } from '../components/PresenceDot';
 import { useMode } from '../providers/ModeProvider';
 import { ReportSheet } from '../components/ReportSheet';
 import { ProofPhotosSection } from '../components/ProofPhotosSection';
+import { useLayout } from '../lib/layout';
+import { TwoPane } from '../components/TwoPane';
 
 /**
  * Someone's profile as anyone else sees it. Opened on yourself, it is the
@@ -63,6 +65,8 @@ function PublicProfileBody() {
   const [verified, setVerified] = useState<{ phone: boolean; email: boolean } | null>(null);
   const [reporting, setReporting] = useState(false);
   const [reportingReview, setReportingReview] = useState<Review | null>(null);
+  const { twoPane, contentWidth } = useLayout();
+  const mx = twoPane ? 0 : 20;
 
   useEffect(() => {
     if (!id) return setP(null);
@@ -152,9 +156,14 @@ function PublicProfileBody() {
           personName={reportingReview?.author?.display_name}
         />
       ) : null}
-      <ScrollView contentContainerStyle={{ paddingBottom: 28 }}>
+      {/* Wide desktop: who they are on the left, what they do and their reviews on the right. */}
+      <TwoPane
+        width={Math.round(Math.min(480, Math.max(380, contentWidth('feed') * 0.34)))}
+        singleContent={{ paddingBottom: 28 }}
+        left={
+      <>
         {self ? (
-          <View style={{ marginHorizontal: 20, flexDirection: 'row', gap: 8, backgroundColor: t.colors.accentSoft, borderRadius: 10, padding: 11, marginBottom: 12 }}>
+          <View style={{ marginHorizontal: mx, flexDirection: 'row', gap: 8, backgroundColor: t.colors.accentSoft, borderRadius: 10, padding: 11, marginBottom: 12 }}>
             <Icon name="eye" size={16} color={t.colors.accentDeep} />
             <RNText style={tx('500', 12, t.colors.accentDeep, { flex: 1 })}>This is how your profile appears to others.</RNText>
           </View>
@@ -162,7 +171,7 @@ function PublicProfileBody() {
 
         <View
           style={{
-            marginHorizontal: 20,
+            marginHorizontal: mx,
             borderRadius: 24,
             padding: 20,
             overflow: 'hidden',
@@ -215,7 +224,7 @@ function PublicProfileBody() {
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', marginHorizontal: 20, marginTop: 12, ...cardSurface(t, 18), paddingVertical: 14 }}>
+        <View style={{ flexDirection: 'row', marginHorizontal: mx, marginTop: 12, ...cardSurface(t, 18), paddingVertical: 14 }}>
           {(asWorker
             ? [
                 ['Jobs done', String(stats?.jobsDone ?? '–')],
@@ -234,8 +243,10 @@ function PublicProfileBody() {
             </View>
           ))}
         </View>
-
-        <View style={{ paddingHorizontal: 20 }}>
+      </>
+        }
+        right={
+        <View style={{ paddingHorizontal: mx }}>
           {asWorker && (p.skills ?? []).length > 0 ? (
             <>
               <RNText style={tx('800', 15, t.colors.ink, { marginTop: 20 })}>Works in</RNText>
@@ -284,7 +295,8 @@ function PublicProfileBody() {
             ))
           )}
         </View>
-      </ScrollView>
+        }
+      />
     </Screen>
   );
 }

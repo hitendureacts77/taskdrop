@@ -13,6 +13,7 @@ import { optionLabels } from './OptionBadges';
 import { HuntTag } from './HuntTag';
 import { huntLook } from '../data/api';
 import { huntPhase, isHunt } from '../lib/hunt';
+import { useLayout } from '../lib/layout';
 
 const CATEGORY_ICON: Record<string, IconName> = {
   'Home Services': 'home',
@@ -66,6 +67,7 @@ export const WorkCard = memo(function WorkCard({
   quoted?: boolean;
 }) {
   const t = useTheme();
+  const { desktop } = useLayout();
   const left = timeLeft(task.due_at);
   const rating =
     task.poster && task.poster.poster_rating_count > 0 ? Number(task.poster.poster_rating_avg).toFixed(1) : null;
@@ -119,8 +121,10 @@ export const WorkCard = memo(function WorkCard({
         style={[
           cardSurface(t),
           {
-            // Fixed height: every card in a row is the same height (design D21).
-            height: 176,
+            // Fixed height: every card in a row is the same height (design D21). On a desktop the
+            // card is as tall as its content (title block fixed at 2 lines, one meta line), so the
+            // meta line and the price row are never squeezed or clipped when the page is scaled.
+            ...(desktop ? { minHeight: 184 } : { height: 176 }),
             gap: 8,
             // Urgent work keeps a coral edge, softened into the line.
             borderColor: live ? t.colors.signal : t.colors.line,

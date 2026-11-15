@@ -170,11 +170,14 @@ export function UnderlineTabs({
   active,
   onPick,
   inset = 20,
+  vertical = false,
 }: {
   tabs: string[];
   active: number;
   onPick: (i: number) => void;
   inset?: number;
+  /** Desktop only (Settings, two panes): the tabs as a list down the left, arrow keys move between them. */
+  vertical?: boolean;
 }) {
   const t = useTheme();
   const [spots, setSpots] = useState<{ x: number; w: number }[]>([]);
@@ -198,6 +201,48 @@ export function UnderlineTabs({
     anim.start();
     return () => anim.stop();
   }, [active, spots, left, width]);
+
+  if (vertical) {
+    // react-native-web passes onKeyDown to the DOM; React Native's View types do not list it.
+    const keys = {
+      onKeyDown: (e: { key: string; preventDefault: () => void }) => {
+        const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+        if (!step) return;
+        e.preventDefault();
+        onPick((active + step + tabs.length) % tabs.length);
+      },
+    } as object;
+    return (
+      <View accessibilityRole="tablist" style={{ gap: 4 }} {...keys}>
+        {tabs.map((label, i) => {
+          const on = active === i;
+          return (
+            <Pressable
+              key={label}
+              onPress={() => onPick(i)}
+              accessibilityRole="tab"
+              accessibilityLabel={label}
+              accessibilityState={{ selected: on }}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 12,
+                paddingHorizontal: 14,
+                borderRadius: 12,
+                backgroundColor: on ? t.colors.accentSoft : 'transparent',
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <View style={{ width: 3, height: 18, borderRadius: 3, marginRight: 11, backgroundColor: on ? t.colors.accent : 'transparent' }} />
+              <RNText style={tx(on ? '800' : '600', 14, on ? t.colors.ink : t.colors.muted)} numberOfLines={1}>
+                {label}
+              </RNText>
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  }
 
   return (
     <View style={{ marginHorizontal: inset }}>
@@ -241,14 +286,17 @@ export function UnderlineTabs({
 }
 
 /**
- * A feed of cards: one column on a phone, two or three side by side on a
+ * A feed of cards: one column on a phone, two to four side by side on a
  * desktop browser. On a phone it renders its children untouched, so wrapping
  * a list in it changes nothing there.
  */
-export function Grid({ children, gap = 14 }: { children: React.ReactNode; gap?: number }) {
-  const { columns } = useLayout();
-  if (columns === 1) return <>{children}</>;
+export function Grid({ children, gap = 14, fill = false }: { children: React.ReactNode; gap?: number; fill?: boolean }) {
+  const { columns: fit, desktop } = useLayout();
+  if (fit === 1) return <>{children}</>;
   const items = React.Children.toArray(children);
+  // `fill` (desktop only): a short list spreads over the row (two cards on four columns take half each)
+  // instead of leaving the right side empty.
+  const columns = fill && desktop ? Math.min(fit, Math.max(2, items.length)) : fit;
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -gap / 2 }}>
       {items.map((child, i) => (

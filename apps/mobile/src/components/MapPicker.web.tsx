@@ -6,7 +6,7 @@ import { useReducedMotion } from '../lib/motion';
 import { tx } from './primitives';
 import { Ripples } from './Ripples';
 import { MapPicker as TileMapPicker } from './MapPicker.tiles';
-import { GL_TO_TILE, baseOptions, glStyleUrl, noRotation, useMapLib, type MapLib } from './GlMap.web';
+import { GL_TO_TILE, baseOptions, glStyleUrl, noRotation, useMapLib, useSharpMap, type MapLib } from './GlMap.web';
 
 type Props = Parameters<typeof TileMapPicker>[0];
 
@@ -73,6 +73,7 @@ function GlPicker({ lib, lat, lng, zoom = 15, onMoved, height, radius = 12, cont
   useEffect(() => {
     if (map) map.setStyle(glStyleUrl(t.isDark));
   }, [map, t.isDark]);
+  useSharpMap(map);
 
   // Follow the caller when it repositions us (current location, a search hit), but not mid-drag.
   useEffect(() => {

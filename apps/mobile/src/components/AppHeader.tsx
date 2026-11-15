@@ -38,7 +38,54 @@ const last = { userId: '' as string | null, initial: '?', avatar: null as string
 
 export function AppHeader() {
   const t = useTheme();
-  const { go, reset, screen } = useNav();
+  const { reset } = useNav();
+  const { desktop, tablet, width } = useLayout();
+  // Phones under 380 points (many Androids are 360): a tighter header, so the
+  // avatar is never pushed off the edge.
+  const tight = !desktop && !tablet && width < 380;
+  // A desktop browser has one bar above every screen's column instead
+  // (navigation/DesktopTopBar.tsx), holding the same tools.
+  if (desktop) return null;
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: desktop || tablet ? 32 : tight ? 12 : 16,
+        gap: tight ? 6 : 8,
+        paddingTop: desktop || tablet ? 16 : 10,
+        paddingBottom: 8,
+      }}
+    >
+      {/* The logo is the way home from anywhere, as on most apps. On wider
+          screens the side menu carries the logo and the Hire/Earn switch. */}
+      {!desktop && !tablet ? (
+        <>
+          <Pressable onPress={() => reset('home')} accessibilityRole="link" accessibilityLabel="TaskDrop home" hitSlop={6}>
+            <RNText style={tx('800', tight ? 19 : 21, t.colors.ink, { letterSpacing: -0.6 })}>
+              taskdrop<RNText style={tx('800', tight ? 19 : 21, t.colors.accent)}>.</RNText>
+            </RNText>
+          </Pressable>
+          <View style={{ marginLeft: 4 }}>
+            <ModeSwitch narrow={tight} />
+          </View>
+        </>
+      ) : null}
+      <View style={{ flex: 1 }} />
+      <HeaderTools tight={tight} />
+    </View>
+  );
+}
+
+/**
+ * Notifications (with the unread count), messages and the account menu -- or,
+ * for a guest, the sign-in pill. Drawn by AppHeader on phones and tablets and by
+ * the desktop top bar. The tour lights the three up together ('headerTools').
+ */
+export function HeaderTools({ tight = false }: { tight?: boolean }) {
+  const t = useTheme();
+  const { go, screen } = useNav();
   const { mode } = useMode();
   const modeRef = useRef(mode);
   modeRef.current = mode;
@@ -90,85 +137,55 @@ export function AppHeader() {
     };
   }, [userId]);
 
-  const { desktop, tablet, width } = useLayout();
-  // Phones under 380 points (many Androids are 360): a tighter header, so the
-  // avatar is never pushed off the edge.
-  const tight = !desktop && !tablet && width < 380;
   const btn = tight ? 36 : 40;
   const av = tight ? 34 : 36;
 
   return (
     <>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: desktop || tablet ? 32 : tight ? 12 : 16,
-          gap: tight ? 6 : 8,
-          paddingTop: desktop || tablet ? 16 : 10,
-          paddingBottom: 8,
-        }}
+      {/* One wrapper so the tour can light up the bell, messages and account menu together. */}
+      <View ref={toolsRef} collapsable={false} style={{ flexDirection: 'row', alignItems: 'center', gap: tight ? 6 : 8 }}>
+      {guest ? <GuestSignInPill /> : (<>
+      <IconButton icon="bell" label="Notifications" onPress={() => go('notifications')} badge={unread} size={btn} />
+      <IconButton icon="chat" label="Messages" onPress={() => go('inbox')} size={btn} />
+      <Pressable
+        onPress={() => setDrawer(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Account menu"
+        style={({ pressed }) => ({ marginLeft: 2, transform: [{ scale: pressed ? 0.94 : 1 }] })}
       >
-        {/* The logo is the way home from anywhere, as on most apps. On wider
-            screens the side menu carries the logo and the Hire/Earn switch. */}
-        {!desktop && !tablet ? (
-          <>
-            <Pressable onPress={() => reset('home')} accessibilityRole="link" accessibilityLabel="TaskDrop home" hitSlop={6}>
-              <RNText style={tx('800', tight ? 19 : 21, t.colors.ink, { letterSpacing: -0.6 })}>
-                taskdrop<RNText style={tx('800', tight ? 19 : 21, t.colors.accent)}>.</RNText>
-              </RNText>
-            </Pressable>
-            <View style={{ marginLeft: 4 }}>
-              <ModeSwitch narrow={tight} />
-            </View>
-          </>
-        ) : null}
-        <View style={{ flex: 1 }} />
-        {/* One wrapper so the tour can light up the bell, messages and account menu together. */}
-        <View ref={toolsRef} collapsable={false} style={{ flexDirection: 'row', alignItems: 'center', gap: tight ? 6 : 8 }}>
-        {guest ? <GuestSignInPill /> : (<>
-        <IconButton icon="bell" label="Notifications" onPress={() => go('notifications')} badge={unread} size={btn} />
-        <IconButton icon="chat" label="Messages" onPress={() => go('inbox')} size={btn} />
-        <Pressable
-          onPress={() => setDrawer(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Account menu"
-          style={({ pressed }) => ({ marginLeft: 2, transform: [{ scale: pressed ? 0.94 : 1 }] })}
+        <View
+          style={{
+            width: av,
+            height: av,
+            borderRadius: 999,
+            overflow: 'hidden',
+            backgroundColor: t.colors.btn,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
         >
-          <View
-            style={{
-              width: av,
-              height: av,
-              borderRadius: 999,
-              overflow: 'hidden',
-              backgroundColor: t.colors.btn,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {avatar ? (
-              <Image source={imageSource(avatar)} style={{ width: av, height: av }} contentFit="cover" />
-            ) : (
-              <RNText style={tx('800', 14, t.colors.onBtn)}>{initial}</RNText>
-            )}
-          </View>
-          {/* Presence is automatic: the app is open, so this person is active now. */}
-          <View
-            style={{
-              position: 'absolute',
-              right: -1,
-              bottom: -1,
-              width: 12,
-              height: 12,
-              borderRadius: 999,
-              backgroundColor: t.colors.online,
-              borderWidth: 2,
-              borderColor: t.colors.bg,
-            }}
-          />
-        </Pressable>
-        </>)}
+          {avatar ? (
+            <Image source={imageSource(avatar)} style={{ width: av, height: av }} contentFit="cover" />
+          ) : (
+            <RNText style={tx('800', 14, t.colors.onBtn)}>{initial}</RNText>
+          )}
         </View>
+        {/* Presence is automatic: the app is open, so this person is active now. */}
+        <View
+          style={{
+            position: 'absolute',
+            right: -1,
+            bottom: -1,
+            width: 12,
+            height: 12,
+            borderRadius: 999,
+            backgroundColor: t.colors.online,
+            borderWidth: 2,
+            borderColor: t.colors.bg,
+          }}
+        />
+      </Pressable>
+      </>)}
       </View>
       <AccountDrawer visible={drawer} onClose={() => setDrawer(false)} />
     </>

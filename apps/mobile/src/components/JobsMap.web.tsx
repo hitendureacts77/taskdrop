@@ -10,7 +10,7 @@ import { tx } from './primitives';
 import { Icon } from './Icon';
 import { JobsMap as TileJobsMap, YouMarker, type JobsMapProps } from './JobsMap.tiles';
 import { CALLOUT_LIFT, MapPinLayer } from './MapPinLayer';
-import { GL_TO_TILE, baseOptions, glStyleUrl, kmNorth, noRotation, useMapLib, type MapLib } from './GlMap.web';
+import { GL_TO_TILE, baseOptions, glStyleUrl, kmNorth, noRotation, useMapLib, useSharpMap, type MapLib } from './GlMap.web';
 
 export { mapWords, type JobPin, type JobsMapProps, type MapTone } from './JobsMap.tiles';
 
@@ -122,6 +122,7 @@ function GlJobsMap({
   useEffect(() => {
     if (map) map.setStyle(glStyleUrl(t.isDark));
   }, [map, t.isDark]);
+  useSharpMap(map);
 
   // A side panel or sheet covers part of the map: places are centred in what is left.
   const fillKey = fill ? `${fill.top},${fill.bottom},${fill.left ?? 0}` : '';

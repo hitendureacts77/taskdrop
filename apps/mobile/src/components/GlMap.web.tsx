@@ -1,6 +1,8 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type * as Gl from 'maplibre-gl';
+import { useLayout } from '../lib/layout';
+import { pageZoom } from '../lib/desktopScale';
 
 /**
  * The web map engine (plan D21): MapLibre GL drawing OpenFreeMap's free vector
@@ -109,4 +111,30 @@ export function noRotation(map: Gl.Map) {
 /** A point `km` north of `at`, for drawing a ring of that radius in screen pixels. */
 export function kmNorth(at: { lat: number; lng: number }, km: number): [number, number] {
   return [at.lng, Math.min(85, at.lat + km / 111.32)];
+}
+
+/**
+ * Keeps the map sharp on a zoomed desktop page (lib/desktopScale). MapLibre sizes its canvas from the
+ * container's layout width, which under CSS zoom is in design px, so the browser would stretch a
+ * smaller picture over the real pixels. Asking for `devicePixelRatio × zoom` gives one canvas pixel per
+ * screen pixel. The mouse needs nothing: MapLibre already divides by the box's on-screen scale.
+ * Off a zoomed page this never touches the map, so phones and tablets draw exactly as before.
+ */
+export function useSharpMap(map: Gl.Map | null): void {
+  const { scale, width, height } = useLayout();
+  const overridden = useRef(false);
+  useEffect(() => {
+    if (!map || typeof window === 'undefined') return;
+    const zoom = pageZoom();
+    if (zoom === 1) {
+      // Back to MapLibre's own devicePixelRatio (its types do not list the null it accepts for that).
+      if (overridden.current) map.setPixelRatio(null as unknown as number);
+      overridden.current = false;
+      return;
+    }
+    const ratio = window.devicePixelRatio * zoom;
+    if (Math.abs(map.getPixelRatio() - ratio) > 0.001) map.setPixelRatio(ratio);
+    overridden.current = true;
+    // width and height: the browser's own zoom changes devicePixelRatio and the window size together.
+  }, [map, scale, width, height]);
 }
