@@ -1342,7 +1342,10 @@ function PosterIdeas({ onPrompt }: { onPrompt: (prompt: string) => void }) {
 /** One poster idea. A component of its own so it can read the width the Rail's grid gives it. */
 function IdeaCard({ idea: x, onPress }: { idea: PosterIdea; onPress: () => void }) {
   const t = useTheme();
-  const width = useRailItemWidth(230);
+  const { desktop } = useLayout();
+  const railWidth = useRailItemWidth(230);
+  // Desktop only: phones and tablets keep the fixed 230 they always had.
+  const width = desktop ? railWidth : 230;
   return (
     <Pressy
       onPress={onPress}
