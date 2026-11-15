@@ -1,0 +1,97 @@
+name: Production nightly backup
+
+# Plan task 5.9, hole H16: every night an encrypted copy of the PRODUCTION database is kept outside
+# Supabase, for 30 days, on top of Supabase's own backups. The restore is practised in task 6.5
+# (docs/RELEASE.md section 7).
+#
+# Scheduled workflows run from the default branch (main), so this starts once the owner promotes it.
+# The secrets live only in the GitHub environment `production-backup` (no reviewer, because a nightly job
+# cannot wait for a click; only the `main` branch may use it). Values come from the PROD_ section of
+# .env.all-secrets and are never printed:
+#   secret   PROD_SUPABASE_DB_PASSWORD   the production database password
+#   secret   PROD_BACKUP_PASSPHRASE      encrypts the copy (AES-256); without it the copy cannot be opened
+#   variable PROD_SUPABASE_PROJECT_REF   the production project ref (not a secret)
+#
+# To open a copy: download the artifact, then
+#   gpg --decrypt taskdrop-production-<stamp>.dump.gpg > taskdrop-production.dump
+#   pg_restore --list taskdrop-production.dump
+# Restore only into a scratch project, never over production (RELEASE.md section 7).
+
+on:
+  schedule:
+    - cron: '30 21 * * *' # 03:00 India time
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: encrypted copy of the production database
+    runs-on: ubuntu-latest
+    environment: production-backup
+    timeout-minutes: 60
+    env:
+      PROJECT_REF: ${{ vars.PROD_SUPABASE_PROJECT_REF }}
+    steps:
+      - name: refuse anything but a production project ref
+        run: |
+          if ! printf '%s' "$PROJECT_REF" | grep -Eq '^[a-z0-9]{20}$'; then
+            echo "PROD_SUPABASE_PROJECT_REF is not set to a project ref"; exit 1
+          fi
+          if [ "$PROJECT_REF" = "wjxvingpfbfvkfqhrguj" ]; then
+            echo "That is the staging project. This job backs up production only."; exit 1
+          fi
+
+      # Supabase runs Postgres 17; pg_dump must be at least the server's version.
+      - name: install the Postgres 17 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          /usr/lib/postgresql/17/bin/pg_dump --version
+
+      # The direct database address is IPv6 only and GitHub's runners have no IPv6, so this uses Supabase's
+      # session pooler (port 5432, which allows pg_dump). The password reaches pg_dump only through PGPASSWORD.
+      - name: dump and encrypt
+        env:
+          PGPASSWORD: ${{ secrets.PROD_SUPABASE_DB_PASSWORD }}
+          PASSPHRASE: ${{ secrets.PROD_BACKUP_PASSPHRASE }}
+          PGSSLMODE: require
+        run: |
+          set -euo pipefail
+          if [ -z "$PGPASSWORD" ] || [ -z "$PASSPHRASE" ]; then echo "A secret of the production-backup environment is missing"; exit 1; fi
+          if [ "${#PASSPHRASE}" -lt 32 ]; then echo "PROD_BACKUP_PASSPHRASE must be at least 32 characters"; exit 1; fi
+          umask 077
+          stamp=$(date -u +%Y%m%dT%H%MZ)
+          mkdir -p out
+          # TaskDrop's own data and the sign-in accounts. Vault is left out: its rows are encrypted with a key
+          # only that project holds. Owners and grants are left out: the restore target is built from the
+          # migrations first, which set them.
+          /usr/lib/postgresql/17/bin/pg_dump \
+            --host=aws-0-ap-south-1.pooler.supabase.com --port=5432 \
+            --username="postgres.${PROJECT_REF}" --dbname=postgres \
+            --format=custom --compress=9 --no-owner --no-privileges \
+            --schema=public --schema=private --schema=auth --schema=storage --schema=supabase_migrations \
+            --file=out/db.dump
+          # A copy that cannot be listed is not a copy.
+          /usr/lib/postgresql/17/bin/pg_restore --list out/db.dump > /dev/null
+          echo "dump size: $(stat -c %s out/db.dump) bytes"
+          printf '%s' "$PASSPHRASE" | gpg --batch --yes --quiet --pinentry-mode loopback --passphrase-fd 0 \
+            --symmetric --cipher-algo AES256 --output "out/taskdrop-production-${stamp}.dump.gpg" out/db.dump
+          shred -u out/db.dump
+          ls out
+
+      - name: keep the copy for 30 days
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: taskdrop-production-backup-${{ github.run_id }}
+          path: out/*.dump.gpg
+          retention-days: 30
+          if-no-files-found: error
