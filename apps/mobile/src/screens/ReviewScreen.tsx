@@ -11,7 +11,7 @@ import { fontFamilyFor } from '../theme';
 import { tx } from '../components/primitives';
 import { KeyboardSafe } from '../components/KeyboardSafe';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
-import { REVIEW_COMMENT_MAX, praiseAllowed, reviewBody } from '../lib/reviewBody';
+import { REVIEW_COMMENT_MAX, canSubmitReview, praiseAllowed, reviewBody } from '../lib/reviewBody';
 
 /**
  * Ratings & review — pixel parity with docs/design/_design_markup.html lines
@@ -80,7 +80,8 @@ export function ReviewScreen() {
   const { mode } = useMode();
   const { openTask, celebrate, flash } = useApp();
 
-  const [stars, setStars] = useState(5);
+  // B76 / W2-4: no stars until the person taps one; Submit stays off until then.
+  const [stars, setStars] = useState(0);
   // Nothing is ticked for them: praise a poster never chose must not go out with the review.
   const [praise, setPraise] = useState<number[]>([]);
   const [comment, setComment] = useState('');
@@ -101,7 +102,7 @@ export function ReviewScreen() {
   };
 
   const submit = async () => {
-    if (busy) return;
+    if (busy || !canSubmitReview(stars)) return;
     if (!taskId) {
       flash('This is a sample task — open a real one from your requests');
       return;
@@ -168,7 +169,7 @@ export function ReviewScreen() {
             ))}
           </View>
           <RNText style={tx('700', 14, t.colors.accentDeep, { marginTop: 11 })}>
-            {WORDS[stars - 1] ?? 'Excellent'}
+            {stars > 0 ? WORDS[stars - 1] : 'Tap a star to rate'}
           </RNText>
         </View>
 
@@ -212,8 +213,12 @@ export function ReviewScreen() {
       <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
         <Pressable
           onPress={submit}
+          disabled={!canSubmitReview(stars) || busy}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canSubmitReview(stars) || busy }}
           style={({ pressed }) => [
             {
+              opacity: canSubmitReview(stars) ? 1 : 0.45,
               backgroundColor: t.colors.btn,
               borderRadius: 999,
               paddingVertical: 16,
