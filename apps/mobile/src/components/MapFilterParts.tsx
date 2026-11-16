@@ -3,7 +3,7 @@ import { View, Text as RNText, TextInput } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { Icon, type IconName } from './Icon';
 import { Slider } from './Slider';
-import { Pressy, tx } from './primitives';
+import { HitArea, Pressy, tx } from './primitives';
 import { Segmented } from './NearMapParts';
 import { wholeDigits, wholeText } from '../lib/rupeeInput';
 import {
@@ -122,6 +122,8 @@ export function QuickChip({
         ...(on ? { backgroundColor: t.colors.ink } : { backgroundColor: t.colors.bg, borderWidth: 1, borderColor: t.colors.line }),
       }}
     >
+      {/* B172: a 32 px chip, 40 px to tap. */}
+      <HitArea y={4} />
       {locked ? <Icon name="lock" size={11} color={t.colors.muted} /> : null}
       {dot ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }} /> : null}
       <RNText style={tx(on ? '800' : '700', 12, on ? t.colors.bg : t.colors.ink)} numberOfLines={1}>

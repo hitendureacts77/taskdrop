@@ -4,7 +4,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import type { TaskWithPoster } from '../data/api';
 import { Icon, type IconName } from './Icon';
 import { Badge, rupees, timeLeft } from './kit';
-import { FadeIn, Pressy, tx } from './primitives';
+import { FadeIn, HitArea, Pressy, tx } from './primitives';
 import { presenceOf } from '../lib/presence';
 import { roughPlace } from '../lib/place';
 import { cardSurface } from './ui';
@@ -142,10 +142,12 @@ export const WorkCard = memo(function WorkCard({
           {onToggleSave ? (
             <Pressable
               onPress={onToggleSave}
-              hitSlop={10}
+              hitSlop={11}
               accessibilityRole="button"
               accessibilityLabel={saved ? 'Remove from saved' : 'Save for later'}
             >
+              {/* B172: 18 px icon, 40 px to tap. */}
+              <HitArea x={11} y={11} />
               <Icon name="bookmark" size={18} color={saved ? t.colors.accentDeep : t.colors.muted} strokeWidth={saved ? 2.6 : 1.8} />
             </Pressable>
           ) : null}

@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { Icon, type IconName } from './Icon';
-import { Pressy, tx } from './primitives';
+import { HitArea, Pressy, tx } from './primitives';
 import { useLayout } from '../lib/layout';
 import { useKeyboardClearance } from '../lib/useKeyboardClearance';
 import { KeyboardScrollView, useReveal } from './KeyboardScrollView';
@@ -711,7 +711,9 @@ export function SectionTitle({
       {badge ? <Badge label={badge} tone="signal" /> : null}
       <View style={{ flex: 1 }} />
       {action && onAction ? (
-        <Pressable onPress={onAction} hitSlop={8} accessibilityRole="button">
+        <Pressable onPress={onAction} hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }} accessibilityRole="button">
+          {/* B172: a 17 px link ("Edit skills"), 40 px to tap. */}
+          <HitArea x={8} y={12} />
           <RNText style={tx('700', 13, t.colors.accentDeep)}>{action}</RNText>
         </Pressable>
       ) : null}

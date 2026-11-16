@@ -17,7 +17,7 @@ import { isReadyMobile, normalizeMobileInput } from '../lib/phone';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { BottomSheet, Field, PrimaryButton } from '../components/kit';
-import { tx } from '../components/primitives';
+import { HitArea, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useAppConfig } from '../components/AppGate';
 import { useNav } from '../providers/NavProvider';
@@ -418,11 +418,12 @@ export function AccessScreen() {
                 declineAccount();
                 back();
               }}
-              hitSlop={8}
+              hitSlop={11}
               accessibilityRole="button"
               accessibilityLabel="Not now"
               style={{ alignSelf: 'flex-start', marginBottom: 14 }}
             >
+              <HitArea x={8} y={11} />
               <RNText style={tx('700', 14, t.colors.muted)}>Not now</RNText>
             </Pressable>
           ) : null}
@@ -745,7 +746,9 @@ export function AccessScreen() {
                 ['support', 'Support'],
               ] as const
             ).map(([page, label]) => (
-              <Pressable key={page} onPress={() => go(page)} hitSlop={8} accessibilityRole="link">
+              <Pressable key={page} onPress={() => go(page)} hitSlop={{ top: 13, bottom: 13, left: 6, right: 6 }} accessibilityRole="link">
+                {/* B172: 15 px links, 40 px to tap; the 14 px gaps between them are shared. */}
+                <HitArea x={6} y={13} />
                 <RNText style={tx('500', 12, t.colors.muted, { textDecorationLine: 'underline' })}>{label}</RNText>
               </Pressable>
             ))}

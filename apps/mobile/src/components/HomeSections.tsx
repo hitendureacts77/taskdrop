@@ -56,7 +56,7 @@ import { resolveCurrentPlace } from '../lib/location';
 import { pickedPlaceName, roughPlace } from '../lib/place';
 import { guestAreaFromPicked } from '../lib/guestArea';
 import { readGuestArea, saveGuestArea } from '../lib/guestAreaStore';
-import { Pressy, tx } from './primitives';
+import { HitArea, Pressy, tx } from './primitives';
 
 /**
  * Loads one of Home's sections when Home is in view and has not loaded for this focus tick: when it
@@ -1002,8 +1002,10 @@ function EarnTop() {
         <Pressable
           onPress={() => go('explore')}
           style={{ alignSelf: 'center', marginTop: 18, marginBottom: 20 }}
+          hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
           accessibilityRole="button"
         >
+          <HitArea x={8} y={12} />
           <RNText style={tx('700', 13, t.colors.accentDeep)}>See every open job ›</RNText>
         </Pressable>
       </View>
