@@ -17,7 +17,7 @@ import { isReadyMobile, normalizeMobileInput } from '../lib/phone';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { BottomSheet, Field, PrimaryButton } from '../components/kit';
-import { tx } from '../components/primitives';
+import { HitArea, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useAppConfig } from '../components/AppGate';
 import { useNav } from '../providers/NavProvider';
@@ -100,6 +100,8 @@ export function AccessScreen() {
   const [pwOpen, setPwOpen] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPasswordText] = useState('');
+  // What is missing when Sign in was tapped with an empty box; cleared once they type.
+  const [pwMissing, setPwMissing] = useState<string | null>(null);
   const [pwBusy, setPwBusy] = useState(false);
 
   // The server refuses a second code within 60 seconds; count it down here
@@ -292,7 +294,9 @@ export function AccessScreen() {
   };
 
   const passwordSignIn = async () => {
-    if (!username.trim() || !password) return flash('Enter your username and password');
+    const missing = !username.trim() && !password ? 'Enter your username and password.' : !username.trim() ? 'Enter your username.' : !password ? 'Enter your password.' : null;
+    setPwMissing(missing);
+    if (missing) return flash(missing);
     setPwBusy(true);
     try {
       await signInWithUsername(username, password);
@@ -414,11 +418,12 @@ export function AccessScreen() {
                 declineAccount();
                 back();
               }}
-              hitSlop={8}
+              hitSlop={11}
               accessibilityRole="button"
               accessibilityLabel="Not now"
               style={{ alignSelf: 'flex-start', marginBottom: 14 }}
             >
+              <HitArea x={8} y={11} />
               <RNText style={tx('700', 14, t.colors.muted)}>Not now</RNText>
             </Pressable>
           ) : null}
@@ -741,7 +746,9 @@ export function AccessScreen() {
                 ['support', 'Support'],
               ] as const
             ).map(([page, label]) => (
-              <Pressable key={page} onPress={() => go(page)} hitSlop={8} accessibilityRole="link">
+              <Pressable key={page} onPress={() => go(page)} hitSlop={{ top: 13, bottom: 13, left: 6, right: 6 }} accessibilityRole="link">
+                {/* B172: 15 px links, 40 px to tap; the 14 px gaps between them are shared. */}
+                <HitArea x={6} y={13} />
                 <RNText style={tx('500', 12, t.colors.muted, { textDecorationLine: 'underline' })}>{label}</RNText>
               </Pressable>
             ))}
@@ -759,7 +766,10 @@ export function AccessScreen() {
         <Field
           label="Username"
           value={username}
-          onChangeText={(v) => setUsername(v.replace(/[^a-zA-Z0-9_@]/g, '').toLowerCase())}
+          onChangeText={(v) => {
+            setUsername(v.replace(/[^a-zA-Z0-9_@]/g, '').toLowerCase());
+            setPwMissing(null);
+          }}
           autoCapitalize="none"
           autoCorrect={false}
           placeholder="yourname"
@@ -768,13 +778,22 @@ export function AccessScreen() {
         <Field
           label="Password"
           value={password}
-          onChangeText={setPasswordText}
+          onChangeText={(v) => {
+            setPasswordText(v);
+            setPwMissing(null);
+          }}
           secureTextEntry
           autoCapitalize="none"
           style={{ marginTop: 14 }}
           returnKeyType="go"
           onSubmitEditing={() => void passwordSignIn()}
         />
+        {pwMissing ? (
+          // B179: said under the boxes too, not only in a toast that is gone in 2 seconds.
+          <RNText accessibilityRole="alert" style={tx('600', 13, t.colors.signalDeep, { marginTop: 10 })}>
+            {pwMissing}
+          </RNText>
+        ) : null}
         <RNText style={tx('400', 12, t.colors.muted, { marginTop: 12, lineHeight: 18 })}>
           Forgot it? Use your mobile number instead, then set a new password in Settings → Security.
         </RNText>

@@ -26,6 +26,8 @@ export type Palette = {
   signal: string;
   signalDeep: string;
   signalSoft: string;
+  /** Coral FILL behind white text (count badges, the NEW tag): the deep shade in both themes (B174). Never for text. */
+  signalFill: string;
   purple: string;
   /** Earn-blue text and icons on surface, bg and purpleSoft: 4.5:1 or more in both themes (dark is the light tint). */
   purpleDeep: string;
@@ -70,8 +72,10 @@ export const light: Palette = {
   goldSoft: '#FBF1E0',
   goldInk: '#8A5A12',
   signal: '#E0724A',
-  signalDeep: '#B4512C',
+  // A shade deeper than #B4512C, which read 4.42:1 on signalSoft in the URGENT badge (B174).
+  signalDeep: '#A8461F',
   signalSoft: '#FBEDE7',
+  signalFill: '#B4512C',
   purple: '#2F5BEA',
   purpleDeep: '#1E40AF',
   purpleFill: '#1E40AF',
@@ -109,6 +113,7 @@ export const dark: Palette = {
   signal: '#E0724A',
   signalDeep: '#F08A66',
   signalSoft: '#2C1A14',
+  signalFill: '#B4512C',
   purple: '#6B8CFF',
   purpleDeep: '#9DB4FF',
   purpleFill: '#4F6FE8',
@@ -127,6 +132,19 @@ export const dark: Palette = {
   online: '#4ADE9A',
   shadow: '#000000',
 };
+
+/**
+ * White text on the hero gradient (B174). A white-tinted chip lightened the hero under its 12 px label to
+ * 4.38:1; a dark tint keeps it above 4.5:1 even on the gradient's lightest stop. Small hero text is full
+ * white for the same reason (0.82 white measured 4.25:1).
+ */
+export const onHero = {
+  text: '#FFFFFF',
+  chip: 'rgba(0,0,0,0.16)',
+  chipHover: 'rgba(0,0,0,0.24)',
+  /** Letters on the white circles of the hero art: the deep Earn blue, the same in both themes. */
+  letter: light.purpleDeep,
+} as const;
 
 /** Plus Jakarta Sans families (from @expo-google-fonts/plus-jakarta-sans).
  *  RN needs a distinct family per weight rather than a numeric fontWeight. */

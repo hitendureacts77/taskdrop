@@ -14,7 +14,7 @@ import { markBigDayPosted } from '../lib/bigDayStore';
 import { bigDayParam } from '../lib/bigDays';
 import { GUEST_DRAFTS_OWNER, isNeedsAccount, needAccount } from '../lib/guest';
 import { useReducedMotion } from '../lib/motion';
-import { FadeIn, Pressy, tx } from '../components/primitives';
+import { FadeIn, HitArea, Pressy, tx } from '../components/primitives';
 import { KeyboardSafe } from '../components/KeyboardSafe';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
 import { TaskDescription } from '../components/TaskDescription';
@@ -1451,7 +1451,9 @@ export function AiPostScreen() {
             {value}
           </RNText>
         </View>
-        <Pressable onPress={() => reopen(target)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Edit ${head}`}>
+        <Pressable onPress={() => reopen(target)} hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={`Edit ${head}`}>
+          {/* B172: a 25 x 17 px link, 40 px to tap. */}
+          <HitArea x={8} y={12} />
           <RNText style={tx('700', 13, t.colors.accentDeep)}>Edit</RNText>
         </Pressable>
       </View>
@@ -1463,7 +1465,8 @@ export function AiPostScreen() {
         <View style={{ marginTop: 20, ...cardSurface(t, 20), overflow: 'hidden' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: t.colors.accentSoft, paddingHorizontal: 16, paddingVertical: 9 }}>
             <RNText style={tx('700', 11, t.colors.accentDeep, { letterSpacing: 1.2, flex: 1 })}>AS WORKERS WILL SEE IT</RNText>
-            <Pressable onPress={() => reopen('brief')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Edit your post">
+            <Pressable onPress={() => reopen('brief')} hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="Edit your post">
+              <HitArea x={8} y={12} />
               <RNText style={tx('700', 12, t.colors.accentDeep)}>Edit</RNText>
             </Pressable>
           </View>

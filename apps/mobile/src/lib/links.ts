@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { pageFromAddress, type PublicPage } from '../navigation/webAddress';
 
 /**
  * Public links into the app.
@@ -66,15 +67,13 @@ export function incomingTaskId(): string | null {
   return id && /^[0-9a-f-]{36}$/i.test(id) ? id : null;
 }
 
-/** Public pages a link can open directly, signed in or not: ?page=<name>. */
-const PUBLIC_PAGES = ['copyright', 'terms', 'privacy', 'support'] as const;
-export type PublicPage = (typeof PUBLIC_PAGES)[number];
+/** Public pages a link can open directly, signed in or not: /privacy or ?page=privacy (B171). */
+export type { PublicPage } from '../navigation/webAddress';
 
-/** The public page a visitor arrived for, if any. Web only. */
+/** The public page a visitor arrived for, if any: its path (/terms) or ?page=terms. Web only. */
 export function incomingPage(): PublicPage | null {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
-  const page = new URLSearchParams(window.location.search).get('page');
-  return (PUBLIC_PAGES as readonly string[]).includes(page ?? '') ? (page as PublicPage) : null;
+  return pageFromAddress(window.location.pathname, window.location.search);
 }
 
 /** Shareable URL for a public page, e.g. the copyright notice page. */

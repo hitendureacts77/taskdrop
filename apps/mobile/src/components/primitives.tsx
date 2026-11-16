@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Pressable, Animated, type TextStyle, type ViewStyle, type StyleProp } from 'react-native';
+import { Pressable, Animated, Platform, View, type TextStyle, type ViewStyle, type StyleProp } from 'react-native';
 import { fontFamilyFor } from '../theme';
 
 /**
@@ -54,6 +54,17 @@ export function Pressy({
       {children}
     </Pressable>
   );
+}
+
+/**
+ * An invisible bigger tap area for a small control, without changing how it looks (B172). Put it inside the
+ * Pressable, which must not clip (no overflow hidden). On the web, where hitSlop does nothing, it is a
+ * see-through box reaching `x` / `y` px past the control, so a click there still lands on it; the phones use
+ * the Pressable's own hitSlop instead (give it the same x / y).
+ */
+export function HitArea({ x = 0, y = 0 }: { x?: number; y?: number }) {
+  if (Platform.OS !== 'web') return null;
+  return <View pointerEvents="auto" aria-hidden style={{ position: 'absolute', top: -y, bottom: -y, left: -x, right: -x }} />;
 }
 
 /**

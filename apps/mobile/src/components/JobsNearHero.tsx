@@ -5,8 +5,11 @@ import { useNav } from '../providers/NavProvider';
 import { attachPosters, type TaskWithPoster } from '../data/api';
 import { tasksNear } from '../data/extras';
 import { taskToFeedRow } from '../lib/openTask';
-import { roughPlace } from '../lib/place';
+import { pickedPlaceName } from '../lib/place';
 import { useMyArea } from '../lib/useMyArea';
+import { FIND_WORK_LIMIT, capped } from '../lib/findWorkRead';
+import { KM_STEPS, jobsSummary, matchesJob } from '../lib/mapFilters';
+import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
 import { Icon } from './Icon';
 import { Shimmer, rupees } from './kit';
 import { JobsMap, type JobPin } from './JobsMap';
@@ -15,7 +18,6 @@ import { LocationSheet } from './LocationSheet';
 import { cardSurface } from './ui';
 import { Pressy, tx } from './primitives';
 
-const RADII = [3, 10, 25, 50];
 /** The strip is short on purpose: a taste of the map, the full one is a tap away. */
 const STRIP_HEIGHT = 150;
 
@@ -28,8 +30,13 @@ export function JobsNearHero({ onOpenMap }: { onOpenMap?: () => void }) {
   const t = useTheme();
   const { go } = useNav();
   const { area, loaded, choose } = useMyArea();
-  const [radius, setRadius] = useState(25);
-  const [rows, setRows] = useState<(TaskWithPoster & { km: number })[] | null>(null);
+  // B170: the distance is the shared Find work one (list and map), not a card-only 25 km, and the count
+  // goes through the same filters and words as theirs. The read is the list's size; a full read says "200+".
+  const filters = useJobFilters();
+  const radius = filters.km;
+  const [all, setRows] = useState<(TaskWithPoster & { km: number })[] | null>(null);
+  const rows = all ? all.filter((r) => matchesJob(r, filters)) : null;
+  const full = all ? capped(all.length, FIND_WORK_LIMIT) : false;
   const [at, setAt] = useState(0);
   const [pickPlace, setPickPlace] = useState(false);
 
@@ -41,7 +48,7 @@ export function JobsNearHero({ onOpenMap }: { onOpenMap?: () => void }) {
     let alive = true;
     setRows(null);
     // Posters ride along so the zoomed-in map can show who posted each task.
-    void tasksNear(area, radius, 40)
+    void tasksNear(area, radius, FIND_WORK_LIMIT)
       .then(async (r) => {
         const withPeople = await attachPosters(r);
         if (alive) {
@@ -55,13 +62,13 @@ export function JobsNearHero({ onOpenMap }: { onOpenMap?: () => void }) {
     };
   }, [area, radius, loaded]);
 
-  const name = area ? (roughPlace(area.label)?.split(',')[0] ?? area.label) : null;
+  const name = area ? (pickedPlaceName(area.label) ?? area.label) : null;
   const pins = (rows ?? []).map((r) => jobPin(r, at)).filter((x): x is JobPin => x !== null);
   const openMap = () => {
     if (onOpenMap) onOpenMap();
     else if (area) go('nearMap', { mode: 'jobs', centre: { lat: area.lat, lng: area.lng }, radiusKm: radius });
   };
-  const nextRadius = () => setRadius((r) => RADII[(RADII.indexOf(r) + 1) % RADII.length]!);
+  const nextRadius = () => setJobFilters({ ...filters, km: KM_STEPS[(KM_STEPS.indexOf(radius) + 1) % KM_STEPS.length]! });
 
   let body: React.ReactNode;
   if (!area && !loaded) {
@@ -123,7 +130,7 @@ export function JobsNearHero({ onOpenMap }: { onOpenMap?: () => void }) {
           </RNText>
           <Pressy onPress={nextRadius} label={`Change the distance, now ${radius} km`} style={{ alignSelf: 'flex-start' }}>
             <RNText style={tx('800', 17, t.colors.ink, { letterSpacing: -0.3 })} numberOfLines={1}>
-              {rows.length === 0 ? `No jobs within ${radius} km` : `${rows.length} ${rows.length === 1 ? 'job' : 'jobs'} within ${radius} km`}
+              {rows.length === 0 ? `No jobs within ${radius} km` : jobsSummary(rows.length, 0, radius, 'local', { near: full })}
             </RNText>
           </Pressy>
           {rows.length > 0 ? (

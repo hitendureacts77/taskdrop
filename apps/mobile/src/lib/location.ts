@@ -1,6 +1,7 @@
 import { Platform, Linking } from 'react-native';
 import * as Location from 'expo-location';
 import { FUNCTIONS_REGION, supabase } from './supabase';
+import { tidyLabel } from './place';
 
 /**
  * Everything the app knows about finding places, in one file.
@@ -273,7 +274,7 @@ export async function describeCoords(lat: number, lng: number): Promise<string> 
       8000,
     );
     const label = (data as { label?: string | null } | null)?.label;
-    if (label) return label;
+    if (label) return tidyLabel(label);
   } catch {
     /* fall through */
   }
@@ -323,7 +324,7 @@ async function serverPlaces(q: string): Promise<PickedPlace[]> {
     );
     if (error) return [];
     const out = data as { places?: PickedPlace[]; source?: string } | null;
-    const places = (out?.places ?? []).filter((p) => p.lat !== null && p.lng !== null);
+    const places = (out?.places ?? []).filter((p) => p.lat !== null && p.lng !== null).map((p) => ({ ...p, label: tidyLabel(p.label) }));
     lastProvider = out?.source === 'google' && places.length ? 'google' : 'osm';
     return places;
   } catch {

@@ -71,6 +71,15 @@ export function GuestNote() {
 }
 
 /**
+ * The same "needs an account" block as GuestScreen, inside a screen that still has a guest's own
+ * things below it (My Work keeps the jobs saved on this phone), so no pop-up on arrival (B175).
+ */
+export function GuestAccountCard({ icon, heading, body }: { icon: IconName; heading: string; body: string }) {
+  const { go } = useNav();
+  return <EmptyState icon={icon} title={heading} body={body} actionLabel="Sign in" onAction={() => go('welcome', { [FROM_GUEST]: true })} />;
+}
+
+/**
  * A screen that is only about an account (Messages, Notifications, Chat): a guest gets the
  * "Make your account" pop-up and, behind it, a plain page with a Sign in button.
  */

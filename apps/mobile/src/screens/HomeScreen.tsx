@@ -26,6 +26,7 @@ import type { Enums } from '@taskdrop/db-types';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { AppHeader } from '../components/AppHeader';
+import { categoryLabel } from '../components/WorkCard';
 import { HomeSections } from '../components/HomeSections';
 import { roughPlace } from '../lib/place';
 import { ListingCard } from '../components/ListingCard';
@@ -57,6 +58,8 @@ export type FeedRow = {
   rating: string;
   whoMeta: string;
   tag: 'SERVICES' | 'PRODUCTS' | 'LOCAL HELP';
+  /** The task's category as the list card shows it (Tutoring & Education): the page's eyebrow (B179). */
+  category?: string;
   title: string;
   meta: string;
   amountMinor: number;
@@ -124,6 +127,7 @@ function liveToFeedRow(task: LiveTask, worker: boolean): FeedRow {
     // printing the same long address twice on one card helps nobody.
     whoMeta: roughPlace(task.poster?.loc_label) ?? 'new here',
     tag: PILLAR_TAG[task.pillar] ?? 'SERVICES',
+    category: categoryLabel(task),
     title: task.title,
     meta:
       task.flag === 'urgent'
@@ -847,7 +851,7 @@ export function HomeScreen() {
                           {row.rating === 'new' ? 'new here' : '★ ' + row.rating}
                         </RNText>
                         <RNText
-                          style={tx('700', 9, t.colors.signal, {
+                          style={tx('700', 9, t.colors.signalDeep, {
                             letterSpacing: 1.26,
                             marginLeft: 'auto',
                           })}

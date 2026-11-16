@@ -18,7 +18,7 @@ import { useApp, useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { GUEST_DRAFTS_OWNER } from '../lib/guest';
 import { listGuestSaves, loadGuestSavedTasks, setGuestSaved } from '../lib/guestSaves';
-import { GuestNote } from '../components/GuestBits';
+import { GuestAccountCard, GuestNote } from '../components/GuestBits';
 import {
   attachPosters,
   cancelTask,
@@ -240,6 +240,8 @@ function MyPosted() {
         ) : null}
         {/* One summary card rather than four tiles: what is running, what is
             waiting on me, what is done. Spending lives in Wallet → Insights. */}
+        {/* B175: a guest has no tasks to count yet; the zeros read like a real empty account. */}
+        {guest ? null : (
         <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
           <HeroCard radius={24} padding={20} watermark={false} ringSize={180}>
             <RNText style={tx('700', 12.5, 'rgba(255,255,255,0.82)')}>Your tasks at a glance</RNText>
@@ -283,6 +285,7 @@ function MyPosted() {
             ) : null}
           </HeroCard>
         </View>
+        )}
         <AlertsCard show={(tasks?.length ?? 0) > 0} side="hire" />
 
         <View {...ring}
@@ -629,7 +632,9 @@ function MyWork() {
   const { flash, setOpenTask, startedOf } = useApp();
   const { userId, guest } = useAuth();
   const focusTick = useFocusTick();
-  const [tab, setTab] = useState(0);
+  const [pickedTab, setTab] = useState(0);
+  // A guest only has the jobs saved on this phone (B175).
+  const tab = guest ? 3 : pickedTab;
   const [rows, setRows] = useState<ViewRow[] | null>(null);
   const [saved, setSavedTasks] = useState<TaskWithPoster[] | null>(null);
   // Services this worker listed; posters browse these (migration 050).
@@ -733,21 +738,31 @@ function MyWork() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.purple} />}
       >
         {guest ? (
+          // B175: no earnings, counts or tabs that read like an empty real account; the jobs saved on
+          // this phone stay listed under the account block.
           <View style={{ paddingHorizontal: 20 }}>
-            <GuestNote />
+            <GuestAccountCard
+              icon="briefcase"
+              heading="Your jobs need an account"
+              body="Offers you send, jobs you win and what you earn show up here once your account is made."
+            />
+            <RNText style={tx('800', 15, t.colors.ink, { marginTop: 8 })}>Saved on this phone</RNText>
           </View>
-        ) : null}
-        <AlertsCard show={(rows?.length ?? 0) > 0} side="earn" />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 20, paddingTop: 8 }}>
-          <StatTile icon="wallet" label="Earned" value={w ? formatINR(w.earnedMinor) : '–'} />
-          <StatTile icon="check" label="Completed" value={String(w?.jobsDone ?? '–')} tone="blue" />
-          <StatTile icon="play" label="Active" value={String(w?.jobsLive ?? '–')} tone="gold" />
-          <StatTile icon="trending" label="Success" value={success} tone="purple" />
-        </View>
+        ) : (
+          <>
+            <AlertsCard show={(rows?.length ?? 0) > 0} side="earn" />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 20, paddingTop: 8 }}>
+              <StatTile icon="wallet" label="Earned" value={w ? formatINR(w.earnedMinor) : '–'} />
+              <StatTile icon="check" label="Completed" value={String(w?.jobsDone ?? '–')} tone="blue" />
+              <StatTile icon="play" label="Active" value={String(w?.jobsLive ?? '–')} tone="gold" />
+              <StatTile icon="trending" label="Success" value={success} tone="purple" />
+            </View>
 
-        <View style={{ marginTop: 16 }}>
-          <PillTabs tabs={WORKER_TABS.map((x, i) => ({ label: x, count: counts[i] }))} active={tab} onPick={setTab} />
-        </View>
+            <View style={{ marginTop: 16 }}>
+              <PillTabs tabs={WORKER_TABS.map((x, i) => ({ label: x, count: counts[i] }))} active={tab} onPick={setTab} />
+            </View>
+          </>
+        )}
 
         <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
           {rows === null ? (

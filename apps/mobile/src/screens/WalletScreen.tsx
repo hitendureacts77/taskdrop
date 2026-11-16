@@ -13,7 +13,7 @@ import { reportError } from '../lib/errors';
 import { useAuth } from '../providers/AuthProvider';
 import { needAccount } from '../lib/guest';
 import { PENDING_WITHDRAWAL_NOTE, isPendingWithdrawal, withdrawalRows } from '../lib/walletPending';
-import { GuestNote } from '../components/GuestBits';
+import { GuestNote, GuestScreen } from '../components/GuestBits';
 import {
   getProfile,
   getWallet,
@@ -705,6 +705,19 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
           ) : null}
     </>
   );
+
+  // A guest has no wallet: zero balances and Add money / Withdraw read as a real empty account (B175).
+  if (guest) {
+    return (
+      <GuestScreen
+        title={insights ? 'Spending insights' : 'Wallet'}
+        reason="money"
+        icon="wallet"
+        heading="Your wallet needs an account"
+        body="Money you add, pay and earn shows up here once your account is made."
+      />
+    );
+  }
 
   return (
     <Screen padded={false}>

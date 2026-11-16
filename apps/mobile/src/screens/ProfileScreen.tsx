@@ -254,7 +254,10 @@ export function ProfileScreen() {
               )}
             </View>
             {/* You have the app open, so you're active -- shown the way others see it. */}
-            <View style={{ position: 'absolute', left: 50, top: 48, width: 15, height: 15, borderRadius: 999, backgroundColor: '#4ADE9A', borderWidth: 2.5, borderColor: band }} />
+            {/* A guest has no presence to show (no heartbeat runs without an account, B175). */}
+            {guest ? null : (
+              <View style={{ position: 'absolute', left: 50, top: 48, width: 15, height: 15, borderRadius: 999, backgroundColor: '#4ADE9A', borderWidth: 2.5, borderColor: band }} />
+            )}
             <View style={{ flex: 1 }}>
               <RNText style={tx('800', 22, '#FFFFFF', { letterSpacing: -0.5 })} numberOfLines={1}>
                 {displayName}
@@ -263,7 +266,7 @@ export function ProfileScreen() {
                 {ratingLine}
                 {doneLine ? ' · ' + doneLine : ''}
               </RNText>
-              <RNText style={tx('600', 12, '#86EFAC', { marginTop: 4 })}>● Active now</RNText>
+              {guest ? null : <RNText style={tx('600', 12, '#86EFAC', { marginTop: 4 })}>● Active now</RNText>}
             </View>
           </View>
           {chips.length > 0 ? (
