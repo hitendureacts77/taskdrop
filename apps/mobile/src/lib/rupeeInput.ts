@@ -26,6 +26,14 @@ export function wholeText(text: string, maxLength?: number): string {
   return dot === -1 || whole === '' ? whole : `${whole}.`;
 }
 
+/**
+ * What an amount box shows while it is being typed in (P1-6): the digits with the rupee sign in front, so the
+ * box reads the same as before and after the keypad opens. Empty stays empty, so the placeholder shows.
+ */
+export function typingDisplay(kept: string): string {
+  return kept === '' ? '' : `₹${kept}`;
+}
+
 /** Types every key of `typed` into a controlled box that stores `keep(text)`, like a person would. */
 export function typeInto(typed: string, keep: (text: string) => string): string {
   let shown = '';

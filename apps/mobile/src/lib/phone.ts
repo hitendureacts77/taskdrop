@@ -23,3 +23,8 @@ export function normalizeMobileInput(text: string): string {
 export function isReadyMobile(d: string): boolean {
   return /^[6-9]\d{9}$/.test(d);
 }
+
+/** "9876543210" -> "98765 43210", the way people say a number aloud. */
+export function spacedMobile(digits: string): string {
+  return digits.length > 5 ? `${digits.slice(0, 5)} ${digits.slice(5)}` : digits;
+}
