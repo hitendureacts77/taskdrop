@@ -8,7 +8,7 @@ import { getTask } from '../data/api';
 import { roughPlace } from '../lib/place';
 import { taskLinkTarget } from '../lib/taskLink';
 import { usesAuthFrame } from './frame';
-import { titleForScreen } from './webAddress';
+import { PUBLIC_PAGES, pathForScreen, titleForScreen } from './webAddress';
 import { useMode } from '../providers/ModeProvider';
 import { BottomTabBar } from '../components/BottomTabBar';
 import { SideNav } from '../components/SideNav';
@@ -95,6 +95,18 @@ export function ScreenHost() {
   useEffect(() => {
     if (typeof document !== 'undefined') document.title = titleForScreen(screen, mode);
   }, [screen, mode]);
+  // Web: Terms, Privacy, Support and Copyright keep their own address while open (B171). Replaced, never
+  // pushed, so Back behaves as before; every other screen keeps the plain address.
+  // The address is only put back to "/" after a public page was shown, so an arriving /privacy is never
+  // cleared before PublicPageLink has opened it.
+  const shownPublic = useRef(false);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.history?.replaceState) return;
+    if ((PUBLIC_PAGES as readonly string[]).includes(screen)) shownPublic.current = true;
+    const path = pathForScreen(screen, window.location.pathname);
+    if (path === null || (path === '/' && !shownPublic.current)) return;
+    window.history.replaceState(window.history.state, '', path + window.location.search + window.location.hash);
+  }, [screen]);
 
   // A shared link (?task=<id>) has to land on that task, otherwise every link
   // anyone sends just opens the feed. Runs once, then clears the query so a
