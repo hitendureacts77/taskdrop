@@ -541,7 +541,8 @@ function PostedCard({
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <RNText style={tx('800', 10.5, topInk, { letterSpacing: 1.2, flexShrink: 1 })} numberOfLines={1}>{topLine}</RNText>
+              {/* B165: the status line keeps its words; the category beside it gives way first. */}
+              <RNText style={tx('800', 10.5, topInk, { letterSpacing: 1.2, flexShrink: 0, maxWidth: '80%' })} numberOfLines={1}>{topLine}</RNText>
               <RNText style={tx('600', 11, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>
                 · {categoryLabel(task)}
               </RNText>

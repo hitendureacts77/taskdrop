@@ -33,10 +33,13 @@ export function showAssignmentChip(status: string): boolean {
   return status === 'OPEN';
 }
 
-/** Top line of a card whose date has passed. "No one picked it" only fits an open task with no offers. */
+/**
+ * Top line of a card whose date has passed. "No one picked it" only fits an open task with no offers. Short, so
+ * it fits a card in the two- and three-column layouts (B165: it was cut to "THE DATE HAS P...").
+ */
 export function datePassedLine(status: string, offers: number): string {
-  if (status === 'OPEN' && offers === 0) return 'THE DATE HAS PASSED · NO ONE PICKED IT';
-  return 'THE DATE HAS PASSED';
+  if (status === 'OPEN' && offers === 0) return 'DATE PASSED · NO OFFERS';
+  return 'DATE PASSED';
 }
 
 /** Share of decided offers that were won. Offers still waiting are not counted as lost. */
