@@ -440,7 +440,9 @@ export function AccessScreen() {
 
           {stage === 'number' ? (
             <>
-              {/* The number, big, on a line that fills as it is typed. */}
+              {/* The number, big, on a line that fills as it is typed. On a phone the box sits low
+                  (under the tall picture), so it scrolls itself above the keyboard when it gets focus. */}
+              <RevealWhen when={phoneFocused}>
               <Pressable onPress={() => phoneRef.current?.focus()} style={{ marginTop: 28 }}>
                 <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.4 })}>YOUR MOBILE NUMBER</RNText>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 }}>
@@ -485,6 +487,7 @@ export function AccessScreen() {
                   />
                 </View>
               </Pressable>
+              </RevealWhen>
 
               <PrimaryButton
                 label={busy ? 'Sending…' : 'Text me a code'}
