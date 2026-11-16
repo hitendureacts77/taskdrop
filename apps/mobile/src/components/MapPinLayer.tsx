@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { View, Pressable } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { groupPins } from '../lib/mapCluster';
-import { layoutPins, topAmount, type MapItem } from '../lib/mapLayout';
+import { SPREAD_ZOOM, layoutPins, topAmount, type MapItem } from '../lib/mapLayout';
 import { MAX_FRESH, areaAt, easeOut, introDelays, introEnd, rippleAt, tagAt } from '../lib/mapMotion';
 import { useMapClock } from './useMapClock';
 import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PricePin, TASK_PIN, TaskPin, type Face } from './MapMarkers';
@@ -144,7 +144,9 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
   const clock = useMapClock(introKey, introEnd(pins.length), freshIds.size > 0);
   const delays = introDelays(items, you);
   // Groups that have just spread fly out from their centre.
-  const spreadKey = items.map((it) => (it.kind === 'one' && it.area ? it.id : '')).join('');
+  // The fly-out plays when the zoom crosses the spread level, not each time a pin enters or leaves the view
+  // (a pan used to make every spread pin snap back and fly out again).
+  const spreadKey = zoom >= SPREAD_ZOOM ? 'spread' : 'stacked';
   const spreadClock = useMapClock(spreadKey, SPREAD_MS, false);
   const fan = easeOut(spreadClock.elapsed / SPREAD_MS);
   const at = (it: MapItem) =>

@@ -130,9 +130,12 @@ function YouDot({ at, color, kind }: { at: { lat: number; lng: number }; color: 
       <View style={{ width: YOU_BOX.w, height: YOU_BOX.h, alignItems: 'center' }} collapsable={false}>
         <View style={{ position: 'absolute', top: YOU_BOX.dotY - 22, width: 44, height: 44, borderRadius: 999, backgroundColor: color + '2E' }} />
         <View style={{ position: 'absolute', top: YOU_BOX.dotY - 9, width: 18, height: 18, borderRadius: 999, backgroundColor: color, borderWidth: 3, borderColor: '#FFFFFF', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 3 }} />
-        <View style={{ position: 'absolute', top: YOU_BOX.dotY + 14, backgroundColor: t.colors.ink, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
-          <RNText style={tx('800', 11, t.colors.bg)}>{kind === 'live' ? 'You' : 'Your area'}</RNText>
-        </View>
+        {/* Only "You" gets a pill. "Your area" sat on top of the group's tag under the dot (round 7); the header names the area. */}
+        {kind === 'live' ? (
+          <View style={{ position: 'absolute', top: YOU_BOX.dotY + 14, backgroundColor: t.colors.ink, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+            <RNText style={tx('800', 11, t.colors.bg)}>You</RNText>
+          </View>
+        ) : null}
       </View>
     </Marker>
   );
@@ -157,7 +160,9 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
     if (!moved.current && me) {
       mapRef.current?.animateCamera({ center: { latitude: me.lat, longitude: me.lng }, zoom: START_ZOOM }, { duration: 400 });
     }
-  }, [me]);
+    // The numbers, not the object: a new object with the same place must not pull the camera back.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.lat, me?.lng]);
 
   // The reach buttons: fly to fit the circle. The camera follows, but onRegionChangeComplete only
   // reports the person's own gestures, so "Search this area" does not appear by itself.
@@ -226,7 +231,9 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
   // The intro replays for a new set of things, not when the map is moved.
   const introKey = useMemo(() => pins.map((p) => p.id).sort().join('|'), [pins]);
   const freshIds = useMemo(() => new Set(pins.filter((p) => p.fresh).slice(0, MAX_FRESH).map((p) => p.id)), [pins]);
-  const clock = useMapClock(introKey, introEnd(pins.length), freshIds.size > 0);
+  // The ripple timer re-renders the whole map 15 times a second, so it runs only while a fresh job is actually on screen.
+  const freshOnScreen = items.some((it) => it.kind === 'one' && freshIds.has(it.id));
+  const clock = useMapClock(introKey, introEnd(pins.length), freshOnScreen);
   const youAt = me ? project(me.lat, me.lng, zoom) : null;
   const delays = introDelays(items, youAt ? { x: youAt.x - left, y: youAt.y - top } : null);
 
@@ -332,14 +339,15 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
               const k = (offers.top[i] ?? 0) / offers.best!;
               const r = (36 + 46 * k) * a.scale * mpp;
               const p = toPlace(it.x, it.y);
-              return [1, 0.66, 0.36].map((s) => (
+              // Two rings, not three: fewer native circles to redraw on every tick of the intro.
+              return [1, 0.5].map((s) => (
                 <Circle
                   key={`heat-${i}-${s}`}
                   center={{ latitude: p.lat, longitude: p.lng }}
                   radius={Math.max(4, r * s)}
                   strokeWidth={0}
                   strokeColor="transparent"
-                  fillColor={hue + hex(255 * (0.05 + 0.1 * k))}
+                  fillColor={hue + hex(255 * (0.07 + 0.12 * k))}
                   zIndex={1}
                 />
               ));
@@ -358,7 +366,7 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
               const shown = it.ids.slice(0, 3).map((id) => ({ seed: id, face: byId.get(id)!.face ?? { initials: '?', live: false } }));
               return (
                 <PinMarker
-                  key={'g-' + it.ids.join('|')}
+                  key={'g-' + it.ids[0]}
                   faded={back}
                   at={place}
                   box={FACE_STACK}
@@ -375,7 +383,7 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
             const best = offers?.top[i] !== null && offers?.top[i] === offers?.best;
             return (
               <PinMarker
-                key={'g-' + it.ids.join('|')}
+                key={'g-' + it.ids[0]}
                 faded={back}
                 at={place}
                 box={PRICE_PIN}
