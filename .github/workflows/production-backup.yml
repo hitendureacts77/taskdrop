@@ -1,0 +1,133 @@
+name: Production nightly backup
+
+# Plan task 5.9, hole H16: every night an encrypted copy of the PRODUCTION database is kept outside
+# Supabase, for 30 days, on top of Supabase's own backups. The restore is practised in task 6.5
+# (docs/RELEASE.md section 7).
+#
+# WHERE the copy goes: a release file in the separate PRIVATE repository `hitendureacts77/taskdrop-backups`,
+# not an artifact of this repository. `taskdrop` is public, and a public repository's artifacts can be downloaded
+# by anyone signed in to GitHub; the copy is encrypted, but people's data does not go out in public even encrypted.
+# Making `taskdrop` itself private is not the answer on GitHub's free plan: the owner's Approve button
+# (required reviewers) works only in public repositories there (docs/PRODUCTION_GO.md, step 1). A private
+# repository's releases cost nothing and are outside Supabase. Copies older than 30 days are deleted by this job.
+#
+# Scheduled workflows run from the default branch (main), so this starts once the owner promotes it.
+# The secrets live only in the GitHub environment `production-backup` (no reviewer, because a nightly job
+# cannot wait for a click; only the `main` branch may use it). Values come from the PROD_ section of
+# .env.all-secrets and are never printed:
+#   secret   PROD_SUPABASE_DB_PASSWORD   the production database password
+#   secret   PROD_BACKUP_PASSPHRASE      encrypts the copy (AES-256); without it the copy cannot be opened
+#   secret   PROD_BACKUP_REPO_TOKEN      a fine-grained GitHub token for taskdrop-backups ONLY, Contents: read and write
+#   variable PROD_SUPABASE_POOLER_HOST   optional: the Session pooler host, only if it is not aws-0-ap-south-1...
+# The same environment also holds PROD_SENTRY_DSN and PROD_SUPABASE_ACCESS_TOKEN for the hourly safety alarm
+# (.github/workflows/production-alarm.yml). The production ref is fixed below (also in scripts/lib/db.mjs).
+#
+# To open a copy (RELEASE.md section 7): download it from the taskdrop-backups release, then
+#   gpg --decrypt taskdrop-production-<stamp>.dump.gpg > taskdrop-production.dump
+#   pg_restore --list taskdrop-production.dump
+# Restore only into a scratch project, never over production.
+
+on:
+  schedule:
+    - cron: '30 21 * * *' # 03:00 India time
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: encrypted copy of the production database
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production-backup
+    timeout-minutes: 60
+    env:
+      PROJECT_REF: dyzskuzqcqbexssyrrxc
+      BACKUP_REPO: hitendureacts77/taskdrop-backups
+      POOLER_HOST: ${{ vars.PROD_SUPABASE_POOLER_HOST || 'aws-0-ap-south-1.pooler.supabase.com' }}
+    steps:
+      # Checked on every run, before anything is dumped: the copies must only ever land in a private repository.
+      - name: refuse a public or missing backup repository
+        env:
+          GH_TOKEN: ${{ secrets.PROD_BACKUP_REPO_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then echo "::error::PROD_BACKUP_REPO_TOKEN is not set in production-backup"; exit 1; fi
+          private=$(gh api "repos/${BACKUP_REPO}" --jq .private || echo "missing")
+          if [ "$private" != "true" ]; then
+            echo "::error::${BACKUP_REPO} is missing, unreachable with the token, or public. Copies go only to a private repository."; exit 1
+          fi
+
+      # POOLER_HOST can come from a variable, so it must be Supabase's Mumbai pooler before the password is sent to it.
+      - name: refuse anything but production's pooler
+        run: |
+          if ! printf '%s' "$POOLER_HOST" | grep -Eq '^aws-[0-9]+-ap-south-1\.pooler\.supabase\.com$'; then
+            echo "PROD_SUPABASE_POOLER_HOST must look like aws-0-ap-south-1.pooler.supabase.com"; exit 1
+          fi
+
+      # Supabase runs Postgres 17; pg_dump must be at least the server's version.
+      - name: install the Postgres 17 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          /usr/lib/postgresql/17/bin/pg_dump --version
+
+      # The direct database address is IPv6 only and GitHub's runners have no IPv6, so this uses Supabase's
+      # session pooler (port 5432, which allows pg_dump). The password reaches pg_dump only through PGPASSWORD.
+      - name: dump and encrypt
+        id: dump
+        env:
+          PGPASSWORD: ${{ secrets.PROD_SUPABASE_DB_PASSWORD }}
+          PASSPHRASE: ${{ secrets.PROD_BACKUP_PASSPHRASE }}
+          PGSSLMODE: require
+        run: |
+          set -euo pipefail
+          if [ -z "$PGPASSWORD" ] || [ -z "$PASSPHRASE" ]; then echo "A secret of the production-backup environment is missing"; exit 1; fi
+          if [ "${#PASSPHRASE}" -lt 32 ]; then echo "PROD_BACKUP_PASSPHRASE must be at least 32 characters"; exit 1; fi
+          umask 077
+          stamp=$(date -u +%Y%m%dT%H%MZ)
+          mkdir -p out
+          # TaskDrop's own data and the sign-in accounts. Vault is left out: its rows are encrypted with a key
+          # only that project holds. Owners and grants are left out: the restore target is built from the
+          # migrations first, which set them.
+          /usr/lib/postgresql/17/bin/pg_dump \
+            --host="$POOLER_HOST" --port=5432 \
+            --username="postgres.${PROJECT_REF}" --dbname=postgres \
+            --format=custom --compress=9 --no-owner --no-privileges \
+            --schema=public --schema=private --schema=auth --schema=storage --schema=supabase_migrations \
+            --file=out/db.dump
+          # A copy that cannot be listed is not a copy.
+          /usr/lib/postgresql/17/bin/pg_restore --list out/db.dump > /dev/null
+          echo "dump size: $(stat -c %s out/db.dump) bytes"
+          printf '%s' "$PASSPHRASE" | gpg --batch --yes --quiet --pinentry-mode loopback --passphrase-fd 0 \
+            --symmetric --cipher-algo AES256 --output "out/taskdrop-production-${stamp}.dump.gpg" out/db.dump
+          shred -u out/db.dump
+          echo "stamp=${stamp}" >> "$GITHUB_OUTPUT"
+          ls out
+
+      - name: keep the copy (private repository, 30 days)
+        env:
+          GH_TOKEN: ${{ secrets.PROD_BACKUP_REPO_TOKEN }}
+          STAMP: ${{ steps.dump.outputs.stamp }}
+        run: |
+          set -euo pipefail
+          gh release create "backup-${STAMP}" "out/taskdrop-production-${STAMP}.dump.gpg" \
+            --repo "$BACKUP_REPO" --title "Production copy ${STAMP}" \
+            --notes "Encrypted nightly copy of the TaskDrop production database (AES-256, passphrase PROD_BACKUP_PASSPHRASE). Restore: docs/RELEASE.md section 7 in the taskdrop repository."
+          # Delete copies older than 30 days. Only releases this job made (tag backup-...) are ever touched.
+          cutoff=$(date -u -d '30 days ago' +%s)
+          gh release list --repo "$BACKUP_REPO" --limit 200 --json tagName,createdAt \
+            --jq '.[] | select(.tagName | startswith("backup-")) | "\(.tagName) \(.createdAt)"' |
+          while read -r tag created; do
+            if [ "$(date -u -d "$created" +%s)" -lt "$cutoff" ]; then
+              gh release delete "$tag" --repo "$BACKUP_REPO" --yes --cleanup-tag
+              echo "deleted old copy $tag"
+            fi
+          done

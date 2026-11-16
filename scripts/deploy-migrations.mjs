@@ -20,18 +20,34 @@
  *   MIGRATION_HISTORY_FILE=history.txt node scripts/deploy-migrations.mjs --dry-run
  *        (lines of "<version> <name>" instead of asking the database; for tests)
  *
- * Only the test project or localhost is accepted (scripts/lib/db.mjs); anything else is refused.
+ *   PRODUCTION_DEPLOY=1 PROD_SUPABASE_DB_PASSWORD=... node scripts/deploy-migrations.mjs --production
+ *        production (plan task 5.9), run only by .github/workflows/production-database.yml after the owner's
+ *        approval. A fresh project has no history table yet, so it is created first and every file is applied.
+ *
+ * Only the test project or localhost is accepted (scripts/lib/db.mjs); anything else is refused. Production is
+ * accepted only with --production AND the narrow environment gate in scripts/lib/db.mjs (PRODUCTION_DEPLOY=1, the
+ * production ref, GitHub Actions); --production with any other address is refused, so the two are never mixed.
  * A migration file must not carry its own begin/commit/rollback: this script wraps each file in a
  * transaction, and a commit inside the file would make the file and its history row commit apart.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describeTarget, withDb } from "./lib/db.mjs";
+import { describeTarget, productionUrl, withDb } from "./lib/db.mjs";
 
 const dir = join(resolve(dirname(fileURLToPath(import.meta.url)), ".."), "supabase/migrations");
 const dryRun = process.argv.includes("--dry-run");
-const url = process.env.DATABASE_URL;
+const production = process.argv.includes("--production");
+// Production builds its address from the password secret (scripts/lib/db.mjs productionUrl), never from a pasted URL.
+const url = production && !process.env.DATABASE_URL && process.env.PROD_SUPABASE_DB_PASSWORD
+  ? productionUrl(process.env.PROD_SUPABASE_DB_PASSWORD, process.env.PROD_SUPABASE_POOLER_HOST)
+  : process.env.DATABASE_URL;
+// --production allows production and nothing else; without it production is refused (scripts/lib/db.mjs).
+const dbOptions = { production: production ? "only" : false };
+
+/** Supabase's own history table. A project that never saw `supabase db push` (a fresh production) lacks it. */
+export const HISTORY_TABLE_SQL = `create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text primary key, statements text[], name text);`;
 
 async function readHistory() {
   if (process.env.MIGRATION_HISTORY_FILE) {
@@ -41,7 +57,16 @@ async function readHistory() {
     console.error("Set DATABASE_URL (the test project's connection string), or MIGRATION_HISTORY_FILE with --dry-run.");
     process.exit(2);
   }
-  const res = await withDb(url, (c) => c.query("select version, name from supabase_migrations.schema_migrations order by version"));
+  const res = await withDb(
+    url,
+    async (c) => {
+      if (production && !dryRun) await c.query(HISTORY_TABLE_SQL);
+      const exists = (await c.query("select to_regclass('supabase_migrations.schema_migrations') is not null as ok")).rows[0].ok;
+      if (!exists) return { rows: [] }; // a fresh project in --dry-run: nothing applied yet, nothing created
+      return c.query("select version, name from supabase_migrations.schema_migrations order by version");
+    },
+    dbOptions,
+  );
   return res.rows.map((r) => [r.version, r.name]);
 }
 
@@ -89,5 +114,5 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       }
       console.log(`applied ${m.file}`);
     }
-  });
+  }, dbOptions);
 }

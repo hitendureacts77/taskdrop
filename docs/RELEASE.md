@@ -37,10 +37,13 @@ Order inside one release: **database, then server functions, then website and ad
 
 ## 4. A button, not a command, for production
 
-- The GitHub environment **`production-database`** exists in the `taskdrop` repository (created 2 November 2026). It has the owner as the **required reviewer** and accepts only the `main` branch. Nothing uses it yet.
-- In Step 5 (task 5.9) a workflow with `environment: production-database` runs the production migrations and function deploys. The job waits until the owner presses **Approve** in GitHub. The approval is recorded, which keeps the rule that only the owner promotes to `main`.
+- The GitHub environment **`production-database`** exists in the `taskdrop` repository (created 2 November 2026). It has the owner as the **required reviewer** and accepts only the `main` branch.
+- **`.github/workflows/production-database.yml`** (task 5.9, built 15 Nov) uses it. It starts when code that changes `supabase/` reaches `main`, or by **Run workflow** on `main`. A `plan` job first lists the migrations, the first-day SQL, the functions and the secret names, with no connection and no secret. Then the `deploy` job **waits for the owner's Approve**, and in order: applies every migration production's history lacks (one transaction each, recorded in `supabase_migrations.schema_migrations`; on an empty project, all of them), runs production's first-day safety (`supabase/production/first_day.sql` and `supabase/lockdown/gateway_only.sql`) and its database checks, deploys every Edge Function (login checks from `supabase/config.toml`), sets the function secrets from the environment's `PROD_*` secrets, asks Inngest to re-read the functions (a warning only), and runs the full first-day check again, now including each function's login setting. Any critical finding turns the run red.
+- The backend for production is no longer in the Vercel build: `scripts/vercel-build.mjs` still deploys the backend only for Preview builds of `redesigned-2.0` (staging). The production secrets live only in the environment (names in the workflow's header and in `docs/PRODUCTION_GO.md`), never in the repository.
+- **Staging and production cannot be mixed.** `scripts/lib/db.mjs` accepts production only when `PRODUCTION_DEPLOY=1`, the run is in GitHub Actions (or the written laptop override in `docs/PRODUCTION_GO.md`) and the address is the production project `dyzskuzqcqbexssyrrxc`; with that flag set, staging and localhost are refused. A script must also opt in (`withDb(..., { production })`), so a seed or reset script has no production path at all. `scripts/prod-safety.test.mjs` proves each refusal.
+- **Every hour** `.github/workflows/production-alarm.yml` reads production (`scripts/production-alarm.mjs`) and, if a test shortcut is on or a door is open, sends one fatal event to the production Sentry project, which emails the owner. It runs in the separate environment `production-backup` (no reviewer, `main` only), with the nightly copy (section 7). The Inngest job `safety-alarm` is the inside half of the same alarm.
 - The existing environments `Production` and `Preview` belong to Vercel. Do not put a reviewer on them: it would hold Vercel's own deployments.
-- Open question for 5.9: the Vercel build today deploys the backend only for Preview builds of `redesigned-2.0`. For production the backend step must move to the workflow above, with the **production** Supabase secrets stored as secrets of that environment only (never in the repository).
+- The Approve button only exists while `taskdrop` is a **public** repository on GitHub's free plan (required reviewers in private repositories need GitHub Enterprise). See `docs/PRODUCTION_GO.md` step 1 before changing the repository's visibility.
 
 ## 5. The 5-minute check after every release
 
@@ -52,7 +55,7 @@ Claude runs this after each deploy (task 7.2 repeats it for the first month):
 4. **Admin:** the dashboard and **Reports** open.
 5. **Sentry:** no new issue since the deploy, and the "Security spike" rule has not fired.
 6. **Uptime monitors:** `api` health, the website and the admin are green.
-7. **Safety alarm:** `get_app_controls` shows test shortcuts off (production only, holes H1 and H15).
+7. **Safety alarm:** `get_app_controls` shows test shortcuts off, and the Inngest job `safety-alarm` last ran "all clear", and the GitHub workflow "Production safety alarm" last run is green (production only, holes H1 and H15).
 
 Any red: undo first (section 6), investigate after.
 
@@ -75,7 +78,13 @@ Rule of thumb: **for a feature, turn its switch off; for a bad deploy, roll back
 ## 7. Restore (data deleted or broken)
 
 1. Switch on **maintenance mode** in the admin so nothing new is written on top.
-2. Restore into a **scratch** project, never over the live one. Staging's free plan has no Supabase backups, so staging is restored from a nightly copy made by the dump script in `scripts/` (written in task 3.6, T12). Production uses Supabase's backups plus the nightly copy outside Supabase (5.9).
+2. Restore into a **scratch** project, never over the live one. Staging's free plan has no Supabase backups, so staging is restored from a nightly copy made by the dump script in `scripts/` (written in task 3.6, T12). Production uses Supabase's backups plus the nightly copy outside Supabase (5.9): `.github/workflows/production-backup.yml` makes an encrypted copy every night at 03:00 India time and keeps 30 days of them as release files in the **private** repository `hitendureacts77/taskdrop-backups` (it refuses to store one anywhere public).
+   **Restoring the nightly copy, step by step** (on a computer with the Postgres 17 tools and `gpg`):
+   1. Make a scratch Supabase project (free plan, Mumbai) and build its tables from the code: `DATABASE_URL=<scratch connection string> node scripts/deploy-migrations.mjs` does **not** work for it (the script only accepts staging and production); use `supabase db push --db-url <scratch connection string>` from the repository, or ask Claude to apply the migrations to the scratch project.
+   2. Download the copy: `gh release download backup-<stamp> --repo hitendureacts77/taskdrop-backups`.
+   3. Decrypt it with the passphrase from the `PROD_` section of `.env.all-secrets`: `gpg --decrypt taskdrop-production-<stamp>.dump.gpg > production.dump`. Keep `production.dump` on your own computer only and delete it when done.
+   4. See what is inside: `pg_restore --list production.dump`.
+   5. Load only data, into the scratch project: `pg_restore --data-only --no-owner --disable-triggers --dbname "<scratch connection string>" production.dump` (add `--table=<name>` to take only the tables you need). The copy has `public`, `private`, `auth`, `storage` and the migration history; Vault secrets are not in it (production's Vault key cannot open them elsewhere), so set them again by hand if the scratch project must run.
 3. Check the missing rows in the scratch copy. Copy back only those rows, after Claude has looked at them.
 4. Write two lines in the audit trail of what was restored and why.
 

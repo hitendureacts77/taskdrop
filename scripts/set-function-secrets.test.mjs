@@ -11,6 +11,7 @@ import {
   parseNames,
   pick,
   resolveProject,
+  fromEnv,
 } from './set-function-secrets.mjs';
 
 test('only allow-listed names are picked, and blank or missing ones are reported, not sent', () => {
@@ -95,4 +96,11 @@ test('the env file is one NAME="value" per line, with quotes and backslashes esc
 test('secret names are read from the CLI list as JSON or as a table, without digests', () => {
   assert.deepEqual(parseNames('[{"name":"A_ONE","value":"abc123"},{"name":"B"}]'), ['A_ONE', 'B']);
   assert.deepEqual(parseNames('   NAME      |  DIGEST \n  ---------|------\n  A_ONE    | ab12\n  B_TWO | cd34\n'), ['A_ONE', 'B_TWO']);
+});
+
+test('--from-env reads only the production names this script may send, never anything else in the environment', () => {
+  const env = { PROD_SENTRY_DSN: 'x', PROD_ALLOW_ANY_OTP: 'y', SENTRY_DSN: 'staging', PROD_SUPABASE_DB_PASSWORD: 'p', PROD_SUPABASE_PROJECT_ID: 'abcdefghij0123456789', PATH: '/bin' };
+  const f = fromEnv(env);
+  assert.deepEqual(Object.keys(f).sort(), ['PROD_SENTRY_DSN', 'PROD_SUPABASE_PROJECT_ID']);
+  assert.ok(!('ALLOW_ANY_OTP' in pick(f, { production: true }).send));
 });

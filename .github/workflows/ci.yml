@@ -133,6 +133,14 @@ jobs:
           OLD_APP_DIR: ${{ github.workspace }}/old-main
         run: node scripts/check-old-app-db.mjs
 
+      # Plan task 5.9: production's first-day SQL (test sign-in off, admin MFA on, environment production, GraphQL
+      # off, the direct door shut) runs only on production, so it is rehearsed here, last, on the throwaway
+      # database: a broken statement or a check that does not pass on a fresh build fails CI, not the owner's deploy.
+      - name: production first-day SQL and checks (rehearsal)
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: node scripts/production-first-day.mjs --rehearse-local
+
       - name: stop
         if: always()
         run: supabase stop --no-backup

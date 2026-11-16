@@ -62,6 +62,36 @@ export function securityTxt(email, now = new Date(), origin = DEFAULT_ORIGIN) {
   return `${lines.join('\n')}\n`;
 }
 
+/** The production Android app's package name (apps/mobile/variant.cjs). Staging's app has its own, and gets no file. */
+export const PRODUCTION_ANDROID_PACKAGE = 'com.taskdrop.app';
+const SHA256_RE = /^[0-9A-F]{2}(:[0-9A-F]{2}){31}$/;
+
+/**
+ * The fingerprints in ANDROID_SHA256_CERT_FINGERPRINTS (comma separated, colon-hex, 32 bytes each), upper-cased.
+ * Anything that is not a SHA-256 fingerprint is dropped, so a SHA-1 pasted by mistake can never end up in the file.
+ */
+export function fingerprintsOf(raw = process.env.ANDROID_SHA256_CERT_FINGERPRINTS) {
+  return String(raw ?? '')
+    .split(',')
+    .map((s) => s.trim().toUpperCase())
+    .filter((s) => SHA256_RE.test(s));
+}
+
+/** The text of /.well-known/assetlinks.json, or null when there is no fingerprint to put in it. */
+export function assetLinks(fingerprints) {
+  if (!fingerprints.length) return null;
+  return `${JSON.stringify(
+    [
+      {
+        relation: ['delegate_permission/common.handle_all_urls'],
+        target: { namespace: 'android_app', package_name: PRODUCTION_ANDROID_PACKAGE, sha256_cert_fingerprints: fingerprints },
+      },
+    ],
+    null,
+    2,
+  )}\n`;
+}
+
 const META_RE = /<meta name="robots" content="noindex, nofollow">/g;
 
 /** Only a clear "production" is production; a missing or odd value is staging. */
@@ -77,7 +107,7 @@ export function applyToHtml(html, production) {
   return clean.replace(/<\/head>/i, `${NOINDEX_META}</head>`);
 }
 
-export function run(dist, env, email = process.env.EXPO_PUBLIC_LEGAL_EMAIL, origin = originOf()) {
+export function run(dist, env, email = process.env.EXPO_PUBLIC_LEGAL_EMAIL, origin = originOf(), fingerprintList = process.env.ANDROID_SHA256_CERT_FINGERPRINTS) {
   const production = isProductionBuild(env);
   const indexFile = join(dist, 'index.html');
   const robotsFile = join(dist, 'robots.txt');
@@ -87,6 +117,12 @@ export function run(dist, env, email = process.env.EXPO_PUBLIC_LEGAL_EMAIL, orig
   else writeFileSync(robotsFile, ROBOTS_TXT);
   mkdirSync(join(dist, '.well-known'), { recursive: true });
   writeFileSync(join(dist, '.well-known', 'security.txt'), securityTxt(email, new Date(), origin));
+  // Android app links belong to the production app only. Without a fingerprint nothing is written, so the path keeps
+  // answering with the app page exactly as before (and never with a file that names the wrong certificate).
+  const links = production ? assetLinks(fingerprintsOf(fingerprintList)) : null;
+  const linksFile = join(dist, '.well-known', 'assetlinks.json');
+  if (links) writeFileSync(linksFile, links);
+  else rmSync(linksFile, { force: true });
   return production ? 'production' : 'staging';
 }
 
