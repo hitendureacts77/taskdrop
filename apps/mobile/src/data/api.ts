@@ -641,7 +641,7 @@ export async function createPaymentLink(input: {
   });
   if (error) {
     log.error('payment link request failed', { purpose: input.purpose, taskId: input.taskId ?? null });
-    throw await functionError(error, 'Could not start the payment');
+    throw await functionError(error, 'Could not start the payment. Nothing was charged. Please try again in a few minutes.');
   }
   const out = data as { paymentId?: string; url?: string; amountMinor?: number; error?: string };
   if (out.error) {
@@ -650,7 +650,7 @@ export async function createPaymentLink(input: {
   }
   if (!out.paymentId || !out.url) {
     log.error('payment link reply had no link', { purpose: input.purpose, taskId: input.taskId ?? null });
-    throw new Error('Could not start the payment');
+    throw new Error('Could not start the payment. Nothing was charged. Please try again in a few minutes.');
   }
   log.info('payment link opened', { purpose: input.purpose, taskId: input.taskId ?? null, paymentId: out.paymentId });
   count('payment.link_opened', { purpose: input.purpose });

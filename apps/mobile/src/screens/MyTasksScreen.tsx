@@ -209,13 +209,17 @@ function MyPosted() {
       await cancelTask(task.id);
       setConfirmClose(null);
       flash('Task closed');
+      // Show it closed now: the refund below can take several seconds, and the list sat unchanged until a pull-down (round 7, P1-15).
+      setTasks((prev) => (prev ? prev.map((x) => (x.id === task.id ? { ...x, status: 'CANCELLED' } : x)) : prev));
+      void load().catch(() => {});
       try {
         const out = await refundEscrow(task.id);
         if (out.refundedMinor > 0) flash(formatINR(out.refundedMinor) + ' is on its way back to you');
       } catch {
         flash('Closed. Your refund is being processed — it can take a few days.');
       }
-      await load();
+      // The task is closed whatever this read says; a failed refresh must not read as "could not close".
+      await load().catch(() => {});
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not close that task');
     } finally {
