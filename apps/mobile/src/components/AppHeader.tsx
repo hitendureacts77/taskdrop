@@ -9,8 +9,8 @@ import { useAuth } from '../providers/AuthProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { getProfile, getWallet, type Profile } from '../data/api';
 import {
-  countUnreadFor,
   subscribeToNotifications,
+  unreadSummaryFor,
 } from '../data/extras';
 import { imageSource, signedMediaUrl } from '../lib/media';
 import { Icon, type IconName } from './Icon';
@@ -35,7 +35,7 @@ import { useTourTarget } from './tour/targets';
  * What the header last showed. Every tab mounts its own header, and starting
  * each one blank made the avatar and the unread badge blink on every switch.
  */
-const last = { userId: '' as string | null, initial: '?', avatar: null as string | null, unread: 0 };
+const last = { userId: '' as string | null, initial: '?', avatar: null as string | null, unread: 0, messages: 0 };
 
 export function AppHeader() {
   const t = useTheme();
@@ -94,12 +94,16 @@ export function HeaderTools({ tight = false }: { tight?: boolean }) {
   const toolsRef = useTourTarget('headerTools');
   const same = last.userId === userId;
   const [unread, setUnreadState] = useState(same ? last.unread : 0);
+  const [messages, setMessagesState] = useState(same ? last.messages : 0);
   const [drawer, setDrawer] = useState(false);
   const [initial, setInitialState] = useState(same ? last.initial : '?');
   const [avatar, setAvatarState] = useState<string | null>(same ? last.avatar : null);
   last.userId = userId;
-  const setUnread = (next: number | ((n: number) => number)) =>
-    setUnreadState((cur) => (last.unread = typeof next === 'function' ? next(cur) : next));
+  // The bell and the Messages dot come from the same rows the Notifications screen lists (W3-12).
+  const setUnread = (n: { total: number; messages: number }) => {
+    setUnreadState((last.unread = n.total));
+    setMessagesState((last.messages = n.messages));
+  };
   const setInitial = (v: string) => setInitialState((last.initial = v));
   const setAvatar = (v: string | null) => setAvatarState((last.avatar = v));
 
@@ -107,7 +111,7 @@ export function HeaderTools({ tight = false }: { tight?: boolean }) {
   useEffect(() => {
     if (!userId) return;
     let alive = true;
-    void countUnreadFor(mode === 'worker' ? 'worker' : 'poster').then((n) => alive && setUnread(n));
+    void unreadSummaryFor(mode === 'worker' ? 'worker' : 'poster').then((n) => alive && setUnread(n));
     return () => {
       alive = false;
     };
@@ -116,7 +120,7 @@ export function HeaderTools({ tight = false }: { tight?: boolean }) {
     if (!userId) return;
     // A new alert may belong to the other side; recount rather than +1.
     return subscribeToNotifications(userId, () => {
-      void countUnreadFor(modeRef.current === 'worker' ? 'worker' : 'poster').then(setUnread);
+      void unreadSummaryFor(modeRef.current === 'worker' ? 'worker' : 'poster').then(setUnread);
     });
   }, [userId]);
 
@@ -147,7 +151,7 @@ export function HeaderTools({ tight = false }: { tight?: boolean }) {
       <View ref={toolsRef} collapsable={false} style={{ flexDirection: 'row', alignItems: 'center', gap: tight ? 6 : 8 }}>
       {guest ? <GuestSignInPill /> : (<>
       <IconButton icon="bell" label="Notifications" onPress={() => go('notifications')} badge={unread} size={btn} />
-      <IconButton icon="chat" label="Messages" onPress={() => go('inbox')} size={btn} />
+      <IconButton icon="chat" label="Messages" onPress={() => go('inbox')} badge={messages} size={btn} />
       <Pressable
         onPress={() => setDrawer(true)}
         accessibilityRole="button"

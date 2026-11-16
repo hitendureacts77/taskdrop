@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, View, Text as RNText, ScrollView, PanResponder, Platform, Keyboard, type ScrollViewInstance, type ViewInstance } from 'react-native';
+import { Animated, BackHandler, Easing, View, Text as RNText, ScrollView, PanResponder, Platform, Keyboard, type ScrollViewInstance, type ViewInstance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../providers/ThemeProvider';
@@ -35,7 +35,7 @@ import {
 import { DropFilters, FiltersButton, FiltersPanel, JobChips, PlaceRow, QuickChip, WorkSwitch } from './MapFilterParts';
 import { distanceKm, peopleReach, postedToday, withinReach } from '../lib/mapReach';
 import { REMOTE_LIMIT, capped, matchesQuery } from '../lib/findWorkRead';
-import { DEFAULT_FILTERS, KM_STEPS, changedFilters, clearJobFilters, filterJobs, jobsSummary, matchesJob, narrowsJobs, type MapFilters } from '../lib/mapFilters';
+import { DEFAULT_FILTERS, KM_STEPS, changedFilters, clearJobFilters, filterJobs, jobsSummary, mapPillText, matchesJob, narrowsJobs, type MapFilters } from '../lib/mapFilters';
 import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
 import { REFRESH_DEBOUNCE_MS, createRefreshCache, refreshKey, shouldRefresh } from '../lib/mapRefresh';
 import { activeFirst, areaName, farText, firstName, isNearby, jobPin, kmBetween, minePin, offerOf, personMeta, personPin } from './mapPins';
@@ -228,7 +228,9 @@ export function NearMap({
   onUseMyPlace?: () => void;
 }) {
   const t = useTheme();
-  const { go } = useNav();
+  const { go, screen } = useNav();
+  // The screen this map lives on (the Find work tab or the full map): Back only answers while it is in front.
+  const hostScreen = useRef(screen);
   const insets = useSafeAreaInsets();
   const { desktop, tablet, height: screenH } = useLayout();
   const wide = desktop || tablet;
@@ -293,6 +295,17 @@ export function NearMap({
   const [tip, setTip] = useState(false);
   const reduced = useReducedMotion();
   const list = useRef<ScrollViewInstance>(null);
+
+  // Android Back with a pin's card open closes the card first, then works as usual (P1-4).
+  const inFrontHere = screen === hostScreen.current;
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !picked || !inFrontHere) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setPicked(null);
+      return true;
+    });
+    return () => sub.remove();
+  }, [picked, inFrontHere]);
 
   // Whether the tip was already closed once.
   useEffect(() => {
@@ -688,7 +701,7 @@ export function NearMap({
   const countWords =
     mode === 'jobs' ? jobsSummary(nearJobs.length, homeCount, radius, filters.work, mapCaps) : `${count} ${count === 1 ? words.one : words.many}`;
   const withinTail = mode === 'jobs' ? '' : ` · ${within}`;
-  const pillText = busy ? 'Looking around…' : fromHome ? 'Remote jobs are in the list, not on the map' : total === 0 ? `No ${words.many} on this part of the map` : `${total} ${total === 1 ? words.one : words.many} on the map`;
+  const pillText = busy ? 'Looking around…' : fromHome ? 'Remote jobs are in the list, not on the map' : mapPillText(total, mode === 'jobs' ? nearJobs.length : count, radius, words);
   const nextReach = KM_STEPS.find((k) => k > radius) ?? null;
 
   // What the map shows: Jobs, Helpers or (signed in) My people. Only drawn when the parent handles the change (the tab), not on the route.

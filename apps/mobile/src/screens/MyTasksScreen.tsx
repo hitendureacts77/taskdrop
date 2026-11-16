@@ -8,7 +8,7 @@ import { Icon } from '../components/Icon';
 import { BottomSheet, ConfirmDialog, EmptyState, Grid, LoadFailed, MenuRow, Pill, PillTabs, Shimmer, StatTile, SwipeTabs, rupees, timeAgo, timeLeft } from '../components/kit';
 import { WorkCard, categoryIcon, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
-import { FadeIn, Pressy, tx } from '../components/primitives';
+import { FadeIn, HitArea, Pressy, tx } from '../components/primitives';
 import { descriptionPreview } from '../components/TaskDescription';
 import { listDrafts, removeDraft, type PostDraft } from '../lib/drafts';
 import { useTheme, ring } from '../providers/ThemeProvider';
@@ -584,6 +584,8 @@ function PostedCard({
               </RNText>
               <View style={{ flex: 1 }} />
               <Pressable onPress={onMenu} hitSlop={12} accessibilityRole="button" accessibilityLabel="Task options">
+                {/* W2-1: an 18 px icon, 42 px to tap on the web too. */}
+                <HitArea x={12} y={12} />
                 <Icon name="dots" size={18} color={t.colors.muted} strokeWidth={2.4} />
               </Pressable>
             </View>

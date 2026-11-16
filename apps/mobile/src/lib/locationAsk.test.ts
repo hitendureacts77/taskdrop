@@ -45,3 +45,10 @@ test('a recent "Not now" keeps the sheet shut, an old one does not', () => {
   assert.equal(shouldAskForLocation({ status: 'blocked', askedThisLaunch: false, lookingElsewhere: false, dismissedRecently: true }), false);
   assert.equal(shouldAskForLocation({ status: 'blocked', askedThisLaunch: false, lookingElsewhere: false, dismissedRecently: false }), true);
 });
+
+test('does not ask for a place the person already gave (P1-12 / P1-13)', () => {
+  for (const s of ['denied', 'blocked', 'services-off', 'prompt'] as const) {
+    assert.equal(shouldAskForLocation({ status: s, askedThisLaunch: false, lookingElsewhere: false, hasArea: true }), false, s);
+    assert.equal(shouldAskForLocation({ status: s, askedThisLaunch: false, lookingElsewhere: false, hasArea: false }), true, s);
+  }
+});

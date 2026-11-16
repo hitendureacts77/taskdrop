@@ -9,7 +9,8 @@ import { zoomToFit } from '../lib/mapReach';
 import { tx } from './primitives';
 import { Icon } from './Icon';
 import { JobsMap as TileJobsMap, YouMarker, type JobsMapProps } from './JobsMap.tiles';
-import { CALLOUT_LIFT, MapPinLayer } from './MapPinLayer';
+import { CALLOUT_LIFT, MapPinLayer, controlsRect } from './MapPinLayer';
+import type { Rect } from '../lib/mapLabels';
 import { GL_TO_TILE, baseOptions, glStyleUrl, kmNorth, noRotation, useMapLib, useSharpMap, type MapLib } from './GlMap.web';
 
 export { mapWords, type JobPin, type JobsMapProps, type MapTone } from './JobsMap.tiles';
@@ -215,6 +216,27 @@ function GlJobsMap({
       {child}
     </Pressable>
   );
+  // The + and − buttons, one rule on every map (Opus map audit): they zoom round the same middle and never
+  // search again by themselves, as on Android and the tile map; a drag or a pinch is what searches.
+  const zoomBy = (step: 1 | -1) => {
+    if (!map) return;
+    const next = Math.min(map.getMaxZoom(), Math.max(map.getMinZoom(), map.getZoom() + step));
+    if (next === map.getZoom()) return;
+    moved.current = true;
+    ease({ zoom: next, duration: 300 });
+  };
+  // Where the map's buttons sit, so pins step out from under them (P1-14): the full map's column at the
+  // bottom right (compass, then + and − on a mouse), or the small map's expand button at the top right.
+  const buttonsTall = (me ? 36 : 0) + (me && !COARSE ? 10 : 0) + (COARSE ? 0 : 73);
+  const buttons: Rect | null = bare
+    ? null
+    : fill
+      ? buttonsTall > 0
+        ? { x: size.w - 16 - 40, y: size.h - (16 + fill.bottom + 18) - buttonsTall, w: 40, h: buttonsTall }
+        : null
+      : onExpand
+        ? controlsRect(size, { right: 8, top: 8, button: 36, gap: 0, count: 1 })
+        : null;
   const glass = { backgroundColor: t.colors.bg, borderWidth: 1, borderColor: t.colors.line, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } };
 
   const overlay =
@@ -238,6 +260,8 @@ function GlJobsMap({
           toScreen={toScreen}
           you={you}
           onGroup={intoGroup}
+          controls={buttons}
+          youLive={meKind === 'live'}
         />
         {/* After the pins, so it is on top, and outside the dim layer. */}
         {you ? <YouMarker x={you.x} y={you.y} kind={meKind} /> : null}
@@ -278,9 +302,9 @@ function GlJobsMap({
           {/* Phones pinch; the two small buttons are for a mouse with no wheel and for keyboards (decision 36c). */}
           {COARSE ? null : (
             <View style={[{ borderRadius: 12, overflow: 'hidden' }, glass]}>
-              {control('Zoom in', () => map?.zoomIn({ duration: ms(300) }), <RNText style={tx('700', 18, t.colors.text)}>+</RNText>, true)}
+              {control('Zoom in', () => zoomBy(1), <RNText style={tx('700', 18, t.colors.text)}>+</RNText>, true)}
               <View style={{ height: 1, backgroundColor: t.colors.line }} />
-              {control('Zoom out', () => map?.zoomOut({ duration: ms(300) }), <RNText style={tx('700', 18, t.colors.text)}>−</RNText>, true)}
+              {control('Zoom out', () => zoomBy(-1), <RNText style={tx('700', 18, t.colors.text)}>−</RNText>, true)}
             </View>
           )}
         </View>

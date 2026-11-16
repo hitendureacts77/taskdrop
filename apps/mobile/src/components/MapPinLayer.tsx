@@ -4,6 +4,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { groupPins } from '../lib/mapCluster';
 import { SPREAD_ZOOM, layoutPins, topAmount, type MapItem } from '../lib/mapLayout';
 import { MAX_FRESH, areaAt, easeOut, introDelays, introEnd, rippleAt, tagAt } from '../lib/mapMotion';
+import { planLabels, youRect, type LabelItem, type LabelPlan, type Rect } from '../lib/mapLabels';
 import { useMapClock } from './useMapClock';
 import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PricePin, TASK_PIN, TaskPin, type Face } from './MapMarkers';
 
@@ -101,6 +102,45 @@ export function topPinOf(ids: string[], byId: Map<string, JobPin>): JobPin {
   return pick;
 }
 
+/** One key per thing drawn: a group by its members, a pin by its id. */
+export function itemKey(it: MapItem): string {
+  return it.kind === 'group' ? 'g-' + it.ids.join('|') : it.id;
+}
+
+/**
+ * Where the job price pins' words go (P1-14, lib/mapLabels.ts): which area names fit and which pins step
+ * out from under the map's buttons. Spread pins (TaskPin) and helpers keep their words; only their room is taken.
+ */
+export function pinLabels(
+  items: MapItem[],
+  byId: Map<string, JobPin>,
+  offers: { top: (number | null)[] } | null,
+  selectedId: string | null,
+  manyWord: string,
+  opts: { avoid?: Rect[]; controls?: Rect | null },
+): Map<string, LabelPlan> {
+  if (!offers) return new Map();
+  const list: LabelItem[] = [];
+  items.forEach((it, i) => {
+    if (it.kind === 'one' && it.area) return;
+    const rank = (it.kind === 'one' && it.id === selectedId ? 1e12 : 0) + (offers.top[i] ?? 0);
+    if (it.kind === 'group') {
+      const top = topPinOf(it.ids, byId);
+      list.push({ id: itemKey(it), x: it.x, y: it.y, price: top.label, tag: `${placeOf(it.ids, byId)} · ${it.ids.length} ${manyWord}`, rank });
+    } else {
+      const pin = byId.get(it.id);
+      if (pin) list.push({ id: it.id, x: it.x, y: it.y, price: pin.label, tag: pin.area ?? 'Nearby', rank });
+    }
+  });
+  return planLabels(list, opts);
+}
+
+/** The column of map buttons at the top right, as a box on screen. */
+export function controlsRect(size: { w: number }, o: { right: number; top: number; button: number; gap: number; count: number }): Rect | null {
+  if (o.count <= 0) return null;
+  return { x: size.w - o.right - o.button, y: o.top, w: o.button, h: o.count * o.button + (o.count - 1) * o.gap };
+}
+
 type Props = {
   pins: JobPin[];
   tone: MapTone;
@@ -118,6 +158,10 @@ type Props = {
   you: { x: number; y: number } | null;
   /** A group was tapped at this point on screen: the map zooms into it. */
   onGroup: (x: number, y: number) => void;
+  /** The map's button column, which pins step out from under (controlsRect). */
+  controls?: Rect | null;
+  /** "You" is a live position: its marker carries a pill, which names must not cover. */
+  youLive?: boolean;
 };
 
 /**
@@ -126,7 +170,7 @@ type Props = {
  * groups that zoom in when tapped, and the picked job's card. The tile map and
  * the GL map (web) both use it, so the pins look and move the same on both.
  */
-export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, leftInset, size, zoom, toScreen, you, onGroup }: Props) {
+export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, leftInset, size, zoom, toScreen, you, onGroup, controls = null, youLive = false }: Props) {
   const t = useTheme();
   const people = tone === 'people';
   const hue = people ? t.colors.purple : t.colors.btn;
@@ -137,6 +181,10 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
   const inView = placed.filter((p) => p.x > -120 && p.x < size.w + 120 && p.y > -120 && p.y < size.h + 120);
   const items = layoutPins(groupPins(inView, people ? CLUSTER_PX_PEOPLE : CLUSTER_PX), { zoom, gap: people ? SPREAD_GAP_PEOPLE : SPREAD_GAP });
   const offers = people ? null : offersOf(items, byId);
+  // Names that would overlap step back, and pins under the buttons step aside (P1-14).
+  const labels = pinLabels(items, byId, offers, selectedId, words.many, { avoid: you ? [youRect(you.x, you.y, youLive)] : [], controls });
+  const nudge = (it: MapItem) => labels.get(itemKey(it))?.dx ?? 0;
+  const tagShown = (it: MapItem) => labels.get(itemKey(it))?.showTag ?? true;
 
   // The intro replays for a new set of things, not when the map is moved.
   const introKey = useMemo(() => pins.map((p) => p.id).sort().join('|'), [pins]);
@@ -150,7 +198,7 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
   const spreadClock = useMapClock(spreadKey, SPREAD_MS, false);
   const fan = easeOut(spreadClock.elapsed / SPREAD_MS);
   const at = (it: MapItem) =>
-    it.kind === 'one' && it.area ? { x: it.area.x + (it.x - it.area.x) * fan, y: it.area.y + (it.y - it.area.y) * fan } : { x: it.x, y: it.y };
+    it.kind === 'one' && it.area ? { x: it.area.x + (it.x - it.area.x) * fan, y: it.area.y + (it.y - it.area.y) * fan } : { x: it.x + nudge(it), y: it.y };
 
   // Where the picked pin is drawn, when it stands alone (a group zooms in first), and how tall it is.
   const pickedItem = callout && selectedId ? items.find((it) => it.kind === 'one' && it.id === selectedId) : undefined;
@@ -223,7 +271,7 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
               accessibilityLabel={`${it.ids.length} ${words.many} in ${placeOf(it.ids, byId)} area, biggest offer ${topPin.label}. Zoom in`}
               style={[{ position: 'absolute', left: p.x - PRICE_PIN.w / 2, top: p.y - PRICE_PIN.anchor, zIndex: best ? 2 : 1 }, drop]}
             >
-              <PricePin price={topPin.label} best={best} on={false} place={placeOf(it.ids, byId)} count={`${it.ids.length} ${words.many}`} />
+              <PricePin price={topPin.label} best={best} on={false} place={placeOf(it.ids, byId)} count={`${it.ids.length} ${words.many}`} hidePlace={!tagShown(it)} />
             </Pressable>
           );
         }
@@ -266,7 +314,7 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
               {spread ? (
                 <TaskPin price={pin.label} face={pin.face} seed={pin.id} who={pin.who} title={pin.title} best={best} on={on} />
               ) : (
-                <PricePin price={pin.label} best={best} on={on} place={pin.area ?? 'Nearby'} />
+                <PricePin price={pin.label} best={best} on={on} place={pin.area ?? 'Nearby'} hidePlace={!tagShown(it)} />
               )}
             </Pressable>
           </View>

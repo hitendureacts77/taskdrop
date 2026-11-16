@@ -8,6 +8,7 @@ import {
   filterJobs,
   filterList,
   jobsSummary,
+  mapPillText,
   matchesJob,
   narrowsJobs,
   parseSavedFilters,
@@ -132,4 +133,12 @@ test('B170: a count that hit the read cap says "at least", never the cap as a co
   assert.equal(jobsSummary(62, 200, 10, 'all', { home: true }), '62 jobs within 10 km · 200+ remote');
   assert.equal(jobsSummary(0, 200, 10, 'remote', { home: true }), '200+ jobs you can do remotely');
   assert.equal(jobsSummary(40, 0, 25, 'local'), '40 jobs within 25 km');
+});
+
+test('map pill names both counts when the map shows more than the reach (W2-17)', () => {
+  const w = { one: 'job', many: 'jobs' };
+  assert.equal(mapPillText(0, 0, 10, w), 'No jobs on this part of the map');
+  assert.equal(mapPillText(1, 1, 10, w), '1 job on the map');
+  assert.equal(mapPillText(62, 62, 10, w), '62 jobs on the map');
+  assert.equal(mapPillText(110, 62, 10, w), '110 jobs on the map · 62 within 10 km');
 });

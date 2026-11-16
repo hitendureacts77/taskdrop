@@ -9,7 +9,7 @@ import { mapWords as mapWordsOf } from './MapPinLayer';
 import { metresPerPixel } from '../lib/mapCluster';
 import { SPREAD_ZOOM } from '../lib/mapLayout';
 import { zoomToFit } from '../lib/mapReach';
-import { CALLOUT_LIFT, MapPinLayer, type JobPin, type MapTone } from './MapPinLayer';
+import { CALLOUT_LIFT, MapPinLayer, controlsRect, type JobPin, type MapTone } from './MapPinLayer';
 
 export {
   CALLOUT_LIFT,
@@ -344,6 +344,14 @@ export function JobsMap({
           toScreen={toScreen}
           you={you}
           onGroup={(x, y) => zoomTo(Math.max(zoom + 2, SPREAD_ZOOM), unproject(x + left, y + top, zoom))}
+          controls={controlsRect(size, {
+            right: fill ? 16 : 8,
+            top: (fill ? 16 : 8) + padTop,
+            button: fill ? 44 : 36,
+            gap: 6,
+            count: bare ? 0 : (onExpand ? 1 : 0) + 2 + (me ? 1 : 0),
+          })}
+          youLive={meKind === 'live'}
         />
 
         {/* After the pins, so it is on top, and outside the dim layer. */}
