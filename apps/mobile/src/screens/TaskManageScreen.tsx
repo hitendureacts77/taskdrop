@@ -269,6 +269,9 @@ export function TaskManageScreen() {
       await cancelTask(task.id);
       setConfirmClose(false);
       flash('Task closed');
+      // Show it closed now: the refund below can take several seconds (round 7, P1-19).
+      setDetail((d) => (d ? { ...d, task: { ...d.task, status: 'CANCELLED' } } : d));
+      void load().catch((e) => reportError(e, 'task-manage'));
       try {
         const out = await refundEscrow(task.id);
         if (out.refundedMinor > 0) flash(formatINR(out.refundedMinor) + ' is on its way back to you');

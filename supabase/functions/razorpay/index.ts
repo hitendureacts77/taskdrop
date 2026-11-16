@@ -290,7 +290,8 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
     const link = await res.json();
     if (!res.ok) {
       await logServer("error", "razorpay", "Razorpay rejected the payment link", { purpose, task_id: body.taskId ?? null, http_status: res.status, reason: link?.error?.description ?? null, user_id: userId });
-      return json({ error: link?.error?.description ?? "Razorpay rejected the request" }, 502);
+      // The provider's own words (a test-mode limit, a bank error) never reach the person; the log above keeps them.
+      return json({ error: res.status === 429 ? "Payments are busy right now. Nothing was charged. Please try again in a few minutes." : "We could not start the payment. Nothing was charged. Please try again." }, 502);
     }
 
     const { data: row, error } = await admin
