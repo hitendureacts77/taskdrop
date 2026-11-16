@@ -14,6 +14,11 @@ test("B145 location.ts has no direct OpenStreetMap or other third-party geocoder
   assert.ok(!/\bfetch\(/.test(src), "location.ts makes its own network call; use the places-search function");
 });
 
+test("B145 the website's content policy no longer lets the browser reach Nominatim", () => {
+  const vercel = readFileSync(new URL("../../../../vercel.json", import.meta.url), "utf8");
+  assert.ok(!/nominatim/i.test(vercel), "vercel.json connect-src still allows nominatim.openstreetmap.org");
+});
+
 test("B100 location.ts asks the places-search function for both a typed place and a point", () => {
   assert.equal((src.match(/functions\.invoke\('places-search'/g) ?? []).length, 2);
 });
