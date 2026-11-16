@@ -11,6 +11,11 @@ export function completeByDate(task: { due_at?: string | null; created_at: strin
   return task.due_at ? new Date(task.due_at) : null;
 }
 
+/** A count for a summary tile: a dash while the list is still loading (W2-18), never a 0 that is not true yet. */
+export function countOrDash(n: number, loading: boolean): string {
+  return loading ? '–' : String(n);
+}
+
 /** The "Your payment" line on the poster's task page. `amount` is already formatted. */
 export function paymentLine(
   task: { status: string; funded_at?: string | null },
