@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { View, Image, Text as RNText, Animated, Platform, type ViewStyle } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useReducedMotion } from '../lib/motion';
@@ -141,7 +141,7 @@ function LiveGlow({ size, top }: { size: number; top: number }) {
  * missing for someone who lists skills but no service (a dashed tag); `more`
  * is how many other services they list. Picked, the disc grows and turns blue.
  */
-export function FacePin({
+function FacePinImpl({
   face,
   seed,
   what,
@@ -238,7 +238,7 @@ function Pointer({ color }: { color: string }) {
 }
 
 /** An area's biggest offer (or one task far from the rest), with the area's name under it. */
-export function PricePin({ price, best, on, place, count }: { price: string; best: boolean; on: boolean; place: string; count?: string }) {
+function PricePinImpl({ price, best, on, place, count }: { price: string; best: boolean; on: boolean; place: string; count?: string }) {
   const t = useTheme();
   const bg = best ? t.colors.btn : t.colors.ink;
   const fg = best ? t.colors.onBtn : t.colors.bg;
@@ -265,7 +265,7 @@ export function PricePin({ price, best, on, place, count }: { price: string; bes
 }
 
 /** One task, zoomed in: the poster's face and price, then their name, then the task. */
-export function TaskPin({
+function TaskPinImpl({
   price,
   face,
   seed,
@@ -327,3 +327,8 @@ export function TaskPin({
     </View>
   );
 }
+
+// Moving the map re-renders the pin layer every frame; these pins take plain values, so they only redraw when those change.
+export const FacePin = memo(FacePinImpl);
+export const PricePin = memo(PricePinImpl);
+export const TaskPin = memo(TaskPinImpl);

@@ -66,6 +66,8 @@ function GlJobsMap({
   const moved = useRef(false);
   // Moves the app makes itself (fit, focus, a tapped group) do not count as the person moving the map.
   const programmatic = useRef(0);
+  // Which look (light or dark) the map's style was made for, so the theme effect does not load the same style a second time.
+  const styledDark = useRef<boolean | null>(null);
   const onMoveEndRef = useRef(onMoveEnd);
   onMoveEndRef.current = onMoveEnd;
   const ms = (n: number) => (reduce ? 0 : n);
@@ -74,6 +76,7 @@ function GlJobsMap({
   useEffect(() => {
     if (!lib || !box.current) return;
     const start = me ?? startAt ?? (pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : DEFAULT_CENTRE);
+    styledDark.current = t.isDark;
     const m = new lib.Map({
       ...baseOptions(t.isDark),
       container: box.current,
@@ -120,7 +123,9 @@ function GlJobsMap({
 
   // Light and dark.
   useEffect(() => {
-    if (map) map.setStyle(glStyleUrl(t.isDark));
+    if (!map || styledDark.current === t.isDark) return;
+    styledDark.current = t.isDark;
+    map.setStyle(glStyleUrl(t.isDark));
   }, [map, t.isDark]);
   useSharpMap(map);
 
