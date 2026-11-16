@@ -4807,7 +4807,7 @@ Set up production.
 
 **Part done 15 Nov (production `dyzskuzqcqbexssyrrxc`, free plan).** Checked by query: the database was empty, then all 182 migrations from `main` (796f182) were applied in order, one transaction each, with the same selection as `scripts/deploy-migrations.mjs` (182 history rows, 72 tables, all with row rules, no rows). Switched over and checked: `dev_otp_for_all` off, `admin_require_mfa` on, environment `production`, the money settings in the table above, the direct door closed (the public key gets "Not allowed" for a table, a database function and GraphQL; the schema listing is off), `pg_graphql` not installed, signed-out table rights zero, no live table broadcasts, and the database defaults match staging. The gateway secret in Vault is the `PROD_API_GATEWAY_SECRET` value. The safety alarm (Inngest `safety-alarm`, hourly) and the nightly encrypted copy (`.github/workflows/production-backup.yml`, 30 days) are in the code; both start only after the steps below. **Still open:** deploy the server functions and their production secrets (the saved Supabase access token cannot reach the production organization, so a production access token is needed); the sign-up guard hook, sign-in limits and IP forwarding in the dashboard (email sign-up is open until the hook is on); the GitHub environment `production-backup` with its two secrets and one variable; Inngest synced for production, then `push_via_inngest`; `main` protection; your admin account; a Google sign-in test.
 
-**Setup progress, 15 Nov evening (Claude, with the pull requests 370 and 371 merged into `redesigned-2.0`).** Nothing has run against production yet; `main` has not been promoted.
+**Setup progress, 15 Nov evening (Claude, with the pull requests 370 and 371 merged into `redesigned-2.0`).** `main` was promoted on 16 Nov (PR 374). The first "Production database and functions" run is waiting for your Approve; nothing from it has run against production yet.
 
 | Step | Status |
 |---|---|
@@ -4821,9 +4821,9 @@ Set up production.
 | `main` protected: a pull request and the four CI checks are required, no force-push, no deletion, admins included | **Done** (checked: the four names match the CI jobs) |
 | Production Vercel projects `taskdrop-production` and `taskdrop-admin-production` exist | **Seen**; the firewall rules, $50 spending stop and rate rules could not be read from here: check them in the Vercel dashboard (5.8b) |
 | Supabase sign-in settings on production, done by Claude through the Supabase API with the new token and read back: sign-up guard hook on (`hook_before_user_created`, function present), IP forwarding on, token limit 300, code-check limit 60, Phone and Anonymous sign-in off; the GitHub variable `PROD_DASHBOARD_DONE` = `yes` | **Done** 15 Nov evening |
-| Promote `redesigned-2.0` to `main` (a pull request now) | **Yours** |
+| Promote `redesigned-2.0` to `main` (PR 374). CI first caught one real fault in the safety check (a database type error, fixed in PR 375), which is what the rehearsal is for | **Done** 16 Nov |
 | Approve the first "Production database and functions" run; then run "Production safety alarm" once: "all clear" | **Yours**, then Claude reads the run |
-| Live check of the security header on the production address (which of the two rules wins) | Claude, after the promotion |
+| Live check of the security header on the production address (which of the two rules wins) | **Done** 16 Nov: `taskdrop-production.vercel.app` sends the production report address, so the production rule wins; `assetlinks.json` stays empty until Play (6.6) |
 | Left out on purpose (the workflow skips and lists them): money-jobs switch, push-receipt wait, Expo builds token, MSG91 (6.1) | Open |
 | Your admin account on production, a Google sign-in test, Inngest synced then push through Inngest, App Check debug token deleted (H56) | Open (item 8 in `docs/PRODUCTION_GO.md`) |
 
