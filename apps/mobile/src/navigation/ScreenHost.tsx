@@ -6,6 +6,8 @@ import { useAuth } from '../providers/AuthProvider';
 import { incomingTaskId, clearIncomingTask } from '../lib/links';
 import { getTask } from '../data/api';
 import { roughPlace } from '../lib/place';
+import { taskLinkTarget } from '../lib/taskLink';
+import { usesAuthFrame } from './frame';
 import { BottomTabBar } from '../components/BottomTabBar';
 import { SideNav } from '../components/SideNav';
 import { DesktopAuthFrame } from '../components/DesktopAuthFrame';
@@ -28,10 +30,7 @@ export const TABBED: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'pr
 // rebuilding the screen and fetching everything again behind a skeleton.
 export const KEEP_ALIVE: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'profile'];
 
-// Desktop web: screens shown before sign-in, and screens given the wide column.
-const PRE_AUTH: ScreenName[] = ['splash', 'intro', 'welcome', 'signup', 'setup'];
-// Pages anyone may read; signed out on desktop they get the sign-in frame.
-const PUBLIC: ScreenName[] = ['copyright', 'terms', 'privacy', 'support'];
+// Desktop web: which screens get the signed-out frame is in ./frame.ts (PRE_AUTH, PUBLIC).
 // Desktop column classes (lib/layout.ts, docs/design/desktop-fit/PLAN.md Q1).
 // Feeds and lists: as wide as the window allows, up to FEED_MAX.
 const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'orders', 'saved', 'wallet', 'spending', 'inbox', 'taskManage', 'help', 'notifications'];
@@ -55,7 +54,7 @@ function columnFor(screen: ScreenName, twoPane: boolean): ColumnClass {
 export function ScreenHost() {
   const t = useTheme();
   const { screen, params, go } = useNav();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
   const { desktop, tablet, gutter, contentWidth, twoPane } = useLayout();
   const keyboardOpen = useKeyboardOpen();
   const Comp = REGISTRY[screen];
@@ -103,27 +102,13 @@ export function ScreenHost() {
       try {
         const task = await getTask(id);
         clearIncomingTask();
-        if (!task) return;
-        go('taskDetail', {
-          row: {
-            id: task.id,
-            sponsored: false,
-            who: 'Customer',
-            rating: '—',
-            whoMeta: roughPlace(task.loc_label) ?? '',
-            tag: 'SERVICES',
-            title: task.title,
-            meta: roughPlace(task.loc_label) ?? '',
-            amountMinor: task.benchmark_minor,
-            hasMedia: false,
-            glyph: '',
-            dur: null,
-            body: task.description,
-            by: null,
-          },
-        });
+        // A task that does not exist (or is closed) says so, with a way back (B148), instead of silently Home.
+        const to = taskLinkTarget(task, roughPlace);
+        go(to.screen, to.params);
       } catch {
         clearIncomingTask();
+        const to = taskLinkTarget(null, roughPlace);
+        go(to.screen, to.params);
       }
     })();
   }, [go]);
@@ -153,11 +138,13 @@ export function ScreenHost() {
 
   // Desktop web: sign-in screens get the split brand/form layout; the app gets
   // the sidebar (in place of the tab bar and the + button) and a centred column.
-  if (desktop && (PRE_AUTH.includes(screen) || (!userId && PUBLIC.includes(screen)))) {
+  // A guest is inside the app too: the public pages keep the app's frame for them (B149, navigation/frame.ts).
+  const inApp = Boolean(userId) || guest;
+  if (desktop && usesAuthFrame(screen, inApp)) {
     return <DesktopAuthFrame>{content}</DesktopAuthFrame>;
   }
   // Tablet web: the icon rail in place of the tab bar, content centred.
-  if (tablet && !PRE_AUTH.includes(screen) && (userId || !PUBLIC.includes(screen))) {
+  if (tablet && !usesAuthFrame(screen, inApp)) {
     return (
       <View style={{ flex: 1, flexDirection: 'row', backgroundColor: t.colors.bg }}>
         <SideNav rail />

@@ -53,6 +53,12 @@ export const GUEST_LOCAL_ALL_PER_MINUTE = 600;
 /** Most rows one guest list read may ask for, and how deep the Ideas board may be paged. */
 export const GUEST_LIMIT_MAX = 100;
 export const GUEST_MAX_OFFSET = 1_000;
+/**
+ * workersNear for a guest (B146): at most this many kilometres around the point and this many helpers, whatever is asked.
+ * One call can no longer pull every helper in the country; a signed-in caller keeps the wider limits.
+ */
+export const GUEST_NEAR_KM_MAX = 50;
+export const GUEST_HELPERS_NEAR_MAX = 20;
 /** Most task ids one guest attachPosters may carry (the app sends at most one search page, 200 at the very most). */
 export const GUEST_MAX_IDS = 200;
 
@@ -381,8 +387,9 @@ export const GUEST_OPS: Record<string, Op> = {
 
   workersNear: async (ctx, a) => {
     const at = { lat: num(a, "lat", -90, 90), lng: num(a, "lng", -180, 180) };
-    const radius = num(a, "radiusKm", 0, 20000);
-    return within(await helpers(ctx, nearBox(at, radius)), at, radius).slice(0, limit(a, "limit", 12));
+    // Clamped for guests (B146): the box read in SQL and the list both stay small.
+    const radius = Math.min(num(a, "radiusKm", 0, 20000), GUEST_NEAR_KM_MAX);
+    return within(await helpers(ctx, nearBox(at, radius)), at, radius).slice(0, limit(a, "limit", 12, GUEST_HELPERS_NEAR_MAX));
   },
 
   listActiveWorkers: async (ctx, a) => {

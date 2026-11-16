@@ -15,6 +15,7 @@ import { adoptGuestWizard, clearWizard, dropGuestWizard } from '../lib/postWizar
 import { count, log, setMonitoringUser } from '../lib/monitoring';
 import { forgetEverything } from '../lib/freshness';
 import { forgetPushRegistration } from '../lib/push';
+import { forgetPlacesOnDevice } from '../lib/recentPlaces';
 import { callApi } from '../lib/gateway';
 
 /**
@@ -168,6 +169,8 @@ async function forgetGuestThingsOnDevice(): Promise<void> {
   await clearDrafts(GUEST_DRAFTS_OWNER);
   await clearBigDays(GUEST_DRAFTS_OWNER);
   await dropGuestSaves();
+  // The recent places and the saved area too (B147): the next person here must not see where the last one lives.
+  await forgetPlacesOnDevice();
   clearGuestHandoff();
 }
 

@@ -8,8 +8,8 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import {
-  BUSY_CODE, GUEST_ALL_HARD_PER_MINUTE, GUEST_ALL_SOFT_PER_MINUTE, GUEST_COST, GUEST_LIMIT_MAX, GUEST_MAX_IDS, GUEST_MAX_OFFSET, GUEST_OPS,
-  GUEST_NET_PER_MINUTE, GUEST_READS_PER_MINUTE, GuestCeiling, GuestLocalLimit, NEEDS_ACCOUNT, NEEDS_ACCOUNT_CODE, guestAddress, guestBusy, guestCost,
+  BUSY_CODE, GUEST_ALL_HARD_PER_MINUTE, GUEST_ALL_SOFT_PER_MINUTE, GUEST_COST, GUEST_HELPERS_NEAR_MAX, GUEST_LIMIT_MAX, GUEST_MAX_IDS, GUEST_MAX_OFFSET, GUEST_OPS,
+  GUEST_NEAR_KM_MAX, GUEST_NET_PER_MINUTE, GUEST_READS_PER_MINUTE, GuestCeiling, GuestLocalLimit, NEEDS_ACCOUNT, NEEDS_ACCOUNT_CODE, guestAddress, guestBusy, guestCost,
   guestNetKey, guestNetScope, guestRateKey, guestRateScope, guestSpend, isGuestOp, isGuestToken, isHeavyGuestOp, runGuestBatch, runGuestOp,
 } from "./guest.ts";
 import { WRITE_OPS } from "./writes.ts";
@@ -2132,6 +2132,29 @@ await t("B34 guest: near reads go through the boxed SQL, so newer far-away rows 
     : { data: [{ id: "near", poster_id: OTHER, loc_lat: 17.46, loc_lng: 78.36 }], error: null }));
   const o = await runGuestOp("tasksNear", { ...KONDAPUR, radiusKm: 5 }, ctx(old));
   assert.deepEqual((o as { data: { id: string }[] }).data.map((x) => x.id), ["near"]);
+});
+
+await t("B146 guest: workersNear clamps the radius and the number of helpers, whatever the caller asks", async () => {
+  // 150 helpers spread north of Kondapur, one every ~0.9 km (0.008 degrees of latitude), up to ~135 km away.
+  const people = Array.from({ length: 150 }, (_, i) => ({ id: `h-${i}`, loc_lat: KONDAPUR.lat + i * 0.008, loc_lng: KONDAPUR.lng, skills: ["a"] }));
+  const f = fake((c) => {
+    const a = c.args as { p_limit: number; p_min_lat?: number; p_max_lat?: number };
+    if (c.rpc === "guest_helpers" || c.rpc === "guest_helpers_near") {
+      return { data: people.filter((p) => a.p_min_lat === undefined || (p.loc_lat >= a.p_min_lat && p.loc_lat <= a.p_max_lat!)).slice(0, a.p_limit), error: null };
+    }
+    return { data: [], error: null };
+  });
+  const r = await runGuestOp("workersNear", { ...KONDAPUR, radiusKm: 20000, limit: 200 }, ctx(f));
+  assert.ok(r.ok);
+  const list = (r as { data: { id: string; km: number }[] }).data;
+  assert.equal(list.length, GUEST_HELPERS_NEAR_MAX);
+  assert.ok(list.every((x) => x.km <= GUEST_NEAR_KM_MAX));
+  // The box sent to SQL is the clamped one too, so far rows are never even read.
+  const box = f.calls.find((c) => c.rpc === "guest_helpers_near")?.args as { p_max_lat: number } | undefined;
+  assert.ok(box && box.p_max_lat < KONDAPUR.lat + 1, "the SQL box must use the clamped radius");
+  // Inside the clamp nothing changes: a 5 km ask still gets the 5 km answer.
+  const small = await runGuestOp("workersNear", { ...KONDAPUR, radiusKm: 5, limit: 3 }, ctx(f));
+  assert.deepEqual((small as { data: { id: string }[] }).data.map((x) => x.id), ["h-0", "h-1", "h-2"]);
 });
 
 await t("guest: tasksNear and workersNear keep only what is in range, nearest first", async () => {

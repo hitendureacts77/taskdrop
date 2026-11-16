@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, BackButton, IconButton, systemHeader } from '../components/kit';
+import { Badge, BackButton, EmptyState, IconButton, TopBar, systemHeader } from '../components/kit';
 import { ReportSheet } from '../components/ReportSheet';
 import { TaskQuestions } from '../components/TaskQuestions';
 import { Icon } from '../components/Icon';
@@ -29,6 +29,7 @@ import { PRICE_LIMITS, distanceKm, formatDistance } from '@taskdrop/rules';
 import { MAX_PRICE_INR } from '../lib/limits';
 import { ShareSheet, useShare } from '../components/ShareSheet';
 import { taskUrl } from '../lib/links';
+import { TASK_UNAVAILABLE } from '../lib/taskLink';
 import { noteFirstAction } from '../lib/appPrompt';
 import { type Theme } from '../theme';
 import type { FeedRow } from './HomeScreen';
@@ -126,7 +127,25 @@ function isFeedRow(v: unknown): v is FeedRow {
   return !!v && typeof v === 'object' && 'title' in v && 'amountMinor' in v;
 }
 
+/**
+ * A shared link to a task that does not exist or is closed (B148): a plain message and a way back, not silently Home.
+ */
+function TaskUnavailable() {
+  const { back, go } = useNav();
+  return (
+    <Screen padded={false}>
+      <TopBar title="Task" onBack={back} />
+      <EmptyState icon="briefcase" title={TASK_UNAVAILABLE} body="It may have been closed or removed." actionLabel="Go to Home" onAction={() => go('home')} />
+    </Screen>
+  );
+}
+
 export function TaskDetailScreen() {
+  const { params } = useNav();
+  return params.unavailable === true ? <TaskUnavailable /> : <TaskDetailBody />;
+}
+
+function TaskDetailBody() {
   const t = useTheme();
   const { params, back, go } = useNav();
   const { mode } = useMode();

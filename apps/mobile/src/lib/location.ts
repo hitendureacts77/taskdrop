@@ -9,7 +9,8 @@ import { FUNCTIONS_REGION, supabase } from './supabase';
  *
  *   1. Google Places, through the places-search Edge Function when the server
  *      has a key. Best results and the one to use in production.
- *   2. OpenStreetMap's Nominatim. No key, works on web and on device, and
+ *   2. OpenStreetMap's Nominatim, asked by that same Edge Function (never by
+ *      the app itself, B145; guests included, B100). No key, and it
  *      returns real coordinates — so the app is genuinely usable out of the box
  *      instead of "add a key first". Low volume only, per their usage policy.
  *   3. The device geocoder, which does not exist on web and is the last resort.
@@ -264,8 +265,8 @@ export async function describeCoords(lat: number, lng: number): Promise<string> 
       /* fall through */
     }
   }
-  // The server looks the point up (places-search, which also keeps us inside
-  // OpenStreetMap's rules); asking OpenStreetMap directly is the fallback.
+  // The server looks the point up (places-search, which also keeps us inside OpenStreetMap's rules). Guests too:
+  // the server rounds their point before it leaves (B145). The app never asks a map service itself.
   try {
     const { data } = await withTimeout(
       supabase.functions.invoke('places-search', { body: { lat, lng }, region: FUNCTIONS_REGION }),
@@ -273,20 +274,6 @@ export async function describeCoords(lat: number, lng: number): Promise<string> 
     );
     const label = (data as { label?: string | null } | null)?.label;
     if (label) return label;
-  } catch {
-    /* fall through */
-  }
-  try {
-    const res = await withTimeout(
-      fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=14`,
-        { headers: OSM_HEADERS },
-      ),
-      8000,
-    );
-    const json = (await res.json()) as { display_name?: string; name?: string };
-    const short = json.name ?? json.display_name?.split(',').slice(0, 3).join(', ');
-    if (short) return short;
   } catch {
     /* fall through */
   }
@@ -303,15 +290,8 @@ export async function searchPlaces(query: string): Promise<PickedPlace[]> {
   const q = query.trim();
   if (q.length < 2) return [];
 
-  const viaGoogle = await googlePlaces(q);
-  if (viaGoogle.length) {
-    lastProvider = 'google';
-    return viaGoogle;
-  }
-
-  lastProvider = 'osm';
-  const viaOsm = await openStreetMap(q);
-  if (viaOsm.length) return viaOsm;
+  const viaServer = await serverPlaces(q);
+  if (viaServer.length) return viaServer;
 
   // Native only; on web this throws and we simply have nothing to add.
   if (Platform.OS !== 'web') {
@@ -326,12 +306,13 @@ export async function searchPlaces(query: string): Promise<PickedPlace[]> {
 }
 
 /**
- * Google Places, through the places-search Edge Function. The Google key lives
- * on the server (signed-in callers only, rate limited), so nothing spendable
- * ships in the web bundle or the APK. The function does the new Places API
- * searchText call and answers { configured, places }.
+ * Place search through the places-search Edge Function: Google when the server
+ * has a key (signed-in callers, rate limited), otherwise OpenStreetMap asked by
+ * the server. Guests get OpenStreetMap through the server with guest limits
+ * (B100). The app never asks a map service itself (B145), so what someone types
+ * and where they are never go straight to a third party from the browser.
  */
-async function googlePlaces(q: string): Promise<PickedPlace[]> {
+async function serverPlaces(q: string): Promise<PickedPlace[]> {
   try {
     const { data, error } = await withTimeout(
       supabase.functions.invoke('places-search', {
@@ -341,51 +322,15 @@ async function googlePlaces(q: string): Promise<PickedPlace[]> {
       8000,
     );
     if (error) return [];
-    const out = data as { places?: PickedPlace[] } | null;
-    return (out?.places ?? []).filter((p) => p.lat !== null && p.lng !== null);
+    const out = data as { places?: PickedPlace[]; source?: string } | null;
+    const places = (out?.places ?? []).filter((p) => p.lat !== null && p.lng !== null);
+    lastProvider = out?.source === 'google' && places.length ? 'google' : 'osm';
+    return places;
   } catch {
-    // Signed out, offline, over the rate limit, or no key set on the server:
-    // not a dead end — the chain falls through to OpenStreetMap, which needs no
-    // key at all.
+    // Offline, over the rate limit or the server busy: the caller keeps the typed text selectable.
     return [];
   }
 }
-
-async function openStreetMap(q: string): Promise<PickedPlace[]> {
-  try {
-    const res = await withTimeout(
-      fetch(
-        `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=${encodeURIComponent(q)}`,
-        { headers: OSM_HEADERS },
-      ),
-      8000,
-    );
-    const json = (await res.json()) as
-      | { display_name?: string; name?: string; lat?: string; lon?: string }[]
-      | null;
-    return (json ?? [])
-      .map((r) => ({
-        // The full display_name is a mouthful; the first few parts read like an address.
-        label: r.display_name?.split(',').slice(0, 3).join(', ') ?? r.name ?? q,
-        lat: r.lat ? Number(r.lat) : null,
-        lng: r.lon ? Number(r.lon) : null,
-      }))
-      .filter((r) => r.lat !== null && r.lng !== null);
-  } catch {
-    return [];
-  }
-}
-
-/**
- * OpenStreetMap's usage policy refuses anonymous app traffic (a 403). A
- * browser identifies itself; a native fetch does not, so it has to say who it
- * is. Browsers forbid setting User-Agent, hence native only.
- */
-const OSM_HEADERS: Record<string, string> =
-  Platform.OS === 'web'
-    ? { Accept: 'application/json' }
-    : { Accept: 'application/json', 'User-Agent': 'TaskDrop/1.0 (com.taskdrop.app)' };
-
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     p,

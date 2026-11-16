@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PickedPlace } from './location';
+import { RECENT_PLACES_KEY, forgetPlaces } from './placeMemory';
 
 /**
  * The last few places someone picked.
@@ -10,7 +11,7 @@ import type { PickedPlace } from './location';
  * follow anyone to another device or reach the server.
  */
 
-const KEY = 'taskdrop.recentPlaces.v1';
+const KEY = RECENT_PLACES_KEY;
 const MAX = 5;
 
 let cache: PickedPlace[] | null = null;
@@ -30,6 +31,15 @@ export async function loadRecentPlaces(): Promise<PickedPlace[]> {
     cache = [];
   }
   return cache;
+}
+
+/**
+ * Sign-out (B147): the recent places and a guest's saved area leave this device, so the next person (a guest
+ * included) never sees the previous person's addresses or area.
+ */
+export async function forgetPlacesOnDevice(): Promise<void> {
+  cache = null;
+  await forgetPlaces(AsyncStorage);
 }
 
 export function rememberPlace(place: PickedPlace): void {
