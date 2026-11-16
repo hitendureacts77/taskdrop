@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
+import { clockSkewFetch } from "../_shared/clockSkewFetch.ts";
 import { Inngest } from "npm:inngest@4.23.0";
 import { serve } from "npm:inngest@4.23.0/edge";
 import { devModeAllowed } from "../_shared/devMode.ts";
@@ -92,7 +93,8 @@ const receiptWait = Deno.env.get("INNGEST_PUSH_RECEIPT_WAIT") ?? "15m";
 const db = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  { auth: { persistSession: false } },
+  // B97: a gateway clock tick can answer 401 "JWT issued at future"; ask again instead of failing the step.
+  { auth: { persistSession: false }, global: { fetch: clockSkewFetch(fetch) } },
 );
 const rpc = (name: string, args?: Record<string, unknown>) => db.rpc(name, args);
 
