@@ -183,27 +183,35 @@ export async function resolveCurrentPlace(opts?: {
   }
 
   // The instant half. A fix up to a couple of minutes old is fine for centring
-  // a map, and the precise one is right behind it.
-  if (opts?.onPartial) {
-    try {
-      const last = await Location.getLastKnownPositionAsync({ maxAge: 120_000 });
-      if (last) opts.onPartial({ lat: last.coords.latitude, lng: last.coords.longitude });
-    } catch {
-      /* no cached fix is normal on a fresh install */
+  // a map, and the precise one is right behind it. It is also kept as the last resort below, so a
+  // slow GPS (indoors, a cold start) still ends with the phone's own idea of where it is.
+  let cached: { latitude: number; longitude: number } | null = null;
+  try {
+    const last = await Location.getLastKnownPositionAsync({ maxAge: 120_000 });
+    if (last) {
+      cached = last.coords;
+      opts?.onPartial?.({ lat: last.coords.latitude, lng: last.coords.longitude });
     }
+  } catch {
+    /* no cached fix is normal on a fresh install */
   }
 
+  // Precise first; if the satellites are slow (indoors), settle for the network-based fix, and if
+  // that is slow too, for the cached one. Only with nothing at all is it a failure.
   let coords: { latitude: number; longitude: number };
   try {
-    // Without a ceiling this can hang indefinitely on a cold GPS fix.
-    const pos = await withTimeout(
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
-      15_000,
-    );
-    coords = pos.coords;
-  } catch (e) {
-    if (e instanceof LocationError) throw e;
-    throw new LocationError('timeout', 'Could not get a fix — try again, or search for the area');
+    coords = (
+      await withTimeout(Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }), 10_000)
+    ).coords;
+  } catch {
+    try {
+      coords = (
+        await withTimeout(Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }), 8_000)
+      ).coords;
+    } catch {
+      if (!cached) throw new LocationError('timeout', 'Could not get a fix — try again, or search for the area');
+      coords = cached;
+    }
   }
 
   const { latitude, longitude } = coords;
@@ -257,7 +265,7 @@ export async function describeCoords(lat: number, lng: number): Promise<string> 
   // Reverse geocoding is not implemented on web.
   if (Platform.OS !== 'web') {
     try {
-      const [place] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+      const [place] = await withTimeout(Location.reverseGeocodeAsync({ latitude: lat, longitude: lng }), 5000);
       const parts = [place?.name ?? place?.street, place?.city ?? place?.subregion, place?.region]
         .filter(Boolean)
         .join(', ');
@@ -333,10 +341,9 @@ async function serverPlaces(q: string): Promise<PickedPlace[]> {
   }
 }
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    p,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new LocationError('timeout', 'That took too long')), ms),
-    ),
-  ]);
+  let timer: ReturnType<typeof setTimeout>;
+  const limit = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => reject(new LocationError('timeout', 'That took too long')), ms);
+  });
+  return Promise.race([p, limit]).finally(() => clearTimeout(timer));
 }
