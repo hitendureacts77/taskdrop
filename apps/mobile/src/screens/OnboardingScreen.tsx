@@ -62,6 +62,15 @@ export function OnboardingScreen() {
   const [langs, setLangs] = useState<string[]>([]);
   const [place, setPlace] = useState<{ label: string; lat: number | null; lng: number | null } | null>(null);
   const [showLoc, setShowLoc] = useState(false);
+  // A new sign-up with no area is asked for one when they reach the step that holds it (About you), never
+  // over the Welcome step (W2-19: the map picker opened on top of Step 1 before Let’s go was tapped).
+  const [askArea, setAskArea] = useState(false);
+  useEffect(() => {
+    if (askArea && step === 4) {
+      setAskArea(false);
+      setShowLoc(true);
+    }
+  }, [askArea, step]);
   const [avatar, setAvatar] = useState<string | null>(null);
   const [avatarPath, setAvatarPath] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -82,9 +91,9 @@ export function OnboardingScreen() {
       setLangs(p.languages ?? []);
       if (p.intent === 'post' || p.intent === 'earn' || p.intent === 'both') setIntent(p.intent);
       if (p.loc_label) setPlace({ label: p.loc_label, lat: p.loc_lat, lng: p.loc_lng });
-      // New sign-ups are asked for their area straight away. Setup only opens
+      // New sign-ups are asked for their area on the About you step. Setup only opens
       // for an account that has not finished it, so returning members never see this.
-      else setShowLoc(true);
+      else setAskArea(true);
       if (p.avatar_url) {
         setAvatarPath(p.avatar_url);
         setAvatar(await signedMediaUrl(p.avatar_url, 'thumb'));
