@@ -34,6 +34,8 @@ import {
 } from '../lib/media';
 import { maskContacts } from '../lib/mask';
 import { Pressy, tx } from '../components/primitives';
+import { pctWords, releaseMessage, workerEarnsMinor } from '../lib/heldWords';
+import { useFees } from '../lib/useFees';
 
 const RING_R = 88;
 const RING_C = 2 * Math.PI * RING_R;
@@ -75,6 +77,7 @@ export function ActiveScreen() {
   const { userId } = useAuth();
   const { flash, celebrate } = useActions();
   const worker = mode === 'worker';
+  const fees = useFees();
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
 
   const [detail, setDetail] = useState<TaskDetail | null | undefined>(undefined);
@@ -181,6 +184,8 @@ export function ActiveScreen() {
   const other = worker ? detail.poster : detail.worker;
   const otherName = startedAt ? (other?.display_name ?? (worker ? 'The customer' : 'The worker')) : 'Shown when the job starts';
   const escrowMinor = detail.assignment?.escrow_minor ?? task.locked_minor ?? 0;
+  // The worker sees their own earnings (price less the commission), not the poster's held total (round 7, W3-2).
+  const earnsMinor = workerEarnsMinor(escrowMinor, fees, task.locked_minor);
   const finished = status === 'COMPLETED' || status === 'AUTO_COMPLETED';
   const overdue = !doneAt && remaining < 0;
 
@@ -406,9 +411,9 @@ export function ActiveScreen() {
             <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Set by the customer</RNText>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <RNText style={tx('600', 10, t.colors.muted, { letterSpacing: 1.2 })}>HELD SAFELY</RNText>
-            <RNText style={tx('800', 14, t.colors.ink, { marginTop: 4 })}>{formatINR(escrowMinor)}</RNText>
-            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Held safely until approval</RNText>
+            <RNText style={tx('600', 10, t.colors.muted, { letterSpacing: 1.2 })}>{worker ? 'YOU EARN' : 'HELD SAFELY'}</RNText>
+            <RNText style={tx('800', 14, t.colors.ink, { marginTop: 4 })}>{formatINR(worker ? earnsMinor : escrowMinor)}</RNText>
+            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>{worker ? `After TaskDrop's ${pctWords(fees.commission)} fee, held until approval` : 'Held safely until approval'}</RNText>
           </View>
         </View>
 
@@ -596,7 +601,7 @@ export function ActiveScreen() {
         visible={confirmingRelease}
         icon="shield"
         title="Release the payment?"
-        message={`${formatINR(escrowMinor)} held for this job goes to the worker, and it cannot be taken back. Only do this if the work is done to your satisfaction. If something is wrong, ask for changes or report a problem instead.`}
+        message={releaseMessage(formatINR(escrowMinor))}
         confirmLabel="Yes, release payment"
         cancelLabel="Not yet"
         busy={busy}
