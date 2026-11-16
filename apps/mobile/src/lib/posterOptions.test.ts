@@ -10,6 +10,15 @@ test('shifting a flat and cleaning the old one: crew, with the words used', () =
   assert.match(s[0]!.reason, /Shift/);
 });
 
+test('W2-10: a flat size alone is not a crew; asking for several people is', () => {
+  assert.deepEqual(suggestOptions({ ...base, text: 'Clean my 2BHK flat this weekend' }).map((x) => x.key), []);
+  assert.deepEqual(suggestOptions({ ...base, text: 'Clean my 3 BHK flat' }).map((x) => x.key), []);
+  const s = suggestOptions({ ...base, text: 'Need 3 people to clean my 2BHK' });
+  assert.deepEqual(s.map((x) => x.key), ['crew']);
+  assert.match(s[0]!.reason, /3 people/);
+  assert.deepEqual(suggestOptions({ ...base, text: 'Need 1 person to fix a tap' }).map((x) => x.key), []);
+});
+
 test('only one suggestion: the poster\'s words win over the When step', () => {
   assert.equal(MAX_SUGGESTIONS, 1);
   const s = suggestOptions({ ...base, text: 'Shift and clean every week', whenNow: true });
