@@ -258,6 +258,21 @@ Conclusion: P1-9 was most likely the session being replaced by W3's web sign-ins
 - Severity: Low (unconfirmed)
 - Screenshot: shots\P1-21.png (the dialog)
 
+### P1-26 Sign-in, number step: the keyboard covers the mobile-number box (found 16 Nov, evening)
+- Screen: signed-out sign-in, first step, Android phone (CPH2585), keyboard on
+- Steps: sign out, tap the number box, type 9990000003.
+- Actual: the box sits under the tall picture and the keyboard covers it, so the digits are typed blind. After closing the keyboard the digits were exact (9990000003) and the check mark showed.
+- Expected: the box scrolls above the keyboard when it gets focus.
+- Severity: Medium
+- Status: **Fixed in PR 395 (merged), not published to the phone yet** (the number box is wrapped in `RevealWhen`). Recheck on the phone after the update.
+
+### P1-27 Sign-in, code step: the Test-mode code stays under the keyboard; `RevealWhen` never scrolled on Android (found 16 Nov, evening)
+- Screen: signed-out sign-in, code step, Android phone, keyboard on (the six code boxes were visible; the yellow Test-mode code box was cut off under the keyboard)
+- Actual: the page scrolls by hand (the code was reachable after a swipe), but the automatic scroll never ran, two screenshots 2 s apart.
+- Suspected cause (not yet proven on the phone): `RevealWhen`'s wrapper View has no style, so Android can leave it out of the native view tree and `measureInWindow` never calls back. Every screen that uses `RevealWhen` may have had the same fault.
+- Severity: Medium (High for testers, who need the Test-mode code)
+- Status: **Fixed in PR 396 (merged), not published to the phone yet** (`collapsable={false}` on the wrapper). If it is still hidden after the update, the cause was something else and this stays open.
+
 ### Process note (not an app bug)
 While I was on the manage screen, a Microsoft Teams message banner from another app slid down over the top of TaskDrop and my tap opened that Teams chat. I did not read or record it, pressed Back at once and relaunched TaskDrop. Do Not Disturb during phone tests would prevent this.
 

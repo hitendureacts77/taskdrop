@@ -12,6 +12,36 @@ Checked live: Back from Explore goes Home on the phone; Earn Home shows the area
 
 Still open: P1-6 page jump, W3-20 test code auto-fill (owner decision), P1-25, W3-17 sidebar links and B171 (owner decision), W2-9 resume at the last step, the chat button unread dot, "How TaskDrop works" tap area, the 5-hour usage limit stopped nothing else.
 
+## Every open bug in one list (16 Nov, night): fix them all together at the end
+
+You asked for all the bugs to be written down first and fixed together at the end, then published in one update. This is that list. Nothing in it is being fixed now. The ids point to the walk files in `round-7/` and to `LEDGER.md`.
+
+**Fixed and merged, but not on your phone yet (needs the one update):**
+
+| Id | What | Level |
+|---|---|---|
+| P1-26 | Sign-in number box hidden under the keyboard (PR 395) | Medium |
+| P1-27 | Sign-in Test-mode code stays under the keyboard, `RevealWhen` never scrolled on Android (PR 396; the cause is still a guess until it is checked on the phone) | Medium |
+
+**Open bugs, not fixed (my work):**
+
+| Id | What | Level |
+|---|---|---|
+| P1-6 | The page jumps when the budget step's price changes (the ₹ sign itself was fixed) | Low |
+| W2-9 | A draft resumes at the first step, not the last one the person reached | Low |
+| W3-17 (part) | The chat button on a task has no unread dot; "How TaskDrop works" has a small tap area | Low |
+| P1-25 | Notification permission reads "granted" after "Don't allow" (needs a clean install to tell) | Low, unconfirmed |
+| W3-18 | "Offered 4m ago" looked stale (probably an old render) | Low, unconfirmed |
+| W3-19, W3-21 and the other info items | See `W3-golden-path.md` | Info |
+| A1-9, A1-10 | Admin, info items | Info |
+| CI | Semgrep fails on every pull request with a Python 3.14 crash in the CI setup (not a code finding) | Low |
+
+**Fixed but never rechecked live (recheck after the update):** P1-1 (code step, now P1-27), P1-22 Google cancel timing, P1-6 ₹ sign, P1-21 draft delete prompt, the fine wording in the release dialog, W2-12 leave-without-saving on web, the Close-task refresh (P1-15, P1-19).
+
+**Waiting for your decision** (same as the table below): razorpay deploy, B157 migration, W3-5 withdraw-an-offer, W3-10 global sign-out, B164 / P1-3 floating "+" over Apply (seen again on Earn Home on 16 Nov), P1-11 https links (needs an Android build), map intro replay, W3-20 test-code auto-fill, W3-17 sidebar links and B171, the dashboard "workers available now" tile, B169, B140, B99, Do Not Disturb during phone tests.
+
+**Process note, 16 Nov night:** while the phone was in use, one tap and one swipe of mine landed in WhatsApp. Nothing was sent and no chat was read or saved. The phone was left alone until you said it was free.
+
 ## What waits for you (first, as the plan asks)
 
 | What | Why it needs you |
