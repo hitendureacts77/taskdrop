@@ -142,7 +142,6 @@ function MyPosted() {
   const [menu, setMenu] = useState<Task | null>(null);
   const [closing, setClosing] = useState(false);
   const [confirmClose, setConfirmClose] = useState<Task | null>(null);
-  const [confirmDraft, setConfirmDraft] = useState<PostDraft | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   // True when the last load failed (offline, server hiccup): an empty list is then
   // "could not load", not "you have no tasks".
@@ -448,24 +447,6 @@ function MyPosted() {
           </>
         ) : null}
       </BottomSheet>
-
-      <ConfirmDialog
-        visible={confirmDraft !== null}
-        danger
-        icon="close"
-        title="Delete this draft?"
-        message="The words you wrote are deleted from this device. This can’t be undone."
-        confirmLabel="Yes, delete it"
-        cancelLabel="Keep it"
-        onCancel={() => setConfirmDraft(null)}
-        onConfirm={() => {
-          const d = confirmDraft;
-          setConfirmDraft(null);
-          if (!d || !draftOwner) return;
-          setDrafts((cur) => cur.filter((x) => x.id !== d.id));
-          void removeDraft(draftOwner, d.id);
-        }}
-      />
 
       <ConfirmDialog
         visible={confirmClose !== null}
