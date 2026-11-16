@@ -381,6 +381,10 @@ function MyPosted() {
           ) : shown.length === 0 && failed ? (
             <LoadFailed onRetry={() => void refresh()} />
           ) : shown.length === 0 ? (
+            q.trim() ? (
+              // A search that found nothing is not an empty account (round 7, P1-10).
+              <EmptyState icon="search" title={`No tasks match "${q.trim()}"`} body="Check the spelling, or clear the search to see them all." actionLabel="Clear search" onAction={() => setQ('')} />
+            ) : (
             <EmptyState
               icon="list"
               title={tab === 0 && !needs ? 'No open tasks' : 'Nothing here yet'}
@@ -388,6 +392,7 @@ function MyPosted() {
               actionLabel={tab === 0 ? 'Create task' : undefined}
               onAction={() => go('aiPost')}
             />
+            )
           ) : (
             <Grid>
             {shown.map((task, i) => (

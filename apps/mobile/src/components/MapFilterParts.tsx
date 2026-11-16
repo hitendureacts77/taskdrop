@@ -346,6 +346,12 @@ export function FiltersPanel({
               <PriceBox label="Min" value={f.minPay} onChange={(minPay) => set({ minPay })} />
               <PriceBox label="Max" value={f.maxPay} onChange={(maxPay) => set({ maxPay })} />
             </View>
+            {f.maxPay > 0 && f.maxPay < f.minPay ? (
+              // The filter already treats the two the other way round; say so instead of leaving the boxes and the label to disagree (round 7, P1-5).
+              <RNText style={tx('500', 12, t.colors.muted)}>
+                Max is lower than Min, so the range is used the other way round: {priceLabel({ minPay: f.maxPay, maxPay: f.minPay })}.
+              </RNText>
+            ) : null}
           </Section>
           <Section title="How they hire" hint="Pick one, both, or neither for all jobs">
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
