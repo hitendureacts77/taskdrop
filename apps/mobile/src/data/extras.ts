@@ -309,12 +309,16 @@ export async function usernameAvailable(username: string): Promise<boolean | nul
   return quietly<boolean | null>('usernameAvailable', { username: handle }, null);
 }
 
+export type EarnGoal = 'business' | 'gig' | 'other';
+
 export type ProfileExtras = {
   username?: string | null;
   bio?: string | null;
   workerBio?: string | null;
   languages?: string[];
   intent?: 'post' | 'earn' | 'both' | null;
+  /** Why they earn (migration 179): sales for an existing business, gig-style earning, or something else. */
+  earnGoal?: EarnGoal | null;
   workerOnboarded?: boolean;
 };
 

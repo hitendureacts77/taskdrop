@@ -180,6 +180,18 @@ await t("profile edits only touch the caller's row, and only known columns", asy
   assert.deepEqual(steps(f.calls[0], "eq")[0], ["id", UID]);
 });
 
+await t("why someone earns is saved as one of three answers, and nothing else (migration 179)", async () => {
+  for (const earnGoal of ["business", "gig", "other", null]) {
+    const f = fake(() => ({ data: [{ id: UID }], error: null }));
+    assert.equal((await runOp("updateProfileExtras", { earnGoal }, ctx(f))).ok, true, String(earnGoal));
+    assert.deepEqual(steps(f.calls[0], "update")[0][0], { earn_goal: earnGoal });
+    assert.deepEqual(steps(f.calls[0], "eq")[0], ["id", UID]);
+  }
+  const bad = fake();
+  assert.equal((await runOp("updateProfileExtras", { earnGoal: "scam" }, ctx(bad))).ok, false);
+  assert.equal(bad.calls.length, 0, "an unknown answer never reaches the database");
+});
+
 await t("the legacy payout_upi is never written (migration 073 closed the column)", async () => {
   const f = fake(() => ({ data: [{ id: UID }], error: null }));
   await runOp("updateProfile", { displayName: "Ann", payoutUpi: "ann@upi" }, ctx(f));
@@ -2436,7 +2448,7 @@ await t("guest: the admin panel's maintenance and update switches also stop a gu
 
 // ------------------------------------------------ columns (task 2.18 A) --
 
-const SECRET_PROFILE = ["payout_upi", "sessions_revoked_at", "sessions_keep_session", "weekly_goal_minor", "referral_code"];
+const SECRET_PROFILE = ["payout_upi", "sessions_revoked_at", "sessions_keep_session", "weekly_goal_minor", "referral_code", "earn_goal"];
 const SECRET_TASK = ["funded_minor", "funded_credits_minor", "funded_via", "funding_payment_id", "locked_minor", "locked_bid_id", "payout_mode", "wallet_refunded_at", "preferred_worker_id"];
 const selectedColumns = (c: Call) => String(steps(c, "select")[0]?.[0] ?? "").split(",").map((x) => x.trim());
 const leaky = (list: string[], banned: string[]) => banned.filter((k) => list.includes(k));

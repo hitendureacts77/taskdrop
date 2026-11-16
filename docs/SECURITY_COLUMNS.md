@@ -38,11 +38,12 @@ What this does **not** change: database grants and row rules. The old app still 
 | deleted_at | public | Lets the app show "deleted account" in old threads. |
 | referral_code | private | Only the owner's Wallet screen reads it; nobody else needs another person's code. |
 | weekly_goal_minor | private | A person's own earnings goal (hole H45). The app reads it through `myStreaks`. |
+| earn_goal | private | Why the person earns: business sales, gig-style earning or other (migration 179). Asked in worker onboarding; only their own setup screens read it. |
 | sessions_revoked_at | private | When the person last signed out of all devices (H45). Used by the server only. |
 | sessions_keep_session | private | Which session survived that sign-out (H45). Used by the server only. |
 | payout_upi | private | Old UPI column, empty since migration 073 and replaced by payout destinations (H13). In no answer. |
 
-A person's **own** profile read adds only `referral_code` and `weekly_goal_minor`. The sign-out fields and `payout_upi` are in no `api` answer at all.
+A person's **own** profile read adds only `referral_code`, `weekly_goal_minor` and `earn_goal`. The sign-out fields and `payout_upi` are in no `api` answer at all.
 
 ## tasks (54 columns; open posts are readable by everyone, the rest by the poster, the hired worker and anyone who made an offer)
 

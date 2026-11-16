@@ -19,21 +19,29 @@ import { releaseAccountHold, runPendingAfterSignIn } from '../lib/guest';
 import { ownerMatches, resumable } from '../lib/postWizard';
 import { loadWizard } from '../lib/postWizardStore';
 import { getProfile, updateProfile } from '../data/api';
-import { applyReferralCode, updateProfileExtras, usernameAvailable } from '../data/extras';
+import { applyReferralCode, updateProfileExtras, usernameAvailable, type EarnGoal } from '../data/extras';
+import { EarnGoalPicker, isEarnGoal } from '../components/EarnGoalPicker';
+import { RoleTheme } from '../providers/ThemeProvider';
 import { nameCarriesContact } from '../lib/mask';
 import { imageSource, pickMedia, pickedFromFile, signedMediaUrl, uploadMedia, type PickedMedia } from '../lib/media';
 import { useFileDrop } from '../lib/useFileDrop';
 import { LANGUAGES, SKILL_OPTIONS } from './ProfileEditScreen';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
 
-const STEPS = ['Welcome', 'Username', 'Your intent', 'Skills', 'About you', 'Done'] as const;
+const STEPS = ['Welcome', 'Username', 'Your intent', 'Why you earn', 'Skills', 'About you', 'Done'] as const;
 type Intent = 'post' | 'earn' | 'both';
+// Step numbers used below. The two earning steps are skipped for someone who only posts.
+const WHY_EARN = 3;
+const SKILLS = 4;
+const ABOUT = 5;
+const DONE = 6;
 
 /**
  * First run, one question at a time: a welcome (with an optional referral
- * code), a public @username, what the person came to do, their skills if they
- * will earn, and the basics people see on their profile. Every answer is saved
- * to the profile as it is given, so leaving halfway loses nothing.
+ * code), a public @username, what the person came to do, why they earn and
+ * their skills if they will earn, and the basics people see on their profile.
+ * Every answer is saved to the profile as it is given, so leaving halfway
+ * loses nothing.
  */
 export function OnboardingScreen() {
   const t = useTheme();
@@ -45,7 +53,7 @@ export function OnboardingScreen() {
   const quick = Boolean(params.quick);
   // A guest who backs out of the quick finish gets their open sheet back.
   useEffect(() => (quick ? releaseAccountHold : undefined), [quick]);
-  const [step, setStep] = useState(quick ? 4 : 0);
+  const [step, setStep] = useState(quick ? ABOUT : 0);
   const [busy, setBusy] = useState(false);
   const [introSeen, setIntroSeen] = useState<boolean | null>(null);
   useEffect(() => {
@@ -56,6 +64,7 @@ export function OnboardingScreen() {
   const [username, setUsername] = useState('');
   const [free, setFree] = useState<boolean | null>(null);
   const [intent, setIntent] = useState<Intent>('both');
+  const [earnGoal, setEarnGoal] = useState<EarnGoal | null>(null);
   const [skills, setSkills] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
@@ -66,7 +75,7 @@ export function OnboardingScreen() {
   // over the Welcome step (W2-19: the map picker opened on top of Step 1 before Let’s go was tapped).
   const [askArea, setAskArea] = useState(false);
   useEffect(() => {
-    if (askArea && step === 4) {
+    if (askArea && step === ABOUT) {
       setAskArea(false);
       setShowLoc(true);
     }
@@ -90,6 +99,7 @@ export function OnboardingScreen() {
       setBio(p.bio ?? '');
       setLangs(p.languages ?? []);
       if (p.intent === 'post' || p.intent === 'earn' || p.intent === 'both') setIntent(p.intent);
+      if (isEarnGoal(p.earn_goal)) setEarnGoal(p.earn_goal);
       if (p.loc_label) setPlace({ label: p.loc_label, lat: p.loc_lat, lng: p.loc_lng });
       // New sign-ups are asked for their area on the About you step. Setup only opens
       // for an account that has not finished it, so returning members never see this.
@@ -123,8 +133,20 @@ export function OnboardingScreen() {
     return () => anim.stop();
   }, [step, progress]);
 
-  const next = () => setStep((s) => Math.min(STEPS.length - 1, s + (s === 2 && intent === 'post' ? 2 : 1)));
-  const prev = () => setStep((s) => Math.max(0, s - (s === 4 && intent === 'post' ? 2 : 1)));
+  // Someone who only posts is never asked why they earn or what they are good at.
+  const skipped = (s: number) => intent === 'post' && (s === WHY_EARN || s === SKILLS);
+  const next = () =>
+    setStep((s) => {
+      let n = s + 1;
+      while (skipped(n)) n += 1;
+      return Math.min(DONE, n);
+    });
+  const prev = () =>
+    setStep((s) => {
+      let n = s - 1;
+      while (n > 0 && skipped(n)) n -= 1;
+      return Math.max(0, n);
+    });
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -341,7 +363,30 @@ export function OnboardingScreen() {
     );
   }
 
-  if (step === 3) {
+  if (step === WHY_EARN) {
+    body = (
+      // Earn is blue (owner rule): the earning question uses the worker colours.
+      <RoleTheme worker>
+        <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.7 })}>Why do you want to earn on TaskDrop?</RNText>
+        <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21 })}>
+          This helps us show you the right tasks and tips. Only you can see it.
+        </RNText>
+        <EarnGoalPicker value={earnGoal} onChange={setEarnGoal} />
+      </RoleTheme>
+    );
+    footer = (
+      <PrimaryButton
+        label="Continue"
+        busy={busy}
+        disabled={!earnGoal}
+        onPress={() => void run(async () => {
+          if (userId && earnGoal) await updateProfileExtras(userId, { earnGoal });
+        })}
+      />
+    );
+  }
+
+  if (step === SKILLS) {
     body = (
       <>
         <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.7 })}>What are you good at?</RNText>
@@ -364,7 +409,7 @@ export function OnboardingScreen() {
     );
   }
 
-  if (step === 4) {
+  if (step === ABOUT) {
     body = (
       <>
         <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.7 })}>About you</RNText>
@@ -414,7 +459,7 @@ export function OnboardingScreen() {
     );
   }
 
-  if (step === 5) {
+  if (step === DONE) {
     body = (
       <View style={{ alignItems: 'center', paddingTop: 30 }}>
         {/* The one celebration: a check with ripples going out from it. */}
@@ -427,7 +472,9 @@ export function OnboardingScreen() {
         <RNText style={tx('800', 26, t.colors.ink, { marginTop: 18, textAlign: 'center', letterSpacing: -0.7 })}>You’re all set{name ? `, ${name.split(' ')[0]}` : ''}!</RNText>
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21, textAlign: 'center' })}>
           {intent === 'earn'
-            ? 'Find a task near you and send your first offer.'
+            ? earnGoal === 'business'
+              ? 'Find people who need what your business does and send your first offer.'
+              : 'Find a task near you and send your first offer.'
             : 'Tell us what you need done and we’ll write the post for you.'}
         </RNText>
       </View>

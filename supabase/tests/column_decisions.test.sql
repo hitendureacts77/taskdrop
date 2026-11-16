@@ -25,7 +25,7 @@ declare
     'last_seen_at', 'live_until', 'worker_bio', 'worker_onboarded_at', 'deleted_at'];
   -- profiles: the owner only; never in an answer about someone else.
   v_profiles_private text[] := array[
-    'payout_upi', 'sessions_revoked_at', 'sessions_keep_session', 'weekly_goal_minor', 'referral_code'];
+    'payout_upi', 'sessions_revoked_at', 'sessions_keep_session', 'weekly_goal_minor', 'referral_code', 'earn_goal'];
   -- tasks: what anyone who can see the task may see.
   v_tasks_public text[] := array[
     'id', 'poster_id', 'pillar', 'title', 'description', 'benchmark_minor', 'time_limit_minutes', 'flag', 'status',
