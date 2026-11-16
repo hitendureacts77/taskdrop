@@ -41,6 +41,8 @@ import { PhotoViewer } from '../components/PhotoViewer';
 import { fontFamilyFor, type Theme } from '../theme';
 import { tx } from '../components/primitives';
 import { KeyboardSafe } from '../components/KeyboardSafe';
+import { workerEarnsMinor } from '../lib/heldWords';
+import { useFees } from '../lib/useFees';
 
 /**
  * Per-task chat: header with the other person and a call button, the task
@@ -121,6 +123,7 @@ export function ChatScreen() {
   const t = useTheme();
   const { params, back, go } = useNav();
   const { mode } = useMode();
+  const fees = useFees();
   const focusTick = useFocusTick();
   const { openTask, flash } = useApp();
   const { userId, guest } = useAuth();
@@ -411,7 +414,11 @@ export function ChatScreen() {
               {title}
             </RNText>
             <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2, fontVariant: ['tabular-nums'] })}>
-              {escrowMinor !== null ? `${formatINR(escrowMinor)} · held safely` : 'Your payment is held safely'}
+              {escrowMinor !== null
+                ? iAmPoster === false
+                  ? `You earn ${formatINR(workerEarnsMinor(escrowMinor, fees))} · held safely`
+                  : `${formatINR(escrowMinor)} · held safely`
+                : 'Your payment is held safely'}
             </RNText>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>

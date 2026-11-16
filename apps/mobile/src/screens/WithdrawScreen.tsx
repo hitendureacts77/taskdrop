@@ -38,7 +38,8 @@ export function WithdrawScreen() {
 
   // Start from the real wallet balance, not whatever the animated counter holds.
   const [availableMinor, setAvailableMinor] = useState(balance);
-  const [rupees, setRupees] = useState(Math.floor(balance / 100));
+  // Starts empty: the whole balance used to be filled in, so one tap sent all of it, and typing 50 after it made 576350 (round 7, W3-4). "All" fills it on purpose.
+  const [rupees, setRupees] = useState(0);
   const [busy, setBusy] = useState(false);
   // The saved account money is sent to. Replaces an inline text field that
   // edited one UPI id in place.
@@ -91,9 +92,7 @@ export function WithdrawScreen() {
       .then((w) => {
         if (!alive || !w) return;
         setAvailableMinor(w.balance_minor);
-        // Pre-fill the amount once, from the real balance. After that it is
-        // the user's number and must not be overwritten by a refresh.
-        setRupees(Math.floor(w.balance_minor / 100));
+        // The amount is the person's number; a refresh must not fill it in or overwrite it.
       })
       .catch((e) => {
         reportError(e, 'money');
@@ -408,7 +407,7 @@ export function WithdrawScreen() {
             borderRadius: 999,
             paddingVertical: 16,
             alignItems: 'center',
-            opacity: empty || overdrawn ? 0.5 : 1,
+            opacity: empty || overdrawn || belowMin ? 0.5 : 1,
             shadowColor: t.colors.accent,
             shadowOpacity: 0.35,
             shadowRadius: 22,
