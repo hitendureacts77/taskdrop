@@ -11,7 +11,8 @@ import { useAuth } from '../providers/AuthProvider';
 import { isNeedsAccount, needAccount } from '../lib/guest';
 import { useActions } from '../providers/AppStateProvider';
 import { getProfile, updateProfile } from '../data/api';
-import { updateProfileExtras } from '../data/extras';
+import { updateProfileExtras, type EarnGoal } from '../data/extras';
+import { EarnGoalPicker, isEarnGoal } from '../components/EarnGoalPicker';
 import { findContactIssue, profileIssueMessage } from '../lib/mask';
 import { SKILL_OPTIONS, LANGUAGES } from './ProfileEditScreen';
 import { tx } from '../components/primitives';
@@ -41,6 +42,7 @@ function Setup() {
   const { userId, guest } = useAuth();
   const finishRef = useRef<() => Promise<void>>(async () => {});
   const { flash, celebrate } = useActions();
+  const [earnGoal, setEarnGoal] = useState<EarnGoal | null>(null);
   const [bio, setBio] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
   const [langs, setLangs] = useState<string[]>([]);
@@ -55,6 +57,8 @@ function Setup() {
       setSkills(p.skills ?? []);
       setLangs(p.languages ?? []);
       setBio(p.worker_bio ?? '');
+      // Already answered in first-run setup: shown picked, so it is one less thing to do.
+      if (isEarnGoal(p.earn_goal)) setEarnGoal(p.earn_goal);
       if (p.loc_label) setPlace({ label: p.loc_label, lat: p.loc_lat, lng: p.loc_lng });
     });
   }, [userId]);
@@ -65,7 +69,7 @@ function Setup() {
   const bioOk = bio.trim().length >= 20;
   // W2-21: the same refusal as the customer bio, not a silent mask that swallows the words around a number.
   const bioIssue = findContactIssue(bio);
-  const ready = bioOk && !bioIssue && skills.length > 0 && langs.length > 0;
+  const ready = earnGoal !== null && bioOk && !bioIssue && skills.length > 0 && langs.length > 0;
 
   const finish = async () => {
     if (!ready) return;
@@ -78,6 +82,7 @@ function Setup() {
         ...(place ? { locLabel: place.label, locLat: place.lat, locLng: place.lng } : {}),
       });
       await updateProfileExtras(userId, {
+        earnGoal,
         workerBio: bio.trim(),
         languages: langs,
         workerOnboarded: true,
@@ -109,8 +114,12 @@ function Setup() {
           </RNText>
         </View>
 
+        {label('WHY YOU WANT TO EARN')}
+        <EarnGoalPicker value={earnGoal} onChange={setEarnGoal} />
+        <RNText style={tx('400', 12, t.colors.muted, { marginTop: 8 })}>Only you can see this.</RNText>
+
         <Field
-          label="What you do"
+          label={earnGoal === 'business' ? 'What your business does' : 'What you do'}
           value={bio}
           onChangeText={setBio}
           multiline
@@ -151,7 +160,7 @@ function Setup() {
         <PrimaryButton label="Start earning" onPress={() => void finish()} busy={busy} disabled={!ready} style={{ marginTop: 24 }} />
         {!ready ? (
           <RNText style={tx('400', 12, t.colors.muted, { marginTop: 8, textAlign: 'center' })}>
-            Add what you do, at least one skill and a language.
+            {earnGoal ? 'Add what you do, at least one skill and a language.' : 'Pick why you want to earn, then add what you do, a skill and a language.'}
           </RNText>
         ) : null}
       </KeyboardScrollView>

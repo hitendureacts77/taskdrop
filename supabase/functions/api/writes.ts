@@ -606,6 +606,8 @@ export const WRITE_OPS: Record<string, Op> = {
     if (bool(a, "workerOnboarded")) patch.worker_onboarded_at = nowIso(ctx);
     if (a.languages !== undefined) patch.languages = strings(a, "languages", 20, 40);
     if (a.intent !== undefined) patch.intent = a.intent == null ? null : oneOf(a, "intent", ["post", "earn", "both"]);
+    // Why they earn (migration 179), asked in worker onboarding.
+    if (a.earnGoal !== undefined) patch.earn_goal = a.earnGoal == null ? null : oneOf(a, "earnGoal", ["business", "gig", "other"]);
     const row = rows(await ctx.db.from("profiles").update(patch).eq("id", ctx.userId).select(PROFILE_OWNER_SELECT), profileRefusal)[0];
     if (!row) throw new OpError("Could not save your profile", "NOT_FOUND");
     return row;
