@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSignOutMessage } from '../lib/useSignOutMessage';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
@@ -49,6 +50,8 @@ export function AccountScreen() {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  // W2-16: names every way this person can sign back in.
+  const signOutWords = useSignOutMessage(confirmSignOut, profile?.username);
   const [confirmSignOutAll, setConfirmSignOutAll] = useState(false);
   const [signingOutAll, setSigningOutAll] = useState(false);
   const [free, setFree] = useState<boolean | null>(null);
@@ -429,7 +432,7 @@ export function AccountScreen() {
         danger
         icon="logout"
         title="Sign out of TaskDrop?"
-        message="You’ll need your phone number or Google account to sign back in. Your tasks and wallet stay safe."
+        message={signOutWords}
         confirmLabel="Sign out"
         cancelLabel="Stay signed in"
         onCancel={() => setConfirmSignOut(false)}
