@@ -50,8 +50,8 @@ function Tabs() {
       }}
       backgroundColor={c.surface}
       indicatorColor={c.accentSoft}
-      badgeBackgroundColor={c.signalDeep}
-      badgeTextColor={c.onAccent}
+      badgeBackgroundColor={c.signalFill}
+      badgeTextColor="#FFFFFF"
     >
       <NativeTabs.Trigger name={TAB_ROUTE.home.name} contentStyle={page} disableAutomaticContentInsets>
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>

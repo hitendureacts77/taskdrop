@@ -88,7 +88,7 @@ export function SideNav({ rail = false }: { rail?: boolean }) {
                 height: 16,
                 paddingHorizontal: 3,
                 borderRadius: 999,
-                backgroundColor: t.colors.signalDeep,
+                backgroundColor: t.colors.signalFill,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}

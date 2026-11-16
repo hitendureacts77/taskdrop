@@ -847,7 +847,7 @@ export function HomeScreen() {
                           {row.rating === 'new' ? 'new here' : '★ ' + row.rating}
                         </RNText>
                         <RNText
-                          style={tx('700', 9, t.colors.signal, {
+                          style={tx('700', 9, t.colors.signalDeep, {
                             letterSpacing: 1.26,
                             marginLeft: 'auto',
                           })}

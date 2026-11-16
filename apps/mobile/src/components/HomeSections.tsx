@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, Animated, Easing, Platform, ScrollView } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
+import { onHero } from '../theme';
 import { useFocusTick, useNav } from '../providers/NavProvider';
 import { openPostedTask } from '../lib/taskRows';
 import { useMode } from '../providers/ModeProvider';
@@ -276,7 +277,7 @@ function PostTop() {
                     height: 32,
                     borderRadius: 999,
                     justifyContent: 'center',
-                    backgroundColor: hovered ? 'rgba(255,255,255,0.26)' : 'rgba(255,255,255,0.16)',
+                    backgroundColor: hovered ? onHero.chipHover : onHero.chip,
                     paddingHorizontal: 13,
                     transform: [{ scale: pressed ? 0.96 : 1 }],
                   })}
@@ -820,7 +821,7 @@ function EarnTop() {
         {/* Where you stand, in one card: level, jobs on the go, availability. */}
         <HeroCard radius={24} padding={18} watermark={false} ringSize={200}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <RNText style={tx('700', 12, 'rgba(255,255,255,0.82)', { flex: 1 })}>Find your next job</RNText>
+            <RNText style={tx('700', 12, onHero.text, { flex: 1 })}>Find your next job</RNText>
             {/* D22 H2: "How TaskDrop works" is the ? in the card's corner, as on the Hire side. */}
             <HowButton onPress={() => setHowOpen(true)} size={28} />
           </View>
@@ -838,7 +839,7 @@ function EarnTop() {
               >
                 <GrowBar pct={Math.round(level.progress * 100)} color="#FFFFFF" track="transparent" flush />
               </View>
-              <RNText style={tx('500', 12, 'rgba(255,255,255,0.85)', { marginTop: 8 })}>
+              <RNText style={tx('500', 12, onHero.text, { marginTop: 8 })}>
                 {level.next
                   ? `${level.jobsToGo} job${level.jobsToGo === 1 ? '' : 's'}${level.ratingShort ? ` + ★ ${level.next.rating}` : ''} to ${level.next.name}`
                   : 'Highest level'}
@@ -846,7 +847,7 @@ function EarnTop() {
             </View>
             <View style={{ alignItems: 'center', minWidth: 64 }}>
               <RNText style={tx('800', 30, '#FFFFFF', { fontVariant: ['tabular-nums'] })}>{w?.jobsLive ?? 0}</RNText>
-              <RNText style={tx('600', 11.5, 'rgba(255,255,255,0.85)')}>on the go</RNText>
+              <RNText style={tx('600', 11.5, onHero.text)}>on the go</RNText>
             </View>
           </View>
         </HeroCard>
@@ -1229,7 +1230,7 @@ function OnlyOnTaskDrop({
             >
               <Icon name={x.icon} size={desktop ? 21 : 24} color={x.ink} strokeWidth={2.2} />
               {x.isNew ? (
-                <View style={{ position: 'absolute', top: -6, right: -8, borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1, backgroundColor: t.colors.signalDeep }}>
+                <View style={{ position: 'absolute', top: -6, right: -8, borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1, backgroundColor: t.colors.signalFill }}>
                   <RNText style={tx('800', 9, '#FFFFFF')}>NEW</RNText>
                 </View>
               ) : null}
@@ -1343,11 +1344,12 @@ function PosterIdeas({ onPrompt }: { onPrompt: (prompt: string) => void }) {
                 paddingHorizontal: 14,
                 paddingVertical: 8,
                 borderWidth: 1.5,
-                borderColor: on ? t.colors.accentDeep : t.colors.accentBorder,
-                backgroundColor: on ? t.colors.accentDeep : 'transparent',
+                // The filled-button pair (B174): white on light jade in dark was 1.89:1.
+                borderColor: on ? t.colors.btn : t.colors.accentBorder,
+                backgroundColor: on ? t.colors.btn : 'transparent',
               }}
             >
-              <RNText style={tx('700', 13, on ? '#FFFFFF' : t.colors.accentDeep)}>{g.group}</RNText>
+              <RNText style={tx('700', 13, on ? t.colors.onBtn : t.colors.accentDeep)}>{g.group}</RNText>
             </Pressy>
           );
         })}
@@ -1451,7 +1453,7 @@ function HeroArt({ size = 220 }: { size?: number }) {
               shadowOffset: { width: 0, height: 4 },
             }}
           >
-            <RNText style={tx('800', 15, t.colors.purple)}>{p.k}</RNText>
+            <RNText style={tx('800', 15, onHero.letter)}>{p.k}</RNText>
             {p.on ? (
               <View
                 style={{
