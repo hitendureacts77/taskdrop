@@ -12,6 +12,7 @@ import {
   narrowsJobs,
   parseSavedFilters,
   priceLabel,
+  PRICE_PRESETS,
 } from './mapFilters.ts';
 
 const KONDAPUR = { lat: 17.4699, lng: 78.3578 };
@@ -115,6 +116,15 @@ test('the summary line', () => {
   assert.equal(jobsSummary(4, 3, 10, 'all'), '4 jobs within 10 km · 3 remote');
   assert.equal(jobsSummary(1, 0, 5, 'all'), '1 job within 5 km');
   assert.equal(jobsSummary(4, 3, 10, 'remote'), '3 jobs you can do remotely');
+});
+
+test('B179: the one-tap price ranges never overlap and add up to Any price', () => {
+  const rows = [100, 299, 300, 650, 1000, 4999, 5000, 9000].map((r, i) => job(`p${i}`, KONDAPUR.lat, KONDAPUR.lng, r));
+  const counts = PRICE_PRESETS.map((p) => filterList(rows, KONDAPUR, { ...DEFAULT_FILTERS, minPay: p.min, maxPay: p.max }, NOW).length);
+  assert.deepEqual(counts, [8, 2, 2, 2, 2]);
+  assert.equal(counts.slice(1).reduce((a, b) => a + b, 0), counts[0]);
+  // A typed ceiling that is not a range edge still takes jobs at exactly that price.
+  assert.equal(filterList(rows, KONDAPUR, { ...DEFAULT_FILTERS, maxPay: 650 }, NOW).length, 4);
 });
 
 test('B170: a count that hit the read cap says "at least", never the cap as a count', () => {

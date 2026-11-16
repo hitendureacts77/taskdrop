@@ -65,6 +65,8 @@ type Detail = {
   rating: string;
   whoMeta: string;
   tag: 'SERVICES' | 'PRODUCTS' | 'LOCAL HELP';
+  /** The category the list card shows; the eyebrow uses it when there is one (B179). */
+  category?: string;
   title: string;
   body: string;
   amountMinor: number;
@@ -169,6 +171,7 @@ function TaskDetailBody() {
         rating: row.rating,
         whoMeta: row.whoMeta,
         tag: row.tag,
+        ...(row.category ? { category: row.category } : {}),
         title: row.title,
         body: row.body,
         amountMinor: row.amountMinor,
@@ -510,7 +513,7 @@ function TaskDetailBody() {
   const titleBlock = (
         <>
         <RNText style={tx('700', 10, tagInk(t, detail.tag), { letterSpacing: 1.6, marginTop: 16 })}>
-          {detail.tag}
+          {detail.category ? detail.category.toUpperCase() : detail.tag}
         </RNText>
         <RNText style={tx('800', 25, t.colors.ink, { letterSpacing: -0.7, marginTop: 8, lineHeight: 30 })}>{detail.title}</RNText>
         {body ? (

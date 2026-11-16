@@ -8,6 +8,8 @@ import { getTask } from '../data/api';
 import { roughPlace } from '../lib/place';
 import { taskLinkTarget } from '../lib/taskLink';
 import { usesAuthFrame } from './frame';
+import { titleForScreen } from './webAddress';
+import { useMode } from '../providers/ModeProvider';
 import { BottomTabBar } from '../components/BottomTabBar';
 import { SideNav } from '../components/SideNav';
 import { DesktopAuthFrame } from '../components/DesktopAuthFrame';
@@ -87,6 +89,12 @@ export function ScreenHost() {
     }
   }
   prevScreen.current = screen;
+
+  // Web: each screen names the browser tab (B179). ScreenHost only runs on web.
+  const { mode } = useMode();
+  useEffect(() => {
+    if (typeof document !== 'undefined') document.title = titleForScreen(screen, mode);
+  }, [screen, mode]);
 
   // A shared link (?task=<id>) has to land on that task, otherwise every link
   // anyone sends just opens the feed. Runs once, then clears the query so a

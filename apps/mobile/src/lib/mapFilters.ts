@@ -48,6 +48,8 @@ export const PRICE_PRESETS: { min: number; max: number }[] = [
   { min: 1000, max: 5000 },
   { min: 5000, max: 0 },
 ];
+/** Where one one-tap range ends and the next begins (₹300, ₹1,000, ₹5,000). */
+const RANGE_EDGES = new Set(PRICE_PRESETS.filter((p) => p.min > 0).map((p) => p.min));
 
 export const WORK_LABELS: Record<WorkType, string> = { all: 'All', local: 'Nearby', remote: 'Remote' };
 export const SORT_LABELS: Record<JobSort, string> = { pay: 'Best pay', near: 'Nearest', new: 'Newest' };
@@ -124,6 +126,9 @@ export function matchesJob(j: FilterableJob, f: MapFilters, now: number = Date.n
   const rupees = j.benchmark_minor / 100;
   if (f.minPay > 0 && rupees < f.minPay) return false;
   if (f.maxPay > 0 && rupees > f.maxPay) return false;
+  // A price on the edge of two one-tap ranges belongs to the upper one, so each job sits in exactly one
+  // range and the ranges add up to "Any price" (B179: a ₹300 job was in "Under ₹300" and "₹300–₹1,000").
+  if (f.maxPay > 0 && rupees === f.maxPay && RANGE_EDGES.has(f.maxPay)) return false;
   if (f.auto !== f.offers) {
     const auto = j.assignment_mode === 'auto';
     if (f.auto ? !auto : auto) return false;
