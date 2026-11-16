@@ -12,7 +12,7 @@ import { isNeedsAccount, needAccount } from '../lib/guest';
 import { useActions } from '../providers/AppStateProvider';
 import { getProfile, updateProfile } from '../data/api';
 import { updateProfileExtras } from '../data/extras';
-import { maskContacts } from '../lib/mask';
+import { findContactIssue, profileIssueMessage } from '../lib/mask';
 import { SKILL_OPTIONS, LANGUAGES } from './ProfileEditScreen';
 import { tx } from '../components/primitives';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
@@ -63,7 +63,9 @@ function Setup() {
     list.includes(v) ? set(list.filter((x) => x !== v)) : list.length < max ? set([...list, v]) : flash(`Pick up to ${max}`);
 
   const bioOk = bio.trim().length >= 20;
-  const ready = bioOk && skills.length > 0 && langs.length > 0;
+  // W2-21: the same refusal as the customer bio, not a silent mask that swallows the words around a number.
+  const bioIssue = findContactIssue(bio);
+  const ready = bioOk && !bioIssue && skills.length > 0 && langs.length > 0;
 
   const finish = async () => {
     if (!ready) return;
@@ -76,7 +78,7 @@ function Setup() {
         ...(place ? { locLabel: place.label, locLat: place.lat, locLng: place.lng } : {}),
       });
       await updateProfileExtras(userId, {
-        workerBio: maskContacts(bio).text,
+        workerBio: bio.trim(),
         languages: langs,
         workerOnboarded: true,
       });
@@ -115,7 +117,7 @@ function Setup() {
           maxLength={500}
           placeholder="E.g. I write blogs and product copy in English and Hindi. 3 years, quick turnaround."
           style={{ marginTop: 18 }}
-          error={bio.trim() && !bioOk ? 'A sentence or two, at least 20 characters' : null}
+          error={bioIssue ? profileIssueMessage(bioIssue) : bio.trim() && !bioOk ? 'A sentence or two, at least 20 characters' : null}
           hint="Shown on your worker profile. Your customer profile keeps its own bio."
         />
 

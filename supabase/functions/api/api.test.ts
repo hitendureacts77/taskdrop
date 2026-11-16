@@ -205,6 +205,9 @@ await t("contact details are refused on the server, whatever the app does (Phase
   await refused("updateProfileExtras", { bio: PHONE });
   await refused("updateProfileExtras", { workerBio: PHONE });
   await refused("updateProfileExtras", { username: "a@b.com" });
+  // The round-7 walk texts (W2-2, W2-21).
+  await refused("placeBid", { taskId: TASK, priceMinor: 5000, timeLimitMinutes: 60, message: "I can do it. Call me 9876543210 or mail a@b.com <script>x</script>" });
+  await refused("updateProfileExtras", { workerBio: "I fix things. WhatsApp me on 98765 43210 <script>alert(1)</script> emoji" });
   // Ordinary text goes through, and the app's own already-masked text is fine.
   const f = fake(() => ({ data: [{ id: "row" }], error: null }));
   const ok = await runOp("placeBid", { taskId: TASK, priceMinor: 5000, timeLimitMinutes: 60, message: "Can do it tomorrow, ••• for details" }, ctx(f));
