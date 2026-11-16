@@ -6,6 +6,7 @@ import { useAuth } from '../providers/AuthProvider';
 import { incomingTaskId, clearIncomingTask } from '../lib/links';
 import { getTask } from '../data/api';
 import { roughPlace } from '../lib/place';
+import { taskLinkTarget } from '../lib/taskLink';
 import { BottomTabBar } from '../components/BottomTabBar';
 import { SideNav } from '../components/SideNav';
 import { DesktopAuthFrame } from '../components/DesktopAuthFrame';
@@ -103,27 +104,13 @@ export function ScreenHost() {
       try {
         const task = await getTask(id);
         clearIncomingTask();
-        if (!task) return;
-        go('taskDetail', {
-          row: {
-            id: task.id,
-            sponsored: false,
-            who: 'Customer',
-            rating: '—',
-            whoMeta: roughPlace(task.loc_label) ?? '',
-            tag: 'SERVICES',
-            title: task.title,
-            meta: roughPlace(task.loc_label) ?? '',
-            amountMinor: task.benchmark_minor,
-            hasMedia: false,
-            glyph: '',
-            dur: null,
-            body: task.description,
-            by: null,
-          },
-        });
+        // A task that does not exist (or is closed) says so, with a way back (B148), instead of silently Home.
+        const to = taskLinkTarget(task, roughPlace);
+        go(to.screen, to.params);
       } catch {
         clearIncomingTask();
+        const to = taskLinkTarget(null, roughPlace);
+        go(to.screen, to.params);
       }
     })();
   }, [go]);
