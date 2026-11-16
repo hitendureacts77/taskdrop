@@ -13,7 +13,7 @@ import { Drop, Ripples } from '../components/Ripples';
 import { HeroBackground } from '../components/Hero';
 import { FloatCard } from '../components/BrandArt';
 import { useLayout } from '../lib/layout';
-import { isReadyMobile, normalizeMobileInput } from '../lib/phone';
+import { isReadyMobile, normalizeMobileInput, spacedMobile } from '../lib/phone';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { BottomSheet, Field, PrimaryButton } from '../components/kit';
@@ -54,10 +54,7 @@ import { FROM_GUEST, clearGuestHandoff, declineAccount, markGuestHandoff, releas
 type Stage = 'number' | 'birth' | 'code';
 type Door = 'signin' | 'signup';
 
-/** "9876543210" -> "98765 43210", the way people say a number aloud. */
-function spaced(digits: string): string {
-  return digits.length > 5 ? `${digits.slice(0, 5)} ${digits.slice(5)}` : digits;
-}
+const spaced = spacedMobile;
 
 export function AccessScreen() {
   const t = useTheme();
@@ -126,6 +123,9 @@ export function AccessScreen() {
 
   const numberReady = isReadyMobile(phone);
   const complete = otp.length === 6;
+  // Once the code is asked for, the picture shrinks so the code boxes and the Test mode code sit above the
+  // phone's keyboard without scrolling (P1-1).
+  const compactHero = stage !== 'number';
 
   // Where to go once a session exists. Returning people go straight in; a
   // first sign-in goes through setup.
@@ -154,6 +154,7 @@ export function AccessScreen() {
     setDoor(used);
     setStage('code');
     setOtp('');
+    accepted.current = false;
     setResendAt(Date.now() + 60_000);
     setNow(Date.now());
     // A test project hands the code back. It is shown in a box to be typed, not filled in.
@@ -220,8 +221,12 @@ export function AccessScreen() {
   // tap. The guard is a ref, not state: a code is single-use, so two in-flight
   // verifies mean the second one always fails.
   const verifying = useRef(false);
+  // Set once a code has been accepted. The code stays typed in the box while the app moves on, so
+  // without this the effect below fired a second verify when `busy` flipped back, and the server
+  // answered "Request a code first" on top of Home (P1-7). Cleared when a new code is sent.
+  const accepted = useRef(false);
   useEffect(() => {
-    if (!complete || busy || verifying.current || stage !== 'code') return;
+    if (!complete || busy || verifying.current || accepted.current || stage !== 'code') return;
     verifying.current = true;
     void verify().finally(() => {
       verifying.current = false;
@@ -234,6 +239,9 @@ export function AccessScreen() {
     setBusy(true);
     try {
       await verifyCode(phone, otp, door);
+      // The code is spent: nothing may submit it again, and the test-code box has done its job.
+      accepted.current = true;
+      setDevCode('');
       // The new account answers the question it was asked before the code. If
       // this cannot reach the server, AgeGate asks again after sign-in.
       if (door === 'signup' && birth) {
@@ -376,7 +384,7 @@ export function AccessScreen() {
         {desktop ? null : (
           <View
             style={{
-              height: 290,
+              height: compactHero ? 150 : 290,
               borderBottomLeftRadius: 36,
               borderBottomRightRadius: 36,
               alignItems: 'center',
@@ -388,8 +396,8 @@ export function AccessScreen() {
             <Ripples color="rgba(255,255,255,0.75)" size={420} count={4} duration={4000} />
             <View
               style={{
-                width: 108,
-                height: 108,
+                width: compactHero ? 80 : 108,
+                height: compactHero ? 80 : 108,
                 borderRadius: 108,
                 backgroundColor: '#FFFFFF',
                 alignItems: 'center',
@@ -401,10 +409,10 @@ export function AccessScreen() {
                 elevation: 8,
               }}
             >
-              <Drop size={56} fill={t.colors.heroMid} tick="#FFFFFF" />
+              <Drop size={compactHero ? 40 : 56} fill={t.colors.heroMid} tick="#FFFFFF" />
             </View>
-            <FloatCard icon="globe" tone="ai" title="Logo design · Remote" sub="from ₹1,500" style={{ top: 66, right: 16 }} />
-            <FloatCard icon="pin" title="Plumber · 1.2 km" sub="3 offers in 9 min" delay={900} style={{ top: 198, left: 16 }} />
+            {compactHero ? null : <FloatCard icon="globe" tone="ai" title="Logo design · Remote" sub="from ₹1,500" style={{ top: 66, right: 16 }} />}
+            {compactHero ? null : <FloatCard icon="pin" title="Plumber · 1.2 km" sub="3 offers in 9 min" delay={900} style={{ top: 198, left: 16 }} />}
             <RNText style={tx('800', 22, '#FFFFFF', { letterSpacing: -0.8, position: 'absolute', top: 24, left: 22 })}>
               taskdrop<RNText style={{ color: '#7FE3C4' }}>.</RNText>
             </RNText>
@@ -448,7 +456,9 @@ export function AccessScreen() {
                   </View>
                   <TextInput
                     ref={phoneRef}
-                    value={spaced(phone)}
+                    // Phones get the plain digits: re-writing the box's text with a space in it while keys
+                    // arrive quickly made Android drop or reorder digits (P1-2). The web box can take the space.
+                    value={Platform.OS === 'web' ? spaced(phone) : phone}
                     onChangeText={(v) => setPhone(normalizeMobileInput(v))}
                     onFocus={() => setPhoneFocused(true)}
                     onBlur={() => setPhoneFocused(false)}
@@ -587,16 +597,27 @@ export function AccessScreen() {
             </>
           ) : stage === 'birth' ? (
             <>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 22 }}>
-                <View style={{ backgroundColor: t.colors.goldSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
-                  <RNText style={tx('700', 12, t.colors.goldInk)}>New account</RNText>
+              {/* W3-9: a new account is about to be made for this number, so it is named big and clear,
+                  with a way back to fix it if it is not the number they meant. */}
+              <View style={{ marginTop: 22 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ backgroundColor: t.colors.goldSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
+                    <RNText style={tx('700', 12, t.colors.goldInk)}>New account</RNText>
+                  </View>
+                  <Pressable onPress={editNumber} hitSlop={8} accessibilityRole="button" accessibilityLabel="Change the number">
+                    <RNText style={tx('700', 13, t.colors.accentDeep)}>Wrong number? Change</RNText>
+                  </Pressable>
                 </View>
-                <RNText style={tx('500', 13, t.colors.muted, { flex: 1 })} numberOfLines={1}>
+                <RNText
+                  testID="new-account-number"
+                  accessibilityLabel={`New account for number plus 91 ${phone.split('').join(' ')}`}
+                  style={tx('800', 28, t.colors.ink, { marginTop: 12, letterSpacing: 1.2 })}
+                >
                   +91 {spaced(phone)}
                 </RNText>
-                <Pressable onPress={editNumber} hitSlop={8} accessibilityRole="button">
-                  <RNText style={tx('700', 13, t.colors.accentDeep)}>Change</RNText>
-                </Pressable>
+                <RNText style={tx('400', 13, t.colors.muted, { marginTop: 6, lineHeight: 19 })}>
+                  No account uses this number yet, so we will make one for it.
+                </RNText>
               </View>
               <View style={{ marginTop: 26 }}>
                 <BirthDateField value={dob} onChange={setDob} onSubmit={() => void confirmBirth()} autoFocus />
@@ -625,7 +646,7 @@ export function AccessScreen() {
                     {door === 'signin' ? 'Returning member' : 'New account'}
                   </RNText>
                 </View>
-                <RNText style={tx('500', 13, t.colors.muted, { flex: 1 })} numberOfLines={1}>
+                <RNText style={tx('700', 16, t.colors.ink, { flex: 1 })} numberOfLines={1}>
                   +91 {spaced(phone)}
                 </RNText>
                 <Pressable onPress={editNumber} hitSlop={8} accessibilityRole="button">

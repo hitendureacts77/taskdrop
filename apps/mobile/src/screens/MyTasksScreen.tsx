@@ -149,6 +149,8 @@ function MyPosted() {
   const [failed, setFailed] = useState(false);
   // Half-written posts kept on this device (see lib/drafts).
   const [drafts, setDrafts] = useState<PostDraft[]>([]);
+  // The draft whose X was tapped: it goes only once they say yes (P1-21).
+  const [confirmDraft, setConfirmDraft] = useState<PostDraft | null>(null);
   useEffect(() => {
     if (!draftOwner) return setDrafts([]);
     let alive = true;
@@ -476,6 +478,24 @@ function MyPosted() {
         busy={closing}
         onCancel={() => setConfirmClose(null)}
         onConfirm={() => confirmClose && void close(confirmClose)}
+      />
+      <ConfirmDialog
+        visible={confirmDraft !== null}
+        danger
+        icon="close"
+        title="Delete this draft?"
+        message={`“${confirmDraft?.prompt ?? ''}” will be deleted. This can’t be undone.`}
+        confirmLabel="Yes, delete draft"
+        cancelLabel="Keep it"
+        onCancel={() => setConfirmDraft(null)}
+        onConfirm={() => {
+          const d = confirmDraft;
+          setConfirmDraft(null);
+          if (!d || !draftOwner) return;
+          setDrafts((cur) => cur.filter((x) => x.id !== d.id));
+          void removeDraft(draftOwner, d.id);
+          flash('Draft deleted');
+        }}
       />
     </Screen>
   );
