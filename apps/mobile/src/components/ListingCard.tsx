@@ -83,10 +83,15 @@ export function ListingCard({
         </RNText>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
           <Icon name="clock" size={12} color={t.colors.muted} />
-          <RNText style={tx('500', 11, t.colors.muted)} numberOfLines={1}>
+          {/* B178: the place line gives way (ellipsis); the rating keeps one line at 390 px. */}
+          <RNText style={tx('500', 11, t.colors.muted, { flexShrink: 1, minWidth: 0 })} numberOfLines={1}>
             {deliveryLabel(task.time_limit_minutes)} · {roughPlace(task.loc_label) ?? (task.loc_lat === null ? 'Remote' : 'Nearby')}
           </RNText>
-          {!owner ? <RNText style={tx('600', 11, t.colors.goldInk)}> · {rating}</RNText> : null}
+          {!owner ? (
+            <RNText style={tx('600', 11, t.colors.goldInk, { flexShrink: 0 })} numberOfLines={1}>
+              · {rating}
+            </RNText>
+          ) : null}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: t.colors.line }}>
           <RNText style={tx('500', 11, t.colors.muted)}>From </RNText>
