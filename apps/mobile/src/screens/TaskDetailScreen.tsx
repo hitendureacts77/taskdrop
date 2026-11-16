@@ -4,7 +4,7 @@ import { ReportSheet } from '../components/ReportSheet';
 import { TaskQuestions } from '../components/TaskQuestions';
 import { Icon } from '../components/Icon';
 import { View, Text as RNText, Pressable, TextInput, Platform } from 'react-native';
-import { maskContacts } from '../lib/mask';
+import { findContactIssue, maskContacts, offerIssueMessage } from '../lib/mask';
 import { Screen, Card, Button, formatINR } from '../components/ui';
 import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
@@ -318,9 +318,12 @@ function TaskDetailBody() {
   const view = taskPageView(mode, live?.kind);
   const priceLabel = huntTask ? 'REWARD FOR THE FINDER' : view.asRequest ? 'BUDGET' : 'THEIR RATE';
   const delta = quote - detail.amountMinor;
-  const deltaText =
-    delta === 0 ? 'same as asked' : delta > 0 ? `+${formatINR(delta)} above` : `−${formatINR(-delta)} below`;
-  const deltaColor = delta === 0 ? t.colors.muted : delta > 0 ? t.colors.gold : t.colors.accent;
+  // W2-11: under the smallest offer, say the lowest price (as the post flow does), not a sum below budget.
+  const underMin = quote < MIN_QUOTE_MINOR;
+  const deltaText = underMin
+    ? `The lowest price is ${formatINR(MIN_QUOTE_MINOR)}`
+    : delta === 0 ? 'same as asked' : delta > 0 ? `+${formatINR(delta)} above` : `−${formatINR(-delta)} below`;
+  const deltaColor = underMin ? t.colors.signalDeep : delta === 0 ? t.colors.muted : delta > 0 ? t.colors.gold : t.colors.accent;
 
   // The design's sample rows carry their record inside a display string; a real
   // task has a real poster behind it, so use them rather than parsing that.
@@ -374,6 +377,9 @@ function TaskDetailBody() {
   const [withProposal, setWithProposal] = useState(false);
   const [proposal, setProposal] = useState('');
   const proposalShort = withProposal && proposal.trim().length < 10;
+  // W2-2: a phone number or email in the proposal is refused as it is typed, as in a post or the bio (the
+  // server refuses it too).
+  const proposalIssue = withProposal ? findContactIssue(proposal) : null;
   const cta = `${countering ? 'Send counteroffer' : 'Send offer'}${withProposal ? ' with proposal' : ''} · ${formatINR(quote)}`;
 
   // The detailed bid: a proposal, hours and a delivery date on top of the
@@ -395,6 +401,7 @@ function TaskDetailBody() {
       if (!userId) return flash('Sign in to send an offer');
       if (quote < MIN_QUOTE_MINOR) return flash(`The smallest offer is ${formatINR(MIN_QUOTE_MINOR)}`);
       if (proposalShort) return flash('Tell the customer a little about how you will do it');
+      if (proposalIssue) return flash(offerIssueMessage(proposalIssue));
       setBusy(true);
       try {
         await placeBid({
@@ -756,6 +763,11 @@ function TaskDetailBody() {
                 />
                 <RNText style={tx('400', 11.5, t.colors.muted, { alignSelf: 'flex-end', marginTop: 4 })}>{proposal.length} / 500</RNText>
               </View>
+              {proposalIssue ? (
+                <RNText accessibilityRole="alert" style={tx('600', 12, t.colors.signalDeep, { marginTop: 6, lineHeight: 17 })}>
+                  {offerIssueMessage(proposalIssue)}
+                </RNText>
+              ) : null}
             </View>
           ) : (
             worker && realId ? (
@@ -767,7 +779,7 @@ function TaskDetailBody() {
 
           <Button
             label={busy ? 'Sending…' : cta}
-            disabled={busy || proposalShort}
+            disabled={busy || proposalShort || proposalIssue !== null || (worker && underMin)}
             onPress={sendQuote}
             style={{ marginTop: t.spacing.lg }}
           />

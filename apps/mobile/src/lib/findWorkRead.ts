@@ -19,6 +19,14 @@ export const REMOTE_LIMIT = FIND_WORK_LIMIT;
 /** True when a read came back full: there may be more than it returned, so its length is only "at least". */
 export const capped = (got: number, limit: number) => got >= limit;
 
+/**
+ * B156 / W2-20: with no area chosen, an in-person job cannot be "in reach", so Earn Home's lists keep only the
+ * remote ones (no pin) rather than in-person jobs from any city. With an area, the server's reach already applies.
+ */
+export function inReachWithoutArea<T extends { loc_lat: number | null }>(rows: readonly T[], hasArea: boolean, max: number): T[] {
+  return (hasArea ? [...rows] : rows.filter((r) => r.loc_lat == null)).slice(0, max);
+}
+
 /** The search box's match, the same on the list and the map: the words appear in the title or description. */
 export function matchesQuery(row: { title: string; description?: string | null }, query: string): boolean {
   const q = query.trim().toLowerCase();

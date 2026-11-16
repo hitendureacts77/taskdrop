@@ -8,6 +8,15 @@ test('a pasted +91 number keeps its own 10 digits', () => {
   assert.equal(normalizeMobileInput('919876543210'), '9876543210');
 });
 
+test('W2-8: 0091 is dropped like +91, pasted or typed key by key', () => {
+  assert.equal(normalizeMobileInput('0091-9888077001'), '9888077001');
+  assert.equal(normalizeMobileInput('0091 98880 77001'), '9888077001');
+  let box = '';
+  for (const key of '00919888077001') box = normalizeMobileInput(box + key);
+  assert.equal(box, '9888077001');
+  assert.equal(isReadyMobile(box), true);
+});
+
 test('a leading 0 is dropped', () => {
   assert.equal(normalizeMobileInput('09876543210'), '9876543210');
 });

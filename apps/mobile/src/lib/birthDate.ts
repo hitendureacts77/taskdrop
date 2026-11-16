@@ -12,9 +12,12 @@ export function days(): BirthDateItem[] {
 export function months(): BirthDateItem[] {
   return MONTHS.map((label, i) => ({ value: String(i + 1), label }));
 }
-/** Newest first: most people are born in the last 20 to 40 years, so the swipe is short. */
+/**
+ * Newest first: most people are born in the last 20 to 40 years, so the swipe is short. Starts at last year:
+ * nobody signing up was born this year (W2-7; the under-18 check still sees a 17-year-old's year).
+ */
 export function years(now = new Date()): BirthDateItem[] {
-  const top = now.getFullYear();
+  const top = now.getFullYear() - 1;
   return Array.from({ length: top - 1920 + 1 }, (_, i) => ({ value: String(top - i), label: String(top - i) }));
 }
 
@@ -35,6 +38,21 @@ export function daysInMonth(month: string, year: string): number {
     return isLeap(y) ? 29 : 28;
   }
   return m === 4 || m === 6 || m === 9 || m === 11 ? 30 : 31;
+}
+
+/**
+ * The line under the birth date once all three parts are chosen (W2-7): a real date after today is "in the
+ * future", not "does not exist". Only used when parseBirthDate refused the date.
+ */
+export function birthDateProblem(parts: BirthDateParts, today = new Date()): string {
+  const d = Number(parts.day);
+  const m = Number(parts.month);
+  const y = Number(parts.year);
+  if ([d, m, y].every(Number.isInteger) && d >= 1 && m >= 1 && m <= 12 && d <= daysInMonth(parts.month, parts.year)) {
+    const at = Date.UTC(y, m - 1, d);
+    if (at > Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) return 'Your birth date can’t be in the future.';
+  }
+  return 'That date does not exist. Check the day.';
 }
 
 /** Keep the day inside the month: 31 becomes 30 or 28 when the month or year changes. */

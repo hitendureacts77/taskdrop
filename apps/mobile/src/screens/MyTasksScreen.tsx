@@ -1,4 +1,4 @@
-import { datePassedLine, successPercent } from '../lib/taskStatusText';
+import { countOrDash, datePassedLine, successPercent } from '../lib/taskStatusText';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable, TextInput, RefreshControl } from 'react-native';
 import { Screen, cardSurface, formatINR } from '../components/ui';
@@ -252,7 +252,8 @@ function MyPosted() {
                 { value: counts[2] ?? 0, label: 'Completed' },
               ].map((m, i) => (
                 <View key={m.label} style={{ flex: 1, borderLeftWidth: i ? 1 : 0, borderLeftColor: 'rgba(255,255,255,0.15)', paddingLeft: i ? 14 : 0 }}>
-                  <RNText style={tx('800', 30, '#FFFFFF', { letterSpacing: -0.6, fontVariant: ['tabular-nums'] })}>{m.value}</RNText>
+                  {/* W2-18: a dash while the tasks load, never a 0 that is not true yet. */}
+                  <RNText style={tx('800', 30, '#FFFFFF', { letterSpacing: -0.6, fontVariant: ['tabular-nums'] })}>{countOrDash(m.value, tasks === null)}</RNText>
                   <RNText style={tx('600', 12, 'rgba(255,255,255,0.75)', { marginTop: 1 })}>{m.label}</RNText>
                 </View>
               ))}
@@ -352,7 +353,7 @@ function MyPosted() {
 
         <View style={{ marginTop: 14 }}>
           <PillTabs
-            tabs={POSTER_TABS.map((x, i) => ({ label: x, count: counts[i] }))}
+            tabs={POSTER_TABS.map((x, i) => (tasks === null ? { label: x } : { label: x, count: counts[i] }))}
             active={tab}
             onPick={(i) => {
               setNeeds(false);
@@ -540,7 +541,8 @@ function PostedCard({
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <RNText style={tx('800', 10.5, topInk, { letterSpacing: 1.2, flexShrink: 1 })} numberOfLines={1}>{topLine}</RNText>
+              {/* B165: the status line keeps its words; the category beside it gives way first. */}
+              <RNText style={tx('800', 10.5, topInk, { letterSpacing: 1.2, flexShrink: 0, maxWidth: '80%' })} numberOfLines={1}>{topLine}</RNText>
               <RNText style={tx('600', 11, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>
                 · {categoryLabel(task)}
               </RNText>
@@ -759,7 +761,7 @@ function MyWork() {
             </View>
 
             <View style={{ marginTop: 16 }}>
-              <PillTabs tabs={WORKER_TABS.map((x, i) => ({ label: x, count: counts[i] }))} active={tab} onPick={setTab} />
+              <PillTabs tabs={WORKER_TABS.map((x, i) => (rows === null ? { label: x } : { label: x, count: counts[i] }))} active={tab} onPick={setTab} />
             </View>
           </>
         )}

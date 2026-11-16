@@ -46,7 +46,8 @@ import { formatDeadline } from '../components/DateTimeSheet';
 import { useFees } from '../lib/useFees';
 import { reportError } from '../lib/errors';
 import { countOf } from '../lib/plural';
-import { posterEscrowCharge } from '@taskdrop/rules';
+import { FEES, postStartCancelFine, posterEscrowCharge } from '@taskdrop/rules';
+import { closeTaskText } from '../lib/closeTaskText';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { TaskOptionsPanel } from '../components/TaskOptionsPanel';
 import { TaskQuestions } from '../components/TaskQuestions';
@@ -196,6 +197,16 @@ export function TaskManageScreen() {
     ...(task.status === 'CANCELLED' ? [{ at: task.updated_at, title: 'Task closed', icon: 'close' as IconName }] : []),
     ...(task.status === 'DISPUTED' ? [{ at: task.updated_at, title: 'Problem reported', body: 'Our team is looking at it', icon: 'gavel' as IconName }] : []),
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+  // W2-3: once the worker has started, closing costs the 5% fine; the menu and dialog say so.
+  const closeWords = closeTaskText({
+    title: task.title,
+    status: task.status,
+    funded: Boolean(task.funded_at),
+    fineMinor: postStartCancelFine(task.locked_minor ?? 0),
+    finePct: Math.round(FEES.POST_START_CANCEL_PENALTY_PCT * 100),
+    money: formatINR,
+  });
 
   const primary: { label: string; onPress: () => void } | null =
     row.act === 'compare'
@@ -632,7 +643,7 @@ export function TaskManageScreen() {
           <MenuRow
             icon="close"
             label="Close task"
-            sub="Everything you paid comes back, fee included"
+            sub={closeWords.sub}
             danger
             onPress={() => {
               setMenu(false);
@@ -647,11 +658,7 @@ export function TaskManageScreen() {
         danger
         icon="close"
         title="Close this task?"
-        message={
-          task.funded_at
-            ? `“${task.title}” will be cancelled and the worker taken off it. Everything you paid, service fee included, goes back to your wallet. This can’t be undone.`
-            : `“${task.title}” will be taken down and workers can no longer send offers for it. This can’t be undone.`
-        }
+        message={closeWords.message}
         confirmLabel="Yes, close task"
         cancelLabel="Keep it"
         busy={closing}

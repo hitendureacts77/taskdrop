@@ -3,7 +3,7 @@ import { View, Text as RNText, Pressable, ScrollView, Platform, type NativeScrol
 import { ageOn, parseBirthDate } from '@taskdrop/rules';
 import { tx } from './primitives';
 import { useTheme } from '../providers/ThemeProvider';
-import { days, months, years, type BirthDateItem, type BirthDateParts } from '../lib/birthDate';
+import { birthDateProblem, days, months, years, type BirthDateItem, type BirthDateParts } from '../lib/birthDate';
 
 // Re-exported so every existing importer keeps working. The web build loads
 // BirthDateField.web.tsx instead (three native dropdowns).
@@ -187,7 +187,7 @@ export function BirthDateField({
   };
 
   let line = 'Swipe each column, or tap a row';
-  if (all) line = birth ? `You are ${ageOn(birth)} years old` : 'That date does not exist. Check the day.';
+  if (all) line = birth ? `You are ${ageOn(birth)} years old` : birthDateProblem(value);
 
   return (
     <View>

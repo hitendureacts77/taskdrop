@@ -54,6 +54,7 @@ import { HowSheet } from './HowSheet';
 import { LocationSheet, type PickedPlace } from './LocationSheet';
 import { resolveCurrentPlace } from '../lib/location';
 import { pickedPlaceName, roughPlace } from '../lib/place';
+import { inReachWithoutArea } from '../lib/findWorkRead';
 import { guestAreaFromPicked } from '../lib/guestArea';
 import { readGuestArea, saveGuestArea } from '../lib/guestAreaStore';
 import { HitArea, Pressy, tx } from './primitives';
@@ -672,18 +673,21 @@ function EarnTop() {
   // What fits the worker's skills and what is needed today, in reach of the area they chose: in-person jobs only
   // within the radius, remote ones from anywhere (B156: these showed jobs in Pune and Kuala Lumpur to a worker in
   // Hyderabad). Re-read on every Home load and whenever the area, the radius or the skills change. With no area
-  // set yet, every open job is shown, as before.
+  // set yet, only remote jobs are shown (W2-20).
   const skillsKey = skills.join('\n');
   useEffect(() => {
     if (listTick === 0) return;
     let alive = true;
     const reach = place ? { lat: place.lat, lng: place.lng, radiusKm: radius } : null;
     const mySkills = skillsKey ? skillsKey.split('\n') : [];
+    // No area yet (B156 / W2-20): only remote jobs, so more are asked for and the in-person ones dropped.
     void Promise.all([
-      recommendedTasks(mySkills, 8, reach).catch((): Task[] => []),
-      urgentTasks(6, reach).catch((): Task[] => []),
+      recommendedTasks(mySkills, reach ? 8 : 30, reach).catch((): Task[] => []),
+      urgentTasks(reach ? 6 : 30, reach).catch((): Task[] => []),
     ])
-      .then(async ([r, urg]) => {
+      .then(async ([r0, urg0]) => {
+        const r = inReachWithoutArea(r0, reach !== null, 8);
+        const urg = inReachWithoutArea(urg0, reach !== null, 6);
         // One poster lookup for both lists, each keeping its own order (a task no longer visible drops out).
         const withPosters = new Map((await attachPosters([...r, ...urg])).map((x) => [x.id, x]));
         const posted = (list: Task[]) => list.flatMap((x) => withPosters.get(x.id) ?? []);

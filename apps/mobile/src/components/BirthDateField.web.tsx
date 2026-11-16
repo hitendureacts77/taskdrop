@@ -3,7 +3,7 @@ import { View, Text as RNText } from 'react-native';
 import { ageOn, parseBirthDate } from '@taskdrop/rules';
 import { tx } from './primitives';
 import { useTheme } from '../providers/ThemeProvider';
-import { clampDay, daysInMonth, days, months, years, type BirthDateItem, type BirthDateParts } from '../lib/birthDate';
+import { birthDateProblem, clampDay, daysInMonth, days, months, years, type BirthDateItem, type BirthDateParts } from '../lib/birthDate';
 import { fontFamilyFor } from '../theme';
 
 // Same names as BirthDateField.tsx, so every importer works on both builds.
@@ -43,7 +43,7 @@ export function BirthDateField({
   const dayList = days().slice(0, daysInMonth(value.month, value.year));
 
   let line = 'Pick your day, month and year';
-  if (all) line = birth ? `You are ${ageOn(birth)} years old` : 'That date does not exist. Check the day.';
+  if (all) line = birth ? `You are ${ageOn(birth)} years old` : birthDateProblem(value);
 
   const selectStyle = (chosen: boolean): CSSProperties => ({
     width: '100%',

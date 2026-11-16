@@ -155,9 +155,9 @@ export function CompareScreen() {
   const headerLine = task
     ? (STATUS_LABEL[task.status] ?? 'OPEN') + ' · ' + quoteCount + (quoteCount === 1 ? ' OFFER' : ' OFFERS')
     : 'OPEN · ' + quoteCount + (quoteCount === 1 ? ' OFFER' : ' OFFERS');
-  const completeBy = task
-    ? formatDeadline(completeByDate(task))
-    : '9 Sep, 6 PM';
+  const due = task ? completeByDate(task) : null;
+  // Same as the task page: no target date, no date (W2-6).
+  const completeBy = due ? formatDeadline(due) : 'Any time';
 
   const handleLock = async () => {
     if (!pickRow || busy || decided) return;

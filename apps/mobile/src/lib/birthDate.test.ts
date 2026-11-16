@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { clampDay, daysInMonth, days, months, years } from './birthDate.ts';
+import { birthDateProblem, clampDay, daysInMonth, days, months, years } from './birthDate.ts';
+
+test('W2-7: a future birth date says so; a real non-date says it does not exist', () => {
+  const today = new Date('2026-11-16T10:00:00');
+  assert.equal(birthDateProblem({ day: '1', month: '12', year: '2026' }, today), 'Your birth date can’t be in the future.');
+  assert.equal(birthDateProblem({ day: '31', month: '12', year: '2026' }, today), 'Your birth date can’t be in the future.');
+  assert.equal(birthDateProblem({ day: '30', month: '2', year: '2001' }, today), 'That date does not exist. Check the day.');
+  assert.equal(years(today)[0].value, '2025');
+});
 
 test('30 and 31 day months', () => {
   for (const m of ['4', '6', '9', '11']) assert.equal(daysInMonth(m, '2001'), 30, m);
@@ -36,6 +44,6 @@ test('option lists', () => {
   assert.equal(months()[0].label, 'January');
   assert.equal(months()[11].value, '12');
   const y = years(new Date('2026-11-04'));
-  assert.equal(y[0].value, '2026');
+  assert.equal(y[0].value, '2025');
   assert.equal(y[y.length - 1].value, '1920');
 });

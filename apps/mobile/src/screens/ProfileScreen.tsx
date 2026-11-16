@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useSignOutMessage } from '../lib/useSignOutMessage';
 import { View, Text as RNText, Pressable, Animated, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { Avatar, Screen, cardSurface } from '../components/ui';
@@ -118,6 +119,8 @@ export function ProfileScreen() {
   // <Image> can load it. Null just means we fall back to the initial.
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  // W2-16: names every way this person can sign back in.
+  const signOutWords = useSignOutMessage(confirmSignOut, profile?.username);
   const [regulars, setRegulars] = useState<Regular[]>([]);
   const [verified, setVerified] = useState<{ phone: boolean; email: boolean } | null>(null);
 
@@ -577,7 +580,7 @@ export function ProfileScreen() {
         danger
         icon="logout"
         title="Sign out of TaskDrop?"
-        message="You’ll need your phone number or Google account to sign back in. Your tasks and wallet stay safe."
+        message={signOutWords}
         confirmLabel="Sign out"
         cancelLabel="Stay signed in"
         onCancel={() => setConfirmSignOut(false)}

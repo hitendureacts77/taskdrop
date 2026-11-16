@@ -9,6 +9,8 @@
 export function normalizeMobileInput(text: string): string {
   let d = text.replace(/\D/g, '');
   if (d.length > 10) {
+    // "0091 98880 77001", the international way of writing +91 (W2-8): drop the 0091, pasted or typed.
+    if (d.startsWith('0091')) return d.slice(4, 14);
     // 11 digits happens when "+91 98880 ..." is typed key by key (the box keeps only digits,
     // so the "+" is gone and the 11th key arrives after "91" + 9 digits): drop the 91, keep the key.
     if (d.startsWith('91') && (d.length === 12 || d.length === 11)) d = d.slice(2);

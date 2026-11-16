@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSignOutMessage } from '../lib/useSignOutMessage';
 import { View, Text as RNText, Pressable, Animated, Modal, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { useTheme } from '../providers/ThemeProvider';
@@ -204,6 +205,8 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
   const [feedback, setFeedback] = useState(false);
   const [accounts, setAccounts] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  // W2-16: names every way this person can sign back in.
+  const signOutWords = useSignOutMessage(confirmSignOut, profile?.username);
 
   const slide = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -388,7 +391,7 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
         danger
         icon="logout"
         title="Sign out of TaskDrop?"
-        message="You’ll need your phone number or Google account to sign back in. Your tasks and wallet stay safe."
+        message={signOutWords}
         confirmLabel="Sign out"
         cancelLabel="Stay signed in"
         onCancel={() => setConfirmSignOut(false)}
