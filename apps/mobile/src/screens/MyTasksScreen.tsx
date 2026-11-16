@@ -13,6 +13,9 @@ import { descriptionPreview } from '../components/TaskDescription';
 import { listDrafts, removeDraft, type PostDraft } from '../lib/drafts';
 import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
+import { closeTaskText } from '../lib/closeTaskText';
+import { useFees } from '../lib/useFees';
+import { FEES } from '@taskdrop/rules';
 import { useMode } from '../providers/ModeProvider';
 import { useApp, useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
@@ -205,6 +208,18 @@ function MyPosted() {
     });
   }, [tasks, tab, q, needs, quotes]);
 
+  // W3-6: the menu and the dialog name the cancel fine in rupees before it can happen.
+  const cancelPct = useFees().cancelFine ?? FEES.POST_START_CANCEL_PENALTY_PCT;
+  const closeWordsFor = (task: Task) =>
+    closeTaskText({
+      title: task.title,
+      status: task.status,
+      funded: Boolean(task.funded_at),
+      fineMinor: Math.round((task.locked_minor ?? 0) * cancelPct),
+      finePct: Math.round(cancelPct * 100),
+      money: formatINR,
+    });
+
   const close = async (task: Task) => {
     setClosing(true);
     try {
@@ -337,7 +352,7 @@ function MyPosted() {
                   style={{ flex: 1, paddingVertical: 12 }}
                 >
                   <RNText numberOfLines={2} style={tx('600', 14, t.colors.ink, { lineHeight: 20 })}>{d.prompt}</RNText>
-                  <RNText style={tx('500', 12, t.colors.accentDeep, { marginTop: 3 })}>Continue · {timeAgo(new Date(d.savedAt).toISOString())}</RNText>
+                  <RNText style={tx('500', 12, t.colors.accentDeep, { marginTop: 3 })}>Continue · saved {timeAgo(new Date(d.savedAt).toISOString())} · price and date asked again</RNText>
                 </Pressable>
                 <Pressable
                   onPress={() => setConfirmDraft(d)}
@@ -420,7 +435,7 @@ function MyPosted() {
               <MenuRow
                 icon="close"
                 label="Close task"
-                sub={menu.status === 'OPEN' ? 'Stop taking offers' : 'Cancels the job; payment is refunded minus any fine'}
+                sub={closeWordsFor(menu).sub}
                 danger
                 onPress={() => {
                   const m = menu;
@@ -438,11 +453,7 @@ function MyPosted() {
         danger
         icon="close"
         title="Close this task?"
-        message={
-          confirmClose?.status === 'OPEN'
-            ? `“${confirmClose.title}” will be taken down and workers can no longer send offers for it. This can’t be undone.`
-            : `“${confirmClose?.title ?? ''}” will be cancelled and the worker taken off it. Any payment is refunded minus any fine. This can’t be undone.`
-        }
+        message={confirmClose ? closeWordsFor(confirmClose).message : ''}
         confirmLabel="Yes, close task"
         cancelLabel="Keep it"
         busy={closing}

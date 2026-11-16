@@ -9,7 +9,9 @@ import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { reportError } from '../lib/errors';
 import { getTaskDetail, getWallet, payTaskFromWallet, WalletShortError } from '../data/api';
-import { posterEscrowCharge } from '@taskdrop/rules';
+import { FEES, posterEscrowCharge } from '@taskdrop/rules';
+import { hireFineNote } from '../lib/closeTaskText';
+import { useFees } from '../lib/useFees';
 import { Pressy, tx } from '../components/primitives';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { KeyboardSafe } from '../components/KeyboardSafe';
@@ -53,6 +55,7 @@ export function EscrowScreen() {
   const { celebrate, flash } = useApp();
   const [busy, setBusy] = useState(false);
   const [balanceMinor, setBalanceMinor] = useState<number | null>(null);
+  const cancelPct = useFees().cancelFine ?? FEES.POST_START_CANCEL_PENALTY_PCT;
   const [shortBy, setShortBy] = useState<number | null>(null);
 
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
@@ -213,8 +216,7 @@ export function EscrowScreen() {
           <ShieldCheck color={t.colors.accent} />
           <RNText style={tx('400', 13, t.colors.accentDeep, { lineHeight: 19.5, flex: 1 })}>
             The money stays locked in this task and cannot be withdrawn. The worker is paid only when you approve the
-            work. If the task is cancelled or not completed, all of it — service fee included — comes back to your
-            wallet.
+            work. {hireFineNote({ fineMinor: Math.round((lockedMinor ?? 0) * cancelPct), finePct: Math.round(cancelPct * 100), money: formatINR })}
           </RNText>
         </View>
       </ScrollView>

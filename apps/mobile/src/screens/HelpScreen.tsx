@@ -6,6 +6,7 @@ import { KeyboardSafe } from '../components/KeyboardSafe';
 import { Badge, EmptyState, Field, LoadFailed, Pill, PrimaryButton, Shimmer, TopBar, timeAgo } from '../components/kit';
 import { FeedbackSheet } from '../components/FeedbackSheet';
 import { bugReportsAvailable, showBugReport } from '../lib/monitoring';
+import { lengthHint } from '../lib/fieldHint';
 import { FadeIn, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useLayout } from '../lib/layout';
@@ -98,7 +99,7 @@ export function HelpScreen() {
         multiline
         maxLength={4000}
         placeholder="Tell us what happened"
-        hint="Include the task name or amount if it is about a payment."
+        hint={lengthHint(body, 5, 'your message') ?? 'Include the task name or amount if it is about a payment.'}
       />
       <PrimaryButton label="Send message" onPress={() => void send()} busy={busy} disabled={body.trim().length < 5} style={{ marginTop: 14 }} />
       <Pressable onPress={() => setFeedback(true)} style={{ marginTop: 12 }} accessibilityRole="button">

@@ -18,6 +18,16 @@ export type CloseTaskInput = {
   money: (minor: number) => string;
 };
 
+/**
+ * One honest sentence for the hire dialog and the pay screen (W3-6): what cancelling costs, in rupees, before
+ * it can happen. The fine applies only once the worker has started (the server fines on TASK_STARTED and
+ * OVERDUE); before that everything comes back. `fineMinor` is the fine on the offer price, in paise.
+ */
+export function hireFineNote(x: { fineMinor: number; finePct: number; money: (minor: number) => string }): string {
+  if (x.fineMinor <= 0) return 'If the task is cancelled before the worker starts, all of it comes back.';
+  return `If the task is cancelled before the worker starts, all of it comes back. Once they have started, cancelling costs a ${x.finePct}% fine (${x.money(x.fineMinor)} on this offer) that goes to the worker; the rest still comes back.`;
+}
+
 export function closeTaskText(x: CloseTaskInput): { sub: string; message: string } {
   if (!x.funded) {
     return {

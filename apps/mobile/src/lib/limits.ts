@@ -13,3 +13,14 @@ export function priceState(rupees: number | null | undefined): 'empty' | 'low' |
   if (rupees > MAX_PRICE_INR) return 'high';
   return 'ok';
 }
+
+/**
+ * The plain message for an amount that is outside the limits, in the same words the post flow uses (W3-11),
+ * or null when it is fine. Shown beside the box; what the person typed is never rewritten.
+ */
+export function priceNote(rupees: number | null | undefined): string | null {
+  const s = priceState(rupees);
+  if (s === 'empty' || s === 'low') return `The lowest price is ₹${MIN_PRICE_INR.toLocaleString('en-IN')}`;
+  if (s === 'high') return `The most is ₹${MAX_PRICE_INR.toLocaleString('en-IN')}`;
+  return null;
+}

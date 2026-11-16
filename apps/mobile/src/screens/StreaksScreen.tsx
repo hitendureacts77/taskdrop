@@ -11,7 +11,7 @@ import { useActions } from '../providers/AppStateProvider';
 import { myStreaks, setWeeklyGoal, type Streaks } from '../data/api';
 import { STREAK_GOAL, badgesFor, daysLeftInWeek, goalProgress } from '../lib/streaks';
 import { reportError } from '../lib/errors';
-import { wholeDigits } from '../lib/rupeeInput';
+import { parseGoalText } from '../lib/goalText';
 
 const RING = 136;
 const STROKE = 14;
@@ -69,11 +69,13 @@ export function StreaksScreen() {
   const circ = Math.PI * (RING - STROKE);
 
   const saveGoal = async () => {
-    const rupeesTyped = Math.round(Number(wholeDigits(goalText)));
     if (saving) return;
+    // W3-15: "-5" or words are refused with a message, not quietly saved as something else.
+    const parsed = parseGoalText(goalText);
+    if (!parsed.ok) return flash(parsed.message);
     setSaving(true);
     try {
-      await setWeeklyGoal(rupeesTyped > 0 ? rupeesTyped * 100 : null);
+      await setWeeklyGoal(parsed.minor);
       setEditing(false);
       await load();
     } catch (e) {

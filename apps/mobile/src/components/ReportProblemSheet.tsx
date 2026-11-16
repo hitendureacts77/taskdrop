@@ -3,6 +3,7 @@ import { useActions } from '../providers/AppStateProvider';
 import { openDispute } from '../data/api';
 import { REPORT_SUBTITLE } from '../legal/disputePolicy';
 import { BottomSheet, Field, PrimaryButton } from './kit';
+import { lengthHint } from '../lib/fieldHint';
 
 /**
  * "Report a problem" on a job that is under way.
@@ -63,7 +64,7 @@ export function ReportProblemSheet({
         multiline
         maxLength={1000}
         placeholder="E.g. the work isn’t what we agreed, or the other person stopped replying"
-        hint="TaskDrop reads this before deciding who gets the money."
+        hint={lengthHint(reason, 10, 'what went wrong') ?? 'TaskDrop reads this before deciding who gets the money.'}
       />
     </BottomSheet>
   );

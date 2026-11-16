@@ -26,7 +26,7 @@ import {
   type Task,
 } from '../data/api';
 import { PRICE_LIMITS, distanceKm, formatDistance } from '@taskdrop/rules';
-import { MAX_PRICE_INR } from '../lib/limits';
+import { priceNote } from '../lib/limits';
 import { ShareSheet, useShare } from '../components/ShareSheet';
 import { taskUrl } from '../lib/links';
 import { TASK_UNAVAILABLE } from '../lib/taskLink';
@@ -318,10 +318,11 @@ function TaskDetailBody() {
   const view = taskPageView(mode, live?.kind);
   const priceLabel = huntTask ? 'REWARD FOR THE FINDER' : view.asRequest ? 'BUDGET' : 'THEIR RATE';
   const delta = quote - detail.amountMinor;
-  // W2-11: under the smallest offer, say the lowest price (as the post flow does), not a sum below budget.
-  const underMin = quote < MIN_QUOTE_MINOR;
-  const deltaText = underMin
-    ? `The lowest price is ${formatINR(MIN_QUOTE_MINOR)}`
+  // W2-11 / W3-11: an offer outside the limits gets the post flow's plain words, and what was typed is kept as typed.
+  const quoteNote = priceNote(quote / 100);
+  const underMin = quoteNote !== null;
+  const deltaText = quoteNote
+    ? quoteNote
     : delta === 0 ? 'same as asked' : delta > 0 ? `+${formatINR(delta)} above` : `−${formatINR(-delta)} below`;
   const deltaColor = underMin ? t.colors.signalDeep : delta === 0 ? t.colors.muted : delta > 0 ? t.colors.gold : t.colors.accent;
 
@@ -399,7 +400,7 @@ function TaskDetailBody() {
       if (!realId) return flash('This is a sample task — post a real one to send an offer');
       if (guest) return needAccount('offer', () => void sendQuote());
       if (!userId) return flash('Sign in to send an offer');
-      if (quote < MIN_QUOTE_MINOR) return flash(`The smallest offer is ${formatINR(MIN_QUOTE_MINOR)}`);
+      if (quoteNote) return flash(quoteNote);
       if (proposalShort) return flash('Tell the customer a little about how you will do it');
       if (proposalIssue) return flash(offerIssueMessage(proposalIssue));
       setBusy(true);
@@ -712,10 +713,9 @@ function TaskDetailBody() {
 
             <View style={{ flex: 1, alignItems: 'center' }}>
               <AmountField
-                rupees={Math.round(quote / 100)}
+                rupees={quote > 0 ? Math.round(quote / 100) : null}
                 onChangeRupees={(r) => setQuote((r ?? 0) * 100)}
-                min={MIN_QUOTE_MINOR / 100}
-                max={MAX_PRICE_INR}
+                min={0}
                 style={tx('800', 34, t.colors.ink, { letterSpacing: -0.8 })}
               />
               <RNText style={tx('500', 12, deltaColor, { marginTop: 2 })}>{deltaText}</RNText>
