@@ -4,6 +4,14 @@ Plan task 2.19. You asked for a full pass over the website, the admin, the phone
 
 **The short answer: not clean yet.** About 90 findings were written down (no Critical, 3 High). Most Highs and Mediums are fixed and merged; every fix still needs the live recheck, and a list of Low items and a few decisions are open.
 
+## Round 8 follow-up (16 Nov, evening)
+
+Fixed and merged after the walks: sign-in leftovers (PR 389: keyboard over the code box, phone digits, new-account step names the number, Test-mode box cleared, password Show/Hide, draft wording), money and forms (PR 391: earnings-clearing line, the 5% fine named in rupees, offer price messages, weekly goal, helper lines under disabled buttons, Withdraw reason, leave-without-saving on web), map, Back, one place source, counts and tap targets (PR 392, plus B152: the Vercel toolbar script is allowed on staging only), admin wording (admin PR 58). Update group 2940f3cf (beta) was published and applied on the phone (version 1.1.0, same build).
+
+Checked live: Back from Explore goes Home on the phone; Earn Home shows the area; map labels no longer overlap and the pill names both counts; panning 0.37% janky frames (270 frames); web sign-in keeps the typed digits and the new-account step names the number big; Wallet shows the clearing line; admin payout not-found page, alerts heading and dashboard caption. Not rechecked: the sign-in code step with the keyboard up (P1-1), Google cancel timing, budget step price sign, draft delete prompt, release dialog fine wording (the phone was in use for something else).
+
+Still open: P1-6 page jump, W3-20 test code auto-fill (owner decision), P1-25, W3-17 sidebar links and B171 (owner decision), W2-9 resume at the last step, the chat button unread dot, "How TaskDrop works" tap area, the 5-hour usage limit stopped nothing else.
+
 ## What waits for you (first, as the plan asks)
 
 | What | Why it needs you |
