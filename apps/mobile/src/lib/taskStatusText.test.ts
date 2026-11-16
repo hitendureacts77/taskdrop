@@ -4,12 +4,12 @@ import { completeByDate, paymentLine, showAssignmentChip, datePassedLine, succes
 
 test('complete-by uses the target date first (B153)', () => {
   const d = completeByDate({ due_at: '2026-11-16T01:34:00Z', created_at: '2026-11-10T03:54:00Z', time_limit_minutes: 2880 });
-  assert.equal(d.toISOString(), '2026-11-16T01:34:00.000Z');
+  assert.equal(d?.toISOString(), '2026-11-16T01:34:00.000Z');
 });
 
-test('complete-by falls back to created + time limit with no target date', () => {
-  const d = completeByDate({ due_at: null, created_at: '2026-11-10T00:00:00Z', time_limit_minutes: 60 });
-  assert.equal(d.toISOString(), '2026-11-10T01:00:00.000Z');
+test('B153 / W2-6: with no target date there is no complete-by date (never created + time limit)', () => {
+  assert.equal(completeByDate({ due_at: null, created_at: '2026-11-10T00:00:00Z', time_limit_minutes: 60 }), null);
+  assert.equal(completeByDate({ created_at: '2026-11-10T00:00:00Z', time_limit_minutes: 60 }), null);
 });
 
 test('payment line says paid once finished (B155)', () => {

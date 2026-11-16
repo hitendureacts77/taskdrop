@@ -3,10 +3,12 @@
  * (taskStatusText.test.ts). They only decide the words and dates, never the look.
  */
 
-/** The date a task should be done by: the poster's target date, else created + time limit. */
-export function completeByDate(task: { due_at?: string | null; created_at: string; time_limit_minutes: number }): Date {
-  if (task.due_at) return new Date(task.due_at);
-  return new Date(new Date(task.created_at).getTime() + task.time_limit_minutes * 60_000);
+/**
+ * The date a task should be done by: the poster's target date, or null when they set none. Never created +
+ * time limit (B153 / W2-6: that showed a date days in the past on Compare while the task page showed none).
+ */
+export function completeByDate(task: { due_at?: string | null; created_at: string; time_limit_minutes: number }): Date | null {
+  return task.due_at ? new Date(task.due_at) : null;
 }
 
 /** The "Your payment" line on the poster's task page. `amount` is already formatted. */
