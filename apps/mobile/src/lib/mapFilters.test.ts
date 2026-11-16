@@ -116,3 +116,10 @@ test('the summary line', () => {
   assert.equal(jobsSummary(1, 0, 5, 'all'), '1 job within 5 km');
   assert.equal(jobsSummary(4, 3, 10, 'remote'), '3 jobs you can do remotely');
 });
+
+test('B170: a count that hit the read cap says "at least", never the cap as a count', () => {
+  assert.equal(jobsSummary(200, 3, 25, 'all', { near: true }), '200+ jobs within 25 km · 3 remote');
+  assert.equal(jobsSummary(62, 200, 10, 'all', { home: true }), '62 jobs within 10 km · 200+ remote');
+  assert.equal(jobsSummary(0, 200, 10, 'remote', { home: true }), '200+ jobs you can do remotely');
+  assert.equal(jobsSummary(40, 0, 25, 'local'), '40 jobs within 25 km');
+});

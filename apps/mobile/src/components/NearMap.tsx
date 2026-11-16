@@ -34,6 +34,7 @@ import {
 } from './NearMapParts';
 import { DropFilters, FiltersButton, FiltersPanel, JobChips, PlaceRow, QuickChip, WorkSwitch } from './MapFilterParts';
 import { distanceKm, peopleReach, postedToday, withinReach } from '../lib/mapReach';
+import { REMOTE_LIMIT, capped, matchesQuery } from '../lib/findWorkRead';
 import { DEFAULT_FILTERS, KM_STEPS, changedFilters, clearJobFilters, filterJobs, jobsSummary, matchesJob, narrowsJobs, type MapFilters } from '../lib/mapFilters';
 import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
 import { REFRESH_DEBOUNCE_MS, createRefreshCache, refreshKey, shouldRefresh } from '../lib/mapRefresh';
@@ -69,8 +70,8 @@ const HELPER_H = 430;
  */
 const WIDE_KM = 20000;
 const ITEMS = 200;
-/** The most remote jobs asked for. */
-const REMOTE_ITEMS = 50;
+/** The most remote jobs asked for: the same read and number as the Find work list (B170). */
+const REMOTE_ITEMS = REMOTE_LIMIT;
 /** The phone's top pill. */
 const TOP_BAR_H = 70;
 
@@ -459,7 +460,7 @@ export function NearMap({
   // The Explore list's search narrows the jobs too.
   const filterQuery = (listFilter?.query ?? '').trim().toLowerCase();
   const matchesList = useMemo(
-    () => (j: MapJob) => !filterQuery || `${j.title} ${j.description ?? ''}`.toLowerCase().includes(filterQuery),
+    () => (j: MapJob) => matchesQuery(j, filterQuery),
     [filterQuery],
   );
   const pinnedPool = useMemo(() => (jobs ?? []).filter(matchesList), [jobs, matchesList]);
@@ -485,6 +486,8 @@ export function NearMap({
   const listJobs = useMemo(() => filterJobs(pinnedPool, homePool, reachAt, filters), [pinnedPool, homePool, reachAt, filters]);
   const nearJobs = useMemo(() => listJobs.filter((j) => !j.remote), [listJobs]);
   const homeCount = listJobs.length - nearJobs.length;
+  // A read that came back full: its count is "at least", said as "200+" (B170).
+  const mapCaps = { near: capped(jobs?.length ?? 0, ITEMS), home: capped(remoteJobs?.length ?? 0, REMOTE_ITEMS) };
   // Nearest first, so the list agrees with the "nearest person" card above it (the server's order is active-first).
   const listPeople = useMemo(
     () => (reachAt ? [...withinReach(shownPeople, reachAt, radius)].sort((a, b) => a.km - b.km) : []),
@@ -681,7 +684,10 @@ export function NearMap({
   const title = mode === 'jobs' ? (fromHome ? 'Remote work' : 'Work near you') : mine ? 'People nearby' : 'Helpers near you';
   const within = fromHome ? 'from anywhere' : `within ${radius} km`;
   const sub = loading ? 'Looking around…' : `${placeName} · ${within}${mode === 'people' && live > 0 ? ` · ${live} active now` : ''}`;
-  const countWords = `${count} ${count === 1 ? words.one : words.many}`;
+  // Jobs: the one shared line ("62 jobs within 10 km · 20 remote"), the same as the Find work list and card (B170).
+  const countWords =
+    mode === 'jobs' ? jobsSummary(nearJobs.length, homeCount, radius, filters.work, mapCaps) : `${count} ${count === 1 ? words.one : words.many}`;
+  const withinTail = mode === 'jobs' ? '' : ` · ${within}`;
   const pillText = busy ? 'Looking around…' : fromHome ? 'Remote jobs are in the list, not on the map' : total === 0 ? `No ${words.many} on this part of the map` : `${total} ${total === 1 ? words.one : words.many} on the map`;
   const nextReach = KM_STEPS.find((k) => k > radius) ?? null;
 
@@ -746,7 +752,7 @@ export function NearMap({
         meta: [...where, p ? `by ${firstName(p.display_name || p.username)}` : null, rating, today].filter(Boolean).join(' · '),
         onFocus: () => (bestJob.remote ? openJob(bestJob) : pick(bestJob.id)),
         onOpen: () => openJob(bestJob),
-        summary: jobsSummary(nearJobs.length, homeCount, radius, filters.work),
+        summary: jobsSummary(nearJobs.length, homeCount, radius, filters.work, mapCaps),
       };
     }
     if (mine) {
@@ -1130,7 +1136,7 @@ export function NearMap({
                   {here ? here.title : title}
                 </RNText>
                 <RNText style={tx('600', 11, t.colors.muted)} numberOfLines={1}>
-                  {here ? here.sub : loading ? 'Looking around…' : `${countWords} · ${placeName} · ${within}`}
+                  {here ? here.sub : loading ? 'Looking around…' : `${countWords} · ${placeName}${withinTail}`}
                 </RNText>
               </View>
               {here ? null : (
@@ -1193,7 +1199,7 @@ export function NearMap({
                       {title}
                     </RNText>
                     <RNText style={tx('600', 12, t.colors.muted)} numberOfLines={1}>
-                      {loading ? 'Looking around…' : `${countWords} · ${within}`}
+                      {loading ? 'Looking around…' : `${countWords}${withinTail}`}
                     </RNText>
                   </View>
                   <Pressy

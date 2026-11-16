@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FIND_WORK_LIMIT, findWorkSearches, joinFindWork } from './findWorkRead.ts';
+import { FIND_WORK_LIMIT, REMOTE_LIMIT, capped, findWorkSearches, joinFindWork, matchesQuery } from './findWorkRead.ts';
+
+test('B170: remote jobs come from the same read as the map, matched the same way', () => {
+  const rows = [{ id: 'a', title: 'Logo design', description: null }, { id: 'b', title: 'Typing', description: 'Data ENTRY in Excel' }];
+  assert.deepEqual(rows.filter((r) => matchesQuery(r, '')).map((r) => r.id), ['a', 'b']);
+  assert.deepEqual(rows.filter((r) => matchesQuery(r, '  data entry ')).map((r) => r.id), ['b']);
+  assert.equal(REMOTE_LIMIT, FIND_WORK_LIMIT);
+  assert.equal(capped(FIND_WORK_LIMIT, FIND_WORK_LIMIT), true);
+  assert.equal(capped(40, FIND_WORK_LIMIT), false);
+});
 
 const job = (id: string, lat: number | null = 12.9, lng: number | null = 77.6) => ({ id, loc_lat: lat, loc_lng: lng });
 

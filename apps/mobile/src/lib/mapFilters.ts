@@ -182,9 +182,22 @@ export function dropOptions(f: MapFilters): { key: string; label: string; next: 
 }
 
 /** "4 jobs within 10 km · 3 remote": the one line under the best offer. */
-export function jobsSummary(nearCount: number, homeCount: number, km: number, work: WorkType): string {
-  const n = (c: number) => `${c} ${c === 1 ? 'job' : 'jobs'}`;
-  if (work === 'remote') return `${n(homeCount)} you can do remotely`;
-  if (work === 'local') return `${n(nearCount)} within ${km} km`;
-  return homeCount > 0 ? `${n(nearCount)} within ${km} km · ${homeCount} remote` : `${n(nearCount)} within ${km} km`;
+/**
+ * The one way every Find work count is said (card, list and map, B170). `capped` marks a count whose read came
+ * back full, so the true total is unknown: it reads "200+", never the read's limit as if it were a count.
+ */
+export function jobsSummary(
+  nearCount: number,
+  homeCount: number,
+  km: number,
+  work: WorkType,
+  capped: { near?: boolean; home?: boolean } = {},
+): string {
+  const num = (c: number, more?: boolean) => `${c}${more ? '+' : ''}`;
+  const n = (c: number, more?: boolean) => `${num(c, more)} ${c === 1 && !more ? 'job' : 'jobs'}`;
+  if (work === 'remote') return `${n(homeCount, capped.home)} you can do remotely`;
+  if (work === 'local') return `${n(nearCount, capped.near)} within ${km} km`;
+  return homeCount > 0
+    ? `${n(nearCount, capped.near)} within ${km} km · ${num(homeCount, capped.home)} remote`
+    : `${n(nearCount, capped.near)} within ${km} km`;
 }

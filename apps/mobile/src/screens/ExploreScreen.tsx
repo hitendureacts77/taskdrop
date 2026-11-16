@@ -17,12 +17,13 @@ import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import {
+  attachPosters,
   searchTasksWithPosters,
   listMyTasks,
   type Task,
   type TaskWithPoster,
 } from '../data/api';
-import { listSavedTaskIds, setSaved } from '../data/extras';
+import { listSavedTaskIds, remoteTasks, setSaved } from '../data/extras';
 import { listGuestSaves, setGuestSaved } from '../lib/guestSaves';
 import { IDEAS, TEMPLATES, TEMPLATE_TAGS, type TemplateTag } from '../lib/taskBrief';
 import { taskToFeedRow } from '../lib/openTask';
@@ -32,8 +33,8 @@ import { NearYou } from '../components/NearYou';
 import { JobsNearHero } from '../components/JobsNearHero';
 import { NearMap, type NearMapLayer } from '../components/NearMap';
 import { DropFilters, FiltersButton, FiltersPanel, JobChips, QuickChip, WorkSwitch } from '../components/MapFilterParts';
-import { findWorkSearches, joinFindWork } from '../lib/findWorkRead';
-import { changedFilters, clearJobFilters, filterList, narrowsJobs, type MapFilters } from '../lib/mapFilters';
+import { FIND_WORK_LIMIT, REMOTE_LIMIT, capped, findWorkSearches, joinFindWork, matchesQuery } from '../lib/findWorkRead';
+import { changedFilters, clearJobFilters, filterList, jobsSummary, narrowsJobs, type MapFilters } from '../lib/mapFilters';
 import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
 import { LocationSheet } from '../components/LocationSheet';
 import { LocationPrompt } from '../components/LocationPrompt';
@@ -608,6 +609,8 @@ function FindWork({
   const filters = useJobFilters();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [rows, setRows] = useState<TaskWithPoster[] | null>(null);
+  // Which read came back full (B170): its count is then "at least", shown as "200+".
+  const [caps, setCaps] = useState<{ near: boolean; home: boolean }>({ near: false, home: false });
   // True when the last load failed (offline, server hiccup): an empty list is then
   // "could not load", not "no tasks match".
   const [failed, setFailed] = useState(false);
@@ -665,9 +668,16 @@ function FindWork({
     // the api narrows to `km` around it before it caps (Y1: the newest 200 nationwide hid older nearby jobs and
     // "Nearest" / "Best pay" only sorted that slice), and remote jobs, which a radius search leaves out, come
     // from a second read.
+    // B170: the remote ones come from the map's own read (remoteTasks), so both say the same number.
     const { near, wide } = findWorkSearches(atLat != null && atLng != null ? { lat: atLat, lng: atLng } : null, filters.km, query);
-    const [nearRows, wideRows] = await Promise.all([near ? searchTasksWithPosters(near) : null, searchTasksWithPosters(wide)]);
-    return joinFindWork(nearRows, wideRows);
+    const [nearRows, wideRows] = await Promise.all([
+      near ? searchTasksWithPosters(near) : null,
+      near ? remoteTasks(REMOTE_LIMIT).then(attachPosters) : searchTasksWithPosters(wide),
+    ]);
+    // A read that came back full means "at least" that many; the count then says "200+".
+    const wideFull = capped(wideRows.length, near ? REMOTE_LIMIT : FIND_WORK_LIMIT);
+    setCaps({ near: nearRows ? capped(nearRows.length, FIND_WORK_LIMIT) : wideFull, home: wideFull });
+    return joinFindWork(nearRows, near ? wideRows.filter((r) => matchesQuery(r, query)) : wideRows);
   }, [query, focusTick, atLat, atLng, filters.km]);
 
   useEffect(() => {
@@ -809,7 +819,10 @@ function FindWork({
                 <RNText style={tx('700', 13, t.colors.ink, { flex: 1 })} numberOfLines={2}>
                   {shown === null
                     ? 'Loading…'
-                    : `${shown.length} ${filters.work === 'remote' ? 'remote ' : ''}${shown.length === 1 ? 'job' : 'jobs'}${at && filters.work !== 'remote' ? ` within ${filters.km} km of ${place.label.split(',')[0]}${filters.work === 'all' ? ', plus remote' : ''}` : ''}${query ? ` for “${query}”` : ''}`}
+                    : at
+                      ? // The same words and numbers as the map and the card above (B170).
+                        `${jobsSummary(shown.filter((j) => j.loc_lat != null).length, shown.filter((j) => j.loc_lat == null).length, filters.km, filters.work, caps)}${filters.work !== 'remote' ? ` · ${place.label.split(',')[0]}` : ''}${query ? ` for “${query}”` : ''}`
+                      : `${shown.length}${caps.near ? '+' : ''} ${filters.work === 'remote' ? 'remote ' : ''}${shown.length === 1 && !caps.near ? 'job' : 'jobs'}${query ? ` for “${query}”` : ''}`}
                 </RNText>
                 {narrowed || query !== '' ? (
                   <Pressable onPress={clearAll} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear all filters">
