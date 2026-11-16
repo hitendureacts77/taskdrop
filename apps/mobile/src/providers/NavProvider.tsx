@@ -16,6 +16,8 @@ type NavCtx = {
   go: (screen: ScreenName, params?: NavParams) => void;
   back: () => void;
   reset: (screen: ScreenName, params?: NavParams) => void;
+  /** Swap the screen on top for another: Back skips the one that was replaced (a step that is over, like swipe-to-start). */
+  replace: (screen: ScreenName, params?: NavParams) => void;
 };
 
 const Ctx = createContext<NavCtx | null>(null);
@@ -40,11 +42,14 @@ export function NavProvider({
   const reset = useCallback((screen: ScreenName, params: NavParams = {}) => {
     setStack([{ screen, params }]);
   }, []);
+  const replace = useCallback((screen: ScreenName, params: NavParams = {}) => {
+    setStack((s) => [...s.slice(0, -1), { screen, params }]);
+  }, []);
 
   const top = stack[stack.length - 1]!;
   const value = useMemo<NavCtx>(
-    () => ({ screen: top.screen, params: top.params, go, back, reset }),
-    [top, go, back, reset],
+    () => ({ screen: top.screen, params: top.params, go, back, reset, replace }),
+    [top, go, back, reset, replace],
   );
 
   // Android hardware/gesture back button: pop our own stack like any native
