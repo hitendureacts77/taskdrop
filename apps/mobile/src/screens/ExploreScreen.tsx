@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { noteFirstAction } from '../lib/appPrompt';
 import { View, Text as RNText, ScrollView, TextInput, Pressable, Animated, Platform, type TextInputInstance, type StyleProp, type ViewStyle } from 'react-native';
 import { Screen, ScreenList, cardSurface } from '../components/ui';
@@ -40,7 +41,7 @@ import { LocationSheet } from '../components/LocationSheet';
 import { LocationPrompt } from '../components/LocationPrompt';
 import { useMyArea } from '../lib/useMyArea';
 import { useLivePlace } from '../lib/useLivePlace';
-import { locationAskedThisLaunch, markLocationAsked, shouldAskForLocation } from '../lib/locationAsk';
+import { LOCATION_DISMISSED_KEY, dismissedRecently, locationAskedThisLaunch, markLocationAsked, shouldAskForLocation } from '../lib/locationAsk';
 import { pickedPlaceName, roughPlace } from '../lib/place';
 import { useReducedMotion } from '../lib/motion';
 import { TABLET_CONTENT, useLayout } from '../lib/layout';
@@ -139,7 +140,23 @@ export function ExploreScreen() {
   const onMap = view === 'map' && screen === 'explore';
   const { live, status, locate } = useLivePlace(onMap);
   const [prompt, setPrompt] = useState<null | 'ask' | 'type'>(null);
-  const asked = shouldAskForLocation({ status, askedThisLaunch: locationAskedThisLaunch(), lookingElsewhere: !!lookAt });
+  // When "Not now" was last chosen, read from this device; until it is read the sheet stays shut (undefined).
+  const [dismissedAt, setDismissedAt] = useState<number | null | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(LOCATION_DISMISSED_KEY)
+      .then((v) => alive && setDismissedAt(v ? Number(v) : null))
+      .catch(() => alive && setDismissedAt(null));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const asked = shouldAskForLocation({
+    status,
+    askedThisLaunch: locationAskedThisLaunch(),
+    lookingElsewhere: !!lookAt,
+    dismissedRecently: dismissedAt === undefined || dismissedRecently(dismissedAt, Date.now()),
+  });
   useEffect(() => {
     if (onMap && asked) {
       markLocationAsked();
@@ -223,7 +240,15 @@ export function ExploreScreen() {
           setLookAt(null);
           void choose(p);
         }}
-        onClose={() => setPrompt(null)}
+        onClose={() => {
+          setPrompt(null);
+          // Put away without a position: do not ask again at the next launch or refresh (see locationAsk).
+          if (status !== 'granted') {
+            const now = Date.now();
+            setDismissedAt(now);
+            AsyncStorage.setItem(LOCATION_DISMISSED_KEY, String(now)).catch(() => {});
+          }
+        }}
       />
       <LocationSheet
         visible={pickFor !== null}

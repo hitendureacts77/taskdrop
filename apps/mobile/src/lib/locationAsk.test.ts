@@ -4,6 +4,8 @@ import {
   locationAskedThisLaunch,
   markLocationAsked,
   shouldAskForLocation,
+  dismissedRecently,
+  DISMISS_FOR_MS,
   type LiveStatus,
 } from './locationAsk.ts';
 
@@ -31,4 +33,15 @@ test('the launch flag sticks once marked', () => {
   assert.equal(locationAskedThisLaunch(), false);
   markLocationAsked();
   assert.equal(locationAskedThisLaunch(), true);
+});
+
+test('a recent "Not now" keeps the sheet shut, an old one does not', () => {
+  const now = 1_700_000_000_000;
+  assert.equal(dismissedRecently(null, now), false);
+  assert.equal(dismissedRecently(now - 60_000, now), true);
+  assert.equal(dismissedRecently(now - DISMISS_FOR_MS - 1, now), false);
+  assert.equal(dismissedRecently(now + 60_000, now), false, 'a clock set wrong must not hide it forever');
+  assert.equal(dismissedRecently(Number.NaN, now), false);
+  assert.equal(shouldAskForLocation({ status: 'blocked', askedThisLaunch: false, lookingElsewhere: false, dismissedRecently: true }), false);
+  assert.equal(shouldAskForLocation({ status: 'blocked', askedThisLaunch: false, lookingElsewhere: false, dismissedRecently: false }), true);
 });
