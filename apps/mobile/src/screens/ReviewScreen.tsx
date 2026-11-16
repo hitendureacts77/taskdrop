@@ -192,7 +192,7 @@ export function ReviewScreen() {
         <TextInput
           value={comment}
           onChangeText={setComment}
-          placeholder="Sourced exactly what I described and delivered a day early…"
+          placeholder="What was it like to work with them? Was it done well, on time, easy to talk to?"
           placeholderTextColor={t.colors.muted}
           multiline
           maxLength={REVIEW_COMMENT_MAX}

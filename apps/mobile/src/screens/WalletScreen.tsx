@@ -13,6 +13,8 @@ import { reportError } from '../lib/errors';
 import { useAuth } from '../providers/AuthProvider';
 import { needAccount } from '../lib/guest';
 import { PENDING_WITHDRAWAL_NOTE, isPendingWithdrawal, withdrawalRows } from '../lib/walletPending';
+import { clearingLine } from '../lib/walletClearing';
+import { useFees } from '../lib/useFees';
 import { GuestNote, GuestScreen } from '../components/GuestBits';
 import {
   getProfile,
@@ -88,6 +90,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
   const { mode } = useMode();
   const { balance, escrow, clearing, flash, celebrate } = useApp();
   const { userId, guest } = useAuth();
+  const liveFees = useFees();
   const focusTick = useFocusTick();
   // One wallet since migration 066: `balance` holds what was added, earned and
   // refunded, all withdrawable. `credits` is always 0 now and is only summed in
@@ -341,6 +344,17 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
   const heldMinor = ledgerLoading ? shown.escrow : held.reduce((n, l) => n + l.amountMinor, 0);
 
   const available = shown.balance + shown.credits;
+  // W3-3: earned money that is still clearing is said in words, with the day it joins Available.
+  const clearNote = clearingLine({
+    clearingMinor: shown.clearing,
+    rows: ledger,
+    days: liveFees.clearingDays,
+    now: new Date(),
+    money: formatINR,
+  });
+  // P1-16: below the minimum, say why Withdraw does nothing.
+  const belowMin = available < MIN_WITHDRAW_MINOR;
+  const belowMinNote = `You have ${formatINR(available)} available. You can withdraw once you have ${formatINR(MIN_WITHDRAW_MINOR)}${clearNote ? ' (money still clearing does not count yet)' : ''}.`;
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
   const periodEarned = ledger
     .filter((l) => l.kind === 'clearing' && new Date(l.at).getTime() >= monthStart)
@@ -418,6 +432,9 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
               Amount frozen in ongoing tasks {formatINR(heldMinor + shown.earningEscrow)}
               {'\n'}Withdrawals on their way to you {formatINR(shown.pending)}
             </RNText>
+            {clearNote ? (
+              <RNText style={tx('500', 12, 'rgba(255,255,255,0.85)', { marginTop: 6, lineHeight: 18 })}>{clearNote}</RNText>
+            ) : null}
             {periodEarned > 0 ? (
               <RNText style={tx('700', 12, '#FFFFFF', { marginTop: 4 })}>
                 +{formatINR(periodEarned)} earned this month
@@ -462,6 +479,9 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
                 {shown.pending > 0 ? `Withdrawals on their way to you ${formatINR(shown.pending)}` : ''}
               </RNText>
             ) : null}
+            {clearNote ? (
+              <RNText style={tx('500', 12, 'rgba(255,255,255,0.85)', { marginTop: 8, lineHeight: 18 })}>{clearNote}</RNText>
+            ) : null}
               </>
             )}
           </HeroCard>
@@ -491,7 +511,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
                   ? needAccount('money')
                   : available >= MIN_WITHDRAW_MINOR
                   ? go('withdraw')
-                  : flash(`You can withdraw once you have ${formatINR(MIN_WITHDRAW_MINOR)} available`)
+                  : flash(belowMinNote)
               }
               style={{
                 flex: 1,
@@ -510,7 +530,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
             </Pressy>
           </View>
           <RNText style={tx('400', 12, t.colors.muted, { marginTop: 10, lineHeight: 17 })}>
-            Min. withdraw {formatINR(MIN_WITHDRAW_MINOR)} · UPI
+            {guest || !loaded || !belowMin ? `Min. withdraw ${formatINR(MIN_WITHDRAW_MINOR)} · UPI` : belowMinNote}
           </RNText>
           </>
           ) : null}

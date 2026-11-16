@@ -46,8 +46,8 @@ import { formatDeadline } from '../components/DateTimeSheet';
 import { useFees } from '../lib/useFees';
 import { reportError } from '../lib/errors';
 import { countOf } from '../lib/plural';
-import { FEES, postStartCancelFine, posterEscrowCharge } from '@taskdrop/rules';
-import { closeTaskText } from '../lib/closeTaskText';
+import { FEES, posterEscrowCharge } from '@taskdrop/rules';
+import { closeTaskText, hireFineNote } from '../lib/closeTaskText';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { TaskOptionsPanel } from '../components/TaskOptionsPanel';
 import { TaskQuestions } from '../components/TaskQuestions';
@@ -198,19 +198,23 @@ export function TaskManageScreen() {
     ...(task.status === 'DISPUTED' ? [{ at: task.updated_at, title: 'Problem reported', body: 'Our team is looking at it', icon: 'gavel' as IconName }] : []),
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
-  // W2-3: once the worker has started, closing costs the 5% fine; the menu and dialog say so.
+  // The fine rate the server has now (the admin can change it), else the built-in one.
+  const cancelPct = fees.cancelFine ?? FEES.POST_START_CANCEL_PENALTY_PCT;
+  const fineOf = (lockedMinor: number) => Math.round(lockedMinor * cancelPct);
+
+  // W2-3: once the worker has started, closing costs the fine; the menu and dialog say so.
   const closeWords = closeTaskText({
     title: task.title,
     status: task.status,
     funded: Boolean(task.funded_at),
-    fineMinor: postStartCancelFine(task.locked_minor ?? 0),
-    finePct: Math.round(FEES.POST_START_CANCEL_PENALTY_PCT * 100),
+    fineMinor: fineOf(task.locked_minor ?? 0),
+    finePct: Math.round(cancelPct * 100),
     money: formatINR,
   });
 
   const primary: { label: string; onPress: () => void } | null =
     row.act === 'compare'
-      ? { label: bids.length ? `Compare ${bids.length} offer${bids.length === 1 ? '' : 's'}` : 'Waiting for offers', onPress: () => openRow(row, { go, flash, setOpenTask, startedOf }) }
+      ? { label: bids.length === 1 ? 'Review the offer' : bids.length ? `Compare ${bids.length} offers` : 'Waiting for offers', onPress: () => openRow(row, { go, flash, setOpenTask, startedOf }) }
       : row.act === 'pay'
         ? { label: `Pay ${formatINR(escrow)} now`, onPress: () => openRow(row, { go, flash, setOpenTask, startedOf }) }
         : row.act === 'confirm'
@@ -675,7 +679,7 @@ export function TaskManageScreen() {
         title={selecting ? `Select ${selecting.name}?` : ''}
         message={
           selecting
-            ? `${formatINR(posterEscrowCharge(selecting.priceMinor, fees.posterFee))} (the offer plus the ${Math.round(fees.posterFee * 100)}% service fee) is taken from your wallet and locked in this task until it is done. If the task is cancelled or not completed, all of it comes back. Phone numbers are shared once the work starts.`
+            ? `${formatINR(posterEscrowCharge(selecting.priceMinor, fees.posterFee))} (the offer plus the ${Math.round(fees.posterFee * 100)}% service fee) is taken from your wallet and locked in this task until it is done. ${hireFineNote({ fineMinor: fineOf(selecting.priceMinor), finePct: Math.round(cancelPct * 100), money: formatINR })} Phone numbers are shared once the work starts.`
             : ''
         }
         confirmLabel="Choose and pay from wallet"

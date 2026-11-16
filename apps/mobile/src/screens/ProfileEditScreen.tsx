@@ -3,7 +3,7 @@ import { View, Text as RNText, Pressable, ActivityIndicator } from 'react-native
 import { Image } from 'expo-image';
 import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { Badge, Field, Pill, PrimaryButton, SwipeTabs, TopBar, UnderlineTabs } from '../components/kit';
+import { Badge, ConfirmDialog, Field, Pill, PrimaryButton, SwipeTabs, TopBar, UnderlineTabs } from '../components/kit';
 import { LocationSheet } from '../components/LocationSheet';
 import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
@@ -58,6 +58,7 @@ export function ProfileEditScreen() {
   const [verify, setVerify] = useState({ phone: false, email: false });
   const [reviews, setReviews] = useState(0);
   const [lastSeen, setLastSeen] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -90,6 +91,13 @@ export function ProfileEditScreen() {
   const draft: Profile | null = p
     ? { ...p, bio, worker_bio: bio, skills, languages: langs, loc_label: place?.label ?? null }
     : null;
+  // W2-12: typing that was not saved is asked about before leaving (the in-page Back; a phone's system header goes straight back).
+  const dirty =
+    p !== null &&
+    (bio !== ((worker ? p.worker_bio : p.bio) ?? '') ||
+      JSON.stringify(skills) !== JSON.stringify(p.skills ?? []) ||
+      JSON.stringify(langs) !== JSON.stringify(p.languages ?? []) ||
+      (place?.label ?? null) !== (p.loc_label ?? null));
   const strength = profileStrength(draft, verify, reviews, worker ? 'worker' : 'poster');
   const level = levelFor(p?.worker_rating_count ?? 0, Number(p?.worker_rating_avg ?? 0));
   // Posters have no Skills tab: their second tab is Status.
@@ -160,7 +168,7 @@ export function ProfileEditScreen() {
     <Screen padded={false}>
       <TopBar
         title={worker ? 'My worker profile' : 'My customer profile'}
-        onBack={back}
+        onBack={() => (dirty ? setLeaving(true) : back())}
         right={
           <Pressable onPress={() => go('publicProfile', { userId, role: worker ? 'worker' : 'poster' })} hitSlop={8} accessibilityRole="button">
             <RNText style={tx('700', 13, t.colors.accentDeep)}>Preview</RNText>
@@ -347,6 +355,19 @@ export function ProfileEditScreen() {
         onPick={(picked) => {
           setPlace({ label: picked.label, lat: picked.lat, lng: picked.lng });
           setShowLoc(false);
+        }}
+      />
+      <ConfirmDialog
+        visible={leaving}
+        icon="close"
+        title="Leave without saving?"
+        message="You typed changes that are not saved yet. If you leave now they are lost."
+        confirmLabel="Leave"
+        cancelLabel="Keep editing"
+        onCancel={() => setLeaving(false)}
+        onConfirm={() => {
+          setLeaving(false);
+          back();
         }}
       />
     </Screen>

@@ -780,7 +780,7 @@ export function AiPostScreen() {
     forget();
     if (draftOwner && prompt.trim().length >= 3) {
       void saveDraft(draftOwner, prompt, draftId);
-      flash('Saved to Drafts in My Tasks');
+      flash('Saved to Drafts in My Tasks. Your words are kept; the price and date are asked again');
     }
     back();
   };

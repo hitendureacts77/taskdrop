@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import Svg, { Circle } from 'react-native-svg';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
+import { lengthHint } from '../lib/fieldHint';
 import { BackButton, ConfirmDialog, EmptyState, Field, LoadFailed, systemHeader } from '../components/kit';
 import { reportError } from '../lib/errors';
 import { ReportProblemSheet } from '../components/ReportProblemSheet';
@@ -438,7 +439,7 @@ export function ActiveScreen() {
             <RNText style={tx('700', 14, t.colors.ink)}>{otherName}</RNText>
             {other ? <PresenceLabel lastSeen={other.last_seen_at} /> : null}
           </View>
-          <Pressy onPress={() => go('chat', { taskId: task.id })} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: t.colors.line, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 }}>
+          <Pressy onPress={() => go('chat', { taskId: task.id })} label="Chat" style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: t.colors.line, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 }}>
             <Icon name="chat" size={14} color={t.colors.accentDeep} />
             <RNText style={tx('700', 13, t.colors.accentDeep)}>Chat</RNText>
           </Pressy>
@@ -461,6 +462,7 @@ export function ActiveScreen() {
           <Pressable
             onPress={() => go('crew', { crewId: task.crew_id, member: true })}
             accessibilityRole="button"
+            accessibilityLabel="Crew job: see who else is on it"
             style={[card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}
           >
             <Icon name="users" size={18} color={t.colors.accentDeep} />
@@ -502,6 +504,7 @@ export function ActiveScreen() {
               multiline
               maxLength={2000}
               minHeight={90}
+              hint={lengthHint(summary, 10, 'what you did') ?? undefined}
               placeholder="E.g. Wrote all 30 captions with hashtags, shared as a Google Doc; changed 3 after your notes."
               style={{ marginTop: 12 }}
             />
