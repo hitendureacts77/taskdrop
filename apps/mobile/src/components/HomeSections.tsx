@@ -53,7 +53,7 @@ import type { IconName } from './Icon';
 import { HowSheet } from './HowSheet';
 import { LocationSheet, type PickedPlace } from './LocationSheet';
 import { resolveCurrentPlace } from '../lib/location';
-import { roughPlace } from '../lib/place';
+import { pickedPlaceName, roughPlace } from '../lib/place';
 import { guestAreaFromPicked } from '../lib/guestArea';
 import { readGuestArea, saveGuestArea } from '../lib/guestAreaStore';
 import { Pressy, tx } from './primitives';
@@ -554,7 +554,8 @@ function AreaBar({
   // On a desktop browser the row also carries "Get the app" (a QR to the Android app; web only).
   const { desktop } = useLayout();
   const area = label ? roughPlace(label) : null;
-  const areaName = area ? area.split(',')[0]! : null;
+  // B176: the header names the place they picked ("Madhapur, Ward 104 Kondapur, ..." is Madhapur).
+  const areaName = label ? pickedPlaceName(label) : null;
   const bar = (
     <Pressable
       onPress={onPress}
@@ -806,8 +807,7 @@ function EarnTop() {
     />
   );
 
-  const area = place ? roughPlace(place.label) : null;
-  const areaName = area ? area.split(',')[0]! : null;
+  const areaName = place ? pickedPlaceName(place.label) : null;
 
   return (
     <View>

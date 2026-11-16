@@ -41,7 +41,7 @@ import { LocationPrompt } from '../components/LocationPrompt';
 import { useMyArea } from '../lib/useMyArea';
 import { useLivePlace } from '../lib/useLivePlace';
 import { locationAskedThisLaunch, markLocationAsked, shouldAskForLocation } from '../lib/locationAsk';
-import { roughPlace } from '../lib/place';
+import { pickedPlaceName, roughPlace } from '../lib/place';
 import { useReducedMotion } from '../lib/motion';
 import { TABLET_CONTENT, useLayout } from '../lib/layout';
 import { DesktopTopBar } from '../navigation/DesktopTopBar';
@@ -158,7 +158,7 @@ export function ExploreScreen() {
   // The place picked to look around, else where you are, else your saved area; none shows the India map and its card.
   const centre = lookAt ? { lat: lookAt.lat, lng: lookAt.lng } : live ? { lat: live.lat, lng: live.lng } : area ? { lat: area.lat, lng: area.lng } : null;
   // A picked place keeps the name it was picked by ("Koramangala, Bengaluru"), not its ward.
-  const placeLabel = lookAt ? lookAt.label : live ? (roughPlace(live.label) ?? 'Your location') : area ? (roughPlace(area.label) ?? undefined) : undefined;
+  const placeLabel = lookAt ? lookAt.label : live ? (roughPlace(live.label) ?? 'Your location') : area ? (pickedPlaceName(area.label) ?? undefined) : undefined; // B176: the place they picked, by its name
   return (
     <View style={{ flex: 1 }}>
       {view === 'map' ? (

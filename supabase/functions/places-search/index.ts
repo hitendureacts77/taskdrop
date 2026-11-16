@@ -148,7 +148,7 @@ Deno.serve(guarded("places-search", async (req: Request) => {
     };
     const places = (out.places ?? [])
       .map((p) => ({
-        label: p.formattedAddress ?? p.displayName?.text ?? q,
+        label: tidy(p.formattedAddress ?? p.displayName?.text ?? q) || q,
         lat: p.location?.latitude ?? null,
         lng: p.location?.longitude ?? null,
       }))
@@ -198,6 +198,11 @@ async function handleGuest(req: Request, url: string): Promise<Response> {
 // under about one request a second; the per-account budget above keeps us there.
 const OSM = { "User-Agent": "TaskDrop/1.0 (support@taskdrop.in)", "Accept-Language": "en" };
 
+/** One space after each comma and no doubled spaces, the same as the app's tidyLabel (B176). */
+function tidy(label: string): string {
+  return label.split(",").map((x) => x.replace(/\s+/g, " ").trim()).filter(Boolean).join(", ");
+}
+
 async function osmSearch(q: string): Promise<{ label: string; lat: number; lng: number }[]> {
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=in&q=${encodeURIComponent(q)}`, {
@@ -212,7 +217,7 @@ async function osmSearch(q: string): Promise<{ label: string; lat: number; lng: 
     return list
       .map((r) => ({
         // The full display_name is a mouthful; the first few parts read like an address.
-        label: r.display_name?.split(",").slice(0, 3).join(",").trim() || r.name || q,
+        label: tidy(r.display_name?.split(",").slice(0, 3).join(",") ?? "") || r.name || q,
         lat: Number(r.lat),
         lng: Number(r.lon),
       }))
@@ -235,7 +240,7 @@ async function osmReverse(lat: number, lng: number): Promise<string | null> {
       return null;
     }
     const out = (await res.json()) as { display_name?: string; name?: string };
-    return out.name || out.display_name?.split(",").slice(0, 3).join(",").trim() || null;
+    return out.name || tidy(out.display_name?.split(",").slice(0, 3).join(",") ?? "") || null;
   } catch {
     return null;
   }

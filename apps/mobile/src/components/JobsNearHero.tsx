@@ -5,7 +5,7 @@ import { useNav } from '../providers/NavProvider';
 import { attachPosters, type TaskWithPoster } from '../data/api';
 import { tasksNear } from '../data/extras';
 import { taskToFeedRow } from '../lib/openTask';
-import { roughPlace } from '../lib/place';
+import { pickedPlaceName } from '../lib/place';
 import { useMyArea } from '../lib/useMyArea';
 import { FIND_WORK_LIMIT, capped } from '../lib/findWorkRead';
 import { KM_STEPS, jobsSummary, matchesJob } from '../lib/mapFilters';
@@ -62,7 +62,7 @@ export function JobsNearHero({ onOpenMap }: { onOpenMap?: () => void }) {
     };
   }, [area, radius, loaded]);
 
-  const name = area ? (roughPlace(area.label)?.split(',')[0] ?? area.label) : null;
+  const name = area ? (pickedPlaceName(area.label) ?? area.label) : null;
   const pins = (rows ?? []).map((r) => jobPin(r, at)).filter((x): x is JobPin => x !== null);
   const openMap = () => {
     if (onOpenMap) onOpenMap();
