@@ -3,6 +3,7 @@ import { callApi } from '../lib/gateway';
 import { clientHeaders } from '../lib/appInfo';
 import { currentUserId, supabase } from '../lib/supabase';
 import { subscribeLive } from '../lib/live';
+import { UNREAD_WINDOW, unreadSummary } from '../lib/unread';
 import { forgetEverything, reusePublic, reuseWhileFresh } from '../lib/freshness';
 import type { Tables } from '@taskdrop/db-types';
 import { guestGate, primeProfile, type Task, type Profile } from './api';
@@ -74,6 +75,18 @@ export async function notificationSides(rows: Notification[]): Promise<Map<strin
  */
 export const countUnreadFor = (side: 'poster' | 'worker') =>
   reuseWhileFresh('countUnreadFor', side, () => ask<number>('countUnreadFor', { side }, 0)).catch(() => 0);
+
+/**
+ * The bell's number and the Messages dot for one side, from the same newest UNREAD_WINDOW alerts the
+ * Notifications screen lists, with the same side rule (W3-12), so the badge always equals the list.
+ * Reused for a few seconds like the old count (lib/freshness.ts).
+ */
+export const unreadSummaryFor = (side: 'poster' | 'worker') =>
+  reuseWhileFresh('listNotifications', `summary:${side}`, async () => {
+    const list = await listNotifications(UNREAD_WINDOW);
+    const sides = await notificationSides(list.filter((n) => !n.read_at));
+    return unreadSummary(list, sides, side);
+  }).catch(() => ({ total: 0, messages: 0 }));
 
 export async function markNotificationsRead(ids?: string[]): Promise<void> {
   await ask('markNotificationsRead', { ids: ids ?? [] }, null);

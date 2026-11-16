@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text as RNText, ScrollView, Pressable, RefreshControl } from 'react-native';
+import { View, Text as RNText, ScrollView, Pressable, Platform, RefreshControl } from 'react-native';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import {
@@ -576,7 +576,9 @@ export function TaskManageScreen() {
         onBack={back}
         right={<IconButton icon="dots" label="Task options" onPress={() => setMenu(true)} />}
       />
-      <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 20, marginTop: -4 }}>
+      {/* On the web the chips tuck up under the in-page title; on a phone the title is the native header,
+          and pulled up under it the chips' tops were cut off (P1-18). */}
+      <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 20, marginTop: Platform.OS === 'web' ? -4 : 8 }}>
         <Badge label={badge.label} tone={badge.tone} />
         {isHunt(task) || showAssignmentChip(task.status) ? (
           <Badge

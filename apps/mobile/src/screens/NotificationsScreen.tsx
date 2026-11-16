@@ -23,6 +23,7 @@ import { taskToFeedRow } from '../lib/openTask';
 import { useApp } from '../providers/AppStateProvider';
 import { GuestScreen } from '../components/GuestBits';
 import { mergeById } from '../lib/mergeById';
+import { UNREAD_WINDOW, onSide } from '../lib/unread';
 
 const ICON: Record<string, IconName> = {
   quote: 'tag',
@@ -71,7 +72,8 @@ export function NotificationsScreen() {
   const [failed, setFailed] = useState(false);
 
   const load = useCallback(async () => {
-    const list = await listNotifications(80);
+    // The same window the bell counts (lib/unread.ts), so "Unread (N)" here equals the badge (W3-12).
+    const list = await listNotifications(UNREAD_WINDOW);
     const fetchedSides = await notificationSides(list);
     setSides((cur) => new Map([...cur, ...fetchedSides]));
     // Merge, not replace: an alert that arrived live while this was loading stays.
@@ -103,10 +105,7 @@ export function NotificationsScreen() {
   }, [userId]);
 
   // Only this side's alerts (and the ones that belong to both).
-  const rows = all === null ? null : all.filter((n) => {
-    const side = sides.get(n.id) ?? 'both';
-    return side === 'both' || side === mode;
-  });
+  const rows = all === null ? null : all.filter((n) => onSide(n.id, sides, mode));
   const setRows = setAll;
 
   const refresh = async () => {

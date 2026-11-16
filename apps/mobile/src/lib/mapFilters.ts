@@ -186,6 +186,18 @@ export function dropOptions(f: MapFilters): { key: string; label: string; next: 
   return out;
 }
 
+/**
+ * The pill over the map. The map draws every pin in view, also past the reach, so its count can be larger
+ * than the panel's "within 10 km": when it is, the pill says both, so "110 on the map" never sits beside
+ * "Jobs · 84" unexplained (W2-17).
+ */
+export function mapPillText(onMap: number, inReach: number, km: number, words: { one: string; many: string }): string {
+  if (onMap === 0) return `No ${words.many} on this part of the map`;
+  const noun = onMap === 1 ? words.one : words.many;
+  if (onMap <= inReach) return `${onMap} ${noun} on the map`;
+  return `${onMap} ${noun} on the map · ${inReach} within ${km} km`;
+}
+
 /** "4 jobs within 10 km · 3 remote": the one line under the best offer. */
 /**
  * The one way every Find work count is said (card, list and map, B170). `capped` marks a count whose read came

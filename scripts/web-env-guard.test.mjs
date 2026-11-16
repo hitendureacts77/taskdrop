@@ -81,9 +81,14 @@ test('vercel.json: production reports security problems to its own Sentry projec
   assert.ok(everywhere && production, 'a catch-all rule and a production rule');
   const value = (r) => r.headers.find((h) => h.key === 'Content-Security-Policy').value;
   const split = (v) => { const i = v.indexOf('; report-uri '); return [v.slice(0, i), v.slice(i + '; report-uri '.length)]; };
-  const [stagingRules, stagingReport] = split(value(everywhere));
+  const [stagingRulesRaw, stagingReport] = split(value(everywhere));
   const [productionRules, productionReport] = split(value(production));
-  assert.equal(productionRules, stagingRules, 'only the report address may differ, so the two rule sets cannot drift');
+  // B152: staging (Vercel preview deployments) loads the Vercel toolbar, so its rules may add the toolbar's own
+  // sources and nothing else. Production never gets them.
+  const TOOLBAR = [' https://vercel.live', ' https://assets.vercel.com', ' wss://ws-us3.pusher.com'];
+  const stagingRules = TOOLBAR.reduce((v, s) => v.split(s).join(''), stagingRulesRaw);
+  assert.equal(productionRules, stagingRules, 'only the report address and the staging toolbar may differ, so the two rule sets cannot drift');
+  assert.ok(!/vercel\.live|pusher\.com/.test(productionRules), 'production does not allow the Vercel toolbar');
   assert.notEqual(productionReport, stagingReport, 'production must not report into the staging project');
   assert.match(productionReport, /^https:\/\/o\d+\.ingest\.[a-z.]*sentry\.io\/api\/\d+\/security\/\?sentry_key=[0-9a-f]+$/);
   // The production rule must never match a staging address, or staging errors would land in production's Sentry.

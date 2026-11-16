@@ -11,7 +11,7 @@ import { useAuth } from '../providers/AuthProvider';
 import { getProfile, listReviewsAbout, myRegulars, type Profile, type Regular, type Review } from '../data/api';
 import { verificationState } from '../data/extras';
 import { imageSource, signedMediaUrl } from '../lib/media';
-import { tx } from '../components/primitives';
+import { HitArea, tx } from '../components/primitives';
 import { Icon, type IconName } from '../components/Icon';
 import { ConfirmDialog } from '../components/kit';
 import { AppHeader } from '../components/AppHeader';
@@ -289,9 +289,11 @@ export function ProfileScreen() {
               onPress={() => go('publicProfile', { userId, role: worker ? 'worker' : 'poster' })}
               accessibilityRole="link"
               accessibilityLabel="See your profile as others see it"
-              hitSlop={8}
+              hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
               style={{ alignSelf: 'flex-start', marginTop: 14 }}
             >
+              {/* W2-1: a 17 px link, 41 px to tap. */}
+              <HitArea x={8} y={12} />
               <RNText style={tx('700', 13, '#FFFFFF')}>See as others ›</RNText>
             </Pressable>
           ) : null}
@@ -390,7 +392,8 @@ export function ProfileScreen() {
             <View style={{ marginTop: 28 }}>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 {sectionLabel('MY REGULARS')}
-                <Pressable onPress={() => go('regulars')} hitSlop={8} accessibilityRole="link">
+                <Pressable onPress={() => go('regulars')} hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }} accessibilityRole="link">
+                  <HitArea x={8} y={12} />
                   <RNText style={tx('700', 12, t.colors.accentDeep)}>See all ›</RNText>
                 </Pressable>
               </View>

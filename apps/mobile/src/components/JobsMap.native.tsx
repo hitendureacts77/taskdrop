@@ -26,6 +26,8 @@ import { zoomToFit } from '../lib/mapReach';
 import { useReducedMotion } from '../lib/motion';
 import { SPREAD_ZOOM, layoutPins } from '../lib/mapLayout';
 import { MAX_FRESH, areaAt, introDelays, introEnd, rippleAt, tagAt } from '../lib/mapMotion';
+import { youRect } from '../lib/mapLabels';
+import { controlsRect, itemKey, pinLabels } from './MapPinLayer';
 import { useMapClock } from './useMapClock';
 import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PricePin, TASK_PIN, TaskPin } from './MapMarkers';
 
@@ -235,7 +237,13 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
   const freshOnScreen = items.some((it) => it.kind === 'one' && freshIds.has(it.id));
   const clock = useMapClock(introKey, introEnd(pins.length), freshOnScreen);
   const youAt = me ? project(me.lat, me.lng, zoom) : null;
-  const delays = introDelays(items, youAt ? { x: youAt.x - left, y: youAt.y - top } : null);
+  const youOnScreen = youAt ? { x: youAt.x - left, y: youAt.y - top } : null;
+  const delays = introDelays(items, youOnScreen);
+  // Names that would overlap step back, and pins under the buttons step aside (P1-14, lib/mapLabels.ts).
+  const labels = pinLabels(items, byId, offers, selectedId, mapWords(tone).many, {
+    avoid: youOnScreen ? [youRect(youOnScreen.x, youOnScreen.y, meKind === 'live')] : [],
+    controls: controlsRect(size, { right: 8, top: 8 + (fill ? fill.top : 0), button: 36, gap: 6, count: bare ? 0 : (onExpand ? 1 : 0) + 2 + (me ? 1 : 0) }),
+  });
 
   const flyTo = (center: { lat: number; lng: number }, next: number) => {
     moved.current = true;
@@ -356,7 +364,9 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
 
         {items.map((it, i) => {
           if (tagAt(clock.elapsed, delays[i]!) === 0) return null;
-          const place = toPlace(it.x, it.y);
+          const plan = labels.get(itemKey(it));
+          const place = toPlace(it.x + (plan?.dx ?? 0), it.y);
+          const hidePlace = plan ? !plan.showTag : false;
           // While a pin is picked, the others step back.
           const back = dim && selectedId !== null && !(it.kind === 'one' && it.id === selectedId);
           if (it.kind === 'group') {
@@ -375,7 +385,7 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
                   onPress={into}
                   deps={[it.ids.join('|')]}
                 >
-                  {() => <FaceStack faces={shown} extra={it.ids.length - shown.length} label={`${name} · ${it.ids.length}`} />}
+                  {(redraw) => <FaceStack faces={shown} extra={it.ids.length - shown.length} label={`${name} · ${it.ids.length}`} onImage={redraw} />}
                 </PinMarker>
               );
             }
@@ -390,9 +400,9 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
                 z={best ? 3 : 2}
                 label={`${it.ids.length} ${words.many} in ${name} area, biggest offer ${topPin.label}. Zoom in`}
                 onPress={into}
-                deps={[topPin.label, best, it.ids.length]}
+                deps={[topPin.label, best, it.ids.length, hidePlace]}
               >
-                {() => <PricePin price={topPin.label} best={best} on={false} place={name} count={`${it.ids.length} ${words.many}`} />}
+                {() => <PricePin price={topPin.label} best={best} on={false} place={name} count={`${it.ids.length} ${words.many}`} hidePlace={hidePlace} />}
               </PinMarker>
             );
           }
@@ -440,13 +450,13 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
               z={on ? 4 : best ? 3 : 2}
               label={`${pin.label}${pin.title ? ', ' + pin.title : ''}${pin.who ? ', posted by ' + pin.who : ''}, ${pin.area ?? 'nearby'} area`}
               onPress={pick}
-              deps={[on, best, spread, pin.face?.photo]}
+              deps={[on, best, spread, pin.face?.photo, hidePlace]}
             >
               {(redraw) =>
                 spread ? (
                   <TaskPin price={pin.label} face={pin.face} seed={pin.id} who={pin.who} title={pin.title} best={best} on={on} onImage={redraw} />
                 ) : (
-                  <PricePin price={pin.label} best={best} on={on} place={pin.area ?? 'Nearby'} />
+                  <PricePin price={pin.label} best={best} on={on} place={pin.area ?? 'Nearby'} hidePlace={hidePlace} />
                 )
               }
             </PinMarker>,

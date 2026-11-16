@@ -1935,9 +1935,11 @@ function TopUpBar({
             accessibilityRole="button"
             accessibilityLabel={p ? `Top up ${p} percent` : 'No top up'}
             accessibilityState={{ selected: i === stop }}
-            hitSlop={6}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
             style={{ width: 36, height: 28, alignItems: 'center', justifyContent: 'center' }}
           >
+            {/* W2-1: 36 x 28, 44 x 44 to tap. */}
+            <HitArea x={4} y={8} />
             <RNText style={tx(i === stop ? '800' : '600', 11, i === stop ? t.colors.accentDeep : t.colors.muted, { fontVariant: ['tabular-nums'] })}>
               {p ? `+${p}%` : '0%'}
             </RNText>

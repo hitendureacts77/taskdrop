@@ -156,6 +156,8 @@ export function ExploreScreen() {
     askedThisLaunch: locationAskedThisLaunch(),
     lookingElsewhere: !!lookAt,
     dismissedRecently: dismissedAt === undefined || dismissedRecently(dismissedAt, Date.now()),
+    // A saved area (or one still being read) is enough to start the map: no sheet over it (P1-12 / P1-13).
+    hasArea: !loaded || area !== null,
   });
   useEffect(() => {
     if (onMap && asked) {

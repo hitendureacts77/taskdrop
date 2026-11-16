@@ -5,7 +5,7 @@ import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { Badge, ConfirmDialog, Field, Pill, PrimaryButton, SwipeTabs, TopBar, UnderlineTabs } from '../components/kit';
 import { LocationSheet } from '../components/LocationSheet';
-import { tx } from '../components/primitives';
+import { HitArea, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
@@ -170,7 +170,9 @@ export function ProfileEditScreen() {
         title={worker ? 'My worker profile' : 'My customer profile'}
         onBack={() => (dirty ? setLeaving(true) : back())}
         right={
-          <Pressable onPress={() => go('publicProfile', { userId, role: worker ? 'worker' : 'poster' })} hitSlop={8} accessibilityRole="button">
+          <Pressable onPress={() => go('publicProfile', { userId, role: worker ? 'worker' : 'poster' })} hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }} accessibilityRole="button">
+            {/* W2-1: a 17 px link, 41 px to tap. */}
+            <HitArea x={8} y={12} />
             <RNText style={tx('700', 13, t.colors.accentDeep)}>Preview</RNText>
           </Pressable>
         }

@@ -57,6 +57,7 @@ import { pickedPlaceName, roughPlace } from '../lib/place';
 import { inReachWithoutArea } from '../lib/findWorkRead';
 import { guestAreaFromPicked } from '../lib/guestArea';
 import { readGuestArea, saveGuestArea } from '../lib/guestAreaStore';
+import { areaFromProfile, peekArea, rememberArea, sameArea } from '../lib/areaCache';
 import { HitArea, Pressy, tx } from './primitives';
 
 /**
@@ -113,7 +114,8 @@ function PostTop() {
   const [offers, setOffers] = useState<Map<string, number>>(new Map());
   const [trending, setTrending] = useState<TrendingCategory[]>([]);
   const [howOpen, setHowOpen] = useState(false);
-  const [place, setPlace] = useState<string | null>(null);
+  // Starts from the area already known this session (P1-13): the same one Earn Home and Explore show.
+  const [place, setPlace] = useState<string | null>(() => peekArea(userId ?? (guest ? 'guest' : null))?.label ?? null);
   const [pickPlace, setPickPlace] = useState(false);
   const [pulse, setPulse] = useState<NearbyPulse | null>(null);
   const [posted, setPosted] = useState<Task[]>([]);
@@ -134,6 +136,7 @@ function PostTop() {
           await Promise.all([
             readGuestArea().then((a) => {
               if (!alive() || !a) return;
+              rememberArea('guest', a);
               setPlace(a.label);
               return loadPulse({ lat: a.lat, lng: a.lng }, alive);
             }),
@@ -146,6 +149,7 @@ function PostTop() {
         getProfile(userId)
           .then((p) => {
             if (!alive()) return;
+            rememberArea(userId, areaFromProfile(p));
             setPlace(p?.loc_label ?? null);
             return loadPulse(p?.loc_lat != null && p?.loc_lng != null ? { lat: p.loc_lat, lng: p.loc_lng } : null, alive);
           })
@@ -178,6 +182,7 @@ function PostTop() {
     if (picked.lat === null || picked.lng === null) return flash('Drop a pin on the map to set your area');
     const label = picked.area || picked.label;
     setPlace(label);
+    rememberArea(userId ?? 'guest', { label, lat: picked.lat, lng: picked.lng });
     void loadPulse({ lat: picked.lat, lng: picked.lng });
     if (!userId) {
       const g = guestAreaFromPicked(picked);
@@ -544,8 +549,11 @@ function AreaBar({
   sub,
   onPress,
   flush = false,
+  pending = false,
 }: {
   label: string | null;
+  /** The area is still being read: say so, rather than asking for one. */
+  pending?: boolean;
   sub: (area: string | null, areaName: string | null) => string;
   onPress: () => void;
   /** Already inside a padded column. */
@@ -577,7 +585,7 @@ function AreaBar({
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <RNText style={tx('800', 16, t.colors.ink, { letterSpacing: -0.2 })} numberOfLines={1}>
-            {areaName ?? 'Set your location'}
+            {areaName ?? (pending ? 'Finding your area…' : 'Set your location')}
           </RNText>
           <View style={{ transform: [{ rotate: '90deg' }] }}>
             <Icon name="chevronRight" size={14} color={t.colors.ink} />
@@ -615,7 +623,12 @@ function EarnTop() {
   const [stats, setStats] = useState<MyStats | null>(null);
   const [rating, setRating] = useState(0);
   const [skills, setSkills] = useState<string[]>([]);
-  const [place, setPlace] = useState<{ label: string; lat: number; lng: number } | null>(null);
+  // The area already known this session (P1-13): Hire Home or Explore may have read it, so it shows at once
+  // instead of "Set your location" while this side's own reads are still on their way.
+  const known = peekArea(userId ?? (guest ? 'guest' : null));
+  const [place, setPlace] = useState<{ label: string; lat: number; lng: number } | null>(known ?? null);
+  // Whether the area is known yet (read, or remembered): until then the bar says so, not "Set your location".
+  const [placeKnown, setPlaceKnown] = useState(known !== undefined);
   const [radius, setRadius] = useState(10);
   const [pickPlace, setPickPlace] = useState(false);
   const [recs, setRecs] = useState<TaskWithPoster[] | null>(null);
@@ -654,12 +667,19 @@ function EarnTop() {
     // A guest's area sits on the device (B87); read it once, then the pin they pick stays in state.
     const guestSaved = userId ? null : await readGuestArea();
     setPlace((cur) => {
-      if (!userId) return cur ?? guestSaved;
-      if (p?.loc_lat == null || p?.loc_lng == null) return null;
+      if (!userId) {
+        const g = cur ?? guestSaved;
+        rememberArea('guest', g);
+        return g;
+      }
+      // The profile read failed: keep what is known rather than asking for the area again.
+      if (!p) return cur;
+      const next = areaFromProfile(p);
+      rememberArea(userId, next);
       // Same pin as before: keep the object, so the nearby list isn't refetched.
-      if (cur && cur.lat === p.loc_lat && cur.lng === p.loc_lng) return cur;
-      return { label: p.loc_label ?? 'Your area', lat: p.loc_lat, lng: p.loc_lng };
+      return sameArea(cur, next) ? cur : next;
     });
+    setPlaceKnown(true);
     // The skills and urgent lists depend on the area, so they are read below, once the area is known.
     setListTick((n) => n + 1);
     const rem = await remoteAsked;
@@ -758,6 +778,8 @@ function EarnTop() {
     if (picked.lat === null || picked.lng === null) return flash('Drop a pin on the map to set your area');
     const next = { label: picked.area || picked.label, lat: picked.lat, lng: picked.lng };
     setPlace(next);
+    setPlaceKnown(true);
+    rememberArea(userId ?? 'guest', next);
     if (!userId) {
       await saveGuestArea(next);
       return;
@@ -817,6 +839,7 @@ function EarnTop() {
     <View>
       <AreaBar
         label={place?.label ?? null}
+        pending={!placeKnown}
         sub={(a, n) => (a && a !== n ? `${a} · jobs near you` : a ? 'Showing jobs near you' : 'To show jobs near you')}
         onPress={() => setPickPlace(true)}
       />

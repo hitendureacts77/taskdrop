@@ -51,8 +51,13 @@ export function shouldAskForLocation(s: {
   lookingElsewhere: boolean;
   /** Pass true while the saved time is still being read: the sheet must not open before it is known. */
   dismissedRecently?: boolean;
+  /**
+   * The person already gave an area (Home shows it), or it is still being read: the map starts there, and the
+   * sheet does not ask for a place they gave (P1-12 / P1-13). "Use my location" on the map still asks.
+   */
+  hasArea?: boolean;
 }): boolean {
-  if (s.askedThisLaunch || s.lookingElsewhere || s.dismissedRecently) return false;
+  if (s.askedThisLaunch || s.lookingElsewhere || s.dismissedRecently || s.hasArea) return false;
   return (
     s.status === 'denied' ||
     s.status === 'blocked' ||
