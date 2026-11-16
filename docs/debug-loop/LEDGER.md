@@ -680,6 +680,15 @@ Signed in to `admin.taskdrop.in` with the owner's existing Google session (no pa
 - Current: shown to a guest under "Matches your skills" and "Remote & online" on taskdrop.in. Staging also keeps 23 DISPUTED and 127 CANCELLED e2e tasks (B103 area). Expected: test runs leave nothing open
 - Seen first: 15 Nov round 6
 
+### Round 7 (16 Nov 2026)
+
+Round 7's findings are kept in their own files under `docs/debug-loop/round-7/` with ids W1 (guest, B170 to B179), W2 and W3 (signed in, website), A1 (admin, live) and P1 (Android phone). Summary, fixes and what waits for the owner: `ROUND-7.md`. Bugs that were already in this ledger keep their B numbers: B76 (fixed in PR 380), B97 (PR 376), B100, B145 to B149 (PR 378), B152 (open), B153, B156, B165 (PR 380), B157 (open, needs a migration), B164 and B173 (open, owner look decision).
+
+- **High:** P1-17 Add money failed on staging: Razorpay's test account is at its limit of 30 payment links (429). Not an app bug; the message now says nothing was charged (PR 384; the `razorpay` function needs a deploy). P1-9 signed out while posting: a session-storage race on phones fixed in PR 381 (did not reproduce on a second try).
+- **Medium, fixed:** W3-1 and W3-2 money wording (PR 386), W3-4 Withdraw filled with the whole balance (PR 386), W3-8 Back to a stale swipe screen (PR 387), P1-15 and P1-19 stale after Close task (PR 384), W2-3 the fine on Close task (PR 380), A1-1 to A1-4 admin (admin PRs 55 to 57).
+- **Medium, open:** W3-3 earnings clearing not shown, W3-5 no way to withdraw an offer, W3-6 the 5% fine named only after it happens, W3-10 sign-out is global, P1-3 the "+" covers Apply, P1-11 web links do not open the app.
+- **Low:** about 55 more; see the walk files. Level, steps and status are in each entry.
+
 ### Android explorer findings: to be added (B141 onward)
 
 ## Closed
