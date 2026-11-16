@@ -73,7 +73,7 @@ select json_build_object(
        and (has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
             or has_any_column_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,REFERENCES'))),
   'open_defaults', (
-    select coalesce(json_agg(distinct d.defaclobjtype || ':' || a.grantee::regrole::text), '[]'::json)
+    select coalesce(json_agg(distinct d.defaclobjtype::text || ':' || a.grantee::regrole::text), '[]'::json)
       from pg_default_acl d cross join lateral aclexplode(d.defaclacl) a
      where d.defaclnamespace = 'public'::regnamespace and d.defaclrole = 'postgres'::regrole
        and ((d.defaclobjtype in ('r', 'f') and a.grantee in ('anon'::regrole::oid, 'authenticated'::regrole::oid))
