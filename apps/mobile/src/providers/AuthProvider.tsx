@@ -483,8 +483,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
       if (result.type === 'success' && 'url' in result) returnedUrl = result.url;
-      // The link can land a moment after the tab reports back.
-      for (let i = 0; !returnedUrl && !linked && i < 15; i++) await new Promise((r) => setTimeout(r, 200));
+      // The link can land a moment after the tab reports back. A plain "cancel" (the person closed the
+      // tab) gets a short grace, so the Google button is usable again within about a second (P1-22);
+      // "dismiss" is what Android reports when the return link closed the tab, so it keeps the longer wait.
+      const waits = result.type === 'cancel' ? 5 : 15;
+      for (let i = 0; !returnedUrl && !linked && i < waits; i++) await new Promise((r) => setTimeout(r, 200));
       returnedUrl = returnedUrl ?? linked;
     } finally {
       linkSub.remove();

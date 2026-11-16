@@ -598,6 +598,9 @@ export function Field({
 }) {
   const t = useTheme();
   const [focused, setFocused] = useState(false);
+  // A password box gets its own Show / Hide (P1-24), unless the caller passes its own `right`.
+  const [shown, setShown] = useState(false);
+  const secure = Boolean(input.secureTextEntry);
   // Multiline boxes grow with their text, so the whole thing is always
   // visible instead of hiding behind a scrollbar inside the box.
   const [contentH, setContentH] = useState(0);
@@ -637,6 +640,7 @@ export function Field({
           accessibilityLabel={input.accessibilityLabel ?? label}
           placeholderTextColor={t.colors.muted}
           {...input}
+          secureTextEntry={secure && !shown}
           onFocus={(e) => {
             setFocused(true);
             reveal(boxRef.current);
@@ -660,7 +664,17 @@ export function Field({
               : null,
           ]}
         />
-        {right}
+        {right ??
+          (secure ? (
+            <Pressable
+              onPress={() => setShown((v) => !v)}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={shown ? 'Hide password' : 'Show password'}
+            >
+              <RNText style={tx('700', 13, t.colors.accentDeep)}>{shown ? 'Hide' : 'Show'}</RNText>
+            </Pressable>
+          ) : null)}
         </View>
       </Pressable>
       {error ? (

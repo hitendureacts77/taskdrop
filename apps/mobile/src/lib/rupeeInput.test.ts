@@ -1,6 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { typeInto, wholeDigits, wholeText } from './rupeeInput.ts';
+import { typeInto, typingDisplay, wholeDigits, wholeText } from './rupeeInput.ts';
+
+test('P1-6: a typed price keeps its rupee sign, and typing it back through the box gives the same amount', () => {
+  assert.equal(typingDisplay(''), '');
+  assert.equal(typingDisplay('50'), '₹50');
+  assert.equal(typingDisplay('250.'), '₹250.');
+  // The box shows "₹5"; the next key makes "₹50"; the amount kept is still the plain digits.
+  assert.equal(wholeText(typingDisplay('5') + '0'), '50');
+  assert.equal(wholeText(typingDisplay(wholeText('₹50')).slice(0, -1)), '5');
+  assert.equal(wholeText('₹'), '');
+});
 
 test('B167: paise are dropped, not glued onto the rupees', () => {
   assert.equal(wholeDigits('250.50'), '250');
