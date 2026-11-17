@@ -24,6 +24,7 @@ import { HitArea, Pressy, tx } from './primitives';
 import { useLayout } from '../lib/layout';
 import { useKeyboardClearance } from '../lib/useKeyboardClearance';
 import { KeyboardScrollView, useReveal } from './KeyboardScrollView';
+import { ActionBarContext } from './FormPage';
 import { NativeHeader } from './NativeHeader';
 import { LOOP_NATIVE, useReducedMotion } from '../lib/motion';
 
@@ -925,6 +926,8 @@ export function PrimaryButton({
   style?: StyleProp<ViewStyle>;
 }) {
   const t = useTheme();
+  // In a desktop ActionBar (FormPage) the button is its natural width, not full width.
+  const inBar = React.useContext(ActionBarContext);
   const off = disabled || busy;
   // v2: a 52-tall pill on the deep shade (white text 4.5:1+), lifted by a
   // soft shadow of its own colour in light.
@@ -953,6 +956,7 @@ export function PrimaryButton({
           shadowOffset: { width: 0, height: 8 },
           transform: [{ scale: pressed && !off ? t.motion.pressScale : 1 }],
         },
+        inBar ? { alignSelf: 'flex-end', minWidth: 160, paddingHorizontal: 24 } : null,
         style,
       ]}
     >
