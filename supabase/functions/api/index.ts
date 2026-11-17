@@ -11,18 +11,21 @@ import { MAX_BODY_BYTES, REQUEST_ID_HEADER, readBody, requestIdFrom, withGateway
 import { type Db, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp, spendRate } from "./ops.ts";
 import { type Claim, type RepeatStore, REPEAT_KEY_HEADER, REPLAYED_HEADER, repeatKeyFrom, runOnce } from "./repeat.ts";
 import { PublicMemo } from "./publicMemo.ts";
+import { requestFor, routeOf } from "./routes.ts";
 import { GuestCeiling, GuestLocalLimit, guestAddress, guestBusy, guestCost, guestNetKey, guestRateKey, guestSpend, isGuestOp, isGuestToken, needsAccount, runGuestBatch, runGuestOp } from "./guest.ts";
 
 /**
- * The app's one door to its data.
+ * The app's data, one endpoint per operation (./routes.ts, docs/API_ENDPOINTS.md).
  *
- *   POST /functions/v1/api   { "op": "listOpenTasks", "args": { ... } }
+ *   POST /functions/v1/api/tasks/listOpenTasks   { "args": { ... } }
  *   ->  { "ok": true,  "data": ... }
  *   or  { "ok": false, "error": { "message", "code", "details" } }
  *
- * `{ "op": "batch", "args": { "calls": [{ "op", "args" }, ...] } }` runs up to
+ * `POST /functions/v1/api/batch  { "args": { "calls": [{ "op", "args" }, ...] } }` runs up to
  * MAX_BATCH reads at once and answers `data: [reply, ...]` in the same order,
  * each reply shaped like the above. Each call counts against the limiter.
+ * A path that is no endpoint answers 404. The old single address (`POST /functions/v1/api` with
+ * `{ "op", "args" }`) still works, for app builds installed before the endpoints existed.
  *
  * What each `op` does lives in ./ops.ts and its neighbours, on the server. A
  * refusal (not enough money, quote not allowed) comes back as HTTP 200 with
@@ -175,6 +178,9 @@ async function handleGuest(
 
 async function handle(req: Request, requestId: string): Promise<Response> {
   if (req.method !== "POST") return refuse("Unknown request", "BAD_METHOD", 405);
+  // Which endpoint was asked for. A path that names none is refused before anything is read.
+  const route = routeOf(new URL(req.url).pathname);
+  if (route.kind === "unknown") return refuse("Unknown request", "UNKNOWN_OP", 404);
   /** A log line for this call, with its id, so it can be matched to what the person saw. */
   const log = (level: "info" | "warn" | "error", message: string, extra: LogAttributes = {}) =>
     logServer(level, "api", message, { ...extra, request_id: requestId });
@@ -211,12 +217,16 @@ async function handle(req: Request, requestId: string): Promise<Response> {
   } catch {
     /* answered below, after the sign-in check, as before */
   }
-  // Uptime check: { "op": "health" } with the project's anon key as the bearer
-  // token (the gateway still wants a valid key). Answers before any sign-in and
+  // Uptime check: POST /api/health (or { "op": "health" } at the old address) with the project's anon key as the
+  // bearer token (the gateway still wants a valid key). Answers before any sign-in and
   // changes nothing; it only says whether the database answers.
-  if (req.headers.get("content-type")?.includes("json") && (parsed as { op?: unknown } | null)?.op === "health") {
+  if (route.kind === "health") return await health(url);
+  if (route.kind === "legacy" && req.headers.get("content-type")?.includes("json") && (parsed as { op?: unknown } | null)?.op === "health") {
     return await health(url);
   }
+  // The `{ op, args }` the rest works with: the endpoint's op, or the body's at the old address. A body naming a
+  // different op than its endpoint is null here and answered BAD_JSON below, like any request that makes no sense.
+  const request = parsed === undefined ? undefined : requestFor(route, parsed);
 
   // Checked here against the project's cached public keys, not by asking the auth service on every call
   // (P2-48: that round trip was a large part of the function's own time). The gateway has already
@@ -226,14 +236,14 @@ async function handle(req: Request, requestId: string): Promise<Response> {
   const userId = callerFromClaims(claimsResult);
   const token = tokenFacts(claimsResult);
   // Guest mode (D15): the public key with nobody behind it may read a short list of public things.
-  if (!userId && isGuestToken(jwt, anonKey, claimsResult)) return await handleGuest(req, url, parsed, log);
+  if (!userId && isGuestToken(jwt, anonKey, claimsResult)) return await handleGuest(req, url, request, log);
   if (!userId) {
     background(captureSecurityEvent("refused_login", "api"));
     return refuse("Your session has expired. Please sign in again.", "UNAUTHENTICATED", 401);
   }
 
-  if (parsed === undefined) return refuse("Unknown request", "BAD_JSON", 400);
-  const body = parsed as { op?: unknown; args?: unknown };
+  if (request === undefined) return refuse("Unknown request", "BAD_JSON", 400);
+  const body = request as { op?: unknown; args?: unknown };
   // `null`, a list or a bare number is valid JSON but not a request (found 2026-10-24: `null` answered 500).
   if (!body || typeof body !== "object" || Array.isArray(body)) return refuse("Unknown request", "BAD_JSON", 400);
   const repeatKey = repeatKeyFrom(req.headers);

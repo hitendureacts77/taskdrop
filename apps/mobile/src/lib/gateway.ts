@@ -8,6 +8,8 @@ import { BATCHABLE_OPS, Batcher, type Reply as BatchReply } from './batcher';
 import { READ_TIMEOUT_MS, RETRY_DELAYS_MS, WRITE_RETRY_DELAYS_MS, isTransient, retryWhile, type Failure } from './retry';
 import { IN_PROGRESS_STATUS, RepeatKeys, outcomeUnknown } from './repeatKeys';
 import { noteChange, setPerson } from './freshness';
+// The server's own endpoint table, so the app's addresses and the server's routes cannot drift apart.
+import { endpointOf } from '../../../../supabase/functions/api/routes';
 
 /**
  * Whose answers the app may remember (lib/freshness.ts, plan 3.5b layer A, H69). Every call here travels
@@ -59,8 +61,10 @@ async function describeFailure(error: unknown): Promise<Failure> {
  * so it is used as-is. A transport failure (offline, expired session) goes
  * through the same wording the rest of the app uses.
  *
- * Reads asked for at the same moment travel together as one request (see
- * ./batcher.ts); everything else goes out alone, exactly as before.
+ * Each operation has its own endpoint, `api/<group>/<op>` (supabase/functions/api/routes.ts), for example
+ * `api/bids/placeBid`. Reads asked for at the same moment travel together as one request to `api/batch` (see
+ * ./batcher.ts); everything else goes out alone. The op also rides in the body, so a server deployed before
+ * the endpoints existed still understands the call.
  */
 async function callApiDirect<T>(op: string, args: Record<string, unknown> = {}): Promise<T> {
   // The platform and app version let the server apply the admin panel's
@@ -75,8 +79,9 @@ async function callApiDirect<T>(op: string, args: Record<string, unknown> = {}):
   // One id per call, kept across its retries: the server logs it beside every line about the call,
   // so a failure someone reports can be found (supabase/functions/api/http.ts).
   const requestId = randomId();
+  const endpoint = endpointOf(op);
   const invokeOnce = async () =>
-    supabase.functions.invoke('api', {
+    supabase.functions.invoke(endpoint, {
       body: { op, args },
       region: FUNCTIONS_REGION,
       headers: {
