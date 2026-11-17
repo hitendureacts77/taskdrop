@@ -17,7 +17,9 @@ import { isEarnGoal } from '../components/EarnGoalPicker';
 import { findContactIssue, profileIssueMessage } from '../lib/mask';
 import { SKILL_OPTIONS, LANGUAGES } from './ProfileEditScreen';
 import { tx } from '../components/primitives';
-import { KeyboardScrollView } from '../components/KeyboardScrollView';
+import { ActionBar, FieldRow, FormPage, FormSection } from '../components/FormPage';
+import { WorkerPreviewCard } from '../components/WorkerPreviewCard';
+import { useLayout } from '../lib/layout';
 
 const MAX_SKILLS = 8;
 
@@ -50,10 +52,12 @@ function Setup() {
   const { back, reset } = useNav();
   const { setMode } = useMode();
   const { userId, guest } = useAuth();
+  const { desktop } = useLayout();
   const finishRef = useRef<() => Promise<void>>(async () => {});
   const { flash, celebrate } = useActions();
   // Answered in first-run setup (not asked again here); kept so saving this screen never wipes it.
   const [earnGoal, setEarnGoal] = useState<EarnGoal | null>(null);
+  const [name, setName] = useState('');
   const [bio, setBio] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
   const [typed, setTyped] = useState('');
@@ -66,6 +70,7 @@ function Setup() {
     if (!userId) return;
     void getProfile(userId).then((p) => {
       if (!p) return;
+      setName(p.display_name ?? '');
       setSkills(p.skills ?? []);
       setLangs(p.languages ?? []);
       setBio(p.worker_bio ?? '');
@@ -140,89 +145,121 @@ function Setup() {
   };
   finishRef.current = () => finish();
 
+  // Phone: a small caps label above each box, as before. Desktop: the FormSection titles replace them.
   const label = (s: string, top = 22) => (
     <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: top })}>{s}</RNText>
   );
+  // Desktop only: a field label above one of two side-by-side boxes.
+  const fieldLabel = (s: string) => (
+    <RNText style={tx('600', 13, t.colors.ink, { marginBottom: 8 })}>{s}</RNText>
+  );
+  // The phone gaps (set under each phone label); on a desktop the sections space themselves.
+  const gap = (phone: number, desk = 0) => (desktop ? desk : phone);
 
   return (
     <Screen padded={false}>
       <TopBar title="Start earning" onBack={back} />
-      <KeyboardScrollView hugContent style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
-        <RNText style={tx('500', 14, t.colors.muted, { lineHeight: 20 })}>
-          Everything here is optional. Add what you like now, change it any time in Profile.
-        </RNText>
-
-        {label('YOUR SKILLS')}
-        {skills.length ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
-            {skills.map((s) => (
-              <Pill key={s} label={s} active icon="close" onPress={() => setSkills(skills.filter((x) => x !== s))} />
-            ))}
-          </View>
-        ) : null}
-        <Field
-          style={{ marginTop: 10 }}
-          value={typed}
-          onChangeText={setTyped}
-          placeholder="Type a skill, e.g. Painting"
-          maxLength={60}
-          returnKeyType="done"
-          autoCapitalize="sentences"
-          onSubmitEditing={() => addTyped()}
-          right={
-            typed.trim() ? (
-              <Pressable onPress={() => addTyped()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Add skill">
-                <RNText style={tx('700', 13, t.colors.accentDeep)}>Add</RNText>
-              </Pressable>
-            ) : undefined
-          }
-        />
-        {suggestions.length ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-            {suggestions.map((s) => (
-              <Pill
-                key={s}
-                label={s}
-                onPress={() => {
-                  setTyped('');
-                  if (skills.length >= MAX_SKILLS) return flash(`Pick up to ${MAX_SKILLS}`);
-                  setSkills([...skills, s]);
-                }}
-              />
-            ))}
-          </View>
-        ) : null}
-
-        {label('LANGUAGE')}
-        <SelectField value={language} options={LANGUAGES} onChange={pickLanguage} placeholder="Choose a language" style={{ marginTop: 9 }} />
-
-        {label('WHERE YOU WORK FROM')}
-        <Pressable
-          onPress={() => setShowLoc(true)}
-          accessibilityRole="button"
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8, padding: 14, borderRadius: 14, borderWidth: 1.5, borderColor: t.colors.line, backgroundColor: t.colors.surface }}
-        >
-          <Icon name="pin" size={17} color={t.colors.accentDeep} />
-          <RNText style={tx('400', 14, place ? t.colors.ink : t.colors.muted, { flex: 1 })} numberOfLines={2}>
-            {place?.label ?? 'Your area, for jobs near you'}
+      <FormPage
+        scrollProps={{ hugContent: true, style: { flex: 1 }, contentContainerStyle: { paddingHorizontal: 20, paddingBottom: 28 }, keyboardShouldPersistTaps: 'handled' }}
+        aside={<WorkerPreviewCard name={name} skills={skills} language={language} area={place?.label} bio={bio} />}
+        actions={
+          <ActionBar hint={desktop ? 'Everything here is optional.' : undefined}>
+            <PrimaryButton label="Start earning" onPress={() => void finish()} busy={busy} disabled={Boolean(bioIssue)} style={{ marginTop: gap(26) }} />
+          </ActionBar>
+        }
+      >
+        {desktop ? null : (
+          <RNText style={tx('500', 14, t.colors.muted, { lineHeight: 20 })}>
+            Everything here is optional. Add what you like now, change it any time in Profile.
           </RNText>
-          <RNText style={tx('700', 13, t.colors.accentDeep)}>{place ? 'Change' : 'Set'}</RNText>
-        </Pressable>
+        )}
 
-        {label('ABOUT YOU')}
-        <Field
-          style={{ marginTop: 9 }}
-          value={bio}
-          onChangeText={setBio}
-          multiline
-          minHeight={64}
-          maxLength={500}
-          placeholder={earnGoal === 'business' ? 'What your business does (optional)' : 'A line about what you do (optional)'}
-          error={bioIssue ? profileIssueMessage(bioIssue) : null}
-        />
+        <FormSection first title="Skills" hint="Add what you like now, change it any time in Profile.">
+          {desktop ? null : label('YOUR SKILLS')}
+          {skills.length ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: gap(9) }}>
+              {skills.map((s) => (
+                <Pill key={s} label={s} active icon="close" onPress={() => setSkills(skills.filter((x) => x !== s))} />
+              ))}
+            </View>
+          ) : null}
+          <Field
+            style={{ marginTop: desktop && !skills.length ? 0 : 10 }}
+            value={typed}
+            onChangeText={setTyped}
+            placeholder="Type a skill, e.g. Painting"
+            maxLength={60}
+            returnKeyType="done"
+            autoCapitalize="sentences"
+            onSubmitEditing={() => addTyped()}
+            right={
+              typed.trim() ? (
+                <Pressable onPress={() => addTyped()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Add skill">
+                  <RNText style={tx('700', 13, t.colors.accentDeep)}>Add</RNText>
+                </Pressable>
+              ) : undefined
+            }
+          />
+          {suggestions.length ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+              {suggestions.map((s) => (
+                <Pill
+                  key={s}
+                  label={s}
+                  onPress={() => {
+                    setTyped('');
+                    if (skills.length >= MAX_SKILLS) return flash(`Pick up to ${MAX_SKILLS}`);
+                    setSkills([...skills, s]);
+                  }}
+                />
+              ))}
+            </View>
+          ) : null}
+        </FormSection>
 
-        <PrimaryButton label="Start earning" onPress={() => void finish()} busy={busy} disabled={Boolean(bioIssue)} style={{ marginTop: 26 }} />
-      </KeyboardScrollView>
+        <FormSection title="Language and location">
+          <FieldRow>
+            <>
+              {desktop ? fieldLabel('Language') : label('LANGUAGE')}
+              <SelectField value={language} options={LANGUAGES} onChange={pickLanguage} placeholder={desktop ? 'Choose one' : 'Choose a language'} style={{ marginTop: gap(9) }} />
+            </>
+            <>
+              {desktop ? fieldLabel('Where you work from') : label('WHERE YOU WORK FROM')}
+              <Pressable
+                onPress={() => setShowLoc(true)}
+                accessibilityRole="button"
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: gap(8), padding: 14, borderRadius: 14, borderWidth: 1.5, borderColor: t.colors.line, backgroundColor: t.colors.surface }}
+              >
+                {desktop ? (
+                  <View style={{ flexShrink: 0 }}>
+                    <Icon name="pin" size={17} color={t.colors.accentDeep} />
+                  </View>
+                ) : (
+                  <Icon name="pin" size={17} color={t.colors.accentDeep} />
+                )}
+                <RNText style={tx('400', 14, place ? t.colors.ink : t.colors.muted, { flex: 1 })} numberOfLines={2}>
+                  {place?.label ?? 'Your area, for jobs near you'}
+                </RNText>
+                <RNText style={tx('700', 13, t.colors.accentDeep)}>{place ? 'Change' : 'Set'}</RNText>
+              </Pressable>
+            </>
+          </FieldRow>
+        </FormSection>
+
+        <FormSection title="About you">
+          {desktop ? null : label('ABOUT YOU')}
+          <Field
+            style={{ marginTop: gap(9) }}
+            value={bio}
+            onChangeText={setBio}
+            multiline
+            minHeight={64}
+            maxLength={500}
+            placeholder={earnGoal === 'business' ? 'What your business does (optional)' : 'A line about what you do (optional)'}
+            error={bioIssue ? profileIssueMessage(bioIssue) : null}
+          />
+        </FormSection>
+      </FormPage>
       <LocationSheet
         visible={showLoc}
         askForDetails={false}
