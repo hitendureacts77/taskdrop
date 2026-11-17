@@ -41,8 +41,8 @@ export function shouldShowStagingCard(a: {
   return showStagingUi(a.environment) && a.signedIn && a.seen === false && !NO_CARD_SCREENS.includes(a.screen);
 }
 
-/** Where testers send problems. */
-export const STAGING_REPORT_EMAIL = 'hitendureacts@gmail.com';
+/** Where testers send problems: the public TaskDrop address, never a personal inbox (owner, 17 Nov 2026). */
+export const STAGING_REPORT_EMAIL = 'admin@taskdrop.in';
 
 /** The ribbon, on every screen. */
 export const STAGING_RIBBON = 'Staging: fake money and fake data';

@@ -9,6 +9,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
+import { publicEmail } from '../legal/company';
 
 /**
  * Copyright and takedown requests -- public, signed in or not, and linked as
@@ -23,7 +24,8 @@ import { KeyboardScrollView } from '../components/KeyboardScrollView';
  */
 const AGENT = {
   name: process.env.EXPO_PUBLIC_COPYRIGHT_AGENT_NAME?.trim() ?? '',
-  email: process.env.EXPO_PUBLIC_COPYRIGHT_AGENT_EMAIL?.trim() ?? '',
+  // Only a taskdrop.in address is ever shown (publicEmail); unset still means "agent not named yet".
+  email: process.env.EXPO_PUBLIC_COPYRIGHT_AGENT_EMAIL?.trim() ? publicEmail(process.env.EXPO_PUBLIC_COPYRIGHT_AGENT_EMAIL) : '',
   address: process.env.EXPO_PUBLIC_COPYRIGHT_AGENT_ADDRESS?.trim() ?? '',
   phone: process.env.EXPO_PUBLIC_COPYRIGHT_AGENT_PHONE?.trim() ?? '',
 };
