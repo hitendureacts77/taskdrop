@@ -70,7 +70,46 @@ Launch day is about **two weeks after the last of these three clocks finishes** 
 | 3 | **Name your 2 or 3 launch areas** (decision 38). The other defaults are recorded: you said "Use the CEO defaults" on 11 Nov | Get one store file built (3.2). Expo's free builds are used up until 1 December, so first a free build on this PC from a folder with no spaces in its name |
 | 4 | Message **20** people for the Google Play test (3.3). Finding them takes days, so start before the store file is ready | Run the audit prompt (2.20, read-only) and fix the six holes from 2.18 |
 | 5 | Your clicks: 2.2, 2.3 and 2.4 (about 1.5 hours), and look at the new map on your laptop ("done 1.12") | Write the Plan B design (2.21) when you say "design the Plan B money flow" |
-| 6 | Hide your Gmail and the backend address (about 30 minutes): 2.22 parts b and d, and 2.23 step 3 (transfer lock and two-step sign-in in Spaceship) | Code part of 2.22 is live; the DNS records in 2.23 were added on 17 Nov |
+| 6 | Hide your Gmail and the backend address (about 30 minutes): 2.22 parts b, c and d, and 2.23 step 3 (transfer lock and two-step sign-in in Spaceship) | Done 17 Nov: the code part of 2.22 (live on the website) and the DNS records of 2.23. Next: the Android app update for 2.22 when you say "publish the email fix to the app" |
+
+<details id="c-17-nov">
+<summary>[CARD] 17 November: security questions answered, what got done, what is left</summary>
+
+**Your questions, answered**
+
+| You asked | Answer | Where in the plan |
+|---|---|---|
+| Is the server firewall (WAF) set up? | Only Vercel's automatic flood protection. No custom rules yet; they come with Vercel Pro in 5.8b. Sign-in codes, `api` and payments are protected inside Supabase (limits per user and network address), which Vercel's firewall never sees | Security section, "Checked 17 Nov"; task 5.8b |
+| Is JWT in place? | Yes. Supabase signs every sign-in token with an ES256 key pair and the `api` server checks the signature on every call. Nothing to buy or license | Security section, "Checked 17 Nov" |
+| npm or pnpm? | Stay on npm until after launch. pnpm is faster, smaller and safer with install scripts, but switching now risks the Android build in the freeze | Decision 54, future task F.16 |
+| People see `wjxvingpfbfvkfqhrguj.supabase.co` on Google's sign-in screen | It is the address Google sends people back to. Hiding it needs a Supabase custom domain (`auth.taskdrop.in`), which only works on a paid plan: do it on production at 5.2 (about $10 a month) | Task 2.22 part (e), decision 53 |
+| My personal Gmail shows | It came from the Vercel setting `EXPO_PUBLIC_LEGAL_EMAIL`. The app and website now only ever show an address ending in `@taskdrop.in`, otherwise `admin@taskdrop.in` | Task 2.22 part (a) |
+| Should DNS move to Cloudflare? | No. DNSSEC is already on at Spaceship and Vercel advises against Cloudflare in front of it. Two missing records were added instead | Task 2.23 |
+
+**Done on 17 Nov (by Claude, checked)**
+
+- [x] Only a `@taskdrop.in` address is shown anywhere public (PR 401). Live on taskdrop.in: `security.txt` shows `admin@taskdrop.in`
+- [x] Firewall and JWT checked and written down
+- [x] DMARC record added to taskdrop.in (`p=none`, watch only)
+- [x] CAA records added: only Let's Encrypt may issue certificates, problem reports to `admin@taskdrop.in`. taskdrop.in, www and admin still load with valid certificates (PR 404)
+- [x] Decisions 53 and 54, tasks 2.22 and 2.23 and future task F.16 added to this plan
+
+**Still to do: yours**
+
+- [ ] **2.22 (b)** Spaceship email forwarding: `admin@taskdrop.in` to your inbox (5 minutes). Until then, mail and DMARC reports sent there do not reach you
+- [ ] **2.22 (c)** Set the three `EXPO_PUBLIC_..._EMAIL` settings on Vercel to `admin@taskdrop.in` (5 minutes)
+- [ ] **2.22 (d)** Google sign-in screen branding, with `admin@taskdrop.in` as the support email (15 minutes, needs (b) first)
+- [ ] **2.23 step 3** Spaceship: transfer lock ON, two-step sign-in ON (5 minutes)
+- [ ] **Decision 53** Say yes or no to the custom domain for production
+
+**Still to do: Claude's**
+
+- [ ] Publish the email fix to the Android app (an app update, OTA) when you say "publish the email fix to the app"
+- [ ] At 5.2, if decision 53 is yes: add the custom domain `auth.taskdrop.in`, add its certificate company to the CAA records first, and add the new Google return address
+- [ ] After 4.10 sends real mail and the DMARC reports look clean: change DMARC from `p=none` to `p=quarantine`
+- [ ] At 5.8b: the Vercel firewall rules, and a look in each project's Firewall tab
+
+</details>
 
 <details id="c-ceo-defaults">
 <summary>[CARD] The CEO defaults: accepted by you on 11 November. Still open: decision 3 and the area names</summary>
@@ -158,7 +197,7 @@ Inside a task, every line is one of three kinds: **CLICK** (you do it), **SAY** 
 1. **Go in order.** Start the whole **Start now** track in week 1 as well. It is slow, so it runs beside Steps 1 to 4.
 2. **Pass each gate.** A gate is a short checklist at the end of each step. Do not start the next step until every line is true.
 3. **Never paste a password, key or secret into the chat.** Claude will never ask you for one.
-4. **If a screen looks different** from the steps, stop and send Claude a screenshot. Websites rename their buttons.
+4. **If a screen looks different** from the steps, stop and send Claude a screenshot. Websites rename their buttons. **If Claude says Chrome is not connected** (17 Nov), click the Claude icon in Chrome's toolbar to open its side panel and leave it open, signed in with the same Claude account as the desktop app. Claude cannot reach Chrome while that panel is closed. Claude also never logs in for you: when a site's session has expired, you click its log-in button.
 5. **Claude ticks every task it finishes, by itself** (your rule, 14 Nov). When Claude completes a task, or a part of one that has its own line, it marks the task **Done** in this plan and rebuilds this page (`node scripts/build-plan-html.mjs`) in the same pull request, so the tick shows as soon as the change is merged. It never waits for you to ask. Claude ticks only when the task's **Done when** line is true, and it writes in the pull request how it checked. If a part could not be checked, the task stays open and Claude says which part. For a task that only you can do (a login, a form, a payment), **tell Claude its number** (for example "done 2.1") and Claude ticks it then.
 6. **Claude pushes, opens the pull request and merges it without asking you** (your rule, 31 Oct). Merging is never a question for you. Claude still asks you first only before: publishing an app update to testers, wiping or resetting data, rotating a key, or touching `main` or production.
 7. **After every new feature, check it fits the browser and the screen** (your rule, 1 Nov). Claude does not call a feature done until the website works in Chrome, Edge, Firefox and Safari (latest versions) at phone, tablet and laptop widths, and the Android app works on your phone: nothing cut off, no sideways scrolling, every button easy to reach and tap, text readable (also with bigger text and with the keyboard open). The steps are in the card "Fits every browser and screen".
@@ -682,7 +721,7 @@ Sources: Supabase's own security check on the staging database (rerun on 31 Octo
 **Checked 17 Nov: firewall (WAF) and sign-in tokens (JWT)**
 
 - **JWT:** yes, built in. Supabase signs every sign-in token with an ES256 key pair (its public key list is at the project's `/auth/v1/.well-known/jwks.json`), and the `api` server checks each token's signature with `getClaims` before doing anything. Nothing to buy or license.
-- **Firewall (WAF):** only Vercel's automatic flood (DDoS) protection runs today. None of the 4 Vercel projects (`taskdrop`, `taskdrop-admin`, `taskdrop-production`, `taskdrop-admin-production`) has custom firewall rules yet. The rules, bot protection and the admin sign-in limit come in task 5.8b on Vercel Pro (included, no separate licence). Sign-in codes, `api` and payments are answered by Supabase, which Vercel's firewall never sees, so their limits stay in the server (hole H18, task 2.8).
+- **Firewall (WAF):** only Vercel's automatic flood (DDoS) protection runs today. For all 4 Vercel projects (`taskdrop`, `taskdrop-admin`, `taskdrop-production`, `taskdrop-admin-production`) Vercel answered "no firewall configuration found", so none has custom rules as far as Claude can see. That answer can also mean Claude's Vercel connection is not allowed to read firewall settings, so look once in each project's **Firewall** tab when you do 5.8b. The rules, bot protection and the admin sign-in limit come in task 5.8b on Vercel Pro (included, no separate licence). Sign-in codes, `api` and payments are answered by Supabase, which Vercel's firewall never sees, so their limits stay in the server (hole H18, task 2.8).
 - **"Desktop app":** TaskDrop has no separate desktop program. On a laptop people use the same website, so the same protections apply.
 
 What the audit found good: the website sends HSTS, `nosniff`, a frame block and a referrer rule; the admin has a nonce-based content policy, a 30-minute idle timeout and a 12-hour cap; no master key appears in the mobile app; and the only `NEXT_PUBLIC_` and `EXPO_PUBLIC_` names are addresses, public keys and business details.
@@ -2022,6 +2061,7 @@ A new idea for a check becomes one round ("charter") of the debug loop. It does 
 | 7 | **The money flow, Plan B** (2.21): design now, build after decision 3 and the lawyer's yes | Claude, then you | see 2.21 | Gate 2b, then Step 5 |
 | 8 | **The AI attacker** (2.16), on the finished Plan B code, then one small paid tester (decision 30) | Both | 45 minutes of yours | Gate 2b |
 | 9 | **Tick Gate 2b.** Then Step 5 (production) may start once Gates 3 and 4 also pass | Claude | | Step 5 |
+| + | **Added 17 Nov, any time before Gate 2b:** hide your Gmail and the backend address (2.22 parts b, c, d) and the Spaceship lock and two-step check (2.23 step 3). The code part and the DNS records are done | You | about 30 minutes | Gate 2b, and before any real user sees the sign-in screen |
 
 **Beside these, during the 14 tester days:** the debug loop (2.19), one round at a time. Gate 3 waits for it to settle; Gate 2b does not.
 
@@ -3218,13 +3258,13 @@ design the Plan B money flow
 </details>
 
 <details id="t2-22" data-short="Hide backend and personal email">
-<summary>[BOTH] <b>2.22</b> Hide the backend address and your personal email from users <small>· your time: about 30 minutes · added 17 Nov · part done · urgent-fix lane</small></summary>
+<summary>[BOTH] <b>2.22</b> Hide the backend address and your personal email from users <small>· your time: about 30 minutes · added 17 Nov · part (a) done and live on the website · parts (b) to (d) yours · (e) waits for 5.2 · urgent-fix lane</small></summary>
 
 **Why:** on the Google sign-in screen people see "to continue to wjxvingpfbfvkfqhrguj.supabase.co" and that address's Privacy Policy link. Your personal Gmail also showed in the website's `security.txt` (`https://taskdrop.in/.well-known/security.txt`), on the app's Support page and on the staging tester card, because the Vercel setting `EXPO_PUBLIC_LEGAL_EMAIL` holds your Gmail. You want only a TaskDrop address such as `admin@taskdrop.in` shown. Note: the Supabase address and its public key being visible is normal and not a hole by itself (the database rules protect the data). Hiding it is about trust, and about making fake look-alike pages easier to spot.
 
 **Parts**
 
-- **(a) DONE by Claude in this pull request.** The app and the website build now show only an address ending in `@taskdrop.in`. Anything else (a gmail.com address, an empty setting) becomes `admin@taskdrop.in`. This covers the Support page, the Terms and Privacy contact lines, the Grievance Officer line, the copyright (DMCA) page, the staging tester card and `security.txt`. Code: `apps/mobile/src/legal/company.ts` (`publicEmail`), `apps/mobile/scripts/web-env-guard.mjs`, `apps/mobile/src/lib/environment.ts`. It reaches taskdrop.in on the next deploy. The Android app gets it with the next app update (OTA), which Claude asks you about before publishing.
+- **(a) DONE by Claude (PR 401, 17 Nov). Live on the website, checked 17 Nov: `taskdrop.in/.well-known/security.txt` shows `admin@taskdrop.in`. The Android app still shows the old address until the next app update (OTA); SAY "publish the email fix to the app" and Claude asks you before it publishes.** The app and the website build now show only an address ending in `@taskdrop.in`. Anything else (a gmail.com address, an empty setting) becomes `admin@taskdrop.in`. This covers the Support page, the Terms and Privacy contact lines, the Grievance Officer line, the copyright (DMCA) page, the staging tester card and `security.txt`. Code: `apps/mobile/src/legal/company.ts` (`publicEmail`), `apps/mobile/scripts/web-env-guard.mjs`, `apps/mobile/src/lib/environment.ts`. It reaches taskdrop.in on the next deploy. The Android app gets it with the next app update (OTA), which Claude asks you about before publishing.
 - **(b) YOU, 5 minutes, free.** CLICK Spaceship, then taskdrop.in, then Email forwarding, and add `admin@taskdrop.in` forwarding to your own inbox. Until this is done, mail sent to `admin@taskdrop.in` does not arrive. taskdrop.in's mail already goes through Spaceship's forwarding servers, so no DNS change is needed. Send a test mail to it.
 - **(c) YOU, 5 minutes.** CLICK Vercel, then the project `taskdrop` (and later `taskdrop-production`), then Environment Variables. Set `EXPO_PUBLIC_LEGAL_EMAIL`, `EXPO_PUBLIC_GRIEVANCE_OFFICER_EMAIL` and `EXPO_PUBLIC_COPYRIGHT_AGENT_EMAIL` to `admin@taskdrop.in`. The code already forces it; this keeps the settings honest. When the DMCA agent is registered (the legal open item), register it with `admin@taskdrop.in`.
 - **(d) YOU, 15 minutes, free.** CLICK Google Auth Platform (`console.cloud.google.com/auth/branding`, project Taskdrop), then Branding. Set: app name TaskDrop, the drop logo, home page `https://taskdrop.in`, privacy `https://taskdrop.in/?page=privacy`, terms `https://taskdrop.in/?page=terms`, authorised domain `taskdrop.in`. The User support email must be a Google account you manage. So first make a free Google account with your existing address `admin@taskdrop.in` ("Use my current email address instead" on Google's sign-up page; it needs part b first), add it to the Taskdrop project as Owner, then pick it as the User support email and the Developer contact. After that, Google never shows your Gmail on the consent screen.
@@ -6387,6 +6427,8 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 ---
 
 ## Changelog
+
+- **2026-11-17, night (all of today in one place):** You asked for every bit of progress and every to-do in the plan. Added the card **"17 November: security questions answered, what got done, what is left"** under **Do these now**, a line in **What is left in Step 2**, a tip in rule 4 (open Chrome's Claude side panel when Claude says Chrome is not connected), and the live check of 2.22 part (a). The firewall line now says plainly that Vercel's "no configuration" answer could also mean Claude's connection cannot read it.
 
 - **2026-11-17, evening (2.23 done: DNS records added):** You asked Claude to add the records in your Chrome. Claude added, in Spaceship, the DMARC record (`_dmarc`, `p=none`) and two CAA records (`0 issue "letsencrypt.org"`, `0 iodef "mailto:admin@taskdrop.in"`). Checked: Spaceship's nameserver answers all three, and taskdrop.in, www and admin still load with valid Let's Encrypt certificates. `security.txt` on taskdrop.in now shows `admin@taskdrop.in`. Still yours: 2.23 step 3 (transfer lock and two-step sign-in in Spaceship), 2.22 parts b to d.
 
