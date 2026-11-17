@@ -2904,11 +2904,10 @@ await t("S1-22/S1-23: unread counts pass 200 and threads come from one latest me
   const th = fake((c) =>
     c.rpc === "my_thread_latest"
       ? { data: [{ task_id: TASK, body: "old chat", created_at: "2026-01-01T00:00:00Z", sender_id: UID }], error: null }
-      : { data: [{ id: TASK, title: "Old", status: "COMPLETED", updated_at: "2026-01-01T00:00:00Z" }], error: null });
+      : c.table === "tasks" ? { data: [{ id: TASK, title: "Old", status: "COMPLETED", updated_at: "2026-01-01T00:00:00Z" }], error: null } : { data: [], error: null });
   const t2 = await runOp("listThreads", {}, ctx(th));
   assert.ok(t2.ok);
   assert.ok(th.calls.some((c) => c.rpc === "my_thread_latest"));
-console.log(JSON.stringify(t2), JSON.stringify(th.calls.map((c)=>[c.table,c.rpc])));
   assert.equal(t2.ok && (t2.data as { taskId: string }[])[0].taskId, TASK);
 });
 
