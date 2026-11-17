@@ -4,6 +4,7 @@ import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { Field, Pill, PrimaryButton, TopBar } from '../components/kit';
 import { LocationSheet } from '../components/LocationSheet';
+import { SelectField } from '../components/SelectField';
 import { RoleTheme, useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -12,19 +13,28 @@ import { isNeedsAccount, needAccount } from '../lib/guest';
 import { useActions } from '../providers/AppStateProvider';
 import { getProfile, updateProfile } from '../data/api';
 import { updateProfileExtras, type EarnGoal } from '../data/extras';
-import { EarnGoalPicker, isEarnGoal } from '../components/EarnGoalPicker';
+import { isEarnGoal } from '../components/EarnGoalPicker';
 import { findContactIssue, profileIssueMessage } from '../lib/mask';
 import { SKILL_OPTIONS, LANGUAGES } from './ProfileEditScreen';
 import { tx } from '../components/primitives';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
 
+const MAX_SKILLS = 8;
+
+/** "painting" -> "Painting", so typed skills match the suggestions. */
+const tidy = (s: string) => {
+  const v = s.trim().replace(/\s+/g, ' ');
+  return v.charAt(0).toUpperCase() + v.slice(1);
+};
+
 /**
- * The worker side of an account, set up once.
+ * The worker side of an account, set up once, kept as short as it can be.
  *
- * Posting needs nothing more than a sign-in; earning needs posters to know
- * who they would be hiring. So the first switch to Earn lands here: what you
- * do, your skills, the languages you work in and where you are. Same account
- * and @username -- this only adds the worker profile.
+ * Posting needs nothing more than a sign-in; earning needs posters to know a
+ * little about who they would hire. So the first switch to Earn lands here:
+ * type a skill, pick a language, say where you are. Every box is optional --
+ * a long form here makes people give up before they ever earn -- and all of it
+ * can be changed later in Profile. Same account and @username.
  */
 export function WorkerSetupScreen() {
   return (
@@ -42,9 +52,11 @@ function Setup() {
   const { userId, guest } = useAuth();
   const finishRef = useRef<() => Promise<void>>(async () => {});
   const { flash, celebrate } = useActions();
+  // Answered in first-run setup (not asked again here); kept so saving this screen never wipes it.
   const [earnGoal, setEarnGoal] = useState<EarnGoal | null>(null);
   const [bio, setBio] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
+  const [typed, setTyped] = useState('');
   const [langs, setLangs] = useState<string[]>([]);
   const [place, setPlace] = useState<{ label: string; lat: number | null; lng: number | null } | null>(null);
   const [showLoc, setShowLoc] = useState(false);
@@ -57,33 +69,62 @@ function Setup() {
       setSkills(p.skills ?? []);
       setLangs(p.languages ?? []);
       setBio(p.worker_bio ?? '');
-      // Already answered in first-run setup: shown picked, so it is one less thing to do.
       if (isEarnGoal(p.earn_goal)) setEarnGoal(p.earn_goal);
       if (p.loc_label) setPlace({ label: p.loc_label, lat: p.loc_lat, lng: p.loc_lng });
     });
   }, [userId]);
 
-  const toggle = (list: string[], set: (v: string[]) => void, v: string, max: number) =>
-    list.includes(v) ? set(list.filter((x) => x !== v)) : list.length < max ? set([...list, v]) : flash(`Pick up to ${max}`);
-
-  const bioOk = bio.trim().length >= 20;
   // W2-21: the same refusal as the customer bio, not a silent mask that swallows the words around a number.
   const bioIssue = findContactIssue(bio);
-  const ready = earnGoal !== null && bioOk && !bioIssue && skills.length > 0 && langs.length > 0;
+
+  /** Adds what is typed (commas allowed: "Painting, Tiling") and returns the new list. */
+  const addTyped = (from: string[] = skills): string[] => {
+    const parts = typed.split(',').map(tidy).filter(Boolean);
+    setTyped('');
+    if (!parts.length) return from;
+    for (const part of parts) {
+      const issue = findContactIssue(part);
+      if (issue) {
+        flash(profileIssueMessage(issue));
+        return from;
+      }
+    }
+    const next = [...from];
+    for (const part of parts) {
+      if (next.some((x) => x.toLowerCase() === part.toLowerCase())) continue;
+      if (next.length >= MAX_SKILLS) {
+        flash(`Pick up to ${MAX_SKILLS}`);
+        break;
+      }
+      next.push(part);
+    }
+    setSkills(next);
+    return next;
+  };
+
+  const needle = typed.trim().toLowerCase();
+  const suggestions = needle
+    ? SKILL_OPTIONS.filter((s) => s.toLowerCase().includes(needle) && !skills.includes(s)).slice(0, 5)
+    : [];
+
+  const language = langs[0] ?? '';
+  // Pick one main language; any others saved earlier (edited in Profile) stay.
+  const pickLanguage = (v: string) => setLangs(v ? [v, ...langs.slice(1).filter((x) => x !== v)] : langs.slice(1));
 
   const finish = async () => {
-    if (!ready) return;
+    if (bioIssue || busy) return;
     if (guest) return needAccount('profile', () => finishRef.current());
     if (!userId) return;
     setBusy(true);
     try {
+      const finalSkills = addTyped();
       await updateProfile(userId, {
-        skills,
+        skills: finalSkills,
         ...(place ? { locLabel: place.label, locLat: place.lat, locLng: place.lng } : {}),
       });
       await updateProfileExtras(userId, {
-        earnGoal,
-        workerBio: bio.trim(),
+        ...(earnGoal ? { earnGoal } : {}),
+        workerBio: bio.trim() || null,
         languages: langs,
         workerOnboarded: true,
       });
@@ -99,50 +140,61 @@ function Setup() {
   };
   finishRef.current = () => finish();
 
-  const label = (s: string, top = 20) => (
+  const label = (s: string, top = 22) => (
     <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: top })}>{s}</RNText>
   );
 
   return (
     <Screen padded={false}>
-      <TopBar title="Set up your worker profile" onBack={back} />
+      <TopBar title="Start earning" onBack={back} />
       <KeyboardScrollView hugContent style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
-        <View style={{ flexDirection: 'row', gap: 10, backgroundColor: t.colors.accentSoft, borderRadius: 14, padding: 14 }}>
-          <Icon name="briefcase" size={18} color={t.colors.accentDeep} />
-          <RNText style={tx('500', 13, t.colors.accentDeep, { flex: 1, lineHeight: 19 })}>
-            Same account and @username — this adds the profile customers see before they hire you. Takes a minute.
-          </RNText>
-        </View>
+        <RNText style={tx('500', 14, t.colors.muted, { lineHeight: 20 })}>
+          Everything here is optional. Add what you like now, change it any time in Profile.
+        </RNText>
 
-        {label('WHY YOU WANT TO EARN')}
-        <EarnGoalPicker value={earnGoal} onChange={setEarnGoal} />
-        <RNText style={tx('400', 12, t.colors.muted, { marginTop: 8 })}>Only you can see this.</RNText>
-
+        {label('YOUR SKILLS')}
+        {skills.length ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
+            {skills.map((s) => (
+              <Pill key={s} label={s} active icon="close" onPress={() => setSkills(skills.filter((x) => x !== s))} />
+            ))}
+          </View>
+        ) : null}
         <Field
-          label={earnGoal === 'business' ? 'What your business does' : 'What you do'}
-          value={bio}
-          onChangeText={setBio}
-          multiline
-          maxLength={500}
-          placeholder="E.g. I write blogs and product copy in English and Hindi. 3 years, quick turnaround."
-          style={{ marginTop: 18 }}
-          error={bioIssue ? profileIssueMessage(bioIssue) : bio.trim() && !bioOk ? 'A sentence or two, at least 20 characters' : null}
-          hint="Shown on your worker profile. Your customer profile keeps its own bio."
+          style={{ marginTop: 10 }}
+          value={typed}
+          onChangeText={setTyped}
+          placeholder="Type a skill, e.g. Painting"
+          maxLength={60}
+          returnKeyType="done"
+          autoCapitalize="sentences"
+          onSubmitEditing={() => addTyped()}
+          right={
+            typed.trim() ? (
+              <Pressable onPress={() => addTyped()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Add skill">
+                <RNText style={tx('700', 13, t.colors.accentDeep)}>Add</RNText>
+              </Pressable>
+            ) : undefined
+          }
         />
+        {suggestions.length ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+            {suggestions.map((s) => (
+              <Pill
+                key={s}
+                label={s}
+                onPress={() => {
+                  setTyped('');
+                  if (skills.length >= MAX_SKILLS) return flash(`Pick up to ${MAX_SKILLS}`);
+                  setSkills([...skills, s]);
+                }}
+              />
+            ))}
+          </View>
+        ) : null}
 
-        {label('YOUR SKILLS · PICK UP TO 8')}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
-          {SKILL_OPTIONS.map((s) => (
-            <Pill key={s} label={s} active={skills.includes(s)} onPress={() => toggle(skills, setSkills, s, 8)} />
-          ))}
-        </View>
-
-        {label('LANGUAGES YOU WORK IN')}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
-          {LANGUAGES.map((l) => (
-            <Pill key={l} label={l} active={langs.includes(l)} onPress={() => toggle(langs, setLangs, l, 6)} />
-          ))}
-        </View>
+        {label('LANGUAGE')}
+        <SelectField value={language} options={LANGUAGES} onChange={pickLanguage} placeholder="Choose a language" style={{ marginTop: 9 }} />
 
         {label('WHERE YOU WORK FROM')}
         <Pressable
@@ -152,17 +204,24 @@ function Setup() {
         >
           <Icon name="pin" size={17} color={t.colors.accentDeep} />
           <RNText style={tx('400', 14, place ? t.colors.ink : t.colors.muted, { flex: 1 })} numberOfLines={2}>
-            {place?.label ?? 'Your area, for jobs near you (optional)'}
+            {place?.label ?? 'Your area, for jobs near you'}
           </RNText>
           <RNText style={tx('700', 13, t.colors.accentDeep)}>{place ? 'Change' : 'Set'}</RNText>
         </Pressable>
 
-        <PrimaryButton label="Start earning" onPress={() => void finish()} busy={busy} disabled={!ready} style={{ marginTop: 24 }} />
-        {!ready ? (
-          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 8, textAlign: 'center' })}>
-            {earnGoal ? 'Add what you do, at least one skill and a language.' : 'Pick why you want to earn, then add what you do, a skill and a language.'}
-          </RNText>
-        ) : null}
+        {label('ABOUT YOU')}
+        <Field
+          style={{ marginTop: 9 }}
+          value={bio}
+          onChangeText={setBio}
+          multiline
+          minHeight={64}
+          maxLength={500}
+          placeholder={earnGoal === 'business' ? 'What your business does (optional)' : 'A line about what you do (optional)'}
+          error={bioIssue ? profileIssueMessage(bioIssue) : null}
+        />
+
+        <PrimaryButton label="Start earning" onPress={() => void finish()} busy={busy} disabled={Boolean(bioIssue)} style={{ marginTop: 26 }} />
       </KeyboardScrollView>
       <LocationSheet
         visible={showLoc}
