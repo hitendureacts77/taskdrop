@@ -3302,6 +3302,42 @@ design the Plan B money flow
 **Done when:** `_dmarc.taskdrop.in` and the CAA records answer, and taskdrop.in and admin.taskdrop.in still load with a valid certificate.
 </details>
 
+<details id="t2-24" data-short="Data in India">
+<summary>[BOTH] <b>2.24</b> Data in India where possible (DPDP) <small>· Code done 17 Nov (branch feat/data-regions-india); your Sentry and ImageKit steps open</small></summary>
+
+**Why:** you asked to keep third-party services in India where possible. Claude checked first (17 Nov 2026): India's DPDP Act 2023 and the DPDP Rules 2025 do **not** require data to stay in India for a normal company (section 16 allows transfer to any country the government has not blacklisted, and none is). Only payment data must stay in India (RBI), and Razorpay already complies. So this task moves what can move and tells people honestly about the rest (decision 55).
+
+| Service | Where it keeps data today | Where it will keep data | What it is sent |
+|---|---|---|---|
+| Supabase (database, sign-in, files) | Mumbai | Mumbai (staging and production) | Everything the app stores |
+| ImageKit (photos) | Unknown, check (step b) | India | Photos |
+| Vercel (website) | Served near the visitor | Website: near the visitor. Server code: Mumbai (`"regions": ["bom1"]` in `vercel.json`) | Page requests, IP address |
+| Razorpay and RazorpayX | India | India | Payment and payout details |
+| MSG91 | India | India | Phone number, sign-in code |
+| Sentry (crash reports) | United States (old organisation) | EU, Frankfurt (new organisation, step a) | Error details only: no name, phone or address |
+| PostHog (when built) | Not built | EU (it has only US or EU) | Anonymous usage counts |
+| Inngest (background jobs) | United States (it has no other region) | United States | Ids and amounts only. Names removed on 17 Nov |
+| Google (sign-in, Places, Maps, Firebase App Check, push) | Global | Global | What each feature needs |
+| OpenStreetMap | Europe | Europe | Search words, map position |
+| Expo (updates, push) | United States | United States | App version, push token |
+
+**DONE in code (17 Nov, this branch):**
+
+- `vercel.json`: `"regions": ["bom1"]`, and `https://*.ingest.de.sentry.io` added next to the US address in both CSP headers (connect-src and report-uri). The US address stays until the EU organisation exists.
+- Inngest gets ids and amounts only. Migration **192** (written, not applied) changes `private.emit_event` to strip name, from, poster, display_name, email, phone and address from every payload, and the triggers for help requests, withdrawals, failed payouts and disputes now send `user_id` or `poster_id` instead of a name. The team-alert job (`supabase/functions/inngest/index.ts`) looks the name up from the database by id (`personIdFor`, `alertFor`). Tests are in `supabase/functions/inngest/jobs.test.ts`. The sign-up event no longer carries the name either (it was never used by a job). Until 192 is applied, new alerts still work: the job reads a name from the old payload if there is one.
+- Privacy Policy (`apps/mobile/src/legal/documents.ts`): each company now says where it keeps data, plus the sentence that Indian law allows transfers, and the website crash-report consent sentence.
+
+**OWNER CLICK STEPS:**
+
+1. CLICK (a, Sentry, about 20 minutes): open sentry.io, then your account menu, then Create organization. For Data storage location pick **European Union (EU)**. Create two projects: one for the app (React Native) and one for the admin (Next.js). Copy each DSN into `.env.all-secrets` under the names `EXPO_PUBLIC_SENTRY_DSN`, `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` (never paste them in chat), then TELL Claude "Sentry EU is ready". Claude then swaps `apps/mobile/eas.json`, the CSP in `vercel.json` and the Vercel and Supabase settings, and removes the US address. Delete the old US organisation after 30 days of quiet. (The DSN in `eas.json` is still the US one; Claude did not invent a new one.)
+2. CLICK (b, ImageKit, 5 minutes): open imagekit.io, then Settings, and read the processing region. If it is not India, ask ImageKit support to move it, or create the PRODUCTION ImageKit account with region India (task 5.x). Then TELL Claude the region so the Privacy Policy line "Kept in India" is true.
+3. (c, PostHog) Nothing to do now. When it is built (it is not yet), choose the EU region.
+4. (d, Inngest) Nothing to do. It stays in the United States (it has no other region) and now carries ids and amounts only.
+5. TELL Claude: "apply 192" when you want migration 192 applied to staging (Claude asks first, as for any migration).
+
+**Done when:** Sentry EU is live and the US organisation is scheduled for deletion; ImageKit's region is confirmed India; migration 192 is applied; the Privacy Policy matches the table.
+</details>
+
 > **GATE 2b: do not start Step 5 (production) until all of these are true**
 
 - [ ] Gate 2a has passed
@@ -5898,6 +5934,7 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 52 | **One email or two? (15 Nov).** Vercel asked for Pro ($20). You asked whether a NEW email for production and another for staging, each on free plans, would cover both for free, for every tool | **Decided 15 Nov: keep one login, no second email; pay only Supabase Pro and Vercel Pro, and only at Step 5.** Checked on each tool's own page, 15 Nov: **Vercel's terms** say the free Hobby plan is "for your personal or non-commercial use" only, and its fair-use page counts any site used for anyone's financial gain as commercial, so production on a free Vercel account breaks the terms whatever the email. **Supabase** counts its 2 free projects across every organization you own, pauses a free project after 1 week without use, gives it no daily backups, and its fair-use rules can pause or lock every project of an organization suspected of abuse; a money app needs Pro anyway. A second login made only to get more free plans risks both accounts being closed, splits the bills, two-step codes and recovery, and Razorpay, Google Play and Google Cloud must stay on the one owner who did the KYC. **What a second email does not buy:** nothing allowed that the plan does not already get, because every other tool (Inngest, Sentry, PostHog, ImageKit, Expo, Loops, Google Cloud) already gives production its own free organization, project or account under the same login. **One fix made:** PostHog's free plan allows only 1 project per organization, so production PostHog becomes its own free organization (5.6b). **Vercel:** one Pro seat ($20) on team `hitenduteam` covers both the staging and the production projects; upgrade on the 5.8 day, not before, unless Vercel actually blocks work. **Supabase:** production stays free and empty until 5.2 turns its organization to Pro ($25); a pause before then does no harm (restore it from the dashboard). **Watch, shared by staging and production under one login:** Expo's free 1,000 app-update users and 15 Android builds a month, and Sentry's 5,000 errors a month in organization `hitendu`; upgrade only when one warns (7.5). Total: $0 a month now, about $45 a month from Step 5 | "Decision 52: keep one login." To change: "Decision 52: make a production owner mailbox" (only the login changes, never a second free plan) |
 | 53 | **A custom Supabase address, `auth.taskdrop.in`, for production?** (17 Nov, task 2.22 part e). Google's sign-in screen shows the `supabase.co` address. Hiding it needs a paid Supabase plan plus the custom-domain add-on | **Recommended: yes, on production only, at task 5.2 (about $10 a month on top of Pro).** Staging stays free with the `supabase.co` address, because only testers see it | "Decision 53: yes, custom domain at 5.2." or "Decision 53: no, keep supabase.co." |
 | 54 | **npm or pnpm?** (17 Nov). You asked which package manager is better | **Recommended: stay on npm until after launch; switch to pnpm later (F.16).** npm workspaces, Turborepo, Expo and EAS builds and both Vercel projects already install with `npm ci` from one lockfile and work. Switching changes the lockfile, the CI, Vercel's install command and the EAS builds, and React Native's native modules often need pnpm's "hoisted" mode, which gives up much of what pnpm is good at. It is not a fix, so it does not fit the freeze. **What pnpm would give:** faster installs; much less disk (each worktree today holds a full copy of `node_modules`); a stricter check that every package is declared; and it blocks packages' install scripts unless you allow them, a supply-chain safety gain. Decided by Claude's recommendation; you can change it | "Decision 54: stay on npm." or "Decision 54: switch to pnpm now." |
+| 55 | **Where does our data live? (17 Nov, task 2.24).** You asked for third-party services in India where possible | **Decided 17 Nov 2026: "Move what can + disclose".** Data location: India where offered (Supabase, ImageKit and Vercel in Mumbai or India), EU for Sentry and PostHog, US for Inngest (ids and amounts only). The Privacy Policy lists each service's country. India's DPDP law does not require data to stay in India | "Decision 55: keep as decided." |
 
 ---
 
@@ -6457,6 +6494,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-17 (data in India, task 2.24, decision 55):** You asked to keep services in India where possible. DPDP does not require it, so: Vercel functions pinned to Mumbai, Sentry moves to a new EU organisation (your steps in 2.24), Inngest now gets ids and amounts only (migration 192, written, not applied), and the Privacy Policy says where each company keeps data.
 - **2026-11-17, night (all of today in one place):** You asked for every bit of progress and every to-do in the plan. Added the card **"17 November: security questions answered, what got done, what is left"** under **Do these now**, a line in **What is left in Step 2**, a tip in rule 4 (open Chrome's Claude side panel when Claude says Chrome is not connected), and the live check of 2.22 part (a). The firewall line now says plainly that Vercel's "no configuration" answer could also mean Claude's connection cannot read it.
 
 - **2026-11-17, evening (2.23 done: DNS records added):** You asked Claude to add the records in your Chrome. Claude added, in Spaceship, the DMARC record (`_dmarc`, `p=none`) and two CAA records (`0 issue "letsencrypt.org"`, `0 iodef "mailto:admin@taskdrop.in"`). Checked: Spaceship's nameserver answers all three, and taskdrop.in, www and admin still load with valid Let's Encrypt certificates. `security.txt` on taskdrop.in now shows `admin@taskdrop.in`. Still yours: 2.23 step 3 (transfer lock and two-step sign-in in Spaceship), 2.22 parts b to d.
