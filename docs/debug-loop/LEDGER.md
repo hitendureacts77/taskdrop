@@ -17,6 +17,7 @@ Every bug the debug loop has seen, in one place. Round reports: ROUND-4.md, ROUN
 | 4 | 13 Nov 2026 | e579a29 / db0161b (admin) | live web walk, backend collect + staging recheck of B30-B86, admin code review + partial live admin walk, sweep (checks, e2e); Android explorer to be added | 54 so far (B87-B140: 4 High, 23 Medium, 27 Low); Android from B141 | 0 yet (fixes in progress); 18 of the B30-B86 bugs rechecked and Verified on staging (some structure only) | 0 | counts after the fixes: to be filled in | none seen (e2e only partly run) | No |
 | 5 | 14 Nov 2026 | 445995f / 253f18a (admin, after PR 51) | started, not finished: sweep x2 (green), backend collect, recheck of B87-B94, admin fixes reviewed and merged, guest walk on the website (1920, 390, 768 px); admin roles, golden path, forms, security part 2 and Android not run (see ROUND-5.md) | 11 (B142-B152: 1 High fixed, 1 Medium cannot reproduce, 9 Low) + 10 from the signed-in web walk (B153-B162: 4 Medium, 6 Low) | 6 verified (B87, B88, B90, B91, B92, B94); 14 fixed, not rechecked (admin PR 51) | 0 | no open High known (B95 applied 14 Nov, awaiting recheck); the rest in ROUND-5.md | e2e pending, no flaky seen in the sweep | No |
 | 6 | 15 Nov 2026 | a76b9d8 / d8762b7 (admin) | fix round + charter J (money forms, 375 px) + charter K part 2 (backend advisors, logs); admin recheck of round 4 fixes (round 5 add-on) | 7 (B163-B169: 1 Medium, 6 Low; B162 closed) | 6 Verified live (B113, B119, B130, B156 web, B167, B168); 30 fixed in admin PR 52-54 and app PR 350-356, the rest not rechecked | B113 and B167 (both fixed again) | 0 / 0 / see ROUND-6 / see ROUND-6 | none (both sweeps green) | No |
+| 8 | 16 to 17 Nov 2026 | 177573f / admin main | find only, nothing fixed: 7 code audits (S1 to S7) + 4 live signed-in walks (L1 website Hire, L2 website Earn, L3 Android phone, L4 admin); payments left out | 367 so far, not yet de-duplicated and without B numbers (0 Critical, 7 High, 90 Medium, 223 Low, 47 Info; L1, L2, L3 still running) | 0 | 0 | see ROUND-8.md | none | No |
 
 ## Round 1 results (12 Nov 2026, PR 336)
 
@@ -690,6 +691,8 @@ Round 7's findings are kept in their own files under `docs/debug-loop/round-7/` 
 - **Medium, fixed:** W3-1 and W3-2 money wording (PR 386), W3-4 Withdraw filled with the whole balance (PR 386), W3-8 Back to a stale swipe screen (PR 387), P1-15 and P1-19 stale after Close task (PR 384), W2-3 the fine on Close task (PR 380), A1-1 to A1-4 admin (admin PRs 55 to 57).
 - **Medium, open:** W3-3 earnings clearing not shown, W3-5 no way to withdraw an offer, W3-6 the 5% fine named only after it happens, W3-10 sign-out is global, P1-3 the "+" covers Apply, P1-11 web links do not open the app.
 - **Low:** about 55 more; see the walk files. Level, steps and status are in each entry.
+
+**Round 8 (16 to 17 Nov): every bug written down, nothing fixed yet.** The owner asked for every functionality except payments to be checked and every bug noted. Findings live in `docs/debug-loop/round-8/` (S1 to S7 code, L1 to L4 live) and the counted list is `ROUND-8.md` (367 so far: 7 High, 90 Medium, 223 Low, 47 Info). They get B numbers from B180 after duplicates are removed; until then the helper ids (S2-2, L3-12 ...) are the ids. Fixing happens all at once, then one phone update.
 
 ### Android explorer findings: to be added (B141 onward)
 

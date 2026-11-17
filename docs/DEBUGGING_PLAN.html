@@ -149,8 +149,8 @@ footer { margin-top: 64px; font-size: 14px; color: var(--ink-2); border-top: 1px
 </header>
 
 <div class="pills">
-  <span class="pill">Status: <b>rounds 0 to 6 run, not settled</b></span>
-  <span class="pill">Next: <b>round 7 (section 21)</b></span>
+  <span class="pill">Status: <b>rounds 0 to 7 run, round 8 (find everything) written down, not settled</b></span>
+  <span class="pill">Next: <b>fix round 8 all at once (section 24)</b></span>
   <span class="pill">Rounds before launch: <b>at least 3, at most 8</b></span>
   <span class="pill">One round: <b>about half a day of Claude, 10–15 min of yours</b></span>
   <span class="pill">After launch: <b>one round a week</b></span>
@@ -1019,6 +1019,17 @@ B43 Low: ...      recommended: accept
   <li><b>Three widths every time.</b> 390, 768 and 1440 are now part of every screen walk, not a separate step, so "mobile view on the desktop" is covered by the same pass.</li>
   <li><b>Fix by theme, not by number.</b> Bugs in the same file or area are fixed together in one pull request, which cuts review and deploy waits.</li>
   <li><b>Waiting list kept at the top of the report.</b> What waits for you is the first table of every <code>ROUND-N.md</code>, so nothing you owe is buried.</li>
+</ul>
+
+<h2 id="round8">24. Round 8: every bug, written down first (16 to 17 November 2026)</h2>
+<p class="done-means"><b>In plain words:</b> you asked for every function checked, every corner, everything except payments (Razorpay is not integrated), and every bug noted in this plan. Round 8 only finds and writes. Nothing was fixed. When the list is complete, everything is fixed together, then one update goes to your phone.</p>
+<ul class="tight">
+  <li><b>How:</b> 7 code audits (access and sign-up, database rules, shared app layers, posting and offers, find work and map, messages and profile, admin) and 4 signed-in walks (website Hire as Asha, website Earn as Ravi, the Android phone, the admin). Opus 5.5 for the complex parts, Sonnet 5.5 for the regular ones.</li>
+  <li><b>Count so far: 367 findings.</b> 0 Critical, 7 High, 90 Medium, 223 Low, 47 Info (info items are not bugs). Live walks L1, L2 and L3 were still running when this was saved, so the number will grow, then drop a little when duplicates are removed. It is what is really there, not a fixed 1,000.</li>
+  <li><b>High so far:</b> the 18+ rule is only checked at setup, not when posting or offering (S1-1, S2-1); the "sign-ups paused" switch can be skipped (S1-2); the full map shows only the newest 200 jobs (S5-26); Enter in the admin broadcast title may send to everyone (S7-12); the api can take 16 to 22 seconds and leave a half-loaded Home (L1-21); one report of Save profile wiping skills and location (L2-11, not reproduced). Two more look High to Claude: any signed-in person can read every profile's payout UPI id and private fields (S2-2) and the parties-only fields of open tasks (S2-3).</li>
+  <li><b>Where it is written:</b> <a href="debug-loop/ROUND-8.md">debug-loop/ROUND-8.md</a> (counts, every High, every finding by title), one file per helper in <code>debug-loop/round-8/</code> with steps, proof and cause, and a pointer in <a href="debug-loop/LEDGER.md">LEDGER.md</a>.</li>
+  <li><b>Next:</b> (1) L1, L2, L3 finish. (2) Remove duplicates and give each real new bug a B number from B180. (3) Check the code-only findings live. (4) You say "fix"; Claude fixes by theme and runs the checks. (5) One phone update, with your yes. Then recheck on the phone.</li>
+  <li><b>Not done in this round:</b> payments; a real 390 px pass of the admin (the browser window could not be resized, so it was measured on copies of each page).</li>
 </ul>
 
 <!-- 23 -->
