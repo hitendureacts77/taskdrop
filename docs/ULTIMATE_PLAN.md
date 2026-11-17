@@ -4861,6 +4861,35 @@ Set up production.
 
 **Closed 17 Nov.** The owner told Claude to check and proceed, so Claude closed it after a last check: the safety alarm ran "all clear" and the nightly copy ran green end to end (a copy `backup-20261117T1421Z` sits in the private `taskdrop-backups` repository). That check also found the 17 Nov 04:06 nightly copy had failed with "Bad credentials" on its repository token; Claude re-set every existing secret in both GitHub environments from `.env.all-secrets` (names and lengths only, no values shown) and the copy then succeeded. **Carried forward, not blocking:** the Vercel firewall rules, $50 spending stop and admin sign-in rate rule (5.8b, needs Vercel Pro); deleting the App Check debug token in Firebase at launch (H56) and reading the production Expo project once it exists (5.7); the four left-out secrets (money-jobs switch with its own cutover, push-receipt wait, Expo builds token, MSG91 in 6.1); the Android app-links fingerprint after Play (6.6); adding `taskdrop\.in` and `www\.taskdrop\.in` to the production security-header rule at launch; renewing the `taskdrop-backups-writer` token before 14 Nov 2027; one practised restore (6.5).
 
+**Production at a glance, 17 Nov (everything done so far, and everything still to do).**
+
+| Done on production | How it was checked |
+|---|---|
+| Database built from `main` (all migrations), test sign-in off, admin authenticator rule on, environment `production`, GraphQL off, signed-out table rights none, direct database door closed | First deploy run green 16 Nov; first-day checks passed; hourly alarm "all clear" (again 17 Nov) |
+| 11 server functions deployed, 11 function secrets set, Inngest synced | Deploy steps green; Inngest run log shows the jobs finishing green |
+| Push now runs through Inngest; the two prune jobs moved to Inngest `housekeeping` | `push_via_inngest` = true read back; only the three money sweeps remain on pg_cron |
+| Supabase sign-in settings (sign-up guard hook, IP forwarding, limits, Phone and Anonymous off) | Read back through the Supabase API |
+| `main` promoted and protected (pull request and 4 checks required, no force-push, admins included) | Checked against the CI job names |
+| Production security-report address wins on `taskdrop-production.vercel.app` | Read from the live header 16 Nov |
+| Admin account `hitendureacts@gmail.com` and the Google sign-in test | Google accepted the production client and callback; the admin panel opened for you on 17 Nov |
+| Nightly encrypted copy to the private `taskdrop-backups` repository, 30 days kept | Run by hand 17 Nov: all 7 steps green and a copy exists. The scheduled 17 Nov 04:06 run had failed on a bad repository token; fixed by re-setting the environment secrets |
+| H56 on the production side (no debug token in the production website variables, build guard refuses one) | Vercel variable names read 17 Nov |
+
+| Still to do | Who | When | Task |
+|---|---|---|---|
+| Vercel firewall rules (admin sign-in 20 a minute per address, website flood ceiling), $50 spending stop, preview builds hold nothing real, previews need a Vercel login, one team Owner | You click, Claude gives the fields | At the Vercel Pro upgrade (the team is on Hobby; the connector cannot read firewall settings) | 5.8b |
+| Production Expo project, its variables (never the App Check debug token), the push key and upload keystore; then read its variables and set `TASKDROP_PRODUCTION_EAS_PROJECT_ID` and `PROD_EXPO_BUILDS_TOKEN` | You and Claude | Before the first production build | 5.7 |
+| Delete the App Check debug token in Firebase (App Check → `taskdrop Android` → Manage debug tokens); it is the one staging beta APKs use, so deleting it earlier breaks testers | You click | At launch | H56 |
+| Money sweeps from pg_cron to Inngest (`INNGEST_MONEY_JOBS=on` and `supabase/cutover/inngest_money_jobs.sql`) | Claude, after your yes | When you decide; not needed to launch | Inngest cutover |
+| SMS sign-in (`PROD_MSG91_AUTHKEY`, `PROD_MSG91_TEMPLATE_ID`) | You and Claude | With MSG91 | 6.1 |
+| `ANDROID_SHA256_CERT_FINGERPRINTS` Vercel variable and the Android https link settings (new build) | Claude | After the app is in Google Play | 6.6 |
+| Add `taskdrop\.in` and `www\.taskdrop\.in` to the production security-header rule in `vercel.json` | Claude | When `taskdrop.in` moves to production | 5.10 B |
+| One practised restore of a nightly copy | You and Claude | Before GO | 6.5 |
+| Renew the `taskdrop-backups-writer` token | You | Before 14 Nov 2027 (a calendar reminder) | 5.9 |
+| Test a real push on a phone with a production build (production has no device yet) | Claude and you | With the first production build | 5.11 |
+| Check whether the admin panel asks for the authenticator code on production (the rule is on, not yet seen in the panel) | Claude | Next time you sign in to the production admin | 5.9 |
+| The second Google account that signed in to production (`narasimharaju7c@gmail.com`) is a normal test user | You decide whether to delete it | Before launch | 5.11 |
+
 **Setup progress, 15 Nov evening (Claude, with the pull requests 370 and 371 merged into `redesigned-2.0`).** `main` was promoted on 16 Nov (PR 374). The first "Production database and functions" run was approved and finished green on 16 Nov, and the safety alarm read "all clear".
 
 | Step | Status |
