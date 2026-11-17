@@ -62,6 +62,22 @@ export const MEDIA = {
   MAX_VIDEO_SECONDS: 60,
 } as const;
 
+/**
+ * What an offer may carry, checked on the server (S5-12, L2-4): a "Why you" note that is given must be
+ * at least 10 characters, and the time to finish is between 1 minute and 30 days.
+ */
+export const OFFER_LIMITS = {
+  PITCH_MIN: 10,
+  MIN_MINUTES: 1,
+  MAX_MINUTES: 43_200,
+} as const;
+
+/** What a profile may list: "Pick up to 8" skills and "Pick up to 6" languages (S6-11). */
+export const PROFILE_LIMITS = {
+  MAX_SKILLS: 8,
+  MAX_LANGUAGES: 6,
+} as const;
+
 /** Featured / Premium listing price band (indicative, India), in INR. */
 export const PROMOTION = {
   MIN_FEE_INR: 150,

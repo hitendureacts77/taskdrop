@@ -408,7 +408,8 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
     } catch (e) {
       releaseCount();
       background(logServer("error", "phone-auth", "SMS provider failed", { error: e instanceof Error ? e.message : String(e) }));
-      return json({ error: e instanceof Error ? e.message : "Could not send the SMS" }, 502);
+      // The provider's own words stay in the log above; the person gets a plain sentence (S1-18).
+      return json({ error: "We could not send the code. Try again in a minute." }, 502);
     }
 
     return json({ ok: true });

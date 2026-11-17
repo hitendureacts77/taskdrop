@@ -22,7 +22,7 @@ const STALE_MS = 10 * 60_000;
 let kept: { at: number; apk: LatestApk } | null = null;
 
 const text = (body: string, status: number) =>
-  new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
+  new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*" } });
 
 async function newest(): Promise<LatestApk | null> {
   const now = Date.now();
@@ -45,6 +45,18 @@ async function newest(): Promise<LatestApk | null> {
 }
 
 Deno.serve(async (req: Request) => {
+  try {
+    return await answer(req);
+  } catch (e) {
+    // Reported like every other function's unexpected failure, and still answered with the CORS header (S1-25).
+    console.error("app-download: unhandled", (e as Error).message);
+    const report = captureServerError(e, { fn: "app-download", step: "unhandled" });
+    (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime?.waitUntil?.(report);
+    return text("The app download is not available right now. Please try again in a few minutes.", 500);
+  }
+});
+
+async function answer(req: Request): Promise<Response> {
   if (req.method !== "GET" && req.method !== "HEAD") return text("Unknown request", 405);
   const apk = await newest();
   if (!apk) return text("The app download is not available right now. Please try again in a few minutes.", 503);
@@ -59,4 +71,4 @@ Deno.serve(async (req: Request) => {
     });
   }
   return new Response(null, { status: 302, headers: { Location: apk.url, "Cache-Control": "no-store" } });
-});
+}

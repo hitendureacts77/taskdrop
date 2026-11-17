@@ -1,4 +1,7 @@
-import { FEES, distanceKm } from "../_shared/rules.ts";
+import { FEES, TIMING, distanceKm } from "../_shared/rules.ts";
+
+/** Most rows one "my" list returns. Said here so a long list is cut on purpose, not by the database's own row cap (S1-21). */
+const MY_LIST_MAX = 500;
 import {
   type Args, type Ctx, type DbResult, type Op, MONEY_MAX, RESERVED_USERNAMES, bad, countBy, int, isoOrNull, limit, notExpired, nowIso, num, oneOf, rows,
   rpcOp, str, strOrNull, strings, take, uuid, uuids,
@@ -164,7 +167,7 @@ export async function readFees(ctx: Ctx): Promise<LiveFees> {
   return {
     commission: get("worker_commission_pct", FEES.WORKER_COMMISSION_PCT),
     posterFee: get("poster_service_fee_pct", FEES.POSTER_SERVICE_FEE_PCT),
-    clearingDays: get("clearing_period_days", 7, 366),
+    clearingDays: get("clearing_period_days", TIMING.CLEARING_PERIOD_DAYS, 366),
     // The Terms point at How fees work for this one too.
     cancelFine: get("post_start_cancel_penalty_pct", FEES.POST_START_CANCEL_PENALTY_PCT),
   };
@@ -185,13 +188,13 @@ export const READ_OPS: Record<string, Op> = {
   listMyTasks: async (ctx, a) =>
     rows(
       await ctx.db.from("tasks").select(TASK_PARTY_SELECT).eq("poster_id", ctx.userId).eq("kind", kindArg(a))
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: false }).limit(MY_LIST_MAX),
     ),
 
   listMyBids: async (ctx) => {
     const list = rows<Row & { id: string; tasks: Task | null }>(
       await ctx.db.from("bids").select(`${BID_SELECT}, ${TASKS_PARTY_EMBED}`).eq("worker_id", ctx.userId)
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: false }).limit(MY_LIST_MAX),
     );
     // Only an accepted offer makes the bidder a party to the task; for the rest the money fields are dropped.
     return list.map((b) => ({
@@ -203,7 +206,7 @@ export const READ_OPS: Record<string, Op> = {
   listMyAssignments: async (ctx) =>
     rows(
       await ctx.db.from("assignments").select(`${ASSIGNMENT_SELECT}, ${TASKS_PARTY_EMBED}`).eq("worker_id", ctx.userId)
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: false }).limit(MY_LIST_MAX),
     ),
 
   /** Incoming quotes on a task, cheapest first, each with the worker's profile. */
@@ -472,9 +475,9 @@ export const READ_OPS: Record<string, Op> = {
   /** Tasks the caller is party to that are, or were, in dispute. */
   listMyDisputes: async (ctx) => {
     const [mine, worked] = await Promise.all([
-      ctx.db.from("tasks").select(TASK_PARTY_SELECT).eq("poster_id", ctx.userId).eq("status", "DISPUTED"),
+      ctx.db.from("tasks").select(TASK_PARTY_SELECT).eq("poster_id", ctx.userId).eq("status", "DISPUTED").limit(MY_LIST_MAX),
       // Hired on each of these, so a party to every one.
-      ctx.db.from("assignments").select(TASKS_PARTY_EMBED).eq("worker_id", ctx.userId),
+      ctx.db.from("assignments").select(TASKS_PARTY_EMBED).eq("worker_id", ctx.userId).limit(MY_LIST_MAX),
     ]);
     const asWorker = rows<{ tasks: Task | null }>(worked).map((r) => r.tasks)
       .filter((t): t is Task => Boolean(t) && t!.status === "DISPUTED");
@@ -709,10 +712,17 @@ export const READ_OPS: Record<string, Op> = {
   /** Escrow tied up in live, paid-for jobs. With a side, only that side's. */
   getEscrowHeld: async (ctx, a) => {
     const side = a.side == null ? null : oneOf(a, "side", ["poster", "worker"]);
-    const list = rows<{ escrow_minor: number | null; worker_id: string; tasks: { poster_id?: string; funded_at?: string | null } | null }>(
-      await ctx.db.from("assignments").select("escrow_minor,status,worker_id,tasks!inner(poster_id,funded_at)")
-        .in("status", ["assigned", "started"]),
-    );
+    type Held = { id: string; escrow_minor: number | null; worker_id: string; tasks: { poster_id?: string; funded_at?: string | null } | null };
+    // Only the caller's own jobs, asked for in the query so a staff account does not read every assignment (S1-21).
+    const base = () => ctx.db.from("assignments").select("id,escrow_minor,status,worker_id,tasks!inner(poster_id,funded_at)")
+      .in("status", ["assigned", "started"]).limit(MY_LIST_MAX);
+    const [asWorker, asPoster] = await Promise.all([
+      side === "poster" ? null : base().eq("worker_id", ctx.userId),
+      side === "worker" ? null : base().eq("tasks.poster_id", ctx.userId),
+    ]);
+    const seen = new Set<string>();
+    const list = [...(asWorker ? rows<Held>(asWorker) : []), ...(asPoster ? rows<Held>(asPoster) : [])]
+      .filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)));
     return list
       .filter((r) => {
         if (!r.tasks?.funded_at) return false; // locked but unpaid holds no money
@@ -728,12 +738,12 @@ export const READ_OPS: Record<string, Op> = {
     const uid = ctx.userId;
     const fees = await readFees(ctx);
     const [asWorker, asPoster, payouts, payments, finesRes] = await Promise.all([
-      ctx.db.from("assignments").select(`${ASSIGNMENT_SELECT}, tasks(title)`).eq("worker_id", uid),
+      ctx.db.from("assignments").select(`${ASSIGNMENT_SELECT}, tasks(title)`).eq("worker_id", uid).limit(MY_LIST_MAX),
       ctx.db.from("tasks")
         .select("id,title,status,locked_minor,updated_at,funded_at,funded_minor,wallet_refunded_at,assignments(escrow_minor)")
-        .eq("poster_id", uid),
-      ctx.db.from("payouts").select(PAYOUT_SELECT).eq("user_id", uid),
-      ctx.db.from("payments").select(PAYMENT_SELECT).eq("user_id", uid).eq("status", "paid"),
+        .eq("poster_id", uid).limit(MY_LIST_MAX),
+      ctx.db.from("payouts").select(PAYOUT_SELECT).eq("user_id", uid).limit(MY_LIST_MAX),
+      ctx.db.from("payments").select(PAYMENT_SELECT).eq("user_id", uid).eq("status", "paid").limit(MY_LIST_MAX),
       // Fines from a cancel after the work started (migration 170). Unreadable means "none known".
       ctx.db.rpc("my_cancel_fines"),
     ]);
@@ -900,7 +910,7 @@ export const READ_OPS: Record<string, Op> = {
   /** How many things are waiting on the caller right now, for one side. */
   countNeedsAttention: async (ctx, a) => {
     if (oneOf(a, "mode", ["poster", "worker"]) === "poster") {
-      const mine = rows<{ id: string; status: string }>(await ctx.db.from("tasks").select("id,status").eq("poster_id", ctx.userId));
+      const mine = rows<{ id: string; status: string }>(await ctx.db.from("tasks").select("id,status").eq("poster_id", ctx.userId).limit(MY_LIST_MAX));
       let count = mine.filter((t) => t.status === "WORK_DONE").length; // waiting on them to release
       const open = mine.filter((t) => t.status === "OPEN").map((t) => t.id);
       if (open.length) {
@@ -910,7 +920,7 @@ export const READ_OPS: Record<string, Op> = {
       return count;
     }
     const list = rows<{ tasks: { status?: string } | null }>(
-      await ctx.db.from("assignments").select("status, tasks(status)").eq("worker_id", ctx.userId).in("status", ["assigned", "started"]),
+      await ctx.db.from("assignments").select("status, tasks(status)").eq("worker_id", ctx.userId).in("status", ["assigned", "started"]).limit(MY_LIST_MAX),
     );
     return list.filter((x) => x.tasks?.status === "LOCKED").length; // picked but not started
   },
@@ -919,10 +929,11 @@ export const READ_OPS: Record<string, Op> = {
   listThreads: async (ctx) => {
     const LIVE = [...IN_PROGRESS];
     const [msgRes, postedRes, hiredRes] = await Promise.all([
-      ctx.db.from("messages").select(MESSAGE_SELECT).order("created_at", { ascending: false }).limit(300),
+      ctx.db.rpc("my_thread_latest"),
       ctx.db.from("tasks").select("id,title,status,updated_at").eq("poster_id", ctx.userId).in("status", LIVE),
       ctx.db.from("assignments").select("task_id").eq("worker_id", ctx.userId).in("status", ["assigned", "started"]),
     ]);
+    // One latest message per conversation, newest first (migration 191): an old chat no longer drops out (S1-23).
     const msgs = rows<{ task_id: string; body: string; created_at: string; sender_id: string }>(msgRes);
     const latest = new Map<string, (typeof msgs)[number]>();
     for (const m of msgs) if (!latest.has(m.task_id)) latest.set(m.task_id, m);
@@ -957,7 +968,9 @@ export const READ_OPS: Record<string, Op> = {
     let q = ctx.db.from("messages").select(MESSAGE_SELECT).eq("task_id", uuid(a, "taskId"));
     const after = isoOrNull(a, "after");
     if (after) q = q.gt("created_at", after);
-    return rows(await q.order("created_at"));
+    // Without `after` this is the newest MY_LIST_MAX messages of a long chat, shown oldest first (S1-21).
+    if (after) return rows(await q.order("created_at").limit(MY_LIST_MAX));
+    return rows(await q.order("created_at", { ascending: false }).limit(MY_LIST_MAX)).reverse();
   },
 
   /** The other side's phone number, once the work has started; null for none. */
@@ -992,7 +1005,7 @@ export const READ_OPS: Record<string, Op> = {
   /** Unread notifications for one side, plus those that belong to both. */
   countUnreadFor: async (ctx, a) => {
     const side = oneOf(a, "side", ["poster", "worker"]);
-    const res = await ctx.db.from("notifications").select("id,task_id").eq("user_id", ctx.userId).is("read_at", null).limit(200);
+    const res = await ctx.db.from("notifications").select("id,task_id").eq("user_id", ctx.userId).is("read_at", null).limit(2000);
     if (res.error || !res.data) return 0;
     const items = res.data as { id: string; task_id: string | null }[];
     const sides = await sidesFor(ctx, items);
@@ -1026,13 +1039,13 @@ export const READ_OPS: Record<string, Op> = {
 
   // ------------------------------------------------------- support & more ----
   listTickets: async (ctx) =>
-    rows(await ctx.db.from("support_tickets").select(SUPPORT_TICKET_SELECT).eq("user_id", ctx.userId).order("updated_at", { ascending: false })),
+    rows(await ctx.db.from("support_tickets").select(SUPPORT_TICKET_SELECT).eq("user_id", ctx.userId).order("updated_at", { ascending: false }).limit(MY_LIST_MAX)),
 
   getTicket: async (ctx, a) => {
     const id = uuid(a, "ticketId");
     const ticket = take(await ctx.db.from("support_tickets").select(SUPPORT_TICKET_SELECT).eq("id", id).maybeSingle());
     if (!ticket) return null;
-    return { ticket, messages: rows(await ctx.db.from("support_messages").select(SUPPORT_MESSAGE_SELECT).eq("ticket_id", id).order("created_at")) };
+    return { ticket, messages: rows(await ctx.db.from("support_messages").select(SUPPORT_MESSAGE_SELECT).eq("ticket_id", id).order("created_at").limit(MY_LIST_MAX)) };
   },
 
   countMyReferrals: async (ctx) => {
@@ -1046,8 +1059,11 @@ async function sidesFor(ctx: Ctx, items: { id: string; task_id: string | null }[
   const taskIds = [...new Set(items.map((r) => r.task_id).filter((x): x is string => Boolean(x)))];
   const owner = new Map<string, string>();
   if (taskIds.length) {
-    const res = await ctx.db.from("tasks").select("id, poster_id").in("id", taskIds);
-    for (const t of (res.data ?? []) as { id: string; poster_id: string }[]) owner.set(t.id, t.poster_id);
+    // In groups, so a long list does not make a web address too long for the database.
+    for (let i = 0; i < taskIds.length; i += 100) {
+      const res = await ctx.db.from("tasks").select("id, poster_id").in("id", taskIds.slice(i, i + 100));
+      for (const t of (res.data ?? []) as { id: string; poster_id: string }[]) owner.set(t.id, t.poster_id);
+    }
   }
   const out: Record<string, string> = {};
   for (const r of items) out[r.id] = !r.task_id ? "both" : owner.get(r.task_id) === ctx.userId ? "poster" : "worker";
