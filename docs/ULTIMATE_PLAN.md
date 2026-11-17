@@ -4825,7 +4825,8 @@ Set up production.
 | Approve the first "Production database and functions" run; then run "Production safety alarm" once: "all clear" | **Done** 16 Nov: approved in the browser at your request (twice: the first try failed at the function deploy because the GitHub copy of the Supabase token was malformed; Claude re-saved it from the secrets file). Migrations, first-day safety, 11 Edge Functions, 11 function secrets, Inngest sync and "first-day checks passed" all green; the alarm run ended "all clear". Left out on purpose (kept as they are in Supabase): money-jobs switch, push-receipt wait, Expo builds token, MSG91 |
 | Live check of the security header on the production address (which of the two rules wins) | **Done** 16 Nov: `taskdrop-production.vercel.app` sends the production report address, so the production rule wins; `assetlinks.json` stays empty until Play (6.6) |
 | Left out on purpose (the workflow skips and lists them): money-jobs switch, push-receipt wait, Expo builds token, MSG91 (6.1) | Open |
-| Your admin account on production, a Google sign-in test, Inngest synced then push through Inngest, App Check debug token deleted (H56) | Open (item 8 in `docs/PRODUCTION_GO.md`) |
+| Your admin account on production and a Google sign-in test | **Done** 17 Nov: Google sign-in on `taskdrop-admin-production.vercel.app` reaches Google with the production client and callback (no address mismatch) and creates the account; production was empty, so the admin role for `hitendureacts@gmail.com` was added by a database write and the panel then opened. A second Google account that also signed in stays a normal user |
+| Inngest synced then push through Inngest, App Check debug token deleted (H56) | Open (item 8 in `docs/PRODUCTION_GO.md`) |
 
 </details>
 
