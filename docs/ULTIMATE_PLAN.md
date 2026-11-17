@@ -70,7 +70,7 @@ Launch day is about **two weeks after the last of these three clocks finishes** 
 | 3 | **Name your 2 or 3 launch areas** (decision 38). The other defaults are recorded: you said "Use the CEO defaults" on 11 Nov | Get one store file built (3.2). Expo's free builds are used up until 1 December, so first a free build on this PC from a folder with no spaces in its name |
 | 4 | Message **20** people for the Google Play test (3.3). Finding them takes days, so start before the store file is ready | Run the audit prompt (2.20, read-only) and fix the six holes from 2.18 |
 | 5 | Your clicks: 2.2, 2.3 and 2.4 (about 1.5 hours), and look at the new map on your laptop ("done 1.12") | Write the Plan B design (2.21) when you say "design the Plan B money flow" |
-| 6 | Hide your Gmail and the backend address (about 30 minutes): 2.22 parts b and d, then the two DNS records in 2.23 | Code part of 2.22 is done |
+| 6 | Hide your Gmail and the backend address (about 30 minutes): 2.22 parts b and d, and 2.23 step 3 (transfer lock and two-step sign-in in Spaceship) | Code part of 2.22 is live; the DNS records in 2.23 were added on 17 Nov |
 
 <details id="c-ceo-defaults">
 <summary>[CARD] The CEO defaults: accepted by you on 11 November. Still open: decision 3 and the area names</summary>
@@ -3234,7 +3234,7 @@ design the Plan B money flow
 </details>
 
 <details id="t2-23" data-short="DNS check">
-<summary>[BOTH] <b>2.23</b> taskdrop.in's DNS: checked, stay on Spaceship, add two records <small>· your time: about 10 minutes · added 17 Nov · checked, records not added yet</small></summary>
+<summary>[BOTH] <b>2.23</b> taskdrop.in's DNS: checked, stay on Spaceship, add two records <small>· Done 17 Nov (Claude added the records in your Chrome; step 3 is still yours)</small></summary>
 
 **Why:** you heard the domain's DNS should be on Cloudflare for security. Claude checked taskdrop.in's live DNS on 17 Nov 2026:
 
@@ -3244,18 +3244,20 @@ design the Plan B money flow
 | DNSSEC (stops forged DNS answers) | ON: DS record published, algorithm 13 (ECDSA P-256), answers validate | Fine. The main thing Cloudflare would add is already on |
 | HTTPS forced (HSTS) | On, 1 year, includes subdomains | Fine |
 | SPF (who may send mail as taskdrop.in) | `v=spf1 include:spf.efwd.spaceship.net ~all` | Fine for now; Loops is added at 4.10 |
-| DMARC (tells Gmail what to do with fake mail "from" taskdrop.in) | MISSING | Add |
-| CAA (which companies may issue HTTPS certificates for taskdrop.in) | MISSING | Add |
+| DMARC (tells Gmail what to do with fake mail "from" taskdrop.in) | Added 17 Nov: `p=none` (watch only) | Done |
+| CAA (which companies may issue HTTPS certificates for taskdrop.in) | Added 17 Nov: `0 issue "letsencrypt.org"` and `0 iodef "mailto:admin@taskdrop.in"` | Done |
 | www and admin | Point to Vercel | Fine |
 
 **Verdict:** do not move DNS to Cloudflare. DNSSEC is already on at Spaceship, Vercel advises against putting Cloudflare's proxy in front of it (already in "Skipped on purpose"), and a nameserver move risks the site and mail going down for hours for little gain.
 
 **Steps** (YOU in Spaceship, then taskdrop.in, then DNS, about 10 minutes; or SAY "add the DNS records" and Claude does it in your signed-in Chrome):
 
-1. CLICK Add record: TXT, host `_dmarc`, value `v=DMARC1; p=none; rua=mailto:admin@taskdrop.in; adkim=s; aspf=s`. This only watches. After 4.10 sends real mail and the reports look clean, change `p=none` to `p=quarantine`.
-2. CLICK Add record: CAA, host `@`, value `0 issue "letsencrypt.org"` (Vercel's certificates), and a second CAA record `0 iodef "mailto:admin@taskdrop.in"`. Before turning on the Supabase custom domain (2.22 part e), check which certificate company Supabase uses and add it too, or that certificate will fail.
+1. **Done 17 Nov.** CLICK Add record: TXT, host `_dmarc`, value `v=DMARC1; p=none; rua=mailto:admin@taskdrop.in; adkim=s; aspf=s`. This only watches. After 4.10 sends real mail and the reports look clean, change `p=none` to `p=quarantine`.
+2. **Done 17 Nov.** CLICK Add record: CAA, host `@`, value `0 issue "letsencrypt.org"` (Vercel's certificates), and a second CAA record `0 iodef "mailto:admin@taskdrop.in"`. Before turning on the Supabase custom domain (2.22 part e), check which certificate company Supabase uses and add it too, or that certificate will fail.
 3. CLICK In Spaceship, check the domain's transfer lock is ON and your Spaceship login has two-step sign-in on.
-4. TELL Claude: "done 2.23".
+4. TELL Claude: "done 2.23" once step 3 is checked.
+
+**Checked 17 Nov:** Spaceship's own nameserver returns the DMARC record and both CAA records (public resolvers catch up within 30 minutes, the records' lifetime). taskdrop.in, www.taskdrop.in and admin.taskdrop.in still load over HTTPS with valid Let's Encrypt certificates, and `security.txt` now shows `admin@taskdrop.in` (2.22 part a is live on the website).
 
 **Done when:** `_dmarc.taskdrop.in` and the CAA records answer, and taskdrop.in and admin.taskdrop.in still load with a valid certificate.
 </details>
@@ -6383,6 +6385,8 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 ---
 
 ## Changelog
+
+- **2026-11-17, evening (2.23 done: DNS records added):** You asked Claude to add the records in your Chrome. Claude added, in Spaceship, the DMARC record (`_dmarc`, `p=none`) and two CAA records (`0 issue "letsencrypt.org"`, `0 iodef "mailto:admin@taskdrop.in"`). Checked: Spaceship's nameserver answers all three, and taskdrop.in, www and admin still load with valid Let's Encrypt certificates. `security.txt` on taskdrop.in now shows `admin@taskdrop.in`. Still yours: 2.23 step 3 (transfer lock and two-step sign-in in Spaceship), 2.22 parts b to d.
 
 - **2026-11-17 (your public email, the Supabase address on Google's screen, DNS, JWT and firewall answers, npm or pnpm):** Google's sign-in screen shows `wjxvingpfbfvkfqhrguj.supabase.co`, and your personal Gmail showed in `security.txt`, the Support page and the staging tester card (the Vercel setting `EXPO_PUBLIC_LEGAL_EMAIL` held it). **Added:** task **2.22** (code part done in the pull request: only an address ending in `@taskdrop.in` is ever shown, anything else becomes `admin@taskdrop.in`; your clicks: Spaceship forwarding, the three Vercel settings, Google's consent-screen branding; the Supabase custom domain `auth.taskdrop.in` at 5.2), task **2.23** (taskdrop.in's DNS checked: stay on Spaceship, DNSSEC and HSTS already on, add a DMARC and a CAA record), a short answer block in the Security section ("Checked 17 Nov: firewall (WAF) and sign-in tokens (JWT)"), **decision 53** (custom domain for production, about $10 a month, in the cost list as "if yes"), **decision 54** (stay on npm until after launch) and future task **F.16** (move to pnpm). The code part of 2.22 ships in the same pull request.
 - **2026-11-15 (one email or two: the cost rethink, decision 52):** Vercel asked for Pro ($20) and you asked whether a new email for production and another for staging, each on free plans, would cover everything for free. Claude read each tool's own pricing, terms or docs page on 15 Nov (Vercel, Supabase, Inngest, Sentry, PostHog, ImageKit, Expo, Loops). **Answer: no; keep the current plan with one login.** Vercel's terms allow the free plan only for personal or non-commercial use, Supabase counts its 2 free projects across all organizations you own and gives free projects no backups and a pause after a week, and a second login made to get more free plans risks both accounts. **One real fix:** PostHog's free plan allows one project per organization, so production PostHog is now its own free organization (5.6b, the accounts map and the separation table). The stale "paid plan" on the Inngest production card now says free (CEO change 5). **Added:** decision 52 with the sources, a line in "Staging and production, step by step", the shared limits to watch (Expo 1,000 update users, Sentry 5,000 errors) and a note in What it costs. Cost unchanged: $0 a month now, about $45 a month from Step 5. Docs only: no account, setting, plan or payment was changed.
