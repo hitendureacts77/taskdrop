@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pageFromAddress, pathForScreen, titleForScreen } from './webAddress.ts';
+import { nameForScreen, pageFromAddress, pathForScreen, titleForScreen } from './webAddress.ts';
 
 test('B171: /privacy, /terms, /support and /copyright open their page on load', () => {
   assert.equal(pageFromAddress('/privacy', ''), 'privacy');
@@ -33,4 +33,12 @@ test('B179: each main screen has its own tab title', () => {
   assert.equal(titleForScreen('explore', 'poster'), 'Explore · TaskDrop');
   assert.equal(titleForScreen('privacy'), 'Privacy Policy · TaskDrop');
   assert.equal(titleForScreen('splash'), 'TaskDrop');
+});
+
+test('the desktop page header names a screen plainly, and gives null for one with no name', () => {
+  assert.equal(nameForScreen('wallet'), 'Wallet');
+  assert.equal(nameForScreen('myTasks', 'worker'), 'My work');
+  assert.equal(nameForScreen('myTasks', 'poster'), 'My tasks');
+  assert.equal(nameForScreen('explore', 'worker'), 'Find work');
+  assert.equal(nameForScreen('splash'), null);
 });

@@ -44,8 +44,8 @@ export function AppHeader() {
   // Phones under 380 points (many Androids are 360): a tighter header, so the
   // avatar is never pushed off the edge.
   const tight = !desktop && !tablet && width < 380;
-  // A desktop browser has one bar above every screen's column instead
-  // (navigation/DesktopTopBar.tsx), holding the same tools.
+  // A desktop browser has the page header above every screen's column instead
+  // (navigation/DesktopPage.tsx), holding the same tools.
   if (desktop) return null;
 
   return (
@@ -82,7 +82,7 @@ export function AppHeader() {
 /**
  * Notifications (with the unread count), messages and the account menu -- or,
  * for a guest, the sign-in pill. Drawn by AppHeader on phones and tablets and by
- * the desktop top bar. The tour lights the three up together ('headerTools').
+ * the desktop page header. The tour lights the three up together ('headerTools').
  */
 export function HeaderTools({ tight = false }: { tight?: boolean }) {
   const t = useTheme();
