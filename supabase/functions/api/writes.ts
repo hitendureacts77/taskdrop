@@ -5,7 +5,7 @@ import {
 import { assertOwnImage, isMediaRef } from "./media.ts";
 import { readFees } from "./reads.ts";
 import { roughPlace } from "../_shared/place.ts";
-import { PRICE_LIMITS, PROOF_LIMITS, TOP_UP_PCTS } from "../_shared/rules.ts";
+import { MEDIA, OFFER_LIMITS, PRICE_LIMITS, PROFILE_LIMITS, PROOF_LIMITS, TOP_UP_PCTS } from "../_shared/rules.ts";
 import { contactIssueMessage, findContactIssue, maskContacts, nameCarriesContact, profileIssueMessage } from "../_shared/contacts.ts";
 import { PROFILE_OWNER_SELECT } from "./columns.ts";
 
@@ -193,6 +193,59 @@ async function keepAddress(ctx: Ctx, taskId: unknown, address: string | null): P
 }
 
 const taskOnly = (a: Args) => ({ p_task_id: uuid(a, "taskId") });
+/**
+ * A video must say how long it is, and 60 seconds is the most (S1-12, S4-21). A picture carries no length.
+ * Returns the length to store: whole seconds for a video, null for a picture.
+ */
+export function videoSeconds(media: { kind?: unknown; seconds?: unknown } | null | undefined): number | null {
+  if (media == null || media.kind !== "video") return null;
+  const s = media.seconds;
+  if (typeof s !== "number" || !Number.isFinite(s) || s <= 0) {
+    throw new OpError(`We could not read how long that video is. Pick a video of up to ${MEDIA.MAX_VIDEO_SECONDS} seconds.`, "BAD_ARGS");
+  }
+  if (s > MEDIA.MAX_VIDEO_SECONDS) {
+    throw new OpError(`Videos can be up to ${MEDIA.MAX_VIDEO_SECONDS} seconds. Pick a shorter one.`, "BAD_ARGS");
+  }
+  return Math.max(1, Math.round(s));
+}
+
+/**
+ * The steps of a task, each { title, pct } with the shares adding up to 100 (S1-13). Anything else is refused;
+ * only title and pct are kept, and a title may not carry a phone number or a link.
+ */
+export function cleanMilestones(v: unknown): { title: string; pct: number }[] {
+  if (!Array.isArray(v) || v.length > 50) throw bad("milestones");
+  const out = v.map((m) => {
+    if (!m || typeof m !== "object" || Array.isArray(m)) throw bad("milestones");
+    const { title, pct } = m as { title?: unknown; pct?: unknown };
+    if (typeof title !== "string" || typeof pct !== "number" || !Number.isFinite(pct) || pct < 0 || pct > 100) throw bad("milestones");
+    const t = title.trim();
+    if (t.length < 1 || t.length > 100) throw bad("milestones");
+    refuseContacts(t);
+    return { title: t, pct };
+  });
+  if (out.length > 0 && Math.abs(out.reduce((n, m) => n + m.pct, 0) - 100) > 0.01) {
+    throw new OpError("The steps of the task must add up to 100%.", "BAD_ARGS");
+  }
+  return out;
+}
+
+/** An offer's "Why you" note and time to finish, checked here as well as in the form (S5-12, S5-13, L2-4). */
+function offerTerms(a: Args): { message: string | null; minutes: number } {
+  const message = strOrNull(a, "message", 2000);
+  if (message !== null && message.length < OFFER_LIMITS.PITCH_MIN) {
+    throw new OpError(`Tell the customer a little more: at least ${OFFER_LIMITS.PITCH_MIN} characters.`, "BAD_ARGS");
+  }
+  const v = a.timeLimitMinutes;
+  if (typeof v !== "number" || !Number.isInteger(v) || v < OFFER_LIMITS.MIN_MINUTES) {
+    throw new OpError("Enter a time of at least 1 minute.", "BAD_ARGS");
+  }
+  if (v > OFFER_LIMITS.MAX_MINUTES) {
+    throw new OpError(`The longest time you can offer is ${OFFER_LIMITS.MAX_MINUTES / 1440} days.`, "BAD_ARGS");
+  }
+  return { message, minutes: v };
+}
+
 const description = (a: Args) => (typeof a.description === "string" ? a.description.slice(0, 20000) : "");
 
 /** A position for the people map: an object with a latitude and a longitude inside their real ranges. */
@@ -306,8 +359,8 @@ export const WRITE_OPS: Record<string, Op> = {
     }
     // A picture in ImageKit is a "media:<id>" reference, and must be the poster's own finished upload.
     if (media != null && isMediaRef(media.path)) await assertOwnImage(ctx, media.path, ["task"]);
-    const milestones = a.milestones ?? [];
-    if (!Array.isArray(milestones) || milestones.length > 50) throw bad("milestones");
+    const milestones = cleanMilestones(a.milestones ?? []);
+    const seconds = videoSeconds(media);
     refuseContacts(a.title);
     refuseContacts(description(a));
     const place = splitPlace(strOrNull(a, "locLabel", 200));
@@ -324,7 +377,7 @@ export const WRITE_OPS: Record<string, Op> = {
       flag: oneOf(a, "flag", ["none", "urgent", "unique"], "none"),
       media_kind: media?.kind ?? null,
       media_path: media?.path ?? null,
-      media_seconds: typeof media?.seconds === "number" ? media.seconds : null,
+      media_seconds: seconds,
       loc_label: place.label,
       loc_lat: coordOrNull(a, "locLat", 90),
       loc_lng: coordOrNull(a, "locLng", 180),
@@ -344,6 +397,8 @@ export const WRITE_OPS: Record<string, Op> = {
     // Crew: one row per helper, the budget split evenly between them.
     const crewSize = a.crewSize == null ? 1 : int(a, "crewSize", 1, 10);
     const each = Math.floor(row.benchmark_minor / crewSize);
+    // The remainder of an uneven split goes to the first helper, so the slots add up to the poster's budget (S1-14).
+    const extra = row.benchmark_minor - each * crewSize;
     if (crewSize > 1 && each < PRICE_LIMITS.MIN_MINOR) {
       throw new OpError(
         `Each helper must get at least ₹${PRICE_LIMITS.MIN_MINOR / 100}. Raise the budget or ask for fewer people.`,
@@ -352,7 +407,7 @@ export const WRITE_OPS: Record<string, Op> = {
     }
     const crewId = crewSize > 1 ? crypto.randomUUID() : null;
     const slots = crewId
-      ? Array.from({ length: crewSize }, (_, i) => ({ ...row, benchmark_minor: each, crew_id: crewId, crew_size: crewSize, crew_slot: i + 1 }))
+      ? Array.from({ length: crewSize }, (_, i) => ({ ...row, benchmark_minor: each + (i === 0 ? extra : 0), crew_id: crewId, crew_size: crewSize, crew_slot: i + 1 }))
       : [row];
     // Auto-hire accepts an offer the moment it arrives and pays for it from the
     // poster's wallet, so a poster who cannot cover it cannot post one. Said in
@@ -385,7 +440,7 @@ export const WRITE_OPS: Record<string, Op> = {
         .update({
           title: str(a, "title", 300),
           description: description(a),
-          benchmark_minor: priceMinor(a, "priceMinor", 0, PRICE_LIMITS.MAX_MINOR),
+          benchmark_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR, PRICE_LIMITS.MAX_MINOR),
           time_limit_minutes: int(a, "deliveryDays", 0, 3650) * 1440,
           category: strOrNull(a, "category", 100),
           loc_label: place.label,
@@ -403,6 +458,7 @@ export const WRITE_OPS: Record<string, Op> = {
 
   placeBid: async ({ db, userId }, a) => {
     refuseHiddenContacts(a.message);
+    const terms = offerTerms(a);
     return rows(
       await db
         .from("bids")
@@ -410,8 +466,8 @@ export const WRITE_OPS: Record<string, Op> = {
           task_id: uuid(a, "taskId"),
           worker_id: userId,
           price_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR, PRICE_LIMITS.MAX_MINOR),
-          time_limit_minutes: int(a, "timeLimitMinutes", 0, 10_000_000),
-          message: strOrNull(a, "message", 2000),
+          time_limit_minutes: terms.minutes,
+          message: terms.message,
         })
         .select(),
       quoteRefusal,
@@ -420,13 +476,14 @@ export const WRITE_OPS: Record<string, Op> = {
 
   updateBid: async ({ db }, a) => {
     refuseHiddenContacts(a.message);
+    const terms = offerTerms(a);
     const row = rows(
       await db
         .from("bids")
         .update({
           price_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR, PRICE_LIMITS.MAX_MINOR),
-          time_limit_minutes: int(a, "timeLimitMinutes", 0, 10_000_000),
-          message: strOrNull(a, "message", 2000),
+          time_limit_minutes: terms.minutes,
+          message: terms.message,
         })
         .eq("id", uuid(a, "bidId"))
         .eq("is_locked", false)
@@ -563,7 +620,7 @@ export const WRITE_OPS: Record<string, Op> = {
       refuseContactInName(a.displayName);
       patch.display_name = str(a, "displayName", 80);
     }
-    if (a.skills !== undefined) patch.skills = strings(a, "skills");
+    if (a.skills !== undefined) patch.skills = strings(a, "skills", PROFILE_LIMITS.MAX_SKILLS);
     // A saved place is public on a profile: the area only, never the door number.
     if (a.locLabel !== undefined) patch.loc_label = splitPlace(strOrNull(a, "locLabel", 200)).label;
     if (a.locLat !== undefined) patch.loc_lat = coordOrNull(a, "locLat", 90);
@@ -604,7 +661,7 @@ export const WRITE_OPS: Record<string, Op> = {
       patch.worker_bio = workerBio;
     }
     if (bool(a, "workerOnboarded")) patch.worker_onboarded_at = nowIso(ctx);
-    if (a.languages !== undefined) patch.languages = strings(a, "languages", 20, 40);
+    if (a.languages !== undefined) patch.languages = strings(a, "languages", PROFILE_LIMITS.MAX_LANGUAGES, 40);
     if (a.intent !== undefined) patch.intent = a.intent == null ? null : oneOf(a, "intent", ["post", "earn", "both"]);
     // Why they earn (migration 179), asked in worker onboarding.
     if (a.earnGoal !== undefined) patch.earn_goal = a.earnGoal == null ? null : oneOf(a, "earnGoal", ["business", "gig", "other"]);

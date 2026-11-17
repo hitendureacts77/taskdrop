@@ -5,7 +5,7 @@ import { STANDING_REFUSAL, mustRefuse, standingOf } from "../_shared/standing.ts
 import { placesSource } from "../_shared/sendCaps.ts";
 import type { Db } from "../api/core.ts";
 import { GuestCeiling, GuestLocalLimit, guestAddress, guestNetKey, guestRateKey, isGuestToken } from "../api/guest.ts";
-import { answerGuest, guestPlaceAsk, guestPlacesAllowed } from "./guest.ts";
+import { answerGuest, guestPlaceAsk, guestPlacesAllowed, roundForGuest } from "./guest.ts";
 
 /**
  * Place search for the app, so no Google key ships in the web bundle or APK.
@@ -104,7 +104,8 @@ Deno.serve(guarded("places-search", async (req: Request) => {
   }
   if (within !== true) return json({ error: "Too many searches. Try again in a few minutes." }, 429);
 
-  if (reverse) return json({ label: await osmReverse(lat, lng) });
+  // An area name is all that is asked for, so the point is rounded to about a kilometre before it leaves (S1-24).
+  if (reverse) return json({ label: await osmReverse(roundForGuest(lat), roundForGuest(lng)) });
 
   const key = await mapsKey(admin);
   // No Google key, or Google has nothing: OpenStreetMap answers, from here, so
