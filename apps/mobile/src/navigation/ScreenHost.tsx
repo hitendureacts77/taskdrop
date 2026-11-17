@@ -34,8 +34,8 @@ export const KEEP_ALIVE: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet',
 
 // Desktop web: which screens get the signed-out frame is in ./frame.ts (PRE_AUTH, PUBLIC).
 // Desktop column classes (lib/layout.ts, docs/design/desktop-fit/PLAN.md Q1).
-// Feeds and lists: as wide as the window allows, up to FEED_MAX.
-const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'orders', 'saved', 'wallet', 'spending', 'inbox', 'taskManage', 'help', 'notifications'];
+// Feeds and lists: as wide as the window allows, up to FEED_MAX. workerSetup is here for its FormPage card (720) + aside (320).
+const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'orders', 'saved', 'wallet', 'spending', 'inbox', 'taskManage', 'help', 'notifications', 'workerSetup'];
 // One list or one page of text: up to READ_MAX.
 const READ: ScreenName[] = ['search', 'chat', 'copyright', 'terms', 'privacy', 'support', 'ideas', 'ideaDetail'];
 // Screens that fill everything beside the menu: a full map has no reading column.
