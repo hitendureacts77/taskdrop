@@ -13,14 +13,14 @@ Three lists were used: **OWASP ASVS 4.0.3 level 1** (website, admin, server), th
 | **fail** | Not true today. Written as a hole (H30 onwards) with a severity and who decides |
 | **n/a** | Does not apply, with the reason |
 
-**Result: 0 Critical, 0 High.** Two Low holes are open for your "fix" or "accept" (H30, H31), one Low was fixed here (the payment return address), and one Medium already on the list (H9, the website's content policy) is the cause of three lines below. Nothing else failed.
+**Result: 0 Critical, 0 High.** The two Low holes are settled (17 Nov 2026): H30 is fixed and H31 is accepted by the owner, one Low was fixed here (the payment return address), and one Medium already on the list (H9, the website's content policy) is the cause of three lines below. Nothing else failed.
 
 ## New holes found by this pass
 
 | # | What | Severity | Decision |
 |---|---|---|---|
-| H30 | **Password rules are below the checklist.** A password needs only 8 characters (ASVS wants 12), changing it needs only the open session, not the old password (2.1.6), there is no strength hint (2.1.8) and no message is sent after a password change (2.2.3). A password is only an extra way in beside the phone code | Low | Reply "fix" or "accept". Fix = 12 characters, ask for the old password, a strength hint, and a notice after a change (about half a day) |
-| H31 | **A text message code is the main way to sign in** (2.2.2 says a text code should only be a second check). It is how phone-first apps in India work, and the code is limited per number, per address and per day (2.8, 2.8b), but a stolen SIM can sign in | Low | Reply "accept" (recommended: it is the product) or "fix" (add a second step such as a password or Google to the account) |
+| H30 | **Password rules are below the checklist.** A password needs only 8 characters (ASVS wants 12), changing it needs only the open session, not the old password (2.1.6), there is no strength hint (2.1.8) and no message is sent after a password change (2.2.3). A password is only an extra way in beside the phone code | Low | **Fixed 17 Nov 2026 (owner: "fix").** 12 characters and more, easy passwords refused, a strength hint, the current password asked for once the person has one (or a text-code or Google sign-in in the last 15 minutes, for a forgotten password), and a security notice after every change. Changes go through `password-auth` (`_shared/passwordRules.ts`, tested); Supabase's "require current password" and 12-character minimum close the direct route |
+| H31 | **A text message code is the main way to sign in** (2.2.2 says a text code should only be a second check). It is how phone-first apps in India work, and the code is limited per number, per address and per day (2.8, 2.8b), but a stolen SIM can sign in | Low | **Accepted 17 Nov 2026 by the owner** (it is the product). The code stays limited per number, per address and per day |
 | fixed here | **Razorpay return address.** `razorpay` handed any address the caller sent to Razorpay as the page to send the payer to afterwards, so a script could make a payment page redirect to another website | Low | Fixed: only TaskDrop's own websites (the CORS list) are kept, `_shared/returnUrl.ts`, tested |
 
 Also from the first Semgrep run (all Medium or Low, none fails the check): `scripts/lib/db.mjs` connects to the test database without checking its certificate unless `DATABASE_CA_CERT` is set (a developer script that refuses any database but the test project and localhost; **accept**), `_shared/cors.ts` reads the caller's origin (a false alarm: the origin is compared with the fixed list first, `corsOrigins.test.ts`; **accept**), and Dependabot had no waiting time for brand-new package versions (**fixed**: 7 days, security updates not delayed).
@@ -35,21 +35,21 @@ ASVS chapter V1 (architecture) has no level 1 lines. Chapter V6 (cryptography) h
 
 | ID | Requirement (short) | Mark | Proof |
 |---|---|---|---|
-| 2.1.1 | Passwords at least 12 characters | **fail** | `extras.ts` allows 8. **H30** |
+| 2.1.1 | Passwords at least 12 characters | pass | `_shared/passwordRules.ts` (server) and `lib/passwordRules.ts` (form), `passwordRules.test.ts`; Supabase minimum 12. Fixed H30 |
 | 2.1.2 | Passwords up to 64 characters allowed | pass | Supabase Auth takes up to 72 bytes |
 | 2.1.3 | Password not truncated or changed | pass | Supabase Auth; the admin route only measures length (`api/auth/password/route.ts`) |
 | 2.1.4 | Any unicode allowed | pass | Supabase Auth |
-| 2.1.5 | Users can change their password | pass | Account → Security (`setPassword`) |
-| 2.1.6 | Changing needs the old and the new password | **fail** | Only the open session is needed. **H30** |
+| 2.1.5 | Users can change their password | pass | Account → Security (`changePassword` → `password-auth`) |
+| 2.1.6 | Changing needs the old and the new password | pass | `password-auth` asks for the current password once the person has one; a forgotten one is replaced after a fresh text-code or Google sign-in (15 minutes). Wrong tries count towards the sign-in lock. Fixed H30 |
 | 2.1.7 | New passwords checked against breached lists | **fail** | Supabase "leaked password protection" is a paid-plan setting: **H11**, switched on in production (5.2) |
-| 2.1.8 | A password strength hint | **fail** | **H30** |
+| 2.1.8 | A password strength hint | pass | "Strength: Fair / Good / Strong" under the field (`passwordStrength`). Fixed H30 |
 | 2.1.9 | No forced mix of character types | pass | No such rule |
 | 2.1.10 | No forced periodic change | pass | No such rule |
 | 2.1.11 | Pasting and password managers allowed | pass | Plain text fields (`AccessScreen`, `AccountScreen`) |
 | 2.1.12 | Can show the typed password | n/a | Mobile text fields; not required for the hidden-by-default field |
 | 2.2.1 | Protection against guessing and automation | pass | `password_sign_in_gate`, `consume_auth_attempt`, `hit_auth_send_ip`; `scripts/security-round2.mjs` test T6 (task 2.9), `supabase/tests/sms_safety.test.sql` |
-| 2.2.2 | Text/email codes only as a second check | **fail** | The text code is the main sign-in. **H31** |
-| 2.2.3 | The person is told after a credential change | **fail** | **H30** (part I now ends other devices after a password change, but sends no message) |
+| 2.2.2 | Text/email codes only as a second check | fail, **accepted** | The text code is the main sign-in. **H31**, accepted by the owner 17 Nov 2026 |
+| 2.2.3 | The person is told after a credential change | pass | `password-auth` writes a security notice (in the app and as a push) after every set or change, and other devices are signed out. Fixed H30 |
 | 2.3.1 | No system-made first passwords | pass | None exist |
 | 2.4.1 | Passwords stored salted and slow-hashed | pass | Supabase Auth (bcrypt) |
 | 2.5.1 | Recovery secret not sent in clear | pass | No recovery secret: recovery is a fresh phone code |
@@ -182,7 +182,7 @@ ASVS chapter V1 (architecture) has no level 1 lines. Chapter V6 (cryptography) h
 | # | Risk | Mark | Proof |
 |---|---|---|---|
 | API1 | Broken object-level authorisation (someone else's record by id) | pass | Row rules; the person comes from the token (`ctx.userId`), never from an argument; two-person test over every operation (`scripts/two-person-test.mjs`, part G) |
-| API2 | Broken authentication | pass, with **H30**, **H31** | Supabase Auth; limits; sessions now endable (part I) |
+| API2 | Broken authentication | pass (H30 fixed, H31 accepted) | Supabase Auth; limits; sessions now endable (part I) |
 | API3 | Broken property-level authorisation (too much in an answer, writable fields) | pass | Column lockdown; private address in a separate owner-only table (migration 126); the two-person test looks for private marks in every answer |
 | API4 | Unrestricted resource consumption | pass | Limits on every door (part A, `scripts/check-endpoints.mjs`); pages are capped; the rush test is part J |
 | API5 | Broken function-level authorisation (admin actions) | pass | Staff roles in the database (`staff_role_db_guards.test.sql`, `staff_role_guards_people_admin.test.sql`) |

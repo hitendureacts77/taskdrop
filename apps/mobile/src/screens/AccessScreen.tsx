@@ -819,7 +819,7 @@ export function AccessScreen() {
           </RNText>
         ) : null}
         <RNText style={tx('400', 12, t.colors.muted, { marginTop: 12, lineHeight: 18 })}>
-          Forgot it? Use your mobile number instead, then set a new password in Settings → Security.
+          Forgot it? Use your mobile number instead, then set a new password in Settings → Security within 15 minutes.
         </RNText>
       </BottomSheet>
     </Screen>
