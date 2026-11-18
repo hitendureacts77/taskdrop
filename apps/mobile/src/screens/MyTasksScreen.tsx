@@ -42,6 +42,12 @@ import { ListingCard } from '../components/ListingCard';
 import { AlertsCard } from '../components/AlertsCard';
 import { taskToFeedRow } from '../lib/openTask';
 import { useMyOffers } from '../lib/useMyOffers';
+import { useLayout } from '../lib/layout';
+import { ListPage, SegmentedTabs } from '../components/ListPage';
+import { CONTENT_INSET } from '../navigation/DesktopPage';
+
+// The desktop page's scroll content: ListPage's own padding, plus the inset the page header's content sits at.
+const LIST_SCROLL = { paddingTop: 8, paddingBottom: 32, paddingHorizontal: CONTENT_INSET } as const;
 
 /**
  * My Tasks (posting) / My Work (earning).
@@ -128,6 +134,10 @@ function stageOf(task: Task, quotes: number): number {
 
 function MyPosted() {
   const t = useTheme();
+  // Desktop: a ListPage (tabs as a segmented control in the toolbar, search beside them).
+  // Everywhere else the screen is drawn exactly as before.
+  const { desktop } = useLayout();
+  const px = desktop ? 0 : 20;
   const { go } = useNav();
   const { flash } = useActions();
   const { userId, guest } = useAuth();
@@ -246,185 +256,218 @@ function MyPosted() {
 
   const reviewCount = (tasks ?? []).filter((x) => x.status === 'WORK_DONE').length;
 
+  const refreshControl = <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />;
+  const pickTab = (i: number) => {
+    setNeeds(false);
+    setTab(i);
+  };
+
+  const guestNote = guest ? (
+    <View style={{ paddingHorizontal: px }}>
+      <GuestNote />
+    </View>
+  ) : null;
+
+  // One summary card rather than four tiles: what is running, what is
+  // waiting on me, what is done. Spending lives in Wallet → Insights.
+  // B175: a guest has no tasks to count yet; the zeros read like a real empty account.
+  const summary = guest ? null : (
+    <View style={{ paddingHorizontal: px, paddingTop: desktop ? 0 : 8 }}>
+      <HeroCard radius={24} padding={20} watermark={false} ringSize={180}>
+        <RNText style={tx('700', 12.5, 'rgba(255,255,255,0.82)')}>Your tasks at a glance</RNText>
+        <View style={{ flexDirection: 'row', marginTop: 12 }}>
+          {[
+            { value: (counts[0] ?? 0) + (counts[1] ?? 0), label: 'Active' },
+            { value: reviewCount, label: 'To review' },
+            { value: counts[2] ?? 0, label: 'Completed' },
+          ].map((m, i) => (
+            <View key={m.label} style={{ flex: 1, borderLeftWidth: i ? 1 : 0, borderLeftColor: 'rgba(255,255,255,0.15)', paddingLeft: i ? 14 : 0 }}>
+              {/* W2-18: a dash while the tasks load, never a 0 that is not true yet. */}
+              <RNText style={tx('800', 30, '#FFFFFF', { letterSpacing: -0.6, fontVariant: ['tabular-nums'] })}>{countOrDash(m.value, tasks === null)}</RNText>
+              <RNText style={tx('600', 12, 'rgba(255,255,255,0.75)', { marginTop: 1 })}>{m.label}</RNText>
+            </View>
+          ))}
+        </View>
+        {reviewCount > 0 ? (
+          <Pressable
+            onPress={() => {
+              const next = (tasks ?? []).find((x) => x.status === 'WORK_DONE');
+              if (next) openPostedTask(next, go);
+            }}
+            accessibilityRole="button"
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 16,
+              paddingVertical: 11,
+              paddingHorizontal: 14,
+              borderRadius: 14,
+              backgroundColor: 'rgba(255,255,255,0.16)',
+              transform: [{ scale: pressed ? 0.98 : 1 }],
+            })}
+          >
+            <Icon name="eye" size={16} color="#FFFFFF" />
+            <RNText style={tx('700', 13, '#FFFFFF', { flex: 1 })}>
+              {reviewCount === 1 ? '1 task is waiting for your review' : `${reviewCount} tasks are waiting for your review`}
+            </RNText>
+            <Icon name="chevronRight" size={16} color="#FFFFFF" />
+          </Pressable>
+        ) : null}
+      </HeroCard>
+    </View>
+  );
+
+  const alerts = <AlertsCard show={(tasks?.length ?? 0) > 0} side="hire" />;
+
+  // Desktop: a 300-wide box in the toolbar's right slot. Elsewhere: the full-width box under the summary.
+  const searchBox = (
+    <View {...ring}
+      style={
+        desktop
+          ? { flexDirection: 'row', alignItems: 'center', gap: 8, width: 300, ...cardSurface(t, 16), paddingHorizontal: 14 }
+          : {
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              marginHorizontal: 20,
+              marginTop: 16,
+              ...cardSurface(t, 16),
+              paddingHorizontal: 14,
+            }
+      }
+    >
+      <Icon name="search" size={17} color={t.colors.muted} />
+      <TextInput
+        value={q}
+        onChangeText={setQ}
+        placeholder="Search tasks, category…"
+        placeholderTextColor={t.colors.muted}
+        style={tx('400', 14, t.colors.ink, { flex: 1, paddingVertical: 11 })}
+      />
+    </View>
+  );
+
+  const needsPill =
+    needCount > 0 ? (
+      <Pill label="Needs providers" icon="users" count={needCount} active={needs} onPress={() => {
+          if (!needs) setTab(0);
+          setNeeds(!needs);
+        }}
+      />
+    ) : null;
+
+  const draftsBlock =
+    drafts.length > 0 ? (
+      <View style={{ paddingHorizontal: px, marginTop: desktop ? 0 : 16, marginBottom: desktop ? 16 : 0, gap: 8 }}>
+        <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>DRAFTS · {drafts.length}</RNText>
+        {drafts.map((d) => (
+          <View key={d.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, ...cardSurface(t, 16), paddingLeft: 14, paddingRight: 8 }}>
+            <Pressable
+              onPress={() => go('aiPost', { prompt: d.prompt, draftId: d.id })}
+              accessibilityRole="button"
+              accessibilityLabel={`Continue draft: ${d.prompt}`}
+              style={{ flex: 1, paddingVertical: 12 }}
+            >
+              <RNText numberOfLines={2} style={tx('600', 14, t.colors.ink, { lineHeight: 20 })}>{d.prompt}</RNText>
+              <RNText style={tx('500', 12, t.colors.accentDeep, { marginTop: 3 })}>Continue · saved {timeAgo(new Date(d.savedAt).toISOString())} · price and date asked again</RNText>
+            </Pressable>
+            <Pressable
+              onPress={() => setConfirmDraft(d)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Delete this draft"
+              style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Icon name="close" size={16} color={t.colors.muted} />
+            </Pressable>
+          </View>
+        ))}
+      </View>
+    ) : null;
+
+  const results = (
+    <View style={{ paddingHorizontal: px, paddingTop: 4, minHeight: 320 }}>
+      {shown === null ? (
+        [0, 1].map((i) => <Shimmer key={i} height={110} style={{ marginTop: 12 }} />)
+      ) : shown.length === 0 && failed ? (
+        <LoadFailed onRetry={() => void refresh()} />
+      ) : shown.length === 0 ? (
+        q.trim() ? (
+          // A search that found nothing is not an empty account (round 7, P1-10).
+          <EmptyState icon="search" title={`No tasks match "${q.trim()}"`} body="Check the spelling, or clear the search to see them all." actionLabel="Clear search" onAction={() => setQ('')} />
+        ) : (
+        <EmptyState
+          icon="list"
+          title={tab === 0 && !needs ? 'No open tasks' : 'Nothing here yet'}
+          body={tab === 0 ? 'Create your first task to start getting work done.' : undefined}
+          actionLabel={tab === 0 ? 'Create task' : undefined}
+          onAction={() => go('aiPost')}
+        />
+        )
+      ) : (
+        <Grid>
+        {shown.map((task, i) => (
+          <PostedCard
+            key={task.id}
+            task={task}
+            index={i}
+            quotes={quotes.get(task.id) ?? 0}
+            onOpen={() => openPostedTask(task, go)}
+            onMenu={() => setMenu(task)}
+            onClose={() => setConfirmClose(task)}
+            onAgain={() => go('aiPost', { similar: task })}
+          />
+        ))}
+        </Grid>
+      )}
+    </View>
+  );
+
   return (
     <Screen padded={false}>
       <AppHeader />
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 32 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />}
-      >
-        {guest ? (
-          <View style={{ paddingHorizontal: 20 }}>
-            <GuestNote />
-          </View>
-        ) : null}
-        {/* One summary card rather than four tiles: what is running, what is
-            waiting on me, what is done. Spending lives in Wallet → Insights. */}
-        {/* B175: a guest has no tasks to count yet; the zeros read like a real empty account. */}
-        {guest ? null : (
-        <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
-          <HeroCard radius={24} padding={20} watermark={false} ringSize={180}>
-            <RNText style={tx('700', 12.5, 'rgba(255,255,255,0.82)')}>Your tasks at a glance</RNText>
-            <View style={{ flexDirection: 'row', marginTop: 12 }}>
-              {[
-                { value: (counts[0] ?? 0) + (counts[1] ?? 0), label: 'Active' },
-                { value: reviewCount, label: 'To review' },
-                { value: counts[2] ?? 0, label: 'Completed' },
-              ].map((m, i) => (
-                <View key={m.label} style={{ flex: 1, borderLeftWidth: i ? 1 : 0, borderLeftColor: 'rgba(255,255,255,0.15)', paddingLeft: i ? 14 : 0 }}>
-                  {/* W2-18: a dash while the tasks load, never a 0 that is not true yet. */}
-                  <RNText style={tx('800', 30, '#FFFFFF', { letterSpacing: -0.6, fontVariant: ['tabular-nums'] })}>{countOrDash(m.value, tasks === null)}</RNText>
-                  <RNText style={tx('600', 12, 'rgba(255,255,255,0.75)', { marginTop: 1 })}>{m.label}</RNText>
-                </View>
-              ))}
-            </View>
-            {reviewCount > 0 ? (
-              <Pressable
-                onPress={() => {
-                  const next = (tasks ?? []).find((x) => x.status === 'WORK_DONE');
-                  if (next) openPostedTask(next, go);
-                }}
-                accessibilityRole="button"
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  marginTop: 16,
-                  paddingVertical: 11,
-                  paddingHorizontal: 14,
-                  borderRadius: 14,
-                  backgroundColor: 'rgba(255,255,255,0.16)',
-                  transform: [{ scale: pressed ? 0.98 : 1 }],
-                })}
-              >
-                <Icon name="eye" size={16} color="#FFFFFF" />
-                <RNText style={tx('700', 13, '#FFFFFF', { flex: 1 })}>
-                  {reviewCount === 1 ? '1 task is waiting for your review' : `${reviewCount} tasks are waiting for your review`}
-                </RNText>
-                <Icon name="chevronRight" size={16} color="#FFFFFF" />
-              </Pressable>
-            ) : null}
-          </HeroCard>
-        </View>
-        )}
-        <AlertsCard show={(tasks?.length ?? 0) > 0} side="hire" />
-
-        <View {...ring}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
-            marginHorizontal: 20,
-            marginTop: 16,
-            ...cardSurface(t, 16),
-            paddingHorizontal: 14,
-          }}
-        >
-          <Icon name="search" size={17} color={t.colors.muted} />
-          <TextInput
-            value={q}
-            onChangeText={setQ}
-            placeholder="Search tasks, category…"
-            placeholderTextColor={t.colors.muted}
-            style={tx('400', 14, t.colors.ink, { flex: 1, paddingVertical: 11 })}
-          />
-        </View>
-        {needCount > 0 ? (
-          <View style={{ flexDirection: 'row', paddingHorizontal: 20, marginTop: 10 }}>
-            <Pill label="Needs providers" icon="users" count={needCount} active={needs} onPress={() => {
-                if (!needs) setTab(0);
-                setNeeds(!needs);
-              }}
-            />
-          </View>
-        ) : null}
-
-        {drafts.length > 0 ? (
-          <View style={{ paddingHorizontal: 20, marginTop: 16, gap: 8 }}>
-            <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>DRAFTS · {drafts.length}</RNText>
-            {drafts.map((d) => (
-              <View key={d.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, ...cardSurface(t, 16), paddingLeft: 14, paddingRight: 8 }}>
-                <Pressable
-                  onPress={() => go('aiPost', { prompt: d.prompt, draftId: d.id })}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Continue draft: ${d.prompt}`}
-                  style={{ flex: 1, paddingVertical: 12 }}
-                >
-                  <RNText numberOfLines={2} style={tx('600', 14, t.colors.ink, { lineHeight: 20 })}>{d.prompt}</RNText>
-                  <RNText style={tx('500', 12, t.colors.accentDeep, { marginTop: 3 })}>Continue · saved {timeAgo(new Date(d.savedAt).toISOString())} · price and date asked again</RNText>
-                </Pressable>
-                <Pressable
-                  onPress={() => setConfirmDraft(d)}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Delete this draft"
-                  style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <Icon name="close" size={16} color={t.colors.muted} />
-                </Pressable>
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        <View style={{ marginTop: 14 }}>
-          <PillTabs
-            tabs={POSTER_TABS.map((x, i) => (tasks === null ? { label: x } : { label: x, count: counts[i] }))}
-            active={tab}
-            onPick={(i) => {
-              setNeeds(false);
-              setTab(i);
-            }}
-          />
-        </View>
-
-        <SwipeTabs
-          index={tab}
-          count={POSTER_TABS.length}
-          onChange={(i) => {
-            setNeeds(false);
-            setTab(i);
-          }}
-          style={{ flex: 0 }}
-        >
-        <View style={{ paddingHorizontal: 20, paddingTop: 4, minHeight: 320 }}>
-          {shown === null ? (
-            [0, 1].map((i) => <Shimmer key={i} height={110} style={{ marginTop: 12 }} />)
-          ) : shown.length === 0 && failed ? (
-            <LoadFailed onRetry={() => void refresh()} />
-          ) : shown.length === 0 ? (
-            q.trim() ? (
-              // A search that found nothing is not an empty account (round 7, P1-10).
-              <EmptyState icon="search" title={`No tasks match "${q.trim()}"`} body="Check the spelling, or clear the search to see them all." actionLabel="Clear search" onAction={() => setQ('')} />
-            ) : (
-            <EmptyState
-              icon="list"
-              title={tab === 0 && !needs ? 'No open tasks' : 'Nothing here yet'}
-              body={tab === 0 ? 'Create your first task to start getting work done.' : undefined}
-              actionLabel={tab === 0 ? 'Create task' : undefined}
-              onAction={() => go('aiPost')}
-            />
-            )
-          ) : (
-            <Grid>
-            {shown.map((task, i) => (
-              <PostedCard
-                key={task.id}
-                task={task}
-                index={i}
-                quotes={quotes.get(task.id) ?? 0}
-                onOpen={() => openPostedTask(task, go)}
-                onMenu={() => setMenu(task)}
-                onClose={() => setConfirmClose(task)}
-                onAgain={() => go('aiPost', { similar: task })}
+      {desktop ? (
+        <ListPage
+          scrollProps={{ refreshControl, contentContainerStyle: LIST_SCROLL }}
+          toolbar={{
+            left: (
+              <SegmentedTabs
+                tabs={POSTER_TABS.map((x, i) => ({ key: x, label: x, count: tasks === null ? undefined : counts[i] }))}
+                value={POSTER_TABS[tab] ?? POSTER_TABS[0]}
+                onChange={(k) => pickTab(POSTER_TABS.indexOf(k))}
               />
-            ))}
-            </Grid>
-          )}
-        </View>
-        </SwipeTabs>
-      </ScrollView>
+            ),
+            right: searchBox,
+          }}
+        >
+          {guestNote}
+          {summary}
+          {alerts}
+          {needsPill ? <View style={{ flexDirection: 'row', marginTop: 12 }}>{needsPill}</View> : null}
+          {draftsBlock}
+          {results}
+        </ListPage>
+      ) : (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} refreshControl={refreshControl}>
+          {guestNote}
+          {summary}
+          {alerts}
+          {searchBox}
+          {needsPill ? <View style={{ flexDirection: 'row', paddingHorizontal: 20, marginTop: 10 }}>{needsPill}</View> : null}
+          {draftsBlock}
+          <View style={{ marginTop: 14 }}>
+            <PillTabs
+              tabs={POSTER_TABS.map((x, i) => (tasks === null ? { label: x } : { label: x, count: counts[i] }))}
+              active={tab}
+              onPick={pickTab}
+            />
+          </View>
+          <SwipeTabs index={tab} count={POSTER_TABS.length} onChange={pickTab} style={{ flex: 0 }}>
+            {results}
+          </SwipeTabs>
+        </ScrollView>
+      )}
 
       <BottomSheet visible={menu !== null} onClose={() => setMenu(null)} title={menu?.title}>
         {menu ? (
@@ -668,6 +711,9 @@ const WORKER_TABS = ['Active', 'Offers', 'Closed', 'Saved', 'My services'] as co
 
 function MyWork() {
   const t = useTheme();
+  // Desktop: a ListPage with the tabs as a segmented control in the toolbar; elsewhere as before.
+  const { desktop } = useLayout();
+  const px = desktop ? 0 : 20;
   const { go } = useNav();
   const { flash, setOpenTask, startedOf } = useApp();
   const { userId, guest } = useAuth();
@@ -769,42 +815,35 @@ function MyWork() {
     }
   };
 
-  return (
-    <Screen padded={false}>
-      <AppHeader />
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 32 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.purple} />}
-      >
-        {guest ? (
-          // B175: no earnings, counts or tabs that read like an empty real account; the jobs saved on
-          // this phone stay listed under the account block.
-          <View style={{ paddingHorizontal: 20 }}>
-            <GuestAccountCard
-              icon="briefcase"
-              heading="Your jobs need an account"
-              body="Offers you send, jobs you win and what you earn show up here once your account is made."
-            />
-            <RNText style={tx('800', 15, t.colors.ink, { marginTop: 8 })}>Saved on this phone</RNText>
-          </View>
-        ) : (
-          <>
-            <AlertsCard show={(rows?.length ?? 0) > 0} side="earn" />
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 20, paddingTop: 8 }}>
-              <StatTile icon="wallet" label="Earned" value={w ? formatINR(w.earnedMinor) : '–'} />
-              <StatTile icon="check" label="Completed" value={String(w?.jobsDone ?? '–')} tone="blue" />
-              <StatTile icon="play" label="Active" value={String(w?.jobsLive ?? '–')} tone="gold" />
-              <StatTile icon="trending" label="Success" value={success} tone="purple" />
-            </View>
+  const refreshControl = <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.purple} />;
 
-            <View style={{ marginTop: 16 }}>
-              <PillTabs tabs={WORKER_TABS.map((x, i) => (rows === null ? { label: x } : { label: x, count: counts[i] }))} active={tab} onPick={setTab} />
-            </View>
-          </>
-        )}
+  const guestBlock = guest ? (
+    // B175: no earnings, counts or tabs that read like an empty real account; the jobs saved on
+    // this phone stay listed under the account block.
+    <View style={{ paddingHorizontal: px }}>
+      <GuestAccountCard
+        icon="briefcase"
+        heading="Your jobs need an account"
+        body="Offers you send, jobs you win and what you earn show up here once your account is made."
+      />
+      <RNText style={tx('800', 15, t.colors.ink, { marginTop: 8 })}>Saved on this phone</RNText>
+    </View>
+  ) : null;
 
-        <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
+  const statsBlock = guest ? null : (
+    <>
+      <AlertsCard show={(rows?.length ?? 0) > 0} side="earn" />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: px, paddingTop: desktop ? 0 : 8 }}>
+        <StatTile icon="wallet" label="Earned" value={w ? formatINR(w.earnedMinor) : '–'} />
+        <StatTile icon="check" label="Completed" value={String(w?.jobsDone ?? '–')} tone="blue" />
+        <StatTile icon="play" label="Active" value={String(w?.jobsLive ?? '–')} tone="gold" />
+        <StatTile icon="trending" label="Success" value={success} tone="purple" />
+      </View>
+    </>
+  );
+
+  const results = (
+    <View style={{ paddingHorizontal: px, paddingTop: 4 }}>
           {rows === null ? (
             [0, 1].map((i) => <Shimmer key={i} height={90} style={{ marginTop: 12 }} />)
           ) : failed && rows.length === 0 ? (
@@ -889,8 +928,41 @@ function MyWork() {
             ))}
             </Grid>
           )}
-        </View>
-      </ScrollView>
+    </View>
+  );
+
+  return (
+    <Screen padded={false}>
+      <AppHeader />
+      {desktop ? (
+        <ListPage
+          scrollProps={{ refreshControl, contentContainerStyle: LIST_SCROLL }}
+          toolbar={{
+            left: guest ? undefined : (
+              <SegmentedTabs
+                tabs={WORKER_TABS.map((x, i) => ({ key: x, label: x, count: rows === null ? undefined : counts[i] }))}
+                value={WORKER_TABS[tab] ?? WORKER_TABS[0]}
+                onChange={(k) => setTab(WORKER_TABS.indexOf(k))}
+              />
+            ),
+          }}
+        >
+          {guestBlock}
+          {statsBlock}
+          {results}
+        </ListPage>
+      ) : (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} refreshControl={refreshControl}>
+          {guestBlock}
+          {statsBlock}
+          {guest ? null : (
+            <View style={{ marginTop: 16 }}>
+              <PillTabs tabs={WORKER_TABS.map((x, i) => (rows === null ? { label: x } : { label: x, count: counts[i] }))} active={tab} onPick={setTab} />
+            </View>
+          )}
+          {results}
+        </ScrollView>
+      )}
       <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void refresh()} />
     </Screen>
   );
