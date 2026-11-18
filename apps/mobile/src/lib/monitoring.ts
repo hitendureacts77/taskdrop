@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import * as Sentry from '@sentry/react-native';
 import { apiFailureKind, setErrorReporter, type RawError } from './errors';
 import { scrubEvent, scrubText, scrubValue } from './scrub';
+import { analyticsAllowed, subscribeConsent } from './consent';
 
 /**
  * Crash reporting to Sentry, switched on by EXPO_PUBLIC_SENTRY_DSN.
@@ -50,9 +51,17 @@ function sentryEnvironment(): string {
   return process.env.EXPO_PUBLIC_SENTRY_ENVIRONMENT || 'production';
 }
 
-/** Call once at startup, before the app registers. */
-export function installMonitoring(): void {
-  if (ENABLED) {
+/**
+ * Whether Sentry is running right now. On phones that is simply ENABLED. On the website it also needs the
+ * person's OK (lib/consent.ts): nothing is initialised and nothing is sent until they accept.
+ */
+let active = false;
+const IS_WEB = Platform.OS === 'web';
+
+function initSentry(): void {
+  if (!ENABLED || active) return;
+  {
+    active = true;
     Sentry.init({
       dsn: DSN,
       environment: sentryEnvironment(),
@@ -85,10 +94,47 @@ export function installMonitoring(): void {
     });
     Sentry.setTag('os', Platform.OS);
   }
+}
+
+/** Website only: the person said yes to crash reports, so start Sentry now (no-op if already on). */
+export function enableOptionalMonitoring(): void {
+  if (!IS_WEB) return;
+  try {
+    initSentry();
+  } catch {
+    active = false;
+  }
+}
+
+/** Website only: the person turned crash reports off, so stop Sentry and stop sending. */
+export function disableOptionalMonitoring(): void {
+  if (!IS_WEB || !active) return;
+  active = false;
+  try {
+    void Sentry.close();
+  } catch {
+    /* best effort */
+  }
+}
+
+/** Whether a bug report can be sent right now (a release build with Sentry on, and on the web, the OK given). */
+export function bugReportsOn(): boolean {
+  return ENABLED && (!IS_WEB || active);
+}
+
+/** Call once at startup, before the app registers. */
+export function installMonitoring(): void {
+  if (!IS_WEB || analyticsAllowed()) initSentry();
+  if (IS_WEB) {
+    subscribeConsent((c) => {
+      if (c?.analytics) enableOptionalMonitoring();
+      else disableOptionalMonitoring();
+    });
+  }
 
   setErrorReporter((err, context) => {
     if (__DEV__) console.warn(`[error${context ? `:${context}` : ''}]`, err);
-    if (!ENABLED) return;
+    if (!active) return;
     if (context === 'api') {
       reportApiFailure(err as RawError);
       return;
@@ -133,7 +179,7 @@ function reportApiFailure(err: RawError): void {
 
 /** Who is signed in, by id only: never a phone number, email or name. Call with null on sign-out. */
 export function setMonitoringUser(id: string | null): void {
-  if (!ENABLED) return;
+  if (!active) return;
   try {
     Sentry.setUser(id ? { id } : null);
   } catch {
@@ -145,7 +191,7 @@ type Attributes = Record<string, string | number | boolean | null | undefined>;
 
 function write(level: 'info' | 'warn' | 'error', message: string, attributes?: Attributes): void {
   if (__DEV__) console[level === 'info' ? 'log' : level](`[${level}] ${message}`, attributes ?? '');
-  if (!ENABLED) return;
+  if (!active) return;
   try {
     const clean: Record<string, string | number | boolean> = {};
     for (const [k, v] of Object.entries(attributes ?? {})) if (v !== null && v !== undefined) clean[k] = v;
@@ -183,7 +229,7 @@ export const log = {
  *   count('payment.link_opened', { purpose: 'escrow' });
  */
 export function count(name: string, attributes?: Record<string, string | number | boolean>): void {
-  if (!ENABLED) return;
+  if (!active) return;
   try {
     Sentry.metrics.count(name, 1, attributes ? { attributes } : undefined);
   } catch {
@@ -193,7 +239,7 @@ export function count(name: string, attributes?: Record<string, string | number 
 
 /** Open Sentry's "report a bug" form (the person's note, optionally a screenshot). */
 export function showBugReport(): void {
-  if (!ENABLED) return;
+  if (!active) return;
   try {
     Sentry.showFeedbackWidget();
   } catch {
