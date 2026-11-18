@@ -139,7 +139,11 @@ and makes Wallet use the same left list for "Balance / Activity / Withdraw".
   `npm run web` on port 8081. Note: at 1440 the zoom is 1.13, so the app lays out in 1274 design px.
 - **Pictures**: before and after at 1440 x 900, light and dark, Hire (jade) and Earn (blue) where it matters, saved in
   `docs/design/desktop-web/before/` and `after/` with names like `1440-worker-setup-earn-light.png`, and put in the PR.
-- **Phone unchanged**: package 0 adds a screenshot test at 390 x 844 and 820 x 1180 for the screens touched. Each
+- **Phone unchanged**: package 0 (merged) added `e2e/desktopWeb.spec.ts`: 28 screenshots at 390 x 844 and 820 x 1180.
+  Run it after `npm run web:export`: `E2E_PORT=8104 npx playwright test --project=web-phone-same` (add `--no-deps` to
+  reuse the saved sign-in in `e2e/.auth`). It answers the app from `e2e/fixtures/desktop-web-api.json`, so it needs no
+  fresh data; pictures at 1440 x 900 come from `--project=web-desktop-1440` (`DESKTOP_PICS_DIR=docs/design/desktop-web/after`).
+  It is skipped in CI (Linux fonts differ) unless `DESKTOP_GUARD=1`. Each
   package runs it with no update; any pixel difference is a bug, not a new baseline. `npm run check` green.
 - **No native files touched**: `git diff --name-only origin/redesigned-2.0...HEAD` shows no `.native.tsx`, nothing
   under `apps/mobile/src/app/`, no `app.json` or `eas.json`.

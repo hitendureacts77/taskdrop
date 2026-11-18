@@ -3,6 +3,7 @@ import { useSignOutMessage } from '../lib/useSignOutMessage';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
+import { ConsentSetting } from '../components/ConsentBanner';
 import { BlockedPeopleCard } from '../components/BlockedPeopleCard';
 import { PeopleMapCard } from '../components/PeopleMapCard';
 import { Badge, ConfirmDialog, Field, PrimaryButton, SwipeTabs, TopBar, UnderlineTabs } from '../components/kit';
@@ -378,6 +379,7 @@ export function AccountScreen() {
                 ))}
               </View>
             </View>
+            <ConsentSetting style={card} />
             <View style={card}>
               <RNText style={tx('800', 15, t.colors.ink)}>Mode</RNText>
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
