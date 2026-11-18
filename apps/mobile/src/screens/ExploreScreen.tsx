@@ -44,7 +44,8 @@ import { useLivePlace } from '../lib/useLivePlace';
 import { LOCATION_DISMISSED_KEY, dismissedRecently, locationAskedThisLaunch, markLocationAsked, shouldAskForLocation } from '../lib/locationAsk';
 import { pickedPlaceName, roughPlace } from '../lib/place';
 import { useReducedMotion } from '../lib/motion';
-import { TABLET_CONTENT, useLayout } from '../lib/layout';
+import { CARD_MIN, TABLET_CONTENT, useLayout } from '../lib/layout';
+import { FILTER_WIDTH, ListPage, SegmentedTabs } from '../components/ListPage';
 import { DesktopPageHeader } from '../navigation/DesktopPage';
 
 /**
@@ -611,6 +612,14 @@ export function SearchBox({
 // ------------------------------------------------------------ worker side ---
 
 /**
+ * The desktop filter card's scroll area: it sticks while the page scrolls, so a panel taller than the window scrolls
+ * inside it (otherwise its Show button would sit below the fold). Ten px wider each side than the card's padding
+ * allows, with a thin scrollbar, so the Nearby / Remote switch does not cut "Remote" short.
+ */
+const filterScroll = (windowHeight: number) =>
+  ({ maxHeight: Math.max(320, windowHeight - 290), marginHorizontal: -10, scrollbarWidth: 'thin' }) as unknown as ViewStyle;
+
+/**
  * Find work, the list (plan D27, task 1.17): the same filters as the map (lib/jobFiltersStore), around the same
  * place, so both show the same jobs. Several filters at once; no category (owner, 11 Nov).
  */
@@ -642,6 +651,7 @@ function FindWork({
   // "could not load", not "no tasks match".
   const [failed, setFailed] = useState(false);
   const focusTick = useFocusTick();
+  const { desktop, contentWidth, height } = useLayout();
   // Tell the screen what is searched, so the map view shows the same jobs.
   useEffect(() => onFilter({ query }), [query]); // eslint-disable-line react-hooks/exhaustive-deps
   const searchRef = useRef<TextInputInstance>(null);
@@ -773,50 +783,205 @@ function FindWork({
   // Tasks this worker already sent an offer on: their button says Edit offer.
   const offers = useMyOffers(userId, (shown ?? []).map((r) => r.id), !guest);
 
+  // The pieces both layouts draw: the phone and tablet in one scrolling list (as ever), the desktop on a ListPage
+  // (filter column on the left, toolbar and grid on the right; docs/design/desktop-web/PLAN.md, 4.2 c).
+  const card = (task: TaskWithPoster, i: number) => (
+    <WorkCard
+      key={task.id}
+      task={task}
+      index={i}
+      saved={saved.has(task.id)}
+      quoted={offers.has(task.id)}
+      onOpen={() => open(task)}
+      onApply={() => setBidTask(task)}
+      onToggleSave={() => void toggleSave(task.id)}
+    />
+  );
+  const titleRow = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: desktop ? 4 : 10 }}>
+      <View style={{ flex: 1 }}>
+        {/* On a desktop the page header already says "Find work". */}
+        {desktop ? null : <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Find work</RNText>}
+        <RNText style={tx('500', 13, t.colors.muted, { marginTop: desktop ? 0 : 2 })} numberOfLines={1}>Every open job, near you and online</RNText>
+      </View>
+      <ViewSwitch onMap={onMap} />
+    </View>
+  );
+  const searchBox = (
+    <SearchBox
+      value={q}
+      onChange={setQ}
+      onSubmit={() => {
+        setQuery(q.trim());
+        if (q.trim()) noteFirstAction();
+      }}
+      inputRef={searchRef}
+      placeholder="E.g. data entry, logo design, home tutoring…"
+      voice={voice}
+      tone="purple"
+    />
+  );
+  const countText =
+    shown === null
+      ? 'Loading…'
+      : at
+        ? // The same words and numbers as the map and the card above (B170).
+          `${jobsSummary(shown.filter((j) => j.loc_lat != null).length, shown.filter((j) => j.loc_lat == null).length, filters.km, filters.work, caps)}${filters.work !== 'remote' ? ` · ${place.label.split(',')[0]}` : ''}${query ? ` for “${query}”` : ''}`
+        : `${shown.length}${caps.near ? '+' : ''} ${filters.work === 'remote' ? 'remote ' : ''}${shown.length === 1 && !caps.near ? 'job' : 'jobs'}${query ? ` for “${query}”` : ''}`;
+  const clearAllButton =
+    narrowed || query !== '' ? (
+      <Pressable onPress={clearAll} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear all filters">
+        <RNText style={tx('700', 12, t.colors.purpleDeep)}>Clear all</RNText>
+      </Pressable>
+    ) : null;
+  const areaNote =
+    filters.work === 'local' && !at ? (
+      <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6 })}>
+        Set your area on the map to see jobs within {filters.km} km.
+      </RNText>
+    ) : null;
+  const loadingCards = [0, 1, 2].map((i) => <Shimmer key={i} height={120} style={{ marginTop: 12 }} />);
+  const noResults =
+    shown === null || shown.length > 0 ? null : failed ? (
+      <LoadFailed onRetry={() => void refresh()} />
+    ) : (
+      <View style={{ gap: 12 }}>
+        <EmptyState
+          icon="compass"
+          title={query ? `No tasks match “${query}”` : 'No tasks match these filters'}
+          body={narrowed ? 'One tap loosens a filter:' : 'Try searching for something broader.'}
+          actionLabel="Clear filters"
+          onAction={clearAll}
+        />
+        {narrowed ? <DropFilters filters={filters} count={countFor} onChange={setJobFilters} /> : null}
+      </View>
+    );
+  const busyNow = (
+    <TrendingSection
+      onCategory={(c) => {
+        // No category filter (owner, 11 Nov): a busy category becomes the search.
+        setQ(c);
+        setQuery(c);
+        setTab(0);
+      }}
+    />
+  );
+  const sheets = (
+    <>
+      <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void refresh()} />
+      <BottomSheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters">
+        <FiltersPanel
+          initial={filters}
+          jobs
+          place={{ ...place, onChange: () => (setFiltersOpen(false), place.onChange()), onUseMine: () => (setFiltersOpen(false), place.onUseMine()) }}
+          count={countFor}
+          words={{ one: 'job', many: 'jobs' }}
+          onApply={applyFilters}
+        />
+      </BottomSheet>
+    </>
+  );
+
+  if (desktop) {
+    // Cards that fit beside the 240 filter column: two on a laptop, three on a big monitor.
+    const mainWidth = contentWidth('feed') - 40 - FILTER_WIDTH - 24;
+    const columns = Math.min(3, Math.max(2, Math.floor((mainWidth + 14) / (CARD_MIN + 14))));
+    const deskTabs = ['jobs', 'busy', 'how'] as const;
+    return (
+      <Screen padded={false}>
+        <ExploreHeader />
+        {titleRow}
+        <ListPage
+          scrollProps={{ contentContainerStyle: { paddingTop: 8, paddingBottom: 28, paddingHorizontal: 20 } }}
+          filters={
+            tab === 0 ? (
+              <ScrollView style={filterScroll(height)} keyboardShouldPersistTaps="handled">
+                <FiltersPanel
+                  initial={filters}
+                  jobs
+                  place={place}
+                  count={countFor}
+                  words={{ one: 'job', many: 'jobs' }}
+                  onApply={applyFilters}
+                />
+              </ScrollView>
+            ) : undefined
+          }
+          toolbar={{
+            left: (
+              <SegmentedTabs
+                tabs={[
+                  { key: 'jobs', label: 'Jobs' },
+                  { key: 'busy', label: 'Busy now' },
+                  { key: 'how', label: 'How it works' },
+                ]}
+                value={deskTabs[tab] ?? 'jobs'}
+                onChange={(k) => setTab(deskTabs.indexOf(k))}
+              />
+            ),
+            right:
+              tab === 0 ? (
+                <>
+                  <RNText style={tx('700', 13, t.colors.ink)} numberOfLines={2}>{countText}</RNText>
+                  {clearAllButton}
+                </>
+              ) : undefined,
+          }}
+        >
+          <View style={{ marginHorizontal: -20, marginBottom: 14 }}>{searchBox}</View>
+          <JobsNearHero onOpenMap={onMap} />
+          <View style={{ paddingTop: 16 }}>
+            {tab === 2 ? (
+              <HowItWorks side="earn" />
+            ) : tab === 1 ? (
+              busyNow
+            ) : (
+              <>
+                {changedFilters(filters) > 0 ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <JobChips filters={filters} onChange={setJobFilters} />
+                  </View>
+                ) : null}
+                {areaNote}
+                {shown === null ? (
+                  loadingCards
+                ) : (
+                  noResults ?? (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -7 }}>
+                      {shown.map((task, i) => (
+                        <View key={task.id} style={{ width: `${100 / columns}%`, paddingHorizontal: 7 }}>
+                          {card(task, i)}
+                        </View>
+                      ))}
+                    </View>
+                  )
+                )}
+              </>
+            )}
+          </View>
+        </ListPage>
+        {sheets}
+      </Screen>
+    );
+  }
+
   return (
     <ScreenList
       above={<ExploreHeader />}
       tint={t.colors.purple}
       data={tab === 0 && shown ? shown : []}
       keyExtractor={(task) => task.id}
-      renderItem={({ item: task, index: i }) => (
-        <WorkCard
-          task={task}
-          index={i}
-          saved={saved.has(task.id)}
-          quoted={offers.has(task.id)}
-          onOpen={() => open(task)}
-          onApply={() => setBidTask(task)}
-          onToggleSave={() => void toggleSave(task.id)}
-        />
-      )}
+      renderItem={({ item: task, index: i }) => card(task, i)}
       onRefresh={() => void refresh()}
       refreshing={refreshing}
       header={
         <>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 10 }}>
-          <View style={{ flex: 1 }}>
-            <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Find work</RNText>
-            <RNText style={tx('500', 13, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>Every open job, near you and online</RNText>
-          </View>
-          <ViewSwitch onMap={onMap} />
-        </View>
+        {titleRow}
         {/* The hero: a short map strip of open jobs round the area you chose. */}
         <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>
           <JobsNearHero onOpenMap={onMap} />
         </View>
-        <SearchBox
-          value={q}
-          onChange={setQ}
-          onSubmit={() => {
-            setQuery(q.trim());
-            if (q.trim()) noteFirstAction();
-          }}
-          inputRef={searchRef}
-          placeholder="E.g. data entry, logo design, home tutoring…"
-          voice={voice}
-          tone="purple"
-        />
+        {searchBox}
         <View style={{ marginTop: 16 }}>
           <UnderlineTabs tabs={['Jobs', 'Busy now', 'How it works']} active={tab} onPick={setTab} />
         </View>
@@ -824,14 +989,7 @@ function FindWork({
           {tab === 2 ? (
             <HowItWorks side="earn" />
           ) : tab === 1 ? (
-            <TrendingSection
-              onCategory={(c) => {
-                // No category filter (owner, 11 Nov): a busy category becomes the search.
-                setQ(c);
-                setQuery(c);
-                setTab(0);
-              }}
-            />
+            busyNow
           ) : (
             <>
               {/* The same filters as the map: Nearby or remote, then one row of what is set, each with an x. */}
@@ -844,58 +1002,20 @@ function FindWork({
 
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 }}>
                 <RNText style={tx('700', 13, t.colors.ink, { flex: 1 })} numberOfLines={2}>
-                  {shown === null
-                    ? 'Loading…'
-                    : at
-                      ? // The same words and numbers as the map and the card above (B170).
-                        `${jobsSummary(shown.filter((j) => j.loc_lat != null).length, shown.filter((j) => j.loc_lat == null).length, filters.km, filters.work, caps)}${filters.work !== 'remote' ? ` · ${place.label.split(',')[0]}` : ''}${query ? ` for “${query}”` : ''}`
-                      : `${shown.length}${caps.near ? '+' : ''} ${filters.work === 'remote' ? 'remote ' : ''}${shown.length === 1 && !caps.near ? 'job' : 'jobs'}${query ? ` for “${query}”` : ''}`}
+                  {countText}
                 </RNText>
-                {narrowed || query !== '' ? (
-                  <Pressable onPress={clearAll} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear all filters">
-                    <RNText style={tx('700', 12, t.colors.purpleDeep)}>Clear all</RNText>
-                  </Pressable>
-                ) : null}
+                {clearAllButton}
               </View>
-              {filters.work === 'local' && !at ? (
-                <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6 })}>
-                  Set your area on the map to see jobs within {filters.km} km.
-                </RNText>
-              ) : null}
+              {areaNote}
 
-              {shown === null ? (
-                [0, 1, 2].map((i) => <Shimmer key={i} height={120} style={{ marginTop: 12 }} />)
-              ) : shown.length === 0 && failed ? (
-                <LoadFailed onRetry={() => void refresh()} />
-              ) : shown.length === 0 ? (
-                <View style={{ gap: 12 }}>
-                  <EmptyState
-                    icon="compass"
-                    title={query ? `No tasks match “${query}”` : 'No tasks match these filters'}
-                    body={narrowed ? 'One tap loosens a filter:' : 'Try searching for something broader.'}
-                    actionLabel="Clear filters"
-                    onAction={clearAll}
-                  />
-                  {narrowed ? <DropFilters filters={filters} count={countFor} onChange={setJobFilters} /> : null}
-                </View>
-              ) : null}
+              {shown === null ? loadingCards : noResults}
             </>
           )}
         </View>
         </>
       }
     >
-      <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void refresh()} />
-      <BottomSheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters">
-        <FiltersPanel
-          initial={filters}
-          jobs
-          place={{ ...place, onChange: () => (setFiltersOpen(false), place.onChange()), onUseMine: () => (setFiltersOpen(false), place.onUseMine()) }}
-          count={countFor}
-          words={{ one: 'job', many: 'jobs' }}
-          onApply={applyFilters}
-        />
-      </BottomSheet>
+      {sheets}
     </ScreenList>
   );
 }
