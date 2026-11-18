@@ -22,11 +22,13 @@ import {
   deleteMyAccount,
   endMySessions,
   type DeletionBlocker,
-  setPassword,
+  changePassword,
+  PasswordChangeError,
   updateProfileExtras,
   usernameAvailable,
   verificationState,
 } from '../data/extras';
+import { PASSWORD_MIN, passwordProblem, passwordStrength } from '../lib/passwordRules';
 
 // Fees live on their own page (Help & support → How fees work), not in settings.
 const TABS = ['You', 'Sign-in', 'App'];
@@ -58,9 +60,12 @@ export function AccountScreen() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
+  const [pwCur, setPwCur] = useState('');
+  // The server asked for the current password (H30), or the account already has one.
+  const [needCurrent, setNeedCurrent] = useState(false);
   const [savingPw, setSavingPw] = useState(false);
   const [linking, setLinking] = useState(false);
-  const [verify, setVerify] = useState<{ phone: boolean; email: boolean; google: boolean } | null>(null);
+  const [verify, setVerify] = useState<{ phone: boolean; email: boolean; google: boolean; hasPassword: boolean } | null>(null);
   // Account deletion: checked first, so what is in the way shows on the card.
   const [checkingDelete, setCheckingDelete] = useState(false);
   const [blockers, setBlockers] = useState<DeletionBlocker[] | null>(null);
@@ -75,7 +80,10 @@ export function AccountScreen() {
       setName(p?.display_name ?? '');
       setUsername(p?.username ?? '');
     });
-    void verificationState().then(setVerify);
+    void verificationState().then((v) => {
+      setVerify(v);
+      if (v.hasPassword) setNeedCurrent(true);
+    });
   }, [userId]);
 
   // Check the handle as it is typed, debounced.
@@ -133,17 +141,21 @@ export function AccountScreen() {
   const savePassword = async () => {
     if (!profile?.username) return flash('Pick a username first — it is what you sign in with');
     if (pw !== pw2) return flash('The two passwords do not match');
+    if (needCurrent && !pwCur) return flash('Enter your current password');
     setSavingPw(true);
     try {
-      await setPassword(pw);
+      await changePassword(pw, needCurrent ? pwCur : undefined);
       setPw('');
       setPw2('');
+      setPwCur('');
+      setNeedCurrent(true);
       // A new password should end every other sign-in: a phone that was lost or borrowed stops working.
       // This device stays signed in. If the server cannot be reached the password is still set; say so.
       const others = await endMySessions(false).then(() => true, () => false);
       celebrate(others ? 'Password set. Other devices were signed out' : 'Password set');
       if (!others) flash('Your other devices could not be signed out just now. Use “Sign out of all devices” below to do it.');
     } catch (e) {
+      if (e instanceof PasswordChangeError && e.needCurrent) setNeedCurrent(true);
       flash(e instanceof Error ? e.message : 'Could not set the password');
     } finally {
       setSavingPw(false);
@@ -233,7 +245,29 @@ export function AccountScreen() {
                   ? `Set a password to sign in as @${profile.username} without an SMS code.`
                   : 'Pick a username on the You tab first — you sign in with it.'}
               </RNText>
-              <Field label="New password" value={pw} onChangeText={setPw} secureTextEntry style={{ marginTop: 14 }} autoCapitalize="none" />
+              {needCurrent ? (
+                <Field
+                  label="Current password"
+                  value={pwCur}
+                  onChangeText={setPwCur}
+                  secureTextEntry
+                  style={{ marginTop: 14 }}
+                  autoCapitalize="none"
+                  autoComplete="current-password"
+                  hint="Forgot it? Sign out, sign in with your mobile number, then set a new one here within 15 minutes."
+                />
+              ) : null}
+              <Field
+                label="New password"
+                value={pw}
+                onChangeText={setPw}
+                secureTextEntry
+                style={{ marginTop: 14 }}
+                autoCapitalize="none"
+                autoComplete="new-password"
+                error={pw ? passwordProblem(pw, profile?.username) : null}
+                hint={pw ? `Strength: ${passwordStrength(pw, profile?.username).label}` : `At least ${PASSWORD_MIN} characters. A few unrelated words work well.`}
+              />
               <Field
                 label="Confirm password"
                 value={pw2}
@@ -242,13 +276,12 @@ export function AccountScreen() {
                 style={{ marginTop: 14 }}
                 autoCapitalize="none"
                 error={pw2 && pw !== pw2 ? 'Does not match' : null}
-                hint="At least 8 characters."
               />
               <PrimaryButton
-                label="Set password"
+                label={needCurrent ? 'Change password' : 'Set password'}
                 onPress={() => void savePassword()}
                 busy={savingPw}
-                disabled={!profile?.username || pw.length < 8 || pw !== pw2}
+                disabled={!profile?.username || passwordProblem(pw, profile?.username) !== null || pw !== pw2 || (needCurrent && !pwCur)}
                 style={{ marginTop: 16 }}
               />
             </View>
