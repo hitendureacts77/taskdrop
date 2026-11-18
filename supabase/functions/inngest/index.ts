@@ -12,6 +12,7 @@ import { secret } from "../_shared/secrets.ts";
 import {
   ALERT_EVENTS,
   alertFor,
+  personIdFor,
   safeData,
   call,
   chunk,
@@ -139,7 +140,15 @@ const outboxPrune = inngest.createFunction(
 const teamAlert = inngest.createFunction(
   { id: "team-alert", triggers: ALERT_EVENTS.map((event) => ({ event })), onFailure: reportFailure("team-alert") },
   async ({ event, step }) => {
-    const alert = alertFor(event.name, event.data ?? {});
+    const data = event.data ?? {};
+    const personId = personIdFor(event.name, data);
+    const who = personId
+      ? await step.run("look up name", async () => {
+          const { data: p } = await db.from("profiles").select("display_name").eq("id", personId).maybeSingle();
+          return (p?.display_name as string | null) ?? null;
+        })
+      : null;
+    const alert = alertFor(event.name, data, who ?? undefined);
     if (!alert) return { skipped: true };
     const id = await step.run("save alert", () => saveAlert(rpc, alert, safeData(event.data ?? {})));
     return { alert: id };

@@ -3,6 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { background, captureSecurityEvent, captureServerError, guarded, logServer } from "../_shared/monitoring.ts";
 import { signInRefusal } from "../_shared/signInSwitches.ts";
 import { secretKey, signInKey } from "../_shared/forwardedFor.ts";
+import { freshNonPasswordSignIn, passwordProblem, tokenAmr } from "../_shared/passwordRules.ts";
 
 /**
  * Username + password sign-in.
@@ -22,6 +23,16 @@ import { secretKey, signInKey } from "../_shared/forwardedFor.ts";
  * owner is notified when their username locks (record_password_attempt).
  *
  * Public endpoint (verify_jwt = false): signing in cannot require a session.
+ *
+ * Setting or changing the password (hole H30, OWASP ASVS 2.1.1, 2.1.6, 2.1.8, 2.2.3) is
+ * `{ action: "change", new_password, current_password? }` with the person's session in
+ * Authorization. The new password must pass passwordRules.ts (12 characters and more). Once
+ * the person has a password of their own, the current one is needed, unless they signed in
+ * by text code or Google in the last 15 minutes: that is the forgotten-password path. Wrong
+ * current passwords count towards the same lock as sign-in. After a change the person gets a
+ * security notice. Supabase's own "require current password" setting is on as well, so the
+ * app cannot skip this door by calling updateUser itself (accounts made by phone code hold a
+ * random password nobody knows; this function changes it with the service key).
  */
 
 const CORS = {
@@ -50,6 +61,8 @@ Deno.serve(guarded("password-auth", async (req: Request) => {
   } catch {
     return json({ error: "Bad request" }, 400);
   }
+
+  if (body.action === "change") return await changePassword(req, body);
 
   const username = String(body.username ?? "").trim().replace(/^@/, "").toLowerCase();
   const password = String(body.password ?? "");
@@ -152,3 +165,111 @@ Deno.serve(guarded("password-auth", async (req: Request) => {
     refresh_token: signedIn.session.refresh_token,
   });
 }));
+
+/** The caller's address, read the same way as for sign-in (see above). */
+function callerIp(req: Request): string | null {
+  return (
+    (req.headers.get("cf-connecting-ip") ?? "").trim() ||
+    (req.headers.get("x-forwarded-for") ?? "").split(",")[0]?.trim() ||
+    null
+  );
+}
+
+/** Set or change the signed-in person's password (H30). See the header comment for the rules. */
+async function changePassword(req: Request, body: Record<string, unknown>): Promise<Response> {
+  const jwt = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  if (!jwt) return json({ error: "Sign in first." }, 401);
+
+  const url = Deno.env.get("SUPABASE_URL")!;
+  const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+    auth: { persistSession: false },
+  });
+  const refused = await signInRefusal(admin, req.headers, "password");
+  if (refused) return json({ error: refused, switchedOff: true }, 403);
+
+  const { data: got, error: userErr } = await admin.auth.getUser(jwt);
+  const user = got?.user;
+  if (userErr || !user?.email) return json({ error: "Sign in again, then try once more." }, 401);
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("username, deleted_at")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (!profile || profile.deleted_at) return json({ error: "Sign in again, then try once more." }, 401);
+  const username = String(profile.username ?? "");
+  if (!username) return json({ error: "Pick a username first. It is what you sign in with." }, 400);
+
+  const next = String(body.new_password ?? "");
+  const current = String(body.current_password ?? "");
+  const problem = passwordProblem(next, username);
+  if (problem) return json({ error: problem }, 400);
+
+  // Does the person already have a password of their own? Accounts made by text code hold a random one
+  // nobody knows. password_set_at is written below; accounts that set a password before it existed are
+  // found by a successful password sign-in.
+  const meta = (user.app_metadata ?? {}) as Record<string, unknown>;
+  let hasOwn = typeof meta.password_set_at === "string";
+  if (!hasOwn) {
+    const { data: ok } = await admin
+      .from("password_attempts")
+      .select("ok")
+      .eq("username", username)
+      .eq("ok", true)
+      .limit(1);
+    hasOwn = Boolean(ok?.length);
+  }
+
+  const ip = callerIp(req);
+  const fresh = freshNonPasswordSignIn(tokenAmr(jwt), Math.floor(Date.now() / 1000));
+  if (hasOwn && !fresh) {
+    if (!current) {
+      return json({ error: "Enter your current password.", needCurrent: true }, 400);
+    }
+    // The same lock as sign-in: someone with an open session cannot guess the old password for ever.
+    const { data: waitMin, error: gateErr } = await admin.rpc("password_sign_in_gate", { p_username: username, p_ip: ip });
+    if (gateErr) {
+      background(captureServerError(new Error(gateErr.message), { fn: "password-auth", step: "change_gate" }));
+      return json({ error: "Busy. Try again in a minute." }, 503);
+    }
+    if (typeof waitMin === "number" && waitMin > 0) {
+      return json({
+        error: "Too many wrong passwords. Sign in again with your mobile number, then set a new password within 15 minutes.",
+        needCurrent: true,
+      }, 429);
+    }
+    const { key, headers } = signInKey(ip, secretKey(Deno.env.get("SUPABASE_SECRET_KEYS")), Deno.env.get("SUPABASE_ANON_KEY")!);
+    const signer = createClient(url, key, { auth: { persistSession: false }, global: { headers } });
+    const { data: proof, error: proofErr } = await signer.auth.signInWithPassword({ email: user.email, password: current });
+    if (proofErr?.status === 429) return json({ error: "Too many tries. Please wait a minute and try again." }, 429);
+    if (proofErr || !proof.session) {
+      background(captureSecurityEvent("refused_login", "password-auth"));
+      await admin.rpc("record_password_attempt", { p_username: username, p_ip: ip, p_ok: false }).then(() => {}, () => {});
+      return json({ error: "That is not your current password.", needCurrent: true }, 401);
+    }
+    // The check made a session of its own; end it so it is not left signed in somewhere.
+    background(admin.auth.admin.signOut(proof.session.access_token, "local").then(() => {}, () => {}));
+    if (current === next) return json({ error: "Choose a password different from the current one." }, 400);
+  }
+
+  const { error: updErr } = await admin.auth.admin.updateUserById(user.id, {
+    password: next,
+    app_metadata: { ...meta, password_set_at: new Date().toISOString() },
+  });
+  if (updErr) {
+    if (updErr.code === "weak_password") return json({ error: "Choose a stronger password." }, 400);
+    background(captureServerError(new Error(updErr.message), { fn: "password-auth", step: "change_update" }));
+    return json({ error: "Could not set the password. Try again." }, 500);
+  }
+
+  // ASVS 2.2.3: tell the person. The plain line suits a locked screen (decision 26).
+  const { error: noteErr } = await admin.from("notifications").insert({
+    user_id: user.id,
+    kind: "security",
+    title: hasOwn ? "Your password was changed" : "A password was set on your account",
+    body: "Not you? Sign in with your mobile number, set a new password and sign out of all devices.",
+  });
+  if (noteErr) background(logServer("error", "password-auth", "could not send the change notice", { error: noteErr.message }));
+  background(logServer("info", "password-auth", hasOwn ? "password changed" : "password set", { fresh }));
+  return json({ ok: true });
+}
