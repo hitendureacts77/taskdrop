@@ -83,11 +83,11 @@ security, and writes still cannot travel in a batch.
   than its endpoint is refused (`BAD_JSON`).
 - Scripts and e2e tests that post to `/functions/v1/api` keep working unchanged.
 
-## 5. Batching (kept, open for the owner)
+## 5. Batching (kept: owner decided 18 Nov 2026)
 
 Reads asked for in the same 10 ms still travel together to `/api/batch` (PR 67, measured Home 20 -> 5
-requests). Writes, and any read that goes out alone, use their own endpoint. If you want every read on its own
-endpoint too, it is one line (`Batcher` in `apps/mobile/src/lib/gateway.ts`); the cost is roughly 3-4x the requests
+requests). Writes, and any read that goes out alone, use their own endpoint. The owner chose to keep this on 18 Nov 2026. Should that change, putting every read on its own
+endpoint is one line (`Batcher` in `apps/mobile/src/lib/gateway.ts`); the cost is roughly 3-4x the requests
 on screen load against the per-minute read budget and the Edge Function invocation count.
 
 ## 6. Later, if wanted
