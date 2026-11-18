@@ -21,8 +21,9 @@ export function useConsent(): Consent | null {
 /**
  * Website only. A slim, non-modal bar on the first visit: storage keeps you signed in; crash reports
  * only with the person's OK. It never appears in the phone apps, and the screen behind stays usable.
- * On a phone-width window it sits above the bottom tab bar; on a tablet or desktop it is a compact
- * card at the bottom left, clear of the side menu.
+ * On a phone-width window it is a short bar flush with the bottom edge (over the tab bar until the person
+ * chooses, so it never covers a screen's main button); on a tablet or desktop it is a compact card at the
+ * bottom left, clear of the side menu.
  */
 export function ConsentBanner() {
   if (Platform.OS !== 'web') return null;
@@ -37,7 +38,7 @@ function Bar() {
   if (consent) return null;
 
   const wide = layout.desktop || layout.tablet;
-  const left = layout.desktop ? SIDEBAR_WIDTH + 16 : layout.tablet ? RAIL_WIDTH + 16 : 8;
+  const left = layout.desktop ? SIDEBAR_WIDTH + 16 : layout.tablet ? RAIL_WIDTH + 16 : 0;
   const button = (label: string, a11y: string, primary: boolean, onPress: () => void) => (
     <Pressable
       onPress={onPress}
@@ -68,18 +69,19 @@ function Bar() {
         style={[
           cardSurface(t, 14),
           {
-            padding: 14,
-            gap: 10,
+            padding: wide ? 14 : 12,
+            gap: wide ? 10 : 8,
             marginLeft: left,
-            marginBottom: wide ? 16 : 84,
-            marginRight: wide ? 0 : 8,
+            marginBottom: wide ? 16 : 0,
+            marginRight: 0,
+            ...(wide ? null : { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderBottomWidth: 0 }),
             alignSelf: wide ? 'flex-start' : 'stretch',
             maxWidth: wide ? 420 : undefined,
           },
         ]}
       >
         <RNText style={tx('400', 13, t.colors.text, { lineHeight: 19 })}>
-          We use your browser’s storage to keep you signed in. With your OK we also send crash reports so we can fix problems.
+          Your browser’s storage keeps you signed in. Crash reports, which help us fix problems, only with your OK.
         </RNText>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
           {button('Essential only', 'Essential only: no crash reports', false, () => writeConsent(false))}
