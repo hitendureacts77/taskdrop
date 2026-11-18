@@ -1,5 +1,6 @@
 {
   "buildCommand": "node scripts/vercel-build.mjs",
+  "regions": ["bom1"],
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
