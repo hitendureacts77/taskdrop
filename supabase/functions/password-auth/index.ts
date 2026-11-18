@@ -32,7 +32,8 @@ import { freshNonPasswordSignIn, passwordProblem, tokenAmr } from "../_shared/pa
  * current passwords count towards the same lock as sign-in. After a change the person gets a
  * security notice. Supabase's own "require current password" setting is on as well, so the
  * app cannot skip this door by calling updateUser itself (accounts made by phone code hold a
- * random password nobody knows; this function changes it with the service key).
+ * random password nobody knows; this function changes it with the service key). Supabase then
+ * ends every session, so the function signs the asking device back in and returns its new session.
  */
 
 const CORS = {
@@ -271,5 +272,17 @@ async function changePassword(req: Request, body: Record<string, unknown>): Prom
   });
   if (noteErr) background(logServer("error", "password-auth", "could not send the change notice", { error: noteErr.message }));
   background(logServer("info", "password-auth", hasOwn ? "password changed" : "password set", { fresh }));
-  return json({ ok: true });
+
+  // Supabase ends EVERY session when the service key changes a password, the device asking included.
+  // Sign this device straight back in with the new password and hand it the session, so only the
+  // other devices are signed out (as before H30). If that fails the password is still set: the app
+  // then asks the person to sign in again.
+  const { key: k2, headers: h2 } = signInKey(ip, secretKey(Deno.env.get("SUPABASE_SECRET_KEYS")), Deno.env.get("SUPABASE_ANON_KEY")!);
+  const again = createClient(url, k2, { auth: { persistSession: false }, global: { headers: h2 } });
+  const { data: back, error: backErr } = await again.auth.signInWithPassword({ email: user.email, password: next });
+  if (backErr || !back.session) {
+    background(logServer("warn", "password-auth", "could not sign the device back in after a change", { error: backErr?.message ?? "no session" }));
+    return json({ ok: true, signedOut: true });
+  }
+  return json({ ok: true, access_token: back.session.access_token, refresh_token: back.session.refresh_token });
 }

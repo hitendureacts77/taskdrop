@@ -35,14 +35,15 @@ export function DesktopPageFrame({
 }) {
   const [titleNode, setTitleNode] = useState<HTMLElement | null>(null);
   const [actionsNode, setActionsNode] = useState<HTMLElement | null>(null);
+  const [centerNode, setCenterNode] = useState<HTMLElement | null>(null);
   const [claims, setClaims] = useState(0);
   const claimTitle = useCallback(() => {
     setClaims((n) => n + 1);
     return () => setClaims((n) => n - 1);
   }, []);
   const hosts = useMemo<DesktopPageHosts>(
-    () => ({ title: titleNode, actions: actionsNode, claimTitle }),
-    [titleNode, actionsNode, claimTitle],
+    () => ({ title: titleNode, actions: actionsNode, center: centerNode, claimTitle }),
+    [titleNode, actionsNode, centerNode, claimTitle],
   );
   return (
     <DesktopPageHostsContext.Provider value={hosts}>
@@ -54,6 +55,7 @@ export function DesktopPageFrame({
           showDefaultTitle={claims === 0}
           titleRef={setTitleNode}
           actionsRef={setActionsNode}
+          centerRef={setCenterNode}
         />
       ) : null}
       {children}
@@ -80,11 +82,13 @@ export function DesktopPageHeader({
   showDefaultTitle = true,
   titleRef,
   actionsRef,
+  centerRef,
 }: {
   screen: string;
   showDefaultTitle?: boolean;
   titleRef?: (node: HTMLElement | null) => void;
   actionsRef?: (node: HTMLElement | null) => void;
+  centerRef?: (node: HTMLElement | null) => void;
 }) {
   const t = useTheme();
   const { mode } = useMode();
@@ -101,7 +105,7 @@ export function DesktopPageHeader({
         paddingVertical: 14,
       }}
     >
-      <View style={{ flex: 1, minWidth: 0 }}>
+      <View style={{ flexGrow: 1, flexShrink: 1, minWidth: 0 }}>
         {showDefaultTitle && name ? (
           <RNText accessibilityRole="header" style={tx('800', 26, t.colors.ink, { letterSpacing: -0.6 })} numberOfLines={1}>
             {name}
@@ -110,6 +114,9 @@ export function DesktopPageHeader({
         {/* react-native-web: a View's ref is its DOM element, which the portals draw into. */}
         <View ref={titleRef as never} />
       </View>
+      {/* The middle slot (a search bar on Home and Find work, D31 web boards). Empty, it only takes up the
+          free space, so the title stays left and the buttons right as before. */}
+      <View ref={centerRef as never} style={{ flexGrow: 2, flexShrink: 1, minWidth: 0, maxWidth: 560 }} />
       <View ref={actionsRef as never} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }} />
       <HeaderTools />
     </View>

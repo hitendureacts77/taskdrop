@@ -19,5 +19,12 @@
     "severity": "moderate",
     "reason": "Patched in uuid 11.1.1, but the old copies come from @expo/ngrok (uuid 3, used only for `expo start --tunnel`) and xcode (uuid 7, used by iOS config plugins during a build). They need the old uuid API, so forcing 11 could break those build tools and there is no Android or iOS build on this machine to prove it does not. The flaw only matters when a caller passes a buffer to v3, v5 or v6, which these tools do not. Re-check when Expo updates those packages.",
     "reviewBy": "2026-12-13"
+  },
+  {
+    "id": "GHSA-fc5q-39xc-vjpf",
+    "package": "picomatch",
+    "severity": "high",
+    "reason": "Published 18 Nov 2026 (ReDoS through single-branch repeated extglobs); every picomatch up to 4.0.7, the newest, is affected and no fixed version exists yet. Owner accepted on 18 Nov 2026. The copies (2.3.2 and 4.0.7) come only from build and test tools: @expo/cli, @expo/metro-config, metro-file-map, jest-worker, micromatch, tinyglobby and fdir. They match file paths from this repository on a developer or build machine, never text a user sends; picomatch is not in the web bundle (checked an export: 0 hits) or the phone app, and none of our code imports it. Drop this exception as soon as a fixed picomatch is published (npm update, then npm run audit:gate).",
+    "reviewBy": "2026-12-02"
   }
 ]
