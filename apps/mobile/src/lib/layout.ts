@@ -18,7 +18,7 @@ import { Platform, useWindowDimensions } from 'react-native';
 export const DESKTOP_MIN_WIDTH = 1024;
 /** From this browser width up (and below desktop), the tablet rail layout. */
 export const TABLET_MIN_WIDTH = 600;
-export const SIDEBAR_WIDTH = 264;
+export const SIDEBAR_WIDTH = 240;
 export const RAIL_WIDTH = 84;
 
 /** Content width on a tablet. */
