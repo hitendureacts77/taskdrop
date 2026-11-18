@@ -5,7 +5,7 @@ import { Icon } from '../components/Icon';
 import { KeyboardSafe } from '../components/KeyboardSafe';
 import { Badge, EmptyState, Field, LoadFailed, Pill, PrimaryButton, Shimmer, TopBar, timeAgo } from '../components/kit';
 import { FeedbackSheet } from '../components/FeedbackSheet';
-import { bugReportsAvailable, showBugReport } from '../lib/monitoring';
+import { bugReportsOn, showBugReport } from '../lib/monitoring';
 import { lengthHint } from '../lib/fieldHint';
 import { FadeIn, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
@@ -158,7 +158,7 @@ export function HelpScreen() {
         </View>
         <RNText style={tx('600', 16, t.colors.muted)}>›</RNText>
       </Pressable>
-      {bugReportsAvailable && (
+      {bugReportsOn() && (
         <Pressable
           onPress={showBugReport}
           accessibilityRole="button"

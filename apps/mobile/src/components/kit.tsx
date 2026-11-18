@@ -26,6 +26,7 @@ import { useKeyboardClearance } from '../lib/useKeyboardClearance';
 import { KeyboardScrollView, useReveal } from './KeyboardScrollView';
 import { ActionBarContext } from './FormPage';
 import { NativeHeader } from './NativeHeader';
+import { useDesktopHeaderPortal } from './pageHeader';
 import { LOOP_NATIVE, useReducedMotion } from '../lib/motion';
 
 /**
@@ -1045,7 +1046,11 @@ export function BackButton({
   right?: React.ReactNode;
   titleView?: React.ReactNode;
 }) {
+  // Desktop web: only the back link moves, into the page header; the screen keeps its own title (and its own
+  // right-hand control, which the web always drew in the page).
+  const desktopHeader = useDesktopHeaderPortal({ onBack });
   if (systemHeader) return <NativeHeader title={title} right={right} titleView={titleView} />;
+  if (desktopHeader !== undefined) return <>{desktopHeader}</>;
   return <IconButton icon="back" label="Back" onPress={onBack} />;
 }
 
@@ -1062,6 +1067,8 @@ export function TopBar({
   subtitle?: string;
 }) {
   const t = useTheme();
+  // Desktop web: the back link, title, subtitle and right-hand control go into the page header instead.
+  const desktopHeader = useDesktopHeaderPortal({ title, subtitle, onBack, right });
   // Phones: the system header carries the back arrow, title and right-hand control; only the subtitle stays in the page.
   if (Platform.OS !== 'web') {
     return (
@@ -1075,6 +1082,7 @@ export function TopBar({
       </>
     );
   }
+  if (desktopHeader !== undefined) return <>{desktopHeader}</>;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}>
       <IconButton icon="back" label="Back" onPress={onBack} />

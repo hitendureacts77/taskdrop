@@ -45,7 +45,7 @@ import { LOCATION_DISMISSED_KEY, dismissedRecently, locationAskedThisLaunch, mar
 import { pickedPlaceName, roughPlace } from '../lib/place';
 import { useReducedMotion } from '../lib/motion';
 import { TABLET_CONTENT, useLayout } from '../lib/layout';
-import { DesktopTopBar } from '../navigation/DesktopTopBar';
+import { DesktopPageHeader } from '../navigation/DesktopPage';
 
 /**
  * Explore -- the map of what is around you, with the old page one tap away.
@@ -272,11 +272,11 @@ export function ExploreScreen() {
 
 /**
  * The header of the list pages. The map fills the whole area beside the menu,
- * so the screen host draws no desktop bar here; the lists bring their own.
+ * so the screen host draws no page header here; the lists bring their own.
  */
 function ExploreHeader() {
   const { desktop } = useLayout();
-  return desktop ? <DesktopTopBar /> : <AppHeader />;
+  return desktop ? <DesktopPageHeader screen="explore" /> : <AppHeader />;
 }
 
 /** The list page, built once and then only hidden, fading in each time it is shown. */

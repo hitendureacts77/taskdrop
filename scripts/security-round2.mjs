@@ -200,9 +200,16 @@ async function signinTricks() {
 async function authLimits() {
   const { client } = await signIn('9990000002'); // seed_ravi
   const password = `T6-${crypto.randomUUID()}`;
-  const { error } = await client.auth.updateUser({ password });
-  if (error) {
-    bad('2.8b', 'could not set a test password', error.message);
+  // Passwords are set through password-auth since H30 (Supabase refuses a direct change without the current
+  // one). A text-code sign-in a moment ago is fresh, so no current password is needed.
+  const { data: sess } = await client.auth.getSession();
+  const set = await fetch(`${SUPABASE_URL}/functions/v1/password-auth`, {
+    method: 'POST',
+    headers: { ...headers, Authorization: `Bearer ${sess.session?.access_token ?? ''}` },
+    body: JSON.stringify({ action: 'change', new_password: password }),
+  }).then(async (r) => ({ ok: r.ok, body: await r.json().catch(() => ({})) }));
+  if (!set.ok) {
+    bad('2.8b', 'could not set a test password', set.body.error ?? 'refused');
     return;
   }
   const pw = (pass) =>
