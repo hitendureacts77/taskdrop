@@ -5,7 +5,7 @@ import { TaskQuestions } from '../components/TaskQuestions';
 import { Icon } from '../components/Icon';
 import { View, Text as RNText, Pressable, TextInput, Platform } from 'react-native';
 import { findContactIssue, maskContacts, offerIssueMessage } from '../lib/mask';
-import { Screen, Card, Button, formatINR } from '../components/ui';
+import { Screen, Card, Button, formatINR, cardSurface } from '../components/ui';
 import { AmountField } from '../components/AmountField';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -47,6 +47,7 @@ import { taskPageView } from '../lib/taskView';
 import { noteMyOffer } from '../lib/useMyOffers';
 import { useLayout } from '../lib/layout';
 import { TwoPane } from '../components/TwoPane';
+import { useDesktopHeaderPortal } from '../components/pageHeader';
 
 /**
  * Task detail — pixel parity with docs/design/_design_markup.html lines
@@ -464,6 +465,16 @@ function TaskDetailBody() {
     </View>
   );
 
+  // Desktop web (docs/design/desktop-web/PLAN.md, package 8): the task's title, the back link, Report and Share go
+  // into the page header, and the content sits on cards. `undefined` off a desktop (phone, tablet, apps): then
+  // nothing below changes.
+  const deskHeader = useDesktopHeaderPortal({ title: detail.title, onBack: back, right: actions });
+  const desk = deskHeader !== undefined;
+  // The header holds one line: a title too long for it stays in full in the first card as well.
+  const titleInPage = !desk || detail.title.length > 56;
+  const offerGap = desk ? { marginTop: 0, marginBottom: 0 } : { marginTop: t.spacing.xl, marginBottom: t.spacing.xl };
+  const deskCard = { ...cardSurface(t, 18), padding: 22 } as const;
+
   const headerRow = (
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <BackButton onBack={back} right={actions} />
@@ -481,9 +492,9 @@ function TaskDetailBody() {
             flexDirection: 'row',
             alignItems: 'center',
             gap: 13,
-            marginTop: 16,
-            paddingBottom: 15,
-            borderBottomWidth: 1,
+            marginTop: desk ? 0 : 16,
+            paddingBottom: desk ? 0 : 15,
+            borderBottomWidth: desk ? 0 : 1,
             borderBottomColor: t.colors.line,
           }}
         >
@@ -498,7 +509,7 @@ function TaskDetailBody() {
             }}
           >
             <RNText style={tx('800', 17, t.colors.onBtn)}>{(displayName || '?').trim().charAt(0).toUpperCase()}</RNText>
-            {other ? <AvatarPresence lastSeen={other.lastSeen} ring={t.colors.bg} /> : null}
+            {other ? <AvatarPresence lastSeen={other.lastSeen} ring={desk ? t.colors.surface : t.colors.bg} /> : null}
           </View>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
@@ -520,12 +531,14 @@ function TaskDetailBody() {
 
   const titleBlock = (
         <>
-        <RNText style={tx('700', 10, tagInk(t, detail.tag), { letterSpacing: 1.6, marginTop: 16 })}>
+        <RNText style={tx('700', 10, tagInk(t, detail.tag), { letterSpacing: 1.6, marginTop: desk ? 0 : 16 })}>
           {detail.category ? detail.category.toUpperCase() : detail.tag}
         </RNText>
-        <RNText style={tx('800', 25, t.colors.ink, { letterSpacing: -0.7, marginTop: 8, lineHeight: 30 })}>{detail.title}</RNText>
+        {titleInPage ? (
+          <RNText style={tx('800', 25, t.colors.ink, { letterSpacing: -0.7, marginTop: 8, lineHeight: 30 })}>{detail.title}</RNText>
+        ) : null}
         {body ? (
-          <View style={{ marginTop: 14 }}>
+          <View style={{ marginTop: titleInPage ? 14 : 10 }}>
             <TaskDescription text={body} title={detail.title} />
           </View>
         ) : null}
@@ -545,9 +558,9 @@ function TaskDetailBody() {
           style={{
             flexDirection: 'row',
             marginTop: split ? 0 : 18,
-            borderTopWidth: 1,
+            borderTopWidth: desk ? 0 : 1,
             borderTopColor: t.colors.line,
-            borderBottomWidth: 1,
+            borderBottomWidth: desk ? 0 : 1,
             borderBottomColor: t.colors.line,
           }}
         >
@@ -575,7 +588,7 @@ function TaskDetailBody() {
           </View>
         ) : null;
 
-  const detailBlock = (
+  const detailRowsBlock = (
         <>
         {detailRows.map((r) => (
           <View
@@ -596,22 +609,30 @@ function TaskDetailBody() {
         <RNText style={tx('400', 12, t.colors.muted, { lineHeight: 18, marginTop: 13 })}>
           Phone numbers stay hidden until the work starts.
         </RNText>
+        </>
+  );
 
-        {worker && realId && !verdict ? (
-          <TaskQuestions taskId={realId} role="ask" posterName={other?.name} style={{ marginTop: t.spacing.xl }} />
-        ) : null}
+  const questionsBlock =
+    worker && realId && !verdict ? (
+      <TaskQuestions taskId={realId} role="ask" posterName={other?.name} style={{ marginTop: desk ? 0 : t.spacing.xl }} />
+    ) : null;
+
+  const detailBlock = (
+        <>
+        {detailRowsBlock}
+        {questionsBlock}
         </>
   );
 
   const offerPanel = huntTask ? (
-          <View style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
+          <View style={offerGap}>
             <HuntFinderPanel task={huntTask} />
           </View>
         ) : worker && verdict ? (
           /* Say why instead of showing a price box that cannot be sent. The
              reasons — closed, already sent an offer — each leave the person
              somewhere different to go next. */
-          <Card style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
+          <Card style={offerGap}>
             <RNText style={tx('600', 13, t.colors.muted, { marginBottom: 8 })}>
               {verdict.code === 'duplicate' ? (myOffer?.is_locked ? 'OFFER ACCEPTED' : 'OFFER SENT') : 'CLOSED FOR OFFERS'}
             </RNText>
@@ -634,7 +655,7 @@ function TaskDetailBody() {
           </Card>
         ) : view.panel === 'switchToEarn' ? (
           /* Hire mode on someone's request: it is their ask, not a service. Offers are sent from Earn mode. */
-          <Card style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
+          <Card style={offerGap}>
             <RNText style={tx('700', 11, t.colors.muted, { marginBottom: 10, letterSpacing: 1.2 })}>
               {otherId && otherId === userId ? 'YOUR REQUEST' : 'SEND AN OFFER'}
             </RNText>
@@ -647,7 +668,7 @@ function TaskDetailBody() {
         ) : view.panel === 'sendTask' ? (
           /* Reverse direction: a customer looking at a worker's service. They do not "send an offer" to a
              listing; they post their own task and the worker gets the first 10 minutes to answer it. */
-          <Card style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
+          <Card style={offerGap}>
             <RNText style={tx('700', 11, t.colors.muted, { marginBottom: 10, letterSpacing: 1.2 })}>
               {otherId && otherId === userId ? 'YOUR SERVICE' : 'SEND THEM A TASK'}
             </RNText>
@@ -663,7 +684,7 @@ function TaskDetailBody() {
             )}
           </Card>
         ) : (
-        <Card style={{ marginTop: t.spacing.xl, marginBottom: t.spacing.xl }}>
+        <Card style={offerGap}>
           <RNText style={tx('700', 11, t.colors.muted, { marginBottom: 10, letterSpacing: 1.2 })}>
             {countering ? 'YOUR COUNTEROFFER' : 'YOUR OFFER'}
           </RNText>
@@ -826,6 +847,59 @@ function TaskDetailBody() {
       />
       </>
   );
+
+  // Desktop cards: the task (title card, details) on the left, the price, offer and poster on the right.
+  const deskLeft = (top: number) => (
+    <View style={{ paddingTop: top, gap: 16 }}>
+      <View style={deskCard}>
+        {titleBlock}
+        {optionsRow}
+      </View>
+      <View style={{ ...deskCard, paddingVertical: 8 }}>{detailRowsBlock}</View>
+      {questionsBlock}
+    </View>
+  );
+  const deskRight = (top: number) => (
+    <View style={{ paddingTop: top, gap: 16 }}>
+      <View style={{ ...deskCard, paddingVertical: 0 }}>{priceRow}</View>
+      {offerPanel}
+      <View style={{ ...deskCard, padding: 18 }}>{posterCard}</View>
+    </View>
+  );
+
+  if (split && desk) {
+    // Same two panes, with the page header holding the title and actions and every block on a card. Each pane
+    // scrolls on its own, so the offer card stays in view while the task scrolls.
+    return (
+      <Screen padded={false}>
+        <View style={{ flex: 1, paddingHorizontal: 20 }}>
+          <TwoPane
+            fixed="right"
+            width={Math.round(Math.min(440, Math.max(360, contentWidth('feed') * 0.3)))}
+            left={<FadeIn>{deskLeft(12)}</FadeIn>}
+            right={<FadeIn>{deskRight(12)}</FadeIn>}
+            single={null}
+          />
+        </View>
+        {sheets}
+        {deskHeader}
+      </Screen>
+    );
+  }
+
+  if (desk) {
+    // Desktop too narrow for two panes: one column of the same cards.
+    return (
+      <Screen scroll padded={false}>
+        <FadeIn style={{ paddingHorizontal: 20, gap: 16 }}>
+          {deskLeft(12)}
+          {deskRight(0)}
+        </FadeIn>
+        {sheets}
+        {deskHeader}
+      </Screen>
+    );
+  }
 
   if (split) {
     // Two panes on a wide desktop: the offer is in view without scrolling.
