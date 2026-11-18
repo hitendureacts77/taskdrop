@@ -13,6 +13,8 @@ export type DesktopPageHosts = {
   title: HTMLElement | null;
   /** The node the screen's own buttons are drawn into, left of the bell, messages and avatar. */
   actions: HTMLElement | null;
+  /** The wide middle of the header, between the title and the buttons (a search bar on Home and Find work). */
+  center: HTMLElement | null;
   /** Hide the header's default title while a screen draws its own; returns the release. */
   claimTitle: () => () => void;
 };
