@@ -23,6 +23,8 @@ export default defineConfig({
   fullyParallel: false,
   globalTeardown: "./e2e/global-teardown.ts",
   retries: process.env.CI ? 1 : 0,
+  // The look-only guard (desktopWeb.spec.ts) keeps its baselines next to the spec: one folder, no platform suffix.
+  snapshotPathTemplate: "{testDir}/{testFileName}-snapshots/{arg}{ext}",
   reporter: [["list"]],
   use: {
     baseURL: `http://localhost:${port}`,
@@ -39,12 +41,27 @@ export default defineConfig({
     {
       name: "web-desktop",
       testMatch: /.*\.spec\.ts/,
+      testIgnore: /desktopWeb\.spec\.ts/,
       dependencies: ["setup"],
       use: { viewport: { width: 1280, height: 900 } },
     },
     {
       name: "web-phone",
       testMatch: /ui\.spec\.ts/,
+      dependencies: ["setup"],
+      use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
+    },
+    // Desktop web package 0 (docs/design/desktop-web/PLAN.md): before pictures at 1440 x 900 ...
+    {
+      name: "web-desktop-1440",
+      testMatch: /desktopWeb\.spec\.ts/,
+      dependencies: ["setup"],
+      use: { viewport: { width: 1440, height: 900 } },
+    },
+    // ... and the guard that the phone (390 x 844) and tablet (820 x 1180) look never changes (zero pixels).
+    {
+      name: "web-phone-same",
+      testMatch: /desktopWeb\.spec\.ts/,
       dependencies: ["setup"],
       use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
     },
