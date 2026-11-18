@@ -12,6 +12,7 @@ import { StagingWelcome } from './src/components/StagingWelcome';
 import { AppSheet } from './src/components/AppSheet';
 import { TourHost } from './src/components/tour/TourHost';
 import { WebShell } from './src/components/WebShell';
+import { ConsentBanner } from './src/components/ConsentBanner';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { AppProviders, Background, ScreenBoundary, ThemedStatusBar } from './src/AppProviders';
 import { usesWorkerColours } from './src/lib/roleColours';
@@ -59,6 +60,9 @@ function Routes() {
           </ErrorBoundary>
         </KeyboardAvoidingView>
       </WebShell>
+      <ErrorBoundary silent>
+        <ConsentBanner />
+      </ErrorBoundary>
     </NavProvider>
     </RoleTheme>
   );
