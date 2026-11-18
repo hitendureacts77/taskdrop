@@ -84,7 +84,7 @@ function milestonesOf(v: unknown): Milestone[] {
 export function TaskManageScreen() {
   const fees = useFees();
   const t = useTheme();
-  const { twoPane } = useLayout();
+  const { twoPane, desktop } = useLayout();
   const { params, back, go } = useNav();
   const { flash, celebrate, setOpenTask, startedOf } = useApp();
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
@@ -148,11 +148,12 @@ export function TaskManageScreen() {
   if (detail === undefined) {
     return (
       <Screen padded={false}>
-        <TopBar title="Task" onBack={back} />
+        {/* Desktop: the title is the page header's, so the page does not repeat it. */}
+        <TopBar title={desktop && typeof params.title === 'string' && params.title ? params.title : 'Task'} onBack={back} />
         <View style={{ paddingHorizontal: 20, gap: 12 }}>
           {/* The row you tapped already told us the title: show it now rather than a grey box. */}
           {typeof params.title === 'string' && params.title ? (
-            <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.6 })}>{params.title}</RNText>
+            desktop ? null : <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.6 })}>{params.title}</RNText>
           ) : (
             <Shimmer height={60} />
           )}
@@ -444,11 +445,13 @@ export function TaskManageScreen() {
                 ? 'One worker has sent an offer. Select it now, or wait for more.'
                 : `${bids.length} workers have sent offers. Filter them, then select the one you want.`}
             </RNText>
+            {/* Desktop: the filters wrap inside the column instead of scrolling sideways (the last one was cut off). */}
             <ScrollView
-              horizontal
+              horizontal={!desktop}
+              scrollEnabled={!desktop}
               showsHorizontalScrollIndicator={false}
-              style={{ marginTop: 12, marginHorizontal: -20 }}
-              contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
+              style={{ marginTop: 12, marginHorizontal: desktop ? 0 : -20, flexGrow: 0 }}
+              contentContainerStyle={{ paddingHorizontal: desktop ? 0 : 20, gap: 8, ...(desktop ? { flexDirection: 'row', flexWrap: 'wrap' } : null) }}
             >
               {QUOTE_FILTERS.map((f) => {
                 const on = quoteFilter === f.key;
@@ -638,8 +641,21 @@ export function TaskManageScreen() {
       )}
 
       {primary && !hunting ? (
-        <View style={{ paddingHorizontal: 20, paddingBottom: 16, paddingTop: 6 }}>
-          <PrimaryButton label={primary.label} onPress={primary.onPress} disabled={row.act === 'compare' && bids.length === 0} />
+        <View
+          style={{
+            paddingHorizontal: 20,
+            paddingBottom: 16,
+            paddingTop: 6,
+            // Desktop: a button of its own width at the right, not one the width of the page.
+            ...(desktop ? { alignItems: 'flex-end', borderTopWidth: 1, borderTopColor: t.colors.line, marginHorizontal: 20, paddingHorizontal: 0, paddingTop: 14 } : null),
+          }}
+        >
+          <PrimaryButton
+            label={primary.label}
+            onPress={primary.onPress}
+            disabled={row.act === 'compare' && bids.length === 0}
+            style={desktop ? { minWidth: 260, paddingHorizontal: 32 } : undefined}
+          />
         </View>
       ) : null}
 
