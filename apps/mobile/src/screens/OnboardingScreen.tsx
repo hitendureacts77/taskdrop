@@ -26,7 +26,9 @@ import { nameCarriesContact } from '../lib/mask';
 import { imageSource, pickMedia, pickedFromFile, signedMediaUrl, uploadMedia, type PickedMedia } from '../lib/media';
 import { useFileDrop } from '../lib/useFileDrop';
 import { LANGUAGES, SKILL_OPTIONS } from './ProfileEditScreen';
-import { KeyboardScrollView } from '../components/KeyboardScrollView';
+import { ActionBar, ActionBarContext, FormPage } from '../components/FormPage';
+import { StepList } from '../components/StepList';
+import { useLayout } from '../lib/layout';
 
 const STEPS = ['Welcome', 'Username', 'Your intent', 'Why you earn', 'Skills', 'About you', 'Done'] as const;
 type Intent = 'post' | 'earn' | 'both';
@@ -45,6 +47,7 @@ const DONE = 6;
  */
 export function OnboardingScreen() {
   const t = useTheme();
+  const { desktop } = useLayout();
   const { reset, back, go, params } = useNav();
   const { setMode } = useMode();
   const { flash, celebrate } = useActions();
@@ -482,33 +485,60 @@ export function OnboardingScreen() {
     footer = <PrimaryButton label="Go to TaskDrop" busy={busy} onPress={() => void finish()} />;
   }
 
+  // Desktop: Back sits at the left of the action bar and the aside lists every step, so the phone's
+  // "Step n of N" row and bar are not drawn. The two earning steps are left out for someone who only posts.
+  const showBack = !quick && step > 0 && step < STEPS.length - 1;
+  const aside = quick ? undefined : (
+    <StepList
+      steps={STEPS.map((label, i) => ({ label, i }))
+        .filter(({ i }) => !skipped(i))
+        .map(({ label, i }) => ({ label, state: i < step ? 'done' : i === step ? 'current' : 'next' }))}
+    />
+  );
+
   return (
     <Screen padded={false}>
-      <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          {!quick && step > 0 && step < STEPS.length - 1 ? (
-            <IconButton icon="back" label="Back" onPress={prev} />
-          ) : null}
-          <RNText style={tx('600', 13, t.colors.muted, { flex: 1 })}>
-            {quick ? STEPS[step] : `Step ${step + 1} of ${STEPS.length} · ${STEPS[step]}`}
-          </RNText>
-        </View>
-        {quick ? null : (
-          <View style={{ height: 4, borderRadius: 999, backgroundColor: t.colors.surface2, marginTop: 12, overflow: 'hidden' }}>
-            <Animated.View
-              style={{
-                height: 4,
-                backgroundColor: t.colors.accent,
-                width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-              }}
-            />
+      {desktop ? null : (
+        <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            {showBack ? <IconButton icon="back" label="Back" onPress={prev} /> : null}
+            <RNText style={tx('600', 13, t.colors.muted, { flex: 1 })}>
+              {quick ? STEPS[step] : `Step ${step + 1} of ${STEPS.length} · ${STEPS[step]}`}
+            </RNText>
           </View>
-        )}
-      </View>
-      <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 22, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
+          {quick ? null : (
+            <View style={{ height: 4, borderRadius: 999, backgroundColor: t.colors.surface2, marginTop: 12, overflow: 'hidden' }}>
+              <Animated.View
+                style={{
+                  height: 4,
+                  backgroundColor: t.colors.accent,
+                  width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+                }}
+              />
+            </View>
+          )}
+        </View>
+      )}
+      <FormPage
+        phoneActions="pinned"
+        scrollProps={{ style: { flex: 1 }, contentContainerStyle: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 20 }, keyboardShouldPersistTaps: 'handled' }}
+        aside={aside}
+        actions={
+          <ActionBar
+            hint={
+              desktop && showBack ? (
+                <ActionBarContext.Provider value={true}>
+                  <PrimaryButton label="Back" tone="quiet" onPress={prev} style={{ alignSelf: 'flex-start' }} />
+                </ActionBarContext.Provider>
+              ) : undefined
+            }
+          >
+            <View style={desktop ? undefined : { paddingHorizontal: 20, paddingBottom: 16 }}>{footer}</View>
+          </ActionBar>
+        }
+      >
         {body}
-      </KeyboardScrollView>
-      <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>{footer}</View>
+      </FormPage>
       <LocationSheet
         visible={showLoc}
         // A profile shows an area, never a door: it is public.
