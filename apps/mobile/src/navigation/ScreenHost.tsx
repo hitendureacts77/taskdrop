@@ -14,7 +14,7 @@ import { BottomTabBar } from '../components/BottomTabBar';
 import { SideNav } from '../components/SideNav';
 import { DesktopAuthFrame } from '../components/DesktopAuthFrame';
 import { TABLET_CONTENT, useLayout, type ColumnClass } from '../lib/layout';
-import { DesktopTopBar } from './DesktopTopBar';
+import { DesktopPageFrame, DesktopPageScope } from './DesktopPage';
 import { FadeIn } from '../components/primitives';
 import { useKeyboardOpen } from '../lib/useKeyboardOpen';
 import { CreateFab } from '../components/CreateFab';
@@ -140,9 +140,12 @@ export function ScreenHost() {
           if (!Tab) return null;
           return (
             <View key={name} style={{ flex: 1, display: name === screen ? 'flex' : 'none' }}>
-              <ScreenScope params={k.params} focus={k.focus}>
-                <Tab />
-              </ScreenScope>
+              {/* Desktop: only the tab in front may put its title in the page header. */}
+              <DesktopPageScope active={name === screen}>
+                <ScreenScope params={k.params} focus={k.focus}>
+                  <Tab />
+                </ScreenScope>
+              </DesktopPageScope>
             </View>
           );
         })}
@@ -150,7 +153,7 @@ export function ScreenHost() {
           // A screen opened on top eases in rather than snapping into place
           // (SYS-Motion "screen push": a short rise plus a fade).
           <FadeIn key={screen} duration={320} translateY={14} style={{ flex: 1 }}>
-            {Comp ? <Comp /> : <Placeholder name={screen} />}
+            <DesktopPageScope active>{Comp ? <Comp /> : <Placeholder name={screen} />}</DesktopPageScope>
           </FadeIn>
         )}
       </View>
@@ -175,8 +178,9 @@ export function ScreenHost() {
     );
   }
   if (desktop) {
-    // A column of the screen's class with a gutter each side; full maps fill
-    // the whole area and keep their own floating controls.
+    // A column of the screen's class with a gutter each side, under the page
+    // header (DesktopPage.tsx); full maps fill the whole area and keep their
+    // own floating controls.
     const cls = columnFor(screen, twoPane);
     const full = cls === 'full';
     return (
@@ -184,8 +188,9 @@ export function ScreenHost() {
         <SideNav />
         <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: full ? 0 : gutter }}>
           <View style={{ flex: 1, width: '100%', maxWidth: full ? undefined : contentWidth(cls) }}>
-            {full ? null : <DesktopTopBar />}
-            {content}
+            <DesktopPageFrame screen={screen} header={!full}>
+              {content}
+            </DesktopPageFrame>
           </View>
         </View>
       </View>

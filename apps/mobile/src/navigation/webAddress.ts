@@ -61,8 +61,13 @@ const TITLES: Record<string, string> = {
   publicProfile: 'Profile',
 };
 
+/** A screen's plain name ("Wallet", "Find work" in Earn mode), or null for one with no name here. */
+export function nameForScreen(screen: string, mode: 'poster' | 'worker' = 'poster'): string | null {
+  return (screen === 'explore' && mode === 'worker' ? 'Find work' : screen === 'myTasks' && mode === 'worker' ? 'My work' : TITLES[screen]) ?? null;
+}
+
 /** The browser tab's title for a screen: "Wallet · TaskDrop"; plain "TaskDrop" for one with no name here. */
 export function titleForScreen(screen: string, mode: 'poster' | 'worker' = 'poster'): string {
-  const name = screen === 'explore' && mode === 'worker' ? 'Find work' : screen === 'myTasks' && mode === 'worker' ? 'My work' : TITLES[screen];
+  const name = nameForScreen(screen, mode);
   return name ? `${name} · TaskDrop` : 'TaskDrop';
 }
