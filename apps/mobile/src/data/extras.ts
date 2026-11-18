@@ -465,10 +465,21 @@ export async function changePassword(newPassword: string, currentPassword?: stri
     body: JSON.stringify({ action: 'change', new_password: newPassword, current_password: currentPassword || undefined }),
   }).catch(() => null);
   if (!res) throw new PasswordChangeError('No connection. Try again.', false);
-  const out = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; needCurrent?: boolean };
+  const out = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    error?: string;
+    needCurrent?: boolean;
+    access_token?: string;
+    refresh_token?: string;
+  };
   if (!res.ok || !out.ok) throw new PasswordChangeError(out.error ?? 'Could not set the password', Boolean(out.needCurrent));
-  // The account now carries password_set_at; refresh so the form asks for the current password next time.
-  await supabase.auth.refreshSession().catch(() => undefined);
+  // Supabase ended every session with the change; the server signed this device back in. Keep that session
+  // (it also carries password_set_at, so the form asks for the current password next time).
+  if (out.access_token && out.refresh_token) {
+    const { error } = await supabase.auth.setSession({ access_token: out.access_token, refresh_token: out.refresh_token });
+    if (!error) return;
+  }
+  throw new PasswordChangeError('Password set. Please sign in again with your new password.', false);
 }
 
 /**
