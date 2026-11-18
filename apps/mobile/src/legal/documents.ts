@@ -83,7 +83,7 @@ export const PRIVACY: LegalDoc = {
         {
           list: [
             'Supabase: our database, sign-in and storage of videos and documents, kept in Mumbai, India.',
-            'ImageKit: stores your photos and delivers them to the people allowed to see them, through short-lived private links. Kept in India.',
+            'ImageKit: stores your photos and delivers them to the people allowed to see them, through short-lived private links. Its servers may be outside India.',
             'Vercel: hosts the TaskDrop website and the screens our team uses. The website is served from servers near you; any server code runs in Mumbai, India.',
             'Razorpay and RazorpayX: payments, refunds and payouts. They also collect what they need to verify payments and payouts, under their own privacy policies. Kept in India.',
             'MSG91: sends your sign-in codes by text. Kept in India.',
@@ -91,7 +91,7 @@ export const PRIVACY: LegalDoc = {
             'Apple: Sign in with Apple, if you use it, and the map on iPhone.',
             'OpenStreetMap (Nominatim and map tiles): place search when Google Places is not used, turning a map pin into an address, and the map pictures on the web. It receives the words you search or the pin’s position, and, for map pictures, your device’s IP address. Kept in Europe.',
             'Expo: delivers push notifications to your phone and sends app updates. Kept in the United States.',
-            'Sentry: crash reports, error logs and usage counts (for example, tasks posted), so we can find and fix problems. It is used only if monitoring is on. Kept in the European Union (Frankfurt, Germany); it never receives your name, phone number or address.',
+            'Sentry: crash reports, error logs and usage counts (for example, tasks posted), so we can find and fix problems. It is used only if monitoring is on, and on the website only if you allow it. Kept in the United States today, moving to the European Union (Frankfurt, Germany) before launch; it never receives your name, phone number or address.',
             'Inngest, which runs our background jobs and alerts our team (for example about a new help request). Kept in the United States; it receives only account numbers (ids) and amounts, never your name, phone number or address, and never email addresses, bank details or UPI IDs.',
           ],
         },
