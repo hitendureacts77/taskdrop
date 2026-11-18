@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { ScreenScope, useNav, type NavParams, type ScreenName } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
@@ -15,7 +15,7 @@ import { SideNav } from '../components/SideNav';
 import { DesktopAuthFrame } from '../components/DesktopAuthFrame';
 import { TABLET_CONTENT, useLayout, type ColumnClass } from '../lib/layout';
 import { DesktopPageFrame, DesktopPageScope } from './DesktopPage';
-import { FadeIn } from '../components/primitives';
+import { FadeIn, tx } from '../components/primitives';
 import { useKeyboardOpen } from '../lib/useKeyboardOpen';
 import { CreateFab } from '../components/CreateFab';
 import { Placeholder } from '../screens/Placeholder';
@@ -163,6 +163,20 @@ export function ScreenHost() {
   // the sidebar (in place of the tab bar and the + button) and a centred column.
   // A guest is inside the app too: the public pages keep the app's frame for them (B149, navigation/frame.ts).
   const inApp = Boolean(userId) || guest;
+  // Setup (onboarding) on a desktop: the FormPage card (720) with the steps beside it (320), centred, no menu.
+  // The signed-out frame's 440 card cannot hold it (docs/design/desktop-web/PLAN.md, package 4). Tablet and phone keep that frame.
+  if (desktop && screen === 'setup') {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', backgroundColor: t.colors.bg, paddingHorizontal: gutter }}>
+        <View style={{ flex: 1, width: '100%', maxWidth: 720 + 24 + 320 }}>
+          <Text style={tx('800', 22, t.colors.ink, { letterSpacing: -0.8, paddingTop: 28, paddingBottom: 12 })}>
+            taskdrop<Text style={{ color: t.colors.accent }}>.</Text>
+          </Text>
+          {content}
+        </View>
+      </View>
+    );
+  }
   if (desktop && usesAuthFrame(screen, inApp)) {
     return <DesktopAuthFrame>{content}</DesktopAuthFrame>;
   }
