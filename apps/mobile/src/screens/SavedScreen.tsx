@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, Text as RNText } from 'react-native';
 import { Screen } from '../components/ui';
-import { EmptyState, Shimmer, TopBar } from '../components/kit';
+import { EmptyState, Grid, Shimmer, TopBar } from '../components/kit';
+import { tx } from '../components/primitives';
+import { ListPage } from '../components/ListPage';
+import { CONTENT_INSET } from '../navigation/DesktopPage';
+import { useLayout } from '../lib/layout';
+import { useTheme } from '../providers/ThemeProvider';
 import { WorkCard } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
 import { useNav } from '../providers/NavProvider';
@@ -14,8 +19,14 @@ import { listSavedTasks, setSaved } from '../data/extras';
 import { taskToFeedRow } from '../lib/openTask';
 import { useMyOffers } from '../lib/useMyOffers';
 
+// The desktop page's scroll content: ListPage's own padding, plus the inset the page header's content sits at.
+const LIST_SCROLL = { paddingTop: 8, paddingBottom: 28, paddingHorizontal: CONTENT_INSET } as const;
+
 /** Tasks saved for later, from the bookmark on any task card. */
 export function SavedScreen() {
+  const t = useTheme();
+  // Desktop: a ListPage (the count in the toolbar, the cards in a grid). Everywhere else the screen is drawn as before.
+  const { desktop } = useLayout();
   const { back, go } = useNav();
   const { flash } = useActions();
   const { setMode } = useMode();
@@ -45,38 +56,59 @@ export function SavedScreen() {
     }
   };
 
+  const cards = (rows ?? []).map((task, i) => (
+    <WorkCard
+      key={task.id}
+      task={task}
+      index={i}
+      saved
+      quoted={offers.has(task.id)}
+      onOpen={() => go('taskDetail', { row: taskToFeedRow(task) })}
+      onApply={() => setBidTask(task)}
+      onToggleSave={() => void unsave(task.id)}
+    />
+  ));
+
+  const content =
+    rows === null ? (
+      <Shimmer height={120} />
+    ) : rows.length === 0 ? (
+      <EmptyState
+        icon="bookmark"
+        title="Nothing saved yet"
+        body="Tap the bookmark on any task to keep it here."
+        actionLabel="Find work"
+        onAction={() => {
+          setMode('worker');
+          go('explore');
+        }}
+      />
+    ) : desktop ? (
+      <Grid>{cards}</Grid>
+    ) : (
+      cards
+    );
+
   return (
     <Screen padded={false}>
       <TopBar title="Saved tasks" subtitle="Tasks you saved for later" onBack={back} />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }}>
-        {rows === null ? (
-          <Shimmer height={120} />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            icon="bookmark"
-            title="Nothing saved yet"
-            body="Tap the bookmark on any task to keep it here."
-            actionLabel="Find work"
-            onAction={() => {
-              setMode('worker');
-              go('explore');
-            }}
-          />
-        ) : (
-          rows.map((task, i) => (
-            <WorkCard
-              key={task.id}
-              task={task}
-              index={i}
-              saved
-              quoted={offers.has(task.id)}
-              onOpen={() => go('taskDetail', { row: taskToFeedRow(task) })}
-              onApply={() => setBidTask(task)}
-              onToggleSave={() => void unsave(task.id)}
-            />
-          ))
-        )}
-      </ScrollView>
+      {desktop ? (
+        <ListPage
+          scrollProps={{ contentContainerStyle: LIST_SCROLL }}
+          toolbar={{
+            right:
+              rows && rows.length > 0 ? (
+                <RNText style={tx('600', 13, t.colors.muted, { fontVariant: ['tabular-nums'] })}>
+                  {rows.length === 1 ? '1 saved task' : `${rows.length} saved tasks`}
+                </RNText>
+              ) : undefined,
+          }}
+        >
+          {content}
+        </ListPage>
+      ) : (
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }}>{content}</ScrollView>
+      )}
       <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} />
     </Screen>
   );
