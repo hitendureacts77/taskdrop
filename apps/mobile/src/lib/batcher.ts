@@ -20,7 +20,7 @@ export const BATCHABLE_OPS: ReadonlySet<string> = new Set([
   'searchTasks', 'searchTasksWithPosters', 'attachPosters', 'getTask', 'getTaskDetail', 'getPosterStats', 'getMyBid', 'canQuoteOn',
   'promotableTasks', 'promotionTiers', 'recommendedTasks', 'remoteTasks', 'tasksNear', 'workersNear', 'workerServices', 'urgentTasks', 'listSavedTaskIds',
   'listSavedTasks', 'getProfile', 'isAdmin', 'listReviewsAbout', 'publicProfileStats', 'ageStatus', 'getWallet',
-  'getEscrowHeld', 'listWalletActivity', 'listPayouts', 'listPayoutDestinations', 'listPromotions',
+  'getEscrowHeld', 'listWalletActivity', 'getMoneyMode', 'getTaskHold', 'getMoneyLedger', 'listPayouts', 'listPayoutDestinations', 'listPromotions',
   'adAuctionRanks', 'platformFees', 'myStats', 'countNeedsAttention', 'listThreads', 'listMessages',
   'listNotifications', 'countUnreadNotifications', 'countUnreadFor', 'countMyReferrals', 'signMedia',
   // Reads that used to leave on their own beside a batch (poster Home's workers and trends, the wallet's fees).

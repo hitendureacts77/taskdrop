@@ -831,6 +831,15 @@ export const READ_OPS: Record<string, Op> = {
     return events.slice(0, limit(a, "limit", 12, 500));
   },
 
+  /** Plan B (migration 193): which money flow is on, and the caller's payee state. */
+  getMoneyMode: rpcOp("my_money_mode"),
+
+  /** Plan B: the hold on one task (null when none), for either side of the task. */
+  getTaskHold: rpcOp("my_task_hold", (a) => ({ p_task_id: uuid(a, "taskId") })),
+
+  /** Plan B: the caller's own money record and totals. */
+  getMoneyLedger: rpcOp("my_money_ledger", (a) => ({ p_limit: limit(a, "limit", 100, 500) })),
+
   listPayouts: async (ctx, a) =>
     rows(await ctx.db.from("payouts").select(PAYOUT_SELECT).eq("user_id", ctx.userId).order("created_at", { ascending: false }).limit(limit(a, "limit", 20))),
 

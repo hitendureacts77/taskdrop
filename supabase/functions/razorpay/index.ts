@@ -198,6 +198,20 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
         return json({ error: "This task is already funded", alreadyFunded: true }, 409);
       }
 
+      // Plan B (migration 193): a hire made under pay-per-task is paid at Razorpay checkout through the
+      // money function, with the worker's share held for them. A Payment Link here would fund it outside
+      // that hold, so it is refused.
+      const { data: planBHold } = await admin
+        .from("task_holds")
+        .select("id")
+        .eq("task_id", task.id)
+        .in("status", ["awaiting_payment", "held"])
+        .limit(1)
+        .maybeSingle();
+      if (planBHold) {
+        return json({ error: "Pay for this task at checkout.", code: "PLAN_B" }, 409);
+      }
+
       const { data: assignment } = await admin
         .from("assignments")
         .select("escrow_minor")

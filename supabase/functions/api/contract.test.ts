@@ -67,7 +67,7 @@ const ID = "22222222-2222-4222-8222-222222222222";
   // The shared list holds only same-for-everyone reads.
   const neverShared = new Set([
     // money
-    "getWallet", "getEscrowHeld", "listWalletActivity", "listPayouts", "listPayoutDestinations", "feesSince",
+    "getWallet", "getEscrowHeld", "listWalletActivity", "getMoneyMode", "getTaskHold", "getMoneyLedger", "listPayouts", "listPayoutDestinations", "feesSince",
     "platformFees", "settleClearedEarnings", "myStats", "listPromotions",
     // task status and offers
     "getTask", "getTaskDetail", "canQuoteOn", "getMyBid", "listBidsForTask", "listMyBids", "countBidsByTask",

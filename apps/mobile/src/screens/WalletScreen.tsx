@@ -15,6 +15,8 @@ import { needAccount } from '../lib/guest';
 import { PENDING_WITHDRAWAL_NOTE, isPendingWithdrawal, withdrawalRows } from '../lib/walletPending';
 import { clearingLine } from '../lib/walletClearing';
 import { useFees } from '../lib/useFees';
+import { useMoneyMode } from '../lib/useMoneyMode';
+import { MoneyScreen } from './MoneyScreen';
 import { GuestNote, GuestScreen } from '../components/GuestBits';
 import {
   getProfile,
@@ -83,7 +85,7 @@ function releaseLine(status: string | undefined): string {
   }
 }
 
-export function WalletScreen({ insights = false }: { insights?: boolean } = {}) {
+function WalletBody({ insights = false }: { insights?: boolean } = {}) {
   const t = useTheme();
   const { desktop, contentWidth } = useLayout();
   const { go, back } = useNav();
@@ -776,7 +778,23 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
   );
 }
 
+/**
+ * The Wallet tab. Under Plan B (pay per task) it is the Money record instead; under the wallet flow it is
+ * exactly the wallet below. Until the server has said which, a short wait, never a guess.
+ */
+export function WalletScreen() {
+  const { loaded, planB } = useMoneyMode();
+  if (!loaded) {
+    return (
+      <Screen padded={false}>
+        <AppHeader />
+      </Screen>
+    );
+  }
+  return planB ? <MoneyScreen /> : <WalletBody />;
+}
+
 /** The poster's spending chart, fees and periods, kept out of the Wallet tab. */
 export function SpendingScreen() {
-  return <WalletScreen insights />;
+  return <WalletBody insights />;
 }

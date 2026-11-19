@@ -84,6 +84,19 @@ export function alertFor(eventName: string, d: Record<string, unknown>, who?: st
         title: "Dispute opened",
         body: `Poster: ${text(who ?? d.poster)}. Open Disputes to decide.`,
       };
+    case "money.mismatch":
+      // Plan B nightly match (migration 193): our ledger and Razorpay disagree for a day. Amounts are paise.
+      return {
+        kind: "money_mismatch",
+        title: `Money match is off for ${text(d.day, "a day")}`,
+        body: `Our record ${rupees(Number(d.ours_minor ?? 0) / 100)}, Razorpay ${rupees(Number(d.theirs_minor ?? 0) / 100)}. Open Money to check.`,
+      };
+    case "money.move_failed":
+      return {
+        kind: "money_move_failed",
+        title: "A money move failed",
+        body: `Razorpay refused a ${text(d.part, "money move")} for one task. Open Money, then the holds list, to retry.`,
+      };
     default:
       return null;
   }
@@ -102,6 +115,8 @@ export const ALERT_EVENTS = [
   "taskdrop/withdrawal.requested",
   "taskdrop/payout.failed",
   "taskdrop/dispute.opened",
+  "taskdrop/money.mismatch",
+  "taskdrop/money.move_failed",
 ] as const;
 
 // ------------------------------------------------------------------ digest --

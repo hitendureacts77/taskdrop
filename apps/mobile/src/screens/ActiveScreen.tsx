@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { HoldLine } from '../components/HoldLine';
 import { View, Text as RNText, Pressable, Animated, Easing, Linking, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import Svg, { Circle } from 'react-native-svg';
@@ -417,6 +418,8 @@ export function ActiveScreen() {
             <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>{worker ? `After TaskDrop's ${pctWords(fees.commission)} fee, held until approval` : 'Held safely until approval'}</RNText>
           </View>
         </View>
+
+        {taskId ? <HoldLine taskId={taskId} /> : null}
 
         {/* The exact address: only the customer and the person hired can read it (the database decides). */}
         {detail?.address ? (

@@ -28,7 +28,7 @@ Everything below those four is detail. You open it only when a task sends you th
 
 | Open | Who | What closes it |
 |---|---|---|
-| Decision 3: Razorpay or Cashfree | You | The two written quotes (S.4) |
+| Decision 3: Razorpay (decided 19 Nov) | You | Razorpay's written answer on Route for a new business (S.4) |
 | Decision 38: the names of your 2 or 3 launch areas | You | SAY "Decision 38: these areas: ___" |
 | Decision 43: who the marketing speaks to first | You | Nothing waits on it before Step 4; 4.2 uses the recommended three unless you say otherwise |
 | The paperwork lane: S.2 not booked yet | You | Book the CA. It is still the one task that moves launch day most |
@@ -42,8 +42,8 @@ Everything below those four is detail. You open it only when a task sends you th
 <div class="fig-title">The road to launch <span class="pill mut">three lanes at the same time</span></div>
 <div class="fig-sub">Inside a lane, a line cannot start before the line above it is done. Launch waits for the slowest lane, and today that is lane 1.</div>
 <div class="tl">
-<div class="tl-col c3"><b>Lane 1: Paperwork</b><small>You · the slowest lane, 3 to 6 weeks</small><ul><li><strong>First:</strong> S.2 business, GST and the bank account</li><li><strong>Then:</strong> S.6 SMS registration and S.8 the payment company's approval (both need S.2)</li><li><strong>Beside them:</strong> S.4 two written quotes, which answer decision 3 (Razorpay or Cashfree), and S.3 the lawyer's written yes</li></ul></div>
-<div class="tl-col c2"><b>Lane 2: Product</b><small>Claude · waits for lane 1 in the middle</small><ul><li><strong>First:</strong> finish 1.13 and 1.14, then freeze (Gate 1, 22 November)</li><li><strong>Then:</strong> build the Plan B money flow (2.21). It needs decision 3 and the lawyer's yes from lane 1</li><li><strong>Then:</strong> one security round on the final code (2.16, decision 30), and Gate 2b</li></ul></div>
+<div class="tl-col c3"><b>Lane 1: Paperwork</b><small>You · the slowest lane, 3 to 6 weeks</small><ul><li><strong>First:</strong> S.2 business, GST and the bank account</li><li><strong>Then:</strong> S.6 SMS registration and S.8 the payment company's approval (both need S.2)</li><li><strong>Beside them:</strong> S.4 Razorpay's written answer on Route (decision 3 is Razorpay), and S.3 the lawyer's written yes</li></ul></div>
+<div class="tl-col c2"><b>Lane 2: Product</b><small>Claude · waits for lane 1 in the middle</small><ul><li><strong>First:</strong> finish 1.13 and 1.14, then freeze (Gate 1, 22 November)</li><li><strong>Then:</strong> build the Plan B money flow (2.21). It needs Razorpay's answer and the lawyer's yes from lane 1</li><li><strong>Then:</strong> one security round on the final code (2.16, decision 30), and Gate 2b</li></ul></div>
 <div class="tl-col"><b>Lane 3: Proof</b><small>Testers and workers · 14 days that cannot be shortened</small><ul><li><strong>First:</strong> Gate 2a, the Play Console app and the store file (3.1, 3.2)</li><li><strong>Then:</strong> 12 testers for 14 days (3.3), while the debug loop (2.19) runs</li><li><strong>Beside them:</strong> 20 workers in 2 or 3 areas (4.6), then Gates 3 and 4</li></ul></div>
 </div>
 <div class="fig-sub" style="margin:14px 0 8px">When all three lanes are done:</div>
@@ -56,7 +56,7 @@ Everything below those four is detail. You open it only when a task sends you th
 | Clock | Why it is slow | It starts on | Whose move |
 |---|---|---|---|
 | **1. Paperwork:** S.2, then S.6 and S.8 | GST, the bank and the payment company's check take 3 to 6 weeks, and nothing in the code can shorten them | The day you book the CA | **You** |
-| **2. The money flow:** S.4 and S.3, then decision 3, then the Plan B build (2.21) and one security round | The Plan B code waits for two written answers: the payment company's and the lawyer's | The day both quotes are in | You, then Claude |
+| **2. The money flow:** the Plan B build (2.21) is under way on staging; S.4 and S.3, then one security round | Real money waits for two written answers: Razorpay's and the lawyer's | The day both answers are in | You, then Claude |
 | **3. Google's 14 days:** Gate 2a, 3.1, 3.2, then 3.3 | Google fixes it: 12 testers, opted in for 14 days in a row. It cannot be shortened, but it can start early | The day the 12th tester joins | You and Claude |
 
 Launch day is about **two weeks after the last of these three clocks finishes** (Step 5 and Step 6). If S.2 starts this week, 8 to 10 weeks is realistic. It is an estimate, not a promise.
@@ -66,10 +66,10 @@ Launch day is about **two weeks after the last of these three clocks finishes** 
 | | You (about 4 hours this week) | Claude |
 |---|---|---|
 | 1 | **Book the CA** (S.2). It is the most important task in the plan: S.6, S.8 and decisions 10 and 17 all wait for it | Finish 1.13 (order 1 and 2), then 1.14 level 1 |
-| 2 | Send the Plan B questions to Razorpay and Cashfree (S.4) and the brief to two lawyers (S.3) | Check Gate 2a and tick it (its four tasks show as done; Claude checks its holes list) |
+| 2 | Send the Plan B questions to Razorpay (S.4) and the brief to two lawyers (S.3) | Check Gate 2a and tick it (its four tasks show as done; Claude checks its holes list) |
 | 3 | **Name your 2 or 3 launch areas** (decision 38). The other defaults are recorded: you said "Use the CEO defaults" on 11 Nov | Get one store file built (3.2). Expo's free builds are used up until 1 December, so first a free build on this PC from a folder with no spaces in its name |
 | 4 | Message **20** people for the Google Play test (3.3). Finding them takes days, so start before the store file is ready | Run the audit prompt (2.20, read-only) and fix the six holes from 2.18 |
-| 5 | Your clicks: 2.2, 2.3 and 2.4 (about 1.5 hours), and look at the new map on your laptop ("done 1.12") | Write the Plan B design (2.21) when you say "design the Plan B money flow" |
+| 5 | Your clicks: 2.2, 2.3 and 2.4 (about 1.5 hours), and look at the new map on your laptop ("done 1.12") | The Plan B design is written (18 Nov, docs/design/plan-b-money/DESIGN.md) and the build is under way on staging (2.21) |
 | 6 | Hide your Gmail and the backend address (about 30 minutes): 2.22 parts b, c and d, and 2.23 step 3 (transfer lock and two-step sign-in in Spaceship) | Done 17 Nov: the code part of 2.22 (live on the website) and the DNS records of 2.23. Next: the Android app update for 2.22 when you say "publish the email fix to the app" |
 
 <details id="c-17-nov">
@@ -112,9 +112,9 @@ Launch day is about **two weeks after the last of these three clocks finishes** 
 </details>
 
 <details id="c-ceo-defaults">
-<summary>[CARD] The CEO defaults: accepted by you on 11 November. Still open: decision 3 and the area names</summary>
+<summary>[CARD] The CEO defaults: accepted by you on 11 November. Still open: the area names</summary>
 
-**Accepted on 11 November 2026:** you said "Use the CEO defaults", so every line below is now your decision, and the Decisions table says so. **Two things are still open:** decision 3 (it waits for the two written quotes, S.4) and the names of your launch areas. For the areas, SAY:
+**Accepted on 11 November 2026:** you said "Use the CEO defaults", so every line below is now your decision, and the Decisions table says so. **One thing is still open:** the names of your launch areas. For the areas, SAY:
 
 ```say
 Decision 38: these areas: ___
@@ -122,7 +122,7 @@ Decision 38: these areas: ___
 
 | # | Question | Your decision (the CEO default) |
 |---|---|---|
-| 3 | Razorpay or Cashfree | **No default.** Take the cheaper one that says yes in writing (S.4). This is the only decision that must wait |
+| 3 | Razorpay (Route, settlements on hold) | **Decided 19 Nov: Razorpay.** Cashfree is dropped. Real money still waits for Razorpay's written answer on Route for a new business (S.4) |
 | 10 | Google Play account type | Stay personal while TaskDrop is a sole proprietorship. Move to an organization account only if S.2 makes a company |
 | 12 | Limits for new accounts | The recommended limits (₹5,000 a task and ₹5,000 of withdrawals a day, for 30 days and 3 finished tasks) |
 | 17 | Name and PAN before a withdrawal | Wait for the CA's answer in S.2, then add the screen before Step 5 |
@@ -220,7 +220,7 @@ Inside a task, every line is one of three kinds: **CLICK** (you do it), **SAY** 
 |---|---|---|---|
 | 1 | **Freeze the features now.** **Decided 9 Nov.** Finish the map work in progress (1.12 and the D20 map tab), then build nothing new before launch. New ideas go to Future scope | Every new feature must be tested, secured and explained again. No customer has asked for one yet, because there are no customers yet | Gate 1, decision 37 |
 | 2 | **Do the paperwork this week.** S.2 first (a sole proprietorship with GST and Udyam, and a current account), then one fixed-fee lawyer (S.3) and the trademark (S.5) | S.2 has not started, and S.6, S.8 and decisions 10 and 17 all wait for it. Paperwork, not code, now decides launch day | Start now |
-| 3 | **Settle the money flow before production.** **Decided 9 Nov: Plan B** (pay per task; the payment company holds the money until approval). **Razorpay or Cashfree is still your choice (decision 3)**, after both quotes. Say "design the Plan B money flow" now: the design works for either, a design costs nothing, and the code waits for the chosen company's and the lawyer's written yes | The wallet (Plan A) needs an RBI PPI licence, which needs about ₹5 crore net worth. Building production, KYC and security tests on the wallet and then switching means doing all of it twice | Decision 29 |
+| 3 | **Settle the money flow before production.** **Decided 9 Nov: Plan B** (pay per task; the payment company holds the money until approval). **Decision 3 is decided (19 Nov): Razorpay Route.** **Locked 18 Nov (owner): Plan A wallet retired; top-ups, pay-from-wallet and withdraw-anytime go; the wallet becomes a record of each task's money.** The design is written and the build is under way on staging; real money waits for Razorpay's and the lawyer's written yes | The wallet (Plan A) needs an RBI PPI licence, which needs about ₹5 crore net worth. Building production, KYC and security tests on the wallet and then switching means doing all of it twice | Decision 29 |
 | 4 | **Give production the real name.** At launch, `taskdrop.in` moves to production and staging moves to `staging.taskdrop.in` (free, same domain) | The payment company, the SMS registration, Google sign-in and Google Play each want a real website. The pages Google can read (4.3) and the Business Profile (4.4) only help if they sit on the address customers use. No second domain to buy | Decision 28 |
 | 5 | **Keep the monthly bill near $45.** Only Supabase Pro ($25) and Vercel Pro ($20) are paid at launch. Inngest, Sentry, PostHog, ImageKit, Loops and Expo start on free plans in their own production accounts, and one is upgraded only when its limit warns (7.5) | Task 5.4 asked for Inngest's paid plan; its free plan already gives production its own 50,000 runs a month, and 3.5c moves the database-only jobs to pg_cron, so far fewer runs are used | 5.4, What it costs |
 | 6 | **Test security once, on the final code.** The automatic guards keep running on every change. The AI attacker (2.16) and any paid tester (decision 30) run after the money flow is built | Testing money code that is about to be rewritten is wasted money | 2.16, decision 30 |
@@ -272,7 +272,7 @@ Inside a task, every line is one of three kinds: **CLICK** (you do it), **SAY** 
 | Server, database, sign-in | Supabase | `api` is the one front door: login, App Check and limits are checked there |
 | Background jobs | Inngest | Push messages, alerts, clean-ups, from database events |
 | Photos and videos | ImageKit | Uploads are signed by the server |
-| Payments and payouts | Razorpay and RazorpayX today; Plan B uses Razorpay Route or Cashfree Easy Split (decision 3, open) | Test mode in staging; live mode in production once the money flow is built |
+| Payments and payouts | Razorpay and RazorpayX today; Plan B uses Razorpay Route (decision 3, decided 19 Nov) | Test mode in staging; live mode in production once the money flow is built |
 | Sign-in text messages | MSG91 | Production only; staging shows the code on screen |
 | Push, maps, App Check, Google sign-in | Firebase and Google Cloud | Each key limited to its own app |
 | Errors and funnels | Sentry, PostHog | Where problems and drop-offs show up |
@@ -324,7 +324,7 @@ Change request. Task: ___. Screen: ___. What should happen: ___. What happens to
 ```
 
    Claude ends every piece of work by saying what is done, how you can test it, and what is next; anything it skipped or could not check is said in the same message (Starter Story, "Building your knowledge base").
-2. **A one-page brief before any new outside service** (Starter Story, "API research workflow"; Vibe Coder OS, Day 4). Before a new provider is coded (Razorpay Route or Cashfree for 2.21, MSG91 for S.6, Loops for 4.10, DataFast if decision 49 says yes), Claude reads the provider's official documentation and writes `docs/integrations/<provider>.md`: what it is for, the calls used, how each side proves who it is (keys, webhook signatures), the data stored, the limits and prices, the errors and retries, and the test plan on staging. You approve the brief, then it is built. On any pay-as-you-go provider, automatic top-up stays off and a spending alert is set.
+2. **A one-page brief before any new outside service** (Starter Story, "API research workflow"; Vibe Coder OS, Day 4). Before a new provider is coded (Razorpay Route for 2.21, MSG91 for S.6, Loops for 4.10, DataFast if decision 49 says yes), Claude reads the provider's official documentation and writes `docs/integrations/<provider>.md`: what it is for, the calls used, how each side proves who it is (keys, webhook signatures), the data stored, the limits and prices, the errors and retries, and the test plan on staging. You approve the brief, then it is built. On any pay-as-you-go provider, automatic top-up stays off and a spending alert is set.
 3. **Scope lock on risky edits** (Vibe Coder OS, prompt library). For money, database migrations, row rules, sign-in, and anything that touches production, Claude first writes the plan and "why this will work", waits for your yes, and then changes only what it wrote, keeping everything else working. The debug loop's fix path A already did this for bugs; it now covers planned work too.
 4. **A new package is checked before it goes in** (Nick Saraev course; the security prompt, item 5.2). AI tools sometimes name packages that do not exist, and attackers register those names. Before adding one, Claude checks that it exists on npm, has real weekly downloads, is not brand new, is still kept up to date, and works with Expo SDK 58 (some native packages need a new app build, not just an update). These facts go in the pull request.
 5. **A fresh start after two failed tries** (Vibe Coder OS, Context Engineering 101; Nick Saraev course). A long session full of wrong guesses gets worse, not better. After two failed fixes, Claude stops, writes what it learned into the ledger entry, and carries on in a fresh session that starts from that entry and this plan. Each new phase of work (build, design, security audit) also starts from a clean session. The Notion page's "breaking the loop" and "post-fix training" prompts are already this habit plus rung 6 of the debug ladder and the "Lessons learned" list in `docs/debug-loop/BUG_PROMPT.md`.
@@ -392,7 +392,7 @@ I do not know. Pitch me three options and say which is best.
 <summary>[CARD] What was left out of the three sources, and why</summary>
 
 - **Lovable** (its credits, "Try to fix", visual edit, knowledge settings, hosting) and **Cursor**: TaskDrop is built with Claude Code; `CLAUDE.md`, this plan and the ledger do those jobs.
-- **Stripe** and its lessons: TaskDrop uses Razorpay or Cashfree (decision 3). The one general lesson (start with the simplest payment step; check every webhook signature on the raw message; record each payment once) is already done.
+- **Stripe** and its lessons: TaskDrop uses Razorpay (decision 3). The one general lesson (start with the simplest payment step; check every webhook signature on the raw message; record each payment once) is already done.
 - **Resend:** decision 48 (not yet; the Notion page itself says Supabase's own email is enough for Google or low-volume sign-in with no email sequences, and TaskDrop signs in by phone code and sends sequences through Loops). **DataFast:** decision 49 (after launch; $9 a month, checked 14 Nov). **Mapbox:** decision 50 (keep MapLibre).
 - **The Notion page's other parts:** its eleven Lovable app-idea prompts, its custom GPTs, personality and consultant prompts, thumbnail and landing-page prompts, and its UI library list (21st.dev, which the plan already uses, is on it).
 - **Skipping Claude's permission prompts, pasting keys into chat or into an app screen, one Supabase project for testing and real use, switching email confirmation off for good:** each breaks a TaskDrop rule.
@@ -418,7 +418,7 @@ I do not know. Pitch me three options and say which is best.
 5.0e | Learn the release routine | Every merge into redesigned-2.0 reaches taskdrop.in and the staging app by itself. Production only gets code that ran a quiet day on staging.
 # B · Before production | Production costs money, so it waits for the gates and the paperwork.
 - | Pass Gate 4 and finish the slow track | Company and bank (S.2), lawyer (S.3), SMS registration (S.6) and payment approval (S.8). See [Start now](#start-now-the-slow-track-start-in-week-1-runs-beside-steps-1-to-4) and [Gate 4](#gate-4).
-- | Decision 29: how money moves | Decided 9 Nov: Plan B, pay per task with the payment company holding the money. Production is built once, on the final money flow. See [Decisions](#decisions-only-you-can-make-these).
+- | Decision 29: how money moves | Decided 9 Nov: Plan B, pay per task with the payment company holding the money. Locked 18 Nov: design written, build under way. Production is built once, on the final money flow. See [Decisions](#decisions-only-you-can-make-these).
 - | Decision 28: production gets the real web name | Decided 11 Nov: `taskdrop.in` moves to production at launch (task 5.10) and staging moves to `staging.taskdrop.in`. Google's sign-in screen, the payment company and the SMS registration all want a real website. See [Decisions](#decisions-only-you-can-make-these).
 5.1 | Say "I want to launch" | Claude checks every gate and paper. From here, the production accounts start to cost money.
 # C · Production, one tool at a time | Sign in as hitendureacts@gmail.com, make a NEW project in each tool, and save every key only in the PROD_ section of .env.all-secrets. Nothing is copied from staging.
@@ -526,7 +526,6 @@ You use **two Google accounts**, plus one email alias. When Google shows an acco
 | **Uptime Robot** | "Site is down" emails | [Open](https://dashboard.uptimerobot.com) | **hitendureacts@gmail.com** (you confirmed, 2026-10-30) | "staging website", "staging admin" (renamed in 5.11) | Two monitors (website and admin), pointed at `taskdrop.in` and the staging admin address (5.11) | **hitendureacts@gmail.com** | "production website", "production admin", "production server" | Three new monitors: the production website address, the production admin address and the production `app-config` address (5.11) |
 | **Spaceship** | Owns the domain `taskdrop.in` and its DNS | [Open](https://www.spaceship.com) | **hitendureacts@gmail.com** (you confirmed, 2026-10-30), account holder name Narasimha Raju | Domain `taskdrop.in` | Staging uses it: `taskdrop.in`, `www` and, optionally, `admin` (5.0b) | **hitendureacts@gmail.com** | None for now | Production uses the addresses Vercel makes. Option: swap `taskdrop.in` onto production at launch (decision 28, 5.10) |
 | **MSG91** | Sign-in text messages | [Open](https://msg91.com) | Not created yet (task S.6) | Not used | The sign-in code shows on screen instead | **hitendureacts@gmail.com** | Your MSG91 account from S.6 | Real SMS. Use **hitendureacts@gmail.com**, like your other tools. Its key goes into production only (6.1) |
-| **Cashfree** | Possible second payment company | [Open](https://www.cashfree.com) | No account (you asked for a quote only, task S.4) | None |  | **hitendureacts@gmail.com**, only if you open an account | None | Only if you choose it after the quote |
 | **.env.all-secrets** | Your secrets file (on your PC) | Not a website | Exists; protected in task 2.1 | None |  | None (a file, not an account) | None | Holds every key, login, recovery code and account detail, including every production key and the "TaskDrop production database password", under `PROD_` names. It is the only copy (one-file rule, 2.1) |
 | **Admin website** | Running TaskDrop | [Open](https://taskdrop-admin-git-redesigned-20-hitenduteam.vercel.app) | Only **hitendureacts@gmail.com** can sign in (your rule, 2026-10-25) | `taskdrop-admin-staging` (today `taskdrop-admin`; Vercel's own address, or `admin.taskdrop.in`, 5.0b) | Staff roles. Dummy staff Priya, Kiran and Neha | Only **hitendureacts@gmail.com** can sign in | `taskdrop-admin-production` (Vercel's address, expected `taskdrop-admin-production.vercel.app`) | Starts with no staff. Only you can sign in. `ADMIN_PHONE` stays empty |
 
@@ -904,7 +903,7 @@ Your Play account is the **Personal** account **NLNarasimhaRaju**, owned by `nar
 2. Email each one. Attach `docs/LAWYER_BRIEF.md` (it explains how TaskDrop moves money). Add the links https://taskdrop.in/?page=terms and https://taskdrop.in/?page=privacy. Ask for a **fixed-fee quote**.
 3. The questions to ask:
    - May TaskDrop hold a poster's money until they approve, then pay the worker? Or must a payment company (for example Razorpay Route) hold it?
-   - Does the wallet need RBI permission? Razorpay asked for a PPI license on 5 Nov. Is Plan B enough, so TaskDrop never holds a balance: pay per task, with Cashfree Easy Split or Razorpay Route holding the money until approval (see the note under S.4)? **Ask this one first** (CEO review, 9 Nov): its answer decides how production is built.
+   - Does the wallet need RBI permission? Razorpay asked for a PPI license on 5 Nov. Is Plan B enough, so TaskDrop never holds a balance: pay per task, with Razorpay Route holding the money until approval (see the note under S.4)? **Ask this one first** (CEO review, 9 Nov): its answer decides how production is built.
    - Please review our Terms and Privacy pages.
    - What do we need for India's data law (DPDP)? How fast must a data breach be reported, and to whom? How long may we keep chats, photos and ID details after an account is deleted?
    - Above what amount must we check a worker's identity (KYC) before paying them out?
@@ -920,11 +919,11 @@ Here is the lawyer's answer:
 </details>
 
 <details id="tS-4" data-short="Payment quotes">
-<summary>[YOU] <b>S.4</b> Ask Razorpay and Cashfree for written price quotes <small>· Emailed 31 Oct, waiting for their call back · free</small></summary>
+<summary>[YOU] <b>S.4</b> Ask Razorpay in writing about Route <small>· Decision 3 decided 19 Nov: Razorpay · free</small></summary>
 
-**Why:** your rule is "take the cheaper one". It counts only if that company also approves TaskDrop's way of handling money, in writing.
+**Why:** you decided on 19 Nov to use Razorpay for Plan B (Cashfree is dropped). Razorpay's documented rule for Route needs more than ₹40 lakh of domestic turnover, which a new TaskDrop will not have. So this task asks Razorpay alone, in writing, whether TaskDrop can get Route anyway (an exception, or a path for a new business) and approves TaskDrop's way of handling money.
 
-1. Copy this email, fill in the blanks, and send it to the sales teams of **Razorpay** and **Cashfree** (use the "Contact sales" form on each website):
+1. Copy this email, fill in the blanks, and send it to the **Razorpay** sales team (use the "Contact sales" form on their website):
 
 ```say
 Subject: Pricing quote for TaskDrop (online task marketplace, India)
@@ -935,7 +934,7 @@ I run TaskDrop (taskdrop.in), a marketplace where a person posts a task, a worke
 Please send me, in writing:
 1. Your rate for UPI, cards and netbanking, separately.
 2. Whether your fee is returned when we refund a cancelled task.
-3. Your split-payment or payout product, its fee, and what each worker must do to be set up.
+3. Razorpay Route (split payments with settlements on hold): its fee, whether a new business with no turnover history can get it, and what each worker must do to be set up (each worker is a linked account with their own KYC).
 4. Whether our use case (money held until approval, then paid to a third party) is approved under the RBI payment aggregator rules.
 5. Your settlement time (T+1, T+2).
 6. Whether your KYC accepts a ___ (your business type).
@@ -947,36 +946,35 @@ ___
 ```
 
 2. Write the date down. If there is no reply by the deadline, send a reminder. Suggested deadline: **2 November 2026**.
-3. When both have replied, SAY the text below and paste only the numbers (never any keys).
+3. When Razorpay has replied, SAY the text below and paste only the numbers (never any keys).
 
 ```say
-Here are the payment quotes:
+Here is Razorpay's answer:
 ```
 
-4. Claude fills a comparison table (it includes the cost of switching: Razorpay is already built, Cashfree would take about one phase of work) and recommends one.
-5. Make decision 3 in the "Decisions" section.
+4. Claude reads the answer and tells you in plain words whether Route is open to TaskDrop now, later (after turnover), or not at all. Decision 3 (Razorpay) stays decided; the answer decides only when real money can start.
 
-**Done when:** both quotes are in and you have chosen.
+**Done when:** Razorpay's written answer on Route is in.
 
-**How TaskDrop uses a payment company (ready to copy).** Use this when a form, a sales call or a person asks "How will you use our payments for your business?". It was written for Cashfree's sign-up form on 4 Nov. If the form allows only 300 characters, use the short version below it.
+**How TaskDrop uses a payment company (ready to copy).** Use this when a form, a sales call or a person asks "How will you use our payments for your business?". It was written for a payment company's sign-up form on 4 Nov and now names Razorpay. If the form allows only 300 characters, use the short version below it.
 
 ```say
 TaskDrop is a task marketplace for India (web and Android app). A user ("poster") posts a task with a price, for example picking up groceries, small repairs, deliveries or remote work. A verified helper accepts it and completes it.
 
-We'd use Cashfree for:
+We'd use Razorpay for:
 1. Payment Gateway: the poster pays the task amount when posting or assigning the task, using UPI, cards, netbanking or wallets.
-2. Holding funds until completion: Cashfree holds the payment (Easy Split with the settlement on hold) until the poster confirms the work is done, or a dispute is settled. TaskDrop never holds a balance. This protects both sides.
-3. Easy Split: on approval, Cashfree settles the helper's share to their bank account or UPI ID (each helper is a vendor with their own KYC), and our platform fee as commission.
+2. Holding funds until completion: Razorpay holds the payment (Route with settlements on hold) until the poster confirms the work is done, or a dispute is settled. TaskDrop never holds a balance. This protects both sides.
+3. Route: on approval, Razorpay transfers the helper's share to their bank account (each helper is a linked account with their own KYC), and our platform fee as commission.
 4. Refunds: if a task is cancelled or a dispute is decided in the poster's favour, we refund the poster.
 
 Typical tickets are small, around ₹150 to ₹1,000 per task. All users are 18+ and sign in with a verified phone number.
 ```
 
 ```say
-TaskDrop (taskdrop.in) is a marketplace where people post local and remote tasks and verified helpers complete them. We'll use Cashfree to collect each task payment via UPI, cards and netbanking; Cashfree holds it with Easy Split until the task is approved, then settles the helper's share and our fee. We never hold a balance. Cancelled tasks are refunded to the original payment method.
+TaskDrop (taskdrop.in) is a marketplace where people post local and remote tasks and verified helpers complete them. We'll use Razorpay to collect each task payment via UPI, cards and netbanking; Razorpay holds it with Route until the task is approved, then settles the helper's share and our fee. We never hold a balance. Cancelled tasks are refunded to the original payment method.
 ```
 
-For Razorpay, change "Cashfree" to "Razorpay" and "Easy Split" to "Route with settlements on hold". In a form, choose a category like "Marketplace / Online services", not "Escrow": payment companies treat real escrow as a separate regulated product.
+In a form, choose a category like "Marketplace / Online services", not "Escrow": payment companies treat real escrow as a separate regulated product.
 
 **Razorpay asked for a PPI license (5 Nov 2026): what it means and what to do.** Razorpay asked for a **PPI license** and listed these documents: a registered entity (shop establishment, import and export code, or utility bill) or GST, and a business bank account. You asked whether you need a registered business, or whether an individual plan works. This is the answer, saved word for word in substance. It is general guidance, not legal or tax advice, and the figures come from general knowledge, not from Razorpay's current pages. Confirm them with Razorpay in writing (S.4), with your lawyer (S.3) and with your CA (S.2) before you rely on them. Nothing was built or changed.
 
@@ -1021,7 +1019,7 @@ This usually takes 1 to 3 weeks. One thing to check with a CA: GST law has speci
 | | **Plan A: the wallet (built today)** | **Plan B: pay per task, the payment company holds the money** |
 |---|---|---|
 | **In one line** | One real TaskDrop balance holds top-ups, earnings and refunds; it pays workers and can be withdrawn any time (migration 066, your decision of 29 Sep) | Pay per task, with a **virtual wallet that is only a ledger**. The poster pays for the task at checkout; the payment company holds the real money until approval, then pays the worker. TaskDrop keeps no real balance |
-| **Who holds the money** | TaskDrop (a balance in its own database) | The payment company (Cashfree Easy Split first, up to 45 days on hold; Razorpay Route "Settlements On Hold" is the fallback) |
+| **Who holds the money** | TaskDrop (a balance in its own database) | The payment company (Razorpay Route with "Settlements On Hold") |
 | **Top up and park money in the app** | Yes | No. Users cannot park money and withdraw it later |
 | **Paying a task** | From the balance, or by topping up first | UPI or card at checkout when the task is posted |
 | **How a worker gets paid** | Earnings land in the balance, clear after 7 days, then withdraw to UPI or bank | The worker completes KYC once; on approval the provider pays out to bank or UPI |
@@ -1029,12 +1027,12 @@ This usually takes 1 to 3 weeks. One thing to check with a CA: GST law has speci
 | **Credits** | Balance can include credits | Promo credit only: spendable on tasks, not withdrawable |
 | **Wallet screen** | Real balance: the number is money TaskDrop holds | **Virtual wallet = ledger**: the same screen, showing tasks, earnings, pending holds and payouts as records. The numbers are a view of what the provider holds, not money TaskDrop holds |
 | **RBI risk** | **High.** A balance that can be topped up, withdrawn and spent on other users looks like a regulated PPI wallet. The draft rules reportedly do not exempt marketplaces. Razorpay has already asked for a PPI licence (5 Nov), which needs a Private Limited company with about ₹5 crore net worth | **Low.** TaskDrop never holds a balance, so no PPI licence is needed |
-| **Provider catch** | Razorpay may refuse | Route needs more than ₹40 lakh domestic turnover, which a new TaskDrop will not have. Cashfree's turnover rule is not stated, so ask in writing. Stripe Connect is not true escrow and leaves KYC and AML with TaskDrop |
+| **Provider catch** | Razorpay may refuse | Route needs more than ₹40 lakh domestic turnover, which a new TaskDrop will not have, so S.4 asks Razorpay in writing whether TaskDrop can get it. Stripe Connect is not true escrow and leaves KYC and AML with TaskDrop |
 | **Work to build** | None; already built | The money code changes: checkout payment, split and hold, worker KYC, refunds to source, and the wallet screen becomes a record list. Needs a design step first |
 | **Safe either way** | The wallet record list (H34) is safe to build under Plan A or Plan B | Same |
 | **Reverses an old decision** | No | **Yes**, your 29 Sep wallet decision, so it needs your yes first |
 
-**When to switch from A to B:** if the lawyer says Plan A needs an RBI PPI licence, or Razorpay or Cashfree refuse in writing, or the licence is out of reach. Until then, nothing changes. **What to ask first:** (1) Cashfree, in writing: does Easy Split need a turnover minimum, and does it allow a hold for a marketplace like TaskDrop? (2) The lawyer: is Plan B enough so TaskDrop never needs a PPI licence? **Plan B chosen (decision 29, 9 Nov):** the Cashfree sign-up text above now uses Plan B wording (Cashfree holds the money until approval). Use the Plan B pitch in the PDF, not its old "the money stays with us" text. **A printable explainer is saved as [`docs/PLAN_A_PLAN_B_RAZORPAY_CASHFREE.pdf`](PLAN_A_PLAN_B_RAZORPAY_CASHFREE.pdf):** 11 pages with a picture of each plan, stage-by-stage flows (how the poster pays, how the helper is paid, top-up or no top-up), the differences table, real examples, questions for customer care and a ready-to-paste Plan B pitch for Cashfree and Razorpay.
+**When to switch from A to B:** if the lawyer says Plan A needs an RBI PPI licence, or Razorpay refuses in writing, or the licence is out of reach. Until then, nothing changes. **What to ask first:** (1) Razorpay, in writing: can a new TaskDrop get Route despite the ₹40 lakh turnover rule, and does it allow a hold for a marketplace like TaskDrop? (2) The lawyer: is Plan B enough so TaskDrop never needs a PPI licence? **Plan B chosen (decision 29, 9 Nov):** the sign-up text above uses Plan B wording (Razorpay holds the money until approval). Use the Plan B pitch in the PDF, not its old "the money stays with us" text. **A printable explainer is saved as [`docs/PLAN_A_PLAN_B_RAZORPAY_CASHFREE.pdf`](PLAN_A_PLAN_B_RAZORPAY_CASHFREE.pdf):** 11 pages with a picture of each plan, stage-by-stage flows (how the poster pays, how the helper is paid, top-up or no top-up), the differences table, real examples, questions for customer care and a ready-to-paste Plan B pitch (use the Razorpay half only).
 </details>
 
 <details id="tS-5" data-short="Name and trademark">
@@ -1099,7 +1097,7 @@ DMCA agent registered: name ___, email ___, address ___, phone ___. Grievance of
 Add the cancellations-and-refunds page and the contact-us page with the business address.
 ```
 
-2. CLICK: https://dashboard.razorpay.com → **Activate account** → enter the business type, PAN, GST (if any), your current account and the website → upload the documents it asks for → **Submit**. The website is the address Razorpay will open and review: use the production web address from 5.10 if it is ready, and ask Razorpay first whether a `.vercel.app` address is accepted (decision 28). If you chose Cashfree in decision 3, do the same on Cashfree instead.
+2. CLICK: https://dashboard.razorpay.com → **Activate account** → enter the business type, PAN, GST (if any), your current account and the website → upload the documents it asks for → **Submit**. The website is the address Razorpay will open and review: use the production web address from 5.10 if it is ready, and ask Razorpay first whether a `.vercel.app` address is accepted (decision 28).
 3. CLICK: https://x.razorpay.com → activate RazorpayX (for paying workers) with the same business.
 4. Wait for the approval emails.
 5. TELL Claude: "done S.8, Razorpay and RazorpayX are approved". **Do not create or copy live keys yet.** That is task 6.1.
@@ -2058,7 +2056,7 @@ A new idea for a check becomes one round ("charter") of the debug loop. It does 
 | 4 | **The rest of 2.13:** make both code folders private (part H), invite 2 or 3 free testers (part E), the spend-stop clicks (part F) | You | 30 minutes | Gate 2b (part E may follow, before 6.5) |
 | 5 | **The rest of the hunt** (2.14): H34 wallet record list, H37 admin idle limit and Google button, H38 location inside videos, the admin round 3 (F: H77, H78; G: H80, the admin smoke), your "fix" or "accept" on the Low finds, part G on the phone | Both | 45 minutes of yours | Gate 2b |
 | 6 | **Your OK on the Google-first sign-in screen** (2.8) | You | 2 minutes | Gate 2b |
-| 7 | **The money flow, Plan B** (2.21): design now, build after decision 3 and the lawyer's yes | Claude, then you | see 2.21 | Gate 2b, then Step 5 |
+| 7 | **The money flow, Plan B** (2.21): locked 18 Nov, design written, build under way; real money after Razorpay's written answer and the lawyer's yes | Claude, then you | see 2.21 | Gate 2b, then Step 5 |
 | 8 | **The AI attacker** (2.16), on the finished Plan B code, then one small paid tester (decision 30) | Both | 45 minutes of yours | Gate 2b |
 | 9 | **Tick Gate 2b.** Then Step 5 (production) may start once Gates 3 and 4 also pass | Claude | | Step 5 |
 | + | **Added 17 Nov, any time before Gate 2b:** hide your Gmail and the backend address (2.22 parts b, c, d) and the Spaceship lock and two-step check (2.23 step 3). The code part and the DNS records are done | You | about 30 minutes | Gate 2b, and before any real user sees the sign-in screen |
@@ -2093,7 +2091,7 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 | 2.18 The outside testers' advice (added 6 Nov) | Checked 6 Nov, fixes not started | Decision 30 was decided 11 Nov; part B now also proves admin refusals (H79); say "start 2.18" |
 | 2.19 The debug loop (added 10 Nov) | Planned 10 Nov ([DEBUGGING_PLAN.html](DEBUGGING_PLAN.html)); Starter Story debugging lessons added 11 Nov (dig-deeper ladder, `BUG_PROMPT.md`; then "Advanced Debugging (Day 6)": code and live backend, context first, logs before code, fix path A or B); rounds 0 to 3 run 12 Nov, round 4 run 13 Nov (live web, Android, admin); not settled; whole-app coverage map, charters I to K and round 5 added 13 Nov; round 7 run 16 Nov (guest, signed-in, admin and phone walks; fixes in PRs 376 to 397); **round 8 (17 Nov) found everything first, fixed nothing:** 7 code audits and 4 signed-in walks, payments left out, 367 findings so far (0 Critical, 7 High, 90 Medium, 223 Low, 47 Info; walks L1 to L3 still running), written in [ROUND-8.md](debug-loop/ROUND-8.md) and `docs/debug-loop/round-8/`, to be fixed all at once and then one phone update; earlier: **round 5 started 14 Nov, not finished** ([ROUND-5.md](debug-loop/ROUND-5.md): both sweeps green, the 13 admin fixes of round 4 reviewed and merged, 11 new bugs B142 to B152, admin roles, golden path, forms and Android still to run) | Do the owner-only steps in section 19 of the plan page (still open: migration 152, `psql`, admin logins, the staging Android app, `EXPO_BUILDS_TOKEN`), then say "start debug round" again for round 6; then your "fix" or "accept" after each round. Gate 3 waits for it to settle; Gate 2b does not |
 | 2.20 The audit prompt for vibe-coded apps (added 10 Nov) | Not run | Say "start 2.20"; then your "fix" or "accept" on the Medium and Low finds. Does not block Gate 2b unless it finds a Critical or High |
-| 2.21 The money flow, Plan B (added 11 Nov, final pass) | Not started | Say "design the Plan B money flow" now; the build waits for decision 3 (S.4) and the lawyer's yes (S.3) |
+| 2.21 The money flow, Plan B (added 11 Nov, final pass) | Design done 18 Nov; build under way | Claude builds it on staging behind the `money_flow` switch with a simulated provider; real money waits for Razorpay's written answer (S.4) and the lawyer's yes (S.3) |
 
 **On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
 
@@ -2109,7 +2107,7 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 **The server-side rule (your rule, 1 Nov 2026):** whenever Claude creates or is handed a secret, it goes into `.env.all-secrets` and into the server-side store that uses it, and nowhere else. The app and website code read secrets from environment variables only, and what is committed to Git is names and placeholders, never values. Names that start with `EXPO_PUBLIC_` or `NEXT_PUBLIC_` are for public values only, because anyone can read them in the app or the page. The secret scan (gitleaks) and the commit guard check this on every pull request. If a secret is ever found in code, Git or chat, Claude tells you at once and removes it from the code; whether to replace the key is your decision.
 
 1. CLICK: open `C:\complete taskdrop\Taskdrop user\.env.all-secrets` in Notepad. At the very bottom add two heading lines: `# ===== LOGINS, RECOVERY CODES, KEYSTORE =====` and `# ===== PRODUCTION (every name starts with PROD_) =====`.
-2. **Put every secret in the file.** Under the headings add one line per secret as `NAME=value` (put quotes around a value that has spaces), for example `LOGIN_VERCEL_EMAIL=...`, `LOGIN_VERCEL_PASSWORD=...`, `RECOVERY_GOOGLE_HITENDU_1=...`, `KEYSTORE_PASSWORD=...`, `PROD_SUPABASE_DB_PASSWORD=...`. Add every login you use for TaskDrop: both Google accounts, GitHub, Vercel, Supabase, Expo, Sentry, Razorpay, Cashfree, Inngest, ImageKit, MSG91, Spaceship, Google Play Console. Do this now, and again the same day for every later secret: **each time a task says "save it in the secrets file", add the line there**. Never type these values into the chat.
+2. **Put every secret in the file.** Under the headings add one line per secret as `NAME=value` (put quotes around a value that has spaces), for example `LOGIN_VERCEL_EMAIL=...`, `LOGIN_VERCEL_PASSWORD=...`, `RECOVERY_GOOGLE_HITENDU_1=...`, `KEYSTORE_PASSWORD=...`, `PROD_SUPABASE_DB_PASSWORD=...`. Add every login you use for TaskDrop: both Google accounts, GitHub, Vercel, Supabase, Expo, Sentry, Razorpay, Inngest, ImageKit, MSG91, Spaceship, Google Play Console. Do this now, and again the same day for every later secret: **each time a task says "save it in the secrets file", add the line there**. Never type these values into the chat.
 3. **A random value when a task asks for one.** CLICK: open **PowerShell**, paste this one line and press **Enter**: `$b=New-Object byte[] 48; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)`. It prints a 64-character random value. Copy it, and save it in the file inside quotes. The tasks in Steps 5 and 6 use this.
 4. CLICK: find the Android keystore backup. In File Explorer, search your OneDrive folder for "keystore". **Move** (not delete) the zip to a folder outside OneDrive, for example `C:\TaskDrop-safe`. Copy it to a USB stick as well, and keep the stick at home.
 5. If a text file with the keystore passwords sits next to the zip: copy the passwords into the file (`KEYSTORE_PASSWORD`, `KEY_PASSWORD`, `KEY_ALIAS`), then delete that text file. **Never delete the keystore itself.** Without it you cannot update the app. The keystore zip is a file, so it stays in `C:\TaskDrop-safe` and on the USB stick, not inside `.env.all-secrets`.
@@ -2120,7 +2118,7 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 
 **Done when:** every login, key, recovery code and keystore password is in `.env.all-secrets` under its own name, the keystore zip is out of OneDrive and on a USB stick, device encryption is on, an encrypted backup of the file is on the USB stick, one trusted person knows where it is, and Claude's two name checks pass.
 
-**Done 1 Nov:** you marked this done. Claude's two name checks passed (the file is outside OneDrive and ignored by Git in both repositories, and the sync step lists no `PROD_`, `LOGIN_`, `RECOVERY_` or `KEYSTORE_` name). The keystore zip is in `C:\TaskDrop-safe`, its passwords are in the file, the two headings and the `LOGIN_` lines are added, and Google sign-in is recorded for Vercel, Supabase, Expo, Sentry, Inngest, ImageKit, UptimeRobot, Razorpay and Spaceship. **Left open by your choice:** the Google, GitHub and Expo passwords are blank (the script `fill-login-passwords.ps1` fills them), Cashfree and MSG91 wait for those accounts, and device encryption, the encrypted backup, the trusted person and emptying the Recycle Bins are not confirmed. Until the backup exists, a lost PC loses every secret.
+**Done 1 Nov:** you marked this done. Claude's two name checks passed (the file is outside OneDrive and ignored by Git in both repositories, and the sync step lists no `PROD_`, `LOGIN_`, `RECOVERY_` or `KEYSTORE_` name). The keystore zip is in `C:\TaskDrop-safe`, its passwords are in the file, the two headings and the `LOGIN_` lines are added, and Google sign-in is recorded for Vercel, Supabase, Expo, Sentry, Inngest, ImageKit, UptimeRobot, Razorpay and Spaceship. **Left open by your choice:** the Google, GitHub and Expo passwords are blank (the script `fill-login-passwords.ps1` fills them), MSG91 waits for that account, and device encryption, the encrypted backup, the trusted person and emptying the Recycle Bins are not confirmed. Until the backup exists, a lost PC loses every secret.
 </details>
 
 <details id="t2-1b" data-short="2-step sign-in">
@@ -2144,7 +2142,7 @@ Do them in this order. Google and GitHub come first, because other sites let you
 6. **Spaceship** (it controls where `taskdrop.in` points). CLICK: https://www.spaceship.com → your account → **Security** → turn on two-factor.
 7. **Expo.** CLICK: https://expo.dev → your photo → **Account settings** → **Two-factor authentication**.
 8. Each site shows **recovery codes** when you turn this on. Save each set in `.env.all-secrets`, named `RECOVERY_` plus the site (for example `RECOVERY_GITHUB_1`), and refresh the backup (2.1). Without them, a lost phone locks you out.
-9. Later, as you make each new account (Sentry, Inngest, ImageKit, MSG91, Cashfree, and every production account in Step 5), turn on 2-step sign-in the same day. If a site only offers SMS codes, use SMS: it is better than nothing.
+9. Later, as you make each new account (Sentry, Inngest, ImageKit, MSG91, and every production account in Step 5), turn on 2-step sign-in the same day. If a site only offers SMS codes, use SMS: it is better than nothing.
 10. TELL Claude: "done 2.1b", and name any site where you could not find the setting.
 
 **Done when:** all 8 accounts above ask for a code from your phone when you sign in, and every set of recovery codes is in `.env.all-secrets`.
@@ -3216,7 +3214,7 @@ start 2.20
 </details>
 
 <details id="t2-21" data-short="Plan B money flow">
-<summary>[BOTH] <b>2.21</b> The money flow, Plan B: pay per task, the payment company holds the money <small>· added 11 Nov (final pass) · not started · design now, build after decision 3 and the lawyer's yes · the longest piece of Claude's work left before launch</small></summary>
+<summary>[BOTH] <b>2.21</b> The money flow, Plan B: pay per task, the payment company holds the money <small>· added 11 Nov · locked 18 Nov · design written (docs/design/plan-b-money/DESIGN.md) · build under way on staging behind the money_flow switch; real money waits for Razorpay's written answer and the lawyer's yes</small></summary>
 
 **Why this task exists:** decision 29 (9 Nov) chose Plan B, and everything after Step 4 depends on it: production, the ₹10 test, the AI attacker (2.16) and the paid tester (decision 30). Until the final pass it had no number, no steps and no gate line. Plan B means TaskDrop never holds a balance, so it needs no RBI wallet licence (PPI).
 
@@ -3241,16 +3239,10 @@ start 2.20
 
 **Steps**
 
-1. SAY:
-
-```say
-design the Plan B money flow
-```
-
-   Claude writes the design (screens, tables, server calls, the provider's API for both Razorpay Route and Cashfree Easy Split, and the undo for each database change) and shows it to you before building. A design costs nothing and works for either company.
-2. You send the S.4 answers when they arrive. **Decision 3** takes the cheaper company that agrees in writing to hold the money until the poster approves (RBI's rules leave that hold to the contract).
+1. **Done 18 Nov:** you locked Plan B and Claude wrote the design: [docs/design/plan-b-money/DESIGN.md](../docs/design/plan-b-money/DESIGN.md) (screens, tables, server calls, the provider's API for Razorpay Route, and the undo for each database change).
+2. You send Razorpay's S.4 answer when it arrives. **Decision 3 is decided (19 Nov): Razorpay Route.** Razorpay must agree in writing to hold the money until the poster approves (RBI's rules leave that hold to the contract).
 3. The lawyer's written yes (S.3).
-4. SAY "build 2.21". Claude builds it on staging with the chosen company's **test keys**, in small pull requests, with `npm run test:db` money tests for every row of the table above.
+4. Claude is building it now (you locked it on 18 Nov) on staging with a staging-only simulated provider and the Razorpay Route adapter, behind the `money_flow` switch, in small pull requests; Razorpay's **test keys** plug in when you add them. The `npm run test:db` money tests cover for every row of the table above.
 5. Claude runs the whole job with test money on the website and the Android app, and shows you the result.
 6. TELL Claude: "done 2.21".
 
@@ -5883,7 +5875,7 @@ For each one, SAY the sentence to record your answer, or write your own.
 |---|---|---|---|
 | 1 | **Addresses.** `taskdrop.in` is staging (the app plus the public pages) and production uses the addresses Vercel makes. The admin follows the same rule | **Decided by you, 2026-11-05** (it reverses your 2026-10-31 answer, which made `taskdrop.in` production). Staging: `taskdrop.in`, `www.taskdrop.in`, and optionally `admin.taskdrop.in`. Production: the Vercel addresses, expected `taskdrop-production.vercel.app` and `taskdrop-admin-production.vercel.app` (task 5.10). Read decision 28 before launch. Done | Nothing to say |
 | 2 | **Launch city and first 5 task types** | **Decided by you, 2026-10-31.** City: Hyderabad. The task types are not picked up front: they follow what posters and workers actually post (task 4.1). Done | Nothing to say |
-| 3 | **Payment company** | Open: you have not chosen yet (9 Nov). Your rule: take the cheaper quote, but only if it approves TaskDrop's use case in writing. Under Plan B (decision 29) compare **Razorpay Route** and **Cashfree Easy Split** side by side: the fee per payment and per split, any turnover minimum (Route reportedly needs ₹40 lakh), how long the money can be held, the refund fee, and the KYC each helper must do. Wait for both written quotes (S.4) | "Decision 3: Razorpay." or "Decision 3: Cashfree." |
+| 3 | **Payment company** | **Decided 19 Nov: Razorpay** (Route, settlements on hold). You said not to take Cashfree. Honest risk: Razorpay's documented Route rule needs more than ₹40 lakh domestic turnover, which a new TaskDrop will not have, so S.4 asks Razorpay alone, in writing, whether TaskDrop can get Route (an exception or a path for a new business). Also ask about the fee per payment and per split, how long the money can be held, the refund fee, and the KYC each helper must do | Decided. Nothing to say |
 | 4 | **Key replacement.** Your rule is "never replace keys". Allow one exception: replace a key only if it is confirmed leaked? | **Decided by you, 2026-10-31.** Yes. Replace a key only when it is confirmed leaked. Done | Nothing to say |
 | 5 | **Fewer requests.** Accept that some screens can take up to 30 seconds longer to show other people's changes when you return to them? | **Decided by you, 2026-10-31.** Yes. Done | Nothing to say |
 | 6 | **Smart alerts for workers** | **Decided by you, 2026-10-31.** Yes. Design first (task 4.5). Done | Nothing to say |
@@ -5909,7 +5901,7 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 26 | **Lock-screen notifications** (H42). They show the other person's name, the task, rupee amounts and the start of a chat message to anyone who sees the phone | **Decided: plain line (the recommended answer). Built 6 Nov (PR 260, migration 155):** chat, questions, money, support, security and admin warnings show a plain line on the lock screen and keep the detail inside the app; offers and task updates keep their text | Nothing to say |
 | 27 | **Limits for new accounts and posting** (H47). Sign-up costs nothing while codes show on screen, and there is no daily cap on posting tasks or ideas | **Built with the recommended answer, 6 Nov (PR 262, migration 152):** 20 tasks and 20 ideas a day, 5 a day for a new account, and the same for feedback. Say it to change | "Decision 27: change the caps" to change |
 | 28 | **Production's web address.** You asked (5 Nov) for `taskdrop.in` to stay with staging and for production to start on the address Vercel makes. That is fine for building and testing. Three things may need a real name before real money: (1) **Razorpay's live review**, the **SMS registration** and the **Google Play listing** each ask for a website they can open; (2) **Google's sign-in consent screen** wants a home page on a domain you own, and `vercel.app` is shared; (3) customers and Google trust a `…vercel.app` address less. Keep it, swap `taskdrop.in` onto production at launch (5.10, option B, about 20 minutes, no rebuild; staging then uses its Vercel address), or buy a second domain for production? | **Decided by you, 2026-11-11** ("Use the CEO defaults"). **Swap at launch:** `taskdrop.in` moves to production in task 5.10 (option B, about 20 minutes, no rebuild) and staging moves to `staging.taskdrop.in`, which is free. No second domain is bought. Until launch, `taskdrop.in` stays staging. Done | Nothing to say |
-| 29 | **How money moves, given Razorpay's PPI request (5 Nov).** Razorpay asked for a PPI license because TaskDrop keeps a wallet balance. A PPI license needs a Private Limited company with about ₹5 crore net worth, which is not realistic now. Keep the wallet as built and risk Razorpay refusing, or move to **Razorpay Route** (the poster's money is held by Razorpay and sent straight to the helper's bank account, TaskDrop never holds a balance)? The note under S.4 has the full answer, the sole-proprietorship papers it needs, and a side-by-side of **Plan A (keep the wallet)** and **Plan B (pay per task, the payment company holds the money: Razorpay Route or Cashfree Easy Split, see decision 3; Route reportedly needs ₹40 lakh turnover)** | **Decided by you, 2026-11-09: Plan B** (it reverses your 29 Sep wallet decision). Pay per task; the payment company holds the money until approval: Razorpay Route or Cashfree Easy Split. **Which company is decision 3, still open** (corrected 9 Nov: you have not chosen between them). Next: say "design the Plan B money flow" and Claude writes a design that works with either (no code). The code waits for the chosen company's written yes (S.4) and the lawyer's (S.3). Production (Step 5) and the security round (2.16) run once, on this flow. Done | Nothing to say |
+| 29 | **How money moves, given Razorpay's PPI request (5 Nov).** Razorpay asked for a PPI license because TaskDrop keeps a wallet balance. A PPI license needs a Private Limited company with about ₹5 crore net worth, which is not realistic now. Keep the wallet as built and risk Razorpay refusing, or move to **Razorpay Route** (the poster's money is held by Razorpay and sent straight to the helper's bank account, TaskDrop never holds a balance)? The note under S.4 has the full answer, the sole-proprietorship papers it needs, and a side-by-side of **Plan A (keep the wallet)** and **Plan B (pay per task, the payment company holds the money: Razorpay Route, decision 3; Route reportedly needs ₹40 lakh turnover)** | **Decided by you, 2026-11-09: Plan B** (it reverses your 29 Sep wallet decision). Pay per task; the payment company holds the money until approval: Razorpay Route. **Which company is decision 3: decided 19 Nov, Razorpay** (Cashfree dropped). **Locked 18 Nov (owner): Plan A wallet retired; top-ups, pay-from-wallet and withdraw-anytime go; the wallet becomes a record of each task's money.** The design is written (docs/design/plan-b-money/DESIGN.md) and Claude is building it on staging behind the `money_flow` switch. Real money waits for Razorpay's written yes (S.4) and the lawyer's (S.3). Production (Step 5) and the security round (2.16) run once, on this flow. Done | Nothing to say |
 | 29b | **How old the same-for-everyone lists may be** (3.5b). Trending, Top helpers and today's numbers would be worked out once every 10 minutes and shared, instead of once per person. Money, tasks, offers and chats are never shown old | **Parked with 3.5b (9 Nov, CEO review).** Nothing to decide before launch | "Decision 29b: 10 minutes is fine" |
 | 30 | **A paid outside tester now?** (2.18 part J.) You have 8 proposals at $50 to $90. Decision 15 chose free invites first. At this price a tester gives a quick second opinion, not a full attack test | **Decided by you, 2026-11-11** ("Use the CEO defaults"). One small fixed-price paid round, only after the Plan B money flow is built and Strix (2.16) has run, scoped to the money paths and sign-in. The free invites stay, and F.13 stays the full review. Done | Nothing to say |
 | 31 | **Where `taskdrop.in/get` sends people before Google Play** (D17). Today there are only APKs from Expo links. A production APK installed from a link is expected to stop working once App Check is switched on (5.0d), so it cannot be the public download for long | **Decided by you, 2026-11-11** ("Use the CEO defaults"). On staging (`taskdrop.in`), `/get` serves the staging APK for testers. On production, the bar and `/get` point to Google Play from launch day (6.6), and the bar stays hidden until then. No public production APK. Done | Nothing to say |
@@ -6397,7 +6389,7 @@ Claude runs this before a feature is called done, and writes what it saw in the 
 
 **Not bought, on purpose:** Supabase point-in-time recovery (daily backups and the nightly copy are enough at launch; look again after Step 6), a business email (decision 11), a second domain (decision 28), paid ads (F.8), and a paid security review before the money flow is final (decision 30). RazorpayX or payout balance is working money you hold, not a cost.
 
-**Each payment:** the payment company's fee, about 2% + GST (about ₹3.65 on a ₹150 task). Under Plan B, Cashfree Easy Split adds 0.2% per split (Cashfree's help page, checked 9 Nov 2026).
+**Each payment:** the payment company's fee, about 2% + GST (about ₹3.65 on a ₹150 task).
 
 **A ₹150 task, worked out with tax.** Assumptions, to be replaced by the CA's answers (S.2): TaskDrop's fees include GST, and TaskDrop absorbs any section 9(5) GST.
 
@@ -6495,6 +6487,8 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-19 (decision 3 decided: Razorpay):** You said not to take Cashfree and to use Razorpay for Plan B. Cashfree is removed from the plan: decision 3 is decided, S.4 now asks Razorpay alone, in writing, whether a new TaskDrop can get Route (its documented rule needs more than ₹40 lakh domestic turnover), and task 2.21 builds Razorpay Route plus a staging-only simulated provider. Older entries below still mention Cashfree as history.
+- **2026-11-18 (Plan B locked):** You said "lock the Plan B feature for payments and implement the Plan B design". Plan B is locked: the old wallet (top-ups, pay from the wallet, withdraw any time) is retired, and the wallet becomes a record of each task's money. Claude wrote the design ([docs/design/plan-b-money/DESIGN.md](../docs/design/plan-b-money/DESIGN.md)) and the two provider briefs (`docs/integrations/`), and is building it on staging behind the `money_flow` switch with a simulated provider. Staging stays on the wallet until you switch it. Decision 3 and the lawyer's yes still gate real money.
 - **2026-11-17 (data in India, task 2.24, decision 55):** You asked to keep services in India where possible. DPDP does not require it, so: Vercel functions pinned to Mumbai, Sentry moves to a new EU organisation (your steps in 2.24), Inngest now gets ids and amounts only (migration 192, applied to staging by the merge), and the website asks before turning on crash reports (consent bar), and the Privacy Policy says where each company keeps data.
 - **2026-11-17, night (all of today in one place):** You asked for every bit of progress and every to-do in the plan. Added the card **"17 November: security questions answered, what got done, what is left"** under **Do these now**, a line in **What is left in Step 2**, a tip in rule 4 (open Chrome's Claude side panel when Claude says Chrome is not connected), and the live check of 2.22 part (a). The firewall line now says plainly that Vercel's "no configuration" answer could also mean Claude's connection cannot read it.
 

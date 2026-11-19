@@ -31,7 +31,7 @@ export const FRESH_FOR_MS = 30_000;
  */
 export const NEVER_REUSE: ReadonlySet<string> = new Set([
   // money
-  'getWallet', 'getEscrowHeld', 'listWalletActivity', 'listPayouts', 'listPayoutDestinations',
+  'getWallet', 'getEscrowHeld', 'listWalletActivity', 'getMoneyMode', 'getTaskHold', 'getMoneyLedger', 'listPayouts', 'listPayoutDestinations',
   'feesSince', 'platformFees', 'settleClearedEarnings', 'myStats', 'listPromotions',
   // task status and offers
   'getTask', 'getTaskDetail', 'canQuoteOn', 'getMyBid', 'myBidTaskIds', 'listBidsForTask', 'listMyBids', 'getProof',

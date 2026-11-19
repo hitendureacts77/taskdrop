@@ -40,7 +40,7 @@ export const API_GROUPS = {
   crew: ["crewOverview", "listCrewMessages", "sendCrewMessage"],
   hunt: ["huntFinds", "huntCounts", "huntLook", "huntSendFind", "huntAcceptFind", "huntDeclineFind", "huntAskPart"],
   wallet: [
-    "getWallet", "getEscrowHeld", "listWalletActivity", "feesSince", "settleClearedEarnings", "payTaskFromWallet",
+    "getWallet", "getEscrowHeld", "listWalletActivity", "getMoneyMode", "getTaskHold", "getMoneyLedger", "feesSince", "settleClearedEarnings", "payTaskFromWallet",
     "listPayouts", "requestWithdrawal", "cancelWithdrawal",
     "listPayoutDestinations", "addPayoutDestination", "removePayoutDestination", "setDefaultPayoutDestination",
   ],
