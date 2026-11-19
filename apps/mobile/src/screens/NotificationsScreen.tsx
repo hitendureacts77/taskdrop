@@ -6,6 +6,8 @@ import { EmptyState, LoadFailed, Shimmer, TopBar, UnderlineTabs, timeAgo } from 
 import { FadeIn, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useLayout } from '../lib/layout';
+import { SegmentedTabs } from '../components/ListPage';
+import { CONTENT_INSET } from '../navigation/DesktopPage';
 import { useNav } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -57,9 +59,9 @@ const ICON: Record<string, IconName> = {
  */
 export function NotificationsScreen() {
   const t = useTheme();
-  const { desktop, contentWidth } = useLayout();
-  // On a wide desktop window the notifications are cards in two columns, not a phone-width strip.
-  const wide = desktop && contentWidth('feed') >= 800;
+  // Desktop: one card (880 wide, centred) with a divider between rows, the tabs as a segmented control above it,
+  // and the title, subtitle and "Mark all read" in the page header. Everywhere else the screen is drawn as before.
+  const { desktop } = useLayout();
   const { back, go } = useNav();
   const { userId, guest } = useAuth();
   const { mode, setMode } = useMode();
@@ -116,7 +118,6 @@ export function NotificationsScreen() {
 
   const unread = (rows ?? []).filter((r) => !r.read_at);
   const shown = tab === 0 ? unread : (rows ?? []);
-  const twoCol = wide && rows !== null && shown.length > 0;
 
   const markAll = async () => {
     try {
@@ -173,41 +174,119 @@ export function NotificationsScreen() {
     );
   }
 
+  const markAllButton =
+    unread.length > 0 ? (
+      <Pressable onPress={() => void markAll()} hitSlop={8} accessibilityRole="button">
+        <RNText style={tx('700', 13, t.colors.accentDeep)}>Mark all read</RNText>
+      </Pressable>
+    ) : undefined;
+  const sideNote = mode === 'worker' ? 'Alerts about work you sent an offer for or are doing' : 'Alerts about the tasks you posted';
+  const refreshControl = <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />;
+
+  // What every alert shows: its icon, title, text and age, and the dot while it is unread.
+  const rowInner = (n: Notification) => (
+    <>
+      <View style={{ width: 34, height: 34, borderRadius: 999, backgroundColor: t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={ICON[n.kind] ?? 'bell'} size={16} color={t.colors.accentDeep} strokeWidth={2} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <RNText style={tx(n.read_at ? '600' : '800', 13, t.colors.ink)}>{n.title}</RNText>
+        {n.body ? (
+          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3, lineHeight: 17 })} numberOfLines={2}>
+            {n.body}
+          </RNText>
+        ) : null}
+        <RNText style={tx('400', 11, t.colors.muted, { marginTop: 5 })}>{timeAgo(n.created_at)}</RNText>
+      </View>
+      {!n.read_at ? <View style={{ width: 8, height: 8, borderRadius: 999, backgroundColor: t.colors.accent, marginTop: 4 }} /> : null}
+    </>
+  );
+
+  // The three states that are not a list of alerts; the same on every width.
+  const stateBlock =
+    rows === null ? (
+      [0, 1, 2].map((i) => <Shimmer key={i} height={64} style={{ marginTop: 12 }} />)
+    ) : shown.length === 0 && failed ? (
+      <LoadFailed onRetry={() => void loadOrFail()} />
+    ) : shown.length === 0 ? (
+      <EmptyState
+        icon="bell"
+        title={tab === 0 ? 'No unread notifications' : 'No notifications yet'}
+        body={tab === 0 ? 'You’re all caught up. New ones will appear here.' : 'Offers, payments and messages show up here.'}
+      />
+    ) : null;
+
+  if (desktop) {
+    return (
+      <Screen padded={false}>
+        <TopBar title="Notifications" subtitle={sideNote} onBack={back} right={markAllButton} />
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingTop: 8, paddingBottom: 28, paddingHorizontal: CONTENT_INSET }}
+          refreshControl={refreshControl}
+        >
+          <View style={{ width: '100%', maxWidth: 880, alignSelf: 'center' }}>
+            <View style={{ marginBottom: 16 }}>
+              <SegmentedTabs
+                tabs={[
+                  { key: 'unread', label: 'Unread', count: unread.length },
+                  { key: 'all', label: 'All' },
+                ]}
+                value={tab === 0 ? 'unread' : 'all'}
+                onChange={(k) => setTab(k === 'unread' ? 0 : 1)}
+              />
+            </View>
+            {stateBlock ?? (
+              <View
+                style={{
+                  backgroundColor: t.colors.surface,
+                  borderWidth: 1,
+                  borderColor: t.colors.line,
+                  borderRadius: t.radius.lg,
+                  overflow: 'hidden',
+                }}
+              >
+                {shown.map((n, i) => (
+                  <FadeIn key={n.id} duration={280} delay={Math.min(i, 8) * 30}>
+                    <Pressable
+                      onPress={() => void open(n)}
+                      accessibilityRole="button"
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        gap: 12,
+                        paddingVertical: 14,
+                        paddingHorizontal: 16,
+                        borderTopWidth: i === 0 ? 0 : 1,
+                        borderTopColor: t.colors.line,
+                        backgroundColor: n.read_at ? t.colors.surface : t.colors.accentSoft,
+                        opacity: pressed || opening === n.id ? 0.6 : 1,
+                      })}
+                    >
+                      {rowInner(n)}
+                    </Pressable>
+                  </FadeIn>
+                ))}
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      </Screen>
+    );
+  }
+
   return (
     <Screen padded={false}>
-      <TopBar
-        title="Notifications"
-        onBack={back}
-        right={
-          unread.length > 0 ? (
-            <Pressable onPress={() => void markAll()} hitSlop={8} accessibilityRole="button">
-              <RNText style={tx('700', 13, t.colors.accentDeep)}>Mark all read</RNText>
-            </Pressable>
-          ) : undefined
-        }
-      />
-      <RNText style={tx('500', 12, t.colors.muted, { paddingHorizontal: 20, marginBottom: 6 })}>
-        {mode === 'worker' ? 'Alerts about work you sent an offer for or are doing' : 'Alerts about the tasks you posted'}
-      </RNText>
+      <TopBar title="Notifications" onBack={back} right={markAllButton} />
+      <RNText style={tx('500', 12, t.colors.muted, { paddingHorizontal: 20, marginBottom: 6 })}>{sideNote}</RNText>
       <UnderlineTabs tabs={[`Unread (${unread.length})`, 'All']} active={tab} onPick={setTab} />
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={twoCol ? { paddingHorizontal: 15, paddingBottom: 24, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start' } : { paddingHorizontal: 20, paddingBottom: 24 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
+        refreshControl={refreshControl}
       >
-        {rows === null ? (
-          [0, 1, 2].map((i) => <Shimmer key={i} height={64} style={{ marginTop: 12 }} />)
-        ) : shown.length === 0 && failed ? (
-          <LoadFailed onRetry={() => void loadOrFail()} />
-        ) : shown.length === 0 ? (
-          <EmptyState
-            icon="bell"
-            title={tab === 0 ? 'No unread notifications' : 'No notifications yet'}
-            body={tab === 0 ? 'You’re all caught up. New ones will appear here.' : 'Offers, payments and messages show up here.'}
-          />
-        ) : (
+        {stateBlock ??
           shown.map((n, i) => (
-            <FadeIn key={n.id} duration={280} delay={Math.min(i, 8) * 30} style={twoCol ? { width: '50%', paddingHorizontal: 5 } : undefined}>
+            <FadeIn key={n.id} duration={280} delay={Math.min(i, 8) * 30}>
               <Pressable
                 onPress={() => void open(n)}
                 accessibilityRole="button"
@@ -223,23 +302,10 @@ export function NotificationsScreen() {
                   opacity: pressed || opening === n.id ? 0.6 : 1,
                 })}
               >
-                <View style={{ width: 34, height: 34, borderRadius: 999, backgroundColor: t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name={ICON[n.kind] ?? 'bell'} size={16} color={t.colors.accentDeep} strokeWidth={2} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <RNText style={tx(n.read_at ? '600' : '800', 13, t.colors.ink)}>{n.title}</RNText>
-                  {n.body ? (
-                    <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3, lineHeight: 17 })} numberOfLines={2}>
-                      {n.body}
-                    </RNText>
-                  ) : null}
-                  <RNText style={tx('400', 11, t.colors.muted, { marginTop: 5 })}>{timeAgo(n.created_at)}</RNText>
-                </View>
-                {!n.read_at ? <View style={{ width: 8, height: 8, borderRadius: 999, backgroundColor: t.colors.accent, marginTop: 4 }} /> : null}
+                {rowInner(n)}
               </Pressable>
             </FadeIn>
-          ))
-        )}
+          ))}
       </ScrollView>
     </Screen>
   );
