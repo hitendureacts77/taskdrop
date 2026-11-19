@@ -13,6 +13,7 @@ import { useLayout } from '../lib/layout';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
+import { ActionBar, FormPage, FormSection } from '../components/FormPage';
 import {
   TICKET_CATEGORIES,
   getTicket,
@@ -38,9 +39,8 @@ const STATUS: Record<string, { label: string; tone: 'gold' | 'accent' | 'neutral
  */
 export function HelpScreen() {
   const t = useTheme();
-  const { desktop, contentWidth, gutter, columns } = useLayout();
-  // D17: on a wide desktop window the composer and the help links sit side by side, and the conversations in two or three columns.
-  const twoCol = desktop && contentWidth('feed') >= 800;
+  // Desktop: the composer is a form card (FormPage) with the help links beside it, the conversations in two columns under the send bar.
+  const { desktop, columns } = useLayout();
   const { back, go } = useNav();
   const { flash, celebrate } = useActions();
   const [category, setCategory] = useState<TicketCategory>('payment');
@@ -84,10 +84,20 @@ export function HelpScreen() {
   const open = (tickets ?? []).filter((x) => x.status !== 'resolved');
   const done = (tickets ?? []).filter((x) => x.status === 'resolved');
 
+  const sendButton = (
+    <PrimaryButton label="Send message" onPress={() => void send()} busy={busy} disabled={body.trim().length < 5} style={{ marginTop: desktop ? 0 : 14 }} />
+  );
+  const feedbackLink = (
+    <Pressable onPress={() => setFeedback(true)} style={{ marginTop: desktop ? 0 : 12 }} accessibilityRole="button">
+      <RNText style={tx('400', 12, t.colors.muted, { lineHeight: 18 })}>
+        Not stuck, just have an idea or found a bug? <RNText style={tx('700', 12, t.colors.accentDeep)}>Send feedback</RNText> instead — it goes to the team that builds TaskDrop. Or <RNText onPress={() => go('ideas')} style={tx('700', 12, t.colors.accentDeep)}>vote on ideas</RNText> other people have suggested.
+      </RNText>
+    </Pressable>
+  );
   const composer = (
     <>
-      <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>WHAT DO YOU NEED HELP WITH?</RNText>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
+      {desktop ? null : <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>WHAT DO YOU NEED HELP WITH?</RNText>}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: desktop ? 0 : 9 }}>
         {TICKET_CATEGORIES.map((c) => (
           <Pill key={c.key} label={c.label} active={category === c.key} onPress={() => setCategory(c.key)} />
         ))}
@@ -101,12 +111,12 @@ export function HelpScreen() {
         placeholder="Tell us what happened"
         hint={lengthHint(body, 5, 'your message') ?? 'Include the task name or amount if it is about a payment.'}
       />
-      <PrimaryButton label="Send message" onPress={() => void send()} busy={busy} disabled={body.trim().length < 5} style={{ marginTop: 14 }} />
-      <Pressable onPress={() => setFeedback(true)} style={{ marginTop: 12 }} accessibilityRole="button">
-        <RNText style={tx('400', 12, t.colors.muted, { lineHeight: 18 })}>
-          Not stuck, just have an idea or found a bug? <RNText style={tx('700', 12, t.colors.accentDeep)}>Send feedback</RNText> instead — it goes to the team that builds TaskDrop. Or <RNText onPress={() => go('ideas')} style={tx('700', 12, t.colors.accentDeep)}>vote on ideas</RNText> other people have suggested.
-        </RNText>
-      </Pressable>
+      {desktop ? null : (
+        <>
+          {sendButton}
+          {feedbackLink}
+        </>
+      )}
     </>
   );
   const links = (
@@ -115,7 +125,7 @@ export function HelpScreen() {
         onPress={() => go('pricing')}
         accessibilityRole="button"
         style={({ pressed }) => ({
-          marginTop: twoCol ? 0 : 18,
+          marginTop: desktop ? 0 : 18,
           padding: 13,
           borderRadius: 12,
           borderWidth: 1,
@@ -195,7 +205,7 @@ export function HelpScreen() {
   );
   const convos = (
     <>
-      <RNText style={tx('800', 16, t.colors.ink, { marginTop: 26 })}>Your conversations</RNText>
+      {desktop ? null : <RNText style={tx('800', 16, t.colors.ink, { marginTop: 26 })}>Your conversations</RNText>}
       {tickets === null ? (
         <Shimmer height={64} style={{ marginTop: 12 }} />
       ) : tickets.length === 0 && failed ? (
@@ -205,9 +215,9 @@ export function HelpScreen() {
       ) : (
         <>
           {open.length ? <RNText style={tx('600', 12, t.colors.muted, { marginTop: 12 })}>In progress ({open.length})</RNText> : null}
-          <TicketList rows={open} cols={twoCol ? Math.min(3, columns) : 1} onOpen={(id) => go('ticket', { ticketId: id })} />
+          <TicketList rows={open} cols={desktop ? Math.min(2, columns) : 1} onOpen={(id) => go('ticket', { ticketId: id })} />
           {done.length ? <RNText style={tx('600', 12, t.colors.muted, { marginTop: 16 })}>Resolved ({done.length})</RNText> : null}
-          <TicketList rows={done} cols={twoCol ? Math.min(3, columns) : 1} onOpen={(id) => go('ticket', { ticketId: id })} />
+          <TicketList rows={done} cols={desktop ? Math.min(2, columns) : 1} onOpen={(id) => go('ticket', { ticketId: id })} />
         </>
       )}
     </>
@@ -216,15 +226,22 @@ export function HelpScreen() {
   return (
     <Screen padded={false}>
       <TopBar title="Help & support" onBack={back} />
-      <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
-        {twoCol ? (
-          <>
-            <View style={{ flexDirection: 'row', gap: gutter, alignItems: 'flex-start' }}>
-              <View style={{ flex: 1, minWidth: 0 }}>{composer}</View>
-              <View style={{ flex: 1, minWidth: 0 }}>{links}</View>
-            </View>
-            {convos}
-          </>
+      <FormPage
+        scrollProps={{ style: { flex: 1 }, contentContainerStyle: { paddingHorizontal: 20, paddingBottom: 28 }, keyboardShouldPersistTaps: 'handled' }}
+        aside={links}
+        actions={
+          desktop ? (
+            <>
+              <ActionBar hint={feedbackLink}>{sendButton}</ActionBar>
+              <FormSection title="Your conversations">{convos}</FormSection>
+            </>
+          ) : undefined
+        }
+      >
+        {desktop ? (
+          <FormSection first title="What do you need help with?">
+            {composer}
+          </FormSection>
         ) : (
           <>
             {composer}
@@ -232,7 +249,7 @@ export function HelpScreen() {
             {convos}
           </>
         )}
-      </KeyboardScrollView>
+      </FormPage>
       <FeedbackSheet visible={feedback} onClose={() => setFeedback(false)} />
     </Screen>
   );
