@@ -33,6 +33,7 @@ import {
   type Message as DbMessage,
   type Profile,
 } from '../data/api';
+import { markChatRead } from '../data/extras';
 import { imageSource, pickMedia, signedMediaUrl, uploadMedia, MediaError } from '../lib/media';
 import { Image } from 'expo-image';
 import { findContactIssue } from '../lib/mask';
@@ -214,9 +215,20 @@ export function ChatScreen() {
       }
     })();
 
+    // Opening the conversation reads it (the Messages dot clears), unless this is the desktop hop that
+    // replaces itself with the Messages pane.
+    const shown = !toMessages;
+    if (shown) void markChatRead(taskId).catch(() => {});
+
     // Both sides see new messages without polling.
     const unsubscribe = subscribeToMessages(taskId, (m) => {
       if (!alive) return;
+      // A message that arrives while the chat is open is read as it lands.
+      if (shown && m.sender_id !== userId) {
+        void markChatRead(taskId).catch(() => {});
+        // The server writes the alert a moment after the message; read it too.
+        setTimeout(() => alive && void markChatRead(taskId).catch(() => {}), 1500);
+      }
       setMessages((prev) => (prev.some((p) => p.id === m.id) ? prev : mergeById(prev, [toBubble(m)], (b) => b.at)));
       // Work may have started since the chat opened; once contacts are open there is nothing to wait for.
       if (statusNow.current === null || !OPEN_STATUSES.includes(statusNow.current)) {

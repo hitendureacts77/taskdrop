@@ -89,8 +89,27 @@ export const unreadSummaryFor = (side: 'poster' | 'worker') =>
     return unreadSummary(list, sides, side);
   }).catch(() => ({ total: 0, messages: 0 }));
 
+/** Screens that show a bell number or the Messages dot listen here, to recount after something was marked read. */
+const unreadListeners = new Set<() => void>();
+export function onUnreadChanged(fn: () => void): () => void {
+  unreadListeners.add(fn);
+  return () => unreadListeners.delete(fn);
+}
+
+/** No ids = every unread alert (the server's rule), so a caller with nothing to mark must not call this. */
 export async function markNotificationsRead(ids?: string[]): Promise<void> {
   await ask('markNotificationsRead', { ids: ids ?? [] }, null);
+  for (const fn of [...unreadListeners]) fn();
+}
+
+/**
+ * Opening a conversation reads it: the "New message" alerts about this task are marked read, so the Messages dot
+ * and the bell number go down. Nothing to mark means no call (an empty list would mean "everything").
+ */
+export async function markChatRead(taskId: string): Promise<void> {
+  const list = await listNotifications(UNREAD_WINDOW);
+  const ids = list.filter((n) => n.kind === 'message' && n.task_id === taskId && !n.read_at).map((n) => n.id);
+  if (ids.length > 0) await markNotificationsRead(ids);
 }
 
 /**
