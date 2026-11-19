@@ -7,6 +7,9 @@ import { FadeIn, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { myRegulars, type Regular } from '../data/api';
+import { useLayout } from '../lib/layout';
+import { RowCard } from '../components/RowCard';
+import { CONTENT_INSET } from '../navigation/DesktopPage';
 
 /**
  * The people this poster hired for finished jobs (Regulars, migration 134):
@@ -15,6 +18,7 @@ import { myRegulars, type Regular } from '../data/api';
 export function RegularsScreen() {
   const t = useTheme();
   const { back, go } = useNav();
+  const { desktop } = useLayout();
   const [list, setList] = useState<Regular[] | null>(null);
 
   useEffect(() => {
@@ -25,10 +29,72 @@ export function RegularsScreen() {
     };
   }, []);
 
+  // Desktop: the regulars are rows on one centred card, "Book again" at the right end of each row.
+  if (desktop && list !== null && list.length > 0) {
+    return (
+      <Screen padded={false}>
+        <TopBar title="My regulars" subtitle="People you liked working with, one tap away" onBack={back} />
+        <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 28, paddingHorizontal: CONTENT_INSET }}>
+          <RowCard>
+            {list.map((r) => (
+              <View key={r.profile.id} style={{ padding: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                  <Pressable
+                    onPress={() => go('publicProfile', { userId: r.profile.id, role: 'worker' })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${r.profile.display_name}, open profile`}
+                    style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                  >
+                    <Avatar name={r.profile.display_name} size={48} />
+                    <View style={{ flex: 1 }}>
+                      <RNText style={tx('800', 15, t.colors.ink)}>{r.profile.display_name}</RNText>
+                      <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>
+                        {r.jobs} job{r.jobs === 1 ? '' : 's'} with you
+                        {r.categories.length ? ` · ${r.categories.slice(0, 2).join(', ')}` : ''}
+                        {r.lastAt ? ` · ${timeAgo(r.lastAt)}` : ''}
+                      </RNText>
+                    </View>
+                    <Icon name="heart" size={18} color={t.colors.signal} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => go('aiPost', { preferWorker: { id: r.profile.id, name: r.profile.display_name } })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Book ${r.profile.display_name} again`}
+                    style={({ pressed }) => ({
+                      minWidth: 160,
+                      paddingHorizontal: 24,
+                      height: 42,
+                      borderRadius: 999,
+                      backgroundColor: t.colors.accentSoft,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: pressed ? 0.8 : 1,
+                    })}
+                  >
+                    <RNText style={tx('800', 13, t.colors.accentDeep)}>Book again</RNText>
+                  </Pressable>
+                </View>
+                <RNText style={tx('400', 11, t.colors.muted, { marginTop: 8, marginLeft: 60 })}>
+                  They get the first 10 minutes to send an offer, then everyone can.
+                </RNText>
+              </View>
+            ))}
+          </RowCard>
+        </ScrollView>
+      </Screen>
+    );
+  }
+
   return (
     <Screen padded={false}>
       <TopBar title="My regulars" subtitle="People you liked working with, one tap away" onBack={back} />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+      <ScrollView
+        contentContainerStyle={
+          desktop
+            ? { paddingHorizontal: CONTENT_INSET, paddingBottom: 28 }
+            : { paddingHorizontal: 20, paddingBottom: 28, width: '100%', maxWidth: 680, alignSelf: 'center' }
+        }
+      >
         {list === null ? (
           <Shimmer height={120} />
         ) : list.length === 0 ? (
