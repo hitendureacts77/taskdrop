@@ -30,7 +30,7 @@ import { Pressy, tx } from '../components/primitives';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
-import { Pill, SectionTitle, TopBar, UnderlineTabs } from '../components/kit';
+import { LoadFailed, Pill, SectionTitle, TopBar, UnderlineTabs } from '../components/kit';
 import { MoneyBars, type MoneyBar } from '../components/MoneyBars';
 import { DataTable } from '../components/DataTable';
 import { countMyReferrals, feesSince, platformFees } from '../data/extras';
@@ -633,9 +633,14 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
   const txNotices = (
     <>
           {!ledgerLoading && ledgerFailed && mine.length === 0 && (
-            <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, lineHeight: 20 })}>
-              Couldn’t load your transactions. Check your connection and pull down to try again.
-            </RNText>
+            // A desktop has no pull-down: it gets the same retry card the other lists show.
+            desktop ? (
+              <LoadFailed title="Couldn’t load your transactions" onRetry={() => void refresh()} />
+            ) : (
+              <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, lineHeight: 20 })}>
+                Couldn’t load your transactions. Check your connection and pull down to try again.
+              </RNText>
+            )
           )}
   
           {!ledgerLoading && !(ledgerFailed && mine.length === 0) && txRows.length === 0 && (
