@@ -108,9 +108,8 @@ const SCREENS: Screen[] = [
  * Each is reported in the PR that added this file.
  */
 const KNOWN: Record<string, string> = {
-  // Found on 19 Nov 2026 by this check, at 1440 x 900 on redesigned-2.0 after packages 0 to 8, 10, 14, 15.
-  "aiPost-hire:rule4-width":
-    "Post a task is still one 859 px column (FORM class) with 180 px empty on both sides and no aside. Fixed by package 13 (posting flow: live post preview on the right), which waits for the owner's OK.",
+  // "aiPost-hire:rule4-width" (found 19 Nov 2026) was fixed by package 13: the AI writer is a FormPage card with a
+  // live post preview in the aside.
 };
 
 test.use({ storageState: MEERA.state, colorScheme: "light", reducedMotion: "reduce", locale: "en-IN", timezoneId: "Asia/Kolkata" });
