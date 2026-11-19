@@ -579,7 +579,9 @@ const moneyMoves = inngest.createFunction(
     onFailure: reportFailure("money-moves"),
   },
   async ({ event, step }) => {
-    const one = typeof event?.data?.hold_id === "string" ? [event.data.hold_id as string] : null;
+    // A cron run has no hold id; a money.move event names one hold.
+    const holdId = (event?.data as Record<string, unknown> | undefined)?.hold_id;
+    const one = typeof holdId === "string" ? [holdId] : null;
     if (one) return { moved: await step.run("move one hold", () => settleHolds(one)) };
     const expired = await step.run("expire unpaid hires", () => call<number>(rpc, "plan_b_expire_unpaid"));
     const due = await step.run("holds waiting", () => call<string[]>(rpc, "plan_b_moves_due", { p_limit: 50 }));
