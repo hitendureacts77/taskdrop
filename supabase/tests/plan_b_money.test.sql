@@ -156,6 +156,7 @@ begin
   exception when others then v_failed := true;
   end;
   assert v_failed, 'under the wallet flow an empty wallet must still refuse the hire';
+  perform pg_temp.as_operator();
   assert not exists (select 1 from public.task_holds where task_id = v_task), 'the wallet flow must not open a hold';
 
   -- ---- switch Plan B on --------------------------------------------------------------------
