@@ -30,8 +30,9 @@ import { Pressy, tx } from '../components/primitives';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
-import { Pill, SectionTitle, TopBar, UnderlineTabs } from '../components/kit';
+import { LoadFailed, Pill, SectionTitle, TopBar, UnderlineTabs } from '../components/kit';
 import { MoneyBars, type MoneyBar } from '../components/MoneyBars';
+import { DataTable } from '../components/DataTable';
 import { countMyReferrals, feesSince, platformFees } from '../data/extras';
 
 /** Staggered row entrance, ~ the markup's tdIn keyframe with animation-delay. */
@@ -85,7 +86,7 @@ function releaseLine(status: string | undefined): string {
 
 export function WalletScreen({ insights = false }: { insights?: boolean } = {}) {
   const t = useTheme();
-  const { desktop, contentWidth } = useLayout();
+  const { desktop } = useLayout();
   const { go, back } = useNav();
   const { mode } = useMode();
   const { balance, escrow, clearing, flash, celebrate } = useApp();
@@ -387,7 +388,8 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
   };
 
   const card = {
-    marginTop: 16,
+    // The desktop page (below) spaces its cards with a gap, not a top margin.
+    marginTop: desktop && !insights ? 0 : 16,
     ...cardSurface(t, 18),
     padding: 14,
   } as const;
@@ -407,7 +409,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
   // Desktop (W5): the balance and its cards on the left, transactions on the
   // right. A phone keeps the one column, in the same order as before.
   const twoCol = desktop && !insights;
-  const summary = (
+  const summaryTop = (
     <>
           {!insights ? (
           <>
@@ -534,17 +536,18 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
           </RNText>
           </>
           ) : null}
-  
-          {showCharts ? (
-          <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: insights ? 4 : 20, marginHorizontal: -20 }}>
+    </>
+  );
+  const periodPills = showCharts ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: insights ? 4 : twoCol ? 0 : 20, marginHorizontal: -20 }}>
             <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20 }}>
               {PERIODS.map((p) => (
                 <Pill key={p} label={p} active={period === p} onPress={() => setPeriod(p)} />
               ))}
             </View>
           </ScrollView>
-  
+  ) : null;
+  const chartCard = showCharts ? (
           <View style={card}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Icon name="trending" size={16} color={chartColor} />
@@ -561,12 +564,10 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
               )}
             </View>
           </View>
-          </>
-          ) : null}
-  
-          {/* Pending money is a poster's concern: it is theirs, held until they
-              approve the work. */}
-          {!worker && !insights && held.length > 0 ? (
+  ) : null;
+  // Pending money is a poster's concern: it is theirs, held until they
+  // approve the work.
+  const heldCard = !worker && !insights && held.length > 0 ? (
             <View style={card}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Icon name="lock" size={16} color={t.colors.gold} />
@@ -604,9 +605,8 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
                 </RNText>
               </View>
             </View>
-          ) : null}
-  
-          {showCharts ? (
+  ) : null;
+  const feesCard = showCharts ? (
           <View style={{ ...card, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Icon name="tag" size={16} color={t.colors.goldInk} />
             <View style={{ flex: 1 }}>
@@ -619,20 +619,28 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
             </View>
             <RNText style={tx('800', 14, t.colors.ink)}>{feeMinor === null ? '–' : formatINR(feeMinor)}</RNText>
           </View>
-          ) : null}
+  ) : null;
+  const summary = (
+    <>
+      {summaryTop}
+      {periodPills}
+      {chartCard}
+      {heldCard}
+      {feesCard}
     </>
   );
-  const transactions = (
+  // The "could not load" and "nothing here" lines, and the Show more button: shared by the phone list and the desktop table.
+  const txNotices = (
     <>
-          <SectionTitle title="Transactions" icon="list" style={{ marginTop: twoCol ? 4 : 32 }} />
-          <View style={{ marginTop: 8, marginHorizontal: -20 }}>
-            <UnderlineTabs tabs={TX_TABS} active={txTab} onPick={setTxTab} />
-          </View>
-  
           {!ledgerLoading && ledgerFailed && mine.length === 0 && (
-            <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, lineHeight: 20 })}>
-              Couldn’t load your transactions. Check your connection and pull down to try again.
-            </RNText>
+            // A desktop has no pull-down: it gets the same retry card the other lists show.
+            desktop ? (
+              <LoadFailed title="Couldn’t load your transactions" onRetry={() => void refresh()} />
+            ) : (
+              <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, lineHeight: 20 })}>
+                Couldn’t load your transactions. Check your connection and pull down to try again.
+              </RNText>
+            )
           )}
   
           {!ledgerLoading && !(ledgerFailed && mine.length === 0) && txRows.length === 0 && (
@@ -644,6 +652,41 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
                 : 'Nothing of this kind in this period.'}
             </RNText>
           )}
+    </>
+  );
+  const txMore = (
+    <>
+          {txRows.length > TX_FIRST ? (
+            <Pressable
+              onPress={() => setTxAll((v) => !v)}
+              accessibilityRole="button"
+              style={({ pressed }) => ({
+                alignSelf: 'center',
+                marginTop: 12,
+                paddingVertical: 8,
+                paddingHorizontal: 16,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: t.colors.line,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <RNText style={tx('700', 12, t.colors.accentDeep)}>
+                {txAll ? 'Show less' : `Show ${txRows.length - TX_FIRST} more`}
+              </RNText>
+            </Pressable>
+          ) : null}
+    </>
+  );
+  const transactions = (
+    <>
+          <SectionTitle title="Transactions" icon="list" style={{ marginTop: twoCol ? 4 : 32 }} />
+          <View style={{ marginTop: 8, marginHorizontal: -20 }}>
+            <UnderlineTabs tabs={TX_TABS} active={txTab} onPick={setTxTab} />
+          </View>
+  
+          {txNotices}
+
   
           {(txAll ? txRows : txRows.slice(0, TX_FIRST)).map((l, i) => (
             <SlideIn key={l.id} delay={Math.min(i, 8) * 50}>
@@ -677,32 +720,13 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
             </SlideIn>
           ))}
   
-          {txRows.length > TX_FIRST ? (
-            <Pressable
-              onPress={() => setTxAll((v) => !v)}
-              accessibilityRole="button"
-              style={({ pressed }) => ({
-                alignSelf: 'center',
-                marginTop: 12,
-                paddingVertical: 8,
-                paddingHorizontal: 16,
-                borderRadius: 999,
-                borderWidth: 1,
-                borderColor: t.colors.line,
-                opacity: pressed ? 0.7 : 1,
-              })}
-            >
-              <RNText style={tx('700', 12, t.colors.accentDeep)}>
-                {txAll ? 'Show less' : `Show ${txRows.length - TX_FIRST} more`}
-              </RNText>
-            </Pressable>
-          ) : null}
+          {txMore}
     </>
   );
   const referral = (
     <>
           {code && !insights ? (
-            <View style={{ ...card, marginTop: 32, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ ...card, marginTop: twoCol ? 0 : 32, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <Icon name="gift" size={20} color={t.colors.accentDeep} />
               <View style={{ flex: 1 }}>
                 <RNText style={tx('700', 13, t.colors.ink)}>Bring a friend to TaskDrop</RNText>
@@ -724,6 +748,294 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
             </View>
           ) : null}
     </>
+  );
+
+  // ---- Desktop page (docs/design/desktop-web/PLAN.md, package 11) ----------------
+  // Same figures, words, formatINR calls and handlers as the phone column above;
+  // only where they sit changes: three cards across the top, the activity as a
+  // table, the activity filters as a list on the left. A phone never reaches this.
+  const dFigure = tx('800', 30, t.colors.ink, { letterSpacing: -1, marginTop: 4, fontVariant: ['tabular-nums'] });
+  const dLabel = tx('700', 13, t.colors.muted);
+  const dNote = tx('500', 12, t.colors.muted, { marginTop: 8, lineHeight: 18 });
+  const dBox = { flex: 1, minWidth: 0, ...cardSurface(t, 18), padding: 20 } as const;
+  const dMoneyOnWay = (label: string, minor: number, first: boolean) => (
+    <View key={label} style={{ marginTop: first ? 0 : 12 }}>
+      <RNText style={dLabel}>{label}</RNText>
+      <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.6, marginTop: 2, fontVariant: ['tabular-nums'] })}>
+        {formatINR(minor)}
+      </RNText>
+    </View>
+  );
+  const dHeroNum = (value: number) =>
+    loaded ? (
+      <CountUp
+        value={value}
+        format={formatINR}
+        style={tx('800', 40, '#FFFFFF', { letterSpacing: -1.6, marginTop: 4, fontVariant: ['tabular-nums'] })}
+      />
+    ) : (
+      <RNText style={tx('800', 40, '#FFFFFF', { letterSpacing: -1.6, marginTop: 4 })}>—</RNText>
+    );
+  const dHireOnWay = shown.pending > 0 || shown.earningEscrow > 0 || !!clearNote;
+  const dCards = (
+    <View nativeID="walletCards" style={{ flexDirection: 'row', gap: 16, alignItems: 'stretch' }}>
+      {worker ? (
+        <>
+          <HeroCard radius={18} padding={20} style={{ flex: 1, minWidth: 0 }}>
+            <RNText style={tx('700', 13, 'rgba(255,255,255,0.85)')}>Available</RNText>
+            {dHeroNum(shown.balance + shown.credits)}
+            {periodEarned > 0 ? (
+              <RNText style={tx('700', 12, '#FFFFFF', { marginTop: 8 })}>+{formatINR(periodEarned)} earned this month</RNText>
+            ) : null}
+          </HeroCard>
+          <View style={dBox}>
+            <RNText style={dLabel}>Amount frozen in ongoing tasks</RNText>
+            <RNText style={dFigure}>{formatINR(heldMinor + shown.earningEscrow)}</RNText>
+          </View>
+          <View style={dBox}>
+            <RNText style={dLabel}>Withdrawals on their way to you</RNText>
+            <RNText style={dFigure}>{formatINR(shown.pending)}</RNText>
+            {clearNote ? <RNText style={dNote}>{clearNote}</RNText> : null}
+          </View>
+        </>
+      ) : (
+        <>
+          <HeroCard radius={18} padding={20} style={{ flex: 1, minWidth: 0 }}>
+            <RNText style={tx('700', 13, 'rgba(255,255,255,0.85)')}>Yours to use</RNText>
+            {dHeroNum(available)}
+          </HeroCard>
+          <View style={dBox}>
+            <RNText style={dLabel}>
+              {ledgerLoading || held.length === 0
+                ? 'Held safely'
+                : `Held safely for ${held.length} task${held.length === 1 ? '' : 's'}`}
+            </RNText>
+            <RNText style={dFigure}>{loaded ? formatINR(heldMinor) : '—'}</RNText>
+          </View>
+          {dHireOnWay ? (
+            <View style={dBox}>
+              {shown.earningEscrow > 0
+                ? dMoneyOnWay('Coming to you from work you are doing', shown.earningEscrow, true)
+                : null}
+              {shown.pending > 0
+                ? dMoneyOnWay('Withdrawals on their way to you', shown.pending, shown.earningEscrow <= 0)
+                : null}
+              {clearNote ? <RNText style={dNote}>{clearNote}</RNText> : null}
+            </View>
+          ) : null}
+        </>
+      )}
+    </View>
+  );
+  // Add money / Withdraw: the same two buttons and handlers, at their natural width (min 160).
+  const dActions = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 }}>
+      <Pressy
+        onPress={() => (guest ? needAccount('money') : setAddingFunds(true))}
+        style={{
+          minWidth: 160,
+          paddingHorizontal: 24,
+          backgroundColor: t.colors.btn,
+          borderRadius: 999,
+          minHeight: 52,
+          justifyContent: 'center',
+          alignItems: 'center',
+          shadowColor: t.colors.btn,
+          shadowOpacity: t.isDark ? 0 : 0.3,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 8 },
+        }}
+      >
+        <RNText style={tx('700', 15, t.colors.onBtn)}>+ Add money</RNText>
+      </Pressy>
+      <Pressy
+        onPress={() =>
+          guest ? needAccount('money') : available >= MIN_WITHDRAW_MINOR ? go('withdraw') : flash(belowMinNote)
+        }
+        style={{
+          minWidth: 160,
+          paddingHorizontal: 24,
+          borderWidth: 1.5,
+          borderColor: available >= MIN_WITHDRAW_MINOR ? t.colors.accent : t.colors.line,
+          backgroundColor: t.colors.surface,
+          borderRadius: 999,
+          minHeight: 52,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <RNText style={tx('700', 15, available >= MIN_WITHDRAW_MINOR ? t.colors.accentDeep : t.colors.muted)}>
+          Withdraw
+        </RNText>
+      </Pressy>
+      <RNText style={tx('400', 12, t.colors.muted, { flex: 1, lineHeight: 17 })}>
+        {guest || !loaded || !belowMin ? `Min. withdraw ${formatINR(MIN_WITHDRAW_MINOR)} · UPI` : belowMinNote}
+      </RNText>
+    </View>
+  );
+  // The list on the left: the screen's own Transactions tabs (All, Earnings, ...), the same state as the phone's tabs.
+  const dTabList = (
+    <View
+      nativeID="walletTabs"
+      accessibilityRole="tablist"
+      style={{
+        width: 240,
+        flexShrink: 0,
+        gap: 2,
+        padding: 8,
+        backgroundColor: t.colors.surface,
+        borderWidth: 1,
+        borderColor: t.colors.line,
+        borderRadius: t.radius.lg,
+      }}
+    >
+      {TX_TABS.map((label, i) => {
+        const on = txTab === i;
+        return (
+          <Pressable
+            key={label}
+            onPress={() => setTxTab(i)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            style={{
+              paddingVertical: 11,
+              paddingHorizontal: 14,
+              borderRadius: 12,
+              backgroundColor: on ? t.colors.accentSoft : 'transparent',
+            }}
+          >
+            <RNText style={tx(on ? '700' : '600', 14, on ? t.colors.accentDeep : t.colors.muted)}>{label}</RNText>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+  // The same row data and formatting as a phone row, one column each. The wallet feed has no
+  // status field: the status column is the part of the row's own meta line after the last " · "
+  // ("completed", "in progress", ...), and a waiting withdrawal keeps its note.
+  const dSplitMeta = (meta: string) => {
+    const m = maskDigits(meta);
+    const i = m.lastIndexOf(' · ');
+    return i < 0 ? { head: m, status: '' } : { head: m.slice(0, i), status: m.slice(i + 3) };
+  };
+  const dTable = (
+    <DataTable<WalletEvent>
+      rows={txAll ? txRows : txRows.slice(0, TX_FIRST)}
+      rowKey={(l) => l.id}
+      wrapRow={(l, i, node) => (
+        <SlideIn key={l.id} delay={Math.min(i, 8) * 50}>
+          {node}
+        </SlideIn>
+      )}
+      columns={[
+        {
+          key: 'date',
+          title: 'Date',
+          width: 84,
+          render: (l) => (
+            <RNText style={tx('500', 13, t.colors.muted, { fontVariant: ['tabular-nums'] })}>
+              {new Date(l.at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+            </RNText>
+          ),
+        },
+        {
+          key: 'what',
+          title: 'What',
+          flex: 2.2,
+          render: (l) => {
+            const { head } = dSplitMeta(l.meta);
+            return (
+              <View style={{ alignSelf: 'stretch' }}>
+                <RNText style={tx('600', 15, t.colors.ink)} numberOfLines={1}>
+                  {l.title}
+                </RNText>
+                {head ? (
+                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>
+                    {head}
+                  </RNText>
+                ) : null}
+              </View>
+            );
+          },
+        },
+        {
+          key: 'amount',
+          title: 'Amount',
+          width: 130,
+          align: 'right',
+          render: (l) => (
+            <RNText style={tx('700', 15, l.incoming ? t.colors.accentDeep : t.colors.ink, { fontVariant: ['tabular-nums'] })}>
+              {l.incoming ? '+' : ''}
+              {formatINR(l.amountMinor)}
+            </RNText>
+          ),
+        },
+        {
+          key: 'status',
+          title: 'Status',
+          flex: 1.4,
+          render: (l) => {
+            const { status } = dSplitMeta(l.meta);
+            return (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch' }}>
+                <View style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: dotFor(l.kind) }} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  {status ? (
+                    <RNText style={tx('500', 13, t.colors.ink)} numberOfLines={2}>
+                      {status}
+                    </RNText>
+                  ) : null}
+                  {isPendingWithdrawal(l) ? (
+                    <RNText style={tx('600', 12, t.colors.muted, { marginTop: status ? 2 : 0 })}>
+                      {PENDING_WITHDRAWAL_NOTE}
+                    </RNText>
+                  ) : null}
+                </View>
+              </View>
+            );
+          },
+        },
+      ]}
+    />
+  );
+  const dPeriodRow = showCharts ? (
+    <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 28 }}>
+      {PERIODS.map((p) => (
+        <Pill key={p} label={p} active={period === p} onPress={() => setPeriod(p)} />
+      ))}
+    </View>
+  ) : null;
+  // Chart, held money, fees and the invite sit two across under the table.
+  const dMore = [
+    chartCard,
+    heldCard,
+    feesCard,
+    code && !insights ? referral : null,
+  ].filter((x): x is React.JSX.Element => x !== null);
+  const dPage = (
+    <View style={{ width: '100%', maxWidth: 1280, alignSelf: 'center' }}>
+      {dCards}
+      {dActions}
+      <View style={{ flexDirection: 'row', gap: 24, alignItems: 'flex-start', marginTop: 28 }}>
+        {dTabList}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <SectionTitle title="Transactions" icon="list" style={{ marginBottom: 12 }} />
+          {txRows.length > 0 ? dTable : null}
+          {txNotices}
+          {txMore}
+        </View>
+      </View>
+      {dPeriodRow}
+      {dMore.length > 0 ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginTop: showCharts ? 16 : 28, alignItems: 'flex-start' }}>
+          {dMore.map((node, i) => (
+            <View key={i} style={{ flexBasis: '48%', flexGrow: 1, minWidth: 320 }}>
+              {node}
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </View>
   );
 
   // A guest has no wallet: zero balances and Add money / Withdraw read as a real empty account (B175).
@@ -749,14 +1061,7 @@ export function WalletScreen({ insights = false }: { insights?: boolean } = {}) 
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />}
       >
         {twoCol ? (
-          <View style={{ flexDirection: 'row', gap: 24, alignItems: 'flex-start' }}>
-            {/* D12: the summary column follows the page width, 380 to 480. */}
-            <View style={{ width: Math.min(480, Math.max(380, Math.round(0.36 * contentWidth('feed')))) }}>
-              {summary}
-              {referral}
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>{transactions}</View>
-          </View>
+          dPage
         ) : (
           <>
             {summary}

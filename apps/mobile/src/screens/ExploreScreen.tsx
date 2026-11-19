@@ -922,7 +922,7 @@ function FindWork({
             right:
               tab === 0 ? (
                 <>
-                  <RNText style={tx('700', 13, t.colors.ink)} numberOfLines={2}>{countText}</RNText>
+                  <RNText style={tx('700', 13, t.colors.ink, { flexShrink: 1, textAlign: 'right' })} numberOfLines={2}>{countText}</RNText>
                   {clearAllButton}
                 </>
               ) : undefined,

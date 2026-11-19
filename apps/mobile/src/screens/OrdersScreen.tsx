@@ -66,6 +66,9 @@ function OrderCard({
   onCancel?: () => void;
   t: Theme;
 }) {
+  // On the desktop grid a long unbroken title must not push the price out of the card: it takes two lines and
+  // shortens with "...", the price keeps its width. The phone card is unchanged.
+  const { desktop } = useLayout();
   return (
     <FadeIn duration={360} delay={index * 70} translateY={10} style={{ marginTop: 12 }}>
       <Pressy
@@ -89,8 +92,10 @@ function OrderCard({
           <RNText style={tx('700', 10, toneInk(row.tone, t.colors), { letterSpacing: 1.6 })}>{row.state}</RNText>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 12, marginTop: 9 }}>
-          <RNText style={tx('700', 16, t.colors.ink, { flex: 1 })}>{row.title}</RNText>
-          <RNText style={tx('800', 16, t.colors.ink)}>{row.priceLabel}</RNText>
+          <RNText numberOfLines={desktop ? 2 : undefined} style={tx('700', 16, t.colors.ink, desktop ? { flex: 1, minWidth: 0 } : { flex: 1 })}>
+            {row.title}
+          </RNText>
+          <RNText style={tx('800', 16, t.colors.ink, desktop ? { flexShrink: 0 } : undefined)}>{row.priceLabel}</RNText>
         </View>
         <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6 })}>{row.meta}</RNText>
 

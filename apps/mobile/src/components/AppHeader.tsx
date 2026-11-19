@@ -11,6 +11,7 @@ import { getProfile, getWallet, type Profile } from '../data/api';
 import {
   subscribeToNotifications,
   unreadSummaryFor,
+  onUnreadChanged,
 } from '../data/extras';
 import { imageSource, signedMediaUrl } from '../lib/media';
 import { Icon, type IconName } from './Icon';
@@ -116,6 +117,13 @@ export function HeaderTools({ tight = false }: { tight?: boolean }) {
       alive = false;
     };
   }, [userId, screen, mode]);
+  // Alerts marked read somewhere that keeps this header on screen (a chat opened in the Messages pane).
+  useEffect(() => {
+    if (!userId) return;
+    return onUnreadChanged(() => {
+      void unreadSummaryFor(modeRef.current === 'worker' ? 'worker' : 'poster').then(setUnread);
+    });
+  }, [userId]);
   useEffect(() => {
     if (!userId) return;
     // A new alert may belong to the other side; recount rather than +1.

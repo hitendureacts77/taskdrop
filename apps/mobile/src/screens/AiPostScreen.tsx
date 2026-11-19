@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, TextInput, Animated, Platform, type ScrollViewInstance } from 'react-native';
+import { View, Text as RNText, Pressable, TextInput, Animated, Platform, type ScrollViewInstance, type ViewStyle } from 'react-native';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import { AmountField } from '../components/AmountField';
@@ -16,7 +16,6 @@ import { GUEST_DRAFTS_OWNER, isNeedsAccount, needAccount } from '../lib/guest';
 import { useReducedMotion } from '../lib/motion';
 import { FadeIn, HitArea, Pressy, tx } from '../components/primitives';
 import { KeyboardSafe } from '../components/KeyboardSafe';
-import { KeyboardScrollView } from '../components/KeyboardScrollView';
 import { TaskDescription } from '../components/TaskDescription';
 import { roughPlace } from '../lib/place';
 import { MAX_PRICE_INR, MIN_PRICE_INR, priceState } from '../lib/limits';
@@ -40,6 +39,10 @@ import type { TaskMedia } from '../lib/media';
 import { useVoiceInput } from '../lib/speech';
 import { contactIssueMessage, findContactIssue } from '../lib/mask';
 import { useFees } from '../lib/useFees';
+import { useLayout } from '../lib/layout';
+import { ActionBar, FormPage } from '../components/FormPage';
+import { PostPreviewCard } from '../components/PostPreviewCard';
+import { useDesktopHeaderPortal } from '../components/pageHeader';
 import {
   IDEAS,
   WHEN_OPTIONS,
@@ -175,6 +178,8 @@ export function AiPostScreen() {
   const draftOwner = userId ?? (guest ? GUEST_DRAFTS_OWNER : null);
   const postRef = useRef<() => Promise<void>>(async () => {});
   const { setMode } = useMode();
+  // Desktop web (>= 1024): the steps sit on a FormPage card with a live preview beside it. Layout only.
+  const { desktop } = useLayout();
 
   const similar = isTask(params.similar) ? params.similar : null;
   // Set when this request was picked up from Drafts, so posting it clears the draft.
@@ -1572,13 +1577,15 @@ export function AiPostScreen() {
                     }
                   : { label: 'Post my request', onPress: () => void post(), busy: posting, disabled: noPlace };
 
-  return (
-    <Screen padded={false}>
-      <View style={{ paddingTop: 8, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: t.colors.line }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 }}>
-          <IconButton icon="close" label="Close" onPress={leave} />
-          <RNText style={tx('800', 17, t.colors.ink, { flex: 1, letterSpacing: -0.3 })}>{composing ? 'New task' : 'Post a request'}</RNText>
-          {composing ? (
+  // Desktop: the title, the step count and Close go to the page header; nothing is drawn there on a phone.
+  const desktopHeader = useDesktopHeaderPortal({
+    title: composing ? 'New task' : 'Post a request',
+    subtitle: composing ? undefined : `Step ${stepNo} of ${steps.length}`,
+    right: <IconButton icon="close" label="Close" onPress={leave} />,
+  });
+
+  // The first step's Next: in the top row on a phone, in the action bar on a desktop.
+  const nextButton = (
             <Pressable
               onPress={primary.onPress}
               disabled={primary.disabled}
@@ -1599,16 +1606,12 @@ export function AiPostScreen() {
               <RNText style={tx('800', 14, primary.disabled ? t.colors.muted : t.colors.onBtn)}>Next</RNText>
               <Icon name="send" size={15} color={primary.disabled ? t.colors.muted : t.colors.onBtn} strokeWidth={2.2} />
             </Pressable>
-          ) : (
-            <RNText style={tx('600', 12, t.colors.muted)}>
-              {stepNo} of {steps.length}
-            </RNText>
-          )}
-        </View>
+  );
 
-        {/* The path: every step by name. Done ones show a tick and can be reopened. */}
-        {composing ? null : (
-        <View style={{ flexDirection: 'row', marginTop: 14, paddingHorizontal: 6, width: '100%', maxWidth: 720, alignSelf: 'center' }}>
+  // The path: every step by name. Done ones show a tick and can be reopened. Under the top row on a
+  // phone, at the top of the card on a desktop (the style is whole, so the phone's stays exactly as it was).
+  const stepPath = (style: ViewStyle) => (
+        <View style={style}>
           {steps.map((p, i) => {
             const here = p === phase;
             const done = !here && at(p) <= reached;
@@ -1649,43 +1652,9 @@ export function AiPostScreen() {
             );
           })}
         </View>
-        )}
-      </View>
+  );
 
-      <KeyboardScrollView
-        hugContent
-        ref={scrollRef}
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28, width: '100%', maxWidth: 680, alignSelf: 'center' }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <FadeIn key={phase} translateY={14} duration={320}>
-          {body}
-        </FadeIn>
-      </KeyboardScrollView>
-
-      <KeyboardSafe
-        style={{
-          paddingHorizontal: 20,
-          paddingTop: 12,
-          paddingBottom: 14,
-          borderTopWidth: 1,
-          borderTopColor: t.colors.line,
-          backgroundColor: t.colors.bg,
-          width: '100%',
-          maxWidth: 720,
-          alignSelf: 'center',
-        }}
-      >
-        {/* The top-up bar sits at the bottom, right above Continue, so the price it makes stays in view as it moves. */}
-        {phase === 'budget' && budgetOk ? (
-          <TopUpBar stop={topUpStop} onChange={setTopUpStop} base={budget ?? 0} price={price} feeRate={fees.posterFee} />
-        ) : null}
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-        {composing ? (
-          <>
-            {voice.supported ? (
+  const speakButton = (
               <Pressable
                 onPress={voice.toggle}
                 accessibilityRole="button"
@@ -1706,17 +1675,18 @@ export function AiPostScreen() {
                   {voice.listening ? 'Listening…' : 'Speak'}
                 </RNText>
               </Pressable>
-            ) : null}
-            <View style={{ flex: 1 }} />
+  );
+
+  const counter = (
             <RNText
               style={tx(promptTooLong(prompt) ? '700' : '500', 12, promptTooLong(prompt) ? t.colors.signalDeep : t.colors.muted, { alignSelf: 'center' })}
               accessibilityLiveRegion="polite"
             >
               {promptTooLong(prompt) ? `${prompt.length} / ${PROMPT_MAX}. Shorten it to go on` : `${prompt.length} / ${PROMPT_MAX}`}
             </RNText>
-          </>
-        ) : null}
-        {phase !== 'what' ? (
+  );
+
+  const backButton = (
           <Pressable
             onPress={stepBack}
             accessibilityRole="button"
@@ -1738,7 +1708,107 @@ export function AiPostScreen() {
             <Icon name="back" size={16} color={t.colors.ink} />
             <RNText style={tx('700', 14, t.colors.ink)}>Back</RNText>
           </Pressable>
+  );
+
+  // The top-up bar sits at the bottom, right above Continue, so the price it makes stays in view as it moves.
+  const topUpBar =
+    phase === 'budget' && budgetOk ? (
+      <TopUpBar stop={topUpStop} onChange={setTopUpStop} base={budget ?? 0} price={price} feeRate={fees.posterFee} />
+    ) : null;
+
+  // Desktop aside: the post as workers will see it, filled in as the steps are done. It only echoes this screen's state.
+  const preview = (
+    <PostPreviewCard
+      heading="AS WORKERS WILL SEE IT"
+      title={title.trim() || prompt.trim()}
+      titleFallback="What do you need done?"
+      description={description}
+      price={budgetOk ? rupees(price) : null}
+      facts={[
+        ...(reached >= at('when') ? [{ icon: 'clock' as const, text: `Done by ${formatDeadline(due)}` }] : []),
+        ...(reached >= at('providers') ? [{ icon: remote ? ('compass' as const) : ('pin' as const), text: whereLabel }] : []),
+      ]}
+      tags={[...(reached >= at('brief') ? [category] : []), ...(media ? ['With attachment'] : [])]}
+      emptyNote="Start typing and your post shows here."
+    />
+  );
+
+  return (
+    <Screen padded={false}>
+      {desktop ? (
+        desktopHeader
+      ) : (
+      <View style={{ paddingTop: 8, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: t.colors.line }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 }}>
+          <IconButton icon="close" label="Close" onPress={leave} />
+          <RNText style={tx('800', 17, t.colors.ink, { flex: 1, letterSpacing: -0.3 })}>{composing ? 'New task' : 'Post a request'}</RNText>
+          {composing ? (
+            nextButton
+          ) : (
+            <RNText style={tx('600', 12, t.colors.muted)}>
+              {stepNo} of {steps.length}
+            </RNText>
+          )}
+        </View>
+
+        {composing ? null : stepPath({ flexDirection: 'row', marginTop: 14, paddingHorizontal: 6, width: '100%', maxWidth: 720, alignSelf: 'center' })}
+      </View>
+      )}
+
+      <FormPage
+        phoneActions="pinned"
+        scrollProps={{
+          hugContent: true,
+          ref: scrollRef,
+          style: { flex: 1 },
+          contentContainerStyle: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28, width: '100%', maxWidth: 680, alignSelf: 'center' },
+          keyboardShouldPersistTaps: 'handled',
+          showsVerticalScrollIndicator: false,
+        }}
+        aside={preview}
+        actions={
+          desktop ? (
+            <>
+            {/* The top-up bar keeps its place right above Continue, at the full width of the card. */}
+            {topUpBar ? <View style={{ marginTop: 20 }}>{topUpBar}</View> : null}
+            <ActionBar hint={composing ? counter : undefined}>
+              {composing ? (
+                <>
+                  {voice.supported ? speakButton : null}
+                  {nextButton}
+                </>
+              ) : (
+                <>
+                  {backButton}
+                  <PrimaryButton label={primary.label} onPress={primary.onPress} disabled={primary.disabled} busy={primary.busy} style={{ borderRadius: 999 }} />
+                </>
+              )}
+            </ActionBar>
+            </>
+          ) : (
+      <KeyboardSafe
+        style={{
+          paddingHorizontal: 20,
+          paddingTop: 12,
+          paddingBottom: 14,
+          borderTopWidth: 1,
+          borderTopColor: t.colors.line,
+          backgroundColor: t.colors.bg,
+          width: '100%',
+          maxWidth: 720,
+          alignSelf: 'center',
+        }}
+      >
+        {topUpBar}
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+        {composing ? (
+          <>
+            {voice.supported ? speakButton : null}
+            <View style={{ flex: 1 }} />
+            {counter}
+          </>
         ) : null}
+        {phase !== 'what' ? backButton : null}
         {composing ? null : (
           <PrimaryButton
             label={primary.label}
@@ -1750,6 +1820,32 @@ export function AiPostScreen() {
         )}
         </View>
       </KeyboardSafe>
+          )
+        }
+      >
+        {desktop ? (
+          <>
+            {composing
+              ? null
+              : stepPath({
+                  flexDirection: 'row',
+                  marginTop: -8,
+                  marginBottom: 24,
+                  marginHorizontal: -12,
+                  paddingBottom: 16,
+                  borderBottomWidth: 1,
+                  borderBottomColor: t.colors.line,
+                })}
+            <FadeIn key={phase} translateY={14} duration={320}>
+              {body}
+            </FadeIn>
+          </>
+        ) : (
+          <FadeIn key={phase} translateY={14} duration={320}>
+            {body}
+          </FadeIn>
+        )}
+      </FormPage>
 
       <SafetyCardSheet
         visible={safetyOpen}

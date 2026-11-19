@@ -37,7 +37,7 @@ export const KEEP_ALIVE: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet',
 // Feeds and lists: as wide as the window allows, up to FEED_MAX. workerSetup is here for its FormPage card (720) + aside (320).
 const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'orders', 'saved', 'wallet', 'spending', 'inbox', 'taskManage', 'help', 'notifications', 'workerSetup'];
 // Forms on FormPage (card 720 + aside 320): the same wide column. Kept apart from WIDE so each form package lists its own.
-const WIDE_FORMS: ScreenName[] = ['listing', 'confirm', 'escrow'];
+const WIDE_FORMS: ScreenName[] = ['listing', 'confirm', 'escrow', 'aiPost', 'postDetails', 'create'];
 // One list or one page of text: up to READ_MAX.
 const READ: ScreenName[] = ['search', 'chat', 'copyright', 'terms', 'privacy', 'support', 'ideas', 'ideaDetail'];
 // Screens that fill everything beside the menu: a full map has no reading column.

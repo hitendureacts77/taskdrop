@@ -114,9 +114,9 @@ export function ListPage({
             nativeID="listPage-toolbar"
             style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}
           >
-            <View style={{ flex: 1, minWidth: 0 }}>{toolbar?.left}</View>
+            <View style={{ flexGrow: 1, flexShrink: 0 }}>{toolbar?.left}</View>
             {toolbar?.right != null ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>{toolbar.right}</View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1, minWidth: 0 }}>{toolbar.right}</View>
             ) : null}
           </View>
         ) : null}
