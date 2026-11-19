@@ -42,7 +42,7 @@ const READ: ScreenName[] = ['search', 'chat', 'copyright', 'terms', 'privacy', '
 const FULL: ScreenName[] = ['nearMap', 'explore'];
 // Two-pane pages (components/TwoPane.tsx): the feed width when both panes fit,
 // otherwise their one column at FORM_MAX, as before.
-const TWO_PANE: ScreenName[] = ['taskDetail', 'profile', 'account', 'publicProfile'];
+const TWO_PANE: ScreenName[] = ['taskDetail', 'profile', 'account', 'publicProfile', 'active'];
 // Everything else is a form or a single page: FORM_MAX, as before.
 function columnFor(screen: ScreenName, twoPane: boolean): ColumnClass {
   if (FULL.includes(screen)) return 'full';
