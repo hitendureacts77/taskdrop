@@ -15,6 +15,8 @@ import { useFees } from '../lib/useFees';
 import { Pressy, tx } from '../components/primitives';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { KeyboardSafe } from '../components/KeyboardSafe';
+import { ActionBar, FormPage, FormSection } from '../components/FormPage';
+import { useLayout } from '../lib/layout';
 
 /** Shield + checkmark; the check draws in over ~0.7s. Cleans up on unmount. */
 function ShieldCheck({ color }: { color: string }) {
@@ -51,6 +53,7 @@ function ShieldCheck({ color }: { color: string }) {
  */
 export function EscrowScreen() {
   const t = useTheme();
+  const { desktop } = useLayout();
   const { params, go, back } = useNav();
   const { celebrate, flash } = useApp();
   const [busy, setBusy] = useState(false);
@@ -140,6 +143,157 @@ export function EscrowScreen() {
     );
   }
 
+  const backRow = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+      <BackButton onBack={back} title="Pay for this task" />
+      {systemHeader ? null : <RNText style={tx('700', 17, t.colors.ink)}>Pay for this task</RNText>}
+    </View>
+  );
+
+  const amountBlock = (
+    <>
+      <RNText style={tx('400', 13, t.colors.muted, { marginTop: desktop ? 20 : 24 })}>Locked in the task until it is done</RNText>
+      <RNText style={tx('700', 15, t.colors.ink, { marginTop: 6 })} numberOfLines={2}>
+        {title}
+      </RNText>
+      <RNText style={tx('800', 44, t.colors.ink, { letterSpacing: -1.76, lineHeight: 46.2, marginTop: 5 })}>
+        {formatINR(totalMinor)}
+      </RNText>
+    </>
+  );
+
+  const rowsView = (
+    <View style={{ marginTop: desktop ? 0 : 22 }}>
+      {rows.map((r) => (
+        <View
+          key={r.label}
+          style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: t.colors.line }}
+        >
+          <RNText style={tx('400', 14, r.strong ? t.colors.ink : t.colors.muted)}>{r.label}</RNText>
+          <RNText style={tx(r.strong ? '800' : '600', 14, t.colors.ink)}>{r.value}</RNText>
+        </View>
+      ))}
+    </View>
+  );
+
+  // Where the money comes from.
+  const walletBox = (
+    <View
+      style={{
+        marginTop: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        borderWidth: 1,
+        borderColor: enough ? t.colors.line : t.colors.signal,
+        borderRadius: 14,
+        padding: 15,
+      }}
+    >
+      <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name="wallet" size={18} color={t.colors.accentDeep} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <RNText style={tx('700', 14, t.colors.ink)}>Your TaskDrop wallet</RNText>
+        <RNText style={tx('400', 13, enough ? t.colors.muted : t.colors.signalDeep, { marginTop: 3 })}>
+          {balanceMinor === null
+            ? 'Checking your balance…'
+            : enough
+              ? `${formatINR(balanceMinor)} available`
+              : `${formatINR(balanceMinor)} available · ${formatINR(totalMinor - balanceMinor)} short`}
+        </RNText>
+      </View>
+    </View>
+  );
+
+  const lockNote = (
+    <View
+      style={{
+        marginTop: desktop ? 0 : 14,
+        backgroundColor: t.colors.accentSoft,
+        borderWidth: 1,
+        borderColor: t.colors.accentBorder,
+        borderRadius: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        flexDirection: 'row',
+        gap: 12,
+      }}
+    >
+      <ShieldCheck color={t.colors.accent} />
+      <RNText style={tx('400', 13, t.colors.accentDeep, { lineHeight: 19.5, flex: 1 })}>
+        The money stays locked in this task and cannot be withdrawn. The worker is paid only when you approve the
+        work. {hireFineNote({ fineMinor: Math.round((lockedMinor ?? 0) * cancelPct), finePct: Math.round(cancelPct * 100), money: formatINR })}
+      </RNText>
+    </View>
+  );
+
+  const payButton = (
+    <Pressy
+      onPress={() => (enough || balanceMinor === null ? void pay() : setShortBy(totalMinor - (balanceMinor ?? 0)))}
+      scaleTo={0.96}
+      style={{
+        backgroundColor: t.colors.btn,
+        borderRadius: 999,
+        paddingVertical: 16,
+        // Desktop: the button is its natural width in the action bar, not full width.
+        ...(desktop ? { paddingHorizontal: 28, minWidth: 160 } : null),
+        alignItems: 'center',
+        opacity: busy ? 0.7 : 1,
+      }}
+    >
+      <RNText style={tx('700', 16, t.colors.onAccent)}>
+        {busy
+          ? 'Paying…'
+          : enough || balanceMinor === null
+            ? `Pay ${formatINR(totalMinor)} from wallet`
+            : `Add ${formatINR(totalMinor - balanceMinor)} and pay`}
+      </RNText>
+    </Pressy>
+  );
+  const phoneNumbersNote = 'Phone numbers are shared once the work starts.';
+
+  const addFunds = (
+    <AddFundsSheet
+      visible={shortBy !== null}
+      initialMinor={shortBy ?? undefined}
+      reason={
+        shortBy !== null
+          ? `Your wallet is ${formatINR(shortBy)} short for this task. Add at least that much, and the task is paid as soon as the money arrives.`
+          : undefined
+      }
+      onClose={() => setShortBy(null)}
+      flash={flash}
+      onFunded={(added) => {
+        setShortBy(null);
+        setBalanceMinor((b) => (b ?? 0) + added);
+        void pay();
+      }}
+    />
+  );
+
+  if (desktop) {
+    // Desktop: the amount, the rows and the wallet on the card; the lock note in the side column; the pay button in the action bar.
+    return (
+      <Screen padded={false}>
+        <FormPage
+          aside={lockNote}
+          actions={<ActionBar hint={phoneNumbersNote}>{payButton}</ActionBar>}
+        >
+          <FormSection first>
+            {backRow}
+            {amountBlock}
+          </FormSection>
+          <FormSection>
+            {rowsView}
+            {walletBox}
+          </FormSection>
+        </FormPage>
+        {addFunds}
+      </Screen>
+    );
+  }
+
   return (
     <Screen padded={false}>
       <ScrollView
@@ -147,121 +301,19 @@ export function EscrowScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <BackButton onBack={back} title="Pay for this task" />
-          {systemHeader ? null : <RNText style={tx('700', 17, t.colors.ink)}>Pay for this task</RNText>}
-        </View>
-
-        <RNText style={tx('400', 13, t.colors.muted, { marginTop: 24 })}>Locked in the task until it is done</RNText>
-        <RNText style={tx('700', 15, t.colors.ink, { marginTop: 6 })} numberOfLines={2}>
-          {title}
-        </RNText>
-        <RNText style={tx('800', 44, t.colors.ink, { letterSpacing: -1.76, lineHeight: 46.2, marginTop: 5 })}>
-          {formatINR(totalMinor)}
-        </RNText>
-
-        <View style={{ marginTop: 22 }}>
-          {rows.map((r) => (
-            <View
-              key={r.label}
-              style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: t.colors.line }}
-            >
-              <RNText style={tx('400', 14, r.strong ? t.colors.ink : t.colors.muted)}>{r.label}</RNText>
-              <RNText style={tx(r.strong ? '800' : '600', 14, t.colors.ink)}>{r.value}</RNText>
-            </View>
-          ))}
-        </View>
-
-        {/* Where the money comes from. */}
-        <View
-          style={{
-            marginTop: 20,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 12,
-            borderWidth: 1,
-            borderColor: enough ? t.colors.line : t.colors.signal,
-            borderRadius: 14,
-            padding: 15,
-          }}
-        >
-          <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="wallet" size={18} color={t.colors.accentDeep} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <RNText style={tx('700', 14, t.colors.ink)}>Your TaskDrop wallet</RNText>
-            <RNText style={tx('400', 13, enough ? t.colors.muted : t.colors.signalDeep, { marginTop: 3 })}>
-              {balanceMinor === null
-                ? 'Checking your balance…'
-                : enough
-                  ? `${formatINR(balanceMinor)} available`
-                  : `${formatINR(balanceMinor)} available · ${formatINR(totalMinor - balanceMinor)} short`}
-            </RNText>
-          </View>
-        </View>
-
-        <View
-          style={{
-            marginTop: 14,
-            backgroundColor: t.colors.accentSoft,
-            borderWidth: 1,
-            borderColor: t.colors.accentBorder,
-            borderRadius: 12,
-            paddingVertical: 14,
-            paddingHorizontal: 16,
-            flexDirection: 'row',
-            gap: 12,
-          }}
-        >
-          <ShieldCheck color={t.colors.accent} />
-          <RNText style={tx('400', 13, t.colors.accentDeep, { lineHeight: 19.5, flex: 1 })}>
-            The money stays locked in this task and cannot be withdrawn. The worker is paid only when you approve the
-            work. {hireFineNote({ fineMinor: Math.round((lockedMinor ?? 0) * cancelPct), finePct: Math.round(cancelPct * 100), money: formatINR })}
-          </RNText>
-        </View>
+        {backRow}
+        {amountBlock}
+        {rowsView}
+        {walletBox}
+        {lockNote}
       </ScrollView>
 
       <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
-        <Pressy
-          onPress={() => (enough || balanceMinor === null ? void pay() : setShortBy(totalMinor - (balanceMinor ?? 0)))}
-          scaleTo={0.96}
-          style={{
-            backgroundColor: t.colors.btn,
-            borderRadius: 999,
-            paddingVertical: 16,
-            alignItems: 'center',
-            opacity: busy ? 0.7 : 1,
-          }}
-        >
-          <RNText style={tx('700', 16, t.colors.onAccent)}>
-            {busy
-              ? 'Paying…'
-              : enough || balanceMinor === null
-                ? `Pay ${formatINR(totalMinor)} from wallet`
-                : `Add ${formatINR(totalMinor - balanceMinor)} and pay`}
-          </RNText>
-        </Pressy>
-        <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10 })}>
-          Phone numbers are shared once the work starts.
-        </RNText>
+        {payButton}
+        <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10 })}>{phoneNumbersNote}</RNText>
       </KeyboardSafe>
 
-      <AddFundsSheet
-        visible={shortBy !== null}
-        initialMinor={shortBy ?? undefined}
-        reason={
-          shortBy !== null
-            ? `Your wallet is ${formatINR(shortBy)} short for this task. Add at least that much, and the task is paid as soon as the money arrives.`
-            : undefined
-        }
-        onClose={() => setShortBy(null)}
-        flash={flash}
-        onFunded={(added) => {
-          setShortBy(null);
-          setBalanceMinor((b) => (b ?? 0) + added);
-          void pay();
-        }}
-      />
+      {addFunds}
     </Screen>
   );
 }
