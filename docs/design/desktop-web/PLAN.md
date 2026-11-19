@@ -155,25 +155,27 @@ Who: **O** = Opus 5.5 (shared pieces, risky), **S** = Sonnet 5.5 (routine screen
 Look: **show** = merge, then show before/after pictures to the owner (one PR to undo if he says no);
 **ask first** = show pictures from localhost and wait for "yes" before merging (bigger layout change).
 
-| # | Package | Files (under `apps/mobile/src/` unless noted) | Who | Risk | Look |
-|---|---|---|---|---|---|
-| 0 | Baseline pictures and phone guard | new `e2e/desktopWeb.spec.ts`, `playwright.config.ts` (projects `web-desktop-1440`, `web-phone-same`), `docs/design/desktop-web/before/` | S | low | none |
-| 1 | Page header in the shell; `TopBar` and `BackButton` move their title into it on desktop | new `navigation/DesktopPage.tsx`, new `components/pageHeader.tsx` + `pageHeader.web.tsx`, `navigation/DesktopTopBar.tsx` (becomes the header), `navigation/ScreenHost.tsx`, `components/kit.tsx` (`TopBar`, `BackButton`), `lib/layout.ts` (FEED_MAX 1280) | O | **high**: every desktop screen | show |
-| 2 | Shared FormPage pieces | new `components/FormPage.tsx` (`FormPage`, `FormSection`, `FieldRow`, `ActionBar`), `components/kit.tsx` (`PrimaryButton` natural width inside `ActionBar`), unit test | O | medium | none (not used yet) |
-| 3 | Worker setup on FormPage, with "How customers see you" preview aside | `screens/WorkerSetupScreen.tsx`, maybe new `components/WorkerPreviewCard.tsx` | S | low | show |
-| 4 | Onboarding (setup) on FormPage, steps listed in the aside | `screens/OnboardingScreen.tsx` | S | medium (step logic) | show |
-| 5 | `ListPage` piece: toolbar row + optional filter column | new `components/ListPage.tsx`, unit test | O | medium | none |
-| 6 | Find work / Explore list on ListPage: filters on the left (same `jobFiltersStore`), cards in a grid | `screens/ExploreScreen.tsx` (list mode only; map untouched) | S | medium | show |
-| 7 | My Tasks / My Work on ListPage: tabs in the toolbar, grid below | `screens/MyTasksScreen.tsx` | S | low | show |
-| 8 | Task detail and Manage task: title, Share and Report move to the header; offer/price card stays sticky right | `screens/TaskDetailScreen.tsx`, `screens/TaskManageScreen.tsx` | S | low | show |
-| 9 | Home: two columns (feed left, a 320 "Your day" side column right: needs attention, money held, quick post), same sections in the same order inside each column | `screens/HomeScreen.tsx`, `components/HomeSections.tsx` | O | medium (Home order rule) | **ask first** |
-| 10 | Profile, Public profile, Settings: titles to header, card surfaces, check left list | `screens/ProfileScreen.tsx`, `screens/PublicProfileScreen.tsx`, `screens/AccountScreen.tsx` | S | low | show |
-| 11 | Wallet: 3 summary cards across the top, activity as a table (date, what, amount, status) on desktop, left list for Balance / Activity / Withdraw | `screens/WalletScreen.tsx`, maybe new `components/DataTable.tsx` | S | medium (money display) | **ask first** |
-| 12 | Messages: open a chat in the right pane instead of a new page (master-detail) | `screens/InboxScreen.tsx`, `screens/ChatScreen.tsx` | O | **high** (navigation, read state) | **ask first** |
-| 13 | Posting: AI writer with a live post preview on the right; Post details on FormPage | `screens/AiPostScreen.tsx` (1956 lines), `screens/PostDetailsScreen.tsx`, `screens/CreateScreen.tsx` | O | **high** (biggest screen, money step) | **ask first** |
-| 14 | Other forms on FormPage, one PR each or two per PR: profileEdit, listing, withdraw, review, promote, confirm, escrow, ticket/support | the matching `screens/*Screen.tsx` | S | low each | show |
-| 15 | Other lists on ListPage / Grid: saved, orders, notifications, search, ideas, myQuotes, regulars, streaks, disputes, analytics | the matching `screens/*Screen.tsx` | S | low each | show |
-| 16 | Guard and docs: e2e checks for rules 1, 2 and 4 at 1440 on all screens; plan note in `docs/ULTIMATE_PLAN.md`, `node scripts/build-plan-html.mjs` | `e2e/desktopWeb.spec.ts`, docs | S | low | none |
+| # | Package | Files (under `apps/mobile/src/` unless noted) | Who | Risk | Look | Status |
+|---|---|---|---|---|---|---|
+| 0 | Baseline pictures and phone guard | new `e2e/desktopWeb.spec.ts`, `playwright.config.ts` (projects `web-desktop-1440`, `web-phone-same`), `docs/design/desktop-web/before/` | S | low | none | Merged, #421 |
+| 1 | Page header in the shell; `TopBar` and `BackButton` move their title into it on desktop | new `navigation/DesktopPage.tsx`, new `components/pageHeader.tsx` + `pageHeader.web.tsx`, `navigation/DesktopTopBar.tsx` (becomes the header), `navigation/ScreenHost.tsx`, `components/kit.tsx` (`TopBar`, `BackButton`), `lib/layout.ts` (FEED_MAX 1280) | O | **high**: every desktop screen | show | Merged, #419 |
+| 2 | Shared FormPage pieces | new `components/FormPage.tsx` (`FormPage`, `FormSection`, `FieldRow`, `ActionBar`), `components/kit.tsx` (`PrimaryButton` natural width inside `ActionBar`), unit test | O | medium | none (not used yet) | Merged, #410 |
+| 3 | Worker setup on FormPage, with "How customers see you" preview aside | `screens/WorkerSetupScreen.tsx`, maybe new `components/WorkerPreviewCard.tsx` | S | low | show | Merged, #413 |
+| 4 | Onboarding (setup) on FormPage, steps listed in the aside | `screens/OnboardingScreen.tsx` | S | medium (step logic) | show | Merged, #424 |
+| 5 | `ListPage` piece: toolbar row + optional filter column | new `components/ListPage.tsx`, unit test | O | medium | none | Merged, #411 |
+| 6 | Find work / Explore list on ListPage: filters on the left (same `jobFiltersStore`), cards in a grid | `screens/ExploreScreen.tsx` (list mode only; map untouched) | S | medium | show | Merged, #427 |
+| 7 | My Tasks / My Work on ListPage: tabs in the toolbar, grid below | `screens/MyTasksScreen.tsx` | S | low | show | Merged, #423 |
+| 8 | Task detail and Manage task: title, Share and Report move to the header; offer/price card stays sticky right | `screens/TaskDetailScreen.tsx`, `screens/TaskManageScreen.tsx` | S | low | show | Merged, #426 |
+| 9 | Home: two columns (feed left, a 320 "Your day" side column right: needs attention, money held, quick post), same sections in the same order inside each column | `screens/HomeScreen.tsx`, `components/HomeSections.tsx` | O | medium (Home order rule) | **ask first** | Built or waiting for the owner's OK (ask first); not merged |
+| 10 | Profile, Public profile, Settings: titles to header, card surfaces, check left list | `screens/ProfileScreen.tsx`, `screens/PublicProfileScreen.tsx`, `screens/AccountScreen.tsx` | S | low | show | Merged, #431 |
+| 11 | Wallet: 3 summary cards across the top, activity as a table (date, what, amount, status) on desktop, left list for Balance / Activity / Withdraw | `screens/WalletScreen.tsx`, maybe new `components/DataTable.tsx` | S | medium (money display) | **ask first** | Built, draft PR #436, waiting for the owner's OK (ask first) |
+| 12 | Messages: open a chat in the right pane instead of a new page (master-detail) | `screens/InboxScreen.tsx`, `screens/ChatScreen.tsx` | O | **high** (navigation, read state) | **ask first** | Built or waiting for the owner's OK (ask first); not merged |
+| 13 | Posting: AI writer with a live post preview on the right; Post details on FormPage | `screens/AiPostScreen.tsx` (1956 lines), `screens/PostDetailsScreen.tsx`, `screens/CreateScreen.tsx` | O | **high** (biggest screen, money step) | **ask first** | Built or waiting for the owner's OK (ask first); not merged |
+| 14 | Other forms on FormPage, one PR each or two per PR: profileEdit, listing, withdraw, review, promote, confirm, escrow, ticket/support | the matching `screens/*Screen.tsx` | S | low each | show | 14a merged, #433; 14b merged, #430 |
+| 15 | Other lists on ListPage / Grid: saved, orders, notifications, search, ideas, myQuotes, regulars, streaks, disputes, analytics | the matching `screens/*Screen.tsx` | S | low each | show | 15a merged, #434; 15b merged, #435 |
+| 16 | Guard and docs: e2e checks for rules 1, 2 and 4 at 1440 on all screens; plan note in `docs/ULTIMATE_PLAN.md`, `node scripts/build-plan-html.mjs` | new `e2e/desktopRules.spec.ts`, `playwright.config.ts`, docs | S | low | none | This PR (guard and docs) |
+
+Status, 19 Nov 2026: packages 0 to 8, 10, 14 and 15 are merged (PR numbers in the Status column). Packages 9, 11, 12 and 13 are "ask first": they are built or waiting for the owner's pictures and OK, and none is merged (11 is draft PR #436). Package 16 is the rules check `e2e/desktopRules.spec.ts` and the plan note. This is a layout status only: it says nothing about launch or compliance.
 
 Order of work: 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8, then 10, 14, 15 (routine, any order), and 9, 11, 12, 13 when
 the owner has said yes to their pictures. Packages 3 to 8 can run in parallel once 1 and 2 are merged (different files).
