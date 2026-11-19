@@ -9,7 +9,7 @@ import {
   type TextStyle,
 } from 'react-native';
 import { Screen } from '../components/ui';
-import { BackButton, LoadFailed, systemHeader } from '../components/kit';
+import { BackButton, LoadFailed, PrimaryButton, TopBar, systemHeader } from '../components/kit';
 import { reportError } from '../lib/errors';
 import { Icon } from '../components/Icon';
 import { useTheme, ring } from '../providers/ThemeProvider';
@@ -33,12 +33,14 @@ import { PaymentSheet } from '../components/PaymentSheet';
 import { paymentReturnUrl } from '../lib/links';
 import { tx } from '../components/primitives';
 import { KeyboardSafe } from '../components/KeyboardSafe';
-import { KeyboardScrollView } from '../components/KeyboardScrollView';
+import { ActionBar, FormPage, FormSection } from '../components/FormPage';
+import { useLayout } from '../lib/layout';
 
 export function PromoteScreen() {
   const t = useTheme();
   const { go, back, params } = useNav();
   const { mode } = useMode();
+  const { desktop } = useLayout();
   const { celebrate, flash } = useActions();
   const [busy, setBusy] = useState(false);
   // Native: the checkout opens in a sheet here rather than in Chrome.
@@ -139,7 +141,7 @@ export function PromoteScreen() {
     onPick: (i: number) => void,
     extra?: TextStyle,
   ) => (
-    <View style={{ flexDirection: 'row', gap: 8, ...extra }}>
+    <View style={{ flexDirection: 'row', gap: 8, ...(desktop ? { maxWidth: 440 } : null), ...extra }}>
       {items.map((it, i) => {
         const on = active === i;
         return (
@@ -318,24 +320,105 @@ export function PromoteScreen() {
     </Modal>
   );
 
+  const reachCard = (
+    <View
+      style={{
+        marginTop: desktop ? 0 : 16,
+        backgroundColor: t.colors.accentSoft,
+        borderWidth: 1,
+        borderColor: t.colors.accentBorder,
+        borderRadius: 12,
+        paddingVertical: 13,
+        paddingHorizontal: 16,
+      }}
+    >
+      {label('ESTIMATED REACH', {}, t.colors.accentDeep)}
+      <RNText style={tx('800', 22, t.colors.ink, { marginTop: 4 })}>
+        {reach[0]} – {reach[1]}
+      </RNText>
+      <RNText style={tx('400', 12, t.colors.accentDeep, { marginTop: 3 })}>
+        {worker ? 'posters' : 'workers'} per day
+        {audienceOn ? ' in your radius' : ' across your city'}
+      </RNText>
+    </View>
+  );
+
+  const startLabel = busy ? 'Working…' : pending ? 'Activate campaign' : `Start campaign · ₹${total.toLocaleString('en-IN')}`;
+  const payNote =
+    'One payment, up front. It does not renew. Stop any time: whatever isn’t delivered comes back to your TaskDrop wallet when the campaign ends.';
+
   return (
     <Screen padded={false}>
-      <KeyboardScrollView
-        hugContent
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8 }}
-        showsVerticalScrollIndicator={false}
+      {desktop ? <TopBar title={worker ? 'Promote this service' : 'Promote this task'} onBack={back} /> : null}
+      <FormPage
+        phoneActions="pinned"
+        scrollProps={{
+          hugContent: true,
+          style: { flex: 1 },
+          contentContainerStyle: { paddingHorizontal: 20, paddingTop: 8 },
+          showsVerticalScrollIndicator: false,
+        }}
+        aside={
+          <>
+            {reachCard}
+            <Pressable
+              onPress={() => setExplaining(true)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="How promotion works"
+              style={{ alignSelf: 'flex-start', marginTop: 14 }}
+            >
+              <RNText style={tx('700', 12, t.colors.accentDeep, { textDecorationLine: 'underline' })}>How this works</RNText>
+            </Pressable>
+          </>
+        }
+        actions={
+          desktop ? (
+            <ActionBar hint={payNote}>
+              <PrimaryButton label={startLabel} onPress={() => void (pending ? activate() : start())} />
+            </ActionBar>
+          ) : (
+            <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+              <Pressable
+                onPress={() => void (pending ? activate() : start())}
+                style={({ pressed }) => ({
+                  backgroundColor: t.colors.btn,
+                  borderRadius: 999,
+                  paddingVertical: 16,
+                  alignItems: 'center',
+                  shadowColor: t.colors.accent,
+                  shadowOpacity: 0.35,
+                  shadowRadius: 22,
+                  shadowOffset: { width: 0, height: 8 },
+                  elevation: 6,
+                  transform: [{ scale: pressed ? 0.96 : 1 }],
+                })}
+              >
+                <RNText style={tx('700', 16, t.colors.onAccent)}>{startLabel}</RNText>
+              </Pressable>
+              {/* What settle_campaign (migration 046) actually does, next to the
+                  button that charges: one payment, no renewal, undelivered reach
+                  refunded to the wallet -- including when stopped early. */}
+              <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10, lineHeight: 17 })}>
+                {payNote}
+              </RNText>
+            </KeyboardSafe>
+          )
+        }
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <BackButton onBack={back} title={worker ? 'Promote this service' : 'Promote this task'} />
-          {systemHeader ? null : (
-            <RNText style={tx('700', 17, t.colors.ink)}>
-              {worker ? 'Promote this service' : 'Promote this task'}
-            </RNText>
-          )}
-        </View>
+        {desktop ? null : (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <BackButton onBack={back} title={worker ? 'Promote this service' : 'Promote this task'} />
+            {systemHeader ? null : (
+              <RNText style={tx('700', 17, t.colors.ink)}>
+                {worker ? 'Promote this service' : 'Promote this task'}
+              </RNText>
+            )}
+          </View>
+        )}
 
-        <View style={{ marginTop: 14 }}>
+        <FormSection first title="Which post">
+        <View style={{ marginTop: desktop ? 0 : 14 }}>
           {loadingMine ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 }}>
               <ActivityIndicator size="small" color={t.colors.muted} />
@@ -361,9 +444,11 @@ export function PromoteScreen() {
             </View>
           ) : (
             <>
-              <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54 })}>
-                WHICH POST
-              </RNText>
+              {desktop ? null : (
+                <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54 })}>
+                  WHICH POST
+                </RNText>
+              )}
 
               {/* One line when settled; the full list only while choosing. */}
               {picked && !choosing ? (
@@ -372,7 +457,7 @@ export function PromoteScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`Change post, currently ${picked.title}`}
                   style={({ pressed }) => ({
-                    marginTop: 9,
+                    marginTop: desktop ? 0 : 9,
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: 12,
@@ -402,7 +487,7 @@ export function PromoteScreen() {
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: 9,
-                      marginTop: 9,
+                      marginTop: desktop ? 0 : 9,
                       backgroundColor: t.colors.surface2,
                       borderRadius: 11,
                       paddingHorizontal: 13,
@@ -482,7 +567,10 @@ export function PromoteScreen() {
             </>
           )}
         </View>
+        </FormSection>
 
+        <FormSection title="Daily budget">
+        {desktop ? null : (
         <View
           style={{
             flexDirection: 'row',
@@ -505,12 +593,13 @@ export function PromoteScreen() {
             </RNText>
           </Pressable>
         </View>
+        )}
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'baseline',
             gap: 8,
-            marginTop: 9,
+            marginTop: desktop ? 0 : 9,
             paddingBottom: 10,
             borderBottomWidth: 1,
             borderBottomColor: t.colors.accent,
@@ -522,21 +611,25 @@ export function PromoteScreen() {
           </RNText>
         </View>
         {chipRow(budgets.map((b) => `₹${b}`), budgetIdx, setBudgetIdx, { marginTop: 11 })}
+        </FormSection>
 
-        {label('RUN FOR', { marginTop: 18 })}
-        {chipRow(DURATIONS.map((d) => d.label), durIdx, setDurIdx, { marginTop: 10 })}
+        <FormSection title="Run for">
+        {desktop ? null : label('RUN FOR', { marginTop: 18 })}
+        {chipRow(DURATIONS.map((d) => d.label), durIdx, setDurIdx, { marginTop: desktop ? 0 : 10 })}
+        </FormSection>
 
+        <FormSection title="Show it to" hint="Optional">
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
-            marginTop: 20,
+            marginTop: desktop ? 0 : 20,
           }}
         >
           <View style={{ flex: 1 }}>
-            {label('SHOW IT TO · OPTIONAL')}
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4 })}>
+            {desktop ? null : label('SHOW IT TO · OPTIONAL')}
+            <RNText style={tx('400', 12, t.colors.muted, { marginTop: desktop ? 0 : 4 })}>
               {audienceOn ? 'Narrowing who sees it' : 'Off · everyone in your city'}
             </RNText>
           </View>
@@ -588,60 +681,10 @@ export function PromoteScreen() {
           </View>
         )}
 
-        <View
-          style={{
-            marginTop: 16,
-            backgroundColor: t.colors.accentSoft,
-            borderWidth: 1,
-            borderColor: t.colors.accentBorder,
-            borderRadius: 12,
-            paddingVertical: 13,
-            paddingHorizontal: 16,
-          }}
-        >
-          {label('ESTIMATED REACH', {}, t.colors.accentDeep)}
-          <RNText style={tx('800', 22, t.colors.ink, { marginTop: 4 })}>
-            {reach[0]} – {reach[1]}
-          </RNText>
-          <RNText style={tx('400', 12, t.colors.accentDeep, { marginTop: 3 })}>
-            {worker ? 'posters' : 'workers'} per day
-            {audienceOn ? ' in your radius' : ' across your city'}
-          </RNText>
-        </View>
-      </KeyboardScrollView>
+        </FormSection>
 
-      <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
-        <Pressable
-          onPress={() => void (pending ? activate() : start())}
-          style={({ pressed }) => ({
-            backgroundColor: t.colors.btn,
-            borderRadius: 999,
-            paddingVertical: 16,
-            alignItems: 'center',
-            shadowColor: t.colors.accent,
-            shadowOpacity: 0.35,
-            shadowRadius: 22,
-            shadowOffset: { width: 0, height: 8 },
-            elevation: 6,
-            transform: [{ scale: pressed ? 0.96 : 1 }],
-          })}
-        >
-          <RNText style={tx('700', 16, t.colors.onAccent)}>
-            {busy
-              ? 'Working…'
-              : pending
-                ? 'Activate campaign'
-                : `Start campaign · ₹${total.toLocaleString('en-IN')}`}
-          </RNText>
-        </Pressable>
-        {/* What settle_campaign (migration 046) actually does, next to the
-            button that charges: one payment, no renewal, undelivered reach
-            refunded to the wallet -- including when stopped early. */}
-        <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10, lineHeight: 17 })}>
-          One payment, up front. It does not renew. Stop any time: whatever isn’t delivered comes back to
-          your TaskDrop wallet when the campaign ends.
-        </RNText>
-      </KeyboardSafe>
+        {desktop ? null : reachCard}
+      </FormPage>
       {explainer}
       <PaymentSheet url={payUrl} visible={payUrl !== null} onClose={() => setPayUrl(null)} />
     </Screen>
