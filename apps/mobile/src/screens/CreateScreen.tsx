@@ -5,6 +5,9 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { tx } from '../components/primitives';
+import { FormPage } from '../components/FormPage';
+import { useDesktopHeaderPortal } from '../components/pageHeader';
+import { useLayout } from '../lib/layout';
 
 function CardIn({ delay, children }: { delay: number; children: React.ReactNode }) {
   const v = useRef(new Animated.Value(0)).current;
@@ -30,6 +33,14 @@ export function CreateScreen() {
   const { go, back } = useNav();
   const { mode } = useMode();
   const worker = mode === 'worker';
+  const { desktop } = useLayout();
+  const desktopHeader = useDesktopHeaderPortal({
+    title: worker ? 'What do you offer?' : 'What do you need?',
+    subtitle: worker
+      ? 'Pick a category. Customers find your service through it.'
+      : 'Pick a category. It decides who sees your request first.',
+    onBack: back,
+  });
 
   const pillars = [
     {
@@ -51,6 +62,55 @@ export function CreateScreen() {
       stat: '54 open · avg ₹600',
     },
   ];
+
+  // Desktop web (>= 1024): the heading goes to the page header (with Back in place of the close cross) and the
+  // three categories sit side by side on a FormPage card. Layout only: each still opens postDetails the same way.
+  if (desktop) {
+    return (
+      <Screen padded={false}>
+        {desktopHeader}
+        <FormPage>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            {pillars.map((p, i) => (
+              <View key={p.title} style={{ flex: 1, minWidth: 0 }}>
+                <CardIn delay={i * 70}>
+                  <Pressable
+                    onPress={() => go('postDetails', { pillar: i })}
+                    accessibilityRole="button"
+                    style={({ pressed }) => ({
+                      ...cardSurface(t, 18),
+                      padding: 18,
+                      minHeight: 200,
+                      transform: [{ scale: pressed ? 0.985 : 1 }],
+                    })}
+                  >
+                    <View
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 12,
+                        backgroundColor: t.colors.accentSoft,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <RNText style={tx('400', 19, t.colors.accentDeep)}>{p.glyph}</RNText>
+                    </View>
+                    <RNText style={tx('700', 17, t.colors.ink, { marginTop: 14 })}>{p.title}</RNText>
+                    <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4, lineHeight: 18.2, flex: 1 })}>{p.sub}</RNText>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 13 }}>
+                      <RNText style={tx('400', 12, t.colors.muted, { flex: 1 })}>{p.stat}</RNText>
+                      <RNText style={tx('400', 16, t.colors.muted)}>›</RNText>
+                    </View>
+                  </Pressable>
+                </CardIn>
+              </View>
+            ))}
+          </View>
+        </FormPage>
+      </Screen>
+    );
+  }
 
   return (
     <Screen padded={false}>
