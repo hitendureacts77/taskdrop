@@ -18,6 +18,7 @@ import { useSwitchMode } from '../lib/useSwitchMode';
 import { getProfile, updateProfile, type Profile } from '../data/api';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
 import { TwoPane } from '../components/TwoPane';
+import { useLayout } from '../lib/layout';
 import {
   accountDeletionCheck,
   deleteMyAccount,
@@ -40,6 +41,8 @@ const TABS = ['You', 'Sign-in', 'App'];
  */
 export function AccountScreen() {
   const t = useTheme();
+  // Desktop web (docs/design/desktop-web/PLAN.md, package 10): roomier cards, buttons at their natural width, the page at most 720 wide.
+  const { desktop: desk } = useLayout();
   const { back, go, params } = useNav();
   const { flash, celebrate } = useActions();
   const { userId, signOut, linkGoogle, guest } = useAuth();
@@ -191,7 +194,9 @@ export function AccountScreen() {
     }
   };
 
-  const card = { ...cardSurface(t, 18), padding: 15, marginTop: 14 } as const;
+  const card = { ...cardSurface(t, 18), padding: desk ? 20 : 15, marginTop: 14 } as const;
+  // A desktop button is as wide as its label (at least 160), never the whole card.
+  const deskBtn = desk ? ({ alignSelf: 'flex-start', minWidth: 160, paddingHorizontal: 24 } as const) : null;
 
   // The active tab's cards: under the tabs on a phone, beside them on a wide desktop.
   const tabBody = (
@@ -212,7 +217,7 @@ export function AccountScreen() {
                 error={username && !handleOk ? '3–20 characters: a–z, 0–9 and _' : free === false ? 'That username is taken' : null}
                 hint={free ? 'Available' : 'Your public handle, and how you sign in with a password'}
               />
-              <PrimaryButton label="Save" onPress={() => void saveProfile()} busy={savingProfile} style={{ marginTop: 16 }} />
+              <PrimaryButton label="Save" onPress={() => void saveProfile()} busy={savingProfile} style={{ marginTop: 16, ...deskBtn }} />
             </View>
             <View style={card}>
               <RNText style={tx('800', 15, t.colors.ink)}>More about you</RNText>
@@ -283,7 +288,7 @@ export function AccountScreen() {
                 onPress={() => void savePassword()}
                 busy={savingPw}
                 disabled={!profile?.username || passwordProblem(pw, profile?.username) !== null || pw !== pw2 || (needCurrent && !pwCur)}
-                style={{ marginTop: 16 }}
+                style={{ marginTop: 16, ...deskBtn }}
               />
             </View>
             <View style={card}>
@@ -298,7 +303,7 @@ export function AccountScreen() {
                   label="Link Google"
                   onPress={() => void linkGoogleAccount()}
                   busy={linking}
-                  style={{ marginTop: 14 }}
+                  style={{ marginTop: 14, ...deskBtn }}
                 />
               ) : null}
             </View>
@@ -444,19 +449,22 @@ export function AccountScreen() {
       </>
   );
 
+  // Desktop: the cards stop at 720, whether the tabs are beside them or above them.
+  const body = desk ? <View style={{ maxWidth: 720 }}>{tabBody}</View> : tabBody;
+
   return (
     <Screen padded={false}>
       <TopBar title="Account & settings" onBack={back} />
       <TwoPane
         width={240}
         left={<View style={{ paddingTop: 14 }}><UnderlineTabs vertical tabs={TABS} active={tab} onPick={setTab} /></View>}
-        right={tabBody}
+        right={body}
         single={
           <>
             <UnderlineTabs tabs={TABS} active={tab} onPick={setTab} />
             <SwipeTabs index={tab} count={TABS.length} onChange={setTab}>
             <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
-              {tabBody}
+              {body}
             </KeyboardScrollView>
             </SwipeTabs>
           </>
