@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BackButton } from '../components/kit';
+import { useLayout } from '../lib/layout';
+import { RowCard } from '../components/RowCard';
 import { View, ScrollView, Pressable } from 'react-native';
 import { Screen, Text, Row, Button, Avatar, formatINR } from '../components/ui';
 import { AvatarPresence } from '../components/PresenceDot';
@@ -18,6 +20,7 @@ export function MyQuotesScreen() {
   const { back, go } = useNav();
   const { flash } = useActions();
   const { userId } = useAuth();
+  const { desktop } = useLayout();
   const [picked, setPicked] = useState(0);
   const [rows, setRows] = useState<TaskWithPoster[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,6 +92,15 @@ export function MyQuotesScreen() {
     });
   };
 
+  const wrapRows = (cards: React.ReactNode[]) =>
+    desktop && cards.length > 0 ? (
+      <View style={{ marginTop: 12 }}>
+        <RowCard>{cards}</RowCard>
+      </View>
+    ) : (
+      cards
+    );
+
   return (
     <Screen>
       <View style={{ flex: 1 }}>
@@ -109,7 +121,8 @@ export function MyQuotesScreen() {
             </Text>
           )}
 
-          {rows.map((row, i) => {
+          {/* Desktop: the offers are rows on one centred card (the picked one tinted); elsewhere a card each. */}
+          {wrapRows(rows.map((row, i) => {
             const selected = i === picked;
             const poster = row.poster;
             const rated = poster && poster.poster_rating_count > 0;
@@ -117,14 +130,18 @@ export function MyQuotesScreen() {
               <Pressable
                 key={row.id}
                 onPress={() => setPicked(i)}
-                style={{
-                  backgroundColor: selected ? t.colors.accentSoft : t.colors.surface,
-                  borderWidth: 1,
-                  borderColor: selected ? t.colors.accent : t.colors.line,
-                  borderRadius: t.radius.lg,
-                  padding: 14,
-                  marginTop: 12,
-                }}
+                style={
+                  desktop
+                    ? { backgroundColor: selected ? t.colors.accentSoft : t.colors.surface, padding: 16 }
+                    : {
+                        backgroundColor: selected ? t.colors.accentSoft : t.colors.surface,
+                        borderWidth: 1,
+                        borderColor: selected ? t.colors.accent : t.colors.line,
+                        borderRadius: t.radius.lg,
+                        padding: 14,
+                        marginTop: 12,
+                      }
+                }
               >
                 <Row gap={11} align="center">
                   <View>
@@ -166,19 +183,42 @@ export function MyQuotesScreen() {
                 )}
               </Pressable>
             );
-          })}
+          }))}
         </ScrollView>
       </View>
 
-      <View style={{ paddingTop: 14, paddingBottom: 24 }}>
-        <Button
-          label={current ? `Quote on this · ${formatINR(current.benchmark_minor)}` : 'Nothing to make an offer on'}
-          onPress={openIt}
-        />
-        <Text color="muted" variant="caption" style={{ textAlign: 'center', marginTop: 10, lineHeight: 18 }}>
-          The customer picks an offer; the customer pays before you start.
-        </Text>
-      </View>
+      {desktop ? (
+        // Desktop: the caption on the left, the button at its natural width on the right, under a hairline.
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 16,
+            paddingVertical: 16,
+            borderTopWidth: 1,
+            borderTopColor: t.colors.line,
+          }}
+        >
+          <Text color="muted" variant="caption" style={{ flex: 1, lineHeight: 18 }}>
+            The customer picks an offer; the customer pays before you start.
+          </Text>
+          <Button
+            label={current ? `Quote on this · ${formatINR(current.benchmark_minor)}` : 'Nothing to make an offer on'}
+            onPress={openIt}
+            style={{ minWidth: 260, paddingHorizontal: 24 }}
+          />
+        </View>
+      ) : (
+        <View style={{ paddingTop: 14, paddingBottom: 24 }}>
+          <Button
+            label={current ? `Quote on this · ${formatINR(current.benchmark_minor)}` : 'Nothing to make an offer on'}
+            onPress={openIt}
+          />
+          <Text color="muted" variant="caption" style={{ textAlign: 'center', marginTop: 10, lineHeight: 18 }}>
+            The customer picks an offer; the customer pays before you start.
+          </Text>
+        </View>
+      )}
     </Screen>
   );
 }

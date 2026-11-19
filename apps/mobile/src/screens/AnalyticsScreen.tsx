@@ -10,6 +10,8 @@ import { useActions } from '../providers/AppStateProvider';
 import { platformStats, myStats, type PlatformStats, type MyStats } from '../data/api';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import type { Theme } from '../theme';
+import { useLayout } from '../lib/layout';
+import { SegmentedTabs } from '../components/ListPage';
 
 /**
  * What the business is doing, for whoever runs it.
@@ -136,6 +138,7 @@ export function AnalyticsScreen() {
   const t = useTheme();
   const { back } = useNav();
   const { flash } = useActions();
+  const { desktop } = useLayout();
 
   const { mode } = useMode();
   const worker = mode === 'worker';
@@ -252,7 +255,7 @@ export function AnalyticsScreen() {
                 <View
                   key={cell.label}
                   style={{
-                    flexBasis: '47%',
+                    flexBasis: desktop ? '30%' : '47%',
                     flexGrow: 1,
                     padding: 13,
                     borderRadius: 12,
@@ -288,6 +291,15 @@ export function AnalyticsScreen() {
         {!denied && (
           <>
             {/* Time range sits in one row above the figures it governs. */}
+            {desktop ? (
+              <View style={{ marginTop: 16 }}>
+                <SegmentedTabs
+                  tabs={WINDOWS.map((w) => ({ key: String(w), label: `${w}d` }))}
+                  value={String(days)}
+                  onChange={(k) => setDays(Number(k))}
+                />
+              </View>
+            ) : (
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
               {WINDOWS.map((w) => {
                 const on = w === days;
@@ -312,6 +324,7 @@ export function AnalyticsScreen() {
                 );
               })}
             </View>
+            )}
 
             {loading && !stats ? (
               <RNText style={tx('400', 14, t.colors.muted, { marginTop: 24 })}>
