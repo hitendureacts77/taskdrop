@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { View, Text as RNText, Pressable, Animated, Easing, Platform, ScrollView } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { onHero } from '../theme';
@@ -48,6 +48,7 @@ import { GetAppButton } from './AppQr';
 import { Drop, Ripples } from './Ripples';
 import { cardSurface } from './ui';
 import { useLayout } from '../lib/layout';
+import { ColumnsGrid, HomeColumns, useHomeColumns } from './HomeColumns';
 import { useReducedMotion } from '../lib/motion';
 import type { IconName } from './Icon';
 import { HowSheet } from './HowSheet';
@@ -85,10 +86,13 @@ function useHomeLoad(load: (alive: () => boolean) => Promise<unknown>) {
   }, [onHome, tick, load]);
 }
 
-/** The top of the home screen, above the existing feed. */
-export function HomeSections() {
+/**
+ * The top of the home screen, then `after`: the rest of the feed (HomeScreen's own part). On a phone and
+ * tablet `after` simply follows, as before; on a desktop it ends the main column beside the side column.
+ */
+export function HomeSections({ after }: { after?: ReactNode } = {}) {
   const { mode } = useMode();
-  return mode === 'worker' ? <EarnTop /> : <PostTop />;
+  return mode === 'worker' ? <EarnTop after={after} /> : <PostTop after={after} />;
 }
 
 // ------------------------------------------------------------ posting -------
@@ -98,15 +102,19 @@ export function HomeSections() {
  * then what they already have going, who is free right now, a row of
  * starting points, and what is busy on TaskDrop.
  */
-function PostTop() {
+function PostTop({ after }: { after?: ReactNode }) {
   const t = useTheme();
   // The wide composer gets its picture beside it (W2).
   const { desktop, contentWidth, columns } = useLayout();
+  // Desktop (package 9): two columns, so the tiles count the main column's width, not the window's.
+  const { two, mainColumns, mainWidth } = useHomeColumns();
   const wideHero = desktop;
   // D11: 9 tiles, 3 per row (a full 3 x 3) up to three columns; at four columns 5 then 4, the second row stretching to fill.
-  const manageRow = columns >= 4 ? 5 : 3;
+  const manageRow = (two ? mainColumns : columns) >= 4 ? 5 : 3;
   // D9: the hero is a 7/5 row (composer, art); the picture grows a little once the column is wide.
-  const artSize = contentWidth('feed') >= 1100 ? 260 : 220;
+  // Beside the side column the picture is smaller, and left out when the main column is too narrow to type in.
+  const artSize = two ? 200 : contentWidth('feed') >= 1100 ? 260 : 220;
+  const showArt = wideHero && (!two || mainWidth >= 600);
   const { go } = useNav();
   const { flash } = useActions();
   const { userId, guest } = useAuth();
@@ -199,20 +207,21 @@ function PostTop() {
   const openComposer = () => go('aiPost');
   const busiest = Math.max(1, ...trending.map((c) => c.open_count));
 
-  return (
-    <View style={{ paddingHorizontal: 20 }}>
-      <AreaBar
-        label={place}
-        sub={(area) => (area ? 'Your posts reach workers around here' : 'So workers near you see your posts')}
-        onPress={() => setPickPlace(true)}
-        flush
-      />
-      <PulseLine pulse={pulse} />
-      <JustPosted tasks={posted} onOpen={(prompt) => go('aiPost', { prompt })} />
+  const areaBar = (
+    <AreaBar
+      label={place}
+      sub={(area) => (area ? 'Your posts reach workers around here' : 'So workers near you see your posts')}
+      onPress={() => setPickPlace(true)}
+      flush
+    />
+  );
+  const pulseLine = <PulseLine pulse={pulse} />;
+  const justPosted = <JustPosted tasks={posted} onOpen={(prompt) => go('aiPost', { prompt })} />;
 
-      {/* The composer, on the v2 hero: the card itself is where you type.
+  const composer = (
+      /* The composer, on the v2 hero: the card itself is where you type.
           Sending opens the step-by-step flow with these words, which asks the
-          quick questions, writes the post and checks it with you. */}
+          quick questions, writes the post and checks it with you. */
       <HeroCard style={{ marginTop: 10 }} padding={wideHero ? 30 : 20}>
         <View style={{ flexDirection: 'row', gap: 28 }}>
           <View style={wideHero ? { flex: 7, maxWidth: 720, justifyContent: 'center' } : { flex: 1.25 }}>
@@ -293,31 +302,38 @@ function PostTop() {
               ))}
             </View>
           </View>
-          {wideHero ? <HeroArt size={artSize} /> : null}
+          {showArt ? <HeroArt size={artSize} /> : null}
         </View>
       </HeroCard>
+  );
 
-      {/* D22 H1: what only TaskDrop does, as big icons right under the ask box. */}
-      <OnlyOnTaskDrop
-        onHunt={() => go('aiPost', { prompt: 'Find me ', hunt: true })}
-        onBigDay={() => go('bigDay')}
-        onPrompt={(prompt) => go('aiPost', { prompt })}
-      />
+  // D22 H1: what only TaskDrop does, as big icons right under the ask box.
+  const onlyOn = (
+    <OnlyOnTaskDrop
+      onHunt={() => go('aiPost', { prompt: 'Find me ', hunt: true })}
+      onBigDay={() => go('bigDay')}
+      onPrompt={(prompt) => go('aiPost', { prompt })}
+      narrow={two}
+    />
+  );
+  const ideas = <PosterIdeas onPrompt={(prompt) => go('aiPost', { prompt })} />;
+  const howSheet = <HowSheet visible={howOpen} onClose={() => setHowOpen(false)} side="hire" />;
 
-      <PosterIdeas onPrompt={(prompt) => go('aiPost', { prompt })} />
-
-      <HowSheet visible={howOpen} onClose={() => setHowOpen(false)} side="hire" />
-
-      {/* Manage my tasks: the errands people hand off most; one tap fills the composer. */}
+  // Manage my tasks: the errands people hand off most; one tap fills the composer.
+  const manage = (
+    <>
       <SectionTitle title="Manage my tasks" icon="briefcase" style={{ marginTop: 32 }} />
       <View style={desktop ? { marginTop: 7, marginHorizontal: -5, flexDirection: 'row', flexWrap: 'wrap' } : { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
         {MANAGE.map((x) => (
           <ManageTile key={x.title} item={x} perRow={desktop ? manageRow : undefined} onPress={() => go('aiPost', { prompt: x.prompt })} />
         ))}
       </View>
+    </>
+  );
 
-      {/* What they already have going */}
-      {active && active.length > 0 ? (
+  // What they already have going
+  const published =
+      active && active.length > 0 ? (
         <>
           <SectionTitle
             title="Your published tasks"
@@ -339,10 +355,11 @@ function PostTop() {
             </Rail>
           </View>
         </>
-      ) : null}
+      ) : null;
 
-      {/* What is busy */}
-      {trending.length > 0 ? (
+  // What is busy
+  const busy =
+      trending.length > 0 ? (
         <>
           <SectionTitle title="Busy on TaskDrop" icon="trending" style={{ marginTop: 32 }} />
           <View style={[cardSurface(t, 20), { marginTop: 12, paddingHorizontal: 14 }]}>
@@ -379,14 +396,66 @@ function PostTop() {
             ))}
           </View>
         </>
-      ) : null}
-      <LocationSheet
-        visible={pickPlace}
-        askForDetails={false}
-        onCancel={() => setPickPlace(false)}
-        onPick={(p) => void choosePlace(p)}
-      />
-    </View>
+      ) : null;
+  const locationSheet = (
+    <LocationSheet
+      visible={pickPlace}
+      askForDetails={false}
+      onCancel={() => setPickPlace(false)}
+      onPick={(p) => void choosePlace(p)}
+    />
+  );
+
+  // Desktop (package 9): the feed sections stay on the left in their order, the small items move to the
+  // side column in theirs. The sheets are pop-ups, so where they sit in the tree does not matter.
+  if (two) {
+    return (
+      <>
+        <HomeColumns
+          main={
+            <>
+              <View style={{ paddingHorizontal: 20 }}>
+                {areaBar}
+                {composer}
+                {onlyOn}
+                {ideas}
+                {manage}
+              </View>
+              {after}
+            </>
+          }
+          side={
+            <>
+              {pulseLine}
+              {justPosted}
+              {published}
+              {busy}
+            </>
+          }
+        />
+        {howSheet}
+        {locationSheet}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <View style={{ paddingHorizontal: 20 }}>
+        {areaBar}
+        {pulseLine}
+        {justPosted}
+        {composer}
+        {onlyOn}
+        {ideas}
+        {howSheet}
+        {manage}
+        {published}
+        {busy}
+        {locationSheet}
+      </View>
+      {after}
+    </>
   );
 }
 
@@ -615,7 +684,7 @@ const RADII = [3, 10, 25, 50];
  * the area they chose, what can be done from anywhere, and what is needed
  * today.
  */
-function EarnTop() {
+function EarnTop({ after }: { after?: ReactNode }) {
   const t = useTheme();
   const { go, screen } = useNav();
   const { flash } = useActions();
@@ -790,8 +859,13 @@ function EarnTop() {
   };
 
   // Two per section to start with (a full row on a desktop); "Show more" opens the rest in place.
-  const { desktop, columns } = useLayout();
+  const { desktop, columns: windowColumns } = useLayout();
+  // Desktop (package 9): two columns, so a row holds what fits beside the side column.
+  const { two, mainColumns } = useHomeColumns();
+  const columns = two ? mainColumns : windowColumns;
   const FIRST = desktop ? Math.max(2, columns) : 2;
+  const grid = (cards: ReactNode) =>
+    two ? <ColumnsGrid columns={mainColumns} fill>{cards}</ColumnsGrid> : <Grid fill>{cards}</Grid>;
   const more = (key: string, total: number) =>
     total > FIRST ? (
       <Pressable
@@ -835,17 +909,17 @@ function EarnTop() {
 
   const areaName = place ? pickedPlaceName(place.label) : null;
 
-  return (
-    <View>
-      <AreaBar
-        label={place?.label ?? null}
-        pending={!placeKnown}
-        sub={(a, n) => (a && a !== n ? `${a} · jobs near you` : a ? 'Showing jobs near you' : 'To show jobs near you')}
-        onPress={() => setPickPlace(true)}
-      />
+  const areaBar = (
+    <AreaBar
+      label={place?.label ?? null}
+      pending={!placeKnown}
+      sub={(a, n) => (a && a !== n ? `${a} · jobs near you` : a ? 'Showing jobs near you' : 'To show jobs near you')}
+      onPress={() => setPickPlace(true)}
+    />
+  );
 
-      <View style={{ paddingHorizontal: 20, marginTop: 8 }}>
-        {/* Where you stand, in one card: level, jobs on the go, availability. */}
+  // Where you stand, in one card: level, jobs on the go, availability.
+  const levelCard = (
         <HeroCard radius={24} padding={18} watermark={false} ringSize={200}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <RNText style={tx('700', 12, onHero.text, { flex: 1 })}>Find your next job</RNText>
@@ -878,9 +952,10 @@ function EarnTop() {
             </View>
           </View>
         </HeroCard>
-      </View>
+  );
 
-      {/* Search lives on Browse jobs; tapping here goes straight there. */}
+  // Search lives on Browse jobs; tapping here goes straight there.
+  const search = (
       <Pressable
         onPress={() => go('explore', { focusSearch: Date.now() })}
         accessibilityRole="search"
@@ -908,7 +983,9 @@ function EarnTop() {
           <Icon name="search" size={17} color={t.colors.onBtn} strokeWidth={2} />
         </View>
       </Pressable>
+  );
 
+  const sections = (
       <View style={{ paddingHorizontal: 20 }}>
         {/* 1. Skills */}
         <SectionTitle
@@ -927,7 +1004,7 @@ function EarnTop() {
           <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10 })}>Nothing open right now. Check back soon.</RNText>
         ) : (
           <>
-            <Grid fill>{firstFew('recs', recs).map((task, i) => card(task, i))}</Grid>
+            {grid(firstFew('recs', recs).map((task, i) => card(task, i)))}
             {more('recs', recs.length)}
           </>
         )}
@@ -972,7 +1049,7 @@ function EarnTop() {
               </View>
             ) : (
               <>
-                <Grid fill>{firstFew('near', near).map((task, i) => card(task, i, task.km))}</Grid>
+                {grid(firstFew('near', near).map((task, i) => card(task, i, task.km)))}
                 {more('near', near.length)}
               </>
             )}
@@ -1012,7 +1089,7 @@ function EarnTop() {
           <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10 })}>No remote jobs open right now.</RNText>
         ) : (
           <>
-            <Grid fill>{firstFew('remote', remote).map((task, i) => card(task, i))}</Grid>
+            {grid(firstFew('remote', remote).map((task, i) => card(task, i)))}
             {more('remote', remote.length)}
           </>
         )}
@@ -1021,7 +1098,7 @@ function EarnTop() {
         {urgent.length > 0 ? (
           <>
             <SectionTitle title="Needed today" icon="bolt" badge="Urgent" style={{ marginTop: 32 }} />
-            <Grid fill>{firstFew('urgent', urgent).map((task, i) => card(task, i))}</Grid>
+            {grid(firstFew('urgent', urgent).map((task, i) => card(task, i)))}
             {more('urgent', urgent.length)}
           </>
         ) : null}
@@ -1036,6 +1113,9 @@ function EarnTop() {
           <RNText style={tx('700', 13, t.colors.accentDeep)}>See every open job ›</RNText>
         </Pressable>
       </View>
+  );
+  const sheets = (
+    <>
       <HowSheet visible={howOpen} onClose={() => setHowOpen(false)} side="earn" />
       <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void load()} />
       <LocationSheet
@@ -1044,7 +1124,41 @@ function EarnTop() {
         onCancel={() => setPickPlace(false)}
         onPick={(p) => void choosePlace(p)}
       />
-    </View>
+    </>
+  );
+
+  // Desktop (package 9): the job lists stay on the left in their order; the level card, the one small item,
+  // moves to the side column.
+  if (two) {
+    return (
+      <View>
+        <HomeColumns
+          main={
+            <>
+              {areaBar}
+              {search}
+              {sections}
+              {after}
+            </>
+          }
+          side={levelCard}
+        />
+        {sheets}
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <View>
+        {areaBar}
+        <View style={{ paddingHorizontal: 20, marginTop: 8 }}>{levelCard}</View>
+        {search}
+        {sections}
+        {sheets}
+      </View>
+      {after}
+    </>
   );
 }
 
@@ -1209,13 +1323,18 @@ function OnlyOnTaskDrop({
   onHunt,
   onBigDay,
   onPrompt,
+  narrow = false,
 }: {
   onHunt: () => void;
   onBigDay: () => void;
   onPrompt: (prompt: string) => void;
+  /** Desktop main column beside the side column (package 9): too narrow for five one-line cards, so each
+   *  one keeps the phone's icon above its two-line title, on a card. */
+  narrow?: boolean;
 }) {
   const t = useTheme();
-  const { desktop } = useLayout();
+  const { desktop: wideScreen } = useLayout();
+  const desktop = wideScreen && !narrow;
   const opinions = TEMPLATES.find((x) => x.key === 'ask-people');
   const prices = TEMPLATES.find((x) => x.key === 'find-quotes');
   const items: { icon: IconName; title: string; bg: string; ink: string; isNew?: boolean; onPress: () => void }[] = [
@@ -1231,7 +1350,7 @@ function OnlyOnTaskDrop({
         <Icon name="star" size={15} color={t.colors.goldInk} />
         <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>Only on TaskDrop</RNText>
       </View>
-      <View style={{ flexDirection: 'row', marginTop: 14, gap: desktop ? 10 : 0 }}>
+      <View style={{ flexDirection: 'row', marginTop: 14, gap: wideScreen ? 10 : 0 }}>
         {items.map((x) => (
           <Pressy
             key={x.title}
@@ -1242,7 +1361,9 @@ function OnlyOnTaskDrop({
             style={
               desktop
                 ? [cardSurface(t, 16), { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, minWidth: 0 }]
-                : { flex: 1, alignItems: 'center' }
+                : wideScreen
+                  ? [cardSurface(t, 16), { flex: 1, alignItems: 'center', paddingVertical: 12, minWidth: 0 }]
+                  : { flex: 1, alignItems: 'center' }
             }
           >
             <View

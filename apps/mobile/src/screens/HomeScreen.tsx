@@ -888,9 +888,11 @@ export function HomeScreen() {
         <AppHeader />
         {/* A worker's home is sectioned (skills, near you, remote, needed
             today) in HomeSections. The Rail below is the poster's. Search
-            results are the virtualised list above. */}
-        <HomeSections />
-        {!worker ? (
+            results are the virtualised list above. The part below is handed to
+            HomeSections so it follows the sections on a phone and ends the main
+            column beside the side column on a desktop (package 9). */}
+        <HomeSections
+          after={!worker ? (
           // What workers offer, as gig cards in a row that pages sideways.
           <View style={{ paddingHorizontal: 20, paddingTop: 30, paddingBottom: 110 }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
@@ -928,7 +930,8 @@ export function HomeScreen() {
         ) : (
           // Room under the last section so the drop button never covers it.
           <View style={{ height: 110 }} />
-        )}
+          )}
+        />
       </FadeIn>
     </Screen>
   );
