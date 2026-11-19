@@ -370,11 +370,12 @@ export function PromoteScreen() {
             >
               <RNText style={tx('700', 12, t.colors.accentDeep, { textDecorationLine: 'underline' })}>How this works</RNText>
             </Pressable>
+            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 14, lineHeight: 17 })}>{payNote}</RNText>
           </>
         }
         actions={
           desktop ? (
-            <ActionBar hint={payNote}>
+            <ActionBar>
               <PrimaryButton label={startLabel} onPress={() => void (pending ? activate() : start())} />
             </ActionBar>
           ) : (

@@ -344,18 +344,17 @@ export function ProfileEditScreen() {
     >
       {desktop ? (
         <>
-          <FormSection first side title={aboutLabel}>
+          <FormSection first title={aboutLabel}>
             {bioField}
           </FormSection>
-          <FormSection side title="Location" hint="This helps match you with local tasks.">
+          <FormSection title="Location" hint="This helps match you with local tasks.">
             {locationButton}
           </FormSection>
-          <FormSection side title="Languages">
+          <FormSection title="Languages">
             {languagePills}
           </FormSection>
           {worker ? (
             <FormSection
-              side
               title="Skills"
               hint="Pick up to 8. We use these to recommend tasks to you and to show you on the explore page."
             >
@@ -363,7 +362,7 @@ export function ProfileEditScreen() {
               {customSkillField}
             </FormSection>
           ) : null}
-          <FormSection side title="Your status">
+          <FormSection title="Your status">
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
               <View style={{ paddingTop: 2 }}>
                 <PresenceDot lastSeen={new Date().toISOString()} />
