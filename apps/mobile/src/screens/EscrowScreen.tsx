@@ -180,7 +180,7 @@ export function EscrowScreen() {
   const walletBox = (
     <View
       style={{
-        marginTop: desktop ? 0 : 20,
+        marginTop: 20,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
@@ -284,8 +284,10 @@ export function EscrowScreen() {
             {backRow}
             {amountBlock}
           </FormSection>
-          <FormSection>{rowsView}</FormSection>
-          <FormSection>{walletBox}</FormSection>
+          <FormSection>
+            {rowsView}
+            {walletBox}
+          </FormSection>
         </FormPage>
         {addFunds}
       </Screen>
