@@ -28,6 +28,9 @@ test("every alerting event has an alert, and nothing else does", () => {
     assert.ok(alertFor(name, {}), `${name} should alert`);
   }
   assert.equal(alertFor("taskdrop/user.signed_up", { name: "A" }), null);
+  const m = alertFor("taskdrop/money.mismatch", { day: "2026-11-19", ours_minor: 103000, theirs_minor: 100000 });
+  assert.ok(m && m.kind === "money_mismatch" && m.body.includes("₹1,030") && m.body.includes("₹1,000"));
+  assert.equal(alertFor("taskdrop/money.move_failed", { part: "release" })?.kind, "money_move_failed");
   assert.equal(alertFor("taskdrop/user.deleted", {}), null);
   assert.equal(alertFor("taskdrop/something.else", {}), null);
 });

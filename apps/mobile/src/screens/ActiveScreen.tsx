@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { HoldLine } from '../components/HoldLine';
 import { View, Text as RNText, Pressable, Linking, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { TIMING } from '@taskdrop/rules';
@@ -615,6 +616,7 @@ export function ActiveScreen() {
         <MoneyRow label="You earn" value={formatINR(earnsMinor)} strong big color={t.colors.accentDeep} />
       </View>
       {moneyNote}
+      {taskId ? <HoldLine taskId={taskId} /> : null}
     </View>
   ) : (
     <View style={card}>
@@ -636,6 +638,7 @@ export function ActiveScreen() {
         )}
       </View>
       {moneyNote}
+      {taskId ? <HoldLine taskId={taskId} /> : null}
     </View>
   );
 

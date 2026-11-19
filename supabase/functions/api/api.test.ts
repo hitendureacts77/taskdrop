@@ -490,6 +490,30 @@ await t("escrow held counts only paid-for jobs, for the side asked", async () =>
   assert.equal(await run("poster"), 40);
 });
 
+await t("Plan B money reads call the caller's own RPCs with checked arguments", async () => {
+  const mode = { flow: "plan_b", provider: "simulated", paused: false, payee: null };
+  const f = fake(() => ({ data: mode, error: null }));
+  const m = await runOp("getMoneyMode", {}, ctx(f));
+  assert.ok(m.ok);
+  assert.deepEqual(m.data, mode);
+  assert.equal(f.calls[0].rpc, "my_money_mode");
+
+  const h = fake(() => ({ data: null, error: null }));
+  const hold = await runOp("getTaskHold", { taskId: TASK }, ctx(h));
+  assert.ok(hold.ok);
+  assert.equal(hold.data, null);
+  assert.deepEqual(h.calls[0].args, { p_task_id: TASK });
+  assert.equal((await runOp("getTaskHold", { taskId: "nope" }, ctx(fake()))).ok, false);
+  assert.equal((await runOp("getTaskHold", {}, ctx(fake()))).ok, false);
+
+  const l = fake(() => ({ data: { totals: {}, rows: [] }, error: null }));
+  assert.ok((await runOp("getMoneyLedger", {}, ctx(l))).ok);
+  assert.deepEqual(l.calls[0].args, { p_limit: 100 });
+  const l2 = fake(() => ({ data: { totals: {}, rows: [] }, error: null }));
+  await runOp("getMoneyLedger", { limit: 20 }, ctx(l2));
+  assert.deepEqual(l2.calls[0].args, { p_limit: 20 });
+});
+
 await t("canQuoteOn explains each refusal", async () => {
   const run = async (task: unknown, bid: unknown = null) => {
     const f = fake((c) => (c.table === "tasks" ? { data: task, error: null } : { data: bid, error: null }));
