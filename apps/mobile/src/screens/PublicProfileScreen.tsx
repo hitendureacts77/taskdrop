@@ -65,8 +65,11 @@ function PublicProfileBody() {
   const [verified, setVerified] = useState<{ phone: boolean; email: boolean } | null>(null);
   const [reporting, setReporting] = useState(false);
   const [reportingReview, setReportingReview] = useState<Review | null>(null);
-  const { twoPane, contentWidth } = useLayout();
+  const { twoPane, contentWidth, desktop: desk } = useLayout();
   const mx = twoPane ? 0 : 20;
+  // Desktop web (docs/design/desktop-web/PLAN.md, package 10): what they do and their reviews sit on cards. Under 1024
+  // and in the apps desk is false and the page is as it was.
+  const deskCard = desk ? ({ ...cardSurface(t, 18), padding: 20 } as const) : null;
 
   useEffect(() => {
     if (!id) return setP(null);
@@ -119,6 +122,32 @@ function PublicProfileBody() {
     ? { avg: Number(p.worker_rating_avg), count: p.worker_rating_count }
     : { avg: Number(p.poster_rating_avg), count: p.poster_rating_count };
 
+  const skillsShown = asWorker && (p.skills ?? []).length > 0;
+  const languagesShown = (p.languages ?? []).length > 0;
+  // "Works in" and "Speaks". On a desktop they share one card, so the first has no top margin and the second 20.
+  const aboutBlocks = (
+    <>
+      {skillsShown ? (
+        <>
+          <RNText style={tx('800', 15, t.colors.ink, { marginTop: desk ? 0 : 20 })}>Works in</RNText>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 10 }}>
+            {p.skills.map((s) => (
+              <View key={s} style={{ backgroundColor: t.colors.accentSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
+                <RNText style={tx('600', 12, t.colors.accentDeep)}>{s}</RNText>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
+      {languagesShown ? (
+        <>
+          <RNText style={tx('800', 15, t.colors.ink, { marginTop: desk && !skillsShown ? 0 : 20 })}>Speaks</RNText>
+          <RNText style={tx('400', 13, t.colors.text, { marginTop: 6 })}>{p.languages.join(' · ')}</RNText>
+        </>
+      ) : null}
+    </>
+  );
+
   return (
     <Screen padded={false}>
       <TopBar
@@ -159,7 +188,7 @@ function PublicProfileBody() {
       {/* Wide desktop: who they are on the left, what they do and their reviews on the right. */}
       <TwoPane
         width={Math.round(Math.min(480, Math.max(380, contentWidth('feed') * 0.34)))}
-        singleContent={{ paddingBottom: 28 }}
+        singleContent={{ paddingBottom: 28, ...(desk ? { paddingTop: 12 } : null) }}
         left={
       <>
         {self ? (
@@ -246,34 +275,26 @@ function PublicProfileBody() {
       </>
         }
         right={
-        <View style={{ paddingHorizontal: mx }}>
-          {asWorker && (p.skills ?? []).length > 0 ? (
-            <>
-              <RNText style={tx('800', 15, t.colors.ink, { marginTop: 20 })}>Works in</RNText>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 10 }}>
-                {p.skills.map((s) => (
-                  <View key={s} style={{ backgroundColor: t.colors.accentSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
-                    <RNText style={tx('600', 12, t.colors.accentDeep)}>{s}</RNText>
-                  </View>
-                ))}
-              </View>
-            </>
-          ) : null}
-          {(p.languages ?? []).length > 0 ? (
-            <>
-              <RNText style={tx('800', 15, t.colors.ink, { marginTop: 20 })}>Speaks</RNText>
-              <RNText style={tx('400', 13, t.colors.text, { marginTop: 6 })}>{p.languages.join(' · ')}</RNText>
-            </>
-          ) : null}
+        <View style={{ paddingHorizontal: mx, ...(desk ? { maxWidth: 720 } : null) }}>
+          {desk && (skillsShown || languagesShown) ? <View style={deskCard}>{aboutBlocks}</View> : desk ? null : aboutBlocks}
 
           {asWorker && id ? <ProofPhotosSection workerId={id} /> : null}
 
-          <RNText style={tx('800', 15, t.colors.ink, { marginTop: 20 })}>Reviews</RNText>
+          <View style={desk ? { ...deskCard, marginTop: asWorker || skillsShown || languagesShown ? 16 : 0 } : undefined}>
+          <RNText style={tx('800', 15, t.colors.ink, { marginTop: desk ? 0 : 20 })}>Reviews</RNText>
           {reviews.length === 0 ? (
             <RNText style={tx('400', 13, t.colors.muted, { marginTop: 8 })}>No reviews yet.</RNText>
           ) : (
-            reviews.map((r) => (
-              <View key={r.id} style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: t.colors.line }}>
+            reviews.map((r, i) => (
+              <View
+                key={r.id}
+                style={{
+                  paddingVertical: 12,
+                  borderBottomWidth: desk && i === reviews.length - 1 ? 0 : 1,
+                  borderBottomColor: t.colors.line,
+                  ...(desk && i === reviews.length - 1 ? { paddingBottom: 0 } : null),
+                }}
+              >
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <RNText style={tx('700', 13, t.colors.ink)}>{r.author?.display_name ?? 'Someone'}</RNText>
                   <RNText style={tx('500', 12, t.colors.accentDeep)}>★ {r.rating.toFixed(1)}</RNText>
@@ -294,6 +315,7 @@ function PublicProfileBody() {
               </View>
             ))
           )}
+          </View>
         </View>
         }
       />
