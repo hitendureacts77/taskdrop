@@ -37,6 +37,9 @@ import { signedMediaUrls } from '../lib/media';
 import { adAuctionRanks, recordAdImpression, recordAdClick } from '../data/api';
 import { Grid, LoadFailed, Shimmer } from '../components/kit';
 import { reportError } from '../lib/errors';
+import { useLayout } from '../lib/layout';
+import { useDesktopHeaderPortal } from '../components/pageHeader';
+import { HeaderSearch } from '../components/HomeDesktop';
 
 /**
  * Home feed — pixel parity with docs/design/_design_markup.html lines 35-139
@@ -399,6 +402,7 @@ export function HomeScreen() {
   const { userId, guest } = useAuth();
   const focusTick = useFocusTick();
   const worker = mode === 'worker';
+  const { desktop } = useLayout();
 
   // Tasks saved while looking around move into the account the first time Home opens with it, but only
   // when the guest signed in from the pop-up (AuthProvider hands them over; B31).
@@ -631,12 +635,27 @@ export function HomeScreen() {
     }
   };
 
+  // Desktop: the search results keep the header's search bar, holding the words searched (the sections draw
+  // their own header on the plain Home).
+  const searchHeader = useDesktopHeaderPortal({
+    center:
+      desktop && searching ? (
+        <HeaderSearch
+          placeholder={worker ? 'Search jobs: data entry, logo, tutoring…' : 'Search helpers and services'}
+          label={worker ? 'Search jobs' : 'Search helpers and services'}
+          initial={searchQ ?? ''}
+          onSubmit={(q) => (q ? go('home', { q }) : go('search'))}
+        />
+      ) : undefined,
+  });
+
   // The flat feed (search results) is a virtualised list: only the cards near
   // the viewport are drawn. Everything else keeps the plain scrolling page.
   if (searching) {
     const header = (
       <FadeIn duration={260}>
         <AppHeader />
+        {searchHeader}
         <>
         <View
           style={{
@@ -889,10 +908,12 @@ export function HomeScreen() {
         {/* A worker's home is sectioned (skills, near you, remote, needed
             today) in HomeSections. The Rail below is the poster's. Search
             results are the virtualised list above. */}
-        <HomeSections />
-        {!worker ? (
-          // What workers offer, as gig cards in a row that pages sideways.
-          <View style={{ paddingHorizontal: 20, paddingTop: 30, paddingBottom: 110 }}>
+        <HomeSections
+          footer={
+            worker ? null : (
+          // What workers offer, as gig cards in a row that pages sideways (a grid of four on a desktop, at the
+          // bottom of the main column beside the rail, WebHire).
+          <View style={desktop ? { paddingTop: 32, paddingBottom: 48 } : { paddingHorizontal: 20, paddingTop: 30, paddingBottom: 110 }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
               <RNText style={tx('800', 18, t.colors.ink, { letterSpacing: -0.35, flex: 1 })}>Services near you</RNText>
               <RNText style={tx('600', 12, t.colors.accentDeep)}>{loading ? '' : `${feed.length} offered`}</RNText>
@@ -910,14 +931,14 @@ export function HomeScreen() {
               <RNText style={tx('400', 13, t.colors.muted, { marginTop: 12 })}>No services listed nearby yet.</RNText>
             ) : (
               <View style={{ marginTop: 12 }}>
-                <Rail step={250} min={260}>
+                <Rail step={250} min={desktop ? 180 : 260}>
                   {(liveTasks ?? [])
                     .filter((task) => feed.some((row) => row.id === task.id))
                     .map((task) => (
                       <ListingCard
                         key={task.id}
                         task={task as unknown as TaskWithPoster}
-                        width={240}
+                        width={desktop ? undefined : 240}
                         onPress={() => go('taskDetail', { row: taskToFeedRow(task as unknown as TaskWithPoster) })}
                       />
                     ))}
@@ -925,10 +946,11 @@ export function HomeScreen() {
               </View>
             )}
           </View>
-        ) : (
-          // Room under the last section so the drop button never covers it.
-          <View style={{ height: 110 }} />
-        )}
+            )
+          }
+        />
+        {/* Room under the last section so the drop button never covers it. */}
+        {worker ? <View style={{ height: desktop ? 48 : 110 }} /> : null}
       </FadeIn>
     </Screen>
   );

@@ -31,7 +31,6 @@ import {
   type NearbyPulse,
   type TrendingCategory,
 } from '../data/extras';
-import { useVoiceInput } from '../lib/speech';
 import { listGuestSaves, setGuestSaved } from '../lib/guestSaves';
 import { TEMPLATES } from '../lib/taskBrief';
 import { levelFor } from '../lib/levels';
@@ -44,7 +43,6 @@ import { WorkCard, categoryIcon } from './WorkCard';
 import { BidSheet } from './BidSheet';
 import { Rail, useRailItemWidth } from './Rail';
 import { HeroCard } from './Hero';
-import { GetAppButton } from './AppQr';
 import { Drop, Ripples } from './Ripples';
 import { cardSurface } from './ui';
 import { useLayout } from '../lib/layout';
@@ -59,6 +57,20 @@ import { guestAreaFromPicked } from '../lib/guestArea';
 import { readGuestArea, saveGuestArea } from '../lib/guestAreaStore';
 import { areaFromProfile, peekArea, rememberArea, sameArea } from '../lib/areaCache';
 import { HitArea, Pressy, tx } from './primitives';
+import { useDesktopHeaderPortal } from './pageHeader';
+import {
+  DesktopColumns,
+  EarnHowCard,
+  HeaderSearch,
+  IdeaTag,
+  JobRow,
+  MeasuredGrid,
+  OnTheGoCard,
+  PublishedTable,
+  RadiusSegments,
+  RailCard,
+  RailRow,
+} from './HomeDesktop';
 
 /**
  * Loads one of Home's sections when Home is in view and has not loaded for this focus tick: when it
@@ -85,26 +97,27 @@ function useHomeLoad(load: (alive: () => boolean) => Promise<unknown>) {
   }, [onHome, tick, load]);
 }
 
-/** The top of the home screen, above the existing feed. */
-export function HomeSections() {
+/**
+ * The top of the home screen, above the existing feed. `footer` (Hire's "Services near you") is drawn after the
+ * last section: at the bottom of the main column on a desktop, under everything elsewhere.
+ */
+export function HomeSections({ footer }: { footer?: React.ReactNode }) {
   const { mode } = useMode();
-  return mode === 'worker' ? <EarnTop /> : <PostTop />;
+  return mode === 'worker' ? <EarnTop /> : <PostTop footer={footer} />;
 }
 
 // ------------------------------------------------------------ posting -------
 
 /**
- * The poster's home: a composer first, because that is what they came to do,
- * then what they already have going, who is free right now, a row of
- * starting points, and what is busy on TaskDrop.
+ * The poster's home (D31 boards Main / WebHire): the area, what is going on around it, the composer, what only
+ * TaskDrop does, what they already have going, ideas to post, and what is busy. On a desktop the area and a search
+ * bar sit in the page header, and "Just posted" and "Busy on TaskDrop" move to a rail on the right.
  */
-function PostTop() {
+function PostTop({ footer }: { footer?: React.ReactNode }) {
   const t = useTheme();
   // The wide composer gets its picture beside it (W2).
-  const { desktop, contentWidth, columns } = useLayout();
+  const { desktop, contentWidth } = useLayout();
   const wideHero = desktop;
-  // D11: 9 tiles, 3 per row (a full 3 x 3) up to three columns; at four columns 5 then 4, the second row stretching to fill.
-  const manageRow = columns >= 4 ? 5 : 3;
   // D9: the hero is a 7/5 row (composer, art); the picture grows a little once the column is wide.
   const artSize = contentWidth('feed') >= 1100 ? 260 : 220;
   const { go } = useNav();
@@ -119,8 +132,6 @@ function PostTop() {
   const [pickPlace, setPickPlace] = useState(false);
   const [pulse, setPulse] = useState<NearbyPulse | null>(null);
   const [posted, setPosted] = useState<Task[]>([]);
-  // Only to know whether this browser can listen; the composer does the listening.
-  const canSpeak = useVoiceInput(() => {}).supported;
 
   // What is going on around the poster's area, in two real numbers (item 4).
   const loadPulse = useCallback(async (at: { lat: number; lng: number } | null, alive: () => boolean = () => true) => {
@@ -199,125 +210,110 @@ function PostTop() {
   const openComposer = () => go('aiPost');
   const busiest = Math.max(1, ...trending.map((c) => c.open_count));
 
-  return (
-    <View style={{ paddingHorizontal: 20 }}>
-      <AreaBar
-        label={place}
-        sub={(area) => (area ? 'Your posts reach workers around here' : 'So workers near you see your posts')}
-        onPress={() => setPickPlace(true)}
-        flush
+  const areaBar = (inHeader: boolean) => (
+    <AreaBar
+      label={place}
+      sub={(area) => (area ? 'Your posts reach workers around here' : 'So workers near you see your posts')}
+      onPress={() => setPickPlace(true)}
+      flush
+      inHeader={inHeader}
+    />
+  );
+  // Desktop (WebHire): the area on the left of the page header, a search bar in its middle. Enter shows Home's
+  // search results, the same list the Search screen hands back; an empty search opens the Search screen.
+  const header = useDesktopHeaderPortal({
+    left: desktop ? areaBar(true) : undefined,
+    center: desktop ? (
+      <HeaderSearch
+        placeholder="Search helpers and services"
+        label="Search helpers and services"
+        onSubmit={(q) => (q ? go('home', { q }) : go('search'))}
       />
-      <PulseLine pulse={pulse} />
-      <JustPosted tasks={posted} onOpen={(prompt) => go('aiPost', { prompt })} />
+    ) : undefined,
+  });
 
-      {/* The composer, on the v2 hero: the card itself is where you type.
-          Sending opens the step-by-step flow with these words, which asks the
-          quick questions, writes the post and checks it with you. */}
-      <HeroCard style={{ marginTop: 10 }} padding={wideHero ? 30 : 20}>
-        <View style={{ flexDirection: 'row', gap: 28 }}>
-          <View style={wideHero ? { flex: 7, maxWidth: 720, justifyContent: 'center' } : { flex: 1.25 }}>
-            {/* D22: the question is the title; "How TaskDrop works" is the ? beside it. */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <RNText style={tx('800', wideHero ? 34 : 24, '#FFFFFF', { letterSpacing: -0.7, flex: 1, lineHeight: wideHero ? 40 : 30 })}>
-                What do you need done?
-              </RNText>
-              <HowButton onPress={() => setHowOpen(true)} />
-            </View>
-            <Pressable
-              onPress={openComposer}
-              accessibilityRole="button"
-              accessibilityLabel="Say what you need. Opens the new task screen"
-              style={({ pressed }) => ({
-                marginTop: 14,
-                borderRadius: 16,
-                paddingHorizontal: 15,
-                paddingVertical: 12,
-                minHeight: 72,
-                flexDirection: 'row',
-                alignItems: 'flex-start',
-                gap: 10,
-                backgroundColor: t.isDark ? 'rgba(10,12,14,0.55)' : '#FFFFFF',
-                borderWidth: t.isDark ? 1 : 0,
-                borderColor: 'rgba(255,255,255,0.2)',
-                transform: [{ scale: pressed ? 0.985 : 1 }],
-              })}
-            >
-              <RNText style={tx('400', 15, t.isDark ? 'rgba(213,217,221,0.75)' : t.colors.muted, { flex: 1, lineHeight: 22 })}>
-                Say it your way: clean my kitchen
-              </RNText>
-              {/* Start by talking: the composer opens already listening. Only where the device can listen (lib/speech). */}
-              {canSpeak ? (
-                <Pressable
-                  onPress={() => go('aiPost', { listen: true })}
-                  accessibilityRole="button"
-                  accessibilityLabel="Speak your task"
-                  hitSlop={6}
-                  style={({ pressed }) => ({
-                    width: 38,
-                    height: 38,
-                    borderRadius: 999,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderWidth: 1.5,
-                    borderColor: t.isDark ? 'rgba(255,255,255,0.55)' : t.colors.line,
-                    transform: [{ scale: pressed ? 0.94 : 1 }],
-                  })}
-                >
-                  <Icon name="mic" size={17} color={t.isDark ? '#FFFFFF' : t.colors.ink} strokeWidth={2} />
-                </Pressable>
-              ) : null}
-              <View style={{ height: 38, borderRadius: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.btn }}>
-                <RNText style={tx('800', 14, t.colors.onBtn)}>Post</RNText>
-                <Icon name="chevronRight" size={15} color={t.colors.onBtn} strokeWidth={2.4} />
-              </View>
-            </Pressable>
-            {/* Pick a day first (A6): the composer opens with that day already chosen. */}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 12 }}>
-              {DAY_CHIPS.map((d) => (
-                <Pressable
-                  key={d.key}
-                  onPress={() => go('aiPost', { when: d.key })}
-                  accessibilityRole="button"
-                  accessibilityLabel={`New task for ${d.label.toLowerCase()}`}
-                  style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
-                    height: 32,
-                    borderRadius: 999,
-                    justifyContent: 'center',
-                    backgroundColor: hovered ? onHero.chipHover : onHero.chip,
-                    paddingHorizontal: 13,
-                    transform: [{ scale: pressed ? 0.96 : 1 }],
-                  })}
-                >
-                  <RNText style={tx('700', 12.5, '#FFFFFF')}>{d.label}</RNText>
-                </Pressable>
-              ))}
-            </View>
+  /* The composer, on the v2 hero: the card itself is where you type.
+     Sending opens the step-by-step flow with these words, which asks the
+     quick questions, writes the post and checks it with you. Speaking a task
+     is on that screen (its Speak button). */
+  const hero = (
+    <HeroCard style={{ marginTop: desktop ? 0 : 10 }} padding={wideHero ? 30 : 20}>
+      <View style={{ flexDirection: 'row', gap: 28 }}>
+        <View style={wideHero ? { flex: 7, maxWidth: 720, justifyContent: 'center' } : { flex: 1.25 }}>
+          {/* D22: the question is the title; "How TaskDrop works" is the ? beside it. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <RNText style={tx('800', wideHero ? 34 : 24, '#FFFFFF', { letterSpacing: -0.7, flex: 1, lineHeight: wideHero ? 40 : 30 })}>
+              What do you need done?
+            </RNText>
+            <HowButton onPress={() => setHowOpen(true)} />
           </View>
-          {wideHero ? <HeroArt size={artSize} /> : null}
+          <RNText style={tx('500', wideHero ? 14.5 : 13, onHero.text, { marginTop: 6 })}>
+            Ask for anything. Someone gets it done for you.
+          </RNText>
+          <Pressable
+            onPress={openComposer}
+            accessibilityRole="button"
+            accessibilityLabel="Say what you need. Opens the new task screen"
+            style={({ pressed }) => ({
+              marginTop: 14,
+              borderRadius: 16,
+              paddingHorizontal: 15,
+              paddingVertical: 12,
+              minHeight: wideHero ? 56 : 72,
+              flexDirection: 'row',
+              alignItems: wideHero ? 'center' : 'flex-start',
+              gap: 10,
+              backgroundColor: t.isDark ? 'rgba(10,12,14,0.55)' : '#FFFFFF',
+              borderWidth: t.isDark ? 1 : 0,
+              borderColor: 'rgba(255,255,255,0.2)',
+              transform: [{ scale: pressed ? 0.985 : 1 }],
+            })}
+          >
+            <RNText style={tx('400', 15, t.isDark ? 'rgba(213,217,221,0.75)' : t.colors.muted, { flex: 1, lineHeight: 22 })}>
+              {wideHero ? 'Type it your way: clean my kitchen' : 'Tap to type it your way: clean my kitchen'}
+            </RNText>
+            <View style={{ height: 38, borderRadius: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.btn }}>
+              <RNText style={tx('800', 14, t.colors.onBtn)}>Post</RNText>
+              <Icon name="chevronRight" size={15} color={t.colors.onBtn} strokeWidth={2.4} />
+            </View>
+          </Pressable>
+          {/* Pick a day first (A6): the composer opens with that day already chosen. */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 12 }}>
+            {DAY_CHIPS.map((d) => (
+              <Pressable
+                key={d.key}
+                onPress={() => go('aiPost', { when: d.key })}
+                accessibilityRole="button"
+                accessibilityLabel={`New task for ${d.label.toLowerCase()}`}
+                style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
+                  height: 32,
+                  borderRadius: 999,
+                  justifyContent: 'center',
+                  backgroundColor: hovered ? onHero.chipHover : onHero.chip,
+                  paddingHorizontal: 13,
+                  transform: [{ scale: pressed ? 0.96 : 1 }],
+                })}
+              >
+                <RNText style={tx('700', 12.5, '#FFFFFF')}>{d.label}</RNText>
+              </Pressable>
+            ))}
+          </View>
         </View>
-      </HeroCard>
-
-      {/* D22 H1: what only TaskDrop does, as big icons right under the ask box. */}
-      <OnlyOnTaskDrop
-        onHunt={() => go('aiPost', { prompt: 'Find me ', hunt: true })}
-        onBigDay={() => go('bigDay')}
-        onPrompt={(prompt) => go('aiPost', { prompt })}
-      />
-
-      <PosterIdeas onPrompt={(prompt) => go('aiPost', { prompt })} />
-
-      <HowSheet visible={howOpen} onClose={() => setHowOpen(false)} side="hire" />
-
-      {/* Manage my tasks: the errands people hand off most; one tap fills the composer. */}
-      <SectionTitle title="Manage my tasks" icon="briefcase" style={{ marginTop: 32 }} />
-      <View style={desktop ? { marginTop: 7, marginHorizontal: -5, flexDirection: 'row', flexWrap: 'wrap' } : { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-        {MANAGE.map((x) => (
-          <ManageTile key={x.title} item={x} perRow={desktop ? manageRow : undefined} onPress={() => go('aiPost', { prompt: x.prompt })} />
-        ))}
+        {wideHero ? <HeroArt size={artSize} /> : null}
       </View>
+    </HeroCard>
+  );
 
-      {/* What they already have going */}
-      {active && active.length > 0 ? (
+  // What they already have going: a table on a desktop (WebHire), a row of cards elsewhere.
+  const published =
+    active && active.length > 0 ? (
+      desktop ? (
+        <PublishedTable
+          rows={active.map((task) => ({ task, offers: offers.get(task.id) ?? 0, step: nextStep(task, offers.get(task.id) ?? 0) }))}
+          onOpen={(task) => openPostedTask(task, go)}
+          onManage={() => go('myTasks')}
+        />
+      ) : (
         <>
           <SectionTitle
             title="Your published tasks"
@@ -327,7 +323,7 @@ function PostTop() {
             style={{ marginTop: 32 }}
           />
           <View style={{ marginTop: 10 }}>
-            <Rail min={desktop ? 240 : 220}>
+            <Rail min={220}>
               {active.map((task) => (
                 <PublishedCard
                   key={task.id}
@@ -339,63 +335,162 @@ function PostTop() {
             </Rail>
           </View>
         </>
-      ) : null}
+      )
+    ) : null;
 
-      {/* What is busy */}
-      {trending.length > 0 ? (
-        <>
-          <SectionTitle title="Busy on TaskDrop" icon="trending" style={{ marginTop: 32 }} />
-          <View style={[cardSurface(t, 20), { marginTop: 12, paddingHorizontal: 14 }]}>
-            {trending.map((c, i) => (
-              <Pressable
-                key={c.category}
-                onPress={() => go('aiPost', { prompt: `I need help with ${c.category.toLowerCase()}: ` })}
-                accessibilityRole="button"
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 12,
-                  paddingVertical: 13,
-                  borderTopWidth: i === 0 ? 0 : 1,
-                  borderTopColor: t.colors.line,
-                  opacity: pressed ? 0.75 : 1,
-                })}
-              >
-                <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name={categoryIcon(c.category)} size={16} color={t.colors.accentDeep} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-                    <RNText style={tx('700', 14, t.colors.ink, { flexShrink: 1 })} numberOfLines={1}>
-                      {c.category}
-                    </RNText>
-                    <RNText style={tx('500', 12, t.colors.muted, { fontVariant: ['tabular-nums'] })}>
-                      {c.open_count} open · ~{rupees(c.avg_budget_minor / 100)}
-                    </RNText>
-                  </View>
-                  <GrowBar pct={Math.max(8, Math.round((c.open_count / busiest) * 100))} delay={i * 90} />
-                </View>
-              </Pressable>
-            ))}
-          </View>
-        </>
-      ) : null}
+  // Errands people hand off most, as ideas: one tap fills the composer.
+  const manage = (
+    <>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 32 }}>
+        <SectionTitle title="Ideas for you to manage your tasks" icon="briefcase" style={{ flex: 1 }} />
+        {desktop ? null : <IdeaTag plural />}
+      </View>
+      <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
+        {desktop
+          ? 'Just ideas. Click one to post it as your own task.'
+          : 'Just ideas. Tap one and it fills your post; you set the price and pick who does it.'}
+      </RNText>
+      <View style={desktop ? { marginTop: 7, marginHorizontal: -5, flexDirection: 'row', flexWrap: 'wrap' } : { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+        {MANAGE.map((x) => (
+          <ManageTile key={x.title} item={x} perRow={desktop ? 3 : undefined} onPress={() => go('aiPost', { prompt: x.prompt })} />
+        ))}
+      </View>
+    </>
+  );
+
+  const busyPick = (c: TrendingCategory) => go('aiPost', { prompt: `I need help with ${c.category.toLowerCase()}: ` });
+  const sheets = (
+    <>
+      <HowSheet visible={howOpen} onClose={() => setHowOpen(false)} side="hire" />
       <LocationSheet
         visible={pickPlace}
         askForDetails={false}
         onCancel={() => setPickPlace(false)}
         onPick={(p) => void choosePlace(p)}
       />
-    </View>
+    </>
+  );
+
+  if (desktop) {
+    return (
+      <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
+        {header === undefined ? areaBar(false) : header}
+        <DesktopColumns
+          main={
+            <>
+              <PulseLine pulse={pulse} first />
+              {hero}
+              <OnlyOnTaskDrop
+                onHunt={() => go('aiPost', { prompt: 'Find me ', hunt: true })}
+                onBigDay={() => go('bigDay')}
+                onPrompt={(prompt) => go('aiPost', { prompt })}
+              />
+              {published}
+              <PosterIdeas onPrompt={(prompt) => go('aiPost', { prompt })} />
+              {manage}
+              {footer}
+            </>
+          }
+          rail={
+            <>
+              <JustPosted tasks={posted} onOpen={(prompt) => go('aiPost', { prompt })} rail />
+              {trending.length > 0 ? (
+                <RailCard title="Busy on TaskDrop" icon="trending">
+                  {trending.map((c, i) => (
+                    <RailRow
+                      key={c.category}
+                      first={i === 0}
+                      title={c.category}
+                      sub={`~${rupees(c.avg_budget_minor / 100)} a task`}
+                      value={`${c.open_count} open`}
+                      onPress={() => busyPick(c)}
+                    />
+                  ))}
+                </RailCard>
+              ) : null}
+            </>
+          }
+        />
+        {sheets}
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <View style={{ paddingHorizontal: 20 }}>
+        {areaBar(false)}
+        <PulseLine pulse={pulse} />
+        <JustPosted tasks={posted} onOpen={(prompt) => go('aiPost', { prompt })} />
+        {hero}
+
+        {/* D22 H1: what only TaskDrop does, as big icons right under the ask box. */}
+        <OnlyOnTaskDrop
+          onHunt={() => go('aiPost', { prompt: 'Find me ', hunt: true })}
+          onBigDay={() => go('bigDay')}
+          onPrompt={(prompt) => go('aiPost', { prompt })}
+        />
+
+        {published}
+
+        <PosterIdeas onPrompt={(prompt) => go('aiPost', { prompt })} />
+
+        {manage}
+
+        {/* What is busy */}
+        {trending.length > 0 ? (
+          <>
+            <SectionTitle title="Busy on TaskDrop" icon="trending" style={{ marginTop: 32 }} />
+            <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4 })}>What people are posting on TaskDrop right now.</RNText>
+            <View style={[cardSurface(t, 20), { marginTop: 12, paddingHorizontal: 14 }]}>
+              {trending.map((c, i) => (
+                <Pressable
+                  key={c.category}
+                  onPress={() => busyPick(c)}
+                  accessibilityRole="button"
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingVertical: 13,
+                    borderTopWidth: i === 0 ? 0 : 1,
+                    borderTopColor: t.colors.line,
+                    opacity: pressed ? 0.75 : 1,
+                  })}
+                >
+                  <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name={categoryIcon(c.category)} size={16} color={t.colors.accentDeep} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+                      <RNText style={tx('700', 14, t.colors.ink, { flexShrink: 1 })} numberOfLines={1}>
+                        {c.category}
+                      </RNText>
+                      <RNText style={tx('500', 12, t.colors.muted, { fontVariant: ['tabular-nums'] })}>
+                        {c.open_count} open · ~{rupees(c.avg_budget_minor / 100)}
+                      </RNText>
+                    </View>
+                    <GrowBar pct={Math.max(8, Math.round((c.open_count / busiest) * 100))} delay={i * 90} />
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        ) : null}
+        {sheets}
+      </View>
+      {footer}
+    </>
   );
 }
 
 /**
  * A news-style strip of what other people are posting right now, so a new customer sees what the
  * app is for. Titles scroll right to left; tap opens the full list. Reduced motion shows the
- * newest title still. Nothing renders until there is something real to show.
+ * newest title still. Nothing renders until there is something real to show. `rail` (desktop, WebHire): the
+ * newest few as a list card in the right rail instead of the moving strip, with the same full list behind it.
  */
-function JustPosted({ tasks, onOpen }: { tasks: Task[]; onOpen: (prompt: string) => void }) {
+function JustPosted({ tasks, onOpen, rail = false }: { tasks: Task[]; onOpen: (prompt: string) => void; rail?: boolean }) {
   const t = useTheme();
   const reduced = useReducedMotion();
   const [open, setOpen] = useState(false);
@@ -436,6 +531,19 @@ function JustPosted({ tasks, onOpen }: { tasks: Task[]; onOpen: (prompt: string)
 
   return (
     <>
+      {rail ? (
+        <RailCard title="Just posted" dot link="See what people are posting" onLink={() => setOpen(true)}>
+          {rows.slice(0, 5).map((r, i) => (
+            <RailRow
+              key={r.id}
+              first={i === 0}
+              title={r.title}
+              sub={[r.loc_lat === null ? 'Remote' : (roughPlace(r.loc_label) ?? ''), timeAgo(r.created_at)].filter(Boolean).join(' · ')}
+              onPress={() => onOpen(r.title)}
+            />
+          ))}
+        </RailCard>
+      ) : (
       <Pressable
         onPress={() => setOpen(true)}
         accessibilityRole="button"
@@ -466,6 +574,7 @@ function JustPosted({ tasks, onOpen }: { tasks: Task[]; onOpen: (prompt: string)
           <Icon name="chevronRight" size={15} color={t.colors.muted} />
         </View>
       </Pressable>
+      )}
 
       <BottomSheet
         visible={open}
@@ -518,7 +627,7 @@ function JustPosted({ tasks, onOpen }: { tasks: Task[]; onOpen: (prompt: string)
  * helpers there right now. Real counts from nearby_pulse (migration 140);
  * a part that is zero is left out, and nothing shows when both are.
  */
-function PulseLine({ pulse }: { pulse: NearbyPulse | null }) {
+function PulseLine({ pulse, first = false }: { pulse: NearbyPulse | null; /** The top of the desktop main column: no gap above, room below. */ first?: boolean }) {
   const t = useTheme();
   const done = pulse?.doneToday ?? 0;
   const active = pulse?.activeNow ?? 0;
@@ -528,7 +637,7 @@ function PulseLine({ pulse }: { pulse: NearbyPulse | null }) {
   return (
     <View
       accessibilityRole="text"
-      style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, backgroundColor: t.colors.accentSoft }}
+      style={{ marginTop: first ? 0 : 6, marginBottom: first ? 16 : 0, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, backgroundColor: t.colors.accentSoft }}
     >
       <View style={{ width: 8, height: 8, borderRadius: 999, backgroundColor: t.colors.online }} />
       <RNText style={tx('500', 13, t.colors.muted, { flex: 1, lineHeight: 18 })} numberOfLines={1}>
@@ -550,6 +659,7 @@ function AreaBar({
   onPress,
   flush = false,
   pending = false,
+  inHeader = false,
 }: {
   label: string | null;
   /** The area is still being read: say so, rather than asking for one. */
@@ -558,10 +668,10 @@ function AreaBar({
   onPress: () => void;
   /** Already inside a padded column. */
   flush?: boolean;
+  /** Drawn in the desktop page header's left slot (D31 web boards): just the picker, no row around it. */
+  inHeader?: boolean;
 }) {
   const t = useTheme();
-  // On a desktop browser the row also carries "Get the app" (a QR to the Android app; web only).
-  const { desktop } = useLayout();
   const area = label ? roughPlace(label) : null;
   // B176: the header names the place they picked ("Madhapur, Ward 104 Kondapur, ..." is Madhapur).
   const areaName = label ? pickedPlaceName(label) : null;
@@ -571,10 +681,11 @@ function AreaBar({
       accessibilityRole="button"
       accessibilityLabel={area ? `Your area: ${area}. Change` : 'Set your area'}
       style={({ pressed }) => ({
-        flex: 1,
+        flex: inHeader ? undefined : 1,
+        alignSelf: inHeader ? 'flex-start' : undefined,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 6,
+        paddingVertical: inHeader ? 0 : 6,
         gap: 10,
         opacity: pressed ? 0.7 : 1,
       })}
@@ -582,7 +693,7 @@ function AreaBar({
       <View style={{ width: 36, height: 36, borderRadius: 999, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name="pin" size={17} color={t.colors.accentDeep} />
       </View>
-      <View style={{ flex: 1 }}>
+      <View style={inHeader ? { flexShrink: 1 } : { flex: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <RNText style={tx('800', 16, t.colors.ink, { letterSpacing: -0.2 })} numberOfLines={1}>
             {areaName ?? (pending ? 'Finding your area…' : 'Set your location')}
@@ -597,10 +708,11 @@ function AreaBar({
       </View>
     </Pressable>
   );
+  // The Android app is offered in the desktop side menu now (D31), not beside the area.
+  if (inHeader) return bar;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: flush ? 0 : 20, marginTop: 4 }}>
       {bar}
-      {desktop ? <GetAppButton /> : null}
     </View>
   );
 }
@@ -835,50 +947,293 @@ function EarnTop() {
 
   const areaName = place ? pickedPlaceName(place.label) : null;
 
+  const areaBar = (inHeader: boolean) => (
+    <AreaBar
+      label={place?.label ?? null}
+      pending={!placeKnown}
+      sub={(a, n) => (a && a !== n ? `${a} · jobs near you` : a ? 'Showing jobs near you' : 'To show jobs near you')}
+      onPress={() => setPickPlace(true)}
+      flush={inHeader}
+      inHeader={inHeader}
+    />
+  );
+  // Desktop (WebEarn): the area on the left of the page header and the job search in its middle. Enter opens the
+  // Find work list with those words; an empty search opens it with the cursor in its search box, as the phone's
+  // search pill does.
+  const header = useDesktopHeaderPortal({
+    left: desktop ? areaBar(true) : undefined,
+    center: desktop ? (
+      <HeaderSearch
+        placeholder="Search jobs: data entry, logo, tutoring…"
+        label="Search jobs"
+        onSubmit={(q) => go('explore', q ? { q } : { focusSearch: Date.now() })}
+      />
+    ) : undefined,
+  });
+
+  /* Where you stand, in one card: level, jobs on the go, availability. */
+  const levelCard = (
+    <HeroCard radius={24} padding={18} watermark={false} ringSize={200}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <RNText style={tx('700', 12, onHero.text, { flex: 1 })}>Find your next job</RNText>
+        {/* D22 H2: "How TaskDrop works" is the ? in the card's corner, as on the Hire side. */}
+        <HowButton onPress={() => setHowOpen(true)} size={28} />
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginTop: 6 }}>
+        <View style={{ flex: 1 }}>
+          <RNText style={tx('800', 26, '#FFFFFF', { letterSpacing: -0.7 })}>{level.name}</RNText>
+          <View
+            style={{
+              height: 6,
+              borderRadius: 999,
+              backgroundColor: 'rgba(255,255,255,0.25)',
+              marginTop: 10,
+              overflow: 'hidden',
+            }}
+          >
+            <GrowBar pct={Math.round(level.progress * 100)} color="#FFFFFF" track="transparent" flush />
+          </View>
+          <RNText style={tx('500', 12, onHero.text, { marginTop: 8 })}>
+            {level.next
+              ? `${level.jobsToGo} job${level.jobsToGo === 1 ? '' : 's'}${level.ratingShort ? ` + ★ ${level.next.rating}` : ''} to ${level.next.name}`
+              : 'Highest level'}
+          </RNText>
+        </View>
+        <View style={{ alignItems: 'center', minWidth: 64 }}>
+          <RNText style={tx('800', 30, '#FFFFFF', { fontVariant: ['tabular-nums'] })}>{w?.jobsLive ?? 0}</RNText>
+          <RNText style={tx('600', 11.5, onHero.text)}>on the go</RNText>
+        </View>
+      </View>
+    </HeroCard>
+  );
+
+  // Cards in rows: the page-wide grid on phones and tablets, columns measured from the main column on a desktop.
+  const cards = (rows: React.ReactNode) => (desktop ? <MeasuredGrid min={230}>{rows}</MeasuredGrid> : <Grid fill>{rows}</Grid>);
+
+  const setAreaCard = (
+    <Pressy
+      onPress={() => setPickPlace(true)}
+      style={{
+        marginTop: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: t.colors.accentSoft,
+        borderWidth: 1,
+        borderColor: t.colors.accentBorder,
+        borderRadius: 18,
+        padding: 16,
+      }}
+    >
+      <Icon name="pin" size={20} color={t.colors.accentDeep} />
+      <View style={{ flex: 1 }}>
+        <RNText style={tx('700', 14, t.colors.accentDeep)}>Set your area</RNText>
+        <RNText style={tx('400', 12, t.colors.accentDeep, { marginTop: 2 })}>
+          We’ll show jobs close to where you are
+        </RNText>
+      </View>
+      <Icon name="chevronRight" size={16} color={t.colors.accentDeep} />
+    </Pressy>
+  );
+  const nearEmpty = (
+    <>
+      <RNText style={tx('700', 14, t.colors.ink)}>No jobs within {radius} km yet</RNText>
+      <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4 })}>
+        {radius < 50 ? 'Widen the radius, or try remote work below.' : 'Try remote work below, or another area.'}
+      </RNText>
+    </>
+  );
+  const nearTitle = areaName ? `Jobs near ${areaName}` : 'Jobs near you';
+
+  // 2. Near the area the worker chose. Desktop (WebEarn): one list card, the distance choices in its header.
+  const nearSection = desktop ? (
+    place ? (
+      <View style={[cardSurface(t, 16), { marginTop: 32, overflow: 'hidden' }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: t.colors.line }}>
+          <Icon name="pin" size={16} color={t.colors.accentDeep} />
+          <RNText accessibilityRole="header" style={tx('800', 17, t.colors.ink, { flex: 1, letterSpacing: -0.3 })} numberOfLines={1}>
+            {nearTitle}
+          </RNText>
+          <RadiusSegments radii={RADII} value={radius} onPick={setRadius} />
+        </View>
+        {near === null ? (
+          <Shimmer height={110} style={{ margin: 16 }} />
+        ) : near.length === 0 ? (
+          <View style={{ padding: 20 }}>{nearEmpty}</View>
+        ) : (
+          <>
+            {firstFew('near', near).map((task, i) => (
+              <JobRow
+                key={task.id}
+                task={task}
+                km={task.km}
+                first={i === 0}
+                quoted={offers.has(task.id)}
+                onOpen={() => go('taskDetail', { row: taskToFeedRow(task) })}
+                onApply={() => setBidTask(task)}
+              />
+            ))}
+            {near.length > FIRST ? (
+              <Pressable
+                onPress={() => setShowAll((m) => ({ ...m, near: !m.near }))}
+                accessibilityRole="button"
+                style={({ pressed }) => ({ paddingHorizontal: 20, paddingVertical: 12, borderTopWidth: 1, borderTopColor: t.colors.line, opacity: pressed ? 0.7 : 1 })}
+              >
+                <RNText style={tx('700', 13, t.colors.accentDeep)}>
+                  {showAll.near ? 'Show less' : `Show ${near.length - FIRST} more near you`}
+                </RNText>
+              </Pressable>
+            ) : null}
+          </>
+        )}
+      </View>
+    ) : (
+      <>
+        <SectionTitle title={nearTitle} icon="pin" style={{ marginTop: 32 }} />
+        {setAreaCard}
+      </>
+    )
+  ) : (
+    <>
+      <SectionTitle title={nearTitle} icon="pin" style={{ marginTop: 32 }} />
+      {place ? (
+        <>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            {RADII.map((km) => (
+              <Pressable
+                key={km}
+                onPress={() => setRadius(km)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: radius === km }}
+                style={({ pressed }) => ({
+                  paddingVertical: 8,
+                  paddingHorizontal: 14,
+                  borderRadius: 999,
+                  borderWidth: 1.5,
+                  borderColor: radius === km ? t.colors.accent : t.colors.line,
+                  backgroundColor: radius === km ? t.colors.accentSoft : t.colors.surface,
+                  transform: [{ scale: pressed ? 0.94 : 1 }],
+                })}
+              >
+                <RNText style={tx(radius === km ? '700' : '600', 13, radius === km ? t.colors.accentDeep : t.colors.text)}>{km} km</RNText>
+              </Pressable>
+            ))}
+          </View>
+          {near === null ? (
+            <Shimmer height={110} style={{ marginTop: 12 }} />
+          ) : near.length === 0 ? (
+            <View style={[cardSurface(t), { marginTop: 12, padding: 16 }]}>{nearEmpty}</View>
+          ) : (
+            <>
+              {cards(firstFew('near', near).map((task, i) => card(task, i, task.km)))}
+              {more('near', near.length)}
+            </>
+          )}
+        </>
+      ) : (
+        setAreaCard
+      )}
+    </>
+  );
+
+  const sections = (
+    <>
+      {/* 1. Skills */}
+      <SectionTitle
+        title="Matches your skills"
+        icon="star"
+        action="Edit skills"
+        onAction={() => go('profileEdit')}
+        style={{ marginTop: desktop ? 0 : 32 }}
+      />
+      <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>
+        {skills.length ? skills.slice(0, 3).join(' · ') : 'Add skills to your profile for sharper matches'}
+      </RNText>
+      {recs === null ? (
+        <Shimmer height={110} style={{ marginTop: 12 }} />
+      ) : recs.length === 0 ? (
+        <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10 })}>Nothing open right now. Check back soon.</RNText>
+      ) : (
+        <>
+          {cards(firstFew('recs', recs).map((task, i) => card(task, i)))}
+          {more('recs', recs.length)}
+        </>
+      )}
+
+      {nearSection}
+
+      {/* 3. From anywhere */}
+      <SectionTitle title="Remote & online" icon="compass" style={{ marginTop: 32 }} />
+      <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>Work you can do from your phone or laptop</RNText>
+      {remote === null ? (
+        <Shimmer height={110} style={{ marginTop: 12 }} />
+      ) : remote.length === 0 ? (
+        <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10 })}>No remote jobs open right now.</RNText>
+      ) : (
+        <>
+          {cards(firstFew('remote', remote).map((task, i) => card(task, i)))}
+          {more('remote', remote.length)}
+        </>
+      )}
+
+      {/* 4. Needed today */}
+      {urgent.length > 0 ? (
+        <>
+          <SectionTitle title="Needed today" icon="bolt" badge="Urgent" style={{ marginTop: 32 }} />
+          {cards(firstFew('urgent', urgent).map((task, i) => card(task, i)))}
+          {more('urgent', urgent.length)}
+        </>
+      ) : null}
+
+      <Pressable
+        onPress={() => go('explore')}
+        style={{ alignSelf: 'center', marginTop: 18, marginBottom: 20 }}
+        hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+        accessibilityRole="button"
+      >
+        <HitArea x={8} y={12} />
+        <RNText style={tx('700', 13, t.colors.accentDeep)}>See every open job ›</RNText>
+      </Pressable>
+    </>
+  );
+
+  const sheets = (
+    <>
+      <HowSheet visible={howOpen} onClose={() => setHowOpen(false)} side="earn" />
+      <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void load()} />
+      <LocationSheet
+        visible={pickPlace}
+        askForDetails={false}
+        onCancel={() => setPickPlace(false)}
+        onPick={(p) => void choosePlace(p)}
+      />
+    </>
+  );
+
+  if (desktop) {
+    return (
+      <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
+        {header === undefined ? areaBar(false) : header}
+        <DesktopColumns
+          main={sections}
+          rail={
+            <>
+              {levelCard}
+              <OnTheGoCard />
+              <EarnHowCard onSteps={() => setHowOpen(true)} />
+            </>
+          }
+        />
+        {sheets}
+      </View>
+    );
+  }
+
   return (
     <View>
-      <AreaBar
-        label={place?.label ?? null}
-        pending={!placeKnown}
-        sub={(a, n) => (a && a !== n ? `${a} · jobs near you` : a ? 'Showing jobs near you' : 'To show jobs near you')}
-        onPress={() => setPickPlace(true)}
-      />
+      {areaBar(false)}
 
-      <View style={{ paddingHorizontal: 20, marginTop: 8 }}>
-        {/* Where you stand, in one card: level, jobs on the go, availability. */}
-        <HeroCard radius={24} padding={18} watermark={false} ringSize={200}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <RNText style={tx('700', 12, onHero.text, { flex: 1 })}>Find your next job</RNText>
-            {/* D22 H2: "How TaskDrop works" is the ? in the card's corner, as on the Hire side. */}
-            <HowButton onPress={() => setHowOpen(true)} size={28} />
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginTop: 6 }}>
-            <View style={{ flex: 1 }}>
-              <RNText style={tx('800', 26, '#FFFFFF', { letterSpacing: -0.7 })}>{level.name}</RNText>
-              <View
-                style={{
-                  height: 6,
-                  borderRadius: 999,
-                  backgroundColor: 'rgba(255,255,255,0.25)',
-                  marginTop: 10,
-                  overflow: 'hidden',
-                }}
-              >
-                <GrowBar pct={Math.round(level.progress * 100)} color="#FFFFFF" track="transparent" flush />
-              </View>
-              <RNText style={tx('500', 12, onHero.text, { marginTop: 8 })}>
-                {level.next
-                  ? `${level.jobsToGo} job${level.jobsToGo === 1 ? '' : 's'}${level.ratingShort ? ` + ★ ${level.next.rating}` : ''} to ${level.next.name}`
-                  : 'Highest level'}
-              </RNText>
-            </View>
-            <View style={{ alignItems: 'center', minWidth: 64 }}>
-              <RNText style={tx('800', 30, '#FFFFFF', { fontVariant: ['tabular-nums'] })}>{w?.jobsLive ?? 0}</RNText>
-              <RNText style={tx('600', 11.5, onHero.text)}>on the go</RNText>
-            </View>
-          </View>
-        </HeroCard>
-      </View>
+      <View style={{ paddingHorizontal: 20, marginTop: 8 }}>{levelCard}</View>
 
       {/* Search lives on Browse jobs; tapping here goes straight there. */}
       <Pressable
@@ -909,141 +1264,8 @@ function EarnTop() {
         </View>
       </Pressable>
 
-      <View style={{ paddingHorizontal: 20 }}>
-        {/* 1. Skills */}
-        <SectionTitle
-          title="Matches your skills"
-          icon="star"
-          action="Edit skills"
-          onAction={() => go('profileEdit')}
-          style={{ marginTop: 32 }}
-        />
-        <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>
-          {skills.length ? skills.slice(0, 3).join(' · ') : 'Add skills to your profile for sharper matches'}
-        </RNText>
-        {recs === null ? (
-          <Shimmer height={110} style={{ marginTop: 12 }} />
-        ) : recs.length === 0 ? (
-          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10 })}>Nothing open right now. Check back soon.</RNText>
-        ) : (
-          <>
-            <Grid fill>{firstFew('recs', recs).map((task, i) => card(task, i))}</Grid>
-            {more('recs', recs.length)}
-          </>
-        )}
-
-        {/* 2. Near the area the worker chose */}
-        <SectionTitle
-          title={areaName ? `Jobs near ${areaName}` : 'Jobs near you'}
-          icon="pin"
-          style={{ marginTop: 32 }}
-        />
-        {place ? (
-          <>
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-              {RADII.map((km) => (
-                <Pressable
-                  key={km}
-                  onPress={() => setRadius(km)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: radius === km }}
-                  style={({ pressed }) => ({
-                    paddingVertical: 8,
-                    paddingHorizontal: 14,
-                    borderRadius: 999,
-                    borderWidth: 1.5,
-                    borderColor: radius === km ? t.colors.accent : t.colors.line,
-                    backgroundColor: radius === km ? t.colors.accentSoft : t.colors.surface,
-                    transform: [{ scale: pressed ? 0.94 : 1 }],
-                  })}
-                >
-                  <RNText style={tx(radius === km ? '700' : '600', 13, radius === km ? t.colors.accentDeep : t.colors.text)}>{km} km</RNText>
-                </Pressable>
-              ))}
-            </View>
-            {near === null ? (
-              <Shimmer height={110} style={{ marginTop: 12 }} />
-            ) : near.length === 0 ? (
-              <View style={[cardSurface(t), { marginTop: 12, padding: 16 }]}>
-                <RNText style={tx('700', 14, t.colors.ink)}>No jobs within {radius} km yet</RNText>
-                <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4 })}>
-                  {radius < 50 ? 'Widen the radius, or try remote work below.' : 'Try remote work below, or another area.'}
-                </RNText>
-              </View>
-            ) : (
-              <>
-                <Grid fill>{firstFew('near', near).map((task, i) => card(task, i, task.km))}</Grid>
-                {more('near', near.length)}
-              </>
-            )}
-          </>
-        ) : (
-          <Pressy
-            onPress={() => setPickPlace(true)}
-            style={{
-              marginTop: 12,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 12,
-              backgroundColor: t.colors.accentSoft,
-              borderWidth: 1,
-              borderColor: t.colors.accentBorder,
-              borderRadius: 18,
-              padding: 16,
-            }}
-          >
-            <Icon name="pin" size={20} color={t.colors.accentDeep} />
-            <View style={{ flex: 1 }}>
-              <RNText style={tx('700', 14, t.colors.accentDeep)}>Set your area</RNText>
-              <RNText style={tx('400', 12, t.colors.accentDeep, { marginTop: 2 })}>
-                We’ll show jobs close to where you are
-              </RNText>
-            </View>
-            <Icon name="chevronRight" size={16} color={t.colors.accentDeep} />
-          </Pressy>
-        )}
-
-        {/* 3. From anywhere */}
-        <SectionTitle title="Remote & online" icon="compass" style={{ marginTop: 32 }} />
-        <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>Work you can do from your phone or laptop</RNText>
-        {remote === null ? (
-          <Shimmer height={110} style={{ marginTop: 12 }} />
-        ) : remote.length === 0 ? (
-          <RNText style={tx('400', 13, t.colors.muted, { marginTop: 10 })}>No remote jobs open right now.</RNText>
-        ) : (
-          <>
-            <Grid fill>{firstFew('remote', remote).map((task, i) => card(task, i))}</Grid>
-            {more('remote', remote.length)}
-          </>
-        )}
-
-        {/* 4. Needed today */}
-        {urgent.length > 0 ? (
-          <>
-            <SectionTitle title="Needed today" icon="bolt" badge="Urgent" style={{ marginTop: 32 }} />
-            <Grid fill>{firstFew('urgent', urgent).map((task, i) => card(task, i))}</Grid>
-            {more('urgent', urgent.length)}
-          </>
-        ) : null}
-
-        <Pressable
-          onPress={() => go('explore')}
-          style={{ alignSelf: 'center', marginTop: 18, marginBottom: 20 }}
-          hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
-          accessibilityRole="button"
-        >
-          <HitArea x={8} y={12} />
-          <RNText style={tx('700', 13, t.colors.accentDeep)}>See every open job ›</RNText>
-        </Pressable>
-      </View>
-      <HowSheet visible={howOpen} onClose={() => setHowOpen(false)} side="earn" />
-      <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void load()} />
-      <LocationSheet
-        visible={pickPlace}
-        askForDetails={false}
-        onCancel={() => setPickPlace(false)}
-        onPick={(p) => void choosePlace(p)}
-      />
+      <View style={{ paddingHorizontal: 20 }}>{sections}</View>
+      {sheets}
     </View>
   );
 }
@@ -1230,7 +1452,14 @@ function OnlyOnTaskDrop({
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
         <Icon name="star" size={15} color={t.colors.goldInk} />
         <RNText style={tx('800', 15, t.colors.ink, { flex: 1 })}>Only on TaskDrop</RNText>
+        {/* Phone board (Main): these are kinds of posts, so they carry the Ideas tag and a line saying so. */}
+        {desktop ? null : <IdeaTag plural />}
       </View>
+      {desktop ? null : (
+        <RNText style={tx('500', 12, t.colors.muted, { marginTop: 4, lineHeight: 17 })}>
+          Kinds of tasks you can post here. Tap one to start your own post.
+        </RNText>
+      )}
       <View style={{ flexDirection: 'row', marginTop: 14, gap: desktop ? 10 : 0 }}>
         {items.map((x) => (
           <Pressy
@@ -1299,7 +1528,7 @@ const MANAGE: { icon: IconName; title: string; prompt: string }[] = [
   { icon: 'users', title: 'Queue for me', prompt: 'Stand in the queue for me at ' },
 ];
 
-// Poster ideas (D29, owner 11 Nov): outcome jobs no other app does, under Only on TaskDrop, no heading.
+// Poster ideas (D29, owner 11 Nov): outcome jobs no other app does, under "Ideas you can get done" (D31).
 type PosterIdea = { icon: IconName; title: string; problem: string; price: string; prompt: string };
 const POSTER_IDEAS: { group: string; ideas: PosterIdea[] }[] = [
   {
@@ -1352,14 +1581,29 @@ const POSTER_IDEAS: { group: string; ideas: PosterIdea[] }[] = [
   },
 ];
 
+/** "from ₹800" reads "₹800+" under "People often offer"; a price that says how it is paid stays as it is. */
+function offerLine(price: string): string {
+  return price.startsWith('from ') ? `${price.slice(5)}+` : price;
+}
+
+/**
+ * "Ideas you can get done" (D29 ideas, D31 boards): outcome jobs no other app does, read as ideas -- each card
+ * carries the Idea tag, what people often offer, and "Post this idea", which fills the composer.
+ */
 function PosterIdeas({ onPrompt }: { onPrompt: (prompt: string) => void }) {
   const t = useTheme();
   const [group, setGroup] = useState(POSTER_IDEAS[0].group);
   const ideas = (POSTER_IDEAS.find((g) => g.group === group) ?? POSTER_IDEAS[0]).ideas;
-  const { desktop } = useLayout();
+  const { desktop, tablet } = useLayout();
   return (
-    <View style={{ marginTop: 14 }}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+    <View style={{ marginTop: 32 }}>
+      <SectionTitle title="Ideas you can get done" icon="sparkle" />
+      <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
+        {desktop
+          ? 'Just ideas, not services from TaskDrop. Click one to post it as your own task; helpers send offers and you pick one.'
+          : 'Just ideas, not services from TaskDrop. Tap one to post it as your own task; helpers send offers and you pick one.'}
+      </RNText>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
         {POSTER_IDEAS.map((g) => {
           const on = g.group === group;
           return (
@@ -1384,48 +1628,88 @@ function PosterIdeas({ onPrompt }: { onPrompt: (prompt: string) => void }) {
         })}
       </ScrollView>
       <View style={{ marginTop: 12 }}>
-        <Rail min={desktop ? 240 : 220}>
-          {ideas.map((x) => (
-            <IdeaCard key={x.title} idea={x} onPress={() => onPrompt(x.prompt)} />
-          ))}
-        </Rail>
+        {desktop || tablet ? (
+          <Rail min={desktop ? 170 : 220}>
+            {ideas.map((x) => (
+              <IdeaCard key={x.title} idea={x} onPress={() => onPrompt(x.prompt)} />
+            ))}
+          </Rail>
+        ) : (
+          // Phone board (Main): two ideas a row, so a whole group is seen at once.
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+            {ideas.map((x) => (
+              <View key={x.title} style={{ flexGrow: 1, flexBasis: '40%', maxWidth: '50%' }}>
+                <IdeaCard idea={x} onPress={() => onPrompt(x.prompt)} fill />
+              </View>
+            ))}
+          </View>
+        )}
       </View>
     </View>
   );
 }
 
 /** One poster idea. A component of its own so it can read the width the Rail's grid gives it. */
-function IdeaCard({ idea: x, onPress }: { idea: PosterIdea; onPress: () => void }) {
+function IdeaCard({ idea: x, onPress, fill = false }: { idea: PosterIdea; onPress: () => void; /** Fill its cell (phone grid). */ fill?: boolean }) {
   const t = useTheme();
   const { desktop } = useLayout();
   const railWidth = useRailItemWidth(230);
-  // Desktop only: phones and tablets keep the fixed 230 they always had.
-  const width = desktop ? railWidth : 230;
+  // Desktop only: tablets keep the fixed 230 they always had; the phone grid gives each card its cell.
+  const width = fill ? undefined : desktop ? railWidth : 230;
   return (
     <Pressy
       onPress={onPress}
       scaleTo={0.97}
-      label={`${x.title}. ${x.problem} ${x.price}`}
-      style={[cardSurface(t, 16), { width, padding: 12, gap: 8 }]}
+      label={`${x.title}. Idea. ${x.problem} People often offer ${offerLine(x.price)}. Post this idea`}
+      style={[cardSurface(t, 16), { width, flex: fill ? 1 : undefined, padding: 12, gap: 8 }]}
     >
-      <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name={x.icon} size={19} color={t.colors.accentDeep} />
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name={x.icon} size={17} color={t.colors.accentDeep} />
+        </View>
+        <IdeaTag />
       </View>
       <RNText style={tx('800', 14, t.colors.ink, { lineHeight: 18 })} numberOfLines={2}>{x.title}</RNText>
-      <RNText style={tx('500', 12, t.colors.muted, { lineHeight: 17 })} numberOfLines={2}>{x.problem}</RNText>
-      <RNText style={tx('800', 13, t.colors.accentDeep, { fontVariant: ['tabular-nums'] })}>{x.price}</RNText>
+      <RNText style={tx('500', 12, t.colors.muted, { lineHeight: 17 })} numberOfLines={3}>{x.problem}</RNText>
+      <View style={{ flexGrow: 1 }} />
+      <View>
+        <RNText style={tx('700', 10, t.colors.muted, { letterSpacing: 0.8 })}>PEOPLE OFTEN OFFER</RNText>
+        <RNText style={tx('800', 14, t.colors.ink, { marginTop: 2, fontVariant: ['tabular-nums'] })}>{offerLine(x.price)}</RNText>
+      </View>
+      <View style={{ height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: t.colors.accentSoft }}>
+        <RNText style={tx('800', 12.5, t.colors.accentDeep)}>Post this idea ›</RNText>
+      </View>
     </Pressy>
   );
 }
 
 function ManageTile({ item, onPress, perRow }: { item: (typeof MANAGE)[number]; onPress: () => void; perRow?: number }) {
   const t = useTheme();
-  const tile = (
+  if (perRow) {
+    // Desktop (WebHire): a row tile -- the icon, the idea and its Idea tag -- three to a row.
+    return (
+      <View style={{ flexGrow: 1, flexBasis: `${100 / perRow - 0.01}%`, minWidth: 0, padding: 5, flexDirection: 'row' }}>
+        <Pressy
+          onPress={onPress}
+          scaleTo={0.98}
+          label={`${item.title}. Idea`}
+          style={[cardSurface(t, 14), { flexGrow: 1, minHeight: 56, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }]}
+        >
+          <Icon name={item.icon} size={18} color={t.colors.accentDeep} />
+          <RNText style={tx('700', 14, t.colors.ink, { flex: 1, lineHeight: 18 })} numberOfLines={2}>
+            {item.title}
+          </RNText>
+          <IdeaTag />
+        </Pressy>
+      </View>
+    );
+  }
+  return (
     <Pressy
       onPress={onPress}
       scaleTo={0.97}
       label={item.title}
-      style={[cardSurface(t, 16), { flexGrow: 1, flexBasis: perRow ? 0 : '30%', minHeight: 104, padding: 12, alignItems: 'center', justifyContent: 'center', gap: 9 }]}
+      style={[cardSurface(t, 16), { flexGrow: 1, flexBasis: '30%', minHeight: 104, padding: 12, alignItems: 'center', justifyContent: 'center', gap: 9 }]}
     >
       <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name={item.icon} size={19} color={t.colors.accentDeep} />
@@ -1435,9 +1719,6 @@ function ManageTile({ item, onPress, perRow }: { item: (typeof MANAGE)[number]; 
       </RNText>
     </Pressy>
   );
-  if (!perRow) return tile;
-  // Desktop (D11): the row length comes from the feed's columns; the gap is padding, so the shares add up to a full row.
-  return <View style={{ flexGrow: 1, flexBasis: `${100 / perRow - 0.01}%`, minWidth: 0, padding: 5, flexDirection: 'row' }}>{tile}</View>;
 }
 
 /**
