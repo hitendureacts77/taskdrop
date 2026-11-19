@@ -54,6 +54,7 @@ export const WorkCard = memo(function WorkCard({
   onToggleSave,
   km,
   quoted,
+  row = false,
 }: {
   task: TaskWithPoster;
   index?: number;
@@ -65,6 +66,8 @@ export const WorkCard = memo(function WorkCard({
   km?: number;
   /** This worker already sent an offer on the task: one per task, so the button edits it. */
   quoted?: boolean;
+  /** Desktop Find work (D31): one row of a list card (no card of its own, a one-line description, price and actions on the right). */
+  row?: boolean;
 }) {
   const t = useTheme();
   const { desktop } = useLayout();
@@ -111,6 +114,75 @@ export const WorkCard = memo(function WorkCard({
           : '';
   const poster = task.poster?.username ? '@' + task.poster.username : (task.poster?.display_name ?? 'someone');
   const meta = [place, 'by ' + poster, rating ? '★ ' + rating : '', presence.label].filter(Boolean).join(' · ');
+
+  if (row) {
+    const apply = (
+      <Pressy
+        onPress={huntOpen ? () => void lookThenOpen() : hunt ? onOpen : onApply}
+        label={huntOpen ? `I’m looking for ${task.title}` : hunt ? `See ${task.title}` : quoted ? `Edit your offer for ${task.title}` : `Apply for ${task.title}`}
+        style={{ backgroundColor: t.colors.btn, borderRadius: 10, height: 36, justifyContent: 'center', paddingHorizontal: 18 }}
+      >
+        <RNText style={tx('800', 13, t.colors.onBtn)}>{huntOpen ? 'I’m looking' : hunt ? 'See it' : quoted ? 'Edit offer' : 'Apply'}</RNText>
+      </Pressy>
+    );
+    return (
+      <Pressy
+        containsControls
+        onPress={onOpen}
+        scaleTo={1}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 24,
+          paddingVertical: 16,
+          paddingHorizontal: 20,
+          borderTopWidth: index > 0 ? 1 : 0,
+          borderTopColor: t.colors.line,
+        }}
+      >
+        <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 22 }}>
+            <RNText style={tx('700', 11.5, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>
+              {categoryLabel(task)}
+            </RNText>
+            {tag}
+          </View>
+          <RNText style={tx('800', 15.5, t.colors.ink, { letterSpacing: -0.2 })} numberOfLines={1}>
+            {task.title}
+          </RNText>
+          {task.description ? (
+            <RNText style={tx('400', 13, t.colors.text)} numberOfLines={1}>
+              {task.description}
+            </RNText>
+          ) : null}
+          <RNText style={tx('500', 12, t.colors.muted)} numberOfLines={1}>
+            {meta}
+          </RNText>
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: 6 }}>
+          <RNText style={tx('800', 20, t.colors.accentDeep, { fontVariant: ['tabular-nums'], letterSpacing: -0.3 })}>{rupees(task.benchmark_minor / 100)}</RNText>
+          {left && !hunt ? (
+            <RNText style={tx('700', 12, left === 'overdue' ? t.colors.signalDeep : t.colors.goldInk)} numberOfLines={1}>
+              {left}
+            </RNText>
+          ) : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {onToggleSave ? (
+              <Pressable
+                onPress={onToggleSave}
+                accessibilityRole="button"
+                accessibilityLabel={saved ? 'Remove from saved' : 'Save for later'}
+                style={{ width: 36, height: 36, borderRadius: 10, borderWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Icon name="bookmark" size={16} color={saved ? t.colors.accentDeep : t.colors.muted} strokeWidth={saved ? 2.6 : 1.8} />
+              </Pressable>
+            ) : null}
+            {apply}
+          </View>
+        </View>
+      </Pressy>
+    );
+  }
 
   return (
     <FadeIn duration={360} delay={Math.min(index, 6) * 60} translateY={8} style={{ marginTop: 12 }}>

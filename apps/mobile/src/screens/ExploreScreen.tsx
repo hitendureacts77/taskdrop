@@ -45,7 +45,10 @@ import { LOCATION_DISMISSED_KEY, dismissedRecently, locationAskedThisLaunch, mar
 import { pickedPlaceName, roughPlace } from '../lib/place';
 import { useReducedMotion } from '../lib/motion';
 import { TABLET_CONTENT, useLayout } from '../lib/layout';
-import { DesktopPageHeader } from '../navigation/DesktopPage';
+import { DesktopPageFrame, DesktopPageHeader, DesktopPageScope } from '../navigation/DesktopPage';
+import { useDesktopHeaderPortal } from '../components/pageHeader';
+import { ListPage } from '../components/ListPage';
+import { FindWorkFilters, FindWorkSearch, SortSelect, UnderTabs } from '../components/DesktopFindWork';
 
 /**
  * Explore -- the map of what is around you, with the old page one tap away.
@@ -277,6 +280,17 @@ export function ExploreScreen() {
 function ExploreHeader() {
   const { desktop } = useLayout();
   return desktop ? <DesktopPageHeader screen="explore" /> : <AppHeader />;
+}
+
+/** Desktop Find work: draws its title, search bar and List / Map switch into the page header (D31 board). */
+function FindWorkHeader({ search, onMap }: { search: React.ReactNode; onMap: () => void }) {
+  const portal = useDesktopHeaderPortal({
+    title: 'Find work',
+    subtitle: 'Every open job, near you and online',
+    center: search,
+    right: <ViewSwitch onMap={onMap} />,
+  });
+  return <>{portal}</>;
 }
 
 /** The list page, built once and then only hidden, fading in each time it is shown. */
@@ -630,6 +644,7 @@ function FindWork({
   const { go, params } = useNav();
   const { flash, setOpenTask } = useActions();
   const { userId, guest } = useAuth();
+  const { desktop } = useLayout();
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState(typeof params.q === 'string' ? params.q : '');
   const [query, setQuery] = useState(typeof params.q === 'string' ? params.q : '');
@@ -772,6 +787,115 @@ function FindWork({
 
   // Tasks this worker already sent an offer on: their button says Edit offer.
   const offers = useMyOffers(userId, (shown ?? []).map((r) => r.id), !guest);
+
+  // The same words and numbers as the map and the card above (B170).
+  const summary =
+    shown === null
+      ? 'Loading…'
+      : at
+        ? `${jobsSummary(shown.filter((j) => j.loc_lat != null).length, shown.filter((j) => j.loc_lat == null).length, filters.km, filters.work, caps)}${filters.work !== 'remote' ? ` · ${place.label.split(',')[0]}` : ''}${query ? ` for “${query}”` : ''}`
+        : `${shown.length}${caps.near ? '+' : ''} ${filters.work === 'remote' ? 'remote ' : ''}${shown.length === 1 && !caps.near ? 'job' : 'jobs'}${query ? ` for “${query}”` : ''}`;
+
+  const submitSearch = () => {
+    setQuery(q.trim());
+    if (q.trim()) noteFirstAction();
+  };
+
+  // Desktop (D31 board WebFindWork): the title, search and List / Map switch live in the page header, the filters
+  // are a column on the left, the jobs are rows of one list card. Same data, filters and actions as the phone list.
+  if (desktop) {
+    return (
+      <DesktopPageFrame screen="explore" header>
+        <DesktopPageScope active>
+          <FindWorkHeader
+            search={
+              <FindWorkSearch value={q} onChange={setQ} onSubmit={submitSearch} inputRef={searchRef} placeholder="E.g. data entry, logo design, home tutoring…" voice={voice} />
+            }
+            onMap={onMap}
+          />
+          <ListPage
+            filters={
+              <FindWorkFilters
+                filters={filters}
+                onChange={setJobFilters}
+                onClear={clearAll}
+                clearable={narrowed || query !== ''}
+                area={at ? (place.label.split(',')[0] ?? null) : null}
+                onChangeArea={place.onChange}
+              />
+            }
+          >
+            <View style={{ marginBottom: 20 }}>
+              <JobsNearHero onOpenMap={onMap} />
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
+              <View style={{ flex: 1, minWidth: 280 }}>
+                <UnderTabs tabs={['Jobs', 'Busy now', 'How it works']} active={tab} onPick={setTab} />
+              </View>
+              {tab === 0 ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                  <RNText style={tx('500', 13, t.colors.muted)} numberOfLines={1}>{summary}</RNText>
+                  <SortSelect value={filters.sort} onChange={(sort) => setJobFilters({ ...filters, sort })} />
+                </View>
+              ) : null}
+            </View>
+            {tab === 2 ? (
+              <HowItWorks side="earn" />
+            ) : tab === 1 ? (
+              <TrendingSection
+                onCategory={(c) => {
+                  setQ(c);
+                  setQuery(c);
+                  setTab(0);
+                }}
+              />
+            ) : shown === null ? (
+              [0, 1, 2].map((i) => <Shimmer key={i} height={110} style={{ marginTop: 12 }} />)
+            ) : shown.length === 0 && failed ? (
+              <LoadFailed onRetry={() => void refresh()} />
+            ) : shown.length === 0 ? (
+              <View style={{ gap: 12 }}>
+                {filters.work === 'local' && !at ? (
+                  <RNText style={tx('400', 12, t.colors.muted)}>Set your area on the map to see jobs within {filters.km} km.</RNText>
+                ) : null}
+                <EmptyState
+                  icon="compass"
+                  title={query ? `No tasks match “${query}”` : 'No tasks match these filters'}
+                  body={narrowed ? 'One tap loosens a filter:' : 'Try searching for something broader.'}
+                  actionLabel="Clear filters"
+                  onAction={clearAll}
+                />
+                {narrowed ? <DropFilters filters={filters} count={countFor} onChange={setJobFilters} /> : null}
+              </View>
+            ) : (
+              <View style={{ borderRadius: t.radius.lg, borderWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface, overflow: 'hidden' }}>
+                {shown.map((task, i) => (
+                  <WorkCard
+                    key={task.id}
+                    row
+                    task={task}
+                    index={i}
+                    saved={saved.has(task.id)}
+                    quoted={offers.has(task.id)}
+                    onOpen={() => open(task)}
+                    onApply={() => setBidTask(task)}
+                    onToggleSave={() => void toggleSave(task.id)}
+                  />
+                ))}
+                <View style={{ borderTopWidth: 1, borderTopColor: t.colors.line, paddingVertical: 14, paddingHorizontal: 20 }}>
+                  <RNText style={tx('500', 13, t.colors.muted)}>
+                    Showing all {shown.length}
+                    {caps.near ? '+' : ''} {shown.length === 1 && !caps.near ? 'job' : 'jobs'}
+                  </RNText>
+                </View>
+              </View>
+            )}
+          </ListPage>
+          <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void refresh()} />
+        </DesktopPageScope>
+      </DesktopPageFrame>
+    );
+  }
 
   return (
     <ScreenList
