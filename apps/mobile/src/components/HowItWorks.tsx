@@ -4,10 +4,12 @@ import { useTheme } from '../providers/ThemeProvider';
 import type { Theme } from '../theme';
 import { tx } from './primitives';
 import type { ExplainerScene } from '../lib/explainers';
+import { TIMING } from '@taskdrop/rules';
+import { useFees } from '../lib/useFees';
 
 export type Scene = ExplainerScene;
 
-type Step = { scene: Scene; title: string; body: string };
+type Step = { scene: Scene; title: string; body: string; tag?: string };
 
 const HIRE: Step[] = [
   { scene: 'describe', title: 'Say what you need', body: 'Type or speak it. TaskDrop turns it into a clear post.' },
@@ -16,12 +18,26 @@ const HIRE: Step[] = [
   { scene: 'done', title: 'Approve and rate', body: 'Check the work, release payment, and leave a rating for the next person.' },
 ];
 
-const EARN: Step[] = [
-  { scene: 'find', title: 'Find a job', body: 'Matches for your skills, jobs near your area, and remote work, all on your home.' },
-  { scene: 'quote', title: 'Send your offer', body: 'Your price and why you. You can edit it any time until the customer accepts.' },
-  { scene: 'work', title: 'Do the work', body: 'The customer has already paid TaskDrop before you start, so you know it is there.' },
-  { scene: 'paid', title: 'Get paid', body: 'When the customer approves, the money reaches your wallet. Withdraw to UPI or bank.' },
-];
+/**
+ * The earning side, in the order a job really goes (the same states as the
+ * Waiting on payment, Swipe to start and Finish and send proof screens). The
+ * review and clearing days come from the rules and the live fee settings.
+ */
+function earnSteps(reviewDays: number, clearDays: number): Step[] {
+  const days = (n: number) => `${n} day${n === 1 ? '' : 's'}`;
+  return [
+    { scene: 'find', title: 'Find a job', body: 'Jobs near you, or online from anywhere. Matches for your skills are on your home.' },
+    { scene: 'quote', title: 'Send your offer', body: 'Your price and why you. You can edit it any time until the customer accepts.', tag: 'No chat yet, only offers' },
+    { scene: 'escrow', title: 'The customer accepts and pays', body: 'TaskDrop holds the money. Do not start until the job says Paid.' },
+    { scene: 'swipe', title: 'Swipe to start', body: "If more than one helper was accepted, the first to start gets the job. The customer's name and address show now.", tag: 'Chat opens' },
+    { scene: 'proof', title: 'Do the work, send proof', body: 'Do the job, then write what you did, add before and after photos, and mark it done.' },
+    {
+      scene: 'paid',
+      title: 'Get paid',
+      body: `The customer has ${days(reviewDays)} to approve, or it is released to you anyway. Earnings clear in ${days(clearDays)}, then withdraw to UPI or bank.`,
+    },
+  ];
+}
 
 /**
  * How TaskDrop works, as pictures: small illustrated scenes joined by a dashed
@@ -44,7 +60,8 @@ export function HowItWorks({
   onTone?: string;
 }) {
   const t = useTheme();
-  const steps = custom ?? (side === 'earn' ? EARN : HIRE);
+  const { clearingDays } = useFees();
+  const steps = custom ?? (side === 'earn' ? earnSteps(TIMING.REVIEW_WINDOW_DAYS, clearingDays) : HIRE);
   const tone = toneOverride ?? (side === 'earn' ? t.colors.purpleDeep : t.colors.accentDeep);
   const soft = softOverride ?? (side === 'earn' ? t.colors.purple + '1F' : t.colors.accentSoft);
 
@@ -87,6 +104,11 @@ export function HowItWorks({
               <View style={{ flex: 1 }}>
                 <RNText style={tx('800', 15, t.colors.ink)}>{s.title}</RNText>
                 <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 17 })}>{s.body}</RNText>
+                {s.tag ? (
+                  <View style={{ alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: soft }}>
+                    <RNText style={tx('700', 10.5, tone)}>{s.tag}</RNText>
+                  </View>
+                ) : null}
               </View>
             </View>
             {i < steps.length - 1 ? <Connector flip={flip} color={tone} /> : null}
@@ -210,6 +232,33 @@ function Illustration({ scene, t, tone }: { scene: Scene; t: Theme; tone: string
               <Circle cx={84} cy={16} r={6} fill={gold} />
             </G>
           )}
+        </G>
+      ) : null}
+
+      {scene === 'swipe' ? (
+        <G>
+          {/* a slide-to-start track with the knob part way along */}
+          <Rect x={8} y={32} width={80} height={26} rx={13} fill={paper} stroke={tone} strokeWidth={2} />
+          <Rect x={11} y={35} width={44} height={20} rx={10} fill={tone} opacity={0.35} />
+          <Circle cx={51} cy={45} r={10} fill={tone} />
+          <Path d="M46 45 h10 M52 40 l5 5 -5 5" stroke={paper} strokeWidth={2.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <Circle cx={28} cy={16} r={5} fill="none" stroke={tone} strokeWidth={2} />
+          <Path d="M86 66 l1.5 3.5 3.5 1.5 -3.5 1.5 -1.5 3.5 -1.5 -3.5 -3.5 -1.5 3.5 -1.5z" fill={gold} />
+        </G>
+      ) : null}
+
+      {scene === 'proof' ? (
+        <G>
+          {/* before and after photos, and a done pill with a timer */}
+          <Rect x={6} y={10} width={38} height={30} rx={5} fill={paper} stroke={line} strokeWidth={2} />
+          <Path d="M10 34 l9 -10 7 7 5 -5 9 8z" fill={line} />
+          <Rect x={52} y={10} width={38} height={30} rx={5} fill={paper} stroke={tone} strokeWidth={2} />
+          <Path d="M56 34 l9 -10 7 7 5 -5 9 8z" fill={tone} opacity={0.55} />
+          <Circle cx={80} cy={19} r={3} fill={gold} />
+          <Rect x={10} y={50} width={60} height={18} rx={9} fill={tone} />
+          <Path d="M32 59 l4 4 9 -9" stroke={paper} strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <Circle cx={80} cy={59} r={8} fill={paper} stroke={tone} strokeWidth={2} />
+          <Path d="M80 54 v5 l3 2" stroke={tone} strokeWidth={1.8} fill="none" strokeLinecap="round" />
         </G>
       ) : null}
 
