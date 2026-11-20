@@ -20,6 +20,7 @@ import {
   statusBadge,
 } from '../../lib/myTasksBoard';
 import { newOffersLabel } from '../../lib/seenOffers';
+import { canTopUp } from '../../lib/topUp';
 import type { Profile, Task } from '../../data/api';
 import { ActionButton, ChatButton, DotsButton, Initial, NextStepBox, SegmentTrack } from './bits';
 
@@ -56,6 +57,8 @@ export type PosterCardProps = {
   /** The live review screen for a finished task (taskRows: done row act = review). */
   onReview: () => void;
   onChat: () => void;
+  /** Opens the Top up picker for an open post (D31; lib/topUp, migration 194). */
+  onTopUp?: () => void;
 };
 
 /**
@@ -106,7 +109,7 @@ function Stripe({ color }: { color: string }) {
 }
 
 /** An open post: getting offers, waiting for offers, or past its date. */
-function PostBody({ task, offers, newOffers, onMenu, onOpen, onAgain, onClose }: PosterCardProps) {
+function PostBody({ task, offers, newOffers, onMenu, onOpen, onAgain, onClose, onTopUp }: PosterCardProps) {
   const t = useTheme();
   const now = Date.now();
   const passed = openDatePassed(task, now);
@@ -177,7 +180,12 @@ function PostBody({ task, offers, newOffers, onMenu, onOpen, onAgain, onClose }:
             <ActionButton big kind="quiet" label="Close" onPress={onClose} a11y={`Close: ${task.title}`} />
           </>
         ) : (
-          <ActionButton big label={offers > 0 ? `${label} (${offers})` : label} onPress={onOpen} a11y={`${label}: ${task.title}`} />
+          <>
+            <ActionButton big label={offers > 0 ? `${label} (${offers})` : label} onPress={onOpen} a11y={`${label}: ${task.title}`} />
+            {onTopUp && canTopUp(task) ? (
+              <ActionButton big kind="quiet" label="Top up" onPress={onTopUp} a11y={`Top up: ${task.title}`} />
+            ) : null}
+          </>
         )}
       </View>
     </>

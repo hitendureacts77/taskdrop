@@ -111,6 +111,35 @@ Launch day is about **two weeks after the last of these three clocks finishes** 
 
 </details>
 
+<details id="c-nov18-owasp-india">
+<summary>[CARD] 17 to 20 November: OWASP fix, data in India, cookie bar: what got done, what is left</summary>
+
+You asked (17 Nov) for "OWASP fix, cookie banner, and all the third parties in an Indian region". Your answers: **move what can and tell people the rest** (decision 55), **fix H30 only** (H31 accepted), **a consent bar on the website only**.
+
+**Done (by Claude, checked)**
+
+- [x] **H30 password rules** (PRs 415 and 420, 18 Nov): 12 characters and more, easy ones refused, a strength hint, the current password asked for, a security notice after a change. Changing a password keeps the device in your hand signed in (PR 420). Supabase's 12-character minimum and "require current password" are on for staging. Full staging test passed 18 Nov
+- [x] **Data in India, task 2.24** (PR 417): Vercel server code in Mumbai (`bom1`), Inngest gets ids and amounts only (migration 192, live on staging), the Privacy Policy says where each company keeps data
+- [x] **Website consent bar** (PR 418): crash reports on taskdrop.in start only after "Accept all"; Account & settings can change it. Not shown in the Android app
+- [x] **ImageKit** checked in the dashboard: Mumbai, India (PR 443, 20 Nov). The Privacy Policy line now says India
+- [x] **Sentry EU organisation** `taskdrop-eu` created in your Chrome with projects `taskdrop` and `taskdrop-admin` (PR 445, 20 Nov)
+- [x] **Checks kept green:** the picomatch warning accepted by you (PR 422, review by 2 Dec, see Security section), and the Semgrep code scan fixed after GitHub moved to Python 3.14 (PR 429, 19 Nov)
+
+**Still to do: yours**
+
+- [ ] **2.24 step 1 (5 minutes):** copy the two Sentry EU DSNs and an upload token (`SENTRY_AUTH_TOKEN_TASKDROP_EU`) into `.env.all-secrets`, then SAY "Sentry EU is ready"
+- [ ] **Delete 7 finished GitHub branches** (Claude's tools are not allowed to delete them): `feat/data-regions-india`, `feat/data-regions-india-2`, `feat/web-consent-banner`, `fix/h30-keep-device-signed-in`, `chore/audit-exception-picomatch`, `ci/fix-semgrep`, `docs/imagekit-region-india`. GitHub, repository `taskdrop`, Branches, the bin icon next to each
+- [ ] **After 30 quiet days on the EU organisation:** delete the old US Sentry organisation
+
+**Still to do: Claude's**
+
+- [ ] When you say "Sentry EU is ready": swap the DSN in `apps/mobile/eas.json`, the content policy's report and connect addresses in `vercel.json` to `ingest.de.sentry.io`, the Vercel and Supabase settings, and the Privacy Policy's Sentry line
+- [ ] **By 2 Dec:** look again at the picomatch warning; remove the exception as soon as a fixed version ships
+- [ ] **At 5.5:** the production ImageKit account picks Mumbai
+- [ ] **At 5.9:** production gets the two password settings and migration 192 (listed in 5.9's settings table)
+
+</details>
+
 <details id="c-ceo-defaults">
 <summary>[CARD] The CEO defaults: accepted by you on 11 November. Still open: decision 3 and the area names</summary>
 
@@ -2254,6 +2283,7 @@ start key protection
 |---|---|
 | H7: 7 high package warnings | Update the affected packages, or write down why one cannot be updated yet and why it is safe |
 | The accepted `decode-uri-component` warnings | You accepted the new high one on 2026-10-31 so the walkthrough fixes could merge (review by 2026-12-13). The real fix is moving to the next Expo SDK (expo-router 58). Claude plans that upgrade here and does it before 13 December |
+| The accepted `picomatch` warning (GHSA-fc5q-39xc-vjpf) | You accepted it on 18 Nov (PR 422, `audit-exceptions.json`, review by 2026-12-02): no fixed version exists yet (4.0.7 and older are affected). Claude removes the exception as soon as a fixed version ships |
 | H8: server functions answer any website | Each copy allows only its own addresses. Staging: `taskdrop.in`, `www.taskdrop.in`, `admin.taskdrop.in` (if used) and the two addresses Vercel makes (`…vercel.app`). Production: only the two addresses Vercel makes for it (5.10). The Android apps keep working (they are not websites) |
 | H9: the content security policy only reports | Read a week of reports in Sentry, then switch it to blocking |
 | Exposed files | Check `/.env`, `/.git/config`, `.map` files and backup files on every address. All must be "not found" |
@@ -3305,7 +3335,7 @@ design the Plan B money flow
 </details>
 
 <details id="t2-24" data-short="Data in India">
-<summary>[BOTH] <b>2.24</b> Data in India where possible (DPDP) <small>· Code done 17 Nov (branch feat/data-regions-india); ImageKit checked: Mumbai (20 Nov); your Sentry step open</small></summary>
+<summary>[BOTH] <b>2.24</b> Data in India where possible (DPDP) <small>· Code merged 18 Nov (PR 417, migration 192 live on staging); ImageKit Mumbai (20 Nov); Sentry EU org created 20 Nov, your DSN copy step open</small></summary>
 
 **Why:** you asked to keep third-party services in India where possible. Claude checked first (17 Nov 2026): India's DPDP Act 2023 and the DPDP Rules 2025 do **not** require data to stay in India for a normal company (section 16 allows transfer to any country the government has not blacklisted, and none is). Only payment data must stay in India (RBI), and Razorpay already complies. So this task moves what can move and tells people honestly about the rest (decision 55).
 
@@ -3323,7 +3353,7 @@ design the Plan B money flow
 | OpenStreetMap | Europe | Europe | Search words, map position |
 | Expo (updates, push) | United States | United States | App version, push token |
 
-**DONE in code (17 Nov, this branch):**
+**DONE in code (merged 18 Nov, PRs 417 and 418):**
 
 - `vercel.json`: `"regions": ["bom1"]` (any server code runs in Mumbai). The website's content policy gets the EU Sentry address at the same time as the new EU DSN (step a), so the report address changes only once.
 - Inngest gets ids and amounts only. Migration **192** (applied to staging by the merge, 18 Nov) changes `private.emit_event` to strip name, from, poster, display_name, email, phone and address from every payload, and the triggers for help requests, withdrawals, failed payouts and disputes now send `user_id` or `poster_id` instead of a name. The team-alert job (`supabase/functions/inngest/index.ts`) looks the name up from the database by id (`personIdFor`, `alertFor`). Tests are in `supabase/functions/inngest/jobs.test.ts`. The sign-up event no longer carries the name either (it was never used by a job). Until 192 is applied, new alerts still work: the job reads a name from the old payload if there is one.
@@ -3332,7 +3362,7 @@ design the Plan B money flow
 
 **OWNER CLICK STEPS:**
 
-1. CLICK (a, Sentry, about 20 minutes): open sentry.io, then your account menu, then Create organization. For Data storage location pick **European Union (EU)**. Create two projects: one for the app (React Native) and one for the admin (Next.js). Copy each DSN into `.env.all-secrets` under the names `EXPO_PUBLIC_SENTRY_DSN`, `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` (never paste them in chat), then TELL Claude "Sentry EU is ready". Claude then swaps `apps/mobile/eas.json`, the CSP in `vercel.json` and the Vercel and Supabase settings, and removes the US address. Delete the old US organisation after 30 days of quiet. (The DSN in `eas.json` is still the US one; Claude did not invent a new one.)
+1. **20 Nov: Claude created the EU organisation in your Chrome:** `taskdrop-eu` (Data storage: European Union), projects `taskdrop` (React Native, the app) and `taskdrop-admin` (Next.js), error monitoring only. **Your part now (5 minutes):** open https://taskdrop-eu.sentry.io/settings/projects/taskdrop/keys/ and https://taskdrop-eu.sentry.io/settings/projects/taskdrop-admin/keys/, copy each DSN into `.env.all-secrets` as below, make an auth token for source-map uploads (Settings, Auth Tokens, org `taskdrop-eu`) under `SENTRY_AUTH_TOKEN_TASKDROP_EU`, then TELL Claude "Sentry EU is ready". Old step, for reference: open sentry.io, then your account menu, then Create organization. For Data storage location pick **European Union (EU)**. Create two projects: one for the app (React Native) and one for the admin (Next.js). Copy each DSN into `.env.all-secrets` under the names `EXPO_PUBLIC_SENTRY_DSN`, `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` (never paste them in chat), then TELL Claude "Sentry EU is ready". Claude then swaps `apps/mobile/eas.json`, the CSP in `vercel.json` and the Vercel and Supabase settings, and removes the US address. Delete the old US organisation after 30 days of quiet. (The DSN in `eas.json` is still the US one; Claude did not invent a new one.)
 2. **DONE 20 Nov (Claude read it in your Chrome): the processing region is Mumbai (India).** The production ImageKit account (task 5.5) must also pick Mumbai when it is created. Old step: open imagekit.io, then Settings, and read the processing region. If it is not India, ask ImageKit support to move it, or create the PRODUCTION ImageKit account with region India (task 5.x). Then TELL Claude the region so the Privacy Policy line can say "Kept in India" and be true.
 3. (c, PostHog) Nothing to do now. When it is built (it is not yet), choose the EU region.
 4. (d, Inngest) Nothing to do. It stays in the United States (it has no other region) and now carries ids and amounts only.
@@ -4908,6 +4938,9 @@ Add a Vercel firewall rule on taskdrop-admin-production that rate-limits POST /a
 | The database's GraphQL door (`pg_graphql`) (2.18 H) | **Off**, proven on the new project | off |
 | Signed-out table rights, and the defaults for new functions and tables (2.18 C and H) | **Zero, and closed by default** | zero; defaults change in 2.18 C |
 | Each function's login setting, including `razorpayx-webhook` (H73) | **Matches the code** | right, but not yet in the code |
+| Password rules in Supabase Auth (H30): `password_min_length` and `security_update_password_require_current_password` | **12** and **on** | 12 and on (since 18 Nov) |
+| Inngest gets ids and amounts only (migration 192, task 2.24) | **Applied with every other migration** | applied 18 Nov |
+| Sentry organisation (task 2.24) | **`taskdrop-eu`** (EU storage) | moving to `taskdrop-eu` when you copy the DSNs |
 | Supabase sign-in limits and IP forwarding (2.8b) | **The 2.8b values, forwarding on**, with production's own secret key | the same |
 | Sign-up guard hook (H21, migration 138) | **On** (Auth → Hooks → Before User Created → `hook_before_user_created`) | on |
 | Supabase's own phone sign-up and anonymous sign-in (the hook lets both through) | **Off** (Auth → Sign In / Providers). Check with `node scripts/security-round2.mjs signupguard`: all refused | off |
@@ -6497,6 +6530,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-20 (OWASP, data in India, cookie bar: the rest moved into the plan):** You asked to move what is left and the progress into this plan. Added the card **"17 to 20 November: OWASP fix, data in India, cookie bar"** under **Do these now** (done list, your three steps, Claude's four), the picomatch exception to the Security section, three production rows (password settings, migration 192, Sentry EU) to 5.9's settings table, and 2.24 now says merged.
 - **2026-11-19 (desktop web redesign: status and the rules check):** Packages 0 to 8, 10, 14 and 15 of the desktop design are merged into `redesigned-2.0`; package 16 adds `e2e/desktopRules.spec.ts` (DOM checks of rules 1, 2 and 4 at 1440 x 900 on 14 signed-in screens; Post a task breaks rule 4 until package 13) and this note under task 1.10. Packages 9 (Home two columns), 11 (Wallet table, draft PR 436), 12 (Messages master-detail) and 13 (posting flow) wait for your OK. Plan: `docs/design/desktop-web/PLAN.md`. Desktop web only; no database, setting, key or app build changed.
 - **2026-11-17 (data in India, task 2.24, decision 55):** You asked to keep services in India where possible. DPDP does not require it, so: Vercel functions pinned to Mumbai, Sentry moves to a new EU organisation (your steps in 2.24), Inngest now gets ids and amounts only (migration 192, applied to staging by the merge), and the website asks before turning on crash reports (consent bar), and the Privacy Policy says where each company keeps data.
 - **2026-11-17, night (all of today in one place):** You asked for every bit of progress and every to-do in the plan. Added the card **"17 November: security questions answered, what got done, what is left"** under **Do these now**, a line in **What is left in Step 2**, a tip in rule 4 (open Chrome's Claude side panel when Claude says Chrome is not connected), and the live check of 2.22 part (a). The firewall line now says plainly that Vercel's "no configuration" answer could also mean Claude's connection cannot read it.
