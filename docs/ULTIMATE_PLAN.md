@@ -425,7 +425,7 @@ I do not know. Pitch me three options and say which is best.
 5.2 | Supabase: organization "TaskDrop Production", project taskdrop-production | Pro plan ($25 a month), Mumbai, spend cap on, sign-in settings, production-only redirect addresses, daily backups.
 5.3 | Google Cloud and Firebase: project taskdrop-production | ₹1,000 budget alert, seven Google services, three restricted keys, Google sign-in, reCAPTCHA, the Android and web apps, push key, App Check (left off).
 5.4 | Inngest: organization "TaskDrop Production" | The free plan to start (its own 50,000 runs a month); upgrade only when the limit warns. The Event key and Signing key go into the PROD_ section.
-5.5 | ImageKit: a second account, taskdropproduction | Sign up with hitendureacts+prod@gmail.com; turn on usage alerts.
+5.5 | ImageKit: a second account, taskdropproduction | Sign up with hitendureacts+prod@gmail.com; pick processing region Mumbai (India), as staging has; turn on usage alerts.
 5.6 | Sentry: taskdrop-production and taskdrop-admin-production | Money, spike and security alerts; give Claude the two DSNs.
 5.6b | PostHog: organization "TaskDrop Production", project taskdrop-production | Same login, its own free organization (the free plan allows one project per organization). EU region; give Claude the project key.
 5.7 | Expo: project taskdrop-production | Production variables, the push key and the upload keystore; update channel "production".
@@ -3305,14 +3305,14 @@ design the Plan B money flow
 </details>
 
 <details id="t2-24" data-short="Data in India">
-<summary>[BOTH] <b>2.24</b> Data in India where possible (DPDP) <small>· Code done 17 Nov (branch feat/data-regions-india); your Sentry and ImageKit steps open</small></summary>
+<summary>[BOTH] <b>2.24</b> Data in India where possible (DPDP) <small>· Code done 17 Nov (branch feat/data-regions-india); ImageKit checked: Mumbai (20 Nov); your Sentry step open</small></summary>
 
 **Why:** you asked to keep third-party services in India where possible. Claude checked first (17 Nov 2026): India's DPDP Act 2023 and the DPDP Rules 2025 do **not** require data to stay in India for a normal company (section 16 allows transfer to any country the government has not blacklisted, and none is). Only payment data must stay in India (RBI), and Razorpay already complies. So this task moves what can move and tells people honestly about the rest (decision 55).
 
 | Service | Where it keeps data today | Where it will keep data | What it is sent |
 |---|---|---|---|
 | Supabase (database, sign-in, files) | Mumbai | Mumbai (staging and production) | Everything the app stores |
-| ImageKit (photos) | Unknown, check (step b) | India | Photos |
+| ImageKit (photos) | India, Mumbai (checked 20 Nov in the dashboard: Profile, Processing region) | India, Mumbai | Photos |
 | Vercel (website) | Served near the visitor | Website: near the visitor. Server code: Mumbai (`"regions": ["bom1"]` in `vercel.json`) | Page requests, IP address |
 | Razorpay and RazorpayX | India | India | Payment and payout details |
 | MSG91 | India | India | Phone number, sign-in code |
@@ -3327,13 +3327,13 @@ design the Plan B money flow
 
 - `vercel.json`: `"regions": ["bom1"]` (any server code runs in Mumbai). The website's content policy gets the EU Sentry address at the same time as the new EU DSN (step a), so the report address changes only once.
 - Inngest gets ids and amounts only. Migration **192** (applied to staging by the merge, 18 Nov) changes `private.emit_event` to strip name, from, poster, display_name, email, phone and address from every payload, and the triggers for help requests, withdrawals, failed payouts and disputes now send `user_id` or `poster_id` instead of a name. The team-alert job (`supabase/functions/inngest/index.ts`) looks the name up from the database by id (`personIdFor`, `alertFor`). Tests are in `supabase/functions/inngest/jobs.test.ts`. The sign-up event no longer carries the name either (it was never used by a job). Until 192 is applied, new alerts still work: the job reads a name from the old payload if there is one.
-- Privacy Policy (`apps/mobile/src/legal/documents.ts`): each company now says where it keeps data, plus the sentence that Indian law allows transfers, and the website crash-report consent sentence. Two lines say only what is true today: Sentry "in the United States today, moving to the EU before launch", and ImageKit "may be outside India". Claude changes them after steps a and b.
+- Privacy Policy (`apps/mobile/src/legal/documents.ts`): each company now says where it keeps data, plus the sentence that Indian law allows transfers, and the website crash-report consent sentence. Two lines say only what is true today: Sentry "in the United States today, moving to the EU before launch", and ImageKit "may be outside India". Claude changes them after steps a and b. **20 Nov:** the ImageKit line now says it keeps photos in India (Mumbai), after Claude read the processing region in the dashboard.
 - Website consent bar (`ConsentBanner`, `lib/consent.ts`): crash reports on taskdrop.in start only after "Accept all"; Account & settings has a "Cookies and crash reports" row to change it.
 
 **OWNER CLICK STEPS:**
 
 1. CLICK (a, Sentry, about 20 minutes): open sentry.io, then your account menu, then Create organization. For Data storage location pick **European Union (EU)**. Create two projects: one for the app (React Native) and one for the admin (Next.js). Copy each DSN into `.env.all-secrets` under the names `EXPO_PUBLIC_SENTRY_DSN`, `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` (never paste them in chat), then TELL Claude "Sentry EU is ready". Claude then swaps `apps/mobile/eas.json`, the CSP in `vercel.json` and the Vercel and Supabase settings, and removes the US address. Delete the old US organisation after 30 days of quiet. (The DSN in `eas.json` is still the US one; Claude did not invent a new one.)
-2. CLICK (b, ImageKit, 5 minutes): open imagekit.io, then Settings, and read the processing region. If it is not India, ask ImageKit support to move it, or create the PRODUCTION ImageKit account with region India (task 5.x). Then TELL Claude the region so the Privacy Policy line can say "Kept in India" and be true.
+2. **DONE 20 Nov (Claude read it in your Chrome): the processing region is Mumbai (India).** The production ImageKit account (task 5.5) must also pick Mumbai when it is created. Old step: open imagekit.io, then Settings, and read the processing region. If it is not India, ask ImageKit support to move it, or create the PRODUCTION ImageKit account with region India (task 5.x). Then TELL Claude the region so the Privacy Policy line can say "Kept in India" and be true.
 3. (c, PostHog) Nothing to do now. When it is built (it is not yet), choose the EU region.
 4. (d, Inngest) Nothing to do. It stays in the United States (it has no other region) and now carries ids and amounts only.
 5. Nothing to do for migration 192: merging applied it to staging. Production gets it with every other migration in 5.9.
