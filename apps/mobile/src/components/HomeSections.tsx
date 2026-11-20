@@ -1185,6 +1185,8 @@ function EarnTop() {
         </>
       ) : null}
 
+      <EarnIdeas onSearch={(q) => go('explore', { q })} />
+
       <Pressable
         onPress={() => go('explore')}
         style={{ alignSelf: 'center', marginTop: 18, marginBottom: 20 }}
@@ -1651,7 +1653,21 @@ function PosterIdeas({ onPrompt }: { onPrompt: (prompt: string) => void }) {
 }
 
 /** One poster idea. A component of its own so it can read the width the Rail's grid gives it. */
-function IdeaCard({ idea: x, onPress, fill = false }: { idea: PosterIdea; onPress: () => void; /** Fill its cell (phone grid). */ fill?: boolean }) {
+function IdeaCard({
+  idea: x,
+  onPress,
+  fill = false,
+  priceLabel = 'People often offer',
+  cta = 'Post this idea',
+}: {
+  idea: PosterIdea;
+  onPress: () => void;
+  /** Fill its cell (phone grid). */
+  fill?: boolean;
+  /** Earn's ideas say what people often pay, and lead to Find work instead of the composer. */
+  priceLabel?: string;
+  cta?: string;
+}) {
   const t = useTheme();
   const { desktop } = useLayout();
   const railWidth = useRailItemWidth(230);
@@ -1661,7 +1677,7 @@ function IdeaCard({ idea: x, onPress, fill = false }: { idea: PosterIdea; onPres
     <Pressy
       onPress={onPress}
       scaleTo={0.97}
-      label={`${x.title}. Idea. ${x.problem} People often offer ${offerLine(x.price)}. Post this idea`}
+      label={`${x.title}. Idea. ${x.problem} ${priceLabel} ${offerLine(x.price)}. ${cta}`}
       style={[cardSurface(t, 16), { width, flex: fill ? 1 : undefined, padding: 12, gap: 8 }]}
     >
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -1674,13 +1690,66 @@ function IdeaCard({ idea: x, onPress, fill = false }: { idea: PosterIdea; onPres
       <RNText style={tx('500', 12, t.colors.muted, { lineHeight: 17 })} numberOfLines={3}>{x.problem}</RNText>
       <View style={{ flexGrow: 1 }} />
       <View>
-        <RNText style={tx('700', 10, t.colors.muted, { letterSpacing: 0.8 })}>PEOPLE OFTEN OFFER</RNText>
+        <RNText style={tx('700', 10, t.colors.muted, { letterSpacing: 0.8 })}>{priceLabel.toUpperCase()}</RNText>
         <RNText style={tx('800', 14, t.colors.ink, { marginTop: 2, fontVariant: ['tabular-nums'] })}>{offerLine(x.price)}</RNText>
       </View>
       <View style={{ height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: t.colors.accentSoft }}>
-        <RNText style={tx('800', 12.5, t.colors.accentDeep)}>Post this idea ›</RNText>
+        <RNText style={tx('800', 12.5, t.colors.accentDeep)}>{cta} ›</RNText>
       </View>
     </Pressy>
+  );
+}
+
+// Ideas to earn (D31 boards, Earn Home): kinds of work people post on TaskDrop, the worker's side of the poster ideas
+// above, with the same typical prices. Static idea content: no counts, no live jobs claimed. Each opens Find work
+// searched for that kind of job (the search may well find none open today).
+const EARN_IDEAS: (PosterIdea & { search: string })[] = [
+  { icon: 'camera', title: 'Shoot product photos', problem: 'Small sellers need photos that sell on Instagram, Meesho or Amazon.', price: 'from ₹1,500', prompt: '', search: 'photos' },
+  { icon: 'wallet', title: 'Chase a stuck claim', problem: 'PF and insurance claims that need papers filed and follow-ups.', price: 'from ₹800', prompt: '', search: 'claim' },
+  { icon: 'wrench', title: 'Weekly site visits', problem: 'Count the material and send photos of a house being built.', price: '₹700 a visit', prompt: '', search: 'site' },
+  { icon: 'heart', title: 'Hospital runner', problem: 'Billing, insurance desk and medicines while the family stays by the bed.', price: '₹1,500 a day', prompt: '', search: 'hospital' },
+  { icon: 'compass', title: 'Flat hunting tours', problem: 'Shortlist, visit and video tour flats for someone moving to your city.', price: 'from ₹1,500', prompt: '', search: 'flat' },
+  { icon: 'globe', title: 'Put a shop online', problem: 'Google Maps, food apps and a WhatsApp catalogue for a local shop.', price: 'from ₹2,000', prompt: '', search: 'shop' },
+];
+
+/**
+ * "Ideas to earn" (D31 boards, Earn Home): read as ideas -- the Idea tag, "Just ideas…", what people often pay --
+ * each leading to Find work searched for that kind of job. Royal blue: Earn's accent tokens.
+ */
+function EarnIdeas({ onSearch }: { onSearch: (q: string) => void }) {
+  const t = useTheme();
+  const { desktop, tablet } = useLayout();
+  return (
+    <View style={{ marginTop: 32 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ flex: 1 }}>
+          <SectionTitle title="Ideas to earn" icon="sparkle" />
+        </View>
+        <IdeaTag plural />
+      </View>
+      <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
+        {desktop
+          ? 'Just ideas: kinds of work people post here. Click one to look for jobs like it.'
+          : 'Just ideas: kinds of work people post here. Tap one to look for jobs like it.'}
+      </RNText>
+      <View style={{ marginTop: 12 }}>
+        {desktop || tablet ? (
+          <Rail min={desktop ? 170 : 220}>
+            {EARN_IDEAS.map((x) => (
+              <IdeaCard key={x.title} idea={x} onPress={() => onSearch(x.search)} priceLabel="People often pay" cta="Find jobs like this" />
+            ))}
+          </Rail>
+        ) : (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+            {EARN_IDEAS.map((x) => (
+              <View key={x.title} style={{ flexGrow: 1, flexBasis: '40%', maxWidth: '50%' }}>
+                <IdeaCard idea={x} onPress={() => onSearch(x.search)} priceLabel="People often pay" cta="Find jobs like this" fill />
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    </View>
   );
 }
 

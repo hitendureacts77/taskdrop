@@ -26,6 +26,8 @@ import { TaskDescription } from '../components/TaskDescription';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
+import { useAuth } from '../providers/AuthProvider';
+import { noteOffersSeen } from '../lib/seenOffersStore';
 import { useApp } from '../providers/AppStateProvider';
 import {
   cancelTask,
@@ -88,6 +90,7 @@ export function TaskManageScreen() {
   const { params, back, go } = useNav();
   const { flash, celebrate, setOpenTask, startedOf } = useApp();
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+  const { userId } = useAuth();
   const [detail, setDetail] = useState<TaskDetail | null | undefined>(undefined);
   const [bids, setBids] = useState<(Bid & { profiles: Profile | null })[]>([]);
   const [tab, setTab] = useState(0);
@@ -110,7 +113,9 @@ export function TaskManageScreen() {
     setDetail(d);
     setBids(b);
     setLoadFailed(false);
-  }, [taskId]);
+    // These offers are now seen on this device: My tasks stops calling them new (lib/seenOffers).
+    if (userId) void noteOffersSeen(userId, taskId, b.length);
+  }, [taskId, userId]);
 
   useEffect(() => {
     void load().catch((e) => {
