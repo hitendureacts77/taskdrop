@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, BackButton, EmptyState, IconButton, TopBar, systemHeader } from '../components/kit';
+import { Badge, BackButton, EmptyState, IconButton, TopBar, systemHeader, timeAgo, timeLeft } from '../components/kit';
 import { ReportSheet } from '../components/ReportSheet';
 import { TaskQuestions } from '../components/TaskQuestions';
 import { Icon } from '../components/Icon';
@@ -48,6 +48,8 @@ import { noteMyOffer } from '../lib/useMyOffers';
 import { useLayout } from '../lib/layout';
 import { TwoPane } from '../components/TwoPane';
 import { useDesktopHeaderPortal } from '../components/pageHeader';
+import { useFees } from '../lib/useFees';
+import { pctWords } from '../lib/heldWords';
 
 /**
  * Task detail — pixel parity with docs/design/_design_markup.html lines
@@ -196,6 +198,7 @@ function TaskDetailBody() {
   const realId = detail.id && /^[0-9a-f-]{36}$/i.test(detail.id) ? detail.id : null;
 
   const share = useShare(flash);
+  const fees = useFees();
   const [me, setMe] = useState<Profile | null>(null);
   const [showPerson, setShowPerson] = useState(false);
   const [reporting, setReporting] = useState(false);
@@ -229,6 +232,10 @@ function TaskDetailBody() {
     lng: number | null;
     /** A request someone posted, or a service someone offers. The page is drawn by this, not only by Hire/Earn. */
     kind: 'request' | 'service' | null;
+    /** When it is due, when it was posted, and how it is hired (the desktop page's chips and stat strip). */
+    dueAt: string | null;
+    createdAt: string | null;
+    auto: boolean;
   } | null>(null);
   const [huntTask, setHuntTask] = useState<Task | null>(null);
 
@@ -261,6 +268,9 @@ function TaskDetailBody() {
             lat: td.task.loc_lat ?? null,
             lng: td.task.loc_lng ?? null,
             kind: td.task.kind === 'request' || td.task.kind === 'service' ? td.task.kind : null,
+            dueAt: td.task.due_at ?? null,
+            createdAt: td.task.created_at ?? null,
+            auto: td.task.assignment_mode === 'auto',
           });
         }
         if (verdictNow) {
@@ -465,14 +475,58 @@ function TaskDetailBody() {
     </View>
   );
 
-  // Desktop web (docs/design/desktop-web/PLAN.md, package 8): the task's title, the back link, Report and Share go
-  // into the page header, and the content sits on cards. `undefined` off a desktop (phone, tablet, apps): then
-  // nothing below changes.
-  const deskHeader = useDesktopHeaderPortal({ title: detail.title, onBack: back, right: actions });
+  // Desktop (two panes, D31 board WebTaskPage): "< Find work / category" in the page header, with Share and
+  // Report as outlined buttons on its right.
+  const outlined = (icon: 'share' | 'flag', label: string, onPress: () => void) => (
+    <Pressable
+      key={label}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ hovered }: { pressed: boolean; hovered?: boolean }) => ({
+        height: 40,
+        paddingHorizontal: 14,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: hovered ? t.colors.accentBorder : t.colors.line,
+        backgroundColor: t.colors.surface,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+      })}
+    >
+      <Icon name={icon} size={15} color={t.colors.ink} strokeWidth={1.9} />
+      <RNText style={tx('700', 13.5, t.colors.ink)}>{icon === 'share' ? 'Share' : 'Report'}</RNText>
+    </Pressable>
+  );
+  // Desktop web too narrow for two panes (docs/design/desktop-web/PLAN.md, package 8): the task's title, the back
+  // link, Report and Share go into the page header, and the content sits on cards. `undefined` off a desktop
+  // (phone, tablet, apps): then nothing below changes.
+  const deskHeader = useDesktopHeaderPortal(
+    split
+      ? {
+          crumbs: [
+            { label: worker ? 'Find work' : 'Back', onPress: back },
+            { label: detail.category ?? (detail.tag === 'SERVICES' ? 'Services' : detail.tag === 'PRODUCTS' ? 'Products' : 'Local help') },
+          ],
+          right: (
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {outlined('share', 'Share this task', () =>
+                share.start(
+                  realId && taskUrl(realId)
+                    ? { title: detail.title, message: `${detail.title} · ${formatINR(detail.amountMinor)} on TaskDrop`, url: taskUrl(realId)! }
+                    : null,
+                ),
+              )}
+              {realId && otherId !== userId ? outlined('flag', 'Report this task', () => setReporting(true)) : null}
+            </View>
+          ),
+        }
+      : { title: detail.title, onBack: back, right: actions },
+  );
   const desk = deskHeader !== undefined;
   // The header holds one line: a title too long for it stays in full in the first card as well.
   const titleInPage = !desk || detail.title.length > 56;
-  const offerGap = desk ? { marginTop: 0, marginBottom: 0 } : { marginTop: t.spacing.xl, marginBottom: t.spacing.xl };
   const deskCard = { ...cardSurface(t, 18), padding: 22 } as const;
 
   const headerRow = (
@@ -492,9 +546,9 @@ function TaskDetailBody() {
             flexDirection: 'row',
             alignItems: 'center',
             gap: 13,
-            marginTop: desk ? 0 : 16,
-            paddingBottom: desk ? 0 : 15,
-            borderBottomWidth: desk ? 0 : 1,
+            marginTop: split ? 12 : desk ? 0 : 16,
+            paddingBottom: split || desk ? 0 : 15,
+            borderBottomWidth: split || desk ? 0 : 1,
             borderBottomColor: t.colors.line,
           }}
         >
@@ -557,7 +611,7 @@ function TaskDetailBody() {
         <View
           style={{
             flexDirection: 'row',
-            marginTop: split ? 0 : 18,
+            marginTop: split || desk ? 0 : 18,
             borderTopWidth: desk ? 0 : 1,
             borderTopColor: t.colors.line,
             borderBottomWidth: desk ? 0 : 1,
@@ -624,6 +678,13 @@ function TaskDetailBody() {
         </>
   );
 
+  // Two panes: the offer card sits at the top of the right column, with the poster card under it. Desktop's one
+  // column of cards spaces them itself.
+  const offerGap = split
+    ? { marginTop: 0, marginBottom: 12 }
+    : desk
+      ? { marginTop: 0, marginBottom: 0 }
+      : { marginTop: t.spacing.xl, marginBottom: t.spacing.xl };
   const offerPanel = huntTask ? (
           <View style={offerGap}>
             <HuntFinderPanel task={huntTask} />
@@ -762,6 +823,13 @@ function TaskDetailBody() {
             </Pressable>
           </View>
 
+          {split && worker && realId && quote > 0 ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: t.colors.accentSoft, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12, marginTop: 14 }}>
+              <RNText style={tx('500', 12.5, t.colors.accentDeep)}>You earn after the {pctWords(fees.commission)} fee</RNText>
+              <RNText style={tx('800', 13, t.colors.accentDeep, { fontVariant: ['tabular-nums'] })}>{formatINR(Math.round(quote * (1 - fees.commission)))}</RNText>
+            </View>
+          ) : null}
+
           {worker && withProposal ? (
             <View style={{ marginTop: t.spacing.lg }}>
               <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginBottom: 6 })}>YOUR PROPOSAL</RNText>
@@ -867,22 +935,100 @@ function TaskDetailBody() {
     </View>
   );
 
-  if (split && desk) {
-    // Same two panes, with the page header holding the title and actions and every block on a card. Each pane
-    // scrolls on its own, so the offer card stays in view while the task scrolls.
+  if (split) {
+    const timeLeftText = timeLeft(live?.dueAt);
+    const remote = live ? live.lat === null : false;
+    const posted = timeAgo(live?.createdAt);
+    const chip = (key: string, icon: 'globe' | 'clock', label: string, tone: 'accent' | 'gold' | 'plain') => (
+      <View
+        key={key}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          paddingVertical: 5,
+          paddingHorizontal: 11,
+          borderRadius: 999,
+          backgroundColor: tone === 'accent' ? t.colors.accentSoft : tone === 'gold' ? t.colors.goldSoft : t.colors.surface2,
+        }}
+      >
+        <Icon name={icon} size={13} color={tone === 'accent' ? t.colors.accentDeep : tone === 'gold' ? t.colors.goldInk : t.colors.text} strokeWidth={1.9} />
+        <RNText style={tx('700', 12.5, tone === 'accent' ? t.colors.accentDeep : tone === 'gold' ? t.colors.goldInk : t.colors.text)}>{label}</RNText>
+      </View>
+    );
+    const stats: { label: string; value: string; money?: boolean }[] = [
+      { label: priceLabel, value: formatINR(detail.amountMinor), money: true },
+      ...(detail.by ? [{ label: 'COMPLETE BY', value: detail.by }] : []),
+      { label: 'DISTANCE', value: distanceValue },
+      ...(live && view.asRequest && !huntTask ? [{ label: 'HIRING', value: live.auto ? 'Auto-hire' : 'Open to offers' }] : []),
+    ];
+    // Two panes on a wide desktop (D31 board WebTaskPage): the task on the left, the offer and the poster on the
+    // right, so the offer is in view without scrolling.
     return (
       <Screen padded={false}>
-        <View style={{ flex: 1, paddingHorizontal: 20 }}>
-          <TwoPane
-            fixed="right"
-            width={Math.round(Math.min(440, Math.max(360, contentWidth('feed') * 0.3)))}
-            left={<FadeIn>{deskLeft(12)}</FadeIn>}
-            right={<FadeIn>{deskRight(12)}</FadeIn>}
-            single={null}
-          />
-        </View>
-        {sheets}
         {deskHeader}
+        <TwoPane
+          fixed="right"
+          width={Math.round(Math.min(440, Math.max(340, contentWidth('feed') * 0.27)))}
+          left={
+            <FadeIn>
+              <View style={[cardSurface(t), { padding: 24 }]}>
+                <RNText style={tx('800', 11.5, tagInk(t, detail.tag), { letterSpacing: 1.2 })}>{detail.category ? detail.category.toUpperCase() : detail.tag}</RNText>
+                <RNText accessibilityRole="header" style={tx('800', 30, t.colors.ink, { letterSpacing: -0.8, marginTop: 6, lineHeight: 36 })}>{detail.title}</RNText>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
+                  {remote ? chip('remote', 'globe', 'Remote / online', 'accent') : null}
+                  {timeLeftText && !huntTask ? chip('left', 'clock', timeLeftText === 'overdue' ? 'Overdue' : timeLeftText, timeLeftText === 'overdue' ? 'plain' : 'gold') : null}
+                  {posted ? chip('posted', 'clock', `Posted ${posted}`, 'plain') : null}
+                </View>
+                <View style={{ flexDirection: 'row', marginTop: 20, borderWidth: 1, borderColor: t.colors.line, borderRadius: 12, overflow: 'hidden' }}>
+                  {stats.map((x, i) => (
+                    <View key={x.label} style={{ flex: 1, minWidth: 0, paddingVertical: 14, paddingHorizontal: 16, borderLeftWidth: i > 0 ? 1 : 0, borderLeftColor: t.colors.line }}>
+                      <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1 })} numberOfLines={1}>{x.label}</RNText>
+                      <RNText
+                        style={x.money ? tx('800', 22, t.colors.accentDeep, { marginTop: 4, fontVariant: ['tabular-nums'], letterSpacing: -0.4 }) : tx('700', 16, t.colors.ink, { marginTop: 6 })}
+                        numberOfLines={2}
+                      >
+                        {x.value}
+                      </RNText>
+                    </View>
+                  ))}
+                </View>
+                {optionsRow}
+                {body ? (
+                  <View style={{ marginTop: 22 }}>
+                    <RNText style={tx('800', 15, t.colors.ink, { marginBottom: 8 })}>What they need</RNText>
+                    <TaskDescription text={body} title={detail.title} />
+                  </View>
+                ) : null}
+                {mediaPath ? (
+                  <View style={{ marginTop: 16, height: 210 }}>
+                    <TaskMediaThumb path={mediaPath} kind={mediaKind} seconds={mediaSeconds} radius={20} />
+                  </View>
+                ) : null}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18 }}>
+                  <Icon name="shield" size={14} color={t.colors.accentDeep} />
+                  <RNText style={tx('400', 12.5, t.colors.muted)}>Phone numbers stay hidden until the work starts.</RNText>
+                </View>
+              </View>
+              {worker && realId && !verdict ? <TaskQuestions taskId={realId} role="ask" posterName={other?.name} style={{ marginTop: 16 }} /> : null}
+            </FadeIn>
+          }
+          right={
+            <FadeIn>
+              {offerPanel}
+              <View style={[cardSurface(t), { padding: 16 }]}>
+                <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>POSTED BY</RNText>
+                {posterCard}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: t.colors.line }}>
+                  <RNText style={tx('400', 13.5, t.colors.muted)}>{recordLabel}</RNText>
+                  <RNText style={tx('700', 13.5, t.colors.ink, { flexShrink: 1, textAlign: 'right' })}>{recordValue}</RNText>
+                </View>
+              </View>
+            </FadeIn>
+          }
+          single={null}
+        />
+        {sheets}
       </Screen>
     );
   }
@@ -897,36 +1043,6 @@ function TaskDetailBody() {
         </FadeIn>
         {sheets}
         {deskHeader}
-      </Screen>
-    );
-  }
-
-  if (split) {
-    // Two panes on a wide desktop: the offer is in view without scrolling.
-    return (
-      <Screen padded={false}>
-        <TwoPane
-          fixed="right"
-          width={Math.round(Math.min(440, Math.max(360, contentWidth('feed') * 0.3)))}
-          left={
-            <FadeIn>
-              {headerRow}
-              {titleBlock}
-              {optionsRow}
-              {detailBlock}
-            </FadeIn>
-          }
-          right={
-            <FadeIn>
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 12 }}>{actions}</View>
-              {priceRow}
-              {offerPanel}
-              {posterCard}
-            </FadeIn>
-          }
-          single={null}
-        />
-        {sheets}
       </Screen>
     );
   }

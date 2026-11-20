@@ -44,9 +44,11 @@ import { useLivePlace } from '../lib/useLivePlace';
 import { LOCATION_DISMISSED_KEY, dismissedRecently, locationAskedThisLaunch, markLocationAsked, shouldAskForLocation } from '../lib/locationAsk';
 import { pickedPlaceName, roughPlace } from '../lib/place';
 import { useReducedMotion } from '../lib/motion';
-import { CARD_MIN, TABLET_CONTENT, useLayout } from '../lib/layout';
-import { FILTER_WIDTH, ListPage, SegmentedTabs } from '../components/ListPage';
-import { DesktopPageHeader } from '../navigation/DesktopPage';
+import { TABLET_CONTENT, useLayout } from '../lib/layout';
+import { ListPage } from '../components/ListPage';
+import { DesktopPageFrame, DesktopPageHeader, DesktopPageScope } from '../navigation/DesktopPage';
+import { useDesktopHeaderPortal } from '../components/pageHeader';
+import { FindWorkFilters, FindWorkSearch, SortSelect, UnderTabs } from '../components/DesktopFindWork';
 
 /**
  * Explore -- the map of what is around you, with the old page one tap away.
@@ -278,6 +280,17 @@ export function ExploreScreen() {
 function ExploreHeader() {
   const { desktop } = useLayout();
   return desktop ? <DesktopPageHeader screen="explore" /> : <AppHeader />;
+}
+
+/** Desktop Find work: draws its title, search bar and List / Map switch into the page header (D31 board). */
+function FindWorkHeader({ search, onMap }: { search: React.ReactNode; onMap: () => void }) {
+  const portal = useDesktopHeaderPortal({
+    title: 'Find work',
+    subtitle: 'Every open job, near you and online',
+    center: search,
+    right: <ViewSwitch onMap={onMap} />,
+  });
+  return <>{portal}</>;
 }
 
 /** The list page, built once and then only hidden, fading in each time it is shown. */
@@ -612,14 +625,6 @@ export function SearchBox({
 // ------------------------------------------------------------ worker side ---
 
 /**
- * The desktop filter card's scroll area: it sticks while the page scrolls, so a panel taller than the window scrolls
- * inside it (otherwise its Show button would sit below the fold). Ten px wider each side than the card's padding
- * allows, with a thin scrollbar, so the Nearby / Remote switch does not cut "Remote" short.
- */
-const filterScroll = (windowHeight: number) =>
-  ({ maxHeight: Math.max(320, windowHeight - 290), marginHorizontal: -10, scrollbarWidth: 'thin' }) as unknown as ViewStyle;
-
-/**
  * Find work, the list (plan D27, task 1.17): the same filters as the map (lib/jobFiltersStore), around the same
  * place, so both show the same jobs. Several filters at once; no category (owner, 11 Nov).
  */
@@ -639,6 +644,7 @@ function FindWork({
   const { go, params } = useNav();
   const { flash, setOpenTask } = useActions();
   const { userId, guest } = useAuth();
+  const { desktop } = useLayout();
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState(typeof params.q === 'string' ? params.q : '');
   const [query, setQuery] = useState(typeof params.q === 'string' ? params.q : '');
@@ -651,7 +657,6 @@ function FindWork({
   // "could not load", not "no tasks match".
   const [failed, setFailed] = useState(false);
   const focusTick = useFocusTick();
-  const { desktop, contentWidth, height } = useLayout();
   // Tell the screen what is searched, so the map view shows the same jobs.
   useEffect(() => onFilter({ query }), [query]); // eslint-disable-line react-hooks/exhaustive-deps
   const searchRef = useRef<TextInputInstance>(null);
@@ -784,7 +789,7 @@ function FindWork({
   const offers = useMyOffers(userId, (shown ?? []).map((r) => r.id), !guest);
 
   // The pieces both layouts draw: the phone and tablet in one scrolling list (as ever), the desktop on a ListPage
-  // (filter column on the left, toolbar and grid on the right; docs/design/desktop-web/PLAN.md, 4.2 c).
+  // (D31 board WebFindWork: filter column on the left, the jobs as rows of one list card).
   const card = (task: TaskWithPoster, i: number) => (
     <WorkCard
       key={task.id}
@@ -882,86 +887,87 @@ function FindWork({
     </>
   );
 
+  const submitSearch = () => {
+    setQuery(q.trim());
+    if (q.trim()) noteFirstAction();
+  };
+
+  // Desktop (D31 board WebFindWork): the title, search and List / Map switch live in the page header, the filters
+  // are a column on the left, the jobs are rows of one list card. Same data, filters and actions as the phone list.
   if (desktop) {
-    // Cards that fit beside the 240 filter column: two on a laptop, three on a big monitor.
-    const mainWidth = contentWidth('feed') - 40 - FILTER_WIDTH - 24;
-    const columns = Math.min(3, Math.max(2, Math.floor((mainWidth + 14) / (CARD_MIN + 14))));
-    const deskTabs = ['jobs', 'busy', 'how'] as const;
     return (
-      <Screen padded={false}>
-        <ExploreHeader />
-        {titleRow}
-        <ListPage
-          scrollProps={{ contentContainerStyle: { paddingTop: 8, paddingBottom: 28, paddingHorizontal: 20 } }}
-          filters={
-            tab === 0 ? (
-              <ScrollView style={filterScroll(height)} keyboardShouldPersistTaps="handled">
-                <FiltersPanel
-                  initial={filters}
-                  jobs
-                  place={place}
-                  count={countFor}
-                  words={{ one: 'job', many: 'jobs' }}
-                  onApply={applyFilters}
-                />
-              </ScrollView>
-            ) : undefined
-          }
-          toolbar={{
-            left: (
-              <SegmentedTabs
-                tabs={[
-                  { key: 'jobs', label: 'Jobs' },
-                  { key: 'busy', label: 'Busy now' },
-                  { key: 'how', label: 'How it works' },
-                ]}
-                value={deskTabs[tab] ?? 'jobs'}
-                onChange={(k) => setTab(deskTabs.indexOf(k))}
+      <DesktopPageFrame screen="explore" header>
+        <DesktopPageScope active>
+          <FindWorkHeader
+            search={
+              <FindWorkSearch value={q} onChange={setQ} onSubmit={submitSearch} inputRef={searchRef} placeholder="E.g. data entry, logo design, home tutoring…" voice={voice} />
+            }
+            onMap={onMap}
+          />
+          <ListPage
+            filters={
+              <FindWorkFilters
+                filters={filters}
+                onChange={setJobFilters}
+                onClear={clearAll}
+                clearable={narrowed || query !== ''}
+                area={at ? (place.label.split(',')[0] ?? null) : null}
+                onChangeArea={place.onChange}
               />
-            ),
-            right:
-              tab === 0 ? (
-                <>
-                  <RNText style={tx('700', 13, t.colors.ink)} numberOfLines={2}>{countText}</RNText>
-                  {clearAllButton}
-                </>
-              ) : undefined,
-          }}
-        >
-          <View style={{ marginHorizontal: -20, marginBottom: 14 }}>{searchBox}</View>
-          <JobsNearHero onOpenMap={onMap} />
-          <View style={{ paddingTop: 16 }}>
+            }
+          >
+            <View style={{ marginBottom: 20 }}>
+              <JobsNearHero onOpenMap={onMap} />
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
+              <View style={{ flex: 1, minWidth: 280 }}>
+                <UnderTabs tabs={['Jobs', 'Busy now', 'How it works']} active={tab} onPick={setTab} />
+              </View>
+              {tab === 0 ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                  <RNText style={tx('500', 13, t.colors.muted)} numberOfLines={1}>{countText}</RNText>
+                  <SortSelect value={filters.sort} onChange={(sort) => setJobFilters({ ...filters, sort })} />
+                </View>
+              ) : null}
+            </View>
             {tab === 2 ? (
               <HowItWorks side="earn" />
             ) : tab === 1 ? (
               busyNow
-            ) : (
+            ) : shown === null ? (
+              loadingCards
+            ) : noResults ? (
               <>
-                {changedFilters(filters) > 0 ? (
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <JobChips filters={filters} onChange={setJobFilters} />
-                  </View>
-                ) : null}
                 {areaNote}
-                {shown === null ? (
-                  loadingCards
-                ) : (
-                  noResults ?? (
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -7 }}>
-                      {shown.map((task, i) => (
-                        <View key={task.id} style={{ width: `${100 / columns}%`, paddingHorizontal: 7 }}>
-                          {card(task, i)}
-                        </View>
-                      ))}
-                    </View>
-                  )
-                )}
+                {noResults}
               </>
+            ) : (
+              <View style={{ borderRadius: t.radius.lg, borderWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface, overflow: 'hidden' }}>
+                {shown.map((task, i) => (
+                  <WorkCard
+                    key={task.id}
+                    row
+                    task={task}
+                    index={i}
+                    saved={saved.has(task.id)}
+                    quoted={offers.has(task.id)}
+                    onOpen={() => open(task)}
+                    onApply={() => setBidTask(task)}
+                    onToggleSave={() => void toggleSave(task.id)}
+                  />
+                ))}
+                <View style={{ borderTopWidth: 1, borderTopColor: t.colors.line, paddingVertical: 14, paddingHorizontal: 20 }}>
+                  <RNText style={tx('500', 13, t.colors.muted)}>
+                    Showing all {shown.length}
+                    {caps.near ? '+' : ''} {shown.length === 1 && !caps.near ? 'job' : 'jobs'}
+                  </RNText>
+                </View>
+              </View>
             )}
-          </View>
-        </ListPage>
-        {sheets}
-      </Screen>
+          </ListPage>
+          {sheets}
+        </DesktopPageScope>
+      </DesktopPageFrame>
     );
   }
 
