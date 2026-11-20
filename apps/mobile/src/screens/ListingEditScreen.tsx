@@ -15,7 +15,8 @@ import { CATEGORIES } from '../lib/taskBrief';
 import { findContactIssue, contactIssueMessage } from '../lib/mask';
 import { roughPlace } from '../lib/place';
 import { LocationSheet } from '../components/LocationSheet';
-import { KeyboardScrollView } from '../components/KeyboardScrollView';
+import { ActionBar, FieldRow, FormPage, FormSection } from '../components/FormPage';
+import { useLayout } from '../lib/layout';
 import { wholeDigits, wholeText } from '../lib/rupeeInput';
 
 const DELIVERY = [1, 2, 3, 5, 7];
@@ -28,6 +29,7 @@ const PREFIX = 'I will ';
  */
 export function ListingEditScreen() {
   const t = useTheme();
+  const { desktop } = useLayout();
   const { back, params } = useNav();
   const { userId, guest } = useAuth();
   const saveRef = useRef<() => Promise<void>>(async () => {});
@@ -136,116 +138,172 @@ export function ListingEditScreen() {
     ? { ...loaded, title, description: details, benchmark_minor: Math.round((priceNum || 0) * 100), time_limit_minutes: days * 1440, category, loc_label: remote || !area ? 'Remote' : area.label }
     : null;
 
+  // Phone: a small caps label above each block, as before. Desktop: the FormSection titles replace them.
   const label = (s: string, top = 20) => (
     <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: top })}>{s}</RNText>
   );
+  // Desktop only: a field label above one of two side-by-side blocks.
+  const fieldLabel = (s: string) => <RNText style={tx('600', 13, t.colors.ink, { marginBottom: 8 })}>{s}</RNText>;
+  // The phone gaps (set under each phone label); on a desktop the sections space themselves.
+  const gap = (phone: number, desk = 0) => (desktop ? desk : phone);
+
+  const intro = 'Say what you’ll do and what it costs. Customers looking for this can hire you straight from it.';
+  const previewLabel = 'PREVIEW · HOW CUSTOMERS SEE IT';
+  const previewCard = (
+    <ListingCard
+      task={preview ?? ({ id: 'preview', title, description: details, benchmark_minor: Math.round((priceNum || 0) * 100), time_limit_minutes: days * 1440, category, status: 'OPEN' } as Task)}
+      onPress={() => {}}
+    />
+  );
+  const takeDown = loaded ? (
+    <Pressable
+      onPress={() => void remove()}
+      accessibilityRole="button"
+      style={
+        desktop
+          ? { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8 }
+          : { alignSelf: 'center', marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 6 }
+      }
+    >
+      <Icon name="close" size={14} color={t.colors.signal} />
+      <RNText style={tx('700', 13, t.colors.signal)}>Take this service down</RNText>
+    </Pressable>
+  ) : null;
 
   return (
     <Screen padded={false}>
       <TopBar title={loaded ? 'Edit service' : 'Offer a service'} onBack={back} />
-      <KeyboardScrollView hugContent style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
-        <RNText style={tx('400', 13, t.colors.muted, { lineHeight: 19 })}>
-          Say what you’ll do and what it costs. Customers looking for this can hire you straight from it.
-        </RNText>
-
-        {label('WHAT YOU’LL DO', 16)}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-          <RNText style={tx('800', 16, t.colors.ink)}>I will</RNText>
-          <View style={{ flex: 1 }}>
-            <Field
-              value={what}
-              onChangeText={(v) => setWhat(v.replace(/^i will\s+/i, ''))}
-              placeholder="design a logo for your business"
-              maxLength={80}
-            />
+      <FormPage
+        scrollProps={{ hugContent: true, style: { flex: 1 }, contentContainerStyle: { paddingHorizontal: 20, paddingBottom: 28 }, keyboardShouldPersistTaps: 'handled' }}
+        aside={
+          <View style={{ backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.line, borderRadius: t.radius.lg, padding: 20 }}>
+            <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>{previewLabel}</RNText>
+            <View style={{ marginTop: 12 }}>
+              {what.trim() ? (
+                previewCard
+              ) : (
+                <View style={{ borderWidth: 1.5, borderStyle: 'dashed', borderColor: t.colors.line, borderRadius: 14, padding: 16 }}>
+                  <RNText style={tx('700', 15, t.colors.muted)}>{PREFIX.trim()} …</RNText>
+                </View>
+              )}
+            </View>
           </View>
-        </View>
-
-        <Field
-          label="What’s included"
-          value={details}
-          onChangeText={setDetails}
-          multiline
-          maxLength={800}
-          minHeight={110}
-          placeholder="E.g. 3 logo concepts, 2 rounds of changes, final files in PNG and SVG."
-          style={{ marginTop: 18 }}
-          error={issue ? contactIssueMessage(issue) : null}
-        />
-
-        {label('STARTING PRICE')}
-        <View style={{ marginTop: 8 }}>
-          <Field
-            value={price}
-            onChangeText={(v) => setPrice(wholeText(v, 7))}
-            keyboardType="number-pad"
-            inputMode="numeric"
-            placeholder="500"
-            left={<RNText style={tx('700', 15, t.colors.muted)}>₹</RNText>}
-            error={price && priceNum < 50 ? 'At least ₹50' : null}
-            hint="What a basic order costs. You can agree a different price with each customer."
-          />
-        </View>
-
-        {label('WHERE YOU OFFER THIS')}
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 9 }}>
-          <Pill label="Remote / online" icon="compass" active={remote} onPress={() => setRemote(true)} />
-          <Pill label="In person" icon="pin" active={!remote} onPress={() => { setRemote(false); if (!area) setPickArea(true); }} />
-        </View>
-        {!remote ? (
-          <Pressable
-            onPress={() => setPickArea(true)}
-            accessibilityRole="button"
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, padding: 13, borderRadius: 14, borderWidth: 1.5, borderColor: t.colors.line, backgroundColor: t.colors.surface }}
-          >
-            <Icon name="pin" size={16} color={t.colors.accentDeep} />
-            <RNText style={tx('500', 14, area ? t.colors.ink : t.colors.muted, { flex: 1 })} numberOfLines={1}>
-              {area ? area.label : 'Pick your area on the map'}
-            </RNText>
-            <RNText style={tx('700', 13, t.colors.accentDeep)}>{area ? 'Change' : 'Pick'}</RNText>
-          </Pressable>
-        ) : null}
-        <RNText style={tx('400', 11, t.colors.muted, { marginTop: 6 })}>
-          {remote ? 'Customers anywhere can hire you.' : 'Customers see only the area, never your exact location.'}
-        </RNText>
-
-        {label('USUALLY DELIVERS IN')}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
-          {DELIVERY.map((d) => (
-            <Pill key={d} label={d === 1 ? '1 day' : `${d} days`} active={days === d} onPress={() => setDays(d)} />
-          ))}
-        </View>
-
-        {label('CATEGORY')}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
-          {CATEGORIES.map((c) => (
-            <Pill key={c} label={c} active={category === c} onPress={() => setCategory(category === c ? null : c)} />
-          ))}
-        </View>
-
-        {what.trim() ? (
+        }
+        actions={
           <>
-            {label('PREVIEW · HOW CUSTOMERS SEE IT')}
-            <View style={{ marginTop: 10 }}>
-              <ListingCard
-                task={preview ?? ({ id: 'preview', title, description: details, benchmark_minor: Math.round((priceNum || 0) * 100), time_limit_minutes: days * 1440, category, status: 'OPEN' } as Task)}
-                onPress={() => {}}
+            <ActionBar
+              hint={
+                desktop
+                  ? (missing ?? undefined)
+                  : missing
+                    ? <RNText style={tx('500', 12, t.colors.muted, { marginTop: 8, textAlign: 'center' })}>{missing}</RNText>
+                    : undefined
+              }
+            >
+              <PrimaryButton label={loaded ? 'Save changes' : 'Publish service'} onPress={() => void save()} busy={busy} style={{ marginTop: gap(24) }} />
+              {desktop ? takeDown : null}
+            </ActionBar>
+            {desktop ? null : takeDown}
+          </>
+        }
+      >
+        {desktop ? null : <RNText style={tx('400', 13, t.colors.muted, { lineHeight: 19 })}>{intro}</RNText>}
+
+        <FormSection first title="What you’ll do" hint={intro}>
+          {desktop ? null : label('WHAT YOU’LL DO', 16)}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: gap(8) }}>
+            <RNText style={tx('800', 16, t.colors.ink)}>I will</RNText>
+            <View style={{ flex: 1 }}>
+              <Field
+                value={what}
+                onChangeText={(v) => setWhat(v.replace(/^i will\s+/i, ''))}
+                placeholder="design a logo for your business"
+                maxLength={80}
               />
             </View>
+          </View>
+
+          <Field
+            label="What’s included"
+            value={details}
+            onChangeText={setDetails}
+            multiline
+            maxLength={800}
+            minHeight={110}
+            placeholder="E.g. 3 logo concepts, 2 rounds of changes, final files in PNG and SVG."
+            style={{ marginTop: gap(18, 16) }}
+            error={issue ? contactIssueMessage(issue) : null}
+          />
+        </FormSection>
+
+        <FormSection title="Price and where you offer this">
+          <FieldRow>
+            <>
+              {desktop ? fieldLabel('Starting price') : label('STARTING PRICE')}
+              <View style={{ marginTop: gap(8) }}>
+                <Field
+                  value={price}
+                  onChangeText={(v) => setPrice(wholeText(v, 7))}
+                  keyboardType="number-pad"
+                  inputMode="numeric"
+                  placeholder="500"
+                  left={<RNText style={tx('700', 15, t.colors.muted)}>₹</RNText>}
+                  error={price && priceNum < 50 ? 'At least ₹50' : null}
+                  hint="What a basic order costs. You can agree a different price with each customer."
+                />
+              </View>
+            </>
+            <>
+              {desktop ? fieldLabel('Where you offer this') : label('WHERE YOU OFFER THIS')}
+              <View style={{ flexDirection: 'row', flexWrap: desktop ? 'wrap' : 'nowrap', gap: 8, marginTop: gap(9) }}>
+                <Pill label="Remote / online" icon="compass" active={remote} onPress={() => setRemote(true)} />
+                <Pill label="In person" icon="pin" active={!remote} onPress={() => { setRemote(false); if (!area) setPickArea(true); }} />
+              </View>
+              {!remote ? (
+                <Pressable
+                  onPress={() => setPickArea(true)}
+                  accessibilityRole="button"
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, padding: 13, borderRadius: 14, borderWidth: 1.5, borderColor: t.colors.line, backgroundColor: t.colors.surface }}
+                >
+                  <Icon name="pin" size={16} color={t.colors.accentDeep} />
+                  <RNText style={tx('500', 14, area ? t.colors.ink : t.colors.muted, { flex: 1 })} numberOfLines={1}>
+                    {area ? area.label : 'Pick your area on the map'}
+                  </RNText>
+                  <RNText style={tx('700', 13, t.colors.accentDeep)}>{area ? 'Change' : 'Pick'}</RNText>
+                </Pressable>
+              ) : null}
+              <RNText style={tx('400', 11, t.colors.muted, { marginTop: 6 })}>
+                {remote ? 'Customers anywhere can hire you.' : 'Customers see only the area, never your exact location.'}
+              </RNText>
+            </>
+          </FieldRow>
+        </FormSection>
+
+        <FormSection title="Usually delivers in">
+          {desktop ? null : label('USUALLY DELIVERS IN')}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: gap(9) }}>
+            {DELIVERY.map((d) => (
+              <Pill key={d} label={d === 1 ? '1 day' : `${d} days`} active={days === d} onPress={() => setDays(d)} />
+            ))}
+          </View>
+        </FormSection>
+
+        <FormSection title="Category">
+          {desktop ? null : label('CATEGORY')}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: gap(9) }}>
+            {CATEGORIES.map((c) => (
+              <Pill key={c} label={c} active={category === c} onPress={() => setCategory(category === c ? null : c)} />
+            ))}
+          </View>
+        </FormSection>
+
+        {!desktop && what.trim() ? (
+          <>
+            {label(previewLabel)}
+            <View style={{ marginTop: 10 }}>{previewCard}</View>
           </>
         ) : null}
-
-        <PrimaryButton label={loaded ? 'Save changes' : 'Publish service'} onPress={() => void save()} busy={busy} style={{ marginTop: 24 }} />
-        {missing ? (
-          <RNText style={tx('500', 12, t.colors.muted, { marginTop: 8, textAlign: 'center' })}>{missing}</RNText>
-        ) : null}
-        {loaded ? (
-          <Pressable onPress={() => void remove()} accessibilityRole="button" style={{ alignSelf: 'center', marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Icon name="close" size={14} color={t.colors.signal} />
-            <RNText style={tx('700', 13, t.colors.signal)}>Take this service down</RNText>
-          </Pressable>
-        ) : null}
-      </KeyboardScrollView>
+      </FormPage>
       <LocationSheet
         visible={pickArea}
         askForDetails={false}

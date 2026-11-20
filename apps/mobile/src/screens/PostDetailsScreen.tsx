@@ -1,5 +1,10 @@
 import { useRef, useState } from 'react';
-import { BackButton } from '../components/kit';
+import { BackButton, PrimaryButton, rupees } from '../components/kit';
+import { ActionBar, FormPage, FormSection } from '../components/FormPage';
+import { PostPreviewCard } from '../components/PostPreviewCard';
+import { useDesktopHeaderPortal } from '../components/pageHeader';
+import { useLayout } from '../lib/layout';
+import { roughPlace } from '../lib/place';
 import { View, Text as RNText, Pressable, TextInput, type TextStyle } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
 import { AmountField } from '../components/AmountField';
@@ -18,7 +23,6 @@ import { MediaAttach } from '../components/MediaAttach';
 import type { TaskMedia } from '../lib/media';
 import { tx } from '../components/primitives';
 import { KeyboardSafe } from '../components/KeyboardSafe';
-import { KeyboardScrollView } from '../components/KeyboardScrollView';
 
 /**
  * Placeholder text for the title and details fields.
@@ -45,6 +49,8 @@ const HINTS = {
 } as const;
 
 const PILLAR_LABELS = ['SERVICES', 'PRODUCTS', 'LOCAL HELP'];
+// The same three, as a tag on the desktop preview.
+const PREVIEW_PILLARS = ['Services', 'Products', 'Local help'];
 // Chip order -> database enums.
 const PILLARS = ['services', 'procurement', 'local_intel'] as const;
 const FLAG_VALUES = ['none', 'urgent', 'unique'] as const;
@@ -139,6 +145,8 @@ export function PostDetailsScreen() {
   const { userId, guest } = useAuth();
   const publishRef = useRef<() => Promise<void>>(async () => {});
   const [busy, setBusy] = useState(false);
+  // Desktop web (>= 1024): the form sits on a FormPage card with a live preview beside it. Layout only.
+  const { desktop } = useLayout();
 
   const worker = mode === 'worker';
   const pillar = typeof params.pillar === 'number' ? params.pillar : 0;
@@ -234,32 +242,99 @@ export function PostDetailsScreen() {
   };
   publishRef.current = () => publish();
 
+  // Desktop: the back link and a title go to the page header (BackButton is not drawn there); nothing on a phone.
+  const desktopHeader = useDesktopHeaderPortal({ title: worker ? 'Publish a service' : 'Post a request', onBack: back });
+  // The phone gaps above each block; on a desktop the FormSection titles space the blocks.
+  const gap = (phone: number) => (desktop ? 0 : phone);
+
+  const publishLabel = promoteOn ? 'Publish & promote' : worker ? 'Publish service' : 'Post request';
+
+  // Desktop aside: the post as the other side will see it, filled in as the form is. It only echoes this screen's state.
+  const area = coords.lat != null ? roughPlace(location) : null;
+  const preview = (
+    <PostPreviewCard
+      heading={worker ? 'AS CUSTOMERS WILL SEE IT' : 'AS WORKERS WILL SEE IT'}
+      title={title}
+      titleFallback={draft.title}
+      description={details}
+      price={price !== null && price > 0 ? rupees(price) : null}
+      facts={[
+        ...(!worker && deadline ? [{ icon: 'clock' as const, text: `Done by ${formatDeadline(deadline)}` }] : []),
+        ...(area ? [{ icon: 'pin' as const, text: area }] : []),
+      ]}
+      tags={[
+        PREVIEW_PILLARS[pillar] ?? '',
+        ...(!worker && flag > 0 ? [FLAGS[flag] ?? ''] : []),
+        ...(media ? ['With attachment'] : []),
+      ].filter(Boolean)}
+    />
+  );
+
   return (
     <Screen padded={false}>
-      <KeyboardScrollView
-        hugContent
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8 }}
-        showsVerticalScrollIndicator={false}
+      {desktop ? desktopHeader : null}
+      <FormPage
+        phoneActions="pinned"
+        scrollProps={{
+          hugContent: true,
+          style: { flex: 1 },
+          contentContainerStyle: { paddingHorizontal: 20, paddingTop: 8 },
+          showsVerticalScrollIndicator: false,
+        }}
+        aside={preview}
+        actions={
+          desktop ? (
+            <ActionBar>
+              <PrimaryButton label={publishLabel} onPress={() => void publish()} busy={busy} />
+            </ActionBar>
+          ) : (
+      <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+        <Pressable
+          onPress={publish}
+          style={({ pressed }) => ({
+            backgroundColor: t.colors.btn,
+            borderRadius: 999,
+            paddingVertical: 16,
+            alignItems: 'center',
+            shadowColor: t.colors.accent,
+            shadowOpacity: 0.35,
+            shadowRadius: 22,
+            shadowOffset: { width: 0, height: 8 },
+            elevation: 6,
+            transform: [{ scale: pressed ? 0.96 : 1 }],
+          })}
+        >
+          <RNText style={tx('700', 16, t.colors.onAccent)}>
+            {publishLabel}
+          </RNText>
+        </Pressable>
+      </KeyboardSafe>
+          )
+        }
       >
+        {desktop ? null : (
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <BackButton onBack={back} />
         </View>
+        )}
 
-        <RNText style={tx('700', 10, t.colors.accentDeep, { letterSpacing: 1.6, marginTop: 16 })}>
+        <RNText style={tx('700', 10, t.colors.accentDeep, { letterSpacing: 1.6, marginTop: desktop ? 0 : 16, ...(desktop ? { marginBottom: 16 } : null) })}>
           {PILLAR_LABELS[pillar]}
         </RNText>
 
-        {label('TITLE', { marginTop: 18 })}
+        <FormSection first title="Title">
+        {desktop ? null : label('TITLE', { marginTop: 18 })}
         <TextInput
           value={title}
           onChangeText={setTitle}
           placeholder={draft.title}
           placeholderTextColor={t.colors.muted}
-          style={tx('400', 17, t.colors.ink, { ...fieldBox, marginTop: 9 })}
+          style={tx('400', 17, t.colors.ink, { ...fieldBox, marginTop: gap(9) })}
         />
+        </FormSection>
 
-        {label('DETAILS', { marginTop: 18 })}
+        <FormSection title="Details">
+        {desktop ? null : label('DETAILS', { marginTop: 18 })}
         <TextInput
           value={details}
           onChangeText={setDetails}
@@ -270,17 +345,21 @@ export function PostDetailsScreen() {
           // has to read as strongly as any other content on the form.
           style={tx('400', 14, t.colors.ink, {
             ...fieldBox,
-            marginTop: 9,
+            marginTop: gap(9),
             minHeight: 92,
             lineHeight: 21.7,
             textAlignVertical: 'top',
           })}
         />
+        </FormSection>
 
-        {label('PHOTOS OR VIDEO · OPTIONAL', { marginTop: 18 })}
+        <FormSection title="Photos or video" hint="Optional">
+        {desktop ? null : label('PHOTOS OR VIDEO · OPTIONAL', { marginTop: 18 })}
         <MediaAttach value={media} onChange={setMedia} />
+        </FormSection>
 
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
+        <FormSection title={worker ? 'Your rate' : 'Budget and deadline'}>
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: gap(18) }}>
           <View
             style={{
               flex: 1,
@@ -362,16 +441,18 @@ export function PostDetailsScreen() {
             Required · workers plan their offers around this deadline.
           </RNText>
         )}
+        </FormSection>
 
+        <FormSection title="Location">
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'baseline',
-            justifyContent: 'space-between',
-            marginTop: 18,
+            justifyContent: desktop ? 'flex-end' : 'space-between',
+            marginTop: gap(18),
           }}
         >
-          {label('LOCATION')}
+          {desktop ? null : label('LOCATION')}
           <Pressable onPress={() => setShowLoc(true)} hitSlop={8}>
             <RNText style={tx('600', 13, t.colors.accentDeep)}>
               {coords.lat != null ? 'Change' : 'Set location'}
@@ -379,11 +460,12 @@ export function PostDetailsScreen() {
           </Pressable>
         </View>
         <LocationPreview label={location} coords={coords} onEdit={() => setShowLoc(true)} />
+        </FormSection>
 
         {!worker && (
-          <>
-            {label('FLAG · OPTIONAL', { marginTop: 18 })}
-            <View style={{ flexDirection: 'row', gap: 9, marginTop: 11 }}>
+          <FormSection title="Flag" hint="Optional">
+            {desktop ? null : label('FLAG · OPTIONAL', { marginTop: 18 })}
+            <View style={{ flexDirection: 'row', gap: 9, marginTop: gap(11) }}>
               {FLAGS.map((f, i) => {
                 const on = flag === i;
                 const hue = i === 1 ? t.colors.signal : i === 2 ? t.colors.purple : t.colors.line;
@@ -410,16 +492,17 @@ export function PostDetailsScreen() {
                 );
               })}
             </View>
-          </>
+          </FormSection>
         )}
 
+        <FormSection>
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
             gap: 14,
             justifyContent: 'space-between',
-            marginTop: 18,
+            marginTop: gap(18),
             padding: 14,
             ...cardSurface(t, 14),
           }}
@@ -499,29 +582,8 @@ export function PostDetailsScreen() {
             </RNText>
           </View>
         )}
-      </KeyboardScrollView>
-
-      <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
-        <Pressable
-          onPress={publish}
-          style={({ pressed }) => ({
-            backgroundColor: t.colors.btn,
-            borderRadius: 999,
-            paddingVertical: 16,
-            alignItems: 'center',
-            shadowColor: t.colors.accent,
-            shadowOpacity: 0.35,
-            shadowRadius: 22,
-            shadowOffset: { width: 0, height: 8 },
-            elevation: 6,
-            transform: [{ scale: pressed ? 0.96 : 1 }],
-          })}
-        >
-          <RNText style={tx('700', 16, t.colors.onAccent)}>
-            {promoteOn ? 'Publish & promote' : worker ? 'Publish service' : 'Post request'}
-          </RNText>
-        </Pressable>
-      </KeyboardSafe>
+        </FormSection>
+      </FormPage>
 
       <DateTimeSheet
         visible={showDate}

@@ -10,7 +10,9 @@ import { submitReview } from '../data/api';
 import { fontFamilyFor } from '../theme';
 import { tx } from '../components/primitives';
 import { KeyboardSafe } from '../components/KeyboardSafe';
-import { KeyboardScrollView } from '../components/KeyboardScrollView';
+import { ActionBar, FormPage, FormSection } from '../components/FormPage';
+import { PrimaryButton, TopBar } from '../components/kit';
+import { useLayout } from '../lib/layout';
 import { REVIEW_COMMENT_MAX, canSubmitReview, praiseAllowed, reviewBody } from '../lib/reviewBody';
 
 /**
@@ -79,6 +81,7 @@ export function ReviewScreen() {
   const { params, back, go } = useNav();
   const { mode } = useMode();
   const { openTask, celebrate, flash } = useApp();
+  const { desktop } = useLayout();
 
   // B76 / W2-4: no stars until the person taps one; Submit stays off until then.
   const [stars, setStars] = useState(0);
@@ -126,19 +129,95 @@ export function ReviewScreen() {
     }
   };
 
+  // The task being reviewed, and (once a star is tapped) a read-back of the review as it will go out.
+  const aside = (
+    <View
+      style={{
+        backgroundColor: t.colors.surface,
+        borderWidth: 1,
+        borderColor: t.colors.line,
+        borderRadius: t.radius.lg,
+        padding: 20,
+      }}
+    >
+      <RNText style={tx('700', 15, t.colors.ink)} numberOfLines={2}>
+        {title}
+      </RNText>
+      <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4 })}>{price}</RNText>
+      {stars > 0 ? (
+        <View style={{ marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: t.colors.line }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <RNText style={tx('400', 18, t.colors.accent)}>{'★'.repeat(stars)}</RNText>
+            <RNText style={tx('700', 13, t.colors.accentDeep)}>{WORDS[stars - 1]}</RNText>
+          </View>
+          {comment.trim() ? (
+            <RNText style={tx('400', 13, t.colors.text, { marginTop: 8, lineHeight: 19 })}>{comment.trim()}</RNText>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  );
+
   return (
     <Screen padded={false}>
-      <KeyboardScrollView
-        hugContent
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6 }}
-        showsVerticalScrollIndicator={false}
+      {desktop ? <TopBar title="Ratings & review" onBack={back} /> : null}
+      <FormPage
+        phoneActions="pinned"
+        scrollProps={{
+          hugContent: true,
+          style: { flex: 1 },
+          contentContainerStyle: { paddingHorizontal: 20, paddingTop: 6 },
+          showsVerticalScrollIndicator: false,
+        }}
+        aside={aside}
+        actions={
+          desktop ? (
+            <ActionBar>
+              <PrimaryButton
+                label={busy ? 'Posting…' : 'Submit review'}
+                onPress={() => void submit()}
+                disabled={!canSubmitReview(stars)}
+              />
+            </ActionBar>
+          ) : (
+            <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+              <Pressable
+                onPress={submit}
+                disabled={!canSubmitReview(stars) || busy}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canSubmitReview(stars) || busy }}
+                style={({ pressed }) => [
+                  {
+                    opacity: canSubmitReview(stars) ? 1 : 0.45,
+                    backgroundColor: t.colors.btn,
+                    borderRadius: 999,
+                    paddingVertical: 16,
+                    alignItems: 'center',
+                    shadowColor: t.colors.accent,
+                    shadowOpacity: 0.4,
+                    shadowRadius: 10,
+                    shadowOffset: { width: 0, height: 4 },
+                    elevation: 3,
+                    transform: [{ scale: pressed ? 0.96 : 1 }],
+                  },
+                ]}
+              >
+                <RNText style={tx('700', 16, t.colors.onAccent)}>
+                  {busy ? 'Posting…' : 'Submit review'}
+                </RNText>
+              </Pressable>
+            </KeyboardSafe>
+          )
+        }
       >
-        <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
-          <RNText style={tx('400', 20, t.colors.ink)}>✕</RNText>
-        </Pressable>
+        {desktop ? null : (
+          <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
+            <RNText style={tx('400', 20, t.colors.ink)}>✕</RNText>
+          </Pressable>
+        )}
 
-        <View style={{ alignItems: 'center', marginTop: 22 }}>
+        <FormSection first>
+        <View style={{ alignItems: 'center', marginTop: desktop ? 0 : 22 }}>
           <View
             style={{
               width: 68,
@@ -154,9 +233,11 @@ export function ReviewScreen() {
           <RNText style={tx('800', 23, t.colors.ink, { letterSpacing: -0.69, marginTop: 14, textAlign: 'center' })}>
             How did {reviewWho} do?
           </RNText>
-          <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, textAlign: 'center' })}>
-            {title} · {price}
-          </RNText>
+          {desktop ? null : (
+            <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, textAlign: 'center' })}>
+              {title} · {price}
+            </RNText>
+          )}
 
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12, marginTop: 22 }}>
             {[1, 2, 3, 4, 5].map((n) => (
@@ -172,23 +253,29 @@ export function ReviewScreen() {
             {stars > 0 ? WORDS[stars - 1] : 'Tap a star to rate'}
           </RNText>
         </View>
+        </FormSection>
 
         {praiseAllowed(stars) && (
-          <>
-            <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 26 })}>
-              WHAT WENT WELL
-            </RNText>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 11 }}>
+          <FormSection title="What went well">
+            {desktop ? null : (
+              <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 26 })}>
+                WHAT WENT WELL
+              </RNText>
+            )}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: desktop ? 0 : 11 }}>
               {PRAISE.map((label, i) => (
                 <PraiseChip key={label} label={label} active={praise.includes(i)} onPress={() => togglePraise(i)} />
               ))}
             </View>
-          </>
+          </FormSection>
         )}
 
-        <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 22 })}>
-          WRITE A REVIEW · OPTIONAL
-        </RNText>
+        <FormSection title="Write a review" hint="Optional">
+        {desktop ? null : (
+          <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 22 })}>
+            WRITE A REVIEW · OPTIONAL
+          </RNText>
+        )}
         <TextInput
           value={comment}
           onChangeText={setComment}
@@ -199,7 +286,7 @@ export function ReviewScreen() {
           style={{
             ...cardSurface(t, 14),
             padding: 14,
-            marginTop: 11,
+            marginTop: desktop ? 0 : 11,
             minHeight: 88,
             textAlignVertical: 'top',
             color: t.colors.ink,
@@ -208,35 +295,8 @@ export function ReviewScreen() {
             lineHeight: 20,
           }}
         />
-      </KeyboardScrollView>
-
-      <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
-        <Pressable
-          onPress={submit}
-          disabled={!canSubmitReview(stars) || busy}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !canSubmitReview(stars) || busy }}
-          style={({ pressed }) => [
-            {
-              opacity: canSubmitReview(stars) ? 1 : 0.45,
-              backgroundColor: t.colors.btn,
-              borderRadius: 999,
-              paddingVertical: 16,
-              alignItems: 'center',
-              shadowColor: t.colors.accent,
-              shadowOpacity: 0.4,
-              shadowRadius: 10,
-              shadowOffset: { width: 0, height: 4 },
-              elevation: 3,
-              transform: [{ scale: pressed ? 0.96 : 1 }],
-            },
-          ]}
-        >
-          <RNText style={tx('700', 16, t.colors.onAccent)}>
-            {busy ? 'Posting…' : 'Submit review'}
-          </RNText>
-        </Pressable>
-      </KeyboardSafe>
+        </FormSection>
+      </FormPage>
     </Screen>
   );
 }

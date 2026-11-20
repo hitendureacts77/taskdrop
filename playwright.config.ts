@@ -41,7 +41,7 @@ export default defineConfig({
     {
       name: "web-desktop",
       testMatch: /.*\.spec\.ts/,
-      testIgnore: /desktopWeb\.spec\.ts/,
+      testIgnore: /desktop(Web|Rules)\.spec\.ts/,
       dependencies: ["setup"],
       use: { viewport: { width: 1280, height: 900 } },
     },
@@ -51,10 +51,11 @@ export default defineConfig({
       dependencies: ["setup"],
       use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
     },
-    // Desktop web package 0 (docs/design/desktop-web/PLAN.md): before pictures at 1440 x 900 ...
+    // Desktop web package 0 (docs/design/desktop-web/PLAN.md): before pictures at 1440 x 900, and (package 16) the
+    // DOM rules check desktopRules.spec.ts at the same size ...
     {
       name: "web-desktop-1440",
-      testMatch: /desktopWeb\.spec\.ts/,
+      testMatch: /desktop(Web|Rules)\.spec\.ts/,
       dependencies: ["setup"],
       use: { viewport: { width: 1440, height: 900 } },
     },

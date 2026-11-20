@@ -12,6 +12,8 @@ import { myStreaks, setWeeklyGoal, type Streaks } from '../data/api';
 import { STREAK_GOAL, badgesFor, daysLeftInWeek, goalProgress } from '../lib/streaks';
 import { reportError } from '../lib/errors';
 import { parseGoalText } from '../lib/goalText';
+import { useLayout } from '../lib/layout';
+import { CONTENT_INSET } from '../navigation/DesktopPage';
 
 const RING = 136;
 const STROKE = 14;
@@ -24,6 +26,7 @@ export function StreaksScreen() {
   const t = useTheme();
   const { back } = useNav();
   const { flash } = useActions();
+  const { desktop } = useLayout();
   const [s, setS] = useState<Streaks | null>(null);
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -88,7 +91,14 @@ export function StreaksScreen() {
   return (
     <Screen padded={false}>
       <TopBar title="Streaks and badges" subtitle="This week, Monday to Sunday" onBack={back} />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+      <ScrollView
+        contentContainerStyle={
+          // Desktop: the content starts where the page header's does and fills the column.
+          desktop
+            ? { paddingTop: 8, paddingHorizontal: CONTENT_INSET, paddingBottom: 28 }
+            : { paddingHorizontal: 20, paddingBottom: 28, width: '100%', maxWidth: 680, alignSelf: 'center' }
+        }
+      >
         <FadeIn translateY={10}>
           <View style={{ ...cardSurface(t, 22), padding: 18, flexDirection: 'row', alignItems: 'center', gap: 18 }}>
             <View style={{ width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }}>
@@ -184,7 +194,7 @@ export function StreaksScreen() {
         </View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
           {badges.map((b, i) => (
-            <FadeIn key={b.key} translateY={8} delay={Math.min(i, t.motion.staggerMax) * t.motion.stagger} style={{ width: '31%', flexGrow: 1 }}>
+            <FadeIn key={b.key} translateY={8} delay={Math.min(i, t.motion.staggerMax) * t.motion.stagger} style={{ width: desktop ? '23%' : '31%', flexGrow: 1 }}>
               <View style={{ ...cardSurface(t, 18), padding: 12, alignItems: 'center', minHeight: 130 }}>
                 <View
                   style={{

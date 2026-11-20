@@ -49,6 +49,7 @@ export function FormPage({
   }
   return (
     <ScrollView
+      ref={desktopScrollRef(scrollProps)}
       nativeID="formPage"
       style={{ flex: 1 }}
       contentContainerStyle={{ paddingTop: 8, paddingBottom: 28 }}
@@ -87,6 +88,11 @@ function desktopScrollProps(props: ScrollViewProps | undefined): ScrollViewProps
   if (!props) return {};
   const { testID, onScroll, scrollEventThrottle } = props;
   return { testID, onScroll, scrollEventThrottle };
+}
+
+/** The screen's own scroll ref (a step flow scrolling each step back to its top), given to the desktop page. */
+function desktopScrollRef(props: React.ComponentProps<typeof KeyboardScrollView> | undefined) {
+  return props?.ref as React.Ref<React.ComponentRef<typeof ScrollView>> | undefined;
 }
 
 /**

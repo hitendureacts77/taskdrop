@@ -20,6 +20,9 @@ import { RECORD, finish, settle, stabilise, type Overrides } from "./desktopWebK
  *   E2E_PORT=8104 npx playwright test --project=web-phone-same
  * Without sign-in, reusing the saved sessions in e2e/.auth:
  *   E2E_PORT=8104 npx playwright test --project=web-phone-same --no-deps
+ * Use `--no-deps` only within about an hour of the last sign-in: with an older saved session the profile and
+ * account screens show "phone not verified" (Level 0/3) and no location line, which is a false difference.
+ * The cookie bar is pre-answered ("Essential only") by stabilise(), so no picture contains it.
  */
 
 type Mode = "poster" | "worker";

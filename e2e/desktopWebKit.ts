@@ -225,6 +225,10 @@ export async function stabilise(
         // "Not now" on the location sheet, just now: Explore does not open it over the map (it opens on a race
         // with the profile read, which would make the pictures differ from run to run).
         localStorage.setItem("taskdrop.locationAsk.dismissedAt.v1", String(Date.now()));
+        // The cookie bar (PR 418) shows until a choice is stored and sits over the phone tab bar. Pre-set the
+        // privacy-friendly one, "Essential only" (no crash reports), the same value the app writes (lib/consent.ts),
+        // so no picture contains the bar and nothing in the page has to click it away.
+        localStorage.setItem("taskdrop.consent.v1", JSON.stringify({ analytics: false, at: "2026-11-17T00:00:00.000Z", v: 1 }));
       } catch {
         /* a browser without storage: the app keeps its defaults */
       }
