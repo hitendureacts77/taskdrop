@@ -38,6 +38,32 @@ export async function typeTestCode(page: Page, timeout = 15_000): Promise<void> 
 }
 
 /**
+ * Answers the consent bar (components/ConsentBanner.tsx) with "Essential only" when it shows. The answer is kept
+ * in localStorage, so a saved sign-in made after this never shows the bar again.
+ */
+export async function answerConsent(page: Page): Promise<void> {
+  const essential = page.getByRole("button", { name: /^Essential only/ });
+  await essential.waitFor({ timeout: 5_000 }).then(
+    () => essential.click(),
+    () => undefined,
+  );
+  await expect(essential).toHaveCount(0);
+}
+
+/**
+ * Opens the front door at the number box. The front door opens with the story and "Create my account"; the
+ * number box comes after it, for a new number and a returning one alike (the number decides the door).
+ */
+export async function openPhoneBox(page: Page): Promise<void> {
+  await page.goto("/");
+  const phoneField = page.getByPlaceholder("98765 43210");
+  const create = page.getByRole("button", { name: "Create my account" });
+  await create.or(phoneField).first().waitFor();
+  if (!(await phoneField.isVisible().catch(() => false))) await create.click();
+  await phoneField.waitFor();
+}
+
+/**
  * Sign in through the real sign-in screen with a seed phone. The test project hands the code back
  * and the app shows it in a box to be typed (see typeTestCode). A code can be asked for once a minute
  * per number, so a refusal waits and tries again.
@@ -49,12 +75,11 @@ export async function signInWithPhone(page: Page, phone: string): Promise<void> 
       if (r.url().includes("/functions/v1/phone-auth") && r.status() === 429) cooldown = true;
     };
     page.on("response", watch);
-    await page.goto("/");
-    // The front door opens with the story and "Create my account"; the number box comes after it.
-    const phoneField = page.getByPlaceholder("98765 43210");
-    await page.getByRole("button", { name: "Create my account" }).or(phoneField).first().waitFor();
-    if (!(await phoneField.isVisible().catch(() => false))) await page.getByRole("button", { name: "Create my account" }).click();
-    await phoneField.fill(phone);
+    await openPhoneBox(page);
+    // Answered here, on the front door: after sign-in a welcome sheet can cover the bar. The answer is kept, so
+    // the bar does not sit over the phone's tab bar in the tests that reuse this sign-in.
+    await answerConsent(page);
+    await page.getByPlaceholder("98765 43210").fill(phone);
     await page.getByText("Text me a code").click();
     // A refusal (the one-a-minute cooldown) shows no code box; the wait below then ends and it tries again.
     await typeTestCode(page, 10_000).catch(() => null);

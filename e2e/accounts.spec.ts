@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { ANON_KEY, RAVI, SUPABASE_URL, accessToken, apiAs, must, typeTestCode } from "./helpers";
+import { ANON_KEY, RAVI, SUPABASE_URL, accessToken, apiAs, must, openPhoneBox, typeTestCode } from "./helpers";
 
 /**
  * Phase 4: sign-up and sign-in methods, on the web, against the cloud test project.
@@ -15,15 +15,16 @@ import { ANON_KEY, RAVI, SUPABASE_URL, accessToken, apiAs, must, typeTestCode } 
 const randomPhone = () => `9991${String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0")}`;
 
 async function askForCode(page: Page, phone: string) {
-  await page.goto("/");
+  await openPhoneBox(page);
   await page.getByPlaceholder("98765 43210").fill(phone);
   await page.getByText("Text me a code").click();
 }
 
+// The web build asks with three dropdowns (BirthDateField.web.tsx); their values are plain numbers ("6", not "06").
 async function fillBirthDate(page: Page, day: string, month: string, year: string) {
-  await page.getByLabel("Birth day").fill(day);
-  await page.getByLabel("Birth month").fill(month);
-  await page.getByLabel("Birth year").fill(year);
+  await page.getByLabel("Birth day").selectOption(day);
+  await page.getByLabel("Birth month").selectOption(month);
+  await page.getByLabel("Birth year").selectOption(year);
   await page.getByText("Text me a code").click();
 }
 
@@ -35,7 +36,7 @@ test("a new phone number is asked its birth date, signs up, sets a username and 
   // Sign up: the number is new, so the birth date comes before any code; the app shows the test code and it is typed in.
   await askForCode(page, phone);
   await expect(page.getByText("New account").first()).toBeVisible();
-  await fillBirthDate(page, "15", "06", "1995");
+  await fillBirthDate(page, "15", "6", "1995");
   await typeTestCode(page);
 
   // First-run setup: welcome, username, intent, skills, about you, done.
@@ -81,11 +82,7 @@ test("a new phone number is asked its birth date, signs up, sets a username and 
 test("a number whose birth date makes the person 16 is turned away, with no code and no account (Phase 4)", async ({ page }) => {
   await askForCode(page, randomPhone());
   await expect(page.getByText("New account").first()).toBeVisible();
-  const year = String(new Date().getFullYear() - 16);
-  await page.getByLabel("Birth day").fill("01");
-  await page.getByLabel("Birth month").fill("01");
-  await page.getByLabel("Birth year").fill(year);
-  await page.getByText("Text me a code").click();
+  await fillBirthDate(page, "1", "1", String(new Date().getFullYear() - 16));
   await expect(page.getByText("Wallet")).toHaveCount(0);
   await expect(page.getByText(/we can’t make/)).toBeVisible();
   await expect(page.getByText("TaskDrop isn’t available to you right now.")).toBeVisible();
