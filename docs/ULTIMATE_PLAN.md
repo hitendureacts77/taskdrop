@@ -140,6 +140,33 @@ You asked (17 Nov) for "OWASP fix, cookie banner, and all the third parties in a
 
 </details>
 
+<details id="c-nov20-d31">
+<summary>[CARD] 18 to 20 November: the Upwork-style design (D31) built, Top up, the OTA, and the browser tests working again</summary>
+
+You asked (18 Nov) to build the design "TaskDrop Upwork for Gig Tasks D31 v11", keeping every live feature, and on 20 Nov to finish everything end to end.
+
+**Done (by Claude, checked)**
+
+- [x] **D31 build** (PR 442, 20 Nov): Home on desktop (area picker and search in the page header, a main column with a right-hand column for Hire and Earn; the phone Hire Home in your section order), Find work on desktop (search and List / Map in the header, filters on the left, jobs as rows), the task page (breadcrumb with Share and Report, budget / distance / hiring strip, Posted by card, "You earn after the 10% fee"), the job page laid out like an Upwork contract for both sides and every state, My tasks / My work (a "Needs you now" card, offers / your price / due, money held, the 5-step track and the next step; summary tiles and one table on desktop), How TaskDrop works (a Hire / Earn switch and 6 earning steps). `npm run check` and the 91 desktop layout checks pass; security review found nothing
+- [x] **D31 leftovers** (PR 444): **Ideas to earn** on Earn Home (idea cards in blue that open Find work), **"N new" offers** on open posts (counted per device since you last opened the offers), the phone layout guard updated for the screens the design changes, and pictures in `docs/design/desktop-web/d31-after/`
+- [x] **Top up on open posts** (PR 447, migration 194, your yes on 20 Nov): a **Top up** button on open post cards and in the task menu (desktop rows too). The server raises the top-up only upward to one of the top-up steps, only on your own open request, works the new price out from the price before any top-up, keeps crew slots equal and stops at ₹1,00,000; an auto-hire post needs the wallet to cover the new amount. Database test `raise_topup.test.sql` (9 checks) passed on staging in a rolled-back run; migration 194 and the api are live on staging since 20 Nov 12:41. Not yet clicked through in a browser
+- [x] **App update to testers' phones** (your yes on 20 Nov): OTA `33b6ca71` on the beta channel with PRs 442 and 444 (runtime `c6960bec`, the 7 Nov build); source map uploaded to Sentry
+- [x] **Browser tests (End-to-end job) working again** (PRs 448 and 449): the job had been cancelled at its 20-minute limit since 8 Nov. The tests now match the app (front door, birth-date dropdowns, the "why you earn" and area steps, "Remote" switch, header search, the location prompt, the consent bar). The whole run takes about 9 minutes. The money tests now move fake money both ways between the seed accounts, so the wallets do not run dry. **First green run on 20 Nov** (run 44723913922): 54 passed, 1 flaky that passed on its retry, nothing failed
+- [x] **Staging test data, your yes on 20 Nov:** Asha's fake wallet put back to ₹5,000; Meera's name put back to "Meera (seed both)" (a security probe had renamed her); Asha's and Ravi's accounts dated 1 Oct so they are no longer "new" and can post 20 test jobs a day instead of 5 (the 5-a-day limit was the last thing failing the tests). Nothing on production
+
+**Still to do: yours**
+
+- [ ] **Look at OTA `33b6ca71` on your phone:** open the beta app twice (it downloads on the first launch, runs on the second) and check Home, My tasks and Find work
+- [ ] **The five phone boards Offers, Escrow, Profile, Wallet and Me were never compared with the design.** The canvas was deleted (its link 6ukkC15HCZQmQY11VJU4bY and the desktop design M1Ei9NQA9XF2g6P71Jvfy2 both say "Page not found", the design session is gone, and its temporary folder was cleaned up). If you have a copy, send it; otherwise those screens stay as they are, or ask for them to be redrawn
+- [ ] **EAS build minutes:** the automatic Android build check fails until the free minutes reset on 1 Dec (an OTA still works)
+
+**Still to do: Claude's**
+
+- [ ] Click through **Top up** in a browser on a test sign-in the next time the website is checked
+- [ ] Re-check the End-to-end job after the next merge: it went green on 20 Nov. The one flaky test is the new-phone sign-up (`e2e/accounts.spec.ts:31`); if the job fails again, look at that test first
+
+</details>
+
 <details id="c-ceo-defaults">
 <summary>[CARD] The CEO defaults: accepted by you on 11 November. Still open: decision 3 and the area names</summary>
 
@@ -6530,6 +6557,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-20 (the Upwork-style design D31, Top up, the OTA and the browser tests: progress moved into the plan):** You asked to store the progress in this plan. Added the card **"18 to 20 November: the Upwork-style design (D31) built, Top up, the OTA, and the browser tests working again"** under **Do these now**: PRs 442 and 444 (the D31 screens and leftovers), PR 447 (**Top up** on open posts, migration 194, live on staging), OTA `33b6ca71` on the beta channel, PRs 448 and 449 (the End-to-end job runs again in about 9 minutes and went green on 20 Nov: 54 passed, 1 flaky), and the staging test-data changes you approved (Asha back to ₹5,000, Meera's name restored, Asha and Ravi no longer "new" accounts). Yours: check the OTA on your phone, the five phone boards whose design was lost, EAS minutes back on 1 Dec. Claude's: click through Top up in a browser. Nothing on production.
 - **2026-11-20 (OWASP, data in India, cookie bar: the rest moved into the plan):** You asked to move what is left and the progress into this plan. Added the card **"17 to 20 November: OWASP fix, data in India, cookie bar"** under **Do these now** (done list, your three steps, Claude's four), the picomatch exception to the Security section, three production rows (password settings, migration 192, Sentry EU) to 5.9's settings table, and 2.24 now says merged.
 - **2026-11-19 (desktop web redesign: status and the rules check):** Packages 0 to 8, 10, 14 and 15 of the desktop design are merged into `redesigned-2.0`; package 16 adds `e2e/desktopRules.spec.ts` (DOM checks of rules 1, 2 and 4 at 1440 x 900 on 14 signed-in screens; Post a task breaks rule 4 until package 13) and this note under task 1.10. Packages 9 (Home two columns), 11 (Wallet table, draft PR 436), 12 (Messages master-detail) and 13 (posting flow) wait for your OK. Plan: `docs/design/desktop-web/PLAN.md`. Desktop web only; no database, setting, key or app build changed.
 - **2026-11-17 (data in India, task 2.24, decision 55):** You asked to keep services in India where possible. DPDP does not require it, so: Vercel functions pinned to Mumbai, Sentry moves to a new EU organisation (your steps in 2.24), Inngest now gets ids and amounts only (migration 192, applied to staging by the merge), and the website asks before turning on crash reports (consent bar), and the Privacy Policy says where each company keeps data.
