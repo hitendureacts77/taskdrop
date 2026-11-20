@@ -967,6 +967,8 @@ function TaskDetailBody() {
     return (
       <Screen padded={false}>
         {deskHeader}
+        {/* The cards line up with the page header, 20 px in from the column edge. */}
+        <View style={{ flex: 1, paddingHorizontal: 20 }}>
         <TwoPane
           fixed="right"
           width={Math.round(Math.min(440, Math.max(340, contentWidth('feed') * 0.27)))}
@@ -1028,6 +1030,7 @@ function TaskDetailBody() {
           }
           single={null}
         />
+        </View>
         {sheets}
       </Screen>
     );

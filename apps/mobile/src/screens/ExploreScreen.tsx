@@ -905,6 +905,7 @@ function FindWork({
             onMap={onMap}
           />
           <ListPage
+            scrollProps={{ contentContainerStyle: { paddingTop: 8, paddingBottom: 28, paddingHorizontal: 20 } }}
             filters={
               <FindWorkFilters
                 filters={filters}

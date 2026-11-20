@@ -25,8 +25,9 @@ import { cardSurface } from './ui';
 /** The rail's width on the boards. */
 const RAIL = 300;
 
-/** The main column needs this much beside the rail; a narrower desktop window puts the rail under it. */
-const MAIN_MIN = 640;
+/** The main column needs this much beside the rail; a narrower desktop window puts the rail under it. At 1440 x 900
+ * the page zoom (lib/layout desktopScaleFor) leaves the main column about 614 px, and the boards keep the rail beside it. */
+const MAIN_MIN = 560;
 
 /** The main column and the right rail, side by side (or the rail below, on a narrow desktop window). */
 export function DesktopColumns({ main, rail }: { main: React.ReactNode; rail: React.ReactNode }) {

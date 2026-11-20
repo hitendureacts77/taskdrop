@@ -1460,17 +1460,18 @@ function OnlyOnTaskDrop({
           Kinds of tasks you can post here. Tap one to start your own post.
         </RNText>
       )}
-      <View style={{ flexDirection: 'row', marginTop: 14, gap: desktop ? 10 : 0 }}>
+      <View style={{ flexDirection: 'row', flexWrap: desktop ? 'wrap' : 'nowrap', marginTop: 14, gap: desktop ? 10 : 0 }}>
         {items.map((x) => (
           <Pressy
             key={x.title}
             onPress={x.onPress}
             scaleTo={0.94}
             label={x.isNew ? `${x.title.replace('\n', ' ')}. New` : x.title.replace('\n', ' ')}
-            // Desktop (D10): each one is a card, the icon beside a one-line title, five equal columns.
+            // Desktop (D10): each one is a card, the icon beside a one-line title; five across when they fit, else they
+            // wrap (beside the right rail the column is too narrow for five whole titles).
             style={
               desktop
-                ? [cardSurface(t, 16), { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, minWidth: 0 }]
+                ? [cardSurface(t, 16), { flexGrow: 1, flexBasis: 170, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, minWidth: 0 }]
                 : { flex: 1, alignItems: 'center' }
             }
           >

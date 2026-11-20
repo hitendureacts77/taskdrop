@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { useTheme } from '../../providers/ThemeProvider';
 import { cardSurface } from '../ui';
@@ -19,11 +20,19 @@ const ICON: Record<NeedKind, IconName> = {
 /**
  * "Needs you now" (D31 v11, boards MyTasks / MyWork / WebMyTasks): what is waiting on this person, built only
  * from live states (lib/myTasksBoard). Phone: a card of rows with a chevron, the whole row is the action.
- * Desktop: full width, each row with its live button on the right. Nothing waiting: nothing drawn.
+ * Desktop: full width, each row with its live button on the right. Nothing waiting: nothing drawn. A long list
+ * shows the most pressing few and a "Show N more" row, so the tasks below stay in reach.
  */
+const FIRST = { phone: 3, desktop: 4 };
+
 export function NeedsNow({ items, onPick, desktop, side }: { items: Need[]; onPick: (n: Need) => void; desktop: boolean; side: 'hire' | 'earn' }) {
   const t = useTheme();
+  const [all, setAll] = useState(false);
   if (items.length === 0) return null;
+  const first = desktop ? FIRST.desktop : FIRST.phone;
+  // One spare row is not worth a button: show it.
+  const shown = all || items.length <= first + 1 ? items : items.slice(0, first);
+  const hidden = items.length - shown.length;
   const count = (
     <View
       style={{
@@ -56,9 +65,19 @@ export function NeedsNow({ items, onPick, desktop, side }: { items: Need[]; onPi
         )}
         {count}
       </View>
-      {items.map((n, i) => (
+      {shown.map((n, i) => (
         <NeedRow key={n.key} need={n} first={i === 0} desktop={desktop} onPress={() => onPick(n)} />
       ))}
+      {hidden > 0 || all ? (
+        <Pressable
+          onPress={() => setAll((v) => !v)}
+          accessibilityRole="button"
+          hitSlop={4}
+          style={{ paddingHorizontal: desktop ? 20 : 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: t.colors.line }}
+        >
+          <RNText style={tx('700', 13, t.colors.accentDeep)}>{all ? 'Show fewer' : `Show ${hidden} more`}</RNText>
+        </Pressable>
+      ) : null}
       {desktop ? null : <View style={{ height: 4 }} />}
     </View>
   );
