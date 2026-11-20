@@ -149,8 +149,9 @@ test.describe("as a guest", () => {
       await expect(showList(page)).toBeVisible();
       await pickDistance(page, 50);
       await expect(page.getByText(/within 50 km/).first()).toBeVisible();
-      await expect(layerChip(page, "Jobs")).toBeVisible();
-      await expect(layerChip(page, "Helpers")).toBeVisible();
+      // With a place, both the panel's "Show" switch and the chips row on the map carry the layer buttons (CI saw both).
+      await expect(layerChip(page, "Jobs").first()).toBeVisible();
+      await expect(layerChip(page, "Helpers").first()).toBeVisible();
     });
   });
 });
