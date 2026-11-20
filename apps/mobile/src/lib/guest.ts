@@ -35,7 +35,7 @@ export const ACCOUNT_WRITES: ReadonlySet<string> = new Set([
   'createUpload', 'deleteMyAccount', 'endMySessions', 'lockBid', 'markWorkDone', 'openDispute', 'openTicket',
   'payTaskFromWallet', 'placeBid', 'postFeedbackIdea', 'removeListing', 'removeMedia', 'removePayoutDestination',
   'replyTicket', 'reportContent', 'requestRevision', 'requestWithdrawal', 'resolveTicket', 'sendCrewMessage', 'sendFeedback',
-  'sendMessage', 'setDefaultPayoutDestination', 'setRepeat', 'setSaved', 'setWeeklyGoal', 'startPromotion', 'startTask',
+  'sendMessage', 'setDefaultPayoutDestination', 'setRepeat', 'raiseTopUp', 'setSaved', 'setWeeklyGoal', 'startPromotion', 'startTask',
   'submitProof', 'submitReview', 'unblockUser', 'updateBid', 'updateListing', 'updateProfile', 'updateProfileExtras',
   'voteFeedbackIdea', 'huntLook', 'huntSendFind', 'huntAcceptFind', 'huntDeclineFind', 'huntAskPart', 'setMapSharing', 'setMapAudience', 'clearMapSpot',
 ]);

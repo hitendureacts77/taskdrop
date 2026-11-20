@@ -19,6 +19,7 @@ import { useMode } from '../providers/ModeProvider';
 import { useApp, useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { newOffers } from '../lib/seenOffers';
+import { canTopUp, nextTopUpSteps, raisedPriceMinor } from '../lib/topUp';
 import { loadSeenOffers, saveSeenOffers } from '../lib/seenOffersStore';
 import { GUEST_DRAFTS_OWNER } from '../lib/guest';
 import { listGuestSaves, loadGuestSavedTasks, setGuestSaved } from '../lib/guestSaves';
@@ -33,6 +34,7 @@ import {
   listMyBids,
   listMyTasks,
   myStats,
+  raiseTopUp,
   refundEscrow,
   type MyStats,
   type Profile,
@@ -109,6 +111,9 @@ function MyPosted() {
   const [menu, setMenu] = useState<Task | null>(null);
   const [closing, setClosing] = useState(false);
   const [confirmClose, setConfirmClose] = useState<Task | null>(null);
+  // The open post whose Top up picker is showing (D31; the server prices the change, migration 194).
+  const [topUp, setTopUp] = useState<Task | null>(null);
+  const [toppingUp, setToppingUp] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   // True when the last load failed (offline, server hiccup): an empty list is then
   // "could not load", not "you have no tasks".
@@ -251,6 +256,21 @@ function MyPosted() {
       flash(e instanceof Error ? e.message : 'Could not close that task');
     } finally {
       setClosing(false);
+    }
+  };
+
+  const raise = async (task: Task, pct: number) => {
+    setToppingUp(true);
+    try {
+      const out = await raiseTopUp(task.id, pct);
+      setTopUp(null);
+      flash(`Topped up ${pct}%: workers now see ${formatINR(out?.benchmark_minor ?? raisedPriceMinor(task.benchmark_minor, task.topup_pct, pct))}`);
+      if (out) setTasks((prev) => (prev ? prev.map((x) => (x.id === task.id ? { ...x, topup_pct: out.topup_pct, benchmark_minor: out.benchmark_minor } : x)) : prev));
+      void load().catch(() => {});
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not top up that task');
+    } finally {
+      setToppingUp(false);
     }
   };
 
@@ -424,6 +444,7 @@ function MyPosted() {
     worker: people.get(task.id),
     onOpen: () => openPostedTask(task, go),
     onMenu: () => setMenu(task),
+    onTopUp: () => setTopUp(task),
     onAgain: () => go('aiPost', { similar: task }),
     onReview: () => review(task),
   });
@@ -523,6 +544,9 @@ function MyPosted() {
           <>
             <MenuRow icon="eye" label="View details" onPress={() => { const id = menu.id; setMenu(null); go('taskManage', { taskId: id }); }} />
             <MenuRow icon="copy" label="Create similar" sub="Start a new post from this one" onPress={() => { const m = menu; setMenu(null); go('aiPost', { similar: m }); }} />
+            {canTopUp(menu) ? (
+              <MenuRow icon="plus" label="Top up" sub="Offer workers a bit more to get offers sooner" onPress={() => { const m = menu; setMenu(null); setTopUp(m); }} />
+            ) : null}
             {['OPEN', 'LOCKED', 'TASK_STARTED', 'OVERDUE'].includes(menu.status) ? (
               <MenuRow
                 icon="close"
@@ -536,6 +560,25 @@ function MyPosted() {
                 }}
               />
             ) : null}
+          </>
+        ) : null}
+      </BottomSheet>
+
+      <BottomSheet visible={topUp !== null} onClose={() => (toppingUp ? undefined : setTopUp(null))} title="Top up this task">
+        {topUp ? (
+          <>
+            <RNText style={tx('500', 13, t.colors.muted, { lineHeight: 19, marginBottom: 6 })}>
+              {`Now ${formatINR(topUp.benchmark_minor)}${topUp.topup_pct ? ` with a ${topUp.topup_pct}% top-up` : ''}. A top-up raises what workers see; you pay only when you accept an offer.`}
+            </RNText>
+            {nextTopUpSteps(topUp.topup_pct).map((pct) => (
+              <MenuRow
+                key={pct}
+                icon="plus"
+                label={`Top up ${pct}%`}
+                sub={`Workers see ${formatINR(raisedPriceMinor(topUp.benchmark_minor, topUp.topup_pct, pct))}`}
+                onPress={() => (toppingUp ? undefined : void raise(topUp, pct))}
+              />
+            ))}
           </>
         ) : null}
       </BottomSheet>

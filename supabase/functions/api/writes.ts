@@ -569,6 +569,40 @@ export const WRITE_OPS: Record<string, Op> = {
     take(await ctx.db.rpc("set_task_repeat", { p_task_id: taskId, p_every: every }));
     return { id: taskId, repeat_every: every };
   },
+  /**
+   * "Top up" on an open post (D31, migration 194): raise the top-up to a bigger step. The database decides
+   * everything (own open request only, upward only, new price, crew slots, the ₹1,00,000 cap). An auto-hire task
+   * pays from the wallet the moment an offer arrives, so, like createTask, the wallet must cover the new amount.
+   */
+  raiseTopUp: async (ctx, a) => {
+    const taskId = uuid(a, "taskId");
+    const pct = topUpPct(a);
+    if (pct === 0) throw bad("topUpPct");
+    const task = take<{ assignment_mode?: string; crew_id?: string | null } | null>(
+      await ctx.db.from("tasks").select("assignment_mode,crew_id").eq("id", taskId).eq("poster_id", ctx.userId).maybeSingle(),
+    );
+    if (task?.assignment_mode === "auto") {
+      const slots = rows<{ benchmark_minor: number; topup_pct: number }>(
+        task.crew_id
+          ? await ctx.db.from("tasks").select("benchmark_minor,topup_pct").eq("crew_id", task.crew_id).eq("status", "OPEN")
+          : await ctx.db.from("tasks").select("benchmark_minor,topup_pct").eq("id", taskId),
+      );
+      const { posterFee } = await readFees(ctx);
+      const need = slots.reduce((sum, s) => {
+        const raised = Math.round((s.benchmark_minor / (1 + s.topup_pct / 100)) * (1 + pct / 100) / 100) * 100;
+        return sum + Math.round(Math.max(raised, s.benchmark_minor) * (1 + posterFee));
+      }, 0);
+      const wallet = take<{ balance_minor?: number } | null>(
+        await ctx.db.from("wallets").select("balance_minor").eq("user_id", ctx.userId).maybeSingle(),
+      );
+      const short = need - Number(wallet?.balance_minor ?? 0);
+      if (short > 0) throw new OpError("Not enough money in your wallet", "WALLET_SHORT", String(short));
+    }
+    const out = rows<{ id: string; topup_pct: number; benchmark_minor: number }>(
+      await ctx.db.rpc("raise_task_topup", { p_task_id: taskId, p_pct: pct }),
+    );
+    return out[0] ?? null;
+  },
 
   // ---- City Hunt (migration 158): every rule and every rupee is decided in SQL ----
   /** "I'm looking": counted on the Hunt's card and page. */
