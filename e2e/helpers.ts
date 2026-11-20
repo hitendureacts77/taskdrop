@@ -38,6 +38,35 @@ export async function typeTestCode(page: Page, timeout = 15_000): Promise<void> 
 }
 
 /**
+ * Answers the consent bar (components/ConsentBanner.tsx) with "Essential only" when it shows. The answer is kept
+ * in localStorage, so a saved sign-in made after this never shows the bar again.
+ */
+export async function answerConsent(page: Page): Promise<void> {
+  const essential = page.getByRole("button", { name: /^Essential only/ });
+  await essential.waitFor({ timeout: 5_000 }).then(
+    () => essential.click(),
+    () => undefined,
+  );
+  await expect(essential).toHaveCount(0);
+}
+
+/**
+ * Opens the front door at the number box. The front door opens with the story and "Create my account"; the
+ * number box comes after it, for a new number and a returning one alike (the number decides the door).
+ */
+export async function openPhoneBox(page: Page): Promise<void> {
+  await page.goto("/");
+  const phoneField = page.getByPlaceholder("98765 43210");
+  const create = page.getByRole("button", { name: "Create my account" });
+  await create.or(phoneField).first().waitFor();
+  if (!(await phoneField.isVisible().catch(() => false))) await create.click();
+  await phoneField.waitFor();
+  // Answered here, on the front door: later a welcome sheet can cover the bar, and on a long form (About you) the
+  // bar covers Continue. The answer is kept, so a saved sign-in made after this never shows it again.
+  await answerConsent(page);
+}
+
+/**
  * Sign in through the real sign-in screen with a seed phone. The test project hands the code back
  * and the app shows it in a box to be typed (see typeTestCode). A code can be asked for once a minute
  * per number, so a refusal waits and tries again.
@@ -49,19 +78,18 @@ export async function signInWithPhone(page: Page, phone: string): Promise<void> 
       if (r.url().includes("/functions/v1/phone-auth") && r.status() === 429) cooldown = true;
     };
     page.on("response", watch);
-    await page.goto("/");
-    // The front door opens with the story and "Create my account"; the number box comes after it.
-    const phoneField = page.getByPlaceholder("98765 43210");
-    await page.getByRole("button", { name: "Create my account" }).or(phoneField).first().waitFor();
-    if (!(await phoneField.isVisible().catch(() => false))) await page.getByRole("button", { name: "Create my account" }).click();
-    await phoneField.fill(phone);
+    await openPhoneBox(page);
+    await page.getByPlaceholder("98765 43210").fill(phone);
     await page.getByText("Text me a code").click();
     // A refusal (the one-a-minute cooldown) shows no code box; the wait below then ends and it tries again.
     await typeTestCode(page, 10_000).catch(() => null);
     const signedIn = page.getByText("Wallet").first();
     await Promise.race([signedIn.waitFor({ timeout: 30_000 }).catch(() => null), page.waitForTimeout(30_000)]);
     page.off("response", watch);
-    if (await signedIn.isVisible().catch(() => false)) return;
+    if (await signedIn.isVisible().catch(() => false)) {
+      await closeStagingCard(page);
+      return;
+    }
     if (!cooldown || attempt === 3) break;
     await page.waitForTimeout(65_000);
   }
@@ -176,7 +204,19 @@ export function must<T>(r: ApiResult<T>, what: string): T {
 
 export async function expectSignedIn(page: Page) {
   await expect(page.getByText("Wallet").first()).toBeVisible();
-  // A fresh browser is first shown "How staging works", which covers the screen until it is closed.
+  await closeStagingCard(page);
+}
+
+/**
+ * A fresh browser, once signed in, is shown "How staging works" (components/StagingWelcome.tsx), which covers the
+ * screen until it is closed. It may open a moment after the page, so wait a little for it. Closing it is kept in
+ * the browser's storage: a saved sign-in made after this never shows it again.
+ */
+export async function closeStagingCard(page: Page): Promise<void> {
   const staging = page.getByRole("button", { name: "Got it", exact: true });
-  if (await staging.isVisible({ timeout: 3000 }).catch(() => false)) await staging.click();
+  await staging.waitFor({ timeout: 4_000 }).then(
+    () => staging.click(),
+    () => undefined,
+  );
+  await expect(staging).toHaveCount(0);
 }

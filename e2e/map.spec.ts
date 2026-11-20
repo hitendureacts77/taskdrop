@@ -16,6 +16,13 @@ const pickDistance = async (page: Page, km: number) => {
   await page.getByRole("button", { name: `${km} km`, exact: true }).last().click();
   await page.getByRole("button", { name: /^Show [0-9]+ |^No .* yet · Show anyway/ }).click();
 };
+// A guest (no area, location not allowed yet) is asked for location over the map when Explore opens
+// (components/LocationPrompt.tsx); "Not now" puts it away, and the map takes the mouse again.
+const notNow = async (page: Page) => {
+  const button = page.getByRole("button", { name: "Not now", exact: true });
+  await button.click();
+  await expect(button).toHaveCount(0);
+};
 
 test.describe("signed in as the seed poster", () => {
   test.use({ storageState: ASHA.state });
@@ -85,7 +92,8 @@ test.describe("signed in as the seed poster", () => {
     await expect(page.getByRole("button", { name: "Search this area" })).toHaveCount(0);
   });
 
-  test("the From home switch shows only jobs with no pin, and All brings the rest back", async ({ page }) => {
+  // Plan 1.17 renamed the switch: All / Nearby / Remote ("From home" was its old name), titled "Remote work".
+  test("the Remote switch shows only jobs with no pin, and All brings the rest back", async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 });
     await page.goto("/");
     await expectSignedIn(page);
@@ -93,8 +101,8 @@ test.describe("signed in as the seed poster", () => {
     await page.getByText("Explore", { exact: true }).first().click();
     await expect(showList(page)).toBeVisible();
     test.skip(await chooseArea(page).isVisible(), "this account has no area yet");
-    await page.getByRole("button", { name: "From home", exact: true }).first().click();
-    await expect(page.getByRole("heading", { name: "Work from home" })).toBeVisible();
+    await page.getByRole("button", { name: "Remote", exact: true }).first().click();
+    await expect(page.getByRole("heading", { name: "Remote work" })).toBeVisible();
     await expect(page.getByText(/from anywhere/).first()).toBeVisible();
     await page.getByRole("button", { name: "All", exact: true }).first().click();
     await expect(page.getByRole("heading", { name: "Work near you" })).toBeVisible();
@@ -105,7 +113,10 @@ test.describe("signed in as the seed poster", () => {
     await expectSignedIn(page);
     // The search bar is on the Earn home (workers find jobs there), so flip the mode switch first.
     await page.getByLabel("Earn mode").first().click();
+    // On a wide screen (this project is 1280 wide) the search is a box in the page header (D31): Enter with no
+    // words opens Find work as the list with the cursor in its search box. The phone's pill opens it on a tap.
     await page.getByLabel("Search jobs").first().click();
+    await page.keyboard.press("Enter");
     // Home passes focusSearch (no text yet): the list shows with its search box, and the map pill to go back.
     await expect(showMap(page)).toBeVisible();
     await expect(page.getByPlaceholder("E.g. data entry, logo design, home tutoring…")).toBeVisible();
@@ -120,21 +131,27 @@ test.describe("as a guest", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Skip sign-up for now" }).click();
     await page.getByText("Explore", { exact: true }).first().click();
+    await notNow(page);
     await expect(showList(page)).toBeVisible();
     await expect(layerChip(page, "People")).toHaveCount(0);
   });
 
-  test("a guest can change the reach and still sees the layer chips", async ({ page }) => {
-    await page.setViewportSize({ width: 1400, height: 900 });
-    await page.goto("/");
-    await page.getByRole("button", { name: "Skip sign-up for now" }).click();
-    await page.getByText("Explore", { exact: true }).first().click();
-    await expect(showList(page)).toBeVisible();
-    test.skip(await chooseArea(page).isVisible(), "a guest has no area yet");
-    await pickDistance(page, 50);
-    await expect(page.getByText(/within 50 km/).first()).toBeVisible();
-    await expect(layerChip(page, "Jobs")).toBeVisible();
-    await expect(layerChip(page, "Helpers")).toBeVisible();
+  test.describe("who allowed location", () => {
+    // A guest has no saved area: the map waits on "Turn on location to see what's around you". This one has said
+    // yes to the browser, standing in Madhapur, so the map has a place to measure the reach from.
+    test.use({ geolocation: { latitude: 17.4486, longitude: 78.3908 }, permissions: ["geolocation"] });
+
+    test("a guest can change the reach and still sees the layer chips", async ({ page }) => {
+      await page.setViewportSize({ width: 1400, height: 900 });
+      await page.goto("/");
+      await page.getByRole("button", { name: "Skip sign-up for now" }).click();
+      await page.getByText("Explore", { exact: true }).first().click();
+      await expect(showList(page)).toBeVisible();
+      await pickDistance(page, 50);
+      await expect(page.getByText(/within 50 km/).first()).toBeVisible();
+      await expect(layerChip(page, "Jobs")).toBeVisible();
+      await expect(layerChip(page, "Helpers")).toBeVisible();
+    });
   });
 });
 
@@ -151,6 +168,7 @@ test.describe("D21: the map zooms like Google Maps (guest)", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Skip sign-up for now" }).click();
     await page.getByText("Explore", { exact: true }).first().click();
+    await notNow(page);
     await expect(glMap(page)).toHaveAttribute("data-zoom", /\d/);
     // Remember whether the page let the browser handle the last wheel (it must not, over the map).
     await page.evaluate(() => {
@@ -216,6 +234,7 @@ test.describe("D21: the map zooms like Google Maps (guest)", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Skip sign-up for now" }).click();
     await page.getByText("Explore", { exact: true }).first().click();
+    await notNow(page);
     await showList(page).click();
     // A guest with no area sees the one-line card; with an area, the map strip and its button.
     await expect(page.getByText("Set your area", { exact: true }).or(page.getByText("Open the map", { exact: true })).filter({ visible: true }).first()).toBeVisible({ timeout: 8000 });

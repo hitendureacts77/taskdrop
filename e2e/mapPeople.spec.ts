@@ -186,7 +186,14 @@ test("Meera, a stranger, chooses Everyone nearby: Asha sees her as Nearby on a c
     const meeraPage = await meeraCtx.newPage();
     await meeraPage.goto("/");
     await expectSignedIn(meeraPage);
-    const meera = apiAs(meeraCtx.request, await accessToken(meeraPage));
+    const meeraToken = await accessToken(meeraPage);
+    const meera = apiAs(meeraCtx.request, meeraToken);
+    // Her name as the map shows it (first word only). Read it, not assumed: the seed account's display name is
+    // shared test data and has been changed (on 20 Nov it was a template-injection probe from a security test).
+    const meeraId = (JSON.parse(Buffer.from(meeraToken.split(".")[1]!, "base64url").toString()) as { sub: string }).sub;
+    const profile = await meera<{ display_name: string | null }>("getProfile", { userId: meeraId });
+    const meeraName = ((profile.ok ? profile.data?.display_name : null) ?? "").replace(/^@/, "").trim().split(/\s+/)[0] || "Someone";
+    const asName = meeraName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     expect((await meera("setMapSharing", { on: true, notice: "v1" })).ok, "Meera switched sharing on").toBe(true);
     // "Everyone nearby" needs the newer notice: the old one is refused.
     const tooOld = await meera("setMapAudience", { audience: "everyone", notice: "v1" });
@@ -209,12 +216,12 @@ test("Meera, a stranger, chooses Everyone nearby: Asha sees her as Nearby on a c
     await expect(asha.getByRole("button", { name: "Choose your area" }), "Asha has an area chosen").toBeHidden();
     await peopleChip.click();
 
-    const meeraRow = asha.getByRole("button", { name: /^Meera.*Nearby/ });
+    const meeraRow = asha.getByRole("button", { name: new RegExp(`^${asName}, .*Nearby`) });
     await expect(meeraRow.first(), "Meera shows up as Nearby").toBeVisible({ timeout: 60_000 });
     await expect(meeraRow.first()).not.toContainText(/jobs? together/);
 
     // Privacy: a stranger comes back on the coarse 0.02-degree cell, never the finer one or the real position.
-    const seen = replies.flat().filter((p) => /^Meera\b/.test(p.name));
+    const seen = replies.flat().filter((p) => p.name.startsWith(meeraName));
     expect(seen.length, "a mapPeople reply with Meera in it was captured").toBeGreaterThan(0);
     for (const p of seen) {
       expect(p.name, "a stranger's name is the first name only").toMatch(/^\S+$/);
