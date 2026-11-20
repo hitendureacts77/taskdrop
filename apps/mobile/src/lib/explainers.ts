@@ -11,7 +11,7 @@
 
 export type ExplainerKey = 'hunt' | 'huntFinder' | 'bigDay';
 
-export type ExplainerScene = 'describe' | 'quotes' | 'escrow' | 'done' | 'find' | 'quote' | 'work' | 'paid';
+export type ExplainerScene = 'describe' | 'quotes' | 'escrow' | 'done' | 'find' | 'quote' | 'work' | 'paid' | 'swipe' | 'proof';
 
 export type ExplainerStep = { scene: ExplainerScene; title: string; body: string };
 
