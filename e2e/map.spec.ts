@@ -136,18 +136,22 @@ test.describe("as a guest", () => {
     await expect(layerChip(page, "People")).toHaveCount(0);
   });
 
-  test("a guest can change the reach and still sees the layer chips", async ({ page }) => {
-    await page.setViewportSize({ width: 1400, height: 900 });
-    await page.goto("/");
-    await page.getByRole("button", { name: "Skip sign-up for now" }).click();
-    await page.getByText("Explore", { exact: true }).first().click();
-    await notNow(page);
-    await expect(showList(page)).toBeVisible();
-    test.skip(await chooseArea(page).isVisible(), "a guest has no area yet");
-    await pickDistance(page, 50);
-    await expect(page.getByText(/within 50 km/).first()).toBeVisible();
-    await expect(layerChip(page, "Jobs")).toBeVisible();
-    await expect(layerChip(page, "Helpers")).toBeVisible();
+  test.describe("who allowed location", () => {
+    // A guest has no saved area: the map waits on "Turn on location to see what's around you". This one has said
+    // yes to the browser, standing in Madhapur, so the map has a place to measure the reach from.
+    test.use({ geolocation: { latitude: 17.4486, longitude: 78.3908 }, permissions: ["geolocation"] });
+
+    test("a guest can change the reach and still sees the layer chips", async ({ page }) => {
+      await page.setViewportSize({ width: 1400, height: 900 });
+      await page.goto("/");
+      await page.getByRole("button", { name: "Skip sign-up for now" }).click();
+      await page.getByText("Explore", { exact: true }).first().click();
+      await expect(showList(page)).toBeVisible();
+      await pickDistance(page, 50);
+      await expect(page.getByText(/within 50 km/).first()).toBeVisible();
+      await expect(layerChip(page, "Jobs")).toBeVisible();
+      await expect(layerChip(page, "Helpers")).toBeVisible();
+    });
   });
 });
 
