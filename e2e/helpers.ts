@@ -61,6 +61,9 @@ export async function openPhoneBox(page: Page): Promise<void> {
   await create.or(phoneField).first().waitFor();
   if (!(await phoneField.isVisible().catch(() => false))) await create.click();
   await phoneField.waitFor();
+  // Answered here, on the front door: later a welcome sheet can cover the bar, and on a long form (About you) the
+  // bar covers Continue. The answer is kept, so a saved sign-in made after this never shows it again.
+  await answerConsent(page);
 }
 
 /**
@@ -76,9 +79,6 @@ export async function signInWithPhone(page: Page, phone: string): Promise<void> 
     };
     page.on("response", watch);
     await openPhoneBox(page);
-    // Answered here, on the front door: after sign-in a welcome sheet can cover the bar. The answer is kept, so
-    // the bar does not sit over the phone's tab bar in the tests that reuse this sign-in.
-    await answerConsent(page);
     await page.getByPlaceholder("98765 43210").fill(phone);
     await page.getByText("Text me a code").click();
     // A refusal (the one-a-minute cooldown) shows no code box; the wait below then ends and it tries again.
@@ -86,7 +86,10 @@ export async function signInWithPhone(page: Page, phone: string): Promise<void> 
     const signedIn = page.getByText("Wallet").first();
     await Promise.race([signedIn.waitFor({ timeout: 30_000 }).catch(() => null), page.waitForTimeout(30_000)]);
     page.off("response", watch);
-    if (await signedIn.isVisible().catch(() => false)) return;
+    if (await signedIn.isVisible().catch(() => false)) {
+      await closeStagingCard(page);
+      return;
+    }
     if (!cooldown || attempt === 3) break;
     await page.waitForTimeout(65_000);
   }
@@ -201,7 +204,19 @@ export function must<T>(r: ApiResult<T>, what: string): T {
 
 export async function expectSignedIn(page: Page) {
   await expect(page.getByText("Wallet").first()).toBeVisible();
-  // A fresh browser is first shown "How staging works", which covers the screen until it is closed.
+  await closeStagingCard(page);
+}
+
+/**
+ * A fresh browser, once signed in, is shown "How staging works" (components/StagingWelcome.tsx), which covers the
+ * screen until it is closed. It may open a moment after the page, so wait a little for it. Closing it is kept in
+ * the browser's storage: a saved sign-in made after this never shows it again.
+ */
+export async function closeStagingCard(page: Page): Promise<void> {
   const staging = page.getByRole("button", { name: "Got it", exact: true });
-  if (await staging.isVisible({ timeout: 3000 }).catch(() => false)) await staging.click();
+  await staging.waitFor({ timeout: 4_000 }).then(
+    () => staging.click(),
+    () => undefined,
+  );
+  await expect(staging).toHaveCount(0);
 }

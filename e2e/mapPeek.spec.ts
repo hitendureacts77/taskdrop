@@ -32,8 +32,9 @@ test.describe("the phone map's pull-up bar", () => {
     await shot(page, "1-peek");
     // The old card took about half the screen; the bar leaves the map most of it.
     expect(await barHeight(page)).toBeLessThan(200);
-    await expect(page.getByRole("button", { name: "Jobs", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Helpers", exact: true })).toBeVisible();
+    // Both chips stay; the other mode's one is locked and says so after its name ("Helpers. Locked. Opens …").
+    await expect(page.getByRole("button", { name: /^Jobs(\.|$)/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Helpers(\.|$)/ })).toBeVisible();
   });
 
   test("a tap on See all opens the list, and Map folds it back down", async ({ page }) => {
