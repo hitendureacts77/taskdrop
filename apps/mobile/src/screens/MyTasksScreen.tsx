@@ -18,6 +18,8 @@ import { FEES, posterEscrowCharge } from '@taskdrop/rules';
 import { useMode } from '../providers/ModeProvider';
 import { useApp, useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
+import { newOffers } from '../lib/seenOffers';
+import { loadSeenOffers, saveSeenOffers } from '../lib/seenOffersStore';
 import { GUEST_DRAFTS_OWNER } from '../lib/guest';
 import { listGuestSaves, loadGuestSavedTasks, setGuestSaved } from '../lib/guestSaves';
 import { GuestAccountCard, GuestNote } from '../components/GuestBits';
@@ -99,6 +101,8 @@ function MyPosted() {
   const focusTick = useFocusTick();
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [quotes, setQuotes] = useState<Map<string, number>>(new Map());
+  // "N new" per open task, against what this device saw when it last opened the offers (lib/seenOffers).
+  const [freshOffers, setFreshOffers] = useState<Map<string, number>>(new Map());
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState('');
   const [needs, setNeeds] = useState(false);
@@ -139,6 +143,9 @@ function MyPosted() {
     setTasks(rows);
     setQuotes(counts);
     setFailed(false);
+    const { fresh, seed } = newOffers(counts, await loadSeenOffers(userId));
+    if (seed) void saveSeenOffers(userId, seed);
+    setFreshOffers(fresh);
   }, [userId, focusTick]);
 
   // On failure keep whatever is already on screen; with nothing yet, show the retry card.
@@ -413,6 +420,7 @@ function MyPosted() {
   const cardProps = (task: Task) => ({
     task,
     offers: quotes.get(task.id) ?? 0,
+    newOffers: freshOffers.get(task.id),
     worker: people.get(task.id),
     onOpen: () => openPostedTask(task, go),
     onMenu: () => setMenu(task),

@@ -19,6 +19,7 @@ import {
   posterTabOf,
   statusBadge,
 } from '../../lib/myTasksBoard';
+import { newOffersLabel } from '../../lib/seenOffers';
 import type { Profile, Task } from '../../data/api';
 import { ActionButton, ChatButton, DotsButton, Initial, NextStepBox, SegmentTrack } from './bits';
 
@@ -36,6 +37,8 @@ export type PosterCardProps = {
   task: Task;
   index: number;
   offers: number;
+  /** Offers that came in since this device last opened them (lib/seenOffers). */
+  newOffers?: number;
   /** The person hired, once loaded (undefined while loading or for posts nobody was picked for). */
   worker?: Profile | null;
   /** "₹463.50": offer + service fee, what paying would cost. */
@@ -103,7 +106,7 @@ function Stripe({ color }: { color: string }) {
 }
 
 /** An open post: getting offers, waiting for offers, or past its date. */
-function PostBody({ task, offers, onMenu, onOpen, onAgain, onClose }: PosterCardProps) {
+function PostBody({ task, offers, newOffers, onMenu, onOpen, onAgain, onClose }: PosterCardProps) {
   const t = useTheme();
   const now = Date.now();
   const passed = openDatePassed(task, now);
@@ -111,10 +114,18 @@ function PostBody({ task, offers, onMenu, onOpen, onAgain, onClose }: PosterCard
   const due = dueIn(task.due_at, now);
   const stage = posterStage(task.status, offers);
   const label = posterNextLabel(task, offers);
-  const cell = (head: string, value: string, ink: string = t.colors.ink, first = false) => (
+  const fresh = newOffersLabel(newOffers);
+  const cell = (head: string, value: string, ink: string = t.colors.ink, first = false, extra: string | null = null) => (
     <View style={{ flex: 1, paddingHorizontal: 14, paddingVertical: 10, borderLeftWidth: first ? 0 : 1, borderLeftColor: t.colors.line }}>
       <RNText style={tx('700', 10, t.colors.muted, { letterSpacing: 1 })}>{head}</RNText>
-      <RNText numberOfLines={1} style={tx('800', 15, ink, { marginTop: 3, fontVariant: ['tabular-nums'] })}>{value}</RNText>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+        <RNText numberOfLines={1} style={tx('800', 15, ink, { fontVariant: ['tabular-nums'] })}>{value}</RNText>
+        {extra ? (
+          <View style={{ borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1, backgroundColor: t.colors.accentSoft }}>
+            <RNText style={tx('800', 10.5, t.colors.accentDeep)}>{extra}</RNText>
+          </View>
+        ) : null}
+      </View>
     </View>
   );
   return (
@@ -139,7 +150,7 @@ function PostBody({ task, offers, onMenu, onOpen, onAgain, onClose }: PosterCard
         </View>
       </View>
       <View style={{ flexDirection: 'row', backgroundColor: t.colors.surface2, borderTopWidth: 1, borderTopColor: t.colors.line }}>
-        {cell('OFFERS', String(offers), t.colors.ink, true)}
+        {cell('OFFERS', String(offers), t.colors.ink, true, fresh)}
         {cell('YOUR PRICE', rupees(task.benchmark_minor / 100))}
         {cell('DUE', due ?? '—', due ? t.colors.goldInk : t.colors.muted)}
       </View>

@@ -21,6 +21,7 @@ import {
   workerStage,
   workerStateLabel,
 } from '../../lib/myTasksBoard';
+import { newOffersLabel } from '../../lib/seenOffers';
 import type { Profile, Task } from '../../data/api';
 import { ActionButton, DotsButton, IconTile, Initial, SegmentTrack } from './bits';
 import { posterNextLabel } from './PosterCard';
@@ -172,6 +173,7 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export function PosterDeskRow({
   task,
   offers,
+  newOffers,
   worker,
   heldText,
   onOpen,
@@ -181,6 +183,8 @@ export function PosterDeskRow({
 }: {
   task: Task;
   offers: number;
+  /** Offers that came in since this device last opened them (lib/seenOffers). */
+  newOffers?: number;
   worker?: Profile | null;
   heldText: string;
   onOpen: () => void;
@@ -201,6 +205,7 @@ export function PosterDeskRow({
   const people = open ? (
     <RNText style={tx(offers > 0 ? '700' : '400', 13.5, offers > 0 ? t.colors.accentDeep : t.colors.muted)}>
       {offers > 0 ? `${offers} ${offers === 1 ? 'offer' : 'offers'}` : 'No offers'}
+      {newOffersLabel(newOffers) ? <RNText style={tx('600', 12.5, t.colors.accentDeep)}>{` · ${newOffersLabel(newOffers)}`}</RNText> : null}
     </RNText>
   ) : closed ? (
     <RNText style={tx('400', 13.5, t.colors.muted)}>—</RNText>

@@ -736,6 +736,8 @@ export function ActiveScreen() {
     return (
       <Screen padded={false}>
         {headerRow}
+        {/* The cards line up with the page header, 20 px in from the column edge. */}
+        <View style={{ flex: 1, paddingHorizontal: 20 }}>
         <TwoPane
           fixed="right"
           width={Math.round(Math.min(380, Math.max(320, contentWidth('feed') * 0.3)))}
@@ -758,6 +760,7 @@ export function ActiveScreen() {
           }
           single={null}
         />
+        </View>
         {sheets}
       </Screen>
     );
