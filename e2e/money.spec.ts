@@ -7,8 +7,8 @@ import { ASHA, RAVI, accessToken, apiAs, must, tidyE2eTasks } from "./helpers";
  * so every rule the server enforces (who may do what, what each step costs) is exercised for real; the
  * screens themselves are covered in ui.spec.ts.
  *
- * Each run creates a few "[e2e]" tasks and moves a few hundred rupees of fake money, from whichever of Asha and
- * Ravi has more to whoever has less (see beforeAll). `npm run seed:reset` puts the seed accounts back (only
+ * Each run creates a few "[e2e]" tasks and moves a few hundred rupees of fake money between Asha and Ravi, in
+ * whichever direction beforeAll picks. `npm run seed:reset` puts the seed accounts back (only
  * with the owner's OK).
  */
 
@@ -64,23 +64,27 @@ test.beforeAll(async ({ browser, playwright }) => {
   const asha = await session(browser, ASHA.state, request);
   const ravi = await session(browser, RAVI.state, request);
   // Every run moves fake money from the poster to the worker, and a test cannot add any (Add funds is the
-  // Razorpay page). Both seed accounts can post and work, so whoever has more to spend posts and pays this run
-  // and the other one works: the money goes back and forth instead of draining one wallet (it ran Asha's down
-  // to ₹23 by 20 Nov).
-  const [ashaWallet, raviWallet] = await Promise.all([wallet(asha), wallet(ravi)]);
-  const ashaPays = ashaWallet.balance_minor >= raviWallet.balance_minor;
-  poster = ashaPays ? asha : ravi;
-  worker = ashaPays ? ravi : asha;
-  fees = must(await poster<Fees>("platformFees"), "platformFees");
-  // The three ₹100 jobs below. Fees, fines and the disputed job's frozen money still leave the pair slowly; say
-  // so plainly when even the fuller wallet is too low, instead of failing inside lockBid.
+  // Razorpay page). Both seed accounts can post and work, so one of them pays this run (chosen below) and the
+  // other one works: the money goes back and forth instead of draining one wallet (it ran Asha's down to ₹23 by
+  // 20 Nov).
+  fees = must(await asha<Fees>("platformFees"), "platformFees");
+  // The three ₹100 jobs below. Fees, fines and the disputed job's frozen money still leave the pair slowly.
   const needed = 3 * Math.round(10_000 * (1 + fees.posterFee));
-  const has = Math.max(ashaWallet.balance_minor, raviWallet.balance_minor);
-  if (has < needed) {
-    throw new Error(
-      `The fuller seed wallet has ₹${has / 100}, the money tests need ₹${needed / 100}: put the seed money back (owner's OK).`,
-    );
+  // A young account may post only a few jobs a day (migration 152: 5 in 24 hours until it is 30 days old), so of
+  // the two with enough money, the one that has posted less today pays; then the one with more money.
+  const look = async (who: Call) => {
+    const mine = await who<{ created_at: string }[]>("listMyTasks");
+    const today = mine.ok && Array.isArray(mine.data) ? mine.data.filter((t) => Date.parse(t.created_at) > Date.now() - 86_400_000).length : 0;
+    return { who, balance: (await wallet(who)).balance_minor, today };
+  };
+  const both = await Promise.all([look(asha), look(ravi)]);
+  const able = both.filter((b) => b.balance >= needed).sort((a, b) => a.today - b.today || b.balance - a.balance);
+  if (!able[0]) {
+    const has = Math.max(...both.map((b) => b.balance));
+    throw new Error(`The fuller seed wallet has ₹${has / 100}, the money tests need ₹${needed / 100}: put the seed money back (owner's OK).`);
   }
+  poster = able[0].who;
+  worker = poster === asha ? ravi : asha;
 });
 
 test.afterAll(async () => {
