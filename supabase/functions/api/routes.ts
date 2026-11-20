@@ -23,7 +23,7 @@ export const API_GROUPS = {
   tasks: [
     "listOpenTasks", "listMyTasks", "searchTasks", "searchTasksWithPosters", "attachPosters", "getTask", "getTaskDetail",
     "getPosterStats", "recommendedTasks", "remoteTasks", "tasksNear", "urgentTasks", "nearbyPulse", "countNeedsAttention",
-    "taskContactPhone", "createTask", "updateListing", "removeListing", "cancelTask", "setRepeat",
+    "taskContactPhone", "createTask", "updateListing", "removeListing", "cancelTask", "setRepeat", "raiseTopUp",
     "listSavedTaskIds", "listSavedTasks", "setSaved",
   ],
   questions: ["listTaskQuestions", "askTaskQuestion", "answerTaskQuestion"],

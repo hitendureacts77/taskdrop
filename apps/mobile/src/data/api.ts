@@ -787,6 +787,9 @@ export const myRegulars = () => quietly<Regular[]>('myRegulars', {}, []);
 
 export const setRepeat = (taskId: string, every: 'week' | 'month' | null) =>
   act<{ id: string; repeat_every: string | null }>('setRepeat', { taskId, every });
+/** Raise the top-up on an open post to a bigger step (migration 194). The server works out the new price. */
+export const raiseTopUp = (taskId: string, topUpPct: number) =>
+  act<{ id: string; topup_pct: number; benchmark_minor: number } | null>('raiseTopUp', { taskId, topUpPct });
 
 export type ProofPhotos = {
   task_id: string;
