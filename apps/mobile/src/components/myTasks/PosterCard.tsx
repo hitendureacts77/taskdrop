@@ -262,7 +262,7 @@ function HiredBody({ task, offers, worker, payText, heldText, onMenu, onOpen, on
 }
 
 /** Closed: taken down before anyone did the work. */
-function ClosedBody({ task, closedText, onMenu }: PosterCardProps) {
+function ClosedBody({ task, closedText, onMenu, onOpen }: PosterCardProps) {
   const t = useTheme();
   return (
     <>
@@ -273,6 +273,10 @@ function ClosedBody({ task, closedText, onMenu }: PosterCardProps) {
       </View>
       <View style={{ paddingHorizontal: 16, paddingVertical: 10, backgroundColor: t.colors.surface2, borderTopWidth: 1, borderTopColor: t.colors.line }}>
         <RNText style={tx('600', 12.5, t.colors.text)}>{closedText}</RNText>
+      </View>
+      {/* The live card's Open button stays (owner: keep every control), though the card opens on a tap too. */}
+      <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: t.colors.line }}>
+        <ActionButton big kind="quiet" label="Open" onPress={onOpen} a11y={`Open: ${task.title}`} />
       </View>
     </>
   );
