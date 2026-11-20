@@ -83,7 +83,7 @@ export const PRIVACY: LegalDoc = {
         {
           list: [
             'Supabase: our database, sign-in and storage of videos and documents, kept in Mumbai, India.',
-            'ImageKit: stores your photos and delivers them to the people allowed to see them, through short-lived private links. Its servers may be outside India.',
+            'ImageKit: stores your photos and delivers them to the people allowed to see them, through short-lived private links. It processes and keeps them in India (Mumbai).',
             'Vercel: hosts the TaskDrop website and the screens our team uses. The website is served from servers near you; any server code runs in Mumbai, India.',
             'Razorpay and RazorpayX: payments, refunds and payouts. They also collect what they need to verify payments and payouts, under their own privacy policies. Kept in India.',
             'MSG91: sends your sign-in codes by text. Kept in India.',
