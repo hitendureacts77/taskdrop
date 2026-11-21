@@ -224,6 +224,9 @@ begin
   -- ---- rows 3-4: done, approved, released ---------------------------------------------------
   perform pg_temp.become(v_worker);
   perform public.start_task(v_task);
+  -- Proof of work is required before a task can be marked done (migration 057).
+  insert into public.task_proofs (task_id, worker_id, summary, files)
+  values (v_task, v_worker, 'Finished the work as agreed', '[]'::jsonb);
   perform public.mark_work_done(v_task);
   perform pg_temp.become(v_poster);
   v_row := public.confirm_release(v_task);
@@ -275,6 +278,9 @@ begin
   perform pg_temp.pay(v_task);
   perform pg_temp.become(v_worker);
   perform public.start_task(v_task);
+  -- Proof of work is required before a task can be marked done (migration 057).
+  insert into public.task_proofs (task_id, worker_id, summary, files)
+  values (v_task, v_worker, 'Finished the work as agreed', '[]'::jsonb);
   perform public.mark_work_done(v_task);
   perform pg_temp.as_operator();
   update public.tasks set auto_complete_at = now() - interval '1 minute' where id = v_task;
@@ -328,6 +334,9 @@ begin
   perform pg_temp.pay(v_task);
   perform pg_temp.become(v_worker);
   perform public.start_task(v_task);
+  -- Proof of work is required before a task can be marked done (migration 057).
+  insert into public.task_proofs (task_id, worker_id, summary, files)
+  values (v_task, v_worker, 'Finished the work as agreed', '[]'::jsonb);
   perform public.mark_work_done(v_task);
   perform pg_temp.become(v_poster);
   perform public.open_dispute(v_task, 'planb test: not happy');
@@ -340,6 +349,9 @@ begin
   perform pg_temp.pay(v_task);
   perform pg_temp.become(v_worker);
   perform public.start_task(v_task);
+  -- Proof of work is required before a task can be marked done (migration 057).
+  insert into public.task_proofs (task_id, worker_id, summary, files)
+  values (v_task, v_worker, 'Finished the work as agreed', '[]'::jsonb);
   perform public.mark_work_done(v_task);
   perform pg_temp.become(v_poster);
   perform public.open_dispute(v_task, 'planb test: not done');
