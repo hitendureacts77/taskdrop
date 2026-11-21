@@ -220,6 +220,21 @@ await t("contact details are refused on the server, whatever the app does (Phase
   // The round-7 walk texts (W2-2, W2-21).
   await refused("placeBid", { taskId: TASK, priceMinor: 5000, timeLimitMinutes: 60, message: "I can do it. Call me 9876543210 or mail a@b.com <script>x</script>" });
   await refused("updateProfileExtras", { workerBio: "I fix things. WhatsApp me on 98765 43210 <script>alert(1)</script> emoji" });
+  // Round 8: the public texts and the other public columns get the same rule (S1-5, S1-7, S2-7, S4-17, S6-11).
+  const DEVANAGARI = "call ९८७६५४३२१०";
+  await refused("askTaskQuestion", { taskId: TASK, body: DEVANAGARI });
+  await refused("answerTaskQuestion", { questionId: BID, answer: "whatsapp ravi_k" });
+  await refused("postFeedbackIdea", { title: "Ideas", body: "pay me at ravi@okaxis" });
+  await refused("commentFeedbackIdea", { postId: BID, body: "98765/43210" });
+  await refused("submitReview", { taskId: TASK, rating: 5, comment: "Great, call him on 98765 43210" });
+  await refused("createTask", { pillar: "services", title: "Fix tap", benchmarkMinor: 5000, timeLimitMinutes: 30, skills: ["call 9876543210"] });
+  await refused("createTask", { pillar: "services", title: "Fix tap", benchmarkMinor: 5000, timeLimitMinutes: 30, category: "whatsapp 9876543210" });
+  await refused("createTask", { pillar: "services", title: "Fix tap", benchmarkMinor: 5000, timeLimitMinutes: 30, payoutMode: "milestones", milestones: [{ title: "ravi@gmail.com", pct: 100 }] });
+  await refused("updateProfile", { skills: ["9876543210"] });
+  await refused("updateProfileExtras", { languages: ["Hindi", "insta: ravi_fixes"] });
+  // A chat photo is one file name and nothing after it (S1-9).
+  await refused("sendMessage", { taskId: TASK, body: `::media::${UID}/x call 98765 43210 ravi@gmail.com` });
+  await refused("sendMessage", { taskId: TASK, body: `::media::${UID}/98765-43210.jpg` });
   // Ordinary text goes through, and the app's own already-masked text is fine.
   const f = fake(() => ({ data: [{ id: "row" }], error: null }));
   const ok = await runOp("placeBid", { taskId: TASK, priceMinor: 5000, timeLimitMinutes: 60, message: "Can do it tomorrow, ••• for details" }, ctx(f));

@@ -22,7 +22,7 @@ import { getProfile, updateProfile } from '../data/api';
 import { applyReferralCode, updateProfileExtras, usernameAvailable, type EarnGoal } from '../data/extras';
 import { EarnGoalPicker, isEarnGoal } from '../components/EarnGoalPicker';
 import { RoleTheme } from '../providers/ThemeProvider';
-import { nameCarriesContact } from '../lib/mask';
+import { findContactIssue, nameCarriesContact, profileIssueMessage } from '../lib/mask';
 import { imageSource, pickMedia, pickedFromFile, signedMediaUrl, uploadMedia, type PickedMedia } from '../lib/media';
 import { useFileDrop } from '../lib/useFileDrop';
 import { LANGUAGES, SKILL_OPTIONS } from './ProfileEditScreen';
@@ -186,9 +186,16 @@ export function OnboardingScreen() {
   const toggle = (list: string[], set: (v: string[]) => void, v: string, max: number) =>
     list.includes(v) ? set(list.filter((x) => x !== v)) : list.length < max ? set([...list, v]) : flash(`Pick up to ${max}`);
 
+  // A name or bio carrying a phone number or an email is refused as it is typed, before anything is saved (S6-10):
+  // the server refuses it too, but only after the name and photo had already gone out. An earning-only sign-up
+  // writes the worker bio, where the server allows an area-level address.
+  const nameIssue = nameCarriesContact(name);
+  const bioFound = findContactIssue(bio);
+  const bioIssue = bioFound === 'address' && intent === 'earn' ? null : bioFound;
+
   // Saves what "About you" saves. Shared by the normal Continue and the guest's quick finish.
   const saveAbout = async () => {
-    if (!userId) return;
+    if (!userId || nameIssue || bioIssue) return;
     await updateProfile(userId, {
       displayName: name.trim(),
       avatarUrl: avatarPath ?? undefined,
@@ -427,7 +434,7 @@ export function OnboardingScreen() {
             <RNText style={tx('500', 12, t.colors.accentDeep, { marginTop: 3 })}>Profiles with photos get more replies</RNText>
           </View>
         </Pressable>
-        <Field label="Display name" value={name} onChangeText={setName} maxLength={40} style={{ marginTop: 18 }} placeholder="Your name" />
+        <Field label="Display name" value={name} onChangeText={setName} maxLength={40} style={{ marginTop: 18 }} placeholder="Your name" error={nameIssue ? 'A name can’t contain a phone number or an email address.' : null} />
         <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 16 })}>LOCATION</RNText>
         <Pressable
           onPress={() => setShowLoc(true)}
@@ -440,7 +447,7 @@ export function OnboardingScreen() {
           </RNText>
           <RNText style={tx('700', 13, t.colors.accentDeep)}>{place ? 'Change' : 'Find me'}</RNText>
         </Pressable>
-        <Field label="Short bio (optional)" value={bio} onChangeText={setBio} multiline maxLength={500} style={{ marginTop: 16 }} placeholder="A line or two about you" />
+        <Field label="Short bio (optional)" value={bio} onChangeText={setBio} multiline maxLength={500} style={{ marginTop: 16 }} placeholder="A line or two about you" error={bioIssue ? profileIssueMessage(bioIssue) : null} />
         <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 16 })}>LANGUAGES</RNText>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
           {LANGUAGES.map((l) => (
@@ -453,7 +460,7 @@ export function OnboardingScreen() {
       <PrimaryButton
         label="Continue"
         busy={busy}
-        disabled={!name.trim()}
+        disabled={!name.trim() || nameIssue || bioIssue !== null}
         onPress={() => (quick ? void finishQuick() : void run(saveAbout))}
       />
     );

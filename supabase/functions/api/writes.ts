@@ -6,7 +6,7 @@ import { assertOwnImage, isMediaRef } from "./media.ts";
 import { readFees } from "./reads.ts";
 import { roughPlace } from "../_shared/place.ts";
 import { PRICE_LIMITS, PROOF_LIMITS, TOP_UP_PCTS } from "../_shared/rules.ts";
-import { contactIssueMessage, findContactIssue, maskContacts, nameCarriesContact, profileIssueMessage } from "../_shared/contacts.ts";
+import { contactIssueMessage, findContactIssue, maskContacts, nameCarriesContact, profileIssueMessage, publicIssueMessage } from "../_shared/contacts.ts";
 import { PROFILE_OWNER_SELECT } from "./columns.ts";
 
 /**
@@ -56,10 +56,28 @@ function profileRefusal(err: DbError): OpError {
 const CONTACT_CODE = "CONTACT_DETAILS";
 
 /** A post, a service or a bio: any contact detail or address is refused, with the reason. */
-function refuseContacts(text: unknown, wording: "post" | "profile" = "post"): void {
+function refuseContacts(text: unknown, wording: "post" | "profile" | "public" = "post"): void {
   if (typeof text !== "string" || text === "") return;
   const issue = findContactIssue(text);
-  if (issue) throw new OpError(wording === "profile" ? profileIssueMessage(issue) : contactIssueMessage(issue), CONTACT_CODE);
+  if (!issue) return;
+  const message = wording === "profile" ? profileIssueMessage(issue) : wording === "public" ? publicIssueMessage(issue) : contactIssueMessage(issue);
+  throw new OpError(message, CONTACT_CODE);
+}
+
+/**
+ * Every text inside a list or a list of objects (skills, languages, milestone titles): the same rule as the
+ * title (round 8, S1-7). These columns are public too.
+ */
+function refuseContactsIn(value: unknown, wording: "post" | "profile" = "post"): void {
+  if (typeof value === "string") return refuseContacts(value, wording);
+  if (Array.isArray(value)) for (const v of value) refuseContactsIn(v, wording);
+  else if (value !== null && typeof value === "object") for (const v of Object.values(value)) refuseContactsIn(v, wording);
+}
+
+/** Text everyone can read (questions, answers, reviews, the Ideas board): refused with the reason, else passed on. */
+function publicText<T extends string | null>(text: T): T {
+  refuseContacts(text, "public");
+  return text;
 }
 
 /**
@@ -132,6 +150,9 @@ function refuseContactInName(name: unknown): void {
     throw new OpError("A name can’t contain a phone number or an email address.", CONTACT_CODE);
   }
 }
+
+/** A chat photo's file name in the sender's folder, as createUpload names it (media.ts): "<ms>-<random>.<ext>". */
+const CHAT_PHOTO_PATH =/^(?:proof-)?[0-9]{10,16}-[0-9a-f]{10}\.[a-z0-9]{1,5}$/;
 
 /** Statuses from which contacts are open to both sides in chat (the same list the chat screen uses). */
 const CONTACTS_OPEN = ["TASK_STARTED", "OVERDUE", "WORK_DONE", "REVISION_REQUESTED", "COMPLETED", "AUTO_COMPLETED", "DISPUTED"];
@@ -224,7 +245,8 @@ export const WRITE_OPS: Record<string, Op> = {
   submitReview: rpcOp("submit_review", (a) => ({
     ...taskOnly(a),
     p_rating: int(a, "rating", 1, 5),
-    p_comment: strOrNull(a, "comment", 2000),
+    // Reviews are public on every profile (S2-7, S4-17); the database refuses them too (migration 184).
+    p_comment: publicText(strOrNull(a, "comment", 2000)),
   })),
   removeListing: async ({ db }, a) => {
     take(await db.rpc("remove_listing", taskOnly(a)));
@@ -310,6 +332,8 @@ export const WRITE_OPS: Record<string, Op> = {
     if (!Array.isArray(milestones) || milestones.length > 50) throw bad("milestones");
     refuseContacts(a.title);
     refuseContacts(description(a));
+    // The other public columns of a post (S1-7).
+    refuseContactsIn([a.pillar, a.category, a.skills, milestones]);
     const place = splitPlace(strOrNull(a, "locLabel", 200));
     const row = {
       poster_id: userId,
@@ -379,6 +403,7 @@ export const WRITE_OPS: Record<string, Op> = {
     const place = splitPlace(strOrNull(a, "locLabel", 200));
     refuseContacts(a.title);
     refuseContacts(description(a));
+    refuseContacts(a.category);
     const row = rows(
       await db
         .from("tasks")
@@ -476,7 +501,13 @@ export const WRITE_OPS: Record<string, Op> = {
     // A chat photo kept in ImageKit is "::media::media:<id>", and must be the sender's own.
     if (body.startsWith("::media::media:")) await assertOwnImage(ctx, body.slice("::media::".length), ["chat"]);
     // Any other chat photo is a plain storage path, and must be in the sender's own folder (B59).
-    else if (body.startsWith("::media::")) assertOwnFolder(ctx, body.slice("::media::".length), "body");
+    else if (body.startsWith("::media::")) {
+      assertOwnFolder(ctx, body.slice("::media::".length), "body");
+      // One file name and nothing after it, since a photo skips the contact check (S1-9): the name createUpload
+      // gives, or a plain file name that carries no contact detail itself.
+      const file = body.slice("::media::".length + `${ctx.userId}/`.length);
+      if (!CHAT_PHOTO_PATH.test(file) && (!/^[A-Za-z0-9._-]{1,120}$/.test(file) || findContactIssue(file))) throw bad("body");
+    }
     // Until the work starts, contact details stay inside TaskDrop. The task is only looked up when the text needs it.
     if (!body.startsWith("::media::") && findContactIssue(body)) {
       const t = rows(await db.from("tasks").select("status").eq("id", uuid(a, "taskId")))[0] as { status?: string } | undefined;
@@ -563,7 +594,10 @@ export const WRITE_OPS: Record<string, Op> = {
       refuseContactInName(a.displayName);
       patch.display_name = str(a, "displayName", 80);
     }
-    if (a.skills !== undefined) patch.skills = strings(a, "skills");
+    if (a.skills !== undefined) {
+      patch.skills = strings(a, "skills");
+      refuseContactsIn(patch.skills, "profile"); // public on the profile (S1-7, S6-11)
+    }
     // A saved place is public on a profile: the area only, never the door number.
     if (a.locLabel !== undefined) patch.loc_label = splitPlace(strOrNull(a, "locLabel", 200)).label;
     if (a.locLat !== undefined) patch.loc_lat = coordOrNull(a, "locLat", 90);
@@ -604,7 +638,10 @@ export const WRITE_OPS: Record<string, Op> = {
       patch.worker_bio = workerBio;
     }
     if (bool(a, "workerOnboarded")) patch.worker_onboarded_at = nowIso(ctx);
-    if (a.languages !== undefined) patch.languages = strings(a, "languages", 20, 40);
+    if (a.languages !== undefined) {
+      patch.languages = strings(a, "languages", 20, 40);
+      refuseContactsIn(patch.languages, "profile"); // public on the profile (S1-7, S6-11)
+    }
     if (a.intent !== undefined) patch.intent = a.intent == null ? null : oneOf(a, "intent", ["post", "earn", "both"]);
     // Why they earn (migration 179), asked in worker onboarding.
     if (a.earnGoal !== undefined) patch.earn_goal = a.earnGoal == null ? null : oneOf(a, "earnGoal", ["business", "gig", "other"]);
@@ -756,16 +793,17 @@ export const WRITE_OPS: Record<string, Op> = {
 
   // ---- the public feedback board (migration 136) ----
   postFeedbackIdea: rpcOp("feedback_board_post", (a) => ({
-    p_title: str(a, "title", 120, 3),
-    p_body: str(a, "body", 2000, 0),
+    // The Ideas board is public: the api's full rule first, with the reason (S1-5); the database checks too (184).
+    p_title: publicText(str(a, "title", 120, 3)),
+    p_body: publicText(str(a, "body", 2000, 0)),
     p_category: oneOf(a, "category", ["feature", "improvement", "bug", "other"], "feature"),
   })),
   voteFeedbackIdea: rpcOp("feedback_board_vote", (a) => ({ p_post: uuid(a, "postId"), p_on: bool(a, "on", true) })),
-  commentFeedbackIdea: rpcOp("feedback_board_comment", (a) => ({ p_post: uuid(a, "postId"), p_body: str(a, "body", 1000) })),
+  commentFeedbackIdea: rpcOp("feedback_board_comment", (a) => ({ p_post: uuid(a, "postId"), p_body: publicText(str(a, "body", 1000)) })),
 
-  // ---- questions on a task (migration 140) ----
-  askTaskQuestion: rpcOp("task_question_ask", (a) => ({ p_task: uuid(a, "taskId"), p_body: str(a, "body", 300, 3) })),
-  answerTaskQuestion: rpcOp("task_question_answer", (a) => ({ p_question: uuid(a, "questionId"), p_answer: str(a, "answer", 500) })),
+  // ---- questions on a task (migration 140): public, so the full rule with the reason (S1-5) ----
+  askTaskQuestion: rpcOp("task_question_ask", (a) => ({ p_task: uuid(a, "taskId"), p_body: publicText(str(a, "body", 300, 3)) })),
+  answerTaskQuestion: rpcOp("task_question_answer", (a) => ({ p_question: uuid(a, "questionId"), p_answer: publicText(str(a, "answer", 500)) })),
 
   openTicket: rpcOp("open_support_ticket", (a) => ({
     p_category: oneOf(a, "category", ["payment", "task", "account", "safety", "bug", "other"]),

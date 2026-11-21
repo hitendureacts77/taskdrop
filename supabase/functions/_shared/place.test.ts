@@ -26,3 +26,24 @@ test("the door-level part is dropped, the area stays", () => {
   assert.equal(server.roughPlace("Flat 402, Sai Residency, Madhapur, Hyderabad"), "Madhapur, Hyderabad");
   assert.equal(server.roughPlace("2222, Ward 104 Kondapur"), "Kondapur");
 });
+
+test("round 8 (S1-10): no door number or PIN code reaches the public label", () => {
+  const cases: [string, string | null][] = [
+    ["A-402, Sai Residency, Madhapur", "Madhapur"],
+    ["H-12, Kondapur", "Kondapur"],
+    ["Flat402, Madhapur", "Madhapur"],
+    ["B402, Gachibowli, Hyderabad", "Gachibowli, Hyderabad"],
+    ["H.No-12, Kukatpally", "Kukatpally"],
+    ["12 MG Road, Bengaluru", "Bengaluru"],
+    ["Madhapur, Telangana 500081", "Madhapur, Telangana"],
+    ["12/3, 5th Cross, Indiranagar, Bengaluru, Karnataka 560038, India", "Bengaluru, Karnataka"],
+    // Areas stay.
+    ["4th Block, Koramangala", "4th Block, Koramangala"],
+    ["Sector 62, Noida", "Sector 62, Noida"],
+    ["HSR Layout, Bengaluru", "HSR Layout, Bengaluru"],
+  ];
+  for (const [label, want] of cases) {
+    assert.equal(server.roughPlace(label), want, label);
+    assert.equal(app.roughPlace(label), want, label);
+  }
+});

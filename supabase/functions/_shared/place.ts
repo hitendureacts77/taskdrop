@@ -24,7 +24,14 @@ export function roughPlace(label: string | null | undefined): string | null {
     .filter((x) => !/^[\d\s./#-]+$/.test(x))
     // Door-level pieces: house, flat, plot, door, block numbers, "#45", "12/3".
     .filter((x) => !/^(flat|house|h\.?\s?no|door|plot|apt|apartment|block|shop|floor|#)\b/i.test(x))
+    // Round 8 (S1-10): also written together or with a sign ("Flat402", "H.No-12"), a letter and a number
+    // ("A-402", "H-12", "B402") and a number in front of a street or building ("12 MG Road").
+    .filter((x) => !/^(flat|house|h\.?\s?no|door|plot|apt|apartment|block|shop|floor)\s*[#:.-]?\s*\d/i.test(x))
+    .filter((x) => !/^[a-z]{1,2}\s*-?\s*\d+[a-z]?\b/i.test(x))
     .filter((x) => !/^\d+[a-z]?\s*[/-]/i.test(x))
+    .filter((x) => !/^\d+[a-z]?\s/i.test(x))
+    // A PIN code next to the state ("Telangana 500081") goes; the state stays.
+    .map((x) => x.replace(/\s*\b\d{6}\b\s*/g, ' ').trim())
     // "Ward 104 Kondapur" -> "Kondapur"; "5th Cross, ..." is a street, not an area.
     .map((x) => x.replace(/^ward\s*\d+\s*/i, '').trim())
     .filter((x) => x && !/^\d+(st|nd|rd|th)?\s+(cross|main|street|lane|road)\b/i.test(x))
