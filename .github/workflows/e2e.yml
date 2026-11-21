@@ -18,7 +18,7 @@ name: End-to-end (test project)
 on:
   workflow_dispatch:
   push:
-    branches: [redesigned-2.0]
+    branches: [main]
     # Only code the tests can tell something about; each run leaves one disputed job for an admin to decide.
     paths:
       - 'apps/mobile/**'

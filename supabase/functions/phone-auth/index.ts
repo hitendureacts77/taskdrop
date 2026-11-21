@@ -488,6 +488,14 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
       );
     }
 
+    // A new account is about to be made. The sign-ups switch is decided here, by
+    // what the server is about to do, not by the `mode` the request claims: a
+    // send or verify that leaves `mode` out would otherwise skip it (round 8, S1-2).
+    if (!wantsSignIn) {
+      const closed = await signInRefusal(admin, req.headers, "signup");
+      if (closed) return json({ error: closed, switchedOff: true }, 403);
+    }
+
     // And never a session for an admin account, even if the role was granted
     // after the code was sent (migration 078).
     try {
