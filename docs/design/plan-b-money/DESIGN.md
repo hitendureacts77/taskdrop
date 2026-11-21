@@ -137,7 +137,7 @@ functions; the changed function bodies can stay because under `wallet` they are 
   Same guards as the `razorpay` function today: key guard, account standing, rate limit, safe return URL.
 - `supabase/functions/money-webhook` (public, signature checked first): payment paid, transfer
   settled or failed, refund processed, payee account activated.
-- Inngest: `money-moves` runs every 10 minutes and on each `money_move` event, and retries every waiting
+- Inngest: `money-moves` runs hourly and on each `money_move` event, and retries every waiting
   release or refund; `money-match` runs nightly at 02:30 IST.
 - Every path calls the emergency-stop check first. Refunds skip it.
 
