@@ -36,7 +36,7 @@ export function paymentReturnUrl(): string {
 
 /** Razorpay adds razorpay_payment_link_id (and friends) to the address it returns the payer to. */
 export function isPaymentReturn(url: string): boolean {
-  return url.startsWith(paymentReturnUrl()) && /[?&]razorpay_payment_link_id=/.test(url);
+  return url.startsWith(paymentReturnUrl()) && /[?&]razorpay_(payment_link_id|payment_id|order_id)=/.test(url);
 }
 
 /**

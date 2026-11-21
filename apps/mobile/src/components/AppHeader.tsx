@@ -7,6 +7,7 @@ import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { useActions } from '../providers/AppStateProvider';
+import { useMoneyMode } from '../lib/useMoneyMode';
 import { getProfile, getWallet, type Profile } from '../data/api';
 import {
   subscribeToNotifications,
@@ -212,6 +213,8 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
   const { mode } = useMode();
   const { userId, signOut } = useAuth();
   const { flash } = useActions();
+  // Plan B has no balance to show: the line just says "Money".
+  const { planB } = useMoneyMode();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [feedback, setFeedback] = useState(false);
@@ -347,8 +350,11 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
               <View style={{ height: 1, backgroundColor: t.colors.line, marginVertical: 14 }} />
 
               {row('bookmark', 'Saved tasks', 'Tasks you saved for later', () => open(() => go('saved')))}
-              {row('wallet', 'Wallet', balance !== null ? `Balance ${rupees(balance / 100)}` : 'Balance and payments', () =>
-                open(() => go('wallet')),
+              {row(
+                'wallet',
+                planB ? 'Money' : 'Wallet',
+                planB ? 'What you paid, what is held, what was sent' : balance !== null ? `Balance ${rupees(balance / 100)}` : 'Balance and payments',
+                () => open(() => go('wallet')),
               )}
               {row('card', 'Bank & UPI accounts', 'Where your earnings are sent', () => {
                 onClose();

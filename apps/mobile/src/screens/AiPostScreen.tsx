@@ -30,6 +30,7 @@ import { NO_OPTIONS, PosterOptionsStep, huntOn, optionsSummary, type PosterOptio
 import { needsFor } from '../lib/hunt';
 import { crewShareMinor, looksLikePlaceQuestion, suggestOptions } from '../lib/posterOptions';
 import { AddFundsSheet } from '../components/AddFundsSheet';
+import { useMoneyMode } from '../lib/useMoneyMode';
 import { SafetyCardSheet } from '../components/SafetyCardSheet';
 import { ExplainerSheet, useExplainerOnce } from '../components/ExplainerSheet';
 import { HuntHelpLink } from '../components/Hunt';
@@ -243,6 +244,8 @@ export function AiPostScreen() {
   // in the wallet already. `walletMinor` is what is there; `topUpMinor` is the
   // shortfall being added when posting found the wallet short.
   const [walletMinor, setWalletMinor] = useState<number | null>(null);
+  // Plan B (pay per task): no wallet to check. The offer is accepted and the poster is asked to pay.
+  const { planB } = useMoneyMode();
   const [topUpMinor, setTopUpMinor] = useState<number | null>(null);
 
   // Options: all off until the poster switches one on. "Book again" from the
@@ -685,7 +688,7 @@ export function AiPostScreen() {
   };
 
   useEffect(() => {
-    if (mode !== 'auto' || !userId) return;
+    if (mode !== 'auto' || !userId || planB) return;
     let alive = true;
     void getWallet()
       .then((w) => alive && setWalletMinor(w?.balance_minor ?? 0))
@@ -693,7 +696,7 @@ export function AiPostScreen() {
     return () => {
       alive = false;
     };
-  }, [mode, topUpMinor, userId]);
+  }, [mode, topUpMinor, userId, planB]);
 
   const post = async (safetySeen = false) => {
     if (guest) {
@@ -714,7 +717,7 @@ export function AiPostScreen() {
     }
     setPosting(true);
     try {
-      if (mode === 'auto') {
+      if (mode === 'auto' && !planB) {
         // The server checks this too. Asking here first lets the poster add the
         // money and carry on, instead of meeting a refusal.
         const w = await getWallet();
@@ -1403,7 +1406,15 @@ export function AiPostScreen() {
               backgroundColor: t.colors.accentSoft,
             }}
           >
-            <RNText style={tx('700', 13, t.colors.accentDeep)}>Keep enough in your wallet</RNText>
+            <RNText style={tx('700', 13, t.colors.accentDeep)}>{planB ? 'Pay when it is accepted' : 'Keep enough in your wallet'}</RNText>
+            {planB ? (
+              <RNText style={tx('400', 12, t.colors.accentDeep, { marginTop: 4, lineHeight: 18 })}>
+                The first offer at or under your budget is accepted straight away. You then pay for the task, and Razorpay
+                holds the money until you approve the work.
+              </RNText>
+            ) : null}
+            {planB ? null : (
+            <>
             <RNText style={tx('400', 12, t.colors.accentDeep, { marginTop: 4, lineHeight: 18 })}>
               The first offer at or under your budget is accepted straight away and paid from your wallet, so it has to
               hold {rupees(Math.ceil(autoNeedMinor / 100))} (budget plus the {Math.round(fees.posterFee * 100)}% service
@@ -1423,6 +1434,8 @@ export function AiPostScreen() {
                   ? `Your wallet: ${rupees(Math.floor(walletMinor / 100))} · enough`
                   : `Your wallet: ${rupees(Math.floor(walletMinor / 100))} · add ${rupees(Math.ceil((autoNeedMinor - walletMinor) / 100))} to use auto-hire`}
             </RNText>
+            </>
+            )}
           </View>
         ) : null}
       </>

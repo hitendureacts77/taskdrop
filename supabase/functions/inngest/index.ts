@@ -5,7 +5,8 @@ import { Inngest } from "npm:inngest@4.23.0";
 import { serve } from "npm:inngest@4.23.0/edge";
 import { devModeAllowed } from "../_shared/devMode.ts";
 import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
-import { guardKey } from "../_shared/keyGuard.ts";
+import { guardKey, readEnvironment } from "../_shared/keyGuard.ts";
+import { makeProvider, type MoneyProvider, runMoves } from "../_shared/money/index.ts";
 import { captureServerError, logServer } from "../_shared/monitoring.ts";
 import { alarmMessage, FORBIDDEN_IN_PRODUCTION, isProductionProject, safetyFindings } from "../_shared/safetyAlarm.ts";
 import { secret } from "../_shared/secrets.ts";
@@ -529,6 +530,89 @@ function sweep(id: string, cron: string, fn: string) {
   );
 }
 
+// ------------------------------------------------------------------ Plan B money (migration 195) --
+
+/** The payment company a hold was made with. Null (and logged) when it cannot run here. */
+async function moneyProvider(name: string): Promise<MoneyProvider | null> {
+  const environment = await readEnvironment(db, "inngest");
+  try {
+    if (name !== "razorpay_route") return makeProvider(name, { environment, supabaseUrl: Deno.env.get("SUPABASE_URL") });
+    const keyId = await secret("RAZORPAY_KEY_ID");
+    const keySecret = await secret("RAZORPAY_KEY_SECRET");
+    if (await guardKey(db, "inngest", keyId)) return null;
+    return makeProvider(name, { environment, razorpay: { keyId, keySecret, webhookSecret: "" } });
+  } catch (e) {
+    await logServer("error", "inngest", "payment provider cannot run", { provider: name, error: e instanceof Error ? e.message : String(e) });
+    return null;
+  }
+}
+
+/** Run the waiting moves for some holds. Each move claims itself in the database, so overlap is harmless. */
+async function settleHolds(ids: string[]): Promise<Record<string, string>> {
+  if (ids.length === 0) return {};
+  const { data, error } = await db.from("task_holds").select("id, provider").in("id", ids);
+  if (error) throw new Error(`task_holds: ${error.message}`);
+  const out: Record<string, string> = {};
+  const providers = new Map<string, MoneyProvider | null>();
+  for (const h of data ?? []) {
+    if (!providers.has(h.provider)) providers.set(h.provider, await moneyProvider(h.provider));
+    const provider = providers.get(h.provider);
+    if (!provider) { out[h.id] = "provider unavailable"; continue; }
+    const moves = await runMoves(db, provider, h.id);
+    out[h.id] = moves.map((m) => m.done).join(",");
+  }
+  return out;
+}
+
+/**
+ * Plan B: every waiting release or refund is sent (approval, auto-complete, cancel, dispute and a
+ * staff retry all write a money.move event, which runs this at once); unpaid hires past their time
+ * expire. The half-hourly run is the safety net for anything the event path missed. A release is
+ * never claimed while the admin money stop is on; refunds still go. Nothing here decides an amount.
+ */
+const moneyMoves = inngest.createFunction(
+  {
+    id: "money-moves",
+    triggers: [{ cron: "*/30 * * * *" }, { event: "taskdrop/money.move" }],
+    concurrency: 1,
+    retries: 4,
+    onFailure: reportFailure("money-moves"),
+  },
+  async ({ event, step }) => {
+    // A cron run has no hold id; a money.move event names one hold.
+    const holdId = (event?.data as Record<string, unknown> | undefined)?.hold_id;
+    const one = typeof holdId === "string" ? [holdId] : null;
+    if (one) return { moved: await step.run("move one hold", () => settleHolds(one)) };
+    const expired = await step.run("expire unpaid hires", () => call<number>(rpc, "plan_b_expire_unpaid"));
+    const due = await step.run("holds waiting", () => call<string[]>(rpc, "plan_b_moves_due", { p_limit: 50 }));
+    const moved = await step.run("send moves", () => settleHolds(due ?? []));
+    return { expired, moved };
+  },
+);
+
+/**
+ * Plan B nightly match at 02:30 India time: yesterday's payments in our ledger against Razorpay's own
+ * record. record_money_match stores the result and raises money.mismatch (a team alert) on any difference.
+ */
+const moneyMatch = inngest.createFunction(
+  { id: "money-match", triggers: [{ cron: "TZ=Asia/Kolkata 30 2 * * *" }], concurrency: 1, retries: 3, onFailure: reportFailure("money-match") },
+  async ({ step }) => {
+    const day = new Date(Date.now() + 5.5 * 3_600_000 - 86_400_000).toISOString().slice(0, 10);
+    const cfg = await step.run("which provider", () => call<{ flow: string; provider: string }>(rpc, "plan_b_config"));
+    if (cfg.provider === "simulated") return { skipped: "simulated provider has no report" };
+    const theirs = await step.run("provider total", async () => {
+      const provider = await moneyProvider(cfg.provider);
+      return provider ? await provider.settlementTotal(day) : null;
+    });
+    if (!theirs) return { skipped: "no provider report" };
+    const row = await step.run("record match", () =>
+      call<Record<string, unknown>>(rpc, "record_money_match", {
+        p_day: day, p_provider: cfg.provider, p_theirs_minor: theirs.totalMinor, p_detail: { rows: theirs.rows },
+      }));
+    return { day, ok: row?.ok ?? null };
+  },
+);
+
 const moneyJobs = Deno.env.get("INNGEST_MONEY_JOBS") === "on"
   ? [
     sweep("auto-complete-due", "*/15 * * * *", "run_auto_complete_due"),
@@ -543,6 +627,7 @@ Deno.serve(serve({
     outboxSweeper, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile,
     pushNotification, accountFiles, mediaPurge, strayImageKitFiles, overdueTasks, publicSnapshots, housekeeping, outboxWatchdog, smsPumpingWatch, taskReminders, safetyAlarm,
     userCreated, userUpdated, userDeleted, userSyncRepair,
+    moneyMoves, moneyMatch,
     ...moneyJobs,
   ],
   servePath: "/functions/v1/inngest",

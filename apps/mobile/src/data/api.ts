@@ -6,6 +6,7 @@ import { FUNCTIONS_REGION, currentUserId, supabase } from '../lib/supabase';
 import { subscribeLive } from '../lib/live';
 import { count, log } from '../lib/monitoring';
 import { noteChange, reusePublic, reuseWhileFresh } from '../lib/freshness';
+import { isPlanB } from '../lib/moneyFlow';
 import type { Database, Tables, Enums } from '@taskdrop/db-types';
 
 /**
@@ -154,6 +155,53 @@ export const getWallet = () => ask<Wallet | null>('getWallet', {}, null);
 
 /** Escrow tied up in live jobs. With a side, only that side. */
 export const getEscrowHeld = (side?: 'poster' | 'worker') => ask<number>('getEscrowHeld', { side: side ?? null }, 0);
+
+// ----------------------------------------------------- Plan B money -----
+// Pay per task, the payment company holds the money (docs/design/plan-b-money/DESIGN.md). Every figure is paise.
+
+export type PayeeStatus = 'pending' | 'active' | 'rejected' | 'suspended';
+export type MoneyMode = {
+  flow: 'wallet' | 'plan_b';
+  provider: 'razorpay_route' | 'simulated';
+  paused: boolean;
+  payee: { status: PayeeStatus; method: 'upi' | 'bank' | null; hint: string | null; note: string | null } | null;
+};
+export type TaskHoldStatus =
+  | 'awaiting_payment' | 'held' | 'release_asked' | 'released' | 'refund_asked' | 'refunded' | 'split_asked' | 'split' | 'expired';
+export type TaskHold = {
+  status: TaskHoldStatus;
+  stuck: boolean;
+  offer_minor: number;
+  charged_minor: number;
+  fee_minor: number;
+  worker_share_minor: number;
+  release_minor: number;
+  refund_minor: number;
+  expires_at: string | null;
+  paid_at: string | null;
+  settled_at: string | null;
+  provider: string;
+  mine: 'poster' | 'worker';
+};
+export type MoneyLedgerRow = {
+  kind: 'paid' | 'on_hold' | 'hold_cancelled' | 'released' | 'fine_paid' | 'refunded';
+  amount_minor: number;
+  created_at: string;
+  task_id: string | null;
+  task_title: string | null;
+};
+export type MoneyLedger = {
+  totals: { paid_minor: number; refunded_minor: number; released_minor: number };
+  on_hold_for_me_minor: number;
+  my_money_held_minor: number;
+  rows: MoneyLedgerRow[];
+};
+
+/** Which money flow is on and the caller's payee state. Null when signed out. */
+export const getMoneyMode = () => ask<MoneyMode | null>('getMoneyMode', {}, null);
+/** The hold on one task, or null when it has none. */
+export const getTaskHold = (taskId: string) => ask<TaskHold | null>('getTaskHold', { taskId }, null);
+export const getMoneyLedger = (limit = 100) => ask<MoneyLedger | null>('getMoneyLedger', { limit }, null);
 
 export type Review = Tables<'reviews'> & { author: Profile | null };
 
@@ -414,11 +462,18 @@ export const isOfferChanged = (e: unknown) => e instanceof ApiError && e.code ==
 export const payTaskFromWallet = (taskId: string) => act<Task>('payTaskFromWallet', { taskId });
 export const startTask = (taskId: string) => act<Task>('startTask', { taskId });
 export const markWorkDone = (taskId: string) => act<Task>('markWorkDone', { taskId });
-export const confirmRelease = (taskId: string) => act<Task>('confirmRelease', { taskId });
+export const confirmRelease = async (taskId: string) => {
+  const task = await act<Task>('confirmRelease', { taskId });
+  if (isPlanB()) moneySettle(taskId); // release the worker's share at once (fire and forget)
+  return task;
+};
 export const requestRevision = (taskId: string, note?: string) =>
   act<Task>('requestRevision', { taskId, note: note?.trim() || null });
-export const cancelTask = (taskId: string, reason?: string) =>
-  act<Task>('cancelTask', { taskId, reason: reason?.trim() || null });
+export const cancelTask = async (taskId: string, reason?: string) => {
+  const task = await act<Task>('cancelTask', { taskId, reason: reason?.trim() || null });
+  if (isPlanB()) moneySettle(taskId); // refund (or split) at once (fire and forget)
+  return task;
+};
 export const openDispute = (taskId: string, reason?: string) =>
   act<Task>('openDispute', { taskId, reason: reason?.trim() || null });
 export const submitReview = (taskId: string, rating: number, comment?: string) =>
@@ -678,6 +733,71 @@ export async function refundEscrow(taskId: string): Promise<{ refundedMinor: num
     throw new Error(out.error);
   }
   return { refundedMinor: Number(out.refundedMinor ?? 0), reason: out.reason };
+}
+
+/** One call to the `money` function (Plan B). Plain-words errors from the server are passed on as they are. */
+async function callMoney<T>(body: Record<string, unknown>, failed: string): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('money', {
+    region: FUNCTIONS_REGION,
+    headers: clientHeaders(),
+    body,
+  });
+  // Money may have moved: what other screens read before is out of date (lib/freshness.ts).
+  noteChange();
+  if (error) {
+    // Never log the body: payout set-up carries a PAN and a bank or UPI id.
+    log.error('money request failed', { action: String(body.action) });
+    throw await functionError(error, failed);
+  }
+  const out = data as T & { error?: string };
+  if (out?.error) throw new Error(out.error);
+  return out;
+}
+
+export type MoneyCheckout =
+  | { ok: true; status: 'held' }
+  | {
+      ok: true;
+      status: 'awaiting_payment';
+      holdId: string;
+      provider: string;
+      chargedMinor: number;
+      workerShareMinor: number;
+      simulated: boolean;
+      checkout: { url?: string; html?: string };
+    };
+
+/** Start paying for a hired task: the payment company's checkout, or "already held". */
+export const moneyCheckout = (taskId: string, returnUrl: string) =>
+  callMoney<MoneyCheckout>({ action: 'checkout', taskId, returnUrl }, 'Could not start the payment. Nothing was charged. Please try again in a few minutes.');
+
+/** Ask whether the payment arrived. On staging, `simulate` is the test payment itself. */
+export const moneySync = (taskId: string, simulate = false) =>
+  callMoney<{ ok?: boolean; status: string }>(
+    simulate ? { action: 'sync', taskId, simulate: true } : { action: 'sync', taskId },
+    'Could not check the payment',
+  );
+
+export type PayoutSetupInput = {
+  name: string;
+  pan: string;
+  method: 'upi' | 'bank';
+  upi?: string;
+  accountNumber?: string;
+  ifsc?: string;
+};
+/** Goes straight to the payment company. The caller must clear its form afterwards; nothing is kept here. */
+export const moneyPayoutSetup = (input: PayoutSetupInput) =>
+  callMoney<{ ok?: boolean; status: PayeeStatus; hint?: string | null }>({ action: 'payout-setup', ...input }, 'Could not save your payout details. Please try again.');
+
+export const moneyPayoutStatus = () =>
+  callMoney<{ status: PayeeStatus; hint?: string | null }>({ action: 'payout-status' }, 'Could not check your payout set-up');
+
+/** Run this task's waiting release or refund now. Fire and forget: the server retries on its own. */
+export function moneySettle(taskId: string): void {
+  void callMoney({ action: 'settle', taskId }, 'settle failed').catch(() => {
+    /* the server's own schedule picks it up */
+  });
 }
 
 export async function syncPayment(paymentId: string): Promise<PaymentCheck> {

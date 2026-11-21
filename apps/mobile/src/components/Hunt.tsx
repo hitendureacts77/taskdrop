@@ -25,6 +25,7 @@ import { takePhoto } from '../lib/takePhoto';
 import { uploadMedia, type PickedMedia } from '../lib/media';
 import { resolveCurrentPlace } from '../lib/location';
 import { useFees } from '../lib/useFees';
+import { useMoneyMode } from '../lib/useMoneyMode';
 import { isNeedsAccount, needAccount } from '../lib/guest';
 import { reportError } from '../lib/errors';
 import { HUNT_LINK } from '../lib/explainers';
@@ -170,6 +171,7 @@ function Unlocked({ find }: { find: HuntFind }) {
 export function HuntPosterPanel({ task, onChanged }: { task: HuntTask; onChanged: () => void }) {
   const t = useTheme();
   const fees = useFees();
+  const { planB } = useMoneyMode();
   const { flash, celebrate } = useActions();
   const now = useMinute();
   const [counts, reloadCounts] = useHuntCounts(task.id, true);
@@ -205,7 +207,7 @@ export function HuntPosterPanel({ task, onChanged }: { task: HuntTask; onChanged
       await load();
       onChanged();
     } catch (e) {
-      if (e instanceof WalletShortError) {
+      if (e instanceof WalletShortError && !planB) {
         setAccepting(null);
         setShortBy({ minor: e.shortMinor, find });
       } else {

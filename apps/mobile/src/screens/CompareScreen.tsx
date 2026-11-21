@@ -14,6 +14,8 @@ import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { listBidsForTask, lockBid, getTask, isOfferChanged, WalletShortError, type Task } from '../data/api';
 import { AddFundsSheet } from '../components/AddFundsSheet';
+import { useMoneyMode } from '../lib/useMoneyMode';
+import { hireRefusal } from '../lib/moneyText';
 import { formatDeadline } from '../components/DateTimeSheet';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskDescription } from '../components/TaskDescription';
@@ -159,6 +161,8 @@ export function CompareScreen() {
   // Same as the task page: no target date, no date (W2-6).
   const completeBy = due ? formatDeadline(due) : 'Any time';
 
+  const { planB } = useMoneyMode();
+
   const handleLock = async () => {
     if (!pickRow || busy || decided) return;
     // Real quote -> lock it server-side (creates the assignment + escrow).
@@ -169,14 +173,20 @@ export function CompareScreen() {
         await lockBid(pickRow.bidId, 'one_time', pickRow.priceMinor);
         setLockedBidId(pickRow.bidId);
         setTask((prev) => (prev ? { ...prev, status: 'LOCKED' } : prev));
+        if (planB && taskId) {
+          // Pay per task: hired, now pay for this one task.
+          celebrate(`${pickRow.who} is hired`);
+          go('escrow', { taskId, title, who: pickRow.who, priceMinor: pickRow.priceMinor });
+          return;
+        }
         celebrate(`${pickRow.who} is hired · paid from your wallet`);
         if (taskId) go('taskManage', { taskId });
       } catch (e) {
-        if (e instanceof WalletShortError) setShortBy(e.shortMinor);
+        if (e instanceof WalletShortError && !planB) setShortBy(e.shortMinor);
         else if (isOfferChanged(e)) {
           flash('The offer changed. Please review the new price.');
           setReloadTick((n) => n + 1);
-        } else flash(e instanceof Error ? e.message : 'Could not choose that offer');
+        } else flash(e instanceof Error ? hireRefusal(e.message) : 'Could not choose that offer');
       } finally {
         setBusy(false);
       }
