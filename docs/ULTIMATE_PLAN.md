@@ -5097,7 +5097,8 @@ Prove that staging and production are separate.
 - Keys do not cross: the staging key on production is refused (401), the production key on staging is refused (401); each key works on its own copy (200).
 - `taskdrop-production.vercel.app` answers with no `noindex`; `taskdrop.in`, `admin.taskdrop.in` and `taskdrop-admin-production.vercel.app` all send `noindex`.
 - Nightly copy outside Supabase: works from `redesigned-2.0` (run by hand 21 Nov: `backup-20261121T1622Z` in `taskdrop-backups`).
-- Safety alarm: **red** on 21 Nov because the new money functions (`money`, `money-webhook`) are not on production yet; they arrive with the waiting "Production database and functions" run, which needs your Approve. Run the alarm again after that.
+- Production database and functions: brought up to date 21 Nov (you approved; run 44925186614). Migrations through 195 (Plan B money) are applied and `money` and `money-webhook` are live. An old run from `main` that was stuck waiting held the queue; it was cancelled, not approved. If a production run ever sits "pending" with no jobs, look for an older run waiting for Approve.
+- Safety alarm: **all clear** on 21 Nov (re-run after the deploy; it was red before because the money functions were missing).
 - Still open: Sentry, PostHog and ImageKit proofs, the two phone apps side by side, and the update-channel proof (need the Android apps, 5.0c/5.0d, after 1 Dec).
 
 **Done when** all of these are true:
