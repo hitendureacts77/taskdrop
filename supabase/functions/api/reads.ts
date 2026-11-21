@@ -93,6 +93,76 @@ function inBox<Q extends { gte(c: string, v: number): Q; lte(c: string, v: numbe
 /** How many rows a radius search reads inside its box before the exact distance cut, for a page of `n`. */
 export const nearFetch = (n: number) => Math.min(500, Math.max(n * 3, 200));
 
+/** The boxes a nearest-first read tries, smallest first, before the caller's own radius (S5-26). */
+export const NEAR_RINGS_KM = [25, 100, 500, 2000];
+/** The most rows one ring reads (the database's own ceiling for a guest read too). */
+export const NEAR_RING_CAP = 500;
+
+/**
+ * The nearest `n` pinned rows within `radius` of `at`, each with its distance, nearest first (S5-26). A read of
+ * the newest rows in one big box (or, past 2,000 km, the whole country) and a distance sort after it dropped near
+ * older jobs once there were more than the cap. So the boxes grow (25, 100, 500, 2,000 km, then the radius) and
+ * the first one that was read in full and already holds `n` rows inside its own ring answers: nothing outside a
+ * ring can be nearer than a row inside it. A box that comes back full (more rows than a read takes) answers too,
+ * with every row of the last ring that was read in full first and then the nearest of what the full one returned:
+ * the best that can be done without a distance order in SQL, since a bigger box would only be fuller.
+ */
+export async function nearestPinned<T extends { id: unknown; loc_lat: unknown; loc_lng: unknown }>(
+  read: (box: NearBox | null, cap: number) => Promise<T[]>,
+  at: { lat: number; lng: number },
+  radius: number,
+  n: number,
+): Promise<(T & { km: number })[]> {
+  const rings = [...NEAR_RINGS_KM.filter((r) => r < radius), radius];
+  // Every row inside the last ring that was read in full.
+  let known: (T & { km: number })[] = [];
+  for (let i = 0; i < rings.length; i++) {
+    const ring = rings[i]!;
+    const found = await read(nearBox(at, ring), NEAR_RING_CAP);
+    const within = found
+      .map((t) => ({ ...t, km: distanceKm(at, { lat: t.loc_lat as number | null, lng: t.loc_lng as number | null }) ?? Infinity }))
+      .filter((x) => x.km <= ring)
+      .sort((x, y) => x.km - y.km);
+    if (found.length >= NEAR_RING_CAP) {
+      const seen = new Set(known.map((x) => x.id));
+      return [...known, ...within.filter((x) => !seen.has(x.id))].sort((x, y) => x.km - y.km).slice(0, n);
+    }
+    known = within;
+    if (within.length >= n) break;
+  }
+  return known.slice(0, n);
+}
+
+/**
+ * The words of a search, as the list and the map both match them (S5-22, L2-1): every ASCII sign (`_ % , ( ) ' = -`
+ * and the rest) splits words, so nothing typed reaches PostgREST's filter grammar or acts as a LIKE wildcard, and
+ * "C++ (dev)" is the words "c" and "dev" on the server and in the app alike. Lower case, each word once, at most 6.
+ * The app's copy is `searchWords` in apps/mobile/src/lib/findWorkRead.ts; change both together.
+ */
+export function searchWords(text: string): string[] {
+  const words = text.toLowerCase().slice(0, 200).split(/[\s\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+/).filter(Boolean);
+  return [...new Set(words)].slice(0, 6);
+}
+
+/**
+ * Rows pinned within the radius of `near` (a task with no pin cannot be shown to be within any radius, so it is
+ * not). Newest first as read, or nearest first when `nearest` (`sort: "near"`, the Find work list: S5-27, so a
+ * page of the nearest rows can count any smaller distance).
+ */
+export function inRadius<T extends { loc_lat: unknown; loc_lng: unknown }>(found: T[], near: Near, nearest = false): T[] {
+  const kept = found
+    .map((t) => ({ t, km: distanceKm(near, { lat: t.loc_lat as number | null, lng: t.loc_lng as number | null }) }))
+    .filter((x): x is { t: T; km: number } => x.km !== null && x.km <= near.radius);
+  if (nearest) kept.sort((x, y) => x.km - y.km);
+  return kept.map((x) => x.t);
+}
+
+/** Does a row hold every search word in its title or description? */
+export const hasWords = (words: string[]) => (t: { title?: unknown; description?: unknown }): boolean => {
+  const hay = `${String(t.title ?? "")} ${String(t.description ?? "")}`.toLowerCase();
+  return words.every((w) => hay.includes(w));
+};
+
 export type Near = { lat: number; lng: number; radius: number };
 
 /** The optional `near` argument, `{ lat, lng, radiusKm }`, checked before anything is asked of the database; null when absent. */
@@ -237,12 +307,9 @@ export const READ_OPS: Record<string, Op> = {
     const near = nearArgOf(a);
 
     let q = openTasksQuery(ctx, kindArg(a));
-    const text = typeof a.q === "string" ? a.q.trim().slice(0, 200) : "";
-    if (text) {
-      // Commas and parens would break out of PostgREST's or() filter grammar.
-      const safe = text.replace(/[,()*%\\]/g, " ").trim();
-      if (safe) q = q.or(`title.ilike.%${safe}%,description.ilike.%${safe}%`);
-    }
+    // Each word in the title or the description (S5-22, L2-1): only letters and digits reach the filter, so a
+    // comma, paren, `_` or `%` can neither break out of PostgREST's or() grammar nor act as a wildcard.
+    for (const w of searchWords(typeof a.q === "string" ? a.q : "")) q = q.or(`title.ilike.%${w}%,description.ilike.%${w}%`);
     if (a.pillar != null) q = q.eq("pillar", str(a, "pillar", 40));
     if (typeof a.minMinor === "number") q = q.gte("benchmark_minor", int(a, "minMinor", 0, MONEY_MAX));
     if (typeof a.maxMinor === "number") q = q.lte("benchmark_minor", int(a, "maxMinor", 0, MONEY_MAX));
@@ -254,10 +321,7 @@ export const READ_OPS: Record<string, Op> = {
     // newest first as before, and only then is the page cut. A task with no pin cannot be shown to be within any
     // radius, so it is not.
     const found = rows<Task>(await inBox(q, nearBox(near, near.radius)).order("created_at", { ascending: false }).limit(nearFetch(n)));
-    return found.filter((t) => {
-      const km = distanceKm(near, { lat: t.loc_lat, lng: t.loc_lng });
-      return km !== null && km <= near.radius;
-    }).slice(0, n);
+    return inRadius(found, near, a.sort === "near").slice(0, n);
   },
 
   /** Attach each task's poster profile, for feed rows that show identity. */
@@ -406,7 +470,9 @@ export const READ_OPS: Record<string, Op> = {
         .join(" ").toLowerCase().replace(/_/g, " ");
       return needles.reduce((sum, s) => sum + (hay.includes(s) ? 1 : 0), 0);
     };
-    return found.map((t) => ({ t, s: score(t) })).sort((x, y) => y.s - x.s).map((x) => x.t).slice(0, n);
+    // Only jobs that match at least one skill (S5-3, L2-2): the score was a sort key, so jobs matching nothing
+    // filled the list under "Matches your skills".
+    return found.map((t) => ({ t, s: score(t) })).filter((x) => x.s > 0).sort((x, y) => y.s - x.s).map((x) => x.t).slice(0, n);
   },
 
   /** Open requests that can be done from anywhere: no pin at all. */
@@ -420,16 +486,13 @@ export const READ_OPS: Record<string, Op> = {
   tasksNear: async (ctx, a) => {
     const at = { lat: num(a, "lat", -90, 90), lng: num(a, "lng", -180, 180) };
     const radius = num(a, "radiusKm", 0, 20000);
-    // Narrowed to a box around the point before the cap, so newer far-away tasks cannot crowd out near ones (B34).
-    const found = rows<Task>(
-      await inBox(openTasksQuery(ctx, "request").not("loc_lat", "is", null), nearBox(at, radius))
-        .order("created_at", { ascending: false }).limit(200),
-    );
-    return found
-      .map((t) => ({ ...t, km: distanceKm(at, { lat: t.loc_lat, lng: t.loc_lng }) ?? Infinity }))
-      .filter((x) => x.km <= radius)
-      .sort((x, y) => x.km - y.km)
-      .slice(0, limit(a, "limit", 5));
+    // Growing boxes round the point, each narrowed in SQL before its cap, so newer far-away tasks cannot crowd out
+    // near ones (B34), also for the full map's country-wide reach (S5-26).
+    const read = async (box: NearBox | null, cap: number) =>
+      rows<Task>(
+        await inBox(openTasksQuery(ctx, "request").not("loc_lat", "is", null), box).order("created_at", { ascending: false }).limit(cap),
+      );
+    return await nearestPinned(read, at, radius, limit(a, "limit", 5));
   },
 
   /** Urgent open requests, soonest due first. With `near`, only those in reach of it, as in recommendedTasks (B156). */

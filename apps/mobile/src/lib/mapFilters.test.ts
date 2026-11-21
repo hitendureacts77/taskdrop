@@ -11,6 +11,7 @@ import {
   mapPillText,
   matchesJob,
   narrowsJobs,
+  nextKmStep,
   parseSavedFilters,
   priceLabel,
   PRICE_PRESETS,
@@ -70,10 +71,18 @@ test('Due in 24 hours keeps urgent jobs and ones due by tomorrow', () => {
   assert.equal(matchesJob(home1, { ...DEFAULT_FILTERS, dueSoon: true }, NOW), false);
 });
 
-test('with no place the map shows only remote jobs, but the list still shows every job', () => {
+test('with no place the map shows only remote jobs, the list every job, and Nearby none (S5-6)', () => {
   assert.deepEqual(ids(filterJobs(pinned, remote, null, DEFAULT_FILTERS, NOW)), ['home1', 'home2']);
   assert.equal(filterList([...pinned, ...remote], null, DEFAULT_FILTERS, NOW).length, 5);
-  assert.deepEqual(ids(filterList([...pinned, ...remote], null, { ...DEFAULT_FILTERS, work: 'local' }, NOW)), ['far', 'mid', 'near']);
+  assert.deepEqual(ids(filterList([...pinned, ...remote], null, { ...DEFAULT_FILTERS, work: 'local' }, NOW)), []);
+  assert.deepEqual(ids(filterList([...pinned, ...remote], null, { ...DEFAULT_FILTERS, work: 'remote' }, NOW)), ['home1', 'home2']);
+});
+
+test('S5-20: tapping the distance goes to the next step up, also from a typed distance', () => {
+  assert.equal(nextKmStep(7), 10);
+  assert.equal(nextKmStep(10), 25);
+  assert.equal(nextKmStep(1), 2);
+  assert.equal(nextKmStep(100), 2);
 });
 
 test('with a place the list shows the same jobs as the map', () => {
@@ -126,6 +135,9 @@ test('B179: the one-tap price ranges never overlap and add up to Any price', () 
   assert.equal(counts.slice(1).reduce((a, b) => a + b, 0), counts[0]);
   // A typed ceiling that is not a range edge still takes jobs at exactly that price.
   assert.equal(filterList(rows, KONDAPUR, { ...DEFAULT_FILTERS, maxPay: 650 }, NOW).length, 4);
+  // S5-21: a typed range that ends on an edge (₹500–₹1,000) keeps the ₹1,000 job; only the one-tap range drops it.
+  assert.equal(filterList(rows, KONDAPUR, { ...DEFAULT_FILTERS, minPay: 500, maxPay: 1000 }, NOW).length, 2);
+  assert.equal(filterList(rows, KONDAPUR, { ...DEFAULT_FILTERS, minPay: 300, maxPay: 1000 }, NOW).length, 2);
 });
 
 test('B170: a count that hit the read cap says "at least", never the cap as a count', () => {

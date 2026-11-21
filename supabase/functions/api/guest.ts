@@ -24,7 +24,10 @@ import { type Args, type Ctx, type Db, GENERIC, MONEY_MAX, OpError, type Op, bad
 import { MEDIA_OPS } from "./media.ts";
 import { MAX_BATCH, type Reply, batchCalls } from "./ops.ts";
 import { sharedAnswer } from "./publicMemo.ts";
-import { type Near, type NearBox, READ_OPS, inReach, nearArgOf, nearBox, nearFetch, newestFirst, soonestDue } from "./reads.ts";
+import {
+  type Near, type NearBox, READ_OPS, hasWords, inRadius, inReach, nearArgOf, nearBox, nearFetch, nearestPinned, newestFirst, searchWords,
+  soonestDue,
+} from "./reads.ts";
 
 /** What a guest is told when they try something that needs an account. The app shows its own pop-up instead. */
 export const NEEDS_ACCOUNT = "Make your account first.";
@@ -266,23 +269,23 @@ function within<T extends { loc_lat: unknown; loc_lng: unknown }>(list: T[], at:
 /** searchTasks' arguments, checked the same way. */
 async function search(ctx: Ctx, a: Args): Promise<Post[]> {
   const near = nearArgOf(a);
-  const text = typeof a.q === "string" ? a.q.trim().slice(0, 200) : "";
+  // The same words as signed in (S5-22): the longest one is matched in SQL, every one of them here.
+  const words = searchWords(typeof a.q === "string" ? a.q : "");
+  const longest = words.reduce((m, w) => (w.length > m.length ? w : m), "");
   const n = limit(a, "limit", 30, GUEST_LIMIT_MAX);
-  // With a point: a box in SQL and more than a page read, then the exact distance, then the page (B34, as signed in).
-  const found = await posts(ctx, {
+  // With a point (or more than one word): more than a page read, then the exact distance and words, then the page (B34).
+  const read = await posts(ctx, {
     kind: kindArg(a),
-    limit: near ? nearFetch(n) : n,
-    q: text || null,
+    limit: near || words.length > 1 ? nearFetch(n) : n,
+    q: longest || null,
     pillar: a.pillar != null ? str(a, "pillar", 40) : null,
     minMinor: typeof a.minMinor === "number" ? int(a, "minMinor", 0, MONEY_MAX) : null,
     maxMinor: typeof a.maxMinor === "number" ? int(a, "maxMinor", 0, MONEY_MAX) : null,
     box: near ? nearBox(near, near.radius) : null,
   });
-  if (!near) return found;
-  return found.filter((t) => {
-    const km = distanceKm(near, { lat: t.loc_lat, lng: t.loc_lng });
-    return km !== null && km <= near.radius;
-  }).slice(0, n);
+  const found = words.length > 1 ? read.filter(hasWords(words)) : read;
+  if (!near) return found.slice(0, n);
+  return inRadius(found, near, a.sort === "near").slice(0, n);
 }
 
 /** Helpers around a point with their newest open service, the shape workersNear answers. */
@@ -363,7 +366,8 @@ export const GUEST_OPS: Record<string, Op> = {
       const hay = [t.title ?? "", t.category ?? "", (t.skills ?? []).join(" "), t.description ?? ""].join(" ").toLowerCase().replace(/_/g, " ");
       return needles.reduce((sum, s) => sum + (hay.includes(s) ? 1 : 0), 0);
     };
-    return found.map((t) => ({ t, s: score(t) })).sort((x, y) => y.s - x.s).map((x) => x.t).slice(0, n);
+    // Only jobs matching at least one skill, as signed in (S5-3).
+    return found.map((t) => ({ t, s: score(t) })).filter((x) => x.s > 0).sort((x, y) => y.s - x.s).map((x) => x.t).slice(0, n);
   },
 
   remoteTasks: async (ctx, a) => (await posts(ctx, { kind: "request", pinned: false, limit: limit(a, "limit", 5) })).map(bare),
@@ -371,8 +375,10 @@ export const GUEST_OPS: Record<string, Op> = {
   tasksNear: async (ctx, a) => {
     const at = { lat: num(a, "lat", -90, 90), lng: num(a, "lng", -180, 180) };
     const radius = num(a, "radiusKm", 0, 20000);
-    const found = (await posts(ctx, { kind: "request", pinned: true, limit: 200, box: nearBox(at, radius) })).map(bare) as Post[];
-    return within(found, at, radius).slice(0, limit(a, "limit", 5));
+    // Growing boxes, as signed in (S5-26): the full map's country-wide reach no longer drops near older posts.
+    const read = async (box: NearBox | null, cap: number) =>
+      (await posts(ctx, { kind: "request", pinned: true, limit: cap, box })).map(bare) as Post[];
+    return await nearestPinned(read, at, radius, limit(a, "limit", 5));
   },
 
   urgentTasks: async (ctx, a) => {

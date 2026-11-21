@@ -113,6 +113,8 @@ export type TaskSearch = {
   limit?: number;
   kind?: TaskKind;
   near?: { lat: number; lng: number; radiusKm: number } | null;
+  /** With `near`: 'near' answers the nearest first (the Find work list, S5-27); left out, the newest first. */
+  sort?: 'near';
 };
 
 export const searchTasks = (input: TaskSearch = {}) => act<Task[]>('searchTasks', { ...input });

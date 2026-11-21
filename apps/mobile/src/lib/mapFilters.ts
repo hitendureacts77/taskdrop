@@ -50,6 +50,11 @@ export const PRICE_PRESETS: { min: number; max: number }[] = [
 ];
 /** Where one one-tap range ends and the next begins (₹300, ₹1,000, ₹5,000). */
 const RANGE_EDGES = new Set(PRICE_PRESETS.filter((p) => p.min > 0).map((p) => p.min));
+/** Is the price range one of the one-tap ranges (not typed)? */
+const isPreset = (f: Pick<MapFilters, 'minPay' | 'maxPay'>) => PRICE_PRESETS.some((p) => p.min === f.minPay && p.max === f.maxPay);
+
+/** The next one-tap distance up from `km`, also from a typed one like 7 km (S5-20); past the last it starts again. */
+export const nextKmStep = (km: number) => KM_STEPS.find((k) => k > km) ?? KM_STEPS[0]!;
 
 export const WORK_LABELS: Record<WorkType, string> = { all: 'All', local: 'Nearby', remote: 'Remote' };
 export const SORT_LABELS: Record<JobSort, string> = { pay: 'Best pay', near: 'Nearest', new: 'Newest' };
@@ -128,7 +133,8 @@ export function matchesJob(j: FilterableJob, f: MapFilters, now: number = Date.n
   if (f.maxPay > 0 && rupees > f.maxPay) return false;
   // A price on the edge of two one-tap ranges belongs to the upper one, so each job sits in exactly one
   // range and the ranges add up to "Any price" (B179: a ₹300 job was in "Under ₹300" and "₹300–₹1,000").
-  if (f.maxPay > 0 && rupees === f.maxPay && RANGE_EDGES.has(f.maxPay)) return false;
+  // Only for those one-tap ranges: a typed top price keeps a job priced exactly at it (S5-21).
+  if (f.maxPay > 0 && rupees === f.maxPay && RANGE_EDGES.has(f.maxPay) && isPreset(f)) return false;
   if (f.auto !== f.offers) {
     const auto = j.assignment_mode === 'auto';
     if (f.auto ? !auto : auto) return false;
@@ -162,13 +168,14 @@ export function filterJobs<T extends FilterableJob>(pinned: T[], remote: T[], at
 
 /**
  * The Find work list: one mixed list of jobs. With a place it shows the same jobs as the map; with no place
- * yet a pinned job cannot be measured, so the distance is not used (Nearby still needs a pin).
+ * yet a pinned job cannot be measured, so "All" lists every job without a distance, and "Nearby" lists none
+ * (S5-6: it showed every pinned job in the country; the list asks for an area instead).
  */
 export function filterList<T extends FilterableJob>(rows: T[], at: { lat: number; lng: number } | null, f: MapFilters, now: number = Date.now()): T[] {
   const pinned = rows.filter((j) => j.loc_lat != null && j.loc_lng != null);
   const remote = rows.filter((j) => j.loc_lat == null);
   if (at) return filterJobs(pinned, remote, at, f, now);
-  const near = f.work === 'remote' ? [] : pinned;
+  const near = f.work === 'all' ? pinned : [];
   const home = f.work === 'local' ? [] : remote;
   return sortJobs([...near, ...home].filter((j) => matchesJob(j, f, now)), null, f.sort);
 }

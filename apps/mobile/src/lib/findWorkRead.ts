@@ -27,10 +27,20 @@ export function inReachWithoutArea<T extends { loc_lat: number | null }>(rows: r
   return (hasArea ? [...rows] : rows.filter((r) => r.loc_lat == null)).slice(0, max);
 }
 
-/** The search box's match, the same on the list and the map: the words appear in the title or description. */
+/**
+ * The words of a search, as the server splits them (S5-22): every ASCII sign (`_ % , ( ) ' = -` and the rest) splits
+ * words, so "C++ (dev)" is "c" and "dev" for pinned jobs (matched on the server) and remote ones (matched here) alike.
+ * Lower case, each once, at most 6. The server's copy is `searchWords` in supabase/functions/api/reads.ts.
+ */
+export function searchWords(text: string): string[] {
+  const words = text.toLowerCase().slice(0, 200).split(/[\s\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+/).filter(Boolean);
+  return [...new Set(words)].slice(0, 6);
+}
+
+/** The search box's match, the same on the list, the map and the server: every word is in the title or description. */
 export function matchesQuery(row: { title: string; description?: string | null }, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  return !q || `${row.title} ${row.description ?? ''}`.toLowerCase().includes(q);
+  const hay = `${row.title} ${row.description ?? ''}`.toLowerCase();
+  return searchWords(query).every((w) => hay.includes(w));
 }
 
 type Pinned = { id: string; loc_lat: number | null; loc_lng: number | null };
@@ -40,19 +50,36 @@ export type FindWorkSearch = {
   limit: number;
   kind: 'request';
   near?: { lat: number; lng: number; radiusKm: number };
+  /** 'near': the nearest jobs first within the radius (the server cuts the page after that order). */
+  sort?: 'near';
 };
 
 /**
- * The reads for one load. With a place: the jobs within `km` of it, and a newest-first read of which only the
- * remote ones are kept. Without a place: the one newest-first read, as before.
+ * How far the list's nearby read reaches: the longest distance the filters offer (S5-27). The read is the nearest
+ * jobs first, so any shorter distance (the one set, a draft in the Filters sheet, "Widen to 25 km") is counted from
+ * the same rows, and changing the distance needs no new read.
+ */
+export const LIST_READ_KM = 100;
+
+/**
+ * The reads for one load. With a place: the nearest jobs within LIST_READ_KM of it, and a newest-first read of which
+ * only the remote ones are kept. Without a place: the one newest-first read, as before.
  */
 export function findWorkSearches(
   at: { lat: number; lng: number } | null,
-  km: number,
   query: string,
 ): { near: FindWorkSearch | null; wide: FindWorkSearch } {
   const base = { q: query || undefined, limit: FIND_WORK_LIMIT, kind: 'request' as const };
-  return { near: at ? { ...base, near: { lat: at.lat, lng: at.lng, radiusKm: km } } : null, wide: base };
+  return { near: at ? { ...base, near: { lat: at.lat, lng: at.lng, radiusKm: LIST_READ_KM }, sort: 'near' } : null, wide: base };
+}
+
+/**
+ * Is the count of jobs within `km` only "at least" (B170, S5-26)? Only when a nearest-first read came back full and
+ * its farthest job is still inside `km`: past that edge, every job within `km` was read.
+ */
+export function nearCountCapped(kms: readonly number[], limit: number, km: number): boolean {
+  if (kms.length < limit) return false;
+  return kms.reduce((m, k) => Math.max(m, k), 0) <= km;
 }
 
 /**
