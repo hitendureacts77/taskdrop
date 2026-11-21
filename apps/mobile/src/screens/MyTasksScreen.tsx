@@ -332,7 +332,7 @@ function MyPosted() {
         </View>
         {needCount > 0 ? (
           <View style={{ flexDirection: 'row', paddingHorizontal: 20, marginTop: 10 }}>
-            <Pill label="Needs providers" icon="users" count={needCount} active={needs} onPress={() => {
+            <Pill label="Needs workers" icon="users" count={needCount} active={needs} onPress={() => {
                 if (!needs) setTab(0);
                 setNeeds(!needs);
               }}

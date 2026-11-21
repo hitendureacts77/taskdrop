@@ -25,11 +25,14 @@ export function deliveryLabel(minutes: number): string {
 export function ListingCard({
   task,
   owner,
+  sponsored,
   onPress,
   width,
 }: {
   task: Task | TaskWithPoster;
   owner?: boolean;
+  /** Paid placement: shows the PROMOTED mark. */
+  sponsored?: boolean;
   onPress: () => void;
   width?: number;
 }) {
@@ -54,6 +57,11 @@ export function ListingCard({
         {!owner && task.loc_lat === null ? (
           <View style={{ position: 'absolute', top: 9, left: 10, height: 20, justifyContent: 'center', paddingHorizontal: 7, borderRadius: 6, backgroundColor: t.colors.surface }}>
             <RNText style={tx('800', 9, t.colors.aiInk, { letterSpacing: 0.9 })}>REMOTE</RNText>
+          </View>
+        ) : null}
+        {sponsored && !owner ? (
+          <View style={{ position: 'absolute', top: 9, right: 10, height: 20, justifyContent: 'center', paddingHorizontal: 7, borderRadius: 6, backgroundColor: t.colors.surface }}>
+            <RNText style={tx('800', 9, t.colors.accentDeep, { letterSpacing: 0.9 })}>PROMOTED</RNText>
           </View>
         ) : null}
         {owner ? (

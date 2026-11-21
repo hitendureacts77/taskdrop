@@ -1137,7 +1137,7 @@ function PublishedCard({ task, offers, onPress }: { task: Task; offers: number; 
   const t = useTheme();
   const width = useRailItemWidth(220);
   const step = nextStep(task, offers);
-  const ink = step.tone === 'accent' ? t.colors.accentDeep : step.tone === 'gold' ? t.colors.goldInk : t.colors.blue;
+  const ink = step.tone === 'accent' ? t.colors.accentDeep : step.tone === 'gold' ? t.colors.goldInk : t.colors.aiInk;
   const left = task.status === 'OPEN' ? timeLeft(task.due_at) : null;
   const strong = step.tone === 'accent';
   return (
@@ -1220,10 +1220,10 @@ function OnlyOnTaskDrop({
   const prices = TEMPLATES.find((x) => x.key === 'find-quotes');
   const items: { icon: IconName; title: string; bg: string; ink: string; isNew?: boolean; onPress: () => void }[] = [
     { icon: 'search', title: 'Find it\nfor me', bg: t.colors.goldSoft, ink: t.colors.goldInk, isNew: true, onPress: onHunt },
-    { icon: 'calendarCheck', title: 'Plan a\nbig day', bg: t.colors.accent, ink: '#FFFFFF', onPress: onBigDay },
-    { icon: 'users', title: 'Many\nhands', bg: t.colors.blue, ink: '#FFFFFF', onPress: () => onPrompt('I need a few people together to ') },
+    { icon: 'calendarCheck', title: 'Plan a\nbig day', bg: t.colors.accent, ink: t.colors.onAccent, onPress: onBigDay },
+    { icon: 'users', title: 'Many\nhands', bg: t.colors.accentDeep, ink: t.colors.onAccent, onPress: () => onPrompt('I need a few people together to ') },
     { icon: 'chat', title: 'Get\nopinions', bg: t.colors.signal, ink: '#FFFFFF', onPress: () => onPrompt(opinions?.prompt ?? 'Ask people which they prefer: ') },
-    { icon: 'tag', title: 'Price\ncheck', bg: t.colors.purple, ink: '#FFFFFF', onPress: () => onPrompt(prices?.prompt ?? 'Find 3 shops near me that sell ') },
+    { icon: 'tag', title: 'Price\ncheck', bg: t.colors.aiInk, ink: t.colors.onAccent, onPress: () => onPrompt(prices?.prompt ?? 'Find 3 shops near me that sell ') },
   ];
   return (
     <View style={[cardSurface(t, 20), { marginTop: 14, padding: 14, borderColor: t.colors.gold }]}>

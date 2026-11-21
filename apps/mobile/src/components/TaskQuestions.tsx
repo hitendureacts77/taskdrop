@@ -7,6 +7,7 @@ import { cardSurface } from './ui';
 import { Icon } from './Icon';
 import { timeAgo } from './kit';
 import { Pressy, tx } from './primitives';
+import { useReveal } from './KeyboardScrollView';
 import { isNeedsAccount } from '../lib/guest';
 
 /**
@@ -39,12 +40,32 @@ export function TaskQuestions({
   const [draft, setDraft] = useState('');
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const reveal = useReveal();
 
-  const load = useCallback(async () => setList(await listTaskQuestions(taskId)), [taskId]);
+  const load = useCallback(async () => {
+    try {
+      setList(await listTaskQuestions(taskId));
+      setFailed(false);
+    } catch {
+      setFailed(true);
+    }
+  }, [taskId]);
   useEffect(() => {
     void load();
   }, [load]);
 
+  // The poster must learn when the questions could not be read, or workers' questions go unseen.
+  if (list === null && failed && role === 'answer') {
+    return (
+      <View style={[{ ...cardSurface(t, 18), padding: 16 }, style]}>
+        <RNText style={tx('600', 13, t.colors.muted)}>Could not load questions from workers.</RNText>
+        <Pressy onPress={() => void load()} label="Try again" style={{ marginTop: 8 }}>
+          <RNText style={tx('700', 13, t.colors.accentDeep)}>Try again</RNText>
+        </Pressy>
+      </View>
+    );
+  }
   if (list === null) return null;
   if (role === 'answer' && list.length === 0) return null;
 
@@ -91,6 +112,7 @@ export function TaskQuestions({
       placeholder={placeholder}
       placeholderTextColor={t.colors.muted}
       accessibilityLabel={label}
+      onFocus={(e) => reveal(e.target as unknown as Parameters<typeof reveal>[0])}
       style={tx('400', 14, t.colors.ink, {
         flex: 1,
         height: 46,

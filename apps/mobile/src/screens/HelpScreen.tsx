@@ -41,10 +41,12 @@ export function HelpScreen() {
   const { desktop, contentWidth, gutter, columns } = useLayout();
   // D17: on a wide desktop window the composer and the help links sit side by side, and the conversations in two or three columns.
   const twoCol = desktop && contentWidth('feed') >= 800;
-  const { back, go } = useNav();
+  const { back, go, params } = useNav();
   const { flash, celebrate } = useActions();
   const [category, setCategory] = useState<TicketCategory>('payment');
-  const [body, setBody] = useState('');
+  // Opened from a complaint: start the message with the task it is about.
+  const aboutTask = typeof params.aboutTask === 'string' ? params.aboutTask.slice(0, 80) : '';
+  const [body, setBody] = useState(aboutTask ? `About “${aboutTask}”: ` : '');
   const [busy, setBusy] = useState(false);
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [feedback, setFeedback] = useState(false);

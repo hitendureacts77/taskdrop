@@ -68,12 +68,19 @@ export function BigDayScreen() {
       return;
     }
     let alive = true;
-    void listBigDays(owner).then((rows) => {
-      if (!alive) return;
-      setPlans(rows);
-      setView((v) => v ?? (rows.length > 0 && !wantsNew ? 'board' : 'plan'));
-      setCurrent((c) => (c && rows.some((p) => p.id === c) ? c : (rows[0]?.id ?? null)));
-    });
+    void listBigDays(owner)
+      .then((rows) => {
+        if (!alive) return;
+        setPlans(rows);
+        setView((v) => v ?? (rows.length > 0 && !wantsNew ? 'board' : 'plan'));
+        setCurrent((c) => (c && rows.some((p) => p.id === c) ? c : (rows[0]?.id ?? null)));
+      })
+      .catch(() => {
+        // A storage read error must not leave the loading shimmer: start with an empty plan.
+        if (!alive) return;
+        setPlans([]);
+        setView((v) => v ?? 'plan');
+      });
     return () => {
       alive = false;
     };
@@ -282,7 +289,7 @@ function Planner({
         </RNText>
         {plans.length >= MAX_PLANS ? (
           <RNText style={tx('400', 12.5, t.colors.muted, { marginHorizontal: 20, marginTop: 6, lineHeight: 18 })}>
-            You already keep {MAX_PLANS} plans. Saving this one replaces the oldest.
+            You already keep {MAX_PLANS} plans. Saving this one replaces the oldest. Plans are kept on this device only.
           </RNText>
         ) : null}
       </KeyboardScrollView>

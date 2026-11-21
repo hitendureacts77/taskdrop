@@ -55,7 +55,9 @@ export function EscrowScreen() {
   const { celebrate, flash } = useApp();
   const [busy, setBusy] = useState(false);
   const [balanceMinor, setBalanceMinor] = useState<number | null>(null);
-  const cancelPct = useFees().cancelFine ?? FEES.POST_START_CANCEL_PENALTY_PCT;
+  const fees = useFees();
+  const cancelPct = fees.cancelFine ?? FEES.POST_START_CANCEL_PENALTY_PCT;
+  const [walletFailed, setWalletFailed] = useState(false);
   const [shortBy, setShortBy] = useState<number | null>(null);
 
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
@@ -84,6 +86,7 @@ export function EscrowScreen() {
       .then((w) => alive && setBalanceMinor(w?.balance_minor ?? 0))
       .catch((e) => {
         reportError(e, 'money');
+        if (alive) setWalletFailed(true);
         flash('Could not load your wallet balance');
       });
     return () => {
@@ -91,13 +94,13 @@ export function EscrowScreen() {
     };
   }, [taskId]);
 
-  const totalMinor = dueMinor ?? (lockedMinor === null ? 0 : posterEscrowCharge(lockedMinor));
+  const totalMinor = dueMinor ?? (lockedMinor === null ? 0 : posterEscrowCharge(lockedMinor, fees.posterFee));
   const feeMinor = lockedMinor === null ? 0 : totalMinor - lockedMinor;
   const enough = balanceMinor !== null && balanceMinor >= totalMinor;
 
   const rows: { label: string; value: string; strong: boolean }[] = [
     { label: who ? `Chosen offer · ${who}` : 'Chosen offer', value: formatINR(lockedMinor ?? 0), strong: false },
-    { label: 'TaskDrop service fee · 3%', value: formatINR(feeMinor), strong: false },
+    { label: `TaskDrop service fee · ${Math.round(fees.posterFee * 1000) / 10}%`, value: formatINR(feeMinor), strong: false },
     ...(by ? [{ label: 'Complete by', value: by, strong: false }] : []),
     { label: 'Locked in this task', value: formatINR(totalMinor), strong: true },
   ];
@@ -154,7 +157,7 @@ export function EscrowScreen() {
 
         <RNText style={tx('400', 13, t.colors.muted, { marginTop: 24 })}>Locked in the task until it is done</RNText>
         <RNText style={tx('700', 15, t.colors.ink, { marginTop: 6 })} numberOfLines={2}>
-          {title}
+          {title ?? 'Your task'}
         </RNText>
         <RNText style={tx('800', 44, t.colors.ink, { letterSpacing: -1.76, lineHeight: 46.2, marginTop: 5 })}>
           {formatINR(totalMinor)}
@@ -192,7 +195,9 @@ export function EscrowScreen() {
             <RNText style={tx('700', 14, t.colors.ink)}>Your TaskDrop wallet</RNText>
             <RNText style={tx('400', 13, enough ? t.colors.muted : t.colors.signalDeep, { marginTop: 3 })}>
               {balanceMinor === null
-                ? 'Checking your balance…'
+                ? walletFailed
+                  ? 'Could not check your balance. Go back and open this again.'
+                  : 'Checking your balance…'
                 : enough
                   ? `${formatINR(balanceMinor)} available`
                   : `${formatINR(balanceMinor)} available · ${formatINR(totalMinor - balanceMinor)} short`}

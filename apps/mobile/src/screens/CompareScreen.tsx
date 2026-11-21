@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { completeByDate } from '../lib/taskStatusText';
-import { BackButton } from '../components/kit';
+import { BackButton, LoadFailed } from '../components/kit';
 import { Icon } from '../components/Icon';
 import {
   View,
@@ -68,11 +68,13 @@ const PILLAR_LABEL: Record<string, string> = {
  * mirror docs/design/_design_source.jsx lines 696-716. */
 export function CompareScreen() {
   const t = useTheme();
-  const { params, go, back } = useNav();
+  const { params, go, back, replace } = useNav();
   const { flash, celebrate } = useActions();
   const [sortLow, setSortLow] = useState(true);
   const [picked, setPicked] = useState<string | null>(null);
   const [rows, setRows] = useState<Quote[] | null>(null);
+  // The offers could not be read: that is not the same as "no offers yet".
+  const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   // What the wallet is short by when an offer cannot be paid for yet.
   const [shortBy, setShortBy] = useState<number | null>(null);
@@ -115,6 +117,7 @@ export function CompareScreen() {
     listBidsForTask(taskId)
       .then((bids) => {
         if (!alive) return;
+        setLoadFailed(false);
         setRows(
           bids.map((b) => ({
             bidId: b.id,
@@ -129,7 +132,11 @@ export function CompareScreen() {
           })),
         );
       })
-      .catch(() => setRows([]));
+      .catch(() => {
+        if (!alive) return;
+        setRows(null);
+        setLoadFailed(true);
+      });
     return () => {
       alive = false;
     };
@@ -170,7 +177,7 @@ export function CompareScreen() {
         setLockedBidId(pickRow.bidId);
         setTask((prev) => (prev ? { ...prev, status: 'LOCKED' } : prev));
         celebrate(`${pickRow.who} is hired · paid from your wallet`);
-        if (taskId) go('taskManage', { taskId });
+        if (taskId) replace('taskManage', { taskId });
       } catch (e) {
         if (e instanceof WalletShortError) setShortBy(e.shortMinor);
         else if (isOfferChanged(e)) {
@@ -259,7 +266,12 @@ export function CompareScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
           <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54 })}>INCOMING OFFERS</RNText>
           {sorted.length > 1 && (
-            <Pressable onPress={() => setSortLow((v) => !v)}>
+            <Pressable
+              onPress={() => setSortLow((v) => !v)}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={`Sort offers, now by ${sortLow ? 'lowest price' : 'rating'}`}
+            >
               <RNText style={tx('700', 12, t.colors.accentDeep)}>
                 Sort: {sortLow ? 'lowest' : 'rating'} ▾
               </RNText>
@@ -347,7 +359,17 @@ export function CompareScreen() {
           );
         })}
 
-        {sorted.length === 0 && (
+        {sorted.length === 0 && loadFailed && (
+          <LoadFailed
+            title="Couldn’t load the offers"
+            onRetry={() => {
+              setLoadFailed(false);
+              setReloadTick((n) => n + 1);
+            }}
+          />
+        )}
+
+        {sorted.length === 0 && !loadFailed && (
           <View
             style={{
               marginTop: 12,
@@ -414,7 +436,7 @@ export function CompareScreen() {
         {decided ? (
         <>
         <Pressy
-          onPress={() => taskId && go('taskManage', { taskId })}
+          onPress={() => taskId && replace('taskManage', { taskId })}
           scaleTo={0.96}
           style={{ backgroundColor: t.colors.btn, borderRadius: 999, paddingVertical: 16, alignItems: 'center' }}
         >
@@ -426,7 +448,9 @@ export function CompareScreen() {
         </>
         ) : !pickRow ? (
           <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', lineHeight: 18 })}>
-            Nothing to choose yet. You will get a notification when the first offer arrives.
+            {loadFailed
+              ? 'Offers could not be loaded. Try again above.'
+              : 'Nothing to choose yet. You will get a notification when the first offer arrives.'}
           </RNText>
         ) : (
         <>

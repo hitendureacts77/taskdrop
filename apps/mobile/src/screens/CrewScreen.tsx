@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text as RNText, Pressable } from 'react-native';
+import { View, Text as RNText, Pressable, AppState } from 'react-native';
 import { Avatar, Screen, cardSurface } from '../components/ui';
 import { Badge, EmptyState, Field, LoadFailed, PrimaryButton, Shimmer, TopBar, rupees, timeAgo } from '../components/kit';
 import { Icon } from '../components/Icon';
 import { FadeIn, tx } from '../components/primitives';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
 import { useTheme } from '../providers/ThemeProvider';
-import { useNav } from '../providers/NavProvider';
+import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { crewOverview, listCrewMessages, sendCrewMessage, type CrewMessage, type CrewSlot } from '../data/api';
@@ -32,6 +32,7 @@ export function CrewScreen() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
 
+  const focusTick = useFocusTick();
   const load = useCallback(async () => {
     if (!crewId) return setSlots([]);
     const [s, m] = await Promise.all([crewOverview(crewId), listCrewMessages(crewId)]);
@@ -45,9 +46,15 @@ export function CrewScreen() {
       reportError(e, 'crew');
       setFailed(true);
     });
-    const id = setInterval(() => void load().catch(() => {}), REFRESH_MS);
+    // No polling while the app or browser tab is in the background; coming back refreshes at once (focus tick).
+    const id = setInterval(() => {
+      if (AppState.currentState !== 'active') return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      void load().catch(() => {});
+    }, REFRESH_MS);
     return () => clearInterval(id);
-  }, [load]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [load, focusTick]);
 
   if (failed && slots === null) {
     return (
@@ -105,7 +112,7 @@ export function CrewScreen() {
       <TopBar title="Crew" subtitle={slots[0]?.title} onBack={back} />
       <KeyboardScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         <View style={{ borderRadius: 22, padding: 18, backgroundColor: t.colors.hero }}>
-          <RNText style={tx('700', 11, '#FFFFFF', { letterSpacing: 1.2, opacity: 0.85 })}>EACH HELPER GETS</RNText>
+          <RNText style={tx('700', 11, '#FFFFFF', { letterSpacing: 1.2, opacity: 0.85 })}>EACH HELPER’S PRICE</RNText>
           <RNText style={tx('800', 30, '#FFFFFF', { letterSpacing: -0.8, marginTop: 2, fontVariant: ['tabular-nums'] })}>
             {rupees((slots[0]?.price_minor ?? 0) / 100)}
           </RNText>

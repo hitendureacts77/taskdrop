@@ -43,7 +43,7 @@ export function PromoteScreen() {
   const [busy, setBusy] = useState(false);
   // Native: the checkout opens in a sheet here rather than in Chrome.
   const [payUrl, setPayUrl] = useState<string | null>(null);
-  const [pending, setPending] = useState<{ promotionId: string; paymentId: string } | null>(null);
+  const [pending, setPending] = useState<{ promotionId: string; paymentId: string; total: number; days: number } | null>(null);
   const [explaining, setExplaining] = useState(false);
 
   // Which listing is being promoted. Arrives pre-chosen when you come from a
@@ -101,7 +101,6 @@ export function PromoteScreen() {
   const worker = mode === 'worker';
   const [budgetPick, setBudgetIdx] = useState(1);
   const [durPick, setDurIdx] = useState(1);
-  const [audienceOn, setAudienceOn] = useState(false);
 
   // The tiers staff set in the admin. The server refuses anything outside them, so
   // the screen offers exactly these; until they load it shows what migration 114 seeds.
@@ -123,12 +122,6 @@ export function PromoteScreen() {
   const days = DURATIONS[durIdx]!.days;
   const total = budget * days;
 
-  // Design's reach model: base band, narrowed to 55% when the audience filter is
-  // on, scaled by the chosen budget relative to the middle tier.
-  const base = worker ? [900, 1600] : [1800, 3400];
-  const scale = (audienceOn ? 0.55 : 1) * (budget / (budgets[1] ?? budgets[0]!));
-  const reach = base.map((n) => Math.round(n * scale).toLocaleString('en-IN'));
-
   const label = (s: string, extra?: TextStyle, color?: string) => (
     <RNText style={tx('400', 11, color ?? t.colors.muted, { letterSpacing: 1.54, ...extra })}>{s}</RNText>
   );
@@ -145,9 +138,15 @@ export function PromoteScreen() {
         return (
           <Pressable
             key={it}
-            onPress={() => onPick(i)}
+            // Once a payment is started the choices are locked, so Activate matches what was paid for.
+            onPress={() => !pending && onPick(i)}
+            disabled={!!pending}
+            accessibilityRole="button"
+            accessibilityLabel={it}
+            accessibilityState={{ selected: on, disabled: !!pending }}
             style={({ pressed }) => ({
               flex: 1,
+              opacity: pending && !on ? 0.5 : 1,
               borderRadius: 10,
               paddingVertical: 10,
               alignItems: 'center',
@@ -192,7 +191,7 @@ export function PromoteScreen() {
         promotionId: promo.id,
         returnUrl: paymentReturnUrl(),
       });
-      setPending({ promotionId: promo.id, paymentId });
+      setPending({ promotionId: promo.id, paymentId, total, days });
       if (Platform.OS === 'web') await Linking.openURL(url);
       else setPayUrl(url);
       flash('Finish the payment, then come back and tap Activate');
@@ -214,7 +213,7 @@ export function PromoteScreen() {
         return;
       }
       await activatePromotion(pending.promotionId, pending.paymentId);
-      celebrate(`Campaign live · ${formatINR(total * 100)} for ${days} ${days === 1 ? 'day' : 'days'}`);
+      celebrate(`Campaign live · ${formatINR(pending.total * 100)} for ${pending.days} ${pending.days === 1 ? 'day' : 'days'}`);
       go(worker ? 'home' : 'orders');
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not activate that campaign');
@@ -294,8 +293,7 @@ export function PromoteScreen() {
             You are charged once, up front, for the days you choose, and it does not renew. You
             only pay for what is delivered: if the campaign reaches fewer people than the budget
             covers, or you stop it early, the rest comes back to your TaskDrop wallet when it
-            ends. The reach figure above is an estimate from how many people browse your city,
-            not a promise.
+            ends. How many people see it depends on how many are browsing; it is not a promise.
           </RNText>
 
           <Pressable
@@ -355,7 +353,7 @@ export function PromoteScreen() {
             >
               <RNText style={tx('700', 14, t.colors.ink)}>Nothing open to promote</RNText>
               <RNText style={tx('400', 12, t.colors.muted, { marginTop: 5, lineHeight: 18 })}>
-                Only your own open posts can be promoted. Post one, or reopen a closed one,
+                Only your own open posts can be promoted. Post one,
                 and it will show up here.
               </RNText>
             </View>
@@ -526,88 +524,6 @@ export function PromoteScreen() {
         {label('RUN FOR', { marginTop: 18 })}
         {chipRow(DURATIONS.map((d) => d.label), durIdx, setDurIdx, { marginTop: 10 })}
 
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: 20,
-          }}
-        >
-          <View style={{ flex: 1 }}>
-            {label('SHOW IT TO · OPTIONAL')}
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4 })}>
-              {audienceOn ? 'Narrowing who sees it' : 'Off · everyone in your city'}
-            </RNText>
-          </View>
-          <Pressable
-            onPress={() => setAudienceOn((v) => !v)}
-            style={{
-              width: 42,
-              height: 24,
-              borderRadius: 999,
-              padding: 3,
-              backgroundColor: audienceOn ? t.colors.accent : t.colors.line,
-              justifyContent: 'center',
-            }}
-          >
-            <View
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: 999,
-                backgroundColor: '#FFFFFF',
-                transform: [{ translateX: audienceOn ? 18 : 0 }],
-              }}
-            />
-          </Pressable>
-        </View>
-
-        {audienceOn && (
-          <View style={{ marginTop: 14 }}>
-            {[
-              worker ? 'Customers within 15 km' : 'Workers within 12 km',
-              worker ? 'Services' : 'Services · Products',
-            ].map((row, i) => (
-              <View
-                key={row}
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingTop: i === 0 ? 0 : 11,
-                  paddingBottom: 11,
-                  borderBottomWidth: 1,
-                  borderBottomColor: t.colors.line,
-                }}
-              >
-                <RNText style={tx('400', 15, t.colors.ink)}>{row}</RNText>
-                <RNText style={tx('600', 13, t.colors.accentDeep)}>Change</RNText>
-              </View>
-            ))}
-          </View>
-        )}
-
-        <View
-          style={{
-            marginTop: 16,
-            backgroundColor: t.colors.accentSoft,
-            borderWidth: 1,
-            borderColor: t.colors.accentBorder,
-            borderRadius: 12,
-            paddingVertical: 13,
-            paddingHorizontal: 16,
-          }}
-        >
-          {label('ESTIMATED REACH', {}, t.colors.accentDeep)}
-          <RNText style={tx('800', 22, t.colors.ink, { marginTop: 4 })}>
-            {reach[0]} – {reach[1]}
-          </RNText>
-          <RNText style={tx('400', 12, t.colors.accentDeep, { marginTop: 3 })}>
-            {worker ? 'posters' : 'workers'} per day
-            {audienceOn ? ' in your radius' : ' across your city'}
-          </RNText>
-        </View>
       </KeyboardScrollView>
 
       <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
@@ -634,6 +550,11 @@ export function PromoteScreen() {
                 : `Start campaign · ₹${total.toLocaleString('en-IN')}`}
           </RNText>
         </Pressable>
+        {!taskId && !pending ? (
+          <RNText style={tx('600', 12, t.colors.signalDeep, { textAlign: 'center', marginBottom: 8 })}>
+            Pick the post to promote above first.
+          </RNText>
+        ) : null}
         {/* What settle_campaign (migration 046) actually does, next to the
             button that charges: one payment, no renewal, undelivered reach
             refunded to the wallet -- including when stopped early. */}

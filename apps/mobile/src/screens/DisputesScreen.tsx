@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
-import { Badge, EmptyState, Shimmer, StatTile, TopBar, rupees, timeAgo } from '../components/kit';
+import { Badge, EmptyState, LoadFailed, Shimmer, StatTile, TopBar, rupees, timeAgo } from '../components/kit';
 import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -19,6 +19,8 @@ export function DisputesScreen() {
   const { back, go } = useNav();
   const { userId } = useAuth();
   const [rows, setRows] = useState<Task[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0);
   const [reasons, setReasons] = useState<Map<string, { reason: string; mine: boolean }>>(new Map());
 
   useEffect(() => {
@@ -30,11 +32,11 @@ export function DisputesScreen() {
         const found = await listDisputeReasons(r.map((x) => x.id)).catch(() => new Map());
         if (alive) setReasons(found);
       })
-      .catch(() => alive && setRows([]));
+      .catch(() => alive && setFailed(true));
     return () => {
       alive = false;
     };
-  }, []);
+  }, [reloadTick]);
 
   const asPoster = (rows ?? []).filter((x) => x.poster_id === userId).length;
 
@@ -46,7 +48,15 @@ export function DisputesScreen() {
           <StatTile icon="gavel" label="Active" value={rows ? String(rows.length) : '–'} tone="signal" />
           <StatTile icon="list" label="On my posts" value={rows ? String(asPoster) : '–'} tone="gold" />
         </View>
-        {rows === null ? (
+        {failed && rows === null ? (
+          <LoadFailed
+            title="Couldn’t load your complaints"
+            onRetry={() => {
+              setFailed(false);
+              setReloadTick((n) => n + 1);
+            }}
+          />
+        ) : rows === null ? (
           <Shimmer height={80} style={{ marginTop: 14 }} />
         ) : rows.length === 0 ? (
           <EmptyState icon="shield" title="No complaints" body="If something goes wrong on a task, report a problem from the task page. It will show up here." />
@@ -58,7 +68,7 @@ export function DisputesScreen() {
                 <Badge label="With our team" tone="signal" />
               </View>
               <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6 })}>
-                {rupees((task.locked_minor ?? task.benchmark_minor) / 100)} · {task.poster_id === userId ? 'You posted this' : 'You worked on this'} · opened {timeAgo(task.updated_at)}
+                {rupees((task.locked_minor ?? task.benchmark_minor) / 100)} · {task.poster_id === userId ? 'You posted this' : 'You worked on this'} · last update {timeAgo(task.updated_at)}
               </RNText>
               {reasons.get(task.id) ? (
                 <RNText style={tx('400', 12, t.colors.ink, { marginTop: 8, lineHeight: 17 })}>
@@ -66,7 +76,7 @@ export function DisputesScreen() {
                   {reasons.get(task.id)!.reason}
                 </RNText>
               ) : null}
-              <Pressable onPress={() => go('help')} style={{ marginTop: 10 }} accessibilityRole="button">
+              <Pressable onPress={() => go('help', { aboutTask: task.title })} style={{ marginTop: 10 }} accessibilityRole="button">
                 <RNText style={tx('700', 13, t.colors.accentDeep)}>Add details for the team ›</RNText>
               </Pressable>
             </View>

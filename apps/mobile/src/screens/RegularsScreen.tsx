@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text as RNText, Pressable, ScrollView } from 'react-native';
 import { Avatar, Screen, cardSurface } from '../components/ui';
-import { EmptyState, Shimmer, TopBar, timeAgo } from '../components/kit';
+import { EmptyState, LoadFailed, Shimmer, TopBar, timeAgo } from '../components/kit';
 import { Icon } from '../components/Icon';
 import { FadeIn, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
@@ -17,19 +17,32 @@ export function RegularsScreen() {
   const { back, go } = useNav();
   const [list, setList] = useState<Regular[] | null>(null);
 
+  const [failed, setFailed] = useState(false);
+  const [tick, setTick] = useState(0);
+
   useEffect(() => {
     let alive = true;
-    void myRegulars().then((r) => alive && setList(r));
+    myRegulars()
+      .then((r) => alive && setList(r))
+      .catch(() => alive && setFailed(true));
     return () => {
       alive = false;
     };
-  }, []);
+  }, [tick]);
 
   return (
     <Screen padded={false}>
       <TopBar title="My regulars" subtitle="People you liked working with, one tap away" onBack={back} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
-        {list === null ? (
+        {failed && list === null ? (
+          <LoadFailed
+            title="Couldn’t load your regulars"
+            onRetry={() => {
+              setFailed(false);
+              setTick((n) => n + 1);
+            }}
+          />
+        ) : list === null ? (
           <Shimmer height={120} />
         ) : list.length === 0 ? (
           <EmptyState

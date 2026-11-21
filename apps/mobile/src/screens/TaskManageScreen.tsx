@@ -25,7 +25,8 @@ import { FadeIn, tx } from '../components/primitives';
 import { TaskDescription } from '../components/TaskDescription';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { useTheme } from '../providers/ThemeProvider';
-import { useNav } from '../providers/NavProvider';
+import { useNav, useFocusTick } from '../providers/NavProvider';
+import { KeyboardScrollView } from '../components/KeyboardScrollView';
 import { useApp } from '../providers/AppStateProvider';
 import {
   cancelTask,
@@ -88,6 +89,8 @@ export function TaskManageScreen() {
   const { params, back, go } = useNav();
   const { flash, celebrate, setOpenTask, startedOf } = useApp();
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+  // Goes up each time this screen comes back into view (after Compare, Escrow or Active), so it never shows a stale state.
+  const focusTick = useFocusTick();
   const [detail, setDetail] = useState<TaskDetail | null | undefined>(undefined);
   const [bids, setBids] = useState<(Bid & { profiles: Profile | null })[]>([]);
   const [tab, setTab] = useState(0);
@@ -117,7 +120,7 @@ export function TaskManageScreen() {
       reportError(e, 'task-manage');
       setLoadFailed(true);
     });
-  }, [load]);
+  }, [load, focusTick]);
 
   const refresh = async () => {
     setRefreshing(true);
@@ -184,7 +187,7 @@ export function TaskManageScreen() {
     { at: task.created_at, title: 'Task created', body: `“${task.title}” was posted`, icon: 'plus' as IconName },
     ...bids.map((b) => ({
       at: b.created_at,
-      title: `Quote received · ${rupees(b.price_minor / 100)}`,
+      title: `Offer received · ${rupees(b.price_minor / 100)}`,
       body: b.profiles?.display_name ? `from ${b.profiles.display_name}` : undefined,
       icon: 'tag' as IconName,
     })),
@@ -535,7 +538,7 @@ export function TaskManageScreen() {
                       <Pressable
                         onPress={() => setSelecting({ bidId: b.id, name, priceMinor: b.price_minor })}
                         accessibilityRole="button"
-                        accessibilityLabel={`Select ${name}'s quote of ${rupees(b.price_minor / 100)}`}
+                        accessibilityLabel={`Select ${name}'s offer of ${rupees(b.price_minor / 100)}`}
                         style={({ pressed }) => ({
                           flexDirection: 'row',
                           alignItems: 'center',
@@ -582,7 +585,7 @@ export function TaskManageScreen() {
         <Badge label={badge.label} tone={badge.tone} />
         {isHunt(task) || showAssignmentChip(task.status) ? (
           <Badge
-            label={isHunt(task) ? 'Hunt' : task.assignment_mode === 'auto' ? 'Auto-hire' : 'Choose from offers'}
+            label={isHunt(task) ? 'Hunt' : task.assignment_mode === 'auto' ? 'Auto-hire' : bids.length === 0 ? 'Waiting for offers' : 'See offers'}
             tone={isHunt(task) ? 'gold' : 'neutral'}
           />
         ) : null}
@@ -600,16 +603,16 @@ export function TaskManageScreen() {
       )}
 
       {hunting ? (
-        <ScrollView
+        <KeyboardScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />}
         >
           <HuntPosterPanel task={task} onChanged={() => void load().catch((e) => reportError(e, 'task-manage'))} />
           {overview}
-        </ScrollView>
+        </KeyboardScrollView>
       ) : sideBySide ? (
-        <ScrollView
+        <KeyboardScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />}
@@ -624,16 +627,16 @@ export function TaskManageScreen() {
               {offers}
             </View>
           </View>
-        </ScrollView>
+        </KeyboardScrollView>
       ) : (
         <SwipeTabs index={tab} count={2} onChange={setTab}>
-        <ScrollView
+        <KeyboardScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />}
         >
           {tab === 0 ? overview : offers}
-        </ScrollView>
+        </KeyboardScrollView>
         </SwipeTabs>
       )}
 

@@ -153,8 +153,8 @@ function liveToFeedRow(task: LiveTask, worker: boolean): FeedRow {
 
 function tagInk(t: Theme, tag: FeedRow['tag']): string {
   if (tag === 'SERVICES') return t.colors.accentDeep;
-  if (tag === 'PRODUCTS') return t.colors.purple;
-  return t.colors.blue;
+  if (tag === 'PRODUCTS') return t.colors.goldInk;
+  return t.colors.aiInk;
 }
 
 function FilterChip({
@@ -543,13 +543,17 @@ export function HomeScreen() {
   // this fired, "daily budget" could never be spent. Billed once per task per
   // mount: re-sorting or filtering the feed is not a new view of the ad.
   const billed = useRef<Set<string>>(new Set());
+  // The poster's rail is a sideways strip: only its first two cards are on screen
+  // at once, so only those count as seen (search results and the worker feed are lists).
+  const seenRows = searching || worker ? feed : feed.slice(0, 2);
   useEffect(() => {
-    for (const row of feed) {
+    for (const row of seenRows) {
       if (!row.sponsored || billed.current.has(row.id)) continue;
       billed.current.add(row.id);
       void recordAdImpression(row.id).catch(() => {});
     }
-  }, [feed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feed, searching, worker]);
 
   /**
    * One signing call for the whole page.
@@ -687,7 +691,7 @@ export function HomeScreen() {
         </View>
 
         <RNText style={tx('800', 17, t.colors.ink, { letterSpacing: -0.34, paddingTop: 26, paddingHorizontal: 20 })}>
-          {searching ? 'Search results' : worker ? 'Work near you' : 'Services near you'}
+          {searching ? 'Search results' : worker ? 'Work near you' : 'Services for you'}
         </RNText>
         {searchQ ? (
           <View
@@ -707,7 +711,15 @@ export function HomeScreen() {
             }}
           >
             <RNText style={tx('600', 12, t.colors.accentDeep)}>“{searchQ}”</RNText>
-            <Pressable onPress={() => go('home')} hitSlop={8}>
+            <Pressable
+              onPress={() => {
+                setFilter(null);
+                go('home');
+              }}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
               <RNText style={tx('700', 13, t.colors.accentDeep)}>✕</RNText>
             </Pressable>
           </View>
@@ -894,7 +906,7 @@ export function HomeScreen() {
           // What workers offer, as gig cards in a row that pages sideways.
           <View style={{ paddingHorizontal: 20, paddingTop: 30, paddingBottom: 110 }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-              <RNText style={tx('800', 18, t.colors.ink, { letterSpacing: -0.35, flex: 1 })}>Services near you</RNText>
+              <RNText style={tx('800', 18, t.colors.ink, { letterSpacing: -0.35, flex: 1 })}>Services for you</RNText>
               <RNText style={tx('600', 12, t.colors.accentDeep)}>{loading ? '' : `${feed.length} offered`}</RNText>
             </View>
             <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4 })}>Services workers offer — tap one to see it and hire</RNText>
@@ -907,16 +919,18 @@ export function HomeScreen() {
             ) : failed && feed.length === 0 ? (
               <LoadFailed onRetry={() => void refresh()} />
             ) : feed.length === 0 ? (
-              <RNText style={tx('400', 13, t.colors.muted, { marginTop: 12 })}>No services listed nearby yet.</RNText>
+              <RNText style={tx('400', 13, t.colors.muted, { marginTop: 12 })}>No services listed yet.</RNText>
             ) : (
               <View style={{ marginTop: 12 }}>
                 <Rail step={250} min={260}>
-                  {(liveTasks ?? [])
-                    .filter((task) => feed.some((row) => row.id === task.id))
-                    .map((task) => (
+                  {feed
+                    .map((row) => ({ row, task: (liveTasks ?? []).find((task) => task.id === row.id) }))
+                    .filter((x): x is { row: FeedRow; task: LiveTask } => !!x.task)
+                    .map(({ row, task }) => (
                       <ListingCard
                         key={task.id}
                         task={task as unknown as TaskWithPoster}
+                        sponsored={row.sponsored}
                         width={240}
                         onPress={() => go('taskDetail', { row: taskToFeedRow(task as unknown as TaskWithPoster) })}
                       />
