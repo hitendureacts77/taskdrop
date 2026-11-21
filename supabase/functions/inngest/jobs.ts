@@ -479,7 +479,7 @@ export async function runStraySweep(
 
 /** Plan 3.5b layer C: the kept copies are only used while younger than this (migration 149), so older means the job is behind. */
 export const SNAPSHOT_STALE_MINUTES = 30;
-/** The team alert is left only while the copy is this old or less, so a stale copy rings the bell once or twice, not every 10 minutes. */
+/** The team alert is left only while the copy is this old or less, so a stale copy rings the bell once or twice, not every 20 minutes. */
 export const SNAPSHOT_ALERT_WINDOW_MINUTES = 45;
 /** The settings row that remembers when a refresh last finished (the kept table itself is closed to the service key). */
 export const SNAPSHOT_MARKER_KEY = "public_snapshots_last_ok";
