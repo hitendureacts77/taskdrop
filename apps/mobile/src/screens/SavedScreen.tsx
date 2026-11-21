@@ -22,25 +22,36 @@ export function SavedScreen() {
   const { guest, userId } = useAuth();
   const [rows, setRows] = useState<TaskWithPoster[] | null>(null);
   const [bidTask, setBidTask] = useState<Task | null>(null);
+  // S5-35: a failed read is not "nothing saved yet".
+  const [failed, setFailed] = useState(false);
+  const [tick, setTick] = useState(0);
   const offers = useMyOffers(userId, (rows ?? []).map((r) => r.id), !guest);
 
   useEffect(() => {
     let alive = true;
+    setFailed(false);
     (guest ? loadGuestSavedTasks(getTask) : listSavedTasks())
       .then((r) => attachPosters(r))
       .then((r) => alive && setRows(r))
-      .catch(() => alive && setRows([]));
+      .catch(() => {
+        if (!alive) return;
+        setRows([]);
+        setFailed(true);
+      });
     return () => {
       alive = false;
     };
-  }, [guest]);
+  }, [guest, tick]);
 
   const unsave = async (id: string) => {
+    const before = rows;
     setRows((r) => (r ?? []).filter((x) => x.id !== id));
     try {
       if (guest) await setGuestSaved(id, false);
       else await setSaved(id, false);
     } catch (e) {
+      // Put the card back: it is still saved on the server.
+      setRows(before);
       flash(e instanceof Error ? e.message : 'Could not update saved');
     }
   };
@@ -51,6 +62,17 @@ export function SavedScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }}>
         {rows === null ? (
           <Shimmer height={120} />
+        ) : failed ? (
+          <EmptyState
+            icon="bookmark"
+            title="Could not load your saved tasks"
+            body="Check your connection and try again."
+            actionLabel="Try again"
+            onAction={() => {
+              setRows(null);
+              setTick((n) => n + 1);
+            }}
+          />
         ) : rows.length === 0 ? (
           <EmptyState
             icon="bookmark"

@@ -383,7 +383,7 @@ const FeedCard = memo(function FeedCard({
               elevation: 3,
             }}
           >
-            <RNText style={tx('700', 13, t.colors.onAccent)}>{hunt ? 'I’m looking' : quoted ? 'Edit your offer' : 'Accept'}</RNText>
+            <RNText style={tx('700', 13, t.colors.onAccent)}>{hunt ? 'I’m looking' : quoted ? 'Edit your offer' : 'Send offer'}</RNText>
           </Pressy>
         </View>
       </Pressy>
@@ -601,34 +601,8 @@ export function HomeScreen() {
     if (!/^[0-9a-f-]{36}$/i.test(row.id)) {
       return flash('This is a sample card — open a real task to send an offer');
     }
-    if (guest) return needAccount('offer', () => void onAccept(row));
-    if (!userId) return flash('Sign in to send an offer');
-    if (quoting) return;
-
-    setQuoting(row.id);
-    try {
-      await placeBid({
-        taskId: row.id,
-        workerId: userId,
-        priceMinor: row.amountMinor,
-        timeLimitMinutes: 240,
-      });
-      noteMyOffer(userId, row.id);
-      celebrate('Offer sent at ' + formatINR(row.amountMinor));
-      go('orders');
-    } catch (e) {
-      if (isNeedsAccount(e)) return;
-      if (isDuplicateOfferError(e)) {
-        // One offer per task: the task page shows the sent offer with an edit button.
-        noteMyOffer(userId, row.id);
-        flash('You already sent an offer for this task. Opening it so you can edit it.');
-        openRow(row);
-        return;
-      }
-      flash(e instanceof Error ? e.message : 'Could not send that offer');
-    } finally {
-      setQuoting(null);
-    }
+    // S5-11: no one-tap offer. The task page has the offer form with every rule (safety card, "Why you", checks).
+    openRow(row);
   };
 
   // The flat feed (search results) is a virtualised list: only the cards near

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable, ActivityIndicator } from 'react-native';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { Field, Pill, PrimaryButton, TopBar } from '../components/kit';
+import { ConfirmDialog, Field, Pill, PrimaryButton, TopBar } from '../components/kit';
 import { ListingCard } from '../components/ListingCard';
 import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
@@ -17,8 +17,11 @@ import { roughPlace } from '../lib/place';
 import { LocationSheet } from '../components/LocationSheet';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
 import { wholeDigits, wholeText } from '../lib/rupeeInput';
+import { MAX_PRICE_INR, MIN_PRICE_INR } from '../lib/limits';
 
 const DELIVERY = [1, 2, 3, 5, 7];
+// An older listing can carry a day count that is not a chip (4, say): snap it to the nearest choice.
+const nearestDelivery = (d: number) => DELIVERY.reduce((best, x) => (Math.abs(x - d) < Math.abs(best - d) ? x : best), DELIVERY[0]!);
 const PREFIX = 'I will ';
 
 /**
@@ -45,23 +48,30 @@ export function ListingEditScreen() {
   const [area, setArea] = useState<{ label: string; lat: number; lng: number } | null>(null);
   const [pickArea, setPickArea] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reload, setReload] = useState(0);
+  const [confirmDown, setConfirmDown] = useState(false);
 
   useEffect(() => {
     if (!taskId) return;
+    setLoadFailed(false);
     void getTask(taskId).then((task) => {
+      if (!task) {
+        setLoadFailed(true);
+        return;
+      }
       setLoaded(task);
-      if (!task) return;
       setWhat(task.title.replace(/^i will\s+/i, ''));
       setDetails(task.description ?? '');
       setPrice(String(Math.round(task.benchmark_minor / 100)));
-      setDays(Math.max(1, Math.round(task.time_limit_minutes / 1440)));
+      setDays(nearestDelivery(Math.max(1, Math.round(task.time_limit_minutes / 1440))));
       setCategory(task.category);
       if (task.loc_label && task.loc_label !== 'Remote' && task.loc_lat != null && task.loc_lng != null) {
         setRemote(false);
         setArea({ label: task.loc_label, lat: task.loc_lat, lng: task.loc_lng });
       }
-    });
-  }, [taskId]);
+    }).catch(() => setLoadFailed(true));
+  }, [taskId, reload]);
 
   const title = PREFIX + what.trim();
   const priceNum = Number(wholeDigits(price));
@@ -71,9 +81,11 @@ export function ListingEditScreen() {
       ? 'Say what you’ll do after “I will”'
       : details.trim().length < 10
         ? 'Add what’s included — a line or two'
-        : !priceNum || priceNum < 50
-          ? 'Set a starting price of at least ₹50'
-          : issue
+        : !priceNum || priceNum < MIN_PRICE_INR
+          ? `Set a starting price of at least ₹${MIN_PRICE_INR}`
+          : priceNum > MAX_PRICE_INR
+            ? `The most you can ask is ₹${MAX_PRICE_INR.toLocaleString('en-IN')}`
+            : issue
             ? contactIssueMessage(issue)
             : !remote && !area
               ? 'Pick the area you work in, or choose Remote'
@@ -122,6 +134,21 @@ export function ListingEditScreen() {
       setBusy(false);
     }
   };
+
+  if (loadFailed) {
+    return (
+      <Screen padded={false}>
+        <TopBar title="Edit service" onBack={back} />
+        <View style={{ padding: 24, alignItems: 'center' }}>
+          <RNText style={tx('800', 18, t.colors.ink)}>Could not open this service</RNText>
+          <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, textAlign: 'center', lineHeight: 21 })}>
+            Check your connection and try again. If it was taken down, it is gone from your list.
+          </RNText>
+          <PrimaryButton label="Try again" onPress={() => setReload((n) => n + 1)} style={{ marginTop: 20 }} />
+        </View>
+      </Screen>
+    );
+  }
 
   if (loaded === undefined) {
     return (
@@ -182,7 +209,7 @@ export function ListingEditScreen() {
             inputMode="numeric"
             placeholder="500"
             left={<RNText style={tx('700', 15, t.colors.muted)}>₹</RNText>}
-            error={price && priceNum < 50 ? 'At least ₹50' : null}
+            error={price && priceNum < MIN_PRICE_INR ? `At least ₹${MIN_PRICE_INR}` : priceNum > MAX_PRICE_INR ? `At most ₹${MAX_PRICE_INR.toLocaleString('en-IN')}` : null}
             hint="What a basic order costs. You can agree a different price with each customer."
           />
         </View>
@@ -240,12 +267,27 @@ export function ListingEditScreen() {
           <RNText style={tx('500', 12, t.colors.muted, { marginTop: 8, textAlign: 'center' })}>{missing}</RNText>
         ) : null}
         {loaded ? (
-          <Pressable onPress={() => void remove()} accessibilityRole="button" style={{ alignSelf: 'center', marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Pressable onPress={() => setConfirmDown(true)} accessibilityRole="button" hitSlop={10} style={{ alignSelf: 'center', marginTop: 16, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name="close" size={14} color={t.colors.signal} />
             <RNText style={tx('700', 13, t.colors.signal)}>Take this service down</RNText>
           </Pressable>
         ) : null}
       </KeyboardScrollView>
+      <ConfirmDialog
+        visible={confirmDown}
+        danger
+        icon="close"
+        title="Take this service down?"
+        message="Customers will no longer see it or be able to hire you from it. Jobs already in progress are not affected."
+        confirmLabel="Take it down"
+        cancelLabel="Keep it"
+        busy={busy}
+        onCancel={() => setConfirmDown(false)}
+        onConfirm={() => {
+          setConfirmDown(false);
+          void remove();
+        }}
+      />
       <LocationSheet
         visible={pickArea}
         askForDetails={false}

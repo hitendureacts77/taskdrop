@@ -761,7 +761,14 @@ function FindWork({
       else await setSaved(id, on);
       flash(on ? 'Saved for later' : 'Removed from saved');
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not save that');
+      // S5-4: put the bookmark back; the server has not changed.
+      setSavedIds((s) => {
+        const n = new Set(s);
+        if (on) n.delete(id);
+        else n.add(id);
+        return n;
+      });
+      flash('Could not update your saved tasks. Please try again.');
     }
   };
 

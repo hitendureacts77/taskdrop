@@ -152,7 +152,7 @@ export function workerBidRow(bid: Bid & { tasks: Task | null }): ViewRow {
     title: bid.tasks?.title ?? 'Task',
     priceLabel: formatINR(bid.price_minor),
     priceMinor: bid.price_minor,
-    meta: 'Offer sent · waiting for the customer',
+    meta: 'Offer sent · tap to edit it',
     act: null,
   };
 }

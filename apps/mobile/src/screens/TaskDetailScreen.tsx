@@ -38,6 +38,7 @@ import { TaskDescription } from '../components/TaskDescription';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { PersonSheet } from '../components/PersonSheet';
 import { BidSheet } from '../components/BidSheet';
+import { needsSafetyCard } from '../lib/safetyCard';
 import { roughPlace } from '../lib/place';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { HuntFinderPanel } from '../components/Hunt';
@@ -405,6 +406,12 @@ function TaskDetailBody() {
       if (proposalIssue) return flash(offerIssueMessage(proposalIssue));
       setBusy(true);
       try {
+        // S5-32: a first in-person offer shows "Staying safe on a job" first, which lives in the offer form.
+        if (live?.lat != null && (await needsSafetyCard(userId).catch(() => false))) {
+          setBusy(false);
+          void openBid();
+          return;
+        }
         await placeBid({
           taskId: realId,
           workerId: userId,
@@ -427,7 +434,9 @@ function TaskDetailBody() {
           return;
         }
         const msg = e instanceof Error ? e.message : 'Could not send the offer';
-        setVerdict({ code: 'closed', reason: msg });
+        // S5-31: only a real "closed" answer swaps the box; a network blip or a rate limit keeps it.
+        const again = await canQuoteOn(realId, userId).catch(() => null);
+        if (again && !again.allowed && again.code !== 'own') setVerdict({ code: again.code, reason: again.reason });
         flash(msg);
       } finally {
         setBusy(false);
@@ -800,7 +809,8 @@ function TaskDetailBody() {
         onPlaced={() => {
           // An edit changes the price: refresh the "Your offer" card so it never shows the old one.
           if (realId && userId) void getMyBid(realId, userId).then((b) => b && setMyOffer(b)).catch(() => {});
-          go('myTasks');
+          // S5-32: stay on the task page after an edit; a first offer lands on My offers.
+          if (!myOffer) go('orders');
         }}
       />
       <ReportSheet

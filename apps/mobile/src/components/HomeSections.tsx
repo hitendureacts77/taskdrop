@@ -684,7 +684,7 @@ function EarnTop() {
     setListTick((n) => n + 1);
     const rem = await remoteAsked;
     // A task no longer visible drops out.
-    const withPosters = new Map((await attachPosters(rem)).map((x) => [x.id, x]));
+    const withPosters = new Map((await attachPosters(rem).catch(() => [] as Awaited<ReturnType<typeof attachPosters>>)).map((x) => [x.id, x]));
     setRemote(rem.flatMap((x) => withPosters.get(x.id) ?? []));
   }, [userId, guest]);
 
@@ -769,8 +769,22 @@ function EarnTop() {
       else n.delete(id);
       return n;
     });
-    if (guest) return void setGuestSaved(id, on);
-    await setSaved(id, on).catch((e) => flash(e instanceof Error ? e.message : 'Could not save'));
+    // S5-4: same as Find work: put the bookmark back when the save fails, same wording, same confirmation.
+    const revert = () =>
+      setSavedIds((s) => {
+        const n = new Set(s);
+        if (on) n.delete(id);
+        else n.add(id);
+        return n;
+      });
+    try {
+      if (guest) await setGuestSaved(id, on);
+      else await setSaved(id, on);
+      flash(on ? 'Saved for later' : 'Removed from saved');
+    } catch {
+      revert();
+      flash('Could not update your saved tasks. Please try again.');
+    }
   };
 
   const choosePlace = async (picked: PickedPlace) => {

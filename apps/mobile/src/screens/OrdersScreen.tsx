@@ -4,7 +4,11 @@ import {
   Text as RNText,
   Pressable,
 } from 'react-native';
-import { Grid, UnderlineTabs } from '../components/kit';
+import { ConfirmDialog, Grid, UnderlineTabs } from '../components/kit';
+import { BidSheet } from '../components/BidSheet';
+import { closeTaskText } from '../lib/closeTaskText';
+import { useFees } from '../lib/useFees';
+import { FEES } from '@taskdrop/rules';
 import { Icon } from '../components/Icon';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
@@ -18,6 +22,7 @@ import {
   listMyAssignments,
   countBidsByTask,
   cancelTask,
+  getTask,
   refundEscrow,
 } from '../data/api';
 import { type Theme } from '../theme';
@@ -134,6 +139,9 @@ export function OrdersScreen() {
   const [rows, setRows] = useState<ViewRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // S5-37: a failed read is not "nothing here yet".
+  const [failed, setFailed] = useState(false);
+  const fees = useFees();
 
   const load = useCallback(async () => {
     if (!userId) {
@@ -142,6 +150,7 @@ export function OrdersScreen() {
       return;
     }
     setLoading(true);
+    setFailed(false);
     try {
       if (!worker) {
         const tasks = await listMyTasks(userId);
@@ -161,6 +170,7 @@ export function OrdersScreen() {
       }
     } catch {
       setRows([]);
+      setFailed(true);
     } finally {
       setLoading(false);
     }
@@ -228,7 +238,41 @@ export function OrdersScreen() {
     }
   };
 
-  const openRow = (row: ViewRow) => openTaskRow(row, { go, flash, setOpenTask, startedOf });
+  // A pending offer opens the offer form to edit it (as in My Work); the other rows keep their own screens.
+  const [bidTask, setBidTask] = useState<Awaited<ReturnType<typeof getTask>> | null>(null);
+  const openRow = (row: ViewRow) => {
+    if (worker && row.state === 'PENDING' && row.taskId) {
+      void getTask(row.taskId)
+        .then((task) => (task ? setBidTask(task) : flash('That task is no longer available')))
+        .catch(() => flash('Could not open that offer. Please try again.'));
+      return;
+    }
+    openTaskRow(row, { go, flash, setOpenTask, startedOf });
+  };
+
+  // S5-37: Cancel asks first and says what it costs (the fine once work has started).
+  const [confirmRow, setConfirmRow] = useState<ViewRow | null>(null);
+  const cancelPct = fees.cancelFine ?? FEES.POST_START_CANCEL_PENALTY_PCT;
+  const confirmWords = (row: ViewRow): { title: string; message: string; label: string } => {
+    if (worker) {
+      return {
+        title: 'Step off this job?',
+        message: `“${row.title}” goes back on the market and you are taken off it. This can’t be undone.`,
+        label: 'Step off',
+      };
+    }
+    const started = /^(ACTIVE|OVERDUE)/.test(row.state);
+    const funded = row.bucket !== 0 || row.state.startsWith('PAID');
+    const w = closeTaskText({
+      title: row.title,
+      status: started ? 'TASK_STARTED' : 'OPEN',
+      funded,
+      fineMinor: Math.round((row.priceMinor ?? 0) * cancelPct),
+      finePct: Math.round(cancelPct * 100),
+      money: formatINR,
+    });
+    return { title: 'Cancel this request?', message: w.message, label: 'Cancel request' };
+  };
 
   const emptyLine = worker ? 'Offers you send show up here.' : 'Requests you post show up here.';
 
@@ -256,7 +300,7 @@ export function OrdersScreen() {
               row={row}
               index={i}
               onOpen={() => openRow(row)}
-              onCancel={row.taskId && row.cancellable ? () => void cancelRow(row) : undefined}
+              onCancel={row.taskId && row.cancellable ? () => setConfirmRow(row) : undefined}
               t={t}
             />
           ))}
@@ -276,7 +320,23 @@ export function OrdersScreen() {
               />
             ))}
 
-          {!loading && orderRows.length === 0 && (
+          {!loading && failed && (
+            <FadeIn duration={300} style={{ paddingVertical: 60, alignItems: 'center' }}>
+              <RNText style={tx('800', 18, t.colors.ink, { letterSpacing: -0.3 })}>Could not load your list</RNText>
+              <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21, textAlign: 'center' })}>
+                Check your connection and try again.
+              </RNText>
+              <Pressy
+                onPress={() => void load()}
+                scaleTo={0.96}
+                style={{ marginTop: 20, backgroundColor: t.colors.btn, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 22 }}
+              >
+                <RNText style={tx('700', 14, t.colors.onBtn)}>Try again</RNText>
+              </Pressy>
+            </FadeIn>
+          )}
+
+          {!loading && !failed && orderRows.length === 0 && (
             <FadeIn duration={400} style={{ paddingVertical: 70, alignItems: 'center' }}>
               <EmptyBoxIcon t={t} />
               <RNText style={tx('800', 18, t.colors.ink, { marginTop: 18, letterSpacing: -0.3 })}>Nothing here yet</RNText>
@@ -294,6 +354,25 @@ export function OrdersScreen() {
           )}
         </View>
       </FadeIn>
+      <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void load()} />
+      {confirmRow ? (
+        <ConfirmDialog
+          visible
+          danger
+          icon="close"
+          title={confirmWords(confirmRow).title}
+          message={confirmWords(confirmRow).message}
+          confirmLabel={confirmWords(confirmRow).label}
+          cancelLabel="Keep it"
+          busy={cancelling !== null}
+          onCancel={() => setConfirmRow(null)}
+          onConfirm={() => {
+            const r = confirmRow;
+            setConfirmRow(null);
+            void cancelRow(r);
+          }}
+        />
+      ) : null}
     </Screen>
   );
 }
