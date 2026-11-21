@@ -211,7 +211,7 @@ export function openRow(
     go: (s: ScreenName, p?: NavParams) => void;
     flash: (m: string) => void;
     setOpenTask: (t: TaskCtx | null) => void;
-    startedOf: (taskId: string) => boolean;
+    startedOf: (title: string) => boolean;
   },
 ): void {
   const { go, flash, setOpenTask, startedOf } = ctx;
@@ -238,8 +238,7 @@ export function openRow(
     case 'active':
       return go('active', p);
     case 'start':
-      // Started is known by task id (round 8, S3-24); without one, the start screen asks the server.
-      return row.taskId && startedOf(row.taskId) ? go('active', p) : go('swipe', p);
+      return startedOf(row.title) ? go('active', p) : go('swipe', p);
     default:
       return flash(`${row.title} · ${row.priceLabel}`);
   }

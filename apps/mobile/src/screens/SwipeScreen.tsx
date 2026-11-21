@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BackButton, ConfirmDialog } from '../components/kit';
-import { messageOf } from '../lib/errors';
+import { BackButton } from '../components/kit';
 import {
   View,
   Text as RNText,
@@ -62,8 +61,6 @@ export function SwipeScreen() {
   const [trackWidth, setTrackWidth] = useState(0);
   const [progress, setProgress] = useState(0); // 0..1, live drag position
   const [started, setStarted] = useState(false);
-  // The plain Start button asks once: the slide is deliberate, a tap is not, and a start cannot be undone (S5-29).
-  const [confirming, setConfirming] = useState(false);
 
   // PanResponder.create() runs once (inside useRef's initializer), so its
   // callbacks close over whatever state existed at that first render. Any
@@ -115,12 +112,10 @@ export function SwipeScreen() {
     }
     setProgress(1);
     setStarted(true);
+    startTask(title);
     // First worker to reach TASK_STARTED wins; the server decides.
     startTaskOnServer(taskId)
       .then(() => {
-        // Remembered only once the server said yes, and by task id: a refused start must leave the way back
-        // to this screen open (round 8, S5-29).
-        startTask(taskId);
         celebrate('Task started · contacts revealed');
         // Replace, not push: Back from the job must not land on "Swipe to start" for a job that has started (round 7, W3-8).
         navTimeoutRef.current = setTimeout(() => replace('active', params), 220);
@@ -128,7 +123,7 @@ export function SwipeScreen() {
       .catch((e: unknown) => {
         setStarted(false);
         setProgress(0);
-        flash(messageOf(e, 'Could not start this task'));
+        flash(e instanceof Error ? e.message : 'Could not start this task');
       });
   };
   // The drag handler is created once; it reaches the latest startNow through this ref.
@@ -292,7 +287,7 @@ export function SwipeScreen() {
             <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 13 })}>{hint}</RNText>
             {/* The same start as the slider, for a keyboard, a screen reader or a finger that would rather tap. */}
             <Pressable
-              onPress={() => setConfirming(true)}
+              onPress={startNow}
               disabled={started}
               accessibilityRole="button"
               accessibilityLabel="Start the task"
@@ -315,19 +310,6 @@ export function SwipeScreen() {
           </View>
         </View>
       </FadeIn>
-      <ConfirmDialog
-        visible={confirming}
-        icon="shield"
-        title="Start this job now?"
-        message="The timer starts and the customer's contacts unlock. It cannot be paused or undone."
-        confirmLabel="Yes, start"
-        cancelLabel="Not yet"
-        onCancel={() => setConfirming(false)}
-        onConfirm={() => {
-          setConfirming(false);
-          startNow();
-        }}
-      />
     </Screen>
   );
 }
