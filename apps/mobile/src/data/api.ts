@@ -462,16 +462,30 @@ export const isOfferChanged = (e: unknown) => e instanceof ApiError && e.code ==
 export const payTaskFromWallet = (taskId: string) => act<Task>('payTaskFromWallet', { taskId });
 export const startTask = (taskId: string) => act<Task>('startTask', { taskId });
 export const markWorkDone = (taskId: string) => act<Task>('markWorkDone', { taskId });
+/**
+ * Under Plan B, run the task's waiting release or refund now. The flag is set by the first screen that asks
+ * the server for the money flow; someone who came straight to the approve screen has not asked yet, so ask.
+ */
+function settleIfPlanB(taskId: string): void {
+  if (isPlanB()) return moneySettle(taskId);
+  void getMoneyMode()
+    .then((m) => {
+      if (m?.flow === 'plan_b') moneySettle(taskId);
+    })
+    .catch(() => {
+      /* the server's own schedule picks it up */
+    });
+}
 export const confirmRelease = async (taskId: string) => {
   const task = await act<Task>('confirmRelease', { taskId });
-  if (isPlanB()) moneySettle(taskId); // release the worker's share at once (fire and forget)
+  settleIfPlanB(taskId); // release the worker's share at once (fire and forget)
   return task;
 };
 export const requestRevision = (taskId: string, note?: string) =>
   act<Task>('requestRevision', { taskId, note: note?.trim() || null });
 export const cancelTask = async (taskId: string, reason?: string) => {
   const task = await act<Task>('cancelTask', { taskId, reason: reason?.trim() || null });
-  if (isPlanB()) moneySettle(taskId); // refund (or split) at once (fire and forget)
+  settleIfPlanB(taskId); // refund (or split) at once (fire and forget)
   return task;
 };
 export const openDispute = (taskId: string, reason?: string) =>
