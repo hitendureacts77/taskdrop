@@ -20,7 +20,7 @@ or duplicate message; it cannot move money on its own.
 trigger / RPC  ->  private.emit_event()  ->  private.outbox   (same transaction)
                                          \->  pg_net POST to Inngest   (fast path, after commit)
 
-Inngest "outbox-sweeper" (every 5 minutes) ->  outbox_pending()  -> re-sends anything not confirmed
+Inngest "outbox-sweeper" (every 10 minutes) ->  outbox_pending()  -> re-sends anything not confirmed
 ```
 
 The outbox id **is** the Inngest event id, so an event that arrives twice (fast
@@ -47,7 +47,7 @@ also drops those fields from anything it stores, for an event queued before this
 
 | Function | Trigger | Does |
 |---|---|---|
-| `outbox-sweeper` | every 5 minutes | re-sends unconfirmed outbox events, marks them sent |
+| `outbox-sweeper` | every 10 minutes | re-sends unconfirmed outbox events, marks them sent |
 | `outbox-prune` | daily 04:15 IST | removes sent events older than 14 days, and team alerts older than 30 days |
 | `team-alert` | support / withdrawal / payout failed / dispute events | writes a message to `admin_alerts` |
 | `daily-digest` | daily 09:00 IST | writes the day's totals to `admin_alerts` |
@@ -58,18 +58,30 @@ also drops those fields from anything it stores, for an event queued before this
 | `settle-finished-campaigns` | hourly at :07 | calls `settle_finished_campaigns()` |
 | `push-notification` | event `notification.created` | reads the message from the database, sends it to Expo, waits 15 minutes, reads Expo's receipts and forgets devices that are gone |
 | `account-files` | event `user.deleted` | removes whatever files of the deleted account are still in storage (the api function already tried once); empty when nothing is left. Also marks the account's ImageKit pictures deleted (migration 109), except those a kept record still uses |
-| `media-purge` | every 10 min | marks pictures nobody finished uploading (pending for 24 h) as deleted, then removes deleted pictures from ImageKit in batches of 50, with retries. Waits, without failing, until the ImageKit secrets are set. See `docs/MEDIA.md` |
+| `media-purge` | hourly at :41 | marks pictures nobody finished uploading (pending for 24 h) as deleted, then removes deleted pictures from ImageKit in batches of 50, with retries. Waits, without failing, until the ImageKit secrets are set. See `docs/MEDIA.md` |
 | `stray-imagekit-files` | weekly, Sunday 03:30 India time | removes ImageKit files in this deployment's folder that have no `media` row (by path or file id) and are over 2 days old, at most 200 per run; no-op until the ImageKit secrets are set; removes nothing if the database cannot be asked. `IMAGEKIT_ORPHAN_DRY_RUN=1` only counts. Needs no migration (H41) |
-| `public-snapshots` | every 10 min | calls `refresh_public_snapshots()` (migration 149, plan 3.5b layer C): Trending, Top helpers and today's numbers are worked out once and kept. Another refresh already running counts as success. If the last finished refresh is over 30 minutes old it logs an error for Sentry and leaves one team alert (the time is kept in the settings row `public_snapshots_last_ok`) |
-| `overdue-tasks` | every 10 min | calls `run_overdue_tasks()`: a started job past its due time becomes `OVERDUE`. Only the label changes; no money moves |
+| `public-snapshots` | every 20 min | calls `refresh_public_snapshots()` (migration 149, plan 3.5b layer C): Trending, Top helpers and today's numbers are worked out once and kept. Another refresh already running counts as success. If the last finished refresh is over 30 minutes old it logs an error for Sentry and leaves one team alert (the time is kept in the settings row `public_snapshots_last_ok`) |
+| `overdue-tasks` | every 30 min | calls `run_overdue_tasks()`: a started job past its due time becomes `OVERDUE`. Only the label changes; no money moves |
 | `user-created` | event `user.signed_up` | records the person in the `user_sync` ledger |
 | `user-updated` | event `user.updated` | counts the update and keeps which fields changed in the ledger |
 | `user-deleted` | event `user.deleted` | marks the person deleted in the ledger. Deleted is final: a late update or sign-up cannot revive them |
 | `user-sync-repair` | daily 03:10 IST | calls `user_sync_repair()`: adds anyone the ledger missed, marks deleted or removed accounts as deleted. Normally reports all zeros |
 | `housekeeping` | hourly at :17 | calls `run_housekeeping()`: removes expired sign-in codes, send and search counters, rate counters, password attempts older than 30 days, notifications older than 90 days, admin live-feed rows older than 30 days (only rows nobody else is holding), free ad events (clicks) older than `ad_events_keep_days` (migration 152; paid events stay) |
-| `outbox-watchdog` | every 10 min | calls `run_outbox_watchdog()`: events unsent for 15+ minutes mean the bridge to Inngest is broken (wrong key, function not deployed or synced). Leaves one team alert, then stays quiet for six hours |
+| `outbox-watchdog` | every 30 min | calls `run_outbox_watchdog()`: events unsent for 15+ minutes mean the bridge to Inngest is broken (wrong key, function not deployed or synced). Leaves one team alert, then stays quiet for six hours |
 | `safety-alarm` | every hour, at :23 | production only (any project but staging or localhost; quiet on staging). Fires a `fatal` Sentry event, which the alert rule emails at once, if production has a test shortcut on: `dev_otp_for_all` not off, the environment setting not `production`, a test-only function secret set (`ALLOW_ANY_OTP`, `TEST_PHONES`, an App Check debug token, `INNGEST_DEV`), or a Razorpay test key. Reads only. Rules and tests in `supabase/functions/_shared/safetyAlarm.ts` (plan task 5.9) |
-| `task-reminders` | every 15 min | calls `run_task_reminders()`: tells a poster that finished work will be approved for them within 24 hours, and a worker that a started job is due within the hour. Once per task and person, as an in-app notification (and push when push is on). No money moves |
+| `task-reminders` | every 30 min | calls `run_task_reminders()`: tells a poster that finished work will be approved for them within 24 hours, and a worker that a started job is due within the hour. Once per task and person, as an in-app notification (and push when push is on). No money moves |
+
+Also on a schedule: `sms-pumping-watch` (every 30 min, counts today's codes) and `money-moves`
+(Plan B, every 30 min plus the `money.move` event).
+
+**Run budget.** Each Inngest account (staging `taskdrop`, production `TaskDrop Production`) is on the
+free Hobby plan: 50,000 executions a month for all jobs together, and every `step.run` counts as
+one more. At the old pace (sweeper every 5 min, four jobs every 10) both accounts used about
+2,500 a day, and staging ran out on 16 Nov 2026: events then sat in the outbox and Plan B
+releases waited until someone opened the task. Today's schedules come to about 540 runs a day,
+roughly 1,300 executions, or 40,000 a month, which leaves room for event-driven runs (push).
+Before making any schedule faster, or switching the money sweeps on (`settle-cleared-earnings`
+every 5 min alone would cost about 17,000 a month), check the account's Billing → Usage page.
 
 The three money sweeps are **off** until `INNGEST_MONEY_JOBS=on`, because pg_cron runs them
 today (see "Moving the money sweeps"). Every function reports its final failure to
