@@ -29,3 +29,11 @@ export function pctWords(rate: number): string {
 export function releaseMessage(heldText: string): string {
   return `${heldText} is held for this job. Releasing it pays the worker (less TaskDrop's commission) and it cannot be taken back. Only do this if the work is done to your satisfaction. If something is wrong, ask for changes or report a problem instead.`;
 }
+
+/**
+ * The poster's hire question (round 8, S4-15): choosing an offer takes the money at once, so it says what is
+ * taken (the offer plus the service fee), that it is held, and what cancelling after the start costs.
+ */
+export function hireMessage(price: string, fee: string, total: string, rates: { posterFee: number; cancelFine: number }): string {
+  return `${total} is taken from your wallet now: the offer ${price} plus TaskDrop's ${pctWords(rates.posterFee)} service fee (${fee}). It is held until you approve the work. If you cancel after the work starts, ${pctWords(rates.cancelFine)} of the offer goes to the worker.`;
+}

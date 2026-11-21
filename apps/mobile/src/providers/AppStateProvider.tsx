@@ -50,11 +50,11 @@ type AppStateCtx = AppState & {
   celebrate: (msg?: string) => void;
   roll: (key: 'balance' | 'escrow' | 'clearing', target: number) => void;
   setOpenTask: (t: TaskCtx | null) => void;
-  startTask: (title: string) => void;
+  startTask: (taskId: string) => void;
   setDone: (title: string, level: number) => void;
   addBid: (row: OrderRow) => void;
   doneOf: (title: string) => number;
-  startedOf: (title: string) => boolean;
+  startedOf: (taskId: string) => boolean;
 };
 
 type Actions = Pick<
@@ -73,9 +73,11 @@ const INITIAL: AppState = {
   balance: 0,
   escrow: 0,
   clearing: 0,
-  doneMap: { 'Photograph a flat before I rent it': 1 },
-  startMap: { 'Assemble a wardrobe': true },
-  startedAt: { 'Assemble a wardrobe': Date.now() - 9678000 },
+  // Empty: the design mock-up seeded demo jobs here, and a real job with the same title opened as
+  // started (round 8, S3-24, S5-30).
+  doneMap: {},
+  startMap: {},
+  startedAt: {},
   myBids: [],
   openTask: null,
   toast: null,
@@ -129,12 +131,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const setOpenTask = useCallback((t: TaskCtx | null) => setS((p) => ({ ...p, openTask: t })), []);
   const startTask = useCallback(
-    (title: string) =>
+    // Keyed by task id, never by title: two jobs can share a title (S3-24).
+    (taskId: string) =>
       setS((p) => ({
         ...p,
-        startMap: { ...p.startMap, [title]: true },
-        startedAt: { ...p.startedAt, [title]: Date.now() },
-        doneMap: { ...p.doneMap, [title]: 0 },
+        startMap: { ...p.startMap, [taskId]: true },
+        startedAt: { ...p.startedAt, [taskId]: Date.now() },
       })),
     [],
   );
@@ -145,7 +147,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   );
   const addBid = useCallback((row: OrderRow) => setS((p) => ({ ...p, myBids: [...p.myBids, row] })), []);
   const doneOf = useCallback((title: string) => s.doneMap[title] ?? 0, [s.doneMap]);
-  const startedOf = useCallback((title: string) => !!s.startMap[title], [s.startMap]);
+  const startedOf = useCallback((taskId: string) => !!s.startMap[taskId], [s.startMap]);
 
   // Three contexts, so a toast or a rolling balance does not re-render every
   // screen: most components only call flash/celebrate, which never change.

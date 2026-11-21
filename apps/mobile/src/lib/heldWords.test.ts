@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { agreedMinor, pctWords, releaseMessage, workerEarnsMinor } from './heldWords.ts';
+import { agreedMinor, hireMessage, pctWords, releaseMessage, workerEarnsMinor } from './heldWords.ts';
 
 const rates = { commission: 0.1, posterFee: 0.03 };
 
@@ -25,4 +25,11 @@ test('W3-1: the release question does not say the whole held amount goes to the 
   assert.match(m, /Rs 103 is held/);
   assert.doesNotMatch(m, /goes to the worker/);
   assert.match(m, /less TaskDrop's commission/);
+});
+
+test('S4-15: the hire question names the amount, the fee and the cancel fine', () => {
+  const m = hireMessage('Rs 100', 'Rs 3', 'Rs 103', { posterFee: 0.03, cancelFine: 0.05 });
+  assert.match(m, /^Rs 103 is taken/);
+  assert.match(m, /offer Rs 100 plus TaskDrop's 3% service fee \(Rs 3\)/);
+  assert.match(m, /5% of the offer goes to the worker/);
 });
