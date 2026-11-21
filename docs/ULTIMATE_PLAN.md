@@ -501,9 +501,9 @@ I do not know. Pitch me three options and say which is best.
 6.6 | Release on Google Play | Only after Gate 6: the production store file, then Google's review.
 6.7 | Launch day | Launch posts, help the first 10 posters and 10 helpers yourself, watch the alerts all day.
 # E · Every change after launch | The same path every time (the full routine is task 5.0e).
-- | Staging first | A change merges into redesigned-2.0 and goes to taskdrop.in and TaskDrop Staging by itself.
-- | You promote it | After a quiet day in Sentry, you merge redesigned-2.0 into main. A database change waits for your approval.
-- | Production follows | Vercel rebuilds both production sites; the Android update waits for your approval, then 20% of users, then everyone.
+- | One branch, both copies (21 Nov) | A change merges into redesigned-2.0. Staging (taskdrop.in, admin.taskdrop.in, the staging database) and both production websites rebuild by themselves. main is an untouched copy.
+- | Production database waits for you | A database change runs on production only after you press Approve on the production-database environment in GitHub.
+- | Android | The Android update waits for your approval, then 20% of users, then everyone.
 - | An urgent fix | Roll back first, fix on a short branch with every check, test on staging, promote at once. Only the quiet-day wait is skipped. See the [release card](#c-release).
 ```
 
@@ -4371,7 +4371,7 @@ build the email sequences
 ```mermaid
 flowchart LR
   subgraph CODE["GitHub: one copy of the code"]
-    B["branch redesigned-2.0"] -->|"you promote"| M["branch main"]
+    B["branch redesigned-2.0<br/>(the one branch since 21 Nov)"]
   end
   subgraph STG["STAGING: fake money, testers"]
     S1["taskdrop.in<br/>admin: Vercel address or admin.taskdrop.in"]
@@ -4389,8 +4389,8 @@ flowchart LR
   end
   B --> S1
   B --> S5
-  M --> P1
-  M --> P5
+  B --> P1
+  B --> P5
   WALL(["No data and no keys ever cross"])
   S2 --- WALL --- P2
 ```
@@ -4400,7 +4400,7 @@ flowchart LR
 **Rules for the two copies**
 
 1. **Nothing is copied from staging to production:** no users, tasks, wallets, chats, photos, staff or test accounts. Production starts empty.
-2. **Only code moves**, through GitHub (`redesigned-2.0` → `main`). Both copies run the same code with their own settings.
+2. **Only code moves**, through GitHub. Since 21 November 2026 (owner) one branch, `redesigned-2.0`, feeds both copies; `main` is an untouched copy. Both copies run the same code with their own settings.
 3. **No key is shared.** A staging key used in production (or the reverse) is refused.
 4. **Staging stays one set** (one project per tool, as today), and Claude keeps deploying to it as now.
 5. **Production settings are set fresh:** fees, the 7-day earnings clearing, the app controls. The full list, with each value, is in task 5.9.
@@ -4419,7 +4419,7 @@ flowchart LR
 
 | Part | Staging (fake money, testers) | Production (real money, public) | What keeps them apart |
 |---|---|---|---|
-| Website | `taskdrop.in`, `www.taskdrop.in`; Vercel project `taskdrop`; branch `redesigned-2.0`; hidden from Google | `taskdrop-production.vercel.app` (expected); Vercel project `taskdrop-production`; branch `main`; open to Google | Two Vercel projects. Each holds only its own variables |
+| Website | `taskdrop.in`, `www.taskdrop.in`; Vercel project `taskdrop`; branch `redesigned-2.0`; hidden from Google | `taskdrop-production.vercel.app`; Vercel project `taskdrop-production`; branch `redesigned-2.0` (since 21 Nov; was `main`); open to Google | Two Vercel projects. Each holds only its own variables |
 | Admin website | `taskdrop-admin` project; Vercel's address, or `admin.taskdrop.in` (5.0b) | `taskdrop-admin-production`; `taskdrop-admin-production.vercel.app` (expected) | Two projects, each with its own session secret and database key |
 | Android app | **TaskDrop Staging**, `com.taskdrop.app.staging`, an APK from an Expo link | **TaskDrop**, `com.taskdrop.app`: a production APK for you, and the store file for Google Play | Different package, name, icon corner and link name, so both sit on one phone and never share a sign-in |
 | Phone updates | Expo project `@hitendureacts/taskdrop`, channel `staging` | Expo project `@hitendureacts/taskdrop-production`, channel `production` | Two Expo projects. A staging update cannot reach a production phone |
@@ -4601,9 +4601,9 @@ Build the production APK.
 
 | Step | Staging | Production |
 |---|---|---|
-| Code | A short branch is merged into `redesigned-2.0` (rule 6) | You merge a pull request from `redesigned-2.0` into `main`. `main` is protected: checks must be green |
-| Website | Vercel builds `taskdrop` by itself: `taskdrop.in` | Vercel builds `taskdrop-production` from `main`: the production address |
-| Admin | `taskdrop-admin` builds by itself | `taskdrop-admin-production` builds from `main` |
+| Code | A short branch is merged into `redesigned-2.0` (rule 6). `redesigned-2.0` is protected: checks must be green | The same merge (one branch since 21 Nov 2026; `main` is an untouched copy) |
+| Website | Vercel builds `taskdrop` by itself: `taskdrop.in` | Vercel builds `taskdrop-production` from `redesigned-2.0` by itself: the production address |
+| Admin | `taskdrop-admin` builds by itself: `admin.taskdrop.in` | `taskdrop-admin-production` builds from `redesigned-2.0` by itself |
 | Database and server code | The Vercel build deploys them to the staging project | The GitHub workflow with the `production-database` environment: it waits for you to approve (3.7) |
 | Background jobs | Staging's Inngest picks up the new functions | Production's Inngest picks them up after the production deploy |
 | Android app | The `staging` workflow: a quick update, or a new APK if the native part changed | The production workflow builds, then waits for your approval. A quick update goes to channel `production`. A native change becomes a new store file and a 20% rollout on Google Play (6.6) |
@@ -4611,7 +4611,7 @@ Build the production APK.
 
 **Rules**
 
-1. **A change reaches staging first, always.** Production receives only code that has run on staging for at least one quiet day in Sentry.
+1. **A change reaches staging first, always.** Production receives only code that has run on staging for at least one quiet day in Sentry. **Changed 21 Nov 2026 (owner):** until launch, one merge updates staging and both production websites at the same moment; the production database still waits for your Approve. Before real money (Gate 5), decide whether production websites should wait again (for example a Vercel "promote" step).
 2. **A database change goes out with the code that needs it,** in the same release, and only adds (rule 2 of the agent guide).
 3. **Nothing is run by hand against production** without your OK in the chat. Claude never reads a production key; it reads names only.
 4. **Rollback.** Website and admin: promote the previous deployment in Vercel. Phone: republish the previous update, or stop the Play rollout. Database: a forward fix, or restore from the nightly copy (5.9).
@@ -4635,7 +4635,7 @@ Each row is one tool. "Where" is the only place the value is stored, so there is
 | Expo | Project, channel, signing key, variables | `@hitendureacts/taskdrop`, channel `staging` | `@hitendureacts/taskdrop-production`, channel `production` | An update on one channel never reaches the other |
 | Vercel | Variables per project; production scope only | Project `taskdrop`, `taskdrop-admin` | Project `taskdrop-production`, `taskdrop-admin-production` | Preview and Development hold no production value (5.8b) |
 | MSG91, Loops | Sign-in text messages, email sequences | Not connected to real people (the sign-in code shows on screen) | Own account and keys | The production app asks for a real SMS code |
-| GitHub | Branch and approval | `redesigned-2.0`, repository secrets | `main`, the `production-database` environment | A direct push to `main` is refused |
+| GitHub | Branch and approval | `redesigned-2.0`, repository secrets | `redesigned-2.0` too (since 21 Nov), plus the `production-database` environment, which only `redesigned-2.0` may use and which waits for your Approve | A direct push to `redesigned-2.0` is refused |
 | Uptime Robot | Monitors | Two, named staging | Three, named production | Named by copy |
 </details>
 

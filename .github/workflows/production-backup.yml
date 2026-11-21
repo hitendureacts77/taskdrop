@@ -11,9 +11,9 @@ name: Production nightly backup
 # (required reviewers) works only in public repositories there (docs/PRODUCTION_GO.md, step 1). A private
 # repository's releases cost nothing and are outside Supabase. Copies older than 30 days are deleted by this job.
 #
-# Scheduled workflows run from the default branch (main), so this starts once the owner promotes it.
+# Scheduled workflows run from the default branch (redesigned-2.0 since 21 Nov 2026).
 # The secrets live only in the GitHub environment `production-backup` (no reviewer, because a nightly job
-# cannot wait for a click; only the `main` branch may use it). Values come from the PROD_ section of
+# cannot wait for a click; only the `redesigned-2.0` branch may use it). Values come from the PROD_ section of
 # .env.all-secrets and are never printed:
 #   secret   PROD_SUPABASE_DB_PASSWORD   the production database password
 #   secret   PROD_BACKUP_PASSPHRASE      encrypts the copy (AES-256); without it the copy cannot be opened
@@ -42,7 +42,7 @@ concurrency:
 jobs:
   backup:
     name: encrypted copy of the production database
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/redesigned-2.0'
     runs-on: ubuntu-latest
     environment: production-backup
     timeout-minutes: 60
