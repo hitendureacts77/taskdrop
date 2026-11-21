@@ -1498,6 +1498,7 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           display_name: string
+          earn_goal: string | null
           id: string
           intent: string | null
           languages: string[]
@@ -1526,6 +1527,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           display_name: string
+          earn_goal?: string | null
           id: string
           intent?: string | null
           languages?: string[]
@@ -1554,6 +1556,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           display_name?: string
+          earn_goal?: string | null
           id?: string
           intent?: string | null
           languages?: string[]

@@ -29,11 +29,11 @@ export const PROFILE_PUBLIC = [
 
 /** Only the person themself: shown on their own row, never in an answer about someone else. */
 export const PROFILE_PRIVATE = [
-  "payout_upi", "sessions_revoked_at", "sessions_keep_session", "weekly_goal_minor", "referral_code",
+  "payout_upi", "sessions_revoked_at", "sessions_keep_session", "weekly_goal_minor", "referral_code", "earn_goal",
 ] as const;
 
-/** What a person's own profile read may add: the two fields their own screens use (referral code, weekly goal). */
-export const PROFILE_OWNER_EXTRA = ["referral_code", "weekly_goal_minor"] as const;
+/** What a person's own profile read may add: the fields their own screens use (referral code, weekly goal, why they earn). */
+export const PROFILE_OWNER_EXTRA = ["referral_code", "weekly_goal_minor", "earn_goal"] as const;
 
 export const PROFILE_COLUMNS = [...PROFILE_PUBLIC, ...PROFILE_PRIVATE] as const;
 export const PROFILE_PUBLIC_SELECT = join(PROFILE_PUBLIC);

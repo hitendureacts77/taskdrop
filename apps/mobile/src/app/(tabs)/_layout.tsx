@@ -39,8 +39,9 @@ function Tabs() {
   return (
     <NativeTabs
       hidden={keyboardOpen}
-      // The stack above handles Android's back button.
-      backBehavior="none"
+      // Android's back button: a screen opened over the tabs closes first (the stack above handles that);
+      // on any other tab it goes to Home, and only on Home does it leave the app (P1-4).
+      backBehavior="initialRoute"
       labelVisibilityMode="labeled"
       tintColor={c.accentDeep}
       iconColor={{ default: c.muted, selected: c.accentDeep }}
@@ -50,8 +51,8 @@ function Tabs() {
       }}
       backgroundColor={c.surface}
       indicatorColor={c.accentSoft}
-      badgeBackgroundColor={c.signalDeep}
-      badgeTextColor={c.onAccent}
+      badgeBackgroundColor={c.signalFill}
+      badgeTextColor="#FFFFFF"
     >
       <NativeTabs.Trigger name={TAB_ROUTE.home.name} contentStyle={page} disableAutomaticContentInsets>
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>

@@ -3,12 +3,14 @@ import { callApi } from '../lib/gateway';
 import { clientHeaders } from '../lib/appInfo';
 import { currentUserId, supabase } from '../lib/supabase';
 import { subscribeLive } from '../lib/live';
+import { UNREAD_WINDOW, unreadSummary } from '../lib/unread';
 import { forgetEverything, reusePublic, reuseWhileFresh } from '../lib/freshness';
 import type { Tables } from '@taskdrop/db-types';
 import { guestGate, primeProfile, type Task, type Profile } from './api';
 import { isGuestOp } from '../lib/guest';
 import type { Idea, IdeaComment, IdeaKind, IdeaStatus } from '../lib/ideas';
 import { EVERYONE_MAP_NOTICE, PEOPLE_MAP_NOTICE, type MapAudience } from '../lib/mapSpot';
+import { passwordProblem } from '../lib/passwordRules';
 
 /**
  * The second-wave features: notifications, saved tasks, help & support,
@@ -75,8 +77,39 @@ export async function notificationSides(rows: Notification[]): Promise<Map<strin
 export const countUnreadFor = (side: 'poster' | 'worker') =>
   reuseWhileFresh('countUnreadFor', side, () => ask<number>('countUnreadFor', { side }, 0)).catch(() => 0);
 
+/**
+ * The bell's number and the Messages dot for one side, from the same newest UNREAD_WINDOW alerts the
+ * Notifications screen lists, with the same side rule (W3-12), so the badge always equals the list.
+ * Reused for a few seconds like the old count (lib/freshness.ts).
+ */
+export const unreadSummaryFor = (side: 'poster' | 'worker') =>
+  reuseWhileFresh('listNotifications', `summary:${side}`, async () => {
+    const list = await listNotifications(UNREAD_WINDOW);
+    const sides = await notificationSides(list.filter((n) => !n.read_at));
+    return unreadSummary(list, sides, side);
+  }).catch(() => ({ total: 0, messages: 0 }));
+
+/** Screens that show a bell number or the Messages dot listen here, to recount after something was marked read. */
+const unreadListeners = new Set<() => void>();
+export function onUnreadChanged(fn: () => void): () => void {
+  unreadListeners.add(fn);
+  return () => unreadListeners.delete(fn);
+}
+
+/** No ids = every unread alert (the server's rule), so a caller with nothing to mark must not call this. */
 export async function markNotificationsRead(ids?: string[]): Promise<void> {
   await ask('markNotificationsRead', { ids: ids ?? [] }, null);
+  for (const fn of [...unreadListeners]) fn();
+}
+
+/**
+ * Opening a conversation reads it: the "New message" alerts about this task are marked read, so the Messages dot
+ * and the bell number go down. Nothing to mark means no call (an empty list would mean "everything").
+ */
+export async function markChatRead(taskId: string): Promise<void> {
+  const list = await listNotifications(UNREAD_WINDOW);
+  const ids = list.filter((n) => n.kind === 'message' && n.task_id === taskId && !n.read_at).map((n) => n.id);
+  if (ids.length > 0) await markNotificationsRead(ids);
 }
 
 /**
@@ -296,12 +329,16 @@ export async function usernameAvailable(username: string): Promise<boolean | nul
   return quietly<boolean | null>('usernameAvailable', { username: handle }, null);
 }
 
+export type EarnGoal = 'business' | 'gig' | 'other';
+
 export type ProfileExtras = {
   username?: string | null;
   bio?: string | null;
   workerBio?: string | null;
   languages?: string[];
   intent?: 'post' | 'earn' | 'both' | null;
+  /** Why they earn (migration 179): sales for an existing business, gig-style earning, or something else. */
+  earnGoal?: EarnGoal | null;
   workerOnboarded?: boolean;
 };
 
@@ -418,11 +455,50 @@ export async function signInWithUsername(username: string, password: string): Pr
   if (error) throw apiError(error);
 }
 
-/** Set or change the password for username sign-in. */
-export async function setPassword(password: string): Promise<void> {
-  if (password.length < 8) throw new Error('Use at least 8 characters');
-  const { error } = await supabase.auth.updateUser({ password });
-  if (error) throw apiError(error);
+/** A refused password change. `needCurrent`: the server wants the current password first (H30). */
+export class PasswordChangeError extends Error {
+  constructor(message: string, readonly needCurrent: boolean) {
+    super(message);
+  }
+}
+
+/**
+ * Set or change the password for username sign-in (hole H30). The server decides: 12 characters and more,
+ * and the current password once the person has one, unless they signed in by text code or Google in the last
+ * 15 minutes (the forgotten-password path). It also sends the person a notice of the change.
+ */
+export async function changePassword(newPassword: string, currentPassword?: string): Promise<void> {
+  const problem = passwordProblem(newPassword);
+  if (problem) throw new PasswordChangeError(problem, false);
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new PasswordChangeError('Sign in again, then try once more.', false);
+  const res = await fetch(PW_URL, {
+    method: 'POST',
+    headers: {
+      apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...clientHeaders(),
+    },
+    body: JSON.stringify({ action: 'change', new_password: newPassword, current_password: currentPassword || undefined }),
+  }).catch(() => null);
+  if (!res) throw new PasswordChangeError('No connection. Try again.', false);
+  const out = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    error?: string;
+    needCurrent?: boolean;
+    access_token?: string;
+    refresh_token?: string;
+  };
+  if (!res.ok || !out.ok) throw new PasswordChangeError(out.error ?? 'Could not set the password', Boolean(out.needCurrent));
+  // Supabase ended every session with the change; the server signed this device back in. Keep that session
+  // (it also carries password_set_at, so the form asks for the current password next time).
+  if (out.access_token && out.refresh_token) {
+    const { error } = await supabase.auth.setSession({ access_token: out.access_token, refresh_token: out.refresh_token });
+    if (!error) return;
+  }
+  throw new PasswordChangeError('Password set. Please sign in again with your new password.', false);
 }
 
 /**
@@ -451,7 +527,7 @@ export async function deleteMyAccount(): Promise<void> {
 }
 
 /** Which sign-in methods this account has. */
-export async function verificationState(): Promise<{ phone: boolean; email: boolean; google: boolean }> {
+export async function verificationState(): Promise<{ phone: boolean; email: boolean; google: boolean; hasPassword: boolean }> {
   const { data } = await supabase.auth.getUser();
   const u = data.user;
   const email = u?.email ?? '';
@@ -459,7 +535,9 @@ export async function verificationState(): Promise<{ phone: boolean; email: bool
     .filter(Boolean) as string[];
   const phone = /@phone\.taskdrop\.app$/i.test(email);
   const google = providers.includes('google');
-  return { phone, email: google || (!phone && Boolean(u?.email_confirmed_at)), google };
+  // Written by password-auth when the person sets a password (H30). Older passwords are found by the server.
+  const hasPassword = typeof u?.app_metadata?.password_set_at === 'string';
+  return { phone, email: google || (!phone && Boolean(u?.email_confirmed_at)), google, hasPassword };
 }
 
 // ------------------------------------------------------------- remote work --

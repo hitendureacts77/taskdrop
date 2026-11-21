@@ -4,6 +4,7 @@ import { useActions } from '../providers/AppStateProvider';
 import { useTheme } from '../providers/ThemeProvider';
 import { blockUser, reportContent } from '../data/api';
 import { BottomSheet, Field, PrimaryButton } from './kit';
+import { lengthHint } from '../lib/fieldHint';
 import { tx } from './primitives';
 import { isNeedsAccount, useAccountHold } from '../lib/guest';
 
@@ -82,6 +83,7 @@ export function ReportSheet({
         multiline
         maxLength={500}
         placeholder="E.g. asking to pay outside TaskDrop, abusive messages, a scam"
+        hint={lengthHint(reason, 5, 'what is wrong') ?? undefined}
       />
       {personId ? (
         <Pressable

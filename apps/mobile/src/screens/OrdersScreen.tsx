@@ -3,8 +3,12 @@ import {
   View,
   Text as RNText,
   Pressable,
+  RefreshControl,
 } from 'react-native';
 import { Grid, UnderlineTabs } from '../components/kit';
+import { ListPage, SegmentedTabs } from '../components/ListPage';
+import { CONTENT_INSET } from '../navigation/DesktopPage';
+import { useLayout } from '../lib/layout';
 import { Icon } from '../components/Icon';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
@@ -45,6 +49,9 @@ import { FadeIn, Pressy, tx } from '../components/primitives';
 const WORKER_TABS = ['Services', 'Accepted', 'Pending', 'Closed'];
 const POSTER_TABS = ['Open', 'Active', 'Done'];
 
+// The desktop page's scroll content: ListPage's own padding, plus the inset the page header's content sits at.
+const LIST_SCROLL = { paddingTop: 8, paddingBottom: 32, paddingHorizontal: CONTENT_INSET } as const;
+
 
 function OrderCard({
   row,
@@ -59,6 +66,9 @@ function OrderCard({
   onCancel?: () => void;
   t: Theme;
 }) {
+  // On the desktop grid a long unbroken title must not push the price out of the card: it takes two lines and
+  // shortens with "...", the price keeps its width. The phone card is unchanged.
+  const { desktop } = useLayout();
   return (
     <FadeIn duration={360} delay={index * 70} translateY={10} style={{ marginTop: 12 }}>
       <Pressy
@@ -82,8 +92,10 @@ function OrderCard({
           <RNText style={tx('700', 10, toneInk(row.tone, t.colors), { letterSpacing: 1.6 })}>{row.state}</RNText>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 12, marginTop: 9 }}>
-          <RNText style={tx('700', 16, t.colors.ink, { flex: 1 })}>{row.title}</RNText>
-          <RNText style={tx('800', 16, t.colors.ink)}>{row.priceLabel}</RNText>
+          <RNText numberOfLines={desktop ? 2 : undefined} style={tx('700', 16, t.colors.ink, desktop ? { flex: 1, minWidth: 0 } : { flex: 1 })}>
+            {row.title}
+          </RNText>
+          <RNText style={tx('800', 16, t.colors.ink, desktop ? { flexShrink: 0 } : undefined)}>{row.priceLabel}</RNText>
         </View>
         <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6 })}>{row.meta}</RNText>
 
@@ -121,6 +133,9 @@ export function OrdersScreen() {
   const { mode } = useMode();
   const { flash, setOpenTask, startedOf } = useApp();
   const { userId } = useAuth();
+  // Desktop: a ListPage (tabs as a segmented control in the toolbar, the cards in a grid, the title in the page
+  // header). Everywhere else the screen is drawn exactly as before.
+  const { desktop } = useLayout();
   const [orderTab, setOrderTab] = useState(0);
   // Until the person picks a tab, show the first one that has something in it: right after sending an offer
   // the first tab (Services) is empty and read as "nothing here yet" while the offer sat under Pending.
@@ -232,6 +247,89 @@ export function OrdersScreen() {
 
   const emptyLine = worker ? 'Offers you send show up here.' : 'Requests you post show up here.';
 
+  const pickTab = (i: number) => {
+    setPickedTab(true);
+    setOrderTab(i);
+  };
+
+  const cards = (
+    <>
+      <Grid>
+      {orderRows.map((row, i) => (
+        <OrderCard
+          key={`${row.title}-${i}`}
+          row={row}
+          index={i}
+          onOpen={() => openRow(row)}
+          onCancel={row.taskId && row.cancellable ? () => void cancelRow(row) : undefined}
+          t={t}
+        />
+      ))}
+      </Grid>
+
+      {loading && orderRows.length === 0 &&
+        [0, 1, 2].map((i) => (
+          <View
+            key={i}
+            style={{
+              ...cardSurface(t, 18),
+              padding: 16,
+              marginTop: 12,
+              height: 86,
+              opacity: 0.5,
+            }}
+          />
+        ))}
+
+      {!loading && orderRows.length === 0 && (
+        <FadeIn duration={400} style={{ paddingVertical: 70, alignItems: 'center' }}>
+          <EmptyBoxIcon t={t} />
+          <RNText style={tx('800', 18, t.colors.ink, { marginTop: 18, letterSpacing: -0.3 })}>Nothing here yet</RNText>
+          <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21, textAlign: 'center' })}>
+            {emptyLine}
+          </RNText>
+          <Pressy
+            onPress={() => go('home')}
+            scaleTo={0.96}
+            style={{ marginTop: 20, backgroundColor: t.colors.btn, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 22 }}
+          >
+            <RNText style={tx('700', 14, t.colors.onBtn)}>Browse jobs</RNText>
+          </Pressy>
+        </FadeIn>
+      )}
+    </>
+  );
+
+  if (desktop) {
+    return (
+      <Screen padded={false}>
+        <ListPage
+          scrollProps={{
+            contentContainerStyle: LIST_SCROLL,
+            refreshControl: <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} colors={[t.colors.accent]} />,
+          }}
+          toolbar={{
+            left: (
+              <SegmentedTabs
+                tabs={tabNames.map((x) => ({ key: x, label: x }))}
+                value={tabNames[orderTab] ?? tabNames[0]!}
+                onChange={(k) => pickTab(tabNames.indexOf(k))}
+              />
+            ),
+            right:
+              orderRows.length > 0 ? (
+                <RNText style={tx('600', 13, t.colors.muted, { fontVariant: ['tabular-nums'] })}>
+                  {orderRows.length === 1 ? '1 order' : `${orderRows.length} orders`}
+                </RNText>
+              ) : undefined,
+          }}
+        >
+          <FadeIn duration={260}>{cards}</FadeIn>
+        </ListPage>
+      </Screen>
+    );
+  }
+
   return (
     <Screen scroll padded={false} onRefresh={refresh} refreshing={refreshing}>
       <FadeIn duration={260}>
@@ -246,53 +344,9 @@ export function OrdersScreen() {
           {worker ? 'My offers' : 'My requests'}
         </RNText>
 
-        <UnderlineTabs tabs={tabNames} active={orderTab} onPick={(i) => { setPickedTab(true); setOrderTab(i); }} />
+        <UnderlineTabs tabs={tabNames} active={orderTab} onPick={pickTab} />
 
-        <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16 }}>
-          <Grid>
-          {orderRows.map((row, i) => (
-            <OrderCard
-              key={`${row.title}-${i}`}
-              row={row}
-              index={i}
-              onOpen={() => openRow(row)}
-              onCancel={row.taskId && row.cancellable ? () => void cancelRow(row) : undefined}
-              t={t}
-            />
-          ))}
-          </Grid>
-
-          {loading && orderRows.length === 0 &&
-            [0, 1, 2].map((i) => (
-              <View
-                key={i}
-                style={{
-                  ...cardSurface(t, 18),
-                  padding: 16,
-                  marginTop: 12,
-                  height: 86,
-                  opacity: 0.5,
-                }}
-              />
-            ))}
-
-          {!loading && orderRows.length === 0 && (
-            <FadeIn duration={400} style={{ paddingVertical: 70, alignItems: 'center' }}>
-              <EmptyBoxIcon t={t} />
-              <RNText style={tx('800', 18, t.colors.ink, { marginTop: 18, letterSpacing: -0.3 })}>Nothing here yet</RNText>
-              <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21, textAlign: 'center' })}>
-                {emptyLine}
-              </RNText>
-              <Pressy
-                onPress={() => go('home')}
-                scaleTo={0.96}
-                style={{ marginTop: 20, backgroundColor: t.colors.btn, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 22 }}
-              >
-                <RNText style={tx('700', 14, t.colors.onBtn)}>Browse jobs</RNText>
-              </Pressy>
-            </FadeIn>
-          )}
-        </View>
+        <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16 }}>{cards}</View>
       </FadeIn>
     </Screen>
   );

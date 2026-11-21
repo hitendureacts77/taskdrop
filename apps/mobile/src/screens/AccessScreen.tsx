@@ -13,11 +13,11 @@ import { Drop, Ripples } from '../components/Ripples';
 import { HeroBackground } from '../components/Hero';
 import { FloatCard } from '../components/BrandArt';
 import { useLayout } from '../lib/layout';
-import { isReadyMobile, normalizeMobileInput } from '../lib/phone';
+import { isReadyMobile, normalizeMobileInput, spacedMobile } from '../lib/phone';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { BottomSheet, Field, PrimaryButton } from '../components/kit';
-import { tx } from '../components/primitives';
+import { HitArea, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useAppConfig } from '../components/AppGate';
 import { useNav } from '../providers/NavProvider';
@@ -54,10 +54,7 @@ import { FROM_GUEST, clearGuestHandoff, declineAccount, markGuestHandoff, releas
 type Stage = 'number' | 'birth' | 'code';
 type Door = 'signin' | 'signup';
 
-/** "9876543210" -> "98765 43210", the way people say a number aloud. */
-function spaced(digits: string): string {
-  return digits.length > 5 ? `${digits.slice(0, 5)} ${digits.slice(5)}` : digits;
-}
+const spaced = spacedMobile;
 
 export function AccessScreen() {
   const t = useTheme();
@@ -100,6 +97,8 @@ export function AccessScreen() {
   const [pwOpen, setPwOpen] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPasswordText] = useState('');
+  // What is missing when Sign in was tapped with an empty box; cleared once they type.
+  const [pwMissing, setPwMissing] = useState<string | null>(null);
   const [pwBusy, setPwBusy] = useState(false);
 
   // The server refuses a second code within 60 seconds; count it down here
@@ -124,6 +123,9 @@ export function AccessScreen() {
 
   const numberReady = isReadyMobile(phone);
   const complete = otp.length === 6;
+  // Once the code is asked for, the picture shrinks so the code boxes and the Test mode code sit above the
+  // phone's keyboard without scrolling (P1-1).
+  const compactHero = stage !== 'number';
 
   // Where to go once a session exists. Returning people go straight in; a
   // first sign-in goes through setup.
@@ -152,6 +154,7 @@ export function AccessScreen() {
     setDoor(used);
     setStage('code');
     setOtp('');
+    accepted.current = false;
     setResendAt(Date.now() + 60_000);
     setNow(Date.now());
     // A test project hands the code back. It is shown in a box to be typed, not filled in.
@@ -218,8 +221,12 @@ export function AccessScreen() {
   // tap. The guard is a ref, not state: a code is single-use, so two in-flight
   // verifies mean the second one always fails.
   const verifying = useRef(false);
+  // Set once a code has been accepted. The code stays typed in the box while the app moves on, so
+  // without this the effect below fired a second verify when `busy` flipped back, and the server
+  // answered "Request a code first" on top of Home (P1-7). Cleared when a new code is sent.
+  const accepted = useRef(false);
   useEffect(() => {
-    if (!complete || busy || verifying.current || stage !== 'code') return;
+    if (!complete || busy || verifying.current || accepted.current || stage !== 'code') return;
     verifying.current = true;
     void verify().finally(() => {
       verifying.current = false;
@@ -232,6 +239,9 @@ export function AccessScreen() {
     setBusy(true);
     try {
       await verifyCode(phone, otp, door);
+      // The code is spent: nothing may submit it again, and the test-code box has done its job.
+      accepted.current = true;
+      setDevCode('');
       // The new account answers the question it was asked before the code. If
       // this cannot reach the server, AgeGate asks again after sign-in.
       if (door === 'signup' && birth) {
@@ -292,7 +302,9 @@ export function AccessScreen() {
   };
 
   const passwordSignIn = async () => {
-    if (!username.trim() || !password) return flash('Enter your username and password');
+    const missing = !username.trim() && !password ? 'Enter your username and password.' : !username.trim() ? 'Enter your username.' : !password ? 'Enter your password.' : null;
+    setPwMissing(missing);
+    if (missing) return flash(missing);
     setPwBusy(true);
     try {
       await signInWithUsername(username, password);
@@ -372,7 +384,7 @@ export function AccessScreen() {
         {desktop ? null : (
           <View
             style={{
-              height: 290,
+              height: compactHero ? 150 : 290,
               borderBottomLeftRadius: 36,
               borderBottomRightRadius: 36,
               alignItems: 'center',
@@ -384,8 +396,8 @@ export function AccessScreen() {
             <Ripples color="rgba(255,255,255,0.75)" size={420} count={4} duration={4000} />
             <View
               style={{
-                width: 108,
-                height: 108,
+                width: compactHero ? 80 : 108,
+                height: compactHero ? 80 : 108,
                 borderRadius: 108,
                 backgroundColor: '#FFFFFF',
                 alignItems: 'center',
@@ -397,10 +409,10 @@ export function AccessScreen() {
                 elevation: 8,
               }}
             >
-              <Drop size={56} fill={t.colors.heroMid} tick="#FFFFFF" />
+              <Drop size={compactHero ? 40 : 56} fill={t.colors.heroMid} tick="#FFFFFF" />
             </View>
-            <FloatCard icon="globe" tone="ai" title="Logo design · Remote" sub="from ₹1,500" style={{ top: 66, right: 16 }} />
-            <FloatCard icon="pin" title="Plumber · 1.2 km" sub="3 offers in 9 min" delay={900} style={{ top: 198, left: 16 }} />
+            {compactHero ? null : <FloatCard icon="globe" tone="ai" title="Logo design · Remote" sub="from ₹1,500" style={{ top: 66, right: 16 }} />}
+            {compactHero ? null : <FloatCard icon="pin" title="Plumber · 1.2 km" sub="3 offers in 9 min" delay={900} style={{ top: 198, left: 16 }} />}
             <RNText style={tx('800', 22, '#FFFFFF', { letterSpacing: -0.8, position: 'absolute', top: 24, left: 22 })}>
               taskdrop<RNText style={{ color: '#7FE3C4' }}>.</RNText>
             </RNText>
@@ -414,11 +426,12 @@ export function AccessScreen() {
                 declineAccount();
                 back();
               }}
-              hitSlop={8}
+              hitSlop={11}
               accessibilityRole="button"
               accessibilityLabel="Not now"
               style={{ alignSelf: 'flex-start', marginBottom: 14 }}
             >
+              <HitArea x={8} y={11} />
               <RNText style={tx('700', 14, t.colors.muted)}>Not now</RNText>
             </Pressable>
           ) : null}
@@ -427,7 +440,9 @@ export function AccessScreen() {
 
           {stage === 'number' ? (
             <>
-              {/* The number, big, on a line that fills as it is typed. */}
+              {/* The number, big, on a line that fills as it is typed. On a phone the box sits low
+                  (under the tall picture), so it scrolls itself above the keyboard when it gets focus. */}
+              <RevealWhen when={phoneFocused}>
               <Pressable onPress={() => phoneRef.current?.focus()} style={{ marginTop: 28 }}>
                 <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.4 })}>YOUR MOBILE NUMBER</RNText>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 }}>
@@ -443,7 +458,9 @@ export function AccessScreen() {
                   </View>
                   <TextInput
                     ref={phoneRef}
-                    value={spaced(phone)}
+                    // Phones get the plain digits: re-writing the box's text with a space in it while keys
+                    // arrive quickly made Android drop or reorder digits (P1-2). The web box can take the space.
+                    value={Platform.OS === 'web' ? spaced(phone) : phone}
                     onChangeText={(v) => setPhone(normalizeMobileInput(v))}
                     onFocus={() => setPhoneFocused(true)}
                     onBlur={() => setPhoneFocused(false)}
@@ -470,6 +487,7 @@ export function AccessScreen() {
                   />
                 </View>
               </Pressable>
+              </RevealWhen>
 
               <PrimaryButton
                 label={busy ? 'Sending…' : 'Text me a code'}
@@ -582,16 +600,27 @@ export function AccessScreen() {
             </>
           ) : stage === 'birth' ? (
             <>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 22 }}>
-                <View style={{ backgroundColor: t.colors.goldSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
-                  <RNText style={tx('700', 12, t.colors.goldInk)}>New account</RNText>
+              {/* W3-9: a new account is about to be made for this number, so it is named big and clear,
+                  with a way back to fix it if it is not the number they meant. */}
+              <View style={{ marginTop: 22 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ backgroundColor: t.colors.goldSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
+                    <RNText style={tx('700', 12, t.colors.goldInk)}>New account</RNText>
+                  </View>
+                  <Pressable onPress={editNumber} hitSlop={8} accessibilityRole="button" accessibilityLabel="Change the number">
+                    <RNText style={tx('700', 13, t.colors.accentDeep)}>Wrong number? Change</RNText>
+                  </Pressable>
                 </View>
-                <RNText style={tx('500', 13, t.colors.muted, { flex: 1 })} numberOfLines={1}>
+                <RNText
+                  testID="new-account-number"
+                  accessibilityLabel={`New account for number plus 91 ${phone.split('').join(' ')}`}
+                  style={tx('800', 28, t.colors.ink, { marginTop: 12, letterSpacing: 1.2 })}
+                >
                   +91 {spaced(phone)}
                 </RNText>
-                <Pressable onPress={editNumber} hitSlop={8} accessibilityRole="button">
-                  <RNText style={tx('700', 13, t.colors.accentDeep)}>Change</RNText>
-                </Pressable>
+                <RNText style={tx('400', 13, t.colors.muted, { marginTop: 6, lineHeight: 19 })}>
+                  No account uses this number yet, so we will make one for it.
+                </RNText>
               </View>
               <View style={{ marginTop: 26 }}>
                 <BirthDateField value={dob} onChange={setDob} onSubmit={() => void confirmBirth()} autoFocus />
@@ -620,7 +649,7 @@ export function AccessScreen() {
                     {door === 'signin' ? 'Returning member' : 'New account'}
                   </RNText>
                 </View>
-                <RNText style={tx('500', 13, t.colors.muted, { flex: 1 })} numberOfLines={1}>
+                <RNText style={tx('700', 16, t.colors.ink, { flex: 1 })} numberOfLines={1}>
                   +91 {spaced(phone)}
                 </RNText>
                 <Pressable onPress={editNumber} hitSlop={8} accessibilityRole="button">
@@ -741,7 +770,9 @@ export function AccessScreen() {
                 ['support', 'Support'],
               ] as const
             ).map(([page, label]) => (
-              <Pressable key={page} onPress={() => go(page)} hitSlop={8} accessibilityRole="link">
+              <Pressable key={page} onPress={() => go(page)} hitSlop={{ top: 13, bottom: 13, left: 6, right: 6 }} accessibilityRole="link">
+                {/* B172: 15 px links, 40 px to tap; the 14 px gaps between them are shared. */}
+                <HitArea x={6} y={13} />
                 <RNText style={tx('500', 12, t.colors.muted, { textDecorationLine: 'underline' })}>{label}</RNText>
               </Pressable>
             ))}
@@ -759,7 +790,10 @@ export function AccessScreen() {
         <Field
           label="Username"
           value={username}
-          onChangeText={(v) => setUsername(v.replace(/[^a-zA-Z0-9_@]/g, '').toLowerCase())}
+          onChangeText={(v) => {
+            setUsername(v.replace(/[^a-zA-Z0-9_@]/g, '').toLowerCase());
+            setPwMissing(null);
+          }}
           autoCapitalize="none"
           autoCorrect={false}
           placeholder="yourname"
@@ -768,15 +802,24 @@ export function AccessScreen() {
         <Field
           label="Password"
           value={password}
-          onChangeText={setPasswordText}
+          onChangeText={(v) => {
+            setPasswordText(v);
+            setPwMissing(null);
+          }}
           secureTextEntry
           autoCapitalize="none"
           style={{ marginTop: 14 }}
           returnKeyType="go"
           onSubmitEditing={() => void passwordSignIn()}
         />
+        {pwMissing ? (
+          // B179: said under the boxes too, not only in a toast that is gone in 2 seconds.
+          <RNText accessibilityRole="alert" style={tx('600', 13, t.colors.signalDeep, { marginTop: 10 })}>
+            {pwMissing}
+          </RNText>
+        ) : null}
         <RNText style={tx('400', 12, t.colors.muted, { marginTop: 12, lineHeight: 18 })}>
-          Forgot it? Use your mobile number instead, then set a new password in Settings → Security.
+          Forgot it? Use your mobile number instead, then set a new password in Settings → Security within 15 minutes.
         </RNText>
       </BottomSheet>
     </Screen>

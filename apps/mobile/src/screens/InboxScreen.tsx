@@ -5,9 +5,9 @@ import { Icon } from '../components/Icon';
 import { EmptyState, LoadFailed, Shimmer, TopBar, timeAgo } from '../components/kit';
 import { FadeIn, tx } from '../components/primitives';
 import { useTheme, ring } from '../providers/ThemeProvider';
-import { ScreenScope, useFocusTick, useNav } from '../providers/NavProvider';
+import { ScreenScope, useFocusTick, useNav, type NavParams } from '../providers/NavProvider';
 import { useLayout } from '../lib/layout';
-import { ChatScreen } from './ChatScreen';
+import { ChatPaneContext, ChatScreen } from './ChatScreen';
 import { listThreads, type Thread } from '../data/extras';
 import { useAuth } from '../providers/AuthProvider';
 import { GuestScreen } from '../components/GuestBits';
@@ -19,8 +19,12 @@ import { reportError } from '../lib/errors';
  */
 export function InboxScreen() {
   const t = useTheme();
-  const { back, go } = useNav();
+  const { back, go, params } = useNav();
   const { guest } = useAuth();
+  // Desktop: a chat opened from elsewhere arrives here (ChatScreen replaces itself) with its own params, and opens
+  // selected in the right pane, even before it shows up in the list.
+  const asked = params.openChat && typeof params.openChat === 'object' ? (params.openChat as NavParams) : null;
+  const askedId = asked && typeof asked.taskId === 'string' ? asked.taskId : null;
   const focusTick = useFocusTick();
   const [threads, setThreads] = useState<Thread[] | null>(null);
   // True when the last load failed (offline, server hiccup): an empty list is then
@@ -30,7 +34,10 @@ export function InboxScreen() {
   // Desktop (W6): the inbox on the left and the open conversation beside it.
   // A phone keeps opening the conversation as its own page.
   const { desktop } = useLayout();
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(askedId);
+  useEffect(() => {
+    if (askedId) setOpenId(askedId);
+  }, [askedId]);
   // Bumped by "Try again" to run the load once more.
   const [retry, setRetry] = useState(0);
 
@@ -61,9 +68,15 @@ export function InboxScreen() {
     return threads.filter((x) => (x.title + ' ' + x.lastBody).toLowerCase().includes(needle));
   }, [threads, q]);
 
-  const split = desktop && (threads?.length ?? 0) > 0;
-  // Nothing opens until a thread is picked: opening one marks it read.
-  const open = split ? (threads!.find((x) => x.taskId === openId) ?? null) : null;
+  const split = desktop && ((threads?.length ?? 0) > 0 || askedId !== null);
+  // Nothing opens until a thread is picked (or a chat was asked for). The pane runs the same ChatScreen, with the
+  // same loads, as the phone's chat page.
+  const found = split ? (threads?.find((x) => x.taskId === openId) ?? null) : null;
+  const open: { taskId: string; params: NavParams } | null = found
+    ? { taskId: found.taskId, params: found.taskId === askedId && asked ? { ...asked, title: found.title } : { taskId: found.taskId, title: found.title } }
+    : split && openId !== null && openId === askedId && asked
+      ? { taskId: openId, params: asked }
+      : null;
 
   if (guest) {
     return (
@@ -85,7 +98,8 @@ export function InboxScreen() {
           flexDirection: 'row',
           alignItems: 'center',
           gap: 8,
-          marginHorizontal: 20,
+          marginHorizontal: split ? 12 : 20,
+          marginTop: split ? 12 : 0,
           ...cardSurface(t, 14),
           paddingHorizontal: 12,
         }}
@@ -99,7 +113,7 @@ export function InboxScreen() {
           style={tx('400', 14, t.colors.ink, { flex: 1, paddingVertical: 11 })}
         />
       </View>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: split ? 8 : 20, paddingBottom: split ? 12 : 24 }}>
         {shown === null ? (
           [0, 1, 2].map((i) => <Shimmer key={i} height={64} style={{ marginTop: 12 }} />)
         ) : shown.length === 0 && failed && (threads?.length ?? 0) === 0 ? (
@@ -158,15 +172,25 @@ export function InboxScreen() {
   );
 
   if (split) {
+    // Desktop (PLAN package 12): the conversation list on its own card, the open conversation on a second card.
+    const card = {
+      backgroundColor: t.colors.surface,
+      borderWidth: 1,
+      borderColor: t.colors.line,
+      borderRadius: 18,
+      overflow: 'hidden',
+    } as const;
     return (
       <Screen padded={false}>
-        <View style={{ flex: 1, flexDirection: 'row' }}>
-          <View style={{ width: 360, borderRightWidth: 1, borderRightColor: t.colors.line }}>{list}</View>
-          <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={{ flex: 1, flexDirection: 'row', gap: 20, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20 }}>
+          <View style={{ width: 360, ...card }}>{list}</View>
+          <View style={{ flex: 1, minWidth: 0, ...card }}>
             {open ? (
-              <ScreenScope key={open.taskId} params={{ taskId: open.taskId, title: open.title }} focus={0}>
-                <ChatScreen />
-              </ScreenScope>
+              <ChatPaneContext.Provider value>
+                <ScreenScope key={open.taskId} params={open.params} focus={0}>
+                  <ChatScreen />
+                </ScreenScope>
+              </ChatPaneContext.Provider>
             ) : (
               <EmptyState icon="chat" title="Messages" body="Open a thread to read and reply" style={{ flex: 1, justifyContent: 'center' }} />
             )}

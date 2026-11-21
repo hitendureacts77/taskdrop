@@ -13,7 +13,7 @@ const W = 280;
 const H = 226;
 const BAR = 40;
 
-const BEATS = [
+const HIRE_BEATS = [
   { key: 'ask', title: 'Ask for anything', body: 'Say what you need in plain words. We write the post for you.' },
   { key: 'offers', title: 'Offers come to you', body: 'People nearby, or online from anywhere, send you their price.' },
   { key: 'held', title: 'Your money stays safe', body: 'Pick the offer you like. TaskDrop holds the money while the work gets done.' },
@@ -21,7 +21,21 @@ const BEATS = [
   { key: 'both', title: 'Need help or want to earn?', body: 'One account does both. Switch to Earn, find tasks and send your own offers.' },
 ] as const;
 
-type Beat = (typeof BEATS)[number]['key'];
+/**
+ * The same story for someone who opened it from Earn home: finding work,
+ * sending a price, the money held first, doing the work, getting paid, then
+ * the way back to hiring. Same player, the earn parts.
+ */
+const EARN_BEATS = [
+  { key: 'jobs', title: 'Find work near you', body: 'Jobs in your area, or online from anywhere. Pick one you can do.' },
+  { key: 'offer', title: 'Send your price', body: 'Say what you charge and why you. The customer compares offers.' },
+  { key: 'earnHeld', title: 'The money is there first', body: 'When they accept, they pay. TaskDrop holds it while you work.' },
+  { key: 'earnWork', title: 'Do it, show it', body: 'Swipe to start, do the job, send before and after photos.' },
+  { key: 'earnPaid', title: 'Approved, and you are paid', body: 'The money reaches your wallet. Withdraw to UPI or bank.' },
+  { key: 'both', title: 'Need help too?', body: 'One account does both. Switch to Hire and ask for anything.' },
+] as const;
+
+type Beat = (typeof HIRE_BEATS)[number]['key'] | (typeof EARN_BEATS)[number]['key'];
 type Scene = { p: Animated.Value; t: Theme };
 
 // All of it runs on one 0..1 clock per beat. Eased by hand with extra stops,
@@ -377,11 +391,14 @@ function ScenePaid({ p, t }: Scene) {
   );
 }
 
-function SceneBoth({ p, t }: Scene) {
+// The earn story ends on the same switch, going the other way: Earn, then Hire.
+function SceneBoth({ p, t, rev }: Scene & { rev?: boolean }) {
   const c = t.colors;
   const flip = 0.36;
-  const toEarn = fade(p, flip, flip + 0.1);
-  const toHire = p.interpolate({ inputRange: [flip, flip + 0.1], outputRange: [1, 0], extrapolate: 'clamp' });
+  const after = fade(p, flip, flip + 0.1);
+  const before = p.interpolate({ inputRange: [flip, flip + 0.1], outputRange: [1, 0], extrapolate: 'clamp' });
+  const toEarn = rev ? before : after;
+  const toHire = rev ? after : before;
   const KNOB = 92;
   const label = (text: string, icon: IconName, left: number, onKnob: Animated.AnimatedInterpolation<number>) => (
     <View style={place(left, 0, { width: KNOB, height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 })}>
@@ -423,7 +440,7 @@ function SceneBoth({ p, t }: Scene) {
               borderRadius: 999,
               overflow: 'hidden',
               backgroundColor: c.hero,
-              transform: [{ translateX: glide(p, flip, flip + 0.12, 0, KNOB) }],
+              transform: [{ translateX: rev ? glide(p, flip, flip + 0.12, KNOB, 0) : glide(p, flip, flip + 0.12, 0, KNOB) }],
             }}
           >
             <Animated.View style={{ position: 'absolute', inset: 0, backgroundColor: c.purpleFill, opacity: toEarn }} />
@@ -436,7 +453,9 @@ function SceneBoth({ p, t }: Scene) {
       <Animated.View
         style={[
           place(0, 76, { width: W, height: 74, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, borderRadius: 18, backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.accentBorder }),
-          { opacity: toHire, transform: [{ translateY: glide(p, flip, flip + 0.1, 0, -12) }] },
+          rev
+            ? { opacity: fade(p, flip + 0.1, flip + 0.18), transform: [{ translateY: glide(p, flip + 0.1, flip + 0.2, 12, 0) }] }
+            : { opacity: toHire, transform: [{ translateY: glide(p, flip, flip + 0.1, 0, -12) }] },
         ]}
       >
         <Drop size={34} fill={c.accent} tick={c.onAccent} />
@@ -448,11 +467,166 @@ function SceneBoth({ p, t }: Scene) {
         </View>
       </Animated.View>
       {/* Earn side: tasks to send an offer on, near you and online. */}
-      {row('Design a shop poster', 'Online', '₹800', 76, flip + 0.1)}
-      {row('Help move a sofa', 'Nearby', '₹600', 142, flip + 0.2)}
+      {rev ? (
+        <>
+          <Animated.View style={{ opacity: toEarn }}>{row('Design a shop poster', 'Online', '₹800', 76, 0)}</Animated.View>
+          <Animated.View style={{ opacity: toEarn }}>{row('Help move a sofa', 'Nearby', '₹600', 142, 0)}</Animated.View>
+        </>
+      ) : (
+        <>
+          {row('Design a shop poster', 'Online', '₹800', 76, flip + 0.1)}
+          {row('Help move a sofa', 'Nearby', '₹600', 142, flip + 0.2)}
+        </>
+      )}
     </>
   );
 }
+
+/** Earn 1: jobs near you and online slide in, one is picked out. */
+function SceneJobs({ p, t }: Scene) {
+  const c = t.colors;
+  const jobs = [
+    { title: 'Design a shop poster', tag: 'Online', price: '₹800', at: 0.06, from: 46 },
+    { title: 'Help move a sofa', tag: 'Nearby', price: '₹600', at: 0.24, from: -46 },
+    { title: 'Fix a leaking tap', tag: 'Nearby', price: '₹350', at: 0.42, from: 46 },
+  ];
+  return (
+    <>
+      {jobs.map((j, i) => (
+        <Animated.View
+          key={j.title}
+          style={[
+            place(0, 4 + i * 74, { width: W, height: 64, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, borderRadius: 18, backgroundColor: c.surface, borderWidth: 1.5, borderColor: i === 1 ? c.accent : c.line }),
+            { opacity: fade(p, j.at, j.at + 0.1), transform: [{ translateX: glide(p, j.at, j.at + 0.16, j.from, 0) }] },
+          ]}
+        >
+          <View style={{ flex: 1, gap: 4, alignItems: 'flex-start' }}>
+            <RNText numberOfLines={1} style={tx('700', 14, c.ink)}>{j.title}</RNText>
+            <Tag label={j.tag} tint={c.purpleSoft} ink={c.purpleDeep} />
+          </View>
+          <RNText style={tx('800', 16, c.ink, { fontVariant: ['tabular-nums'] })}>{j.price}</RNText>
+        </Animated.View>
+      ))}
+    </>
+  );
+}
+
+/** Earn 2: your price goes in a card and is sent. */
+function SceneOffer({ p, t }: Scene) {
+  const c = t.colors;
+  const press = p.interpolate({ inputRange: [0.5, 0.55, 0.6], outputRange: [1, 0.86, 1], extrapolate: 'clamp' });
+  return (
+    <>
+      <Animated.View
+        style={[
+          place(0, 14, { width: W, padding: 14, borderRadius: 20, backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.accentBorder, gap: 10 }),
+          { opacity: fade(p, 0.02, 0.1), transform: [{ translateY: glide(p, 0.02, 0.12, 18, 0) }] },
+        ]}
+      >
+        <RNText style={tx('700', 12, c.muted)}>Your price</RNText>
+        <RNText style={tx('800', 28, c.ink, { fontVariant: ['tabular-nums'] })}>₹450</RNText>
+        <View style={{ height: 8, borderRadius: 4, backgroundColor: c.line, width: '86%' }} />
+        <View style={{ height: 8, borderRadius: 4, backgroundColor: c.line, width: '62%' }} />
+      </Animated.View>
+      <Animated.View style={[place(W - 112, 168, { backgroundColor: c.btn, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10 }), { opacity: fade(p, 0.2, 0.28), transform: [{ scale: press }] }]}>
+        <RNText style={tx('800', 13, c.onBtn)}>Send offer</RNText>
+      </Animated.View>
+      <Animated.View style={[place(0, 174), { opacity: fade(p, 0.62, 0.7) }]}>
+        <Tag label="Offer sent" tint={c.purpleSoft} ink={c.purpleDeep} />
+      </Animated.View>
+    </>
+  );
+}
+
+/** Earn 3: the customer has paid, and the shield holds it. */
+function SceneEarnHeld({ p, t }: Scene) {
+  const c = t.colors;
+  return (
+    <>
+      <Animated.View style={[place(0, 4, { width: W }), { transform: [{ scale: pop(p, 0.03, 0.16) }] }]}>
+        <OfferRow t={t} name="Meera" tag="Accepted" tagTint={c.purpleSoft} tagInk={c.purpleDeep} price="Paid" picked />
+      </Animated.View>
+      <Animated.View style={[place(W / 2 - 34, 92), { opacity: fade(p, 0.22, 0.32), transform: [{ scale: pop(p, 0.22, 0.4) }] }]}>
+        <Shield t={t} />
+      </Animated.View>
+      <Animated.View style={[place(W / 2 - 60, 170, { width: 120, alignItems: 'center' }), { opacity: fade(p, 0.45, 0.55) }]}>
+        <Tag label="Held safely" tint={c.purpleSoft} ink={c.purpleDeep} />
+      </Animated.View>
+    </>
+  );
+}
+
+/** Earn 4: swipe to start, then the before and after photos. */
+function SceneEarnWork({ p, t }: Scene) {
+  const c = t.colors;
+  const TRACK = 220;
+  const photo = (left: number, label: string, at: number) => (
+    <Animated.View
+      style={[
+        place(left, 112, { width: 128, height: 84, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.line, alignItems: 'center', justifyContent: 'center', gap: 6 }),
+        { opacity: fade(p, at, at + 0.08), transform: [{ scale: pop(p, at, at + 0.16) }] },
+      ]}
+    >
+      <Icon name="camera" size={24} color={c.purpleDeep} />
+      <RNText style={tx('700', 12, c.muted)}>{label}</RNText>
+    </Animated.View>
+  );
+  return (
+    <>
+      <View style={place((W - TRACK) / 2, 14, { width: TRACK, height: 52, borderRadius: 999, backgroundColor: c.purpleSoft, borderWidth: 1, borderColor: c.line, justifyContent: 'center' })}>
+        <RNText style={[tx('700', 13, c.purpleDeep, { textAlign: 'center' }), { paddingLeft: 40 }]}>Swipe to start</RNText>
+        <Animated.View
+          style={[
+            place(4, 4, { width: 44, height: 44, borderRadius: 44, backgroundColor: c.purpleFill, alignItems: 'center', justifyContent: 'center' }),
+            { transform: [{ translateX: glide(p, 0.1, 0.3, 0, TRACK - 52) }] },
+          ]}
+        >
+          <Icon name="chevronRight" size={20} color="#FFFFFF" />
+        </Animated.View>
+      </View>
+      {photo(8, 'Before', 0.4)}
+      {photo(W - 136, 'After', 0.58)}
+    </>
+  );
+}
+
+/** Earn 5: approved, and the money lands in the wallet. */
+function SceneEarnPaid({ p, t }: Scene) {
+  const c = t.colors;
+  return (
+    <>
+      <Animated.View style={[place(W / 2 - 40, 52, { width: 80, height: 80, borderRadius: 80, backgroundColor: c.purpleSoft, borderWidth: 2, borderColor: c.accent, alignItems: 'center', justifyContent: 'center' }), { transform: [{ scale: p.interpolate({ inputRange: [0.5, 0.56, 0.64], outputRange: [1, 1.14, 1], extrapolate: 'clamp' }) }] }]}>
+        <Icon name="wallet" size={34} color={c.purpleDeep} />
+      </Animated.View>
+      <Animated.View
+        style={[
+          place(W / 2 - 16, 0),
+          {
+            opacity: p.interpolate({ inputRange: [0.1, 0.16, 0.48, 0.52], outputRange: [0, 1, 1, 0], extrapolate: 'clamp' }),
+            transform: [{ translateY: glide(p, 0.16, 0.5, 0, 74) }],
+          },
+        ]}
+      >
+        <Coin t={t} />
+      </Animated.View>
+      <Animated.View style={[place(W / 2 - 60, 146, { width: 120, alignItems: 'center' }), { opacity: fade(p, 0.52, 0.6) }]}>
+        <Tag label="Paid" tint={c.purpleSoft} ink={c.purpleDeep} />
+      </Animated.View>
+      <View style={place(W / 2 - 50, 178, { width: 100, flexDirection: 'row', justifyContent: 'center', gap: 3 })}>
+        {[0, 1, 2, 3, 4].map((i) => {
+          const at = 0.6 + i * 0.05;
+          return (
+            <Animated.View key={i} style={{ opacity: fade(p, at, at + 0.02), transform: [{ scale: pop(p, at, at + 0.1) }] }}>
+              <Icon name="star" size={16} color={c.gold} />
+            </Animated.View>
+          );
+        })}
+      </View>
+    </>
+  );
+}
+
+const SceneBothRev = (s: Scene) => <SceneBoth {...s} rev />;
 
 const SCENES: Record<Beat, (s: Scene) => ReactNode> = {
   ask: SceneAsk,
@@ -460,6 +634,11 @@ const SCENES: Record<Beat, (s: Scene) => ReactNode> = {
   held: SceneHeld,
   paid: ScenePaid,
   both: SceneBoth,
+  jobs: SceneJobs,
+  offer: SceneOffer,
+  earnHeld: SceneEarnHeld,
+  earnWork: SceneEarnWork,
+  earnPaid: SceneEarnPaid,
 };
 
 /**
@@ -469,8 +648,10 @@ const SCENES: Record<Beat, (s: Scene) => ReactNode> = {
  * part and the bars jump to any part. With Reduce Motion on it holds each
  * finished picture and only moves when tapped.
  */
-export function WelcomeStory() {
+export function WelcomeStory({ side = 'hire' }: { side?: 'hire' | 'earn' }) {
   const t = useTheme();
+  // Opened from Earn home it tells the earn parts and ends on the switch back to Hire.
+  const BEATS: readonly { key: Beat; title: string; body: string }[] = side === 'earn' ? EARN_BEATS : HIRE_BEATS;
   const c = t.colors;
   const reduced = useReducedMotion();
   const { width } = useWindowDimensions();
@@ -499,7 +680,7 @@ export function WelcomeStory() {
   const show = reduced ? 1 : p.interpolate({ inputRange: [0, 0.04, 0.96, 1], outputRange: [0, 1, 1, 0] });
   const lift = reduced ? 0 : p.interpolate({ inputRange: [0, 0.06], outputRange: [8, 0], extrapolate: 'clamp' });
   const now = BEATS[beat];
-  const Picture = SCENES[now.key];
+  const Picture = now.key === 'both' && side === 'earn' ? SceneBothRev : SCENES[now.key];
 
   return (
     <View style={{ width: '100%', maxWidth: 420, alignSelf: 'center', marginTop: 18 }}>

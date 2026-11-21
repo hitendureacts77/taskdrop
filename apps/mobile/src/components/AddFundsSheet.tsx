@@ -147,7 +147,7 @@ export function AddFundsSheet({
       if (Platform.OS === 'web') await Linking.openURL(url);
       else setPayOpen(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not start the payment');
+      setError(e instanceof Error ? e.message : 'Could not start the payment. Nothing was charged. Please try again in a few minutes.');
       setPhase('amount');
     } finally {
       setBusy(false);

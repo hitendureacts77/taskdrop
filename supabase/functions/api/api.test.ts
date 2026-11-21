@@ -8,8 +8,8 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import {
-  BUSY_CODE, GUEST_ALL_HARD_PER_MINUTE, GUEST_ALL_SOFT_PER_MINUTE, GUEST_COST, GUEST_LIMIT_MAX, GUEST_MAX_IDS, GUEST_MAX_OFFSET, GUEST_OPS,
-  GUEST_NET_PER_MINUTE, GUEST_READS_PER_MINUTE, GuestCeiling, GuestLocalLimit, NEEDS_ACCOUNT, NEEDS_ACCOUNT_CODE, guestAddress, guestBusy, guestCost,
+  BUSY_CODE, GUEST_ALL_HARD_PER_MINUTE, GUEST_ALL_SOFT_PER_MINUTE, GUEST_COST, GUEST_HELPERS_NEAR_MAX, GUEST_LIMIT_MAX, GUEST_MAX_IDS, GUEST_MAX_OFFSET, GUEST_OPS,
+  GUEST_NEAR_KM_MAX, GUEST_NET_PER_MINUTE, GUEST_READS_PER_MINUTE, GuestCeiling, GuestLocalLimit, NEEDS_ACCOUNT, NEEDS_ACCOUNT_CODE, guestAddress, guestBusy, guestCost,
   guestNetKey, guestNetScope, guestRateKey, guestRateScope, guestSpend, isGuestOp, isGuestToken, isHeavyGuestOp, runGuestBatch, runGuestOp,
 } from "./guest.ts";
 import { WRITE_OPS } from "./writes.ts";
@@ -146,9 +146,9 @@ await t("unknown and prototype op names are refused", async () => {
 
 await t("writes take the caller from the session, never from the request", async () => {
   let f = fake();
-  await runOp("placeBid", { taskId: TASK, workerId: OTHER, priceMinor: 5000, timeLimitMinutes: 60, message: " hi " }, ctx(f));
+  await runOp("placeBid", { taskId: TASK, workerId: OTHER, priceMinor: 5000, timeLimitMinutes: 60, message: " hi there friend " }, ctx(f));
   assert.equal(inserted(f.calls[0]).worker_id, UID);
-  assert.equal(inserted(f.calls[0]).message, "hi");
+  assert.equal(inserted(f.calls[0]).message, "hi there friend");
 
   f = fake();
   await runOp("createTask", { posterId: OTHER, pillar: "services", title: "Fix tap", benchmarkMinor: 5000, timeLimitMinutes: 30 }, ctx(f));
@@ -180,6 +180,18 @@ await t("profile edits only touch the caller's row, and only known columns", asy
   assert.deepEqual(steps(f.calls[0], "eq")[0], ["id", UID]);
 });
 
+await t("why someone earns is saved as one of three answers, and nothing else (migration 179)", async () => {
+  for (const earnGoal of ["business", "gig", "other", null]) {
+    const f = fake(() => ({ data: [{ id: UID }], error: null }));
+    assert.equal((await runOp("updateProfileExtras", { earnGoal }, ctx(f))).ok, true, String(earnGoal));
+    assert.deepEqual(steps(f.calls[0], "update")[0][0], { earn_goal: earnGoal });
+    assert.deepEqual(steps(f.calls[0], "eq")[0], ["id", UID]);
+  }
+  const bad = fake();
+  assert.equal((await runOp("updateProfileExtras", { earnGoal: "scam" }, ctx(bad))).ok, false);
+  assert.equal(bad.calls.length, 0, "an unknown answer never reaches the database");
+});
+
 await t("the legacy payout_upi is never written (migration 073 closed the column)", async () => {
   const f = fake(() => ({ data: [{ id: UID }], error: null }));
   await runOp("updateProfile", { displayName: "Ann", payoutUpi: "ann@upi" }, ctx(f));
@@ -205,6 +217,9 @@ await t("contact details are refused on the server, whatever the app does (Phase
   await refused("updateProfileExtras", { bio: PHONE });
   await refused("updateProfileExtras", { workerBio: PHONE });
   await refused("updateProfileExtras", { username: "a@b.com" });
+  // The round-7 walk texts (W2-2, W2-21).
+  await refused("placeBid", { taskId: TASK, priceMinor: 5000, timeLimitMinutes: 60, message: "I can do it. Call me 9876543210 or mail a@b.com <script>x</script>" });
+  await refused("updateProfileExtras", { workerBio: "I fix things. WhatsApp me on 98765 43210 <script>alert(1)</script> emoji" });
   // Ordinary text goes through, and the app's own already-masked text is fine.
   const f = fake(() => ({ data: [{ id: "row" }], error: null }));
   const ok = await runOp("placeBid", { taskId: TASK, priceMinor: 5000, timeLimitMinutes: 60, message: "Can do it tomorrow, ••• for details" }, ctx(f));
@@ -462,9 +477,9 @@ await t("B58: an unreadable fines list still lists the wallet as before", async 
 
 await t("escrow held counts only paid-for jobs, for the side asked", async () => {
   const data = [
-    { escrow_minor: 100, worker_id: UID, tasks: { poster_id: OTHER, funded_at: "x" } },
-    { escrow_minor: 40, worker_id: OTHER, tasks: { poster_id: UID, funded_at: "x" } },
-    { escrow_minor: 7, worker_id: UID, tasks: { poster_id: OTHER, funded_at: null } },
+    { id: "e1", escrow_minor: 100, worker_id: UID, tasks: { poster_id: OTHER, funded_at: "x" } },
+    { id: "e2", escrow_minor: 40, worker_id: OTHER, tasks: { poster_id: UID, funded_at: "x" } },
+    { id: "e3", escrow_minor: 7, worker_id: UID, tasks: { poster_id: OTHER, funded_at: null } },
   ];
   const run = async (side: string | null) => {
     const r = await runOp("getEscrowHeld", { side }, ctx(fake(() => ({ data, error: null }))));
@@ -2134,6 +2149,29 @@ await t("B34 guest: near reads go through the boxed SQL, so newer far-away rows 
   assert.deepEqual((o as { data: { id: string }[] }).data.map((x) => x.id), ["near"]);
 });
 
+await t("B146 guest: workersNear clamps the radius and the number of helpers, whatever the caller asks", async () => {
+  // 150 helpers spread north of Kondapur, one every ~0.9 km (0.008 degrees of latitude), up to ~135 km away.
+  const people = Array.from({ length: 150 }, (_, i) => ({ id: `h-${i}`, loc_lat: KONDAPUR.lat + i * 0.008, loc_lng: KONDAPUR.lng, skills: ["a"] }));
+  const f = fake((c) => {
+    const a = c.args as { p_limit: number; p_min_lat?: number; p_max_lat?: number };
+    if (c.rpc === "guest_helpers" || c.rpc === "guest_helpers_near") {
+      return { data: people.filter((p) => a.p_min_lat === undefined || (p.loc_lat >= a.p_min_lat && p.loc_lat <= a.p_max_lat!)).slice(0, a.p_limit), error: null };
+    }
+    return { data: [], error: null };
+  });
+  const r = await runGuestOp("workersNear", { ...KONDAPUR, radiusKm: 20000, limit: 200 }, ctx(f));
+  assert.ok(r.ok);
+  const list = (r as { data: { id: string; km: number }[] }).data;
+  assert.equal(list.length, GUEST_HELPERS_NEAR_MAX);
+  assert.ok(list.every((x) => x.km <= GUEST_NEAR_KM_MAX));
+  // The box sent to SQL is the clamped one too, so far rows are never even read.
+  const box = f.calls.find((c) => c.rpc === "guest_helpers_near")?.args as { p_max_lat: number } | undefined;
+  assert.ok(box && box.p_max_lat < KONDAPUR.lat + 1, "the SQL box must use the clamped radius");
+  // Inside the clamp nothing changes: a 5 km ask still gets the 5 km answer.
+  const small = await runGuestOp("workersNear", { ...KONDAPUR, radiusKm: 5, limit: 3 }, ctx(f));
+  assert.deepEqual((small as { data: { id: string }[] }).data.map((x) => x.id), ["h-0", "h-1", "h-2"]);
+});
+
 await t("guest: tasksNear and workersNear keep only what is in range, nearest first", async () => {
   const f = guestFake();
   const r = await runGuestOp("tasksNear", { ...HERE, radiusKm: 10, limit: 10 }, ctx(f));
@@ -2410,7 +2448,7 @@ await t("guest: the admin panel's maintenance and update switches also stop a gu
 
 // ------------------------------------------------ columns (task 2.18 A) --
 
-const SECRET_PROFILE = ["payout_upi", "sessions_revoked_at", "sessions_keep_session", "weekly_goal_minor", "referral_code"];
+const SECRET_PROFILE = ["payout_upi", "sessions_revoked_at", "sessions_keep_session", "weekly_goal_minor", "referral_code", "earn_goal"];
 const SECRET_TASK = ["funded_minor", "funded_credits_minor", "funded_via", "funding_payment_id", "locked_minor", "locked_bid_id", "payout_mode", "wallet_refunded_at", "preferred_worker_id"];
 const selectedColumns = (c: Call) => String(steps(c, "select")[0]?.[0] ?? "").split(",").map((x) => x.trim());
 const leaky = (list: string[], banned: string[]) => banned.filter((k) => list.includes(k));
@@ -2760,5 +2798,133 @@ await t("B98: a proof over the table's limits is refused in plain words, before 
   assert.ok(c.ok);
   assert.equal(packageRules.PROOF_LIMITS.SUMMARY_MAX, serverRules.PROOF_LIMITS.SUMMARY_MAX, "the server's copy matches packages/rules");
   assert.equal(packageRules.PROOF_LIMITS.FILES_MAX, serverRules.PROOF_LIMITS.FILES_MAX, "the server's copy matches packages/rules");
+});
+
+// ------------------------------------------------ round 8: server limits --
+
+await t("round 8: the server's copy of OFFER_LIMITS, PROFILE_LIMITS, MEDIA and TIMING matches packages/rules", () => {
+  assert.deepEqual({ ...serverRules.OFFER_LIMITS }, { ...packageRules.OFFER_LIMITS });
+  assert.deepEqual({ ...serverRules.PROFILE_LIMITS }, { ...packageRules.PROFILE_LIMITS });
+  assert.deepEqual({ ...serverRules.MEDIA }, { ...packageRules.MEDIA });
+  assert.deepEqual({ ...serverRules.TIMING }, { ...packageRules.TIMING });
+});
+
+await t("S1-12/S4-21: a task video must have a readable length of 1 to 60 seconds", async () => {
+  const task = { pillar: "services", title: "Fix tap", benchmarkMinor: 5000, timeLimitMinutes: 30 };
+  const path = `${UID}/x.mp4`;
+  for (const seconds of [3600, 61, -5, 0, 1.5e9, null, undefined, "30"]) {
+    const r = await runOp("createTask", { ...task, media: { kind: "video", path, seconds } }, ctx(fake()));
+    assert.equal(r.ok, false, String(seconds));
+  }
+  const f = fake();
+  const ok = await runOp("createTask", { ...task, media: { kind: "video", path, seconds: 59.6 } }, ctx(f));
+  assert.ok(ok.ok);
+  assert.equal(inserted(f.calls[0]).media_seconds, 60);
+  const img = fake();
+  await runOp("createTask", { ...task, media: { kind: "image", path: `${UID}/a.jpg`, seconds: 9999 } }, ctx(img));
+  assert.equal(inserted(img.calls[0]).media_seconds, null, "a picture carries no length");
+});
+
+await t("S1-13: milestones are { title, pct } adding up to 100, with no contacts", async () => {
+  const task = { pillar: "services", title: "Fix tap", benchmarkMinor: 5000, timeLimitMinutes: 30 };
+  const badOnes = [
+    [{ x: "<b>hi</b>", amount: -500 }, 1, "a"],
+    [{ title: "a", pct: 30 }],
+    [{ title: "a", pct: -10 }, { title: "b", pct: 110 }],
+    [{ title: "Call 9876543210", pct: 100 }],
+    [{ title: "  ", pct: 100 }],
+  ];
+  for (const milestones of badOnes) {
+    assert.equal((await runOp("createTask", { ...task, milestones }, ctx(fake()))).ok, false, JSON.stringify(milestones));
+  }
+  const f = fake();
+  const ok = await runOp("createTask", { ...task, milestones: [{ title: " Start ", pct: 50, extra: 1 }, { title: "Done", pct: 50 }] }, ctx(f));
+  assert.ok(ok.ok);
+  assert.deepEqual(inserted(f.calls[0]).milestones, [{ title: "Start", pct: 50 }, { title: "Done", pct: 50 }]);
+});
+
+await t("S1-14: a crew split keeps the remainder, so the slots add up to the budget", async () => {
+  const f = fake();
+  await runOp("createTask", { pillar: "services", title: "Fix tap", benchmarkMinor: 10000, timeLimitMinutes: 30, crewSize: 3 }, ctx(f));
+  const slots = steps(f.calls[0], "insert")[0][0] as unknown as { benchmark_minor: number }[];
+  assert.equal(slots.length, 3);
+  assert.equal(slots.reduce((n, s) => n + s.benchmark_minor, 0), 10000);
+  assert.deepEqual(slots.map((s) => s.benchmark_minor), [3334, 3333, 3333]);
+});
+
+await t("S5-12/S5-13/L2-4: an offer's note and time are checked on the server", async () => {
+  const base = { taskId: TASK, priceMinor: 5000 };
+  for (const op of ["placeBid", "updateBid"] as const) {
+    const more = op === "updateBid" ? { bidId: TASK } : {};
+    const run = (x: Record<string, unknown>) => runOp(op, { ...base, ...more, ...x }, ctx(fake()));
+    assert.equal((await run({ timeLimitMinutes: 60, message: "hi" })).ok, false, "a short note");
+    assert.equal((await run({ timeLimitMinutes: 99999 * 60 })).ok, false, "11 years");
+    assert.equal((await run({ timeLimitMinutes: 43_201 })).ok, false, "just over 30 days");
+    assert.equal((await run({ timeLimitMinutes: 0 })).ok, false, "zero minutes");
+    assert.equal((await run({ timeLimitMinutes: 1.5 })).ok, false, "a fraction");
+    assert.equal((await run({})).ok, false, "no time");
+    assert.equal((await run({ timeLimitMinutes: 43_200, message: "I have done this many times" })).ok, true, "exactly 30 days");
+    assert.equal((await run({ timeLimitMinutes: 1 })).ok, true, "a price-only quote still works");
+    const r = await run({ timeLimitMinutes: 0 });
+    if (!r.ok) assert.match(r.error.message, /at least 1 minute/);
+  }
+});
+
+await t("S5-41: an offered service has a price floor of ₹20 on the server", async () => {
+  const svc = { id: TASK, title: "Tutoring", description: "x", deliveryDays: 2 };
+  assert.equal((await runOp("updateListing", { ...svc, priceMinor: 0 }, ctx(fake()))).ok, false);
+  assert.equal((await runOp("updateListing", { ...svc, priceMinor: 1999 }, ctx(fake()))).ok, false);
+  assert.equal((await runOp("updateListing", { ...svc, priceMinor: 2000 }, ctx(fake()))).ok, true);
+});
+
+await t("S6-11: 8 skills and 6 languages at most", async () => {
+  const many = (n: number) => Array.from({ length: n }, (_, i) => `s${i}`);
+  assert.equal((await runOp("updateProfile", { skills: many(9) }, ctx(fake()))).ok, false);
+  assert.equal((await runOp("updateProfile", { skills: many(8) }, ctx(fake()))).ok, true);
+  assert.equal((await runOp("updateProfileExtras", { languages: many(7) }, ctx(fake()))).ok, false);
+  assert.equal((await runOp("updateProfileExtras", { languages: many(6) }, ctx(fake()))).ok, true);
+});
+
+await t("S1-17: a refused field is named in plain words, not by the code's name", async () => {
+  const r = await runOp("updateProfile", { displayName: "   " }, ctx(fake()));
+  assert.equal(r.ok, false);
+  if (!r.ok) {
+    assert.equal(r.error.code, "BAD_ARGS");
+    assert.doesNotMatch(r.error.message, /Invalid|displayName/);
+  }
+  const g = await runOp("getTask", { taskId: "nope" }, ctx(fake()));
+  if (!g.ok) assert.doesNotMatch(g.error.message, /Invalid/);
+});
+
+await t("S1-22/S1-23: unread counts pass 200 and threads come from one latest message per task", async () => {
+  const items = Array.from({ length: 450 }, (_, i) => ({ id: `n${i}`, task_id: null }));
+  const f = fake((c) => (c.table === "notifications" ? { data: items, error: null } : { data: [], error: null }));
+  const r = await runOp("countUnreadFor", { side: "worker" }, ctx(f));
+  assert.equal(r.ok && r.data, 450);
+  const th = fake((c) =>
+    c.rpc === "my_thread_latest"
+      ? { data: [{ task_id: TASK, body: "old chat", created_at: "2026-01-01T00:00:00Z", sender_id: UID }], error: null }
+      : c.table === "tasks" ? { data: [{ id: TASK, title: "Old", status: "COMPLETED", updated_at: "2026-01-01T00:00:00Z" }], error: null } : { data: [], error: null });
+  const t2 = await runOp("listThreads", {}, ctx(th));
+  assert.ok(t2.ok);
+  assert.ok(th.calls.some((c) => c.rpc === "my_thread_latest"));
+  assert.equal(t2.ok && (t2.data as { taskId: string }[])[0].taskId, TASK);
+});
+
+await t("S1-21: the lists of my own things say their cap", async () => {
+  for (const [op, table] of [["listMyTasks", "tasks"], ["listMyBids", "bids"], ["listMyAssignments", "assignments"], ["listTickets", "support_tickets"]] as const) {
+    const f = fake(() => ({ data: [], error: null }));
+    await runOp(op, {}, ctx(f));
+    const call = f.calls.find((c) => c.table === table)!;
+    assert.deepEqual(steps(call, "limit"), [[500]], op);
+  }
+});
+
+await t("S1-19: a guest's lists are held to the guest limits", async () => {
+  const f = fake(() => ({ data: [], error: null }));
+  const r = await runGuestOp("remoteTasks", { limit: 200 }, ctx(f));
+  assert.ok(r.ok);
+  const lim = f.calls.flatMap((c) => steps(c, "limit")).flat();
+  assert.ok(lim.every((n) => (n as number) <= 100), `a guest read asked for ${lim.join(",")} rows`);
 });
 console.log(`\n${passed} passed`);

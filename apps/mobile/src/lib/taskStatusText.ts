@@ -3,10 +3,17 @@
  * (taskStatusText.test.ts). They only decide the words and dates, never the look.
  */
 
-/** The date a task should be done by: the poster's target date, else created + time limit. */
-export function completeByDate(task: { due_at?: string | null; created_at: string; time_limit_minutes: number }): Date {
-  if (task.due_at) return new Date(task.due_at);
-  return new Date(new Date(task.created_at).getTime() + task.time_limit_minutes * 60_000);
+/**
+ * The date a task should be done by: the poster's target date, or null when they set none. Never created +
+ * time limit (B153 / W2-6: that showed a date days in the past on Compare while the task page showed none).
+ */
+export function completeByDate(task: { due_at?: string | null; created_at: string; time_limit_minutes: number }): Date | null {
+  return task.due_at ? new Date(task.due_at) : null;
+}
+
+/** A count for a summary tile: a dash while the list is still loading (W2-18), never a 0 that is not true yet. */
+export function countOrDash(n: number, loading: boolean): string {
+  return loading ? '–' : String(n);
 }
 
 /** The "Your payment" line on the poster's task page. `amount` is already formatted. */
@@ -26,10 +33,13 @@ export function showAssignmentChip(status: string): boolean {
   return status === 'OPEN';
 }
 
-/** Top line of a card whose date has passed. "No one picked it" only fits an open task with no offers. */
+/**
+ * Top line of a card whose date has passed. "No one picked it" only fits an open task with no offers. Short, so
+ * it fits a card in the two- and three-column layouts (B165: it was cut to "THE DATE HAS P...").
+ */
 export function datePassedLine(status: string, offers: number): string {
-  if (status === 'OPEN' && offers === 0) return 'THE DATE HAS PASSED · NO ONE PICKED IT';
-  return 'THE DATE HAS PASSED';
+  if (status === 'OPEN' && offers === 0) return 'DATE PASSED · NO OFFERS';
+  return 'DATE PASSED';
 }
 
 /** Share of decided offers that were won. Offers still waiting are not counted as lost. */

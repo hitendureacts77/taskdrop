@@ -1,52 +1,83 @@
-import { datePassedLine, successPercent } from '../lib/taskStatusText';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { countOrDash, successPercent } from '../lib/taskStatusText';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable, TextInput, RefreshControl } from 'react-native';
 import { Screen, cardSurface, formatINR } from '../components/ui';
 import { HeroCard } from '../components/Hero';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
-import { BottomSheet, ConfirmDialog, EmptyState, Grid, LoadFailed, MenuRow, Pill, PillTabs, Shimmer, StatTile, SwipeTabs, rupees, timeAgo, timeLeft } from '../components/kit';
-import { WorkCard, categoryIcon, categoryLabel } from '../components/WorkCard';
+import { BottomSheet, ConfirmDialog, EmptyState, Grid, LoadFailed, MenuRow, Pill, PillTabs, Shimmer, StatTile, SwipeTabs, timeAgo } from '../components/kit';
+import { WorkCard } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
-import { FadeIn, Pressy, tx } from '../components/primitives';
-import { descriptionPreview } from '../components/TaskDescription';
+import { tx } from '../components/primitives';
 import { listDrafts, removeDraft, type PostDraft } from '../lib/drafts';
 import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
+import { closeTaskText } from '../lib/closeTaskText';
+import { useFees } from '../lib/useFees';
+import { FEES, posterEscrowCharge } from '@taskdrop/rules';
 import { useMode } from '../providers/ModeProvider';
 import { useApp, useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
+import { newOffers } from '../lib/seenOffers';
+import { canTopUp, nextTopUpSteps, raisedPriceMinor } from '../lib/topUp';
+import { loadSeenOffers, saveSeenOffers } from '../lib/seenOffersStore';
 import { GUEST_DRAFTS_OWNER } from '../lib/guest';
 import { listGuestSaves, loadGuestSavedTasks, setGuestSaved } from '../lib/guestSaves';
-import { GuestNote } from '../components/GuestBits';
+import { GuestAccountCard, GuestNote } from '../components/GuestBits';
 import {
   attachPosters,
   cancelTask,
   getTask,
+  getTaskDetail,
   countBidsByTask,
   listMyAssignments,
   listMyBids,
   listMyTasks,
   myStats,
+  raiseTopUp,
   refundEscrow,
   type MyStats,
+  type Profile,
   type Task,
   type TaskWithPoster,
 } from '../data/api';
 import { listSavedTasks, listSavedTaskIds, setSaved } from '../data/extras';
-import { openPostedTask, openRow, toneInk, workerAssignmentRow, workerBidRow, type ViewRow } from '../lib/taskRows';
+import { openPostedTask, openRow, posterRow, workerAssignmentRow, workerBidRow, type ViewRow } from '../lib/taskRows';
+import { closedLine, customerShown, isHired, posterNeeds, posterTabOf, workerNeeds, type Need } from '../lib/myTasksBoard';
 import { ListingCard } from '../components/ListingCard';
 import { AlertsCard } from '../components/AlertsCard';
 import { taskToFeedRow } from '../lib/openTask';
 import { useMyOffers } from '../lib/useMyOffers';
+import { useLayout } from '../lib/layout';
+import { ListPage, SegmentedTabs } from '../components/ListPage';
+import { CONTENT_INSET } from '../navigation/DesktopPage';
+import { useDesktopHeaderPortal } from '../components/pageHeader';
+import { NeedsNow } from '../components/myTasks/NeedsNow';
+import { PosterCard } from '../components/myTasks/PosterCard';
+import { WorkerCard } from '../components/myTasks/WorkerCard';
+import { DeskTiles } from '../components/myTasks/DeskTiles';
+import { DeskTableCard, POSTER_COLUMNS, PosterDeskRow, TableFooter, WORKER_COLUMNS, WorkerDeskRow } from '../components/myTasks/DeskTable';
+import { HeaderButton } from '../components/myTasks/bits';
+
+// Shared with Home's sections and the task page; the words live in lib/myTasksBoard.
+export { statusBadge } from '../lib/myTasksBoard';
+
+// The desktop page's scroll content: ListPage's own padding, plus the inset the page header's content sits at.
+const LIST_SCROLL = { paddingTop: 8, paddingBottom: 32, paddingHorizontal: CONTENT_INSET } as const;
+
+/** Desktop table rows shown before "Show more". */
+const DESK_PAGE = 10;
+
+/** How many hired tasks the list looks up the person for (one batched read; the rest just say "Hired"). */
+const PEOPLE_LOOKUP = 12;
 
 /**
- * My Tasks (posting) / My Work (earning).
+ * My Tasks (posting) / My Work (earning), the Upwork way (D31 v11).
  *
- * The poster side is the task list with what matters about each one at a
- * glance -- quotes, escrow, time left -- and the actions a poster takes from
- * a list: open it, post a similar one, or close it (which refunds any escrow,
- * the same path the orders list has always used).
+ * The poster side opens with what needs them now, then the task list: an open task is a post getting offers,
+ * a task with someone picked is hired work (who, the money held, where it stands, the next step). From a list a
+ * poster opens a task, posts a similar one, or closes it (which refunds any escrow, the same path the orders
+ * list has always used). On a desktop the list is a table under four summary tiles.
  */
 export function MyTasksScreen() {
   const { mode } = useMode();
@@ -56,95 +87,46 @@ export function MyTasksScreen() {
 // --------------------------------------------------------------- poster -----
 
 const POSTER_TABS = ['Open', 'In progress', 'Completed', 'Closed'] as const;
-
-function tabOf(task: Task): number {
-  switch (task.status) {
-    case 'OPEN':
-      return 0;
-    case 'LOCKED':
-    case 'TASK_STARTED':
-    case 'OVERDUE':
-    case 'WORK_DONE':
-    case 'REVISION_REQUESTED':
-    case 'DISPUTED':
-      return 1;
-    case 'COMPLETED':
-    case 'AUTO_COMPLETED':
-      return 2;
-    default:
-      return 3;
-  }
-}
-
-export function statusBadge(task: Task): { label: string; tone: 'accent' | 'gold' | 'signal' | 'blue' | 'neutral' } {
-  switch (task.status) {
-    case 'OPEN':
-      return { label: 'Open', tone: 'accent' };
-    case 'LOCKED':
-      return task.funded_at ? { label: 'Worker to start', tone: 'accent' } : { label: 'Waiting for payment', tone: 'signal' };
-    case 'TASK_STARTED':
-      return { label: 'In progress', tone: 'gold' };
-    case 'OVERDUE':
-      return { label: 'Overdue', tone: 'signal' };
-    case 'WORK_DONE':
-      return { label: 'Review work', tone: 'gold' };
-    case 'REVISION_REQUESTED':
-      return { label: 'Revision asked', tone: 'gold' };
-    case 'COMPLETED':
-    case 'AUTO_COMPLETED':
-      return { label: 'Completed', tone: 'blue' };
-    case 'DISPUTED':
-      return { label: 'Problem reported', tone: 'signal' };
-    default:
-      return { label: 'Cancelled', tone: 'neutral' };
-  }
-}
-
-const STAGES = ['Posted', 'Offers', 'Hired', 'Working', 'Done'] as const;
-
-/** How far along the 5-step track a task is (1-5); 0 for closed tasks, which show no track. */
-function stageOf(task: Task, quotes: number): number {
-  switch (task.status) {
-    case 'OPEN':
-      return quotes > 0 ? 2 : 1;
-    case 'LOCKED':
-      return 3;
-    case 'TASK_STARTED':
-    case 'OVERDUE':
-    case 'WORK_DONE':
-    case 'REVISION_REQUESTED':
-    case 'DISPUTED':
-      return 4;
-    case 'COMPLETED':
-    case 'AUTO_COMPLETED':
-      return 5;
-    default:
-      return 0;
-  }
-}
+const TAB_NOUN = ['open tasks', 'tasks in progress', 'completed tasks', 'closed tasks'] as const;
 
 function MyPosted() {
   const t = useTheme();
+  // Desktop: tiles, the Needs you now card and a table. Everywhere else the phone layout (board MyTasks).
+  const { desktop } = useLayout();
+  const px = desktop ? 0 : 20;
   const { go } = useNav();
-  const { flash } = useActions();
+  const { flash, setOpenTask } = useActions();
   const { userId, guest } = useAuth();
+  const fees = useFees();
   // A guest's drafts wait on this phone under one shared owner until the account is made.
   const draftOwner = userId ?? (guest ? GUEST_DRAFTS_OWNER : null);
   const focusTick = useFocusTick();
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [quotes, setQuotes] = useState<Map<string, number>>(new Map());
+  // "N new" per open task, against what this device saw when it last opened the offers (lib/seenOffers).
+  const [freshOffers, setFreshOffers] = useState<Map<string, number>>(new Map());
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState('');
   const [needs, setNeeds] = useState(false);
   const [menu, setMenu] = useState<Task | null>(null);
   const [closing, setClosing] = useState(false);
   const [confirmClose, setConfirmClose] = useState<Task | null>(null);
+  // The open post whose Top up picker is showing (D31; the server prices the change, migration 194).
+  const [topUp, setTopUp] = useState<Task | null>(null);
+  const [toppingUp, setToppingUp] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   // True when the last load failed (offline, server hiccup): an empty list is then
   // "could not load", not "you have no tasks".
   const [failed, setFailed] = useState(false);
   // Half-written posts kept on this device (see lib/drafts).
   const [drafts, setDrafts] = useState<PostDraft[]>([]);
+  // The draft whose X was tapped: it goes only once they say yes (P1-21).
+  const [confirmDraft, setConfirmDraft] = useState<PostDraft | null>(null);
+  // The person hired on each task, once looked up (getTaskDetail, the job page's own read).
+  const [people, setPeople] = useState<Map<string, Profile | null>>(new Map());
+  const asked = useRef(new Set<string>());
+  // Desktop: how many table rows are shown.
+  const [limit, setLimit] = useState(DESK_PAGE);
   useEffect(() => {
     if (!draftOwner) return setDrafts([]);
     let alive = true;
@@ -166,6 +148,9 @@ function MyPosted() {
     setTasks(rows);
     setQuotes(counts);
     setFailed(false);
+    const { fresh, seed } = newOffers(counts, await loadSeenOffers(userId));
+    if (seed) void saveSeenOffers(userId, seed);
+    setFreshOffers(fresh);
   }, [userId, focusTick]);
 
   // On failure keep whatever is already on screen; with nothing yet, show the retry card.
@@ -182,6 +167,31 @@ function MyPosted() {
     void loadOrFail();
   }, [loadOrFail]);
 
+  // Who was hired: in-progress tasks first, then completed ones, in one batched read. A miss just leaves the
+  // card without the person row.
+  useEffect(() => {
+    const want = (tasks ?? [])
+      .filter((x) => isHired(x.status) && !asked.current.has(x.id))
+      .sort((a, b) => posterTabOf(a.status) - posterTabOf(b.status))
+      .slice(0, Math.max(0, PEOPLE_LOOKUP - asked.current.size));
+    if (want.length === 0) return;
+    want.forEach((x) => asked.current.add(x.id));
+    let alive = true;
+    void Promise.all(want.map((x) => getTaskDetail(x.id).then((d) => [x.id, d?.worker ?? null] as const).catch(() => [x.id, null] as const))).then(
+      (pairs) => {
+        if (!alive) return;
+        setPeople((cur) => {
+          const next = new Map(cur);
+          for (const [id, who] of pairs) next.set(id, who);
+          return next;
+        });
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [tasks]);
+
   const refresh = async () => {
     setRefreshing(true);
     await loadOrFail();
@@ -189,7 +199,7 @@ function MyPosted() {
   };
 
   const needCount = (tasks ?? []).filter((x) => x.status === 'OPEN' && (quotes.get(x.id) ?? 0) === 0).length;
-  const counts = POSTER_TABS.map((_, i) => (tasks ?? []).filter((x) => tabOf(x) === i).length);
+  const counts = POSTER_TABS.map((_, i) => (tasks ?? []).filter((x) => posterTabOf(x.status) === i).length);
 
   const shown = useMemo(() => {
     if (!tasks) return null;
@@ -197,11 +207,33 @@ function MyPosted() {
     return tasks.filter((x) => {
       if (needs) {
         if (!(x.status === 'OPEN' && (quotes.get(x.id) ?? 0) === 0)) return false;
-      } else if (tabOf(x) !== tab) return false;
+      } else if (posterTabOf(x.status) !== tab) return false;
       if (!needle) return true;
       return [x.title, x.description, x.category ?? ''].join(' ').toLowerCase().includes(needle);
     });
   }, [tasks, tab, q, needs, quotes]);
+
+  // A new tab, filter or search starts the desktop table from its first page.
+  useEffect(() => setLimit(DESK_PAGE), [tab, needs, q]);
+
+  // W3-6: the menu and the dialog name the cancel fine in rupees before it can happen.
+  const cancelPct = fees.cancelFine ?? FEES.POST_START_CANCEL_PENALTY_PCT;
+  const closeWordsFor = (task: Task) =>
+    closeTaskText({
+      title: task.title,
+      status: task.status,
+      funded: Boolean(task.funded_at),
+      fineMinor: Math.round((task.locked_minor ?? 0) * cancelPct),
+      finePct: Math.round(cancelPct * 100),
+      money: formatINR,
+    });
+
+  // Money previews from packages/rules with the live fee rate; the server prices the real charge.
+  const priceOf = (task: Task) => task.locked_minor ?? task.benchmark_minor;
+  const payTextOf = (task: Task) => formatINR(posterEscrowCharge(priceOf(task), fees.posterFee));
+  const heldTextOf = (task: Task) => formatINR(task.funded_minor ?? posterEscrowCharge(priceOf(task), fees.posterFee));
+  const closedTextOf = (task: Task) =>
+    closedLine(task, { money: formatINR, fineMinor: Math.round((task.locked_minor ?? 0) * cancelPct), finePct: Math.round(cancelPct * 100) });
 
   const close = async (task: Task) => {
     setClosing(true);
@@ -209,13 +241,17 @@ function MyPosted() {
       await cancelTask(task.id);
       setConfirmClose(null);
       flash('Task closed');
+      // Show it closed now: the refund below can take several seconds, and the list sat unchanged until a pull-down (round 7, P1-15).
+      setTasks((prev) => (prev ? prev.map((x) => (x.id === task.id ? { ...x, status: 'CANCELLED' } : x)) : prev));
+      void load().catch(() => {});
       try {
         const out = await refundEscrow(task.id);
         if (out.refundedMinor > 0) flash(formatINR(out.refundedMinor) + ' is on its way back to you');
       } catch {
         flash('Closed. Your refund is being processed — it can take a few days.');
       }
-      await load();
+      // The task is closed whatever this read says; a failed refresh must not read as "could not close".
+      await load().catch(() => {});
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not close that task');
     } finally {
@@ -223,193 +259,299 @@ function MyPosted() {
     }
   };
 
+  const raise = async (task: Task, pct: number) => {
+    setToppingUp(true);
+    try {
+      const out = await raiseTopUp(task.id, pct);
+      setTopUp(null);
+      flash(`Topped up ${pct}%: workers now see ${formatINR(out?.benchmark_minor ?? raisedPriceMinor(task.benchmark_minor, task.topup_pct, pct))}`);
+      if (out) setTasks((prev) => (prev ? prev.map((x) => (x.id === task.id ? { ...x, topup_pct: out.topup_pct, benchmark_minor: out.benchmark_minor } : x)) : prev));
+      void load().catch(() => {});
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not top up that task');
+    } finally {
+      setToppingUp(false);
+    }
+  };
+
   const reviewCount = (tasks ?? []).filter((x) => x.status === 'WORK_DONE').length;
+
+  // What needs the poster now, from the live states only (lib/myTasksBoard).
+  const needItems = useMemo(
+    () =>
+      guest || !tasks
+        ? []
+        : posterNeeds(tasks, {
+            offersOf: (id) => quotes.get(id) ?? 0,
+            nameOf: (id) => people.get(id)?.display_name ?? null,
+            payText: (x) => payTextOf(x as Task),
+            now: Date.now(),
+          }),
+    // payTextOf only reads the fee rate.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tasks, quotes, people, guest, fees.posterFee],
+  );
+  const onNeed = (n: Need) => {
+    const task = (tasks ?? []).find((x) => x.id === n.taskId);
+    if (!task) return;
+    if (n.kind === 'repost') return go('aiPost', { similar: task });
+    openPostedTask(task, go);
+  };
+
+  // The finished task's review: the same route the orders list's done row takes (taskRows act 'review').
+  const review = (task: Task) => openRow(posterRow(task), { go, flash, setOpenTask, startedOf: () => false });
+
+  const refreshControl = <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />;
+  const pickTab = (i: number) => {
+    setNeeds(false);
+    setTab(i);
+  };
+  const toggleNeeds = () => {
+    if (!needs) setTab(0);
+    setNeeds(!needs);
+  };
+
+  const portal = useDesktopHeaderPortal({ title: 'My tasks', right: <HeaderButton label="Post a request" onPress={() => go('aiPost')} /> });
+
+  const guestNote = guest ? (
+    <View style={{ paddingHorizontal: px }}>
+      <GuestNote />
+    </View>
+  ) : null;
+
+  const summaryTiles = [
+    { value: (counts[0] ?? 0) + (counts[1] ?? 0), label: 'Active' },
+    { value: reviewCount, label: 'To review' },
+    { value: counts[2] ?? 0, label: 'Completed' },
+  ];
+
+  // Phone: one summary card rather than four tiles: what is running, what is waiting on me, what is done.
+  // Spending lives in Wallet → Insights. What to review now sits in the Needs you now card under it.
+  // Desktop: four tiles, the fourth the Needs providers switch.
+  // B175: a guest has no tasks to count yet; the zeros read like a real empty account.
+  const summary = guest ? null : desktop ? (
+    <DeskTiles
+      // W2-18: a dash while the tasks load, never a 0 that is not true yet.
+      tiles={summaryTiles.map((m) => ({ label: m.label, value: countOrDash(m.value, tasks === null) }))}
+      needs={tasks === null ? null : needCount}
+      needsOn={needs}
+      onNeeds={toggleNeeds}
+    />
+  ) : (
+    <View style={{ paddingHorizontal: px, paddingTop: 8 }}>
+      <HeroCard radius={24} padding={20} watermark={false} ringSize={180}>
+        <RNText style={tx('700', 12.5, 'rgba(255,255,255,0.82)')}>Your tasks at a glance</RNText>
+        <View style={{ flexDirection: 'row', marginTop: 12 }}>
+          {summaryTiles.map((m, i) => (
+            <View key={m.label} style={{ flex: 1, borderLeftWidth: i ? 1 : 0, borderLeftColor: 'rgba(255,255,255,0.15)', paddingLeft: i ? 14 : 0 }}>
+              {/* W2-18: a dash while the tasks load, never a 0 that is not true yet. */}
+              <RNText style={tx('800', 30, '#FFFFFF', { letterSpacing: -0.6, fontVariant: ['tabular-nums'] })}>{countOrDash(m.value, tasks === null)}</RNText>
+              <RNText style={tx('600', 12, 'rgba(255,255,255,0.75)', { marginTop: 1 })}>{m.label}</RNText>
+            </View>
+          ))}
+        </View>
+      </HeroCard>
+    </View>
+  );
+
+  const needsCard = <NeedsNow items={needItems} onPick={onNeed} desktop={desktop} side="hire" />;
+
+  const alerts = <AlertsCard show={(tasks?.length ?? 0) > 0} side="hire" />;
+
+  // Desktop: a 300-wide box on the right of the table's tab row. Elsewhere: the full-width box under the summary.
+  const searchBox = (
+    <View {...ring}
+      style={
+        desktop
+          ? { flexDirection: 'row', alignItems: 'center', gap: 8, width: 300, ...cardSurface(t, 12), shadowOpacity: 0, paddingHorizontal: 14 }
+          : {
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              marginHorizontal: 20,
+              marginTop: 16,
+              ...cardSurface(t, 16),
+              paddingHorizontal: 14,
+            }
+      }
+    >
+      <Icon name="search" size={17} color={t.colors.muted} />
+      <TextInput
+        value={q}
+        onChangeText={setQ}
+        placeholder="Search tasks, category…"
+        placeholderTextColor={t.colors.muted}
+        style={tx('400', 14, t.colors.ink, { flex: 1, paddingVertical: desktop ? 9 : 11 })}
+      />
+    </View>
+  );
+
+  // Desktop shows the same switch as its fourth tile.
+  const needsPill =
+    needCount > 0 && !desktop ? <Pill label="Needs providers" icon="users" count={needCount} active={needs} onPress={toggleNeeds} /> : null;
+
+  const draftsBlock =
+    drafts.length > 0 ? (
+      <View style={{ paddingHorizontal: px, marginTop: desktop ? 0 : 16, marginBottom: desktop ? 20 : 0, gap: 8 }}>
+        <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>DRAFTS · {drafts.length}</RNText>
+        {drafts.map((d) => (
+          <View key={d.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, ...cardSurface(t, 16), paddingLeft: 14, paddingRight: 8 }}>
+            <Pressable
+              onPress={() => go('aiPost', { prompt: d.prompt, draftId: d.id })}
+              accessibilityRole="button"
+              accessibilityLabel={`Continue draft: ${d.prompt}`}
+              style={{ flex: 1, paddingVertical: 12 }}
+            >
+              <RNText numberOfLines={2} style={tx('600', 14, t.colors.ink, { lineHeight: 20 })}>{d.prompt}</RNText>
+              <RNText style={tx('500', 12, t.colors.accentDeep, { marginTop: 3 })}>Continue · saved {timeAgo(new Date(d.savedAt).toISOString())} · price and date asked again</RNText>
+            </Pressable>
+            <Pressable
+              onPress={() => setConfirmDraft(d)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Delete this draft"
+              style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Icon name="close" size={16} color={t.colors.muted} />
+            </Pressable>
+          </View>
+        ))}
+      </View>
+    ) : null;
+
+  const empty =
+    shown === null ? null : shown.length === 0 && failed ? (
+      <LoadFailed onRetry={() => void refresh()} />
+    ) : shown.length === 0 ? (
+      q.trim() ? (
+        // A search that found nothing is not an empty account (round 7, P1-10).
+        <EmptyState icon="search" title={`No tasks match "${q.trim()}"`} body="Check the spelling, or clear the search to see them all." actionLabel="Clear search" onAction={() => setQ('')} />
+      ) : (
+        <EmptyState
+          icon="list"
+          title={tab === 0 && !needs ? 'No open tasks' : 'Nothing here yet'}
+          body={tab === 0 ? 'Create your first task to start getting work done.' : undefined}
+          actionLabel={tab === 0 ? 'Create task' : undefined}
+          onAction={() => go('aiPost')}
+        />
+      )
+    ) : null;
+
+  const cardProps = (task: Task) => ({
+    task,
+    offers: quotes.get(task.id) ?? 0,
+    newOffers: freshOffers.get(task.id),
+    worker: people.get(task.id),
+    onOpen: () => openPostedTask(task, go),
+    onMenu: () => setMenu(task),
+    onTopUp: () => setTopUp(task),
+    onAgain: () => go('aiPost', { similar: task }),
+    onReview: () => review(task),
+  });
+
+  const results = (
+    <View style={{ paddingHorizontal: px, paddingTop: 4, minHeight: 320 }}>
+      {shown === null ? (
+        [0, 1].map((i) => <Shimmer key={i} height={110} style={{ marginTop: 12 }} />)
+      ) : empty ? (
+        empty
+      ) : (
+        <Grid>
+          {shown.map((task, i) => (
+            <PosterCard
+              key={task.id}
+              {...cardProps(task)}
+              index={i}
+              payText={payTextOf(task)}
+              heldText={heldTextOf(task)}
+              closedText={closedTextOf(task)}
+              onClose={() => setConfirmClose(task)}
+              onChat={() => go('chat', { taskId: task.id, title: task.title })}
+            />
+          ))}
+        </Grid>
+      )}
+    </View>
+  );
+
+  const table = (
+    <DeskTableCard
+      columns={POSTER_COLUMNS}
+      table={!!shown && !empty}
+      toolbarLeft={
+        <SegmentedTabs
+          tabs={POSTER_TABS.map((x, i) => ({ key: x, label: x, count: tasks === null ? undefined : counts[i] }))}
+          value={POSTER_TABS[tab] ?? POSTER_TABS[0]}
+          onChange={(k) => pickTab(POSTER_TABS.indexOf(k))}
+        />
+      }
+      toolbarRight={searchBox}
+      footer={
+        shown && !empty ? (
+          <TableFooter shown={Math.min(limit, shown.length)} total={shown.length} noun={needs ? 'tasks that need providers' : TAB_NOUN[tab]!} onMore={() => setLimit((n) => n + DESK_PAGE)} />
+        ) : null
+      }
+    >
+      {shown === null ? (
+        <View style={{ padding: 20, gap: 12 }}>
+          {[0, 1, 2].map((i) => <Shimmer key={i} height={52} />)}
+        </View>
+      ) : empty ? (
+        <View style={{ padding: 20 }}>{empty}</View>
+      ) : (
+        shown.slice(0, limit).map((task) => <PosterDeskRow key={task.id} {...cardProps(task)} heldText={heldTextOf(task)} />)
+      )}
+    </DeskTableCard>
+  );
 
   return (
     <Screen padded={false}>
       <AppHeader />
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 32 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.accent} />}
-      >
-        {guest ? (
-          <View style={{ paddingHorizontal: 20 }}>
-            <GuestNote />
-          </View>
-        ) : null}
-        {/* One summary card rather than four tiles: what is running, what is
-            waiting on me, what is done. Spending lives in Wallet → Insights. */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
-          <HeroCard radius={24} padding={20} watermark={false} ringSize={180}>
-            <RNText style={tx('700', 12.5, 'rgba(255,255,255,0.82)')}>Your tasks at a glance</RNText>
-            <View style={{ flexDirection: 'row', marginTop: 12 }}>
-              {[
-                { value: (counts[0] ?? 0) + (counts[1] ?? 0), label: 'Active' },
-                { value: reviewCount, label: 'To review' },
-                { value: counts[2] ?? 0, label: 'Completed' },
-              ].map((m, i) => (
-                <View key={m.label} style={{ flex: 1, borderLeftWidth: i ? 1 : 0, borderLeftColor: 'rgba(255,255,255,0.15)', paddingLeft: i ? 14 : 0 }}>
-                  <RNText style={tx('800', 30, '#FFFFFF', { letterSpacing: -0.6, fontVariant: ['tabular-nums'] })}>{m.value}</RNText>
-                  <RNText style={tx('600', 12, 'rgba(255,255,255,0.75)', { marginTop: 1 })}>{m.label}</RNText>
-                </View>
-              ))}
-            </View>
-            {reviewCount > 0 ? (
-              <Pressable
-                onPress={() => {
-                  const next = (tasks ?? []).find((x) => x.status === 'WORK_DONE');
-                  if (next) openPostedTask(next, go);
-                }}
-                accessibilityRole="button"
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  marginTop: 16,
-                  paddingVertical: 11,
-                  paddingHorizontal: 14,
-                  borderRadius: 14,
-                  backgroundColor: 'rgba(255,255,255,0.16)',
-                  transform: [{ scale: pressed ? 0.98 : 1 }],
-                })}
-              >
-                <Icon name="eye" size={16} color="#FFFFFF" />
-                <RNText style={tx('700', 13, '#FFFFFF', { flex: 1 })}>
-                  {reviewCount === 1 ? '1 task is waiting for your review' : `${reviewCount} tasks are waiting for your review`}
-                </RNText>
-                <Icon name="chevronRight" size={16} color="#FFFFFF" />
-              </Pressable>
-            ) : null}
-          </HeroCard>
-        </View>
-        <AlertsCard show={(tasks?.length ?? 0) > 0} side="hire" />
-
-        <View {...ring}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
-            marginHorizontal: 20,
-            marginTop: 16,
-            ...cardSurface(t, 16),
-            paddingHorizontal: 14,
-          }}
-        >
-          <Icon name="search" size={17} color={t.colors.muted} />
-          <TextInput
-            value={q}
-            onChangeText={setQ}
-            placeholder="Search tasks, category…"
-            placeholderTextColor={t.colors.muted}
-            style={tx('400', 14, t.colors.ink, { flex: 1, paddingVertical: 11 })}
-          />
-        </View>
-        {needCount > 0 ? (
-          <View style={{ flexDirection: 'row', paddingHorizontal: 20, marginTop: 10 }}>
-            <Pill label="Needs providers" icon="users" count={needCount} active={needs} onPress={() => {
-                if (!needs) setTab(0);
-                setNeeds(!needs);
-              }}
+      {portal}
+      {desktop ? (
+        <ListPage scrollProps={{ refreshControl, contentContainerStyle: LIST_SCROLL }}>
+          {guestNote}
+          {summary}
+          {alerts}
+          {needsCard}
+          {draftsBlock}
+          {table}
+        </ListPage>
+      ) : (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} refreshControl={refreshControl}>
+          {guestNote}
+          {summary}
+          {needsCard}
+          {alerts}
+          {searchBox}
+          {needsPill ? <View style={{ flexDirection: 'row', paddingHorizontal: 20, marginTop: 10 }}>{needsPill}</View> : null}
+          {draftsBlock}
+          <View style={{ marginTop: 14 }}>
+            <PillTabs
+              tabs={POSTER_TABS.map((x, i) => (tasks === null ? { label: x } : { label: x, count: counts[i] }))}
+              active={tab}
+              onPick={pickTab}
             />
           </View>
-        ) : null}
-
-        {drafts.length > 0 ? (
-          <View style={{ paddingHorizontal: 20, marginTop: 16, gap: 8 }}>
-            <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>DRAFTS · {drafts.length}</RNText>
-            {drafts.map((d) => (
-              <View key={d.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, ...cardSurface(t, 16), paddingLeft: 14, paddingRight: 8 }}>
-                <Pressable
-                  onPress={() => go('aiPost', { prompt: d.prompt, draftId: d.id })}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Continue draft: ${d.prompt}`}
-                  style={{ flex: 1, paddingVertical: 12 }}
-                >
-                  <RNText numberOfLines={2} style={tx('600', 14, t.colors.ink, { lineHeight: 20 })}>{d.prompt}</RNText>
-                  <RNText style={tx('500', 12, t.colors.accentDeep, { marginTop: 3 })}>Continue · {timeAgo(new Date(d.savedAt).toISOString())}</RNText>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    if (!draftOwner) return;
-                    setDrafts((cur) => cur.filter((x) => x.id !== d.id));
-                    void removeDraft(draftOwner, d.id);
-                  }}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Delete this draft"
-                  style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <Icon name="close" size={16} color={t.colors.muted} />
-                </Pressable>
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        <View style={{ marginTop: 14 }}>
-          <PillTabs
-            tabs={POSTER_TABS.map((x, i) => ({ label: x, count: counts[i] }))}
-            active={tab}
-            onPick={(i) => {
-              setNeeds(false);
-              setTab(i);
-            }}
-          />
-        </View>
-
-        <SwipeTabs
-          index={tab}
-          count={POSTER_TABS.length}
-          onChange={(i) => {
-            setNeeds(false);
-            setTab(i);
-          }}
-          style={{ flex: 0 }}
-        >
-        <View style={{ paddingHorizontal: 20, paddingTop: 4, minHeight: 320 }}>
-          {shown === null ? (
-            [0, 1].map((i) => <Shimmer key={i} height={110} style={{ marginTop: 12 }} />)
-          ) : shown.length === 0 && failed ? (
-            <LoadFailed onRetry={() => void refresh()} />
-          ) : shown.length === 0 ? (
-            <EmptyState
-              icon="list"
-              title={tab === 0 && !needs ? 'No open tasks' : 'Nothing here yet'}
-              body={tab === 0 ? 'Create your first task to start getting work done.' : undefined}
-              actionLabel={tab === 0 ? 'Create task' : undefined}
-              onAction={() => go('aiPost')}
-            />
-          ) : (
-            <Grid>
-            {shown.map((task, i) => (
-              <PostedCard
-                key={task.id}
-                task={task}
-                index={i}
-                quotes={quotes.get(task.id) ?? 0}
-                onOpen={() => openPostedTask(task, go)}
-                onMenu={() => setMenu(task)}
-                onClose={() => setConfirmClose(task)}
-                onAgain={() => go('aiPost', { similar: task })}
-              />
-            ))}
-            </Grid>
-          )}
-        </View>
-        </SwipeTabs>
-      </ScrollView>
+          <SwipeTabs index={tab} count={POSTER_TABS.length} onChange={pickTab} style={{ flex: 0 }}>
+            {results}
+          </SwipeTabs>
+        </ScrollView>
+      )}
 
       <BottomSheet visible={menu !== null} onClose={() => setMenu(null)} title={menu?.title}>
         {menu ? (
           <>
             <MenuRow icon="eye" label="View details" onPress={() => { const id = menu.id; setMenu(null); go('taskManage', { taskId: id }); }} />
             <MenuRow icon="copy" label="Create similar" sub="Start a new post from this one" onPress={() => { const m = menu; setMenu(null); go('aiPost', { similar: m }); }} />
+            {canTopUp(menu) ? (
+              <MenuRow icon="plus" label="Top up" sub="Offer workers a bit more to get offers sooner" onPress={() => { const m = menu; setMenu(null); setTopUp(m); }} />
+            ) : null}
             {['OPEN', 'LOCKED', 'TASK_STARTED', 'OVERDUE'].includes(menu.status) ? (
               <MenuRow
                 icon="close"
                 label="Close task"
-                sub={menu.status === 'OPEN' ? 'Stop taking offers' : 'Cancels the job; payment is refunded minus any fine'}
+                sub={closeWordsFor(menu).sub}
                 danger
                 onPress={() => {
                   const m = menu;
@@ -422,199 +564,56 @@ function MyPosted() {
         ) : null}
       </BottomSheet>
 
+      <BottomSheet visible={topUp !== null} onClose={() => (toppingUp ? undefined : setTopUp(null))} title="Top up this task">
+        {topUp ? (
+          <>
+            <RNText style={tx('500', 13, t.colors.muted, { lineHeight: 19, marginBottom: 6 })}>
+              {`Now ${formatINR(topUp.benchmark_minor)}${topUp.topup_pct ? ` with a ${topUp.topup_pct}% top-up` : ''}. A top-up raises what workers see; you pay only when you accept an offer.`}
+            </RNText>
+            {nextTopUpSteps(topUp.topup_pct).map((pct) => (
+              <MenuRow
+                key={pct}
+                icon="plus"
+                label={`Top up ${pct}%`}
+                sub={`Workers see ${formatINR(raisedPriceMinor(topUp.benchmark_minor, topUp.topup_pct, pct))}`}
+                onPress={() => (toppingUp ? undefined : void raise(topUp, pct))}
+              />
+            ))}
+          </>
+        ) : null}
+      </BottomSheet>
+
       <ConfirmDialog
         visible={confirmClose !== null}
         danger
         icon="close"
         title="Close this task?"
-        message={
-          confirmClose?.status === 'OPEN'
-            ? `“${confirmClose.title}” will be taken down and workers can no longer send offers for it. This can’t be undone.`
-            : `“${confirmClose?.title ?? ''}” will be cancelled and the worker taken off it. Any payment is refunded minus any fine. This can’t be undone.`
-        }
+        message={confirmClose ? closeWordsFor(confirmClose).message : ''}
         confirmLabel="Yes, close task"
         cancelLabel="Keep it"
         busy={closing}
         onCancel={() => setConfirmClose(null)}
         onConfirm={() => confirmClose && void close(confirmClose)}
       />
+      <ConfirmDialog
+        visible={confirmDraft !== null}
+        danger
+        icon="close"
+        title="Delete this draft?"
+        message={`“${confirmDraft?.prompt ?? ''}” will be deleted. This can’t be undone.`}
+        confirmLabel="Yes, delete draft"
+        cancelLabel="Keep it"
+        onCancel={() => setConfirmDraft(null)}
+        onConfirm={() => {
+          const d = confirmDraft;
+          setConfirmDraft(null);
+          if (!d || !draftOwner) return;
+          setDrafts((cur) => cur.filter((x) => x.id !== d.id));
+          void removeDraft(draftOwner, d.id);
+          flash('Draft deleted');
+        }}
+      />
     </Screen>
-  );
-}
-
-function PostedCard({
-  task,
-  index,
-  quotes,
-  service,
-  onOpen,
-  onMenu,
-  onClose,
-  onAgain,
-}: {
-  task: Task;
-  index: number;
-  quotes: number;
-  /** A worker's own service listing: no quotes, no "needs providers". */
-  service?: boolean;
-  onOpen: () => void;
-  onMenu: () => void;
-  /** Opens the close-task confirm dialog (the same path as the menu's "Close task"). */
-  onClose: () => void;
-  /** Starts a new post from this one ("Create similar"). */
-  onAgain: () => void;
-}) {
-  const t = useTheme();
-  const badge = statusBadge(task);
-  const left = task.status === 'OPEN' ? timeLeft(task.due_at) : null;
-  const preview = descriptionPreview(task.description, task.title);
-  const tones = {
-    accent: t.colors.accent,
-    gold: t.colors.gold,
-    signal: t.colors.signal,
-    blue: t.colors.blue,
-    neutral: t.colors.muted,
-  } as const;
-  const stripe = tones[badge.tone];
-
-  // The date has passed: said calmly, in gold, never as a red "overdue".
-  const datePassed = !service && (task.status === 'OVERDUE' || (task.status === 'OPEN' && !!task.due_at && new Date(task.due_at).getTime() < Date.now()));
-  const stage = service ? 0 : stageOf(task, quotes);
-  const done = task.status === 'COMPLETED' || task.status === 'AUTO_COMPLETED';
-  const toneInkOf = { accent: t.colors.accentDeep, gold: t.colors.goldInk, signal: t.colors.signalDeep, blue: t.colors.blue, neutral: t.colors.muted } as const;
-  const topLine = datePassed ? datePassedLine(task.status, quotes) : badge.label.toUpperCase();
-  const topInk = datePassed ? t.colors.goldInk : toneInkOf[badge.tone];
-
-  // The one thing the poster should do next, as a big button at the foot of the card.
-  const nextLabel: string | null = service
-    ? null
-    : done
-      ? 'Book again'
-      : task.status === 'OPEN'
-        ? quotes > 0
-          ? 'Choose an offer'
-          : 'Open'
-        : task.status === 'LOCKED' && !task.funded_at
-          ? 'Pay to start'
-          : task.status === 'WORK_DONE'
-            ? 'Review the work'
-            : task.status === 'LOCKED' || task.status === 'TASK_STARTED' || task.status === 'REVISION_REQUESTED'
-              ? 'Track'
-              : 'Open';
-  const bigButton = (label: string, onPress: () => void, quiet = false) => (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${label}: ${task.title}`}
-      style={({ pressed }) => ({
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 13,
-        borderRadius: 14,
-        backgroundColor: quiet ? t.colors.surface2 : t.colors.btn,
-        borderWidth: quiet ? 1 : 0,
-        borderColor: t.colors.line,
-        transform: [{ scale: pressed ? 0.98 : 1 }],
-      })}
-    >
-      <RNText style={tx('800', 14, quiet ? t.colors.ink : t.colors.onBtn)}>{label}</RNText>
-    </Pressable>
-  );
-
-  return (
-    <FadeIn duration={340} delay={Math.min(index, 6) * 60} translateY={8} style={{ marginTop: 12 }}>
-      <Pressy
-        containsControls
-        onPress={onOpen}
-        scaleTo={0.985}
-        style={[cardSurface(t, 20), { overflow: 'hidden' }]}
-      >
-        <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: stripe }} />
-        <View style={{ flexDirection: 'row', gap: 12, padding: 14, paddingLeft: 16 }}>
-          <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name={categoryIcon(task.category)} size={21} color={t.colors.accentDeep} strokeWidth={1.8} />
-          </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <RNText style={tx('800', 10.5, topInk, { letterSpacing: 1.2, flexShrink: 1 })} numberOfLines={1}>{topLine}</RNText>
-              <RNText style={tx('600', 11, t.colors.muted, { flexShrink: 1 })} numberOfLines={1}>
-                · {categoryLabel(task)}
-              </RNText>
-              <View style={{ flex: 1 }} />
-              <Pressable onPress={onMenu} hitSlop={12} accessibilityRole="button" accessibilityLabel="Task options">
-                <Icon name="dots" size={18} color={t.colors.muted} strokeWidth={2.4} />
-              </Pressable>
-            </View>
-            <RNText style={tx('800', 16, t.colors.ink, { marginTop: 7, letterSpacing: -0.2 })} numberOfLines={2}>{task.title}</RNText>
-            {preview ? (
-              <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4, lineHeight: 18 })} numberOfLines={2}>
-                {preview}
-              </RNText>
-            ) : null}
-          </View>
-        </View>
-        {stage > 0 ? (
-          <View style={{ paddingHorizontal: 16, paddingBottom: 12 }} accessible accessibilityLabel={`Step ${stage} of 5: ${STAGES[stage - 1]}`}>
-            <View style={{ flexDirection: 'row', gap: 4 }}>
-              {STAGES.map((name, k) => (
-                <View key={name} style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: k < stage ? t.colors.accent : t.colors.line }} />
-              ))}
-            </View>
-            <View style={{ flexDirection: 'row', gap: 4, marginTop: 5 }}>
-              {STAGES.map((name, k) => (
-                <RNText key={name} numberOfLines={1} style={tx(k === stage - 1 ? '800' : '500', 10, k === stage - 1 ? t.colors.ink : t.colors.muted, { flex: 1 })}>
-                  {name}
-                </RNText>
-              ))}
-            </View>
-          </View>
-        ) : null}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 10,
-            paddingHorizontal: 16,
-            paddingVertical: 11,
-            borderTopWidth: 1,
-            borderTopColor: t.colors.line,
-            backgroundColor: t.colors.surface2,
-          }}
-        >
-          <RNText style={tx('800', 17, t.colors.ink, { fontVariant: ['tabular-nums'], letterSpacing: -0.3 })}>{rupees((task.locked_minor ?? task.benchmark_minor) / 100)}</RNText>
-          {left && !datePassed ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Icon name="clock" size={12} color={t.colors.goldInk} />
-              <RNText style={tx('600', 11.5, t.colors.goldInk)}>{left}</RNText>
-            </View>
-          ) : null}
-          {task.funded_at && task.status !== 'COMPLETED' && task.status !== 'AUTO_COMPLETED' ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Icon name="lock" size={12} color={t.colors.accentDeep} />
-              <RNText style={tx('600', 11.5, t.colors.accentDeep)}>Held safely</RNText>
-            </View>
-          ) : null}
-        </View>
-        {nextLabel ? (
-          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: t.colors.line }}>
-            {datePassed && task.status === 'OPEN' ? (
-              // There is no date edit yet, so a passed date offers a fresh post (or the offers that came in) and Close.
-              <>
-                {quotes > 0 ? bigButton('Choose an offer', onOpen) : bigButton('Post again', onAgain)}
-                {bigButton('Close', onClose, true)}
-              </>
-            ) : datePassed ? (
-              bigButton('Open', onOpen)
-            ) : done ? (
-              bigButton(nextLabel, onAgain)
-            ) : (
-              bigButton(nextLabel, onOpen)
-            )}
-          </View>
-        ) : null}
-      </Pressy>
-    </FadeIn>
   );
 }
 
@@ -622,15 +621,28 @@ function PostedCard({
 
 // "Closed", not "Done": it also holds offers the customer did not pick, which are not completed jobs.
 const WORKER_TABS = ['Active', 'Offers', 'Closed', 'Saved', 'My services'] as const;
+const WORKER_NOUN = ['active jobs', 'offers waiting', 'closed'] as const;
 
 function MyWork() {
   const t = useTheme();
+  // Desktop: the Needs you now card and a table; elsewhere the phone layout (board MyWork).
+  const { desktop } = useLayout();
+  const px = desktop ? 0 : 20;
   const { go } = useNav();
   const { flash, setOpenTask, startedOf } = useApp();
   const { userId, guest } = useAuth();
+  const fees = useFees();
   const focusTick = useFocusTick();
-  const [tab, setTab] = useState(0);
+  const [pickedTab, setTab] = useState(0);
+  // A guest only has the jobs saved on this phone (B175).
+  const tab = guest ? 3 : pickedTab;
   const [rows, setRows] = useState<ViewRow[] | null>(null);
+  // The task behind each row (assignments and offers carry it) and when each offer was sent.
+  const [taskById, setTaskById] = useState<Map<string, Task>>(new Map());
+  const [sentAt, setSentAt] = useState<Map<string, string>>(new Map());
+  // The customer of each started job: named to the worker only once the job starts.
+  const [customers, setCustomers] = useState<Map<string, Profile | null>>(new Map());
+  const askedCustomers = useRef(new Set<string>());
   const [saved, setSavedTasks] = useState<TaskWithPoster[] | null>(null);
   // Services this worker listed; posters browse these (migration 050).
   const [listings, setListings] = useState<Task[]>([]);
@@ -639,6 +651,7 @@ function MyWork() {
   const [bidTask, setBidTask] = useState<Task | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [limit, setLimit] = useState(DESK_PAGE);
   const offers = useMyOffers(userId, (saved ?? []).map((r) => r.id), !guest);
 
   const load = useCallback(async () => {
@@ -665,6 +678,11 @@ function MyWork() {
       ...assignments.map(workerAssignmentRow),
       ...bids.filter((b) => !assigned.has(b.task_id)).map(workerBidRow),
     ]);
+    const byId = new Map<string, Task>();
+    for (const b of bids) if (b.tasks) byId.set(b.task_id, b.tasks);
+    for (const a of assignments) if (a.tasks) byId.set(a.task_id, a.tasks);
+    setTaskById(byId);
+    setSentAt(new Map(bids.map((b) => [b.task_id, b.created_at])));
     setStats(s);
     setSavedTasks(sv);
     setSavedIds(ids);
@@ -684,6 +702,30 @@ function MyWork() {
     void loadOrFail();
   }, [loadOrFail]);
 
+  // The customers of jobs that have started (privacy: never before), in one read of the posters.
+  useEffect(() => {
+    const want = (rows ?? [])
+      .filter((r) => r.bucket === 1 && r.taskId && !askedCustomers.current.has(r.taskId))
+      .map((r) => taskById.get(r.taskId!))
+      .filter((x): x is Task => !!x && customerShown(x));
+    if (want.length === 0) return;
+    want.forEach((x) => askedCustomers.current.add(x.id));
+    let alive = true;
+    void attachPosters(want)
+      .then((list) => {
+        if (!alive) return;
+        setCustomers((cur) => {
+          const next = new Map(cur);
+          for (const x of list) next.set(x.id, x.poster);
+          return next;
+        });
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [rows, taskById]);
+
   const refresh = async () => {
     setRefreshing(true);
     await loadOrFail();
@@ -696,6 +738,7 @@ function MyWork() {
   const counts = WORKER_TABS.map((_, i) =>
     i === 3 ? (saved?.length ?? 0) : i === 4 ? listings.length : (rows ?? []).filter((r) => r.bucket === bucketFor(i)).length,
   );
+  useEffect(() => setLimit(DESK_PAGE), [tab]);
 
   const w = stats && stats.role === 'worker' ? stats : null;
   // No stats yet (or they failed), or no offers sent: a dash like the other tiles, not a made-up 0%.
@@ -707,6 +750,23 @@ function MyWork() {
     const task = await getTask(taskId).catch(() => null);
     if (!task) return flash('That request is no longer available');
     setBidTask(task);
+  };
+  const openWorkRow = (row: ViewRow) =>
+    tab === 1 && row.state === 'PENDING' ? void editQuote(row.taskId) : openRow(row, { go, flash, setOpenTask, startedOf });
+
+  const needItems = useMemo(
+    () =>
+      guest || !rows
+        ? []
+        : workerNeeds(rows, { dueOf: (id) => (id ? taskById.get(id)?.due_at : null), pendingOffers: counts[1] ?? 0, now: Date.now() }),
+    // counts[1] is counted from rows.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, taskById, guest],
+  );
+  const onNeed = (n: Need) => {
+    if (n.kind === 'offers') return setTab(1);
+    const row = (rows ?? []).find((r) => r.taskId === n.taskId && r.bucket === 1);
+    if (row) openRow(row, { go, flash, setOpenTask, startedOf });
   };
 
   const unsave = async (id: string) => {
@@ -724,118 +784,191 @@ function MyWork() {
     }
   };
 
+  const refreshControl = <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.purple} />;
+
+  const portal = useDesktopHeaderPortal({ title: 'My work', right: <HeaderButton label="Offer a service" onPress={() => go('listing')} /> });
+
+  const guestBlock = guest ? (
+    // B175: no earnings, counts or tabs that read like an empty real account; the jobs saved on
+    // this phone stay listed under the account block.
+    <View style={{ paddingHorizontal: px }}>
+      <GuestAccountCard
+        icon="briefcase"
+        heading="Your jobs need an account"
+        body="Offers you send, jobs you win and what you earn show up here once your account is made."
+      />
+      <RNText style={tx('800', 15, t.colors.ink, { marginTop: 8 })}>Saved on this phone</RNText>
+    </View>
+  ) : null;
+
+  const statsBlock = guest ? null : (
+    <>
+      <AlertsCard show={(rows?.length ?? 0) > 0} side="earn" />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: px, paddingTop: desktop ? 0 : 8, marginBottom: desktop ? 20 : 0 }}>
+        <StatTile icon="wallet" label="Earned" value={w ? formatINR(w.earnedMinor) : '–'} />
+        <StatTile icon="check" label="Completed" value={String(w?.jobsDone ?? '–')} tone="blue" />
+        <StatTile icon="play" label="Active" value={String(w?.jobsLive ?? '–')} tone="gold" />
+        <StatTile icon="trending" label="Success" value={success} tone="purple" />
+      </View>
+    </>
+  );
+
+  const needsCard = <NeedsNow items={needItems} onPick={onNeed} desktop={desktop} side="earn" />;
+
+  // Saved and My services keep their cards on every size.
+  const savedOrServices =
+    tab === 4 ? (
+      listings.length === 0 ? (
+        <EmptyState
+          icon="tag"
+          title="No services listed yet"
+          body="Offer what you do — “I will design your logo, from ₹800” — and customers can hire you straight from it."
+          actionLabel="Offer a service"
+          onAction={() => go('listing')}
+        />
+      ) : (
+        <>
+          <Grid>
+            {listings.map((task) => (
+              <View key={task.id} style={{ marginTop: 12 }}>
+                <ListingCard task={task} owner onPress={() => go('listing', { taskId: task.id })} />
+              </View>
+            ))}
+          </Grid>
+          <Pressable
+            onPress={() => go('listing')}
+            accessibilityRole="button"
+            style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: t.colors.accentBorder }}
+          >
+            <Icon name="plus" size={15} color={t.colors.accentDeep} />
+            <RNText style={tx('700', 13, t.colors.accentDeep)}>Offer another service</RNText>
+          </Pressable>
+        </>
+      )
+    ) : tab === 3 ? (
+      (saved ?? []).length === 0 ? (
+        <EmptyState icon="bookmark" title="No saved tasks" body="Tap the bookmark on any task to keep it here." actionLabel="Browse tasks" onAction={() => go('explore')} />
+      ) : (
+        <Grid>
+          {(saved ?? []).map((task, i) => (
+            <WorkCard
+              key={task.id}
+              task={task}
+              index={i}
+              saved={savedIds.has(task.id)}
+              quoted={offers.has(task.id)}
+              onOpen={() => go('taskDetail', { row: taskToFeedRow(task) })}
+              onApply={() => setBidTask(task)}
+              onToggleSave={() => void unsave(task.id)}
+            />
+          ))}
+        </Grid>
+      )
+    ) : null;
+
+  const emptyList =
+    list.length === 0 ? (
+      <EmptyState
+        icon="briefcase"
+        title={tab === 0 ? 'No active tasks' : tab === 1 ? 'No pending offers' : 'Nothing closed yet'}
+        body={tab === 0 ? 'Pick tasks from Explore to start working and earning.' : undefined}
+        actionLabel="Browse tasks"
+        onAction={() => go('explore')}
+      />
+    ) : null;
+
+  const cardFor = (row: ViewRow) => ({
+    row,
+    task: row.taskId ? (taskById.get(row.taskId) ?? null) : null,
+    customer: row.taskId ? customers.get(row.taskId) : undefined,
+    sentAt: row.taskId ? sentAt.get(row.taskId) : undefined,
+    rates: fees,
+    onOpen: () => openWorkRow(row),
+  });
+
+  const results = (
+    <View style={{ paddingHorizontal: px, paddingTop: 4 }}>
+      {rows === null ? (
+        [0, 1].map((i) => <Shimmer key={i} height={90} style={{ marginTop: 12 }} />)
+      ) : failed && rows.length === 0 ? (
+        <LoadFailed onRetry={() => void refresh()} />
+      ) : savedOrServices ? (
+        savedOrServices
+      ) : emptyList ? (
+        emptyList
+      ) : (
+        <Grid>
+          {list.map((row, i) => (
+            <WorkerCard
+              key={`${row.taskId}-${i}`}
+              {...cardFor(row)}
+              index={i}
+              onChat={() => row.taskId && go('chat', { taskId: row.taskId, title: row.title })}
+            />
+          ))}
+        </Grid>
+      )}
+    </View>
+  );
+
+  const isTable = tab <= 2 && rows !== null && !(failed && rows.length === 0) && !emptyList;
+  const table = (
+    <DeskTableCard
+      columns={WORKER_COLUMNS}
+      table={isTable}
+      toolbarLeft={
+        guest ? (
+          <RNText style={tx('800', 15, t.colors.ink)}>Saved on this phone</RNText>
+        ) : (
+          <SegmentedTabs
+            tabs={WORKER_TABS.map((x, i) => ({ key: x, label: x, count: rows === null ? undefined : counts[i] }))}
+            value={WORKER_TABS[tab] ?? WORKER_TABS[0]}
+            onChange={(k) => setTab(WORKER_TABS.indexOf(k))}
+          />
+        )
+      }
+      footer={isTable ? <TableFooter shown={Math.min(limit, list.length)} total={list.length} noun={WORKER_NOUN[tab]!} onMore={() => setLimit((n) => n + DESK_PAGE)} /> : null}
+    >
+      {isTable ? (
+        list.slice(0, limit).map((row, i) => <WorkerDeskRow key={`${row.taskId}-${i}`} {...cardFor(row)} />)
+      ) : (
+        <View style={{ paddingHorizontal: 20, paddingBottom: 20, paddingTop: 8 }}>{results}</View>
+      )}
+    </DeskTableCard>
+  );
+
   return (
     <Screen padded={false}>
       <AppHeader />
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 32 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.purple} />}
-      >
-        {guest ? (
-          <View style={{ paddingHorizontal: 20 }}>
-            <GuestNote />
-          </View>
-        ) : null}
-        <AlertsCard show={(rows?.length ?? 0) > 0} side="earn" />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 20, paddingTop: 8 }}>
-          <StatTile icon="wallet" label="Earned" value={w ? formatINR(w.earnedMinor) : '–'} />
-          <StatTile icon="check" label="Completed" value={String(w?.jobsDone ?? '–')} tone="blue" />
-          <StatTile icon="play" label="Active" value={String(w?.jobsLive ?? '–')} tone="gold" />
-          <StatTile icon="trending" label="Success" value={success} tone="purple" />
-        </View>
-
-        <View style={{ marginTop: 16 }}>
-          <PillTabs tabs={WORKER_TABS.map((x, i) => ({ label: x, count: counts[i] }))} active={tab} onPick={setTab} />
-        </View>
-
-        <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
-          {rows === null ? (
-            [0, 1].map((i) => <Shimmer key={i} height={90} style={{ marginTop: 12 }} />)
-          ) : failed && rows.length === 0 ? (
-            <LoadFailed onRetry={() => void refresh()} />
-          ) : tab === 4 ? (
-            listings.length === 0 ? (
-              <EmptyState
-                icon="tag"
-                title="No services listed yet"
-                body="Offer what you do — “I will design your logo, from ₹800” — and customers can hire you straight from it."
-                actionLabel="Offer a service"
-                onAction={() => go('listing')}
+      {portal}
+      {desktop ? (
+        <ListPage scrollProps={{ refreshControl, contentContainerStyle: LIST_SCROLL }}>
+          {guest ? (
+            <View style={{ marginBottom: 16 }}>
+              <GuestAccountCard
+                icon="briefcase"
+                heading="Your jobs need an account"
+                body="Offers you send, jobs you win and what you earn show up here once your account is made."
               />
-            ) : (
-              <>
-                <Grid>
-                  {listings.map((task) => (
-                    <View key={task.id} style={{ marginTop: 12 }}>
-                      <ListingCard task={task} owner onPress={() => go('listing', { taskId: task.id })} />
-                    </View>
-                  ))}
-                </Grid>
-                <Pressable
-                  onPress={() => go('listing')}
-                  accessibilityRole="button"
-                  style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: t.colors.accentBorder }}
-                >
-                  <Icon name="plus" size={15} color={t.colors.accentDeep} />
-                  <RNText style={tx('700', 13, t.colors.accentDeep)}>Offer another service</RNText>
-                </Pressable>
-              </>
-            )
-          ) : tab === 3 ? (
-            (saved ?? []).length === 0 ? (
-              <EmptyState icon="bookmark" title="No saved tasks" body="Tap the bookmark on any task to keep it here." actionLabel="Browse tasks" onAction={() => go('explore')} />
-            ) : (
-              <Grid>
-                {(saved ?? []).map((task, i) => (
-                  <WorkCard
-                    key={task.id}
-                    task={task}
-                    index={i}
-                    saved={savedIds.has(task.id)}
-                    quoted={offers.has(task.id)}
-                    onOpen={() => go('taskDetail', { row: taskToFeedRow(task) })}
-                    onApply={() => setBidTask(task)}
-                    onToggleSave={() => void unsave(task.id)}
-                  />
-                ))}
-              </Grid>
-            )
-          ) : list.length === 0 ? (
-            <EmptyState
-              icon="briefcase"
-              title={tab === 0 ? 'No active tasks' : tab === 1 ? 'No pending offers' : 'Nothing closed yet'}
-              body={tab === 0 ? 'Pick tasks from Explore to start working and earning.' : undefined}
-              actionLabel="Browse tasks"
-              onAction={() => go('explore')}
-            />
-          ) : (
-            <Grid>
-            {list.map((row, i) => (
-              <FadeIn key={`${row.taskId}-${i}`} duration={320} delay={Math.min(i, 6) * 60} translateY={8} style={{ marginTop: 12 }}>
-                <Pressy
-                  onPress={() =>
-                    tab === 1 && row.state === 'PENDING' ? void editQuote(row.taskId) : openRow(row, { go, flash, setOpenTask, startedOf })
-                  }
-                  scaleTo={0.985}
-                  style={{ ...cardSurface(t, 18), padding: 14 }}
-                >
-                  <RNText style={tx('700', 10, toneInk(row.tone, t.colors), { letterSpacing: 1.4 })}>{row.state}</RNText>
-                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 7 }}>
-                    <RNText style={tx('700', 15, t.colors.ink, { flex: 1 })} numberOfLines={2}>{row.title}</RNText>
-                    <RNText style={tx('800', 15, t.colors.ink)}>{row.priceLabel}</RNText>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
-                    <RNText style={tx('400', 12, t.colors.muted, { flex: 1 })}>{row.meta}</RNText>
-                    {tab === 1 && row.state === 'PENDING' ? <RNText style={tx('700', 12, t.colors.accentDeep)}>Edit offer ›</RNText> : null}
-                  </View>
-                </Pressy>
-              </FadeIn>
-            ))}
-            </Grid>
+            </View>
+          ) : null}
+          {statsBlock}
+          {needsCard}
+          {table}
+        </ListPage>
+      ) : (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} refreshControl={refreshControl}>
+          {guestBlock}
+          {statsBlock}
+          {needsCard}
+          {guest ? null : (
+            <View style={{ marginTop: 16 }}>
+              <PillTabs tabs={WORKER_TABS.map((x, i) => (rows === null ? { label: x } : { label: x, count: counts[i] }))} active={tab} onPick={setTab} />
+            </View>
           )}
-        </View>
-      </ScrollView>
+          {results}
+        </ScrollView>
+      )}
       <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void refresh()} />
     </Screen>
   );

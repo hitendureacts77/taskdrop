@@ -45,14 +45,22 @@ export function originOf(raw = process.env.EXPO_PUBLIC_APP_URL) {
   return /^https:\/\/[^\s/]+$/.test(v) ? v : DEFAULT_ORIGIN;
 }
 
-/** The text of /.well-known/security.txt. `email` is the Support address, or empty when none is set yet. */
+/**
+ * The public address when no taskdrop.in address is set. A personal inbox (gmail.com, say) is never
+ * published (owner, 17 Nov 2026). Same rule as `publicEmail` in src/legal/company.ts.
+ */
+export const PUBLIC_EMAIL = 'admin@taskdrop.in';
+export function publicEmail(raw) {
+  const v = String(raw ?? '').trim().toLowerCase();
+  return /^[a-z0-9._%+-]+@taskdrop\.in$/.test(v) ? v : PUBLIC_EMAIL;
+}
+
+/** The text of /.well-known/security.txt. `email` is the Support address; anything not at taskdrop.in becomes PUBLIC_EMAIL. */
 export function securityTxt(email, now = new Date(), origin = DEFAULT_ORIGIN) {
   if (now.getTime() >= Date.parse(SECURITY_TXT_EXPIRES)) {
     throw new Error('security.txt has expired: move SECURITY_TXT_EXPIRES in apps/mobile/scripts/web-env-guard.mjs one year on');
   }
-  const address = String(email ?? '').trim();
-  const lines = [];
-  if (/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address)) lines.push(`Contact: mailto:${address}`);
+  const lines = [`Contact: mailto:${publicEmail(email)}`];
   const support = `${origin}/?page=support`;
   lines.push(`Contact: ${support}`);
   lines.push(`Expires: ${SECURITY_TXT_EXPIRES}`);

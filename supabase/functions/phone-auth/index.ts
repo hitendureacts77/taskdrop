@@ -408,7 +408,8 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
     } catch (e) {
       releaseCount();
       background(logServer("error", "phone-auth", "SMS provider failed", { error: e instanceof Error ? e.message : String(e) }));
-      return json({ error: e instanceof Error ? e.message : "Could not send the SMS" }, 502);
+      // The provider's own words stay in the log above; the person gets a plain sentence (S1-18).
+      return json({ error: "We could not send the code. Try again in a minute." }, 502);
     }
 
     return json({ ok: true });
@@ -485,6 +486,14 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
         { error: "An account with this number already exists. Sign in instead.", accountExists: true },
         409,
       );
+    }
+
+    // A new account is about to be made. The sign-ups switch is decided here, by
+    // what the server is about to do, not by the `mode` the request claims: a
+    // send or verify that leaves `mode` out would otherwise skip it (round 8, S1-2).
+    if (!wantsSignIn) {
+      const closed = await signInRefusal(admin, req.headers, "signup");
+      if (closed) return json({ error: closed, switchedOff: true }, 403);
     }
 
     // And never a session for an admin account, even if the role was granted

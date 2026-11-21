@@ -70,6 +70,102 @@ Launch day is about **two weeks after the last of these three clocks finishes** 
 | 3 | **Name your 2 or 3 launch areas** (decision 38). The other defaults are recorded: you said "Use the CEO defaults" on 11 Nov | Get one store file built (3.2). Expo's free builds are used up until 1 December, so first a free build on this PC from a folder with no spaces in its name |
 | 4 | Message **20** people for the Google Play test (3.3). Finding them takes days, so start before the store file is ready | Run the audit prompt (2.20, read-only) and fix the six holes from 2.18 |
 | 5 | Your clicks: 2.2, 2.3 and 2.4 (about 1.5 hours), and look at the new map on your laptop ("done 1.12") | Write the Plan B design (2.21) when you say "design the Plan B money flow" |
+| 6 | Hide your Gmail and the backend address (about 30 minutes): 2.22 parts b, c and d, and 2.23 step 3 (transfer lock and two-step sign-in in Spaceship) | Done 17 Nov: the code part of 2.22 (live on the website) and the DNS records of 2.23. Next: the Android app update for 2.22 when you say "publish the email fix to the app" |
+
+<details id="c-17-nov">
+<summary>[CARD] 17 November: security questions answered, what got done, what is left</summary>
+
+**Your questions, answered**
+
+| You asked | Answer | Where in the plan |
+|---|---|---|
+| Is the server firewall (WAF) set up? | Only Vercel's automatic flood protection. No custom rules yet; they come with Vercel Pro in 5.8b. Sign-in codes, `api` and payments are protected inside Supabase (limits per user and network address), which Vercel's firewall never sees | Security section, "Checked 17 Nov"; task 5.8b |
+| Is JWT in place? | Yes. Supabase signs every sign-in token with an ES256 key pair and the `api` server checks the signature on every call. Nothing to buy or license | Security section, "Checked 17 Nov" |
+| npm or pnpm? | Stay on npm until after launch. pnpm is faster, smaller and safer with install scripts, but switching now risks the Android build in the freeze | Decision 54, future task F.16 |
+| People see `wjxvingpfbfvkfqhrguj.supabase.co` on Google's sign-in screen | It is the address Google sends people back to. Hiding it needs a Supabase custom domain (`auth.taskdrop.in`), which only works on a paid plan: do it on production at 5.2 (about $10 a month) | Task 2.22 part (e), decision 53 |
+| My personal Gmail shows | It came from the Vercel setting `EXPO_PUBLIC_LEGAL_EMAIL`. The app and website now only ever show an address ending in `@taskdrop.in`, otherwise `admin@taskdrop.in` | Task 2.22 part (a) |
+| Should DNS move to Cloudflare? | No. DNSSEC is already on at Spaceship and Vercel advises against Cloudflare in front of it. Two missing records were added instead | Task 2.23 |
+
+**Done on 17 Nov (by Claude, checked)**
+
+- [x] Only a `@taskdrop.in` address is shown anywhere public (PR 401). Live on taskdrop.in: `security.txt` shows `admin@taskdrop.in`
+- [x] Firewall and JWT checked and written down
+- [x] DMARC record added to taskdrop.in (`p=none`, watch only)
+- [x] CAA records added: only Let's Encrypt may issue certificates, problem reports to `admin@taskdrop.in`. taskdrop.in, www and admin still load with valid certificates (PR 404)
+- [x] Decisions 53 and 54, tasks 2.22 and 2.23 and future task F.16 added to this plan
+
+**Still to do: yours**
+
+- [ ] **2.22 (b)** Spaceship email forwarding: `admin@taskdrop.in` to your inbox (5 minutes). Until then, mail and DMARC reports sent there do not reach you
+- [ ] **2.22 (c)** Set the three `EXPO_PUBLIC_..._EMAIL` settings on Vercel to `admin@taskdrop.in` (5 minutes)
+- [ ] **2.22 (d)** Google sign-in screen branding, with `admin@taskdrop.in` as the support email (15 minutes, needs (b) first)
+- [ ] **2.23 step 3** Spaceship: transfer lock ON, two-step sign-in ON (5 minutes)
+- [ ] **Decision 53** Say yes or no to the custom domain for production
+
+**Still to do: Claude's**
+
+- [ ] Publish the email fix to the Android app (an app update, OTA) when you say "publish the email fix to the app"
+- [ ] At 5.2, if decision 53 is yes: add the custom domain `auth.taskdrop.in`, add its certificate company to the CAA records first, and add the new Google return address
+- [ ] After 4.10 sends real mail and the DMARC reports look clean: change DMARC from `p=none` to `p=quarantine`
+- [ ] At 5.8b: the Vercel firewall rules, and a look in each project's Firewall tab
+
+</details>
+
+<details id="c-nov18-owasp-india">
+<summary>[CARD] 17 to 20 November: OWASP fix, data in India, cookie bar: what got done, what is left</summary>
+
+You asked (17 Nov) for "OWASP fix, cookie banner, and all the third parties in an Indian region". Your answers: **move what can and tell people the rest** (decision 55), **fix H30 only** (H31 accepted), **a consent bar on the website only**.
+
+**Done (by Claude, checked)**
+
+- [x] **H30 password rules** (PRs 415 and 420, 18 Nov): 12 characters and more, easy ones refused, a strength hint, the current password asked for, a security notice after a change. Changing a password keeps the device in your hand signed in (PR 420). Supabase's 12-character minimum and "require current password" are on for staging. Full staging test passed 18 Nov
+- [x] **Data in India, task 2.24** (PR 417): Vercel server code in Mumbai (`bom1`), Inngest gets ids and amounts only (migration 192, live on staging), the Privacy Policy says where each company keeps data
+- [x] **Website consent bar** (PR 418): crash reports on taskdrop.in start only after "Accept all"; Account & settings can change it. Not shown in the Android app
+- [x] **ImageKit** checked in the dashboard: Mumbai, India (PR 443, 20 Nov). The Privacy Policy line now says India
+- [x] **Sentry EU organisation** `taskdrop-eu` created in your Chrome with projects `taskdrop` and `taskdrop-admin` (PR 445, 20 Nov)
+- [x] **Checks kept green:** the picomatch warning accepted by you (PR 422, review by 2 Dec, see Security section), and the Semgrep code scan fixed after GitHub moved to Python 3.14 (PR 429, 19 Nov)
+
+**Still to do: yours**
+
+- [ ] **2.24 step 1 (5 minutes):** copy the two Sentry EU DSNs and an upload token (`SENTRY_AUTH_TOKEN_TASKDROP_EU`) into `.env.all-secrets`, then SAY "Sentry EU is ready"
+- [ ] **Delete 7 finished GitHub branches** (Claude's tools are not allowed to delete them): `feat/data-regions-india`, `feat/data-regions-india-2`, `feat/web-consent-banner`, `fix/h30-keep-device-signed-in`, `chore/audit-exception-picomatch`, `ci/fix-semgrep`, `docs/imagekit-region-india`. GitHub, repository `taskdrop`, Branches, the bin icon next to each
+- [ ] **After 30 quiet days on the EU organisation:** delete the old US Sentry organisation
+
+**Still to do: Claude's**
+
+- [ ] When you say "Sentry EU is ready": swap the DSN in `apps/mobile/eas.json`, the content policy's report and connect addresses in `vercel.json` to `ingest.de.sentry.io`, the Vercel and Supabase settings, and the Privacy Policy's Sentry line
+- [ ] **By 2 Dec:** look again at the picomatch warning; remove the exception as soon as a fixed version ships
+- [ ] **At 5.5:** the production ImageKit account picks Mumbai
+- [ ] **At 5.9:** production gets the two password settings and migration 192 (listed in 5.9's settings table)
+
+</details>
+
+<details id="c-nov20-d31">
+<summary>[CARD] 18 to 20 November: the Upwork-style design (D31) built, Top up, the OTA, and the browser tests working again</summary>
+
+You asked (18 Nov) to build the design "TaskDrop Upwork for Gig Tasks D31 v11", keeping every live feature, and on 20 Nov to finish everything end to end.
+
+**Done (by Claude, checked)**
+
+- [x] **D31 build** (PR 442, 20 Nov): Home on desktop (area picker and search in the page header, a main column with a right-hand column for Hire and Earn; the phone Hire Home in your section order), Find work on desktop (search and List / Map in the header, filters on the left, jobs as rows), the task page (breadcrumb with Share and Report, budget / distance / hiring strip, Posted by card, "You earn after the 10% fee"), the job page laid out like an Upwork contract for both sides and every state, My tasks / My work (a "Needs you now" card, offers / your price / due, money held, the 5-step track and the next step; summary tiles and one table on desktop), How TaskDrop works (a Hire / Earn switch and 6 earning steps). `npm run check` and the 91 desktop layout checks pass; security review found nothing
+- [x] **D31 leftovers** (PR 444): **Ideas to earn** on Earn Home (idea cards in blue that open Find work), **"N new" offers** on open posts (counted per device since you last opened the offers), the phone layout guard updated for the screens the design changes, and pictures in `docs/design/desktop-web/d31-after/`
+- [x] **Top up on open posts** (PR 447, migration 194, your yes on 20 Nov): a **Top up** button on open post cards and in the task menu (desktop rows too). The server raises the top-up only upward to one of the top-up steps, only on your own open request, works the new price out from the price before any top-up, keeps crew slots equal and stops at ₹1,00,000; an auto-hire post needs the wallet to cover the new amount. Database test `raise_topup.test.sql` (9 checks) passed on staging in a rolled-back run; migration 194 and the api are live on staging since 20 Nov 12:41. **Clicked through in a browser on 20 Nov** by the new browser test `e2e/topup.spec.ts` (the card button at phone size and the task menu on desktop, ₹500 raised 10% to ₹550, read back from the server): both pass on staging
+- [x] **App update to testers' phones** (your yes on 20 Nov): OTA `33b6ca71` on the beta channel with PRs 442 and 444 (runtime `c6960bec`, the 7 Nov build); source map uploaded to Sentry
+- [x] **Browser tests (End-to-end job) working again** (PRs 448 and 449): the job had been cancelled at its 20-minute limit since 8 Nov. The tests now match the app (front door, birth-date dropdowns, the "why you earn" and area steps, "Remote" switch, header search, the location prompt, the consent bar). The whole run takes about 9 minutes. The money tests now move fake money both ways between the seed accounts, so the wallets do not run dry. **First green run on 20 Nov** (run 44723913922): 54 passed, 1 flaky that passed on its retry, nothing failed
+- [x] **Staging test data, your yes on 20 Nov:** Asha's fake wallet put back to ₹5,000; Meera's name put back to "Meera (seed both)" (a security probe had renamed her); Asha's and Ravi's accounts dated 1 Oct so they are no longer "new" and can post 20 test jobs a day instead of 5 (the 5-a-day limit was the last thing failing the tests). Nothing on production
+
+**Still to do: yours**
+
+- [ ] **Look at OTA `33b6ca71` on your phone:** open the beta app twice (it downloads on the first launch, runs on the second) and check Home, My tasks and Find work
+- [ ] **The five phone boards Offers, Escrow, Profile, Wallet and Me were never compared with the design.** The canvas was deleted (its link 6ukkC15HCZQmQY11VJU4bY and the desktop design M1Ei9NQA9XF2g6P71Jvfy2 both say "Page not found", the design session is gone, and its temporary folder was cleaned up). If you have a copy, send it; otherwise those screens stay as they are, or ask for them to be redrawn
+- [ ] **EAS build minutes:** the automatic Android build check fails until the free minutes reset on 1 Dec (an OTA still works)
+
+**Still to do: Claude's**
+
+- [x] Click through **Top up** in a browser on a test sign-in: done 20 Nov by `e2e/topup.spec.ts`, which now runs in the End-to-end job after every merge
+- [ ] Re-check the End-to-end job after the next merge: it went green on 20 Nov. The one flaky test is the new-phone sign-up (`e2e/accounts.spec.ts:31`); if the job fails again, look at that test first
+
+</details>
 
 <details id="c-ceo-defaults">
 <summary>[CARD] The CEO defaults: accepted by you on 11 November. Still open: decision 3 and the area names</summary>
@@ -157,7 +253,7 @@ Inside a task, every line is one of three kinds: **CLICK** (you do it), **SAY** 
 1. **Go in order.** Start the whole **Start now** track in week 1 as well. It is slow, so it runs beside Steps 1 to 4.
 2. **Pass each gate.** A gate is a short checklist at the end of each step. Do not start the next step until every line is true.
 3. **Never paste a password, key or secret into the chat.** Claude will never ask you for one.
-4. **If a screen looks different** from the steps, stop and send Claude a screenshot. Websites rename their buttons.
+4. **If a screen looks different** from the steps, stop and send Claude a screenshot. Websites rename their buttons. **If Claude says Chrome is not connected** (17 Nov), click the Claude icon in Chrome's toolbar to open its side panel and leave it open, signed in with the same Claude account as the desktop app. Claude cannot reach Chrome while that panel is closed. Claude also never logs in for you: when a site's session has expired, you click its log-in button.
 5. **Claude ticks every task it finishes, by itself** (your rule, 14 Nov). When Claude completes a task, or a part of one that has its own line, it marks the task **Done** in this plan and rebuilds this page (`node scripts/build-plan-html.mjs`) in the same pull request, so the tick shows as soon as the change is merged. It never waits for you to ask. Claude ticks only when the task's **Done when** line is true, and it writes in the pull request how it checked. If a part could not be checked, the task stays open and Claude says which part. For a task that only you can do (a login, a form, a payment), **tell Claude its number** (for example "done 2.1") and Claude ticks it then.
 6. **Claude pushes, opens the pull request and merges it without asking you** (your rule, 31 Oct). Merging is never a question for you. Claude still asks you first only before: publishing an app update to testers, wiping or resetting data, rotating a key, or touching `main` or production.
 7. **After every new feature, check it fits the browser and the screen** (your rule, 1 Nov). Claude does not call a feature done until the website works in Chrome, Edge, Firefox and Safari (latest versions) at phone, tablet and laptop widths, and the Android app works on your phone: nothing cut off, no sideways scrolling, every button easy to reach and tap, text readable (also with bigger text and with the keyboard open). The steps are in the card "Fits every browser and screen".
@@ -385,7 +481,7 @@ I do not know. Pitch me three options and say which is best.
 5.2 | Supabase: organization "TaskDrop Production", project taskdrop-production | Pro plan ($25 a month), Mumbai, spend cap on, sign-in settings, production-only redirect addresses, daily backups.
 5.3 | Google Cloud and Firebase: project taskdrop-production | ₹1,000 budget alert, seven Google services, three restricted keys, Google sign-in, reCAPTCHA, the Android and web apps, push key, App Check (left off).
 5.4 | Inngest: organization "TaskDrop Production" | The free plan to start (its own 50,000 runs a month); upgrade only when the limit warns. The Event key and Signing key go into the PROD_ section.
-5.5 | ImageKit: a second account, taskdropproduction | Sign up with hitendureacts+prod@gmail.com; turn on usage alerts.
+5.5 | ImageKit: a second account, taskdropproduction | Sign up with hitendureacts+prod@gmail.com; pick processing region Mumbai (India), as staging has; turn on usage alerts.
 5.6 | Sentry: taskdrop-production and taskdrop-admin-production | Money, spike and security alerts; give Claude the two DSNs.
 5.6b | PostHog: organization "TaskDrop Production", project taskdrop-production | Same login, its own free organization (the free plan allows one project per organization). EU region; give Claude the project key.
 5.7 | Expo: project taskdrop-production | Production variables, the push key and the upload keystore; update channel "production".
@@ -626,7 +722,7 @@ Everything here is **new and separate** and is made in Step 5. Nothing is copied
 |---|---|---|---|
 | 1 | **Safe connection.** Nobody can listen in or show the site inside another page; the browser gets safety headers | **Done.** HTTPS only (Vercel and Supabase); HSTS, `nosniff`, a frame block and a referrer rule on both sites. The website's content policy now blocks bad scripts instead of only reporting them (H9 closed 4 Nov, PR 233); the report address stays on | 2.6 (done) |
 | 2 | **No key leaks, now or ever.** No secret in the app, the website, Git or chat | **Done.** New changes: rule 8, a scanner on every change, a test that fails if a secret reaches the app. Every file and the whole history were scanned and judged key by key on 4 Nov (2.15): nothing exposed that is a real live secret; one old test key pair (accepted) and one before-launch step (H56). Both code folders are still public until you click (H27) | 2.5 and 2.15 done; 2.13 H (your click) |
-| 3 | **Real sign-in.** A proper sign-in provider, passwords stored safely | **Done.** Supabase Auth: one-time codes, hashed passwords, Google sign-in, signed login tokens. The OWASP check found two small gaps for your answer (H30, H31) | 2.13 C |
+| 3 | **Real sign-in.** A proper sign-in provider, passwords stored safely | **Done.** Supabase Auth: one-time codes, hashed passwords, Google sign-in, signed login tokens. The OWASP check found two small gaps: H30 fixed and H31 accepted (18 Nov) | 2.13 C |
 | 4 | **Every door checks who you are and what you may do.** Person A never reaches person B's data | **Done on staging.** All 113 database functions check the caller; a test fails if a new door has no lock; a two-person test over every `api` action found nothing leaked (built 4 Nov). The last side door (H3) closes in 3.9 | 2.7, 2.12, 2.13 A and G; 3.9 |
 | 5 | **A limit on every door.** Bots cannot spam sign-in, SMS, posts, uploads or withdrawals, or flood the site | **Mostly.** Every server door has a per-person limit, and a test stops a new door without one (built 4 Nov); Vercel blocks floods on the website. Added 5 and 6 Nov: a daily text-message cap per phone number (10 a day, with 20% of the day's allowance held for numbers that already have an account), daily caps on the place search (150 a person, 3,000 in all, then the free OpenStreetMap search takes over), on ad clicks and views, on files stored a day, and on posting tasks and ideas (20 a day, 5 for a new account) (H39, H40, H43, H44, H47). Left: the rush and spammer test's results (H29) | 2.8, 2.8b, 2.13 A; 2.13 J |
 | 6 | **Hostile input is refused.** Script code, database tricks and odd values do nothing | **Done.** Every `api` input is checked; database queries are never built from typed text; a code scanner (Semgrep) reads every change and runs every Monday (built 4 Nov) | 2.9, 2.13 B |
@@ -678,6 +774,12 @@ Sources: Supabase's own security check on the staging database (rerun on 31 Octo
 | Free plan is for non-commercial use only; Pro is $20 a month with $20 of usage included | A hard spending stop (Pro only emails you by default), set in 5.8b |
 | Looks after nothing in your code | Security headers (already set in both `vercel.json` files and the admin's middleware), package warnings (H7), Sentry alerts, backups (H16) |
 
+**Checked 17 Nov: firewall (WAF) and sign-in tokens (JWT)**
+
+- **JWT:** yes, built in. Supabase signs every sign-in token with an ES256 key pair (its public key list is at the project's `/auth/v1/.well-known/jwks.json`), and the `api` server checks each token's signature with `getClaims` before doing anything. Nothing to buy or license.
+- **Firewall (WAF):** only Vercel's automatic flood (DDoS) protection runs today. For all 4 Vercel projects (`taskdrop`, `taskdrop-admin`, `taskdrop-production`, `taskdrop-admin-production`) Vercel answered "no firewall configuration found", so none has custom rules as far as Claude can see. That answer can also mean Claude's Vercel connection is not allowed to read firewall settings, so look once in each project's **Firewall** tab when you do 5.8b. The rules, bot protection and the admin sign-in limit come in task 5.8b on Vercel Pro (included, no separate licence). Sign-in codes, `api` and payments are answered by Supabase, which Vercel's firewall never sees, so their limits stay in the server (hole H18, task 2.8).
+- **"Desktop app":** TaskDrop has no separate desktop program. On a laptop people use the same website, so the same protections apply.
+
 What the audit found good: the website sends HSTS, `nosniff`, a frame block and a referrer rule; the admin has a nonce-based content policy, a 30-minute idle timeout and a 12-hour cap; no master key appears in the mobile app; and the only `NEXT_PUBLIC_` and `EXPO_PUBLIC_` names are addresses, public keys and business details.
 
 | # | The hole, in plain words | How bad | Closed in |
@@ -711,8 +813,8 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | H27 | Both GitHub code folders (`taskdrop`, `taskdrop-admin`) are public, so this plan with its list of open holes, the security reports and the emergency guide can be read by anyone. No secret is in them (2.5 proves it), but they are a map for an attacker | Medium | **Open until you click** Make private (2.13 part H, step 4). The file side is checked: `scripts/check-private-files.mjs` |
 | H28 | No test goes through every `api` action as a second person, so a new action that showed person B's data to person A would pass every check | Medium | **Closed 4 Nov** (2.13 part G: `scripts/two-person-test.mjs`, 126 operations, nothing leaked, run again after every change) |
 | H29 | Nobody has measured what happens when many people arrive at once, or when one person hammers sign-in, sign-up, code sending and uploads. The load test in 3.6 is small and only counts speed; it does not try to break the limits, so a launch-day rush or a spammer would be the first real test | Medium at launch | 2.13 part J (`scripts/rush-test.mjs`; the run is written in `docs/LOAD_TEST.md`) |
-| H30 | Password rules are below the OWASP checklist (found 4 Nov, 2.13 part C): 8 characters instead of 12, changing the password needs only the open session and not the old password, no strength hint, no message after a change. A password is only an extra way in beside the phone code | Low | **Your reply "fix" or "accept"** (fix is about half a day) |
-| H31 | A text-message code is the main way to sign in, where the checklist wants it only as a second check (found 4 Nov, 2.13 part C). It is how phone-first apps in India work and is limited per number, per address and per day, but a stolen SIM can sign in | Low | **Your reply "accept"** (recommended: it is the product) **or "fix"** |
+| H30 | Password rules are below the OWASP checklist (found 4 Nov, 2.13 part C): 8 characters instead of 12, changing the password needs only the open session and not the old password, no strength hint, no message after a change. A password is only an extra way in beside the phone code | Low | **Fixed 18 Nov (owner: "fix").** 12 characters and more, easy ones refused, a strength hint, the current password asked for (or a text-code sign-in in the last 15 minutes, for a forgotten one), a security notice after every change; changes go through `password-auth`. Supabase's 12-character minimum and "require current password" switched on for staging; production in 5.9 |
+| H31 | A text-message code is the main way to sign in, where the checklist wants it only as a second check (found 4 Nov, 2.13 part C). It is how phone-first apps in India work and is limited per number, per address and per day, but a stolen SIM can sign in | Low | **Accepted 18 Nov by you** (it is the product) |
 | H32 | Migration 071 (4 Oct) rewrote the withdrawal function from an older copy and lost three checks: the most per withdrawal (₹1 lakh), "add your name and PAN first", and the holder's name on a bank account. Proven on staging: an established account could ask for more than ₹1 lakh at once. Found by the 2.14 hunt | High (before real money) | **Fixed 3 Nov** (migration 145 and a test; a new test now fails if any database function loses a check this way). PAN: decision 17 |
 | H33 | Every staff role, including the read-only Viewer, can download one spreadsheet with every person's name, email and phone number (the People export) | Medium | **Fixed 6 Nov (admin PR 45).** Only Admin and Support see or export the full phone and email; every other role sees them masked, and opening a person's page writes an audit row. Built with the recommended answer to decision 18 |
 | H34 | Each wallet is one running number, changed in place by many functions, with no record of each movement, so the books cannot be proven to balance and a wrong change would be hard to trace | Medium (High once money is real) | Build before Step 5: an add-only list of wallet movements and a test that every balance equals its list (2.14). **Still open:** the design is merged (`docs/WALLET_LEDGER_DESIGN.md`, PR 269); nothing built. It waits for your "start H34" and your answers to its nine questions |
@@ -1409,6 +1511,8 @@ approve 1.9
 
 **Update, 15 Nov 2026 (desktop fit):** on a 1920 × 1080 Chrome at 90% zoom (2133 wide in CSS pixels) you saw empty gaps on both sides and screens that looked like a phone stretched wide. L4 and L5 above were not enough. The "desktop fit" work (branch `feat/desktop-fit`, five slices, desktop only) now scales the whole app from 1024 wide up (CSS zoom, 1.0 to 1.35, one curve in `apps/mobile/src/lib/layout.ts`), makes the columns fluid, adds one top bar, and builds the two-pane task page and the Profile that this task left out on purpose. The full list and the proofs are in [docs/design/desktop-fit/PLAN.md](design/desktop-fit/PLAN.md). L1 to L5 stay as they are.
 
+**Update, 19 Nov 2026 (desktop web redesign, packages):** you said the desktop site looked like a phone screen on a big monitor, so the desktop design was cut into small packages (plan: [docs/design/desktop-web/PLAN.md](design/desktop-web/PLAN.md), web at 1024 wide and up only; phone, tablet rail and Android unchanged). **Merged into `redesigned-2.0`:** packages 0 to 8, 10, 14 and 15 (page header, form and list pieces, worker setup, onboarding, Find work, My Work, task pages, Profile and Settings, the other forms and lists) and package 16, an automatic 1440 x 900 check of three desktop rules on 14 screens, 18 views of Hire and Earn (`e2e/desktopRules.spec.ts`: no phone-style title row or second avatar menu or back arrow, no button wider than 560 px outside a sheet, no narrow single column with empty sides). It found one break, left failing on purpose until package 13: Post a task is still one narrow column. **Waiting for your OK, not merged ("ask first", each built or waiting for your pictures):** package 9 (Home in two columns), 11 (Wallet cards and table, draft PR 436), 12 (Messages, a chat opens in the right pane) and 13 (the posting flow). Nothing here says the desktop site is finished or ready to launch; it is a layout status. Your own look at 1440 and 1920 wide is still yours.
+
 1. Claude builds L1 to L5 in one pull request into `redesigned-2.0` and checks each at 390, 820, 1440 and 1920 wide.
 2. LOOK at the staging website on your laptop (Ctrl + 0 first) and on your phone's browser.
 3. TELL Claude: "done 1.10", or what still looks wrong.
@@ -2015,6 +2119,7 @@ A new idea for a check becomes one round ("charter") of the debug loop. It does 
 | 7 | **The money flow, Plan B** (2.21): design now, build after decision 3 and the lawyer's yes | Claude, then you | see 2.21 | Gate 2b, then Step 5 |
 | 8 | **The AI attacker** (2.16), on the finished Plan B code, then one small paid tester (decision 30) | Both | 45 minutes of yours | Gate 2b |
 | 9 | **Tick Gate 2b.** Then Step 5 (production) may start once Gates 3 and 4 also pass | Claude | | Step 5 |
+| + | **Added 17 Nov, any time before Gate 2b:** hide your Gmail and the backend address (2.22 parts b, c, d) and the Spaceship lock and two-step check (2.23 step 3). The code part and the DNS records are done | You | about 30 minutes | Gate 2b, and before any real user sees the sign-in screen |
 
 **Beside these, during the 14 tester days:** the debug loop (2.19), one round at a time. Gate 3 waits for it to settle; Gate 2b does not.
 
@@ -2044,7 +2149,7 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 | 2.16 The AI attacker, Strix (added 4 Nov) | Not started | Waiting for you: Docker Desktop (not installed on this PC, checked 4 Nov) and an AI key with a spending limit, then say "start 2.16" |
 | 2.17 One home per secret (added 5 Nov) | Done 5 Nov | Nothing of yours. `push-payment-secrets.sh` now reads the master file too. Does not block Gate 2b; production (Step 5) uses `--production` |
 | 2.18 The outside testers' advice (added 6 Nov) | Checked 6 Nov, fixes not started | Decision 30 was decided 11 Nov; part B now also proves admin refusals (H79); say "start 2.18" |
-| 2.19 The debug loop (added 10 Nov) | Planned 10 Nov ([DEBUGGING_PLAN.html](DEBUGGING_PLAN.html)); Starter Story debugging lessons added 11 Nov (dig-deeper ladder, `BUG_PROMPT.md`; then "Advanced Debugging (Day 6)": code and live backend, context first, logs before code, fix path A or B); rounds 0 to 3 run 12 Nov, round 4 run 13 Nov (live web, Android, admin); not settled; whole-app coverage map, charters I to K and round 5 added 13 Nov; **round 5 started 14 Nov, not finished** ([ROUND-5.md](debug-loop/ROUND-5.md): both sweeps green, the 13 admin fixes of round 4 reviewed and merged, 11 new bugs B142 to B152, admin roles, golden path, forms and Android still to run) | Do the owner-only steps in section 19 of the plan page (still open: migration 152, `psql`, admin logins, the staging Android app, `EXPO_BUILDS_TOKEN`), then say "start debug round" again for round 6; then your "fix" or "accept" after each round. Gate 3 waits for it to settle; Gate 2b does not |
+| 2.19 The debug loop (added 10 Nov) | Planned 10 Nov ([DEBUGGING_PLAN.html](DEBUGGING_PLAN.html)); Starter Story debugging lessons added 11 Nov (dig-deeper ladder, `BUG_PROMPT.md`; then "Advanced Debugging (Day 6)": code and live backend, context first, logs before code, fix path A or B); rounds 0 to 3 run 12 Nov, round 4 run 13 Nov (live web, Android, admin); not settled; whole-app coverage map, charters I to K and round 5 added 13 Nov; round 7 run 16 Nov (guest, signed-in, admin and phone walks; fixes in PRs 376 to 397); **round 8 (17 Nov) found everything first, fixed nothing:** 7 code audits and 4 signed-in walks, payments left out, 367 findings so far (0 Critical, 7 High, 90 Medium, 223 Low, 47 Info; walks L1 to L3 still running), written in [ROUND-8.md](debug-loop/ROUND-8.md) and `docs/debug-loop/round-8/`, to be fixed all at once and then one phone update; earlier: **round 5 started 14 Nov, not finished** ([ROUND-5.md](debug-loop/ROUND-5.md): both sweeps green, the 13 admin fixes of round 4 reviewed and merged, 11 new bugs B142 to B152, admin roles, golden path, forms and Android still to run) | Do the owner-only steps in section 19 of the plan page (still open: migration 152, `psql`, admin logins, the staging Android app, `EXPO_BUILDS_TOKEN`), then say "start debug round" again for round 6; then your "fix" or "accept" after each round. Gate 3 waits for it to settle; Gate 2b does not |
 | 2.20 The audit prompt for vibe-coded apps (added 10 Nov) | Not run | Say "start 2.20"; then your "fix" or "accept" on the Medium and Low finds. Does not block Gate 2b unless it finds a Critical or High |
 | 2.21 The money flow, Plan B (added 11 Nov, final pass) | Not started | Say "design the Plan B money flow" now; the build waits for decision 3 (S.4) and the lawyer's yes (S.3) |
 
@@ -2205,6 +2310,7 @@ start key protection
 |---|---|
 | H7: 7 high package warnings | Update the affected packages, or write down why one cannot be updated yet and why it is safe |
 | The accepted `decode-uri-component` warnings | You accepted the new high one on 2026-10-31 so the walkthrough fixes could merge (review by 2026-12-13). The real fix is moving to the next Expo SDK (expo-router 58). Claude plans that upgrade here and does it before 13 December |
+| The accepted `picomatch` warning (GHSA-fc5q-39xc-vjpf) | You accepted it on 18 Nov (PR 422, `audit-exceptions.json`, review by 2026-12-02): no fixed version exists yet (4.0.7 and older are affected). Claude removes the exception as soon as a fixed version ships |
 | H8: server functions answer any website | Each copy allows only its own addresses. Staging: `taskdrop.in`, `www.taskdrop.in`, `admin.taskdrop.in` (if used) and the two addresses Vercel makes (`…vercel.app`). Production: only the two addresses Vercel makes for it (5.10). The Android apps keep working (they are not websites) |
 | H9: the content security policy only reports | Read a week of reports in Sentry, then switch it to blocking |
 | Exposed files | Check `/.env`, `/.git/config`, `.map` files and backup files on every address. All must be "not found" |
@@ -2512,7 +2618,7 @@ sequenceDiagram
 <details id="t2-13" data-short="Advice check: OWASP + researchers">
 <summary>[BOTH] <b>2.13</b> The WhatsApp advice: a lock and a limit on every door, a code scanner, the OWASP checklist, a way for security researchers to report, no one sees another's data, private documents, sessions you can end <small>· your time: 30 minutes · built 4 Nov; your clicks and replies are open</small></summary>
 
-**Where it stands (4 Nov):** parts A, B, C, D, F, G and I are built and merged, H and J are built (H waits for your click), E waits for your invitations. Open for you: reply "fix" or "accept" to H30 and H31, click Make private (step 4), invite the testers (E). Details are in each part below.
+**Where it stands (4 Nov):** parts A, B, C, D, F, G and I are built and merged, H and J are built (H waits for your click), E waits for your invitations. Open for you (H30 fixed and H31 accepted 18 Nov): click Make private (step 4), invite the testers (E). Details are in each part below.
 
 **Why:** on 3 November you shared advice from a WhatsApp group about security, cost and marketing, and asked for a security plan around it. Claude checked each point against the code and this plan. Most of it is already done or planned. Four things are new, holes **H22 to H25**. The same day you added three rules of your own (parts G to I, holes **H26 to H28**), and then a second paste about launch strain (part J, hole **H29**). One fact made all of it matter more: both code folders on GitHub (`taskdrop` and `taskdrop-admin`) were **public**, so an attacker could read the same code Claude reads. Part H makes them private. Every door and every check must still hold on its own, because what was public may already have been copied.
 
@@ -2966,7 +3072,7 @@ start 2.17
 | No master key in the app or website: scan what actually ships | 4 | **Part.** No server key was found in `taskdrop.in`'s 3 script files today, and the source is scanned on every change. **Gap:** the built-bundle test skips itself when no build is present, which is the case in the main CI check, and the Android bundle was checked by hand once (H72) | Part D |
 | Check every secret across Expo, Vercel, Inngest, Firebase, ImageKit and Sentry | 6 | **Done.** 2.5, 2.15, 2.17 | Nothing |
 | Admin panel locked on the server, not just hidden; test the routes directly as a normal person; no role can raise itself | 8 of 8 | **Done.** 2.14 F, H35, the door list (2.13 A) | Part B writes it down per role |
-| Auth flows: session handling, token expiry, password reset, sign-in tricks | 8 of 8 | **Done or waiting for you.** 2.9, 2.13 I, OWASP lines; a forgotten password goes through the phone code. H30 and H31 wait for your answer; H37 is partly open | Nothing new |
+| Auth flows: session handling, token expiry, password reset, sign-in tricks | 8 of 8 | **Done or waiting for you.** 2.9, 2.13 I, OWASP lines; a forgotten password goes through the phone code. H30 fixed and H31 accepted (18 Nov); H37 is partly open | Nothing new |
 | The attack list: database tricks, making the server fetch other sites, running code, exposed GraphQL | 1 | **Done.** No query is built from typed text (2.9). Outgoing calls in the main functions go to fixed addresses. The GraphQL door is off on staging. **Note:** production is a new project, so it must be checked there | Part H |
 | Attack like a person: use the wrong role, change the requests, **chain small issues into real damage** | 1 | **Part.** Hunts changed requests and roles, but nobody has combined the Low finds to see what they add up to | Part F |
 | The Android build is in scope too | 1 | **Part.** Settings read line by line (2.13 C: no backups, no plain traffic); the built app has not been opened up as an attacker would (H75) | Part G |
@@ -3014,7 +3120,7 @@ start 2.17
 | Rush and spammer test passed | H29 | Claude, 2.13 J |
 | AI attacker run; an outside person has tested | 2.16, 2.13 E | Both |
 | Every screen checked on the phone | 2.14 part G | Both |
-| Your answers: PAN (decision 17), passwords (H30), text-message sign-in (H31) | Decisions | You |
+| Your answers: PAN (decision 17); passwords (H30) fixed and text-message sign-in (H31) accepted 18 Nov | Decisions | You |
 
 **Can wait, with your "fix" or "accept":** H45, H48, H49, H55, H64, H65, H68 (decision 25), H69, H70, B18, B21, B30 and B32. **Left open by your choice:** 2-step sign-in on your own accounts (H14); Claude reminds you once before Step 6.
 
@@ -3055,7 +3161,7 @@ start 2.18
 <details id="t2-19" data-short="Debug loop">
 <summary>[BOTH] <b>2.19</b> The debug loop: find, fix and recheck in rounds until new bugs settle near zero <small>· your time: 10 to 15 minutes a round · added 10 Nov · rounds 0 to 4 run 12 and 13 Nov, not settled · whole-app plan and round 5 added 13 Nov · does not reopen Gate 1</small></summary>
 
-**Status:** Round 4 run 13 Nov: 54+ findings logged B87-B140, fixes in progress (report: `docs/debug-loop/ROUND-4.md`; Android findings still to add).
+**Status:** Round 4 run 13 Nov: 54+ findings logged B87-B140, fixes in progress (report: `docs/debug-loop/ROUND-4.md`; Android findings still to add). **16 Nov night, round 7:** every open bug is written in one list in `docs/debug-loop/ROUND-7.md` ("Every open bug in one list"), to be fixed together at the end and published as one update. Two more phone bugs found that night (P1-26, P1-27, keyboard over the sign-in boxes) are merged and wait for that update.
 
 **Why:** the hunt (2.14) and quality round 3 (3.6) are one-off deep passes. Bugs keep arriving between them: every fix can break something, testers find new ones, and Sentry shows errors nobody reported. You asked for a repeating cycle that shows, every time, which bugs are new and which are still not fixed. The full plan, with the loop drawn, is [DEBUGGING_PLAN.html](DEBUGGING_PLAN.html). It was built from David Agans' nine debugging rules, Stuart Halloway's talk "Debugging with the Scientific Method" (YouTube), Andreas Zeller's Debugging Book (GitHub `uds-se/debuggingbook`), gstack's `/qa` loop (GitHub `garrytan/gstack`), the "Ralph" loop (GitHub `ghuntley/how-to-ralph-wiggum`), Playwright's test agents, Maestro, Julia Evans' debugging guide, and open-source triage guides; the page links each one and says what it gave.
 
@@ -3208,6 +3314,88 @@ design the Plan B money flow
 6. TELL Claude: "done 2.21".
 
 **Done when:** on staging, with test keys, every row of the table above works and is covered by a money test; a repeated payment message changes nothing; the daily match runs and its alarm fires on a planted difference; the emergency stop pauses payments and releases within a minute and undoes cleanly; no screen shows a wallet balance any more; and the security review of every pull request has no Critical or High open. The live keys only arrive in Step 6 (6.1).
+</details>
+
+<details id="t2-22" data-short="Hide backend and personal email">
+<summary>[BOTH] <b>2.22</b> Hide the backend address and your personal email from users <small>· your time: about 30 minutes · added 17 Nov · part (a) done and live on the website · parts (b) to (d) yours · (e) waits for 5.2 · urgent-fix lane</small></summary>
+
+**Why:** on the Google sign-in screen people see "to continue to wjxvingpfbfvkfqhrguj.supabase.co" and that address's Privacy Policy link. Your personal Gmail also showed in the website's `security.txt` (`https://taskdrop.in/.well-known/security.txt`), on the app's Support page and on the staging tester card, because the Vercel setting `EXPO_PUBLIC_LEGAL_EMAIL` holds your Gmail. You want only a TaskDrop address such as `admin@taskdrop.in` shown. Note: the Supabase address and its public key being visible is normal and not a hole by itself (the database rules protect the data). Hiding it is about trust, and about making fake look-alike pages easier to spot.
+
+**Parts**
+
+- **(a) DONE by Claude (PR 401, 17 Nov). Live on the website, checked 17 Nov: `taskdrop.in/.well-known/security.txt` shows `admin@taskdrop.in`. The Android app still shows the old address until the next app update (OTA); SAY "publish the email fix to the app" and Claude asks you before it publishes.** The app and the website build now show only an address ending in `@taskdrop.in`. Anything else (a gmail.com address, an empty setting) becomes `admin@taskdrop.in`. This covers the Support page, the Terms and Privacy contact lines, the Grievance Officer line, the copyright (DMCA) page, the staging tester card and `security.txt`. Code: `apps/mobile/src/legal/company.ts` (`publicEmail`), `apps/mobile/scripts/web-env-guard.mjs`, `apps/mobile/src/lib/environment.ts`. It reaches taskdrop.in on the next deploy. The Android app gets it with the next app update (OTA), which Claude asks you about before publishing.
+- **(b) YOU, 5 minutes, free.** CLICK Spaceship, then taskdrop.in, then Email forwarding, and add `admin@taskdrop.in` forwarding to your own inbox. Until this is done, mail sent to `admin@taskdrop.in` does not arrive. taskdrop.in's mail already goes through Spaceship's forwarding servers, so no DNS change is needed. Send a test mail to it.
+- **(c) YOU, 5 minutes.** CLICK Vercel, then the project `taskdrop` (and later `taskdrop-production`), then Environment Variables. Set `EXPO_PUBLIC_LEGAL_EMAIL`, `EXPO_PUBLIC_GRIEVANCE_OFFICER_EMAIL` and `EXPO_PUBLIC_COPYRIGHT_AGENT_EMAIL` to `admin@taskdrop.in`. The code already forces it; this keeps the settings honest. When the DMCA agent is registered (the legal open item), register it with `admin@taskdrop.in`.
+- **(d) YOU, 15 minutes, free.** CLICK Google Auth Platform (`console.cloud.google.com/auth/branding`, project Taskdrop), then Branding. Set: app name TaskDrop, the drop logo, home page `https://taskdrop.in`, privacy `https://taskdrop.in/?page=privacy`, terms `https://taskdrop.in/?page=terms`, authorised domain `taskdrop.in`. The User support email must be a Google account you manage. So first make a free Google account with your existing address `admin@taskdrop.in` ("Use my current email address instead" on Google's sign-up page; it needs part b first), add it to the Taskdrop project as Owner, then pick it as the User support email and the Developer contact. After that, Google never shows your Gmail on the consent screen.
+- **(e) The `supabase.co` address itself.** Google shows the address it sends people back to, which is the Supabase project. The fix is a Supabase custom domain, `auth.taskdrop.in` (a CNAME record plus a TXT record in Spaceship). Supabase's docs (checked 17 Nov) say custom domains are a paid add-on and only on a paid plan, and recommend it plus Google brand verification for exactly this screen. So: do it on the PRODUCTION project at task 5.2, when it moves to Pro (add-on about $10 a month; decision 53). Add the new callback `https://auth.taskdrop.in/auth/v1/callback` to the Google web client, then ask Google for brand verification (a few business days) so the screen shows the TaskDrop name and logo. Staging (free plan, testers only) keeps the `supabase.co` address. A free option exists for the website only (Google's own sign-in button plus Supabase `signInWithIdToken`), but the Android app would still need a native Google sign-in module and a new build, so it is not recommended before launch.
+
+**Done when:** `security.txt` and the Support page on taskdrop.in show `admin@taskdrop.in`; a test mail to `admin@taskdrop.in` arrives; Google's consent screen shows no personal email; production's Google screen shows `auth.taskdrop.in` (after 5.2).
+</details>
+
+<details id="t2-23" data-short="DNS check">
+<summary>[BOTH] <b>2.23</b> taskdrop.in's DNS: checked, stay on Spaceship, add two records <small>· Done 17 Nov (Claude added the records in your Chrome; step 3 is still yours)</small></summary>
+
+**Why:** you heard the domain's DNS should be on Cloudflare for security. Claude checked taskdrop.in's live DNS on 17 Nov 2026:
+
+| Check | Today | Verdict |
+|---|---|---|
+| Who answers DNS | Spaceship (launch1 and launch2.spaceship.net), the registrar | Fine |
+| DNSSEC (stops forged DNS answers) | ON: DS record published, algorithm 13 (ECDSA P-256), answers validate | Fine. The main thing Cloudflare would add is already on |
+| HTTPS forced (HSTS) | On, 1 year, includes subdomains | Fine |
+| SPF (who may send mail as taskdrop.in) | `v=spf1 include:spf.efwd.spaceship.net ~all` | Fine for now; Loops is added at 4.10 |
+| DMARC (tells Gmail what to do with fake mail "from" taskdrop.in) | Added 17 Nov: `p=none` (watch only) | Done |
+| CAA (which companies may issue HTTPS certificates for taskdrop.in) | Added 17 Nov: `0 issue "letsencrypt.org"` and `0 iodef "mailto:admin@taskdrop.in"` | Done |
+| www and admin | Point to Vercel | Fine |
+
+**Verdict:** do not move DNS to Cloudflare. DNSSEC is already on at Spaceship, Vercel advises against putting Cloudflare's proxy in front of it (already in "Skipped on purpose"), and a nameserver move risks the site and mail going down for hours for little gain.
+
+**Steps** (YOU in Spaceship, then taskdrop.in, then DNS, about 10 minutes; or SAY "add the DNS records" and Claude does it in your signed-in Chrome):
+
+1. **Done 17 Nov.** CLICK Add record: TXT, host `_dmarc`, value `v=DMARC1; p=none; rua=mailto:admin@taskdrop.in; adkim=s; aspf=s`. This only watches. After 4.10 sends real mail and the reports look clean, change `p=none` to `p=quarantine`.
+2. **Done 17 Nov.** CLICK Add record: CAA, host `@`, value `0 issue "letsencrypt.org"` (Vercel's certificates), and a second CAA record `0 iodef "mailto:admin@taskdrop.in"`. Before turning on the Supabase custom domain (2.22 part e), check which certificate company Supabase uses and add it too, or that certificate will fail.
+3. CLICK In Spaceship, check the domain's transfer lock is ON and your Spaceship login has two-step sign-in on.
+4. TELL Claude: "done 2.23" once step 3 is checked.
+
+**Checked 17 Nov:** Spaceship's own nameserver returns the DMARC record and both CAA records (public resolvers catch up within 30 minutes, the records' lifetime). taskdrop.in, www.taskdrop.in and admin.taskdrop.in still load over HTTPS with valid Let's Encrypt certificates, and `security.txt` now shows `admin@taskdrop.in` (2.22 part a is live on the website).
+
+**Done when:** `_dmarc.taskdrop.in` and the CAA records answer, and taskdrop.in and admin.taskdrop.in still load with a valid certificate.
+</details>
+
+<details id="t2-24" data-short="Data in India">
+<summary>[BOTH] <b>2.24</b> Data in India where possible (DPDP) <small>· Code merged 18 Nov (PR 417, migration 192 live on staging); ImageKit Mumbai (20 Nov); Sentry EU org created 20 Nov, your DSN copy step open</small></summary>
+
+**Why:** you asked to keep third-party services in India where possible. Claude checked first (17 Nov 2026): India's DPDP Act 2023 and the DPDP Rules 2025 do **not** require data to stay in India for a normal company (section 16 allows transfer to any country the government has not blacklisted, and none is). Only payment data must stay in India (RBI), and Razorpay already complies. So this task moves what can move and tells people honestly about the rest (decision 55).
+
+| Service | Where it keeps data today | Where it will keep data | What it is sent |
+|---|---|---|---|
+| Supabase (database, sign-in, files) | Mumbai | Mumbai (staging and production) | Everything the app stores |
+| ImageKit (photos) | India, Mumbai (checked 20 Nov in the dashboard: Profile, Processing region) | India, Mumbai | Photos |
+| Vercel (website) | Served near the visitor | Website: near the visitor. Server code: Mumbai (`"regions": ["bom1"]` in `vercel.json`) | Page requests, IP address |
+| Razorpay and RazorpayX | India | India | Payment and payout details |
+| MSG91 | India | India | Phone number, sign-in code |
+| Sentry (crash reports) | United States (old organisation) | EU, Frankfurt (new organisation, step a) | Error details only: no name, phone or address |
+| PostHog (when built) | Not built | EU (it has only US or EU) | Anonymous usage counts |
+| Inngest (background jobs) | United States (it has no other region) | United States | Ids and amounts only. Names removed on 17 Nov |
+| Google (sign-in, Places, Maps, Firebase App Check, push) | Global | Global | What each feature needs |
+| OpenStreetMap | Europe | Europe | Search words, map position |
+| Expo (updates, push) | United States | United States | App version, push token |
+
+**DONE in code (merged 18 Nov, PRs 417 and 418):**
+
+- `vercel.json`: `"regions": ["bom1"]` (any server code runs in Mumbai). The website's content policy gets the EU Sentry address at the same time as the new EU DSN (step a), so the report address changes only once.
+- Inngest gets ids and amounts only. Migration **192** (applied to staging by the merge, 18 Nov) changes `private.emit_event` to strip name, from, poster, display_name, email, phone and address from every payload, and the triggers for help requests, withdrawals, failed payouts and disputes now send `user_id` or `poster_id` instead of a name. The team-alert job (`supabase/functions/inngest/index.ts`) looks the name up from the database by id (`personIdFor`, `alertFor`). Tests are in `supabase/functions/inngest/jobs.test.ts`. The sign-up event no longer carries the name either (it was never used by a job). Until 192 is applied, new alerts still work: the job reads a name from the old payload if there is one.
+- Privacy Policy (`apps/mobile/src/legal/documents.ts`): each company now says where it keeps data, plus the sentence that Indian law allows transfers, and the website crash-report consent sentence. Two lines say only what is true today: Sentry "in the United States today, moving to the EU before launch", and ImageKit "may be outside India". Claude changes them after steps a and b. **20 Nov:** the ImageKit line now says it keeps photos in India (Mumbai), after Claude read the processing region in the dashboard.
+- Website consent bar (`ConsentBanner`, `lib/consent.ts`): crash reports on taskdrop.in start only after "Accept all"; Account & settings has a "Cookies and crash reports" row to change it.
+
+**OWNER CLICK STEPS:**
+
+1. **20 Nov: Claude created the EU organisation in your Chrome:** `taskdrop-eu` (Data storage: European Union), projects `taskdrop` (React Native, the app) and `taskdrop-admin` (Next.js), error monitoring only. **Your part now (5 minutes):** open https://taskdrop-eu.sentry.io/settings/projects/taskdrop/keys/ and https://taskdrop-eu.sentry.io/settings/projects/taskdrop-admin/keys/, copy each DSN into `.env.all-secrets` as below, make an auth token for source-map uploads (Settings, Auth Tokens, org `taskdrop-eu`) under `SENTRY_AUTH_TOKEN_TASKDROP_EU`, then TELL Claude "Sentry EU is ready". Old step, for reference: open sentry.io, then your account menu, then Create organization. For Data storage location pick **European Union (EU)**. Create two projects: one for the app (React Native) and one for the admin (Next.js). Copy each DSN into `.env.all-secrets` under the names `EXPO_PUBLIC_SENTRY_DSN`, `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` (never paste them in chat), then TELL Claude "Sentry EU is ready". Claude then swaps `apps/mobile/eas.json`, the CSP in `vercel.json` and the Vercel and Supabase settings, and removes the US address. Delete the old US organisation after 30 days of quiet. (The DSN in `eas.json` is still the US one; Claude did not invent a new one.)
+2. **DONE 20 Nov (Claude read it in your Chrome): the processing region is Mumbai (India).** The production ImageKit account (task 5.5) must also pick Mumbai when it is created. Old step: open imagekit.io, then Settings, and read the processing region. If it is not India, ask ImageKit support to move it, or create the PRODUCTION ImageKit account with region India (task 5.x). Then TELL Claude the region so the Privacy Policy line can say "Kept in India" and be true.
+3. (c, PostHog) Nothing to do now. When it is built (it is not yet), choose the EU region.
+4. (d, Inngest) Nothing to do. It stays in the United States (it has no other region) and now carries ids and amounts only.
+5. Nothing to do for migration 192: merging applied it to staging. Production gets it with every other migration in 5.9.
+
+**Done when:** Sentry EU is live and the US organisation is scheduled for deletion; ImageKit's region is confirmed India; migration 192 is applied; the Privacy Policy matches the table.
 </details>
 
 > **GATE 2b: do not start Step 5 (production) until all of these are true**
@@ -4737,7 +4925,7 @@ Add a Vercel firewall rule on taskdrop-admin-production that rate-limits POST /a
 </details>
 
 <details id="t5-9" data-short="Connect production">
-<summary>[CLAUDE] <b>5.9</b> Connect everything and switch off the test shortcuts <small>· your time: 30 minutes</small></summary>
+<summary>[CLAUDE] <b>5.9</b> Connect everything and switch off the test shortcuts <small>· Done 17 Nov (carried forward: 5.8b, 5.7, 6.1, launch steps)</small></summary>
 
 **What Claude does in production:**
 
@@ -4777,6 +4965,9 @@ Add a Vercel firewall rule on taskdrop-admin-production that rate-limits POST /a
 | The database's GraphQL door (`pg_graphql`) (2.18 H) | **Off**, proven on the new project | off |
 | Signed-out table rights, and the defaults for new functions and tables (2.18 C and H) | **Zero, and closed by default** | zero; defaults change in 2.18 C |
 | Each function's login setting, including `razorpayx-webhook` (H73) | **Matches the code** | right, but not yet in the code |
+| Password rules in Supabase Auth (H30): `password_min_length` and `security_update_password_require_current_password` | **12** and **on** | 12 and on (since 18 Nov) |
+| Inngest gets ids and amounts only (migration 192, task 2.24) | **Applied with every other migration** | applied 18 Nov |
+| Sentry organisation (task 2.24) | **`taskdrop-eu`** (EU storage) | moving to `taskdrop-eu` when you copy the DSNs |
 | Supabase sign-in limits and IP forwarding (2.8b) | **The 2.8b values, forwarding on**, with production's own secret key | the same |
 | Sign-up guard hook (H21, migration 138) | **On** (Auth → Hooks → Before User Created → `hook_before_user_created`) | on |
 | Supabase's own phone sign-up and anonymous sign-in (the hook lets both through) | **Off** (Auth → Sign In / Providers). Check with `node scripts/security-round2.mjs signupguard`: all refused | off |
@@ -4807,7 +4998,38 @@ Set up production.
 
 **Part done 15 Nov (production `dyzskuzqcqbexssyrrxc`, free plan).** Checked by query: the database was empty, then all 182 migrations from `main` (796f182) were applied in order, one transaction each, with the same selection as `scripts/deploy-migrations.mjs` (182 history rows, 72 tables, all with row rules, no rows). Switched over and checked: `dev_otp_for_all` off, `admin_require_mfa` on, environment `production`, the money settings in the table above, the direct door closed (the public key gets "Not allowed" for a table, a database function and GraphQL; the schema listing is off), `pg_graphql` not installed, signed-out table rights zero, no live table broadcasts, and the database defaults match staging. The gateway secret in Vault is the `PROD_API_GATEWAY_SECRET` value. The safety alarm (Inngest `safety-alarm`, hourly) and the nightly encrypted copy (`.github/workflows/production-backup.yml`, 30 days) are in the code; both start only after the steps below. **Still open:** deploy the server functions and their production secrets (the saved Supabase access token cannot reach the production organization, so a production access token is needed); the sign-up guard hook, sign-in limits and IP forwarding in the dashboard (email sign-up is open until the hook is on); the GitHub environment `production-backup` with its two secrets and one variable; Inngest synced for production, then `push_via_inngest`; `main` protection; your admin account; a Google sign-in test.
 
-**Setup progress, 15 Nov evening (Claude, with the pull requests 370 and 371 merged into `redesigned-2.0`).** Nothing has run against production yet; `main` has not been promoted.
+**Closed 17 Nov.** The owner told Claude to check and proceed, so Claude closed it after a last check: the safety alarm ran "all clear" and the nightly copy ran green end to end (a copy `backup-20261117T1421Z` sits in the private `taskdrop-backups` repository). That check also found the 17 Nov 04:06 nightly copy had failed with "Bad credentials" on its repository token; Claude re-set every existing secret in both GitHub environments from `.env.all-secrets` (names and lengths only, no values shown) and the copy then succeeded. **Carried forward, not blocking:** the Vercel firewall rules, $50 spending stop and admin sign-in rate rule (5.8b, needs Vercel Pro); deleting the App Check debug token in Firebase at launch (H56) and reading the production Expo project once it exists (5.7); the four left-out secrets (money-jobs switch with its own cutover, push-receipt wait, Expo builds token, MSG91 in 6.1); the Android app-links fingerprint after Play (6.6); adding `taskdrop\.in` and `www\.taskdrop\.in` to the production security-header rule at launch; renewing the `taskdrop-backups-writer` token before 14 Nov 2027; one practised restore (6.5).
+
+**Production at a glance, 17 Nov (everything done so far, and everything still to do).**
+
+| Done on production | How it was checked |
+|---|---|
+| Database built from `main` (all migrations), test sign-in off, admin authenticator rule on, environment `production`, GraphQL off, signed-out table rights none, direct database door closed | First deploy run green 16 Nov; first-day checks passed; hourly alarm "all clear" (again 17 Nov) |
+| 11 server functions deployed, 11 function secrets set, Inngest synced | Deploy steps green; Inngest run log shows the jobs finishing green |
+| Push now runs through Inngest; the two prune jobs moved to Inngest `housekeeping` | `push_via_inngest` = true read back; only the three money sweeps remain on pg_cron |
+| Supabase sign-in settings (sign-up guard hook, IP forwarding, limits, Phone and Anonymous off) | Read back through the Supabase API |
+| `main` promoted and protected (pull request and 4 checks required, no force-push, admins included) | Checked against the CI job names |
+| Production security-report address wins on `taskdrop-production.vercel.app` | Read from the live header 16 Nov |
+| Admin account `hitendureacts@gmail.com` and the Google sign-in test | Google accepted the production client and callback; the admin panel opened for you on 17 Nov |
+| Nightly encrypted copy to the private `taskdrop-backups` repository, 30 days kept | Run by hand 17 Nov: all 7 steps green and a copy exists. The scheduled 17 Nov 04:06 run had failed on a bad repository token; fixed by re-setting the environment secrets |
+| H56 on the production side (no debug token in the production website variables, build guard refuses one) | Vercel variable names read 17 Nov |
+
+| Still to do | Who | When | Task |
+|---|---|---|---|
+| Vercel firewall rules (admin sign-in 20 a minute per address, website flood ceiling), $50 spending stop, preview builds hold nothing real, previews need a Vercel login, one team Owner | You click, Claude gives the fields | At the Vercel Pro upgrade (the team is on Hobby; the connector cannot read firewall settings) | 5.8b |
+| Production Expo project, its variables (never the App Check debug token), the push key and upload keystore; then read its variables and set `TASKDROP_PRODUCTION_EAS_PROJECT_ID` and `PROD_EXPO_BUILDS_TOKEN` | You and Claude | Before the first production build | 5.7 |
+| Delete the App Check debug token in Firebase (App Check → `taskdrop Android` → Manage debug tokens); it is the one staging beta APKs use, so deleting it earlier breaks testers | You click | At launch | H56 |
+| Money sweeps from pg_cron to Inngest (`INNGEST_MONEY_JOBS=on` and `supabase/cutover/inngest_money_jobs.sql`) | Claude, after your yes | When you decide; not needed to launch | Inngest cutover |
+| SMS sign-in (`PROD_MSG91_AUTHKEY`, `PROD_MSG91_TEMPLATE_ID`) | You and Claude | With MSG91 | 6.1 |
+| `ANDROID_SHA256_CERT_FINGERPRINTS` Vercel variable and the Android https link settings (new build) | Claude | After the app is in Google Play | 6.6 |
+| Add `taskdrop\.in` and `www\.taskdrop\.in` to the production security-header rule in `vercel.json` | Claude | When `taskdrop.in` moves to production | 5.10 B |
+| One practised restore of a nightly copy | You and Claude | Before GO | 6.5 |
+| Renew the `taskdrop-backups-writer` token | You | Before 14 Nov 2027 (a calendar reminder) | 5.9 |
+| Test a real push on a phone with a production build (production has no device yet) | Claude and you | With the first production build | 5.11 |
+| Check whether the admin panel asks for the authenticator code on production (the rule is on, not yet seen in the panel) | Claude | Next time you sign in to the production admin | 5.9 |
+| The second Google account that signed in to production (`narasimharaju7c@gmail.com`) is a normal test user | You decide whether to delete it | Before launch | 5.11 |
+
+**Setup progress, 15 Nov evening (Claude, with the pull requests 370 and 371 merged into `redesigned-2.0`).** `main` was promoted on 16 Nov (PR 374). The first "Production database and functions" run was approved and finished green on 16 Nov, and the safety alarm read "all clear".
 
 | Step | Status |
 |---|---|
@@ -4821,11 +5043,13 @@ Set up production.
 | `main` protected: a pull request and the four CI checks are required, no force-push, no deletion, admins included | **Done** (checked: the four names match the CI jobs) |
 | Production Vercel projects `taskdrop-production` and `taskdrop-admin-production` exist | **Seen**; the firewall rules, $50 spending stop and rate rules could not be read from here: check them in the Vercel dashboard (5.8b) |
 | Supabase sign-in settings on production, done by Claude through the Supabase API with the new token and read back: sign-up guard hook on (`hook_before_user_created`, function present), IP forwarding on, token limit 300, code-check limit 60, Phone and Anonymous sign-in off; the GitHub variable `PROD_DASHBOARD_DONE` = `yes` | **Done** 15 Nov evening |
-| Promote `redesigned-2.0` to `main` (a pull request now) | **Yours** |
-| Approve the first "Production database and functions" run; then run "Production safety alarm" once: "all clear" | **Yours**, then Claude reads the run |
-| Live check of the security header on the production address (which of the two rules wins) | Claude, after the promotion |
-| Left out on purpose (the workflow skips and lists them): money-jobs switch, push-receipt wait, Expo builds token, MSG91 (6.1) | Open |
-| Your admin account on production, a Google sign-in test, Inngest synced then push through Inngest, App Check debug token deleted (H56) | Open (item 8 in `docs/PRODUCTION_GO.md`) |
+| Promote `redesigned-2.0` to `main` (PR 374). CI first caught one real fault in the safety check (a database type error, fixed in PR 375), which is what the rehearsal is for | **Done** 16 Nov |
+| Approve the first "Production database and functions" run; then run "Production safety alarm" once: "all clear" | **Done** 16 Nov: approved in the browser at your request (twice: the first try failed at the function deploy because the GitHub copy of the Supabase token was malformed; Claude re-saved it from the secrets file). Migrations, first-day safety, 11 Edge Functions, 11 function secrets, Inngest sync and "first-day checks passed" all green; the alarm run ended "all clear". Left out on purpose (kept as they are in Supabase): money-jobs switch, push-receipt wait, Expo builds token, MSG91 |
+| Live check of the security header on the production address (which of the two rules wins) | **Done** 16 Nov: `taskdrop-production.vercel.app` sends the production report address, so the production rule wins; `assetlinks.json` stays empty until Play (6.6) |
+| Left out on purpose (the workflow skips and lists them): money-jobs switch, push-receipt wait, Expo builds token, MSG91 (6.1) | **Decided** 17 Nov: none is needed now, none is set. `PROD_INNGEST_MONEY_JOBS` stays off: it moves the three money sweeps from pg_cron to Inngest, a separate cutover (`supabase/cutover/inngest_money_jobs.sql`) to do deliberately later, not as a side effect. `PROD_INNGEST_PUSH_RECEIPT_WAIT` is a tests-only tuning value (default 15 minutes). `PROD_EXPO_BUILDS_TOKEN` needs the production Expo project, which comes with 5.7. MSG91 waits for 6.1. None of the four is in `.env.all-secrets` today |
+| Your admin account on production and a Google sign-in test | **Done** 17 Nov: Google sign-in on `taskdrop-admin-production.vercel.app` reaches Google with the production client and callback (no address mismatch) and creates the account; production was empty, so the admin role for `hitendureacts@gmail.com` was added by a database write and the panel then opened. A second Google account that also signed in stays a normal user |
+| Inngest synced (16 Nov), then push through Inngest | **Done** 17 Nov: the production Vault got `inngest_event_url` (from the production event key); Inngest's own run log showed `housekeeping`, `overdue-tasks` and `safety-alarm` finishing green; then `push_via_inngest` = true and the two prune cron jobs were removed (`supabase/cutover/inngest_background_jobs.sql`). Read back: setting true, only the three money sweeps left on pg_cron. **Not tested:** a real push to a phone (production has no devices until a production build). To go back: set `push_via_inngest` to false and re-add the two prune jobs from the script |
+| App Check debug token (H56), production side | **Checked** 17 Nov: the `taskdrop-production` Vercel project has no debug-token variable, the build guard refuses one in a production build, and the hourly alarm watches production's function secrets. **Left for launch:** deleting the token in Firebase (App Check → `taskdrop Android` → Manage debug tokens), because it is the one the staging beta APKs use and deleting it now breaks testers; and reading the production Expo project's variables once 5.7 exists |
 
 </details>
 
@@ -5508,6 +5732,21 @@ These are recorded so nothing is lost. **None of them is needed to launch, and n
 **Done when:** you have Basheer's answers written down.
 </details>
 
+<details id="tF-16" data-short="Move to pnpm">
+<summary>[LATER] <b>F.16</b> Move the repos from npm to pnpm <small>· after launch · added 17 Nov · see decision 54</small></summary>
+
+**What it is:** pnpm installs faster, uses much less disk and blocks packages' install scripts unless you allow them. It is not needed to launch (decision 54), so it waits until after launch.
+
+1. One pull request per repo (`taskdrop` and `taskdrop-admin`). Claude runs `pnpm import` to turn `package-lock.json` into pnpm's lockfile.
+2. Add `pnpm-workspace.yaml`.
+3. Set Vercel's install command and the EAS builds to pnpm.
+4. Try `node-linker=hoisted` only if Metro fails to find a package.
+5. Allow-list install scripts with `onlyBuiltDependencies`, so only the packages that need one may run it.
+6. Prove it: the `npm run check` equivalent, the web export, an Android build and both Vercel deploys.
+
+**Done when:** both repos install with pnpm and all four checks pass.
+</details>
+
 ---
 
 ## Architecture and system design
@@ -5756,6 +5995,9 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 50 | **Is Mapbox the right map? (14 Nov).** You asked after the DataFast video, whose globe was drawn with Mapbox. Today the website map is MapLibre GL with OpenFreeMap (decision 36, live since 9 Nov: free, no key, zooms like Google Maps), and the Android app's map is `react-native-maps` with the restricted Google Maps key. **Mapbox's own pricing page (14 Nov):** free up to 50,000 website map loads and 25,000 app users a month, then you pay per use, and it needs a Mapbox account and an access token. Its web library has been under Mapbox's own licence since version 2; MapLibre is the open copy of the version before that, so the look can match | **Recommended: keep MapLibre; do not switch.** Mapbox would add a bill that grows with every visitor, a new key to guard, and a rewrite of the website map and both Android map screens (`JobsMap`, `MapPicker`), for a base style that is already good enough after D21 and D14. Revisit only if the free OpenFreeMap tiles are slow or limited after launch (look at a paid tile host before Mapbox), or the Android Google Maps key becomes a problem, in which case the tile-proxy idea in the security notes (no Maps key in the Android app) is the first step | "Decision 50: keep MapLibre." or "Decision 50: plan a Mapbox switch." |
 | 51 | **A username for everyone who signs in** (14 Nov, task 1.18). Today the username is asked only in the full phone and Google setup. A guest who makes an account, and anyone who left setup early or signed up before the step existed, can use the app with none, and the database allows an empty one | **Decided by you, 2026-11-14** ("if a person is signing in he needs to compulsorily set the username"). Yes: compulsory for every way in, with a gate for accounts that have none, and the server refuses posting, offers and chat until one is set. It is a fix (it makes sign-up complete), so it is allowed inside the freeze. Not built yet | "Decision 51: skip it in the guest's account setup" to change. A guest who is only looking around never has one (your clarification, 14 Nov) |
 | 52 | **One email or two? (15 Nov).** Vercel asked for Pro ($20). You asked whether a NEW email for production and another for staging, each on free plans, would cover both for free, for every tool | **Decided 15 Nov: keep one login, no second email; pay only Supabase Pro and Vercel Pro, and only at Step 5.** Checked on each tool's own page, 15 Nov: **Vercel's terms** say the free Hobby plan is "for your personal or non-commercial use" only, and its fair-use page counts any site used for anyone's financial gain as commercial, so production on a free Vercel account breaks the terms whatever the email. **Supabase** counts its 2 free projects across every organization you own, pauses a free project after 1 week without use, gives it no daily backups, and its fair-use rules can pause or lock every project of an organization suspected of abuse; a money app needs Pro anyway. A second login made only to get more free plans risks both accounts being closed, splits the bills, two-step codes and recovery, and Razorpay, Google Play and Google Cloud must stay on the one owner who did the KYC. **What a second email does not buy:** nothing allowed that the plan does not already get, because every other tool (Inngest, Sentry, PostHog, ImageKit, Expo, Loops, Google Cloud) already gives production its own free organization, project or account under the same login. **One fix made:** PostHog's free plan allows only 1 project per organization, so production PostHog becomes its own free organization (5.6b). **Vercel:** one Pro seat ($20) on team `hitenduteam` covers both the staging and the production projects; upgrade on the 5.8 day, not before, unless Vercel actually blocks work. **Supabase:** production stays free and empty until 5.2 turns its organization to Pro ($25); a pause before then does no harm (restore it from the dashboard). **Watch, shared by staging and production under one login:** Expo's free 1,000 app-update users and 15 Android builds a month, and Sentry's 5,000 errors a month in organization `hitendu`; upgrade only when one warns (7.5). Total: $0 a month now, about $45 a month from Step 5 | "Decision 52: keep one login." To change: "Decision 52: make a production owner mailbox" (only the login changes, never a second free plan) |
+| 53 | **A custom Supabase address, `auth.taskdrop.in`, for production?** (17 Nov, task 2.22 part e). Google's sign-in screen shows the `supabase.co` address. Hiding it needs a paid Supabase plan plus the custom-domain add-on | **Recommended: yes, on production only, at task 5.2 (about $10 a month on top of Pro).** Staging stays free with the `supabase.co` address, because only testers see it | "Decision 53: yes, custom domain at 5.2." or "Decision 53: no, keep supabase.co." |
+| 54 | **npm or pnpm?** (17 Nov). You asked which package manager is better | **Recommended: stay on npm until after launch; switch to pnpm later (F.16).** npm workspaces, Turborepo, Expo and EAS builds and both Vercel projects already install with `npm ci` from one lockfile and work. Switching changes the lockfile, the CI, Vercel's install command and the EAS builds, and React Native's native modules often need pnpm's "hoisted" mode, which gives up much of what pnpm is good at. It is not a fix, so it does not fit the freeze. **What pnpm would give:** faster installs; much less disk (each worktree today holds a full copy of `node_modules`); a stricter check that every package is declared; and it blocks packages' install scripts unless you allow them, a supply-chain safety gain. Decided by Claude's recommendation; you can change it | "Decision 54: stay on npm." or "Decision 54: switch to pnpm now." |
+| 55 | **Where does our data live? (17 Nov, task 2.24).** You asked for third-party services in India where possible | **Decided 17 Nov 2026: "Move what can + disclose".** Data location: India where offered (Supabase, ImageKit and Vercel in Mumbai or India), EU for Sentry and PostHog, US for Inngest (ids and amounts only). The Privacy Policy lists each service's country. India's DPDP law does not require data to stay in India | "Decision 55: keep as decided." |
 
 ---
 
@@ -6210,6 +6452,7 @@ Claude runs this before a feature is called done, and writes what it saw in the 
 | Google Cloud and Firebase for production | pay as you use, with the ₹1,000 budget alert (5.3) |
 | Nightly database copy outside Supabase (5.9) | free (GitHub's free minutes and storage) |
 | Domain `taskdrop.in` | about $6 a year |
+| Supabase custom domain `auth.taskdrop.in` (if decision 53 is yes) | about $10 |
 | **Total** | **about $45 a month (roughly ₹4,000) plus the fee on each payment** |
 
 **Not done, on purpose: a second email to stay on free plans (decision 52, 15 Nov).** Vercel's free plan forbids business use and Supabase counts free projects across all your organizations, so a second login would break their rules and saves nothing allowed. One Vercel Pro seat covers staging and production together.
@@ -6314,6 +6557,15 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-20 (the Upwork-style design D31, Top up, the OTA and the browser tests: progress moved into the plan):** You asked to store the progress in this plan. Added the card **"18 to 20 November: the Upwork-style design (D31) built, Top up, the OTA, and the browser tests working again"** under **Do these now**: PRs 442 and 444 (the D31 screens and leftovers), PR 447 (**Top up** on open posts, migration 194, live on staging), OTA `33b6ca71` on the beta channel, PRs 448 and 449 (the End-to-end job runs again in about 9 minutes and went green on 20 Nov: 54 passed, 1 flaky), and the staging test-data changes you approved (Asha back to ₹5,000, Meera's name restored, Asha and Ravi no longer "new" accounts). Yours: check the OTA on your phone, the five phone boards whose design was lost, EAS minutes back on 1 Dec. Claude's Top up click-through is done too: the new browser test `e2e/topup.spec.ts` passed on staging. Nothing on production.
+- **2026-11-20 (OWASP, data in India, cookie bar: the rest moved into the plan):** You asked to move what is left and the progress into this plan. Added the card **"17 to 20 November: OWASP fix, data in India, cookie bar"** under **Do these now** (done list, your three steps, Claude's four), the picomatch exception to the Security section, three production rows (password settings, migration 192, Sentry EU) to 5.9's settings table, and 2.24 now says merged.
+- **2026-11-19 (desktop web redesign: status and the rules check):** Packages 0 to 8, 10, 14 and 15 of the desktop design are merged into `redesigned-2.0`; package 16 adds `e2e/desktopRules.spec.ts` (DOM checks of rules 1, 2 and 4 at 1440 x 900 on 14 signed-in screens; Post a task breaks rule 4 until package 13) and this note under task 1.10. Packages 9 (Home two columns), 11 (Wallet table, draft PR 436), 12 (Messages master-detail) and 13 (posting flow) wait for your OK. Plan: `docs/design/desktop-web/PLAN.md`. Desktop web only; no database, setting, key or app build changed.
+- **2026-11-17 (data in India, task 2.24, decision 55):** You asked to keep services in India where possible. DPDP does not require it, so: Vercel functions pinned to Mumbai, Sentry moves to a new EU organisation (your steps in 2.24), Inngest now gets ids and amounts only (migration 192, applied to staging by the merge), and the website asks before turning on crash reports (consent bar), and the Privacy Policy says where each company keeps data.
+- **2026-11-17, night (all of today in one place):** You asked for every bit of progress and every to-do in the plan. Added the card **"17 November: security questions answered, what got done, what is left"** under **Do these now**, a line in **What is left in Step 2**, a tip in rule 4 (open Chrome's Claude side panel when Claude says Chrome is not connected), and the live check of 2.22 part (a). The firewall line now says plainly that Vercel's "no configuration" answer could also mean Claude's connection cannot read it.
+
+- **2026-11-17, evening (2.23 done: DNS records added):** You asked Claude to add the records in your Chrome. Claude added, in Spaceship, the DMARC record (`_dmarc`, `p=none`) and two CAA records (`0 issue "letsencrypt.org"`, `0 iodef "mailto:admin@taskdrop.in"`). Checked: Spaceship's nameserver answers all three, and taskdrop.in, www and admin still load with valid Let's Encrypt certificates. `security.txt` on taskdrop.in now shows `admin@taskdrop.in`. Still yours: 2.23 step 3 (transfer lock and two-step sign-in in Spaceship), 2.22 parts b to d.
+
+- **2026-11-17 (your public email, the Supabase address on Google's screen, DNS, JWT and firewall answers, npm or pnpm):** Google's sign-in screen shows `wjxvingpfbfvkfqhrguj.supabase.co`, and your personal Gmail showed in `security.txt`, the Support page and the staging tester card (the Vercel setting `EXPO_PUBLIC_LEGAL_EMAIL` held it). **Added:** task **2.22** (code part done in the pull request: only an address ending in `@taskdrop.in` is ever shown, anything else becomes `admin@taskdrop.in`; your clicks: Spaceship forwarding, the three Vercel settings, Google's consent-screen branding; the Supabase custom domain `auth.taskdrop.in` at 5.2), task **2.23** (taskdrop.in's DNS checked: stay on Spaceship, DNSSEC and HSTS already on, add a DMARC and a CAA record), a short answer block in the Security section ("Checked 17 Nov: firewall (WAF) and sign-in tokens (JWT)"), **decision 53** (custom domain for production, about $10 a month, in the cost list as "if yes"), **decision 54** (stay on npm until after launch) and future task **F.16** (move to pnpm). The code part of 2.22 ships in the same pull request.
 - **2026-11-15 (one email or two: the cost rethink, decision 52):** Vercel asked for Pro ($20) and you asked whether a new email for production and another for staging, each on free plans, would cover everything for free. Claude read each tool's own pricing, terms or docs page on 15 Nov (Vercel, Supabase, Inngest, Sentry, PostHog, ImageKit, Expo, Loops). **Answer: no; keep the current plan with one login.** Vercel's terms allow the free plan only for personal or non-commercial use, Supabase counts its 2 free projects across all organizations you own and gives free projects no backups and a pause after a week, and a second login made to get more free plans risks both accounts. **One real fix:** PostHog's free plan allows one project per organization, so production PostHog is now its own free organization (5.6b, the accounts map and the separation table). The stale "paid plan" on the Inngest production card now says free (CEO change 5). **Added:** decision 52 with the sources, a line in "Staging and production, step by step", the shared limits to watch (Expo 1,000 update users, Sentry 5,000 errors) and a note in What it costs. Cost unchanged: $0 a month now, about $45 a month from Step 5. Docs only: no account, setting, plan or payment was changed.
 - **2026-11-15 (desktop fit: the laptop and big-monitor screens, built on `feat/desktop-fit`):** You looked at the staging website on a 1920 × 1080 Chrome at 90% zoom (2133 CSS pixels wide) and saw empty gaps on both sides and screens that looked like a stretched phone. A measured audit (16 before-pictures, widths 1024 to 2560) found the cause: the feed column stopped at 1360 and the reading column at 760, so about 255 and 555 pixels were empty on each side at 2133, and text and buttons were the same size at every width. **Built in five slices, desktop only (web, 1024 wide and up):** (1) the whole app scales by CSS zoom from 1.0 to 1.35 with one curve in `apps/mobile/src/lib/layout.ts`; the FEED, READ, FORM and FULL columns are fluid with a gutter of 24 to 40; feed grids get up to 4 columns; one top bar (bell, messages, avatar) on every desktop screen; (2) the map (kept sharp under zoom) and the tour (spotlight in the right place) fixed to work under zoom; (3) Home, Wallet, Help and Notifications fill the width; (4) a two-pane Task detail with the offer button always in view; (5) Profile, Public profile and Settings in two panes from 1440 wide. **Not touched:** the phone layout, the tablet rail, Android and iOS (new code sits behind the desktop check and the native file does nothing); no database, setting, key or account changed; no OTA or app build. The plan is [docs/design/desktop-fit/PLAN.md](design/desktop-fit/PLAN.md), with before-pictures in `before/` and after-pictures in `after/`. **Not verified, so do not call it fully proven:** the end-to-end tour and map specs (`e2e/tour.spec.ts`, `e2e/map*.spec.ts`) were not run; some screens (Task detail, Profile, Public profile, Settings) were only checked as a guest, not signed in on both Hire and Earn; the pixel-same check of the phone layout against `redesigned-2.0`, a look on a real phone and a look in Firefox and Safari are still to do. Your own look at 2133 wide is still yours. No task number, step, gate or decision changed; tasks 1.10 and 1.14 each carry a dated note.
 - **2026-11-14 (a username is compulsory for everyone who signs in):** You said a person who signs in must set a username. Claude checked the code: the full phone and Google setup already will not continue without one, but a guest's new account skips it (the quick finish saves only About you), an account that left setup early or predates the step can use the app with none, the plan's C3 had moved it to "when first needed", and the database allows an empty username. **Added:** task **1.18** (a gate for accounts with none, a username step in the guest sign-up sheet, the server refusing post, offer and chat until one is set, tests), **decision 51** (decided yes), a Gate 1 line, and C3 and decision 21 corrected. It is a fix, so it fits inside the freeze. **Clarified the same day:** a guest has no username and is never asked while looking around; the username is asked inside the account setup when the guest taps Create account (number, date of birth, code, username, About you). Docs only: nothing in the app, database or settings changed yet.

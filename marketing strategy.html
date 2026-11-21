@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>taskdrop. marketing strategy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F7F9F8; --card:#FFFFFF; --ink:#14201C; --muted:#5B6B65; --line:#DCE5E1;
+  --jade:#0E8F72; --jade-deep:#0A6F58; --jade-soft:#E3F4EF;
+  --blue:#2F5BEA; --blue-soft:#E8EDFD;
+  --gold:#E0A85A; --gold-soft:#FBF1E0;
+  --coral:#E0724A; --coral-soft:#FBEAE3;
+  --on-deep:#FFFFFF;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1513; --card:#16201D; --ink:#E8F0EC; --muted:#9BAEA6; --line:#26352F;
+    --jade:#2CC3A0; --jade-deep:#0A6F58; --jade-soft:#10302A;
+    --blue:#7C9BFF; --blue-soft:#1A2347;
+    --gold:#E0A85A; --gold-soft:#33291A;
+    --coral:#F08C69; --coral-soft:#3A2119;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1513; --card:#16201D; --ink:#E8F0EC; --muted:#9BAEA6; --line:#26352F;
+  --jade:#2CC3A0; --jade-deep:#0A6F58; --jade-soft:#10302A;
+  --blue:#7C9BFF; --blue-soft:#1A2347;
+  --gold:#E0A85A; --gold-soft:#33291A;
+  --coral:#F08C69; --coral-soft:#3A2119;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.6;font-size:16px}
+.wrap{max-width:1000px;margin:0 auto;padding:0 16px}
+a{color:var(--jade);text-underline-offset:3px}
+header.hero{background:var(--jade-deep);color:var(--on-deep);padding:56px 0 48px}
+.brand{font-weight:800;font-size:20px;letter-spacing:-.01em}
+.brand i{color:#7BE3C6;font-style:normal}
+.hero h1{font-size:clamp(30px,5vw,48px);line-height:1.1;margin:18px 0 12px;letter-spacing:-.02em;font-weight:800}
+.hero p{max-width:640px;font-size:18px;margin:0;opacity:.95}
+.hero .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.chip{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);padding:6px 12px;border-radius:99px;font-size:13px;font-weight:600}
+nav.toc{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+nav.toc .wrap{display:flex;gap:4px;overflow-x:auto;padding-top:8px;padding-bottom:8px}
+nav.toc a{white-space:nowrap;text-decoration:none;color:var(--muted);font-size:14px;font-weight:600;padding:6px 12px;border-radius:99px}
+nav.toc a:hover{background:var(--jade-soft);color:var(--jade)}
+section{padding:44px 0 8px}
+h2{font-size:28px;letter-spacing:-.015em;margin:0 0 6px;line-height:1.2}
+h2 .n{display:inline-block;background:var(--jade-soft);color:var(--jade);font-size:14px;font-weight:800;padding:3px 10px;border-radius:99px;margin-right:10px;vertical-align:middle}
+.lead{color:var(--muted);margin:0 0 22px;max-width:720px}
+h3{font-size:17px;margin:22px 0 8px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+.card h3{margin-top:0}
+.card ul{margin:0;padding-left:20px}
+.card li{margin:5px 0}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px;margin-bottom:8px}
+.t-jade{background:var(--jade-soft);color:var(--jade)}
+.t-blue{background:var(--blue-soft);color:var(--blue)}
+.t-gold{background:var(--gold-soft);color:#9A6A1F}
+.t-coral{background:var(--coral-soft);color:var(--coral)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .t-gold{color:var(--gold)}}
+:root[data-theme="dark"] .t-gold{color:var(--gold)}
+.callout{border-left:4px solid var(--jade);background:var(--jade-soft);padding:14px 18px;border-radius:0 12px 12px 0;margin:18px 0}
+.callout.warn{border-color:var(--coral);background:var(--coral-soft)}
+.callout b:first-child{display:block;margin-bottom:2px}
+.promise{font-size:clamp(20px,3vw,26px);font-weight:800;letter-spacing:-.01em;margin:0 0 6px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:15px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--jade-soft);color:var(--jade);font-size:13px;text-transform:uppercase;letter-spacing:.04em}
+tr:last-child td{border-bottom:0}
+.tblwrap{overflow-x:auto;border-radius:14px}
+.tl{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;counter-reset:s}
+.tl .col{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--jade);border-radius:12px;padding:14px}
+.tl .col:nth-child(2){border-top-color:var(--blue)}
+.tl .col:nth-child(3){border-top-color:var(--gold)}
+.tl .col:nth-child(4){border-top-color:var(--coral)}
+.tl .col:nth-child(5){border-top-color:var(--muted)}
+.tl b{display:block}
+.tl small{color:var(--muted);display:block;margin-bottom:6px}
+.tl ul{margin:0;padding-left:18px;font-size:14px}
+.subs{display:flex;flex-wrap:wrap;gap:8px}
+.subs a{font-size:13.5px;font-weight:600;text-decoration:none;padding:5px 12px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.subs a:hover{border-color:var(--jade);color:var(--jade)}
+.subs a.skip{opacity:.55}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:6px 0 14px}
+.sub-title{font-size:14px;font-weight:700;margin:18px 0 8px}
+.rules{counter-reset:r;list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.rules li{counter-increment:r;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px 12px 52px;position:relative}
+.rules li::before{content:counter(r);position:absolute;left:14px;top:11px;width:26px;height:26px;border-radius:50%;background:var(--jade-deep);color:#fff;font-weight:800;font-size:13px;display:grid;place-items:center}
+.eq{font-size:20px;font-weight:800;text-align:center;padding:18px;background:var(--card);border:1px solid var(--line);border-radius:14px;margin:12px 0}
+.eq span{color:var(--jade)}
+code,.say{font-family:ui-monospace,Menlo,Consolas,monospace}
+.say{display:block;background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:14px 16px;font-size:14px;white-space:pre-wrap;line-height:1.55}
+footer{margin:56px 0 0;padding:28px 0 48px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+footer .wrap > p{margin:4px 0}
+.theme{position:fixed;right:14px;bottom:14px;z-index:9;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:8px 14px;font:600 13px inherit;font-family:inherit;cursor:pointer}
+@media print{nav.toc,.theme{display:none}section{page-break-inside:avoid}}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand">taskdrop<i>.</i></div>
+    <h1>Marketing strategy: the first 10,000 users</h1>
+    <p>A four-part blueprint (message, research, content, paid ads) fitted to a two-sided marketplace that has to fill one city before it can grow.</p>
+    <div class="chips">
+      <span class="chip">Workers first, then posters</span>
+      <span class="chip">One city to start</span>
+      <span class="chip">₹0 until something free works</span>
+      <span class="chip">Real people only</span>
+    </div>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#message">1 Message</a>
+  <a href="#research">2 Research</a>
+  <a href="#content">3 Content</a>
+  <a href="#explainers">3b Explainer videos</a>
+  <a href="#reddit">4 Reddit</a>
+  <a href="#ads">5 Paid ads</a>
+  <a href="#timeline">Timeline</a>
+  <a href="#rules">Rules</a>
+  <a href="#numbers">Numbers</a>
+</div></nav>
+
+<main class="wrap">
+
+<section style="padding-top:36px">
+  <div class="callout">
+    <b>How to read this page</b>
+    The source is the "First 10,000 Users Blueprint" Google Doc, which is a short outline: four headings, a few bullets, and a list of subreddits. Everything under those headings below is fitted to TaskDrop using the existing Marketing playbook in <code>docs/ULTIMATE_PLAN.md</code>. Where the blueprint and the plan disagree, the plan's rules win (they are on the Rules section).
+  </div>
+  <div class="grid g3">
+    <div class="card"><span class="tag t-jade">The big idea</span><p style="margin:0">A marketplace grows by being <b>full in one place</b>, not visible everywhere. One city where every task gets an offer fast beats ten cities where nothing happens.</p></div>
+    <div class="card"><span class="tag t-blue">The order</span><p style="margin:0"><b>Workers first, then posters.</b> Online (remote) tasks can be offered across India from day one because they need no one nearby.</p></div>
+    <div class="card"><span class="tag t-gold">The test</span><p style="margin:0">The north-star number is the share of tasks that get an offer within <b>30 minutes</b>. If that is high, the city is full.</p></div>
+  </div>
+</section>
+
+<!-- 1 -->
+<section id="message">
+  <h2><span class="n">1</span>Find your viral marketing message</h2>
+  <p class="lead">The blueprint's three rules: people don't care about your product, they care about what it does for them; sell the transformation, not the features; and content exists only to drive a click.</p>
+
+  <div class="card" style="margin-bottom:14px">
+    <p class="promise">"Ask for anything. Someone gets it done for you."</p>
+    <p style="margin:0;color:var(--muted)">The promise stays the same everywhere. Tasks are local <b>and</b> remote, so no copy may suggest local-only.</p>
+  </div>
+
+  <div class="tblwrap"><table>
+    <thead><tr><th>Audience</th><th>The transformation (what we sell)</th><th>Not this (feature talk)</th></tr></thead>
+    <tbody>
+      <tr><td><b>Posters</b></td><td>"Stop chasing people. Describe the job in plain words, get offers, pick one. Your money is held until you approve the work."</td><td>"Escrow, 3% service fee, offer comparison, AI writer."</td></tr>
+      <tr><td><b>Workers</b></td><td>"Set your own price. Get paid for finished work. Withdraw to UPI or your bank."</td><td>"10% commission, 7-day clearing, RazorpayX payouts."</td></tr>
+      <tr><td><b>Both</b></td><td>"One account to hire and to earn."</td><td>"Mode switch between Hire and Earn."</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Three proofs to repeat</h3>
+  <div class="grid g3">
+    <div class="card"><b>Money held until approval</b><p style="margin:6px 0 0;color:var(--muted)">Say it exactly like that. Never "guaranteed" or "100% safe".</p></div>
+    <div class="card"><b>Real local people with reviews</b><p style="margin:6px 0 0;color:var(--muted)">Only after real reviews exist. Never invent them.</p></div>
+    <div class="card"><b>One account to hire and earn</b><p style="margin:6px 0 0;color:var(--muted)">A student who hires today can earn next weekend.</p></div>
+  </div>
+
+  <div class="callout" style="margin-top:18px">
+    <b>The one test for every post and video</b>
+    Does it make a stranger tap through? If it tries to explain every feature, cut it. The content has one job: a click.
+  </div>
+</section>
+
+<!-- 2 -->
+<section id="research">
+  <h2><span class="n">2</span>Market research</h2>
+  <p class="lead">Find what already goes viral in the niche, then ride trends for cheap early views. For TaskDrop the "niche" is everyday help: errands, repairs, tutoring, delivery, small online jobs.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h3>Where to look</h3>
+      <ul>
+        <li>City subreddits and WhatsApp/Telegram groups: real "need a plumber" and "available for work" posts.</li>
+        <li>Instagram Reels and YouTube Shorts about side income, gig work and "things I paid someone to do".</li>
+        <li>Comment sections of the biggest posts: the questions people ask are your hooks.</li>
+        <li>Google search suggestions and "People also ask" for task types in the launch city.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>What to write down</h3>
+      <ul>
+        <li>The first 3 seconds of each viral clip (the hook).</li>
+        <li>The transformation it promised.</li>
+        <li>Which task types come up again and again. Start with a handful of those.</li>
+        <li>Prices people mention (for real price guides later).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>Copy the idea, not the post</b>
+    Use proven ideas with your own twist and your own real footage. The Ghosla lesson from the plan: answer day-old requests nobody replied to with exactly what that person needed, and be upfront ("I'm building this").
+  </div>
+</section>
+
+<!-- 3 -->
+<section id="content">
+  <h2><span class="n">3</span>Create content / hire creators</h2>
+  <p class="lead">Short videos that show a real task being done in about 15 seconds, posted on every channel from one clip.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <span class="tag t-jade">Start here (free)</span>
+      <h3>You make it</h3>
+      <ul>
+        <li>Plan task 4.7: test <b>10 short videos</b> with real people.</li>
+        <li>Same clip to Instagram Reels, YouTube Shorts and, if it fits, LinkedIn.</li>
+        <li>One short a week after launch, using the hook that worked.</li>
+        <li>Real people, real tasks, no fake "customers".</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="tag t-blue">Later (needs your OK)</span>
+      <h3>Hire creators on results only</h3>
+      <ul>
+        <li>The blueprint uses <a href="https://postedapp.com/" target="_blank" rel="noopener">Posted</a> to pay creators only for results.</li>
+        <li><b>CPM</b> (pay per thousand views) for volume; <b>flat rate</b> per clip when you know a hook works.</li>
+        <li>Build a small team of consistent creators, not one-off posts.</li>
+        <li>Brief every creator with the winning hook and the rules below.</li>
+        <li>Check Posted's current terms and whether it works for an India-based launch before committing.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Leverage all channels, in this order for TaskDrop</h3>
+  <div class="tblwrap"><table>
+    <thead><tr><th>#</th><th>Channel</th><th>Why it fits</th><th>Watch</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>Local communities</b><br><small>WhatsApp, Telegram, resident associations, colleges, coworking</small></td><td>Where neighbours already ask for help. QR posters and student ambassadors who recruit workers.</td><td>Sign-ups per group</td></tr>
+      <tr><td>2</td><td><b>Reddit</b><br><small>city subreddits first</small></td><td>High trust, and Reddit posts rank on Google.</td><td>Visits and sign-ups per post</td></tr>
+      <tr><td>3</td><td><b>Google Business Profile + reviews</b></td><td>Shows on Maps for local searches.</td><td>Profile views, calls</td></tr>
+      <tr><td>4</td><td><b>Public pages and helpful articles</b></td><td>Grows each month by itself. Price guides with real data.</td><td>Search clicks</td></tr>
+      <tr><td>5</td><td><b>Reels and Shorts</b></td><td>A real task done in 15 seconds.</td><td>Views to sign-ups</td></tr>
+      <tr><td>6</td><td><b>LinkedIn</b></td><td>Founder story; small offices that post tasks.</td><td>Business sign-ups</td></tr>
+      <tr><td>7</td><td><b>Long YouTube videos</b></td><td>Its own search engine. Monthly, after launch.</td><td>Subscribers</td></tr>
+      <tr><td>8</td><td><b>Product Hunt, Show HN, Indie Hackers</b></td><td>One-day spike. Brings founders, not city customers.</td><td>Launch week only</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 3b -->
+<section id="explainers">
+  <h2><span class="n">3b</span>Explainer videos: "TaskDrop in 60 seconds"</h2>
+  <p class="lead">A series of short how-to videos, each answering one question that stops someone from posting a task or sending an offer. The model is a 54-second Upwork guide, "How to Use Escrow on Upwork" (Guide With Samuel, Oct 2025): one question, a plain answer, one pro tip, then a pointer to the next video.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <span class="tag t-jade">Hook videos (task 4.7)</span>
+      <h3>Win attention</h3>
+      <ul>
+        <li>A real task done in 15 seconds.</li>
+        <li>For strangers scrolling Reels and Shorts.</li>
+        <li>Measured by views and saves.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="tag t-blue">Explainer videos (this series)</span>
+      <h3>Win trust</h3>
+      <ul>
+        <li>One question answered in under 60 seconds.</li>
+        <li>For people who are interested but unsure ("Is my money safe?", "When do I get paid?").</li>
+        <li>They keep working for a long time: YouTube search, the Support page, Google Business Profile and replies in WhatsApp groups.</li>
+        <li>Measured by how many people watch to the end and click through.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Is the video's feature built in TaskDrop?</h3>
+  <p style="margin-top:0;color:var(--muted)">Checked against the code on 11 Nov 2026. Each script must only claim what this table says.</p>
+  <div class="tblwrap"><table>
+    <thead><tr><th>Upwork video says</th><th>TaskDrop today</th><th>What the script may say</th></tr></thead>
+    <tbody>
+      <tr><td>The client's money is held until the work is approved</td><td><b>Built.</b> The poster pays the offer plus the service fee, and the money is held. Staging holds it in TaskDrop's wallet. Under Plan B the payment company will hold it.</td><td>"Your money is held safely until you approve the work." Never say "escrow" (the app says "held safely"), and never say "guaranteed".</td></tr>
+      <tr><td>Approve the work and the money is released</td><td><b>Built.</b> The poster approves, or reports a problem, within 3 days. If they do neither, the task completes by itself. The worker's earnings clear after 7 days, then they withdraw to UPI or a bank.</td><td>"Approve, and the worker gets paid. You have 3 days to check the work."</td></tr>
+      <tr><td>Break big projects into milestones, each paid separately</td><td><b>Partly built.</b> A poster can split a job into 2 to 6 steps (for example "Plan agreed 30%, Half done 30%, Completed 40%"). Today the steps are only a checklist: the money is still released <b>once</b>, when the poster approves the whole job.</td><td>"Split a big job into steps so you both know what done means." Do <b>not</b> say each step is paid separately until that is built.</td></tr>
+      <tr><td>Handle disputes</td><td><b>Built.</b> "Report a problem" marks the task as a dispute, and the admin team looks at it.</td><td>"Something wrong? Report it before approving, and our team looks at it." No promise about the outcome.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>The 60-second structure (copied from the model video)</h3>
+  <div class="tblwrap"><table>
+    <thead><tr><th>Time</th><th>Beat</th><th>On screen</th></tr></thead>
+    <tbody>
+      <tr><td>0 to 4 s</td><td><b>The worry, as a question.</b> "Worried about paying a stranger before the job is done?"</td><td>Big caption, the logo in a corner</td></tr>
+      <tr><td>4 to 10 s</td><td><b>The answer in one line.</b> "On TaskDrop, your money is held safely until you approve the work."</td><td>The app's "held safely" card</td></tr>
+      <tr><td>10 to 38 s</td><td><b>How it works, in 3 steps.</b> Say the app's own button names.</td><td>Screen recording of the real app, with fake test data</td></tr>
+      <tr><td>38 to 48 s</td><td><b>One pro tip</b> that makes the viewer feel smarter.</td><td>A tip card</td></tr>
+      <tr><td>48 to 54 s</td><td><b>A question for the comments.</b> "What's the first job you'd hand off?"</td><td>Caption</td></tr>
+      <tr><td>54 to 60 s</td><td><b>Next episode + link.</b> "Next: when does the worker get paid? Link in bio."</td><td>The next episode's title card</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>The episodes</h3>
+  <div class="tblwrap"><table>
+    <thead><tr><th>#</th><th>Title</th><th>For</th><th>Pro tip</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>How your money is held until you approve the work</b> (the TaskDrop version of the Upwork video)</td><td>Posters</td><td>Split a big job into steps so "done" is clear</td><td>Before launch</td></tr>
+      <tr><td>2</td><td>How to post a task in plain words and get offers</td><td>Posters</td><td>Add a photo or a short video: clearer tasks get offers faster</td><td>Before launch</td></tr>
+      <tr><td>3</td><td>How to find work near you or online and send an offer</td><td>Workers</td><td>Answer the poster's question in your offer, not only the price</td><td>Before launch</td></tr>
+      <tr><td>4</td><td>When and how you get paid (approval, clearing, UPI)</td><td>Workers</td><td>Add your UPI ID before your first job</td><td>Before launch</td></tr>
+      <tr><td>5</td><td>How to compare offers and pick the right person</td><td>Posters</td><td>Read the reviews and the profile, not only the price</td><td>Week 1</td></tr>
+      <tr><td>6</td><td>What it costs: every fee shown before you pay</td><td>Both</td><td>Read the fees in the app on the day you record, never from memory</td><td>Week 2</td></tr>
+      <tr><td>7</td><td>Something went wrong? How to report a problem</td><td>Posters</td><td>Report before you approve; approving releases the money</td><td>Week 3</td></tr>
+      <tr><td>8</td><td>Get help from anywhere: online tasks</td><td>Both</td><td>Design, typing, tutoring and other jobs need nobody nearby</td><td>Week 4</td></tr>
+      <tr><td>9</td><td>One account to hire and to earn</td><td>Both</td><td>Hire on a weekday, earn on the weekend</td><td>Week 5</td></tr>
+      <tr><td>10</td><td>Your address stays hidden until you choose someone</td><td>Posters</td><td>Only your area shows until the work starts</td><td>Week 6</td></tr>
+    </tbody>
+  </table></div>
+  <p style="color:var(--muted);font-size:14px">After that, let the audience choose: when the same question comes up 3 times in comments or Support, it becomes the next episode.</p>
+
+  <h3>A full script for episode 1</h3>
+  <span class="say">[0-4 s]   Worried about paying someone before the job is even done?
+[4-10 s]  On TaskDrop, your money is held safely until you approve the work.
+[10-38 s] Here's how. You pick an offer and pay. The money doesn't go to the worker yet.
+          TaskDrop holds it. The worker sees it's held, so they know they'll get paid.
+          When the work is done, you check it and tap Approve. Only then does the worker get paid.
+          You have 3 days to check. If something's wrong, tap Report a problem instead.
+[38-48 s] Pro tip: for a bigger job, split it into steps, like "plan agreed, half done, finished",
+          so you both know exactly what done means.
+[48-54 s] What's the first job you'd hand off? Tell me in the comments.
+[54-60 s] Next video: when does the worker actually get paid? Link in bio. taskdrop.</span>
+
+  <div class="grid g3" style="margin-top:18px">
+    <div class="card"><span class="tag t-jade">Format</span><ul><li>Vertical 9:16, 45 to 60 s</li><li>Captions burned in (most people watch muted)</li><li>Same title pattern: "How to ___ on TaskDrop"</li><li>One playlist: "TaskDrop in 60 seconds"</li></ul></div>
+    <div class="card"><span class="tag t-blue">How to make it (₹0)</span><ul><li>Phone screen recording of the app</li><li>Your own voice, or a labelled AI voice</li><li>A free editor for captions and cuts</li><li>About 1 hour per episode</li></ul></div>
+    <div class="card"><span class="tag t-gold">Where it goes</span><ul><li>YouTube (Shorts and the playlist) and Instagram Reels</li><li>The Support page and the help pages, next to the matching question</li><li>Google Business Profile</li><li>A reply when someone asks "is it safe?" in a group</li></ul></div>
+  </div>
+
+  <div class="callout warn" style="margin-top:18px">
+    <b>Before you record</b>
+    Record only after the feature freeze (Gate 1), so the screens don't change straight after. Use the staging app with made-up names and fake money: never show a real person's name, phone number or address. Read the fees and the number of days from the app on the day you record. If a screen changes later, re-record that episode. Keep the episode 1 tip to "steps so done is clear" until paying step by step is actually built.
+  </div>
+</section>
+
+<!-- 4 -->
+<section id="reddit">
+  <h2><span class="n">4</span>Cheat code: subreddits</h2>
+  <p class="lead">The blueprint's rule is the important part: <b>don't just spam links. Be helpful, be real, engage, then pitch.</b> Provide value first.</p>
+
+  <div class="grid g3">
+    <div class="card"><span class="tag t-jade">Step 1</span><p style="margin:0"><b>Read the rules</b> of each subreddit. Some only allow self-promotion in weekly threads.</p></div>
+    <div class="card"><span class="tag t-blue">Step 2</span><p style="margin:0"><b>Help for a couple of weeks</b> at about 9 helpful comments to 1 mention. Answer real questions.</p></div>
+    <div class="card"><span class="tag t-gold">Step 3</span><p style="margin:0"><b>One post per community</b>, written for that community, by hand. Never paste the same post into many places.</p></div>
+  </div>
+
+  <div class="callout warn" style="margin-top:18px">
+    <b>Fit warning</b>
+    Most of the blueprint's list is for SaaS and startup founders. Founders are not your city customers. Use those for learning and the launch-week spike. Your buyers and workers are in city and local subreddits, which the list does not include.
+  </div>
+
+  <div class="legend">
+    <span><span class="tag t-jade">Learn</span> founders and builders</span>
+    <span><span class="tag t-blue">Launch week</span> product and showcase</span>
+    <span><span class="tag t-gold">Maybe</span> loosely relevant</span>
+    <span><span class="tag t-coral">Skip</span> poor fit or high spam risk</span>
+  </div>
+
+  <p class="sub-title">Founders and startups (to learn, swap ideas, ask the cold-start questions)</p>
+  <div class="subs">
+    <a href="https://www.reddit.com/r/SaaS" target="_blank" rel="noopener">r/SaaS</a>
+    <a href="https://www.reddit.com/r/startups" target="_blank" rel="noopener">r/startups</a>
+    <a href="https://www.reddit.com/r/Entrepreneur" target="_blank" rel="noopener">r/Entrepreneur</a>
+    <a href="https://www.reddit.com/r/startup" target="_blank" rel="noopener">r/startup</a>
+    <a href="https://www.reddit.com/r/ProductMgt" target="_blank" rel="noopener">r/ProductMgt</a>
+    <a href="https://www.reddit.com/r/EntrepreneurRideAlong" target="_blank" rel="noopener">r/EntrepreneurRideAlong</a>
+    <a href="https://www.reddit.com/r/advancedentrepreneur" target="_blank" rel="noopener">r/advancedentrepreneur</a>
+    <a href="https://www.reddit.com/r/growmybusiness" target="_blank" rel="noopener">r/growmybusiness</a>
+  </div>
+
+  <p class="sub-title">Show what you built (launch week)</p>
+  <div class="subs">
+    <a href="https://www.reddit.com/r/SideProject" target="_blank" rel="noopener">r/SideProject</a>
+    <a href="https://www.reddit.com/r/RoastMyStartup" target="_blank" rel="noopener">r/RoastMyStartup</a>
+    <a href="https://www.reddit.com/r/Plugyourproduct" target="_blank" rel="noopener">r/Plugyourproduct</a>
+    <a href="https://www.reddit.com/r/MadeThis" target="_blank" rel="noopener">r/MadeThis</a>
+    <a href="https://www.reddit.com/r/AlphaandBetausers" target="_blank" rel="noopener">r/AlphaandBetausers</a>
+    <a href="https://www.reddit.com/r/startups_promotion" target="_blank" rel="noopener">r/startups_promotion</a>
+    <a href="https://www.reddit.com/r/indiebiz" target="_blank" rel="noopener">r/indiebiz</a>
+    <a href="https://www.reddit.com/r/design_critiques" target="_blank" rel="noopener">r/design_critiques</a>
+    <a href="https://www.reddit.com/r/InternetIsBeautiful" target="_blank" rel="noopener">r/InternetIsBeautiful</a>
+  </div>
+
+  <p class="sub-title">Closer to your workers and posters</p>
+  <div class="subs">
+    <a href="https://www.reddit.com/r/sweatystartup" target="_blank" rel="noopener">r/sweatystartup</a>
+    <a href="https://www.reddit.com/r/smallbusiness" target="_blank" rel="noopener">r/smallbusiness</a>
+    <a href="https://www.reddit.com/r/thesidehustle" target="_blank" rel="noopener">r/thesidehustle</a>
+    <a href="https://www.reddit.com/r/productivity" target="_blank" rel="noopener">r/productivity</a>
+    <a href="https://www.reddit.com/r/LadyBusiness" target="_blank" rel="noopener">r/LadyBusiness</a>
+  </div>
+
+  <p class="sub-title">Developer and design (only for build-in-public stories)</p>
+  <div class="subs">
+    <a href="https://www.reddit.com/r/Webdev" target="_blank" rel="noopener">r/Webdev</a>
+    <a href="https://www.reddit.com/r/programming" target="_blank" rel="noopener">r/programming</a>
+    <a href="https://www.reddit.com/r/Webdesign" target="_blank" rel="noopener">r/Webdesign</a>
+  </div>
+
+  <p class="sub-title">Broad or off-topic (skip for TaskDrop)</p>
+  <div class="subs">
+    <a class="skip" href="https://www.reddit.com/r/Coupons" target="_blank" rel="noopener">r/Coupons</a>
+    <a class="skip" href="https://www.reddit.com/r/AskReddit" target="_blank" rel="noopener">r/AskReddit</a>
+    <a class="skip" href="https://www.reddit.com/r/TodayILearned" target="_blank" rel="noopener">r/TodayILearned</a>
+    <a class="skip" href="https://www.reddit.com/r/WantToLearn" target="_blank" rel="noopener">r/WantToLearn</a>
+  </div>
+
+  <h3>Add these (not in the blueprint)</h3>
+  <ul style="margin-top:0">
+    <li>The <b>launch city's subreddit</b> and its WhatsApp/Telegram groups (the most valuable channel for a hyperlocal marketplace).</li>
+    <li><b>r/IndianStartups</b> and <b>r/StartUpIndia</b> for India-specific building in public and group invites.</li>
+    <li>Student and college subreddits in the launch city, for early workers.</li>
+  </ul>
+
+  <h3>A post that follows the rule (headline-level, no product details)</h3>
+  <span class="say">Title: Solo founder in India building a two-sided marketplace. How do you fill ONE city first?
+
+I'm not here to pitch. I'm here to learn.
+1. Supply first or demand first? My guess is helpers first, in one city.
+2. How did you get your first 20 to 50 people on the "doing" side without ads?
+3. How did you build trust between strangers before you had reviews?
+
+If you've built a marketplace, what do you wish you had done in your first 90 days?</span>
+  <div class="callout warn" style="margin-top:14px">
+    <b>Keep the idea safe</b>
+    Before launch, never post screenshots, the name, fee rules or how the money is held. Answer follow-ups with "that's still being tested" or ask a question back.
+  </div>
+</section>
+
+<!-- 5 -->
+<section id="ads">
+  <h2><span class="n">5</span>Scale with paid ads</h2>
+  <p class="lead">The blueprint's math is simple: if one rupee in brings more than one rupee back, spend more. For TaskDrop this comes <b>last</b>, behind a message that already worked for free.</p>
+
+  <div class="eq"><span>CAC</span> &lt; <span>LTV</span><br><small style="font-weight:500;color:var(--muted)">cost to win a user &nbsp;&lt;&nbsp; what that user is worth over time</small></div>
+
+  <div class="grid g2">
+    <div class="card">
+      <h3>What the formula needs</h3>
+      <ul>
+        <li><b>CAC:</b> total marketing spend ÷ new users who finished a first task.</li>
+        <li><b>LTV:</b> TaskDrop's take per user (service fee from posters, commission from workers) over the months they stay.</li>
+        <li><b>Retention first:</b> the Ghosla benchmark was keeping 30 to 40 of every 100 users before spending on ads.</li>
+        <li>Count a "user" only when they posted or completed a task, not when they installed.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>When ads are allowed</h3>
+      <ul>
+        <li>A free post or video has <b>clearly worked</b> (clicks turn into sign-ups, sign-ups into tasks).</li>
+        <li>You spend a little, only behind that exact message and only for the launch city.</li>
+        <li>You approve each campaign.</li>
+        <li>Stop the day offers-within-30-minutes drops: more demand with too few workers hurts the marketplace.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="callout">
+    <b>Plan status</b>
+    Small paid ads behind the two best hooks are Future scope (F.8) in the plan. No invented targets: set CAC and LTV targets from real numbers after the first month.
+  </div>
+</section>
+
+<!-- Timeline -->
+<section id="timeline">
+  <h2>The 90-day timeline</h2>
+  <p class="lead">From now to three months after launch.</p>
+  <div class="tl">
+    <div class="col"><b>Before launch</b><small>About 6 weeks</small><ul><li>Claim the handles</li><li>Google Business Profile</li><li>Public pages and "request your area" form</li><li>Recruit 20+ workers</li><li>Test 10 video hooks</li><li>Record explainer episodes 1 to 4</li><li>Write the launch posts</li></ul></div>
+    <div class="col"><b>Launch week</b><small>One city</small><ul><li>City subreddit and WhatsApp groups, by hand</li><li>LinkedIn founder story</li><li>Product Hunt and Show HN, Tue to Thu</li><li>Personally help the first 10 posters and 10 workers</li><li>Reply to every comment the same day</li></ul></div>
+    <div class="col"><b>Days 1 to 30</b><small>Find what works</small><ul><li>Weekly rhythm: one short video, one post</li><li>One explainer episode a week (5 to 10)</li><li>Answer real "need help" posts with real offers</li><li>Ask every finished poster for an honest review</li><li>Watch offers within 30 minutes</li></ul></div>
+    <div class="col"><b>Days 31 to 90</b><small>Do more of what works</small><ul><li>Helpful pages with real price data</li><li>City and category pages only where real workers exist</li><li>Longer YouTube videos</li><li>More workers where tasks got no offer</li></ul></div>
+    <div class="col"><b>Later</b><small>Only when numbers say so</small><ul><li>Small paid ads behind the 2 best hooks</li><li>Referral rewards, after the lawyer</li><li>Results-only creators</li><li>A second city</li></ul></div>
+  </div>
+</section>
+
+<!-- Rules -->
+<section id="rules">
+  <h2>Rules that protect the brand</h2>
+  <p class="lead">These override anything in the blueprint that points the other way.</p>
+  <ol class="rules">
+    <li><b>Real people only.</b> No fake reviews, no AI "customers", no bought followers.</li>
+    <li><b>One post per community, written for that community.</b> Reddit always by hand. No link spam, no second accounts to drop links.</li>
+    <li><b>Every fee is shown before anyone pays.</b> No false urgency, no pre-ticked extras.</li>
+    <li><b>Never claim "verified", "safe" or "guaranteed"</b> beyond what TaskDrop really checks. Do not claim legal compliance in copy while lawyer review is open.</li>
+    <li><b>No paid ads until a free post or video has clearly worked.</b> Then spend a little, only behind that exact message, only with your OK per campaign.</li>
+    <li><b>Never give an AI tool, creator or agency</b> your Instagram, email or Google passwords.</li>
+  </ol>
+</section>
+
+<!-- Numbers -->
+<section id="numbers">
+  <h2>The numbers to watch</h2>
+  <p class="lead">No invented targets. Set them after the first month of real data.</p>
+  <div class="tblwrap"><table>
+    <thead><tr><th>Number</th><th>Why it matters</th></tr></thead>
+    <tbody>
+      <tr><td><b>Tasks with an offer within 30 minutes</b></td><td>The north star. Proves the city is "full".</td></tr>
+      <tr><td><b>Active workers in the city</b></td><td>Supply comes first.</td></tr>
+      <tr><td><b>Tasks posted / tasks completed</b></td><td>Demand, and whether it works end to end.</td></tr>
+      <tr><td><b>Posters who come back</b></td><td>The best sign people like it. Feeds LTV.</td></tr>
+      <tr><td><b>Sign-ups by channel</b></td><td>Where to spend your time (and later, money).</td></tr>
+      <tr><td><b>Money problems</b></td><td>Must stay at zero.</td></tr>
+    </tbody>
+  </table></div>
+  <p style="margin-top:14px"><b>Budget:</b> ₹0 until something free works. Early costs are the trademark and printing a few QR posters.</p>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><b>Sources:</b> <a href="https://docs.google.com/document/d/e/2PACX-1vTyZ3ldsVqPVoOuQKSS5XIIU6havnkHZa3Ae-co9-0xiZDDl-Hj5QTB7RSoDQ-yGIQ5f8PTYjJ9dZAh/pub" target="_blank" rel="noopener">First 10,000 Users Blueprint</a> (Google Doc, shared via the SaaS Accelerator newsletter), the explainer format from <a href="https://www.youtube.com/watch?v=w66Pbb4Z6xg" target="_blank" rel="noopener">How to Use Escrow on Upwork</a> (Guide With Samuel, YouTube) and the Marketing playbook in <code>docs/ULTIMATE_PLAN.md</code>.</p>
+    <p>The blueprint is an outline. The TaskDrop-specific tables, rules and the post draft are adapted from the plan, not from the doc. Subreddit rules and Posted's terms were not re-checked: read them before acting.</p>
+  </div>
+</footer>
+
+<button class="theme" id="theme" type="button" aria-label="Toggle light and dark theme">Theme</button>
+<script>
+(function(){
+  var b=document.getElementById('theme'),r=document.documentElement;
+  try{var s=localStorage.getItem('td-theme');if(s)r.setAttribute('data-theme',s)}catch(e){}
+  b.addEventListener('click',function(){
+    var dark=r.getAttribute('data-theme')==='dark'||(!r.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);
+    var n=dark?'light':'dark';r.setAttribute('data-theme',n);
+    try{localStorage.setItem('td-theme',n)}catch(e){}
+  });
+})();
+</script>
+</body>
+</html>

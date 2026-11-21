@@ -46,3 +46,27 @@ export function distanceKm(
     Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(s));
 }
+
+/** Timing windows (copy of packages/rules TIMING). */
+export const TIMING = {
+  REVIEW_WINDOW_DAYS: 3,
+  CLEARING_PERIOD_DAYS: 7,
+} as const;
+
+/** Media constraints (copy of packages/rules MEDIA). */
+export const MEDIA = {
+  MAX_VIDEO_SECONDS: 60,
+} as const;
+
+/** What an offer may carry (copy of packages/rules OFFER_LIMITS). */
+export const OFFER_LIMITS = {
+  PITCH_MIN: 10,
+  MIN_MINUTES: 1,
+  MAX_MINUTES: 43_200,
+} as const;
+
+/** What a profile may list (copy of packages/rules PROFILE_LIMITS). */
+export const PROFILE_LIMITS = {
+  MAX_SKILLS: 8,
+  MAX_LANGUAGES: 6,
+} as const;

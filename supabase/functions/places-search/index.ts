@@ -3,13 +3,17 @@ import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
 import { captureServerError, guarded, logServer } from "../_shared/monitoring.ts";
 import { STANDING_REFUSAL, mustRefuse, standingOf } from "../_shared/standing.ts";
 import { placesSource } from "../_shared/sendCaps.ts";
+import type { Db } from "../api/core.ts";
+import { GuestCeiling, GuestLocalLimit, guestAddress, guestNetKey, guestRateKey, isGuestToken } from "../api/guest.ts";
+import { answerGuest, guestPlaceAsk, guestPlacesAllowed, roundForGuest } from "./guest.ts";
 
 /**
  * Place search for the app, so no Google key ships in the web bundle or APK.
  *
  * The app used to call Google Places directly with EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
  * which anyone could read out of the bundle and spend (audit F-23). Now:
- *   - signed-in callers only (verify_jwt, then getUser),
+ *   - signed-in callers (verify_jwt, then getUser); guests (the public key with nobody behind it) get
+ *     OpenStreetMap only, through handleGuest below, with the limits of ./guest.ts (B100, B145),
  *   - 60 searches per 10 minutes per account (public.take_places_quota),
  *   - a daily cap on billed Google calls per account (150) and in total (3,000), after which the free OpenStreetMap
  *     search answers (public.take_places_daily, migration 153),
@@ -50,12 +54,20 @@ Deno.serve(guarded("places-search", async (req: Request) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   const url = Deno.env.get("SUPABASE_URL")!;
-  const asCaller = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const asCaller = createClient(url, anonKey, {
     global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
     auth: { persistSession: false },
   });
   const { data: who } = await asCaller.auth.getUser();
-  if (!who?.user) return json({ error: "Sign in first" }, 401);
+  if (!who?.user) {
+    // Guest mode (B100): exactly the project's public key with nobody behind it, recognised as the api does.
+    const sentJwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+    const jwt = sentJwt || (req.headers.get("apikey") === anonKey ? anonKey : "");
+    const claims = jwt ? await asCaller.auth.getClaims(jwt).catch(() => null) : null;
+    if (jwt && isGuestToken(jwt, anonKey, claims)) return await handleGuest(req, url);
+    return json({ error: "Sign in first" }, 401);
+  }
 
   // A suspended or deleted person's token still checks out for up to an hour: refuse it here as the api does (task 2.14, H46).
   const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -92,7 +104,8 @@ Deno.serve(guarded("places-search", async (req: Request) => {
   }
   if (within !== true) return json({ error: "Too many searches. Try again in a few minutes." }, 429);
 
-  if (reverse) return json({ label: await osmReverse(lat, lng) });
+  // An area name is all that is asked for, so the point is rounded to about a kilometre before it leaves (S1-24).
+  if (reverse) return json({ label: await osmReverse(roundForGuest(lat), roundForGuest(lng)) });
 
   const key = await mapsKey(admin);
   // No Google key, or Google has nothing: OpenStreetMap answers, from here, so
@@ -136,7 +149,7 @@ Deno.serve(guarded("places-search", async (req: Request) => {
     };
     const places = (out.places ?? [])
       .map((p) => ({
-        label: p.formattedAddress ?? p.displayName?.text ?? q,
+        label: tidy(p.formattedAddress ?? p.displayName?.text ?? q) || q,
         lat: p.location?.latitude ?? null,
         lng: p.location?.longitude ?? null,
       }))
@@ -150,9 +163,46 @@ Deno.serve(guarded("places-search", async (req: Request) => {
   }
 }));
 
+/** The guests' stand-in limiter while api_guest_spend cannot be reached, and the "all guests are over" minute. */
+const guestLocalLimit = new GuestLocalLimit();
+const guestCeiling = new GuestCeiling();
+
+/**
+ * A guest's place search (B100, B145): OpenStreetMap only, from here, with the typed text capped, the point rounded
+ * to about a kilometre and the guest limits of ./guest.ts. Never Google, never the signed-in quotas.
+ */
+async function handleGuest(req: Request, url: string): Promise<Response> {
+  const raw = await req.text().catch(() => "");
+  if (raw.length > 2_000) return json({ error: "Bad request" }, 400);
+  let body: unknown = null;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    return json({ error: "Bad request" }, 400);
+  }
+  const ask = guestPlaceAsk(body);
+  // Nothing worth looking up: the same empty answer a signed-in caller gets, and nothing is counted.
+  if (!ask) return json({ configured: true, places: [] });
+
+  const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+  const address = guestAddress(req.headers);
+  const [key, net] = await Promise.all([guestRateKey(address), guestNetKey(address)]);
+  const verdict = await guestPlacesAllowed(admin as unknown as Db, key, net, guestLocalLimit, guestCeiling, (why) => {
+    void logServer("warn", "places-search", "guest limiter unavailable", { error: why });
+  });
+  if (verdict === "limited") return json({ error: "Too many searches. Try again in a few minutes." }, 429);
+  if (verdict === "busy") return json({ error: "Try again in a moment" }, 503);
+  return json(await answerGuest(ask, { search: osmSearch, reverse: osmReverse }));
+}
+
 // OpenStreetMap's Nominatim asks every client to identify itself and to stay
 // under about one request a second; the per-account budget above keeps us there.
 const OSM = { "User-Agent": "TaskDrop/1.0 (support@taskdrop.in)", "Accept-Language": "en" };
+
+/** One space after each comma and no doubled spaces, the same as the app's tidyLabel (B176). */
+function tidy(label: string): string {
+  return label.split(",").map((x) => x.replace(/\s+/g, " ").trim()).filter(Boolean).join(", ");
+}
 
 async function osmSearch(q: string): Promise<{ label: string; lat: number; lng: number }[]> {
   try {
@@ -168,7 +218,7 @@ async function osmSearch(q: string): Promise<{ label: string; lat: number; lng: 
     return list
       .map((r) => ({
         // The full display_name is a mouthful; the first few parts read like an address.
-        label: r.display_name?.split(",").slice(0, 3).join(",").trim() || r.name || q,
+        label: tidy(r.display_name?.split(",").slice(0, 3).join(",") ?? "") || r.name || q,
         lat: Number(r.lat),
         lng: Number(r.lon),
       }))
@@ -191,7 +241,7 @@ async function osmReverse(lat: number, lng: number): Promise<string | null> {
       return null;
     }
     const out = (await res.json()) as { display_name?: string; name?: string };
-    return out.name || out.display_name?.split(",").slice(0, 3).join(",").trim() || null;
+    return out.name || tidy(out.display_name?.split(",").slice(0, 3).join(",") ?? "") || null;
   } catch {
     return null;
   }

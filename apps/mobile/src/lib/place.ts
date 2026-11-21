@@ -28,3 +28,28 @@ export function roughPlace(label: string | null | undefined): string | null {
   if (parts.length === 0) return null;
   return parts.slice(-2).join(', ');
 }
+
+/**
+ * One place label, tidy: each part trimmed, empty parts dropped, joined with ", " and no run of spaces
+ * (B176: "Madhapur,  Ward 104 Kondapur,  Greater ..." carried a double space after every comma).
+ */
+export function tidyLabel(label: string): string {
+  return label
+    .split(',')
+    .map((x) => x.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
+/**
+ * The name of the place someone picked, for their own header: the first part that is an area, not a door
+ * number ("Madhapur, Ward 104 Kondapur, Greater ..." is Madhapur, not Kondapur, B176). Null when none is.
+ */
+export function pickedPlaceName(label: string | null | undefined): string | null {
+  if (!label) return null;
+  for (const part of tidyLabel(label).split(', ')) {
+    const name = roughPlace(part);
+    if (name) return name;
+  }
+  return null;
+}

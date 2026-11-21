@@ -9,6 +9,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
+import { publicEmail } from '../legal/company';
 
 /**
  * Copyright and takedown requests -- public, signed in or not, and linked as
@@ -23,7 +24,8 @@ import { KeyboardScrollView } from '../components/KeyboardScrollView';
  */
 const AGENT = {
   name: process.env.EXPO_PUBLIC_COPYRIGHT_AGENT_NAME?.trim() ?? '',
-  email: process.env.EXPO_PUBLIC_COPYRIGHT_AGENT_EMAIL?.trim() ?? '',
+  // Only a taskdrop.in address is ever shown (publicEmail); unset still means "agent not named yet".
+  email: process.env.EXPO_PUBLIC_COPYRIGHT_AGENT_EMAIL?.trim() ? publicEmail(process.env.EXPO_PUBLIC_COPYRIGHT_AGENT_EMAIL) : '',
   address: process.env.EXPO_PUBLIC_COPYRIGHT_AGENT_ADDRESS?.trim() ?? '',
   phone: process.env.EXPO_PUBLIC_COPYRIGHT_AGENT_PHONE?.trim() ?? '',
 };
@@ -143,6 +145,8 @@ export function CopyrightScreen() {
         {item(6, 'A statement that the notice is accurate and, under penalty of perjury, that you are the owner or authorized to act for them.')}
         {para('Knowingly misrepresenting that material infringes can make you liable for damages, including our costs and attorneys’ fees.')}
 
+        {configured ? (
+        <>
         <SectionTitle title="Send a notice" style={{ marginTop: 26 }} />
         <Field label="Your full name" value={name} onChangeText={setName} style={{ marginTop: 12 }} />
         <Field label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" style={{ marginTop: 12 }} />
@@ -175,7 +179,7 @@ export function CopyrightScreen() {
         <PrimaryButton
           label="Write the email"
           onPress={() => void send()}
-          disabled={!ready || !configured}
+          disabled={!ready}
           style={{ marginTop: 18, borderRadius: 999 }}
         />
         {notice ? (
@@ -192,6 +196,8 @@ export function CopyrightScreen() {
               <RNText style={tx('700', 14, t.colors.accentDeep)}>Copy the notice</RNText>
             </Pressable>
           </View>
+        ) : null}
+        </>
         ) : null}
 
         <SectionTitle title="If your material was removed" style={{ marginTop: 30 }} />

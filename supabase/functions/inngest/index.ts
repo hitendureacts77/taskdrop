@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
+import { clockSkewFetch } from "../_shared/clockSkewFetch.ts";
 import { Inngest } from "npm:inngest@4.23.0";
 import { serve } from "npm:inngest@4.23.0/edge";
 import { devModeAllowed } from "../_shared/devMode.ts";
@@ -11,6 +12,7 @@ import { secret } from "../_shared/secrets.ts";
 import {
   ALERT_EVENTS,
   alertFor,
+  personIdFor,
   safeData,
   call,
   chunk,
@@ -92,7 +94,8 @@ const receiptWait = Deno.env.get("INNGEST_PUSH_RECEIPT_WAIT") ?? "15m";
 const db = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  { auth: { persistSession: false } },
+  // B97: a gateway clock tick can answer 401 "JWT issued at future"; ask again instead of failing the step.
+  { auth: { persistSession: false }, global: { fetch: clockSkewFetch(fetch) } },
 );
 const rpc = (name: string, args?: Record<string, unknown>) => db.rpc(name, args);
 
@@ -137,7 +140,15 @@ const outboxPrune = inngest.createFunction(
 const teamAlert = inngest.createFunction(
   { id: "team-alert", triggers: ALERT_EVENTS.map((event) => ({ event })), onFailure: reportFailure("team-alert") },
   async ({ event, step }) => {
-    const alert = alertFor(event.name, event.data ?? {});
+    const data = event.data ?? {};
+    const personId = personIdFor(event.name, data);
+    const who = personId
+      ? await step.run("look up name", async () => {
+          const { data: p } = await db.from("profiles").select("display_name").eq("id", personId).maybeSingle();
+          return (p?.display_name as string | null) ?? null;
+        })
+      : null;
+    const alert = alertFor(event.name, data, who ?? undefined);
     if (!alert) return { skipped: true };
     const id = await step.run("save alert", () => saveAlert(rpc, alert, safeData(event.data ?? {})));
     return { alert: id };

@@ -1,5 +1,7 @@
 # API calls: what the app asks the server for, and the plan to ask less
 
+> Since 17 Nov 2026 every operation has its own endpoint (`/functions/v1/api/<group>/<op>`): see [API_ENDPOINTS.md](API_ENDPOINTS.md).
+
 Status (2026-11-02): **built and merged.** The owner accepted the 30 s rule (decision 5). The trial's fixes
 (section 3) reached `redesigned-2.0` in PR 174 (1 Nov). The open question, Explore's 13 s wait, is explained and
 fixed in section 7, together with the first server-side saving (S1 for Find work) and the P2-48 sign-in check.

@@ -1,17 +1,21 @@
 import { useEffect, useRef } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { ScreenScope, useNav, type NavParams, type ScreenName } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { incomingTaskId, clearIncomingTask } from '../lib/links';
 import { getTask } from '../data/api';
 import { roughPlace } from '../lib/place';
+import { taskLinkTarget } from '../lib/taskLink';
+import { usesAuthFrame } from './frame';
+import { PUBLIC_PAGES, pathForScreen, titleForScreen } from './webAddress';
+import { useMode } from '../providers/ModeProvider';
 import { BottomTabBar } from '../components/BottomTabBar';
 import { SideNav } from '../components/SideNav';
 import { DesktopAuthFrame } from '../components/DesktopAuthFrame';
 import { TABLET_CONTENT, useLayout, type ColumnClass } from '../lib/layout';
-import { DesktopTopBar } from './DesktopTopBar';
-import { FadeIn } from '../components/primitives';
+import { DesktopPageFrame, DesktopPageScope } from './DesktopPage';
+import { FadeIn, tx } from '../components/primitives';
 import { useKeyboardOpen } from '../lib/useKeyboardOpen';
 import { CreateFab } from '../components/CreateFab';
 import { Placeholder } from '../screens/Placeholder';
@@ -28,24 +32,23 @@ export const TABBED: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'pr
 // rebuilding the screen and fetching everything again behind a skeleton.
 export const KEEP_ALIVE: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'profile'];
 
-// Desktop web: screens shown before sign-in, and screens given the wide column.
-const PRE_AUTH: ScreenName[] = ['splash', 'intro', 'welcome', 'signup', 'setup'];
-// Pages anyone may read; signed out on desktop they get the sign-in frame.
-const PUBLIC: ScreenName[] = ['copyright', 'terms', 'privacy', 'support'];
+// Desktop web: which screens get the signed-out frame is in ./frame.ts (PRE_AUTH, PUBLIC).
 // Desktop column classes (lib/layout.ts, docs/design/desktop-fit/PLAN.md Q1).
-// Feeds and lists: as wide as the window allows, up to FEED_MAX.
-const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'orders', 'saved', 'wallet', 'spending', 'inbox', 'taskManage', 'help', 'notifications'];
+// Feeds and lists: as wide as the window allows, up to FEED_MAX. workerSetup is here for its FormPage card (720) + aside (320).
+const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'orders', 'saved', 'wallet', 'spending', 'inbox', 'taskManage', 'help', 'notifications', 'workerSetup'];
+// Forms on FormPage (card 720 + aside 320): the same wide column. Kept apart from WIDE so each form package lists its own.
+const WIDE_FORMS: ScreenName[] = ['listing', 'confirm', 'escrow', 'aiPost', 'postDetails', 'create'];
 // One list or one page of text: up to READ_MAX.
 const READ: ScreenName[] = ['search', 'chat', 'copyright', 'terms', 'privacy', 'support', 'ideas', 'ideaDetail'];
 // Screens that fill everything beside the menu: a full map has no reading column.
 const FULL: ScreenName[] = ['nearMap', 'explore'];
 // Two-pane pages (components/TwoPane.tsx): the feed width when both panes fit,
 // otherwise their one column at FORM_MAX, as before.
-const TWO_PANE: ScreenName[] = ['taskDetail', 'profile', 'account', 'publicProfile'];
+const TWO_PANE: ScreenName[] = ['taskDetail', 'profile', 'account', 'publicProfile', 'active'];
 // Everything else is a form or a single page: FORM_MAX, as before.
 function columnFor(screen: ScreenName, twoPane: boolean): ColumnClass {
   if (FULL.includes(screen)) return 'full';
-  if (WIDE.includes(screen)) return 'feed';
+  if (WIDE.includes(screen) || WIDE_FORMS.includes(screen)) return 'feed';
   if (TWO_PANE.includes(screen)) return twoPane ? 'feed' : 'form';
   if (READ.includes(screen)) return 'read';
   return 'form';
@@ -55,7 +58,7 @@ function columnFor(screen: ScreenName, twoPane: boolean): ColumnClass {
 export function ScreenHost() {
   const t = useTheme();
   const { screen, params, go } = useNav();
-  const { userId } = useAuth();
+  const { userId, guest } = useAuth();
   const { desktop, tablet, gutter, contentWidth, twoPane } = useLayout();
   const keyboardOpen = useKeyboardOpen();
   const Comp = REGISTRY[screen];
@@ -89,6 +92,24 @@ export function ScreenHost() {
   }
   prevScreen.current = screen;
 
+  // Web: each screen names the browser tab (B179). ScreenHost only runs on web.
+  const { mode } = useMode();
+  useEffect(() => {
+    if (typeof document !== 'undefined') document.title = titleForScreen(screen, mode);
+  }, [screen, mode]);
+  // Web: Terms, Privacy, Support and Copyright keep their own address while open (B171). Replaced, never
+  // pushed, so Back behaves as before; every other screen keeps the plain address.
+  // The address is only put back to "/" after a public page was shown, so an arriving /privacy is never
+  // cleared before PublicPageLink has opened it.
+  const shownPublic = useRef(false);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.history?.replaceState) return;
+    if ((PUBLIC_PAGES as readonly string[]).includes(screen)) shownPublic.current = true;
+    const path = pathForScreen(screen, window.location.pathname);
+    if (path === null || (path === '/' && !shownPublic.current)) return;
+    window.history.replaceState(window.history.state, '', path + window.location.search + window.location.hash);
+  }, [screen]);
+
   // A shared link (?task=<id>) has to land on that task, otherwise every link
   // anyone sends just opens the feed. Runs once, then clears the query so a
   // reload or a back-navigation doesn't reopen it.
@@ -103,27 +124,13 @@ export function ScreenHost() {
       try {
         const task = await getTask(id);
         clearIncomingTask();
-        if (!task) return;
-        go('taskDetail', {
-          row: {
-            id: task.id,
-            sponsored: false,
-            who: 'Customer',
-            rating: '—',
-            whoMeta: roughPlace(task.loc_label) ?? '',
-            tag: 'SERVICES',
-            title: task.title,
-            meta: roughPlace(task.loc_label) ?? '',
-            amountMinor: task.benchmark_minor,
-            hasMedia: false,
-            glyph: '',
-            dur: null,
-            body: task.description,
-            by: null,
-          },
-        });
+        // A task that does not exist (or is closed) says so, with a way back (B148), instead of silently Home.
+        const to = taskLinkTarget(task, roughPlace);
+        go(to.screen, to.params);
       } catch {
         clearIncomingTask();
+        const to = taskLinkTarget(null, roughPlace);
+        go(to.screen, to.params);
       }
     })();
   }, [go]);
@@ -135,9 +142,12 @@ export function ScreenHost() {
           if (!Tab) return null;
           return (
             <View key={name} style={{ flex: 1, display: name === screen ? 'flex' : 'none' }}>
-              <ScreenScope params={k.params} focus={k.focus}>
-                <Tab />
-              </ScreenScope>
+              {/* Desktop: only the tab in front may put its title in the page header. */}
+              <DesktopPageScope active={name === screen}>
+                <ScreenScope params={k.params} focus={k.focus}>
+                  <Tab />
+                </ScreenScope>
+              </DesktopPageScope>
             </View>
           );
         })}
@@ -145,7 +155,7 @@ export function ScreenHost() {
           // A screen opened on top eases in rather than snapping into place
           // (SYS-Motion "screen push": a short rise plus a fade).
           <FadeIn key={screen} duration={320} translateY={14} style={{ flex: 1 }}>
-            {Comp ? <Comp /> : <Placeholder name={screen} />}
+            <DesktopPageScope active>{Comp ? <Comp /> : <Placeholder name={screen} />}</DesktopPageScope>
           </FadeIn>
         )}
       </View>
@@ -153,11 +163,27 @@ export function ScreenHost() {
 
   // Desktop web: sign-in screens get the split brand/form layout; the app gets
   // the sidebar (in place of the tab bar and the + button) and a centred column.
-  if (desktop && (PRE_AUTH.includes(screen) || (!userId && PUBLIC.includes(screen)))) {
+  // A guest is inside the app too: the public pages keep the app's frame for them (B149, navigation/frame.ts).
+  const inApp = Boolean(userId) || guest;
+  // Setup (onboarding) on a desktop: the FormPage card (720) with the steps beside it (320), centred, no menu.
+  // The signed-out frame's 440 card cannot hold it (docs/design/desktop-web/PLAN.md, package 4). Tablet and phone keep that frame.
+  if (desktop && screen === 'setup') {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', backgroundColor: t.colors.bg, paddingHorizontal: gutter }}>
+        <View style={{ flex: 1, width: '100%', maxWidth: 720 + 24 + 320 }}>
+          <Text style={tx('800', 22, t.colors.ink, { letterSpacing: -0.8, paddingTop: 28, paddingBottom: 12 })}>
+            taskdrop<Text style={{ color: t.colors.accent }}>.</Text>
+          </Text>
+          {content}
+        </View>
+      </View>
+    );
+  }
+  if (desktop && usesAuthFrame(screen, inApp)) {
     return <DesktopAuthFrame>{content}</DesktopAuthFrame>;
   }
   // Tablet web: the icon rail in place of the tab bar, content centred.
-  if (tablet && !PRE_AUTH.includes(screen) && (userId || !PUBLIC.includes(screen))) {
+  if (tablet && !usesAuthFrame(screen, inApp)) {
     return (
       <View style={{ flex: 1, flexDirection: 'row', backgroundColor: t.colors.bg }}>
         <SideNav rail />
@@ -168,8 +194,9 @@ export function ScreenHost() {
     );
   }
   if (desktop) {
-    // A column of the screen's class with a gutter each side; full maps fill
-    // the whole area and keep their own floating controls.
+    // A column of the screen's class with a gutter each side, under the page
+    // header (DesktopPage.tsx); full maps fill the whole area and keep their
+    // own floating controls.
     const cls = columnFor(screen, twoPane);
     const full = cls === 'full';
     return (
@@ -177,8 +204,9 @@ export function ScreenHost() {
         <SideNav />
         <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: full ? 0 : gutter }}>
           <View style={{ flex: 1, width: '100%', maxWidth: full ? undefined : contentWidth(cls) }}>
-            {full ? null : <DesktopTopBar />}
-            {content}
+            <DesktopPageFrame screen={screen} header={!full}>
+              {content}
+            </DesktopPageFrame>
           </View>
         </View>
       </View>
