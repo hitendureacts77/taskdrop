@@ -57,6 +57,10 @@ jobs:
       - name: type-check the Inngest function
         run: deno check --node-modules-dir=none supabase/functions/inngest/index.ts
 
+      # Plan B money (migration 195): the money and money-webhook functions move real money once switched on.
+      - name: type-check the Plan B money functions
+        run: deno check --node-modules-dir=none supabase/functions/money/index.ts supabase/functions/money-webhook/index.ts
+
   # Ground rule 4 (docs/UPGRADE_PLAN.md): until Phase 9 the old app (`main`) shares the database
   # and the `api` function with the upgrade. This runs the operations the old app calls through
   # both versions of `api` and fails if the new one refuses what the old accepted or answers with

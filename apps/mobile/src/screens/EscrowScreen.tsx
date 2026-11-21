@@ -1,15 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 import { BackButton, systemHeader } from '../components/kit';
 import { Icon } from '../components/Icon';
-import { View, Text as RNText, Animated, ScrollView } from 'react-native';
+import { View, Text as RNText, Animated, ScrollView, Modal, Platform } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
 import { reportError } from '../lib/errors';
-import { getTaskDetail, getWallet, payTaskFromWallet, WalletShortError } from '../data/api';
-import { FEES, posterEscrowCharge } from '@taskdrop/rules';
+import {
+  getTaskDetail,
+  getTaskHold,
+  getWallet,
+  moneyCheckout,
+  moneySync,
+  payTaskFromWallet,
+  WalletShortError,
+} from '../data/api';
+import { FEES, planBSplit, posterEscrowCharge } from '@taskdrop/rules';
+import { useMoneyMode } from '../lib/useMoneyMode';
+import { paymentReturnUrl } from '../lib/links';
+import { claimCheckoutWindow, dropCheckoutWindow, fillCheckoutWindow } from '../lib/checkoutWindow';
+import { PaymentSheet } from '../components/PaymentSheet';
 import { hireFineNote } from '../lib/closeTaskText';
 import { useFees } from '../lib/useFees';
 import { Pressy, tx } from '../components/primitives';
@@ -58,7 +70,16 @@ export function EscrowScreen() {
   const { celebrate, flash } = useApp();
   const [busy, setBusy] = useState(false);
   const [balanceMinor, setBalanceMinor] = useState<number | null>(null);
-  const cancelPct = useFees().cancelFine ?? FEES.POST_START_CANCEL_PENALTY_PCT;
+  const liveFees = useFees();
+  const cancelPct = liveFees.cancelFine ?? FEES.POST_START_CANCEL_PENALTY_PCT;
+  // Plan B (pay per task): the payment company holds the money; no wallet is involved.
+  const { planB, loaded: modeLoaded } = useMoneyMode();
+  const [checkout, setCheckout] = useState<{ url?: string; html?: string } | null>(null);
+  const [payOpen, setPayOpen] = useState(false);
+  const [testPay, setTestPay] = useState(false);
+  const [waiting, setWaiting] = useState(false);
+  const winRef = useRef<Window | null>(null);
+  const finished = useRef(false);
   const [shortBy, setShortBy] = useState<number | null>(null);
 
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
@@ -73,6 +94,15 @@ export function EscrowScreen() {
   const [dueMinor, setDueMinor] = useState<number | null>(null);
   useEffect(() => {
     let alive = true;
+    if (!modeLoaded) return;
+    if (planB && taskId) {
+      void getTaskHold(taskId)
+        .then((h) => {
+          if (!alive || !h) return;
+          if (h.charged_minor) setDueMinor(Number(h.charged_minor));
+        })
+        .catch((e) => reportError(e, 'money'));
+    }
     if (taskId) {
       void getTaskDetail(taskId)
         .then((d) => {
@@ -83,26 +113,34 @@ export function EscrowScreen() {
           flash('Could not check the price for this task');
         });
     }
-    void getWallet()
-      .then((w) => alive && setBalanceMinor(w?.balance_minor ?? 0))
-      .catch((e) => {
-        reportError(e, 'money');
-        flash('Could not load your wallet balance');
-      });
+    if (!planB) {
+      void getWallet()
+        .then((w) => alive && setBalanceMinor(w?.balance_minor ?? 0))
+        .catch((e) => {
+          reportError(e, 'money');
+          flash('Could not load your wallet balance');
+        });
+    }
     return () => {
       alive = false;
     };
-  }, [taskId]);
+  }, [taskId, planB, modeLoaded]);
 
-  const totalMinor = dueMinor ?? (lockedMinor === null ? 0 : posterEscrowCharge(lockedMinor));
+  const totalMinor =
+    dueMinor ??
+    (lockedMinor === null ? 0 : planB ? planBSplit(lockedMinor, { feePct: liveFees.posterFee }).charged : posterEscrowCharge(lockedMinor));
   const feeMinor = lockedMinor === null ? 0 : totalMinor - lockedMinor;
   const enough = balanceMinor !== null && balanceMinor >= totalMinor;
 
   const rows: { label: string; value: string; strong: boolean }[] = [
     { label: who ? `Chosen offer · ${who}` : 'Chosen offer', value: formatINR(lockedMinor ?? 0), strong: false },
-    { label: 'TaskDrop service fee · 3%', value: formatINR(feeMinor), strong: false },
+    {
+      label: planB ? `TaskDrop service fee · ${Math.round(liveFees.posterFee * 1000) / 10}%` : 'TaskDrop service fee · 3%',
+      value: formatINR(feeMinor),
+      strong: false,
+    },
     ...(by ? [{ label: 'Complete by', value: by, strong: false }] : []),
-    { label: 'Locked in this task', value: formatINR(totalMinor), strong: true },
+    { label: planB ? 'Total to pay' : 'Locked in this task', value: formatINR(totalMinor), strong: true },
   ];
 
   const pay = async () => {
@@ -119,6 +157,81 @@ export function EscrowScreen() {
       setBusy(false);
     }
   };
+
+  /** Paid and held: the worker can start. */
+  const paidAndHeld = () => {
+    if (finished.current || !taskId) return;
+    finished.current = true;
+    setWaiting(false);
+    setPayOpen(false);
+    setTestPay(false);
+    dropCheckoutWindow(winRef.current);
+    celebrate(`Paid and held. ${who ?? 'The worker'} can start.`);
+    go('taskManage', { taskId });
+  };
+
+  const payPlanB = async () => {
+    if (busy || !taskId) return;
+    setBusy(true);
+    winRef.current = claimCheckoutWindow(); // web: claimed inside the tap, filled below
+    try {
+      const out = await moneyCheckout(taskId, paymentReturnUrl());
+      if (out.status === 'held') return paidAndHeld();
+      if (out.simulated) {
+        dropCheckoutWindow(winRef.current);
+        setTestPay(true);
+        return;
+      }
+      setCheckout(out.checkout);
+      setWaiting(true);
+      if (Platform.OS === 'web') await fillCheckoutWindow(winRef.current, out.checkout);
+      else setPayOpen(true);
+    } catch (e) {
+      dropCheckoutWindow(winRef.current);
+      flash(e instanceof Error ? e.message : 'Could not start the payment. Nothing was charged.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** Staging only: the simulated provider's "payment". No real money moves. */
+  const payTest = async () => {
+    if (busy || !taskId) return;
+    setBusy(true);
+    try {
+      const r = await moneySync(taskId, true);
+      if (r.status === 'held') paidAndHeld();
+      else flash('The test payment did not go through. Please try again.');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not complete the test payment');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Watch for the money (the webhook usually lands first): ask every few seconds, for about two minutes.
+  useEffect(() => {
+    if (!planB || !waiting || !taskId) return;
+    let alive = true;
+    const started = Date.now();
+    const timer = setInterval(() => {
+      if (Date.now() - started > 120000) {
+        clearInterval(timer);
+        if (alive) setWaiting(false);
+        return;
+      }
+      void moneySync(taskId)
+        .then((r) => alive && r.status === 'held' && paidAndHeld())
+        .catch(() => {
+          /* one failed check is not worth a message; the next will try again */
+        });
+    }, 4000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planB, waiting, taskId]);
 
   if (lockedMinor === null || !taskId) {
     return (
@@ -152,7 +265,9 @@ export function EscrowScreen() {
 
   const amountBlock = (
     <>
-      <RNText style={tx('400', 13, t.colors.muted, { marginTop: desktop ? 20 : 24 })}>Locked in the task until it is done</RNText>
+      <RNText style={tx('400', 13, t.colors.muted, { marginTop: desktop ? 20 : 24 })}>
+        {planB ? 'Held by Razorpay until you approve' : 'Locked in the task until it is done'}
+      </RNText>
       <RNText style={tx('700', 15, t.colors.ink, { marginTop: 6 })} numberOfLines={2}>
         {title}
       </RNText>
@@ -176,8 +291,18 @@ export function EscrowScreen() {
     </View>
   );
 
-  // Where the money comes from.
-  const walletBox = (
+  // Where the money comes from. Plan B: the payment company, not the wallet.
+  const walletBox = planB ? (
+    <View style={{ marginTop: 20, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, padding: 15 }}>
+      <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name="lock" size={18} color={t.colors.accentDeep} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <RNText style={tx('700', 14, t.colors.ink)}>Pay with UPI, card or netbanking</RNText>
+        <RNText style={tx('400', 13, t.colors.muted, { marginTop: 3 })}>Held by Razorpay until you approve the work.</RNText>
+      </View>
+    </View>
+  ) : (
     <View
       style={{
         marginTop: 20,
@@ -222,15 +347,23 @@ export function EscrowScreen() {
     >
       <ShieldCheck color={t.colors.accent} />
       <RNText style={tx('400', 13, t.colors.accentDeep, { lineHeight: 19.5, flex: 1 })}>
-        The money stays locked in this task and cannot be withdrawn. The worker is paid only when you approve the
-        work. {hireFineNote({ fineMinor: Math.round((lockedMinor ?? 0) * cancelPct), finePct: Math.round(cancelPct * 100), money: formatINR })}
+        {planB
+          ? 'Razorpay holds the money for this task. The worker is paid only when you approve the work.'
+          : 'The money stays locked in this task and cannot be withdrawn. The worker is paid only when you approve the work.'}{' '}
+        {hireFineNote({ fineMinor: Math.round((lockedMinor ?? 0) * cancelPct), finePct: Math.round(cancelPct * 100), money: formatINR })}
       </RNText>
     </View>
   );
 
   const payButton = (
     <Pressy
-      onPress={() => (enough || balanceMinor === null ? void pay() : setShortBy(totalMinor - (balanceMinor ?? 0)))}
+      onPress={() =>
+        planB
+          ? void payPlanB()
+          : enough || balanceMinor === null
+            ? void pay()
+            : setShortBy(totalMinor - (balanceMinor ?? 0))
+      }
       scaleTo={0.96}
       style={{
         backgroundColor: t.colors.btn,
@@ -243,7 +376,13 @@ export function EscrowScreen() {
       }}
     >
       <RNText style={tx('700', 16, t.colors.onAccent)}>
-        {busy
+        {planB
+          ? busy
+            ? 'Starting…'
+            : waiting
+              ? 'Waiting for your payment…'
+              : `Pay ${formatINR(totalMinor)}`
+          : busy
           ? 'Paying…'
           : enough || balanceMinor === null
             ? `Pay ${formatINR(totalMinor)} from wallet`
@@ -253,7 +392,41 @@ export function EscrowScreen() {
   );
   const phoneNumbersNote = 'Phone numbers are shared once the work starts.';
 
-  const addFunds = (
+  const addFunds = planB ? (
+    <>
+      <PaymentSheet
+        url={checkout?.url ?? null}
+        html={checkout?.html ?? null}
+        visible={payOpen}
+        onClose={() => {
+          setPayOpen(false);
+          if (taskId) {
+            // Back from the payment page: look once now instead of waiting for the next check.
+            void moneySync(taskId)
+              .then((r) => r.status === 'held' && paidAndHeld())
+              .catch(() => {});
+          }
+        }}
+      />
+      <Modal visible={testPay} transparent animationType="slide" onRequestClose={() => setTestPay(false)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' }}>
+          <View style={{ backgroundColor: t.colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 28 }}>
+            <RNText style={tx('800', 20, t.colors.ink, { letterSpacing: -0.4 })}>Test payment (staging)</RNText>
+            <RNText style={tx('400', 13, t.colors.muted, { marginTop: 6, lineHeight: 19 })}>No real money moves.</RNText>
+            <Pressy
+              onPress={() => void payTest()}
+              style={{ marginTop: 18, backgroundColor: t.colors.btn, borderRadius: 999, paddingVertical: 15, alignItems: 'center', opacity: busy ? 0.7 : 1 }}
+            >
+              <RNText style={tx('700', 15, t.colors.onAccent)}>{busy ? 'Paying…' : `Pay ${formatINR(totalMinor)} (test)`}</RNText>
+            </Pressy>
+            <Pressy onPress={() => setTestPay(false)} style={{ marginTop: 8, paddingVertical: 12, alignItems: 'center' }}>
+              <RNText style={tx('600', 14, t.colors.muted)}>Not now</RNText>
+            </Pressy>
+          </View>
+        </View>
+      </Modal>
+    </>
+  ) : (
     <AddFundsSheet
       visible={shortBy !== null}
       initialMinor={shortBy ?? undefined}

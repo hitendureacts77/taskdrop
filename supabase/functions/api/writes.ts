@@ -3,7 +3,7 @@ import {
   rows, rpcOp, str, strOrNull, strings, take, toOpError, uuid, uuidOrNull, uuids,
 } from "./core.ts";
 import { assertOwnImage, isMediaRef } from "./media.ts";
-import { readFees } from "./reads.ts";
+import { planBOn, readFees } from "./reads.ts";
 import { roughPlace } from "../_shared/place.ts";
 import { MEDIA, OFFER_LIMITS, PRICE_LIMITS, PROFILE_LIMITS, PROOF_LIMITS, TOP_UP_PCTS } from "../_shared/rules.ts";
 import { contactIssueMessage, findContactIssue, maskContacts, nameCarriesContact, profileIssueMessage } from "../_shared/contacts.ts";
@@ -412,7 +412,8 @@ export const WRITE_OPS: Record<string, Op> = {
     // Auto-hire accepts an offer the moment it arrives and pays for it from the
     // poster's wallet, so a poster who cannot cover it cannot post one. Said in
     // the same words lockBid uses, so the app offers the same "add money" step.
-    if (row.assignment_mode === "auto") {
+    // Plan B: no wallet; each hire is paid at the payment company when it is made.
+    if (row.assignment_mode === "auto" && !(await planBOn(ctx))) {
       const { posterFee } = await readFees(ctx);
       const need = slots.reduce((sum, s) => sum + Math.round(s.benchmark_minor * (1 + posterFee)), 0);
       const wallet = take<{ balance_minor?: number } | null>(
@@ -581,7 +582,7 @@ export const WRITE_OPS: Record<string, Op> = {
     const task = take<{ assignment_mode?: string; crew_id?: string | null } | null>(
       await ctx.db.from("tasks").select("assignment_mode,crew_id").eq("id", taskId).eq("poster_id", ctx.userId).maybeSingle(),
     );
-    if (task?.assignment_mode === "auto") {
+    if (task?.assignment_mode === "auto" && !(await planBOn(ctx))) {
       const slots = rows<{ benchmark_minor: number; topup_pct: number }>(
         task.crew_id
           ? await ctx.db.from("tasks").select("benchmark_minor,topup_pct").eq("crew_id", task.crew_id).eq("status", "OPEN")

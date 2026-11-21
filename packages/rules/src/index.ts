@@ -161,6 +161,28 @@ export function postStartCancelFine(lockedMinor: number): number {
   return Math.round(lockedMinor * FEES.POST_START_CANCEL_PENALTY_PCT);
 }
 
+/**
+ * Plan B (pay per task, migration 195): what one hire moves, in paise. The same sums run in
+ * Postgres (`private.plan_b_amounts`), which is what actually decides; the app uses this only to show
+ * the figures. The poster pays `charged`; the payment company holds `workerShare` for the worker until
+ * approval; TaskDrop keeps `charged - workerShare` (the fee plus the commission). `fine` is what the
+ * worker gets if the poster cancels after work started; the rest of `charged` goes back.
+ */
+export function planBSplit(
+  offerMinor: number,
+  rates: { feePct?: number; commissionPct?: number; finePct?: number } = {},
+): { charged: number; fee: number; commission: number; workerShare: number; fine: number; taskdropKeeps: number } {
+  if (!Number.isFinite(offerMinor) || offerMinor <= 0) throw new Error('That offer has no valid price');
+  const feePct = rates.feePct ?? FEES.POSTER_SERVICE_FEE_PCT;
+  const commissionPct = rates.commissionPct ?? FEES.WORKER_COMMISSION_PCT;
+  const finePct = rates.finePct ?? FEES.POST_START_CANCEL_PENALTY_PCT;
+  const charged = Math.round(offerMinor * (1 + feePct));
+  const commission = Math.round(offerMinor * commissionPct);
+  const workerShare = Math.min(Math.max(offerMinor - commission, 0), charged);
+  const fine = Math.min(Math.max(Math.round(offerMinor * finePct), 0), charged);
+  return { charged, fee: charged - offerMinor, commission, workerShare, fine, taskdropKeeps: charged - workerShare };
+}
+
 /** When cleared funds become withdrawable, given a completion timestamp. */
 export function clearAt(completedAt: Date): Date {
   const d = new Date(completedAt);

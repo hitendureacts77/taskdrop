@@ -24,11 +24,13 @@ import { fileURLToPath } from 'node:url';
 export const FUNCTIONS = {
   api: { kind: 'login+guest' },
   razorpay: { kind: 'login' },
+  money: { kind: 'login' },
   'razorpayx-payouts': { kind: 'login' },
   'places-search': { kind: 'login' },
   'phone-auth': { kind: 'own-limits' },
   'password-auth': { kind: 'own-limits' },
   'razorpay-webhook': { kind: 'signature' },
+  'money-webhook': { kind: 'signature' },
   'razorpayx-webhook': { kind: 'signature' },
   inngest: { kind: 'signature' },
   'app-config': { kind: 'public', why: 'tells the app what the admin switched (maintenance, minimum version, banner); read before sign-in and holds nothing secret' },

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { HoldLine } from '../components/HoldLine';
 import { View, Text as RNText, ScrollView, Pressable, Platform, RefreshControl } from 'react-native';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
@@ -51,6 +52,8 @@ import { countOf } from '../lib/plural';
 import { FEES, posterEscrowCharge } from '@taskdrop/rules';
 import { closeTaskText, hireFineNote } from '../lib/closeTaskText';
 import { AddFundsSheet } from '../components/AddFundsSheet';
+import { useMoneyMode } from '../lib/useMoneyMode';
+import { hireRefusal } from '../lib/moneyText';
 import { TaskOptionsPanel } from '../components/TaskOptionsPanel';
 import { TaskQuestions } from '../components/TaskQuestions';
 import { HuntPosterPanel } from '../components/Hunt';
@@ -85,6 +88,7 @@ function milestonesOf(v: unknown): Milestone[] {
  */
 export function TaskManageScreen() {
   const fees = useFees();
+  const { planB } = useMoneyMode();
   const t = useTheme();
   const { twoPane, desktop } = useLayout();
   const { params, back, go } = useNav();
@@ -241,11 +245,17 @@ export function TaskManageScreen() {
       // The price shown is the price charged: a changed offer is refused, not charged (B53).
       await lockBid(pick.bidId, 'one_time', pick.priceMinor);
       setSelecting(null);
+      if (planB) {
+        // Pay per task: hired, now pay for this one task.
+        celebrate(`${pick.name} is hired`);
+        go('escrow', { taskId: task.id, title: task.title, who: pick.name, priceMinor: pick.priceMinor });
+        return;
+      }
       celebrate(`${pick.name} is hired · paid from your wallet`);
       // The hire went through; if the screen cannot refresh now, the next pull-down will.
       await load().catch((e) => reportError(e, 'task-manage'));
     } catch (e) {
-      if (e instanceof WalletShortError) {
+      if (e instanceof WalletShortError && !planB) {
         setSelecting(null);
         setShortBy({ minor: e.shortMinor, pick });
       } else if (isOfferChanged(e)) {
@@ -254,7 +264,7 @@ export function TaskManageScreen() {
         flash('The offer changed. Please review the new price.');
         await load().catch((err) => reportError(err, 'task-manage'));
       } else {
-        flash(e instanceof Error ? e.message : 'Could not choose that offer');
+        flash(e instanceof Error ? hireRefusal(e.message) : 'Could not choose that offer');
       }
     } finally {
       setLocking(false);
@@ -312,6 +322,7 @@ export function TaskManageScreen() {
   const offersLabel = task.status === 'OPEN' ? `Worker offers${bids.length ? ` (${bids.length})` : ''}` : 'Worker';
   const overview = (
     <>
+      <HoldLine taskId={task.id} />
       <View style={card}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Icon name="list" size={16} color={t.colors.accentDeep} />

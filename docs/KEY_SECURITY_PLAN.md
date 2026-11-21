@@ -46,7 +46,7 @@ If one layer fails, the next one limits the harm.
 - [ ] A test that fails if the app file contains any secret name or value
 
 ### L2. Protect where keys live (you)
-- [ ] **Passkey or authenticator on every provider login** (GitHub, Vercel, Supabase, Google Cloud, Razorpay, Cashfree, Expo, Sentry, Inngest, ImageKit, MSG91, Spaceship). This is the biggest single protection
+- [ ] **Passkey or authenticator on every provider login** (GitHub, Vercel, Supabase, Google Cloud, Razorpay, Expo, Sentry, Inngest, ImageKit, MSG91, Spaceship). This is the biggest single protection
 - [ ] A password manager (Bitwarden, free) for the master copy of secrets
 - [ ] Move the Android keystore backup out of OneDrive; keep its passwords in the manager
 - [ ] Windows device encryption (BitLocker) on

@@ -490,6 +490,30 @@ await t("escrow held counts only paid-for jobs, for the side asked", async () =>
   assert.equal(await run("poster"), 40);
 });
 
+await t("Plan B money reads call the caller's own RPCs with checked arguments", async () => {
+  const mode = { flow: "plan_b", provider: "simulated", paused: false, payee: null };
+  const f = fake(() => ({ data: mode, error: null }));
+  const m = await runOp("getMoneyMode", {}, ctx(f));
+  assert.ok(m.ok);
+  assert.deepEqual(m.data, mode);
+  assert.equal(f.calls[0].rpc, "my_money_mode");
+
+  const h = fake(() => ({ data: null, error: null }));
+  const hold = await runOp("getTaskHold", { taskId: TASK }, ctx(h));
+  assert.ok(hold.ok);
+  assert.equal(hold.data, null);
+  assert.deepEqual(h.calls[0].args, { p_task_id: TASK });
+  assert.equal((await runOp("getTaskHold", { taskId: "nope" }, ctx(fake()))).ok, false);
+  assert.equal((await runOp("getTaskHold", {}, ctx(fake()))).ok, false);
+
+  const l = fake(() => ({ data: { totals: {}, rows: [] }, error: null }));
+  assert.ok((await runOp("getMoneyLedger", {}, ctx(l))).ok);
+  assert.deepEqual(l.calls[0].args, { p_limit: 100 });
+  const l2 = fake(() => ({ data: { totals: {}, rows: [] }, error: null }));
+  await runOp("getMoneyLedger", { limit: 20 }, ctx(l2));
+  assert.deepEqual(l2.calls[0].args, { p_limit: 20 });
+});
+
 await t("canQuoteOn explains each refusal", async () => {
   const run = async (task: unknown, bid: unknown = null) => {
     const f = fake((c) => (c.table === "tasks" ? { data: task, error: null } : { data: bid, error: null }));
@@ -1578,6 +1602,38 @@ await t("an auto-hire task cannot be posted unless the wallet covers the budget 
   const bids = fake();
   assert.ok((await runOp("createTask", { ...task, assignmentMode: "bids" }, ctx(bids))).ok, "see-offers tasks need no balance");
   assert.ok(!bids.calls.some((c) => c.table === "wallets"));
+});
+
+await t("Plan B: the wallet check is skipped for auto-hire posts, and still applies under the wallet flow", async () => {
+  const task = { pillar: "services", title: "Fix tap", benchmarkMinor: 10000, timeLimitMinutes: 30, assignmentMode: "auto" };
+  const answer = (flow: string) => (c: Call): Reply =>
+    c.rpc === "my_money_mode" ? { data: { flow }, error: null }
+      : c.table === "wallets" ? { data: { balance_minor: 0 }, error: null }
+      : c.table === "settings" ? { data: [], error: null }
+      : { data: [{ id: "row" }], error: null };
+  const wallet = await runOp("createTask", task, ctx(fake(answer("wallet"))));
+  assert.ok(!wallet.ok && wallet.error.code === "WALLET_SHORT");
+  const planB = fake(answer("plan_b"));
+  assert.ok((await runOp("createTask", task, ctx(planB))).ok);
+  assert.ok(!planB.calls.some((c) => c.table === "wallets"), "Plan B never reads the wallet");
+  assert.ok(planB.calls.some((c) => c.table === "tasks"));
+});
+
+await t("Plan B: raising the top-up of an auto-hire task skips the wallet check", async () => {
+  const answer = (flow: string) => (c: Call): Reply =>
+    c.rpc === "my_money_mode" ? { data: { flow }, error: null }
+      : c.rpc === "raise_task_topup" ? { data: [{ id: TASK, topup_pct: 10, benchmark_minor: 11000 }], error: null }
+      : c.table === "wallets" ? { data: { balance_minor: 0 }, error: null }
+      : c.table === "settings" ? { data: [], error: null }
+      : c.table === "tasks" && c.steps.some(([n]) => n === "maybeSingle") ? { data: { assignment_mode: "auto", crew_id: null }, error: null }
+      : c.table === "tasks" ? { data: [{ benchmark_minor: 10000, topup_pct: 0 }], error: null }
+      : { data: [], error: null };
+  const wallet = await runOp("raiseTopUp", { taskId: TASK, topUpPct: 10 }, ctx(fake(answer("wallet"))));
+  assert.ok(!wallet.ok && wallet.error.code === "WALLET_SHORT");
+  const planB = fake(answer("plan_b"));
+  const raised = await runOp("raiseTopUp", { taskId: TASK, topUpPct: 10 }, ctx(planB));
+  assert.ok(raised.ok);
+  assert.ok(!planB.calls.some((c) => c.table === "wallets"), "Plan B never reads the wallet");
 });
 
 // ------------------------------------------------------------------- batch --

@@ -46,13 +46,15 @@ declare
     'escrow_refund_due', 'admin_payout_queue', 'admin_mark_payout',
     'admin_resolve_dispute', 'admin_set_admin', 'platform_earnings',
     'record_birth_date', 'admin_set_payout_method', 'set_task_address',
-    'crew_overview', 'worker_proof_photos', 'my_streaks', 'set_task_repeat', 'raise_task_topup'
+    'crew_overview', 'worker_proof_photos', 'my_streaks', 'set_task_repeat', 'raise_task_topup',
+    'my_money_mode', 'my_task_hold', 'my_money_ledger'
   ];
   -- Service role only. A grant here is the hole 047 closed.
   must_not_be_callable text[] := array[
     'settle_cleared_earnings', 'settle_finished_campaigns',
     'fund_task_from_payment', 'record_escrow_refund',
-    'set_app_secret', 'app_secrets'
+    'set_app_secret', 'app_secrets',
+    'plan_b_mark_paid', 'plan_b_claim_move', 'plan_b_record_move', 'plan_b_expire_unpaid', 'plan_b_config'
   ];
 begin
   foreach fn in array must_be_callable loop

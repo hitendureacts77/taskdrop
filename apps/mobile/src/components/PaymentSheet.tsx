@@ -21,10 +21,13 @@ import { tx } from './primitives';
  */
 export function PaymentSheet({
   url,
+  html,
   visible,
   onClose,
 }: {
   url: string | null;
+  /** Plan B order checkout can come as a page of its own instead of an address. */
+  html?: string | null;
   visible: boolean;
   onClose: () => void;
 }) {
@@ -56,7 +59,7 @@ export function PaymentSheet({
   };
 
   return (
-    <Modal visible={visible && Boolean(url)} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible && Boolean(url || html)} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: t.colors.bg, paddingTop: insets.top }}>
         <View
           style={{
@@ -86,9 +89,9 @@ export function PaymentSheet({
             <Icon name="close" size={18} color={t.colors.ink} />
           </Pressable>
         </View>
-        {url ? (
+        {url || html ? (
           <WebView
-            source={{ uri: url }}
+            source={url ? { uri: url } : { html: html ?? '', baseUrl: 'https://checkout.razorpay.com/' }}
             style={{ flex: 1 }}
             onLoadStart={() => setLoading(true)}
             onLoadEnd={() => setLoading(false)}

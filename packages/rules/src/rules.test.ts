@@ -6,6 +6,7 @@ import {
   workerNetPayout,
   platformRevenue,
   postStartCancelFine,
+  planBSplit,
   clearAt,
   autoCompleteAt,
   distanceKm,
@@ -191,4 +192,24 @@ test('the minimum age is a real threshold', () => {
   const justYoung = parseBirthDate('5', '10', String(2026 - MIN_SIGNUP_AGE), today)!;
   assert.ok(ageOn(justOld, today) >= MIN_SIGNUP_AGE);
   assert.ok(ageOn(justYoung, today) < MIN_SIGNUP_AGE);
+});
+
+test('planBSplit: one hire, the money each side sees', () => {
+  const s = planBSplit(100000);
+  assert.equal(s.charged, 103000);
+  assert.equal(s.fee, 3000);
+  assert.equal(s.commission, 10000);
+  assert.equal(s.workerShare, 90000);
+  assert.equal(s.fine, 5000);
+  assert.equal(s.taskdropKeeps, 13000);
+  assert.equal(s.workerShare + s.taskdropKeeps, s.charged);
+});
+
+test('planBSplit: follows the admin-set rates and rounds like Postgres', () => {
+  const s = planBSplit(33333, { commissionPct: 0.2 });
+  assert.equal(s.charged, Math.round(33333 * 1.03));
+  assert.equal(s.commission, Math.round(33333 * 0.2));
+  assert.equal(s.workerShare, 33333 - Math.round(33333 * 0.2));
+  assert.throws(() => planBSplit(0));
+  assert.throws(() => planBSplit(Number.NaN));
 });
