@@ -4509,9 +4509,11 @@ Start 5.0a: make the code ready for two copies.
 </details>
 
 <details id="t5-0b" data-short="Staging website and admin name">
-<summary>[BOTH] <b>5.0b</b> Staging website: confirm it, and give the staging admin a name <small>· 20 minutes · free</small></summary>
+<summary>[BOTH] <b>5.0b</b> Staging website: confirm it, and give the staging admin a name <small>· Done 21 Nov</small></summary>
 
 **Where staging stands (checked 5 November through Vercel):** project `taskdrop` is built from `redesigned-2.0` and answers on `taskdrop.in` and `www.taskdrop.in`. Vercel's own addresses (`taskdrop-five.vercel.app`, and the branch address `taskdrop-git-redesigned-20-hitenduteam.vercel.app`) still work. The staging admin is `taskdrop-admin`. **Status (8 November): step 2 is done and `admin.taskdrop.in` opens the staging admin** (DNS record, Vercel domain, sign-in redirect and branch all set; see the notes under step 2). Waiting only for "done 5.0b".
+
+**Done 21 Nov (Claude checked):** `taskdrop.in` answers 200 with `noindex` in the header and the page tag, its bundle holds only the staging server; `admin.taskdrop.in` answers with `noindex` and opens the staging admin.
 
 1. SAY:
 
@@ -5089,6 +5091,14 @@ Prove that staging and production are separate.
 ```
 
 3. Claude checks and reports each line under "Done when".
+
+**Proof run 21 Nov (Claude):**
+- Staging test accounts (Asha `9990000001`, the fake city `98880…` phones and `fa4e0001-…` ids) do not exist in production: 0 found. Production has 2 users (your two Google sign-ins), 0 tasks, 0 messages, 0 payments, 2 empty wallets.
+- Keys do not cross: the staging key on production is refused (401), the production key on staging is refused (401); each key works on its own copy (200).
+- `taskdrop-production.vercel.app` answers with no `noindex`; `taskdrop.in`, `admin.taskdrop.in` and `taskdrop-admin-production.vercel.app` all send `noindex`.
+- Nightly copy outside Supabase: works from `redesigned-2.0` (run by hand 21 Nov: `backup-20261121T1622Z` in `taskdrop-backups`).
+- Safety alarm: **red** on 21 Nov because the new money functions (`money`, `money-webhook`) are not on production yet; they arrive with the waiting "Production database and functions" run, which needs your Approve. Run the alarm again after that.
+- Still open: Sentry, PostHog and ImageKit proofs, the two phone apps side by side, and the update-channel proof (need the Android apps, 5.0c/5.0d, after 1 Dec).
 
 **Done when** all of these are true:
 
