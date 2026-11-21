@@ -480,7 +480,7 @@ I do not know. Pitch me three options and say which is best.
 # C · Production, one tool at a time | Sign in as hitendureacts@gmail.com, make a NEW project in each tool, and save every key only in the PROD_ section of .env.all-secrets. Nothing is copied from staging.
 5.2 | Supabase: organization "TaskDrop Production", project taskdrop-production | Pro plan ($25 a month), Mumbai, spend cap on, sign-in settings, production-only redirect addresses, daily backups.
 5.3 | Google Cloud and Firebase: project taskdrop-production | ₹1,000 budget alert, seven Google services, three restricted keys, Google sign-in, reCAPTCHA, the Android and web apps, push key, App Check (left off).
-5.4 | Inngest: organization "TaskDrop Production" | The free plan to start (its own 50,000 runs a month); upgrade only when the limit warns. The Event key and Signing key go into the PROD_ section.
+5.4 | Inngest: organization "TaskDrop Production" | The free plan to start (its own 50,000 runs a month); upgrade only when the limit warns. Staging's account ran out on 16 Nov 2026 at the old schedules (about 2,500 a day); PRs 463 and 465 cut every account to about 37,000 a month, with the budget in `docs/INNGEST.md`. The Event key and Signing key go into the PROD_ section.
 5.5 | ImageKit: a second account, taskdropproduction | Sign up with hitendureacts+prod@gmail.com; pick processing region Mumbai (India), as staging has; turn on usage alerts.
 5.6 | Sentry: taskdrop-production and taskdrop-admin-production | Money, spike and security alerts; give Claude the two DSNs.
 5.6b | PostHog: organization "TaskDrop Production", project taskdrop-production | Same login, its own free organization (the free plan allows one project per organization). EU region; give Claude the project key.
