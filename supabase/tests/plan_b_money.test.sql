@@ -134,6 +134,10 @@ begin
   on conflict (id) do nothing;
   insert into public.wallets (user_id) values (v_poster), (v_worker), (v_nopay) on conflict (user_id) do nothing;
   insert into public.user_roles (user_id, role) values (v_admin, 'admin') on conflict do nothing;
+  -- These test accounts are brand new; the new-account caps (migrations 133, 152) are tested elsewhere.
+  -- Count every account as established here (rolled back with the rest), so eleven hires fit in one run.
+  insert into public.settings (key, value) values ('new_account_days', '0'::jsonb), ('new_account_tasks', '0'::jsonb)
+  on conflict (key) do update set value = excluded.value;
 
   -- ---- the amounts match the rules package ------------------------------------------------
   select to_jsonb(a) into v_json from private.plan_b_amounts(v_price) a;
