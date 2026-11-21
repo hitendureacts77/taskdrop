@@ -245,10 +245,10 @@ test('the alarm sends one fatal event naming codes only, grouped by the set of c
 
 const wf = (name) => readFileSync(new URL(`../.github/workflows/${name}`, import.meta.url), 'utf8');
 
-test('the production deploy waits for the approval environment, runs from main only, and passes every function secret', () => {
+test('the production deploy waits for the approval environment, runs from redesigned-2.0 only, and passes every function secret', () => {
   const y = wf('production-database.yml');
   assert.match(y, /environment: production-database/);
-  assert.match(y, /if: github\.ref == 'refs\/heads\/main'/);
+  assert.match(y, /if: github\.ref == 'refs\/heads\/redesigned-2\.0'/);
   assert.match(y, /PROD_SUPABASE_PROJECT_ID: dyzskuzqcqbexssyrrxc/);
   for (const name of allowList(true)) assert.ok(y.includes(`PROD_${name}: \${{ secrets.PROD_${name} }}`), name);
   for (const name of ['ALLOW_ANY_OTP', 'TEST_PHONES']) assert.ok(!y.includes(`PROD_${name}:`), name);
@@ -257,11 +257,11 @@ test('the production deploy waits for the approval environment, runs from main o
   assert.ok(!plan.includes('${{ secrets.'));
 });
 
-test('the hourly alarm and the nightly copy run from main in their own environment', () => {
+test('the hourly alarm and the nightly copy run from redesigned-2.0 in their own environment', () => {
   for (const name of ['production-alarm.yml', 'production-backup.yml']) {
     const y = wf(name);
     assert.match(y, /environment: production-backup/, name);
-    assert.match(y, /if: github\.ref == 'refs\/heads\/main'/, name);
+    assert.match(y, /if: github\.ref == 'refs\/heads\/redesigned-2\.0'/, name);
     assert.match(y, /schedule:/, name);
   }
   assert.match(wf('production-backup.yml'), /30 days ago/);

@@ -8,8 +8,8 @@ name: Production safety alarm
 # this one still fires when Inngest is down, and it also checks the direct door, GraphQL, anon rights, each
 # function's login setting and the sign-up guard hook.
 #
-# Scheduled workflows run from the default branch (main), so this starts once the owner promotes it.
-# Environment `production-backup` (no reviewer, because an hourly job cannot wait for a click; only `main` may use
+# Scheduled workflows run from the default branch (redesigned-2.0 since 21 Nov 2026).
+# Environment `production-backup` (no reviewer, because an hourly job cannot wait for a click; only `redesigned-2.0` may use
 # it) holds, by name:
 #   secret   PROD_SUPABASE_DB_PASSWORD    the production database password (shared with the nightly copy)
 #   secret   PROD_SENTRY_DSN              the production Sentry project's DSN (where the alarm goes)
@@ -32,7 +32,7 @@ concurrency:
 jobs:
   alarm:
     name: test shortcuts off, doors shut
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/redesigned-2.0'
     runs-on: ubuntu-latest
     environment: production-backup
     timeout-minutes: 10

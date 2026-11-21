@@ -7,9 +7,8 @@ name: End-to-end (test project)
 # job installs and builds, and the suite starts by waiting for the `health` check and retries a gateway
 # blip, so a deploy still under way does not fail it.
 #
-# GitHub offers "Run workflow" and schedules only for workflow files on the default branch (main), so
-# those two do not exist for this file until redesigned-2.0 is promoted; the push trigger does, because
-# it uses the file on the branch that was pushed.
+# redesigned-2.0 is the default and only working branch (21 Nov 2026), so "Run workflow" works from the
+# Actions tab and every merged pull request runs this suite.
 #
 # It stores no secret: the two values below are the app's PUBLIC url and anon key, set once as
 # repository *variables* (Settings, Secrets and variables, Actions, Variables), never as secrets.
@@ -18,7 +17,7 @@ name: End-to-end (test project)
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [redesigned-2.0]
     # Only code the tests can tell something about; each run leaves one disputed job for an admin to decide.
     paths:
       - 'apps/mobile/**'

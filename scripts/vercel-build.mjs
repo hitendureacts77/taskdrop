@@ -5,6 +5,9 @@
  *
  * On a push to `redesigned-2.0` it first puts the backend on the shared test project, then builds
  * the web app. On every other branch (and for production builds) it only builds the web app.
+ * The production project `taskdrop-production` also builds `redesigned-2.0` (since 21 Nov 2026), as a
+ * production build, so it only builds the web app: the production database waits for the owner's Approve
+ * in .github/workflows/production-database.yml.
  *
  *   1. old-app contract         npm run test:contract         (needs `main`; see below)
  *   2. new migrations           scripts/deploy-migrations.mjs
