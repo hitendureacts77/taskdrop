@@ -1,4 +1,4 @@
--- Full undo of migration 193 (Plan B money flow). NOT a migration: run by hand, only if the owner asks.
+-- Full undo of migration 195 (Plan B money flow). NOT a migration: run by hand, only if the owner asks.
 --
 -- The quick undo is one setting and needs nothing here:
 --   update public.settings set value = to_jsonb('wallet'::text) where key = 'money_flow';
@@ -17,7 +17,7 @@ do $$
 begin
   if exists (select 1 from public.task_holds
               where status in ('held', 'release_asked', 'refund_asked', 'split_asked', 'failed')) then
-    raise exception 'Some Plan B holds still have money at the payment company. Settle them before undoing 193.';
+    raise exception 'Some Plan B holds still have money at the payment company. Settle them before undoing 195.';
   end if;
 end $$;
 

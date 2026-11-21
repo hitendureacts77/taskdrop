@@ -85,7 +85,7 @@ export function alertFor(eventName: string, d: Record<string, unknown>, who?: st
         body: `Poster: ${text(who ?? d.poster)}. Open Disputes to decide.`,
       };
     case "money.mismatch":
-      // Plan B nightly match (migration 193): our ledger and Razorpay disagree for a day. Amounts are paise.
+      // Plan B nightly match (migration 195): our ledger and Razorpay disagree for a day. Amounts are paise.
       return {
         kind: "money_mismatch",
         title: `Money match is off for ${text(d.day, "a day")}`,

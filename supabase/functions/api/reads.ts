@@ -153,6 +153,17 @@ type LiveFees = { commission: number; posterFee: number; clearingDays: number; c
  * The fee settings as they are now (the admin can change them), with the
  * built-in rules as the fallback when a key is missing or unreadable.
  */
+/**
+ * Plan B (migration 195): true when pay-per-task is on. There is no wallet then, so the wallet checks for
+ * auto-hire are skipped: the poster pays each hire at the payment company. An unreadable answer counts as the
+ * wallet flow (the older, stricter check).
+ */
+export async function planBOn(ctx: Ctx): Promise<boolean> {
+  const res = await ctx.db.rpc("my_money_mode");
+  const flow = (res.data as { flow?: unknown } | null)?.flow;
+  return !res.error && flow === "plan_b";
+}
+
 export async function readFees(ctx: Ctx): Promise<LiveFees> {
   const res = await ctx.db.from("settings").select("key,value")
     .in("key", ["worker_commission_pct", "poster_service_fee_pct", "clearing_period_days", "post_start_cancel_penalty_pct"]);
@@ -831,7 +842,7 @@ export const READ_OPS: Record<string, Op> = {
     return events.slice(0, limit(a, "limit", 12, 500));
   },
 
-  /** Plan B (migration 193): which money flow is on, and the caller's payee state. */
+  /** Plan B (migration 195): which money flow is on, and the caller's payee state. */
   getMoneyMode: rpcOp("my_money_mode"),
 
   /** Plan B: the hold on one task (null when none), for either side of the task. */

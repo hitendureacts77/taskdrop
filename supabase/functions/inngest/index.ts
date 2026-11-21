@@ -530,7 +530,7 @@ function sweep(id: string, cron: string, fn: string) {
   );
 }
 
-// ------------------------------------------------------------------ Plan B money (migration 193) --
+// ------------------------------------------------------------------ Plan B money (migration 195) --
 
 /** The payment company a hold was made with. Null (and logged) when it cannot run here. */
 async function moneyProvider(name: string): Promise<MoneyProvider | null> {

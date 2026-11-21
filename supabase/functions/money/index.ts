@@ -10,7 +10,7 @@ import { PLATFORM_HEADER, VERSION_HEADER } from "../_shared/controls.ts";
 import { type Environment, makeProvider, type MoneyProvider, readPayee, runMoves, UnknownOutcome } from "../_shared/money/index.ts";
 
 /**
- * Plan B money for signed-in people (task 2.21, migration 193). Pay per task: Razorpay Route holds each
+ * Plan B money for signed-in people (task 2.21, migration 195). Pay per task: Razorpay Route holds each
  * task's money until the poster approves; TaskDrop never holds a balance. Design:
  * docs/design/plan-b-money/DESIGN.md.
  *

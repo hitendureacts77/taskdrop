@@ -5,7 +5,7 @@ import { useFocusTick } from '../providers/NavProvider';
 import { setPlanB } from './moneyFlow';
 
 /**
- * Which money flow is on (migration 193, `my_money_mode`): `wallet` is today's wallet,
+ * Which money flow is on (migration 195, `my_money_mode`): `wallet` is today's wallet,
  * `plan_b` is pay per task with the payment company holding the money. Kept for the
  * session, shared by every screen, and asked again whenever a screen comes back into
  * view. A failed or signed-out read means `wallet`, so nothing changes by accident.

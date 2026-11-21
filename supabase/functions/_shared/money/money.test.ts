@@ -64,7 +64,7 @@ test("razorpay checkout page: the public key id and order only, escaped", () => 
   assert.ok(page.html?.includes("Fix &lt;tap&gt;") && !page.html.includes("<tap>"));
 });
 
-/** A fake database for the move runner: answers claim and record like migration 193. */
+/** A fake database for the move runner: answers claim and record like migration 195. */
 function fakeDb(claims: unknown[]) {
   const recorded: Record<string, unknown>[] = [];
   const db: Rpc = {

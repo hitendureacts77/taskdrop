@@ -57,7 +57,7 @@ jobs:
       - name: type-check the Inngest function
         run: deno check --node-modules-dir=none supabase/functions/inngest/index.ts
 
-      # Plan B money (migration 193): the money and money-webhook functions move real money once switched on.
+      # Plan B money (migration 195): the money and money-webhook functions move real money once switched on.
       - name: type-check the Plan B money functions
         run: deno check --node-modules-dir=none supabase/functions/money/index.ts supabase/functions/money-webhook/index.ts
 

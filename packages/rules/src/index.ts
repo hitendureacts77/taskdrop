@@ -162,7 +162,7 @@ export function postStartCancelFine(lockedMinor: number): number {
 }
 
 /**
- * Plan B (pay per task, migration 193): what one hire moves, in paise. The same sums run in
+ * Plan B (pay per task, migration 195): what one hire moves, in paise. The same sums run in
  * Postgres (`private.plan_b_amounts`), which is what actually decides; the app uses this only to show
  * the figures. The poster pays `charged`; the payment company holds `workerShare` for the worker until
  * approval; TaskDrop keeps `charged - workerShare` (the fee plus the commission). `fine` is what the

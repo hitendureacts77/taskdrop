@@ -56,7 +56,7 @@ Amounts, all in paise, worked out in one place (`packages/rules` `planBSplit`, a
    to the audit log) pauses **new payments and releases** at once: every server path reads it on every
    call, so it takes effect in under a minute, with no app release. **Refunds keep working.**
 
-## 4. Database (migration 193, adds only)
+## 4. Database (migration 195, adds only)
 
 | New thing | What it is | Who can read it |
 |---|---|---|
@@ -104,7 +104,7 @@ New functions (service role only, except the reads):
 - `record_money_match(day, provider total, detail)`: the nightly match.
 
 **Undo.** The quick undo is `money_flow = 'wallet'`: every changed function goes back to today's path
-at once. The full undo, `docs/design/plan-b-money/undo_193.sql`, drops only the new tables, settings and
+at once. The full undo, `docs/design/plan-b-money/undo_195.sql`, drops only the new tables, settings and
 functions; the changed function bodies can stay because under `wallet` they are today's code.
 
 ## 5. Server (Edge Functions and Inngest)

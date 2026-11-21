@@ -1,4 +1,4 @@
--- Migration 193: Plan B money flow (task 2.21, locked by the owner 18 Nov 2026).
+-- Migration 195: Plan B money flow (task 2.21, locked by the owner 18 Nov 2026).
 --
 -- Pay per task; the payment company holds the money until the poster approves; TaskDrop never holds
 -- a balance. Design: docs/design/plan-b-money/DESIGN.md.
@@ -8,7 +8,7 @@
 -- New hires follow the setting. A task that already has a Plan B hold keeps following Plan B, and a
 -- task paid from the wallet keeps following the wallet, whatever the setting says later, so the
 -- switch is safe to flip either way at any time. Flipping it back to 'wallet' is the quick undo; the
--- full undo is docs/design/plan-b-money/undo_193.sql.
+-- full undo is docs/design/plan-b-money/undo_195.sql.
 --
 -- Adds only. Changed functions keep their signatures, grants and, under 'wallet', their behaviour.
 
@@ -89,7 +89,7 @@ create table if not exists public.payout_accounts (
   updated_at          timestamptz not null default now()
 );
 comment on table public.payout_accounts is
-  'Plan B (193): the worker''s payee account at the payment company. Provider ids and status only; never bank or UPI numbers.';
+  'Plan B (195): the worker''s payee account at the payment company. Provider ids and status only; never bank or UPI numbers.';
 comment on column public.payout_accounts.method_hint is 'A masked hint the provider returned, like "UPI ••••@okhdfc" or "Bank ••1234".';
 
 alter table public.payout_accounts enable row level security;
@@ -139,7 +139,7 @@ create table if not exists public.task_holds (
   updated_at           timestamptz not null default now()
 );
 comment on table public.task_holds is
-  'Plan B (193): one row per hire. The payment company holds charged_minor; worker_share_minor is released on approval.';
+  'Plan B (195): one row per hire. The payment company holds charged_minor; worker_share_minor is released on approval.';
 
 -- At most one live hold per task (a new hire after a walk-away opens a new row).
 create unique index if not exists task_holds_one_live_per_task
@@ -170,7 +170,7 @@ create table if not exists public.money_ledger (
   created_at   timestamptz not null default now()
 );
 comment on table public.money_ledger is
-  'Plan B (193): append-only money record. idem_key makes every write happen once. Rows are never changed.';
+  'Plan B (195): append-only money record. idem_key makes every write happen once. Rows are never changed.';
 create index if not exists money_ledger_user_idx on public.money_ledger (user_id, created_at desc);
 create index if not exists money_ledger_day_idx on public.money_ledger (created_at);
 
@@ -435,7 +435,7 @@ begin
     raise exception 'This worker cannot be hired right now.';
   end if;
 
-  -- 193: under Plan B a City Hunt find is paid as it is accepted, which needs the hold to be paid
+  -- 195: under Plan B a City Hunt find is paid as it is accepted, which needs the hold to be paid
   -- first. Until that flow is built, say so plainly instead of half-accepting.
   if private.plan_b_on() and coalesce(current_setting('taskdrop.hunt_accept', true), '') <> '' then
     raise exception 'City Hunt finds cannot be accepted while payments move to pay-per-task. Try again soon.';
@@ -459,7 +459,7 @@ begin
          payout_mode = p_payout_mode
    where id = v_task.id;
 
-  -- 193: Plan B opens a hold and the poster pays for this task at the payment company next.
+  -- 195: Plan B opens a hold and the poster pays for this task at the payment company next.
   if private.plan_b_on() then
     perform private.plan_b_open_hold(v_task.id);
     select * into v_task from public.tasks where id = v_task.id;
@@ -1023,7 +1023,7 @@ begin
     update public.bids set is_locked = false where id = v_assign.bid_id;
   end if;
 
-  -- 193: money held at the payment company goes back in full (an unpaid hold just ends).
+  -- 195: money held at the payment company goes back in full (an unpaid hold just ends).
   perform private.plan_b_ask_refund(p_task_id, 0);
 
   -- Any campaign on the task stops with it; settling returns what was not used.

@@ -13,7 +13,7 @@ Last updated 19 Nov 2026. Read this first when you pick Plan B up again. The des
 | Design | Done 18 Nov ([DESIGN.md](DESIGN.md)). Razorpay Route only since 19 Nov (decision 3); Cashfree removed everywhere |
 | User app + server code | Built, in PR [hitendureacts77/taskdrop#428](https://github.com/hitendureacts77/taskdrop/pull/428), branch `feat/plan-b-money`, worktree `C:\complete taskdrop\wt-plan-b`. **Not merged** |
 | Admin app code | Built, in PR [hitendureacts77/taskdrop-admin#66](https://github.com/hitendureacts77/taskdrop-admin/pull/66), branch `feat/plan-b-money-admin`, worktree `C:\complete taskdrop\wt-admin-plan-b`. **Not merged**; it needs #428 first (it calls the new database functions) |
-| Database change | Migration 193 (`supabase/migrations/20261118120000_193_plan_b_money.sql`). **Not applied anywhere yet.** Merging #428 into `redesigned-2.0` applies it to staging by itself |
+| Database change | Migration 195 (`supabase/migrations/20261121120000_195_plan_b_money.sql`). **Not applied anywhere yet.** Merging #428 into `redesigned-2.0` applies it to staging by itself |
 | Tests | `npm run check` passes locally (637 + 202 tests). The SQL test `supabase/tests/plan_b_money.test.sql` runs only in CI (no local Postgres); its first run failed on one line, fixed 19 Nov, waiting for the next CI run |
 | Staging behaviour after merge | Nothing changes for users: the `money_flow` setting stays `wallet` until you switch it |
 | Real money | Waits for Razorpay's written answer (S.4), the lawyer's yes (S.3) and Razorpay test keys |
@@ -31,7 +31,7 @@ Last updated 19 Nov 2026. Read this first when you pick Plan B up again. The des
    - "Semgrep code scan" crashed inside the tool (Python 3.14), not on our code. It was fixed on `redesigned-2.0` by PR 429, and that fix was merged into this branch on 19 Nov.
    - "Edge Functions type-check" passes since commit c188858.
 2. **Run the security review once more** (the `security-review` skill) on the final diff, and fix any Critical or High finding. The last review's four findings are all fixed (see "Fixed in review" below).
-3. **Merge #428:** `gh pr merge 428 --merge --delete-branch`. That applies migration 193 to staging. If it ever has to be taken out, the undo is in [undo_193.sql](undo_193.sql).
+3. **Merge #428:** `gh pr merge 428 --merge --delete-branch`. That applies migration 195 to staging. If it ever has to be taken out, the undo is in [undo_195.sql](undo_195.sql).
 4. **Deploy the new Edge Functions to staging:** `money`, `money-webhook` and the changed `inngest`, `razorpay` and `api`. Check how earlier merges deployed them (some deploy on merge, some by hand) before doing it.
 5. **Merge the admin PR #66** into the admin's `redesigned-2.0`: `gh pr merge 66 -R hitendureacts77/taskdrop-admin --merge --delete-branch`. Its Semgrep failure is the same tool crash. Port the PR 429 workflow fix to the admin repo first if it still fails there.
 6. **Look at it on staging with the simulated provider.** Use the web build on localhost (`feedback-test-branch-on-localhost`), then Android.
@@ -56,7 +56,7 @@ After the keys: Claude sets `money_provider` = `razorpay_route` on staging, reru
 
 ## What was built (so nobody rebuilds it)
 
-**Database: migration 193**
+**Database: migration 195**
 - New settings:
   - `money_flow`: `wallet` (default) or `plan_b`.
   - `money_provider`: `razorpay_route` or `simulated`.
@@ -100,7 +100,7 @@ After the keys: Claude sets `money_provider` = `razorpay_route` on staging, reru
 **Admin app (PR #66):** the `/money/plan-b` page shows holds, failed moves with retry, and the money stop (admin role, authenticator and a reason).
 
 **Docs:**
-- [DESIGN.md](DESIGN.md) and [undo_193.sql](undo_193.sql).
+- [DESIGN.md](DESIGN.md) and [undo_195.sql](undo_195.sql).
 - `docs/integrations/razorpay-route.md`: the provider brief.
 - AGENTS.md, `docs/KEY_SECURITY_PLAN.md` and ULTIMATE_PLAN task 2.21.
 

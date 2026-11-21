@@ -1,4 +1,4 @@
--- Plan B money flow (migration 193, task 2.21).
+-- Plan B money flow (migration 195, task 2.21).
 --
 -- Pay per task, the payment company holds the money, TaskDrop never holds a balance. This walks every
 -- money row in docs/design/plan-b-money/DESIGN.md §2 against the database, with the provider played
