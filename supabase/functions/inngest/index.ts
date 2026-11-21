@@ -113,12 +113,13 @@ const reportFailure = (job: string) => async ({ error }: { error: unknown }) => 
 
 /**
  * Re-sends events the fast path (pg_net) did not get through. Runs every
- * five minutes (every minute used about half of the free plan's monthly runs on
- * its own, and the watchdog only worries after 15). The outbox id is the event
+ * ten minutes: it is only the backup, the free plan allows 50,000 executions a
+ * month for all jobs together (the budget is in docs/INNGEST.md), and the
+ * watchdog only worries after 15. The outbox id is the event
  * id, so one that did arrive is dropped as a duplicate rather than run twice.
  */
 const outboxSweeper = inngest.createFunction(
-  { id: "outbox-sweeper", triggers: [{ cron: "*/5 * * * *" }], concurrency: 1, onFailure: reportFailure("outbox-sweeper") },
+  { id: "outbox-sweeper", triggers: [{ cron: "*/10 * * * *" }], concurrency: 1, onFailure: reportFailure("outbox-sweeper") },
   async ({ step }) => {
     const rows = await step.run("load unsent", () => call<OutboxRow[]>(rpc, "outbox_pending", { p_limit: 200 }));
     if (!rows || rows.length === 0) return { forwarded: 0 };
@@ -326,7 +327,7 @@ const accountFiles = inngest.createFunction(
  * twice. Waits, without failing, until ImageKit's keys are set.
  */
 const mediaPurge = inngest.createFunction(
-  { id: "media-purge", triggers: [{ cron: "*/10 * * * *" }], concurrency: 1, retries: 4, onFailure: reportFailure("media-purge") },
+  { id: "media-purge", triggers: [{ cron: "41 * * * *" }], concurrency: 1, retries: 4, onFailure: reportFailure("media-purge") },
   async ({ step }) => {
     const expired = await step.run("expire unfinished uploads", () => call<number>(rpc, "media_expire_pending"));
     const cfg = await imageKitConfig(secret);
@@ -373,12 +374,12 @@ const strayImageKitFiles = inngest.createFunction(
 
 /** A job that was started and is past its time gets the OVERDUE label. Nothing else changes. */
 const overdueTasks = inngest.createFunction(
-  { id: "overdue-tasks", triggers: [{ cron: "*/10 * * * *" }], concurrency: 1, onFailure: reportFailure("overdue-tasks") },
+  { id: "overdue-tasks", triggers: [{ cron: "*/30 * * * *" }], concurrency: 1, onFailure: reportFailure("overdue-tasks") },
   async ({ step }) => ({ marked: await step.run("mark overdue", () => call<number>(rpc, "run_overdue_tasks")) }),
 );
 
 /**
- * Plan 3.5b, layer C: every 10 minutes the database works out Trending, Top helpers and today's numbers once and keeps
+ * Plan 3.5b, layer C: every 20 minutes the database works out Trending, Top helpers and today's numbers once and keeps
  * the copy (refresh_public_snapshots, migration 149). Another refresh already running counts as success. A refresh that
  * keeps failing is reported after the last retry like every job; the first step also checks that the last finished
  * refresh is under 30 minutes old and, if not, logs an error for Sentry and leaves a team alert.
@@ -396,7 +397,7 @@ const snapshotMarker: SnapshotMarker = {
 };
 
 const publicSnapshots = inngest.createFunction(
-  { id: "public-snapshots", triggers: [{ cron: "*/10 * * * *" }], concurrency: 1, retries: 3, onFailure: reportFailure("public-snapshots") },
+  { id: "public-snapshots", triggers: [{ cron: "*/20 * * * *" }], concurrency: 1, retries: 3, onFailure: reportFailure("public-snapshots") },
   async ({ step }) => {
     const freshness = await step.run("check age", () =>
       checkSnapshotFreshness(rpc, snapshotMarker, async (message, ageMinutes) => {
@@ -419,7 +420,7 @@ const housekeeping = inngest.createFunction(
  * not receiving them. Leaves one team alert, then stays quiet for six hours.
  */
 const outboxWatchdog = inngest.createFunction(
-  { id: "outbox-watchdog", triggers: [{ cron: "*/10 * * * *" }], concurrency: 1, onFailure: reportFailure("outbox-watchdog") },
+  { id: "outbox-watchdog", triggers: [{ cron: "*/30 * * * *" }], concurrency: 1, onFailure: reportFailure("outbox-watchdog") },
   async ({ step }) => ({ checked: await step.run("check outbox", () => call<Record<string, unknown>>(rpc, "run_outbox_watchdog")) }),
 );
 
@@ -428,7 +429,7 @@ const outboxWatchdog = inngest.createFunction(
  * many codes and almost none were used, this leaves one admin alert (then stays quiet for six hours).
  */
 const smsPumpingWatch = inngest.createFunction(
-  { id: "sms-pumping-watch", triggers: [{ cron: "*/15 * * * *" }], concurrency: 1, onFailure: reportFailure("sms-pumping-watch") },
+  { id: "sms-pumping-watch", triggers: [{ cron: "*/30 * * * *" }], concurrency: 1, onFailure: reportFailure("sms-pumping-watch") },
   async ({ step }) => ({ checked: await step.run("check codes sent and used", () => call<Record<string, unknown>>(rpc, "run_sms_pumping_watch")) }),
 );
 
@@ -439,7 +440,7 @@ const smsPumpingWatch = inngest.createFunction(
  * in-app notification (and push, when push is on). No money moves.
  */
 const taskReminders = inngest.createFunction(
-  { id: "task-reminders", triggers: [{ cron: "*/15 * * * *" }], concurrency: 1, onFailure: reportFailure("task-reminders") },
+  { id: "task-reminders", triggers: [{ cron: "*/30 * * * *" }], concurrency: 1, onFailure: reportFailure("task-reminders") },
   async ({ step }) => ({ sent: await step.run("remind", () => call<Record<string, unknown>>(rpc, "run_task_reminders")) }),
 );
 
