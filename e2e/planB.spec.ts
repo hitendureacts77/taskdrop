@@ -220,6 +220,8 @@ test("b+c. hire, pay on the Plan B sheet, held, start, proof, done, approve, rel
   await page.getByText(/^(Confirm and release payment|Approve and release payment)$/).filter({ visible: true }).first().click();
   await page.getByText("Yes, release payment").filter({ visible: true }).first().click({ timeout: 5_000 }).catch(() => undefined);
 
+  // The app runs the release itself right after the tap: no settle from the test here.
+  await expect.poll(async () => (await hold(poster, job.taskId))?.status, { timeout: 30_000, intervals: [2_000] }).toBe("released");
   const done = await holdReaches(poster, job.taskId, ["released"], posterToken);
   expect(done.release_minor ?? 0).toBeGreaterThan(0);
 
