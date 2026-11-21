@@ -6,6 +6,10 @@ test('P1-6: a typed price keeps its rupee sign, and typing it back through the b
   assert.equal(typingDisplay(''), '');
   assert.equal(typingDisplay('50'), '₹50');
   assert.equal(typingDisplay('250.'), '₹250.');
+  // L1-9: lakh grouping while typing, and typing it back gives the same amount.
+  assert.equal(typingDisplay('100000'), '₹1,00,000');
+  assert.equal(wholeDigits(typingDisplay('100000')), '100000');
+  assert.equal(wholeText(typingDisplay('100000') + '0', 10), '1000000');
   // The box shows "₹5"; the next key makes "₹50"; the amount kept is still the plain digits.
   assert.equal(wholeText(typingDisplay('5') + '0'), '50');
   assert.equal(wholeText(typingDisplay(wholeText('₹50')).slice(0, -1)), '5');

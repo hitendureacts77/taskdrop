@@ -153,6 +153,8 @@ export function DateTimeSheet({
   );
   const gridX = slide.interpolate({ inputRange: [-1, 0, 1], outputRange: [-40, 0, 40] });
   const gridFade = slide.interpolate({ inputRange: [-1, 0, 1], outputRange: [0.2, 1, 0.2] });
+  // No going back into months that are over (L1-8).
+  const atCurrentMonth = cursor.getFullYear() * 12 + cursor.getMonth() <= today.getFullYear() * 12 + today.getMonth();
   const grid = useMemo(() => buildGrid(cursor.getFullYear(), cursor.getMonth()), [cursor]);
 
   const strip = useMemo(
@@ -352,8 +354,15 @@ export function DateTimeSheet({
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Pressable onPress={() => shiftMonth(-1)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Previous month">
-                    <RNText style={tx('700', 22, t.colors.ink)}>‹</RNText>
+                  <Pressable
+                    onPress={() => !atCurrentMonth && shiftMonth(-1)}
+                    disabled={atCurrentMonth}
+                    hitSlop={12}
+                    accessibilityRole="button"
+                    accessibilityLabel="Previous month"
+                    accessibilityState={{ disabled: atCurrentMonth }}
+                  >
+                    <RNText style={tx('700', 22, atCurrentMonth ? t.colors.line : t.colors.ink)}>‹</RNText>
                   </Pressable>
                   <RNText style={tx('700', 15, t.colors.ink)}>
                     {MONTHS[cursor.getMonth()]} {cursor.getFullYear()}
@@ -487,7 +496,8 @@ export function DateTimeSheet({
                 })}
               </View>
 
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+              {/* Room for the longest part of the day, so the sheet does not jump when the part changes (L3-9). */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-start', gap: 8, marginTop: 12, minHeight: 4 * 44 + 3 * 8 }}>
                 {slots.map((s) => {
                   const on = s.h === h24 && s.m === minute;
                   return (

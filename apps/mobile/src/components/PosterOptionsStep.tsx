@@ -4,10 +4,11 @@ import { Icon, type IconName } from './Icon';
 import { FadeIn, tx } from './primitives';
 import { rupees } from './kit';
 import { useTheme } from '../providers/ThemeProvider';
-import { CREW_MAX, crewShareMinor, crewSizeFrom, type OptionKey, type Suggestion } from '../lib/posterOptions';
+import { CREW_MAX, crewCapFor, crewShareMinor, crewSizeFrom, type OptionKey, type Suggestion } from '../lib/posterOptions';
 import { HUNT_NEEDS, HUNT_WINDOWS, defaultNeeds, needsFor, type HuntNeed, type HuntWindow } from '../lib/hunt';
 import type { Regular } from '../data/api';
 import { HuntHelpLink } from './Hunt';
+import { MIN_PRICE_INR } from '../lib/limits';
 
 /**
  * The Options step of posting (owner, 2026-11-01): the extras a poster can
@@ -182,19 +183,20 @@ export function PosterOptionsStep({
       const offered = HUNT_NEEDS.filter((n) => !(remote && n.key === 'pin'));
       return (
         <View>
-          {label('REWARD FOR THE FINDER')}
+          {label('REWARD YOU PAY THE FINDER (YOUR PRICE)')}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}>
             <View
               style={{
                 flex: 1,
                 height: 48,
                 borderRadius: 14,
-                borderWidth: 1.5,
-                borderColor: t.colors.gold,
-                backgroundColor: t.colors.bg,
+                borderWidth: 1,
+                borderColor: t.colors.line,
+                backgroundColor: t.colors.surface2,
                 justifyContent: 'center',
                 paddingHorizontal: 14,
               }}
+              accessibilityLabel={`Reward ${rupees(priceMinor / 100)}, set by your price`}
             >
               <RNText style={tx('800', 20, t.colors.ink, { fontVariant: ['tabular-nums'] })}>{rupees(priceMinor / 100)}</RNText>
             </View>
@@ -240,6 +242,9 @@ export function PosterOptionsStep({
     }
     if (key === 'crew') {
       const share = crewShareMinor(priceMinor, value.crewSize);
+      // Each helper must get at least the smallest price (the server refuses less): the stepper stops there.
+      const cap = crewCapFor(priceMinor, MIN_PRICE_INR * 100);
+      const tooMany = share < MIN_PRICE_INR * 100;
       return (
         <View style={{ marginTop: 12, gap: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: t.colors.bg, borderRadius: 14, padding: 10 }}>
@@ -247,12 +252,13 @@ export function PosterOptionsStep({
             <Stepper
               value={value.crewSize}
               min={2}
-              max={CREW_MAX}
+              max={Math.max(2, Math.min(CREW_MAX, cap))}
               onChange={(n) => onChange({ ...value, crewSize: n })}
             />
           </View>
-          <RNText style={tx('600', 12, t.colors.accentDeep)}>
+          <RNText style={tx('600', 12, tooMany ? t.colors.signalDeep : t.colors.accentDeep)}>
             Your {rupees(priceMinor / 100)} budget is split: {rupees(share / 100)} each
+            {tooMany ? `. Each helper needs at least ${rupees(MIN_PRICE_INR)}. Raise the budget or ask for fewer people.` : ''}
           </RNText>
         </View>
       );
@@ -398,7 +404,7 @@ function GoldPill({ text, on, onPress }: { text: string; on: boolean; onPress: (
       accessibilityRole="button"
       accessibilityState={{ selected: on }}
       style={({ pressed }) => ({
-        height: 34,
+        height: 40,
         borderRadius: 999,
         paddingHorizontal: 13,
         justifyContent: 'center',
@@ -468,9 +474,9 @@ function Stepper({ value, min, max, onChange }: { value: number; min: number; ma
       accessibilityRole="button"
       accessibilityLabel={label}
       style={{
-        width: 34,
-        height: 34,
-        borderRadius: 34,
+        width: 40,
+        height: 40,
+        borderRadius: 40,
         borderWidth: 1,
         borderColor: t.colors.line,
         backgroundColor: t.colors.surface,

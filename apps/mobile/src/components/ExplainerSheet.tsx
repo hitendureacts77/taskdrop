@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
-import { EXPLAINERS, fillFee, type ExplainerExample, type ExplainerKey } from '../lib/explainers';
+import { EXPLAINERS, feePercent, fillFee, type ExplainerExample, type ExplainerKey } from '../lib/explainers';
 import { markExplainerSeen, needsExplainer } from '../lib/explainerStore';
 import { useFees } from '../lib/useFees';
 import { BottomSheet, PrimaryButton } from './kit';
@@ -42,7 +42,7 @@ export function ExplainerSheet({
   const tone = gold ? t.colors.goldInk : t.colors.accentDeep;
   const soft = gold ? t.colors.gold + '1F' : t.colors.accentSoft;
   const onTone = gold ? (t.isDark ? '#1A1206' : '#FFFFFF') : t.colors.onBtn;
-  const steps = e.steps.map((s) => ({ ...s, body: fillFee(s.body, posterFee) }));
+  const steps = e.steps.map((s) => ({ ...s, body: fillFee(s.body, feePercent(posterFee)) }));
 
   const label = (text: string) => (
     <RNText style={tx('800', 11, t.colors.muted, { letterSpacing: 1, marginTop: 22, marginBottom: 10 })} accessibilityRole="header">

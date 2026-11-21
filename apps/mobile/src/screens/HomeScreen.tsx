@@ -78,9 +78,9 @@ export type FeedRow = {
   hunt?: boolean;
 };
 
-// Must match the pillar names in CreateScreen.tsx exactly — this list and
+// The pillar names the Services / Products / Local Intel filters use — this list and
 // SearchScreen's copy are the display side of the same 'services' /
-// 'procurement' / 'local_intel' pillar enum CreateScreen names "Services",
+// 'procurement' / 'local_intel' pillar enum are named "Services",
 // "Products", "Local Intel". Keep the three in sync.
 const FILTER_LABELS = ['Services', 'Products', 'Local Intel'];
 

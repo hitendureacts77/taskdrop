@@ -44,21 +44,22 @@ export function CategoryPicker({ value, onChange }: { value: string; onChange: (
 
   return (
     <>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+      <View accessibilityRole="radiogroup" accessibilityLabel="Category" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {chips.map((c) => {
           const on = value === c;
           return (
             <Pressable
               key={c}
               onPress={() => onChange(c)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
+              // One choice out of several: a radio, so a screen reader hears which one is chosen (L1-7).
+              accessibilityRole="radio"
+              accessibilityState={{ checked: on, selected: on }}
               accessibilityLabel={c}
               style={({ pressed }) => ({
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 6,
-                height: 36,
+                height: 40,
                 paddingHorizontal: 14,
                 borderRadius: 999,
                 borderWidth: 1.5,
@@ -80,7 +81,7 @@ export function CategoryPicker({ value, onChange }: { value: string; onChange: (
             flexDirection: 'row',
             alignItems: 'center',
             gap: 6,
-            height: 36,
+            height: 40,
             paddingHorizontal: 14,
             borderRadius: 999,
             borderWidth: 1.5,

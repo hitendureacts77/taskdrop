@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BIG_DAY_LINK, EXPLAINERS, HUNT_LINK, fillFee } from './explainers.ts';
+import { BIG_DAY_LINK, EXPLAINERS, HUNT_LINK, feePercent, fillFee } from './explainers.ts';
 import type { Explainer, ExplainerKey } from './explainers.ts';
 import { EVENTS } from './bigDays.ts';
 
@@ -81,6 +81,12 @@ test('copy never suggests tasks are local only', () => {
       assert.doesNotMatch(s, /only near you|local only|locally only/i, `${key}: ${s}`);
     }
   }
+});
+
+test('feePercent turns the fee rate into the percentage a line shows', () => {
+  assert.equal(feePercent(0.03), 3);
+  assert.equal(feePercent(0.025), 2.5);
+  assert.equal(fillFee('plus the {fee}% fee', feePercent(0.03)), 'plus the 3% fee');
 });
 
 test('fillFee puts the live fee in and leaves no placeholder', () => {

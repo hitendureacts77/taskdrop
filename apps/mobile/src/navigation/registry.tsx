@@ -10,8 +10,6 @@ import { AccessScreen } from '../screens/AccessScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { IntroScreen } from '../screens/IntroScreen';
 // Task flow (Sonnet agent)
-import { CreateScreen } from '../screens/CreateScreen';
-import { PostDetailsScreen } from '../screens/PostDetailsScreen';
 import { CompareScreen } from '../screens/CompareScreen';
 import { MyQuotesScreen } from '../screens/MyQuotesScreen';
 import { ConfirmScreen } from '../screens/ConfirmScreen';
@@ -68,8 +66,6 @@ export const REGISTRY: Partial<Record<ScreenName, ComponentType>> = {
   setup: OnboardingScreen,
   taskDetail: TaskDetailScreen,
   detailSheet: DetailSheetScreen,
-  create: CreateScreen,
-  postDetails: PostDetailsScreen,
   compare: CompareScreen,
   myQuotes: MyQuotesScreen,
   confirm: ConfirmScreen,

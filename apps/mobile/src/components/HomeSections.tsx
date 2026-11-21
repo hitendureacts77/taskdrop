@@ -225,7 +225,8 @@ function PostTop() {
             </View>
             <Pressable
               onPress={openComposer}
-              accessibilityRole="button"
+              // No button role here: the mic inside is a button, and a button in a button is invalid on the web (S4-7).
+              accessible
               accessibilityLabel="Say what you need. Opens the new task screen"
               style={({ pressed }) => ({
                 marginTop: 14,
@@ -253,8 +254,8 @@ function PostTop() {
                   accessibilityLabel="Speak your task"
                   hitSlop={6}
                   style={({ pressed }) => ({
-                    width: 38,
-                    height: 38,
+                    width: 40,
+                    height: 40,
                     borderRadius: 999,
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -266,7 +267,7 @@ function PostTop() {
                   <Icon name="mic" size={17} color={t.isDark ? '#FFFFFF' : t.colors.ink} strokeWidth={2} />
                 </Pressable>
               ) : null}
-              <View style={{ height: 38, borderRadius: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.btn }}>
+              <View style={{ height: 40, borderRadius: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.btn }}>
                 <RNText style={tx('800', 14, t.colors.onBtn)}>Post</RNText>
                 <Icon name="chevronRight" size={15} color={t.colors.onBtn} strokeWidth={2.4} />
               </View>

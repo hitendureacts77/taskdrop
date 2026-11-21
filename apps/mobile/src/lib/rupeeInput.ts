@@ -31,7 +31,12 @@ export function wholeText(text: string, maxLength?: number): string {
  * box reads the same as before and after the keypad opens. Empty stays empty, so the placeholder shows.
  */
 export function typingDisplay(kept: string): string {
-  return kept === '' ? '' : `₹${kept}`;
+  if (kept === '') return '';
+  // Grouped the Indian way while typing too, so the box reads like the button under it (L1-9).
+  const dot = kept.endsWith('.');
+  const digits = dot ? kept.slice(0, -1) : kept;
+  const grouped = digits === '' ? '' : Number(digits).toLocaleString('en-IN');
+  return `₹${grouped}${dot ? '.' : ''}`;
 }
 
 /** Types every key of `typed` into a controlled box that stores `keep(text)`, like a person would. */

@@ -27,7 +27,6 @@ export const NATIVE_HEADER_SCREENS: readonly ScreenName[] = [
   'listing',
   'myQuotes',
   'notifications',
-  'postDetails',
   'pricing',
   'regulars',
   'privacy',

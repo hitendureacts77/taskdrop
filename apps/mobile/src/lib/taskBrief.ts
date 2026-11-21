@@ -1402,7 +1402,11 @@ function writePost(prompt: string, answers: Answer[], style: WritingStyle): Brie
   const trust = careBullets(topic.care);
 
   let bullets: string[];
-  if (style === 'short') {
+  if (picked.length === 0) {
+    // Nothing was answered: the post says only what the poster said. Terms the poster never chose (edits, tools, tests)
+    // would bind them once a worker claims them (L3-6).
+    bullets = [...context];
+  } else if (style === 'short') {
     bullets = [...facts, ...context].slice(0, 3);
     if (bullets.length < 3) bullets.push(...topic.bullets.slice(0, 3 - bullets.length));
   } else if (style === 'detailed') {
@@ -1522,6 +1526,14 @@ export function dueFor(key: WhenKey, from = new Date()): Date {
     ninePm.setHours(21, 0, 0, 0);
     const soonest = new Date(from.getTime() + 3 * 3600000);
     return ninePm > soonest ? ninePm : soonest;
+  }
+  if (key === 'week') {
+    // "This week" ends on Sunday at 9 pm (L3-9). Past Friday that leaves under 2 days, which "2 days" already is,
+    // so it then means 7 days from now.
+    const sunday = new Date(from);
+    sunday.setDate(sunday.getDate() + ((7 - sunday.getDay()) % 7));
+    sunday.setHours(21, 0, 0, 0);
+    return sunday.getTime() - from.getTime() >= 48 * 3600000 ? sunday : new Date(from.getTime() + 7 * 24 * 3600000);
   }
   const opt = WHEN_OPTIONS.find((o) => o.key === key)!;
   return new Date(from.getTime() + opt.hours * 3600000);

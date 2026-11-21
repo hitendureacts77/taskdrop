@@ -22,6 +22,8 @@ export function AmountField({
   max,
   align = 'center',
   placeholder = '₹0',
+  label,
+  onFraction,
 }: {
   rupees: number | null;
   onChangeRupees: (next: number | null) => void;
@@ -31,6 +33,10 @@ export function AmountField({
   max?: number;
   align?: TextStyle['textAlign'];
   placeholder?: string;
+  /** What a screen reader calls the box (L1-7). */
+  label?: string;
+  /** Told when the person typed a decimal point, which is kept off the amount (whole rupees only). */
+  onFraction?: (typed: boolean) => void;
 }) {
   const t = useTheme();
   const [draft, setDraft] = useState<string | null>(null);
@@ -47,6 +53,7 @@ export function AmountField({
       onChangeText={(text) => {
         const kept = wholeText(text, 10);
         setDraft(kept);
+        onFraction?.(kept.endsWith('.'));
         const digits = wholeDigits(kept);
         const typed = digits === '' ? null : Math.min(Number(digits), max ?? Infinity);
         if (typed !== null && max !== undefined && typed === max) setDraft(String(max));
@@ -54,6 +61,7 @@ export function AmountField({
       }}
       onBlur={() => {
         setDraft(null);
+        onFraction?.(false);
         // Only enforce the floor on an amount the user actually entered;
         // clamping an empty field would silently invent a value.
         if (rupees !== null && rupees < min) onChangeRupees(min);
@@ -61,6 +69,7 @@ export function AmountField({
       keyboardType="number-pad"
       inputMode="numeric"
       selectTextOnFocus
+      accessibilityLabel={label}
       placeholder={placeholder}
       style={[{ padding: 0, textAlign: align, color: t.colors.ink }, style]}
       placeholderTextColor={t.colors.muted}

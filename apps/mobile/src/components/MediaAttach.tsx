@@ -93,7 +93,9 @@ export function MediaAttach({
   onChange: (next: TaskMedia | null) => void;
 }) {
   const t = useTheme();
-  const [state, setState] = useState<State>({ phase: 'empty' });
+  const [own, setState] = useState<State>({ phase: 'empty' });
+  // The box starts from what the wizard still holds (S4-20): coming back to a step, or resuming a kept post, shows it.
+  const state: State = own.phase === 'empty' && value ? { phase: 'ready', uri: '', media: value } : own;
   const [error, setError] = useState<string | null>(null);
   // Whether the "camera or gallery?" choice under the one add button is open.
   const [asking, setAsking] = useState(false);
@@ -109,9 +111,12 @@ export function MediaAttach({
       const uploaded = await uploadMedia(picked);
       setState({ phase: 'ready', uri: picked.uri, media: uploaded });
       onChange(uploaded);
+      // The file it replaced is no longer used, so it does not stay in storage.
+      if (value?.path && value.path !== uploaded.path) void removeMedia(value.path);
     } catch (e) {
-      setState({ phase: 'empty' });
-      onChange(null);
+      // A failed replacement keeps the attachment that was there.
+      setState(own.phase === 'ready' ? own : { phase: 'empty' });
+      if (!value) onChange(null);
       setError(
         e instanceof MediaError
           ? e.message
@@ -273,7 +278,7 @@ export function MediaAttach({
       >
         {/* A video's local URI is not something <Image> can draw, so a video
             shows a play badge rather than a broken frame. */}
-        {kind === 'image' ? (
+        {kind === 'image' && state.uri ? (
           <Image
             source={{ uri: state.uri }}
             resizeMode="cover"
@@ -292,7 +297,7 @@ export function MediaAttach({
           >
             <PlayBadge color={t.colors.accent} onSurface={t.colors.onAccent} />
             <RNText style={tx('700', 13, t.colors.ink)}>
-              Video{seconds ? ` · ${seconds}s` : ''}
+              {kind === 'image' ? 'Photo attached' : `Video${seconds ? ` · ${seconds}s` : ''}`}
             </RNText>
           </View>
         )}
@@ -347,6 +352,8 @@ export function MediaAttach({
             onPress={() => void choose(kind, 'camera')}
             accessibilityRole="button"
             accessibilityLabel={kind === 'video' ? 'Record a new video' : 'Take a new photo'}
+            hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+            style={{ minHeight: 40, justifyContent: 'center' }}
           >
             <RNText style={tx('700', 13, t.colors.accentDeep)}>{kind === 'video' ? 'Record again' : 'Retake'}</RNText>
           </Pressable>
@@ -354,6 +361,8 @@ export function MediaAttach({
             onPress={() => void choose(kind, 'library')}
             accessibilityRole="button"
             accessibilityLabel="Replace from gallery"
+            hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+            style={{ minHeight: 40, justifyContent: 'center' }}
           >
             <RNText style={tx('700', 13, t.colors.accentDeep)}>Replace from gallery</RNText>
           </Pressable>

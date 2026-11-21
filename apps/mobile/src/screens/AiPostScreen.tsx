@@ -12,6 +12,8 @@ import { Field, IconButton, PrimaryButton, rupees } from '../components/kit';
 import { removeDraft, saveDraft } from '../lib/drafts';
 import { markBigDayPosted } from '../lib/bigDayStore';
 import { bigDayParam } from '../lib/bigDays';
+import { defaultsToRemote, firstPostProblem, plainPostError, plannedDue, postedRecently } from '../lib/postChecks';
+import { friendlyMessage } from '../lib/errors';
 import { GUEST_DRAFTS_OWNER, isNeedsAccount, needAccount } from '../lib/guest';
 import { useReducedMotion } from '../lib/motion';
 import { FadeIn, HitArea, Pressy, tx } from '../components/primitives';
@@ -26,7 +28,7 @@ import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { useMode } from '../providers/ModeProvider';
-import { createTask, getProfile, getWallet, myRegulars, type Regular, type Task } from '../data/api';
+import { createTask, getProfile, getWallet, listMyTasks, myRegulars, type Regular, type Task } from '../data/api';
 import { NO_OPTIONS, PosterOptionsStep, huntOn, optionsSummary, type PosterOptions } from '../components/PosterOptionsStep';
 import { needsFor } from '../lib/hunt';
 import { crewShareMinor, looksLikePlaceQuestion, suggestOptions } from '../lib/posterOptions';
@@ -189,6 +191,8 @@ export function AiPostScreen() {
   const [prompt, setPrompt] = useState(
     typeof params.prompt === 'string' ? params.prompt : similar ? similar.title : '',
   );
+  // What the request started as, to tell a draft the person wrote from a template they only opened.
+  const startPrompt = useRef(prompt);
 
   // Details: the quick questions, and which request they were asked for.
   const [questions, setQuestions] = useState<QuickQuestion[]>([]);
@@ -210,14 +214,21 @@ export function AiPostScreen() {
 
   // When.
   // Home's day chips (plan D22, A6) open the composer with the day already picked.
+  // A big-day line brings its planned day (S4-28); it opens the When step on that evening.
+  const plannedFor = useMemo(() => plannedDue(params.dueDay), []); // eslint-disable-line react-hooks/exhaustive-deps
   const [whenKey, setWhenKey] = useState<WhenKey | 'custom'>(() =>
-    WHEN_OPTIONS.some((o) => o.key === params.when) ? (params.when as WhenKey) : 'today',
+    WHEN_OPTIONS.some((o) => o.key === params.when) ? (params.when as WhenKey) : plannedFor ? 'custom' : 'today',
   );
-  const [customDue, setCustomDue] = useState<Date | null>(null);
+  const [customDue, setCustomDue] = useState<Date | null>(plannedFor);
   const [showDate, setShowDate] = useState(false);
 
   // Budget.
-  const [budget, setBudget] = useState<number | null>(similar ? Math.round(similar.benchmark_minor / 100) : null);
+  // A copy starts from the old base price (S4-37): the posted price had the top-up added, and a crew's figure is one helper's share.
+  const [budget, setBudget] = useState<number | null>(() => {
+    if (!similar) return null;
+    const each = similar.benchmark_minor / (1 + (similar.topup_pct ?? 0) / 100);
+    return Math.round((each * Math.max(1, similar.crew_size ?? 1)) / 100);
+  });
   // The top-up bar: an index into TOP_UP_STOPS. The posted price is the typed
   // amount plus that share, so workers see one figure.
   const [topUpStop, setTopUpStop] = useState(0);
@@ -231,6 +242,21 @@ export function AiPostScreen() {
   const [remote, setRemote] = useState(false);
   const [showLoc, setShowLoc] = useState(false);
   const [posting, setPosting] = useState(false);
+  // Set before the first await, so a second tap while the first is still working does nothing (S4-10).
+  const postingRef = useRef(false);
+  const [dotTyped, setDotTyped] = useState(false);
+  // How many jobs this person has already posted in the last day (L1-6): a note up front, not a refusal at the end.
+  const [postedToday, setPostedToday] = useState(0);
+  useEffect(() => {
+    if (!userId || guest) return;
+    let alive = true;
+    void listMyTasks(userId)
+      .then((rows) => alive && setPostedToday(postedRecently(rows)))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [userId, guest]);
   // "Staying safe on a job", once before a person's first in-person post (plan 4.9).
   const [safetyOpen, setSafetyOpen] = useState(false);
 
@@ -521,6 +547,7 @@ export function AiPostScreen() {
     setTitle(b.title);
     setDescription(briefToDescription(b));
     setCategory(b.category);
+    return b;
   };
 
   /** Ask -> Details. The questions are only asked again if the request changed. */
@@ -536,7 +563,8 @@ export function AiPostScreen() {
       setAnswers([]);
       setOtherOpen({});
       if (qs.length === 0) {
-        writeBrief([]);
+        const b = writeBrief([]);
+        if (defaultsToRemote(b.category)) setRemote(true);
         setPhase('brief');
         return;
       }
@@ -549,10 +577,13 @@ export function AiPostScreen() {
   /** Details -> Post. The post is only rewritten if the request or an answer changed. */
   const fromDetails = () => {
     const given = liveAnswers();
-    if (!brief || writtenFrom !== JSON.stringify([prompt.trim(), given, style])) writeBrief(given);
+    let rewritten: Brief | null = null;
+    if (!brief || writtenFrom !== JSON.stringify([prompt.trim(), given, style])) rewritten = writeBrief(given);
     // Work the answers place online starts as Remote on the Place step; hands-on work as At a place.
+    // Writing and the like start as Remote too (L3-11); the poster can still choose a place.
     const online = answersSayOnline(given);
     if (online !== null) setRemote(online);
+    else if (rewritten && defaultsToRemote(rewritten.category)) setRemote(true);
     // A rewritten post is worth a look, even when coming back from Review.
     setPhase('brief');
   };
@@ -597,6 +628,18 @@ export function AiPostScreen() {
   const budgetHigh = priceState(price) === 'high';
   const budgetOk = (budget ?? 0) >= MIN_PRICE_INR && !budgetHigh;
   const fees = useFees();
+  // The whole post at once, so Review cannot post what an earlier step no longer allows (S4-12).
+  const problem = firstPostProblem({
+    title,
+    description,
+    hasContact: !!(titleIssue || descIssue),
+    budget,
+    price,
+    noPlace,
+    crewSize: opts.crewSize,
+    whenKey,
+    customDue,
+  });
   // Fee and held total are worked out in paise, the way the server does it.
   const feeMinor = posterServiceFee(price * 100, fees.posterFee);
 
@@ -702,13 +745,21 @@ export function AiPostScreen() {
       return needAccount('post', requestResumeSubmit);
     }
     if (!userId) return flash('Sign in to post a task');
-    if (posting) return;
-    if (!remote && !safetySeen && (await needsSafetyCard(userId))) {
-      setSafetyOpen(true);
-      return;
-    }
+    if (posting || postingRef.current) return;
+    postingRef.current = true;
     setPosting(true);
     try {
+      // Check the whole post first: an earlier step may have been changed since its own Continue (S4-12).
+      const stop = problem;
+      if (stop) {
+        flash(stop.message);
+        setPhase(stop.step);
+        return;
+      }
+      if (!remote && !safetySeen && (await needsSafetyCard(userId))) {
+        setSafetyOpen(true);
+        return;
+      }
       if (mode === 'auto') {
         // The server checks this too. Asking here first lets the poster add the
         // money and carry on, instead of meeting a refusal.
@@ -720,7 +771,14 @@ export function AiPostScreen() {
           return;
         }
       }
-      const minutes = Math.max(60, Math.round((due.getTime() - Date.now()) / 60000));
+      // Worked out now, not when the choice was made: "Right now" or a kept time may have moved on (S4-34).
+      const dueNow = whenKey === 'custom' ? (customDue ?? dueFor('week')) : dueFor(whenKey);
+      if (dueNow.getTime() <= Date.now()) {
+        flash('The time you picked has passed. Pick a new one.');
+        setPhase('when');
+        return;
+      }
+      const minutes = Math.max(60, Math.round((dueNow.getTime() - Date.now()) / 60000));
       const task = await createTask({
         posterId: userId,
         pillar: brief?.pillar ?? pillarFor(category),
@@ -738,7 +796,7 @@ export function AiPostScreen() {
         skills: brief?.skills ?? similar?.skills ?? [],
         difficulty: brief?.difficulty ?? (similar?.difficulty as Brief['difficulty'] | null) ?? 'medium',
         assignmentMode: mode,
-        dueAt: due.toISOString(),
+        dueAt: dueNow.toISOString(),
         milestones,
         flash: opts.flash || undefined,
         liveAnswer: opts.liveAnswer || undefined,
@@ -761,8 +819,11 @@ export function AiPostScreen() {
       go('taskManage', { taskId: task.id });
     } catch (e) {
       if (isNeedsAccount(e)) return;
-      flash(e instanceof Error ? e.message : 'Could not post your task');
+      // A dropped connection reads "Failed to fetch" in a browser: always say something plain (L1-6).
+      const fallback = 'Could not post your task. Please try again.';
+      flash(e instanceof Error && e.message ? plainPostError(friendlyMessage({ message: e.message }, fallback)) : fallback);
     } finally {
+      postingRef.current = false;
       setPosting(false);
     }
   };
@@ -778,7 +839,8 @@ export function AiPostScreen() {
   // the one way to drop the kept steps: the next post starts fresh.
   const leave = () => {
     forget();
-    if (draftOwner && prompt.trim().length >= 3) {
+    // An untouched starting text (an idea tile, a copied post) is not a draft (L1-14).
+    if (draftOwner && prompt.trim().length >= 3 && prompt.trim() !== startPrompt.current.trim()) {
       void saveDraft(draftOwner, prompt, draftId);
       flash('Draft saved. Find it under Drafts in My Tasks.');
     }
@@ -807,6 +869,7 @@ export function AiPostScreen() {
       key={text}
       onPress={onPress}
       label={text}
+      selected={on}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
@@ -983,6 +1046,14 @@ export function AiPostScreen() {
           Say it the way you would tell a friend. We turn it into a clear post, then ask only what is missing.
         </RNText>
         {opts.hunt !== null ? <HuntHelpLink onPress={huntHelp.show} /> : null}
+        {prompt.trim().length > 0 && prompt.trim().length < 5 && !promptIssue ? (
+          <RNText style={tx('600', 12, t.colors.muted, { marginTop: 8 })}>Say a bit more: at least 5 letters, then Next lights up.</RNText>
+        ) : null}
+        {postedToday >= 5 ? (
+          <RNText style={tx('600', 12, t.colors.signalDeep, { marginTop: 10, lineHeight: 17 })}>
+            You have posted {postedToday} jobs in the last day. There is a daily limit on new posts, so a new one may be refused until tomorrow.
+          </RNText>
+        ) : null}
         {promptIssue ? (
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, backgroundColor: t.colors.signalSoft, borderRadius: 12, padding: 11 }}>
             <Icon name="shield" size={15} color={t.colors.signalDeep} />
@@ -1280,16 +1351,20 @@ export function AiPostScreen() {
                 <AmountField
                   rupees={budget}
                   onChangeRupees={setBudget}
-                  min={10}
+                  min={MIN_PRICE_INR}
                   align="center"
                   placeholder="₹0"
+                  label="Task price in rupees"
+                  onFraction={setDotTyped}
                   style={tx('800', 44, t.colors.ink, { width: '100%', padding: 0 })}
                 />
               </View>
               <RNText
                 style={tx('600', 12, budget !== null && budget > 0 && !budgetOk ? t.colors.signalDeep : t.colors.muted, { marginTop: 12 })}
               >
-                {budget === null || budget === 0
+                {dotTyped
+                  ? 'Whole rupees only. Anything after the point is left out.'
+                  : budget === null || budget === 0
                   ? 'Type any amount'
                   : budgetHigh
                     ? `The most is ${rupees(MAX_PRICE_INR)}${topUpPct > 0 && !(budget !== null && budget > MAX_PRICE_INR) ? ' with the top-up. Lower the top-up or the price' : ''}`
@@ -1509,7 +1584,9 @@ export function AiPostScreen() {
           <View style={{ height: 1, backgroundColor: t.colors.line }} />
           <Row label="Held safely when you accept an offer" value={formatINR(price * 100 + feeMinor)} strong />
           <RNText style={tx('400', 11, t.colors.muted, { lineHeight: 16 })}>
-            The final figure follows the offer you accept. Nothing is charged now.
+            {mode === 'auto'
+              ? 'With Auto-hire the first offer that fits is accepted and paid from your wallet at once.'
+              : 'The final figure follows the offer you accept. Nothing is charged now.'}
           </RNText>
         </View>
 
@@ -1523,7 +1600,14 @@ export function AiPostScreen() {
                 : 'Your number and exact address stay hidden. Workers see only the area until you pick one.'
             }
           />
-          <Pledge icon="shield" text="Nothing is paid now. When you pick someone, TaskDrop holds the money until you approve the work." />
+          <Pledge
+            icon="shield"
+            text={
+              mode === 'auto'
+                ? 'The first offer that fits is accepted for you. TaskDrop then holds the money from your wallet until you approve the work.'
+                : 'Nothing is paid now. When you pick someone, TaskDrop holds the money until you approve the work.'
+            }
+          />
         </View>
         <Pressable onPress={() => go('support')} accessibilityRole="link" accessibilityLabel={`${NOT_ALLOWED_LINE} See all`} hitSlop={8} style={{ marginTop: 12 }}>
           <RNText style={tx('400', 12, t.colors.muted, { lineHeight: 17 })}>
@@ -1570,14 +1654,14 @@ export function AiPostScreen() {
                           : `Continue with ${optionsSummary(opts).length} option${optionsSummary(opts).length === 1 ? '' : 's'}`,
                       onPress: () => advance('options'),
                     }
-                  : { label: 'Post my request', onPress: () => void post(), busy: posting, disabled: noPlace };
+                  : { label: 'Post my request', onPress: () => void post(), busy: posting, disabled: problem !== null };
 
   return (
     <Screen padded={false}>
       <View style={{ paddingTop: 8, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: t.colors.line }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 }}>
           <IconButton icon="close" label="Close" onPress={leave} />
-          <RNText style={tx('800', 17, t.colors.ink, { flex: 1, letterSpacing: -0.3 })}>{composing ? 'New task' : 'Post a request'}</RNText>
+          <RNText style={tx('800', 17, t.colors.ink, { flex: 1, letterSpacing: -0.3 })}>Post a request</RNText>
           {composing ? (
             <Pressable
               onPress={primary.onPress}
@@ -1589,7 +1673,7 @@ export function AiPostScreen() {
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 6,
-                height: 38,
+                height: 40,
                 paddingHorizontal: 16,
                 borderRadius: 999,
                 backgroundColor: primary.disabled ? t.colors.surface2 : t.colors.btn,

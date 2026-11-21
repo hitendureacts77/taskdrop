@@ -94,3 +94,7 @@ export function crewSizeFrom(text: string): number {
 
 /** Each helper's share of a crew budget, in paise: floor, like the server. */
 export const crewShareMinor = (totalMinor: number, size: number) => Math.floor(totalMinor / Math.max(1, size));
+
+/** The most helpers a budget can be split between while each still gets `minShareMinor` (S4-22); below 2 means no crew. */
+export const crewCapFor = (totalMinor: number, minShareMinor: number) =>
+  Math.min(CREW_MAX, Math.floor(totalMinor / Math.max(1, minShareMinor)));

@@ -10,8 +10,6 @@ export type ScreenName =
   | 'setup'
   | 'home'
   | 'search'
-  | 'create'
-  | 'postDetails'
   | 'taskDetail'
   | 'detailSheet'
   | 'compare'

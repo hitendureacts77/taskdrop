@@ -28,6 +28,7 @@ import {
   longDay,
   newPlan,
   parseDay,
+  itemDay,
   postPrompt,
   stateFor,
   tickedCount,
@@ -460,7 +461,8 @@ function Board({
   const post =async (item: BigDayItem, state: BigDayState) => {
     // A cancelled task lets go of its line, so the new post can take its place.
     if (state === 'cancelled' && owner) await releaseBigDayItem(owner, plan.id, item.id);
-    go('aiPost', { prompt: postPrompt(plan, item, today), bigDay: { planId: plan.id, itemId: item.id } });
+    // The line's planned day goes along, so the When step starts on it and not on "Today" (S4-28).
+    go('aiPost', { prompt: postPrompt(plan, item, today), bigDay: { planId: plan.id, itemId: item.id }, dueDay: itemDay(plan.day, item.offset, today) ?? undefined });
   };
 
   const remove = async () => {
@@ -572,7 +574,7 @@ function Board({
         </View>
         {items.some((i) => !i.taskId) ? (
           <RNText style={tx('400', 12.5, t.colors.muted, { marginHorizontal: 20, marginTop: 10, lineHeight: 18 })}>
-            Post opens the writer with the task filled in. You set the price there.
+            Post opens the writer with the task and its day filled in. You set the price there.
           </RNText>
         ) : null}
 

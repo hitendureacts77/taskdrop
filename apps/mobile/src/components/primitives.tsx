@@ -24,6 +24,7 @@ export function Pressy({
   label,
   disabled,
   containsControls,
+  selected,
 }: {
   onPress?: () => void;
   scaleTo?: number;
@@ -39,6 +40,8 @@ export function Pressy({
    * role, or the markup is invalid and the inner controls stop behaving.
    */
   containsControls?: boolean;
+  /** A choice that can be on: a screen reader hears whether it is chosen (L1-7). */
+  selected?: boolean;
 }) {
   return (
     <Pressable
@@ -48,7 +51,7 @@ export function Pressy({
       // reader, and none of them are reachable by keyboard on the web build.
       accessibilityRole={containsControls ? undefined : 'button'}
       accessibilityLabel={label}
-      accessibilityState={{ disabled: Boolean(disabled) }}
+      accessibilityState={selected === undefined ? { disabled: Boolean(disabled) } : { disabled: Boolean(disabled), selected }}
       style={({ pressed }) => [style, { transform: [{ scale: pressed && !disabled ? scaleTo : 1 }] }]}
     >
       {children}

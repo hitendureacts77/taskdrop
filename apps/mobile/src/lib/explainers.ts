@@ -180,6 +180,9 @@ export const EXPLAINERS: Record<ExplainerKey, Explainer> = {
 export const HUNT_LINK = 'How a Hunt works';
 export const BIG_DAY_LINK = 'How Plan a big day works';
 
+/** A fee rate as the percentage number a line shows: 0.03 becomes 3 (L1-11, the sheet once said 0.03%). */
+export const feePercent = (rate: number) => Math.round(rate * 1000) / 10;
+
 /** Puts the live customer service fee (a percentage number) where a line says {fee}. */
 export function fillFee(text: string, feePct: number): string {
   return text.split('{fee}').join(String(feePct));
