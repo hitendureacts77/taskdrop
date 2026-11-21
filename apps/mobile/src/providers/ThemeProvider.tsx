@@ -88,7 +88,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const isDark = pref === 'system' ? system === 'dark' : pref === 'dark';
   const theme = useMemo(() => makeTheme(isDark), [isDark]);
-  useWebFocusRing(theme.colors.accent);
+  // The focus ring is written by RoleTheme (it knows Hire jade or Earn blue). Writing it here too let this outer
+  // provider overwrite the Earn blue after every mount and Light/Dark change (S3-3).
 
   const value = useMemo<ThemeCtx>(
     () => ({

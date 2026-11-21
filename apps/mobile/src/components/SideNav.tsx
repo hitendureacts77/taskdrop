@@ -44,7 +44,7 @@ export function SideNav({ rail = false }: { rail?: boolean }) {
 
   const main: { key: ScreenName; icon: IconName; label: string; badge?: number }[] = [
     { key: 'home', icon: 'home', label: 'Home' },
-    { key: 'explore', icon: 'map', label: 'Explore' },
+    { key: 'explore', icon: 'map', label: worker ? 'Find work' : 'Explore' },
     { key: 'myTasks', icon: 'orders', label: worker ? 'My Work' : 'My Tasks', badge: waiting },
     { key: 'wallet', icon: 'wallet', label: 'Wallet' },
     { key: 'inbox', icon: 'chat', label: 'Messages' },
@@ -93,7 +93,7 @@ export function SideNav({ rail = false }: { rail?: boolean }) {
                 justifyContent: 'center',
               }}
             >
-              <RNText style={tx('800', 9, '#FFFFFF')}>{it.badge > 9 ? '9+' : it.badge}</RNText>
+              <RNText style={tx('800', 11, '#FFFFFF')}>{it.badge > 9 ? '9+' : it.badge}</RNText>
             </View>
           ) : null}
         </View>

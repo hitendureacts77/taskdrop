@@ -307,8 +307,8 @@ export function CompareScreen() {
                         <RNText style={tx('400', 12, t.colors.muted)}>★ {row.rating.toFixed(1)}</RNText>
                       ) : null}
                       {row.pro && (
-                        <View style={{ backgroundColor: t.colors.accent, borderRadius: 4, paddingVertical: 2, paddingHorizontal: 5 }}>
-                          <RNText style={tx('800', 9, t.colors.onAccent, { letterSpacing: 1.08 })}>PRO</RNText>
+                        <View style={{ backgroundColor: t.colors.btn, borderRadius: 4, paddingVertical: 2, paddingHorizontal: 5 }}>
+                          <RNText style={tx('800', 9, t.colors.onBtn, { letterSpacing: 1.08 })}>PRO</RNText>
                         </View>
                       )}
                     </View>

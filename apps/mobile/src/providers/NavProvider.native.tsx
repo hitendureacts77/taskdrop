@@ -26,7 +26,13 @@ function screenForPath(pathname: string): ScreenName {
   const tab = tabForPath(pathname);
   if (tab) return tab;
   const m = /^\/screen\/([^/?#]+)/.exec(pathname);
-  return m ? (decodeURIComponent(m[1]!) as ScreenName) : 'home';
+  if (!m) return 'home';
+  try {
+    return decodeURIComponent(m[1]!) as ScreenName;
+  } catch {
+    // S3-10: a malformed escape such as "%E0" falls back to Home instead of crashing the navigator.
+    return 'home';
+  }
 }
 
 type Scope = { params: NavParams; focus: number };

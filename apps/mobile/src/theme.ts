@@ -116,7 +116,7 @@ export const dark: Palette = {
   signalFill: '#B4512C',
   purple: '#6B8CFF',
   purpleDeep: '#9DB4FF',
-  purpleFill: '#4F6FE8',
+  purpleFill: '#4A69E2',
   purpleSoft: '#172036',
   ai: '#A39CF0',
   aiSoft: '#1E1C33',

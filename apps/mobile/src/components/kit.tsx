@@ -56,9 +56,15 @@ export function BottomSheet({
   const { desktop, tablet } = useLayout();
   const dialog = desktop || tablet;
   const rise = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
     if (!visible) {
       rise.setValue(0);
+      return;
+    }
+    if (reduceMotion) {
+      // Reduce Motion: the sheet just appears (S3-6).
+      rise.setValue(1);
       return;
     }
     // Phone: a spring rise from the bottom edge (SYS-Motion "sheet", 380 ms).
@@ -68,7 +74,7 @@ export function BottomSheet({
       : Animated.spring(rise, { toValue: 1, useNativeDriver: true, friction: 10, tension: 68 });
     anim.start();
     return () => anim.stop();
-  }, [visible, rise, dialog]);
+  }, [visible, rise, dialog, reduceMotion]);
   // A sheet with a text box is lifted by whatever the keyboard still covers (plan task 1.8).
   const panelRef = useRef<ViewInstance>(null);
   const panelLift = useKeyboardClearance(panelRef);
@@ -97,6 +103,7 @@ export function BottomSheet({
           />
           <Animated.View
             ref={panelRef}
+            accessibilityViewIsModal
             style={{
               backgroundColor: t.colors.bg,
               borderTopLeftRadius: 28,
@@ -184,10 +191,11 @@ export function UnderlineTabs({
   const left = useRef(new Animated.Value(0)).current;
   const width = useRef(new Animated.Value(0)).current;
   const placed = useRef(false);
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
     const spot = spots[active];
     if (!spot) return;
-    if (!placed.current) {
+    if (!placed.current || reduceMotion) {
       // First layout: put the bar in place without a slide.
       left.setValue(spot.x);
       width.setValue(spot.w);
@@ -200,7 +208,7 @@ export function UnderlineTabs({
     ]);
     anim.start();
     return () => anim.stop();
-  }, [active, spots, left, width]);
+  }, [active, spots, left, width, reduceMotion]);
 
   if (vertical) {
     // react-native-web passes onKeyDown to the DOM; React Native's View types do not list it.
@@ -409,8 +417,9 @@ export function SwipeTabs({
 }) {
   const x = useRef(new Animated.Value(0)).current;
   const fade = x.interpolate({ inputRange: [-120, 0, 120], outputRange: [0.35, 1, 0.35], extrapolate: 'clamp' });
-  const state = useRef({ index, count, onChange });
-  state.current = { index, count, onChange };
+  const reduceMotion = useReducedMotion();
+  const state = useRef({ index, count, onChange, reduceMotion });
+  state.current = { index, count, onChange, reduceMotion };
 
   const pan = useRef(
     PanResponder.create({
@@ -422,11 +431,23 @@ export function SwipeTabs({
         x.setValue(g.dx * (atEdge ? 0.12 : 0.4));
       },
       onPanResponderRelease: (_e, g) => {
-        const { index: i, count: n, onChange: change } = state.current;
+        const { index: i, count: n, onChange: change, reduceMotion: still } = state.current;
         const dir = g.dx < -60 || g.vx < -0.5 ? 1 : g.dx > 60 || g.vx > 0.5 ? -1 : 0;
         const next = i + dir;
         if (dir === 0 || next < 0 || next >= n) {
           Animated.spring(x, { toValue: 0, useNativeDriver: true, friction: 7 }).start();
+          return;
+        }
+        if (still) {
+          // Reduce Motion: change tab with no slide (S3-6).
+          x.setValue(0);
+          change(next);
+          return;
+        }
+        if (still) {
+          // Reduce Motion: change tab with no slide (S3-6).
+          x.setValue(0);
+          change(next);
           return;
         }
         Animated.timing(x, { toValue: -dir * 120, duration: 110, useNativeDriver: true }).start(() => {
@@ -478,15 +499,20 @@ export function ConfirmDialog({
 }) {
   const t = useTheme();
   const pop = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
     if (!visible) {
       pop.setValue(0);
       return;
     }
+    if (reduceMotion) {
+      pop.setValue(1);
+      return;
+    }
     const anim = Animated.spring(pop, { toValue: 1, useNativeDriver: true, friction: 8, tension: 110 });
     anim.start();
     return () => anim.stop();
-  }, [visible, pop]);
+  }, [visible, pop, reduceMotion]);
   const scale = pop.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] });
   // The question is centred, so an open keyboard would cover its buttons on a short phone (plan task 1.8).
   useEffect(() => {
@@ -502,9 +528,10 @@ export function ConfirmDialog({
       <Animated.View
         style={{ flex: 1, backgroundColor: 'rgba(8,10,12,0.5)', justifyContent: 'center', alignItems: 'center', padding: 28, opacity: pop }}
       >
-        <Pressable style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} onPress={busy ? undefined : onCancel} />
+        <Pressable style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} onPress={busy ? undefined : onCancel} accessibilityLabel="Close" accessibilityRole="button" />
         <Animated.View
           accessibilityRole="alert"
+          accessibilityViewIsModal
           style={{
             backgroundColor: t.colors.bg,
             borderRadius: 26,
@@ -550,6 +577,8 @@ export function ConfirmDialog({
               onPress={onConfirm}
               disabled={busy}
               accessibilityRole="button"
+              accessibilityLabel={confirmLabel}
+              accessibilityState={{ busy: !!busy, disabled: !!busy }}
               style={({ pressed }) => ({
                 flex: 1.3,
                 minHeight: 50,
@@ -812,7 +841,7 @@ export function Badge({ label, tone = 'accent' }: { label: string; tone?: Tone }
       }}
     >
       <HaloDot color={c.fg} pulse={tone === 'gold' || tone === 'signal'} />
-      <RNText style={tx('800', 10, c.fg, { letterSpacing: 0.5 })}>{label.toUpperCase()}</RNText>
+      <RNText style={tx('800', 11, c.fg, { letterSpacing: 0.5 })}>{label.toUpperCase()}</RNText>
     </View>
   );
 }
@@ -1016,7 +1045,7 @@ export function IconButton({
             justifyContent: 'center',
           }}
         >
-          <RNText style={tx('800', 9, '#FFFFFF')}>{badge > 9 ? '9+' : badge}</RNText>
+          <RNText style={tx('800', 11, '#FFFFFF')}>{badge > 9 ? '9+' : badge}</RNText>
         </View>
       ) : null}
     </Pressable>
@@ -1288,7 +1317,10 @@ export function timeAgo(iso: string | null | undefined): string {
   if (h < 24) return m % 60 ? `${h}h ${m % 60}m ago` : `${h}h ago`;
   const d = Math.floor(h / 24);
   if (d < 7) return `${d}d ago`;
-  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  const then = new Date(iso);
+  // S3-19: an older year says which year, so "12 Sep" never means two different Septembers.
+  const sameYear = then.getFullYear() === new Date().getFullYear();
+  return then.toLocaleDateString('en-IN', sameYear ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 /** "23h left" / "2d left" / "overdue" for a due time. */

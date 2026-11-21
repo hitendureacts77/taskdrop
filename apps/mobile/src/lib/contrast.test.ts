@@ -60,3 +60,11 @@ test('B174: day chips and small white text stay readable on every hero gradient 
   }
   for (const s of [workerHeroFrom('light'), workerHeroFrom('dark')]) atLeast(onHero.text, s, `Earn hero text on ${s}`);
 });
+
+test('S3-1/S3-2: white-text fills reach 4.5:1 (deep jade fill, dark Earn count fill)', () => {
+  atLeast(light.onBtn, light.btn, 'light btn');
+  atLeast(WHITE, dark.purpleFill, 'white on dark purpleFill');
+  for (const f of ['../screens/DetailSheetScreen.tsx', '../screens/CompareScreen.tsx']) {
+    assert.ok(!/backgroundColor: t\.colors\.accent,[^}]*\n[^\n]*onAccent/.test(read(f)), `${f}: white text on the light jade accent`);
+  }
+});

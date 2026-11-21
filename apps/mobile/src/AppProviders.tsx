@@ -18,6 +18,8 @@ import { SyncProvider } from './providers/SyncProvider';
 import { useNav } from './providers/NavProvider';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppGate } from './components/AppGate';
+import { StartupFrame } from './components/StartupFrame';
+import { ProfileGate } from './components/ProfileGate';
 import { PushBridge } from './components/PushBridge';
 import { SessionWatch } from './components/SessionWatch';
 import { PresenceBeat } from './components/PresenceBeat';
@@ -77,7 +79,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   // Never block the whole app on a font: if loading fails, render anyway and
   // fall back to the system face rather than showing a blank screen.
   if (!fontsLoaded && !fontError) {
-    return <View style={{ flex: 1, backgroundColor: '#0F1012' }} />;
+    return <StartupFrame />;
   }
 
   return (
@@ -88,7 +90,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
             <AppStateProvider>
               <SyncProvider>
                 {/* Maintenance, "update the app" and the announcement banner, from the admin panel. */}
-                <AppGate>{children}</AppGate>
+                <AppGate>
+                  <ProfileGate>{children}</ProfileGate>
+                </AppGate>
               </SyncProvider>
             </AppStateProvider>
           </ModeProvider>

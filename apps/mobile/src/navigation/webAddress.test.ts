@@ -34,3 +34,9 @@ test('B179: each main screen has its own tab title', () => {
   assert.equal(titleForScreen('privacy'), 'Privacy Policy · TaskDrop');
   assert.equal(titleForScreen('splash'), 'TaskDrop');
 });
+
+test('L1-17: every named screen gets its own tab title', () => {
+  for (const [screen, name] of [['bigDay', 'Plan a big day'], ['regulars', 'My regulars'], ['promote', 'Promote a request'], ['disputes', 'My complaints'], ['profileEdit', 'Edit profile']] as const) {
+    assert.equal(titleForScreen(screen), `${name} · TaskDrop`);
+  }
+});

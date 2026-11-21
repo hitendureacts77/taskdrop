@@ -59,6 +59,11 @@ const TITLES: Record<string, string> = {
   welcome: 'Sign in',
   signup: 'Make your account',
   publicProfile: 'Profile',
+  bigDay: 'Plan a big day',
+  regulars: 'My regulars',
+  promote: 'Promote a request',
+  disputes: 'My complaints',
+  profileEdit: 'Edit profile',
 };
 
 /** The browser tab's title for a screen: "Wallet · TaskDrop"; plain "TaskDrop" for one with no name here. */

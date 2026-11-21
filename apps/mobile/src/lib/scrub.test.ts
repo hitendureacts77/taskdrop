@@ -40,3 +40,10 @@ test('the Edge Function copy is identical to the app copy', () => {
   const b = readFileSync(new URL('../../../../supabase/functions/_shared/scrub.ts', import.meta.url), 'utf8');
   assert.equal(b, a);
 });
+
+test('S3-7: a value nested past the depth limit is dropped, never sent unscrubbed', async () => {
+  const { scrubValue } = await import('./scrub.ts');
+  let deep: Record<string, unknown> = { note: 'call 9876543210' };
+  for (let i = 0; i < 12; i++) deep = { next: deep };
+  assert.ok(!JSON.stringify(scrubValue(deep)).includes('9876543210'));
+});

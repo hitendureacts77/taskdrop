@@ -38,7 +38,16 @@ export function CountUp({
       else from.current = value;
     };
     frame = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frame);
+    // A hidden browser tab pauses animation frames, which left the figure at 0 next to the real one
+    // (L1-16). Whatever happens to the frames, the real value is shown when the count-up should be over.
+    const settle = setTimeout(() => {
+      setShown(value);
+      from.current = value;
+    }, duration + 80);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(settle);
+    };
   }, [value, reduced, duration]);
   return (
     <RNText style={style} accessibilityLabel={format(value)}>

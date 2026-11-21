@@ -2,6 +2,7 @@ import { View } from 'react-native';
 import { RoleTheme } from '../providers/ThemeProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useAuth } from '../providers/AuthProvider';
+import { StartupFrame } from '../components/StartupFrame';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { AppProviders, Background, ThemedStatusBar } from '../AppProviders';
 import { NativeRoot } from '../navigation/NativeRoot';
@@ -18,7 +19,7 @@ import { usesWorkerColours } from '../lib/roleColours';
 function Routes() {
   const { ready, session, postAuthRoute, guest } = useAuth();
   const { mode } = useMode();
-  if (!ready) return <View style={{ flex: 1, backgroundColor: '#0F1012' }} />;
+  if (!ready) return <StartupFrame />;
   decideStart(postAuthRoute === 'setup' ? 'setup' : session || guest ? null : 'splash');
   return (
     // Earning, signed in or as a guest: the whole app turns royal blue. Sign-up and the

@@ -4,10 +4,12 @@ import App from './App';
 import { installGlobalErrorHandlers } from './src/lib/globalErrors';
 import { finishPaymentReturn } from './src/lib/links';
 import { installMonitoring, withMonitoring } from './src/lib/monitoring';
+import { installFontScaleCap } from './src/lib/fontScale';
 
 // First, so even a failure while the app is starting up is caught and reported.
 installMonitoring();
 installGlobalErrorHandlers();
+installFontScaleCap();
 
 if (process.env.EXPO_OS === 'web') {
   // Back from paying: close the tab Razorpay was opened in, before the app loads.

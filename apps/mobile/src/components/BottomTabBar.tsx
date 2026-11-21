@@ -12,7 +12,7 @@ import { countNeedsAttention } from '../data/api';
 /** 5-tab bar: Home · Explore · My Tasks (My Work) · Wallet · Profile. */
 export function BottomTabBar() {
   const t = useTheme();
-  const { screen, go } = useNav();
+  const { screen, reset } = useNav();
   const { mode } = useMode();
   const { userId } = useAuth();
   const insets = useSafeAreaInsets();
@@ -34,7 +34,7 @@ export function BottomTabBar() {
 
   const tabs: Array<{ key: ScreenName; icon: IconName; label: string }> = [
     { key: 'home', icon: 'home', label: 'Home' },
-    { key: 'explore', icon: 'map', label: 'Explore' },
+    { key: 'explore', icon: 'map', label: mode === 'worker' ? 'Find work' : 'Explore' },
     { key: 'myTasks', icon: 'orders', label: mode === 'worker' ? 'My Work' : 'My Tasks' },
     { key: 'wallet', icon: 'wallet', label: 'Wallet' },
     { key: 'profile', icon: 'user', label: 'Profile' },
@@ -61,7 +61,7 @@ export function BottomTabBar() {
         return (
           <Pressable
             key={tab.key}
-            onPress={() => go(tab.key)}
+            onPress={() => reset(tab.key)}
             accessibilityRole="tab"
             accessibilityLabel={
               tab.key === 'myTasks' && waiting > 0
@@ -107,7 +107,7 @@ export function BottomTabBar() {
                 >
                   <RNText
                     style={{
-                      fontSize: 10,
+                      fontSize: 11,
                       color: '#FFFFFF',
                       fontFamily: fontFamilyFor('800'),
                     }}

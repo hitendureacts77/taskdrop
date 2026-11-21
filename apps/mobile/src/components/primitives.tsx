@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { Pressable, Animated, Platform, View, type TextStyle, type ViewStyle, type StyleProp } from 'react-native';
 import { fontFamilyFor } from '../theme';
+import { useReducedMotion } from '../lib/motion';
+import { useReducedMotion } from '../lib/motion';
 
 /**
  * The three helpers every ported screen needs.
@@ -87,7 +89,14 @@ export function FadeIn({
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const ty = useRef(new Animated.Value(translateY)).current;
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
+    if (reduceMotion) {
+      // Reduce Motion: no rise, just appear (S3-6).
+      opacity.setValue(1);
+      ty.setValue(0);
+      return;
+    }
     const anim = Animated.parallel([
       Animated.timing(opacity, { toValue: 1, duration, delay, useNativeDriver: true }),
       Animated.timing(ty, { toValue: 0, duration, delay, useNativeDriver: true }),

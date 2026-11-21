@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { View, Text as RNText, Animated, Easing, StyleSheet, type ViewInstance } from 'react-native';
+import { View, Text as RNText, Animated, Easing, StyleSheet, AccessibilityInfo, type ViewInstance } from 'react-native';
+import { useReducedMotion } from '../lib/motion';
 import Svg, { Path } from 'react-native-svg';
 import { useApp } from '../providers/AppStateProvider';
 import { useTheme } from '../providers/ThemeProvider';
@@ -17,6 +18,12 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 export function Overlays() {
   const { toast, burst } = useApp();
   const t = useTheme();
+  const reduceMotion = useReducedMotion();
+
+  // Screen readers hear the toast (S3-27); the live region on the toast view covers web.
+  useEffect(() => {
+    if (toast) void AccessibilityInfo.announceForAccessibility(toast);
+  }, [toast]);
 
   // A toast shown while the keyboard is open would sit under it: lift it clear (plan task 1.8).
   const toastRef = useRef<ViewInstance>(null);
@@ -28,10 +35,10 @@ export function Overlays() {
   const draw = useRef(new Animated.Value(60)).current;
 
   useEffect(() => {
-    const o = Animated.timing(toastO, { toValue: toast ? 1 : 0, duration: 220, useNativeDriver: true });
+    const o = Animated.timing(toastO, { toValue: toast ? 1 : 0, duration: reduceMotion ? 0 : 220, useNativeDriver: true });
     const y = Animated.timing(toastY, {
       toValue: toast ? 0 : 26,
-      duration: 300,
+      duration: reduceMotion ? 0 : 300,
       easing: Easing.bezier(0.2, 0.8, 0.25, 1),
       useNativeDriver: true,
     });
@@ -41,16 +48,16 @@ export function Overlays() {
       o.stop();
       y.stop();
     };
-  }, [toast, toastO, toastY]);
+  }, [toast, toastO, toastY, reduceMotion]);
 
   useEffect(() => {
     if (!burst) return;
     pop.setValue(0);
     ring.setValue(0);
     draw.setValue(60);
-    const a = Animated.timing(pop, { toValue: 1, duration: 420, useNativeDriver: true });
-    const b = Animated.timing(ring, { toValue: 1, duration: 900, easing: Easing.out(Easing.ease), useNativeDriver: true });
-    const c = Animated.timing(draw, { toValue: 0, duration: 450, delay: 160, useNativeDriver: false });
+    const a = Animated.timing(pop, { toValue: 1, duration: reduceMotion ? 0 : 420, useNativeDriver: true });
+    const b = Animated.timing(ring, { toValue: 1, duration: reduceMotion ? 0 : 900, easing: Easing.out(Easing.ease), useNativeDriver: true });
+    const c = Animated.timing(draw, { toValue: 0, duration: reduceMotion ? 0 : 450, delay: reduceMotion ? 0 : 160, useNativeDriver: false });
     a.start();
     b.start();
     c.start();
@@ -59,7 +66,7 @@ export function Overlays() {
       b.stop();
       c.stop();
     };
-  }, [burst, pop, ring, draw]);
+  }, [burst, pop, ring, draw, reduceMotion]);
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -119,6 +126,8 @@ export function Overlays() {
       {!!toast && (
         <Animated.View
           ref={toastRef}
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
           style={{
             position: 'absolute',
             left: 16,

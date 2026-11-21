@@ -254,7 +254,7 @@ export function DetailSheetScreen() {
           <Pressable
             onPress={() => void send()}
             style={({ pressed }) => ({
-              backgroundColor: t.colors.accent,
+              backgroundColor: t.colors.btn,
               borderRadius: 999,
               paddingVertical: 16,
               alignItems: 'center',
@@ -266,7 +266,7 @@ export function DetailSheetScreen() {
               elevation: 6,
             })}
           >
-            <RNText style={tx('700', 16, t.colors.onAccent)}>{cta}</RNText>
+            <RNText style={tx('700', 16, t.colors.onBtn)}>{cta}</RNText>
           </Pressable>
         </KeyboardSafe>
       </Animated.View>

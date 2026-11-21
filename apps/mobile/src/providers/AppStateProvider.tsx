@@ -1,4 +1,5 @@
 import React, {
+  useEffect,
   createContext,
   useContext,
   useMemo,
@@ -6,6 +7,8 @@ import React, {
   useState,
   useCallback,
 } from 'react';
+
+import { useAuth } from './AuthProvider';
 
 /**
  * Global app state shared across screens — mirrors the design's single-component
@@ -88,6 +91,19 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const burstTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rollTimers = useRef<Record<string, ReturnType<typeof setInterval>>>({});
+  const sRef = useRef(s);
+  sRef.current = s;
+
+  // S3-25: the figures, open task and sent offers belong to one person. When the session ends or another person
+  // signs in, start clean so the next person never inherits them.
+  const { userId } = useAuth();
+  const lastUser = useRef(userId);
+  useEffect(() => {
+    if (lastUser.current === userId) return;
+    lastUser.current = userId;
+    for (const id of Object.values(rollTimers.current)) clearInterval(id);
+    setS({ ...INITIAL, startedAt: {} });
+  }, [userId]);
 
   const flash = useCallback((msg: string) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -113,18 +129,16 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     if (rollTimers.current[key]) clearInterval(rollTimers.current[key]);
     const steps = 24;
     let i = 0;
-    setS((p) => {
-      const from = p[key];
-      rollTimers.current[key] = setInterval(() => {
-        i += 1;
-        const t = i / steps;
-        const eased = 1 - Math.pow(1 - t, 3);
-        const val = Math.round(from + (target - from) * eased);
-        setS((q) => ({ ...q, [key]: i >= steps ? target : val }));
-        if (i >= steps) clearInterval(rollTimers.current[key]!);
-      }, 22);
-      return p;
-    });
+    // S3-26: read the start value, then start the timer outside any state updater (an updater must be pure).
+    const from = sRef.current[key];
+    rollTimers.current[key] = setInterval(() => {
+      i += 1;
+      const t = i / steps;
+      const eased = 1 - Math.pow(1 - t, 3);
+      const val = Math.round(from + (target - from) * eased);
+      setS((q) => ({ ...q, [key]: i >= steps ? target : val }));
+      if (i >= steps) clearInterval(rollTimers.current[key]!);
+    }, 22);
   }, []);
 
   const setOpenTask = useCallback((t: TaskCtx | null) => setS((p) => ({ ...p, openTask: t })), []);

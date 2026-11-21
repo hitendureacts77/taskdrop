@@ -22,6 +22,15 @@ type NavCtx = {
 
 const Ctx = createContext<NavCtx | null>(null);
 
+function sameParams(a: NavParams, b: NavParams): boolean {
+  if (a === b) return true;
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+}
+
 export function NavProvider({
   children,
   initial = 'splash',
@@ -34,7 +43,12 @@ export function NavProvider({
   ]);
 
   const go = useCallback((screen: ScreenName, params: NavParams = {}) => {
-    setStack((s) => [...s, { screen, params }]);
+    setStack((s) => {
+      // S3-36: a double tap must not push the same screen twice.
+      const top = s[s.length - 1];
+      if (top && top.screen === screen && sameParams(top.params, params)) return s;
+      return [...s, { screen, params }];
+    });
   }, []);
   const back = useCallback(() => {
     setStack((s) => (s.length > 1 ? s.slice(0, -1) : s));

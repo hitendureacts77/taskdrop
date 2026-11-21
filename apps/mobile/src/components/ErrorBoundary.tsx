@@ -56,7 +56,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
       <View style={s.wrap} accessibilityRole="alert">
         <Text style={s.title}>Something went wrong</Text>
         <Text style={s.body}>
-          We hit a problem showing this page. Nothing you entered or paid for was lost.
+          We hit a problem showing this page. Your account and payments are safe.
         </Text>
         <Pressable style={s.primary} onPress={this.retry} accessibilityRole="button">
           <Text style={s.primaryText}>Try again</Text>

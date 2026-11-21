@@ -12,6 +12,7 @@ import { StagingWelcome } from './src/components/StagingWelcome';
 import { AppSheet } from './src/components/AppSheet';
 import { TourHost } from './src/components/tour/TourHost';
 import { WebShell } from './src/components/WebShell';
+import { StartupFrame } from './src/components/StartupFrame';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { AppProviders, Background, ScreenBoundary, ThemedStatusBar } from './src/AppProviders';
 import { usesWorkerColours } from './src/lib/roleColours';
@@ -26,7 +27,7 @@ import './src/lib/webScrollbar';
 function Routes() {
   const { ready, session, postAuthRoute, guest } = useAuth();
   const { mode } = useMode();
-  if (!ready) return <View style={{ flex: 1, backgroundColor: '#0F1012' }} />;
+  if (!ready) return <StartupFrame />;
   return (
     // Earning, signed in or as a guest: the whole app turns royal blue. Sign-up and the
     // welcome screens keep the brand green.

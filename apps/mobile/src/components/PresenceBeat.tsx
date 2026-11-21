@@ -25,8 +25,12 @@ export function PresenceBeat() {
     }
     // Restore the saved choice (never prompts for permission).
     void initMapSharing();
+    let lastBeat = 0;
     const beat = () => {
       if (!inFront()) return;
+      // S3-33: on the web, coming back fires both a visibility event and an AppState change.
+      if (Date.now() - lastBeat < 2000) return;
+      lastBeat = Date.now();
       const spot = nextSpot();
       void touchPresence(userId, spot).then((sent) => {
         if (spot && !sent) releaseSpot();

@@ -33,7 +33,9 @@ const DROP_KEY = /^(authorization|cookie|set-cookie|x-api-key|apikey|api[-_]?key
 /** Copy of `value` with every string scrubbed and every sensitive field removed. Depth-limited. */
 export function scrubValue(value: unknown, depth = 0): unknown {
   if (typeof value === 'string') return scrubText(value);
-  if (value === null || typeof value !== 'object' || depth > 8) return value;
+  if (value === null || typeof value !== 'object') return value;
+  // S3-7: past the depth limit the value is dropped, never passed through unscrubbed.
+  if (depth > 8) return '[too deep]';
   if (Array.isArray(value)) return value.map((v) => scrubValue(v, depth + 1));
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
