@@ -3,7 +3,7 @@ import { Icon } from '../components/Icon';
 import { View, Text as RNText, Pressable, Animated, ScrollView, type TextStyle } from 'react-native';
 import { formatINR } from '../components/ui';
 import { AmountField } from '../components/AmountField';
-import { MAX_PRICE_INR } from '../lib/limits';
+import { priceNote } from '../lib/limits';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -62,9 +62,10 @@ export function DetailSheetScreen() {
   }, [rise]);
 
   const delta = quote - asked;
-  const deltaText =
-    delta === 0 ? 'same as asked' : delta > 0 ? `+${formatINR(delta)} above` : `−${formatINR(-delta)} below`;
-  const deltaInk = delta === 0 ? t.colors.muted : delta > 0 ? t.colors.gold : t.colors.accentDeep;
+  const quoteNote = priceNote(quote / 100);
+  const deltaText = quoteNote ??
+    (delta === 0 ? 'same as asked' : delta > 0 ? `+${formatINR(delta)} above` : `−${formatINR(-delta)} below`);
+  const deltaInk = quoteNote ? t.colors.signalDeep : delta === 0 ? t.colors.muted : delta > 0 ? t.colors.gold : t.colors.accentDeep;
 
   const cta = worker ? 'Send offer' : `Send ${who} a task`;
 
@@ -82,6 +83,7 @@ export function DetailSheetScreen() {
       if (!realId) return flash('This is a sample card — open a real task to send an offer');
       if (guest) return needAccount('offer', () => void send());
       if (!userId) return flash('Sign in to send an offer');
+      if (quoteNote) return flash(quoteNote);
       setBusy(true);
       try {
         await placeBid({
@@ -213,10 +215,9 @@ export function DetailSheetScreen() {
             <StepBtn sign="−" onPress={() => setQuote((q) => Math.max(STEP, q - STEP))} />
             <View style={{ flex: 1, alignItems: 'center' }}>
               <AmountField
-                rupees={Math.round(quote / 100)}
+                rupees={quote > 0 ? Math.round(quote / 100) : null}
                 onChangeRupees={(r) => setQuote((r ?? 0) * 100)}
-                min={1}
-                max={MAX_PRICE_INR}
+                min={0}
                 style={tx('800', 30, t.colors.ink, { letterSpacing: -0.9 })}
               />
               <RNText style={tx('400', 11, deltaInk, { marginTop: 2 })}>{deltaText}</RNText>

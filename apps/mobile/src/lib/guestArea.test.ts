@@ -28,3 +28,9 @@ test('B87: a picked place becomes the saved guest area, a label-only one does no
   assert.deepEqual(guestAreaFromPicked({ label: 'Madhapur', lat: 17.45, lng: 78.39 }), { label: 'Madhapur', lat: 17.45, lng: 78.39 });
   assert.equal(guestAreaFromPicked({ label: 'Madhapur', lat: null, lng: null }), null);
 });
+
+test('B176: a saved or picked label is tidied (one space after each comma)', () => {
+  const raw = JSON.stringify({ label: 'Madhapur,  Ward 104 Kondapur,  Greater Hyderabad', lat: 17.44, lng: 78.39 });
+  assert.equal(parseGuestArea(raw)?.label, 'Madhapur, Ward 104 Kondapur, Greater Hyderabad');
+  assert.equal(guestAreaFromPicked({ label: 'Sirur,  Raikode mandal', lat: 1, lng: 2 })?.label, 'Sirur, Raikode mandal');
+});

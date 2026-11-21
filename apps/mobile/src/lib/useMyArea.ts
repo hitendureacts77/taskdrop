@@ -6,6 +6,7 @@ import { getProfile, updateProfile } from '../data/api';
 import { guestAreaFromPicked } from './guestArea';
 import { readGuestArea, saveGuestArea } from './guestAreaStore';
 import type { PickedPlace } from '../components/LocationSheet';
+import { areaFromProfile, peekArea, rememberArea, sameArea } from './areaCache';
 
 export type MyArea = { label: string; lat: number; lng: number };
 
@@ -19,8 +20,9 @@ export function useMyArea(): { area: MyArea | null; loaded: boolean; choose: (pi
   const { userId } = useAuth();
   const { flash } = useActions();
   const tick = useFocusTick();
-  const [area, setArea] = useState<MyArea | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  // Starts from the area Home already read this session (P1-12 / P1-13), so the map does not wait or ask again.
+  const [area, setArea] = useState<MyArea | null>(() => peekArea(userId ?? 'guest') ?? null);
+  const [loaded, setLoaded] = useState(() => peekArea(userId ?? 'guest') !== undefined);
 
   useEffect(() => {
     let alive = true;
@@ -29,7 +31,8 @@ export function useMyArea(): { area: MyArea | null; loaded: boolean; choose: (pi
       readGuestArea()
         .then((saved) => {
           if (!alive) return;
-          setArea((cur) => (cur && saved && cur.lat === saved.lat && cur.lng === saved.lng ? cur : saved));
+          rememberArea('guest', saved);
+          setArea((cur) => (sameArea(cur, saved) ? cur : saved));
         })
         .catch(() => {})
         .finally(() => alive && setLoaded(true));
@@ -41,11 +44,9 @@ export function useMyArea(): { area: MyArea | null; loaded: boolean; choose: (pi
       .then((p) => {
         if (!alive) return;
         setLoaded(true);
-        setArea((cur) => {
-          if (p?.loc_lat == null || p?.loc_lng == null) return null;
-          if (cur && cur.lat === p.loc_lat && cur.lng === p.loc_lng) return cur;
-          return { label: p.loc_label ?? 'Your area', lat: p.loc_lat, lng: p.loc_lng };
-        });
+        const next = areaFromProfile(p);
+        rememberArea(userId, next);
+        setArea((cur) => (sameArea(cur, next) ? cur : next));
       })
       .catch(() => alive && setLoaded(true));
     return () => {
@@ -58,6 +59,7 @@ export function useMyArea(): { area: MyArea | null; loaded: boolean; choose: (pi
       const next = guestAreaFromPicked(picked);
       if (!next) return flash('Drop a pin on the map to set your area');
       setArea(next);
+      rememberArea(userId ?? 'guest', next);
       if (!userId) {
         await saveGuestArea(next);
         return;

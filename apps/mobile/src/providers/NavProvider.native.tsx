@@ -119,8 +119,17 @@ export function useNav() {
     [router],
   );
 
+  const replace = useCallback(
+    (to: ScreenName, params: NavParams = EMPTY) => {
+      if (isNativeTab(to)) return go(to, params);
+      const k = putParams(params);
+      router.replace({ pathname: '/screen/[name]', params: k ? { name: to, k } : { name: to } });
+    },
+    [router, go],
+  );
+
   return useMemo(
-    () => ({ screen, params: scope?.params ?? EMPTY, go, back, reset }),
-    [screen, scope, go, back, reset],
+    () => ({ screen, params: scope?.params ?? EMPTY, go, back, reset, replace }),
+    [screen, scope, go, back, reset, replace],
   );
 }

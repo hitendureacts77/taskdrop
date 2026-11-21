@@ -3,6 +3,8 @@ import { Pressable } from 'react-native';
 import { Screen, Text, Card, Row, Button, Divider, formatINR } from '../components/ui';
 import { TaskDescription } from '../components/TaskDescription';
 import { ReportProblemSheet } from '../components/ReportProblemSheet';
+import { ActionBar, FormPage, FormSection } from '../components/FormPage';
+import { useLayout } from '../lib/layout';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useApp } from '../providers/AppStateProvider';
@@ -47,6 +49,7 @@ function countdown(iso: string | null): string {
 }
 export function ConfirmScreen() {
   const t = useTheme();
+  const { desktop } = useLayout();
   const { params, go } = useNav();
   const { openTask, escrow, roll, setDone, celebrate, flash } = useApp();
 
@@ -131,80 +134,129 @@ export function ConfirmScreen() {
     }
   };
 
-  return (
-    <Screen scroll>
-      <Text color="accent" variant="label" style={{ marginTop: 8 }}>
+  const heading = (
+    <>
+      <Text color="accent" variant="label" style={{ marginTop: desktop ? 0 : 8 }}>
         CONFIRM WORK
       </Text>
-      <Text variant="h1" style={{ marginTop: 4, marginBottom: t.spacing.lg }}>
+      <Text variant="h1" style={{ marginTop: 4, marginBottom: desktop ? 0 : t.spacing.lg }}>
         {title ?? "No task selected"}
       </Text>
+    </>
+  );
 
-      <Card style={{ backgroundColor: t.colors.surface2, borderColor: 'transparent', marginBottom: t.spacing.lg }}>
-        <Text variant="label" color="muted" style={{ marginBottom: 4 }}>
-          WHAT YOU ASKED FOR
-        </Text>
-        {detail?.task.description?.trim() ? (
-          <TaskDescription text={detail.task.description} title={detail.task.title} size="sm" />
-        ) : (
-          <Text variant="body">The worker marked this done. Check the work before you release the payment.</Text>
-        )}
-      </Card>
+  const asked = (
+    <Card style={{ backgroundColor: t.colors.surface2, borderColor: 'transparent', marginBottom: t.spacing.lg }}>
+      <Text variant="label" color="muted" style={{ marginBottom: 4 }}>
+        WHAT YOU ASKED FOR
+      </Text>
+      {detail?.task.description?.trim() ? (
+        <TaskDescription text={detail.task.description} title={detail.task.title} size="sm" />
+      ) : (
+        <Text variant="body">The worker marked this done. Check the work before you release the payment.</Text>
+      )}
+    </Card>
+  );
 
-      <Card style={{ marginBottom: t.spacing.lg }}>
-        {releaseRows.map((row, i) => (
-          <React.Fragment key={row.label}>
-            <Row justify="space-between" style={{ paddingVertical: i === 0 ? 4 : 10 }}>
-              <Text color="muted" variant="label">
-                {row.label}
-              </Text>
-              <Text
-                variant={i === 1 ? 'h3' : 'label'}
-                color={i === 1 ? 'accent' : 'text'}
-              >
-                {row.value}
-              </Text>
-            </Row>
-            {i < releaseRows.length - 1 && <Divider />}
-          </React.Fragment>
-        ))}
-      </Card>
+  const rowsCard = (
+    <Card style={{ marginBottom: desktop ? 0 : t.spacing.lg }}>
+      {releaseRows.map((row, i) => (
+        <React.Fragment key={row.label}>
+          <Row justify="space-between" style={{ paddingVertical: i === 0 ? 4 : 10 }}>
+            <Text color="muted" variant="label">
+              {row.label}
+            </Text>
+            <Text
+              variant={i === 1 ? 'h3' : 'label'}
+              color={i === 1 ? 'accent' : 'text'}
+            >
+              {row.value}
+            </Text>
+          </Row>
+          {i < releaseRows.length - 1 && <Divider />}
+        </React.Fragment>
+      ))}
+    </Card>
+  );
 
-      <Card style={{ backgroundColor: t.colors.accentSoft, borderColor: t.colors.accentBorder, marginBottom: t.spacing.xl }}>
-        <Text variant="body" style={{ color: t.colors.accentDeep }}>
-          Releasing pays the worker and closes this order. If something is not right, send it back
-          for changes before you release.
-        </Text>
-      </Card>
+  const note = (
+    <Card style={{ backgroundColor: t.colors.accentSoft, borderColor: t.colors.accentBorder, marginBottom: desktop ? 0 : t.spacing.xl }}>
+      <Text variant="body" style={{ color: t.colors.accentDeep }}>
+        Releasing pays the worker and closes this order. If something is not right, send it back
+        for changes before you release.
+      </Text>
+    </Card>
+  );
 
-      <Button
-        label={busy ? 'Releasing…' : 'Confirm and release payment'}
-        onPress={handleConfirm}
-      />
-      <Button
-        label="Request changes"
-        variant="secondary"
-        style={{ marginTop: t.spacing.md }}
-        onPress={askForChanges}
-      />
+  const confirmButton = (
+    <Button
+      label={busy ? 'Releasing…' : 'Confirm and release payment'}
+      onPress={handleConfirm}
+    />
+  );
+  const changesButton = (
+    <Button
+      label="Request changes"
+      variant="secondary"
+      style={desktop ? undefined : { marginTop: t.spacing.md }}
+      onPress={askForChanges}
+    />
+  );
+  const reportLink = (
+    <Pressable
+      onPress={startDispute}
+      accessibilityRole="button"
+      accessibilityLabel="Report a problem"
+      style={desktop ? { alignSelf: 'flex-start', padding: t.spacing.sm } : { marginTop: t.spacing.lg, alignItems: 'center', padding: t.spacing.sm }}
+    >
+      <Text variant="label" color="signal">
+        Report a problem
+      </Text>
+    </Pressable>
+  );
+  const reportSheet = (
+    <ReportProblemSheet
+      taskId={taskId}
+      visible={reporting}
+      onClose={() => setReporting(false)}
+      onReported={() => go('orders')}
+    />
+  );
 
-      <Pressable
-        onPress={startDispute}
-        accessibilityRole="button"
-        accessibilityLabel="Report a problem"
-        style={{ marginTop: t.spacing.lg, alignItems: 'center', padding: t.spacing.sm }}
+  if (!desktop) {
+    return (
+      <Screen scroll>
+        {heading}
+        {asked}
+        {rowsCard}
+        {note}
+        {confirmButton}
+        {changesButton}
+        {reportLink}
+        {reportSheet}
+      </Screen>
+    );
+  }
+
+  // Desktop: the heading, what was asked and the note on the card; the same two money rows in the side column; the buttons in the action bar.
+  return (
+    <Screen padded={false}>
+      <FormPage
+        aside={rowsCard}
+        actions={
+          <ActionBar hint={reportLink}>
+            {changesButton}
+            {confirmButton}
+          </ActionBar>
+        }
       >
-        <Text variant="label" color="signal">
-          Report a problem
-        </Text>
-      </Pressable>
-
-      <ReportProblemSheet
-        taskId={taskId}
-        visible={reporting}
-        onClose={() => setReporting(false)}
-        onReported={() => go('orders')}
-      />
+        <FormSection first>{heading}</FormSection>
+        <FormSection>
+          {asked}
+          {note}
+        </FormSection>
+      </FormPage>
+      {reportSheet}
     </Screen>
   );
 }

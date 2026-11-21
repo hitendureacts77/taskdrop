@@ -18,7 +18,7 @@ import { Platform, useWindowDimensions } from 'react-native';
 export const DESKTOP_MIN_WIDTH = 1024;
 /** From this browser width up (and below desktop), the tablet rail layout. */
 export const TABLET_MIN_WIDTH = 600;
-export const SIDEBAR_WIDTH = 264;
+export const SIDEBAR_WIDTH = 240;
 export const RAIL_WIDTH = 84;
 
 /** Content width on a tablet. */
@@ -28,9 +28,11 @@ export const TABLET_CONTENT = 720;
  * Desktop columns (docs/design/desktop-fit/PLAN.md, Q1). FULL fills the area
  * beside the menu (maps); FEED, READ and FORM fill it less a gutter, up to a cap.
  * READ and FORM keep a small cap on purpose: line length, one form at a time.
+ * FEED stops at 1280 (docs/design/desktop-web/PLAN.md, 4.1): a web page's content width, so the page header and
+ * the cards below it line up on a big monitor instead of stretching edge to edge (1680 before).
  */
 export type ColumnClass = 'full' | 'feed' | 'read' | 'form';
-export const FEED_MAX = 1680;
+export const FEED_MAX = 1280;
 export const READ_MAX = 960;
 export const FORM_MAX = 760;
 export const GUTTER_MIN = 24;

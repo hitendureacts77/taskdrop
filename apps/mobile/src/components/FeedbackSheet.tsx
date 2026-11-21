@@ -5,6 +5,7 @@ import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { sendFeedback, type FeedbackKind } from '../data/extras';
 import { BottomSheet, Field, Pill, PrimaryButton } from './kit';
+import { lengthHint } from '../lib/fieldHint';
 import { tx } from './primitives';
 import { isNeedsAccount, useAccountHold } from '../lib/guest';
 
@@ -61,6 +62,7 @@ export function FeedbackSheet({ visible, onClose }: { visible: boolean; onClose:
         multiline
         maxLength={2000}
         placeholder="Tell us what happened or what you’d like"
+        hint={lengthHint(body, 3, 'your feedback') ?? undefined}
       />
       <RNText style={tx('400', 11, t.colors.muted, { marginTop: 8 })}>
         We attach the screen you were on, so you don’t have to describe where you were.

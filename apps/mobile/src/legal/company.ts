@@ -16,13 +16,25 @@ const env = {
   EXPO_PUBLIC_LEGAL_JURISDICTION: process.env.EXPO_PUBLIC_LEGAL_JURISDICTION?.trim() ?? '',
 };
 
+/**
+ * The one address people see when no TaskDrop address is set (owner, 17 Nov 2026): a personal
+ * inbox (a gmail.com address, say) must never show in the app, the legal pages or security.txt.
+ */
+export const PUBLIC_EMAIL = 'admin@taskdrop.in';
+
+/** `raw` when it is a taskdrop.in address, otherwise PUBLIC_EMAIL. scripts/web-env-guard.mjs keeps the same rule. */
+export function publicEmail(raw: string | null | undefined): string {
+  const v = String(raw ?? '').trim().toLowerCase();
+  return /^[a-z0-9._%+-]+@taskdrop\.in$/.test(v) ? v : PUBLIC_EMAIL;
+}
+
 export const company = {
   /** The legal entity that runs TaskDrop, or the brand until it is set. */
   entity: env.EXPO_PUBLIC_LEGAL_ENTITY || 'TaskDrop',
   address: env.EXPO_PUBLIC_LEGAL_ADDRESS || null,
-  email: env.EXPO_PUBLIC_LEGAL_EMAIL || null,
+  email: publicEmail(env.EXPO_PUBLIC_LEGAL_EMAIL),
   grievanceName: env.EXPO_PUBLIC_GRIEVANCE_OFFICER_NAME || null,
-  grievanceEmail: env.EXPO_PUBLIC_GRIEVANCE_OFFICER_EMAIL || env.EXPO_PUBLIC_LEGAL_EMAIL || null,
+  grievanceEmail: publicEmail(env.EXPO_PUBLIC_GRIEVANCE_OFFICER_EMAIL || env.EXPO_PUBLIC_LEGAL_EMAIL),
   /** The city whose courts hear disputes, e.g. "Hyderabad". */
   jurisdiction: env.EXPO_PUBLIC_LEGAL_JURISDICTION || null,
   /** Set to "yes" once a lawyer has approved the Terms and Privacy Policy text. */

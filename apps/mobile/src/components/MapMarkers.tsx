@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { View, Image, Text as RNText, Animated, Platform, type ViewStyle } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useReducedMotion } from '../lib/motion';
@@ -70,6 +70,13 @@ export function FaceDisc({
   const t = useTheme();
   const dot = Math.max(9, Math.round(size * 0.26));
   const [broken, setBroken] = useState(false);
+  // A photo that arrives late fades in over the initials instead of popping in (Opus map audit).
+  const reduced = useReducedMotion();
+  const shown = useRef(new Animated.Value(0)).current;
+  const loaded = () => {
+    Animated.timing(shown, { toValue: 1, duration: reduced ? 0 : 180, useNativeDriver: Platform.OS !== 'web' }).start();
+    onImage?.();
+  };
   return (
     <View style={{ width: size, height: size }}>
       <View
@@ -92,13 +99,17 @@ export function FaceDisc({
           <RNText style={tx('800', Math.round(size * 0.3), '#FFFFFF')}>{face.initials}</RNText>
         )}
         {face.photo && !face.icon && !broken ? (
-          <Image
-            source={{ uri: face.photo }}
-            onLoad={onImage}
-            onError={() => (setBroken(true), onImage?.())}
-            style={{ position: 'absolute', left: 0, top: 0, width: size - rimWidth * 2, height: size - rimWidth * 2 }}
-            accessibilityIgnoresInvertColors
-          />
+          <Animated.View style={{ position: 'absolute', left: 0, top: 0, opacity: shown }}>
+            <Image
+              source={{ uri: face.photo }}
+              onLoad={loaded}
+              onError={() => (setBroken(true), onImage?.())}
+              // Android's own fade would run a second time inside the marker snapshot.
+              fadeDuration={0}
+              style={{ width: size - rimWidth * 2, height: size - rimWidth * 2 }}
+              accessibilityIgnoresInvertColors
+            />
+          </Animated.View>
         ) : null}
       </View>
       {face.live ? (
@@ -141,7 +152,7 @@ function LiveGlow({ size, top }: { size: number; top: number }) {
  * missing for someone who lists skills but no service (a dashed tag); `more`
  * is how many other services they list. Picked, the disc grows and turns blue.
  */
-export function FacePin({
+function FacePinImpl({
   face,
   seed,
   what,
@@ -201,14 +212,25 @@ export function FacePin({
 }
 
 /** Several helpers in one area: up to three faces, "+N" for the rest, and the area's name. */
-export function FaceStack({ faces, extra, label }: { faces: { face: Face; seed: string }[]; extra: number; label: string }) {
+export function FaceStack({
+  faces,
+  extra,
+  label,
+  onImage,
+}: {
+  faces: { face: Face; seed: string }[];
+  extra: number;
+  label: string;
+  /** A photo arrived: a native marker redraws its snapshot so the face shows. */
+  onImage?: () => void;
+}) {
   const t = useTheme();
   return (
     <View style={{ width: FACE_STACK.w, height: FACE_STACK.h, alignItems: 'center' }} collapsable={false}>
       <View style={[{ marginTop: FACE_STACK.anchor - 21, flexDirection: 'row', alignItems: 'center', padding: 3, borderRadius: 999, backgroundColor: RIM }, lift]}>
         {faces.map((f, i) => (
           <View key={f.seed} style={{ marginLeft: i === 0 ? 0 : -11 }}>
-            <FaceDisc face={f.face} seed={f.seed} size={36} rimWidth={i === 0 ? 0 : 2} />
+            <FaceDisc face={f.face} seed={f.seed} size={36} rimWidth={i === 0 ? 0 : 2} onImage={onImage} />
           </View>
         ))}
         {extra > 0 ? (
@@ -238,7 +260,22 @@ function Pointer({ color }: { color: string }) {
 }
 
 /** An area's biggest offer (or one task far from the rest), with the area's name under it. */
-export function PricePin({ price, best, on, place, count }: { price: string; best: boolean; on: boolean; place: string; count?: string }) {
+function PricePinImpl({
+  price,
+  best,
+  on,
+  place,
+  count,
+  hidePlace = false,
+}: {
+  price: string;
+  best: boolean;
+  on: boolean;
+  place: string;
+  count?: string;
+  /** Another pin's words sit here (lib/mapLabels.ts): show the price alone, the name returns once there is room. */
+  hidePlace?: boolean;
+}) {
   const t = useTheme();
   const bg = best ? t.colors.btn : t.colors.ink;
   const fg = best ? t.colors.onBtn : t.colors.bg;
@@ -254,18 +291,20 @@ export function PricePin({ price, best, on, place, count }: { price: string; bes
         <RNText style={tx('800', 15, fg, { fontVariant: ['tabular-nums'], letterSpacing: -0.2 })}>{price}</RNText>
       </View>
       <Pointer color={bg} />
-      <Tag max={PRICE_PIN.w}>
-        <RNText numberOfLines={1} style={tx('700', 11, t.colors.ink)}>
-          {place}
-          {count ? <RNText style={tx('600', 11, t.colors.muted)}>{` · ${count}`}</RNText> : null}
-        </RNText>
-      </Tag>
+      {hidePlace ? null : (
+        <Tag max={PRICE_PIN.w}>
+          <RNText numberOfLines={1} style={tx('700', 11, t.colors.ink)}>
+            {place}
+            {count ? <RNText style={tx('600', 11, t.colors.muted)}>{` · ${count}`}</RNText> : null}
+          </RNText>
+        </Tag>
+      )}
     </View>
   );
 }
 
 /** One task, zoomed in: the poster's face and price, then their name, then the task. */
-export function TaskPin({
+function TaskPinImpl({
   price,
   face,
   seed,
@@ -327,3 +366,8 @@ export function TaskPin({
     </View>
   );
 }
+
+// Moving the map re-renders the pin layer every frame; these pins take plain values, so they only redraw when those change.
+export const FacePin = memo(FacePinImpl);
+export const PricePin = memo(PricePinImpl);
+export const TaskPin = memo(TaskPinImpl);

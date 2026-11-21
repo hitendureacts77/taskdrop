@@ -56,35 +56,44 @@ export function safeData(d: Record<string, unknown>): Record<string, unknown> {
 }
 
 /** What the team should be told about an event, or null if it needs no alert. */
-export function alertFor(eventName: string, d: Record<string, unknown>): Alert | null {
+export function alertFor(eventName: string, d: Record<string, unknown>, who?: string): Alert | null {
+  // Events carry ids only (migration 192). `who` is the name the job looked up from the
+  // database; a name inside an old queued event is the fallback.
   switch (eventName.replace(/^taskdrop\//, "")) {
     case "support.opened":
       return {
         kind: "support",
         title: "New help request",
-        body: `${text(d.from)} · ${text(d.category, "other")}. Open Help requests to read it.`,
+        body: `${text(who ?? d.from)} · ${text(d.category, "other")}. Open Help requests to read it.`,
       };
     case "withdrawal.requested":
       return {
         kind: "withdrawal",
         title: `Withdrawal requested: ${rupees(d.amount_rupees)}`,
-        body: `${text(d.name)} via ${text(d.via, "UPI or bank")}`,
+        body: `${text(who ?? d.name)} via ${text(d.via, "UPI or bank")}`,
       };
     case "payout.failed":
       return {
         kind: "payout_failed",
         title: `Payout failed: ${rupees(d.amount_rupees)}`,
-        body: `${text(d.name)}. Open Payouts to see why.`,
+        body: `${text(who ?? d.name)}. Open Payouts to see why.`,
       };
     case "dispute.opened":
       return {
         kind: "dispute",
         title: "Dispute opened",
-        body: `Poster: ${text(d.poster)}. Open Disputes to decide.`,
+        body: `Poster: ${text(who ?? d.poster)}. Open Disputes to decide.`,
       };
     default:
       return null;
   }
+}
+
+/** Which account an alert event is about, so the job can look its name up (events carry ids only). */
+export function personIdFor(eventName: string, d: Record<string, unknown>): string | null {
+  const key = eventName.replace(/^taskdrop\//, "") === "dispute.opened" ? "poster_id" : "user_id";
+  const v = d[key];
+  return typeof v === "string" && v !== "" ? v : null;
 }
 
 /** The events that produce an alert, so the function's triggers cannot drift from alertFor. */

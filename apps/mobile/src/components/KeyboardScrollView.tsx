@@ -140,7 +140,14 @@ export function RevealWhen({ when, again, children }: { when: boolean; again?: u
   useEffect(() => {
     if (when) reveal(box.current);
   }, [when, again, reveal]);
-  return <View ref={box}>{children}</View>;
+  // collapsable={false}: a View with no style of its own can be left out of the native view tree on
+  // Android, and measureInWindow on it then never calls back, so the page never scrolled (seen on the
+  // phone: the sign-in code and its test code stayed under the keyboard).
+  return (
+    <View ref={box} collapsable={false}>
+      {children}
+    </View>
+  );
 }
 
 const noop = () => {};

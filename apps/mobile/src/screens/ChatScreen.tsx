@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { mergeById } from '../lib/mergeById';
 import {
   View,
@@ -33,6 +33,7 @@ import {
   type Message as DbMessage,
   type Profile,
 } from '../data/api';
+import { markChatRead } from '../data/extras';
 import { imageSource, pickMedia, signedMediaUrl, uploadMedia, MediaError } from '../lib/media';
 import { Image } from 'expo-image';
 import { findContactIssue } from '../lib/mask';
@@ -41,6 +42,9 @@ import { PhotoViewer } from '../components/PhotoViewer';
 import { fontFamilyFor, type Theme } from '../theme';
 import { tx } from '../components/primitives';
 import { KeyboardSafe } from '../components/KeyboardSafe';
+import { workerEarnsMinor } from '../lib/heldWords';
+import { useFees } from '../lib/useFees';
+import { useLayout } from '../lib/layout';
 
 /**
  * Per-task chat: header with the other person and a call button, the task
@@ -117,10 +121,23 @@ function ChatPhoto({ path }: { path: string }) {
   );
 }
 
+/**
+ * True inside the desktop Messages page's right-hand pane (InboxScreen, docs/design/desktop-web/PLAN.md package 12).
+ * There the page header already carries the Messages title and its Back link, so the chat draws no back control of
+ * its own. Never set on a phone or tablet.
+ */
+export const ChatPaneContext = createContext(false);
+
 export function ChatScreen() {
   const t = useTheme();
-  const { params, back, go } = useNav();
+  const { params, back, go, replace } = useNav();
+  const inPane = useContext(ChatPaneContext);
+  // Desktop web: a chat opened from anywhere (a notification, a task page) shows as Messages with that conversation
+  // selected in the right pane. Replace, not push, so Back leaves to wherever the chat was opened from, as before.
+  const { desktop } = useLayout();
+  const toMessages = Platform.OS === 'web' && desktop && !inPane;
   const { mode } = useMode();
+  const fees = useFees();
   const focusTick = useFocusTick();
   const { openTask, flash } = useApp();
   const { userId, guest } = useAuth();
@@ -146,6 +163,12 @@ export function ChatScreen() {
   const [calling, setCalling] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
   const scrollRef = useRef<ScrollViewInstance>(null);
+
+  useLayoutEffect(() => {
+    if (toMessages && !guest) replace('inbox', { openChat: params });
+    // Only when the chat first shows on a desktop; the params belong to this one chat.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toMessages, guest]);
 
   const contactsOpen = status !== null && OPEN_STATUSES.includes(status);
   // Until the task loads, fall back to the mode; after that the task decides.
@@ -192,9 +215,20 @@ export function ChatScreen() {
       }
     })();
 
+    // Opening the conversation reads it (the Messages dot clears), unless this is the desktop hop that
+    // replaces itself with the Messages pane.
+    const shown = !toMessages;
+    if (shown) void markChatRead(taskId).catch(() => {});
+
     // Both sides see new messages without polling.
     const unsubscribe = subscribeToMessages(taskId, (m) => {
       if (!alive) return;
+      // A message that arrives while the chat is open is read as it lands.
+      if (shown && m.sender_id !== userId) {
+        void markChatRead(taskId).catch(() => {});
+        // The server writes the alert a moment after the message; read it too.
+        setTimeout(() => alive && void markChatRead(taskId).catch(() => {}), 1500);
+      }
       setMessages((prev) => (prev.some((p) => p.id === m.id) ? prev : mergeById(prev, [toBubble(m)], (b) => b.at)));
       // Work may have started since the chat opened; once contacts are open there is nothing to wait for.
       if (statusNow.current === null || !OPEN_STATUSES.includes(statusNow.current)) {
@@ -349,6 +383,8 @@ export function ChatScreen() {
   </Pressable>
   );
 
+  if (toMessages && !guest) return null;
+
   if (guest) {
     return (
       <GuestScreen
@@ -378,7 +414,7 @@ export function ChatScreen() {
             borderBottomColor: t.colors.line,
           }}
         >
-          <BackButton onBack={back} titleView={person} right={callButton} />
+          {inPane ? null : <BackButton onBack={back} titleView={person} right={callButton} />}
           {systemHeader ? null : (
             <>
               {person}
@@ -411,7 +447,11 @@ export function ChatScreen() {
               {title}
             </RNText>
             <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2, fontVariant: ['tabular-nums'] })}>
-              {escrowMinor !== null ? `${formatINR(escrowMinor)} · held safely` : 'Your payment is held safely'}
+              {escrowMinor !== null
+                ? iAmPoster === false
+                  ? `You earn ${formatINR(workerEarnsMinor(escrowMinor, fees))} · held safely`
+                  : `${formatINR(escrowMinor)} · held safely`
+                : 'Your payment is held safely'}
             </RNText>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>

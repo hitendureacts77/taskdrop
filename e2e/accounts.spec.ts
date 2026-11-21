@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { ANON_KEY, RAVI, SUPABASE_URL, accessToken, apiAs, must, typeTestCode } from "./helpers";
+import { ANON_KEY, RAVI, SUPABASE_URL, accessToken, apiAs, expectSignedIn, must, openPhoneBox, typeTestCode } from "./helpers";
 
 /**
  * Phase 4: sign-up and sign-in methods, on the web, against the cloud test project.
@@ -15,15 +15,16 @@ import { ANON_KEY, RAVI, SUPABASE_URL, accessToken, apiAs, must, typeTestCode } 
 const randomPhone = () => `9991${String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0")}`;
 
 async function askForCode(page: Page, phone: string) {
-  await page.goto("/");
+  await openPhoneBox(page);
   await page.getByPlaceholder("98765 43210").fill(phone);
   await page.getByText("Text me a code").click();
 }
 
+// The web build asks with three dropdowns (BirthDateField.web.tsx); their values are plain numbers ("6", not "06").
 async function fillBirthDate(page: Page, day: string, month: string, year: string) {
-  await page.getByLabel("Birth day").fill(day);
-  await page.getByLabel("Birth month").fill(month);
-  await page.getByLabel("Birth year").fill(year);
+  await page.getByLabel("Birth day").selectOption(day);
+  await page.getByLabel("Birth month").selectOption(month);
+  await page.getByLabel("Birth year").selectOption(year);
   await page.getByText("Text me a code").click();
 }
 
@@ -35,20 +36,25 @@ test("a new phone number is asked its birth date, signs up, sets a username and 
   // Sign up: the number is new, so the birth date comes before any code; the app shows the test code and it is typed in.
   await askForCode(page, phone);
   await expect(page.getByText("New account").first()).toBeVisible();
-  await fillBirthDate(page, "15", "06", "1995");
+  await fillBirthDate(page, "15", "6", "1995");
   await typeTestCode(page);
 
-  // First-run setup: welcome, username, intent, skills, about you, done.
+  // First-run setup: welcome, username, intent, why you earn, skills, about you, done.
   await page.getByText("Let’s go →").click();
   await page.getByPlaceholder("yourname").fill(username);
   await expect(page.getByText("✓ Available")).toBeVisible();
   await page.getByText("Continue", { exact: true }).click();
   await page.getByText("Continue", { exact: true }).click(); // intent
+  // Why you earn (worker earn goal, 16 Nov): Continue waits for an answer.
+  await page.getByText("Earn money doing tasks", { exact: true }).click();
+  await page.getByText("Continue", { exact: true }).click();
   await page.getByText("Continue", { exact: true }).click(); // skills
+  // About you: a new sign-up with no area gets the map picker first; keep the pin where it opens.
+  await page.getByRole("button", { name: "Confirm this location" }).click();
   await page.getByPlaceholder("Your name").fill("E2E Newcomer");
   await page.getByText("Continue", { exact: true }).click();
   await page.getByText("Go to TaskDrop").click();
-  await expect(page.getByText("Wallet").first()).toBeVisible();
+  await expectSignedIn(page); // and closes "How staging works", which a new account is shown
 
   // Set a password: Settings → Sign-in.
   await page.getByText("Settings", { exact: true }).first().click();
@@ -69,7 +75,7 @@ test("a new phone number is asked its birth date, signs up, sets a username and 
   await page.getByLabel("Sign in with username and password").click();
   await page.getByPlaceholder("yourname").fill(username);
   await page.locator('input[type="password"]').fill(password);
-  await page.getByText("Sign in", { exact: true }).last().click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).last().click(); // the dialog's button, not the words "Sign in" on the page
   await expect(page.getByText("Wallet").first()).toBeVisible();
 
   // Clean up: the same call the Delete account button makes.
@@ -81,14 +87,10 @@ test("a new phone number is asked its birth date, signs up, sets a username and 
 test("a number whose birth date makes the person 16 is turned away, with no code and no account (Phase 4)", async ({ page }) => {
   await askForCode(page, randomPhone());
   await expect(page.getByText("New account").first()).toBeVisible();
-  const year = String(new Date().getFullYear() - 16);
-  await page.getByLabel("Birth day").fill("01");
-  await page.getByLabel("Birth month").fill("01");
-  await page.getByLabel("Birth year").fill(year);
-  await page.getByText("Text me a code").click();
+  await fillBirthDate(page, "1", "1", String(new Date().getFullYear() - 16));
   await expect(page.getByText("Wallet")).toHaveCount(0);
   await expect(page.getByText(/we can’t make/)).toBeVisible();
-  await expect(page.getByText("TaskDrop isn’t available to you right now.")).toBeVisible();
+  await expect(page.getByText(/adults only/)).toBeVisible();
 });
 
 test("an existing account signs in with its phone and lands on its own wallet (Phase 4)", async ({ page }) => {

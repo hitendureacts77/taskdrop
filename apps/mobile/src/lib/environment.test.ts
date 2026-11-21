@@ -50,5 +50,5 @@ test('the ribbon says what the plan says, and the card is not local-only', () =>
   assert.match(STAGING_CARD.intro, /in person nearby or online from anywhere/);
   assert.doesNotMatch(all, /local only|only local|nearby only|only nearby/i);
   assert.deepEqual(STAGING_CARD.test, ['Post a task', 'Send an offer', 'Pay', 'Do the work', 'Approve', 'Review', 'Withdraw']);
-  assert.equal(STAGING_REPORT_EMAIL, 'hitendureacts@gmail.com');
+  assert.equal(STAGING_REPORT_EMAIL, 'admin@taskdrop.in');
 });

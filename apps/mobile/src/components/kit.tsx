@@ -20,11 +20,13 @@ import {
 } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { Icon, type IconName } from './Icon';
-import { Pressy, tx } from './primitives';
+import { HitArea, Pressy, tx } from './primitives';
 import { useLayout } from '../lib/layout';
 import { useKeyboardClearance } from '../lib/useKeyboardClearance';
 import { KeyboardScrollView, useReveal } from './KeyboardScrollView';
+import { ActionBarContext } from './FormPage';
 import { NativeHeader } from './NativeHeader';
+import { useDesktopHeaderPortal } from './pageHeader';
 import { LOOP_NATIVE, useReducedMotion } from '../lib/motion';
 
 /**
@@ -598,6 +600,9 @@ export function Field({
 }) {
   const t = useTheme();
   const [focused, setFocused] = useState(false);
+  // A password box gets its own Show / Hide (P1-24), unless the caller passes its own `right`.
+  const [shown, setShown] = useState(false);
+  const secure = Boolean(input.secureTextEntry);
   // Multiline boxes grow with their text, so the whole thing is always
   // visible instead of hiding behind a scrollbar inside the box.
   const [contentH, setContentH] = useState(0);
@@ -637,6 +642,7 @@ export function Field({
           accessibilityLabel={input.accessibilityLabel ?? label}
           placeholderTextColor={t.colors.muted}
           {...input}
+          secureTextEntry={secure && !shown}
           onFocus={(e) => {
             setFocused(true);
             reveal(boxRef.current);
@@ -660,7 +666,17 @@ export function Field({
               : null,
           ]}
         />
-        {right}
+        {right ??
+          (secure ? (
+            <Pressable
+              onPress={() => setShown((v) => !v)}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={shown ? 'Hide password' : 'Show password'}
+            >
+              <RNText style={tx('700', 13, t.colors.accentDeep)}>{shown ? 'Hide' : 'Show'}</RNText>
+            </Pressable>
+          ) : null)}
         </View>
       </Pressable>
       {error ? (
@@ -711,7 +727,9 @@ export function SectionTitle({
       {badge ? <Badge label={badge} tone="signal" /> : null}
       <View style={{ flex: 1 }} />
       {action && onAction ? (
-        <Pressable onPress={onAction} hitSlop={8} accessibilityRole="button">
+        <Pressable onPress={onAction} hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }} accessibilityRole="button">
+          {/* B172: a 17 px link ("Edit skills"), 40 px to tap. */}
+          <HitArea x={8} y={12} />
           <RNText style={tx('700', 13, t.colors.accentDeep)}>{action}</RNText>
         </Pressable>
       ) : null}
@@ -909,6 +927,8 @@ export function PrimaryButton({
   style?: StyleProp<ViewStyle>;
 }) {
   const t = useTheme();
+  // In a desktop ActionBar (FormPage) the button is its natural width, not full width.
+  const inBar = React.useContext(ActionBarContext);
   const off = disabled || busy;
   // v2: a 52-tall pill on the deep shade (white text 4.5:1+), lifted by a
   // soft shadow of its own colour in light.
@@ -937,6 +957,7 @@ export function PrimaryButton({
           shadowOffset: { width: 0, height: 8 },
           transform: [{ scale: pressed && !off ? t.motion.pressScale : 1 }],
         },
+        inBar ? { alignSelf: 'flex-end', minWidth: 160, paddingHorizontal: 24 } : null,
         style,
       ]}
     >
@@ -993,7 +1014,7 @@ export function IconButton({
             height: 18,
             paddingHorizontal: 4,
             borderRadius: 999,
-            backgroundColor: t.colors.signalDeep,
+            backgroundColor: t.colors.signalFill,
             borderWidth: 2,
             borderColor: t.colors.bg,
             alignItems: 'center',
@@ -1025,7 +1046,11 @@ export function BackButton({
   right?: React.ReactNode;
   titleView?: React.ReactNode;
 }) {
+  // Desktop web: only the back link moves, into the page header; the screen keeps its own title (and its own
+  // right-hand control, which the web always drew in the page).
+  const desktopHeader = useDesktopHeaderPortal({ onBack });
   if (systemHeader) return <NativeHeader title={title} right={right} titleView={titleView} />;
+  if (desktopHeader !== undefined) return <>{desktopHeader}</>;
   return <IconButton icon="back" label="Back" onPress={onBack} />;
 }
 
@@ -1042,6 +1067,8 @@ export function TopBar({
   subtitle?: string;
 }) {
   const t = useTheme();
+  // Desktop web: the back link, title, subtitle and right-hand control go into the page header instead.
+  const desktopHeader = useDesktopHeaderPortal({ title, subtitle, onBack, right });
   // Phones: the system header carries the back arrow, title and right-hand control; only the subtitle stays in the page.
   if (Platform.OS !== 'web') {
     return (
@@ -1055,6 +1082,7 @@ export function TopBar({
       </>
     );
   }
+  if (desktopHeader !== undefined) return <>{desktopHeader}</>;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}>
       <IconButton icon="back" label="Back" onPress={onBack} />

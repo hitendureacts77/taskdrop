@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, existsSync, writeFileSync, rmSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { applyToHtml, assetLinks, DEFAULT_ORIGIN, fingerprintsOf, isProductionBuild, NOINDEX_META, originOf, PRODUCTION_ANDROID_PACKAGE, ROBOTS_TXT, run, securityTxt, SECURITY_TXT_EXPIRES, SUPPORT_URL } from '../apps/mobile/scripts/web-env-guard.mjs';
+import { applyToHtml, assetLinks, DEFAULT_ORIGIN, fingerprintsOf, isProductionBuild, NOINDEX_META, originOf, PRODUCTION_ANDROID_PACKAGE, PUBLIC_EMAIL, publicEmail, ROBOTS_TXT, run, securityTxt, SECURITY_TXT_EXPIRES, SUPPORT_URL } from '../apps/mobile/scripts/web-env-guard.mjs';
 
 const NL = String.fromCharCode(10);
 const HTML = '<!DOCTYPE html><html><head><title>TaskDrop</title></head><body></body></html>';
@@ -81,9 +81,14 @@ test('vercel.json: production reports security problems to its own Sentry projec
   assert.ok(everywhere && production, 'a catch-all rule and a production rule');
   const value = (r) => r.headers.find((h) => h.key === 'Content-Security-Policy').value;
   const split = (v) => { const i = v.indexOf('; report-uri '); return [v.slice(0, i), v.slice(i + '; report-uri '.length)]; };
-  const [stagingRules, stagingReport] = split(value(everywhere));
+  const [stagingRulesRaw, stagingReport] = split(value(everywhere));
   const [productionRules, productionReport] = split(value(production));
-  assert.equal(productionRules, stagingRules, 'only the report address may differ, so the two rule sets cannot drift');
+  // B152: staging (Vercel preview deployments) loads the Vercel toolbar, so its rules may add the toolbar's own
+  // sources and nothing else. Production never gets them.
+  const TOOLBAR = [' https://vercel.live', ' https://assets.vercel.com', ' wss://ws-us3.pusher.com'];
+  const stagingRules = TOOLBAR.reduce((v, s) => v.split(s).join(''), stagingRulesRaw);
+  assert.equal(productionRules, stagingRules, 'only the report address and the staging toolbar may differ, so the two rule sets cannot drift');
+  assert.ok(!/vercel\.live|pusher\.com/.test(productionRules), 'production does not allow the Vercel toolbar');
   assert.notEqual(productionReport, stagingReport, 'production must not report into the staging project');
   assert.match(productionReport, /^https:\/\/o\d+\.ingest\.[a-z.]*sentry\.io\/api\/\d+\/security\/\?sentry_key=[0-9a-f]+$/);
   // The production rule must never match a staging address, or staging errors would land in production's Sentry.
@@ -138,15 +143,23 @@ test('build: production with a fingerprint writes assetlinks.json; staging and p
 });
 
 test('security.txt names the support address and page, an expiry and the canonical address', () => {
-  const withMail = securityTxt('help@example.in', new Date('2026-11-03'));
-  assert.ok(withMail.split(NL).includes('Contact: mailto:help@example.in'));
+  const withMail = securityTxt('Help@TaskDrop.in', new Date('2026-11-03'));
+  assert.ok(withMail.split(NL).includes('Contact: mailto:help@taskdrop.in'));
   assert.ok(withMail.split(NL).includes(`Contact: ${SUPPORT_URL}`));
   assert.ok(withMail.split(NL).includes(`Expires: ${SECURITY_TXT_EXPIRES}`));
   assert.ok(withMail.split(NL).includes('Canonical: https://taskdrop.in/.well-known/security.txt'));
   const noMail = securityTxt('', new Date('2026-11-03'));
-  assert.ok(!noMail.includes('mailto:'));
+  assert.ok(noMail.split(NL).includes(`Contact: mailto:${PUBLIC_EMAIL}`));
   assert.ok(noMail.split(NL).includes(`Contact: ${SUPPORT_URL}`));
-  assert.ok(!securityTxt('not an address', new Date('2026-11-03')).includes('mailto:'));
+});
+
+test('a personal inbox is never published: anything not at taskdrop.in becomes admin@taskdrop.in', () => {
+  assert.equal(PUBLIC_EMAIL, 'admin@taskdrop.in');
+  for (const v of ['someone@gmail.com', 'x@taskdrop.in.evil.com', 'x@sub.taskdrop.in', 'not an address', '', null, undefined]) {
+    assert.equal(publicEmail(v), PUBLIC_EMAIL, String(v));
+    assert.ok(!securityTxt(v, new Date('2026-11-03')).includes('gmail'), String(v));
+  }
+  assert.equal(publicEmail(' Support@taskdrop.in '), 'support@taskdrop.in');
 });
 
 test('security.txt names the address the build is served from (production has its own)', () => {
@@ -171,8 +184,8 @@ test('run() writes .well-known/security.txt for both staging and production', ()
   try {
     writeFileSync(join(dist, 'index.html'), HTML);
     for (const env of [undefined, 'production']) {
-      run(dist, env, 'help@example.in');
-      assert.ok(readFileSync(join(dist, '.well-known', 'security.txt'), 'utf8').includes('mailto:help@example.in'));
+      run(dist, env, 'help@taskdrop.in');
+      assert.ok(readFileSync(join(dist, '.well-known', 'security.txt'), 'utf8').includes('mailto:help@taskdrop.in'));
     }
   } finally {
     rmSync(dist, { recursive: true, force: true });

@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
-  ALERT_EVENTS, alertFor, call, checkSnapshotFreshness, chunk, compareProviderPayment, deadKeys, digestAlert, expoReceipts, expoSend, lockScreenSafe, ownFiles, PLAIN_PUSH,
+  ALERT_EVENTS, alertFor, call, checkSnapshotFreshness, chunk, compareProviderPayment, deadKeys, digestAlert, expoReceipts, expoSend, lockScreenSafe, ownFiles, personIdFor, PLAIN_PUSH,
   readTickets, refreshPublicSnapshots, safeData, saveAlert, toEvents, tokenKey, tokensForKeys, userSyncArgs, USER_EVENTS, type Fetch, type PushMessage, type Rpc, type SnapshotMarker,
 } from "./jobs.ts";
 
@@ -49,6 +49,17 @@ test("alert wording carries the facts and survives missing fields", () => {
   const s = alertFor("taskdrop/support.opened", { from: "Meera", category: "payment" });
   assert.equal(s?.title, "New help request");
   assert.equal(s?.body, "Meera · payment. Open Help requests to read it.");
+});
+
+test("alerts name people from a database lookup; events carry ids only", () => {
+  const w = alertFor("taskdrop/withdrawal.requested", { amount_rupees: 100, user_id: "u1", via: "UPI" }, "Asha");
+  assert.equal(w?.body, "Asha via UPI");
+  assert.equal(alertFor("taskdrop/payout.failed", { user_id: "u1" })?.body, "someone. Open Payouts to see why.");
+  assert.equal(alertFor("taskdrop/dispute.opened", { poster_id: "p1" }, "Ravi")?.body, "Poster: Ravi. Open Disputes to decide.");
+  assert.equal(alertFor("taskdrop/support.opened", { user_id: "u1", category: "payment" }, "Meera")?.body, "Meera · payment. Open Help requests to read it.");
+  assert.equal(personIdFor("taskdrop/dispute.opened", { poster_id: "p1", user_id: "x" }), "p1");
+  assert.equal(personIdFor("taskdrop/support.opened", { user_id: "u1" }), "u1");
+  assert.equal(personIdFor("taskdrop/payout.failed", {}), null);
 });
 
 test("text a person typed never reaches an alert or its stored data, even from an old queued event", () => {

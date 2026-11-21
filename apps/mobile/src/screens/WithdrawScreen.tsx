@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BackButton, systemHeader } from '../components/kit';
+import { BackButton, PrimaryButton, TopBar, systemHeader } from '../components/kit';
 import { View, Text as RNText, Pressable, TextInput } from 'react-native';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { AmountField } from '../components/AmountField';
@@ -28,17 +28,20 @@ import { GuestScreen } from '../components/GuestBits';
 import { Pressy, tx } from '../components/primitives';
 import { MIN_WITHDRAW_MINOR } from './WalletScreen';
 import { KeyboardSafe } from '../components/KeyboardSafe';
-import { KeyboardScrollView } from '../components/KeyboardScrollView';
+import { ActionBar, FormPage, FormSection } from '../components/FormPage';
+import { useLayout } from '../lib/layout';
 
 export function WithdrawScreen() {
   const t = useTheme();
   const { back } = useNav();
   const { balance, roll, celebrate, flash } = useApp();
   const { userId, guest } = useAuth();
+  const { desktop } = useLayout();
 
   // Start from the real wallet balance, not whatever the animated counter holds.
   const [availableMinor, setAvailableMinor] = useState(balance);
-  const [rupees, setRupees] = useState(Math.floor(balance / 100));
+  // Starts empty: the whole balance used to be filled in, so one tap sent all of it, and typing 50 after it made 576350 (round 7, W3-4). "All" fills it on purpose.
+  const [rupees, setRupees] = useState(0);
   const [busy, setBusy] = useState(false);
   // The saved account money is sent to. Replaces an inline text field that
   // edited one UPI id in place.
@@ -91,9 +94,7 @@ export function WithdrawScreen() {
       .then((w) => {
         if (!alive || !w) return;
         setAvailableMinor(w.balance_minor);
-        // Pre-fill the amount once, from the real balance. After that it is
-        // the user's number and must not be overwritten by a refresh.
-        setRupees(Math.floor(w.balance_minor / 100));
+        // The amount is the person's number; a refresh must not fill it in or overwrite it.
       })
       .catch((e) => {
         reportError(e, 'money');
@@ -187,6 +188,26 @@ export function WithdrawScreen() {
     .filter((p) => p.status === 'requested' || p.status === 'processing')
     .reduce((sum, p) => sum + p.amount_minor, 0);
 
+  // Phone: the gaps set under each phone label. Desktop: the FormSections space themselves.
+  const gap = (phone: number, desk = 0) => (desktop ? desk : phone);
+
+  // The four summary lines: on the phone between the account and the queue, on a desktop in the card beside the form.
+  const summary = rows.map((r) => (
+    <View
+      key={r.label}
+      style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingVertical: 13,
+        borderBottomWidth: 1,
+        borderBottomColor: t.colors.line,
+      }}
+    >
+      <RNText style={tx('400', 14, r.strong ? t.colors.ink : t.colors.muted)}>{r.label}</RNText>
+      <RNText style={tx(r.strong ? '800' : '600', 14, t.colors.ink)}>{r.value}</RNText>
+    </View>
+  ));
+
   if (guest) {
     return (
       <GuestScreen
@@ -201,18 +222,72 @@ export function WithdrawScreen() {
 
   return (
     <Screen padded={false}>
-      <KeyboardScrollView
-        hugContent
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8 }}
-        showsVerticalScrollIndicator={false}
+      {desktop ? <TopBar title="Withdraw" onBack={back} /> : null}
+      <FormPage
+        phoneActions="pinned"
+        scrollProps={{
+          hugContent: true,
+          style: { flex: 1 },
+          contentContainerStyle: { paddingHorizontal: 20, paddingTop: 8 },
+          showsVerticalScrollIndicator: false,
+        }}
+        aside={
+          <View
+            style={{
+              backgroundColor: t.colors.surface,
+              borderWidth: 1,
+              borderColor: t.colors.line,
+              borderRadius: t.radius.lg,
+              paddingHorizontal: 20,
+              paddingVertical: 8,
+            }}
+          >
+            {summary}
+          </View>
+        }
+        actions={
+          desktop ? (
+            <ActionBar>
+              <PrimaryButton
+                label={busy ? 'Sending…' : `Withdraw ${formatINR(amountMinor)}`}
+                onPress={() => void doWithdraw()}
+                style={{ opacity: empty || overdrawn || belowMin ? 0.5 : 1 }}
+              />
+            </ActionBar>
+          ) : (
+            <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+              <Pressy
+                onPress={doWithdraw}
+                style={{
+                  backgroundColor: t.colors.btn,
+                  borderRadius: 999,
+                  paddingVertical: 16,
+                  alignItems: 'center',
+                  opacity: empty || overdrawn || belowMin ? 0.5 : 1,
+                  shadowColor: t.colors.accent,
+                  shadowOpacity: 0.35,
+                  shadowRadius: 22,
+                  shadowOffset: { width: 0, height: 8 },
+                  elevation: 6,
+                }}
+              >
+                <RNText style={tx('700', 16, t.colors.onAccent)}>
+                  {busy ? 'Sending…' : `Withdraw ${formatINR(amountMinor)}`}
+                </RNText>
+              </Pressy>
+            </KeyboardSafe>
+          )
+        }
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <BackButton onBack={back} title="Withdraw" />
-          {systemHeader ? null : <RNText style={tx('700', 17, t.colors.ink)}>Withdraw</RNText>}
-        </View>
+        {desktop ? null : (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <BackButton onBack={back} title="Withdraw" />
+            {systemHeader ? null : <RNText style={tx('700', 17, t.colors.ink)}>Withdraw</RNText>}
+          </View>
+        )}
 
-        <RNText style={tx('400', 13, t.colors.muted, { marginTop: 24 })}>Amount</RNText>
+        <FormSection first title="Amount">
+        {desktop ? null : <RNText style={tx('400', 13, t.colors.muted, { marginTop: 24 })}>Amount</RNText>}
         <AmountField
           rupees={rupees}
           onChangeRupees={(r) => setRupees(r ?? 0)}
@@ -220,7 +295,7 @@ export function WithdrawScreen() {
           style={tx('800', 44, overdrawn ? t.colors.signal : t.colors.ink, {
             letterSpacing: -1.76,
             lineHeight: 46.2,
-            marginTop: 4,
+            marginTop: gap(4),
           })}
         />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}>
@@ -274,8 +349,10 @@ export function WithdrawScreen() {
             <RNText style={tx('700', 12, t.colors.accentDeep)}>All</RNText>
           </Pressable>
         </View>
+        </FormSection>
 
-        <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 24 })}>TO</RNText>
+        <FormSection title="Send to">
+        {desktop ? null : <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 24 })}>TO</RNText>}
         {!destination ? (
           <>
             <TextInput
@@ -288,7 +365,7 @@ export function WithdrawScreen() {
               keyboardType="email-address"
               accessibilityLabel="UPI ID to send the money to"
               style={tx('600', 15, t.colors.ink, {
-                marginTop: 11,
+                marginTop: gap(11),
                 backgroundColor: t.colors.surface,
                 borderWidth: 1,
                 borderColor: typedUpi && !typedUpiValid ? t.colors.signal : typedUpiValid ? t.colors.accent : t.colors.line,
@@ -310,7 +387,7 @@ export function WithdrawScreen() {
             flexDirection: 'row',
             alignItems: 'center',
             gap: 13,
-            marginTop: 11,
+            marginTop: gap(11),
             ...cardSurface(t, 14),
             padding: 14,
           }}
@@ -353,42 +430,33 @@ export function WithdrawScreen() {
           </Pressable>
         </View>
         )}
+        </FormSection>
 
-        <View style={{ marginTop: 18 }}>
-          {rows.map((r) => (
-            <View
-              key={r.label}
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                paddingVertical: 13,
-                borderBottomWidth: 1,
-                borderBottomColor: t.colors.line,
-              }}
-            >
-              <RNText style={tx('400', 14, r.strong ? t.colors.ink : t.colors.muted)}>{r.label}</RNText>
-              <RNText style={tx(r.strong ? '800' : '600', 14, t.colors.ink)}>{r.value}</RNText>
-            </View>
-          ))}
-        </View>
+        {desktop ? null : <View style={{ marginTop: 18 }}>{summary}</View>}
 
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'baseline',
-            justifyContent: 'space-between',
-            marginTop: 26,
-          }}
+        <FormSection
+          title="Your withdrawals"
+          hint={inFlightMinor > 0 ? `${formatINR(inFlightMinor)} waiting to be sent` : undefined}
         >
-          <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54 })}>
-            YOUR WITHDRAWALS
-          </RNText>
-          {inFlightMinor > 0 && (
-            <RNText style={tx('600', 12, t.colors.muted)}>
-              {formatINR(inFlightMinor)} waiting to be sent
+        {desktop ? null : (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+              marginTop: 26,
+            }}
+          >
+            <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54 })}>
+              YOUR WITHDRAWALS
             </RNText>
-          )}
-        </View>
+            {inFlightMinor > 0 && (
+              <RNText style={tx('600', 12, t.colors.muted)}>
+                {formatINR(inFlightMinor)} waiting to be sent
+              </RNText>
+            )}
+          </View>
+        )}
 
         <PayoutList
           payouts={payouts}
@@ -396,31 +464,10 @@ export function WithdrawScreen() {
           cancellingId={cancellingId}
           onCancel={(p) => void doCancel(p)}
         />
+        </FormSection>
 
-        <View style={{ height: 20 }} />
-      </KeyboardScrollView>
-
-      <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
-        <Pressy
-          onPress={doWithdraw}
-          style={{
-            backgroundColor: t.colors.btn,
-            borderRadius: 999,
-            paddingVertical: 16,
-            alignItems: 'center',
-            opacity: empty || overdrawn ? 0.5 : 1,
-            shadowColor: t.colors.accent,
-            shadowOpacity: 0.35,
-            shadowRadius: 22,
-            shadowOffset: { width: 0, height: 8 },
-            elevation: 6,
-          }}
-        >
-          <RNText style={tx('700', 16, t.colors.onAccent)}>
-            {busy ? 'Sending…' : `Withdraw ${formatINR(amountMinor)}`}
-          </RNText>
-        </Pressy>
-      </KeyboardSafe>
+        {desktop ? null : <View style={{ height: 20 }} />}
+      </FormPage>
 
       <PayoutDestinationSheet
         visible={pickingDestination}

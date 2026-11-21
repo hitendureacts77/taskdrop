@@ -104,7 +104,37 @@ export function rows<T = Record<string, unknown>>(res: DbResult, onError?: (e: D
 // -------------------------------------------------------------- validation --
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-export const bad = (field: string) => new OpError(`Invalid ${field}`, "BAD_ARGS");
+/**
+ * What a refused field is called in plain words (S1-17). A field not listed here gets the general sentence, so
+ * the person never reads the code's own name for it ("Invalid displayName").
+ */
+const FIELD_WORDS: Record<string, string> = {
+  displayName: "Enter your name.",
+  username: "Pick a username with letters and numbers.",
+  title: "Give the task a short title.",
+  description: "Check the description and try again.",
+  message: "Check your message and try again.",
+  body: "Check your message and try again.",
+  summary: "Check the summary and try again.",
+  skills: "Check your skills and try again.",
+  languages: "Check your languages and try again.",
+  bio: "Check your bio and try again.",
+  workerBio: "Check your bio and try again.",
+  birthDate: "Enter a real date of birth.",
+  topUpPct: "Pick one of the top-up steps shown.",
+  huntNeeds: "Check what you are looking for and try again.",
+  milestones: "Check the steps of the task and try again.",
+  media: "Check the photo or video and try again.",
+  files: "Check the files and try again.",
+  timeLimitMinutes: "Check the time you entered and try again.",
+  locLabel: "Check the place and try again.",
+  locLat: "Check the place and try again.",
+  locLng: "Check the place and try again.",
+  limit: "Check the number of results and try again.",
+  radiusKm: "Check the distance and try again.",
+};
+export const bad = (field: string) =>
+  new OpError(FIELD_WORDS[field] ?? "Something in that is not valid. Check it and try again.", "BAD_ARGS");
 
 export function uuid(a: Args, k: string): string {
   const v = a[k];

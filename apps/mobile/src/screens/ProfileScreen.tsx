@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useSignOutMessage } from '../lib/useSignOutMessage';
 import { View, Text as RNText, Pressable, Animated, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { Avatar, Screen, cardSurface } from '../components/ui';
@@ -10,7 +11,7 @@ import { useAuth } from '../providers/AuthProvider';
 import { getProfile, listReviewsAbout, myRegulars, type Profile, type Regular, type Review } from '../data/api';
 import { verificationState } from '../data/extras';
 import { imageSource, signedMediaUrl } from '../lib/media';
-import { tx } from '../components/primitives';
+import { HitArea, tx } from '../components/primitives';
 import { Icon, type IconName } from '../components/Icon';
 import { ConfirmDialog } from '../components/kit';
 import { AppHeader } from '../components/AppHeader';
@@ -97,8 +98,11 @@ function formatReviewDate(iso: string): string {
 export function ProfileScreen() {
   const t = useTheme();
   // Wide desktop: you on the left, the menu and the rest on the right (components/TwoPane.tsx).
-  const { twoPane: split, contentWidth } = useLayout();
+  const { twoPane: split, contentWidth, desktop: desk } = useLayout();
   const padX = split ? 0 : 20;
+  // Desktop web (docs/design/desktop-web/PLAN.md, package 10): every block sits on a card (surface, 1px line, radius 18),
+  // 16 apart. Under 1024, and in the apps, desk is false and nothing below changes.
+  const deskCard = desk ? ({ ...cardSurface(t, 18), padding: 20 } as const) : null;
   const { pref, setPref } = useThemeControls();
   const { go, reset } = useNav();
   const { mode } = useMode();
@@ -118,6 +122,8 @@ export function ProfileScreen() {
   // <Image> can load it. Null just means we fall back to the initial.
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  // W2-16: names every way this person can sign back in.
+  const signOutWords = useSignOutMessage(confirmSignOut, profile?.username);
   const [regulars, setRegulars] = useState<Regular[]>([]);
   const [verified, setVerified] = useState<{ phone: boolean; email: boolean } | null>(null);
 
@@ -225,7 +231,8 @@ export function ProfileScreen() {
             paddingBottom: 22,
             borderBottomLeftRadius: 28,
             borderBottomRightRadius: 28,
-            ...(split ? { borderRadius: 28 } : null),
+            ...(split || desk ? { borderRadius: 28 } : null),
+            ...(desk && !split ? { marginHorizontal: 20, marginTop: 12 } : null),
             overflow: 'hidden',
           }}
         >
@@ -254,7 +261,10 @@ export function ProfileScreen() {
               )}
             </View>
             {/* You have the app open, so you're active -- shown the way others see it. */}
-            <View style={{ position: 'absolute', left: 50, top: 48, width: 15, height: 15, borderRadius: 999, backgroundColor: '#4ADE9A', borderWidth: 2.5, borderColor: band }} />
+            {/* A guest has no presence to show (no heartbeat runs without an account, B175). */}
+            {guest ? null : (
+              <View style={{ position: 'absolute', left: 50, top: 48, width: 15, height: 15, borderRadius: 999, backgroundColor: '#4ADE9A', borderWidth: 2.5, borderColor: band }} />
+            )}
             <View style={{ flex: 1 }}>
               <RNText style={tx('800', 22, '#FFFFFF', { letterSpacing: -0.5 })} numberOfLines={1}>
                 {displayName}
@@ -263,7 +273,7 @@ export function ProfileScreen() {
                 {ratingLine}
                 {doneLine ? ' · ' + doneLine : ''}
               </RNText>
-              <RNText style={tx('600', 12, '#86EFAC', { marginTop: 4 })}>● Active now</RNText>
+              {guest ? null : <RNText style={tx('600', 12, '#86EFAC', { marginTop: 4 })}>● Active now</RNText>}
             </View>
           </View>
           {chips.length > 0 ? (
@@ -283,9 +293,11 @@ export function ProfileScreen() {
               onPress={() => go('publicProfile', { userId, role: worker ? 'worker' : 'poster' })}
               accessibilityRole="link"
               accessibilityLabel="See your profile as others see it"
-              hitSlop={8}
+              hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
               style={{ alignSelf: 'flex-start', marginTop: 14 }}
             >
+              {/* W2-1: a 17 px link, 41 px to tap. */}
+              <HitArea x={8} y={12} />
               <RNText style={tx('700', 13, '#FFFFFF')}>See as others ›</RNText>
             </Pressable>
           ) : null}
@@ -298,7 +310,7 @@ export function ProfileScreen() {
           </View>
         ) : null;
 
-  const modeBlock = (
+  const modeBlockInner = (
         <>
           {sectionLabel('MODE')}
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 11 }}>
@@ -314,7 +326,7 @@ export function ProfileScreen() {
                     flex: 1,
                     borderRadius: 18,
                     paddingVertical: 16,
-                    paddingHorizontal: 12,
+                    paddingHorizontal: desk ? 6 : 12,
                     backgroundColor: on ? t.colors.accentSoft : t.colors.surface,
                     borderWidth: 2,
                     borderColor: on ? t.colors.accent : t.colors.line,
@@ -336,9 +348,10 @@ export function ProfileScreen() {
           </RNText>
         </>
   );
+  const modeBlock = desk ? <View style={deskCard}>{modeBlockInner}</View> : modeBlockInner;
 
   const progressCard = progress && progress.next ? (
-            <View style={{ ...cardSurface(t, 18), padding: 16, marginTop: 24 }}>
+            <View style={{ ...cardSurface(t, 18), padding: desk ? 20 : 16, marginTop: desk ? 0 : 24 }}>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <RNText style={tx('800', 15, t.colors.ink)}>Finish your profile</RNText>
                 <RNText style={tx('700', 12, t.colors.muted)}>
@@ -381,10 +394,11 @@ export function ProfileScreen() {
           ) : null;
 
   const regularsBlock = !worker && !guest && regulars.length > 0 ? (
-            <View style={{ marginTop: 28 }}>
+            <View style={desk ? deskCard : { marginTop: 28 }}>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 {sectionLabel('MY REGULARS')}
-                <Pressable onPress={() => go('regulars')} hitSlop={8} accessibilityRole="link">
+                <Pressable onPress={() => go('regulars')} hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }} accessibilityRole="link">
+                  <HitArea x={8} y={12} />
                   <RNText style={tx('700', 12, t.colors.accentDeep)}>See all ›</RNText>
                 </Pressable>
               </View>
@@ -408,7 +422,7 @@ export function ProfileScreen() {
           ) : null;
 
   const menuCard = (
-          <View style={{ ...cardSurface(t, 18), marginTop: split ? 0 : 28, paddingHorizontal: 14 }}>
+          <View style={{ ...cardSurface(t, 18), marginTop: split || desk ? 0 : 28, paddingHorizontal: 14 }}>
             {rows.map((r, i) => (
               <Pressable
                 key={r.label}
@@ -442,15 +456,16 @@ export function ProfileScreen() {
           </View>
   );
 
-  // Theme, reviews and the line of links: below the menu, in both layouts.
-  const rest = (
+  // Theme, reviews and the line of links: below the menu, in both layouts. On a desktop the theme and the reviews are
+  // cards of their own.
+  const themeBlock = (
         <>
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'baseline',
               justifyContent: 'space-between',
-              marginTop: 28,
+              marginTop: desk ? 0 : 28,
             }}
           >
             {sectionLabel('THEME')}
@@ -482,8 +497,12 @@ export function ProfileScreen() {
               );
             })}
           </View>
+        </>
+  );
 
-          {guest ? null : sectionLabel(worker ? 'WORKER REVIEWS' : 'CUSTOMER REVIEWS', { marginTop: 32 })}
+  const reviewsBlock = (
+        <>
+          {guest ? null : sectionLabel(worker ? 'WORKER REVIEWS' : 'CUSTOMER REVIEWS', { marginTop: desk ? 0 : 32 })}
           {!guest && reviews.length === 0 && (
             <RNText style={tx('400', 13, t.colors.muted, { marginTop: 12, lineHeight: 19.5 })}>
               {worker
@@ -496,8 +515,9 @@ export function ProfileScreen() {
               <View
                 style={{
                   paddingVertical: 14,
-                  borderBottomWidth: 1,
+                  borderBottomWidth: desk && i === reviews.length - 1 ? 0 : 1,
                   borderBottomColor: t.colors.line,
+                  ...(desk && i === reviews.length - 1 ? { paddingBottom: 0 } : null),
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
@@ -515,9 +535,16 @@ export function ProfileScreen() {
               </View>
             </SlideIn>
           ))}
+        </>
+  );
+
+  const rest = (
+        <>
+          {desk ? <View style={deskCard}>{themeBlock}</View> : themeBlock}
+          {guest ? null : desk ? <View style={deskCard}>{reviewsBlock}</View> : reviewsBlock}
 
           {/* Terms, Privacy and Sign out: one small line of links. */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 18, marginTop: 32, paddingVertical: 8 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 18, marginTop: desk ? 0 : 32, paddingVertical: 8 }}>
             <Pressable onPress={() => go('terms')} hitSlop={8} accessibilityRole="link">
               <RNText style={tx('600', 12.5, t.colors.muted)}>Terms</RNText>
             </Pressable>
@@ -533,6 +560,9 @@ export function ProfileScreen() {
         </>
   );
 
+  // Desktop: blocks 16 apart (the cards carry no margins of their own there).
+  const stack = desk ? ({ gap: 16 } as const) : null;
+
   return (
     <Screen padded={false}>
       <AppHeader />
@@ -542,7 +572,7 @@ export function ProfileScreen() {
           <>
             {hero}
             {guestNote}
-            <View style={{ paddingTop: 20 }}>
+            <View style={{ paddingTop: desk ? 16 : 20, ...stack }}>
               {modeBlock}
               {progressCard}
               {regularsBlock}
@@ -550,16 +580,16 @@ export function ProfileScreen() {
           </>
         }
         right={
-          <>
+          <View style={{ maxWidth: 720, ...stack }}>
             {menuCard}
             {rest}
-          </>
+          </View>
         }
         single={
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
             {hero}
             {guestNote}
-            <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 }}>
+            <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, ...stack }}>
               {modeBlock}
               {progressCard}
               {regularsBlock}
@@ -574,7 +604,7 @@ export function ProfileScreen() {
         danger
         icon="logout"
         title="Sign out of TaskDrop?"
-        message="You’ll need your phone number or Google account to sign back in. Your tasks and wallet stay safe."
+        message={signOutWords}
         confirmLabel="Sign out"
         cancelLabel="Stay signed in"
         onCancel={() => setConfirmSignOut(false)}

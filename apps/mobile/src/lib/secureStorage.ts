@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { inOrder } from './inOrder';
 
 /**
  * Storage for the Supabase session (access + refresh token).
@@ -56,24 +57,29 @@ async function secureSet(key: string, value: string): Promise<void> {
   await SecureStore.setItemAsync(safe(key), String(n));
 }
 
+// Every call waits its turn (inOrder): a read must not land between secureSet's remove and its writes.
+const queued = inOrder();
+
 export const sessionStorage = isNative
   ? {
-      async getItem(key: string): Promise<string | null> {
-        const secure = await secureGet(key);
-        if (secure !== null) return secure;
-        // One-time move for people already signed in with the old plain-text
-        // store: copy into SecureStore, then wipe the plain-text copy.
-        const legacy = await AsyncStorage.getItem(key);
-        if (legacy !== null) {
-          await secureSet(key, legacy);
+      getItem: (key: string): Promise<string | null> =>
+        queued(async () => {
+          const secure = await secureGet(key);
+          if (secure !== null) return secure;
+          // One-time move for people already signed in with the old plain-text
+          // store: copy into SecureStore, then wipe the plain-text copy.
+          const legacy = await AsyncStorage.getItem(key);
+          if (legacy !== null) {
+            await secureSet(key, legacy);
+            await AsyncStorage.removeItem(key);
+          }
+          return legacy;
+        }),
+      setItem: (key: string, value: string): Promise<void> => queued(() => secureSet(key, value)),
+      removeItem: (key: string): Promise<void> =>
+        queued(async () => {
+          await secureRemove(key);
           await AsyncStorage.removeItem(key);
-        }
-        return legacy;
-      },
-      setItem: secureSet,
-      async removeItem(key: string): Promise<void> {
-        await secureRemove(key);
-        await AsyncStorage.removeItem(key);
-      },
+        }),
     }
   : AsyncStorage;

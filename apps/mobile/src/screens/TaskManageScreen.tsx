@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text as RNText, ScrollView, Pressable, RefreshControl } from 'react-native';
+import { View, Text as RNText, ScrollView, Pressable, Platform, RefreshControl } from 'react-native';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import {
@@ -26,6 +26,8 @@ import { TaskDescription } from '../components/TaskDescription';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
+import { useAuth } from '../providers/AuthProvider';
+import { noteOffersSeen } from '../lib/seenOffersStore';
 import { useApp } from '../providers/AppStateProvider';
 import {
   cancelTask,
@@ -46,7 +48,8 @@ import { formatDeadline } from '../components/DateTimeSheet';
 import { useFees } from '../lib/useFees';
 import { reportError } from '../lib/errors';
 import { countOf } from '../lib/plural';
-import { posterEscrowCharge } from '@taskdrop/rules';
+import { FEES, posterEscrowCharge } from '@taskdrop/rules';
+import { closeTaskText, hireFineNote } from '../lib/closeTaskText';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { TaskOptionsPanel } from '../components/TaskOptionsPanel';
 import { TaskQuestions } from '../components/TaskQuestions';
@@ -83,10 +86,11 @@ function milestonesOf(v: unknown): Milestone[] {
 export function TaskManageScreen() {
   const fees = useFees();
   const t = useTheme();
-  const { twoPane } = useLayout();
+  const { twoPane, desktop } = useLayout();
   const { params, back, go } = useNav();
   const { flash, celebrate, setOpenTask, startedOf } = useApp();
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+  const { userId } = useAuth();
   const [detail, setDetail] = useState<TaskDetail | null | undefined>(undefined);
   const [bids, setBids] = useState<(Bid & { profiles: Profile | null })[]>([]);
   const [tab, setTab] = useState(0);
@@ -109,7 +113,9 @@ export function TaskManageScreen() {
     setDetail(d);
     setBids(b);
     setLoadFailed(false);
-  }, [taskId]);
+    // These offers are now seen on this device: My tasks stops calling them new (lib/seenOffers).
+    if (userId) void noteOffersSeen(userId, taskId, b.length);
+  }, [taskId, userId]);
 
   useEffect(() => {
     void load().catch((e) => {
@@ -147,11 +153,12 @@ export function TaskManageScreen() {
   if (detail === undefined) {
     return (
       <Screen padded={false}>
-        <TopBar title="Task" onBack={back} />
+        {/* Desktop: the title is the page header's, so the page does not repeat it. */}
+        <TopBar title={desktop && typeof params.title === 'string' && params.title ? params.title : 'Task'} onBack={back} />
         <View style={{ paddingHorizontal: 20, gap: 12 }}>
           {/* The row you tapped already told us the title: show it now rather than a grey box. */}
           {typeof params.title === 'string' && params.title ? (
-            <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.6 })}>{params.title}</RNText>
+            desktop ? null : <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.6 })}>{params.title}</RNText>
           ) : (
             <Shimmer height={60} />
           )}
@@ -197,9 +204,23 @@ export function TaskManageScreen() {
     ...(task.status === 'DISPUTED' ? [{ at: task.updated_at, title: 'Problem reported', body: 'Our team is looking at it', icon: 'gavel' as IconName }] : []),
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
+  // The fine rate the server has now (the admin can change it), else the built-in one.
+  const cancelPct = fees.cancelFine ?? FEES.POST_START_CANCEL_PENALTY_PCT;
+  const fineOf = (lockedMinor: number) => Math.round(lockedMinor * cancelPct);
+
+  // W2-3: once the worker has started, closing costs the fine; the menu and dialog say so.
+  const closeWords = closeTaskText({
+    title: task.title,
+    status: task.status,
+    funded: Boolean(task.funded_at),
+    fineMinor: fineOf(task.locked_minor ?? 0),
+    finePct: Math.round(cancelPct * 100),
+    money: formatINR,
+  });
+
   const primary: { label: string; onPress: () => void } | null =
     row.act === 'compare'
-      ? { label: bids.length ? `Compare ${bids.length} offer${bids.length === 1 ? '' : 's'}` : 'Waiting for offers', onPress: () => openRow(row, { go, flash, setOpenTask, startedOf }) }
+      ? { label: bids.length === 1 ? 'Review the offer' : bids.length ? `Compare ${bids.length} offers` : 'Waiting for offers', onPress: () => openRow(row, { go, flash, setOpenTask, startedOf }) }
       : row.act === 'pay'
         ? { label: `Pay ${formatINR(escrow)} now`, onPress: () => openRow(row, { go, flash, setOpenTask, startedOf }) }
         : row.act === 'confirm'
@@ -258,6 +279,9 @@ export function TaskManageScreen() {
       await cancelTask(task.id);
       setConfirmClose(false);
       flash('Task closed');
+      // Show it closed now: the refund below can take several seconds (round 7, P1-19).
+      setDetail((d) => (d ? { ...d, task: { ...d.task, status: 'CANCELLED' } } : d));
+      void load().catch((e) => reportError(e, 'task-manage'));
       try {
         const out = await refundEscrow(task.id);
         if (out.refundedMinor > 0) flash(formatINR(out.refundedMinor) + ' is on its way back to you');
@@ -426,11 +450,13 @@ export function TaskManageScreen() {
                 ? 'One worker has sent an offer. Select it now, or wait for more.'
                 : `${bids.length} workers have sent offers. Filter them, then select the one you want.`}
             </RNText>
+            {/* Desktop: the filters wrap inside the column instead of scrolling sideways (the last one was cut off). */}
             <ScrollView
-              horizontal
+              horizontal={!desktop}
+              scrollEnabled={!desktop}
               showsHorizontalScrollIndicator={false}
-              style={{ marginTop: 12, marginHorizontal: -20 }}
-              contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
+              style={{ marginTop: 12, marginHorizontal: desktop ? 0 : -20, flexGrow: 0 }}
+              contentContainerStyle={{ paddingHorizontal: desktop ? 0 : 20, gap: 8, ...(desktop ? { flexDirection: 'row', flexWrap: 'wrap' } : null) }}
             >
               {QUOTE_FILTERS.map((f) => {
                 const on = quoteFilter === f.key;
@@ -558,7 +584,9 @@ export function TaskManageScreen() {
         onBack={back}
         right={<IconButton icon="dots" label="Task options" onPress={() => setMenu(true)} />}
       />
-      <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 20, marginTop: -4 }}>
+      {/* On the web the chips tuck up under the in-page title; on a phone the title is the native header,
+          and pulled up under it the chips' tops were cut off (P1-18). */}
+      <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 20, marginTop: Platform.OS === 'web' ? -4 : 8 }}>
         <Badge label={badge.label} tone={badge.tone} />
         {isHunt(task) || showAssignmentChip(task.status) ? (
           <Badge
@@ -618,8 +646,21 @@ export function TaskManageScreen() {
       )}
 
       {primary && !hunting ? (
-        <View style={{ paddingHorizontal: 20, paddingBottom: 16, paddingTop: 6 }}>
-          <PrimaryButton label={primary.label} onPress={primary.onPress} disabled={row.act === 'compare' && bids.length === 0} />
+        <View
+          style={{
+            paddingHorizontal: 20,
+            paddingBottom: 16,
+            paddingTop: 6,
+            // Desktop: a button of its own width at the right, not one the width of the page.
+            ...(desktop ? { alignItems: 'flex-end', borderTopWidth: 1, borderTopColor: t.colors.line, marginHorizontal: 20, paddingHorizontal: 0, paddingTop: 14 } : null),
+          }}
+        >
+          <PrimaryButton
+            label={primary.label}
+            onPress={primary.onPress}
+            disabled={row.act === 'compare' && bids.length === 0}
+            style={desktop ? { minWidth: 260, paddingHorizontal: 32 } : undefined}
+          />
         </View>
       ) : null}
 
@@ -632,7 +673,7 @@ export function TaskManageScreen() {
           <MenuRow
             icon="close"
             label="Close task"
-            sub="Everything you paid comes back, fee included"
+            sub={closeWords.sub}
             danger
             onPress={() => {
               setMenu(false);
@@ -647,11 +688,7 @@ export function TaskManageScreen() {
         danger
         icon="close"
         title="Close this task?"
-        message={
-          task.funded_at
-            ? `“${task.title}” will be cancelled and the worker taken off it. Everything you paid, service fee included, goes back to your wallet. This can’t be undone.`
-            : `“${task.title}” will be taken down and workers can no longer send offers for it. This can’t be undone.`
-        }
+        message={closeWords.message}
         confirmLabel="Yes, close task"
         cancelLabel="Keep it"
         busy={closing}
@@ -665,7 +702,7 @@ export function TaskManageScreen() {
         title={selecting ? `Select ${selecting.name}?` : ''}
         message={
           selecting
-            ? `${formatINR(posterEscrowCharge(selecting.priceMinor, fees.posterFee))} (the offer plus the ${Math.round(fees.posterFee * 100)}% service fee) is taken from your wallet and locked in this task until it is done. If the task is cancelled or not completed, all of it comes back. Phone numbers are shared once the work starts.`
+            ? `${formatINR(posterEscrowCharge(selecting.priceMinor, fees.posterFee))} (the offer plus the ${Math.round(fees.posterFee * 100)}% service fee) is taken from your wallet and locked in this task until it is done. ${hireFineNote({ fineMinor: fineOf(selecting.priceMinor), finePct: Math.round(cancelPct * 100), money: formatINR })} Phone numbers are shared once the work starts.`
             : ''
         }
         confirmLabel="Choose and pay from wallet"

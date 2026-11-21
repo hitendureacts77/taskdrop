@@ -26,7 +26,7 @@ export type SuggestInput = {
 /** One, so the step never feels like a form. */
 export const MAX_SUGGESTIONS = 1;
 
-const CREW = /\b(shift(?:ing)?|mov(?:e|ing)|relocat\w*|packers?|movers?|event|party|wedding|function|deep[- ]?clean\w*|whole (?:house|flat|home)|[1-5]\s?bhk)\b/i;
+const CREW = /\b(shift(?:ing)?|mov(?:e|ing)|relocat\w*|packers?|movers?|event|party|wedding|function|deep[- ]?clean\w*|whole (?:house|flat|home))\b/i;
 
 const quoted = (m: RegExpMatchArray | null) => (m ? `You said “${m[0].trim()}”` : '');
 
@@ -52,7 +52,8 @@ export function suggestOptions(i: SuggestInput): Suggestion[] {
   // A find job (find, in stock, lost, looking for...): many people can look at once (City Hunt, D19).
   const find = findWords(i.text);
   if (find) out.push({ key: 'hunt', reason: `You said “${find.trim()}”. A Hunt lets many people look at once` });
-  const crew = i.remote ? null : i.text.match(CREW);
+  // A flat size ("2BHK") is not a number of helpers (W2-10); a headcount of 2 or more ("3 people") is.
+  const crew = i.remote ? null : (i.text.match(CREW) ?? severalPeople(i.text));
   if (crew) out.push({ key: 'crew', reason: quoted(crew) });
   if (i.whenNow && !i.remote) out.push({ key: 'flash', reason: 'You picked “Now” on the When step' });
   return out.slice(0, MAX_SUGGESTIONS);
@@ -75,6 +76,14 @@ export const CREW_MAX = 10;
 
 const WORD_COUNTS: Record<string, number> = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
 const HEADCOUNT = /\b(\d{1,2}|two|three|four|five|six|seven|eight|nine|ten)\s+(?:people|persons|helpers|workers|men|guys|labou?rers|hands)\b/i;
+
+/** The words asking for two or more helpers ("3 people", "two helpers"), or null. */
+function severalPeople(text: string): RegExpMatchArray | null {
+  const m = text.match(HEADCOUNT);
+  if (!m) return null;
+  const n = WORD_COUNTS[m[1]!.toLowerCase()] ?? Number(m[1]);
+  return n >= 2 ? m : null;
+}
 
 /** How many helpers to start the crew with: the number the poster wrote ("3 people"), else 2. */
 export function crewSizeFrom(text: string): number {

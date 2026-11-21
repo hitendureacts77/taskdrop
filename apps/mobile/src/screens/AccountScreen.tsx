@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useSignOutMessage } from '../lib/useSignOutMessage';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
+import { ConsentSetting } from '../components/ConsentBanner';
 import { BlockedPeopleCard } from '../components/BlockedPeopleCard';
 import { PeopleMapCard } from '../components/PeopleMapCard';
 import { Badge, ConfirmDialog, Field, PrimaryButton, SwipeTabs, TopBar, UnderlineTabs } from '../components/kit';
@@ -16,16 +18,19 @@ import { useSwitchMode } from '../lib/useSwitchMode';
 import { getProfile, updateProfile, type Profile } from '../data/api';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
 import { TwoPane } from '../components/TwoPane';
+import { useLayout } from '../lib/layout';
 import {
   accountDeletionCheck,
   deleteMyAccount,
   endMySessions,
   type DeletionBlocker,
-  setPassword,
+  changePassword,
+  PasswordChangeError,
   updateProfileExtras,
   usernameAvailable,
   verificationState,
 } from '../data/extras';
+import { PASSWORD_MIN, passwordProblem, passwordStrength } from '../lib/passwordRules';
 
 // Fees live on their own page (Help & support → How fees work), not in settings.
 const TABS = ['You', 'Sign-in', 'App'];
@@ -36,6 +41,8 @@ const TABS = ['You', 'Sign-in', 'App'];
  */
 export function AccountScreen() {
   const t = useTheme();
+  // Desktop web (docs/design/desktop-web/PLAN.md, package 10): roomier cards, buttons at their natural width, the page at most 720 wide.
+  const { desktop: desk } = useLayout();
   const { back, go, params } = useNav();
   const { flash, celebrate } = useActions();
   const { userId, signOut, linkGoogle, guest } = useAuth();
@@ -49,15 +56,20 @@ export function AccountScreen() {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  // W2-16: names every way this person can sign back in.
+  const signOutWords = useSignOutMessage(confirmSignOut, profile?.username);
   const [confirmSignOutAll, setConfirmSignOutAll] = useState(false);
   const [signingOutAll, setSigningOutAll] = useState(false);
   const [free, setFree] = useState<boolean | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
+  const [pwCur, setPwCur] = useState('');
+  // The server asked for the current password (H30), or the account already has one.
+  const [needCurrent, setNeedCurrent] = useState(false);
   const [savingPw, setSavingPw] = useState(false);
   const [linking, setLinking] = useState(false);
-  const [verify, setVerify] = useState<{ phone: boolean; email: boolean; google: boolean } | null>(null);
+  const [verify, setVerify] = useState<{ phone: boolean; email: boolean; google: boolean; hasPassword: boolean } | null>(null);
   // Account deletion: checked first, so what is in the way shows on the card.
   const [checkingDelete, setCheckingDelete] = useState(false);
   const [blockers, setBlockers] = useState<DeletionBlocker[] | null>(null);
@@ -72,7 +84,10 @@ export function AccountScreen() {
       setName(p?.display_name ?? '');
       setUsername(p?.username ?? '');
     });
-    void verificationState().then(setVerify);
+    void verificationState().then((v) => {
+      setVerify(v);
+      if (v.hasPassword) setNeedCurrent(true);
+    });
   }, [userId]);
 
   // Check the handle as it is typed, debounced.
@@ -130,17 +145,21 @@ export function AccountScreen() {
   const savePassword = async () => {
     if (!profile?.username) return flash('Pick a username first — it is what you sign in with');
     if (pw !== pw2) return flash('The two passwords do not match');
+    if (needCurrent && !pwCur) return flash('Enter your current password');
     setSavingPw(true);
     try {
-      await setPassword(pw);
+      await changePassword(pw, needCurrent ? pwCur : undefined);
       setPw('');
       setPw2('');
+      setPwCur('');
+      setNeedCurrent(true);
       // A new password should end every other sign-in: a phone that was lost or borrowed stops working.
       // This device stays signed in. If the server cannot be reached the password is still set; say so.
       const others = await endMySessions(false).then(() => true, () => false);
       celebrate(others ? 'Password set. Other devices were signed out' : 'Password set');
       if (!others) flash('Your other devices could not be signed out just now. Use “Sign out of all devices” below to do it.');
     } catch (e) {
+      if (e instanceof PasswordChangeError && e.needCurrent) setNeedCurrent(true);
       flash(e instanceof Error ? e.message : 'Could not set the password');
     } finally {
       setSavingPw(false);
@@ -175,7 +194,9 @@ export function AccountScreen() {
     }
   };
 
-  const card = { ...cardSurface(t, 18), padding: 15, marginTop: 14 } as const;
+  const card = { ...cardSurface(t, 18), padding: desk ? 20 : 15, marginTop: 14 } as const;
+  // A desktop button is as wide as its label (at least 160), never the whole card.
+  const deskBtn = desk ? ({ alignSelf: 'flex-start', minWidth: 160, paddingHorizontal: 24 } as const) : null;
 
   // The active tab's cards: under the tabs on a phone, beside them on a wide desktop.
   const tabBody = (
@@ -196,7 +217,7 @@ export function AccountScreen() {
                 error={username && !handleOk ? '3–20 characters: a–z, 0–9 and _' : free === false ? 'That username is taken' : null}
                 hint={free ? 'Available' : 'Your public handle, and how you sign in with a password'}
               />
-              <PrimaryButton label="Save" onPress={() => void saveProfile()} busy={savingProfile} style={{ marginTop: 16 }} />
+              <PrimaryButton label="Save" onPress={() => void saveProfile()} busy={savingProfile} style={{ marginTop: 16, ...deskBtn }} />
             </View>
             <View style={card}>
               <RNText style={tx('800', 15, t.colors.ink)}>More about you</RNText>
@@ -230,7 +251,29 @@ export function AccountScreen() {
                   ? `Set a password to sign in as @${profile.username} without an SMS code.`
                   : 'Pick a username on the You tab first — you sign in with it.'}
               </RNText>
-              <Field label="New password" value={pw} onChangeText={setPw} secureTextEntry style={{ marginTop: 14 }} autoCapitalize="none" />
+              {needCurrent ? (
+                <Field
+                  label="Current password"
+                  value={pwCur}
+                  onChangeText={setPwCur}
+                  secureTextEntry
+                  style={{ marginTop: 14 }}
+                  autoCapitalize="none"
+                  autoComplete="current-password"
+                  hint="Forgot it? Sign out, sign in with your mobile number, then set a new one here within 15 minutes."
+                />
+              ) : null}
+              <Field
+                label="New password"
+                value={pw}
+                onChangeText={setPw}
+                secureTextEntry
+                style={{ marginTop: 14 }}
+                autoCapitalize="none"
+                autoComplete="new-password"
+                error={pw ? passwordProblem(pw, profile?.username) : null}
+                hint={pw ? `Strength: ${passwordStrength(pw, profile?.username).label}` : `At least ${PASSWORD_MIN} characters. A few unrelated words work well.`}
+              />
               <Field
                 label="Confirm password"
                 value={pw2}
@@ -239,14 +282,13 @@ export function AccountScreen() {
                 style={{ marginTop: 14 }}
                 autoCapitalize="none"
                 error={pw2 && pw !== pw2 ? 'Does not match' : null}
-                hint="At least 8 characters."
               />
               <PrimaryButton
-                label="Set password"
+                label={needCurrent ? 'Change password' : 'Set password'}
                 onPress={() => void savePassword()}
                 busy={savingPw}
-                disabled={!profile?.username || pw.length < 8 || pw !== pw2}
-                style={{ marginTop: 16 }}
+                disabled={!profile?.username || passwordProblem(pw, profile?.username) !== null || pw !== pw2 || (needCurrent && !pwCur)}
+                style={{ marginTop: 16, ...deskBtn }}
               />
             </View>
             <View style={card}>
@@ -261,7 +303,7 @@ export function AccountScreen() {
                   label="Link Google"
                   onPress={() => void linkGoogleAccount()}
                   busy={linking}
-                  style={{ marginTop: 14 }}
+                  style={{ marginTop: 14, ...deskBtn }}
                 />
               ) : null}
             </View>
@@ -342,6 +384,7 @@ export function AccountScreen() {
                 ))}
               </View>
             </View>
+            <ConsentSetting style={card} />
             <View style={card}>
               <RNText style={tx('800', 15, t.colors.ink)}>Mode</RNText>
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
@@ -406,19 +449,22 @@ export function AccountScreen() {
       </>
   );
 
+  // Desktop: the cards stop at 720, whether the tabs are beside them or above them.
+  const body = desk ? <View style={{ maxWidth: 720 }}>{tabBody}</View> : tabBody;
+
   return (
     <Screen padded={false}>
       <TopBar title="Account & settings" onBack={back} />
       <TwoPane
         width={240}
         left={<View style={{ paddingTop: 14 }}><UnderlineTabs vertical tabs={TABS} active={tab} onPick={setTab} /></View>}
-        right={tabBody}
+        right={body}
         single={
           <>
             <UnderlineTabs tabs={TABS} active={tab} onPick={setTab} />
             <SwipeTabs index={tab} count={TABS.length} onChange={setTab}>
             <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
-              {tabBody}
+              {body}
             </KeyboardScrollView>
             </SwipeTabs>
           </>
@@ -429,7 +475,7 @@ export function AccountScreen() {
         danger
         icon="logout"
         title="Sign out of TaskDrop?"
-        message="You’ll need your phone number or Google account to sign back in. Your tasks and wallet stay safe."
+        message={signOutWords}
         confirmLabel="Sign out"
         cancelLabel="Stay signed in"
         onCancel={() => setConfirmSignOut(false)}

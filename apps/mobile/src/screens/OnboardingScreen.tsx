@@ -19,24 +19,35 @@ import { releaseAccountHold, runPendingAfterSignIn } from '../lib/guest';
 import { ownerMatches, resumable } from '../lib/postWizard';
 import { loadWizard } from '../lib/postWizardStore';
 import { getProfile, updateProfile } from '../data/api';
-import { applyReferralCode, updateProfileExtras, usernameAvailable } from '../data/extras';
+import { applyReferralCode, updateProfileExtras, usernameAvailable, type EarnGoal } from '../data/extras';
+import { EarnGoalPicker, isEarnGoal } from '../components/EarnGoalPicker';
+import { RoleTheme } from '../providers/ThemeProvider';
 import { nameCarriesContact } from '../lib/mask';
 import { imageSource, pickMedia, pickedFromFile, signedMediaUrl, uploadMedia, type PickedMedia } from '../lib/media';
 import { useFileDrop } from '../lib/useFileDrop';
 import { LANGUAGES, SKILL_OPTIONS } from './ProfileEditScreen';
-import { KeyboardScrollView } from '../components/KeyboardScrollView';
+import { ActionBar, ActionBarContext, FormPage } from '../components/FormPage';
+import { StepList } from '../components/StepList';
+import { useLayout } from '../lib/layout';
 
-const STEPS = ['Welcome', 'Username', 'Your intent', 'Skills', 'About you', 'Done'] as const;
+const STEPS = ['Welcome', 'Username', 'Your intent', 'Why you earn', 'Skills', 'About you', 'Done'] as const;
 type Intent = 'post' | 'earn' | 'both';
+// Step numbers used below. The two earning steps are skipped for someone who only posts.
+const WHY_EARN = 3;
+const SKILLS = 4;
+const ABOUT = 5;
+const DONE = 6;
 
 /**
  * First run, one question at a time: a welcome (with an optional referral
- * code), a public @username, what the person came to do, their skills if they
- * will earn, and the basics people see on their profile. Every answer is saved
- * to the profile as it is given, so leaving halfway loses nothing.
+ * code), a public @username, what the person came to do, why they earn and
+ * their skills if they will earn, and the basics people see on their profile.
+ * Every answer is saved to the profile as it is given, so leaving halfway
+ * loses nothing.
  */
 export function OnboardingScreen() {
   const t = useTheme();
+  const { desktop } = useLayout();
   const { reset, back, go, params } = useNav();
   const { setMode } = useMode();
   const { flash, celebrate } = useActions();
@@ -45,7 +56,7 @@ export function OnboardingScreen() {
   const quick = Boolean(params.quick);
   // A guest who backs out of the quick finish gets their open sheet back.
   useEffect(() => (quick ? releaseAccountHold : undefined), [quick]);
-  const [step, setStep] = useState(quick ? 4 : 0);
+  const [step, setStep] = useState(quick ? ABOUT : 0);
   const [busy, setBusy] = useState(false);
   const [introSeen, setIntroSeen] = useState<boolean | null>(null);
   useEffect(() => {
@@ -56,12 +67,22 @@ export function OnboardingScreen() {
   const [username, setUsername] = useState('');
   const [free, setFree] = useState<boolean | null>(null);
   const [intent, setIntent] = useState<Intent>('both');
+  const [earnGoal, setEarnGoal] = useState<EarnGoal | null>(null);
   const [skills, setSkills] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
   const [langs, setLangs] = useState<string[]>([]);
   const [place, setPlace] = useState<{ label: string; lat: number | null; lng: number | null } | null>(null);
   const [showLoc, setShowLoc] = useState(false);
+  // A new sign-up with no area is asked for one when they reach the step that holds it (About you), never
+  // over the Welcome step (W2-19: the map picker opened on top of Step 1 before Let’s go was tapped).
+  const [askArea, setAskArea] = useState(false);
+  useEffect(() => {
+    if (askArea && step === ABOUT) {
+      setAskArea(false);
+      setShowLoc(true);
+    }
+  }, [askArea, step]);
   const [avatar, setAvatar] = useState<string | null>(null);
   const [avatarPath, setAvatarPath] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -81,10 +102,11 @@ export function OnboardingScreen() {
       setBio(p.bio ?? '');
       setLangs(p.languages ?? []);
       if (p.intent === 'post' || p.intent === 'earn' || p.intent === 'both') setIntent(p.intent);
+      if (isEarnGoal(p.earn_goal)) setEarnGoal(p.earn_goal);
       if (p.loc_label) setPlace({ label: p.loc_label, lat: p.loc_lat, lng: p.loc_lng });
-      // New sign-ups are asked for their area straight away. Setup only opens
+      // New sign-ups are asked for their area on the About you step. Setup only opens
       // for an account that has not finished it, so returning members never see this.
-      else setShowLoc(true);
+      else setAskArea(true);
       if (p.avatar_url) {
         setAvatarPath(p.avatar_url);
         setAvatar(await signedMediaUrl(p.avatar_url, 'thumb'));
@@ -114,8 +136,20 @@ export function OnboardingScreen() {
     return () => anim.stop();
   }, [step, progress]);
 
-  const next = () => setStep((s) => Math.min(STEPS.length - 1, s + (s === 2 && intent === 'post' ? 2 : 1)));
-  const prev = () => setStep((s) => Math.max(0, s - (s === 4 && intent === 'post' ? 2 : 1)));
+  // Someone who only posts is never asked why they earn or what they are good at.
+  const skipped = (s: number) => intent === 'post' && (s === WHY_EARN || s === SKILLS);
+  const next = () =>
+    setStep((s) => {
+      let n = s + 1;
+      while (skipped(n)) n += 1;
+      return Math.min(DONE, n);
+    });
+  const prev = () =>
+    setStep((s) => {
+      let n = s - 1;
+      while (n > 0 && skipped(n)) n -= 1;
+      return Math.max(0, n);
+    });
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -332,7 +366,30 @@ export function OnboardingScreen() {
     );
   }
 
-  if (step === 3) {
+  if (step === WHY_EARN) {
+    body = (
+      // Earn is blue (owner rule): the earning question uses the worker colours.
+      <RoleTheme worker>
+        <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.7 })}>Why do you want to earn on TaskDrop?</RNText>
+        <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21 })}>
+          This helps us show you the right tasks and tips. Only you can see it.
+        </RNText>
+        <EarnGoalPicker value={earnGoal} onChange={setEarnGoal} />
+      </RoleTheme>
+    );
+    footer = (
+      <PrimaryButton
+        label="Continue"
+        busy={busy}
+        disabled={!earnGoal}
+        onPress={() => void run(async () => {
+          if (userId && earnGoal) await updateProfileExtras(userId, { earnGoal });
+        })}
+      />
+    );
+  }
+
+  if (step === SKILLS) {
     body = (
       <>
         <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.7 })}>What are you good at?</RNText>
@@ -355,7 +412,7 @@ export function OnboardingScreen() {
     );
   }
 
-  if (step === 4) {
+  if (step === ABOUT) {
     body = (
       <>
         <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.7 })}>About you</RNText>
@@ -405,7 +462,7 @@ export function OnboardingScreen() {
     );
   }
 
-  if (step === 5) {
+  if (step === DONE) {
     body = (
       <View style={{ alignItems: 'center', paddingTop: 30 }}>
         {/* The one celebration: a check with ripples going out from it. */}
@@ -418,7 +475,9 @@ export function OnboardingScreen() {
         <RNText style={tx('800', 26, t.colors.ink, { marginTop: 18, textAlign: 'center', letterSpacing: -0.7 })}>You’re all set{name ? `, ${name.split(' ')[0]}` : ''}!</RNText>
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21, textAlign: 'center' })}>
           {intent === 'earn'
-            ? 'Find a task near you and send your first offer.'
+            ? earnGoal === 'business'
+              ? 'Find people who need what your business does and send your first offer.'
+              : 'Find a task near you and send your first offer.'
             : 'Tell us what you need done and we’ll write the post for you.'}
         </RNText>
       </View>
@@ -426,33 +485,60 @@ export function OnboardingScreen() {
     footer = <PrimaryButton label="Go to TaskDrop" busy={busy} onPress={() => void finish()} />;
   }
 
+  // Desktop: Back sits at the left of the action bar and the aside lists every step, so the phone's
+  // "Step n of N" row and bar are not drawn. The two earning steps are left out for someone who only posts.
+  const showBack = !quick && step > 0 && step < STEPS.length - 1;
+  const aside = quick ? undefined : (
+    <StepList
+      steps={STEPS.map((label, i) => ({ label, i }))
+        .filter(({ i }) => !skipped(i))
+        .map(({ label, i }) => ({ label, state: i < step ? 'done' : i === step ? 'current' : 'next' }))}
+    />
+  );
+
   return (
     <Screen padded={false}>
-      <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          {!quick && step > 0 && step < STEPS.length - 1 ? (
-            <IconButton icon="back" label="Back" onPress={prev} />
-          ) : null}
-          <RNText style={tx('600', 13, t.colors.muted, { flex: 1 })}>
-            {quick ? STEPS[step] : `Step ${step + 1} of ${STEPS.length} · ${STEPS[step]}`}
-          </RNText>
-        </View>
-        {quick ? null : (
-          <View style={{ height: 4, borderRadius: 999, backgroundColor: t.colors.surface2, marginTop: 12, overflow: 'hidden' }}>
-            <Animated.View
-              style={{
-                height: 4,
-                backgroundColor: t.colors.accent,
-                width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-              }}
-            />
+      {desktop ? null : (
+        <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            {showBack ? <IconButton icon="back" label="Back" onPress={prev} /> : null}
+            <RNText style={tx('600', 13, t.colors.muted, { flex: 1 })}>
+              {quick ? STEPS[step] : `Step ${step + 1} of ${STEPS.length} · ${STEPS[step]}`}
+            </RNText>
           </View>
-        )}
-      </View>
-      <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 22, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
+          {quick ? null : (
+            <View style={{ height: 4, borderRadius: 999, backgroundColor: t.colors.surface2, marginTop: 12, overflow: 'hidden' }}>
+              <Animated.View
+                style={{
+                  height: 4,
+                  backgroundColor: t.colors.accent,
+                  width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+                }}
+              />
+            </View>
+          )}
+        </View>
+      )}
+      <FormPage
+        phoneActions="pinned"
+        scrollProps={{ style: { flex: 1 }, contentContainerStyle: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 20 }, keyboardShouldPersistTaps: 'handled' }}
+        aside={aside}
+        actions={
+          <ActionBar
+            hint={
+              desktop && showBack ? (
+                <ActionBarContext.Provider value={true}>
+                  <PrimaryButton label="Back" tone="quiet" onPress={prev} style={{ alignSelf: 'flex-start' }} />
+                </ActionBarContext.Provider>
+              ) : undefined
+            }
+          >
+            <View style={desktop ? undefined : { paddingHorizontal: 20, paddingBottom: 16 }}>{footer}</View>
+          </ActionBar>
+        }
+      >
         {body}
-      </KeyboardScrollView>
-      <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>{footer}</View>
+      </FormPage>
       <LocationSheet
         visible={showLoc}
         // A profile shows an area, never a door: it is public.

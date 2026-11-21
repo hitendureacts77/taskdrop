@@ -98,7 +98,7 @@ export function BottomTabBar() {
                     height: 18,
                     borderRadius: 999,
                     paddingHorizontal: 4,
-                    backgroundColor: t.colors.signalDeep,
+                    backgroundColor: t.colors.signalFill,
                     borderWidth: 2,
                     borderColor: t.colors.surface,
                     alignItems: 'center',

@@ -14,8 +14,14 @@ import { listIdeas, voteIdea } from '../data/extras';
 import { STATUS_FILTERS, withVote, withVoteResult, type Idea, type IdeaStatus } from '../lib/ideas';
 import { reportError } from '../lib/errors';
 import { isNeedsAccount } from '../lib/guest';
+import { useLayout } from '../lib/layout';
+import { ListPage, SegmentedTabs } from '../components/ListPage';
+import { RowCard } from '../components/RowCard';
+import { CONTENT_INSET } from '../navigation/DesktopPage';
 
 const PAGE = 30;
+// The desktop page's scroll content: ListPage's own padding, plus the inset the page header's content sits at.
+const LIST_SCROLL = { paddingTop: 8, paddingBottom: 32, paddingHorizontal: CONTENT_INSET } as const;
 
 /**
  * Ideas & feedback: the public board (migration 136). People suggest what
@@ -28,6 +34,7 @@ export function IdeasScreen() {
   const t = useTheme();
   const { back, go } = useNav();
   const { flash } = useActions();
+  const { desktop } = useLayout();
   const [sort, setSort] = useState<'top' | 'new'>('top');
   const [status, setStatus] = useState<IdeaStatus | null>(null);
   const [typed, setTyped] = useState('');
@@ -104,67 +111,137 @@ export function IdeasScreen() {
   const open = (idea: Idea) => go('ideaDetail', { ideaId: idea.id });
   const filtering = status !== null || search !== '';
 
+  const heading = <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.6 })}>Help shape taskdrop.</RNText>;
+  const intro = (
+    <RNText style={tx('400', 14, t.colors.muted, { marginTop: 6, lineHeight: 21 })}>
+      Suggest what we should build next, and vote for what you want. We read every idea, and tell you when one is planned or live.
+    </RNText>
+  );
+  const searchField = (
+    <Field
+      style={{ marginTop: desktop ? 0 : 16 }}
+      value={typed}
+      onChangeText={setTyped}
+      placeholder="Search ideas"
+      maxLength={60}
+      returnKeyType="search"
+      left={
+        desktop ? (
+          // In the narrow filter column the input would squeeze the icon to a dot.
+          <View style={{ flexShrink: 0 }}>
+            <Icon name="search" size={18} color={t.colors.muted} />
+          </View>
+        ) : (
+          <Icon name="search" size={18} color={t.colors.muted} />
+        )
+      }
+    />
+  );
+
+  // Desktop: the rows sit on one centred card with the "Show more" button under it, natural width.
+  const rows = (
+    <>
+      {ideas?.map((idea, i) => (
+        <FadeIn key={idea.id} duration={240} delay={Math.min(i, 6) * 25}>
+          <IdeaRow idea={idea} onOpen={open} onVote={(x) => void vote(x)} />
+        </FadeIn>
+      ))}
+    </>
+  );
+  const results = (
+    <View style={{ marginTop: desktop ? 0 : 8 }}>
+      {ideas === null ? (
+        <>
+          <Shimmer height={78} style={{ marginTop: 12 }} />
+          <Shimmer height={78} style={{ marginTop: 12 }} />
+          <Shimmer height={78} style={{ marginTop: 12 }} />
+        </>
+      ) : failed && ideas.length === 0 ? (
+        <LoadFailed title="Couldn’t load the ideas" onRetry={() => void load()} />
+      ) : ideas.length === 0 ? (
+        <EmptyState
+          icon="sparkle"
+          title={filtering ? 'No ideas match that' : 'No ideas yet'}
+          body={filtering ? 'Try another word or filter, or suggest it yourself.' : 'Be the first to suggest something.'}
+          actionLabel="Suggest an idea"
+          onAction={() => setSuggest(true)}
+        />
+      ) : (
+        <>
+          {desktop ? <RowCard ownDividers>{rows}</RowCard> : rows}
+          {more ? (
+            <PrimaryButton
+              label="Show more"
+              onPress={() => void showMore()}
+              busy={loadingMore}
+              style={desktop ? { marginTop: 16, alignSelf: 'center', minWidth: 200 } : { marginTop: 16 }}
+            />
+          ) : null}
+        </>
+      )}
+    </View>
+  );
+
   return (
     <Screen padded={false}>
       <TopBar title="Ideas & feedback" onBack={back} />
-      <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-        <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.6 })}>Help shape taskdrop.</RNText>
-        <RNText style={tx('400', 14, t.colors.muted, { marginTop: 6, lineHeight: 21 })}>
-          Suggest what we should build next, and vote for what you want. We read every idea, and tell you when one is planned or live.
-        </RNText>
-        <PrimaryButton label="Suggest an idea" onPress={() => setSuggest(true)} style={{ marginTop: 14 }} />
+      {desktop ? (
+        // Desktop: a ListPage. Sort is the toolbar's tabs; search and the status filters sit in the filter column.
+        <ListPage
+          scrollProps={{ contentContainerStyle: LIST_SCROLL }}
+          toolbar={{
+            left: (
+              <SegmentedTabs
+                tabs={[
+                  { key: 'top', label: 'Top' },
+                  { key: 'new', label: 'New' },
+                ]}
+                value={sort}
+                onChange={setSort}
+              />
+            ),
+          }}
+          filters={
+            <View style={{ gap: 14 }}>
+              {searchField}
+              <View style={{ gap: 8, alignItems: 'flex-start' }}>
+                {STATUS_FILTERS.map((f) => (
+                  <Pill key={f.label} label={f.label} active={status === f.key} onPress={() => setStatus(f.key)} />
+                ))}
+              </View>
+            </View>
+          }
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24, marginBottom: 20 }}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              {heading}
+              {intro}
+            </View>
+            <PrimaryButton label="Suggest an idea" onPress={() => setSuggest(true)} style={{ alignSelf: 'center', minWidth: 180 }} />
+          </View>
+          {results}
+        </ListPage>
+      ) : (
+        <KeyboardScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+          {heading}
+          {intro}
+          <PrimaryButton label="Suggest an idea" onPress={() => setSuggest(true)} style={{ marginTop: 14 }} />
 
-        <Field
-          style={{ marginTop: 16 }}
-          value={typed}
-          onChangeText={setTyped}
-          placeholder="Search ideas"
-          maxLength={60}
-          returnKeyType="search"
-          left={<Icon name="search" size={18} color={t.colors.muted} />}
-        />
+          {searchField}
 
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-          <Pill label="Top" icon="trending" active={sort === 'top'} onPress={() => setSort('top')} />
-          <Pill label="New" icon="clock" active={sort === 'new'} onPress={() => setSort('new')} />
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10, marginHorizontal: -20 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 20 }}>
-          {STATUS_FILTERS.map((f) => (
-            <Pill key={f.label} label={f.label} active={status === f.key} onPress={() => setStatus(f.key)} />
-          ))}
-        </ScrollView>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+            <Pill label="Top" icon="trending" active={sort === 'top'} onPress={() => setSort('top')} />
+            <Pill label="New" icon="clock" active={sort === 'new'} onPress={() => setSort('new')} />
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10, marginHorizontal: -20 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 20 }}>
+            {STATUS_FILTERS.map((f) => (
+              <Pill key={f.label} label={f.label} active={status === f.key} onPress={() => setStatus(f.key)} />
+            ))}
+          </ScrollView>
 
-        <View style={{ marginTop: 8 }}>
-          {ideas === null ? (
-            <>
-              <Shimmer height={78} style={{ marginTop: 12 }} />
-              <Shimmer height={78} style={{ marginTop: 12 }} />
-              <Shimmer height={78} style={{ marginTop: 12 }} />
-            </>
-          ) : failed && ideas.length === 0 ? (
-            <LoadFailed title="Couldn’t load the ideas" onRetry={() => void load()} />
-          ) : ideas.length === 0 ? (
-            <EmptyState
-              icon="sparkle"
-              title={filtering ? 'No ideas match that' : 'No ideas yet'}
-              body={filtering ? 'Try another word or filter, or suggest it yourself.' : 'Be the first to suggest something.'}
-              actionLabel="Suggest an idea"
-              onAction={() => setSuggest(true)}
-            />
-          ) : (
-            <>
-              {ideas.map((idea, i) => (
-                <FadeIn key={idea.id} duration={240} delay={Math.min(i, 6) * 25}>
-                  <IdeaRow idea={idea} onOpen={open} onVote={(x) => void vote(x)} />
-                </FadeIn>
-              ))}
-              {more ? (
-                <PrimaryButton label="Show more" onPress={() => void showMore()} busy={loadingMore} style={{ marginTop: 16 }} />
-              ) : null}
-            </>
-          )}
-        </View>
-      </KeyboardScrollView>
+          {results}
+        </KeyboardScrollView>
+      )}
       <IdeaSheet
         visible={suggest}
         onClose={() => setSuggest(false)}

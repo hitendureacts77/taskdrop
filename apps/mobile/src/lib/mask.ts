@@ -113,6 +113,22 @@ export function nameCarriesContact(name: string): boolean {
   return /\d{7,}/.test(normalizeDigits(name).replace(/[\s\-.]/g, '')) || /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(name);
 }
 
+/** The same rule for an offer's proposal (W2-2), worded for the worker sending it. */
+export function offerIssueMessage(issue: ContactIssue): string {
+  switch (issue) {
+    case 'phone':
+      return 'Remove the phone number. It’s shared automatically once you’re hired.';
+    case 'email':
+      return 'Remove the email address. Talk in TaskDrop chat once you’re hired.';
+    case 'link':
+      return 'Remove the link. Share it in chat once you’re hired.';
+    case 'handle':
+      return 'Remove the chat handle or app name. You’ll talk in TaskDrop chat once you’re hired.';
+    case 'address':
+      return 'Don’t share your address here. The exact spot is shared once the task is booked.';
+  }
+}
+
 export function contactIssueMessage(issue: ContactIssue): string {
   switch (issue) {
     case 'phone':

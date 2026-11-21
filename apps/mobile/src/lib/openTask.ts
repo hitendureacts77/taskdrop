@@ -3,6 +3,7 @@ import type { FeedRow } from '../screens/HomeScreen';
 import { formatDeadline } from '../components/DateTimeSheet';
 import { optionLabels } from '../components/OptionBadges';
 import { isHunt } from './hunt';
+import { categoryLabel } from '../components/WorkCard';
 
 const PILLAR_TAG: Record<string, FeedRow['tag']> = {
   services: 'SERVICES',
@@ -27,6 +28,8 @@ export function taskToFeedRow(task: TaskWithPoster): FeedRow {
         : 'new',
     whoMeta: task.poster?.loc_label?.split(',').slice(-2).join(',').trim() || 'new here',
     tag: PILLAR_TAG[task.pillar] ?? 'SERVICES',
+    // The same words as the list card (B179: a request said SERVICES here and Tutoring & Education there).
+    category: categoryLabel(task),
     title: task.title,
     meta: task.flag === 'urgent' ? 'Urgent' : (place ?? 'Location not shared'),
     amountMinor: task.benchmark_minor,

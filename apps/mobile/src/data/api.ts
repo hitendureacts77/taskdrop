@@ -641,7 +641,7 @@ export async function createPaymentLink(input: {
   });
   if (error) {
     log.error('payment link request failed', { purpose: input.purpose, taskId: input.taskId ?? null });
-    throw await functionError(error, 'Could not start the payment');
+    throw await functionError(error, 'Could not start the payment. Nothing was charged. Please try again in a few minutes.');
   }
   const out = data as { paymentId?: string; url?: string; amountMinor?: number; error?: string };
   if (out.error) {
@@ -650,7 +650,7 @@ export async function createPaymentLink(input: {
   }
   if (!out.paymentId || !out.url) {
     log.error('payment link reply had no link', { purpose: input.purpose, taskId: input.taskId ?? null });
-    throw new Error('Could not start the payment');
+    throw new Error('Could not start the payment. Nothing was charged. Please try again in a few minutes.');
   }
   log.info('payment link opened', { purpose: input.purpose, taskId: input.taskId ?? null, paymentId: out.paymentId });
   count('payment.link_opened', { purpose: input.purpose });
@@ -787,6 +787,9 @@ export const myRegulars = () => quietly<Regular[]>('myRegulars', {}, []);
 
 export const setRepeat = (taskId: string, every: 'week' | 'month' | null) =>
   act<{ id: string; repeat_every: string | null }>('setRepeat', { taskId, every });
+/** Raise the top-up on an open post to a bigger step (migration 194). The server works out the new price. */
+export const raiseTopUp = (taskId: string, topUpPct: number) =>
+  act<{ id: string; topup_pct: number; benchmark_minor: number } | null>('raiseTopUp', { taskId, topUpPct });
 
 export type ProofPhotos = {
   task_id: string;

@@ -74,9 +74,13 @@ begin
   values (v_user, 'payment', 'Call me on 9876543210 about my payment');
 
   select * into v_row from private.outbox
-   where kind = 'support.opened' and data->>'from' = 'Outbox Tester';
+   where kind = 'support.opened' and data->>'user_id' = v_user::text;
   if v_row.id is null then
     raise exception 'FAIL: opening a help request did not queue a support.opened event';
+  end if;
+  -- Migration 192: Inngest gets ids only, never the person's name.
+  if v_row.data ? 'from' or v_row.data::text like '%Outbox Tester%' then
+    raise exception 'FAIL: the support.opened event carries the person''s name: %', v_row.data;
   end if;
   if v_row.data::text ~* '(phone|email|@)' then
     raise exception 'FAIL: the support.opened event carries contact details: %', v_row.data;
@@ -94,15 +98,15 @@ declare
   v_n   integer;
 begin
   -- Everything written above is seconds old: not the sweeper's business yet.
-  if exists (select 1 from public.outbox_pending(500) where (data->>'hello' = 'world' or data->>'from' = 'Outbox Tester')) then
+  if exists (select 1 from public.outbox_pending(500) where (data->>'hello' = 'world' or data->>'user_id' in (select id::text from public.profiles where display_name = 'Outbox Tester'))) then
     raise exception 'FAIL: the sweeper picked up an event that is still on its fast path';
   end if;
 
   update private.outbox set created_at = now() - interval '5 minutes'
-   where (data->>'hello' = 'world' or data->>'from' = 'Outbox Tester');
+   where (data->>'hello' = 'world' or data->>'user_id' in (select id::text from public.profiles where display_name = 'Outbox Tester'));
 
   select coalesce(array_agg(id), '{}') into v_ids
-    from public.outbox_pending(500) where (data->>'hello' = 'world' or data->>'from' = 'Outbox Tester');
+    from public.outbox_pending(500) where (data->>'hello' = 'world' or data->>'user_id' in (select id::text from public.profiles where display_name = 'Outbox Tester'));
   if cardinality(v_ids) <> 2 then
     raise exception 'FAIL: the sweeper should see the 2 old unsent events, saw %', cardinality(v_ids);
   end if;
@@ -111,7 +115,7 @@ begin
   if v_n <> 2 then
     raise exception 'FAIL: outbox_mark_sent marked % events, expected 2', v_n;
   end if;
-  if exists (select 1 from public.outbox_pending(500) where (data->>'hello' = 'world' or data->>'from' = 'Outbox Tester')) then
+  if exists (select 1 from public.outbox_pending(500) where (data->>'hello' = 'world' or data->>'user_id' in (select id::text from public.profiles where display_name = 'Outbox Tester'))) then
     raise exception 'FAIL: a sent event is still pending';
   end if;
   -- Marking twice changes nothing.

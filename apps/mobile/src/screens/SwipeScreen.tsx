@@ -43,7 +43,7 @@ function clamp(n: number, min: number, max: number): number {
 
 export function SwipeScreen() {
   const t = useTheme();
-  const { params, go, back } = useNav();
+  const { params, back, replace } = useNav();
   const { openTask, startTask, celebrate, flash } = useApp();
 
   const title =
@@ -117,7 +117,8 @@ export function SwipeScreen() {
     startTaskOnServer(taskId)
       .then(() => {
         celebrate('Task started · contacts revealed');
-        navTimeoutRef.current = setTimeout(() => go('active', params), 220);
+        // Replace, not push: Back from the job must not land on "Swipe to start" for a job that has started (round 7, W3-8).
+        navTimeoutRef.current = setTimeout(() => replace('active', params), 220);
       })
       .catch((e: unknown) => {
         setStarted(false);

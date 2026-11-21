@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSignOutMessage } from '../lib/useSignOutMessage';
 import { View, Text as RNText, Pressable, Animated, Modal, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { useTheme } from '../providers/ThemeProvider';
@@ -8,8 +9,9 @@ import { useAuth } from '../providers/AuthProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { getProfile, getWallet, type Profile } from '../data/api';
 import {
-  countUnreadFor,
   subscribeToNotifications,
+  unreadSummaryFor,
+  onUnreadChanged,
 } from '../data/extras';
 import { imageSource, signedMediaUrl } from '../lib/media';
 import { Icon, type IconName } from './Icon';
@@ -34,7 +36,7 @@ import { useTourTarget } from './tour/targets';
  * What the header last showed. Every tab mounts its own header, and starting
  * each one blank made the avatar and the unread badge blink on every switch.
  */
-const last = { userId: '' as string | null, initial: '?', avatar: null as string | null, unread: 0 };
+const last = { userId: '' as string | null, initial: '?', avatar: null as string | null, unread: 0, messages: 0 };
 
 export function AppHeader() {
   const t = useTheme();
@@ -43,8 +45,8 @@ export function AppHeader() {
   // Phones under 380 points (many Androids are 360): a tighter header, so the
   // avatar is never pushed off the edge.
   const tight = !desktop && !tablet && width < 380;
-  // A desktop browser has one bar above every screen's column instead
-  // (navigation/DesktopTopBar.tsx), holding the same tools.
+  // A desktop browser has the page header above every screen's column instead
+  // (navigation/DesktopPage.tsx), holding the same tools.
   if (desktop) return null;
 
   return (
@@ -81,7 +83,7 @@ export function AppHeader() {
 /**
  * Notifications (with the unread count), messages and the account menu -- or,
  * for a guest, the sign-in pill. Drawn by AppHeader on phones and tablets and by
- * the desktop top bar. The tour lights the three up together ('headerTools').
+ * the desktop page header. The tour lights the three up together ('headerTools').
  */
 export function HeaderTools({ tight = false }: { tight?: boolean }) {
   const t = useTheme();
@@ -93,12 +95,16 @@ export function HeaderTools({ tight = false }: { tight?: boolean }) {
   const toolsRef = useTourTarget('headerTools');
   const same = last.userId === userId;
   const [unread, setUnreadState] = useState(same ? last.unread : 0);
+  const [messages, setMessagesState] = useState(same ? last.messages : 0);
   const [drawer, setDrawer] = useState(false);
   const [initial, setInitialState] = useState(same ? last.initial : '?');
   const [avatar, setAvatarState] = useState<string | null>(same ? last.avatar : null);
   last.userId = userId;
-  const setUnread = (next: number | ((n: number) => number)) =>
-    setUnreadState((cur) => (last.unread = typeof next === 'function' ? next(cur) : next));
+  // The bell and the Messages dot come from the same rows the Notifications screen lists (W3-12).
+  const setUnread = (n: { total: number; messages: number }) => {
+    setUnreadState((last.unread = n.total));
+    setMessagesState((last.messages = n.messages));
+  };
   const setInitial = (v: string) => setInitialState((last.initial = v));
   const setAvatar = (v: string | null) => setAvatarState((last.avatar = v));
 
@@ -106,16 +112,23 @@ export function HeaderTools({ tight = false }: { tight?: boolean }) {
   useEffect(() => {
     if (!userId) return;
     let alive = true;
-    void countUnreadFor(mode === 'worker' ? 'worker' : 'poster').then((n) => alive && setUnread(n));
+    void unreadSummaryFor(mode === 'worker' ? 'worker' : 'poster').then((n) => alive && setUnread(n));
     return () => {
       alive = false;
     };
   }, [userId, screen, mode]);
+  // Alerts marked read somewhere that keeps this header on screen (a chat opened in the Messages pane).
+  useEffect(() => {
+    if (!userId) return;
+    return onUnreadChanged(() => {
+      void unreadSummaryFor(modeRef.current === 'worker' ? 'worker' : 'poster').then(setUnread);
+    });
+  }, [userId]);
   useEffect(() => {
     if (!userId) return;
     // A new alert may belong to the other side; recount rather than +1.
     return subscribeToNotifications(userId, () => {
-      void countUnreadFor(modeRef.current === 'worker' ? 'worker' : 'poster').then(setUnread);
+      void unreadSummaryFor(modeRef.current === 'worker' ? 'worker' : 'poster').then(setUnread);
     });
   }, [userId]);
 
@@ -146,7 +159,7 @@ export function HeaderTools({ tight = false }: { tight?: boolean }) {
       <View ref={toolsRef} collapsable={false} style={{ flexDirection: 'row', alignItems: 'center', gap: tight ? 6 : 8 }}>
       {guest ? <GuestSignInPill /> : (<>
       <IconButton icon="bell" label="Notifications" onPress={() => go('notifications')} badge={unread} size={btn} />
-      <IconButton icon="chat" label="Messages" onPress={() => go('inbox')} size={btn} />
+      <IconButton icon="chat" label="Messages" onPress={() => go('inbox')} badge={messages} size={btn} />
       <Pressable
         onPress={() => setDrawer(true)}
         accessibilityRole="button"
@@ -204,6 +217,8 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
   const [feedback, setFeedback] = useState(false);
   const [accounts, setAccounts] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  // W2-16: names every way this person can sign back in.
+  const signOutWords = useSignOutMessage(confirmSignOut, profile?.username);
 
   const slide = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -388,7 +403,7 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
         danger
         icon="logout"
         title="Sign out of TaskDrop?"
-        message="You’ll need your phone number or Google account to sign back in. Your tasks and wallet stay safe."
+        message={signOutWords}
         confirmLabel="Sign out"
         cancelLabel="Stay signed in"
         onCancel={() => setConfirmSignOut(false)}

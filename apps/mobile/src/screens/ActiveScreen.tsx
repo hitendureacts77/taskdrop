@@ -1,13 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, Animated, Easing, Linking, ActivityIndicator } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { View, Text as RNText, Pressable, Linking, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
-import Svg, { Circle } from 'react-native-svg';
+import { TIMING } from '@taskdrop/rules';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
+import { lengthHint } from '../lib/fieldHint';
 import { BackButton, ConfirmDialog, EmptyState, Field, LoadFailed, systemHeader } from '../components/kit';
 import { reportError } from '../lib/errors';
 import { ReportProblemSheet } from '../components/ReportProblemSheet';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
+import { TwoPane } from '../components/TwoPane';
+import { useDesktopHeaderPortal } from '../components/pageHeader';
+import {
+  Caption,
+  DetailRow,
+  MoneyNote,
+  MoneyRow,
+  ProgressList,
+  SectionCard,
+  StatusBanner,
+  type BannerTone,
+} from '../components/JobPageParts';
+import type { IconName } from '../components/Icon';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -34,9 +48,9 @@ import {
 } from '../lib/media';
 import { maskContacts } from '../lib/mask';
 import { Pressy, tx } from '../components/primitives';
-
-const RING_R = 88;
-const RING_C = 2 * Math.PI * RING_R;
+import { agreedMinor, pctWords, releaseMessage, workerEarnsMinor } from '../lib/heldWords';
+import { useFees } from '../lib/useFees';
+import { useLayout } from '../lib/layout';
 
 /** "2h 14m", "3d 4h", "45m", "40s". */
 function span(ms: number): string {
@@ -56,11 +70,16 @@ function hms(ms: number): string {
   return `${p(Math.floor(s / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`;
 }
 
+/** "Tue, 25 Nov, 5:25 pm". */
 const when = (iso: string) =>
-  new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  new Date(iso).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 
 /**
  * A job in progress, for both sides, from the task itself.
+ *
+ * Laid out like an Upwork contract page (D31 v11, boards Active and WorkActive): the other person on top, a
+ * banner saying where the job stands, the submitted work (or, for the worker, the proof being written), the
+ * money, the progress steps and the job's details. On a wide desktop the money and details sit in a side column.
  *
  * The clock counts down to the poster's deadline and stops the moment the
  * worker marks the work done. The worker finishes by sending proof -- what
@@ -74,7 +93,9 @@ export function ActiveScreen() {
   const { mode } = useMode();
   const { userId } = useAuth();
   const { flash, celebrate } = useActions();
+  const { twoPane: split, contentWidth } = useLayout();
   const worker = mode === 'worker';
+  const fees = useFees();
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
 
   const [detail, setDetail] = useState<TaskDetail | null | undefined>(undefined);
@@ -138,22 +159,30 @@ export function ActiveScreen() {
 
   const clockNow = doneAt ?? now;
   const remaining = deadline - clockNow;
-  const total = Math.max(60000, deadline - (startedAt ?? deadline - 3600000));
-  const frac = Math.min(1, Math.max(0, (clockNow - (startedAt ?? clockNow)) / total));
 
-  const ring = useRef(new Animated.Value(RING_C)).current;
-  useEffect(() => {
-    Animated.timing(ring, {
-      toValue: RING_C * (1 - frac),
-      duration: 700,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-  }, [frac, ring]);
+  // Lists open in-progress tasks straight here; the overview (quotes, timeline,
+  // details) stays one tap away for the poster. In the system header on phones,
+  // in the page header on a desktop.
+  const detailsButton =
+    task && !worker ? (
+      <Pressable
+        onPress={() => go('taskManage', { taskId: task.id })}
+        hitSlop={10}
+        accessibilityRole="button"
+        accessibilityLabel="Task details"
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999, borderWidth: 1, borderColor: t.colors.line }}
+      >
+        <Icon name="list" size={13} color={t.colors.ink} />
+        <RNText style={tx('700', 12, t.colors.ink)}>Details</RNText>
+      </Pressable>
+    ) : null;
+  // Desktop web: the back link, the job's title and Details go into the page header (undefined elsewhere).
+  const desktopHeader = useDesktopHeaderPortal({ title: task?.title || undefined, onBack: back, right: detailsButton ?? undefined });
 
   if (detail === undefined) {
     return (
       <Screen padded={false}>
+        {desktopHeader}
         <ActivityIndicator color={t.colors.accent} style={{ marginTop: 80 }} />
       </Screen>
     );
@@ -161,9 +190,13 @@ export function ActiveScreen() {
   if (!detail || !task) {
     return (
       <Screen padded={false}>
-        <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
-          <BackButton onBack={back} />
-        </View>
+        {desktopHeader !== undefined ? (
+          desktopHeader
+        ) : (
+          <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
+            <BackButton onBack={back} />
+          </View>
+        )}
         {failed ? (
           <LoadFailed
             onRetry={() => {
@@ -181,8 +214,17 @@ export function ActiveScreen() {
   const other = worker ? detail.poster : detail.worker;
   const otherName = startedAt ? (other?.display_name ?? (worker ? 'The customer' : 'The worker')) : 'Shown when the job starts';
   const escrowMinor = detail.assignment?.escrow_minor ?? task.locked_minor ?? 0;
+  // The worker sees their own earnings (price less the commission), not the poster's held total (round 7, W3-2).
+  const earnsMinor = workerEarnsMinor(escrowMinor, fees, task.locked_minor);
+  // The agreed price inside the held figure: the poster's held total less the service fee.
+  const offerMinor = agreedMinor(escrowMinor, fees.posterFee, task.locked_minor);
   const finished = status === 'COMPLETED' || status === 'AUTO_COMPLETED';
+  const cancelled = status === 'CANCELLED';
+  const disputed = status === 'DISPUTED';
+  const funded = Boolean(task.funded_at);
   const overdue = !doneAt && remaining < 0;
+  const late = running && (status === 'OVERDUE' || overdue);
+  const dueText = when(new Date(deadline).toISOString());
 
   const steps = [
     { label: 'Offer accepted', at: detail?.assignment?.created_at ?? task.funded_at ?? null, reached: Boolean(task.locked_bid_id) },
@@ -322,281 +364,359 @@ export function ActiveScreen() {
     </Pressable>
   );
 
-  const card = { marginTop: 16, ...cardSurface(t, 18), padding: 15 } as const;
+  const card = { marginTop: 12, ...cardSurface(t, 18), padding: 15 } as const;
 
   // -------------------------------------------------------------- view -----
 
-  // Lists open in-progress tasks straight here; the overview (quotes, timeline,
-  // details) stays one tap away for the poster. In the system header on phones.
-  const detailsButton = !worker ? (
+  // Where the job stands, one banner per state (the words the lists use, lib/taskRows.ts).
+  const banner = ((): { tone: BannerTone; icon?: IconName; title: string; body?: string; timer?: string } => {
+    if (disputed)
+      return { tone: 'signal', icon: 'flag', title: 'A problem was reported', body: 'TaskDrop is reviewing it and the payment stays on hold until it is decided.' };
+    if (cancelled) return { tone: 'neutral', icon: 'close', title: 'This task was cancelled' };
+    if (finished)
+      return {
+        tone: 'accent',
+        icon: 'check',
+        title: status === 'AUTO_COMPLETED' ? 'Released automatically' : 'Approved and paid',
+        body:
+          (status === 'AUTO_COMPLETED' ? 'Released automatically after the review window. ' : '') +
+          (worker ? 'Your earnings are on the way to your wallet.' : 'Thanks for using TaskDrop.'),
+      };
+    if (status === 'WORK_DONE') {
+      if (worker)
+        return {
+          tone: 'gold',
+          icon: 'clock',
+          title: 'Waiting for the customer to approve',
+          body: task.auto_complete_at
+            ? `If they don’t respond by ${when(task.auto_complete_at)}, the payment is released to you automatically.`
+            : undefined,
+        };
+      return {
+        tone: 'gold',
+        icon: 'eye',
+        title: 'Work sent for your review',
+        body: task.auto_complete_at
+          ? `Approve it, or ask for changes, by ${when(task.auto_complete_at)}. If you don’t respond, the payment is released to ${other?.display_name ?? 'the worker'} automatically.`
+          : 'Approve it, or ask for changes.',
+      };
+    }
+    if (running && startedAt) {
+      const clock = `${hms(Math.abs(remaining))} ${late ? 'past the deadline' : 'left'}`;
+      if (worker)
+        return {
+          tone: late ? 'signal' : 'accent',
+          timer: hms(Math.abs(remaining)),
+          title: late
+            ? `Past the deadline · was due ${dueText}`
+            : `${status === 'REVISION_REQUESTED' ? 'Changes asked for · timer' : 'Timer'} running · due ${dueText}`,
+        };
+      if (status === 'REVISION_REQUESTED')
+        return { tone: late ? 'signal' : 'accent', icon: 'repeat', title: 'Sent back for changes', body: `The timer runs again: ${clock}, due ${dueText}. You’ll be notified when they send the work.` };
+      return {
+        tone: late ? 'signal' : 'accent',
+        icon: 'clock',
+        title: late ? 'Past the deadline' : 'Work is underway',
+        body: `${clock} · due ${dueText}. The worker is on it. You’ll be notified when they send the work.`,
+      };
+    }
+    if (!funded)
+      return worker
+        ? { tone: 'gold', icon: 'clock', title: 'Waiting on payment', body: 'The customer has not paid yet.' }
+        : { tone: 'signal', icon: 'card', title: 'Waiting for your payment', body: 'Pay so the worker can start.' };
+    return {
+      tone: 'accent',
+      icon: 'lock',
+      title: 'Payment held safely',
+      body: `Due ${dueText}. ${worker ? 'The customer’s' : 'The worker’s'} name and contacts show when the job starts.`,
+    };
+  })();
+
+  // The page header row on phones and tablets (the system header carries it on the apps, the page header on a desktop).
+  const headerRow =
+    desktopHeader !== undefined ? (
+      desktopHeader
+    ) : (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        <BackButton onBack={back} title={task.title} right={detailsButton} />
+        {systemHeader ? null : (
+          <>
+            <RNText style={tx('700', 17, t.colors.ink, { flex: 1 })} numberOfLines={1}>{task.title}</RNText>
+            {detailsButton}
+          </>
+        )}
+      </View>
+    );
+
+  // The other person: named once work starts (the privacy rule), chat open from the hire on.
+  const rating = other && startedAt ? (worker ? { avg: other.poster_rating_avg, n: other.poster_rating_count } : { avg: other.worker_rating_avg, n: other.worker_rating_count }) : null;
+  const personCard = (
+    <View style={{ ...card, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <View>
+        <View style={{ width: 44, height: 44, borderRadius: 999, backgroundColor: worker ? t.colors.accentSoft : t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+          <RNText style={tx('800', 16, worker ? t.colors.accentDeep : t.colors.ink)}>{(startedAt ? (other?.display_name ?? '?') : '?').charAt(0).toUpperCase()}</RNText>
+        </View>
+        {other ? <AvatarPresence lastSeen={other.last_seen_at} ring={t.colors.surface} /> : null}
+      </View>
+      <View style={{ flex: 1 }}>
+        <RNText style={tx('700', 15, t.colors.ink)} numberOfLines={1}>{otherName}</RNText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 }}>
+          {other ? <PresenceLabel lastSeen={other.last_seen_at} /> : null}
+          {rating && rating.n > 0 ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }} accessibilityLabel={`Rated ${rating.avg.toFixed(1)} from ${rating.n} reviews`}>
+              <Icon name="star" size={11} color={t.colors.gold} />
+              <RNText style={tx('600', 11, t.colors.muted)}>
+                {rating.avg.toFixed(1)} ({rating.n})
+              </RNText>
+            </View>
+          ) : null}
+        </View>
+      </View>
+      <Pressy onPress={() => go('chat', { taskId: task.id })} label="Chat" style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: t.colors.line, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 }}>
+        <Icon name="chat" size={14} color={t.colors.accentDeep} />
+        <RNText style={tx('700', 13, t.colors.accentDeep)}>Chat</RNText>
+      </Pressy>
+    </View>
+  );
+
+  const bannerView = <StatusBanner {...banner} />;
+
+  // Either side can raise a problem while the job is under way; it freezes the payment for the team to decide.
+  const canReport = !disputed && (running || status === 'WORK_DONE');
+  const reportLink = (
     <Pressable
-      onPress={() => go('taskManage', { taskId: task.id })}
-      hitSlop={10}
+      onPress={() => setReporting(true)}
       accessibilityRole="button"
-      accessibilityLabel="Task details"
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999, borderWidth: 1, borderColor: t.colors.line }}
+      accessibilityLabel="Report a problem"
+      style={{ alignSelf: 'center', marginTop: 10, padding: 8 }}
     >
-      <Icon name="list" size={13} color={t.colors.ink} />
-      <RNText style={tx('700', 12, t.colors.ink)}>Details</RNText>
+      <RNText style={tx('700', 13, t.colors.signal)}>Report a problem</RNText>
+    </Pressable>
+  );
+
+  // The poster's three answers to sent work.
+  const reviewing = !worker && status === 'WORK_DONE';
+  const reviewActions = reviewing ? (
+    <>
+      <PrimaryAction label="Approve and release payment" busy={busy} onPress={() => setConfirmingRelease(true)} />
+      <Pressable onPress={() => void askChanges()} disabled={busy} accessibilityRole="button" style={{ alignSelf: 'center', marginTop: 12, padding: 4 }}>
+        <RNText style={tx('700', 13, t.colors.accentDeep)}>Ask for changes</RNText>
+      </Pressable>
+      {canReport ? reportLink : null}
+    </>
+  ) : null;
+
+  // Proof of work, once sent: both sides see it; the poster answers it right under the files.
+  const proofShown = Boolean(proof && (doneAt || finished));
+  const proofCard =
+    proof && proofShown ? (
+      <View style={card}>
+        <Caption>Proof of work</Caption>
+        <RNText style={tx('400', 14, t.colors.ink, { marginTop: 8, lineHeight: 21 })}>{proof.summary}</RNText>
+        {proof.files.length ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>{proof.files.map((f) => fileTile(f))}</View>
+        ) : null}
+        <RNText style={tx('400', 11, t.colors.muted, { marginTop: 10 })}>Sent {when(proof.created_at)}</RNText>
+        {reviewActions}
+      </View>
+    ) : reviewActions ? (
+      <View style={card}>{reviewActions}</View>
+    ) : null;
+
+  // The worker's proof, being written, and the one button that sends it.
+  const proofForm =
+    worker && running && startedAt ? (
+      <>
+        <View style={card}>
+          <RNText style={tx('800', 15, t.colors.ink)}>Finish and send proof</RNText>
+          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
+            {task.live_answer
+              ? 'Take a live photo where you are and say what you see. The customer approves it before you are paid.'
+              : task.want_photos
+                ? 'The customer asked for a before and an after photo. Take the before one first, then say what you did.'
+                : 'Say what you did and add photos or documents. The customer sees this before approving.'}
+          </RNText>
+          <Field
+            value={summary}
+            onChangeText={setSummary}
+            multiline
+            maxLength={2000}
+            minHeight={90}
+            hint={lengthHint(summary, 10, 'what you did') ?? undefined}
+            placeholder="E.g. Wrote all 30 captions with hashtags, shared as a Google Doc; changed 3 after your notes."
+            style={{ marginTop: 12 }}
+          />
+          {task.want_photos ? (
+            <>
+              <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 16 })}>BEFORE AND AFTER · ASKED FOR</RNText>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                {(['before', 'after'] as const).map((l) => {
+                  const have = files.find((f) => f.label === l);
+                  return have ? (
+                    fileTile(have, () => setFiles((x) => x.filter((y) => y.path !== have.path)))
+                  ) : (
+                    <Pressable
+                      key={l}
+                      onPress={() => void addPhoto(l)}
+                      disabled={uploading}
+                      accessibilityRole="button"
+                      accessibilityLabel={l === 'before' ? 'Add the before photo' : 'Add the after photo'}
+                      style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1.5, borderStyle: 'dashed', borderColor: t.colors.accent, alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                    >
+                      <Icon name="camera" size={18} color={t.colors.accentDeep} />
+                      <RNText style={tx('700', 10, t.colors.accentDeep)}>{l === 'before' ? 'Before' : 'After'}</RNText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          ) : null}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+            {files.filter((f) => !f.label).map((f) => fileTile(f, () => setFiles((x) => x.filter((y) => y.path !== f.path))))}
+            {files.length < 10 ? (
+              <>
+                <Pressable onPress={() => void addPhoto()} disabled={uploading} accessibilityRole="button" style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: t.colors.accentBorder, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                  <Icon name={task.live_answer ? 'camera' : 'plus'} size={18} color={t.colors.accentDeep} />
+                  <RNText style={tx('600', 10, t.colors.accentDeep)}>{task.live_answer ? 'Live photo' : 'Photo'}</RNText>
+                </Pressable>
+                <Pressable onPress={() => void addDocument()} disabled={uploading} accessibilityRole="button" style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: t.colors.accentBorder, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                  <Icon name="list" size={18} color={t.colors.accentDeep} />
+                  <RNText style={tx('600', 10, t.colors.accentDeep)}>Document</RNText>
+                </Pressable>
+              </>
+            ) : null}
+            {uploading ? <ActivityIndicator color={t.colors.accent} style={{ alignSelf: 'center', marginLeft: 6 }} /> : null}
+          </View>
+          <RNText style={tx('400', 11, t.colors.muted, { marginTop: 8 })}>PDF, Word, Excel, PowerPoint or text · up to 50 MB each</RNText>
+        </View>
+        <PrimaryAction label="Mark work done" busy={busy} disabled={summary.trim().length < 10 || uploading || !photosReady} onPress={() => void finishWork()} />
+      </>
+    ) : null;
+
+  // The money, the Upwork escrow way: the price, the fee, what is held and what has been released.
+  const moneyNote = disputed ? (
+    <MoneyNote tone="signal" icon="flag">On hold until TaskDrop decides.</MoneyNote>
+  ) : cancelled ? (
+    <MoneyNote tone="neutral" icon="close">This task was cancelled.</MoneyNote>
+  ) : finished ? (
+    worker ? <MoneyNote icon="check">Your earnings are on the way to your wallet.</MoneyNote> : null
+  ) : !funded ? (
+    worker ? <MoneyNote tone="neutral" icon="clock">The customer has not paid yet.</MoneyNote> : null
+  ) : (
+    <MoneyNote>{worker ? 'Held safely until the customer approves' : 'TaskDrop holds it until you approve.'}</MoneyNote>
+  );
+  const moneyCard = worker ? (
+    <View style={card}>
+      <Caption>Your earnings</Caption>
+      <View style={{ marginTop: 6 }}>
+        <MoneyRow label="Offer" value={formatINR(offerMinor)} />
+        <MoneyRow label={`TaskDrop fee (${pctWords(fees.commission)})`} value={`−${formatINR(Math.max(0, offerMinor - earnsMinor))}`} />
+        <View style={{ height: 1, backgroundColor: t.colors.line, marginVertical: 6 }} />
+        <MoneyRow label="You earn" value={formatINR(earnsMinor)} strong big color={t.colors.accentDeep} />
+      </View>
+      {moneyNote}
+    </View>
+  ) : (
+    <View style={card}>
+      <Caption>Payment</Caption>
+      <View style={{ marginTop: 6 }}>
+        <MoneyRow label="Offer price" value={formatINR(offerMinor)} />
+        <MoneyRow label={`Service fee (${pctWords(fees.posterFee)})`} value={formatINR(Math.max(0, escrowMinor - offerMinor))} />
+        {cancelled ? null : (
+          <>
+            <MoneyRow
+              label="Held safely"
+              icon="lock"
+              strong
+              color={funded ? t.colors.accentDeep : t.colors.signalDeep}
+              value={!funded ? 'Not paid yet' : finished ? formatINR(0) : formatINR(escrowMinor)}
+            />
+            <MoneyRow label="Released" value={formatINR(finished ? escrowMinor : 0)} />
+          </>
+        )}
+      </View>
+      {moneyNote}
+    </View>
+  );
+
+  const progressCard = (
+    <View style={card}>
+      <Caption>Progress</Caption>
+      <ProgressList steps={steps} when={when} />
+    </View>
+  );
+
+  const crewCard = task.crew_id ? (
+    <Pressable
+      onPress={() => go('crew', { crewId: task.crew_id, member: true })}
+      accessibilityRole="button"
+      accessibilityLabel="Crew job: see who else is on it"
+      style={[card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}
+    >
+      <Icon name="users" size={18} color={t.colors.accentDeep} />
+      <View style={{ flex: 1 }}>
+        <RNText style={tx('800', 14, t.colors.ink)}>
+          Crew job · helper {task.crew_slot} of {task.crew_size}
+        </RNText>
+        <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>See who else is on it, and the crew chat</RNText>
+      </View>
+      <Icon name="chevronRight" size={16} color={t.colors.muted} />
     </Pressable>
   ) : null;
 
-  return (
-    <Screen scroll padded={false}>
-      <View style={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 28 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <BackButton onBack={back} title={task.title} right={detailsButton} />
-          {systemHeader ? null : (
-            <>
-              <RNText style={tx('700', 17, t.colors.ink, { flex: 1 })} numberOfLines={1}>{task.title}</RNText>
-              {detailsButton}
-            </>
-          )}
-        </View>
+  // Time on the job, as a small stat: frozen once the work is done.
+  const timeOnJob = startedAt ? (doneAt ? `Done in ${span(doneAt - startedAt)}` : running ? `${span(now - startedAt)} so far` : null) : null;
 
-        {/* The clock: time left to the poster's deadline; frozen once done. */}
-        <View style={{ alignItems: 'center', marginTop: 20 }}>
-          <View style={{ width: 200, height: 200 }}>
-            <Svg width={200} height={200} viewBox="0 0 200 200" style={{ transform: [{ rotate: '-90deg' }] }}>
-              <Circle cx={100} cy={100} r={RING_R} stroke={t.colors.surface2} strokeWidth={10} fill="none" />
-              <AnimatedCircleComp
-                cx={100}
-                cy={100}
-                r={RING_R}
-                stroke={overdue ? t.colors.signal : doneAt ? t.colors.online : t.colors.accent}
-                strokeWidth={10}
-                strokeLinecap="round"
-                strokeDasharray={RING_C}
-                strokeDashoffset={ring}
-                fill="none"
-              />
-            </Svg>
-            <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 }}>
-              {doneAt ? (
-                <>
-                  <Icon name="check" size={26} color="#16A34A" strokeWidth={2.4} />
-                  <RNText style={tx('800', 20, t.colors.ink, { marginTop: 6 })}>Done</RNText>
-                  <RNText style={tx('500', 12, t.colors.muted, { marginTop: 4, textAlign: 'center' })}>
-                    {startedAt ? `in ${span(doneAt - startedAt)}` : 'Timer stopped'}
-                  </RNText>
-                </>
-              ) : !startedAt ? (
-                <>
-                  <RNText style={tx('800', 20, t.colors.ink)}>Not started</RNText>
-                  <RNText style={tx('500', 12, t.colors.muted, { marginTop: 4, textAlign: 'center' })}>Due {when(new Date(deadline).toISOString())}</RNText>
-                </>
-              ) : (
-                <>
-                  <RNText style={tx('800', 32, overdue ? t.colors.signal : t.colors.ink, { letterSpacing: -1, fontVariant: ['tabular-nums'] })}>
-                    {hms(Math.abs(remaining))}
-                  </RNText>
-                  <RNText style={tx('600', 12, overdue ? t.colors.signal : t.colors.muted, { marginTop: 6 })}>
-                    {overdue ? 'past the deadline' : 'left to the deadline'}
-                  </RNText>
-                </>
-              )}
-            </View>
-          </View>
-        </View>
-
-        <View style={{ ...card, flexDirection: 'row' }}>
-          <View style={{ flex: 1 }}>
-            <RNText style={tx('600', 10, t.colors.muted, { letterSpacing: 1.2 })}>DEADLINE</RNText>
-            <RNText style={tx('800', 14, t.colors.ink, { marginTop: 4 })}>{when(new Date(deadline).toISOString())}</RNText>
-            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Set by the customer</RNText>
-          </View>
-          <View style={{ alignItems: 'flex-end' }}>
-            <RNText style={tx('600', 10, t.colors.muted, { letterSpacing: 1.2 })}>HELD SAFELY</RNText>
-            <RNText style={tx('800', 14, t.colors.ink, { marginTop: 4 })}>{formatINR(escrowMinor)}</RNText>
-            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Held safely until approval</RNText>
-          </View>
-        </View>
-
-        {/* The exact address: only the customer and the person hired can read it (the database decides). */}
-        {detail?.address ? (
-          <View style={card}>
-            <RNText style={tx('600', 10, t.colors.muted, { letterSpacing: 1.2 })}>WHERE</RNText>
-            <RNText style={tx('700', 14, t.colors.ink, { marginTop: 4 })}>{detail.address}</RNText>
-            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Shared only with the person on this job</RNText>
-          </View>
-        ) : null}
-
-        {/* The other person. */}
-        <View style={{ ...card, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View>
-            <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-              <RNText style={tx('800', 15, t.colors.ink)}>{(other?.display_name ?? '?').charAt(0).toUpperCase()}</RNText>
-            </View>
-            {other ? <AvatarPresence lastSeen={other.last_seen_at} ring={t.colors.surface} /> : null}
-          </View>
-          <View style={{ flex: 1 }}>
-            <RNText style={tx('700', 14, t.colors.ink)}>{otherName}</RNText>
-            {other ? <PresenceLabel lastSeen={other.last_seen_at} /> : null}
-          </View>
-          <Pressy onPress={() => go('chat', { taskId: task.id })} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: t.colors.line, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 }}>
-            <Icon name="chat" size={14} color={t.colors.accentDeep} />
-            <RNText style={tx('700', 13, t.colors.accentDeep)}>Chat</RNText>
-          </Pressy>
-        </View>
-
-        {/* Where it stands. */}
-        <View style={{ marginTop: 16 }}>
-          {steps.map((s) => (
-            <View key={s.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 }}>
-              <View style={{ width: 18, height: 18, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: s.reached ? t.colors.accent : t.colors.surface2 }}>
-                {s.reached ? <Icon name="check" size={11} color={t.colors.onAccent} strokeWidth={3} /> : null}
-              </View>
-              <RNText style={tx(s.reached ? '600' : '400', 13, s.reached ? t.colors.ink : t.colors.muted, { flex: 1 })}>{s.label}</RNText>
-              {s.reached && s.at ? <RNText style={tx('400', 11, t.colors.muted)}>{when(s.at)}</RNText> : null}
-            </View>
-          ))}
-        </View>
-
-        {task.crew_id ? (
-          <Pressable
-            onPress={() => go('crew', { crewId: task.crew_id, member: true })}
-            accessibilityRole="button"
-            style={[card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}
-          >
-            <Icon name="users" size={18} color={t.colors.accentDeep} />
-            <View style={{ flex: 1 }}>
-              <RNText style={tx('800', 14, t.colors.ink)}>
-                Crew job · helper {task.crew_slot} of {task.crew_size}
-              </RNText>
-              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>See who else is on it, and the crew chat</RNText>
-            </View>
-            <Icon name="chevronRight" size={16} color={t.colors.muted} />
-          </Pressable>
-        ) : null}
-
-        {/* Proof of work: sent, or being written. */}
-        {proof && (doneAt || finished) ? (
-          <View style={card}>
-            <RNText style={tx('600', 10, t.colors.muted, { letterSpacing: 1.2 })}>PROOF OF WORK</RNText>
-            <RNText style={tx('400', 14, t.colors.ink, { marginTop: 8, lineHeight: 21 })}>{proof.summary}</RNText>
-            {proof.files.length ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>{proof.files.map((f) => fileTile(f))}</View>
-            ) : null}
-            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 10 })}>Sent {when(proof.created_at)}</RNText>
-          </View>
-        ) : null}
-
-        {worker && running && startedAt ? (
-          <View style={card}>
-            <RNText style={tx('800', 15, t.colors.ink)}>Finish and send proof</RNText>
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
-              {task.live_answer
-                ? 'Take a live photo where you are and say what you see. The customer approves it before you are paid.'
-                : task.want_photos
-                  ? 'The customer asked for a before and an after photo. Take the before one first, then say what you did.'
-                  : 'Say what you did and add photos or documents. The customer sees this before approving.'}
-            </RNText>
-            <Field
-              value={summary}
-              onChangeText={setSummary}
-              multiline
-              maxLength={2000}
-              minHeight={90}
-              placeholder="E.g. Wrote all 30 captions with hashtags, shared as a Google Doc; changed 3 after your notes."
-              style={{ marginTop: 12 }}
-            />
-            {task.want_photos ? (
-              <>
-                <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 16 })}>BEFORE AND AFTER · ASKED FOR</RNText>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                  {(['before', 'after'] as const).map((l) => {
-                    const have = files.find((f) => f.label === l);
-                    return have ? (
-                      fileTile(have, () => setFiles((x) => x.filter((y) => y.path !== have.path)))
-                    ) : (
-                      <Pressable
-                        key={l}
-                        onPress={() => void addPhoto(l)}
-                        disabled={uploading}
-                        accessibilityRole="button"
-                        accessibilityLabel={l === 'before' ? 'Add the before photo' : 'Add the after photo'}
-                        style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1.5, borderStyle: 'dashed', borderColor: t.colors.accent, alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                      >
-                        <Icon name="camera" size={18} color={t.colors.accentDeep} />
-                        <RNText style={tx('700', 10, t.colors.accentDeep)}>{l === 'before' ? 'Before' : 'After'}</RNText>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </>
-            ) : null}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-              {files.filter((f) => !f.label).map((f) => fileTile(f, () => setFiles((x) => x.filter((y) => y.path !== f.path))))}
-              {files.length < 10 ? (
-                <>
-                  <Pressable onPress={() => void addPhoto()} disabled={uploading} accessibilityRole="button" style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: t.colors.accentBorder, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                    <Icon name={task.live_answer ? 'camera' : 'plus'} size={18} color={t.colors.accentDeep} />
-                    <RNText style={tx('600', 10, t.colors.accentDeep)}>{task.live_answer ? 'Live photo' : 'Photo'}</RNText>
-                  </Pressable>
-                  <Pressable onPress={() => void addDocument()} disabled={uploading} accessibilityRole="button" style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: t.colors.accentBorder, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                    <Icon name="list" size={18} color={t.colors.accentDeep} />
-                    <RNText style={tx('600', 10, t.colors.accentDeep)}>Document</RNText>
-                  </Pressable>
-                </>
-              ) : null}
-              {uploading ? <ActivityIndicator color={t.colors.accent} style={{ alignSelf: 'center', marginLeft: 6 }} /> : null}
-            </View>
-            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 8 })}>PDF, Word, Excel, PowerPoint or text · up to 50 MB each</RNText>
-          </View>
-        ) : null}
-
-        {/* The one thing to do next, for whoever is on this screen. */}
-        {worker && running && startedAt ? (
-          <PrimaryAction label="Mark work done" busy={busy} disabled={summary.trim().length < 10 || uploading || !photosReady} onPress={() => void finishWork()} />
-        ) : null}
-        {worker && status === 'WORK_DONE' && task.auto_complete_at ? (
-          <Note>
-            Waiting for the customer to approve. If they don’t respond by {when(task.auto_complete_at)}, the payment is
-            released to you automatically.
-          </Note>
-        ) : null}
-
-        {!worker && status === 'WORK_DONE' ? (
-          <>
-            <PrimaryAction label="Approve and release payment" busy={busy} onPress={() => setConfirmingRelease(true)} />
-            <Pressable onPress={() => void askChanges()} disabled={busy} accessibilityRole="button" style={{ alignSelf: 'center', marginTop: 14 }}>
-              <RNText style={tx('700', 13, t.colors.accentDeep)}>Ask for changes</RNText>
-            </Pressable>
-            {task.auto_complete_at ? (
-              <Note>
-                If you don’t respond by {when(task.auto_complete_at)}, the payment is released to the worker
-                automatically.
-              </Note>
-            ) : null}
-          </>
-        ) : null}
-        {!worker && running ? <Note>The worker is on it. You’ll be notified when they send the work.</Note> : null}
-        {finished ? (
-          <Note>
-            {status === 'AUTO_COMPLETED' ? 'Released automatically after the review window.' : 'Approved and paid.'}{' '}
-            {worker ? 'Your earnings are on the way to your wallet.' : 'Thanks for using TaskDrop.'}
-          </Note>
-        ) : null}
-
-        {/* Either side can raise a problem while the job is under way; it freezes the payment for the team to decide. */}
-        {status === 'DISPUTED' ? (
-          <Note>A problem was reported on this job. TaskDrop is reviewing it and the payment stays on hold until it is decided.</Note>
-        ) : running || status === 'WORK_DONE' ? (
-          <Pressable
-            onPress={() => setReporting(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Report a problem"
-            style={{ alignSelf: 'center', marginTop: 18, padding: 8 }}
-          >
-            <RNText style={tx('700', 13, t.colors.signal)}>Report a problem</RNText>
-          </Pressable>
-        ) : null}
+  // The poster's job details in one card; the worker's board keeps Deadline and Where as their own cards.
+  // The exact address: only the customer and the person hired can read it (the database decides).
+  const detailsCards = worker ? (
+    <>
+      <SectionCard caption="Deadline">
+        <RNText style={tx('800', 14, t.colors.ink, { marginTop: 4 })}>{dueText}</RNText>
+        <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Set by the customer</RNText>
+      </SectionCard>
+      {detail.address ? (
+        <SectionCard caption="Where">
+          <RNText style={tx('700', 14, t.colors.ink, { marginTop: 4 })}>{detail.address}</RNText>
+          <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Shared only with the person on this job</RNText>
+        </SectionCard>
+      ) : null}
+      {timeOnJob && doneAt ? (
+        <SectionCard caption="Time on job">
+          <RNText style={tx('700', 14, t.colors.ink, { marginTop: 4 })}>{timeOnJob}</RNText>
+        </SectionCard>
+      ) : null}
+    </>
+  ) : (
+    <SectionCard caption="Job details">
+      <View style={{ marginTop: 4 }}>
+        <DetailRow icon="calendar" value={dueText} sub="Deadline · set by you" />
+        {detail.address ? <DetailRow icon="pin" value={detail.address} sub="Shared only with the person on this job" /> : null}
+        {timeOnJob ? <DetailRow icon={doneAt ? 'check' : 'clock'} value={timeOnJob} sub="Time on job" /> : null}
       </View>
+    </SectionCard>
+  );
+
+  // What happens after the worker sends the work, in the live rule numbers.
+  const whatNext =
+    worker && !finished && !cancelled && !disputed ? (
+      <SectionCard caption="What happens next">
+        <RNText style={tx('400', 13, t.colors.text, { marginTop: 6, lineHeight: 20 })}>
+          The customer has {TIMING.REVIEW_WINDOW_DAYS} days to approve. If they don’t, the payment is released to you
+          automatically. Earnings clear after {fees.clearingDays} days, then withdraw to UPI or bank.
+        </RNText>
+      </SectionCard>
+    ) : null;
+
+  const bottomReport = canReport && !reviewing ? reportLink : null;
+
+  const sheets = (
+    <>
       <ConfirmDialog
         visible={confirmingRelease}
         icon="shield"
         title="Release the payment?"
-        message={`${formatINR(escrowMinor)} held for this job goes to the worker, and it cannot be taken back. Only do this if the work is done to your satisfaction. If something is wrong, ask for changes or report a problem instead.`}
+        message={releaseMessage(formatINR(escrowMinor))}
         confirmLabel="Yes, release payment"
         cancelLabel="Not yet"
         busy={busy}
@@ -607,11 +727,72 @@ export function ActiveScreen() {
         }}
       />
       <ReportProblemSheet taskId={task.id} visible={reporting} onClose={() => setReporting(false)} onReported={() => void load()} />
+    </>
+  );
+
+  if (split) {
+    // Wide desktop: the person, where it stands, the work and the progress on the left; the money and the
+    // job's details in a side column on the right (components/TwoPane.tsx).
+    return (
+      <Screen padded={false}>
+        {headerRow}
+        {/* The cards line up with the page header, 20 px in from the column edge. */}
+        <View style={{ flex: 1, paddingHorizontal: 20 }}>
+        <TwoPane
+          fixed="right"
+          width={Math.round(Math.min(380, Math.max(320, contentWidth('feed') * 0.3)))}
+          left={
+            <View style={{ marginTop: -12 }}>
+              {personCard}
+              {bannerView}
+              {worker ? (proofCard ?? proofForm) : proofCard}
+              {progressCard}
+              {crewCard}
+              {bottomReport}
+            </View>
+          }
+          right={
+            <View style={{ marginTop: -12 }}>
+              {moneyCard}
+              {detailsCards}
+              {whatNext}
+            </View>
+          }
+          single={null}
+        />
+        </View>
+        {sheets}
+      </Screen>
+    );
+  }
+
+  return (
+    <Screen scroll padded={false}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 28 }}>
+        {headerRow}
+        {personCard}
+        {bannerView}
+        {worker ? (
+          <>
+            {moneyCard}
+            {proofCard ?? proofForm}
+          </>
+        ) : (
+          <>
+            {proofCard}
+            {moneyCard}
+          </>
+        )}
+        {progressCard}
+        {crewCard}
+        {detailsCards}
+        {whatNext}
+        {bottomReport}
+      </View>
+      {sheets}
     </Screen>
   );
 }
-
-const AnimatedCircleComp = Animated.createAnimatedComponent(Circle);
 
 function PrimaryAction({ label, onPress, busy, disabled }: { label: string; onPress: () => void; busy?: boolean; disabled?: boolean }) {
   const t = useTheme();
@@ -619,19 +800,9 @@ function PrimaryAction({ label, onPress, busy, disabled }: { label: string; onPr
   return (
     <Pressy
       onPress={() => !off && onPress()}
-      style={{ marginTop: 20, borderRadius: 999, paddingVertical: 16, alignItems: 'center', backgroundColor: off ? t.colors.surface2 : t.colors.accent }}
+      style={{ marginTop: 16, borderRadius: 999, paddingVertical: 16, alignItems: 'center', backgroundColor: off ? t.colors.surface2 : t.colors.btn }}
     >
-      {busy ? <ActivityIndicator color={t.colors.onAccent} /> : <RNText style={tx('700', 16, off ? t.colors.muted : t.colors.onAccent)}>{label}</RNText>}
+      {busy ? <ActivityIndicator color={t.colors.onBtn} /> : <RNText style={tx('700', 16, off ? t.colors.muted : t.colors.onBtn)}>{label}</RNText>}
     </Pressy>
-  );
-}
-
-function Note({ children }: { children: React.ReactNode }) {
-  const t = useTheme();
-  return (
-    <View style={{ marginTop: 14, flexDirection: 'row', gap: 8, backgroundColor: t.colors.surface2, borderRadius: 12, padding: 12 }}>
-      <Icon name="clock" size={14} color={t.colors.muted} />
-      <RNText style={tx('400', 12, t.colors.text, { flex: 1, lineHeight: 18 })}>{children}</RNText>
-    </View>
   );
 }

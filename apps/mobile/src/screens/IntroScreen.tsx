@@ -52,7 +52,7 @@ export function IntroScreen() {
           Ask for anything. Someone gets it done for you.
         </RNText>
 
-        <WelcomeStory />
+        <WelcomeStory side={params.side === 'earn' ? 'earn' : 'hire'} />
 
         {mode === 'member-replay' ? (
           <PrimaryButton label="Done" onPress={skip} style={{ marginTop: 26 }} />
