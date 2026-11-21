@@ -48,7 +48,9 @@ test.describe("signed out", () => {
 });
 
 test.describe("signed in as the seed poster", () => {
-  test.use({ storageState: ASHA.state });
+  // The browser shares a place (Bengaluru) like a person who tapped "Turn on location"; without it Explore opens a
+  // "Turn on location" sheet over the page (D26) that takes every click.
+  test.use({ storageState: ASHA.state, geolocation: { latitude: 12.9716, longitude: 77.5946 }, permissions: ["geolocation"] });
 
   test("home loads with the signed-in navigation and no crash", async ({ page }) => {
     const errors: string[] = [];

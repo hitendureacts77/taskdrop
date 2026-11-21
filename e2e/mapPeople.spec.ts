@@ -15,6 +15,9 @@ const GRID = 0.005;
 const STRANGER_GRID = 0.02;
 // Where Meera shares from (near Asha's area); the server rounds it twice, to 0.005 and then to 0.02 degrees.
 const MEERA_AT = { lat: 17.4601, lng: 78.4003 };
+// Asha opens Explore from the same neighbourhood. The browser shares that place like a person who tapped "Turn on
+// location": without it a "Turn on location" sheet covers the page on arrival (D26) and the map has no centre.
+const ASHA_AT = { latitude: 17.4501, longitude: 78.3850 };
 
 test.setTimeout(300_000);
 
@@ -109,7 +112,7 @@ test("Ravi shares his spot, Asha sees him at a rounded cell, Ravi hides and he i
   await expect(ravi.getByText("Off: you’re hidden (ghost)")).toHaveCount(0);
 
   // ---- 2. Asha opens Explore -> My people and waits for Ravi (the spot goes up on Ravi's next ~60 s beat) --
-  ashaCtx = await browser.newContext({ storageState: ASHA.state });
+  ashaCtx = await browser.newContext({ storageState: ASHA.state, permissions: ["geolocation"], geolocation: ASHA_AT });
   const asha = await ashaCtx.newPage();
 
   // Every mapPeople reply Asha's app receives (op name is in the request body; the reply is JSON).
@@ -125,10 +128,9 @@ test("Ravi shares his spot, Asha sees him at a rounded cell, Ravi hides and he i
   await expectSignedIn(asha);
   await asha.getByText("Explore", { exact: true }).first().click();
   const myPeopleChip = asha.getByRole("button", { name: "People", exact: true });
-  const chooseArea = asha.getByRole("button", { name: "Choose your area" });
-  await expect(myPeopleChip.or(chooseArea)).toBeVisible();
-  // No area means no chips (the map has no centre); the seed account is expected to have one.
-  await expect(chooseArea, "Asha has no area chosen, so the map shows no layer chips").toBeHidden();
+  // No place means no chips (the map has no centre, and shows "Type my area"); the browser shared one.
+  await expect(asha.getByRole("button", { name: "Type my area", exact: true }), "the map has no centre, so it shows no layer chips").toBeHidden();
+  await expect(myPeopleChip).toBeVisible();
   await myPeopleChip.click();
 
   const raviRow = asha.getByRole("button", { name: /^Ravi, \d+ jobs? together/ });
@@ -181,7 +183,7 @@ test("Ravi shares his spot, Asha sees him at a rounded cell, Ravi hides and he i
 test("Meera, a stranger, chooses Everyone nearby: Asha sees her as Nearby on a coarse cell, then she is gone", async ({ browser }) => {
   // Meera shares through her own signed-in session (the consent sheet is covered by the test above).
   const meeraCtx = await browser.newContext({ storageState: MEERA.state });
-  const asha2Ctx = await browser.newContext({ storageState: ASHA.state });
+  const asha2Ctx = await browser.newContext({ storageState: ASHA.state, permissions: ["geolocation"], geolocation: ASHA_AT });
   try {
     const meeraPage = await meeraCtx.newPage();
     await meeraPage.goto("/");
@@ -206,7 +208,7 @@ test("Meera, a stranger, chooses Everyone nearby: Asha sees her as Nearby on a c
     await expectSignedIn(asha);
     await asha.getByText("Explore", { exact: true }).first().click();
     const peopleChip = asha.getByRole("button", { name: "People", exact: true });
-    await expect(asha.getByRole("button", { name: "Choose your area" }), "Asha has an area chosen").toBeHidden();
+    await expect(asha.getByRole("button", { name: "Type my area", exact: true }), "the map has a centre").toBeHidden();
     await peopleChip.click();
 
     const meeraRow = asha.getByRole("button", { name: /^Meera.*Nearby/ });

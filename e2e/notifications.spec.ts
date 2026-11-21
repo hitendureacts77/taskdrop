@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ASHA, RAVI, accessToken, apiAs, must } from "./helpers";
+import { ASHA, RAVI, accessToken, apiAs, expectSignedIn, must } from "./helpers";
 
 /**
  * Phase 5: the website has no push, so the bell must update on its own (a realtime ping), without a
@@ -15,7 +15,8 @@ test("the bell on an open page counts a new notification without a refresh (Phas
   try {
     const ashaPage = await ashaContext.newPage();
     await ashaPage.goto("/");
-    await expect(ashaPage.getByText("Wallet").first()).toBeVisible();
+    // Also closes the staging notice ("How staging works"), which covers the page on a fresh browser and eats clicks.
+    await expectSignedIn(ashaPage);
     // The bell counts one side at a time and a quote is for the poster, so be in Hire mode.
     await ashaPage.getByText("Hire", { exact: true }).first().click();
     const asha = apiAs(request, await accessToken(ashaPage));

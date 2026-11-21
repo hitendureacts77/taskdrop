@@ -38,6 +38,22 @@ export async function typeTestCode(page: Page, timeout = 15_000): Promise<void> 
 }
 
 /**
+ * Open the front door of a fresh browser and get to the phone number box, the way a person does: the
+ * first page is the story with "Create my account" (a guest only sees the app after "Skip for now"),
+ * and the number box comes after it. Returns the number box. If the box is already showing nothing is
+ * clicked; pass `goto: false` to start from the page that is already open (after a sign-out, say).
+ */
+export async function openPhoneForm(page: Page, { goto = true }: { goto?: boolean } = {}) {
+  if (goto) await page.goto("/");
+  const phoneField = page.getByPlaceholder("98765 43210");
+  const create = page.getByRole("button", { name: "Create my account" });
+  await create.or(phoneField).first().waitFor();
+  if (!(await phoneField.isVisible().catch(() => false))) await create.click();
+  await phoneField.waitFor();
+  return phoneField;
+}
+
+/**
  * Sign in through the real sign-in screen with a seed phone. The test project hands the code back
  * and the app shows it in a box to be typed (see typeTestCode). A code can be asked for once a minute
  * per number, so a refusal waits and tries again.
@@ -49,11 +65,7 @@ export async function signInWithPhone(page: Page, phone: string): Promise<void> 
       if (r.url().includes("/functions/v1/phone-auth") && r.status() === 429) cooldown = true;
     };
     page.on("response", watch);
-    await page.goto("/");
-    // The front door opens with the story and "Create my account"; the number box comes after it.
-    const phoneField = page.getByPlaceholder("98765 43210");
-    await page.getByRole("button", { name: "Create my account" }).or(phoneField).first().waitFor();
-    if (!(await phoneField.isVisible().catch(() => false))) await page.getByRole("button", { name: "Create my account" }).click();
+    const phoneField = await openPhoneForm(page);
     await phoneField.fill(phone);
     await page.getByText("Text me a code").click();
     // A refusal (the one-a-minute cooldown) shows no code box; the wait below then ends and it tries again.
@@ -172,6 +184,17 @@ export async function waitForBackend(request: APIRequestContext, seconds = 90): 
 export function must<T>(r: ApiResult<T>, what: string): T {
   if (!r.ok) throw new Error(`${what}: ${r.error?.code ?? "?"} ${r.error?.message ?? "no message"}`);
   return r.data;
+}
+
+/**
+ * Put a signed-in person in Hire ("poster") or Earn ("worker") mode. The mode is kept on the account, so a
+ * test that flipped it leaves the next one starting on the other side: every test that depends on a side sets it.
+ */
+export async function setMode(page: Page, mode: "poster" | "worker") {
+  const tab = page.getByRole("tab", { name: mode === "poster" ? "Hire mode" : "Earn mode" }).first();
+  await expect(tab).toBeVisible();
+  if ((await tab.getAttribute("aria-selected")) !== "true") await tab.click();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
 }
 
 export async function expectSignedIn(page: Page) {
