@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { initialOf } from '../lib/initial';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { Screen, cardSurface } from '../components/ui';
@@ -63,6 +64,9 @@ function PublicProfileBody() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [avatar, setAvatar] = useState<string | null>(null);
   const [verified, setVerified] = useState<{ phone: boolean; email: boolean } | null>(null);
+  // A load that failed is not a profile that is gone (S6-25); "Try again" bumps this.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [reporting, setReporting] = useState(false);
   const [reportingReview, setReportingReview] = useState<Review | null>(null);
   const { twoPane, contentWidth } = useLayout();
@@ -71,13 +75,23 @@ function PublicProfileBody() {
   useEffect(() => {
     if (!id) return setP(null);
     let alive = true;
+    setLoadFailed(false);
     void (async () => {
+      let failed = false;
       const [profile, s, r] = await Promise.all([
-        getProfile(id).catch(() => null),
+        getProfile(id).catch(() => {
+          failed = true;
+          return null;
+        }),
         publicProfileStats(id).catch(() => null),
         listReviewsAbout(id, role).catch(() => [] as Review[]),
       ]);
       if (!alive) return;
+      if (failed) {
+        setLoadFailed(true);
+        setP(null);
+        return;
+      }
       setP(profile);
       setStats(s);
       setReviews(r);
@@ -85,12 +99,12 @@ function PublicProfileBody() {
         const url = await signedMediaUrl(profile.avatar_url, 'card');
         if (alive) setAvatar(url);
       }
-      if (self) setVerified(await verificationState());
+      if (self) setVerified(await verificationState().catch(() => null));
     })();
     return () => {
       alive = false;
     };
-  }, [id, self, role]);
+  }, [id, self, role, attempt]);
 
   if (p === undefined) {
     return (
@@ -106,13 +120,27 @@ function PublicProfileBody() {
     return (
       <Screen padded={false}>
         <TopBar title="Profile" onBack={back} />
-        <EmptyState icon="user" title="This profile is not available" />
+        {loadFailed ? (
+          <EmptyState
+            icon="user"
+            title="Could not load this profile"
+            body="Check your connection and try again."
+            actionLabel="Try again"
+            onAction={() => {
+              setP(undefined);
+              setAttempt((n) => n + 1);
+            }}
+          />
+        ) : (
+          <EmptyState icon="user" title="This profile is not available" />
+        )}
       </Screen>
     );
   }
 
   const level = levelFor(stats?.jobsDone ?? 0, Number(p.worker_rating_avg ?? 0));
-  const joined = new Date(p.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  const joinedAt = new Date(p.created_at);
+  const joined = Number.isNaN(joinedAt.getTime()) ? '' : joinedAt.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
   const presence = presenceOf(p.last_seen_at);
   const bioText = asWorker ? p.worker_bio : p.bio;
   const rating = asWorker
@@ -185,7 +213,7 @@ function PublicProfileBody() {
                 {avatar ? (
                   <Image source={imageSource(avatar)} style={{ width: 70, height: 70 }} contentFit="cover" />
                 ) : (
-                  <RNText style={tx('800', 26, '#FFFFFF')}>{p.display_name.charAt(0).toUpperCase()}</RNText>
+                  <RNText style={tx('800', 26, '#FFFFFF')}>{initialOf(p.display_name)}</RNText>
                 )}
               </View>
               {/* Status on the picture itself, like a chat app. */}
@@ -219,7 +247,7 @@ function PublicProfileBody() {
               />
               <RNText style={tx('600', 12, 'rgba(255,255,255,0.88)')}>{self ? 'Active now' : presence.label}</RNText>
             </View>
-            <Meta icon="list" text={`Joined ${joined}`} />
+            {joined ? <Meta icon="list" text={`Joined ${joined}`} /> : null}
             {roughPlace(p.loc_label) ? <Meta icon="pin" text={roughPlace(p.loc_label)!} /> : null}
           </View>
         </View>

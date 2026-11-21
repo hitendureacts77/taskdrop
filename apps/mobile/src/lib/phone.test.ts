@@ -103,3 +103,7 @@ test('isReadyMobile wants exactly 10 digits starting 6-9', () => {
   assert.equal(isReadyMobile('98765432101'), false);
   assert.equal(isReadyMobile(''), false);
 });
+
+test('a stray 0 after +91 is dropped (S6-6)', () => {
+  assert.equal(normalizeMobileInput('+91 0 98765 43210'), '9876543210');
+});

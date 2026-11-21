@@ -1,4 +1,5 @@
 import { View, Text as RNText, Pressable } from 'react-native';
+import { initialOf } from '../lib/initial';
 import { useTheme } from '../providers/ThemeProvider';
 import type { Task, TaskWithPoster } from '../data/api';
 import { Icon } from './Icon';
@@ -68,7 +69,7 @@ export function ListingCard({
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <View>
               <View style={{ width: 26, height: 26, borderRadius: 999, backgroundColor: t.colors.purpleFill, alignItems: 'center', justifyContent: 'center' }}>
-                <RNText style={tx('800', 11, '#FFFFFF')}>{(poster.display_name || '?').charAt(0).toUpperCase()}</RNText>
+                <RNText style={tx('800', 11, '#FFFFFF')}>{initialOf(poster.display_name)}</RNText>
               </View>
               <AvatarPresence lastSeen={poster.last_seen_at} ring={t.colors.surface} />
             </View>

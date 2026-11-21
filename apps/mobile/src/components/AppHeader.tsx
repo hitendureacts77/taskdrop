@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { initialOf } from '../lib/initial';
 import { useSignOutMessage } from '../lib/useSignOutMessage';
 import { View, Text as RNText, Pressable, Animated, Modal, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
@@ -130,7 +131,7 @@ export function HeaderTools({ tight = false }: { tight?: boolean }) {
     getProfile(userId)
       .then(async (p) => {
         if (!alive || !p) return;
-        setInitial((p.display_name ?? '?').trim().charAt(0).toUpperCase() || '?');
+        setInitial(initialOf(p.display_name));
         if (p.avatar_url) {
           const url = await signedMediaUrl(p.avatar_url, 'thumb');
           if (alive) setAvatar(url);
@@ -300,7 +301,7 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
                   }}
                 >
                   <RNText style={tx('800', 22, t.colors.onBtn)}>
-                    {(profile?.display_name ?? '?').trim().charAt(0).toUpperCase()}
+                    {initialOf(profile?.display_name)}
                   </RNText>
                 </View>
                 <View style={{ flex: 1 }}>

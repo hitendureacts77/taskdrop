@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useReducedMotion } from '../lib/motion';
+import { initialOf } from '../lib/initial';
 import { useSignOutMessage } from '../lib/useSignOutMessage';
 import { View, Text as RNText, Pressable, Animated, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
@@ -25,12 +27,17 @@ import { useLayout } from '../lib/layout';
 import { TwoPane } from '../components/TwoPane';
 
 function SlideIn({ delay, children }: { delay: number; children: React.ReactNode }) {
-  const v = useRef(new Animated.Value(0)).current;
+  const reduced = useReducedMotion();
+  const v = useRef(new Animated.Value(reduced ? 1 : 0)).current;
   useEffect(() => {
+    if (reduced) {
+      v.setValue(1);
+      return;
+    }
     const anim = Animated.timing(v, { toValue: 1, duration: 340, delay, useNativeDriver: true });
     anim.start();
     return () => anim.stop();
-  }, [v, delay]);
+  }, [v, delay, reduced]);
   return (
     <Animated.View
       style={{
@@ -142,8 +149,12 @@ export function ProfileScreen() {
   // Poster and worker reputations are separate, so re-fetch when the mode flips.
   useEffect(() => {
     if (!userId) {
+      // Everything that belongs to the last account goes with it (S6-26).
       setProfile(null);
       setReviews([]);
+      setAvatarUrl(null);
+      setRegulars([]);
+      setVerified(null);
       return;
     }
     let alive = true;
@@ -189,7 +200,7 @@ export function ProfileScreen() {
   const displayName = guest ? 'Guest' : (profile?.display_name ?? 'Your profile');
   const ratingAvg = worker ? profile?.worker_rating_avg : profile?.poster_rating_avg;
   const ratingCount = worker ? profile?.worker_rating_count : profile?.poster_rating_count;
-  const initial = displayName.trim().charAt(0).toUpperCase() || '?';
+  const initial = initialOf(displayName);
 
   // The rating for the side you are on, as others see it. A brand-new account
   // has none yet: say so rather than showing 0.0.
@@ -475,7 +486,8 @@ export function ProfileScreen() {
                   style={({ pressed }) => ({
                     flex: 1,
                     borderRadius: 999,
-                    paddingVertical: 10,
+                    paddingVertical: 13,
+                    minHeight: 44,
                     backgroundColor: on ? t.colors.accentSoft : t.colors.surface,
                     borderWidth: 1.5,
                     borderColor: on ? t.colors.accent : t.colors.line,

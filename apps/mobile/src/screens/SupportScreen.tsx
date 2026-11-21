@@ -31,13 +31,13 @@ const ANSWERS: Answer[] = [
   {
     id: 'code',
     q: 'I did not get my sign-in code',
-    a: 'Codes are sent by text and work for 10 minutes. You can ask for a new one after a minute, and after 5 wrong tries you need a new code. If texts are not reaching you, sign in another way: with Google or Apple, or with your username and password if you set one in Account & settings. Still stuck? Write to us.',
+    a: 'Codes are sent by text and stop working after a few minutes. You can ask for a new one after a minute, and after too many wrong tries you need a new code. If texts are not reaching you, sign in another way: with Google, or with your username and password if you set one in Account & settings. Still stuck? Write to us.',
   },
   {
     id: 'pay',
     q: 'How is my money protected?',
     a: 'When you accept an offer, the price and the hiring fee are paid to TaskDrop, which holds the money until you approve the work. If you do not approve or ask for changes within the review period shown on the job, the payment is released to the worker automatically.',
-    link: { label: 'How fees work', to: 'pricing', signedIn: true },
+    link: { label: 'How fees work', to: 'pricing' },
   },
   {
     id: 'work',
@@ -67,7 +67,7 @@ const ANSWERS: Answer[] = [
   {
     id: 'withdraw',
     q: 'How do I withdraw money?',
-    a: 'Open your wallet and choose Withdraw. Save a UPI ID or bank account first. The first time, we also ask for your name as on your PAN card, and your PAN. There is a minimum amount and no withdrawal fee. Earnings reach the wallet after the clearing period, and a withdrawal usually arrives within one working day.',
+    a: 'Open your wallet and choose Withdraw. Save a UPI ID or bank account first. The first time, we also ask for your name as on your PAN card, and your PAN. There is a minimum amount and no withdrawal fee. Earnings reach the wallet after the clearing period. The Withdraw screen tells you what to expect for your withdrawal.',
     link: { label: 'Open wallet', to: 'wallet', signedIn: true },
   },
   {
@@ -123,7 +123,7 @@ export function SupportScreen() {
           {userId ? (
             <>
               <RNText style={tx('400', 13, t.colors.ink, { marginTop: 8, lineHeight: 19 })}>
-                Send a message from Help & support. Replies come back to you there, and as a notification.
+                Send a message from Help & support. Replies come back to you there.
               </RNText>
               <PrimaryButton label="Open Help & support" onPress={() => go('help')} style={{ marginTop: 14 }} />
             </>
@@ -132,7 +132,7 @@ export function SupportScreen() {
               <RNText style={tx('400', 13, t.colors.ink, { marginTop: 8, lineHeight: 19 })}>
                 {company.email
                   ? 'Cannot sign in, or do not have an account yet? Email us. If you can sign in, use Help & support so the whole conversation stays in the app.'
-                  : 'Sign in to message the team from Help & support. Replies come back to you there, and as a notification.'}
+                  : 'Sign in to message the team from Help & support. Replies come back to you there.'}
               </RNText>
               {!company.email ? <PrimaryButton label="Sign in" onPress={() => go('welcome')} style={{ marginTop: 14 }} /> : null}
             </>

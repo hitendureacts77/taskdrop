@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSignOutMessage } from '../lib/useSignOutMessage';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
@@ -60,7 +60,7 @@ export function AccountScreen() {
   const [pw2, setPw2] = useState('');
   const [savingPw, setSavingPw] = useState(false);
   const [linking, setLinking] = useState(false);
-  const [verify, setVerify] = useState<{ phone: boolean; email: boolean; google: boolean } | null>(null);
+  const [verify, setVerify] = useState<{ phone: boolean; email: boolean; google: boolean; password: boolean } | null>(null);
   // Account deletion: checked first, so what is in the way shows on the card.
   const [checkingDelete, setCheckingDelete] = useState(false);
   const [blockers, setBlockers] = useState<DeletionBlocker[] | null>(null);
@@ -81,13 +81,12 @@ export function AccountScreen() {
   // Check the handle as it is typed, debounced.
   useEffect(() => {
     const handle = username.trim().toLowerCase();
-    if (!handle || handle === profile?.username) {
-      setFree(null);
-      return;
-    }
+    // The old answer is for the old handle: clear it on every change (S6-13).
+    setFree(null);
+    if (!handle || handle === profile?.username) return;
     // alive: a slow answer for an earlier handle must not overwrite the answer for the one now typed (Y4).
     let alive = true;
-    const id = setTimeout(() => void usernameAvailable(handle).then((ok) => alive && setFree(ok)), 350);
+    const id = setTimeout(() => void usernameAvailable(handle).then((ok) => alive && setFree(ok), () => {}), 350);
     return () => {
       alive = false;
       clearTimeout(id);
@@ -110,12 +109,18 @@ export function AccountScreen() {
     }
   };
 
+  const clearWarned = useRef(false);
   const saveProfile = async () => {
-    if (!userId) return;
+    if (!userId) return flash('Sign in to save your changes');
     if (!name.trim()) return flash('Add a display name');
     if (username.trim() && !handleOk) return flash('Usernames are 3–20 characters: a–z, 0–9 and _');
     if (nameCarriesContact(name) || nameCarriesContact(username)) {
       return flash('Names and usernames can’t contain a phone number or email. Contacts are shared once a task starts.');
+    }
+    // Removing the username takes away the way back in by password: say so once, then let the second tap through (S6-18).
+    if (!username.trim() && profile?.username && !clearWarned.current) {
+      clearWarned.current = true;
+      return flash('Without a username you can only sign in with a code. Tap Save again to remove it.');
     }
     setSavingProfile(true);
     try {
@@ -138,6 +143,7 @@ export function AccountScreen() {
       await setPassword(pw);
       setPw('');
       setPw2('');
+      setVerify((v) => (v ? { ...v, password: true } : v));
       // A new password should end every other sign-in: a phone that was lost or borrowed stops working.
       // This device stays signed in. If the server cannot be reached the password is still set; say so.
       const others = await endMySessions(false).then(() => true, () => false);
@@ -191,7 +197,10 @@ export function AccountScreen() {
               <Field
                 label="Username"
                 value={username}
-                onChangeText={(v) => setUsername(v.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase().slice(0, 20))}
+                onChangeText={(v) => {
+                  clearWarned.current = false;
+                  setUsername(v.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase().slice(0, 20));
+                }}
                 style={{ marginTop: 14 }}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -199,7 +208,7 @@ export function AccountScreen() {
                 error={username && !handleOk ? '3–20 characters: a–z, 0–9 and _' : free === false ? 'That username is taken' : null}
                 hint={free ? 'Available' : 'Your public handle, and how you sign in with a password'}
               />
-              <PrimaryButton label="Save" onPress={() => void saveProfile()} busy={savingProfile} style={{ marginTop: 16 }} />
+              <PrimaryButton label="Save" onPress={() => void saveProfile()} busy={savingProfile} disabled={free === false} style={{ marginTop: 16 }} />
             </View>
             <View style={card}>
               <RNText style={tx('800', 15, t.colors.ink)}>More about you</RNText>
@@ -218,7 +227,7 @@ export function AccountScreen() {
                 <Badge label="ID · coming soon" tone="neutral" />
               </View>
               <RNText style={tx('400', 12, t.colors.muted, { marginTop: 10, lineHeight: 18 })}>
-                Level {(verify?.phone ? 1 : 0) + (verify?.email ? 1 : 0)}/3 · Verified accounts get more replies.
+                Level {(verify?.phone ? 1 : 0) + (verify?.email ? 1 : 0)}/3 · These checks are for your own account's safety; other people do not see them yet.
               </RNText>
             </View>
           </>
@@ -257,7 +266,7 @@ export function AccountScreen() {
               <View style={{ gap: 8, marginTop: 10 }}>
                 <RNText style={tx('400', 13, t.colors.text)}>{verify?.phone ? '✓' : '–'} Mobile number (SMS code)</RNText>
                 <RNText style={tx('400', 13, t.colors.text)}>{verify?.google ? '✓' : '–'} Google</RNText>
-                <RNText style={tx('400', 13, t.colors.text)}>{profile?.username ? '✓' : '–'} Username and password</RNText>
+                <RNText style={tx('400', 13, t.colors.text)}>{verify?.password ? '✓' : '–'} Username and password</RNText>
               </View>
               {verify && !verify.google ? (
                 <PrimaryButton
@@ -330,7 +339,8 @@ export function AccountScreen() {
                     accessibilityState={{ selected: pref === p }}
                     style={{
                       flex: 1,
-                      paddingVertical: 10,
+                      paddingVertical: 13,
+                      minHeight: 44,
                       borderRadius: 10,
                       borderWidth: 1,
                       borderColor: pref === p ? t.colors.accent : t.colors.line,
@@ -355,7 +365,8 @@ export function AccountScreen() {
                     accessibilityRole="button"
                     style={{
                       flex: 1,
-                      paddingVertical: 10,
+                      paddingVertical: 13,
+                      minHeight: 44,
                       borderRadius: 10,
                       borderWidth: 1,
                       borderColor: mode === m ? t.colors.accent : t.colors.line,

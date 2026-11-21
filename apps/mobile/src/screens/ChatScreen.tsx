@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { chatMoneyLine } from '../lib/chatStrip';
+import { initialOf } from '../lib/initial';
 import { mergeById } from '../lib/mergeById';
 import {
   View,
@@ -60,6 +62,14 @@ type Message =
 
 /** Statuses from which contacts are unmasked for both sides. */
 const OPEN_STATUSES = ['TASK_STARTED', 'OVERDUE', 'WORK_DONE', 'REVISION_REQUESTED', 'COMPLETED', 'AUTO_COMPLETED', 'DISPUTED'];
+
+/** "3:42 pm", with the day when it was not today (S6-45). */
+function clock(at: string): string {
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return '';
+  const time = d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+  return d.toDateString() === new Date().toDateString() ? time : `${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, ${time}`;
+}
 
 function bubbleShape(t: Theme, m: Message): { style: ViewStyle; textColor: string } {
   const mine = m.who === 'me';
@@ -128,7 +138,9 @@ export function ChatScreen() {
   const { openTask, flash } = useApp();
   const { userId, guest } = useAuth();
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
-  const title = typeof params.title === 'string' ? params.title : (openTask?.title ?? 'Task');
+  const [loadedTitle, setLoadedTitle] = useState<string | null>(null);
+  const title =
+    typeof params.title === 'string' ? params.title : ((openTask?.id === taskId ? openTask.title : null) ?? loadedTitle ?? 'Task');
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
@@ -149,6 +161,7 @@ export function ChatScreen() {
   const [calling, setCalling] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
   const scrollRef = useRef<ScrollViewInstance>(null);
+  const nearBottom = useRef(true);
 
   const contactsOpen = status !== null && OPEN_STATUSES.includes(status);
   // Until the task loads, fall back to the mode; after that the task decides.
@@ -174,6 +187,7 @@ export function ChatScreen() {
       setOther(detail ? (detail.task.poster_id === userId ? detail.worker : detail.poster) : null);
       setEscrowMinor(detail?.assignment?.escrow_minor ?? null);
       setStatus(detail?.task.status ?? null);
+      if (detail?.task.title) setLoadedTitle(detail.task.title);
       statusNow.current = detail?.task.status ?? null;
     };
 
@@ -313,7 +327,7 @@ export function ChatScreen() {
   >
     <View>
       <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: t.colors.purpleFill, alignItems: 'center', justifyContent: 'center' }}>
-        <RNText style={tx('800', 16, '#FFFFFF')}>{counterpartyName.charAt(0).toUpperCase()}</RNText>
+        <RNText style={tx('800', 16, '#FFFFFF')}>{initialOf(counterpartyName)}</RNText>
       </View>
       <AvatarPresence lastSeen={other?.last_seen_at} ring={t.colors.surface} />
     </View>
@@ -414,11 +428,11 @@ export function ChatScreen() {
               {title}
             </RNText>
             <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2, fontVariant: ['tabular-nums'] })}>
-              {escrowMinor !== null
-                ? iAmPoster === false
-                  ? `You earn ${formatINR(workerEarnsMinor(escrowMinor, fees))} · held safely`
-                  : `${formatINR(escrowMinor)} · held safely`
-                : 'Your payment is held safely'}
+              {chatMoneyLine(
+                status,
+                escrowMinor !== null ? { amount: formatINR(escrowMinor), earns: formatINR(workerEarnsMinor(escrowMinor, fees)) } : null,
+                iAmPoster,
+              )}
             </RNText>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
@@ -433,7 +447,15 @@ export function ChatScreen() {
           style={{ flex: 1, backgroundColor: t.colors.bg }}
           contentContainerStyle={{ paddingVertical: 16, paddingHorizontal: 16, gap: 8 }}
           showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+          // Follow new messages only while the reader is at the bottom; reading older ones is not interrupted (S6-46).
+          scrollEventThrottle={100}
+          onScroll={(e) => {
+            const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+            nearBottom.current = contentOffset.y + layoutMeasurement.height >= contentSize.height - 160;
+          }}
+          onContentSizeChange={() => {
+            if (nearBottom.current) scrollRef.current?.scrollToEnd({ animated: true });
+          }}
         >
           <View
             style={{
@@ -455,7 +477,9 @@ export function ChatScreen() {
             <RNText style={tx('500', 11.5, contactsOpen ? t.colors.accentDeep : t.colors.text, { lineHeight: 16, flexShrink: 1 })}>
               {contactsOpen
                 ? 'The work has started. Contacts are unlocked for both of you — you can call from the top.'
-                : 'Your offer was accepted. Phone numbers, emails and addresses unlock when the work starts, so your payment stays protected.'}
+                : meIsPoster
+                  ? 'You hired this person. Phone numbers, emails and addresses unlock when the work starts, so your payment stays protected.'
+                  : 'Your offer was accepted. Phone numbers, emails and addresses unlock when the work starts, so your payment stays protected.'}
             </RNText>
           </View>
 
@@ -467,12 +491,14 @@ export function ChatScreen() {
               return (
                 <Pressable key={m.id} style={style} onLongPress={report} delayLongPress={400} accessibilityHint={report ? 'Press and hold to report this photo' : undefined}>
                   <ChatPhoto path={m.path} />
+                  <RNText style={tx('400', 10, t.colors.muted, { padding: 4 })}>{clock(m.at)}</RNText>
                 </Pressable>
               );
             }
             return (
               <Pressable key={m.id} style={style} onLongPress={report} delayLongPress={400} accessibilityHint={report ? 'Press and hold to report this message' : undefined}>
                 <RNText style={tx(m.who === 'me' ? '500' : '400', 14, textColor, { lineHeight: 20 })}>{m.text}</RNText>
+                <RNText style={tx('400', 10, m.who === 'me' ? 'rgba(255,255,255,0.75)' : t.colors.muted, { marginTop: 3, alignSelf: 'flex-end' })}>{clock(m.at)}</RNText>
               </Pressable>
             );
           })}
@@ -539,7 +565,7 @@ export function ChatScreen() {
               Platform.OS === 'web'
                 ? (e) => {
                     const k = e.nativeEvent as unknown as { key?: string; shiftKey?: boolean };
-                    if (k.key === 'Enter' && !k.shiftKey && draft.trim() && !sending) {
+                    if (k.key === 'Enter' && !k.shiftKey && !(k as { isComposing?: boolean }).isComposing && draft.trim() && !sending) {
                       e.preventDefault();
                       void send();
                     }

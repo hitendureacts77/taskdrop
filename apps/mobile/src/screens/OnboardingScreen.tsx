@@ -63,6 +63,8 @@ export function OnboardingScreen() {
   const [code, setCode] = useState('');
   const [username, setUsername] = useState('');
   const [free, setFree] = useState<boolean | null>(null);
+  // The server did not know the referral code: offer a way on without it (S6-59).
+  const [codeRefused, setCodeRefused] = useState(false);
   const [intent, setIntent] = useState<Intent>('both');
   const [earnGoal, setEarnGoal] = useState<EarnGoal | null>(null);
   const [skills, setSkills] = useState<string[]>([]);
@@ -113,25 +115,27 @@ export function OnboardingScreen() {
 
   useEffect(() => {
     const h = username.trim();
-    if (!/^[a-z0-9_]{3,20}$/.test(h)) {
-      setFree(null);
-      return;
-    }
+    // The old answer is for the old handle: clear it on every change (S6-13).
+    setFree(null);
+    if (!/^[a-z0-9_]{3,20}$/.test(h)) return;
     // alive: a slow answer for an earlier handle must not overwrite the answer for the one now typed (Y4).
     let alive = true;
-    const id = setTimeout(() => void usernameAvailable(h).then((ok) => alive && setFree(ok)), 350);
+    const id = setTimeout(() => void usernameAvailable(h).then((ok) => alive && setFree(ok), () => {}), 350);
     return () => {
       alive = false;
       clearTimeout(id);
     };
   }, [username]);
 
+  // Only the steps this person will see are counted (S6-12): someone who only posts skips two.
+  const seen = STEPS.map((_, i) => i).filter((i) => !(intent === 'post' && (i === WHY_EARN || i === SKILLS)));
+  const stepNo = seen.filter((i) => i <= step).length;
   const progress = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    const anim = Animated.timing(progress, { toValue: (step + 1) / STEPS.length, duration: 280, useNativeDriver: false });
+    const anim = Animated.timing(progress, { toValue: stepNo / seen.length, duration: 280, useNativeDriver: false });
     anim.start();
     return () => anim.stop();
-  }, [step, progress]);
+  }, [stepNo, seen.length, progress]);
 
   // Someone who only posts is never asked why they earn or what they are good at.
   const skipped = (s: number) => intent === 'post' && (s === WHY_EARN || s === SKILLS);
@@ -163,6 +167,7 @@ export function OnboardingScreen() {
   // The picker, or (on web) a photo dropped onto the photo row.
   const choosePhoto = async (pick: () => Promise<PickedMedia | null> = () => pickMedia('image')) => {
     if (photoBusy) return;
+    const before = avatar;
     try {
       const picked = await pick();
       if (!picked) return;
@@ -171,7 +176,7 @@ export function OnboardingScreen() {
       const stored = await uploadMedia(picked, 'avatar');
       setAvatarPath(stored.path);
     } catch (e) {
-      setAvatar(null);
+      setAvatar(before); // keep the saved picture on screen when the upload failed (S6-14)
       flash(e instanceof Error ? e.message : 'Could not add that photo');
     } finally {
       setPhotoBusy(false);
@@ -289,7 +294,10 @@ export function OnboardingScreen() {
         <Field
           label="Have a referral code? (optional)"
           value={code}
-          onChangeText={(v) => setCode(v.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 12))}
+          onChangeText={(v) => {
+            setCodeRefused(false);
+            setCode(v.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 12));
+          }}
           autoCapitalize="characters"
           placeholder="E.g. 7F3A9C21"
           style={{ marginTop: 20 }}
@@ -298,13 +306,35 @@ export function OnboardingScreen() {
       </>
     );
     footer = (
-      <PrimaryButton
-        label="Let’s go →"
-        busy={busy}
-        onPress={() => void run(async () => {
-          if (code.trim()) await applyReferralCode(code.trim());
-        })}
-      />
+      <>
+        <PrimaryButton
+          label="Let’s go →"
+          busy={busy}
+          onPress={() => void run(async () => {
+            if (code.trim() && !codeRefused) {
+              try {
+                await applyReferralCode(code.trim());
+              } catch (e) {
+                setCodeRefused(true);
+                throw e;
+              }
+            }
+          })}
+        />
+        {codeRefused ? (
+          <Pressable
+            onPress={() => {
+              setCode('');
+              setCodeRefused(false);
+              next();
+            }}
+            accessibilityRole="button"
+            style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}
+          >
+            <RNText style={tx('700', 14, t.colors.accentDeep)}>Skip the code</RNText>
+          </Pressable>
+        ) : null}
+      </>
     );
   }
 
@@ -325,7 +355,7 @@ export function OnboardingScreen() {
           placeholder="yourname"
           left={<RNText style={tx('600', 16, t.colors.muted)}>@</RNText>}
           style={{ marginTop: 20 }}
-          error={username && !ok ? '3–20 characters: a–z, 0–9 and _' : free === false ? 'That username is taken' : null}
+          error={username && !ok ? (/^[a-z0-9_]{3,20}$/.test(username) ? 'A username can’t look like a phone number or email' : '3–20 characters: a–z, 0–9 and _') : free === false ? 'That username is taken' : null}
           hint={free ? '✓ Available' : undefined}
         />
       </>
@@ -490,7 +520,7 @@ export function OnboardingScreen() {
             <IconButton icon="back" label="Back" onPress={prev} />
           ) : null}
           <RNText style={tx('600', 13, t.colors.muted, { flex: 1 })}>
-            {quick ? STEPS[step] : `Step ${step + 1} of ${STEPS.length} · ${STEPS[step]}`}
+            {quick ? STEPS[step] : `Step ${stepNo} of ${seen.length} · ${STEPS[step]}`}
           </RNText>
         </View>
         {quick ? null : (

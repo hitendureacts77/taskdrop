@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { initialOf } from '../lib/initial';
 import { View, Text as RNText, Pressable, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { Screen, cardSurface } from '../components/ui';
@@ -57,7 +58,6 @@ export function ProfileEditScreen() {
   const [saving, setSaving] = useState(false);
   const [verify, setVerify] = useState({ phone: false, email: false });
   const [reviews, setReviews] = useState(0);
-  const [lastSeen, setLastSeen] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
@@ -77,7 +77,6 @@ export function ProfileEditScreen() {
       setPlace(profile.loc_label ? { label: profile.loc_label, lat: profile.loc_lat, lng: profile.loc_lng } : null);
       setVerify(v);
       setReviews(r.length);
-      setLastSeen(profile.last_seen_at);
       if (profile.avatar_url) {
         const url = await signedMediaUrl(profile.avatar_url, 'card');
         if (alive) setAvatar(url);
@@ -109,6 +108,7 @@ export function ProfileEditScreen() {
   // The picker, or (on web) a photo dropped onto the profile card.
   const choosePhoto = async (pick: () => Promise<PickedMedia | null> = () => pickMedia('image')) => {
     if (!userId || photoBusy) return;
+    const before = avatar;
     try {
       const picked = await pick();
       if (!picked) return;
@@ -119,6 +119,7 @@ export function ProfileEditScreen() {
       setP(next);
       celebrate('Photo updated');
     } catch (e) {
+      setAvatar(before); // the saved picture stays on screen when the upload failed (S6-14)
       flash(e instanceof Error ? e.message : 'Could not add that photo');
     } finally {
       setPhotoBusy(false);
@@ -132,18 +133,28 @@ export function ProfileEditScreen() {
 
   const save = async () => {
     if (!userId) return;
+    // Saving before the profile has loaded would send empty skills and no place over the real ones (L2-11).
+    if (!p) return flash('Your profile is still loading. Try again in a moment.');
     if (bioIssue) {
       flash(profileIssueMessage(bioIssue));
       return;
     }
+    if (worker) {
+      if (bio.trim().length < 20) return flash('Tell customers a little about your work: at least 20 characters.');
+      if (skills.length === 0) return flash('Pick at least one skill.');
+      if (langs.length === 0) return flash('Pick at least one language.');
+    }
     setSaving(true);
     try {
-      await updateProfile(userId, {
-        ...(worker ? { skills } : {}),
-        locLabel: place?.label ?? null,
-        locLat: place?.lat ?? null,
-        locLng: place?.lng ?? null,
-      });
+      // Only what was changed goes to the server, so nothing that was not touched can be overwritten (L2-11).
+      const skillsChanged = worker && JSON.stringify(skills) !== JSON.stringify(p.skills ?? []);
+      const placeChanged = (place?.label ?? null) !== (p.loc_label ?? null);
+      if (skillsChanged || placeChanged) {
+        await updateProfile(userId, {
+          ...(skillsChanged ? { skills } : {}),
+          ...(placeChanged ? { locLabel: place?.label ?? null, locLat: place?.lat ?? null, locLng: place?.lng ?? null } : {}),
+        });
+      }
       const next = await updateProfileExtras(userId, worker ? { workerBio: bio, languages: langs } : { bio, languages: langs });
       setP(next);
       celebrate('Profile saved');
@@ -154,6 +165,15 @@ export function ProfileEditScreen() {
     }
   };
 
+
+  // A skill typed in is matched to an existing one ignoring capitals, so "web design" and "Web design" are one (S6-22).
+  const addSkill = (text: string) => {
+    const s = text.trim();
+    if (!s) return;
+    const existing = skills.find((x) => x.toLowerCase() === s.toLowerCase());
+    if (existing) return flash(`${existing} is already in your skills`);
+    toggle(skills, setSkills, s.charAt(0).toUpperCase() + s.slice(1), 8);
+  };
 
   const toggle = (list: string[], set: (v: string[]) => void, value: string, max: number) => {
     if (list.includes(value)) set(list.filter((x) => x !== value));
@@ -186,7 +206,7 @@ export function ProfileEditScreen() {
                 {avatar ? (
                   <Image source={imageSource(avatar)} style={{ width: 84, height: 84 }} contentFit="cover" />
                 ) : (
-                  <RNText style={tx('800', 32, '#FFFFFF')}>{(p?.display_name ?? '?').charAt(0).toUpperCase()}</RNText>
+                  <RNText style={tx('800', 32, '#FFFFFF')}>{initialOf(p?.display_name)}</RNText>
                 )}
                 {photoBusy ? (
                   <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.45)' }}>
@@ -306,15 +326,13 @@ export function ProfileEditScreen() {
                 maxLength={30}
                 returnKeyType="done"
                 onSubmitEditing={() => {
-                  const s = customSkill.trim();
-                  if (s) toggle(skills, setSkills, s.charAt(0).toUpperCase() + s.slice(1), 8);
+                  addSkill(customSkill);
                   setCustomSkill('');
                 }}
                 right={
                   <Pressable
                     onPress={() => {
-                      const s = customSkill.trim();
-                      if (s) toggle(skills, setSkills, s.charAt(0).toUpperCase() + s.slice(1), 8);
+                      addSkill(customSkill);
                       setCustomSkill('');
                     }}
                     hitSlop={8}
@@ -337,15 +355,10 @@ export function ProfileEditScreen() {
                 “Active now” next to your name. When you close it, they see how long you’ve been away —
                 “Away · 20 min”. Nothing to switch on or off.
               </RNText>
-              {lastSeen ? (
-                <RNText style={tx('400', 11, t.colors.muted, { marginTop: 10 })}>
-                  Before this visit you were last active {new Date(lastSeen).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}.
-                </RNText>
-              ) : null}
             </View>
           ) : null}
 
-          {view !== 2 ? <PrimaryButton label="Save profile" onPress={() => void save()} busy={saving} style={{ marginTop: 20 }} /> : null}
+          {view !== 2 ? <PrimaryButton label="Save profile" onPress={() => void save()} busy={saving} disabled={!p} style={{ marginTop: 20 }} /> : null}
         </View>
       </KeyboardScrollView>
       </SwipeTabs>

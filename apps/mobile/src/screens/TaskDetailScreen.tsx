@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { initialOf } from '../lib/initial';
 import { Badge, BackButton, EmptyState, IconButton, TopBar, systemHeader } from '../components/kit';
 import { ReportSheet } from '../components/ReportSheet';
 import { TaskQuestions } from '../components/TaskQuestions';
@@ -497,7 +498,7 @@ function TaskDetailBody() {
               justifyContent: 'center',
             }}
           >
-            <RNText style={tx('800', 17, t.colors.onBtn)}>{(displayName || '?').trim().charAt(0).toUpperCase()}</RNText>
+            <RNText style={tx('800', 17, t.colors.onBtn)}>{initialOf(displayName)}</RNText>
             {other ? <AvatarPresence lastSeen={other.lastSeen} ring={t.colors.bg} /> : null}
           </View>
           <View style={{ flex: 1 }}>

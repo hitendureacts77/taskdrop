@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { initialOf } from '../lib/initial';
 import { View, Text as RNText, ScrollView, Pressable } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -146,7 +147,7 @@ function EarnerCard({ e }: { e: Earner }) {
       })}
     >
       <View style={{ width: 46, height: 46, borderRadius: 999, backgroundColor: t.colors.purpleFill, alignItems: 'center', justifyContent: 'center' }}>
-        <RNText style={tx('800', 18, '#FFFFFF')}>{(e.display_name || '?').trim().charAt(0).toUpperCase()}</RNText>
+        <RNText style={tx('800', 18, '#FFFFFF')}>{initialOf(e.display_name)}</RNText>
       </View>
       <RNText style={tx('700', 12, t.colors.ink, { marginTop: 8 })} numberOfLines={1}>{name}</RNText>
       <RNText style={tx('600', 11, e.rating_count > 0 ? t.colors.goldInk : t.colors.muted, { marginTop: 3 })}>

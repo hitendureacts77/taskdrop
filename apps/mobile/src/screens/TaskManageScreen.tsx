@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { initialOf } from '../lib/initial';
 import { View, Text as RNText, ScrollView, Pressable, Platform, RefreshControl } from 'react-native';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
@@ -411,7 +412,7 @@ export function TaskManageScreen() {
             accessibilityRole="button"
           >
             <View style={{ width: 42, height: 42, borderRadius: 999, backgroundColor: t.colors.purpleFill, alignItems: 'center', justifyContent: 'center' }}>
-              <RNText style={tx('800', 16, '#FFFFFF')}>{worker.display_name.charAt(0).toUpperCase()}</RNText>
+              <RNText style={tx('800', 16, '#FFFFFF')}>{initialOf(worker.display_name)}</RNText>
             </View>
             <View style={{ flex: 1 }}>
               <RNText style={tx('700', 15, t.colors.ink)}>{worker.display_name}</RNText>
@@ -499,7 +500,7 @@ export function TaskManageScreen() {
                     >
                       <View>
                         <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: t.colors.purpleFill, alignItems: 'center', justifyContent: 'center' }}>
-                          <RNText style={tx('800', 15, '#FFFFFF')}>{(who?.display_name || '?').charAt(0).toUpperCase()}</RNText>
+                          <RNText style={tx('800', 15, '#FFFFFF')}>{initialOf(who?.display_name)}</RNText>
                         </View>
                         <AvatarPresence lastSeen={who?.last_seen_at} ring={t.colors.surface} />
                       </View>

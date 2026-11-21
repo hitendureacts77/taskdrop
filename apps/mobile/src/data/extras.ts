@@ -8,6 +8,7 @@ import { forgetEverything, reusePublic, reuseWhileFresh } from '../lib/freshness
 import type { Tables } from '@taskdrop/db-types';
 import { guestGate, primeProfile, type Task, type Profile } from './api';
 import { isGuestOp } from '../lib/guest';
+import { passwordChangeAllowed } from '../lib/recentSignIn';
 import type { Idea, IdeaComment, IdeaKind, IdeaStatus } from '../lib/ideas';
 import { EVERYONE_MAP_NOTICE, PEOPLE_MAP_NOTICE, type MapAudience } from '../lib/mapSpot';
 
@@ -411,6 +412,7 @@ const PW_URL = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/password-au
 
 /** Sign in with @username + password. */
 export async function signInWithUsername(username: string, password: string): Promise<void> {
+  // A fetch that cannot reach the server throws the browser's own words ("Failed to fetch"): say it plainly (S6-37).
   const res = await fetch(PW_URL, {
     method: 'POST',
     headers: {
@@ -419,6 +421,8 @@ export async function signInWithUsername(username: string, password: string): Pr
       ...clientHeaders(),
     },
     body: JSON.stringify({ username, password }),
+  }).catch(() => {
+    throw new Error('Could not reach TaskDrop. Check your connection and try again.');
   });
   const out = (await res.json().catch(() => ({}))) as {
     access_token?: string;
@@ -438,7 +442,14 @@ export async function signInWithUsername(username: string, password: string): Pr
 /** Set or change the password for username sign-in. */
 export async function setPassword(password: string): Promise<void> {
   if (password.length < 8) throw new Error('Use at least 8 characters');
-  const { error } = await supabase.auth.updateUser({ password });
+  // A borrowed, unlocked phone must not be able to take the account over: a password is set only soon after a
+  // fresh sign-in (SMS code or password), not on a session that has been open for days (S6-17).
+  const { data } = await supabase.auth.getUser();
+  if (!passwordChangeAllowed(data.user?.last_sign_in_at)) {
+    throw new Error('For your safety, sign out and sign in again with your code first, then set the password.');
+  }
+  // `password_set` is what Account reads to tick "Username and password" (S6-16).
+  const { error } = await supabase.auth.updateUser({ password, data: { password_set: true } });
   if (error) throw apiError(error);
 }
 
@@ -468,7 +479,7 @@ export async function deleteMyAccount(): Promise<void> {
 }
 
 /** Which sign-in methods this account has. */
-export async function verificationState(): Promise<{ phone: boolean; email: boolean; google: boolean }> {
+export async function verificationState(): Promise<{ phone: boolean; email: boolean; google: boolean; password: boolean }> {
   const { data } = await supabase.auth.getUser();
   const u = data.user;
   const email = u?.email ?? '';
@@ -476,7 +487,7 @@ export async function verificationState(): Promise<{ phone: boolean; email: bool
     .filter(Boolean) as string[];
   const phone = /@phone\.taskdrop\.app$/i.test(email);
   const google = providers.includes('google');
-  return { phone, email: google || (!phone && Boolean(u?.email_confirmed_at)), google };
+  return { phone, email: google || (!phone && Boolean(u?.email_confirmed_at)), google, password: u?.user_metadata?.password_set === true };
 }
 
 // ------------------------------------------------------------- remote work --

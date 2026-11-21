@@ -11,6 +11,8 @@ export function normalizeMobileInput(text: string): string {
   if (d.length > 10) {
     // "0091 98880 77001", the international way of writing +91 (W2-8): drop the 0091, pasted or typed.
     if (d.startsWith('0091')) return d.slice(4, 14);
+    // "+91 0 98765 43210": a stray 0 between the country code and the number (S6-6).
+    if (d.length === 13 && d.startsWith('910')) return d.slice(3, 13);
     // 11 digits happens when "+91 98880 ..." is typed key by key (the box keeps only digits,
     // so the "+" is gone and the 11th key arrives after "91" + 9 digits): drop the 91, keep the key.
     if (d.startsWith('91') && (d.length === 12 || d.length === 11)) d = d.slice(2);

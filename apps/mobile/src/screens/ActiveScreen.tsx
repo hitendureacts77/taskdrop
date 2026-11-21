@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { initialOf } from '../lib/initial';
 import { View, Text as RNText, Pressable, Animated, Easing, Linking, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import Svg, { Circle } from 'react-native-svg';
@@ -431,7 +432,7 @@ export function ActiveScreen() {
         <View style={{ ...card, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <View>
             <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-              <RNText style={tx('800', 15, t.colors.ink)}>{(other?.display_name ?? '?').charAt(0).toUpperCase()}</RNText>
+              <RNText style={tx('800', 15, t.colors.ink)}>{initialOf(other?.display_name)}</RNText>
             </View>
             {other ? <AvatarPresence lastSeen={other.last_seen_at} ring={t.colors.surface} /> : null}
           </View>

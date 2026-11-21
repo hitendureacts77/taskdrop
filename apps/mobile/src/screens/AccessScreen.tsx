@@ -84,6 +84,10 @@ export function AccessScreen() {
   const [devCode, setDevCode] = useState('');
   const [dob, setDob] = useState<BirthDateParts>(EMPTY_BIRTH_DATE);
   const [birth, setBirth] = useState<Date | null>(null);
+  // The number the birth date was given for: a date typed for one number is not reused for another (S6-4).
+  const birthFor = useRef('');
+  // A keyboard Send or Enter reaches the handlers directly, so the in-flight guard lives here, not on the buttons (S6-1).
+  const submitting = useRef(false);
   const [turnedAway, setTurnedAway] = useState(false);
   // Which door the server let us through. Decided when the code is sent and
   // reused to verify it, because only 'signup' may create an account.
@@ -100,6 +104,7 @@ export function AccessScreen() {
   // What is missing when Sign in was tapped with an empty box; cleared once they type.
   const [pwMissing, setPwMissing] = useState<string | null>(null);
   const [pwBusy, setPwBusy] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
 
   // The server refuses a second code within 60 seconds; count it down here
   // rather than letting a tap meet that refusal.
@@ -111,6 +116,7 @@ export function AccessScreen() {
     return () => clearInterval(id);
   }, [resendAt]);
   const waitSec = Math.max(0, Math.ceil((resendAt - now) / 1000));
+  const waitText = `${Math.floor(waitSec / 60)}:${String(waitSec % 60).padStart(2, '0')}`;
 
   const phoneRef = useRef<TextInputInstance>(null);
   const codeRef = useRef<TextInputInstance>(null);
@@ -170,7 +176,9 @@ export function AccessScreen() {
    * is handled the same way.
    */
   const sendCode = async () => {
-    if (!numberReady) return flash('Enter a 10-digit mobile number');
+    if (submitting.current) return;
+    if (!numberReady) return flash(phone.length === 10 ? 'Indian mobile numbers start with 6, 7, 8 or 9' : 'Enter a 10-digit mobile number');
+    submitting.current = true;
     setBusy(true);
     try {
       let used: Door = stage === 'code' ? door : 'signin';
@@ -180,7 +188,7 @@ export function AccessScreen() {
       } catch (e) {
         if (!(e instanceof AuthError) || !(e.noAccount || e.accountExists)) throw e;
         used = e.noAccount ? 'signup' : 'signin';
-        if (used === 'signup' && !birth) {
+        if (used === 'signup' && !(birth && birthFor.current === phone)) {
           setStage('birth');
           return;
         }
@@ -190,6 +198,7 @@ export function AccessScreen() {
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not send a code');
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   };
@@ -199,6 +208,7 @@ export function AccessScreen() {
    * it again once the account exists, and has the final say.
    */
   const confirmBirth = async () => {
+    if (submitting.current) return;
     const date = parseBirthDate(dob.day, dob.month, dob.year);
     if (!date) return flash('Enter a real date of birth');
     if (ageOn(date) < MIN_SIGNUP_AGE) {
@@ -206,6 +216,8 @@ export function AccessScreen() {
       return;
     }
     setBirth(date);
+    birthFor.current = phone;
+    submitting.current = true;
     setBusy(true);
     try {
       codeSent('signup', await requestCode(phone, 'signup'));
@@ -213,6 +225,7 @@ export function AccessScreen() {
       if (e instanceof AuthError && e.accountExists) setStage('number');
       flash(e instanceof Error ? e.message : 'Could not send a code');
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   };
@@ -244,7 +257,7 @@ export function AccessScreen() {
       setDevCode('');
       // The new account answers the question it was asked before the code. If
       // this cannot reach the server, AgeGate asks again after sign-in.
-      if (door === 'signup' && birth) {
+      if (door === 'signup' && birth && birthFor.current === phone) {
         if ((await recordBirthDate(birth).catch(() => null)) === 'blocked') {
           // Signed out on OK: signing out now would reset to the splash and hide the message.
           setTurnedAway(true);
@@ -252,7 +265,16 @@ export function AccessScreen() {
         }
       }
       celebrate(door === 'signin' ? 'Welcome back' : 'Number verified');
-      await proceed();
+      // The code was right and the session exists. A failure from here on is not a wrong code (S6-5): move on.
+      try {
+        await proceed();
+      } catch {
+        if (door === 'signup') {
+          toSetup.current = true;
+          go('setup', fromGuest ? { quick: true } : undefined);
+        } else if (fromGuest) back();
+        else reset('home');
+      }
     } catch (e) {
       if (e instanceof AuthError && (e.accountExists || e.noAccount)) {
         // The number changed hands between sending and verifying. Start over
@@ -302,8 +324,10 @@ export function AccessScreen() {
   };
 
   const passwordSignIn = async () => {
+    if (pwBusy) return;
     const missing = !username.trim() && !password ? 'Enter your username and password.' : !username.trim() ? 'Enter your username.' : !password ? 'Enter your password.' : null;
     setPwMissing(missing);
+    setPwError(null);
     if (missing) return flash(missing);
     setPwBusy(true);
     try {
@@ -312,7 +336,10 @@ export function AccessScreen() {
       celebrate('Welcome back');
       await proceed();
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not sign in');
+      // Said inside the sheet: a toast sits under a Modal on Android (S6-36).
+      const msg = e instanceof Error ? e.message : 'Could not sign in';
+      setPwError(msg);
+      flash(msg);
     } finally {
       setPwBusy(false);
     }
@@ -321,6 +348,9 @@ export function AccessScreen() {
   const editNumber = () => {
     setStage('number');
     setOtp('');
+    setBirth(null);
+    setDob(EMPTY_BIRTH_DATE);
+    birthFor.current = '';
     setTimeout(() => phoneRef.current?.focus(), 200);
   };
 
@@ -486,6 +516,11 @@ export function AccessScreen() {
                     }}
                   />
                 </View>
+                {phone.length === 10 && !numberReady ? (
+                  <RNText accessibilityRole="alert" style={tx('600', 12, t.colors.signalDeep, { marginTop: 8 })}>
+                    Indian mobile numbers start with 6, 7, 8 or 9
+                  </RNText>
+                ) : null}
               </Pressable>
               </RevealWhen>
 
@@ -740,7 +775,7 @@ export function AccessScreen() {
                 ) : (
                   <Pressable onPress={() => void sendCode()} disabled={waitSec > 0} hitSlop={8} accessibilityRole="button">
                     <RNText style={tx('700', 13, waitSec > 0 ? t.colors.muted : t.colors.accentDeep)}>
-                      {waitSec > 0 ? `No code? Ask again in 0:${String(waitSec).padStart(2, '0')}` : 'No code? Send it again'}
+                      {waitSec > 0 ? `No code? Ask again in ${waitText}` : 'No code? Send it again'}
                     </RNText>
                   </Pressable>
                 )}
@@ -793,6 +828,7 @@ export function AccessScreen() {
           onChangeText={(v) => {
             setUsername(v.replace(/[^a-zA-Z0-9_@]/g, '').toLowerCase());
             setPwMissing(null);
+            setPwError(null);
           }}
           autoCapitalize="none"
           autoCorrect={false}
@@ -805,6 +841,7 @@ export function AccessScreen() {
           onChangeText={(v) => {
             setPasswordText(v);
             setPwMissing(null);
+            setPwError(null);
           }}
           secureTextEntry
           autoCapitalize="none"
@@ -812,6 +849,11 @@ export function AccessScreen() {
           returnKeyType="go"
           onSubmitEditing={() => void passwordSignIn()}
         />
+        {pwError && !pwMissing ? (
+          <RNText accessibilityRole="alert" style={tx('600', 13, t.colors.signalDeep, { marginTop: 10 })}>
+            {pwError}
+          </RNText>
+        ) : null}
         {pwMissing ? (
           // B179: said under the boxes too, not only in a toast that is gone in 2 seconds.
           <RNText accessibilityRole="alert" style={tx('600', 13, t.colors.signalDeep, { marginTop: 10 })}>
