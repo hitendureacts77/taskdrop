@@ -1,6 +1,6 @@
 # Plan B money flow: handover (task 2.21)
 
-Last updated 19 Nov 2026. Read this first when you pick Plan B up again. The design itself is in [DESIGN.md](DESIGN.md); this file says what is built, what is left and how to finish it.
+Last updated 21 Nov 2026. **21 Nov:** PRs 428 and admin 66 were closed in the move to `main`; the code is back on `main` as PR 455 and admin PR 69, migration renumbered 195. Steps A1, A3 and A5 below now refer to those PRs, and "merge into redesigned-2.0" means: merge into `main`, then sync `redesigned-2.0` from `main` (Vercel builds `redesigned-2.0` and that build applies migrations and deploys the Edge Functions). Read this first when you pick Plan B up again. The design itself is in [DESIGN.md](DESIGN.md); this file says what is built, what is left and how to finish it.
 
 **To start again, say:** "continue Plan B from the handover" (Claude reads this file, then works through "What is left" in order).
 
