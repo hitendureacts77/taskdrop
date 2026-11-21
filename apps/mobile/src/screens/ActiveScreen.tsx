@@ -6,7 +6,7 @@ import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { lengthHint } from '../lib/fieldHint';
 import { BackButton, ConfirmDialog, EmptyState, Field, LoadFailed, systemHeader } from '../components/kit';
-import { reportError } from '../lib/errors';
+import { messageOf, reportError } from '../lib/errors';
 import { ReportProblemSheet } from '../components/ReportProblemSheet';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { useTheme } from '../providers/ThemeProvider';
@@ -260,41 +260,42 @@ export function ActiveScreen() {
     try {
       await submitProof({ taskId: task.id, workerId: userId, summary: maskContacts(summary).text, files });
       await markWorkDone(task.id);
-      celebrate('Work sent to the customer');
-      await load();
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not mark it done');
-    } finally {
       setBusy(false);
+      return flash(messageOf(e, 'Could not mark it done'));
     }
+    setBusy(false);
+    celebrate('Work sent to the customer');
+    // The work is sent: a refresh that fails is not a failed send (round 8, S5-38). It keeps the screen as it is.
+    void loadOrFail();
   };
 
   const approve = async () => {
     setBusy(true);
     try {
       await confirmRelease(task.id);
-      celebrate('Payment released');
-      await load();
-      // Same as the Confirm screen: once the money is released, ask how it went.
-      go('review', { title: task.title ?? '', taskId: task.id, price: formatINR(escrowMinor) });
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not release payment');
-    } finally {
       setBusy(false);
+      return flash(messageOf(e, 'Could not release payment'));
     }
+    setBusy(false);
+    celebrate('Payment released');
+    void loadOrFail();
+    // Same as the Confirm screen: once the money is released, ask how it went (also when the refresh fails, S5-38).
+    go('review', { title: task.title ?? '', taskId: task.id, price: formatINR(escrowMinor) });
   };
 
   const askChanges = async () => {
     setBusy(true);
     try {
       await requestRevision(task.id);
-      flash('Sent back for changes — the timer runs again');
-      await load();
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not send it back');
-    } finally {
       setBusy(false);
+      return flash(messageOf(e, 'Could not send it back'));
     }
+    setBusy(false);
+    flash('Sent back for changes. The review time starts again when they send it');
+    void loadOrFail();
   };
 
   const fileTile = (f: ProofFile, onRemove?: () => void) => (

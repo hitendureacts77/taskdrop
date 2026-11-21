@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { completeByDate } from '../lib/taskStatusText';
-import { BackButton } from '../components/kit';
+import { BackButton, ConfirmDialog } from '../components/kit';
+import { FEES, posterEscrowCharge, posterServiceFee } from '@taskdrop/rules';
+import { useFees } from '../lib/useFees';
+import { messageOf } from '../lib/errors';
+import { hireMessage } from '../lib/heldWords';
 import { Icon } from '../components/Icon';
 import {
   View,
@@ -74,6 +78,8 @@ export function CompareScreen() {
   const [picked, setPicked] = useState<string | null>(null);
   const [rows, setRows] = useState<Quote[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const fees = useFees();
   // What the wallet is short by when an offer cannot be paid for yet.
   const [shortBy, setShortBy] = useState<number | null>(null);
   const [task, setTask] = useState<Task | null>(null);
@@ -176,7 +182,7 @@ export function CompareScreen() {
         else if (isOfferChanged(e)) {
           flash('The offer changed. Please review the new price.');
           setReloadTick((n) => n + 1);
-        } else flash(e instanceof Error ? e.message : 'Could not choose that offer');
+        } else flash(messageOf(e, 'Could not choose that offer'));
       } finally {
         setBusy(false);
       }
@@ -431,7 +437,11 @@ export function CompareScreen() {
         ) : (
         <>
         <Pressy
-          onPress={handleLock}
+          // Choosing takes the money at once, so it asks first and shows the fee and the fine (round 8, S4-15).
+          onPress={() => {
+            if (pickRow?.bidId && !busy && !decided) setConfirming(true);
+            else void handleLock();
+          }}
           scaleTo={0.96}
           style={{
             backgroundColor: t.colors.btn,
@@ -468,6 +478,27 @@ export function CompareScreen() {
           void handleLock();
         }}
       />
+      {pickRow ? (
+        <ConfirmDialog
+          visible={confirming}
+          icon="shield"
+          title={`Hire ${pickRow.who}?`}
+          message={hireMessage(
+            formatINR(pickRow.priceMinor),
+            formatINR(posterServiceFee(pickRow.priceMinor, fees.posterFee)),
+            formatINR(posterEscrowCharge(pickRow.priceMinor, fees.posterFee)),
+            { posterFee: fees.posterFee, cancelFine: fees.cancelFine ?? FEES.POST_START_CANCEL_PENALTY_PCT },
+          )}
+          confirmLabel="Yes, hire and pay"
+          cancelLabel="Not yet"
+          busy={busy}
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => {
+            setConfirming(false);
+            void handleLock();
+          }}
+        />
+      ) : null}
     </Screen>
   );
 }
