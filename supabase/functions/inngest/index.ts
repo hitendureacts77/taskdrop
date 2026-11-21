@@ -411,7 +411,7 @@ const publicSnapshots = inngest.createFunction(
 
 /** Counters, sign-in codes, old notifications, the admin live feed: records that have outlived their use. */
 const housekeeping = inngest.createFunction(
-  { id: "housekeeping", triggers: [{ cron: "17 * * * *" }], concurrency: 1, onFailure: reportFailure("housekeeping") },
+  { id: "housekeeping", triggers: [{ cron: "17 */3 * * *" }], concurrency: 1, onFailure: reportFailure("housekeeping") },
   async ({ step }) => ({ removed: await step.run("tidy", () => call<Record<string, number>>(rpc, "run_housekeeping")) }),
 );
 
@@ -420,7 +420,7 @@ const housekeeping = inngest.createFunction(
  * not receiving them. Leaves one team alert, then stays quiet for six hours.
  */
 const outboxWatchdog = inngest.createFunction(
-  { id: "outbox-watchdog", triggers: [{ cron: "*/30 * * * *" }], concurrency: 1, onFailure: reportFailure("outbox-watchdog") },
+  { id: "outbox-watchdog", triggers: [{ cron: "52 * * * *" }], concurrency: 1, onFailure: reportFailure("outbox-watchdog") },
   async ({ step }) => ({ checked: await step.run("check outbox", () => call<Record<string, unknown>>(rpc, "run_outbox_watchdog")) }),
 );
 
@@ -429,7 +429,7 @@ const outboxWatchdog = inngest.createFunction(
  * many codes and almost none were used, this leaves one admin alert (then stays quiet for six hours).
  */
 const smsPumpingWatch = inngest.createFunction(
-  { id: "sms-pumping-watch", triggers: [{ cron: "*/30 * * * *" }], concurrency: 1, onFailure: reportFailure("sms-pumping-watch") },
+  { id: "sms-pumping-watch", triggers: [{ cron: "33 * * * *" }], concurrency: 1, onFailure: reportFailure("sms-pumping-watch") },
   async ({ step }) => ({ checked: await step.run("check codes sent and used", () => call<Record<string, unknown>>(rpc, "run_sms_pumping_watch")) }),
 );
 
@@ -568,13 +568,13 @@ async function settleHolds(ids: string[]): Promise<Record<string, string>> {
 /**
  * Plan B: every waiting release or refund is sent (approval, auto-complete, cancel, dispute and a
  * staff retry all write a money.move event, which runs this at once); unpaid hires past their time
- * expire. The half-hourly run is the safety net for anything the event path missed. A release is
+ * expire. The hourly run is the safety net for anything the event path missed. A release is
  * never claimed while the admin money stop is on; refunds still go. Nothing here decides an amount.
  */
 const moneyMoves = inngest.createFunction(
   {
     id: "money-moves",
-    triggers: [{ cron: "*/30 * * * *" }, { event: "taskdrop/money.move" }],
+    triggers: [{ cron: "12 * * * *" }, { event: "taskdrop/money.move" }],
     concurrency: 1,
     retries: 4,
     onFailure: reportFailure("money-moves"),
@@ -616,9 +616,9 @@ const moneyMatch = inngest.createFunction(
 
 const moneyJobs = Deno.env.get("INNGEST_MONEY_JOBS") === "on"
   ? [
-    sweep("auto-complete-due", "*/15 * * * *", "run_auto_complete_due"),
-    sweep("settle-cleared-earnings", "*/5 * * * *", "settle_cleared_earnings"),
-    sweep("settle-finished-campaigns", "7 * * * *", "settle_finished_campaigns"),
+    sweep("auto-complete-due", "27 * * * *", "run_auto_complete_due"),
+    sweep("settle-cleared-earnings", "47 * * * *", "settle_cleared_earnings"),
+    sweep("settle-finished-campaigns", "7 */3 * * *", "settle_finished_campaigns"),
   ]
   : [];
 

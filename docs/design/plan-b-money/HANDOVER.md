@@ -89,7 +89,7 @@ After the keys: Claude sets `money_provider` = `razorpay_route` on staging, reru
 - `supabase/functions/money/`: checkout, sync, payout-setup, payout-status and settle. Needs login.
 - `supabase/functions/money-webhook/`: public. It checks the `X-Razorpay-Signature` before anything else.
 - `supabase/functions/razorpay/`: the old Payment Link path refuses a task that has a Plan B hold.
-- `supabase/functions/inngest/`: `moneyMoves` (every 30 minutes and on `taskdrop/money.move`) and `moneyMatch` (nightly). Alerts `money.mismatch` and `money.move_failed`.
+- `supabase/functions/inngest/`: `moneyMoves` (hourly and on `taskdrop/money.move`) and `moneyMatch` (nightly). Alerts `money.mismatch` and `money.move_failed`.
 - Registered in `supabase/config.toml`, `scripts/check-endpoints.mjs`, `scripts/check-gateway-only.mjs` and the CI type-check.
 
 **App (Expo, web and Android)**
