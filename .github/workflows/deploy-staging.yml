@@ -1,0 +1,68 @@
+name: Deploy (staging backend + web)
+
+# Plan task 5.12 (22 Nov 2026): what the Vercel build of `redesigned-2.0` used to do, in the same order.
+#   1. backend         the staging Supabase project: old-app contract, migrations, old-app DB check,
+#                      Edge Functions, Inngest sync (scripts/deploy-staging-backend.mjs). Any failure stops
+#                      the staging web deploy, so the web app never goes live against a half-updated backend.
+#   2. web-staging     builds the web app for staging and uploads it to the Cloudflare Worker `taskdrop-staging`.
+#   3. web-production  builds the web app for production and uploads it to `taskdrop-production`. Like the
+#                      Vercel production project, it does not wait for the production database, which waits
+#                      for the owner's Approve in production-database.yml.
+# The web jobs skip with a notice until CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are set as repository
+# secrets and scripts/cloudflare-web-build.mjs exists. Docs-only pushes deploy nothing.
+# Secrets: environment `staging-backend` (SUPABASE_ACCESS_TOKEN, DATABASE_URL); environments `web-staging` and
+# `web-production` (the EXPO_PUBLIC_* values, set by scripts/sync-github-env.mjs from .env.all-secrets).
+
+on:
+  push:
+    branches: [redesigned-2.0]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+
+# One deploy at a time; a newer push waits instead of cutting a migration run in half.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: staging backend
+    runs-on: ubuntu-latest
+    environment: staging-backend
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: true # the script fetches `main` for the two old-app checks
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: deploy the staging backend
+        run: node scripts/deploy-staging-backend.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  web-staging:
+    needs: backend
+    uses: ./.github/workflows/web-deploy.yml
+    with:
+      target: staging
+    secrets: inherit
+
+  # Like the Vercel production project: does not wait for the staging backend or the production database.
+  web-production:
+    uses: ./.github/workflows/web-deploy.yml
+    with:
+      target: production
+    secrets: inherit
