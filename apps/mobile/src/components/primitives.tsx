@@ -24,6 +24,7 @@ export function Pressy({
   label,
   disabled,
   containsControls,
+  testID,
 }: {
   onPress?: () => void;
   scaleTo?: number;
@@ -39,9 +40,11 @@ export function Pressy({
    * role, or the markup is invalid and the inner controls stop behaving.
    */
   containsControls?: boolean;
+  testID?: string;
 }) {
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       disabled={disabled}
       // Without these every control in the app is an unlabelled div to a screen
