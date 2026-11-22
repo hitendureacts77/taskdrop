@@ -84,7 +84,7 @@ Launch day is about **two weeks after the last of these three clocks finishes** 
 | npm or pnpm? | Stay on npm until after launch. pnpm is faster, smaller and safer with install scripts, but switching now risks the Android build in the freeze | Decision 54, future task F.16 |
 | People see `wjxvingpfbfvkfqhrguj.supabase.co` on Google's sign-in screen | It is the address Google sends people back to. Hiding it needs a Supabase custom domain (`auth.taskdrop.in`), which only works on a paid plan: do it on production at 5.2 (about $10 a month) | Task 2.22 part (e), decision 53 |
 | My personal Gmail shows | It came from the Vercel setting `EXPO_PUBLIC_LEGAL_EMAIL`. The app and website now only ever show an address ending in `@taskdrop.in`, otherwise `admin@taskdrop.in` | Task 2.22 part (a) |
-| Should DNS move to Cloudflare? | No. DNSSEC is already on at Spaceship and Vercel advises against Cloudflare in front of it. Two missing records were added instead | Task 2.23 |
+| Should DNS move to Cloudflare? | No. DNSSEC is already on at Spaceship and Vercel advises against Cloudflare in front of it. Two missing records were added instead | Task 2.23. Superseded 22 Nov: task 5.12 now moves taskdrop.in to Cloudflare (web hosting moves too, so the proxy-in-front-of-Vercel concern no longer applies) |
 
 **Done on 17 Nov (by Claude, checked)**
 
@@ -521,7 +521,7 @@ I do not know. Pitch me three options and say which is best.
 5.10 | Production web addresses | Vercel's addresses written into Supabase, reCAPTCHA and Firebase. Production open to Google. Decision 28 (decided 11 Nov): `taskdrop.in` moves to production here and staging moves to `staging.taskdrop.in`.
 5.0d | Production Android app | Rehearse with a production APK and a real SMS code, then the store file; App Check is switched on after the Play internal test.
 5.11 | Monitors, and prove the two copies are separate | Three uptime monitors; Claude proves no data, key, push, update or sign-in crosses between the copies.
-5.12 | Move web hosting from Vercel to Cloudflare Pages at launch | Free hosting that allows business use, so Vercel Pro ($20 a month) is not needed. Decided 22 Nov 2026: stay on Vercel while testing, switch at launch.
+5.12 | Move web hosting from Vercel to Cloudflare (start now, owner 22 Nov) | Free business-use hosting for the user web, $5 a month for the admin, instead of Vercel Pro ($20 per member a month). Decided 22 Nov 2026: start now, not at launch.
 - | Pass Gate 5 | Every line must be true before real money. See [Gate 5](#gate-5).
 # D · Switch on real money (Step 6) | One part at a time, with a ₹10 test first.
 6.1 | Put the live keys into production yourself | Razorpay and RazorpayX keys into the Supabase Vault; MSG91, Inngest, ImageKit and Google keys into Vercel. Never in the chat.
@@ -3371,7 +3371,7 @@ start 2.20
 | CAA (which companies may issue HTTPS certificates for taskdrop.in) | Added 17 Nov: `0 issue "letsencrypt.org"` and `0 iodef "mailto:admin@taskdrop.in"` | Done |
 | www and admin | Point to Vercel | Fine |
 
-**Verdict:** do not move DNS to Cloudflare. DNSSEC is already on at Spaceship, Vercel advises against putting Cloudflare's proxy in front of it (already in "Skipped on purpose"), and a nameserver move risks the site and mail going down for hours for little gain.
+**Verdict:** do not move DNS to Cloudflare. DNSSEC is already on at Spaceship, Vercel advises against putting Cloudflare's proxy in front of it (already in "Skipped on purpose"), and a nameserver move risks the site and mail going down for hours for little gain. **Superseded 22 Nov:** the owner started task 5.12, which moves web hosting and the nameservers to Cloudflare with the mail records checked first.
 
 **Steps** (YOU in Spaceship, then taskdrop.in, then DNS, about 10 minutes; or SAY "add the DNS records" and Claude does it in your signed-in Chrome):
 
@@ -4499,7 +4499,7 @@ The two you asked for are rows 1 and 3/4. Row 2 exists only because Google's 12-
 | 8 | **5.10** Production web addresses | After 5.8 | none |
 | 9 | **5.11** Prove the two copies are separate (now includes the phone and the web) | After 5.10 | none |
 | 10 | **5.0e** The release routine, production half; the switchboard card | From 5.11 on | none |
-| 11 | **5.12** Move web hosting to Cloudflare Pages (optional, saves about $20 a month) | After 5.11, at launch | none (free) |
+| 11 | **5.12** Move web hosting to Cloudflare (saves about $15 a month) | Start now (owner 22 Nov) | $5 a month for the admin (Workers Paid), user web free |
 
 Steps 2 to 5 do not wait for Gate 4. They cost nothing and make staging match the way production will be built, so the rehearsal happens early.
 
@@ -5154,21 +5154,36 @@ Prove that staging and production are separate.
 </details>
 
 <details id="t5-12" data-short="Cloudflare hosting">
-<summary>[BOTH] <b>5.12</b> Move web hosting from Vercel to Cloudflare Pages at launch <small>· your time: 20 minutes · saves about $20 a month</small></summary>
+<summary>[BOTH] <b>5.12</b> Move web hosting from Vercel to Cloudflare (start now, owner 22 Nov) <small>· your time: about 45 minutes in total · user web free, admin $5 a month</small></summary>
 
-**In plain words:** Vercel's free (Hobby) plan is for non-commercial use only, so at launch we would need Vercel Pro (about $20 per member per month, plus any usage over the allowance). The website and the admin are static builds (only rewrites and headers, no Vercel functions; the backend is Supabase). Cloudflare Pages serves static sites for free, allows commercial use and charges nothing for bandwidth. **Decided 22 Nov 2026:** stay on Vercel during testing, switch at launch.
+**Who:** [BOTH]. **Your time:** about 45 minutes in total. **Cost:** user web free; admin $5/month (Cloudflare Workers Paid), instead of Vercel Pro at $20 per member a month. **Start word:** "start 5.12".
 
-1. Claude re-checks both pricing pages (Vercel and Cloudflare Pages) first, and reports any change before starting. If Cloudflare's free terms or limits changed, the task stops and you decide.
-2. Claude moves the Supabase function-secret sync that `scripts/vercel-build.mjs` does today to a GitHub Action or to the Cloudflare build.
-3. Claude ports the `vercel.json` rewrites and headers to Cloudflare's `_redirects` and `_headers` files, including every `X-Robots-Tag: noindex` rule (staging and admin stay hidden from Google; production stays open).
-4. Claude creates the Cloudflare Pages projects for the user web and the admin, staging and production.
-5. Claude updates every allowed address that names the old host: Supabase sign-in URLs and CORS, Google OAuth redirect URLs, App Check web domains, Sentry, and the content security policy.
-6. CLICK (you): create the Cloudflare account (sign in as hitendureacts@gmail.com), then make the DNS change that points `taskdrop.in` at Cloudflare in the same hour `taskdrop.in` moves to production (5.10).
-7. Claude keeps Vercel running for one week as a fallback, then you downgrade or remove the Vercel projects. TELL Claude: "done 5.12".
+**In plain words:** Vercel's free (Hobby) plan is for non-commercial use only, so launching on it breaks its terms and Pro costs $20 per member a month. You decided on 22 Nov to move web hosting to Cloudflare now, not at launch.
 
-**Owner-only:** creating the Cloudflare account and the DNS change.
+**What we found (22 Nov):**
+- The user web app is plain static files (the Expo web export), so it moves easily.
+- The admin is NOT static. It is a Next.js 16 server app: middleware that sets a new CSP nonce on every request, server actions, 9 API routes and a sign-in callback. On Cloudflare it needs Workers with the OpenNext adapter. The free Workers plan allows only 10 ms of CPU per request, too little for it, so it needs Workers Paid ($5/month).
+- The Vercel build of redesigned-2.0 also deploys the staging backend: old-app contract test, new migrations, old-app database check, Edge Functions, Inngest sync (`scripts/vercel-build.mjs` steps 1-5). This has to move to GitHub Actions first, in the same order and with the same stops, so the web app never goes live ahead of its backend.
+- About 11 merges a day, each building two web sites, is about 680 builds a month, more than Cloudflare Pages' free 500. So we build in GitHub Actions, upload with wrangler, and skip builds for docs-only merges.
+- taskdrop.in DNS is at Spaceship (launch1/launch2.spaceship.net) and email is Spaceship forwarding (mx1/mx2.efwd.spaceship.net). Putting taskdrop.in itself on Cloudflare means moving the nameservers to Cloudflare.
 
-**Done when:** the website and admin answer from Cloudflare on the right addresses, sign-in (phone code and Google) works, `noindex` is on staging and admin and absent on production, and Vercel has been off for a week with nothing broken.
+**Steps (each tagged with who does it):**
+1. [opus] Re-check Cloudflare's current prices and limits (Workers static assets, Workers Paid CPU and size limits, Pages vs Workers) and GitHub Actions minutes for private repos. Time one web export. If a number breaks this plan, stop and ask you.
+2. [owner, 10 min] Create the Cloudflare account (your usual login). Make an API token with the "Edit Cloudflare Workers" template. Put the token and the account ID in `.env.all-secrets`. Claude copies them into GitHub secrets for both repos without showing them.
+3. [opus] New GitHub workflow in the user repo, on every push to redesigned-2.0: first the backend part (today's vercel-build steps 1-5, same stops and retries, skipped when nothing under `supabase/` changed), then the web part. Backend secrets are copied from `.env.all-secrets` into a GitHub "staging" environment by script, never printed.
+4. [sonnet] User web on Cloudflare Workers static assets: wrangler config with single-page-app fallback; a `_headers` file made at build time per site (staging: noindex plus today's CSP without the vercel.live entries; production: the production CSP; long cache for hashed files); the build secret scan and Sentry source-map upload move into the job. Two Workers, taskdrop-staging and taskdrop-production, both built from redesigned-2.0 as today.
+5. [sonnet] Search both repos for vercel.app addresses and VERCEL_ variables (API CORS allow-list, CSP, e2e, emails, docs, app links). Add the new addresses next to the old ones; remove the old ones only in step 10.
+6. [opus] Admin on a branch with OpenNext for Cloudflare. Check the CSP nonce, server actions, API routes, sign-in callback and authenticator, CSV exports, Sentry, and that the bundle is under 10 MB. If it works, you turn on Workers Paid ($5) and we deploy admin-staging and admin-production. If it does not, the admin stays on Vercel for now and the reason is written here.
+7. [opus] Allow-lists for the new addresses: Supabase sign-in Site URL and redirect URLs on the staging and production projects. [owner, or Claude in Chrome] Google OAuth origins, Firebase App Check reCAPTCHA domains, Sentry allowed domains.
+8. [sonnet] Test on the new `*.workers.dev` addresses: e2e suite, phone sign-in, Google sign-in, post a task, Razorpay ₹1 test payment, map tiles; admin sign-in, authenticator, one export. Everything green before step 9.
+9. [owner, 20 min, with Claude] DNS: add taskdrop.in to Cloudflare (free plan). Claude checks the records Cloudflare copied against Spaceship's: both efwd MX records, SPF, DMARC, CAA and any DKIM or verification TXT. CAA must also allow Cloudflare's certificate issuers (letsencrypt.org, pki.goog, ssl.com). Then you change the nameservers at Spaceship. While the change spreads, Vercel and Cloudflare serve the same build, so there is no downtime. Then attach taskdrop.in and www to taskdrop-staging and send a test email to an @taskdrop.in address.
+10. [sonnet] Watch for 7 days (Sentry, CSP reports, e2e). To roll back, set the nameservers back to Spaceship's (Vercel is still attached). After 7 days: disconnect Vercel from git, remove `vercel.json` and `scripts/vercel-build.mjs`, downgrade or delete the Vercel projects, update `docs/DEPLOY.md` and this plan. TELL Claude: "done 5.12".
+
+**Timing:** day 1 steps 1-5, day 2 steps 6-8, day 3 step 9, day 10 step 10.
+
+**Owner-only:** creating the Cloudflare account and API token, turning on Workers Paid, the Google/Firebase/Sentry allow-lists (unless Claude in Chrome does them), and the nameserver change at Spaceship.
+
+**Done when:** all four sites are served by Cloudflare, every merge deploys the staging backend and the web apps by itself, @taskdrop.in email still arrives, and Vercel is off.
 </details>
 
 > **GATE 5: do not start Step 6 until all of these are true**
@@ -6501,7 +6516,7 @@ Claude runs this before a feature is called done, and writes what it saw in the 
 | What | Amount |
 |---|---|
 | Supabase Pro, in its own organization (staging stays free) | $25 |
-| Vercel Pro (includes $20 of usage, 1M CDN requests and 1 TB transfer; stopped at $50 by 5.8b). Task 5.12 can avoid this line by moving web hosting to Cloudflare Pages (free) at launch | $20 |
+| Vercel Pro (includes $20 of usage, 1M CDN requests and 1 TB transfer; stopped at $50 by 5.8b). 5.12 moves off Vercel now: user web free, admin $5/month (Cloudflare Workers Paid) | $20 |
 | Inngest, ImageKit, Sentry, PostHog, Loops and Expo, each in its own production account | free plans; upgrade one only when its limit warns at about 70%. The first likely to warn: Expo's 1,000 app-update users ($19 Starter) and Sentry's 5,000 errors a month shared with staging ($26 Team) |
 | Google Cloud and Firebase for production | pay as you use, with the ₹1,000 budget alert (5.3) |
 | Nightly database copy outside Supabase (5.9) | free (GitHub's free minutes and storage) |
