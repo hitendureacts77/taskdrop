@@ -19,7 +19,9 @@ export function MapShortcuts({ worker }: { worker: boolean }) {
   const { area } = useMyArea();
   const filters = useJobFilters();
   const centre = area ? { lat: area.lat, lng: area.lng } : undefined;
-  const openMap = (mode: 'jobs' | 'people') => go('nearMap', centre ? { mode, centre } : { mode });
+  // With no area yet the map route could only say "turn on location"; Explore's map has the area picker,
+  // and it shows this mode's side (Hire: helpers, Earn: jobs) with the same shared filters.
+  const openMap = (mode: 'jobs' | 'people') => (centre ? go('nearMap', { mode, centre }) : go('explore'));
 
   const chips: Chip[] = worker
     ? [
